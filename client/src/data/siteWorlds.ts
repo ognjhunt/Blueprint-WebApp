@@ -639,6 +639,7 @@ function buildContactHref(
     interest,
     buyerType: "robot_team",
     source: "site-worlds",
+    path: interest === "data-licensing" ? "package-access" : "hosted-evaluation",
     siteName: config.siteName,
     siteLocation: config.siteAddress,
     taskStatement: config.sampleTask,

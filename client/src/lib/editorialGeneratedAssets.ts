@@ -5,6 +5,7 @@ export const editorialGeneratedAssets = {
   operatorControlEntry: "/generated/editorial/hosted-hero.png",
   proofBoardDeliverables: "/generated/editorial/proof-board.png",
   hostedReviewHero: "/generated/editorial/hosted-hero.png",
+  sampleEvaluationProofBoard: "/generated/editorial/sample-evaluation-proof-board.png",
   scopingRoom: "/generated/editorial/pricing-hero.png",
   proofBoardGovernance: "/generated/editorial/proof-board.png",
   careersStudio: "/generated/editorial/manufacturing-plant.png",

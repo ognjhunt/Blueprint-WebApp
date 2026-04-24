@@ -23,6 +23,7 @@ import {
   getSiteWorldPlainEnglishStatus,
   getSiteWorldProofDepth,
   getSiteWorldPublicProofSummary,
+  getSiteWorldStatusBadges,
   isPublicSampleSiteWorld,
 } from "@/lib/siteWorldCommercialStatus";
 import { fetchSiteWorldDetail } from "@/lib/siteWorldsApi";
@@ -271,6 +272,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
   const publicProofSummary = getSiteWorldPublicProofSummary(site);
   const worldLabsPreview = site.worldLabsPreview || null;
   const proofStory = pickProofStoryForSite(site.id);
+  const statusBadges = getSiteWorldStatusBadges(site);
   const worldLabsStatus = deriveWorldLabsStatus(site);
   const worldLabsStatusCopy = WORLDLABS_STATUS_COPY[worldLabsStatus];
   const worldLabsRequestManifestUri =
@@ -381,6 +383,11 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
         : "This commercial listing shows site metadata, price, trust fields, and request-scoped paths. Listing-specific screenshots or export previews open during follow-up.",
     },
   ];
+  const visibleNowRows = [
+    ["Visible now", isPublicSample ? "Sample route, reference stills, representative artifact layout, and hosted request path." : "Site metadata, workflow lane, pricing frame, trust fields, and request path."],
+    ["Gated", "Package files, raw exports, live hosted runtime, and listing-specific commercial proof open through request review."],
+    ["Why gated", "Rights, privacy, freshness, and buyer context need to remain attached before access expands."],
+  ];
 
   const scenePackage = site.packages[0];
   const hostedPackage = site.packages[1];
@@ -422,9 +429,14 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                   </h1>
                   <p className="mt-4 text-lg text-white/86">{site.siteAddress}</p>
                   <div className="mt-5 flex flex-wrap gap-2">
-                    <span className="rounded-full border border-white/16 bg-black/24 px-4 py-2 text-sm text-white/78">
-                      {commercialStatus.label}
-                    </span>
+                    {statusBadges.slice(0, 3).map((badge) => (
+                      <span
+                        key={badge.id}
+                        className="rounded-full border border-white/16 bg-black/24 px-4 py-2 text-sm text-white/78"
+                      >
+                        {badge.label}
+                      </span>
+                    ))}
                     <span className="rounded-full border border-white/16 bg-black/24 px-4 py-2 text-sm text-white/78">
                       Capture: {formatCaptureDate(site)}
                     </span>
@@ -511,6 +523,42 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
               >
                 Hosted setup
               </a>
+            </div>
+          </div>
+        </section>
+
+        <section className="border-b border-black/10 bg-white">
+          <div className="mx-auto grid max-w-[96rem] gap-4 px-5 py-10 sm:px-8 lg:grid-cols-[0.38fr_0.62fr] lg:px-10 lg:py-12">
+            <div className="bg-[#f5f3ef] p-6 lg:p-8">
+              <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
+                Listing status
+              </p>
+              <h2 className="font-editorial mt-4 text-[2.8rem] leading-[0.94] tracking-[-0.05em] text-slate-950">
+                What is real, sample, and gated.
+              </h2>
+              <p className="mt-4 text-sm leading-7 text-slate-700">
+                The listing is allowed to look polished without pretending every downstream
+                artifact is open. Buyers should be able to see exactly what the public page
+                proves and what still needs request review.
+              </p>
+            </div>
+            <div className="grid gap-3">
+              <div className="grid gap-3 md:grid-cols-3">
+                {visibleNowRows.map(([label, value]) => (
+                  <div key={label} className="border border-black/10 bg-[#f8f6f1] p-5">
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">{label}</p>
+                    <p className="mt-3 text-sm leading-7 text-slate-700">{value}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="grid gap-2 md:grid-cols-3">
+                {statusBadges.map((badge) => (
+                  <div key={badge.id} className={`border px-4 py-3 ${badge.tone}`}>
+                    <p className="text-sm font-semibold">{badge.label}</p>
+                    <p className="mt-2 text-xs leading-5 opacity-80">{badge.summary}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </section>
@@ -649,6 +697,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
           </div>
         </section>
 
+        {!isPublicSample ? (
         <section className="border-y border-black/10 bg-white">
           <div className="mx-auto max-w-[96rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
             <div className="grid gap-4 lg:grid-cols-[0.4fr_0.6fr]">
@@ -752,6 +801,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
             </div>
           </div>
         </section>
+        ) : null}
 
         {isPublicSample ? (
           <section className="border-y border-black/10 bg-white">
@@ -768,6 +818,13 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                     These files are representative samples, not customer proof. They show the
                     manifest, rights, export, and hosted-report structure a buyer reviews.
                   </p>
+                  <a
+                    href="/sample-evaluation"
+                    className="mt-6 inline-flex items-center justify-center bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                  >
+                    Open end-to-end sample
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </a>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   {sampleArtifactLinks.map((artifact) => (

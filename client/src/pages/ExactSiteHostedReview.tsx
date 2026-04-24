@@ -84,23 +84,23 @@ export default function ExactSiteHostedReview() {
                   Hosted evaluation of one exact-site world model. See how the robot perceives, plans, and acts inside the selected place before your team commits.
                 </p>
                 <div className="mt-8 flex flex-wrap gap-2">
-                  <ProofChip light>Request access</ProofChip>
+                  <ProofChip light>Request-gated access</ProofChip>
                   <ProofChip light>Review runs</ProofChip>
                   <ProofChip light>Export artifacts</ProofChip>
                 </div>
                 <div className="mt-8 flex flex-wrap gap-3">
                   <a
-                    href="/contact?persona=robot-team&interest=evaluation-package"
+	                    href="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=hosted-review"
                     className="inline-flex items-center justify-center bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
                   >
-                    Scope hosted review
+	                    Scope hosted evaluation
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </a>
                   <a
-                    href="/sample-deliverables"
+	                    href="/sample-evaluation"
                     className="inline-flex items-center justify-center border border-white/[0.16] px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/[0.08]"
                   >
-                    See sample deliverables
+	                    See sample evaluation
                   </a>
                 </div>
               </div>
@@ -340,10 +340,10 @@ export default function ExactSiteHostedReview() {
             description="Hosted evaluation is the clearest way to choose the right world model before package access or a broader program."
             imageSrc={publicCaptureGeneratedAssets.hostedReviewPublicRoute}
             imageAlt="Hosted review hero"
-            primaryHref="/contact?persona=robot-team&interest=evaluation-package"
-            primaryLabel="Scope hosted review"
-            secondaryHref="/world-models"
-            secondaryLabel="Inspect sample listing"
+            primaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=hosted-review-bottom"
+            primaryLabel="Scope hosted evaluation"
+            secondaryHref="/sample-evaluation"
+            secondaryLabel="Inspect sample evaluation"
           />
         </section>
       </div>

@@ -76,9 +76,7 @@ describe("HostedSessionSetup", () => {
     expect(await screen.findByRole("heading", { name: /Configure Hosted Evaluation/i })).toBeInTheDocument();
     expect(screen.getAllByText(/Harborview Grocery Distribution Annex/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/1847 W Fulton St, Chicago, IL 60612/i).length).toBeGreaterThan(0);
-    expect(
-      screen.getByText(/We will run your robot on-site at Harborview Grocery Distribution Annex/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/scoped hosted-review request for Harborview Grocery Distribution Annex/i)).toBeInTheDocument();
     expect(screen.getAllByText(/World Model/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Robot profile/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Readiness/i)).toBeInTheDocument();
@@ -123,13 +121,13 @@ describe("HostedSessionSetup", () => {
 
     expect(await screen.findByText(/Presentation demo/i)).toBeInTheDocument();
     expect(
-      await screen.findByText(/Artifacts are ready\. Private operator UI is still blocked\./i),
+      await screen.findByText(/Artifacts are ready\. Private operator UI is request-gated\./i),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/Runtime session is blocked right now\./i),
+      screen.getByText(/Runtime session is request-gated\. Submit the configuration instead\./i),
     ).toBeInTheDocument();
     expect(screen.getByText(/World-model runtime/i)).toBeInTheDocument();
-    expect(screen.getByText(/Runtime session is blocked right now\./i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Submit hosted evaluation request/i })).toBeInTheDocument();
   });
 
   it("offers a runtime-only launch fallback when the embedded demo is blocked", async () => {
@@ -170,7 +168,7 @@ describe("HostedSessionSetup", () => {
     render(<HostedSessionSetup params={{ slug: demoSiteId }} />);
 
     expect(
-      await screen.findByText(/Embedded demo is blocked, but the world-model runtime is available\./i),
+      await screen.findByText(/Embedded demo is request-gated, but the world-model runtime is available\./i),
     ).toBeInTheDocument();
     const runtimeButton = screen.getByRole("button", { name: /Launch runtime session/i });
     expect(runtimeButton).toBeEnabled();

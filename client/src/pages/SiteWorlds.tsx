@@ -18,8 +18,9 @@ import {
 } from "@/lib/siteEditorialContent";
 import {
   getSiteWorldCatalogPriority,
-  getSiteWorldCommercialStatus,
   getSiteWorldPlainEnglishStatus,
+  getSiteWorldStatusBadges,
+  siteWorldStatusLegend,
 } from "@/lib/siteWorldCommercialStatus";
 import { fetchSiteWorldCatalog } from "@/lib/siteWorldsApi";
 import { ArrowRight, Box, Camera, MapPinned, Route, Smartphone } from "lucide-react";
@@ -49,7 +50,7 @@ function SiteCard({
   site: SiteWorld;
   large?: boolean;
 }) {
-  const status = getSiteWorldCommercialStatus(site);
+  const badges = getSiteWorldStatusBadges(site).slice(0, 3);
 
   return (
     <a
@@ -76,9 +77,11 @@ function SiteCard({
           <ProofChip light className="border-white/14 bg-black/22 text-white/74">
             Exact site
           </ProofChip>
-          <ProofChip light className="border-white/14 bg-black/22 text-white/74">
-            {isHostedReady(site) ? "Hosted available" : status.label}
-          </ProofChip>
+          {badges.map((badge) => (
+            <ProofChip key={badge.id} light className="border-white/14 bg-black/22 text-white/74">
+              {isHostedReady(site) && badge.id === "hosted_request_gated" ? "Hosted available" : badge.label}
+            </ProofChip>
+          ))}
         </div>
       </div>
     </a>
@@ -201,6 +204,24 @@ const moreSites = useMemo(
         </section>
 
         <section className="border-y border-black/10 bg-white">
+          <div className="mx-auto grid max-w-[88rem] gap-6 px-5 py-10 sm:px-8 lg:grid-cols-[0.34fr_0.66fr] lg:px-10 lg:py-12">
+            <EditorialSectionIntro
+              eyebrow="Status legend"
+              title="Know what is visible now."
+              description="Every listing keeps public proof, request gates, package access, and hosted availability separate so broad catalog coverage does not pretend every page has the same proof depth."
+            />
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {siteWorldStatusLegend.map((item) => (
+                <div key={item.id} className={`border px-4 py-4 ${item.tone}`}>
+                  <p className="text-sm font-semibold">{item.label}</p>
+                  <p className="mt-2 text-sm leading-6 opacity-80">{item.summary}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="border-b border-black/10 bg-white">
           <div className="mx-auto grid max-w-[88rem] gap-px px-5 py-10 sm:px-8 lg:grid-cols-[0.36fr_0.64fr] lg:px-10 lg:py-12">
             <div className="bg-[#f5f3ef] p-6 lg:p-8">
               <EditorialSectionIntro

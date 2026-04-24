@@ -24,6 +24,35 @@ export type HostedRunRow = {
   output: string;
 };
 
+export const mediaRoomSampleEvaluation = {
+  siteId: "siteworld-f5fd54898cfb",
+  packetId: "BP-MEDIA-ROOM-SAMPLE-EVAL-0426",
+  siteName: "Media Room Demo Walkthrough",
+  siteCode: "SW-DEMO-01",
+  siteType: "Captured indoor media and mechanical-room route",
+  location: "Blueprint hosted runtime demo",
+  captureBasis: "Blueprint-owned public demo sample with representative buyer artifacts",
+  robotSetup: "Mobile manipulator with head and wrist cameras",
+  workflowLane: "Media room entry, rack approach, cabinet inspection, and exit route",
+  buyerQuestion:
+    "Can the team inspect one exact indoor route, its constraints, and its hosted-review output shape before committing field time or custom simulation work?",
+  disclosure:
+    "Representative sample evaluation. The site, route, and interface are public demo material; the artifact rows show the commercial packet shape and should be replaced with customer-specific proof when real buyer evidence is approved.",
+  artifacts: [
+    "Capture manifest with site id, scene id, capture id, route notes, and freshness state",
+    "Rights sheet with demo-use boundary, sharing limits, and export review notes",
+    "Hosted setup with robot profile, task, scenario, requested outputs, and run notes",
+    "Run evidence table with observation frames, route replay notes, and next-step recommendation",
+    "Export bundle tree showing package, hosted report, and buyer review files",
+  ],
+  truthBoundaries: [
+    "Not a deployment guarantee",
+    "Not a customer outcome",
+    "Not unrestricted export approval",
+    "Runtime access remains request-gated unless a live workspace is available",
+  ],
+};
+
 export const publicCaptureProofStories: PublicProofStory[] = [
   {
     id: "cedar-market-aisle-loop",

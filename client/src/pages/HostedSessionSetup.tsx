@@ -334,6 +334,24 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
     primaryOutputIds.includes(item.id as (typeof primaryOutputIds)[number]),
   );
   const cameraSummary = selectedRobotProfile.observationCameras.map((item) => item.role).join(", ");
+  const hostedRequestHref = (() => {
+    const request = new URLSearchParams({
+      persona: "robot-team",
+      buyerType: "robot_team",
+      interest: "evaluation-package",
+      path: "hosted-evaluation",
+      source: "hosted-session-setup",
+      siteWorldId: site.id,
+      siteName: site.siteName,
+      siteLocation: site.siteAddress,
+      targetRobotTeam: selectedRobotProfile.displayName,
+      taskStatement: selectedTask?.taskText || site.sampleTask,
+      scenario: humanizeToken(selectedScenario?.name),
+      requestedOutputs: selectedOutputLabels.join(", "),
+      notes,
+    });
+    return `/contact?${request.toString()}`;
+  })();
   const presentationReadiness = launchReadiness?.presentation_demo || null;
   const runtimeReadiness = launchReadiness?.runtime_only || null;
   const launchBlocked = checkingReadiness || !presentationReadiness?.launchable;
@@ -545,8 +563,7 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
                     Exact-site run
                   </p>
                   <p className="mt-4 max-w-[20rem] text-sm leading-7 text-slate-700">
-                    We will run your robot on-site at {site.siteName}. One configuration. One
-                    execution. Real data.
+                    Blueprint will turn this configuration into a scoped hosted-review request for {site.siteName}. One site, one robot profile, one buyer question, and explicit runtime limits.
                   </p>
                   <p className="mt-6 text-sm text-slate-950">Blueprint Team</p>
                 </div>
@@ -659,9 +676,9 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
                         ? "Checking presentation readiness."
                         : presentationReadiness?.launchable
                           ? presentationReadiness?.status === "presentation_ui_unconfigured"
-                            ? "Artifacts are ready. Private operator UI is still blocked."
+                            ? "Artifacts are ready. Private operator UI is request-gated."
                             : "Embedded demo can launch."
-                          : "Embedded demo is blocked right now."}
+                          : "Embedded demo is request-gated for this public path."}
                     </p>
                   </div>
                   <div className="border border-white/10 bg-white/6 px-4 py-4">
@@ -671,7 +688,7 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
                         ? "Checking runtime readiness."
                         : runtimeReadiness?.launchable
                           ? "Runtime session can launch from this setup."
-                          : "Runtime session is blocked right now."}
+                          : "Runtime session is request-gated. Submit the configuration instead."}
                     </p>
                   </div>
                   <div className="border border-white/10 bg-white/6 px-4 py-4">
@@ -701,7 +718,7 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
             {suggestRuntimeFallback ? (
               <div className="border border-sky-200 bg-sky-50 px-5 py-4 text-sm text-sky-900">
                 <p className="font-semibold">
-                  Embedded demo is blocked, but the world-model runtime is available.
+                  Embedded demo is request-gated, but the world-model runtime is available.
                 </p>
                 <p className="mt-1">
                   Launch the runtime workspace directly while the embedded demo UI remains
@@ -712,20 +729,26 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
 
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div className="text-sm text-slate-700">
-                Native site world is the default path for this hosted session.
+                Native site world remains the default path; request-gated runtime is still a valid hosted-evaluation request.
               </div>
               <div className="flex flex-col gap-3 sm:flex-row">
-                <button
-                  type="submit"
-                  disabled={submitting || runtimeLaunchBlocked}
-                  className="inline-flex items-center justify-center bg-slate-950 px-8 py-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {submitting
-                    ? "Launching..."
-                    : runtimeLaunchBlocked
-                      ? "Runtime session not ready"
-                      : "Launch runtime session"}
-                </button>
+                {runtimeLaunchBlocked ? (
+                  <a
+                    href={hostedRequestHref}
+                    className="inline-flex items-center justify-center bg-slate-950 px-8 py-4 text-sm font-semibold text-white transition hover:bg-slate-800"
+                  >
+                    Submit hosted evaluation request
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </a>
+                ) : (
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="inline-flex items-center justify-center bg-slate-950 px-8 py-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {submitting ? "Launching..." : "Launch runtime session"}
+                  </button>
+                )}
                 <button
                   type="button"
                   disabled={submitting || launchBlocked}
@@ -735,7 +758,7 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
                   {submitting
                     ? "Launching..."
                     : launchBlocked
-                      ? "Embedded demo not ready"
+                      ? "Embedded demo request-gated"
                       : "Start hosted evaluation"}
                   {!submitting && !launchBlocked ? <ArrowRight className="ml-2 h-4 w-4" /> : null}
                 </button>

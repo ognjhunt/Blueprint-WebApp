@@ -33,9 +33,13 @@ describe("SampleDeliverables", () => {
       "href",
       "/samples/sample-hosted-review-report.md",
     );
-    expect(screen.getByRole("link", { name: /View sample listing/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Inspect sample evaluation/i })).toHaveAttribute(
       "href",
-      "/world-models",
+      "/sample-evaluation",
+    );
+    expect(screen.getByRole("link", { name: /Request package access/i })).toHaveAttribute(
+      "href",
+      expect.stringContaining("path=package-access"),
     );
     expect(screen.queryByRole("heading", { name: /Input\/output contract/i })).not.toBeInTheDocument();
   });

@@ -9,13 +9,14 @@ import {
 } from "@/components/site/editorial";
 import { siteWorldCards } from "@/data/siteWorlds";
 import { editorialGeneratedAssets } from "@/lib/editorialGeneratedAssets";
+import { publicDemoHref } from "@/lib/marketingProof";
 import { publicCaptureProofStories } from "@/lib/proofEvidence";
 import { publicCaptureGeneratedAssets } from "@/lib/publicCaptureGeneratedAssets";
 import {
   getEditorialFeaturedSites,
   getEditorialSiteLocation,
 } from "@/lib/siteEditorialContent";
-import { ArrowRight, Smartphone } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { useMemo } from "react";
 
 const productPaths = [
@@ -152,20 +153,20 @@ export default function Home() {
 	                  Evaluate exact deployment sites before the expensive part starts. Inspect the captured place, then choose package access or hosted review.
 	                </p>
 
-                <div className="mt-8 flex flex-wrap gap-3">
-                  <a
-                    href="/world-models"
-                    className="inline-flex items-center justify-center bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
-                  >
-                    Explore Sites
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </a>
-                  <a
-                    href="/contact?persona=robot-team&interest=evaluation-package"
-                    className="inline-flex items-center justify-center border border-white/16 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/8"
-                  >
-                    Request Access
-                  </a>
+	                <div className="mt-8 flex flex-wrap gap-3">
+	                  <a
+	                    href={publicDemoHref}
+	                    className="inline-flex items-center justify-center bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
+	                  >
+	                    Inspect sample site
+	                    <ArrowRight className="ml-2 h-4 w-4" />
+	                  </a>
+	                  <a
+	                    href="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=home-hero"
+	                    className="inline-flex items-center justify-center border border-white/16 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/8"
+	                  >
+	                    Scope hosted evaluation
+	                  </a>
                 </div>
               </div>
 
@@ -195,33 +196,33 @@ export default function Home() {
         <section className="border-y border-black/10 bg-white">
           <div className="mx-auto grid max-w-[88rem] gap-px px-5 py-10 sm:px-8 lg:grid-cols-[0.38fr_0.62fr] lg:px-10">
             <div className="bg-[#f5f3ef] px-6 py-8 lg:px-8 lg:py-10">
-              <EditorialSectionIntro
-                eyebrow="Public capture"
-                title="Open the map to everyday places."
-                description="The Capture app is meant for public-facing locations people already visit: grocery stores, retail aisles, hotel lobbies, mall corridors, museums, office lobbies, and other common areas where capture is allowed."
-              />
-              <div className="mt-7 flex flex-wrap gap-3">
-                <a
-                  href="/capture-app"
-                  className="inline-flex items-center justify-center bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-                >
-                  Open capture app
-                  <Smartphone className="ml-2 h-4 w-4" />
-                </a>
-                <a
-                  href="/sample-deliverables"
-                  className="inline-flex items-center justify-center border border-black/10 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
-                >
-                  See proof packet
-                </a>
-              </div>
-            </div>
-            <MonochromeMedia
-              src={publicCaptureGeneratedAssets.everydayPlacesCollage}
-              alt="Blueprint public capture map across grocery, retail, hotel lobby, and mall corridor examples"
-              className="min-h-[30rem] rounded-none"
-              imageClassName="min-h-[30rem]"
-              overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.03),rgba(0,0,0,0.18))]"
+	              <EditorialSectionIntro
+	                eyebrow="Sample evaluation"
+	                title="Start with one complete proof journey."
+	                description="Before the capture-supply story, inspect the sample path: one exact site, one package shape, one hosted-review request, and limits that stay visible."
+	              />
+	              <div className="mt-7 flex flex-wrap gap-3">
+	                <a
+	                  href="/sample-evaluation"
+	                  className="inline-flex items-center justify-center bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+	                >
+	                  Open sample evaluation
+	                  <ArrowRight className="ml-2 h-4 w-4" />
+	                </a>
+	                <a
+	                  href={publicDemoHref}
+	                  className="inline-flex items-center justify-center border border-black/10 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
+	                >
+	                  Inspect sample site
+	                </a>
+	              </div>
+	            </div>
+	            <MonochromeMedia
+	              src={editorialGeneratedAssets.sampleEvaluationProofBoard}
+	              alt="Blueprint sample evaluation proof board"
+	              className="min-h-[30rem] rounded-none"
+	              imageClassName="min-h-[30rem]"
+	              overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.03),rgba(0,0,0,0.18))]"
             />
           </div>
         </section>
@@ -405,10 +406,10 @@ export default function Home() {
             description="Browse a real listing, open the hosted path, or send a short brief tied to one exact site."
             imageSrc={editorialGeneratedAssets.homeHero}
             imageAlt="Blueprint hosted runtime still"
-            primaryHref="/world-models"
-            primaryLabel="Explore Sites"
-            secondaryHref="/contact?persona=robot-team"
-            secondaryLabel="Request Access"
+            primaryHref={publicDemoHref}
+            primaryLabel="Inspect sample site"
+            secondaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=home-bottom"
+            secondaryLabel="Scope hosted evaluation"
           />
         </section>
       </div>

@@ -33,9 +33,9 @@ describe("public capture and world-model copy", () => {
         level: 1,
         name: /Site-specific world models for real places\./i,
       }),
-    ).toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: /Inspect a real site/i }).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole("link", { name: /Request Access/i }).length).toBeGreaterThan(0);
+	    ).toBeInTheDocument();
+	    expect(screen.getAllByRole("link", { name: /Inspect a real site/i }).length).toBeGreaterThan(0);
+	    expect(screen.getAllByRole("link", { name: /Scope hosted evaluation/i }).length).toBeGreaterThan(0);
     expect(container).toHaveTextContent(/world models/i);
     expect(container).toHaveTextContent(/real capture/i);
     expect(container).toHaveTextContent(/robot-team evidence/i);

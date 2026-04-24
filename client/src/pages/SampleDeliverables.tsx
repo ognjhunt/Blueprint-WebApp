@@ -86,6 +86,36 @@ const sampleFileTree = [
   "sample-hosted-review-report.md",
 ];
 
+const inlinePreviews = [
+  {
+    title: "Manifest preview",
+    body: [
+      ["packet_id", "BP-MEDIA-ROOM-SAMPLE-EVAL-0426"],
+      ["site", "Media Room Demo Walkthrough"],
+      ["capture_basis", "Blueprint-owned public demo sample"],
+      ["exports", "manifest, rights sheet, hosted report, bundle tree"],
+    ],
+  },
+  {
+    title: "Rights preview",
+    body: [
+      ["use", "Internal evaluation and approved exports only"],
+      ["sharing", "Buyer team only unless otherwise authorized"],
+      ["restricted", "Screens, people, customer data, private zones"],
+      ["boundary", "Representative sample, not a contract"],
+    ],
+  },
+  {
+    title: "Hosted report preview",
+    body: [
+      ["scope", "One exact site, one robot profile, one workflow lane"],
+      ["runs", "Baseline, occlusion, approach, restricted-zone review"],
+      ["output", "Observation notes and next commercial recommendation"],
+      ["limit", "Not a deployment guarantee"],
+    ],
+  },
+];
+
 export default function SampleDeliverables() {
   return (
     <>
@@ -268,6 +298,32 @@ export default function SampleDeliverables() {
 
         <section className="border-b border-black/10 bg-white">
           <div className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
+            <EditorialSectionIntro
+              eyebrow="Inline previews"
+              title="Read the sample shape without leaving the page."
+              description="The raw files still open as downloads, but the core buyer-readable fields render directly here so the proof packet does not depend on a file click."
+              className="mb-8 max-w-3xl"
+            />
+            <div className="mb-10 grid gap-4 lg:grid-cols-3">
+              {inlinePreviews.map((preview, index) => (
+                <div
+                  key={preview.title}
+                  className={index === 2 ? "bg-slate-950 p-5 text-white" : "border border-black/10 bg-[#f5f3ef] p-5 text-slate-950"}
+                >
+                  <h2 className="font-editorial text-[2rem] leading-[0.95] tracking-[-0.04em]">
+                    {preview.title}
+                  </h2>
+                  <div className="mt-5 divide-y divide-black/10 border border-black/10 bg-white text-sm text-slate-700">
+                    {preview.body.map(([label, value]) => (
+                      <div key={label} className="grid gap-3 px-4 py-3 md:grid-cols-[0.34fr_0.66fr]">
+                        <span className="font-mono text-[11px] text-slate-500">{label}</span>
+                        <span>{value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
             <div className="grid gap-4 lg:grid-cols-[0.42fr_0.58fr]">
               <div className="bg-slate-950 p-6 text-white lg:p-8">
                 <EditorialSectionIntro
@@ -372,10 +428,10 @@ export default function SampleDeliverables() {
             description="Move into the sample listing, then continue into package or hosted review only when the site and proof already make sense."
             imageSrc={publicCaptureGeneratedAssets.cedarMarketProofBoard}
             imageAlt="Deliverables proof board"
-            primaryHref="/world-models"
-            primaryLabel="View sample listing"
-            secondaryHref="/contact?persona=robot-team"
-            secondaryLabel="Talk to Blueprint"
+            primaryHref="/sample-evaluation"
+            primaryLabel="Inspect sample evaluation"
+            secondaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=data-licensing&path=package-access&source=sample-deliverables"
+            secondaryLabel="Request package access"
             dark={false}
           />
         </section>

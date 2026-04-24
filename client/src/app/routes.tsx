@@ -27,6 +27,7 @@ const HostedSessionWorkspace = lazy(() => import("../pages/HostedSessionWorkspac
 const Pricing = lazy(() => import("../pages/Pricing"));
 const CaseStudies = lazy(() => import("../pages/CaseStudies"));
 const SampleDeliverables = lazy(() => import("../pages/SampleDeliverables"));
+const SampleEvaluation = lazy(() => import("../pages/SampleEvaluation"));
 const Contact = lazy(() => import("../pages/Contact"));
 const Support = lazy(() => import("../pages/Support"));
 const ExactSiteHostedReview = lazy(() => import("../pages/ExactSiteHostedReview"));
@@ -133,6 +134,7 @@ export const appRoutes: AppRoute[] = [
 
   // Core pages
   { path: "/pricing", layout: "public", component: Pricing },
+  { path: "/sample-evaluation", layout: "public", component: SampleEvaluation },
   { path: "/sample-deliverables", layout: "public", component: SampleDeliverables },
   { path: "/case-studies", layout: "public", component: CaseStudies },
   { path: "/contact", layout: "public", component: Contact },

@@ -6,7 +6,6 @@ import {
   EditorialSectionLabel,
   MonochromeMedia,
 } from "@/components/site/editorial";
-import { exactSiteScopingCallUrl } from "@/lib/booking";
 import { publicDemoHref } from "@/lib/marketingProof";
 import {
   ArrowRight,
@@ -368,10 +367,10 @@ export default function Pricing() {
               <ArrowRight className="ml-2 h-4 w-4" />
             </a>
             <a
-              href={exactSiteScopingCallUrl}
+              href="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=pricing"
               className="inline-flex items-center justify-center rounded-full border border-black/10 bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-50"
             >
-              Book scoping call
+              Scope hosted evaluation
             </a>
             <a
               href="/contact?persona=robot-team&interest=enterprise"

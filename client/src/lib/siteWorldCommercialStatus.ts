@@ -17,6 +17,52 @@ export type SiteWorldCommercialStatus = {
   buyerNote: string;
 };
 
+export type SiteWorldStatusBadge = {
+  id: string;
+  label: string;
+  summary: string;
+  tone: string;
+};
+
+export const siteWorldStatusLegend: SiteWorldStatusBadge[] = [
+  {
+    id: "public_demo",
+    label: "Public demo",
+    summary: "A public sample surface that can be inspected without implying customer proof.",
+    tone: "border-indigo-200 bg-indigo-50 text-indigo-700",
+  },
+  {
+    id: "commercial_exemplar",
+    label: "Commercial exemplar",
+    summary: "A buyer-readable listing with real commercial framing and request-scoped follow-up.",
+    tone: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  },
+  {
+    id: "listing_metadata",
+    label: "Listing metadata only",
+    summary: "The public page shows site and pricing metadata, but not listing-specific exports.",
+    tone: "border-slate-200 bg-slate-100 text-slate-700",
+  },
+  {
+    id: "request_scoped_proof",
+    label: "Request-scoped proof",
+    summary: "More proof can open after rights, privacy, and buyer context are reviewed.",
+    tone: "border-amber-200 bg-amber-50 text-amber-700",
+  },
+  {
+    id: "hosted_request_gated",
+    label: "Hosted request-gated",
+    summary: "The hosted path is a valid commercial next step even when live runtime launch is gated.",
+    tone: "border-sky-200 bg-sky-50 text-sky-700",
+  },
+  {
+    id: "package_request_gated",
+    label: "Package request-gated",
+    summary: "Package access follows the normal request-specific rights and export review.",
+    tone: "border-stone-200 bg-stone-100 text-stone-700",
+  },
+];
+
 export function isPublicSampleSiteWorld(site: Pick<PublicSiteWorldRecord, "id">) {
   return site.id === PUBLIC_SAMPLE_SITE_WORLD_ID;
 }
@@ -120,6 +166,27 @@ export function getSiteWorldPublicProofSummary(site: PublicSiteWorldRecord) {
   }
 
   return proofAssets.join(" + ");
+}
+
+export function getSiteWorldStatusBadges(site: PublicSiteWorldRecord): SiteWorldStatusBadge[] {
+  const badges: SiteWorldStatusBadge[] = [];
+  if (isPublicSampleSiteWorld(site)) {
+    badges.push(siteWorldStatusLegend[0] as SiteWorldStatusBadge);
+  } else if (isCommercialExemplarSiteWorld(site)) {
+    badges.push(siteWorldStatusLegend[1] as SiteWorldStatusBadge);
+  }
+
+  if (getSiteWorldPublicProofSummary(site) === "Listing metadata only") {
+    badges.push(siteWorldStatusLegend[2] as SiteWorldStatusBadge);
+  } else {
+    badges.push(siteWorldStatusLegend[3] as SiteWorldStatusBadge);
+  }
+
+  badges.push(
+    siteWorldStatusLegend[4] as SiteWorldStatusBadge,
+    siteWorldStatusLegend[5] as SiteWorldStatusBadge,
+  );
+  return badges.filter(Boolean);
 }
 
 export function getSiteWorldReadinessDisclosure(site: PublicSiteWorldRecord) {

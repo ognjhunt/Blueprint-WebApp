@@ -11,12 +11,25 @@ import { Mail, MessageSquare, Sparkles } from "lucide-react";
 import { useMemo } from "react";
 import { useSearch } from "wouter";
 
+function cleanParam(value: string | null) {
+  return String(value || "").trim();
+}
+
 export default function Contact() {
   const search = useSearch();
   const searchParams = useMemo(() => new URLSearchParams(search), [search]);
-  const interest = searchParams.get("interest")?.trim() ?? "";
-  const buyerType = searchParams.get("buyerType")?.trim() ?? "";
-  const personaParam = searchParams.get("persona")?.trim() ?? "";
+  const interest = cleanParam(searchParams.get("interest"));
+  const buyerType = cleanParam(searchParams.get("buyerType"));
+  const personaParam = cleanParam(searchParams.get("persona"));
+  const sourcePath = cleanParam(searchParams.get("path"));
+  const source = cleanParam(searchParams.get("source"));
+  const siteName = cleanParam(searchParams.get("siteName"));
+  const siteWorldId = cleanParam(searchParams.get("siteWorldId"));
+  const siteLocation = cleanParam(searchParams.get("siteLocation"));
+  const taskStatement = cleanParam(searchParams.get("taskStatement"));
+  const targetRobotTeam = cleanParam(searchParams.get("targetRobotTeam"));
+  const scenario = cleanParam(searchParams.get("scenario"));
+  const requestedOutputs = cleanParam(searchParams.get("requestedOutputs"));
   const cityMessaging = getDemandCityMessaging(searchParams.get("city"));
   const hostedMode =
     normalizeInterestToLane(interest) === "deeper_evaluation" && buyerType === "robot_team";
@@ -67,11 +80,43 @@ export default function Contact() {
 
   const responseBody = hostedMode
     ? "Fill out the short form and Blueprint will follow up to confirm the site, robot setup, and the next step toward a hosted evaluation."
-    : robotTeamCityMessaging
+      : robotTeamCityMessaging
       ? robotTeamCityMessaging.requestResponseBody
       : persona === "site_operator"
         ? "Blueprint reviews the facility details, access rules, and privacy notes first so the next reply can narrow the path quickly."
         : "Blueprint reviews the site, task, and robot details first. The reply points your team toward the package path, hosted evaluation path, or the follow-up question that actually matters.";
+
+  const expectedNextStep =
+    sourcePath === "hosted-evaluation"
+      ? "Blueprint confirms the site, robot setup, requested outputs, and hosted-review scope."
+      : sourcePath === "package-access"
+        ? "Blueprint confirms rights, export scope, and package access for the requested site."
+        : interest
+          ? "Blueprint routes the request to the right package, hosted-review, or follow-up path."
+          : "";
+
+  const sourceAwareRows = [
+    [
+      "Path",
+      sourcePath === "hosted-evaluation"
+        ? "Hosted evaluation"
+        : sourcePath === "package-access"
+          ? "Package access"
+          : interest
+            ? (normalizeInterestToLane(interest) || interest).replaceAll("_", " ")
+            : "",
+    ],
+    ["Site", siteName],
+    ["Listing", siteWorldId],
+    ["Location", siteLocation],
+    ["Robot", targetRobotTeam],
+    ["Task", taskStatement],
+    ["Scenario", scenario],
+    ["Outputs", requestedOutputs],
+    ["Expected next step", expectedNextStep],
+    ["Source", source],
+  ].filter(([, value]) => Boolean(value));
+  const hasSourceContext = sourceAwareRows.length > 0;
 
   const fastPaths = [
     {
@@ -125,6 +170,23 @@ export default function Contact() {
         <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
           <div className="grid gap-8 lg:grid-cols-[0.56fr_0.44fr]">
             <div className="border border-black/10 bg-white p-6 shadow-[0_20px_60px_-44px_rgba(15,23,42,0.22)]">
+              {hasSourceContext ? (
+                <div className="mb-6 border border-black/10 bg-[#f8f6f1] p-5">
+                  <EditorialSectionLabel>Request context</EditorialSectionLabel>
+                  <p className="mt-3 text-sm leading-7 text-slate-700">
+                    This form is carrying the site and path you came from so the follow-up can
+                    start with the right package or hosted-evaluation request.
+                  </p>
+                  <div className="mt-5 grid gap-2 sm:grid-cols-2">
+                    {sourceAwareRows.map(([label, value]) => (
+                      <div key={label} className="border border-black/10 bg-white px-4 py-3 text-sm">
+                        <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">{label}</p>
+                        <p className="mt-2 text-slate-800">{value}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
               <ContactForm />
             </div>
             <div className="space-y-4">

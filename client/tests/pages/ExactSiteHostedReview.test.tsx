@@ -34,8 +34,8 @@ describe("ExactSiteHostedReview", () => {
 
     expect(
       screen
-        .getAllByRole("link", { name: /See sample deliverables/i })
-        .some((link) => link.getAttribute("href") === "/sample-deliverables"),
+	        .getAllByRole("link", { name: /See sample evaluation/i })
+	        .some((link) => link.getAttribute("href") === "/sample-evaluation"),
     ).toBe(true);
     expect(screen.getByRole("link", { name: /Open sample report/i })).toHaveAttribute(
       "href",
@@ -43,12 +43,12 @@ describe("ExactSiteHostedReview", () => {
     );
     expect(
       screen
-        .getAllByRole("link", { name: /Scope hosted review/i })
-        .some(
-          (link) =>
-            link.getAttribute("href")
-            === "/contact?persona=robot-team&interest=evaluation-package",
-        ),
+	        .getAllByRole("link", { name: /Scope hosted evaluation/i })
+	        .some(
+	          (link) =>
+	            link.getAttribute("href")
+	            === "/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=hosted-review",
+	        ),
     ).toBe(true);
 
     expect(screen.queryByRole("heading", { name: /Hosted integration contract/i })).not.toBeInTheDocument();
