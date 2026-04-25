@@ -80,7 +80,7 @@ These contracts establish that:
 |-----------|------|--------|-------|
 | **Executive** | CEO | CEO, Chief of Staff, CTO, Investor Relations, Notion Manager, Revenue Ops & Pricing, legacy Notion Reconciler | Strategy, priorities, decision packaging, workspace stewardship, and commercial system discipline |
 | **Engineering** | CTO | 6 agents (impl + review per repo) + Beta Launch Commander + Docs Agent | Code implementation, review, release orchestration, and documentation |
-| **Ops** | Ops Lead | 12 agents | Product operations lifecycle, buyer solutions, technical enablement, rights/trust, enterprise review, capturer success, catalog, and buyer success |
+| **Ops** | Ops Lead | 13 agents | Product operations lifecycle, buyer solutions, technical enablement, rights/trust, public-space candidate review, enterprise review, capturer success, catalog, and buyer success |
 | **Growth** | Growth Lead | 13 defined lanes, 5 active core lanes | Analytics, conversion, market/demand intelligence, one city-demand loop, and explicit pause control over all non-core growth work |
 
 ---
@@ -844,6 +844,44 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 | 3 | Manages capturer lifecycle autonomously; human reviews deactivation, payouts, and systemic platform issues | Founder sign-off |
 
 **Skill file:** `ops/paperclip/skills/capturer-success-agent.md`
+
+---
+
+#### Public Space Review Agent (`public-space-review-agent`)
+
+| Field | Value |
+|-------|-------|
+| **Department** | Ops |
+| **Reports to** | Ops Lead |
+| **Model** | Hermes (OpenRouter Nemotron free primary, current free-model ladder before Codex fallback) |
+| **Status** | New |
+
+**Purpose:** Reviews batches of public-facing city-launch candidates and promotes evidence-backed common-access locations into approved capture targets without treating them as rights-cleared, payable, or derived-world-model-ready.
+
+**Why this is an agent (not just a script):** The deterministic reviewer should do the stable checks, but the org still needs an accountable owner to inspect batch outcomes, explain incomplete evidence, hand off rights/privacy questions after capture, and keep city location supply moving without waiting for founder review.
+
+**What stays as code:** The promotion/rejection rules, Firestore writes, candidate status updates, and prospect creation live in `server/utils/cityLaunchCandidateReview.ts` and `scripts/city-launch/review-public-candidates.ts`.
+
+**Triggers:**
+- New `cityLaunchCandidateSignals` batch from agent research, app-open discovery, signup scan, or manual refresh
+- City launch issue asks for public-facing location supply review
+- `20 9 * * 1-5` — Weekday public candidate review sweep
+
+**Inputs:**
+- Firestore `cityLaunchCandidateSignals`
+- Public candidate ledgers in `ops/paperclip/playbooks/`
+- City launch activation state
+- `PLATFORM_CONTEXT.md` and `WORLD_MODEL_STRATEGY_CONTEXT.md`
+
+**Outputs:**
+- Promoted `cityLaunchProspects` records for evidence-backed public/common-access candidates
+- Candidate records marked `promoted`, `in_review`, or `rejected` with reasons
+- Paperclip issue comments with batch counts and remaining review gaps
+- Handoffs to `field-ops-agent` or `rights-provenance-agent` after promotion/capture when needed
+
+**Policy guardrails:** This role cannot clear derived world-model rights, authorize payouts, approve private/staff/back-of-house capture, promote warehouses/facilities through the public-space lane, or make public claims about partner/operator approval.
+
+**Instructions:** `ops/paperclip/blueprint-company/agents/public-space-review-agent/AGENTS.md`
 
 ---
 

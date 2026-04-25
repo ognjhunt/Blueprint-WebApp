@@ -206,7 +206,7 @@ This issue bundle turns the Chicago playbook into executable lanes using the cur
 - phase: supply
 - agent owner: capturer-growth-agent
 - human owner: growth-lead
-- purpose: Open a bounded online-community sourcing lane for public, non-controlled commercial locations such as groceries, retail stores, and similar walk-in sites, and turn that lane into real intake signals.
+- purpose: Build location supply for public, non-controlled commercial locations such as groceries, retail stores, and similar walk-in sites before waiting on city human signals. Materialize review-only location candidates first; treat community posting and replies as later distribution evidence.
 - policy_guardrail: none
 - dependencies: growth-source-policy, city-opening-first-wave-pack, city-opening-cta-routing
 - metrics dependencies: none
@@ -219,11 +219,12 @@ This issue bundle turns the Chicago playbook into executable lanes using the cur
   - Chicago city-opening brief
   - Chicago first-wave posting pack
   - public-area-only capture brief
-  - live capturer intake path
+  - public review candidate ledger
+  - cityLaunchCandidateSignals review feed
 - done when:
-  - Chicago public-commercial sourcing names the online communities, channels, and posting brief for public, non-controlled commercial capture.
-  - At least one live Chicago community-sourced invite, reply, or applicant signal is landed in the intake path with source bucket and public-commercial posture recorded.
-  - If no automated publication connector exists, the lane still produces a complete agent-owned posting pack and does not block the automated launch path.
+  - Chicago public-commercial sourcing names concrete public-facing location candidates with source URLs, public-access posture, allowed capture zones, avoid zones, confidence, and review-only status.
+  - Chicago review candidates are materialized into a durable candidate ledger or app-visible review feed without marking them approved, rights-cleared, payable, or derived-world-model-ready.
+  - If no automated publication connector or local human response exists, the lane still completes location supply and leaves community posting/reply work as downstream distribution, not a blocker.
   - The lane stays explicitly limited to lawful public areas and preserves privacy, signage, and provenance rules.
 
 ## Route Chicago applicants into qualification and approval

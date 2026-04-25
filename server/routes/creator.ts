@@ -9,6 +9,7 @@ import {
   buildCityLaunchUnderReviewFeed,
   buildCreatorLaunchStatus,
 } from "../utils/cityLaunchCaptureTargets";
+import { reviewCityLaunchCandidateBatch } from "../utils/cityLaunchCandidateReview";
 import { intakeCityLaunchCandidateSignals } from "../utils/cityLaunchLedgers";
 import { creatorIdFromRequest } from "../utils/creatorIdentity";
 
@@ -435,7 +436,8 @@ router.post("/city-launch/candidate-signals", async (req: Request, res: Response
       sourceContext: String(candidate?.source_context || "app_open_scan").trim() as
         | "signup_scan"
         | "app_open_scan"
-        | "manual_refresh",
+        | "manual_refresh"
+        | "agent_public_candidate_research",
     }))
     .filter((candidate) =>
       candidate.city
@@ -449,7 +451,13 @@ router.post("/city-launch/candidate-signals", async (req: Request, res: Response
   }
 
   const result = await intakeCityLaunchCandidateSignals(candidates);
-  return res.status(201).json({ candidates: result });
+  const review = await reviewCityLaunchCandidateBatch({
+    candidateIds: result.map((candidate) => candidate.id),
+    limit: result.length,
+    dryRun: false,
+    reviewedBy: "public-space-review-agent",
+  });
+  return res.status(201).json({ candidates: result, review });
 });
 
 router.get("/city-launch/review-candidates", async (req: Request, res: Response) => {

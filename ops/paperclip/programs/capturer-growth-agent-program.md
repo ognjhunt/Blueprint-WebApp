@@ -15,6 +15,7 @@ This program turns supply-intel findings into Blueprint-specific guidance that c
 
 ## Required Outputs
 - update `ops/paperclip/playbooks/capturer-supply-playbook.md`
+- for every active city after planning/activation, produce or refresh `ops/paperclip/playbooks/city-launch-<city-slug>-indoor-location-supply.json` plus the paired rejected-candidate, evidence/query-log, and short report artifacts
 - create or update a Notion Knowledge artifact that summarizes the current reusable capturer-growth guidance
 - create or update a Notion Work Queue breadcrumb whenever human review or downstream action is required
 - maintain a channel matrix with:
@@ -30,6 +31,19 @@ This program turns supply-intel findings into Blueprint-specific guidance that c
   - `ops-lead`
   - `city-launch-agent`
   - `webapp-codex` when the work needs image-heavy promo, mockup, or visual asset execution
+
+## Indoor Location Supply Lane
+
+For city-launch work, the location supply lane runs before local community or capturer replies exist. Missing posts, replies, or human/community signals do not block discovery.
+
+Required behavior:
+- reuse the city Deep Research playbook as the first source map, then verify current facts with the governed Parallel `web-search` / `web-fetch` policy
+- search indoor malls, food halls, indoor public markets, shopping-center interior common areas, downtown lobbies/atriums/galleries, transit or convention concourses, visitor centers, public hotel lobbies, public museum/gallery common areas, public coworking lobbies, and large public-facing retail interiors
+- save accepted candidates, rejected candidates, source queries, fetched source URLs, source buckets, evidence summaries, and rejection reasons
+- exclude outdoor-primary sites and campus/district-level records unless a separable indoor public/common-access capture zone is named and source-backed
+- estimate public capture area, walkthrough minutes, complexity, and suggested payout using the repo formula; mark payout as operator-editable and never guaranteed for review-only candidates
+- seed Firestore only through `scripts/city-launch/seed-public-review-candidates.ts`; run dry-run validation before `--apply`
+- apply mode auto-runs deterministic public-space review for the newly written candidate ids unless `--skip-review` is explicitly used; only verified indoor/common-access records with complete evidence may promote
 
 Image-heavy execution rule:
 - when a capturer-facing output needs generated imagery, promo comps, or other final visual assets, create or update a downstream `webapp-codex` issue using `ops/paperclip/blueprint-company/tasks/webapp-creative-image-execution/TASK.md`

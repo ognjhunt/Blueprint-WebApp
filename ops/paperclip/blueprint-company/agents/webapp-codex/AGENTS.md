@@ -13,6 +13,7 @@ skills:
   - using-git-worktrees
   - systematic-debugging
   - karpathy-guidelines
+  - taste-skill
   - verification-before-completion
 ---
 

@@ -26,6 +26,7 @@ import {
   readCurrentCityLaunchActivation,
   runCityLaunchExecutionHarness,
 } from "../utils/cityLaunchExecutionHarness";
+import { reviewCityLaunchCandidateBatch } from "../utils/cityLaunchCandidateReview";
 import { resolveCityLaunchActivationFounderApproval } from "../utils/cityLaunchApprovalMode";
 import {
   listCityLaunchBudgetEvents,
@@ -695,6 +696,24 @@ router.post("/city-launch/ledgers/prospects", requireOps, async (req, res) => {
   } catch (error) {
     logger.error({ err: error }, "Failed to upsert city launch prospect");
     return res.status(500).json({ error: "Failed to upsert city launch prospect" });
+  }
+});
+
+router.post("/city-launch/candidate-review/run", requireOps, async (req, res) => {
+  try {
+    const city = normalizeString(req.body?.city) || null;
+    const limit = normalizeNumber(req.body?.limit) || 100;
+    const dryRun = req.body?.dryRun !== false && req.body?.apply !== true;
+    const result = await reviewCityLaunchCandidateBatch({
+      city,
+      limit,
+      dryRun,
+      reviewedBy: normalizeString(req.body?.reviewedBy) || await operatorEmail(res),
+    });
+    return res.json({ ok: true, result });
+  } catch (error) {
+    logger.error({ err: error }, "Failed to run city launch candidate review");
+    return res.status(500).json({ error: "Failed to run city launch candidate review" });
   }
 });
 

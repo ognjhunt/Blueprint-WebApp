@@ -11,13 +11,13 @@ Turn the Chicago planning artifacts into an executable company harness that runs
 
 ## Machine-Readable Budget Policy
 
-- budget_tier: funded
-- total_envelope_usd: 25000
-- operator_auto_approve_usd: 2500
+- budget_tier: low_budget
+- total_envelope_usd: 2500
+- operator_auto_approve_usd: 500
 - allow_paid_acquisition: true
-- allow_referral_rewards: true
+- allow_referral_rewards: false
 - allow_travel_reimbursement: true
-- founder_approval_required_above_usd: 25000
+- founder_approval_required_above_usd: 2500
 
 ## What The Org Will Do
 
@@ -38,7 +38,7 @@ Turn the Chicago planning artifacts into an executable company harness that runs
 ## Founder-Only Decisions
 
 - Chicago city expansion stays gated by proof and hosted-review milestones, not approval packets.
-- Any spend request beyond the written Chicago funded policy is out of policy until the repo policy changes.
+- Any spend request beyond the written Chicago low budget policy is out of policy until the repo policy changes.
 - Any public statement that changes company posture or overstates Chicago readiness is auto-blocked until supported in repo truth.
 - Any rights/privacy exception or non-standard commercial commitment is blocked until the written policy and evidence path are updated.
 
@@ -63,7 +63,7 @@ Turn the Chicago planning artifacts into an executable company harness that runs
 
 - Autonomously activate Chicago, IL as an active city-launch program and keep execution bounded to the selected city.
 - Run the Chicago launch posture autonomously: gated cohort pilot, Exact-Site Hosted Review wedge, and truthful public claims only.
-- Autonomous spend posture for Chicago: Funded with a total envelope up to $25,000.
+- Autonomous spend posture for Chicago: Low Budget with a total envelope up to $2,500.
 - Automatically block any Chicago source-policy change that exceeds the current bounded channel stack until the written policy is updated in repo truth.
 - Automatically block any rights/privacy/commercialization exception that lacks repo-backed policy and evidence.
 - Automatically block any non-standard commercial term outside the standard Chicago quote bands until the quote policy is updated in repo truth.
@@ -125,7 +125,7 @@ Turn the Chicago planning artifacts into an executable company harness that runs
 - Run Chicago site-operator partnership routing: site-operator-partnership-agent owns execution, Growth Lead is the human lane, and the task closes only when Chicago operator-lane packet identifies likely owner/operator/tenant contacts, operator-side value props, and the exact approval sequence for the highest-priority warehouse/facility candidates..
 - Publish Chicago intake rubric, trust kit, and first-capture thresholds: Ops Lead owns execution, Ops Lead is the human lane, and the task closes only when Chicago rubric covers source quality, access-path truth, equipment/device fit, trust-packet minimums, and approval outcomes..
 - Build the Chicago capturer prospect list and post package: capturer-growth-agent owns execution, Growth Lead is the human lane, and the task closes only when A curated first-wave Chicago professional prospect set is named with source bucket, rationale, lawful access posture, and next move..
-- Run Chicago public-commercial community sourcing: capturer-growth-agent owns execution, Growth Lead is the human lane, and the task closes only when Chicago public-commercial sourcing names the online communities, channels, and posting brief for public, non-controlled commercial capture..
+- Run Chicago public-commercial community sourcing: capturer-growth-agent owns execution, Growth Lead is the human lane, and the task closes only when Chicago public-commercial sourcing names concrete public-facing location candidates with source URLs, public-access posture, allowed capture zones, avoid zones, confidence, and review-only status..
 - Route Chicago applicants into qualification and approval: intake-agent owns execution, Ops Lead is the human lane, and the task closes only when Chicago applicants are tagged by source bucket, approval state, and missing-trust evidence..
 - Own approved Chicago capturers through onboarding and repeat-ready: capturer-success-agent owns execution, Ops Lead is the human lane, and the task closes only when Each approved Chicago capturer has a named lifecycle owner for approved -> onboarded -> first capture -> first pass -> repeat-ready..
 - Assign Chicago first captures, reminders, and site-facing trust prep: field-ops-agent owns execution, Ops Lead is the human lane, and the task closes only when Approved Chicago capturers receive assignment, reminder, and site-facing trust steps through the existing field-ops lane..

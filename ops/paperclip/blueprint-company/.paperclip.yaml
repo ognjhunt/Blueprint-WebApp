@@ -165,6 +165,7 @@ agents:
             - systematic-debugging
             - verification-before-completion
             - karpathy-guidelines
+            - taste-skill
     budgetMonthlyCents: 3000
   webapp-review:
     role: engineer
@@ -192,6 +193,7 @@ agents:
             - benchmark
             - verification-before-completion
             - karpathy-guidelines
+            - taste-skill
     budgetMonthlyCents: 3000
   webapp-ci-watch:
     role: engineer
@@ -562,6 +564,7 @@ agents:
             - requesting-code-review
             - verification-before-completion
             - karpathy-guidelines
+            - taste-skill
     budgetMonthlyCents: 3000
   analytics-agent:
     role: engineer
@@ -771,6 +774,28 @@ agents:
             - writing-plans
             - capturer-growth-operations
     budgetMonthlyCents: 2500
+  public-space-review-agent:
+    role: engineer
+    icon: target
+    capabilities: >-
+      Reviews public-facing city-launch candidate batches and promotes evidence-backed common-access locations into
+      approved capture targets without treating them as rights-cleared, payable, or derived-world-model-ready.
+      Runs the deterministic public candidate reviewer before posting batch outcomes.
+    adapter:
+      type: hermes_local
+      config:
+        cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
+        modelReasoningEffort: medium
+        instructionsFilePath: >-
+          /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/public-space-review-agent/AGENTS.md
+        timeoutSec: 1800
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - autonomy-safety
+            - find-skills
+            - city-launch-operations
+    budgetMonthlyCents: 1500
   city-launch-agent:
     role: engineer
     icon: map-pinned
@@ -1975,6 +2000,15 @@ routines:
     triggers:
       - kind: schedule
         cronExpression: 15 9 * * 4
+        timezone: America/New_York
+  public-space-review-daily:
+    agent: public-space-review-agent
+    priority: high
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: enqueue_missed_with_cap
+    triggers:
+      - kind: schedule
+        cronExpression: 20 9 * * 1-5
         timezone: America/New_York
   city-launch-weekly:
     agent: city-launch-agent

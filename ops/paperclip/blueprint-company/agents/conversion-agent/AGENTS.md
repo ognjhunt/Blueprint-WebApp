@@ -19,6 +19,7 @@ skills:
   - systematic-debugging
   - requesting-code-review
   - karpathy-guidelines
+  - taste-skill
   - verification-before-completion
 ---
 

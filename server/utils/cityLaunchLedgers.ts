@@ -34,7 +34,7 @@ export type CityLaunchActivationStatus =
   | "growth_live";
 
 export type CityLaunchResearchProvenance = {
-  sourceType: "deep_research_playbook" | "city_launch_contact_enrichment";
+  sourceType: "deep_research_playbook" | "city_launch_contact_enrichment" | "public_candidate_review";
   artifactPath: string;
   sourceKey: string;
   sourceUrls: string[];
@@ -552,7 +552,27 @@ export async function listCityLaunchActivations() {
 export type CityLaunchCandidateSignalSourceContext =
   | "signup_scan"
   | "app_open_scan"
-  | "manual_refresh";
+  | "manual_refresh"
+  | "agent_public_candidate_research";
+
+export type CityLaunchIndoorPosture =
+  | "indoor_only"
+  | "indoor_primary"
+  | "mixed_indoor_outdoor"
+  | "outdoor_primary"
+  | "unknown";
+
+export type CityLaunchLocationVerificationStatus =
+  | "verified"
+  | "partially_verified"
+  | "weak"
+  | "rejected";
+
+export type CityLaunchCaptureComplexity =
+  | "simple"
+  | "standard"
+  | "complex"
+  | "high_complexity";
 
 export type CityLaunchCandidateSignalRecord = {
   id: string;
@@ -570,6 +590,34 @@ export type CityLaunchCandidateSignalRecord = {
   sourceContext: CityLaunchCandidateSignalSourceContext;
   status: "queued" | "in_review" | "promoted" | "rejected";
   reviewState: string;
+  sourceUrls?: string[];
+  sourceEvidenceSummary?: string | null;
+  sourceQueries?: string[];
+  sourceBuckets?: string[];
+  candidateType?: string | null;
+  indoorPosture?: CityLaunchIndoorPosture | null;
+  publicAccessPosture?: string | null;
+  allowedCaptureZones?: string[];
+  avoidZones?: string[];
+  cameraPolicyEvidence?: string | null;
+  confidence?: string | null;
+  verificationStatus?: CityLaunchLocationVerificationStatus | null;
+  rejectionReason?: string | null;
+  estimatedPublicAreaSqft?: number | null;
+  estimatedCaptureMinutes?: number | null;
+  estimatedCaptureComplexity?: CityLaunchCaptureComplexity | null;
+  demandScore?: number | null;
+  suggestedPayoutCents?: number | null;
+  payoutBasis?: string | null;
+  lastVerifiedAt?: string | null;
+  reviewedByAgent?: string | null;
+  seedStatus?: string | null;
+  seedNotes?: string | null;
+  reviewedAtIso?: string | null;
+  reviewedBy?: string | null;
+  reviewDecision?: "keep_in_review" | "promote" | "reject" | null;
+  reviewReasons?: string[];
+  promotedProspectId?: string | null;
   seenCount: number;
   submittedAtIso: string;
   lastSeenAtIso: string;
@@ -580,6 +628,12 @@ function mergeCandidateSignal(
   incoming: Omit<CityLaunchCandidateSignalRecord, "id" | "seenCount" | "submittedAtIso" | "lastSeenAtIso">,
 ) {
   const timestamp = nowIso();
+  const mergeArray = (next: string[] | undefined, prior: string[] | undefined) =>
+    Array.isArray(next) && next.length ? next : prior || [];
+  const mergeNumber = (next: number | null | undefined, prior: number | null | undefined) =>
+    typeof next === "number" && Number.isFinite(next) ? next : prior ?? null;
+  const mergeNullable = <T>(next: T | null | undefined, prior: T | null | undefined) =>
+    next !== undefined ? next : prior ?? null;
   return {
     id: existing?.id || `candidate-${slugifySignalToken(incoming.dedupeKey.replace(/:/g, "-"))}`,
     dedupeKey: incoming.dedupeKey,
@@ -596,6 +650,37 @@ function mergeCandidateSignal(
     sourceContext: incoming.sourceContext,
     status: existing?.status && existing.status !== "rejected" ? existing.status : incoming.status,
     reviewState: existing?.reviewState || incoming.reviewState,
+    sourceUrls: mergeArray(incoming.sourceUrls, existing?.sourceUrls),
+    sourceEvidenceSummary: mergeNullable(incoming.sourceEvidenceSummary, existing?.sourceEvidenceSummary),
+    sourceQueries: mergeArray(incoming.sourceQueries, existing?.sourceQueries),
+    sourceBuckets: mergeArray(incoming.sourceBuckets, existing?.sourceBuckets),
+    candidateType: mergeNullable(incoming.candidateType, existing?.candidateType),
+    indoorPosture: mergeNullable(incoming.indoorPosture, existing?.indoorPosture),
+    publicAccessPosture: mergeNullable(incoming.publicAccessPosture, existing?.publicAccessPosture),
+    allowedCaptureZones: mergeArray(incoming.allowedCaptureZones, existing?.allowedCaptureZones),
+    avoidZones: mergeArray(incoming.avoidZones, existing?.avoidZones),
+    cameraPolicyEvidence: mergeNullable(incoming.cameraPolicyEvidence, existing?.cameraPolicyEvidence),
+    confidence: mergeNullable(incoming.confidence, existing?.confidence),
+    verificationStatus: mergeNullable(incoming.verificationStatus, existing?.verificationStatus),
+    rejectionReason: mergeNullable(incoming.rejectionReason, existing?.rejectionReason),
+    estimatedPublicAreaSqft: mergeNumber(incoming.estimatedPublicAreaSqft, existing?.estimatedPublicAreaSqft),
+    estimatedCaptureMinutes: mergeNumber(incoming.estimatedCaptureMinutes, existing?.estimatedCaptureMinutes),
+    estimatedCaptureComplexity: mergeNullable(
+      incoming.estimatedCaptureComplexity,
+      existing?.estimatedCaptureComplexity,
+    ),
+    demandScore: mergeNumber(incoming.demandScore, existing?.demandScore),
+    suggestedPayoutCents: mergeNumber(incoming.suggestedPayoutCents, existing?.suggestedPayoutCents),
+    payoutBasis: mergeNullable(incoming.payoutBasis, existing?.payoutBasis),
+    lastVerifiedAt: mergeNullable(incoming.lastVerifiedAt, existing?.lastVerifiedAt),
+    reviewedByAgent: mergeNullable(incoming.reviewedByAgent, existing?.reviewedByAgent),
+    seedStatus: mergeNullable(incoming.seedStatus, existing?.seedStatus),
+    seedNotes: mergeNullable(incoming.seedNotes, existing?.seedNotes),
+    reviewedAtIso: existing?.reviewedAtIso || null,
+    reviewedBy: existing?.reviewedBy || null,
+    reviewDecision: existing?.reviewDecision || null,
+    reviewReasons: existing?.reviewReasons || [],
+    promotedProspectId: existing?.promotedProspectId || null,
     seenCount: (existing?.seenCount || 0) + 1,
     submittedAtIso: existing?.submittedAtIso || timestamp,
     lastSeenAtIso: timestamp,
@@ -647,6 +732,29 @@ export async function intakeCityLaunchCandidateSignals(
     providerPlaceId?: string | null;
     types?: string[];
     sourceContext: CityLaunchCandidateSignalSourceContext;
+    sourceUrls?: string[];
+    sourceEvidenceSummary?: string | null;
+    sourceQueries?: string[];
+    sourceBuckets?: string[];
+    candidateType?: string | null;
+    indoorPosture?: CityLaunchIndoorPosture | null;
+    publicAccessPosture?: string | null;
+    allowedCaptureZones?: string[];
+    avoidZones?: string[];
+    cameraPolicyEvidence?: string | null;
+    confidence?: string | null;
+    verificationStatus?: CityLaunchLocationVerificationStatus | null;
+    rejectionReason?: string | null;
+    estimatedPublicAreaSqft?: number | null;
+    estimatedCaptureMinutes?: number | null;
+    estimatedCaptureComplexity?: CityLaunchCaptureComplexity | null;
+    demandScore?: number | null;
+    suggestedPayoutCents?: number | null;
+    payoutBasis?: string | null;
+    lastVerifiedAt?: string | null;
+    reviewedByAgent?: string | null;
+    seedStatus?: string | null;
+    seedNotes?: string | null;
   }>,
 ) {
   return Promise.all(
@@ -674,6 +782,29 @@ export async function intakeCityLaunchCandidateSignals(
         sourceContext: input.sourceContext,
         status: "queued",
         reviewState: "awaiting_city_review",
+        sourceUrls: input.sourceUrls || [],
+        sourceEvidenceSummary: input.sourceEvidenceSummary || null,
+        sourceQueries: input.sourceQueries || [],
+        sourceBuckets: input.sourceBuckets || [],
+        candidateType: input.candidateType || null,
+        indoorPosture: input.indoorPosture || null,
+        publicAccessPosture: input.publicAccessPosture || null,
+        allowedCaptureZones: input.allowedCaptureZones || [],
+        avoidZones: input.avoidZones || [],
+        cameraPolicyEvidence: input.cameraPolicyEvidence || null,
+        confidence: input.confidence || null,
+        verificationStatus: input.verificationStatus || null,
+        rejectionReason: input.rejectionReason || null,
+        estimatedPublicAreaSqft: input.estimatedPublicAreaSqft ?? null,
+        estimatedCaptureMinutes: input.estimatedCaptureMinutes ?? null,
+        estimatedCaptureComplexity: input.estimatedCaptureComplexity || null,
+        demandScore: input.demandScore ?? null,
+        suggestedPayoutCents: input.suggestedPayoutCents ?? null,
+        payoutBasis: input.payoutBasis || null,
+        lastVerifiedAt: input.lastVerifiedAt || null,
+        reviewedByAgent: input.reviewedByAgent || null,
+        seedStatus: input.seedStatus || null,
+        seedNotes: input.seedNotes || null,
       });
     }),
   );
@@ -706,6 +837,54 @@ export async function listCityLaunchCandidateSignals(options?: {
     records = records.filter((record) => filterStatuses.has(record.status));
   }
   return records;
+}
+
+export async function updateCityLaunchCandidateSignalReview(
+  id: string,
+  update: Pick<CityLaunchCandidateSignalRecord, "status" | "reviewState">
+    & Partial<Pick<
+      CityLaunchCandidateSignalRecord,
+      "reviewedAtIso" | "reviewedBy" | "reviewDecision" | "reviewReasons" | "promotedProspectId"
+    >>,
+) {
+  const timestamp = nowIso();
+  const payload = {
+    ...update,
+    reviewedAtIso: update.reviewedAtIso || timestamp,
+  };
+
+  if (shouldUseInMemoryCandidateSignalStore()) {
+    for (const [key, record] of candidateSignalMemoryStore.entries()) {
+      if (record.id !== id) {
+        continue;
+      }
+      const merged = { ...record, ...payload, lastSeenAtIso: timestamp };
+      candidateSignalMemoryStore.set(key, merged);
+      return merged;
+    }
+    throw new Error(`Candidate signal not found: ${id}`);
+  }
+
+  if (!db) {
+    throw new Error("Database not available");
+  }
+
+  const ref = db.collection(COLLECTIONS.candidateSignals).doc(id);
+  const existingDoc = await ref.get();
+  if (!existingDoc.exists) {
+    throw new Error(`Candidate signal not found: ${id}`);
+  }
+  const existing = existingDoc.data() as CityLaunchCandidateSignalRecord;
+  const merged = { ...existing, ...payload, lastSeenAtIso: timestamp };
+  await ref.set(
+    {
+      ...payload,
+      lastSeenAtIso: timestamp,
+      updated_at: serverTimestamp(),
+    },
+    { merge: true },
+  );
+  return merged;
 }
 
 export function __resetCityLaunchCandidateSignalMemoryForTests() {
@@ -761,6 +940,43 @@ export async function upsertCityLaunchProspect(
     { merge: true },
   );
   return payload;
+}
+
+export async function updateCityLaunchProspectLifecycle(
+  id: string,
+  update: {
+    status?: CityLaunchProspectStatus;
+    notes?: string | null;
+    priorityNote?: string | null;
+  },
+) {
+  if (!db) {
+    throw new Error("Database not available");
+  }
+  const ref = db.collection(COLLECTIONS.prospects).doc(id);
+  const existingDoc = await ref.get();
+  if (!existingDoc.exists) {
+    throw new Error(`City launch prospect not found: ${id}`);
+  }
+  const existing = existingDoc.data() as CityLaunchProspectRecord;
+  const updatedAtIso = nowIso();
+  const payload: Partial<CityLaunchProspectRecord> = {
+    status: update.status || existing.status,
+    notes: mergeNotes(existing.notes, update.notes ?? null),
+    priorityNote: mergeNotes(existing.priorityNote, update.priorityNote ?? null),
+    updatedAtIso,
+  };
+  await ref.set(
+    {
+      ...payload,
+      updated_at: serverTimestamp(),
+    },
+    { merge: true },
+  );
+  return {
+    ...existing,
+    ...payload,
+  } as CityLaunchProspectRecord;
 }
 
 export async function upsertCityLaunchBuyerTarget(

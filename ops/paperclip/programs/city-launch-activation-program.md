@@ -8,6 +8,7 @@ The city launch only counts if both loops are operationally real:
 - City-opening distribution layer: make the city aware that Blueprint is opening, publish the exact CTA path, and track which channels generate the first real responses.
 - Reply-conversion cadence layer: once responses exist, route them through a shared follow-up queue so early replies move into the right downstream lane instead of being counted and lost.
 - Supply loop: find local capturers, qualify them, run real first captures, QA them, clear rights/provenance, and publish 1-2 proof-ready city assets.
+- Indoor public-location supply loop: immediately after planning/activation, source a broad indoor-only or indoor-primary set of public-facing/common-access candidate capture locations before local community replies exist.
 - Demand loop: identify city-relevant robot-team buyers, deliver proof packs and hosted reviews tied to exact sites, and move a small number of conversations into serious follow-up.
 
 ## Activation Rule
@@ -47,12 +48,17 @@ Execution rule:
 - when a lane is classified `execute_until_external_confirmation`, draft packets and routed reviews are progress only; if the required signature, applicant, buyer reply, or artifact does not exist yet, leave the issue open or blocked instead of marking it done
 - do not fake lawful access, proof assets, hosted reviews, rights clearance, spend approvals, public claims, or non-standard commercial commitments
 - do not wait for a different lane's packet to exist before starting the best available approach for the current lane
+- do not wait for community posts, human replies, local capturer replies, or buyer replies before indoor public-location discovery starts; those are downstream signal loops, not prerequisites for candidate discovery
 
 ## Required Repo Artifacts
 
 - `docs/city-launch-system-<city-slug>.md`
 - `ops/paperclip/playbooks/city-launch-<city-slug>-execution-issue-bundle.md`
 - `ops/paperclip/playbooks/city-capture-target-ledger-<city-slug>.md`
+- `ops/paperclip/playbooks/city-launch-<city-slug>-indoor-location-supply.json`
+- `ops/paperclip/playbooks/city-launch-<city-slug>-indoor-location-supply-rejected.json`
+- `ops/paperclip/playbooks/city-launch-<city-slug>-indoor-location-supply-evidence-log.json`
+- `ops/paperclip/playbooks/city-launch-<city-slug>-indoor-location-supply-report.md`
 - city launch scorecard from `/api/admin/leads/city-launch-scorecard`
 - city deep-research playbook from `npm run city-launch:plan -- --city "<City, ST>"`
 
@@ -61,6 +67,8 @@ Execution rule:
 - `growth-lead`: city source policy, invite/access-code posture, outbound approvals
 - `ops-lead`: city intake rubric, trust kit, first-capture thresholds, launch-readiness checklist
 - `city-launch-agent`: city supply-side operating packet and dependency map
+- `capturer-growth-agent`: indoor public-location supply artifact, rejected-candidate ledger, evidence/query log, and seed-script dry-run
+- `public-space-review-agent`: deterministic promotion/rejection of seeded indoor candidates into `cityLaunchProspects` only when evidence passes
 - `city-demand-agent`: city demand-side operating packet and target ledger
 - `capturer-growth-agent`, `intake-agent`, `capturer-success-agent`, `field-ops-agent`, `capture-qa-agent`, `rights-provenance-agent`: supply execution lanes
 - `demand-intel-agent`, `robot-team-growth-agent`, `outbound-sales-agent`, `buyer-solutions-agent`, `revenue-ops-pricing-agent`: buyer and commercial execution lanes

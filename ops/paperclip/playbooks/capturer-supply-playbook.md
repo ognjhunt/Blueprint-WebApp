@@ -219,12 +219,16 @@ If these controls are not operational, Blueprint should not widen top-of-funnel 
 - Explicitly blocked subject matter: private interiors, controlled-access locations, blanket permission language, earnings promises, or volume guarantees
 - CTA path: express interest, complete trust packet, wait for operator review, then enter approved intake
 - Required packet fields: source, habitat, city, lane tag, posture, privacy/signage/provenance rule reminder, and next owner
-- Human gate: the first live community post in a new channel must be reviewed before send
+- Location-supply rule: name and materialize review-only public-facing location candidates before waiting on any live community signal
+- Indoor-first supply rule: after city planning/activation, run the indoor location-supply lane before waiting on human/community signals. Use the Deep Research artifact as the first source map, then verify with governed web search/fetch. Outdoor-primary locations, plazas, parks, exterior districts, and campus-wide mixed sites are rejected unless a separable indoor public/common-access capture zone is named with source evidence.
+- Durable artifact rule: save `city-launch-<city-slug>-indoor-location-supply.json`, `city-launch-<city-slug>-indoor-location-supply-rejected.json`, `city-launch-<city-slug>-indoor-location-supply-evidence-log.json`, and `city-launch-<city-slug>-indoor-location-supply-report.md` under `ops/paperclip/playbooks/`.
+- Payment-estimate rule: every accepted location candidate must include estimated public capture area, estimated walkthrough minutes, capture complexity, suggested payout cents or range, and `payout_basis`. The estimate is operator-editable and does not guarantee payment for review-only candidates.
+- Human gate: the first live community post in a new channel must be reviewed before send, but that gate does not block location-supply candidate discovery
 - Handoff rule: once the pack is ready, route the copy and form logic to `conversion-agent`, the qualification and reply path to `intake-agent`, and the measurement contract to `analytics-agent`
 - First-wave placement classes: Durham community forums and neighborhood groups; retail/shopping and creator-adjacent communities; lightweight campus, coworking, and gig-network boards
 - First-wave copy posture: one public-area-only brief, one tagged intake path, one source bucket, and one CTA that asks for candidate public commercial site, public-area posture, and availability
 - First-wave copy guardrail: never imply private-interior access, blanket permission, legal certainty, traction, or guaranteed volume
-- Reusable draft pack: keep `ops/paperclip/playbooks/city-opening-durham-nc-first-wave-pack.md` aligned with the approved channel map, but treat it as draft-only until a human approves the first live post
+- Reusable draft pack: keep `ops/paperclip/playbooks/city-opening-durham-nc-first-wave-pack.md` aligned with the approved channel map, but treat live posting as draft-only until a human approves the first live post
 
 ### Durham professional capturer supply wave
 - Discovery habitats: Triangle AEC and surveying firms, especially Summit Design and Engineering Services, industrial inspection operators, commercial mapping operators, and trusted local referral paths that can support the first lawful-access contacts

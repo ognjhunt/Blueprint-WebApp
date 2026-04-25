@@ -18,7 +18,7 @@ source_urls:
   - "https://digital-strategy.ec.europa.eu/en/faqs/navigating-ai-act"
   - "https://cppa.ca.gov/announcements/2025/20250923.html"
   - "https://digital-strategy.ec.europa.eu/en/consultations/targeted-consultation-measuring-energy-consumption-and-emissions-ai-models-and-systems"
-last_verified_at: 2026-04-24
+last_verified_at: 2026-04-25
 owner: market-intel-agent
 sensitivity: internal
 confidence: 0.8
@@ -28,7 +28,7 @@ confidence: 0.8
 
 ## Summary
 
-Blueprint's current market baseline is shifting in five directions at once: capture is getting cheaper and broader, world-model products are becoming API-shaped platform offerings, 3DGS delivery is moving toward streamed web runtimes, industrial AI stacks are being sold as operating systems, and compliance expectations are tightening around transparency, traceability, energy reporting, and documented risk.
+Blueprint's current market baseline is shifting in six directions at once: capture is getting cheaper and broader, world-model products are becoming API-shaped platform offerings, 3DGS delivery is moving toward streamed web runtimes, industrial AI stacks are being sold as operating systems, product docs are becoming more operationalized, and compliance expectations are tightening around transparency, traceability, energy reporting, and documented risk.
 
 ## Current Baseline
 
@@ -36,6 +36,7 @@ Blueprint's current market baseline is shifting in five directions at once: capt
 - World-model vendors are increasingly packaging models as developer-facing APIs and platform services.
 - Streaming delivery for large 3DGS worlds is becoming part of the product surface, not just the rendering backend.
 - Robotics and industrial AI buyers are being trained by NVIDIA and adjacent ecosystem players to expect digital-twin-first workflows.
+- Competitive docs are now part of the market signal: release notes and help centers are exposing model defaults, export targets, and structured deliverables more explicitly.
 - Industrial platform vendors are starting to package the digital-twin and AI-factory stack as an operating-system layer, not a standalone simulation product.
 - Rights, privacy, documentation, and energy-consumption metadata are becoming more important product inputs, not just legal back-office artifacts.
 
@@ -66,6 +67,14 @@ Blueprint's current market baseline is shifting in five directions at once: capt
 - NVIDIA keeps bundling robotics data generation, synthetic data, simulation, and evaluation into a single physical-AI stack, which strengthens the digital-twin-first buyer expectation.
 - The EU's energy-consumption consultation for AI models adds a new near-term documentation and reporting pressure point for deployed systems.
 
+### 2026-04-25
+
+- World Labs' docs now surface Marble 1.1 and Marble 1.1 Plus, plus a coming World API default shift toward `marble-1.1`, which indicates the platform is maturing from launch mode into an evolving product surface with explicit versioning.
+- Polycam's help center now documents Space Mode outputs as 3D mesh, 3D floorplan, 2D floorplan, and spatial report delivery, which shows the market is normalizing structured outputs instead of raw scans only.
+- NVIDIA's newer physical-AI releases keep adding named partners, Cosmos world model updates, and robot-learning infrastructure, reinforcing that robotics buyers are being conditioned to expect a full stack around simulation, synthetic data, and deployment validation.
+- Streaming 3DGS scene transport continues to move from product messaging into technical research, with a paper on streaming live Gaussian scenes suggesting runtime portability is becoming a real backend path, not just a viewer feature.
+- The EU AI Act energy-consumption consultation remains open, so documentation pressure is still a live near-term constraint rather than a settled policy topic.
+
 ## Strategic Read
 
 - The strongest near-term moat for Blueprint remains real-site capture quality, provenance-safe packaging, and buyer workflow, not model ownership.
@@ -82,6 +91,8 @@ Blueprint's current market baseline is shifting in five directions at once: capt
 - [Raw source note - 2026-04-13](../../raw/web/2026-04-13/market-intel-sources.md)
 - [Market Intel Weekly Digest - 2026-04-24](../../reports/market-intel/2026-04-24-market-intel-weekly-digest-2026-04-24.md)
 - [Raw source note - 2026-04-24](../../raw/web/2026-04-24/market-intel-sources.md)
+- [Market Intel Daily Digest - 2026-04-25](../../reports/market-intel/2026-04-25-market-intel-daily-digest-2026-04-25.md)
+- [Raw source note - 2026-04-25](../../raw/web/2026-04-25/market-intel-sources.md)
 
 ## Authority Boundary
 

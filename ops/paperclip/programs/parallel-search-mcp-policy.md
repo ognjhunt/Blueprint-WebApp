@@ -63,6 +63,13 @@ Default access:
 - `capturer-growth-agent`: use for public communities, capturer pools, and lawful-access candidate discovery.
 - `site-operator-partnership-agent`: use for public operator/company context and partnership-surface research.
 
+City-launch indoor location supply:
+
+- `capturer-growth-agent` may use `web-search` and `web-fetch` after reading the city Deep Research artifact to verify indoor malls, food halls, indoor public markets, visitor centers, public lobbies/atriums, public convention/transit concourses, museum/gallery common areas, public coworking lobbies, and large public-facing retail interiors.
+- Every accepted candidate must store the exact `source_queries` used and the fetched `source_urls` relied on.
+- Every rejected candidate must store a source URL when available plus a reason code such as `outdoor_primary`, `mixed_site_not_zone_scoped`, `camera_policy_hostile`, `private_or_staff_only`, `sensitive_public_facility`, or `insufficient_indoor_evidence`.
+- Search evidence is not rights clearance, operator approval, payment approval, or capture provenance.
+
 Conditional access:
 
 - `robot-team-growth-agent`: only after demand intel names target accounts or patterns; verify live company/context claims before drafting.

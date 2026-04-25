@@ -11,13 +11,13 @@ Turn the Sacramento planning artifacts into an executable company harness that r
 
 ## Machine-Readable Budget Policy
 
-- budget_tier: zero_budget
-- total_envelope_usd: 0
-- operator_auto_approve_usd: 0
-- allow_paid_acquisition: false
+- budget_tier: low_budget
+- total_envelope_usd: 2500
+- operator_auto_approve_usd: 500
+- allow_paid_acquisition: true
 - allow_referral_rewards: false
-- allow_travel_reimbursement: false
-- founder_approval_required_above_usd: 0
+- allow_travel_reimbursement: true
+- founder_approval_required_above_usd: 2500
 
 ## What The Org Will Do
 
@@ -38,7 +38,7 @@ Turn the Sacramento planning artifacts into an executable company harness that r
 ## Founder-Only Decisions
 
 - Sacramento city expansion stays gated by proof and hosted-review milestones, not approval packets.
-- Any spend request beyond the written Sacramento zero budget policy is out of policy until the repo policy changes.
+- Any spend request beyond the written Sacramento low budget policy is out of policy until the repo policy changes.
 - Any public statement that changes company posture or overstates Sacramento readiness is auto-blocked until supported in repo truth.
 - Any rights/privacy exception or non-standard commercial commitment is blocked until the written policy and evidence path are updated.
 
@@ -63,7 +63,7 @@ Turn the Sacramento planning artifacts into an executable company harness that r
 
 - Autonomously activate Sacramento, CA as an active city-launch program and keep execution bounded to the selected city.
 - Run the Sacramento launch posture autonomously: gated cohort pilot, Exact-Site Hosted Review wedge, and truthful public claims only.
-- Autonomous spend posture for Sacramento: Zero Budget with no paid acquisition, referral, or discretionary travel spend.
+- Autonomous spend posture for Sacramento: Low Budget with a total envelope up to $2,500.
 - Automatically block any Sacramento source-policy change that exceeds the current bounded channel stack until the written policy is updated in repo truth.
 - Automatically block any rights/privacy/commercialization exception that lacks repo-backed policy and evidence.
 - Automatically block any non-standard commercial term outside the standard Sacramento quote bands until the quote policy is updated in repo truth.
@@ -125,7 +125,7 @@ Turn the Sacramento planning artifacts into an executable company harness that r
 - Run Sacramento site-operator partnership routing: site-operator-partnership-agent owns execution, Growth Lead is the human lane, and the task closes only when Sacramento operator-lane packet identifies likely owner/operator/tenant contacts, operator-side value props, and the exact approval sequence for the highest-priority warehouse/facility candidates..
 - Publish Sacramento intake rubric, trust kit, and first-capture thresholds: Ops Lead owns execution, Ops Lead is the human lane, and the task closes only when Sacramento rubric covers source quality, access-path truth, equipment/device fit, trust-packet minimums, and approval outcomes..
 - Build the Sacramento capturer prospect list and post package: capturer-growth-agent owns execution, Growth Lead is the human lane, and the task closes only when A curated first-wave Sacramento professional prospect set is named with source bucket, rationale, lawful access posture, and next move..
-- Run Sacramento public-commercial community sourcing: capturer-growth-agent owns execution, Growth Lead is the human lane, and the task closes only when Sacramento public-commercial sourcing names the online communities, channels, and posting brief for public, non-controlled commercial capture..
+- Run Sacramento public-commercial community sourcing: capturer-growth-agent owns execution, Growth Lead is the human lane, and the task closes only when Sacramento public-commercial sourcing names concrete public-facing location candidates with source URLs, public-access posture, allowed capture zones, avoid zones, confidence, and review-only status..
 - Route Sacramento applicants into qualification and approval: intake-agent owns execution, Ops Lead is the human lane, and the task closes only when Sacramento applicants are tagged by source bucket, approval state, and missing-trust evidence..
 - Own approved Sacramento capturers through onboarding and repeat-ready: capturer-success-agent owns execution, Ops Lead is the human lane, and the task closes only when Each approved Sacramento capturer has a named lifecycle owner for approved -> onboarded -> first capture -> first pass -> repeat-ready..
 - Assign Sacramento first captures, reminders, and site-facing trust prep: field-ops-agent owns execution, Ops Lead is the human lane, and the task closes only when Approved Sacramento capturers receive assignment, reminder, and site-facing trust steps through the existing field-ops lane..

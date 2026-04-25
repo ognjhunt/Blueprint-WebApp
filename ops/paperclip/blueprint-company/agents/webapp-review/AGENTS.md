@@ -13,6 +13,7 @@ skills:
   - design-review
   - benchmark
   - karpathy-guidelines
+  - taste-skill
   - verification-before-completion
 ---
 

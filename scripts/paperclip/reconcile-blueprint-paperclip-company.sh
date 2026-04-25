@@ -574,6 +574,7 @@ const AGENT_DEFAULT_PROJECT_KEYS = {
   "market-intel-agent": "blueprint-webapp",
   "supply-intel-agent": "blueprint-executive-ops",
   "capturer-growth-agent": "blueprint-webapp",
+  "public-space-review-agent": "blueprint-webapp",
   "city-launch-agent": "blueprint-executive-ops",
   "demand-intel-agent": "blueprint-executive-ops",
   "robot-team-growth-agent": "blueprint-webapp",
