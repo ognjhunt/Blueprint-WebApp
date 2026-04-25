@@ -1,4 +1,4 @@
-import { getHumanReplyGmailDurabilityStatus } from "../../server/utils/human-reply-gmail";
+import { buildOutboundReplyDurabilityStatus } from "../../server/utils/outbound-reply-durability";
 import { runHumanReplyEmailWatcher } from "../../server/utils/human-reply-worker";
 
 function hasFlag(name: string) {
@@ -7,19 +7,16 @@ function hasFlag(name: string) {
 
 async function main() {
   const requireProcessedReply = hasFlag("--require-processed-reply");
-  const gmail = await getHumanReplyGmailDurabilityStatus();
+  const durability = await buildOutboundReplyDurabilityStatus();
 
-  if (!gmail.production_ready || gmail.approved_identity !== "ohstnhunt@gmail.com") {
+  if (!durability.ok) {
     console.log(
       JSON.stringify(
         {
           ok: false,
-          phase: "gmail_durability",
-          gmail,
-          reason:
-            gmail.approved_identity !== "ohstnhunt@gmail.com"
-              ? "approved_identity_not_ohstnhunt"
-              : gmail.reason || gmail.risk || "gmail_not_production_ready",
+          phase: "outbound_reply_durability",
+          durability,
+          reason: durability.blockers[0] || "outbound_reply_durability_not_ready",
         },
         null,
         2,
@@ -43,7 +40,7 @@ async function main() {
       {
         ok,
         phase: processedCount > 0 ? "gmail_reply_resume_processed" : "gmail_watcher_ready_no_new_reply",
-        gmail,
+        durability,
         watcher,
         requireProcessedReply,
       },

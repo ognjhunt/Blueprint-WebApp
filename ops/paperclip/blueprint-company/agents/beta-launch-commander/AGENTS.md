@@ -9,6 +9,7 @@ skills:
   - writing-plans
   - dispatching-parallel-agents
   - systematic-debugging
+  - karpathy-guidelines
   - verification-before-completion
 ---
 

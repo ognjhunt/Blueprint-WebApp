@@ -7,6 +7,7 @@ skills:
   - autonomy-safety
   - hermes-kb-workflow
   - webapp-repo-operations
+  - karpathy-guidelines
   - buyer-package-framing
 ---
 

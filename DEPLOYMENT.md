@@ -218,6 +218,7 @@ Important:
 - For the Growth Studio mirror vars above, use the Notion data source UUIDs for each database, not the outer database page UUIDs.
 - The Growth Studio sync path can be run by scheduler, by `POST /api/admin/growth/notion/sync`, or from the shell with `npm run notion:sync:growth-studio`.
 - The human-reply Gmail watcher is valid only when the authenticated mailbox is the approved org-facing identity `ohstnhunt@gmail.com`. If Gmail OAuth resolves to another mailbox, the watcher must fail closed.
+- Outbound/reply durability is production-ready only when `npm run human-replies:audit-durability` passes: sender transport is configured, the city-launch sender is marked verified, `BLUEPRINT_HUMAN_REPLY_INGEST_TOKEN` is set, `BLUEPRINT_HUMAN_REPLY_APPROVED_EMAIL=ohstnhunt@gmail.com`, Gmail OAuth is production-ready, and `BLUEPRINT_HUMAN_REPLY_GMAIL_WATCHER_ENABLED=1`.
 - Slack remains a notification or mirror surface only for founder interrupts. The Slack human-reply env vars do not create a durable resume path by themselves.
 - City-launch direct outreach is outwardly launchable only when at least one direct-outreach action has a real recipient and the active sender address is truthful.
 - `BLUEPRINT_CITY_LAUNCH_SENDER_VERIFICATION` is a manual mirror of sender/domain verification state for outbound city-launch mail. Use `verified` only after confirming the configured sender/domain is actually verified in the live provider; leave it unset if verification is unknown, and treat `unverified` as fail-closed for real sends.

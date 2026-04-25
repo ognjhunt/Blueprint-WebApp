@@ -16,6 +16,7 @@ Run one proof-led warehouse wedge.
 - evidence-backed: the launch harness now tracks planning state explicitly so activation can distinguish "not started" from "research still running".
 - evidence-backed: the compact launch packet uses the standard platform analytics event model rather than inventing city-specific telemetry.
 - evidence-backed: the target ledger mode for this city is `deep_research_records`. Research-backed named targets already available include Triangle Capture Ops.
+- evidence-backed: the Durham send ledger contains recipient-backed direct-outreach records, but sender verification still needs confirmation in the active mail provider before anyone treats outward launchability as fully proven.
 
 ## Why This City Now
 - the city remains a planning candidate only if it can produce rights-cleared exact-site proof assets for real robotics workflows
@@ -31,6 +32,7 @@ Run one proof-led warehouse wedge.
 - For that public commercial lane, find everyday capturers where they already are online: local city/community groups, neighborhood forums, retail and shopping communities, creator communities, and lightweight campus or gig networks that do not imply private-interior access.
 - Keep public posture at Exact-Site Hosted Review wedge only; no city-live or readiness claims until proof is real.
 - Preferred first lawful access mode: buyer_requested_site.
+- Treat outbound readiness as warning-only until sender/domain verification is confirmed in the active mail provider; recipient-backed sends in the ledger are necessary evidence, not a substitute for transport-side verification.
 
 ## City-Opening Distribution Layer
 - City opening is a first-class launch lane, not an implied side effect of having sourcing or demand tasks on paper.
@@ -90,10 +92,12 @@ Private controlled interiors require authorization.
 - Ops Lead-approved intake rubric, trust kit, and first-capture thresholds
 - standard proof-pack structure with provenance, rights, privacy, recency, and hosted-review path
 - platform analytics using `robot_team_inbound_captured`, `proof_path_assigned`, `proof_pack_delivered`, `hosted_review_ready`, and `hosted_review_started` with city/source tags
+- mail-provider sender/domain verification that can be confirmed outside env-state inference before any broader outbound claim
 
 ## Validation Blockers
 
-- none recorded in the current activation payload
+- outbound sender verification cannot be proven from repo env state alone; confirm the configured city-launch sender/domain in the active mail provider before claiming broader Durham outward readiness.
+- recipient-backed direct-outreach evidence exists in the Durham send ledger, so the remaining blocker is transport verification rather than contact discovery.
 
 ## Readiness Scorecard
 | Dimension | Score | Rationale |

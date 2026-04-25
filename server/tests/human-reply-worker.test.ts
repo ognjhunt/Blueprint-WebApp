@@ -17,6 +17,8 @@ const createPaperclipIssueComment = vi.hoisted(() => vi.fn());
 const resetPaperclipAgentSession = vi.hoisted(() => vi.fn());
 const wakePaperclipAgent = vi.hoisted(() => vi.fn());
 const runCityLaunchExecutionHarness = vi.hoisted(() => vi.fn());
+const getHumanReplyGmailDurabilityStatus = vi.hoisted(() => vi.fn());
+const listHumanReplyGmailMessages = vi.hoisted(() => vi.fn());
 
 vi.mock("../utils/human-reply-store", () => ({
   listOpenHumanBlockerThreads,
@@ -52,6 +54,11 @@ vi.mock("../utils/cityLaunchExecutionHarness", () => ({
   runCityLaunchExecutionHarness,
 }));
 
+vi.mock("../utils/human-reply-gmail", () => ({
+  getHumanReplyGmailDurabilityStatus,
+  listHumanReplyGmailMessages,
+}));
+
 afterEach(() => {
   listOpenHumanBlockerThreads.mockReset();
   getHumanReplyEvent.mockReset();
@@ -69,6 +76,8 @@ afterEach(() => {
   resetPaperclipAgentSession.mockReset();
   wakePaperclipAgent.mockReset();
   runCityLaunchExecutionHarness.mockReset();
+  getHumanReplyGmailDurabilityStatus.mockReset();
+  listHumanReplyGmailMessages.mockReset();
   vi.resetModules();
 });
 
@@ -275,6 +284,45 @@ describe("human reply worker", () => {
       processed: true,
       blocker_id: "city-launch-approval-chicago-il-123",
       resolution: "resolved_input",
+    });
+  });
+
+  it("blocks the email watcher when Gmail OAuth is not production-ready", async () => {
+    getHumanReplyGmailDurabilityStatus.mockResolvedValue({
+      enabled: true,
+      configured: true,
+      approved_identity: "ohstnhunt@gmail.com",
+      mailbox_email: "ohstnhunt@gmail.com",
+      oauth_publishing_status: "testing",
+      production_ready: false,
+      risk: "testing_only",
+      reason:
+        "Gmail OAuth mailbox is valid, but BLUEPRINT_HUMAN_REPLY_GMAIL_OAUTH_PUBLISHING_STATUS is testing.",
+    });
+    listOpenHumanBlockerThreads.mockResolvedValue([
+      {
+        blocker_id: "blocker-email",
+        channel: "email",
+      },
+      {
+        blocker_id: "blocker-slack",
+        channel: "slack",
+      },
+    ]);
+
+    const { runHumanReplyEmailWatcher } = await import("../utils/human-reply-worker");
+    const result = await runHumanReplyEmailWatcher({ limit: 5 });
+
+    expect(listHumanReplyGmailMessages).not.toHaveBeenCalled();
+    expect(noteHumanReplyThreadBlocker).toHaveBeenCalledWith({
+      blocker_id: "blocker-email",
+      reason:
+        "Gmail OAuth mailbox is valid, but BLUEPRINT_HUMAN_REPLY_GMAIL_OAUTH_PUBLISHING_STATUS is testing.",
+    });
+    expect(result).toMatchObject({
+      processedCount: 0,
+      failedCount: 1,
+      blockedCount: 1,
     });
   });
 });

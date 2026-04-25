@@ -12,6 +12,7 @@ skills:
   - browse
   - design-review
   - benchmark
+  - karpathy-guidelines
   - verification-before-completion
 ---
 

@@ -60,6 +60,17 @@ describe("provider-status", () => {
     expect(summary.researchOutbound.optional).toBe(true);
   });
 
+  it("buildGrowthIntegrationSummary accepts the Firebase measurement alias when GA is absent", async () => {
+    vi.stubEnv("VITE_GA_MEASUREMENT_ID", "");
+    vi.stubEnv("VITE_FIREBASE_MEASUREMENT_ID", "G-FALLBACK");
+
+    const { buildGrowthIntegrationSummary } = await import("../utils/provider-status");
+    const summary = buildGrowthIntegrationSummary();
+
+    expect(summary.analytics.ga4.configured).toBe(true);
+    expect(summary.analytics.alignment.externalConfigured).toBe(true);
+  });
+
   it("classifyGoogleCreativeFailure handles quota errors", async () => {
     const { classifyGoogleCreativeFailure } = await import("../utils/provider-status");
     const result = classifyGoogleCreativeFailure(429, "RESOURCE_EXHAUSTED: quota exceeded");

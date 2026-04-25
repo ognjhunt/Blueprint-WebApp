@@ -18,6 +18,7 @@ skills:
   - writing-plans
   - systematic-debugging
   - requesting-code-review
+  - karpathy-guidelines
   - verification-before-completion
 ---
 

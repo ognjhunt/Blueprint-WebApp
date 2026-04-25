@@ -1,3 +1,5 @@
+import "../../../../../server/config/bootstrap-env";
+
 import { promisify } from "node:util";
 import { execFile } from "node:child_process";
 import { createHash, createHmac, randomUUID, timingSafeEqual } from "node:crypto";
@@ -89,6 +91,9 @@ import {
   type ResearchConfidence,
   updateIntrowPartnerDraft,
 } from "./marketing-integrations.js";
+import {
+  assessDemandIntelBridgeReadiness,
+} from "./demand-intel-bridge.js";
 import {
   loadPlatformDoctrineDocs,
   resolveConfiguredRepoRoot,
@@ -11586,6 +11591,12 @@ async function buildDemandIntelOutputProof(
   const notionToken = await resolveOptionalSecret(ctx, config.secrets?.notionApiTokenRef, "NOTION_API_TOKEN");
   const slackOpsWebhookUrl = await resolveOptionalSecret(ctx, config.secrets?.slackOpsWebhookUrlRef, "SLACK_OPS_WEBHOOK_URL");
   const slackGrowthWebhookUrl = await resolveOptionalSecret(ctx, config.secrets?.slackGrowthWebhookUrlRef, "SLACK_GROWTH_WEBHOOK_URL");
+  const firehoseConfig = await resolveFirehoseConfig(ctx, config);
+  const bridgeAssessment = assessDemandIntelBridgeReadiness(report.lane, firehoseConfig);
+
+  if (!bridgeAssessment.ok) {
+    validationErrors.push(bridgeAssessment.failureReason ?? "City-demand demand intel requires the Firehose bridge.");
+  }
 
   const scopeLines = [
     `Topic: ${report.topic}`,
@@ -11593,6 +11604,7 @@ async function buildDemandIntelOutputProof(
     `Company or Pattern: ${report.companyOrPattern}`,
     `City: ${report.city || "n/a"}`,
     `Confidence: ${report.confidence}`,
+    ...(bridgeAssessment.scopeLine ? [bridgeAssessment.scopeLine] : []),
   ];
   const reportLines = [
     `Generated at: ${generatedAt}`,

@@ -225,6 +225,11 @@ export async function listHumanReplyGmailMessages(params?: {
   limit?: number;
   query?: string;
 }) {
+  const status = await getHumanReplyGmailStatus();
+  if (!status.configured) {
+    throw new Error(status.reason || "Gmail reply watcher is not configured.");
+  }
+
   const client = getGmailOAuthClient();
   if (!client) {
     throw new Error("Gmail reply watcher is not configured.");

@@ -154,4 +154,20 @@ describe("human reply gmail status", () => {
       }),
     );
   });
+
+  it("refuses to list messages from a non-approved mailbox", async () => {
+    vi.stubEnv("BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_ID", "client-id");
+    vi.stubEnv("BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_SECRET", "client-secret");
+    vi.stubEnv("BLUEPRINT_HUMAN_REPLY_GMAIL_REFRESH_TOKEN", "refresh-token");
+    getProfileMock.mockResolvedValue({
+      data: { emailAddress: "wrong@example.com" },
+    });
+
+    const { listHumanReplyGmailMessages } = await import("../utils/human-reply-gmail");
+
+    await expect(listHumanReplyGmailMessages()).rejects.toThrow(
+      "does not match approved identity",
+    );
+    expect(listMessagesMock).not.toHaveBeenCalled();
+  });
 });

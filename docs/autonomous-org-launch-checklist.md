@@ -113,10 +113,13 @@ Human-gate packet rule:
   Why it blocks launch: post-signup scheduling, sheet updates, and ops notifications are part of the live automation path.
 
 - [ ] Human-reply watcher path is truthful for production human gates
-  Evidence: run `npm run human-replies:audit-gmail`
+  Evidence: run `npm run human-replies:audit-durability`
+  Required sender proof: configured email transport plus `BLUEPRINT_CITY_LAUNCH_SENDER_VERIFICATION=verified`
+  Required intake proof: `BLUEPRINT_HUMAN_REPLY_INGEST_TOKEN`
   Required for durable email watcher: `BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_ID`, `BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_SECRET`, `BLUEPRINT_HUMAN_REPLY_GMAIL_REFRESH_TOKEN`
   Required identity: authenticated Gmail mailbox must equal `ohstnhunt@gmail.com`
   Required durability declaration: `BLUEPRINT_HUMAN_REPLY_GMAIL_OAUTH_PUBLISHING_STATUS=production`
+  Required scheduler enablement: `BLUEPRINT_HUMAN_REPLY_GMAIL_WATCHER_ENABLED=1`
   Why it blocks autonomous follow-through: a blocker packet is not agent-resumable unless the human reply can be observed and routed back into the owning lane.
 
 - [ ] Slack reply watcher policy is explicit if Slack is used as a resumable channel

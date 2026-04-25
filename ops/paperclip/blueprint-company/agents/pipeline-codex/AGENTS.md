@@ -24,6 +24,7 @@ skills:
   - requesting-code-review
   - receiving-code-review
   - verification-before-completion
+  - karpathy-guidelines
   - finishing-a-development-branch
 ---
 

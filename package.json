@@ -20,6 +20,7 @@
     "smoke:launch:local": "node scripts/launch-smoke-local.mjs",
     "human-replies:poll": "tsx scripts/human-replies/poll-gmail-replies.ts",
     "human-replies:audit-gmail": "tsx scripts/human-replies/audit-gmail-oauth.ts",
+    "human-replies:audit-durability": "tsx scripts/human-replies/audit-outbound-reply-durability.ts",
     "human-replies:prove-production": "tsx scripts/human-replies/prove-production-resume.ts",
     "human-replies:send-test-blocker": "tsx scripts/human-replies/send-test-blocker.ts",
     "operating-graph:project": "tsx scripts/autonomy/project-operating-graph.ts --limit=500",

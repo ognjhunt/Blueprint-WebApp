@@ -12,6 +12,7 @@ skills:
   - careful
   - using-git-worktrees
   - systematic-debugging
+  - karpathy-guidelines
   - verification-before-completion
 ---
 

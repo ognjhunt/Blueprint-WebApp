@@ -2,6 +2,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import yaml from "js-yaml";
 import { getConfiguredEnvValue } from "../config/env";
+import { buildOutboundReplyDurabilityStatus } from "./outbound-reply-durability";
 
 const DEFAULT_PUBLIC_PAPERCLIP_API_URL = "https://paperclip.tryblueprint.io";
 const DEFAULT_LOCAL_PAPERCLIP_API_URL = "http://127.0.0.1:3100";
@@ -393,6 +394,7 @@ export async function buildAutonomousGrowthBlockerStatus(options: BuildOptions =
   const contact = await readContactEnrichment(repoRoot, citySlug, runDir);
   const noSignal = await readNoSignalSnapshot(repoRoot, citySlug);
   const env = summarizeEnv();
+  const outboundReplyDurability = await buildOutboundReplyDurabilityStatus();
   const routines = await routineStatus(repoRoot);
   const [publicCompany, localCompany] = await Promise.all([
     fetchCompany({ apiUrl: publicPaperclipApiUrl, fetchImpl }),
@@ -423,11 +425,6 @@ export async function buildAutonomousGrowthBlockerStatus(options: BuildOptions =
     + (noSignalSnapshot?.routedResponses || 0)
     + (noSignalSnapshot?.liveSupplyResponses || 0)
     + (noSignalSnapshot?.liveBuyerOperatorEngagements || 0);
-  const senderVerified =
-    String(env.citySenderVerification || "").trim().toLowerCase() === "verified";
-  const senderExplicitlyUnverified =
-    String(env.citySenderVerification || "").trim().toLowerCase() === "unverified";
-
   const blockers: BlockerStatus[] = [
     {
       key: "paperclip_state_sync",
@@ -502,26 +499,26 @@ export async function buildAutonomousGrowthBlockerStatus(options: BuildOptions =
     {
       key: "sender_and_reply_durability",
       name: "Sender verification and durable reply resume must be production-proven",
-      status:
-        env.sendgridMissing.length > 0 || senderExplicitlyUnverified
-          ? "blocked"
-          : senderVerified && env.humanReplyMissing.length === 0
-            ? "clear"
-            : "warning",
+      status: outboundReplyDurability.ok ? "clear" : "blocked",
       lane: "city-launch outreach, founder/human reply resume",
-      stageReached: `emailTransport=${env.sendgridMissing.length === 0 ? "configured" : "missing"}, senderVerification=${env.citySenderVerification || "unknown"}, humanReplyMissing=${env.humanReplyMissing.length}`,
+      stageReached:
+        `emailTransport=${outboundReplyDurability.sender.transport.configured ? "configured" : "missing"}, `
+        + `senderVerification=${outboundReplyDurability.sender.sender.verificationStatus}, `
+        + `gmailProductionReady=${outboundReplyDurability.humanReply.gmail.production_ready}, `
+        + `watcherEnabled=${outboundReplyDurability.humanReply.watcherEnabled}, `
+        + `missingEnv=${outboundReplyDurability.missingEnv.length}`,
       evidence: [
         "DEPLOYMENT.md",
+        "server/utils/outbound-reply-durability.ts",
         latestManifestPath ? rel(repoRoot, latestManifestPath) : "no manifest",
       ],
       why: "Outbound launchability requires truthful sender state, and blocker/resume loops require a durable reply watcher rather than Slack-only visibility.",
       owner: "ops/runtime config",
-      nextAction: "Verify sender/domain in the live mail provider, set the sender verification mirror, and configure/prove Gmail reply watcher resume.",
-      missingEnv: [
-        ...env.sendgridMissing,
-        ...(!senderVerified ? ["BLUEPRINT_CITY_LAUNCH_SENDER_VERIFICATION=verified"] : []),
-        ...env.humanReplyMissing,
-      ],
+      nextAction:
+        outboundReplyDurability.ok
+          ? "Keep npm run human-replies:audit-durability and prove-production in the city-launch preflight."
+          : "Run npm run human-replies:audit-durability, set the missing live env/provider state, then prove a tagged reply resumes execution.",
+      missingEnv: outboundReplyDurability.missingEnv,
     },
     {
       key: "content_campaign_live_side_effects",
@@ -598,6 +595,7 @@ export async function buildAutonomousGrowthBlockerStatus(options: BuildOptions =
       publicPaperclipApiUrl,
       localPaperclipApiUrl,
     },
+    outboundReplyDurability,
   };
 
   return report;

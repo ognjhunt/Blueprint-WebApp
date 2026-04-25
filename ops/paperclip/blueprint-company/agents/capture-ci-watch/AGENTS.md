@@ -7,6 +7,7 @@ skills:
   - capture-repo-operations
   - gh-cli
   - investigate
+  - karpathy-guidelines
   - verification-before-completion
 ---
 

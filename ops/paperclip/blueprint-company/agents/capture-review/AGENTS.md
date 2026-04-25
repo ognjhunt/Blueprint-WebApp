@@ -20,6 +20,7 @@ skills:
   - systematic-debugging
   - requesting-code-review
   - receiving-code-review
+  - karpathy-guidelines
   - verification-before-completion
 ---
 

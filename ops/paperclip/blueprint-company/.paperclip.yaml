@@ -137,6 +137,7 @@ agents:
             - requesting-code-review
             - receiving-code-review
             - verification-before-completion
+            - karpathy-guidelines
     budgetMonthlyCents: 4000
   webapp-codex:
     role: engineer
@@ -163,6 +164,7 @@ agents:
             - using-git-worktrees
             - systematic-debugging
             - verification-before-completion
+            - karpathy-guidelines
     budgetMonthlyCents: 3000
   webapp-review:
     role: engineer
@@ -189,6 +191,7 @@ agents:
             - design-review
             - benchmark
             - verification-before-completion
+            - karpathy-guidelines
     budgetMonthlyCents: 3000
   webapp-ci-watch:
     role: engineer
@@ -208,6 +211,7 @@ agents:
             - gh-cli
             - investigate
             - verification-before-completion
+            - karpathy-guidelines
     budgetMonthlyCents: 1200
   pipeline-codex:
     role: engineer
@@ -245,6 +249,7 @@ agents:
             - receiving-code-review
             - verification-before-completion
             - finishing-a-development-branch
+            - karpathy-guidelines
     budgetMonthlyCents: 3000
   pipeline-review:
     role: engineer
@@ -278,6 +283,7 @@ agents:
             - requesting-code-review
             - receiving-code-review
             - verification-before-completion
+            - karpathy-guidelines
     budgetMonthlyCents: 3000
   pipeline-ci-watch:
     role: engineer
@@ -298,6 +304,7 @@ agents:
             - gh-cli
             - investigate
             - verification-before-completion
+            - karpathy-guidelines
     budgetMonthlyCents: 1200
   capture-codex:
     role: engineer
@@ -335,6 +342,7 @@ agents:
             - receiving-code-review
             - verification-before-completion
             - finishing-a-development-branch
+            - karpathy-guidelines
     budgetMonthlyCents: 3000
   capture-review:
     role: engineer
@@ -368,6 +376,7 @@ agents:
             - requesting-code-review
             - receiving-code-review
             - verification-before-completion
+            - karpathy-guidelines
     budgetMonthlyCents: 3000
   capture-ci-watch:
     role: engineer
@@ -388,6 +397,7 @@ agents:
             - gh-cli
             - investigate
             - verification-before-completion
+            - karpathy-guidelines
     budgetMonthlyCents: 1200
   ops-lead:
     role: cto
@@ -551,6 +561,7 @@ agents:
             - systematic-debugging
             - requesting-code-review
             - verification-before-completion
+            - karpathy-guidelines
     budgetMonthlyCents: 3000
   analytics-agent:
     role: engineer
@@ -893,6 +904,7 @@ agents:
             - dispatching-parallel-agents
             - systematic-debugging
             - verification-before-completion
+            - karpathy-guidelines
     budgetMonthlyCents: 2000
   buyer-solutions-agent:
     role: engineer
@@ -954,6 +966,7 @@ agents:
             - hermes-kb-workflow
             - webapp-repo-operations
             - buyer-package-framing
+            - karpathy-guidelines
     budgetMonthlyCents: 2600
   rights-provenance-agent:
     role: engineer

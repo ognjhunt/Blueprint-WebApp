@@ -17,7 +17,10 @@ import {
   subjectsMatchForCorrelation,
   type HumanReplyChannel,
 } from "./human-reply-routing";
-import { getHumanReplyGmailStatus, listHumanReplyGmailMessages } from "./human-reply-gmail";
+import {
+  getHumanReplyGmailDurabilityStatus,
+  listHumanReplyGmailMessages,
+} from "./human-reply-gmail";
 import {
   applyHumanReplyThreadUpdate,
   getHumanReplyEvent,
@@ -331,20 +334,24 @@ export async function ingestHumanReplyPayload(params: {
 }
 
 export async function runHumanReplyEmailWatcher(params?: { limit?: number }) {
-  const status = await getHumanReplyGmailStatus();
-  if (!status.configured) {
+  const status = await getHumanReplyGmailDurabilityStatus();
+  if (!status.production_ready) {
     const openThreads = await listOpenHumanBlockerThreads(250);
+    const reason =
+      status.reason
+      || status.risk
+      || "Email reply watcher is not production-ready.";
     for (const thread of openThreads.filter((entry) => entry.channel === "email")) {
       await noteHumanReplyThreadBlocker({
         blocker_id: thread.blocker_id,
-        reason: status.reason || "Email reply watcher is not configured.",
+        reason,
       });
     }
     return {
       processedCount: 0,
       failedCount: openThreads.filter((entry) => entry.channel === "email").length > 0 ? 1 : 0,
       blockedCount: openThreads.filter((entry) => entry.channel === "email").length,
-      reason: status.reason,
+      reason,
     };
   }
 
