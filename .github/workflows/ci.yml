@@ -65,11 +65,20 @@ jobs:
           node-version: 20
           cache: npm
 
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ hashFiles('package-lock.json') }}
+
       - name: Install dependencies
         run: npm ci
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps
+
+      - name: Verify Playwright install
+        run: npx playwright install --dry-run
 
       - name: Start dev server
         run: npm run dev &
