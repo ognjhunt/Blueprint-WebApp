@@ -4,14 +4,14 @@ test('world models page exposes hosted access and package paths', async ({ page 
   await page.goto('/world-models', { waitUntil: 'domcontentloaded' });
 
   await expect(
-    page.getByRole('heading', { name: /Browse exact-site world models\./i }),
+    page.getByRole('heading', { name: /Exact-site worlds\./i }),
   ).toBeVisible();
-  await expect(page.getByText(/Real facilities, real capture, and clear paths into site packages or hosted sessions\./i)).toBeVisible();
-  await expect(page.getByRole('link', { name: /View Sample Site/i }).first()).toBeVisible();
+  await expect(page.getByText(/Browse real facilities\./i)).toBeVisible();
+  await expect(page.getByRole('link', { name: /Inspect a real site/i }).first()).toBeVisible();
   await expect(page.getByRole('link', { name: /Request Access/i }).first()).toBeVisible();
-  await expect(page.getByRole('heading', { name: /Featured sites\./i })).toBeVisible();
-  await expect(page.getByRole('heading', { name: /Browse the catalog\./i })).toBeVisible();
-  await expect(page.getByRole('heading', { name: /Need a specific site\?/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Real facilities, presented as worlds\./i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Built from real capture\./i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Start with the exact site that matters\./i })).toBeVisible();
 });
 
 test('direct navigation to the setup flow stays reachable', async ({ page }) => {
@@ -33,9 +33,10 @@ test('direct navigation to a world-model detail page stays on the detail page', 
     }),
   ).toBeVisible();
   await expect(
-    page.getByText(/What a buyer can inspect right now\./i),
+    page.getByText(/Trust snapshot/i),
   ).toBeVisible();
-  await expect(page.getByText(/Typical response cadence/i)).toBeVisible();
-  await expect(page.getByText(/Hosted evaluation evidence/i)).toBeVisible();
-  await expect(page.getByText(/Current evidence tied to this listing/i)).toBeVisible();
+  await expect(page.getByText(/Visible now/i)).toBeVisible();
+  await expect(page.getByText(/Request package access/i)).toBeVisible();
+  await expect(page.getByText(/Start hosted evaluation/i)).toBeVisible();
+  await expect(page.getByText(/Sample manifest/i)).toBeVisible();
 });

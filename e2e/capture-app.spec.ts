@@ -5,7 +5,7 @@ test("capture app access page renders the handoff flow", async ({ page }) => {
 
   await expect(
     page.getByRole("heading", {
-      name: /Open the capture app\./i,
+      name: /Everyday site\.\s*Captured\./i,
     }),
   ).toBeVisible();
   await expect(
@@ -13,7 +13,7 @@ test("capture app access page renders the handoff flow", async ({ page }) => {
       .getByRole("link", { name: /Open capture app|Request capture access/i })
       .first(),
   ).toBeVisible();
-  await expect(page.getByText(/This is the public handoff for people recording indoor spaces for Blueprint\./i)).toBeVisible();
+  await expect(page.getByText(/Open Blueprint Capture to record public-facing places people visit every day/i)).toBeVisible();
   await expect(page.getByRole("link", { name: /Apply for capturer access/i }).first()).toBeVisible();
-  await expect(page.getByRole("link", { name: /Read capture basics/i }).first()).toBeVisible();
+  await expect(page.getByRole("link", { name: /Explore world models/i }).first()).toBeVisible();
 });

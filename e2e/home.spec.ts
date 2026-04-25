@@ -5,7 +5,7 @@ test('homepage leads with capture and world models', async ({ page }) => {
 
   await expect(
     page.getByRole('heading', {
-      name: /Site-specific world models for real facilities\./i,
+      name: /Site-specific world models for real places\./i,
     }),
   ).toBeVisible();
   const nav = page.getByRole('banner').getByRole('navigation');
@@ -14,8 +14,8 @@ test('homepage leads with capture and world models', async ({ page }) => {
   await expect(nav.getByRole('link', { name: /^How It Works$/i })).toBeVisible();
   await expect(nav.getByRole('link', { name: /^Pricing$/i })).toBeVisible();
   await expect(nav.getByRole('link', { name: /^Trust$/i })).toBeVisible();
-  await expect(page.getByRole('link', { name: /^Explore Sites$/i }).first()).toBeVisible();
-  await expect(page.getByRole('link', { name: /^Request Access$/i }).first()).toBeVisible();
-  await expect(page.getByRole('heading', { name: /One exact site\. Two buying paths\./i })).toBeVisible();
-  await expect(page.getByRole('heading', { name: /See what a team gets before it commits\./i })).toBeVisible();
+  await expect(page.getByRole('link', { name: /^Inspect sample site$/i }).first()).toBeVisible();
+  await expect(page.getByRole('link', { name: /^Scope hosted evaluation$/i }).first()).toBeVisible();
+  await expect(page.getByRole('heading', { name: /One exact site\. Two buying paths\. Proof stays attached\./i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Start with one complete proof journey\./i })).toBeVisible();
 });

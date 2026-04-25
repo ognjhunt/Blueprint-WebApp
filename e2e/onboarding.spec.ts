@@ -4,12 +4,17 @@ test('business signup onboarding flow loads first step', async ({ page }) => {
   await page.goto('/signup');
 
   await expect(
-    page.getByRole('heading', { name: /Create your Blueprint account/i }),
+    page.getByRole('heading', { name: /Request exact-site access/i }),
   ).toBeVisible();
   await expect(
-    page.getByRole('heading', { name: /Account basics/i }),
+    page.getByText(
+      /Use this path when your team needs a site-specific world-model package, hosted review, or private buyer workflow grounded in one real facility\./i,
+    ),
   ).toBeVisible();
   await expect(
-    page.getByRole('button', { name: /Continue with Google/i }),
+    page.getByRole('link', { name: /Open buyer request/i }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('link', { name: /Book a scoping call/i }),
   ).toBeVisible();
 });
