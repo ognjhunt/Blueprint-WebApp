@@ -22,6 +22,7 @@ const excludedDirs = new Set([
   "dist",
   "coverage",
   "attached_assets",
+  "artifacts",
 ]);
 
 function toPosixPath(filePath: string): string {
