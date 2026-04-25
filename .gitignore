@@ -49,3 +49,8 @@ derived/graphify/webapp-architecture/*
 
 # Local Deep Research grounding cache
 ops/paperclip/research-grounding/notion/
+
+# Generated execution artifacts (prevent worktree drift)
+ops/paperclip/reports/
+issue-updates/
+create-research-stub.mjs
