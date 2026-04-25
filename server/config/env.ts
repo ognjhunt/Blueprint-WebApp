@@ -88,6 +88,8 @@ const envSchema = z
     GOOGLE_CLIENT_EMAIL: z.string().trim().optional(),
     GOOGLE_PRIVATE_KEY: z.string().trim().optional(),
     GOOGLE_CALENDAR_ID: z.string().trim().optional(),
+    GA4_PROPERTY_ID: z.string().trim().optional(),
+    GA4_CREDENTIALS_JSON: z.string().trim().optional(),
     GEMINI_API_KEY: z.string().trim().optional(),
     GOOGLE_GENAI_API_KEY: z.string().trim().optional(),
     GOOGLE_CREATIVE_IMAGE_MODEL: z.string().trim().optional(),

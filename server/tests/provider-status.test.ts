@@ -27,6 +27,8 @@ describe("provider-status", () => {
   beforeEach(() => {
     vi.stubEnv("GOOGLE_GENAI_API_KEY", "test-key");
     vi.stubEnv("VITE_GA_MEASUREMENT_ID", "G-TEST");
+    vi.stubEnv("GA4_PROPERTY_ID", "123456789");
+    vi.stubEnv("GA4_CREDENTIALS_JSON", "/tmp/ga4-service-account.json");
     vi.stubEnv("VITE_PUBLIC_POSTHOG_PROJECT_TOKEN", "phc_test");
     vi.stubEnv("VITE_PUBLIC_POSTHOG_HOST", "https://ph.test");
     vi.stubEnv("BLUEPRINT_ANALYTICS_INGEST_ENABLED", "1");
@@ -53,6 +55,7 @@ describe("provider-status", () => {
     expect(summary.runway.configured).toBe(true);
     expect(summary.elevenlabs.configured).toBe(true);
     expect(summary.analytics.ga4.configured).toBe(true);
+    expect(summary.analytics.ga4.liveAccessConfigured).toBe(true);
     expect(summary.analytics.posthog.configured).toBe(true);
     expect(summary.sendgrid.configured).toBe(true);
     expect(summary.researchOutbound.configured).toBe(true);
@@ -63,11 +66,14 @@ describe("provider-status", () => {
   it("buildGrowthIntegrationSummary accepts the Firebase measurement alias when GA is absent", async () => {
     vi.stubEnv("VITE_GA_MEASUREMENT_ID", "");
     vi.stubEnv("VITE_FIREBASE_MEASUREMENT_ID", "G-FALLBACK");
+    vi.stubEnv("GA4_PROPERTY_ID", "");
+    vi.stubEnv("GA4_CREDENTIALS_JSON", "");
 
     const { buildGrowthIntegrationSummary } = await import("../utils/provider-status");
     const summary = buildGrowthIntegrationSummary();
 
     expect(summary.analytics.ga4.configured).toBe(true);
+    expect(summary.analytics.ga4.liveAccessConfigured).toBe(false);
     expect(summary.analytics.alignment.externalConfigured).toBe(true);
   });
 

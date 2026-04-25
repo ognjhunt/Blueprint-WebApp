@@ -52,7 +52,14 @@ type GrowthScorecardResponse = {
           persisted?: boolean;
           error?: string | null;
         };
-        ga4?: { configured?: boolean };
+        ga4?: {
+          configured?: boolean;
+          measurementConfigured?: boolean;
+          liveAccessConfigured?: boolean;
+          propertyIdConfigured?: boolean;
+          credentialsConfigured?: boolean;
+          note?: string;
+        };
         posthog?: { configured?: boolean };
       };
       runway?: { configured?: boolean };
@@ -357,7 +364,8 @@ export default function AdminGrowthOpsScorecard() {
                   <div className="rounded-xl border border-zinc-200 p-4 text-sm text-zinc-700">
                     <p className="font-medium text-zinc-950">Analytics</p>
                     <p className="mt-2">First-party ingest: {String(Boolean(scorecard.operatorStatus.providers.analytics?.firstPartyIngest?.enabled))}</p>
-                    <p>GA4: {String(Boolean(scorecard.operatorStatus.providers.analytics?.ga4?.configured))}</p>
+                    <p>GA4 live access: {String(Boolean(scorecard.operatorStatus.providers.analytics?.ga4?.liveAccessConfigured))}</p>
+                    <p>GA4 measurement: {String(Boolean(scorecard.operatorStatus.providers.analytics?.ga4?.configured))}</p>
                     <p>PostHog: {String(Boolean(scorecard.operatorStatus.providers.analytics?.posthog?.configured))}</p>
                   </div>
                   <div className="rounded-xl border border-zinc-200 p-4 text-sm text-zinc-700">

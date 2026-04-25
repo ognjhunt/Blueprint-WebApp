@@ -706,7 +706,7 @@ async function syncIntegrationChecks(params: {
           "Telephony Configured": checkboxProperty(telephony.configured === true),
           "Research Outbound Configured": checkboxProperty(researchOutbound.configured === true),
           "Analytics Ingest Enabled": checkboxProperty(analytics.firstPartyIngest?.enabled === true),
-          "GA4 Configured": checkboxProperty(analytics.ga4?.configured === true),
+          "GA4 Configured": checkboxProperty(analytics.ga4?.liveAccessConfigured === true),
           "PostHog Configured": checkboxProperty(analytics.posthog?.configured === true),
           Notes: richTextProperty(
             joinNotes(

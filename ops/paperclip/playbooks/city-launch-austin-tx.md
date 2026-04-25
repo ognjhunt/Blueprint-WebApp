@@ -3,7 +3,7 @@
 ## Status
 - phase: activation_ready
 - owner: city-launch-agent
-- last-reviewed: 2026-04-24
+- last-reviewed: 2026-04-25
 - recommended-posture: gated cohort pilot
 - launch_policy_state: autonomous_execution_ready
 - planning-state: completed

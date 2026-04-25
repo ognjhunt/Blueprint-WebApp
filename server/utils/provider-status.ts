@@ -101,6 +101,8 @@ export function buildGrowthIntegrationSummary(params?: {
   const marketSignalProvider = getMarketSignalProviderStatus();
   const analyticsIngestEnabled = isEnvFlagEnabled("BLUEPRINT_ANALYTICS_INGEST_ENABLED");
   const gaMeasurementId = getConfiguredEnvValue("VITE_GA_MEASUREMENT_ID", "VITE_FIREBASE_MEASUREMENT_ID");
+  const ga4PropertyId = getConfiguredEnvValue("GA4_PROPERTY_ID");
+  const ga4CredentialsJson = getConfiguredEnvValue("GA4_CREDENTIALS_JSON");
   const posthogToken = getConfiguredEnvValue("VITE_PUBLIC_POSTHOG_PROJECT_TOKEN");
   const posthogHost = getConfiguredEnvValue("VITE_PUBLIC_POSTHOG_HOST");
   const email = getEmailTransportStatus();
@@ -110,6 +112,8 @@ export function buildGrowthIntegrationSummary(params?: {
     getConfiguredEnvValue("TWILIO_AUTH_TOKEN") &&
     getConfiguredEnvValue("TWILIO_PHONE_NUMBER"),
   );
+  const ga4LiveAccessConfigured = Boolean(ga4PropertyId && ga4CredentialsJson);
+  const ga4MeasurementConfigured = Boolean(gaMeasurementId);
 
   return {
     analytics: {
@@ -120,7 +124,16 @@ export function buildGrowthIntegrationSummary(params?: {
         error: params?.analyticsResult?.error || null,
       },
       ga4: {
-        configured: Boolean(gaMeasurementId),
+        configured: ga4MeasurementConfigured,
+        measurementConfigured: ga4MeasurementConfigured,
+        liveAccessConfigured: ga4LiveAccessConfigured,
+        propertyIdConfigured: Boolean(ga4PropertyId),
+        credentialsConfigured: Boolean(ga4CredentialsJson),
+        note: ga4LiveAccessConfigured
+          ? "GA4 property and service-account credentials are configured for live-data refresh."
+          : ga4MeasurementConfigured
+            ? "Client-side GA4 measurement is configured, but live GA4 Data API access still needs GA4_PROPERTY_ID and GA4_CREDENTIALS_JSON."
+            : "GA4 measurement and live-data access are not configured.",
       },
       posthog: {
         configured: Boolean(posthogToken && posthogHost),
@@ -130,7 +143,9 @@ export function buildGrowthIntegrationSummary(params?: {
         firstPartyEnabled: analyticsIngestEnabled,
         note:
           analyticsIngestEnabled && (gaMeasurementId || (posthogToken && posthogHost))
-            ? "First-party growth events can be compared against GA4/PostHog if both runtime configs are active."
+            ? ga4LiveAccessConfigured
+              ? "First-party growth events can be compared against live GA4/PostHog if both runtime configs are active."
+              : "First-party growth events can be compared against client-side GA4/PostHog, but live GA4 Data API access still needs GA4_PROPERTY_ID and GA4_CREDENTIALS_JSON."
             : analyticsIngestEnabled
               ? "First-party growth events are enabled, but external analytics is not fully configured."
               : "External analytics may be configured, but first-party event mirroring is disabled.",

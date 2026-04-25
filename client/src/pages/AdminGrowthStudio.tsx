@@ -118,7 +118,14 @@ type VerifyResponse = {
       persisted?: boolean;
       error?: string | null;
     };
-    ga4?: { configured?: boolean };
+    ga4?: {
+      configured?: boolean;
+      measurementConfigured?: boolean;
+      liveAccessConfigured?: boolean;
+      propertyIdConfigured?: boolean;
+      credentialsConfigured?: boolean;
+      note?: string;
+    };
     posthog?: { configured?: boolean };
     alignment?: {
       externalConfigured?: boolean;
@@ -1267,7 +1274,8 @@ export default function AdminGrowthStudio() {
               <div className="mt-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-xs text-zinc-700">
                 <p>First-party ingest enabled: {String(Boolean(verifyResult.analytics?.firstPartyIngest?.enabled))}</p>
                 <p>First-party verification persisted: {String(Boolean(verifyResult.analytics?.firstPartyIngest?.persisted))}</p>
-                <p>GA4 configured: {String(Boolean(verifyResult.analytics?.ga4?.configured))}</p>
+                <p>GA4 live access: {String(Boolean(verifyResult.analytics?.ga4?.liveAccessConfigured))}</p>
+                <p>GA4 measurement: {String(Boolean(verifyResult.analytics?.ga4?.configured))}</p>
                 <p>PostHog configured: {String(Boolean(verifyResult.analytics?.posthog?.configured))}</p>
                 <p>SendGrid configured: {String(Boolean(verifyResult.sendgrid?.configured))}</p>
                 <p>SendGrid webhook configured: {String(Boolean(verifyResult.sendgridWebhook?.configured))}</p>
