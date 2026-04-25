@@ -80,21 +80,8 @@ jobs:
       - name: Verify Playwright install
         run: npx playwright install --dry-run
 
-      - name: Start dev server
-        run: npm run dev &
-        env:
-          NODE_ENV: development
-          PORT: 5000
-
-      - name: Wait for server ready
-        run: npx wait-on http://localhost:5000
-
       - name: Run E2E tests
         run: npm run test:e2e
-
-      - name: Stop dev server
-        if: always()
-        run: kill $(lsof -t -i:5000) || true
 
 
   build:
