@@ -11,6 +11,7 @@ import {
 
 const PAPERCLIP_PROJECT_NAME = "blueprint-webapp";
 const PUBLIC_REVIEW_AGENT_KEY = "public-space-review-agent";
+const FALLBACK_REVIEW_AGENT_KEY = "city-launch-agent";
 const HANDOFF_ORIGIN_KIND = "city_launch_app_candidate_batch";
 
 export type CityLaunchCandidatePaperclipHandoffResult = {
@@ -81,6 +82,7 @@ function buildHandoffDescription(input: {
   candidates: CityLaunchCandidateSignalRecord[];
   review: CityLaunchCandidateReviewBatchResult;
   source: string;
+  assigneeKey: string;
 }) {
   const city = firstCity(input.candidates, input.review);
   const candidateLines = input.candidates
@@ -97,6 +99,7 @@ function buildHandoffDescription(input: {
     "",
     "Current review summary:",
     `- source: ${input.source}`,
+    `- assignee_key: ${input.assigneeKey}`,
     `- generated_at: ${input.review.generatedAt}`,
     `- reviewed_by: ${input.review.reviewedBy}`,
     `- reviewed_count: ${input.review.reviewedCount}`,
@@ -113,6 +116,42 @@ function buildHandoffDescription(input: {
     ...candidateLines,
     ...(omittedCount ? [`- ${omittedCount} more candidates omitted from this issue body.`] : []),
   ].join("\n");
+}
+
+async function upsertReviewHandoffIssue(input: {
+  city: string;
+  originId: string;
+  review: CityLaunchCandidateReviewBatchResult;
+  candidates: CityLaunchCandidateSignalRecord[];
+  source: string;
+}) {
+  async function upsertForAssignee(assigneeKey: string) {
+    return await upsertPaperclipIssue({
+      projectName: PAPERCLIP_PROJECT_NAME,
+      assigneeKey,
+      title: `Review app-open nearby candidates: ${input.city}`,
+      description: buildHandoffDescription({
+        candidates: input.candidates,
+        review: input.review,
+        source: input.source,
+        assigneeKey,
+      }),
+      priority: input.review.keptInReviewCount > 0 ? "high" : "medium",
+      status: input.review.keptInReviewCount > 0 ? "todo" : "backlog",
+      originKind: HANDOFF_ORIGIN_KIND,
+      originId: input.originId,
+    });
+  }
+
+  try {
+    return await upsertForAssignee(PUBLIC_REVIEW_AGENT_KEY);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (!message.includes(`Paperclip agent not found: ${PUBLIC_REVIEW_AGENT_KEY}`)) {
+      throw error;
+    }
+    return await upsertForAssignee(FALLBACK_REVIEW_AGENT_KEY);
+  }
 }
 
 function handoffSkipped(enabled: boolean): CityLaunchCandidatePaperclipHandoffResult {
@@ -141,20 +180,13 @@ export async function dispatchCityLaunchCandidatePaperclipHandoff(input: {
   try {
     const city = firstCity(input.candidates, input.review);
     const originId = batchOriginId(input.candidates, input.review);
-    const description = buildHandoffDescription({
-      candidates: input.candidates,
-      review: input.review,
-      source: input.source || "creator_city_launch_candidate_signals",
-    });
-    const issue = await upsertPaperclipIssue({
-      projectName: PAPERCLIP_PROJECT_NAME,
-      assigneeKey: PUBLIC_REVIEW_AGENT_KEY,
-      title: `Review app-open nearby candidates: ${city}`,
-      description,
-      priority: input.review.keptInReviewCount > 0 ? "high" : "medium",
-      status: input.review.keptInReviewCount > 0 ? "todo" : "backlog",
-      originKind: HANDOFF_ORIGIN_KIND,
+    const source = input.source || "creator_city_launch_candidate_signals";
+    const issue = await upsertReviewHandoffIssue({
+      city,
       originId,
+      review: input.review,
+      candidates: input.candidates,
+      source,
     });
 
     await createPaperclipIssueComment(
@@ -176,7 +208,7 @@ export async function dispatchCityLaunchCandidatePaperclipHandoff(input: {
         reason: "city_launch_app_candidate_batch_review",
         idempotencyKey: `city-launch-app-candidate-batch:${originId}:${input.review.generatedAt}`,
         payload: {
-          source: input.source || "creator_city_launch_candidate_signals",
+          source,
           issueId: issue.issue.id,
           city,
           candidateIds: input.candidates.map((candidate) => candidate.id),

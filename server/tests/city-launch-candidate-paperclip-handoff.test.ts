@@ -194,4 +194,66 @@ describe("city launch candidate Paperclip handoff", () => {
       }),
     );
   });
+
+  it("falls back to the city-launch agent when the public-space review agent is not synced", async () => {
+    process.env.BLUEPRINT_PAPERCLIP_COMPANY_ID = "company-1";
+    upsertPaperclipIssue
+      .mockRejectedValueOnce(new Error("Paperclip agent not found: public-space-review-agent"))
+      .mockResolvedValueOnce({
+        companyId: "company-1",
+        projectId: "project-1",
+        assigneeAgentId: "agent-city-launch",
+        created: true,
+        issue: {
+          id: "issue-2",
+          identifier: "BLU-124",
+          title: "Review app-open nearby candidates: Durham, NC",
+          status: "todo",
+          priority: "high",
+        },
+      });
+    createPaperclipIssueComment.mockResolvedValue({ ok: true });
+    resetPaperclipAgentSession.mockResolvedValue({ ok: true });
+    wakePaperclipAgent.mockResolvedValue({ status: "queued", runId: "run-2" });
+
+    const { dispatchCityLaunchCandidatePaperclipHandoff } = await import(
+      "../utils/cityLaunchCandidatePaperclipHandoff"
+    );
+    const result = await dispatchCityLaunchCandidatePaperclipHandoff({
+      candidates: [candidate()],
+      review: review(),
+      source: "creator_city_launch_candidate_signals",
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        issueId: "issue-2",
+        wakeStatus: "queued",
+        wakeRunId: "run-2",
+        error: null,
+      }),
+    );
+    expect(upsertPaperclipIssue).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        assigneeKey: "public-space-review-agent",
+      }),
+    );
+    expect(upsertPaperclipIssue).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        assigneeKey: "city-launch-agent",
+        description: expect.stringContaining("assignee_key: city-launch-agent"),
+      }),
+    );
+    expect(wakePaperclipAgent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        agentId: "agent-city-launch",
+        payload: expect.objectContaining({
+          issueId: "issue-2",
+          candidateIds: ["candidate-durham-1"],
+        }),
+      }),
+    );
+  });
 });
