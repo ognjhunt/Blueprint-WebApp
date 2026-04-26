@@ -202,6 +202,9 @@ REDIS_URL=rediss://default:<token>@active-phoenix-39183.upstash.io:6379
 - Optional Exact-Site Hosted Review GTM pilot audit:
   `npm run gtm:hosted-review:audit`
   The audit is local and file-backed. It validates `ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json` and does not send outreach or publish content.
+- Optional Exact-Site Hosted Review buyer-loop report:
+  `npm run gtm:hosted-review:buyer-loop -- --write --allow-blocked`
+  The report is local and file-backed. It turns the canonical GTM ledger plus reply durability state into the daily sales loop: targets, recipient-backed contacts, founder approvals, sends, replies, hosted-review starts, qualified calls, next actions, and the 100-touch decision gap.
 - Optional human-reply ingest and email watcher:
   `BLUEPRINT_HUMAN_REPLY_INGEST_TOKEN`
   `BLUEPRINT_HUMAN_REPLY_APPROVED_EMAIL`

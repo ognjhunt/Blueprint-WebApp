@@ -35,6 +35,7 @@ export type CityLaunchOutboundReadiness = {
     total: number;
     recipientBacked: number;
     readyToSend: number;
+    approvalNeeded: number;
     sent: number;
   };
   emailTransport: ReturnType<typeof getEmailTransportStatus>;
@@ -49,7 +50,17 @@ export function assessCityLaunchOutboundReadiness(input: {
 }): CityLaunchOutboundReadiness {
   const directOutreachActions = input.sendActions.filter((entry) => entry.actionType === "direct_outreach");
   const recipientBacked = directOutreachActions.filter((entry) => Boolean(entry.recipientEmail));
-  const readyToSend = recipientBacked.filter((entry) => entry.status === "ready_to_send");
+  const approvalNeeded = recipientBacked.filter((entry) =>
+    entry.status === "ready_to_send" && entry.approvalState === "pending_first_send_approval",
+  );
+  const blockedDirectOutreach = recipientBacked.filter((entry) =>
+    entry.status === "blocked" || entry.approvalState === "blocked",
+  );
+  const readyToSend = recipientBacked.filter((entry) =>
+    entry.status === "ready_to_send"
+    && entry.approvalState !== "pending_first_send_approval"
+    && entry.approvalState !== "blocked",
+  );
   const sent = recipientBacked.filter((entry) => entry.status === "sent");
   const senderOperationalState = getCityLaunchSenderOperationalState();
   const emailTransport = senderOperationalState.transport;
@@ -62,6 +73,16 @@ export function assessCityLaunchOutboundReadiness(input: {
       `No recipient-backed direct-outreach send actions were seeded for ${input.city}.`,
     );
   }
+  if (approvalNeeded.length > 0) {
+    warnings.push(
+      `${approvalNeeded.length} recipient-backed first-send action(s) are waiting for founder approval before dispatch.`,
+    );
+  }
+  if (blockedDirectOutreach.length > 0) {
+    warnings.push(
+      `${blockedDirectOutreach.length} recipient-backed direct-outreach action(s) are blocked before dispatch.`,
+    );
+  }
 
   return {
     city: input.city,
@@ -70,6 +91,7 @@ export function assessCityLaunchOutboundReadiness(input: {
       total: directOutreachActions.length,
       recipientBacked: recipientBacked.length,
       readyToSend: readyToSend.length,
+      approvalNeeded: approvalNeeded.length,
       sent: sent.length,
     },
     emailTransport,

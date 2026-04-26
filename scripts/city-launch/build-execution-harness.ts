@@ -80,6 +80,7 @@ async function main() {
         canonicalTargetLedgerPath: result.artifacts.canonicalTargetLedgerPath,
         canonicalActivationPayloadPath: result.artifacts.canonicalActivationPayloadPath,
         canonicalCityOpeningArtifactPack: result.artifacts.cityOpeningArtifactPack.canonical,
+        outboundReadiness: result.outboundReadiness || null,
         sourceActivationPayloadPath: result.artifacts.sourceActivationPayloadPath || null,
         runDirectory: result.artifacts.runDirectory,
         notionKnowledgePageUrl: result.notion?.knowledgePageUrl || null,

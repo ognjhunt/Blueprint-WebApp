@@ -102,7 +102,9 @@ Blocked:
    `npm run gtm:hosted-review:audit`
 3. Generate the founder daily review packet:
    `npm run gtm:hosted-review:daily -- --write --allow-blocked`
-4. Create the kickoff Paperclip issue from:
+4. Generate the buyer-loop report:
+   `npm run gtm:hosted-review:buyer-loop -- --write --allow-blocked`
+5. Create the kickoff Paperclip issue from:
    `ops/paperclip/blueprint-company/tasks/exact-site-hosted-review-gtm-pilot/TASK.md`
 
 ### Daily Loop
@@ -114,6 +116,7 @@ Blocked:
 5. Growth Lead records the target, evidence, artifact, message, recipient evidence, send status, reply state, and outcome in the ledger.
 6. Run `npm run gtm:hosted-review:audit` before claiming the day's motion is ready.
 7. Run `npm run gtm:hosted-review:daily -- --write --allow-blocked` so the founder sees one dashboard: targets added, recipient-backed targets, approvals, sends, replies, hosted-review starts, qualified calls, and blockers.
+8. Run `npm run gtm:hosted-review:buyer-loop -- --write --allow-blocked` so the city-launch and sales loops use the same buyer-motion artifact.
 
 Internal summaries do not count as daily progress unless they change one of those dashboard fields.
 

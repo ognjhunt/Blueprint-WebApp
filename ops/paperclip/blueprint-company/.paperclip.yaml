@@ -1420,6 +1420,10 @@ tasks:
     status: active
     priority: high
     projectWorkspaceKey: blueprint-webapp
+  exact-site-hosted-review-buyer-loop:
+    status: active
+    priority: high
+    projectWorkspaceKey: blueprint-webapp
   conversion-agent-bootstrap:
     status: done
     priority: high
@@ -1736,6 +1740,15 @@ routines:
     triggers:
       - kind: schedule
         cronExpression: 0 10 * * 1-5
+        timezone: America/New_York
+  exact-site-hosted-review-buyer-loop:
+    agent: growth-lead
+    priority: high
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: enqueue_missed_with_cap
+    triggers:
+      - kind: schedule
+        cronExpression: 20 10 * * 1-5
         timezone: America/New_York
   growth-lead-weekly:
     agent: growth-lead

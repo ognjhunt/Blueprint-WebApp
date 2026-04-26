@@ -29,6 +29,10 @@ export interface ExactSiteGtmPilotLedger {
     paidScaleAllowed: boolean;
     paidScaleDecision?: string;
     defaultTrack?: ExactSiteGtmTrack;
+    decisionTouchGoal?: number;
+    proofArtifactGoal?: number;
+    targetAccountGoalMin?: number;
+    targetAccountGoalMax?: number;
   };
   targets: ExactSiteGtmTarget[];
   dailyActivity: ExactSiteGtmDailyActivity[];
@@ -71,10 +75,23 @@ export interface ExactSiteGtmTarget {
   };
   outbound: {
     status: ExactSiteGtmTargetStatus;
+    approvalState?: "not_required" | "pending_first_send_approval" | "approved" | "blocked";
+    approvedBy?: string;
+    approvedAt?: string;
     messagePath?: string;
     sendLedgerPath?: string;
+    sendReceipt?: string;
+    replyThreadPath?: string;
     sentAt?: string;
     replyAt?: string;
+  };
+  sales?: {
+    nextAction?: string;
+    nextActionOwner?: string;
+    nextActionDue?: string;
+    objection?: string;
+    callStatus?: "not_started" | "requested" | "scheduled" | "completed" | "no_fit";
+    decision?: "continue" | "change_icp" | "change_offer" | "change_artifact" | "change_cta" | "stop";
   };
   contentLoop?: Array<{
     channel: "linkedin" | "x" | "reddit" | "youtube" | "blog" | "newsletter" | "other";
@@ -118,16 +135,27 @@ export interface ExactSiteGtmAuditResult {
     proofReadyTargets: number;
     demandSourcedTargets: number;
     readyTargets: number;
+    proofArtifactsOrCaptureAsks: number;
     draftReadyTargets: number;
     humanApprovedTargets: number;
     recipientBackedTargets: number;
     targetsMissingRecipientEvidence: number;
     approvalNeededTargets: number;
+    founderApprovalNeededTargets: number;
     sentTargets: number;
+    explicitNextActionTargets: number;
     replies: number;
     hostedReviewStarts: number;
     qualifiedCalls: number;
     totalPaidSpendCents: number;
+    decisionRule: {
+      touchGoal: number;
+      touches: number;
+      gap: number;
+      daysElapsed: number;
+      daysRemaining: number;
+      status: "collecting" | "organic_signal" | "decision_due";
+    };
     latestDay: {
       date: string | null;
       targetsAdded: number;
@@ -160,6 +188,13 @@ function hasMeaningfulString(value: unknown): value is string {
 
 function isIsoDate(value: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+function daysBetween(start: string, end: string): number {
+  const startMs = Date.parse(`${start}T00:00:00.000Z`);
+  const endMs = Date.parse(`${end}T00:00:00.000Z`);
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) return 0;
+  return Math.max(0, Math.floor((endMs - startMs) / 86_400_000));
 }
 
 function isLikelyPlaceholderEmail(value: string): boolean {
@@ -249,6 +284,37 @@ export function auditExactSiteHostedReviewGtmLedger(
         "Daily touch target minimum cannot exceed the maximum.",
       );
     }
+    if (
+      ledger.pilot.decisionTouchGoal !== undefined
+      && (!Number.isFinite(ledger.pilot.decisionTouchGoal) || ledger.pilot.decisionTouchGoal < 1)
+    ) {
+      addFinding(findings, "error", "pilot.decisionTouchGoal", "Decision touch goal must be a positive number.");
+    }
+    if (
+      ledger.pilot.proofArtifactGoal !== undefined
+      && (!Number.isFinite(ledger.pilot.proofArtifactGoal) || ledger.pilot.proofArtifactGoal < 1)
+    ) {
+      addFinding(findings, "error", "pilot.proofArtifactGoal", "Proof artifact goal must be a positive number.");
+    }
+    if (
+      ledger.pilot.targetAccountGoalMin !== undefined
+      && (!Number.isFinite(ledger.pilot.targetAccountGoalMin) || ledger.pilot.targetAccountGoalMin < 1)
+    ) {
+      addFinding(findings, "error", "pilot.targetAccountGoalMin", "Target account goal minimum must be a positive number.");
+    }
+    if (
+      ledger.pilot.targetAccountGoalMax !== undefined
+      && (!Number.isFinite(ledger.pilot.targetAccountGoalMax) || ledger.pilot.targetAccountGoalMax < 1)
+    ) {
+      addFinding(findings, "error", "pilot.targetAccountGoalMax", "Target account goal maximum must be a positive number.");
+    }
+    if (
+      ledger.pilot.targetAccountGoalMin !== undefined
+      && ledger.pilot.targetAccountGoalMax !== undefined
+      && ledger.pilot.targetAccountGoalMin > ledger.pilot.targetAccountGoalMax
+    ) {
+      addFinding(findings, "error", "pilot.targetAccountGoalMin", "Target account goal minimum cannot exceed maximum.");
+    }
   }
 
   const targets = Array.isArray(ledger.targets) ? ledger.targets : [];
@@ -302,6 +368,12 @@ export function auditExactSiteHostedReviewGtmLedger(
     }
     if (!isAllowedTargetStatus(target.outbound?.status)) {
       addFinding(findings, "error", `${basePath}.outbound.status`, "Outbound status is invalid.");
+    }
+    if (
+      hasMeaningfulString(target.outbound?.approvalState)
+      && !["not_required", "pending_first_send_approval", "approved", "blocked"].includes(target.outbound.approvalState)
+    ) {
+      addFinding(findings, "error", `${basePath}.outbound.approvalState`, "Outbound approval state is invalid.");
     }
 
     if (target.track === "proof_ready_outreach") {
@@ -410,12 +482,48 @@ export function auditExactSiteHostedReviewGtmLedger(
         "Human-approved or live outbound requires recipient-backed email evidence.",
       );
     }
+    if (
+      target.outbound?.status === "draft_ready"
+      && email
+      && target.outbound.approvalState !== "pending_first_send_approval"
+      && target.outbound.approvalState !== "approved"
+    ) {
+      addFinding(
+        findings,
+        "warning",
+        `${basePath}.outbound.approvalState`,
+        "Recipient-backed draft should be queued for founder first-send approval or explicitly approved.",
+      );
+    }
+    if (
+      ["human_approved", "sent", "replied", "hosted_review_started", "closed"].includes(target.outbound?.status)
+      && target.outbound.approvalState !== "approved"
+    ) {
+      addFinding(
+        findings,
+        "error",
+        `${basePath}.outbound.approvalState`,
+        "Human-approved or sent outbound must record approvalState=approved.",
+      );
+    }
     if (["sent", "replied", "hosted_review_started", "closed"].includes(target.outbound?.status) && !hasMeaningfulString(target.outbound?.sendLedgerPath)) {
       addFinding(
         findings,
         "error",
         `${basePath}.outbound.sendLedgerPath`,
         "Sent or later outbound must point to a send ledger receipt path.",
+      );
+    }
+    if (
+      ["sent", "replied", "hosted_review_started", "closed"].includes(target.outbound?.status)
+      && !hasMeaningfulString(target.sales?.nextAction)
+      && !hasMeaningfulString(target.outcomes?.buyerOutcome)
+    ) {
+      addFinding(
+        findings,
+        "warning",
+        `${basePath}.sales.nextAction`,
+        "Sent or later targets should record a next action, objection, buyer outcome, or closeout decision.",
       );
     }
 
@@ -508,6 +616,11 @@ export function auditExactSiteHostedReviewGtmLedger(
   ).length;
   const proofReadyTargets = targets.filter((target) => target.track === "proof_ready_outreach").length;
   const demandSourcedTargets = targets.filter((target) => target.track === "demand_sourced_capture").length;
+  const proofArtifactsOrCaptureAsks = targets.filter((target) =>
+    target.artifact?.status === "review_ready"
+    || target.artifact?.status === "delivered"
+    || Boolean(target.captureAsk),
+  ).length;
   const draftReadyTargets = targets.filter((target) => target.outbound?.status === "draft_ready").length;
   const humanApprovedTargets = targets.filter((target) => target.outbound?.status === "human_approved").length;
   const recipientBackedTargets = targets.filter((target) => hasMeaningfulString(target.recipient?.email)).length;
@@ -515,28 +628,59 @@ export function auditExactSiteHostedReviewGtmLedger(
   const approvalNeededTargets = targets.filter((target) =>
     target.outbound?.status === "draft_ready" && hasMeaningfulString(target.recipient?.email),
   ).length;
+  const founderApprovalNeededTargets = targets.filter((target) =>
+    target.outbound?.status === "draft_ready"
+    && hasMeaningfulString(target.recipient?.email)
+    && target.outbound.approvalState !== "approved",
+  ).length;
   const sentTargets = targets.filter((target) =>
     ["sent", "replied", "hosted_review_started", "closed"].includes(target.outbound?.status),
   ).length;
+  const explicitNextActionTargets = targets.filter((target) => hasMeaningfulString(target.sales?.nextAction)).length;
   const latestDay = [...activity]
     .filter((day) => isIsoDate(asString(day.date)))
     .sort((left, right) => asString(right.date).localeCompare(asString(left.date)))[0];
+  const totalReplies = activity.reduce((sum, day) => sum + asNumber(day.replies), 0);
+  const totalHostedReviewStarts = activity.reduce((sum, day) => sum + asNumber(day.hostedReviewStarts), 0);
+  const totalQualifiedCalls = activity.reduce((sum, day) => sum + asNumber(day.qualifiedCalls), 0);
+  const decisionTouchGoal = asNumber(ledger.pilot.decisionTouchGoal) || 100;
+  const today = new Date().toISOString().slice(0, 10);
+  const daysElapsed = daysBetween(asString(ledger.pilot.startDate), today);
+  const daysRemaining = daysBetween(today, asString(ledger.pilot.endDate));
+  const decisionOrganicSignal = totalReplies + totalHostedReviewStarts + totalQualifiedCalls;
+  const decisionRuleStatus: ExactSiteGtmAuditResult["summary"]["decisionRule"]["status"] =
+    sentTargets >= decisionTouchGoal || daysRemaining === 0
+      ? "decision_due"
+      : decisionOrganicSignal > 0
+        ? "organic_signal"
+        : "collecting";
 
   const summary = {
     targets: targets.length,
     proofReadyTargets,
     demandSourcedTargets,
     readyTargets,
+    proofArtifactsOrCaptureAsks,
     draftReadyTargets,
     humanApprovedTargets,
     recipientBackedTargets,
     targetsMissingRecipientEvidence,
     approvalNeededTargets,
+    founderApprovalNeededTargets,
     sentTargets,
-    replies: activity.reduce((sum, day) => sum + asNumber(day.replies), 0),
-    hostedReviewStarts: activity.reduce((sum, day) => sum + asNumber(day.hostedReviewStarts), 0),
-    qualifiedCalls: activity.reduce((sum, day) => sum + asNumber(day.qualifiedCalls), 0),
+    explicitNextActionTargets,
+    replies: totalReplies,
+    hostedReviewStarts: totalHostedReviewStarts,
+    qualifiedCalls: totalQualifiedCalls,
     totalPaidSpendCents: paidSpendCents,
+    decisionRule: {
+      touchGoal: decisionTouchGoal,
+      touches: sentTargets,
+      gap: Math.max(0, decisionTouchGoal - sentTargets),
+      daysElapsed,
+      daysRemaining,
+      status: decisionRuleStatus,
+    },
     latestDay: {
       date: asString(latestDay?.date) || null,
       targetsAdded: asNumber(latestDay?.targetsAdded),
@@ -567,6 +711,30 @@ export function auditExactSiteHostedReviewGtmLedger(
       "warning",
       "targets.outbound",
       "Active pilot has no sent targets yet; daily progress is still target research until a send ledger exists.",
+    );
+  }
+  if (ledger.pilot.status === "active" && targets.length > 0 && targets.length < (ledger.pilot.targetAccountGoalMin || 30)) {
+    addFinding(
+      findings,
+      "warning",
+      "targets",
+      `Active pilot has ${targets.length} target rows; expand toward ${ledger.pilot.targetAccountGoalMin || 30}-${ledger.pilot.targetAccountGoalMax || 50} target accounts before judging the wedge.`,
+    );
+  }
+  if (ledger.pilot.status === "active" && readyTargets < (ledger.pilot.proofArtifactGoal || 3)) {
+    addFinding(
+      findings,
+      "warning",
+      "targets.artifact",
+      `Active pilot has ${readyTargets} proof-ready artifacts; create ${ledger.pilot.proofArtifactGoal || 3} buyer-specific hosted-review artifacts or capture asks before scaling.`,
+    );
+  }
+  if (ledger.pilot.status === "active" && explicitNextActionTargets < targets.length) {
+    addFinding(
+      findings,
+      "warning",
+      "targets.sales.nextAction",
+      "Some target rows do not record an explicit next action; the buyer-loop report will infer one, but the canonical sales ledger should be made explicit as evidence changes.",
     );
   }
 
@@ -607,16 +775,22 @@ export function renderExactSiteHostedReviewGtmAuditMarkdown(
     `- proof-ready outreach targets: ${result.summary.proofReadyTargets}`,
     `- demand-sourced capture targets: ${result.summary.demandSourcedTargets}`,
     `- ready targets: ${result.summary.readyTargets}`,
+    `- proof artifacts or capture asks: ${result.summary.proofArtifactsOrCaptureAsks}`,
     `- draft-ready targets: ${result.summary.draftReadyTargets}`,
     `- human-approved targets: ${result.summary.humanApprovedTargets}`,
     `- recipient-backed targets: ${result.summary.recipientBackedTargets}`,
     `- targets missing recipient evidence: ${result.summary.targetsMissingRecipientEvidence}`,
     `- approval-needed targets: ${result.summary.approvalNeededTargets}`,
+    `- founder approval needed targets: ${result.summary.founderApprovalNeededTargets}`,
     `- sent targets: ${result.summary.sentTargets}`,
+    `- explicit next-action targets: ${result.summary.explicitNextActionTargets}`,
     `- replies: ${result.summary.replies}`,
     `- hosted review starts: ${result.summary.hostedReviewStarts}`,
     `- qualified calls: ${result.summary.qualifiedCalls}`,
     `- paid spend cents: ${result.summary.totalPaidSpendCents}`,
+    `- decision touch goal: ${result.summary.decisionRule.touchGoal}`,
+    `- decision touch gap: ${result.summary.decisionRule.gap}`,
+    `- decision status: ${result.summary.decisionRule.status}`,
     `- latest day: ${result.summary.latestDay.date ?? "none"}`,
     `- latest day targets added: ${result.summary.latestDay.targetsAdded}`,
     `- latest day contact-density gap: ${result.summary.latestDay.contactDensityGap}`,
@@ -674,11 +848,15 @@ export function renderExactSiteHostedReviewGtmFounderReviewMarkdown(
     `| Targets added latest day | ${latest.targetsAdded} |`,
     `| Draft-ready targets | ${result.summary.draftReadyTargets} |`,
     `| Recipient-backed targets | ${result.summary.recipientBackedTargets} |`,
+    `| Founder approval needed | ${result.summary.founderApprovalNeededTargets} |`,
     `| Human-approved targets | ${result.summary.humanApprovedTargets} |`,
     `| Sent targets | ${result.summary.sentTargets} |`,
     `| Replies | ${result.summary.replies} |`,
     `| Hosted-review starts | ${result.summary.hostedReviewStarts} |`,
     `| Qualified calls | ${result.summary.qualifiedCalls} |`,
+    `| Proof artifacts or capture asks | ${result.summary.proofArtifactsOrCaptureAsks} |`,
+    `| Explicit next-action targets | ${result.summary.explicitNextActionTargets} |`,
+    `| 100-touch decision gap | ${result.summary.decisionRule.gap} |`,
     `| Latest day sent touches | ${latest.sentTouches} |`,
     `| Latest day contact-density gap | ${latest.contactDensityGap} |`,
     "",

@@ -56,6 +56,10 @@ Image-heavy execution rule:
 - Draft outbound must stay plain text, proof-led, and value-first; it must not claim live sends, customer traction, city-live status, or model capability that the artifact cannot prove.
 - Content-loop drafts must cite the proof artifact they came from and remain review-gated until human approval.
 - Record or update the target row in `ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json` and run `npm run gtm:hosted-review:audit` before marking the package ready for Growth Lead review.
+- Keep first-batch buyer sends in `approvalState=pending_first_send_approval` until the founder approves, edits, or rejects the drafted message.
+- Every target package must have a concrete next action. If the next action is missing, write it into the ledger before reporting the package as ready.
+- After material target, contact, proof, approval, reply, call, or blocker changes, regenerate the buyer-loop report with `npm run gtm:hosted-review:buyer-loop -- --write --allow-blocked`.
+- During city launch, treat the city buyer-loop artifact as the robot-team sales source of truth. Do not use a generic city report as a proxy for buyer contact density.
 
 ## Recent Context
 - As of 2026-03-30, the buyer signup and contact flows still default important paths toward `qualification`, so this program should explicitly specify the buyer-facing motion that ought to replace that default emphasis.

@@ -66,9 +66,13 @@ describe("Exact-Site Hosted Review GTM pilot ledger audit", () => {
           },
           outbound: {
             status: "sent",
+            approvalState: "approved",
             messagePath: "ops/paperclip/playbooks/example-message.md",
             sendLedgerPath: "ops/paperclip/playbooks/example-send-ledger.md",
             sentAt: "2026-04-27T14:00:00.000Z",
+          },
+          sales: {
+            nextAction: "Watch for durable reply and route to hosted-review start or qualified call.",
           },
           contentLoop: [
             {
@@ -125,6 +129,7 @@ describe("Exact-Site Hosted Review GTM pilot ledger audit", () => {
           },
           outbound: {
             status: "human_approved",
+            approvalState: "approved",
           },
         },
       ],
@@ -229,7 +234,11 @@ describe("Exact-Site Hosted Review GTM pilot ledger audit", () => {
           },
           outbound: {
             status: "human_approved",
+            approvalState: "approved",
             messagePath: "ops/paperclip/playbooks/demand-sourced-capture-message.md",
+          },
+          sales: {
+            nextAction: "Send first capture-ask touch after provider configuration is durable.",
           },
         },
       ],

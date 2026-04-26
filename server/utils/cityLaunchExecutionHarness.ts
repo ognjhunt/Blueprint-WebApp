@@ -47,6 +47,12 @@ import {
   type CityLaunchOutboundReadiness,
   type CityLaunchSendExecutionResult,
 } from "./cityLaunchSendExecutor";
+import {
+  auditExactSiteHostedReviewGtmLedger,
+  loadExactSiteHostedReviewGtmLedger,
+} from "./exactSiteHostedReviewGtmPilot";
+import { buildExactSiteHostedReviewBuyerLoopReport } from "./exactSiteHostedReviewBuyerLoop";
+import { buildOutboundReplyDurabilityStatus } from "./outbound-reply-durability";
 import { resolveHistoricalRecipientEvidence } from "./cityLaunchRecipientEvidence";
 import {
   buildCityLaunchBudgetPolicy,
@@ -218,6 +224,7 @@ export type CityLaunchExecutionResult = {
         campaignMockPackPath: string;
         siteOperatorRecoveryPackPath: string;
         noSignalScorecardPath: string;
+        buyerLoopPath: string;
       };
       canonical: {
         briefPath: string;
@@ -233,6 +240,7 @@ export type CityLaunchExecutionResult = {
         campaignMockPackPath: string;
         siteOperatorRecoveryPackPath: string;
         noSignalScorecardPath: string;
+        buyerLoopPath: string;
       };
     };
     notionKnowledgePageUrl?: string;
@@ -319,6 +327,7 @@ function buildCanonicalCityOpeningArtifactPath(
     | "campaign-mock-pack"
     | "site-operator-recovery-pack"
     | "no-signal-scorecard"
+    | "buyer-loop"
     | "robot-team-contact-list"
     | "site-operator-contact-list",
 ) {
@@ -558,6 +567,7 @@ function buildCompactLaunchPlaybookMarkdown(input: {
     `- ${input.profile.shortLabel} channel/account registry with ready-to-create, created, or blocked state`,
     `- ${input.profile.shortLabel} live post/outreach send ledger with ready-to-send, sent, or blocked state plus first-send approval`,
     `- ${input.profile.shortLabel} city-opening execution report showing what actually went live versus what is still pending`,
+    `- ${input.profile.shortLabel} exact-site buyer loop showing targets, recipient-backed contacts, founder approvals, sends, replies, calls, hosted-review starts, and blockers`,
     "",
     "## Target Capturer Profile",
     "- site-authorized surveying, AEC scanning, industrial inspection, or commercial mapping operator",
@@ -587,7 +597,7 @@ function buildCompactLaunchPlaybookMarkdown(input: {
     "- A live response does not count as converted just because it exists; it counts when it receives a next step, follow-up cadence, and downstream routing decision.",
     "",
     "## City-Opening Execution Layer",
-    "- The city-opening execution layer should keep a first-class channel/account registry, a send ledger, and a current execution report.",
+    "- The city-opening execution layer should keep a first-class channel/account registry, a send ledger, a buyer loop, and a current execution report.",
     "- Account creation, send readiness, send approval, sent state, and response ingest should stay visible in canonical artifacts instead of hiding in agent comments.",
     "- The reply-conversion lane should ingest responses from the send ledger rather than assuming responses will be routed manually.",
     "",
@@ -900,7 +910,8 @@ async function buildCityOpeningExecutionSeed(input: {
       ...captureTargets.slice(0, 4).map((entry) => entry.name),
     ],
   });
-  const approvalState = "approved";
+  const buyerFirstSendApprovalState = "pending_first_send_approval";
+  const approvedApprovalState = "approved";
   const directLaneStatus = "created";
   const directWarehouseSubject = `Blueprint ${input.profile.shortLabel} exact-site warehouse opening`;
   const directWarehouseBody = [
@@ -916,7 +927,7 @@ async function buildCityOpeningExecutionSeed(input: {
     "",
     "This follow-up stays narrow: one real site, one workflow lane, one truthful next step into proof review.",
     "",
-    "Reply with the site/workflow fit and the right owner or operator path if a Sacramento thread should be opened.",
+    `Reply with the site/workflow fit and the right owner or operator path if a ${input.profile.shortLabel} thread should be opened.`,
   ].join("\n");
   const professionalCapturerSubject = `Blueprint ${input.profile.shortLabel} professional capture opening`;
   const professionalCapturerBody = [
@@ -974,8 +985,8 @@ async function buildCityOpeningExecutionSeed(input: {
       accountLabel: `${input.profile.shortLabel} warehouse/facility direct outreach lane`,
       ownerAgent: "city-launch-agent",
       status: directLaneStatus,
-      approvalState,
-      notes: "Direct outreach lane is approved for autonomous execution inside the bounded launch posture.",
+      approvalState: buyerFirstSendApprovalState,
+      notes: "Robot-team first sends are drafted by the launch harness and held for founder approval before dispatch.",
     },
     {
       id: `${citySlug}-channel-buyer-linked-site`,
@@ -986,8 +997,8 @@ async function buildCityOpeningExecutionSeed(input: {
       accountLabel: `${input.profile.shortLabel} buyer-linked site outreach lane`,
       ownerAgent: "city-launch-agent",
       status: directLaneStatus,
-      approvalState,
-      notes: "Use for named buyer-linked or operator-linked follow-through only.",
+      approvalState: buyerFirstSendApprovalState,
+      notes: "Use for named buyer-linked or operator-linked follow-through only after founder first-send approval.",
     },
     {
       id: `${citySlug}-channel-professional-capturer`,
@@ -998,7 +1009,7 @@ async function buildCityOpeningExecutionSeed(input: {
       accountLabel: `${input.profile.shortLabel} professional capturer outreach lane`,
       ownerAgent: "capturer-growth-agent",
       status: directLaneStatus,
-      approvalState,
+      approvalState: approvedApprovalState,
       notes: "Private controlled interiors stay on curated lawful-access posture.",
     },
     {
@@ -1034,14 +1045,13 @@ async function buildCityOpeningExecutionSeed(input: {
       emailSubject: directWarehouseSubject,
       emailBody: directWarehouseBody,
       status: warehouseTargetBlockedForProof ? "blocked" : "ready_to_send",
-      approvalState,
+      approvalState: warehouseTargetBlockedForProof ? "blocked" : buyerFirstSendApprovalState,
       responseIngestState: "awaiting_response",
       issueId: input.taskIssueIds["city-opening-first-wave-pack"] || null,
       notes:
         warehouseTargetBlockedForProof
           ? `Missing rights-cleared proof pack. ${warehouseTargetLabel || input.profile.shortLabel} first touch is drafted, but it must stay conditional until a proof-ready asset exists.`
-          : warehouseTarget.recipientSource
-            || "First proof-led direct outreach is ready for autonomous dispatch.",
+          : `${warehouseTarget.recipientSource || "Recipient-backed first proof-led direct outreach is drafted."} Founder must approve this first buyer send before dispatch.`,
       sentAtIso: null,
       firstResponseAtIso: null,
     });
@@ -1065,13 +1075,12 @@ async function buildCityOpeningExecutionSeed(input: {
       emailSubject: buyerLinkedSubject,
       emailBody: buyerLinkedBody,
       status: buyerProofReady ? "ready_to_send" : "blocked",
-      approvalState,
+      approvalState: buyerProofReady ? buyerFirstSendApprovalState : "blocked",
       responseIngestState: "awaiting_response",
       issueId: input.taskIssueIds["city-opening-first-wave-pack"] || null,
       notes:
         buyerProofReady
-          ? buyerLinkedTarget.recipientSource
-            || "Use only when the message stays within exact-site proof posture."
+          ? `${buyerLinkedTarget.recipientSource || "Recipient-backed buyer-linked first touch is drafted and must stay within exact-site proof posture."} Founder must approve before dispatch.`
           : `Missing rights-cleared proof pack. ${buyerLinkedTarget.entry.companyName || input.profile.shortLabel} first touch is drafted, but it must stay conditional until a proof-ready asset exists.`,
       sentAtIso: null,
       firstResponseAtIso: null,
@@ -1096,7 +1105,7 @@ async function buildCityOpeningExecutionSeed(input: {
       emailSubject: professionalCapturerSubject,
       emailBody: professionalCapturerBody,
       status: "ready_to_send",
-      approvalState,
+      approvalState: approvedApprovalState,
       responseIngestState: "awaiting_response",
       issueId: input.taskIssueIds["supply-prospects"] || null,
       notes:
@@ -1207,6 +1216,8 @@ function renderCityOpeningExecutionReportMarkdown(input: {
     "## Outbound readiness",
     `- direct_outreach_total: ${input.outboundReadiness.directOutreachActions.total}`,
     `- direct_outreach_recipient_backed: ${input.outboundReadiness.directOutreachActions.recipientBacked}`,
+    `- direct_outreach_ready_to_send: ${input.outboundReadiness.directOutreachActions.readyToSend}`,
+    `- direct_outreach_founder_approval_needed: ${input.outboundReadiness.directOutreachActions.approvalNeeded}`,
     `- email_transport_configured: ${input.outboundReadiness.emailTransport.configured}`,
     `- city_launch_sender: ${input.outboundReadiness.sender.fromEmail || "missing"}`,
     ...(input.outboundReadiness.status === "blocked"
@@ -1328,6 +1339,39 @@ function renderSiteOperatorContactListMarkdown(input: {
         ]
       : ["- no site-operator or pilot-host candidates are materialized yet"]),
   ].join("\n");
+}
+
+async function renderCityLaunchBuyerLoopMarkdown(input: {
+  profile: CityLaunchProfile;
+  reportDate: string;
+}) {
+  const ledgerPath = path.join(
+    REPO_ROOT,
+    "ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json",
+  );
+  try {
+    const ledger = await loadExactSiteHostedReviewGtmLedger(ledgerPath);
+    const audit = auditExactSiteHostedReviewGtmLedger(ledger);
+    const durability = await buildOutboundReplyDurabilityStatus().catch(() => null);
+    return buildExactSiteHostedReviewBuyerLoopReport({
+      ledger,
+      audit,
+      ledgerPath,
+      city: input.profile.city,
+      reportDate: input.reportDate,
+      durability,
+    }).markdown;
+  } catch (error) {
+    return [
+      "# Exact-Site Hosted Review Buyer Loop",
+      "",
+      `- city: ${input.profile.city}`,
+      "- status: blocked",
+      `- blocker: ${error instanceof Error ? error.message : String(error)}`,
+      "",
+      "City launch must keep this buyer loop artifact present. If the canonical GTM ledger is missing or invalid, do not treat city launch as buyer-motion ready.",
+    ].join("\n");
+  }
 }
 
 function hasVerifiedBuyerProofAsset(research: CityLaunchResearchParseResult | null) {
@@ -2099,7 +2143,7 @@ function buildSystemDocMarkdown(input: {
   const agentPrepared = [
     `city-launch-agent keeps the ${profile.shortLabel} plan and dependency map current.`,
     `city-demand-agent maintains the ${profile.shortLabel} target ledger and parallel lawful-access queue so the capture queue stays tied to real robot workflow demand without stalling on one facility.`,
-    `city-launch-agent, capturer-growth-agent, ops-lead, and analytics-agent make ${profile.shortLabel} city-opening distribution explicit through a city-opening brief, channel map, first-wave outreach/posting pack, city-facing CTA path, response-tracking view, reply-conversion cadence lane, channel registry, send ledger, and city-opening execution report before the system assumes the city has heard about Blueprint.`,
+    `city-launch-agent, capturer-growth-agent, ops-lead, and analytics-agent make ${profile.shortLabel} city-opening distribution explicit through a city-opening brief, channel map, first-wave outreach/posting pack, city-facing CTA path, response-tracking view, reply-conversion cadence lane, channel registry, send ledger, exact-site buyer loop, and city-opening execution report before the system assumes the city has heard about Blueprint.`,
     `site-operator-partnership-agent prepares operator-lane contact maps, value props, and approval sequences for warehouse/facility access paths before the city waits on a single signature thread.`,
     `capturer-growth-agent, intake-agent, capturer-success-agent, field-ops-agent, capture-qa-agent, and rights-provenance-agent run the supply loop continuously, producing drafts, packets, routing, and prep work even before the first real-world confirmations arrive.`,
     `demand-intel-agent, robot-team-growth-agent, outbound-sales-agent, buyer-solutions-agent, and revenue-ops-pricing-agent run the demand loop continuously, packaging truthful proof motion and only pausing at irreversible claim, rights, spend, or non-standard commercial gates.`,
@@ -2145,7 +2189,7 @@ function buildSystemDocMarkdown(input: {
     "",
     `1. Generate and critique the ${profile.shortLabel} plan through the existing Gemini Deep Research harness.`,
     `2. Convert the compact ${profile.shortLabel} city-launch and city-demand playbooks into a single ${profile.shortLabel} operating system with explicit tasks, owners, thresholds, and handoff rules.`,
-    `3. Make city-opening distribution explicit through a city-opening brief, channel map, first-wave outreach/posting pack, exact CTA/intake routing, response tracking, reply-conversion cadence, channel registry, send ledger, and city-opening execution report so the city does not wait for replies from people who were never reached or lose the first replies once they arrive.`,
+    `3. Make city-opening distribution explicit through a city-opening brief, channel map, first-wave outreach/posting pack, exact CTA/intake routing, response tracking, reply-conversion cadence, channel registry, send ledger, exact-site buyer loop, and city-opening execution report so the city does not wait for replies from people who were never reached or lose the first replies once they arrive.`,
     `4. Materialize the live Paperclip issue tree for the city launch so work is routable instead of staying trapped in artifacts.`,
     `5. Measure the city through ${profile.shortLabel}-specific distribution, supply, demand, spend, and proof-motion metrics so operators can see whether the city is actually becoming operationally real.`,
     `6. Treat the machine-readable activation payload as the control-plane artifact for validation blockers, lane mapping, and metrics readiness.`,
@@ -2178,7 +2222,7 @@ function buildSystemDocMarkdown(input: {
     "",
     `- Founder-approved ${profile.shortLabel} posture remains required to activate the city.`,
     `- ${profile.shortLabel} capture target ledger with first proof candidates, queued lawful-access buckets, and longer-horizon discovery lanes is required to mark the city operationally real, but not required to begin execution.`,
-    `- ${profile.shortLabel} city-opening brief, channel map, first-wave outreach/posting pack, CTA / intake path, response-tracking view, reply-conversion cadence lane, channel/account registry, send ledger, and city-opening execution report are required to prove the city was actually opened and that early replies are being worked instead of counted and lost.`,
+    `- ${profile.shortLabel} city-opening brief, channel map, first-wave outreach/posting pack, CTA / intake path, response-tracking view, reply-conversion cadence lane, channel/account registry, send ledger, exact-site buyer loop, and city-opening execution report are required to prove the city was actually opened and that early replies are being worked instead of counted and lost.`,
     `- ${profile.shortLabel} ops packet: intake rubric, trust kit, first-capture thresholds, and launch-readiness checklist is a completion dependency, not a reason to leave execution lanes idle.`,
     `- At least one clean ${profile.shortLabel} proof pack with hosted-review path and rights/provenance clearance is required before claiming the city is live.`,
     `- ${profile.shortLabel} buyer target list and proof-led outbound package are completion requirements for launch quality, not start gates for agent work.`,
@@ -2935,6 +2979,7 @@ export async function runCityLaunchExecutionHarness(input: {
   const cityOpeningCampaignMockPackPath = path.join(runDirectory, `city-opening-${profile.key}-campaign-mock-pack.md`);
   const cityOpeningSiteOperatorRecoveryPackPath = path.join(runDirectory, `city-opening-${profile.key}-site-operator-recovery-pack.md`);
   const cityOpeningNoSignalScorecardPath = path.join(runDirectory, `city-opening-${profile.key}-no-signal-scorecard.md`);
+  const cityOpeningBuyerLoopPath = path.join(runDirectory, `city-opening-${profile.key}-buyer-loop.md`);
   const cityOpeningRobotTeamContactListPath = path.join(runDirectory, `city-opening-${profile.key}-robot-team-contact-list.md`);
   const cityOpeningSiteOperatorContactListPath = path.join(runDirectory, `city-opening-${profile.key}-site-operator-contact-list.md`);
   const researchMaterializationPath = path.join(
@@ -2964,6 +3009,7 @@ export async function runCityLaunchExecutionHarness(input: {
   const canonicalCityOpeningCampaignMockPackPath = buildCanonicalCityOpeningArtifactPath(profile, "campaign-mock-pack");
   const canonicalCityOpeningSiteOperatorRecoveryPackPath = buildCanonicalCityOpeningArtifactPath(profile, "site-operator-recovery-pack");
   const canonicalCityOpeningNoSignalScorecardPath = buildCanonicalCityOpeningArtifactPath(profile, "no-signal-scorecard");
+  const canonicalCityOpeningBuyerLoopPath = buildCanonicalCityOpeningArtifactPath(profile, "buyer-loop");
   const canonicalCityOpeningRobotTeamContactListPath = buildCanonicalCityOpeningArtifactPath(profile, "robot-team-contact-list");
   const canonicalCityOpeningSiteOperatorContactListPath = buildCanonicalCityOpeningArtifactPath(profile, "site-operator-contact-list");
   const noSignalRecoveryArtifactPaths: CityLaunchNoSignalRecoveryArtifactPaths = {
@@ -3390,6 +3436,7 @@ export async function runCityLaunchExecutionHarness(input: {
             campaignMockPackPath: cityOpeningCampaignMockPackPath,
             siteOperatorRecoveryPackPath: cityOpeningSiteOperatorRecoveryPackPath,
             noSignalScorecardPath: cityOpeningNoSignalScorecardPath,
+            buyerLoopPath: cityOpeningBuyerLoopPath,
           },
           canonical: {
             briefPath: canonicalCityOpeningBriefPath,
@@ -3405,6 +3452,7 @@ export async function runCityLaunchExecutionHarness(input: {
             campaignMockPackPath: canonicalCityOpeningCampaignMockPackPath,
             siteOperatorRecoveryPackPath: canonicalCityOpeningSiteOperatorRecoveryPackPath,
             noSignalScorecardPath: canonicalCityOpeningNoSignalScorecardPath,
+            buyerLoopPath: canonicalCityOpeningBuyerLoopPath,
           },
         },
       },
@@ -3565,6 +3613,10 @@ export async function runCityLaunchExecutionHarness(input: {
         sendActions: refreshedCityOpeningExecution.sendActions,
       }),
     });
+    const cityOpeningBuyerLoop = await renderCityLaunchBuyerLoopMarkdown({
+      profile,
+      reportDate: formatDateOnly(new Date().toISOString()),
+    });
     result.outboundReadiness = assessCityLaunchOutboundReadiness({
       city: profile.city,
       sendActions: refreshedCityOpeningExecution.sendActions,
@@ -3573,9 +3625,11 @@ export async function runCityLaunchExecutionHarness(input: {
     await writeTextArtifact(cityOpeningChannelRegistryPath, cityOpeningChannelRegistry);
     await writeTextArtifact(cityOpeningSendLedgerPath, cityOpeningSendLedger);
     await writeTextArtifact(cityOpeningExecutionReportPath, cityOpeningExecutionReport);
+    await writeTextArtifact(cityOpeningBuyerLoopPath, cityOpeningBuyerLoop);
     await writeTextArtifact(canonicalCityOpeningChannelRegistryPath, cityOpeningChannelRegistry);
     await writeTextArtifact(canonicalCityOpeningSendLedgerPath, cityOpeningSendLedger);
     await writeTextArtifact(canonicalCityOpeningExecutionReportPath, cityOpeningExecutionReport);
+    await writeTextArtifact(canonicalCityOpeningBuyerLoopPath, cityOpeningBuyerLoop);
 
     await advanceStep("persist_activation_state");
     await writeCityLaunchActivation({

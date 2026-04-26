@@ -162,10 +162,10 @@ export default function Home() {
 	                    <ArrowRight className="ml-2 h-4 w-4" />
 	                  </a>
 	                  <a
-	                    href="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=home-hero"
+	                    href="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=request-capture&source=home-hero"
 	                    className="inline-flex items-center justify-center border border-white/15 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
 	                  >
-	                    Scope hosted evaluation
+	                    Request capture
 	                  </a>
                 </div>
               </div>
@@ -408,8 +408,8 @@ export default function Home() {
             imageAlt="Blueprint hosted runtime still"
             primaryHref={publicDemoHref}
             primaryLabel="Inspect sample site"
-            secondaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=home-bottom"
-            secondaryLabel="Scope hosted evaluation"
+            secondaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=request-capture&source=home-bottom"
+            secondaryLabel="Request capture"
           />
         </section>
       </div>

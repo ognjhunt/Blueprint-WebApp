@@ -74,17 +74,17 @@ export default function ForRobotIntegrators() {
                 </div>
                 <div className="mt-8 flex flex-wrap gap-3">
                   <a
-                    href="/world-models"
+                    href="/sample-evaluation"
                     className="inline-flex items-center justify-center bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
                   >
-                    Explore world models
+                    Inspect sample review
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </a>
                   <a
-                    href="/exact-site-hosted-review"
+                    href="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=request-capture&source=robot-teams-hero"
                     className="inline-flex items-center justify-center border border-white/15 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
                   >
-                    Request hosted evaluation
+                    Request capture
                   </a>
                 </div>
               </div>
@@ -170,10 +170,10 @@ export default function ForRobotIntegrators() {
             description="Start in the world-model catalog when you want to inspect current proof, or open the hosted-review path when a facility is already in scope."
             imageSrc={editorialGeneratedAssets.homeHero}
             imageAlt="Hosted review still"
-            primaryHref="/world-models"
-            primaryLabel="Explore world models"
-            secondaryHref="/exact-site-hosted-review"
-            secondaryLabel="Request hosted evaluation"
+            primaryHref="/sample-evaluation"
+            primaryLabel="Inspect sample review"
+            secondaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=request-capture&source=robot-teams-bottom"
+            secondaryLabel="Request capture"
             dark={false}
           />
         </section>

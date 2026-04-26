@@ -90,17 +90,17 @@ export default function ExactSiteHostedReview() {
                 </div>
                 <div className="mt-8 flex flex-wrap gap-3">
                   <a
-	                    href="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=hosted-review"
+	                    href="/sample-evaluation"
                     className="inline-flex items-center justify-center bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
                   >
-	                    Scope hosted evaluation
+	                    Inspect sample review
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </a>
                   <a
-	                    href="/sample-evaluation"
+	                    href="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=request-capture&source=hosted-review"
                     className="inline-flex items-center justify-center border border-white/[0.16] px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/[0.08]"
                   >
-	                    See sample evaluation
+	                    Request capture
                   </a>
                 </div>
               </div>
@@ -340,10 +340,10 @@ export default function ExactSiteHostedReview() {
             description="Hosted evaluation is the clearest way to choose the right world model before package access or a broader program."
             imageSrc={publicCaptureGeneratedAssets.hostedReviewPublicRoute}
             imageAlt="Hosted review hero"
-            primaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=hosted-review-bottom"
-            primaryLabel="Scope hosted evaluation"
-            secondaryHref="/sample-evaluation"
-            secondaryLabel="Inspect sample evaluation"
+            primaryHref="/sample-evaluation"
+            primaryLabel="Inspect sample review"
+            secondaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=request-capture&source=hosted-review-bottom"
+            secondaryLabel="Request capture"
           />
         </section>
       </div>

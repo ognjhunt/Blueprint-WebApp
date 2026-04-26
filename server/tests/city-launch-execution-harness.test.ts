@@ -480,11 +480,15 @@ describe("city launch execution harness", () => {
       result.artifacts.cityOpeningArtifactPack.run.executionReportPath,
       "utf8",
     );
+    const cityOpeningBuyerLoop = await fs.readFile(
+      result.artifacts.cityOpeningArtifactPack.run.buyerLoopPath,
+      "utf8",
+    );
 
     expect(systemDoc).toContain("Austin, TX Launch System");
     expect(systemDoc).toContain("Machine-Readable Budget Policy");
     expect(systemDoc).toContain("Activation Payload Highlights");
-    expect(systemDoc).toContain("city-opening brief, channel map, first-wave outreach/posting pack, CTA / intake path, response-tracking view, reply-conversion cadence lane, channel/account registry, send ledger, and city-opening execution report");
+    expect(systemDoc).toContain("city-opening brief, channel map, first-wave outreach/posting pack, CTA / intake path, response-tracking view, reply-conversion cadence lane, channel/account registry, send ledger, exact-site buyer loop, and city-opening execution report");
     expect(issueBundle).toContain("Austin, TX Launch Issue Bundle");
     expect(issueBundle).toContain("Build the Austin city-opening distribution brief and channel map");
     expect(issueBundle).toContain("Publish Austin city-opening response tracking");
@@ -504,6 +508,8 @@ describe("city launch execution harness", () => {
     expect(cityOpeningChannelRegistry).toContain("Austin, TX City-Opening Channel Registry");
     expect(cityOpeningSendLedger).toContain("Austin, TX City-Opening Send Ledger");
     expect(cityOpeningExecutionReport).toContain("Austin, TX City-Opening Execution Report");
+    expect(cityOpeningBuyerLoop).toContain("Exact-Site Hosted Review Buyer Loop");
+    expect(cityOpeningBuyerLoop).toContain("## Founder First Send Batch");
   });
 
   it("re-wakes existing founder-approved city-launch issues on rerun", async () => {
@@ -1371,9 +1377,9 @@ describe("city launch execution harness", () => {
     );
     executeCityLaunchSends.mockResolvedValue({
       city: "Sacramento, CA",
-      totalEligible: 2,
-      sent: 2,
-      skippedApproval: 0,
+      totalEligible: 1,
+      sent: 1,
+      skippedApproval: 2,
       skippedNoRecipient: 0,
       skippedAlreadySent: 0,
       failed: 0,
@@ -1393,7 +1399,11 @@ describe("city launch execution harness", () => {
       budgetTier: "low_budget",
     });
 
-    expect(result.outboundReadiness?.status).toBe("ready");
+    expect(result.outboundReadiness?.status).toBe("warning");
+    expect(result.outboundReadiness?.directOutreachActions.approvalNeeded).toBe(0);
+    expect(result.outboundReadiness?.warnings).toContain(
+      "1 recipient-backed direct-outreach action(s) are blocked before dispatch.",
+    );
     expect(
       upsertCityLaunchSendAction.mock.calls.some(
         (call) => (call[0] as { recipientEmail?: string | null }).recipientEmail === "taylor@capitalrobotics.com",

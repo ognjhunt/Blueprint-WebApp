@@ -60,8 +60,11 @@ Exact-Site Hosted Review GTM pilot exception:
 - the pilot may wake `demand-intel-agent`, `robot-team-growth-agent`, `city-demand-agent`, and `site-operator-partnership-agent` only for targets recorded in `ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json`
 - every outbound-ready target must pass `npm run gtm:hosted-review:audit` before Growth Lead reports it as ready
 - every daily pilot pass must run `npm run gtm:hosted-review:daily -- --write --allow-blocked`
-- founder review should be limited to recipient-backed draft approval, trusted contact supply, qualified calls, and irreversible exceptions
+- every buyer-loop pass must run `npm run gtm:hosted-review:buyer-loop -- --write --allow-blocked` and use that report as the sales status page
+- founder review should be limited to first-batch recipient-backed draft approval, trusted contact supply, qualified calls, and irreversible exceptions
 - live sends, public posts, paid spend, and commercial or rights/privacy commitments remain human-gated
+- city launches must carry the exact-site buyer-loop artifact alongside the city-opening send ledger and execution report
+- after 100 recipient-backed touches or day 14, Growth Lead must record a continue/change/stop decision instead of extending the same motion by default
 - the exception ends after the 14-day closeout unless Growth Lead records ledger evidence that justifies a narrower next run
 
 ## Operating Rule
@@ -82,6 +85,7 @@ If those three answers are not concrete, keep the lane paused.
 ## Priority Order
 1. analytics integrity
 2. conversion changes grounded in live measurement
-3. market and demand intelligence that sharpens the current wedge
-4. one city loop that exposes blockers clearly
-5. everything else only when triggered by evidence
+3. Exact-Site Hosted Review buyer loop: targets, contacts, approvals, sends, replies, calls, hosted-review starts, and blockers
+4. market and demand intelligence that sharpens the current wedge
+5. one city loop that exposes blockers clearly
+6. everything else only when triggered by evidence

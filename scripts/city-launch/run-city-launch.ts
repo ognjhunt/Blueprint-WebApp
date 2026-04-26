@@ -209,6 +209,9 @@ async function main() {
           activateResult.researchMaterialization?.prospectsUpserted || 0,
         buyerTargetsUpserted:
           activateResult.researchMaterialization?.buyerTargetsUpserted || 0,
+        canonicalCityOpeningBuyerLoopPath:
+          activateResult.artifacts.cityOpeningArtifactPack.canonical.buyerLoopPath,
+        outboundReadiness: activateResult.outboundReadiness || null,
         capabilitySnapshot: activateResult.capabilitySnapshot || null,
         certification: summarizeCityLaunchAutonomyCertification(activateResult),
       }),

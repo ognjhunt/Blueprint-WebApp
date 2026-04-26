@@ -34,6 +34,7 @@ export default function Contact() {
   const cityMessaging = getDemandCityMessaging(searchParams.get("city"));
   const hostedMode =
     normalizeInterestToLane(interest) === "deeper_evaluation" && buyerType === "robot_team";
+  const captureRequestMode = sourcePath === "request-capture" && buyerType === "robot_team";
   const persona =
     hostedMode || personaParam === "robot-team" || buyerType === "robot_team"
       ? "robot_team"
@@ -44,14 +45,18 @@ export default function Contact() {
         : "robot_team";
   const robotTeamCityMessaging = persona === "robot_team" ? cityMessaging : null;
 
-  const seoTitle = hostedMode
+  const seoTitle = captureRequestMode
+    ? "Request Capture | Blueprint"
+    : hostedMode
     ? "Request Hosted Evaluation | Blueprint"
     : robotTeamCityMessaging
       ? `For ${robotTeamCityMessaging.shortLabel} Robot Teams | Blueprint`
       : persona === "site_operator"
         ? "For Site Operators | Blueprint"
         : "For Robot Teams | Blueprint";
-  const seoDescription = hostedMode
+  const seoDescription = captureRequestMode
+    ? "Ask Blueprint to capture the exact site or workflow your robot team needs to evaluate."
+    : hostedMode
     ? "Request a hosted robot-team evaluation for a site-specific world model."
     : robotTeamCityMessaging
       ? robotTeamCityMessaging.requestHeroBody
@@ -59,21 +64,27 @@ export default function Contact() {
         ? "Talk to Blueprint about facility participation, access rules, and governance."
         : "Send Blueprint a short brief about the site, task, and robot setup you want to evaluate.";
 
-  const badgeLabel = hostedMode
+  const badgeLabel = captureRequestMode
+    ? "Request Capture"
+    : hostedMode
     ? "Hosted Evaluation"
     : robotTeamCityMessaging
       ? `For Robot Teams • ${robotTeamCityMessaging.shortLabel}`
       : persona === "site_operator"
         ? "For Site Operators"
         : "For Robot Teams";
-  const heroTitle = hostedMode
+  const heroTitle = captureRequestMode
+    ? "Tell us the site or workflow to capture."
+    : hostedMode
     ? "Request a hosted evaluation for this site."
     : robotTeamCityMessaging
       ? robotTeamCityMessaging.requestHeroTitle
       : persona === "site_operator"
         ? "Tell us about the facility and the rules around it."
         : "Tell us the site, task, and robot in a few lines.";
-  const heroBody = hostedMode
+  const heroBody = captureRequestMode
+    ? "Name the place, workflow, and robot question. Blueprint will use that brief to decide whether the next step is a hosted review, capture ask, or follow-up question."
+    : hostedMode
     ? "Confirm the site, the task, and the robot setup. Blueprint will use that to line up the right hosted evaluation path for your team."
     : robotTeamCityMessaging
       ? robotTeamCityMessaging.requestHeroBody
@@ -81,7 +92,9 @@ export default function Contact() {
         ? "Use this form if you run the facility and need to talk through capture access, privacy rules, or whether the site belongs in the catalog."
         : "Use this form if your team needs one exact site for evaluation, site-specific data, release comparison, or package access.";
 
-  const responseBody = hostedMode
+  const responseBody = captureRequestMode
+    ? "Fill out the short form and Blueprint will follow up with the capture path, hosted-review option, or the specific gap that needs to be resolved first."
+    : hostedMode
     ? "Fill out the short form and Blueprint will follow up to confirm the site, robot setup, and the next step toward a hosted evaluation."
       : robotTeamCityMessaging
       ? robotTeamCityMessaging.requestResponseBody
@@ -90,7 +103,9 @@ export default function Contact() {
         : "Blueprint reviews the site, task, and robot details first. The reply points your team toward the package path, hosted evaluation path, or the follow-up question that actually matters.";
 
   const expectedNextStep =
-    sourcePath === "hosted-evaluation"
+    sourcePath === "request-capture"
+      ? "Blueprint confirms the requested site, workflow, robot setup, and whether a capture path can be opened."
+      : sourcePath === "hosted-evaluation"
       ? "Blueprint confirms the site, robot setup, requested outputs, and hosted-review scope."
       : sourcePath === "package-access"
         ? "Blueprint confirms rights, export scope, and package access for the requested site."
@@ -103,6 +118,8 @@ export default function Contact() {
       "Path",
       sourcePath === "hosted-evaluation"
         ? "Hosted evaluation"
+        : sourcePath === "request-capture"
+          ? "Request capture"
         : sourcePath === "package-access"
           ? "Package access"
           : interest

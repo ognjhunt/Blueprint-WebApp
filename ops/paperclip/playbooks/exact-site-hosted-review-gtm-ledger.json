@@ -8,6 +8,10 @@
     "status": "active",
     "dailyTouchTargetMin": 20,
     "dailyTouchTargetMax": 50,
+    "decisionTouchGoal": 100,
+    "proofArtifactGoal": 3,
+    "targetAccountGoalMin": 30,
+    "targetAccountGoalMax": 50,
     "paidScaleAllowed": false,
     "defaultTrack": "proof_ready_outreach",
     "paidScaleDecision": "No paid spend, influencer spend, or acquisition ads until this ledger records organic replies, hosted-review starts, or qualified calls from the Exact-Site Hosted Review wedge."
@@ -42,7 +46,12 @@
       },
       "outbound": {
         "status": "draft_ready",
-        "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md"
+        "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
+        "approvalState": "blocked"
+      },
+      "sales": {
+        "nextAction": "Find explicit recipient-backed contact evidence before founder first-send approval.",
+        "nextActionOwner": "growth-lead"
       }
     },
     {
@@ -73,7 +82,12 @@
       },
       "outbound": {
         "status": "draft_ready",
-        "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md"
+        "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
+        "approvalState": "blocked"
+      },
+      "sales": {
+        "nextAction": "Find explicit recipient-backed contact evidence before founder first-send approval.",
+        "nextActionOwner": "growth-lead"
       }
     },
     {
@@ -107,7 +121,12 @@
       },
       "outbound": {
         "status": "draft_ready",
-        "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md"
+        "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
+        "approvalState": "blocked"
+      },
+      "sales": {
+        "nextAction": "Find explicit recipient-backed contact evidence before founder first-send approval.",
+        "nextActionOwner": "growth-lead"
       }
     },
     {
@@ -141,7 +160,12 @@
       },
       "outbound": {
         "status": "draft_ready",
-        "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md"
+        "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
+        "approvalState": "blocked"
+      },
+      "sales": {
+        "nextAction": "Find explicit recipient-backed contact evidence before founder first-send approval.",
+        "nextActionOwner": "growth-lead"
       }
     },
     {
@@ -175,7 +199,12 @@
       },
       "outbound": {
         "status": "draft_ready",
-        "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md"
+        "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
+        "approvalState": "blocked"
+      },
+      "sales": {
+        "nextAction": "Find explicit recipient-backed contact evidence before founder first-send approval.",
+        "nextActionOwner": "growth-lead"
       }
     },
     {
@@ -209,7 +238,12 @@
       },
       "outbound": {
         "status": "draft_ready",
-        "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md"
+        "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
+        "approvalState": "blocked"
+      },
+      "sales": {
+        "nextAction": "Find explicit recipient-backed contact evidence before founder first-send approval.",
+        "nextActionOwner": "growth-lead"
       }
     },
     {
@@ -243,7 +277,12 @@
       },
       "outbound": {
         "status": "draft_ready",
-        "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md"
+        "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
+        "approvalState": "blocked"
+      },
+      "sales": {
+        "nextAction": "Find explicit recipient-backed contact evidence before founder first-send approval.",
+        "nextActionOwner": "growth-lead"
       }
     },
     {
@@ -277,7 +316,12 @@
       },
       "outbound": {
         "status": "draft_ready",
-        "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md"
+        "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
+        "approvalState": "blocked"
+      },
+      "sales": {
+        "nextAction": "Find explicit recipient-backed contact evidence before founder first-send approval.",
+        "nextActionOwner": "growth-lead"
       }
     },
     {
@@ -311,7 +355,12 @@
       },
       "outbound": {
         "status": "draft_ready",
-        "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md"
+        "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
+        "approvalState": "blocked"
+      },
+      "sales": {
+        "nextAction": "Find explicit recipient-backed contact evidence before founder first-send approval.",
+        "nextActionOwner": "growth-lead"
       }
     },
     {
@@ -345,7 +394,12 @@
       },
       "outbound": {
         "status": "draft_ready",
-        "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md"
+        "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
+        "approvalState": "blocked"
+      },
+      "sales": {
+        "nextAction": "Find explicit recipient-backed contact evidence before founder first-send approval.",
+        "nextActionOwner": "growth-lead"
       }
     },
     {
@@ -379,7 +433,12 @@
       },
       "outbound": {
         "status": "draft_ready",
-        "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md"
+        "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
+        "approvalState": "blocked"
+      },
+      "sales": {
+        "nextAction": "Find explicit recipient-backed contact evidence before founder first-send approval.",
+        "nextActionOwner": "growth-lead"
       }
     },
     {
@@ -413,7 +472,12 @@
       },
       "outbound": {
         "status": "draft_ready",
-        "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md"
+        "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
+        "approvalState": "blocked"
+      },
+      "sales": {
+        "nextAction": "Find explicit recipient-backed contact evidence before founder first-send approval.",
+        "nextActionOwner": "growth-lead"
       }
     }
   ],

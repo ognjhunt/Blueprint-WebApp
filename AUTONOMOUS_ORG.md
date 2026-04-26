@@ -21,6 +21,7 @@ On the current trusted host, Paperclip uses local subscription-backed auth only.
 - Paperclip is the execution and ownership record; Notion is the workspace, knowledge, review, and operator-visibility surface; repo files are the definitional source of truth
 - Autoresearch-pattern loops drive continuous optimization (adapted from [Karpathy's autoresearch](https://github.com/karpathy/autoresearch))
 - Growth should stay anchored to one narrow commercial wedge at a time. The current priority wedge is **Exact-Site Hosted Review**: one real site, one workflow lane, one package-plus-hosted-review path, with explicit automatic policy enforcement on pricing, policy, rights, and irreversible commitments.
+- During the current wedge, the active org is judged through three loops only: product/proof, demand/sales, and reliability. Any routine that does not move targets, contacts, approvals, sends, replies, calls, hosted-review starts, capture asks, or blockers is commentary.
 - Founder scope stays narrow: strategic repo truth, policy updates, and architecture changes. Routine launch, commercial, and ops execution should run autonomously from written policy and evidence, not approval packets.
 - Named operator lanes in the current model: Growth Lead for channel/referral/source posture, Ops Lead for intake/threshold/trust-kit readiness, revenue-ops-pricing-agent for standard quote-band enforcement, and rights-provenance-agent for rights/privacy/commercialization evidence handling.
 
@@ -919,6 +920,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - Research briefs → Market Intelligence and Demand Intelligence agents
 - Buyer-city sequencing priorities → City Demand agent
 - Exact-Site Hosted Review GTM pilot ledger and audit closeout when the bounded 14-day pilot is active
+- Exact-Site Hosted Review buyer-loop report with target count, recipient-backed contacts, founder approval queue, sends, replies, hosted-review starts, qualified calls, next actions, and the 100-touch decision gap
 - Explicit pause or restart decisions for non-core growth lanes
 - Funnel health dashboard updates → Notion
 

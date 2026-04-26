@@ -111,4 +111,50 @@ describe("city launch outbound readiness", () => {
       "Sender verification cannot be proven programmatically from env state.",
     );
   });
+
+  it("holds recipient-backed first buyer sends for founder approval", async () => {
+    vi.stubEnv("SENDGRID_API_KEY", "sg-key");
+    vi.stubEnv("SENDGRID_FROM_EMAIL", "launches@tryblueprint.io");
+    vi.stubEnv("BLUEPRINT_CITY_LAUNCH_SENDER_VERIFICATION", "verified");
+
+    const { assessCityLaunchOutboundReadiness } = await import("../utils/cityLaunchSendExecutor");
+    const result = assessCityLaunchOutboundReadiness({
+      city: "Durham, NC",
+      sendActions: [
+        {
+          id: "send-1",
+          city: "Durham, NC",
+          citySlug: "durham-nc",
+          launchId: null,
+          lane: "buyer-linked-site",
+          actionType: "direct_outreach",
+          channelAccountId: null,
+          channelLabel: "buyer-linked site outreach lane",
+          targetLabel: "Robot Team",
+          assetKey: "city-opening-first-wave-pack",
+          ownerAgent: "city-launch-agent",
+          recipientEmail: "buyer@robotteam.invalid",
+          emailSubject: "Subject",
+          emailBody: "Body",
+          status: "ready_to_send",
+          approvalState: "pending_first_send_approval",
+          responseIngestState: "awaiting_response",
+          issueId: null,
+          notes: null,
+          sentAtIso: null,
+          firstResponseAtIso: null,
+          createdAtIso: new Date().toISOString(),
+          updatedAtIso: new Date().toISOString(),
+        },
+      ],
+    });
+
+    expect(result.status).toBe("warning");
+    expect(result.directOutreachActions.recipientBacked).toBe(1);
+    expect(result.directOutreachActions.readyToSend).toBe(0);
+    expect(result.directOutreachActions.approvalNeeded).toBe(1);
+    expect(result.warnings).toContain(
+      "1 recipient-backed first-send action(s) are waiting for founder approval before dispatch.",
+    );
+  });
 });
