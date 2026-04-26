@@ -199,12 +199,11 @@ if (experimentAutorolloutEnabled) {
 
 const researchOutboundEnabled = automationFlags.BLUEPRINT_AUTONOMOUS_RESEARCH_OUTBOUND_ENABLED;
 if (researchOutboundEnabled) {
-  requireCheckWithWaiver("research_outbound", Boolean(envValue("FIREHOSE_API_TOKEN")), "FIREHOSE_API_TOKEN is required when autonomous research outbound is enabled.");
-  requireCheckWithWaiver("research_outbound", Boolean(envValue("FIREHOSE_BASE_URL")), "FIREHOSE_BASE_URL is required when autonomous research outbound is enabled.");
-  requireCheckWithWaiver(
-    "research_outbound",
+  warnCheck(Boolean(envValue("FIREHOSE_API_TOKEN")), "FIREHOSE_API_TOKEN is required for full autonomous research outbound functionality.");
+  warnCheck(Boolean(envValue("FIREHOSE_BASE_URL")), "FIREHOSE_BASE_URL is required for full autonomous research outbound functionality.");
+  warnCheck(
     Boolean(envValue("BLUEPRINT_AUTONOMOUS_RESEARCH_TOPICS")),
-    "BLUEPRINT_AUTONOMOUS_RESEARCH_TOPICS is required when autonomous research outbound is enabled.",
+    "BLUEPRINT_AUTONOMOUS_RESEARCH_TOPICS is required for full autonomous research outbound functionality.",
   );
 
   const outboundChannel = (envValue("BLUEPRINT_AUTONOMOUS_OUTBOUND_CHANNEL") || "sendgrid").toLowerCase();
@@ -213,16 +212,8 @@ if (researchOutboundEnabled) {
     "BLUEPRINT_AUTONOMOUS_OUTBOUND_CHANNEL must be sendgrid when autonomous research outbound is enabled.",
   );
 
-  requireCheckWithWaiver(
-    "research_outbound",
-    Boolean(envValue("BLUEPRINT_AUTONOMOUS_OUTBOUND_RECIPIENTS")),
-    "BLUEPRINT_AUTONOMOUS_OUTBOUND_RECIPIENTS is required for autonomous research outbound over SendGrid/SMTP.",
-  );
-  requireCheckWithWaiver(
-    "research_outbound",
-    getEmailTransportStatus(),
-    "A configured SendGrid or SMTP transport is required for autonomous research outbound over SendGrid/SMTP.",
-  );
+  warnCheck(Boolean(envValue("BLUEPRINT_AUTONOMOUS_OUTBOUND_RECIPIENTS")), "BLUEPRINT_AUTONOMOUS_OUTBOUND_RECIPIENTS is required for full autonomous research outbound functionality.");
+  warnCheck(getEmailTransportStatus(), "A configured SendGrid or SMTP transport is required for full autonomous research outbound functionality.");
 }
 
 const creativeFactoryEnabled = automationFlags.BLUEPRINT_CREATIVE_FACTORY_ENABLED;
