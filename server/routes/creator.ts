@@ -10,6 +10,7 @@ import {
   buildCreatorLaunchStatus,
 } from "../utils/cityLaunchCaptureTargets";
 import { reviewCityLaunchCandidateBatch } from "../utils/cityLaunchCandidateReview";
+import { dispatchCityLaunchCandidatePaperclipHandoff } from "../utils/cityLaunchCandidatePaperclipHandoff";
 import { intakeCityLaunchCandidateSignals } from "../utils/cityLaunchLedgers";
 import { creatorIdFromRequest } from "../utils/creatorIdentity";
 
@@ -456,6 +457,15 @@ router.post("/city-launch/candidate-signals", async (req: Request, res: Response
     limit: result.length,
     dryRun: false,
     reviewedBy: "public-space-review-agent",
+  });
+  void dispatchCityLaunchCandidatePaperclipHandoff({
+    candidates: result,
+    review,
+    source: "creator_city_launch_candidate_signals",
+  }).then((handoff) => {
+    if (handoff.error) {
+      console.error("City launch candidate Paperclip handoff failed", handoff.error);
+    }
   });
   return res.status(201).json({ candidates: result, review });
 });
