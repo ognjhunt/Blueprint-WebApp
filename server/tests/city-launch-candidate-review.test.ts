@@ -4,11 +4,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const listCityLaunchCandidateSignals = vi.hoisted(() => vi.fn());
 const updateCityLaunchCandidateSignalReview = vi.hoisted(() => vi.fn());
 const upsertCityLaunchProspect = vi.hoisted(() => vi.fn());
+const dispatchCityLaunchTargetPromotionNotifications = vi.hoisted(() => vi.fn());
 
 vi.mock("../utils/cityLaunchLedgers", () => ({
   listCityLaunchCandidateSignals,
   updateCityLaunchCandidateSignalReview,
   upsertCityLaunchProspect,
+}));
+
+vi.mock("../utils/cityLaunchNotifications", () => ({
+  dispatchCityLaunchTargetPromotionNotifications,
 }));
 
 function candidate(overrides: Record<string, unknown> = {}) {
@@ -60,7 +65,22 @@ describe("city launch candidate review", () => {
     listCityLaunchCandidateSignals.mockReset();
     updateCityLaunchCandidateSignalReview.mockReset();
     upsertCityLaunchProspect.mockReset();
-    upsertCityLaunchProspect.mockImplementation(async (input: { id: string }) => ({ id: input.id }));
+    dispatchCityLaunchTargetPromotionNotifications.mockReset();
+    dispatchCityLaunchTargetPromotionNotifications.mockResolvedValue({
+      generatedAt: "2026-04-25T20:00:00.000Z",
+      dryRun: false,
+      city: "Durham, NC",
+      citySlug: "durham-nc",
+      triggerType: "city_launch_targets_promoted",
+      prospectIds: ["public_candidate_durham-nc_durham-food-hall"],
+      recipientCount: 0,
+      queuedCount: 0,
+      sentCount: 0,
+      skippedCount: 0,
+      failedCount: 0,
+      records: [],
+    });
+    upsertCityLaunchProspect.mockImplementation(async (input: { id: string }) => ({ ...input, id: input.id }));
   });
 
   it("promotes evidence-backed public candidates into approved prospects", async () => {
@@ -94,6 +114,37 @@ describe("city launch candidate review", () => {
         reviewDecision: "promote",
       }),
     );
+    expect(dispatchCityLaunchTargetPromotionNotifications).toHaveBeenCalledWith(
+      expect.objectContaining({
+        city: "Durham, NC",
+        promotedProspects: [
+          expect.objectContaining({
+            id: "public_candidate_durham-nc_durham-food-hall",
+            status: "approved",
+          }),
+        ],
+        dryRun: false,
+      }),
+    );
+  });
+
+  it("passes explicit candidate ids through so batch handoffs do not scan the whole city", async () => {
+    listCityLaunchCandidateSignals.mockResolvedValue([candidate({ id: "candidate-durham-2" })]);
+
+    const { reviewCityLaunchCandidateBatch } = await import("../utils/cityLaunchCandidateReview");
+    const result = await reviewCityLaunchCandidateBatch({
+      city: "Durham, NC",
+      candidateIds: [" candidate-durham-2 ", "candidate-durham-2"],
+      dryRun: true,
+    });
+
+    expect(listCityLaunchCandidateSignals).toHaveBeenCalledWith({
+      city: "Durham, NC",
+      statuses: ["queued", "in_review"],
+      candidateIds: ["candidate-durham-2"],
+      limit: 1,
+    });
+    expect(result.reviewedCount).toBe(1);
   });
 
   it("passes explicit candidate ids through so batch handoffs do not scan the whole city", async () => {
@@ -125,6 +176,7 @@ describe("city launch candidate review", () => {
 
     expect(result.keptInReviewCount).toBe(1);
     expect(upsertCityLaunchProspect).not.toHaveBeenCalled();
+    expect(dispatchCityLaunchTargetPromotionNotifications).not.toHaveBeenCalled();
     expect(updateCityLaunchCandidateSignalReview).toHaveBeenCalledWith(
       "candidate-durham-1",
       expect.objectContaining({
@@ -146,6 +198,7 @@ describe("city launch candidate review", () => {
 
     expect(result.rejectedCount).toBe(1);
     expect(upsertCityLaunchProspect).not.toHaveBeenCalled();
+    expect(dispatchCityLaunchTargetPromotionNotifications).not.toHaveBeenCalled();
     expect(updateCityLaunchCandidateSignalReview).toHaveBeenCalledWith(
       "candidate-durham-1",
       expect.objectContaining({
@@ -166,6 +219,7 @@ describe("city launch candidate review", () => {
 
     expect(result.rejectedCount).toBe(1);
     expect(upsertCityLaunchProspect).not.toHaveBeenCalled();
+    expect(dispatchCityLaunchTargetPromotionNotifications).not.toHaveBeenCalled();
     expect(updateCityLaunchCandidateSignalReview).toHaveBeenCalledWith(
       "candidate-durham-1",
       expect.objectContaining({

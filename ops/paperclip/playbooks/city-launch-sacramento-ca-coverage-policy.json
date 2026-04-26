@@ -1,0 +1,39 @@
+{
+  "city": "Sacramento, CA",
+  "citySlug": "sacramento-ca",
+  "version": "2026-04-26",
+  "inventoryTargets": {
+    "approvedActiveMin": 55,
+    "inReviewMin": 110,
+    "researchedBacklogMin": 275,
+    "maxNewCandidatesPerRun": 40
+  },
+  "geographicTiles": [
+    { "id": "downtown-civic", "label": "Downtown / Civic Core", "center": { "lat": 38.5816, "lng": -121.4944 }, "radiusMeters": 2200, "approvedActiveMin": 16, "inReviewMin": 30 },
+    { "id": "midtown", "label": "Midtown", "center": { "lat": 38.5738, "lng": -121.4701 }, "radiusMeters": 1800, "approvedActiveMin": 10, "inReviewMin": 20 },
+    { "id": "arden-commercial", "label": "Arden Commercial Corridor", "center": { "lat": 38.6008, "lng": -121.4260 }, "radiusMeters": 2800, "approvedActiveMin": 10, "inReviewMin": 20 }
+  ],
+  "categoryQuotas": [
+    { "category": "indoor_market", "approvedActiveMin": 6, "inReviewMin": 12 },
+    { "category": "visitor_center_common_area", "approvedActiveMin": 6, "inReviewMin": 12 },
+    { "category": "civic_public_lobby", "approvedActiveMin": 6, "inReviewMin": 12 },
+    { "category": "hotel_lobby_common_area", "approvedActiveMin": 10, "inReviewMin": 20 },
+    { "category": "convention_prefunction", "approvedActiveMin": 6, "inReviewMin": 12 },
+    { "category": "large_retail_customer_area", "approvedActiveMin": 10, "inReviewMin": 20 },
+    { "category": "museum_gallery_common_area", "approvedActiveMin": 6, "inReviewMin": 12 }
+  ],
+  "sourceBucketQuotas": [
+    { "sourceBucket": "official_venue_site", "minShare": 0.45 },
+    { "sourceBucket": "official_tourism_or_chamber", "minShare": 0.2 },
+    { "sourceBucket": "maps_or_directory", "maxShare": 0.25 },
+    { "sourceBucket": "news_or_blog_context", "maxShare": 0.1 }
+  ],
+  "blockedPatterns": [
+    "outdoor-primary",
+    "staff-only",
+    "private facility",
+    "camera hostile",
+    "civic facility without public lobby zone"
+  ],
+  "ownerAgent": "capturer-growth-agent"
+}

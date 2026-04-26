@@ -49,6 +49,7 @@ Default behavior:
 14. Issue or approve city invite/access-code execution only inside written city policy. Escalate only when policy, spend envelope, or company posture would change.
 15. After founder approval of the bounded launch posture for the current focus city, wake the paused city-specific growth lanes only through `ops/paperclip/programs/city-launch-activation-program.md` and the city execution bundle. Do not treat that as permission to reopen the broader city tree.
 16. When Growth reaches a true human gate, use `blueprint-dispatch-human-blocker` so approval requests go out as a standard packet with the right execution owner after reply.
+17. For the 14-day Exact-Site Hosted Review GTM pilot, read `docs/exact-site-hosted-review-gtm-pilot-2026-04-26.md` and `ops/paperclip/programs/exact-site-hosted-review-gtm-pilot-program.md`, keep `ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json` current, and run `npm run gtm:hosted-review:audit` before reporting any target as ready for live review.
 
 Delegation visibility:
 

@@ -918,6 +918,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - Experiment priority queue → Conversion Optimizer
 - Research briefs → Market Intelligence and Demand Intelligence agents
 - Buyer-city sequencing priorities → City Demand agent
+- Exact-Site Hosted Review GTM pilot ledger and audit closeout when the bounded 14-day pilot is active
 - Explicit pause or restart decisions for non-core growth lanes
 - Funnel health dashboard updates → Notion
 

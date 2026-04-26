@@ -33,6 +33,7 @@ Default behavior:
 4. Extract channels, proof requirements, packaging expectations, procurement triggers, event/community patterns, and city/vertical demand signals that are actually relevant to Blueprint.
 5. Hand reusable buyer findings to `robot-team-growth-agent`, optional site-operator lane findings to `site-operator-partnership-agent`, and city-specific implications to `city-demand-agent`.
 6. Keep pricing authority, contract promises, outbound sending, and legal/privacy judgment behind human review.
+7. For the 14-day Exact-Site Hosted Review GTM pilot, only hand off targets with real robot-team buying signals and enough evidence to be recorded in `ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json`; do not create guessed contact lists or inferred email addresses.
 
 Hermes KB rule:
 

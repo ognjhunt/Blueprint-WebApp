@@ -59,3 +59,10 @@ Score each city 1-5 on:
 
 ## Operating Rule
 The city-demand agent does not invent a market. It translates reusable buyer strategy into city-specific plans and makes dependencies explicit.
+
+## Exact-Site Hosted Review GTM Pilot
+- During the 14-day pilot in `ops/paperclip/programs/exact-site-hosted-review-gtm-pilot-program.md`, city-demand work should translate target accounts into city/site opportunity context only when the city or site type is actually relevant to the buyer workflow.
+- Do not declare a city live because a target exists in the pilot ledger.
+- Do not authorize public posting or outreach.
+- Keep each city/site brief tied to real capture provenance, available hosted-review evidence, or a clearly labeled gap that requires additional capture or operator follow-up.
+- If a target needs access or commercialization context, hand that specific question to `site-operator-partnership-agent` without making operator approval a universal prerequisite.

@@ -1,0 +1,41 @@
+{
+  "city": "Chicago, IL",
+  "citySlug": "chicago-il",
+  "version": "2026-04-26",
+  "inventoryTargets": {
+    "approvedActiveMin": 90,
+    "inReviewMin": 160,
+    "researchedBacklogMin": 400,
+    "maxNewCandidatesPerRun": 50
+  },
+  "geographicTiles": [
+    { "id": "loop-river-north", "label": "Loop / River North", "center": { "lat": 41.8837, "lng": -87.6325 }, "radiusMeters": 1800, "approvedActiveMin": 20, "inReviewMin": 36 },
+    { "id": "west-loop", "label": "West Loop", "center": { "lat": 41.8836, "lng": -87.6486 }, "radiusMeters": 1600, "approvedActiveMin": 12, "inReviewMin": 24 },
+    { "id": "lincoln-park-lakeview", "label": "Lincoln Park / Lakeview", "center": { "lat": 41.9255, "lng": -87.6488 }, "radiusMeters": 2600, "approvedActiveMin": 14, "inReviewMin": 26 },
+    { "id": "hyde-park", "label": "Hyde Park", "center": { "lat": 41.7943, "lng": -87.5907 }, "radiusMeters": 2200, "approvedActiveMin": 10, "inReviewMin": 20 }
+  ],
+  "categoryQuotas": [
+    { "category": "hotel_lobby_common_area", "approvedActiveMin": 16, "inReviewMin": 28 },
+    { "category": "museum_gallery_common_area", "approvedActiveMin": 12, "inReviewMin": 22 },
+    { "category": "mall_concourse", "approvedActiveMin": 10, "inReviewMin": 20 },
+    { "category": "food_hall", "approvedActiveMin": 8, "inReviewMin": 16 },
+    { "category": "convention_prefunction", "approvedActiveMin": 8, "inReviewMin": 16 },
+    { "category": "large_retail_customer_area", "approvedActiveMin": 14, "inReviewMin": 28 },
+    { "category": "public_lobby", "approvedActiveMin": 12, "inReviewMin": 24 },
+    { "category": "transit_concourse_common_area", "approvedActiveMin": 6, "inReviewMin": 12 }
+  ],
+  "sourceBucketQuotas": [
+    { "sourceBucket": "official_venue_site", "minShare": 0.45 },
+    { "sourceBucket": "official_tourism_or_chamber", "minShare": 0.2 },
+    { "sourceBucket": "maps_or_directory", "maxShare": 0.25 },
+    { "sourceBucket": "news_or_blog_context", "maxShare": 0.1 }
+  ],
+  "blockedPatterns": [
+    "outdoor-primary",
+    "staff-only",
+    "private facility",
+    "camera hostile",
+    "citywide or neighborhood-wide target without an exact public indoor zone"
+  ],
+  "ownerAgent": "capturer-growth-agent"
+}

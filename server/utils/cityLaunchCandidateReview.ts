@@ -3,7 +3,12 @@ import {
   updateCityLaunchCandidateSignalReview,
   upsertCityLaunchProspect,
   type CityLaunchCandidateSignalRecord,
+  type CityLaunchProspectRecord,
 } from "./cityLaunchLedgers";
+import {
+  dispatchCityLaunchTargetPromotionNotifications,
+  type CityLaunchNotificationDispatchResult,
+} from "./cityLaunchNotifications";
 import { slugifyCityName } from "./cityLaunchProfiles";
 
 type ReviewDecision = "keep_in_review" | "promote" | "reject";
@@ -27,6 +32,7 @@ export type CityLaunchCandidateReviewBatchResult = {
   keptInReviewCount: number;
   rejectedCount: number;
   outcomes: CityLaunchCandidateReviewOutcome[];
+  notifications: CityLaunchNotificationDispatchResult[];
 };
 
 const PUBLIC_REVIEW_OWNER = "public-space-review-agent";
@@ -333,8 +339,15 @@ async function promoteCandidate(candidate: CityLaunchCandidateSignalRecord, revi
       ],
       inferredFields: [],
     },
+    coverageRunId: candidate.coverageRunId || null,
+    coverageTileId: candidate.coverageTileId || null,
+    coverageCategory: candidate.coverageCategory || candidate.candidateType || null,
+    claimState: "available",
+    lastShownAtIso: null,
+    lastClaimedAtIso: null,
+    lastCapturedAtIso: null,
   });
-  return prospect.id;
+  return prospect;
 }
 
 export async function reviewCityLaunchCandidateBatch(input: {
@@ -361,12 +374,15 @@ export async function reviewCityLaunchCandidateBatch(input: {
   const selected = candidates.slice(0, limit);
   const reviewedAtIso = nowIso();
   const outcomes: CityLaunchCandidateReviewOutcome[] = [];
+  const promotedProspects: CityLaunchProspectRecord[] = [];
 
   for (const candidate of selected) {
     const evaluation = evaluateCandidate(candidate);
     let promotedProspectId: string | null = null;
     if (!input.dryRun && evaluation.decision === "promote") {
-      promotedProspectId = await promoteCandidate(candidate, reviewedAtIso);
+      const prospect = await promoteCandidate(candidate, reviewedAtIso);
+      promotedProspectId = prospect.id;
+      promotedProspects.push(prospect);
     }
 
     if (!input.dryRun) {
@@ -396,6 +412,41 @@ export async function reviewCityLaunchCandidateBatch(input: {
     });
   }
 
+  const notifications: CityLaunchNotificationDispatchResult[] = [];
+  if (!input.dryRun && promotedProspects.length) {
+    const prospectsByCity = new Map<string, CityLaunchProspectRecord[]>();
+    for (const prospect of promotedProspects) {
+      const city = prospect.city || input.city || selected[0]?.city || "";
+      prospectsByCity.set(city, [...(prospectsByCity.get(city) || []), prospect]);
+    }
+
+    for (const [city, prospects] of prospectsByCity.entries()) {
+      try {
+        notifications.push(await dispatchCityLaunchTargetPromotionNotifications({
+          city,
+          promotedProspects: prospects,
+          dryRun: false,
+        }));
+      } catch (error) {
+        notifications.push({
+          generatedAt: nowIso(),
+          dryRun: false,
+          city,
+          citySlug: slugifyCityName(city),
+          triggerType: "city_launch_targets_promoted",
+          prospectIds: prospects.map((prospect) => prospect.id),
+          recipientCount: 0,
+          queuedCount: 0,
+          sentCount: 0,
+          skippedCount: 0,
+          failedCount: prospects.length,
+          records: [],
+        });
+        console.error("City launch notification dispatch failed", error);
+      }
+    }
+  }
+
   return {
     generatedAt: reviewedAtIso,
     city: input.city || null,
@@ -406,5 +457,6 @@ export async function reviewCityLaunchCandidateBatch(input: {
     keptInReviewCount: outcomes.filter((outcome) => outcome.decision === "keep_in_review").length,
     rejectedCount: outcomes.filter((outcome) => outcome.decision === "reject").length,
     outcomes,
+    notifications,
   };
 }

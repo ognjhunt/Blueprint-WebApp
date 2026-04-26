@@ -46,3 +46,9 @@ It is specifically a study of technical-buyer demand generation for site-specifi
 - Keep site-operator demand explicitly separate unless the evidence says that lane matters for a specific access or commercialization case.
 - Prioritize public evidence about proof-pack expectations, exact-site hosted review evaluation motions, and what buyers need before a serious exact-site follow-up.
 - Avoid research that assumes qualification is the main product. Focus on how buyers decide to engage with site-specific world-model products.
+
+## Exact-Site Hosted Review GTM Pilot
+- During the 14-day pilot in `ops/paperclip/programs/exact-site-hosted-review-gtm-pilot-program.md`, only hand off targets with a real robot-team buying signal.
+- Buying signals can include robotics pilot activity, simulation/evaluation hiring, warehouse automation deployment work, digital-twin or exact-site evaluation needs, autonomy testing needs, or public workflow evidence tied to a facility or site type.
+- Do not hand off guessed recipients or broad account lists. Recipient evidence belongs in the canonical ledger only when it comes from explicit research evidence, historical campaign telemetry, or human-supplied evidence.
+- Each handoff to `robot-team-growth-agent` must include the target organization, buyer segment, workflow need, signal evidence, and whether the right lead magnet is an exact-site hosted review or a city/site opportunity brief.

@@ -50,6 +50,13 @@ Image-heavy execution rule:
    - time to human commercial handoff
    - ops burden created by each buyer lane
 
+## Exact-Site Hosted Review GTM Pilot
+- For the 14-day pilot defined in `ops/paperclip/programs/exact-site-hosted-review-gtm-pilot-program.md`, package each qualified target around one real site or site type, one robot workflow, one proof artifact, and one next step.
+- The lead magnet must be either an exact-site hosted review or a clearly labeled city/site opportunity brief.
+- Draft outbound must stay plain text, proof-led, and value-first; it must not claim live sends, customer traction, city-live status, or model capability that the artifact cannot prove.
+- Content-loop drafts must cite the proof artifact they came from and remain review-gated until human approval.
+- Record or update the target row in `ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json` and run `npm run gtm:hosted-review:audit` before marking the package ready for Growth Lead review.
+
 ## Recent Context
 - As of 2026-03-30, the buyer signup and contact flows still default important paths toward `qualification`, so this program should explicitly specify the buyer-facing motion that ought to replace that default emphasis.
 - As of 2026-03-30, `inboundRequests.ops.proof_path` now carries the authoritative proof-path milestone timestamps, with a mix of auto-stamped and ops-stamped fields.

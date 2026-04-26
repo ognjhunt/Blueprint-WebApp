@@ -1,0 +1,39 @@
+{
+  "city": "Austin, TX",
+  "citySlug": "austin-tx",
+  "version": "2026-04-26",
+  "inventoryTargets": {
+    "approvedActiveMin": 60,
+    "inReviewMin": 120,
+    "researchedBacklogMin": 300,
+    "maxNewCandidatesPerRun": 40
+  },
+  "geographicTiles": [
+    { "id": "downtown-convention", "label": "Downtown / Convention District", "center": { "lat": 30.2649, "lng": -97.7403 }, "radiusMeters": 2200, "approvedActiveMin": 18, "inReviewMin": 32 },
+    { "id": "domain-arboretum", "label": "Domain / Arboretum", "center": { "lat": 30.4012, "lng": -97.7253 }, "radiusMeters": 3600, "approvedActiveMin": 14, "inReviewMin": 26 },
+    { "id": "south-congress", "label": "South Congress", "center": { "lat": 30.2496, "lng": -97.7498 }, "radiusMeters": 2200, "approvedActiveMin": 10, "inReviewMin": 18 }
+  ],
+  "categoryQuotas": [
+    { "category": "large_retail_customer_area", "approvedActiveMin": 14, "inReviewMin": 28 },
+    { "category": "hotel_lobby_common_area", "approvedActiveMin": 10, "inReviewMin": 20 },
+    { "category": "convention_prefunction", "approvedActiveMin": 8, "inReviewMin": 14 },
+    { "category": "coworking_public_area", "approvedActiveMin": 8, "inReviewMin": 16 },
+    { "category": "food_hall", "approvedActiveMin": 6, "inReviewMin": 12 },
+    { "category": "public_lobby", "approvedActiveMin": 8, "inReviewMin": 16 },
+    { "category": "mall_concourse", "approvedActiveMin": 6, "inReviewMin": 12 }
+  ],
+  "sourceBucketQuotas": [
+    { "sourceBucket": "official_venue_site", "minShare": 0.45 },
+    { "sourceBucket": "official_tourism_or_chamber", "minShare": 0.2 },
+    { "sourceBucket": "maps_or_directory", "maxShare": 0.25 },
+    { "sourceBucket": "news_or_blog_context", "maxShare": 0.1 }
+  ],
+  "blockedPatterns": [
+    "outdoor-primary",
+    "staff-only",
+    "private facility",
+    "camera hostile",
+    "district-wide without zone-specific indoor target"
+  ],
+  "ownerAgent": "capturer-growth-agent"
+}

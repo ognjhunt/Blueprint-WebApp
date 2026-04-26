@@ -13,9 +13,11 @@ Each run must:
 - summarize what worked, failed, or appears risky in observed buyer motions
 - refresh the issue queue for `robot-team-growth-agent`, `site-operator-partnership-agent`, and `city-demand-agent`
 - explicitly address how current findings affect Austin and San Francisco planning
+- during the Exact-Site Hosted Review GTM pilot, hand off only high-intent robot-team targets with explicit signal evidence suitable for the canonical pilot ledger
 
 Do not:
 
 - make demand, pricing, or contract decisions
 - imply buyer urgency that the evidence does not support
 - present weak evidence as fact
+- infer or guess recipient email addresses

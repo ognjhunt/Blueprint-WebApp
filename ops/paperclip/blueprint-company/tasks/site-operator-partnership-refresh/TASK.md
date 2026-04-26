@@ -13,3 +13,4 @@ Each run must:
 - refresh the operator-lane issue queue
 - tighten the current escalation map for ops, intake, finance-support, and human review
 - make missing human approvals explicit
+- during the Exact-Site Hosted Review GTM pilot, work only target-specific operator/access questions and keep rights, privacy, permission, and commercialization decisions human-gated

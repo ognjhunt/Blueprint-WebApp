@@ -118,3 +118,21 @@ npm exec -- tsx scripts/city-launch/review-public-candidates.ts --city "Durham, 
 ```
 
 Only `verification_status=verified` candidates with indoor posture, allowed/avoid zones, source query log, source URLs, evidence summary, public-access posture, coordinates, and payout/time estimates can promote. Outdoor-primary and unknown-posture candidates cannot promote.
+
+## Capturer Notification Path
+
+Promoted Durham targets now trigger `city_launch_targets_promoted` records in `cityLaunchNotifications` for matching creator profiles when `notification_preferences.nearby_jobs !== false`. Push send is allowed only for profiles with a usable `notification_device.fcm_token` and authorization status, and only when the city-launch push env flag is configured; otherwise the system writes an in-app/ledger fallback record.
+
+Dry-run audit:
+
+```bash
+npm exec -- tsx scripts/city-launch/notify-approved-targets.ts --city "Durham, NC" --dry-run
+```
+
+Apply mode is intentionally guarded:
+
+```bash
+npm exec -- tsx scripts/city-launch/notify-approved-targets.ts --city "Durham, NC" --apply --creator-id "<test-creator-id>"
+```
+
+Notification copy remains review/claiming language only. It does not say the locations are rights-cleared, operator-approved, capture-proven, payout-guaranteed, or approved paid jobs.

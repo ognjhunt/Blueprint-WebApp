@@ -55,6 +55,13 @@ Focused-city activation exception:
 - after founder approval of the bounded launch posture for the current focus city, Growth Lead may wake `supply-intel-agent`, `capturer-growth-agent`, `city-launch-agent`, `robot-team-growth-agent`, and `site-operator-partnership-agent` only through the city activation bundle in `ops/paperclip/programs/city-launch-activation-program.md`
 - the exception is scoped to the current focus city only and does not reopen the broader city tree
 
+Exact-Site Hosted Review GTM pilot exception:
+- Growth Lead may run the 14-day pilot defined in `docs/exact-site-hosted-review-gtm-pilot-2026-04-26.md` and `ops/paperclip/programs/exact-site-hosted-review-gtm-pilot-program.md`
+- the pilot may wake `demand-intel-agent`, `robot-team-growth-agent`, `city-demand-agent`, and `site-operator-partnership-agent` only for targets recorded in `ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json`
+- every outbound-ready target must pass `npm run gtm:hosted-review:audit` before Growth Lead reports it as ready
+- live sends, public posts, paid spend, and commercial or rights/privacy commitments remain human-gated
+- the exception ends after the 14-day closeout unless Growth Lead records ledger evidence that justifies a narrower next run
+
 ## Operating Rule
 Before starting or restarting any paused lane, Growth Lead must answer:
 1. What live decision or revenue path does this lane unblock now?

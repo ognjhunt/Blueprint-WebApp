@@ -41,3 +41,9 @@ Maintain Blueprint's optional third lane for site operators without making that 
 - No legal, privacy, rights, or consent interpretation.
 - No revenue-share, pricing, or contract commitments.
 - No language implying that operator approval is universally required.
+
+## Exact-Site Hosted Review GTM Pilot
+- During the 14-day pilot in `ops/paperclip/programs/exact-site-hosted-review-gtm-pilot-program.md`, participate only when a target row has a concrete site/operator access, privacy, rights, or commercialization question.
+- Keep the operator lane secondary to robot-team demand unless the specific site context makes operator engagement commercially or operationally necessary.
+- Record operator-lane notes as blocked, optional, or required for that target. Do not convert them into permission, legal, rights, or revenue-share judgments.
+- If the operator question affects live outreach, public claims, site access, rights/privacy, or commercialization, return a human-gated blocker instead of approving the motion.

@@ -180,12 +180,28 @@ REDIS_URL=rediss://default:<token>@active-phoenix-39183.upstash.io:6379
   `BLUEPRINT_CITY_LAUNCH_FROM_NAME`
   `BLUEPRINT_CITY_LAUNCH_REPLY_TO`
   `BLUEPRINT_CITY_LAUNCH_SENDER_VERIFICATION`
+- Optional city-launch push notifications:
+  `BLUEPRINT_CITY_LAUNCH_PUSH_NOTIFICATIONS_ENABLED=1`
+  Requires Firebase Admin credentials above. When unset, city-launch target promotion writes in-app/ledger fallback records and does not attempt FCM delivery.
 - Optional governed external city-launch contact discovery:
   `BLUEPRINT_CITY_LAUNCH_CONTACT_DISCOVERY_ENABLED=1`
   `BLUEPRINT_CITY_LAUNCH_CONTACT_DISCOVERY_ALLOWED_HOSTS`
   `BLUEPRINT_CITY_LAUNCH_CONTACT_DISCOVERY_SEARCH_ENABLED=1`
   `BLUEPRINT_CITY_LAUNCH_CONTACT_DISCOVERY_SEARCH_URL`
   `BLUEPRINT_CITY_LAUNCH_CONTACT_DISCOVERY_SEARCH_ALLOWED_HOSTS`
+- Optional city-launch coverage expansion:
+  `SEARCH_API_PROVIDER=parallel_mcp`
+  `PARALLEL_API_KEY` (optional; free Parallel MCP does not require it)
+  `PARALLEL_MCP_URL` (optional override)
+  `PARALLEL_SESSION_ID` (optional override)
+  `PARALLEL_MODEL_NAME` (optional override)
+  Coverage scripts:
+  `npm run city-launch:coverage:audit -- --city "Durham, NC"`
+  `npm run city-launch:coverage:plan -- --city "Durham, NC"`
+  `npm run city-launch:coverage:run -- --city "Durham, NC" --apply --max-candidates 40`
+- Optional Exact-Site Hosted Review GTM pilot audit:
+  `npm run gtm:hosted-review:audit`
+  The audit is local and file-backed. It validates `ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json` and does not send outreach or publish content.
 - Optional human-reply ingest and email watcher:
   `BLUEPRINT_HUMAN_REPLY_INGEST_TOKEN`
   `BLUEPRINT_HUMAN_REPLY_APPROVED_EMAIL`

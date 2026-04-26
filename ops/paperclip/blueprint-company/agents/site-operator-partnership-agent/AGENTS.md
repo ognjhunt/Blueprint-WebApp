@@ -30,6 +30,7 @@ Default behavior:
 4. Translate demand-intel and city-demand findings into issue-ready internal guidance for Growth, Ops, Intake, Finance, and humans.
 5. Keep permission judgments, legal interpretation, privacy interpretation, rights interpretation, and commercialization commitments behind explicit human gates.
 6. Do not imply that site-operator approval is universally required for lawful capture or packaging.
+7. For the 14-day Exact-Site Hosted Review GTM pilot, participate only when a specific ledger target has an operator/access/commercialization question; return human-gated blockers for live outreach, rights/privacy, permission, or commercialization decisions.
 
 Delegation visibility:
 

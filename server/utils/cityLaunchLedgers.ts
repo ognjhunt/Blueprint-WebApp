@@ -80,6 +80,13 @@ export type CityLaunchProspectRecord = {
   workflowFit: string | null;
   priorityNote: string | null;
   researchProvenance: CityLaunchResearchProvenance | null;
+  coverageRunId?: string | null;
+  coverageTileId?: string | null;
+  coverageCategory?: string | null;
+  claimState?: "available" | "claimed" | "captured" | "exhausted" | "paused" | null;
+  lastShownAtIso?: string | null;
+  lastClaimedAtIso?: string | null;
+  lastCapturedAtIso?: string | null;
   createdAtIso: string;
   updatedAtIso: string;
 };
@@ -618,6 +625,14 @@ export type CityLaunchCandidateSignalRecord = {
   reviewDecision?: "keep_in_review" | "promote" | "reject" | null;
   reviewReasons?: string[];
   promotedProspectId?: string | null;
+  coverageRunId?: string | null;
+  coverageTileId?: string | null;
+  coverageCategory?: string | null;
+  sourceBucket?: string | null;
+  sourceQuality?: string | null;
+  discoveryQuery?: string | null;
+  duplicateOfCandidateId?: string | null;
+  excludedByCoveragePolicyReason?: string | null;
   seenCount: number;
   submittedAtIso: string;
   lastSeenAtIso: string;
@@ -681,6 +696,17 @@ function mergeCandidateSignal(
     reviewDecision: existing?.reviewDecision || null,
     reviewReasons: existing?.reviewReasons || [],
     promotedProspectId: existing?.promotedProspectId || null,
+    coverageRunId: mergeNullable(incoming.coverageRunId, existing?.coverageRunId),
+    coverageTileId: mergeNullable(incoming.coverageTileId, existing?.coverageTileId),
+    coverageCategory: mergeNullable(incoming.coverageCategory, existing?.coverageCategory),
+    sourceBucket: mergeNullable(incoming.sourceBucket, existing?.sourceBucket),
+    sourceQuality: mergeNullable(incoming.sourceQuality, existing?.sourceQuality),
+    discoveryQuery: mergeNullable(incoming.discoveryQuery, existing?.discoveryQuery),
+    duplicateOfCandidateId: mergeNullable(incoming.duplicateOfCandidateId, existing?.duplicateOfCandidateId),
+    excludedByCoveragePolicyReason: mergeNullable(
+      incoming.excludedByCoveragePolicyReason,
+      existing?.excludedByCoveragePolicyReason,
+    ),
     seenCount: (existing?.seenCount || 0) + 1,
     submittedAtIso: existing?.submittedAtIso || timestamp,
     lastSeenAtIso: timestamp,
@@ -755,6 +781,14 @@ export async function intakeCityLaunchCandidateSignals(
     reviewedByAgent?: string | null;
     seedStatus?: string | null;
     seedNotes?: string | null;
+    coverageRunId?: string | null;
+    coverageTileId?: string | null;
+    coverageCategory?: string | null;
+    sourceBucket?: string | null;
+    sourceQuality?: string | null;
+    discoveryQuery?: string | null;
+    duplicateOfCandidateId?: string | null;
+    excludedByCoveragePolicyReason?: string | null;
   }>,
 ) {
   return Promise.all(
@@ -805,6 +839,14 @@ export async function intakeCityLaunchCandidateSignals(
         reviewedByAgent: input.reviewedByAgent || null,
         seedStatus: input.seedStatus || null,
         seedNotes: input.seedNotes || null,
+        coverageRunId: input.coverageRunId || null,
+        coverageTileId: input.coverageTileId || null,
+        coverageCategory: input.coverageCategory || null,
+        sourceBucket: input.sourceBucket || null,
+        sourceQuality: input.sourceQuality || null,
+        discoveryQuery: input.discoveryQuery || null,
+        duplicateOfCandidateId: input.duplicateOfCandidateId || null,
+        excludedByCoveragePolicyReason: input.excludedByCoveragePolicyReason || null,
       });
     }),
   );
@@ -957,6 +999,13 @@ export async function upsertCityLaunchProspect(
     workflowFit: mergeString(existing?.workflowFit, input.workflowFit ?? null),
     priorityNote: mergeNotes(existing?.priorityNote, input.priorityNote ?? null),
     researchProvenance: input.researchProvenance ?? existing?.researchProvenance ?? null,
+    coverageRunId: mergeString(existing?.coverageRunId, input.coverageRunId ?? null),
+    coverageTileId: mergeString(existing?.coverageTileId, input.coverageTileId ?? null),
+    coverageCategory: mergeString(existing?.coverageCategory, input.coverageCategory ?? null),
+    claimState: input.claimState ?? existing?.claimState ?? "available",
+    lastShownAtIso: mergeIsoLatest(existing?.lastShownAtIso, input.lastShownAtIso ?? null),
+    lastClaimedAtIso: mergeIsoLatest(existing?.lastClaimedAtIso, input.lastClaimedAtIso ?? null),
+    lastCapturedAtIso: mergeIsoLatest(existing?.lastCapturedAtIso, input.lastCapturedAtIso ?? null),
     createdAtIso,
     updatedAtIso,
   };

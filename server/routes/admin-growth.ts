@@ -26,6 +26,11 @@ import {
   readCurrentCityLaunchActivation,
   runCityLaunchExecutionHarness,
 } from "../utils/cityLaunchExecutionHarness";
+import {
+  planCityLaunchCoverageExpansion,
+  runCityLaunchCoverageExpansion,
+  summarizeCityLaunchCoverage,
+} from "../utils/cityLaunchCoverageExpansion";
 import { reviewCityLaunchCandidateBatch } from "../utils/cityLaunchCandidateReview";
 import { resolveCityLaunchActivationFounderApproval } from "../utils/cityLaunchApprovalMode";
 import {
@@ -646,6 +651,73 @@ router.get("/city-launch/activation", requireOps, async (req, res) => {
   } catch (error) {
     logger.error({ err: error }, "Failed to read city launch activation");
     return res.status(500).json({ error: "Failed to read city launch activation" });
+  }
+});
+
+router.get("/city-launch/coverage", requireOps, async (req, res) => {
+  try {
+    const city = normalizeString(req.query.city);
+    if (!city) {
+      return res.status(400).json({ error: "city is required" });
+    }
+    return res.json({
+      ok: true,
+      ...(await summarizeCityLaunchCoverage(city)),
+    });
+  } catch (error) {
+    logger.error({ err: error }, "Failed to summarize city launch coverage");
+    return res.status(500).json({
+      error: error instanceof Error ? error.message : "Failed to summarize city launch coverage",
+    });
+  }
+});
+
+router.post("/city-launch/coverage/plan", requireOps, async (req, res) => {
+  try {
+    const city = normalizeString(req.body?.city);
+    if (!city) {
+      return res.status(400).json({ error: "city is required" });
+    }
+    const plan = await planCityLaunchCoverageExpansion({
+      city,
+      maxQueries: normalizeNumber(req.body?.maxQueries) ?? undefined,
+      maxCandidates: normalizeNumber(req.body?.maxCandidates) ?? undefined,
+    });
+    return res.json({ ok: true, plan });
+  } catch (error) {
+    logger.error({ err: error }, "Failed to plan city launch coverage expansion");
+    return res.status(500).json({
+      error: error instanceof Error ? error.message : "Failed to plan city launch coverage expansion",
+    });
+  }
+});
+
+router.post("/city-launch/coverage/run", requireOps, async (req, res) => {
+  try {
+    const city = normalizeString(req.body?.city);
+    if (!city) {
+      return res.status(400).json({ error: "city is required" });
+    }
+    const result = await runCityLaunchCoverageExpansion({
+      city,
+      apply: req.body?.apply === true,
+      maxQueries: normalizeNumber(req.body?.maxQueries) ?? undefined,
+      maxCandidates: normalizeNumber(req.body?.maxCandidates) ?? undefined,
+      trigger:
+        normalizeString(req.body?.trigger) === "scheduled"
+          ? "scheduled"
+          : normalizeString(req.body?.trigger) === "low_inventory"
+            ? "low_inventory"
+            : normalizeString(req.body?.trigger) === "post_capture_replenishment"
+              ? "post_capture_replenishment"
+              : "manual",
+    });
+    return res.status(req.body?.apply === true ? 201 : 200).json({ ok: true, ...result });
+  } catch (error) {
+    logger.error({ err: error }, "Failed to run city launch coverage expansion");
+    return res.status(500).json({
+      error: error instanceof Error ? error.message : "Failed to run city launch coverage expansion",
+    });
   }
 });
 

@@ -13,3 +13,4 @@ Each run must:
 - update the current issue queue if priorities shifted
 - tighten open questions for city-demand planning
 - surface missing instrumentation, proof-pack, or buyer-funnel dependencies to `analytics-agent` and `conversion-agent`
+- if the Exact-Site Hosted Review GTM pilot is active, inspect `ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json` and run `npm run gtm:hosted-review:audit` before reporting target readiness

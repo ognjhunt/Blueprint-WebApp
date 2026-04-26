@@ -1416,6 +1416,10 @@ tasks:
     status: done
     priority: high
     projectWorkspaceKey: blueprint-executive-ops
+  exact-site-hosted-review-gtm-pilot:
+    status: active
+    priority: high
+    projectWorkspaceKey: blueprint-webapp
   conversion-agent-bootstrap:
     status: done
     priority: high

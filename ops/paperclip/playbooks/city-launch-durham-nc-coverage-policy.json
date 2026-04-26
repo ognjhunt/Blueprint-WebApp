@@ -1,0 +1,40 @@
+{
+  "city": "Durham, NC",
+  "citySlug": "durham-nc",
+  "version": "2026-04-26",
+  "inventoryTargets": {
+    "approvedActiveMin": 50,
+    "inReviewMin": 100,
+    "researchedBacklogMin": 250,
+    "maxNewCandidatesPerRun": 40
+  },
+  "geographicTiles": [
+    { "id": "downtown-core", "label": "Downtown Durham", "center": { "lat": 35.9956, "lng": -78.9018 }, "radiusMeters": 1600, "approvedActiveMin": 15, "inReviewMin": 25 },
+    { "id": "ninth-street-duke", "label": "Ninth Street / Duke", "center": { "lat": 36.0081, "lng": -78.9216 }, "radiusMeters": 1800, "approvedActiveMin": 8, "inReviewMin": 16 },
+    { "id": "rtp-southpoint", "label": "RTP / Southpoint", "center": { "lat": 35.9034, "lng": -78.9426 }, "radiusMeters": 4200, "approvedActiveMin": 12, "inReviewMin": 24 }
+  ],
+  "categoryQuotas": [
+    { "category": "food_hall", "approvedActiveMin": 6, "inReviewMin": 12 },
+    { "category": "hotel_lobby_common_area", "approvedActiveMin": 8, "inReviewMin": 16 },
+    { "category": "museum_gallery_common_area", "approvedActiveMin": 8, "inReviewMin": 16 },
+    { "category": "visitor_center_common_area", "approvedActiveMin": 4, "inReviewMin": 8 },
+    { "category": "university_adjacent_public_area", "approvedActiveMin": 4, "inReviewMin": 8 },
+    { "category": "public_lobby", "approvedActiveMin": 8, "inReviewMin": 16 },
+    { "category": "coworking_public_area", "approvedActiveMin": 4, "inReviewMin": 8 },
+    { "category": "large_retail_customer_area", "approvedActiveMin": 8, "inReviewMin": 16 }
+  ],
+  "sourceBucketQuotas": [
+    { "sourceBucket": "official_venue_site", "minShare": 0.45 },
+    { "sourceBucket": "official_tourism_or_chamber", "minShare": 0.2 },
+    { "sourceBucket": "maps_or_directory", "maxShare": 0.25 },
+    { "sourceBucket": "news_or_blog_context", "maxShare": 0.1 }
+  ],
+  "blockedPatterns": [
+    "outdoor-primary",
+    "staff-only",
+    "private facility",
+    "camera hostile",
+    "campus-wide without zone-specific indoor target"
+  ],
+  "ownerAgent": "capturer-growth-agent"
+}

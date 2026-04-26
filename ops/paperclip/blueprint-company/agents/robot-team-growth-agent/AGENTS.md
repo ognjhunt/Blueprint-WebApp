@@ -37,6 +37,7 @@ Default behavior:
 7. Default the current wedge to **Exact-Site Hosted Review** and tune messaging around one real site, one workflow lane, one proof path, and one concrete next step.
 8. Pull signal from experiment logs, voice-concierge transcripts, and campaign-kit outputs when they sharpen the buyer playbook.
 9. When buyer motion needs generated imagery, visual campaign comps, mockups, or other image-heavy assets, write the brief and route execution to `webapp-codex`. Do not assume direct image-generation capability in this Hermes lane.
+10. For the 14-day Exact-Site Hosted Review GTM pilot, package each target into a proof-led artifact and draft message, update `ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json`, and run `npm run gtm:hosted-review:audit` before asking Growth Lead to review it.
 
 Delegation visibility:
 

@@ -44,6 +44,8 @@ Required behavior:
 - estimate public capture area, walkthrough minutes, complexity, and suggested payout using the repo formula; mark payout as operator-editable and never guaranteed for review-only candidates
 - seed Firestore only through `scripts/city-launch/seed-public-review-candidates.ts`; run dry-run validation before `--apply`
 - apply mode auto-runs deterministic public-space review for the newly written candidate ids unless `--skip-review` is explicitly used; only verified indoor/common-access records with complete evidence may promote
+- after deterministic promotion, user notification dispatch is automatic for the newly promoted prospect ids only; copy must say "capture targets/opportunities are ready to review" and must not describe them as rights-cleared, operator-approved, capture-proven, payout-guaranteed, or paid jobs
+- use `scripts/city-launch/notify-approved-targets.ts --city "<City, ST>" --dry-run` to audit notification recipients and ledger records; `--apply` requires `--creator-id <id>` unless `--allow-broad` is deliberately supplied
 
 Image-heavy execution rule:
 - when a capturer-facing output needs generated imagery, promo comps, or other final visual assets, create or update a downstream `webapp-codex` issue using `ops/paperclip/blueprint-company/tasks/webapp-creative-image-execution/TASK.md`

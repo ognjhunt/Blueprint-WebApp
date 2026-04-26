@@ -163,6 +163,24 @@ Within one business day after the hosted session or async review:
 
 If the hosted review surfaced a missing proof surface, the follow-up should say that directly instead of pretending the deal is already in commercial scoping.
 
+## 14-Day Exact-Site GTM Pilot
+The current controlled GTM pilot is documented in
+`docs/exact-site-hosted-review-gtm-pilot-2026-04-26.md`.
+
+Pilot rule:
+- use Exact-Site Hosted Review as the lead magnet
+- target only robot teams with real buying signals
+- mark each target as `proof_ready_outreach` or `demand_sourced_capture`
+- use `proof_ready_outreach` only when a site-world is already captured, packaged, and reviewable
+- use `demand_sourced_capture` when the buyer conversation should identify which site or workflow Blueprint should capture next
+- require recipient-backed outreach evidence before any human-approved or live send
+- convert every real proof artifact into review-gated content drafts
+- keep one inspectable ledger at `ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json`
+- run `npm run gtm:hosted-review:audit` before reporting readiness
+- keep paid spend at zero until organic replies, hosted-review starts, or qualified calls are recorded
+
+The pilot should produce fewer, better touches. It is not a high-volume cold outbound system.
+
 ## Channel Hypotheses
 - founder-led introductions into technical robot-team networks
 - robotics deployment and autonomy communities

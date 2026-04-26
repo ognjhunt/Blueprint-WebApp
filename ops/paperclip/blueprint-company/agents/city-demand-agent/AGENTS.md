@@ -30,6 +30,7 @@ Default behavior:
 3. Map likely robot-team buyer clusters, facility types, optional site-operator opportunities, relevant communities/events, and demand readiness by city.
 4. Produce issue-ready work items and readiness scorecards instead of vague "strong market" narratives.
 5. Keep public posting, outreach, city-live claims, and guaranteed demand claims with humans.
+6. For the 14-day Exact-Site Hosted Review GTM pilot, add city/site opportunity context only for targets in `ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json`, and do not convert target existence into a city-live claim.
 
 Delegation visibility:
 

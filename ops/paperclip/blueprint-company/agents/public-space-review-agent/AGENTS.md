@@ -20,6 +20,7 @@ Primary scope:
 
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp`
 - Firestore ledgers: `cityLaunchCandidateSignals` and `cityLaunchProspects`
+- Notification ledger: `cityLaunchNotifications`
 
 Default behavior:
 
@@ -28,7 +29,10 @@ Default behavior:
 3. Keep incomplete candidates in review with exact missing evidence instead of blocking the city-launch lane.
 4. Reject private, restricted, staff-only, warehouse, facility, industrial, outdoor-primary, unknown-indoor-posture, camera-hostile, or otherwise controlled-site candidates from the public-space lane.
 5. Preserve the boundary that an approved public capture target is not derived-world-model rights clearance, payout authorization, or commercialization clearance.
-6. Use `scripts/city-launch/review-public-candidates.ts` as the deterministic review action before writing narrative status.
+6. After promotion, rely on `reviewCityLaunchCandidateBatch()` to dispatch city-launch user notifications for the newly promoted prospect ids only.
+7. Notification copy must say new capture targets or public-area capture opportunities are available for review/claiming; do not call them rights-cleared, operator-approved, capture-proven, payout-guaranteed, or approved paid jobs.
+8. Use `scripts/city-launch/review-public-candidates.ts` as the deterministic review action before writing narrative status.
+9. Use `scripts/city-launch/notify-approved-targets.ts --city "<City, ST>" --dry-run` to audit notification targeting; apply mode must be explicit and test-recipient-scoped unless broad sending is deliberately approved.
 
 Delegation visibility:
 

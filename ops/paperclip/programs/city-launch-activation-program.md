@@ -45,6 +45,7 @@ Execution rule:
 - city-opening execution must be explicit: maintain a channel/account registry, per-action send ledger, approval state for first live sends, response-ingest state, and an execution report showing what actually went live
 - city source policy must distinguish private controlled interiors from public, non-controlled commercial locations; broad online/community sourcing is disallowed for the former but allowed in bounded form for the latter
 - supply prospecting does not count as complete when a list exists but no real response exists; use the prepared prospect package and approved source policy to generate the first real invite, reply, or applicant signal and land it in the live intake path immediately
+- when public-space review promotes new indoor/common-access targets, notify matching capturers through the city-launch notification ledger and push transport only if `nearby_jobs` and device permission allow it; notification copy must frame targets as available for review/claiming, never as approved paid work, rights clearance, operator approval, or capture provenance
 - when a lane is classified `execute_until_external_confirmation`, draft packets and routed reviews are progress only; if the required signature, applicant, buyer reply, or artifact does not exist yet, leave the issue open or blocked instead of marking it done
 - do not fake lawful access, proof assets, hosted reviews, rights clearance, spend approvals, public claims, or non-standard commercial commitments
 - do not wait for a different lane's packet to exist before starting the best available approach for the current lane
@@ -68,7 +69,7 @@ Execution rule:
 - `ops-lead`: city intake rubric, trust kit, first-capture thresholds, launch-readiness checklist
 - `city-launch-agent`: city supply-side operating packet and dependency map
 - `capturer-growth-agent`: indoor public-location supply artifact, rejected-candidate ledger, evidence/query log, and seed-script dry-run
-- `public-space-review-agent`: deterministic promotion/rejection of seeded indoor candidates into `cityLaunchProspects` only when evidence passes
+- `public-space-review-agent`: deterministic promotion/rejection of seeded indoor candidates into `cityLaunchProspects` only when evidence passes, plus notification-ledger proof for newly promoted targets
 - `city-demand-agent`: city demand-side operating packet and target ledger
 - `capturer-growth-agent`, `intake-agent`, `capturer-success-agent`, `field-ops-agent`, `capture-qa-agent`, `rights-provenance-agent`: supply execution lanes
 - `demand-intel-agent`, `robot-team-growth-agent`, `outbound-sales-agent`, `buyer-solutions-agent`, `revenue-ops-pricing-agent`: buyer and commercial execution lanes

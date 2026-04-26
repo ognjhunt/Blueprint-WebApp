@@ -1,0 +1,17 @@
+{
+  "schema": "blueprint/exact-site-hosted-review-gtm-ledger/v1",
+  "pilot": {
+    "name": "Blueprint uses Blueprint to sell Blueprint",
+    "wedge": "Exact-Site Hosted Review",
+    "startDate": "2026-04-27",
+    "endDate": "2026-05-10",
+    "status": "planned",
+    "dailyTouchTargetMin": 20,
+    "dailyTouchTargetMax": 50,
+    "paidScaleAllowed": false,
+    "defaultTrack": "proof_ready_outreach",
+    "paidScaleDecision": "No paid spend, influencer spend, or acquisition ads until this ledger records organic replies, hosted-review starts, or qualified calls from the Exact-Site Hosted Review wedge."
+  },
+  "targets": [],
+  "dailyActivity": []
+}

@@ -71,6 +71,14 @@ type CandidateInput = {
   last_verified_at?: string | null;
   reviewed_by_agent?: string | null;
   notes?: string;
+  coverage_run_id?: string | null;
+  coverage_tile_id?: string | null;
+  coverage_category?: string | null;
+  source_bucket?: string | null;
+  source_quality?: string | null;
+  discovery_query?: string | null;
+  duplicate_of_candidate_id?: string | null;
+  excluded_by_coverage_policy_reason?: string | null;
 };
 
 type RejectedCandidateInput = {
@@ -132,6 +140,14 @@ type NormalizedCandidate = Required<Pick<CandidateInput, "candidate_id">> & {
   last_verified_at: string;
   reviewed_by_agent: string;
   notes: string | null;
+  coverage_run_id: string | null;
+  coverage_tile_id: string | null;
+  coverage_category: string | null;
+  source_bucket: string | null;
+  source_quality: string | null;
+  discovery_query: string | null;
+  duplicate_of_candidate_id: string | null;
+  excluded_by_coverage_policy_reason: string | null;
 };
 
 function parseArgs(argv: string[]) {
@@ -294,6 +310,14 @@ function normalizeCandidate(candidate: CandidateInput, index: number): Normalize
     last_verified_at: requireString(candidate.last_verified_at, `accepted_candidates[${index}].last_verified_at`),
     reviewed_by_agent: optionalString(candidate.reviewed_by_agent) || "capturer-growth-agent",
     notes: optionalString(candidate.notes),
+    coverage_run_id: optionalString(candidate.coverage_run_id),
+    coverage_tile_id: optionalString(candidate.coverage_tile_id),
+    coverage_category: optionalString(candidate.coverage_category),
+    source_bucket: optionalString(candidate.source_bucket),
+    source_quality: optionalString(candidate.source_quality),
+    discovery_query: optionalString(candidate.discovery_query),
+    duplicate_of_candidate_id: optionalString(candidate.duplicate_of_candidate_id),
+    excluded_by_coverage_policy_reason: optionalString(candidate.excluded_by_coverage_policy_reason),
   };
   assertIndoorCandidate(normalized, index);
   return normalized;
@@ -447,6 +471,14 @@ async function main() {
     reviewedByAgent: candidate.reviewed_by_agent,
     seedStatus: candidate.status,
     seedNotes: candidate.notes,
+    coverageRunId: candidate.coverage_run_id,
+    coverageTileId: candidate.coverage_tile_id,
+    coverageCategory: candidate.coverage_category,
+    sourceBucket: candidate.source_bucket || candidate.source_buckets[0] || null,
+    sourceQuality: candidate.source_quality,
+    discoveryQuery: candidate.discovery_query || candidate.source_queries[0] || null,
+    duplicateOfCandidateId: candidate.duplicate_of_candidate_id,
+    excludedByCoveragePolicyReason: candidate.excluded_by_coverage_policy_reason,
   }));
 
   const summary = {

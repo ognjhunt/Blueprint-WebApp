@@ -1,0 +1,42 @@
+---
+name: Exact-Site Hosted Review GTM Pilot
+project: blueprint-webapp
+assignee: growth-lead
+recurring: false
+---
+
+Run the 14-day "Blueprint uses Blueprint to sell Blueprint" pilot around the Exact-Site Hosted Review wedge.
+
+Primary sources:
+
+- `docs/exact-site-hosted-review-gtm-pilot-2026-04-26.md`
+- `ops/paperclip/programs/exact-site-hosted-review-gtm-pilot-program.md`
+- `ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json`
+- `ops/paperclip/playbooks/robot-team-demand-playbook.md`
+
+## Required Work
+
+- keep the canonical ledger current
+- default the first setup pass to `proof_ready_outreach` if a captured, packaged, reviewable site-world is selected
+- use `demand_sourced_capture` when no reviewable site-world exists for the target and the ask is to learn which site/workflow should be captured next
+- use `demand-intel-agent` for high-intent robot-team signal research
+- use `robot-team-growth-agent` for proof-led offer and message packaging
+- use `city-demand-agent` for city/site context when a target is city-specific
+- use `site-operator-partnership-agent` only when operator access or commercialization materially matters
+- run `npm run gtm:hosted-review:audit` before reporting the pilot as ready, active, or complete
+
+## Guardrails
+
+- no fake emails
+- no inferred recipient addresses
+- no live sends without recipient-backed evidence and human approval
+- no public posts without review
+- no paid spend until organic replies, hosted-review starts, or qualified calls are recorded in the ledger
+- no pricing, legal, privacy, rights, permission, or commercialization commitments
+- no hosted-review pitch from `demand_sourced_capture` rows
+
+## Done When
+
+- the pilot ledger records the targets, evidence, artifacts, sends, replies, content drafts, and outcomes for the full 14-day window
+- the final audit passes or records the exact blocker
+- Growth Lead leaves a proof-bearing closeout with whether the motion should be scaled, paused, or revised
