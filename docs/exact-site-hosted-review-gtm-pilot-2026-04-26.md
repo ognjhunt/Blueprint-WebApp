@@ -100,17 +100,22 @@ Blocked:
    `ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json`
 2. Run:
    `npm run gtm:hosted-review:audit`
-3. Create the kickoff Paperclip issue from:
+3. Generate the founder daily review packet:
+   `npm run gtm:hosted-review:daily -- --write --allow-blocked`
+4. Create the kickoff Paperclip issue from:
    `ops/paperclip/blueprint-company/tasks/exact-site-hosted-review-gtm-pilot/TASK.md`
 
 ### Daily Loop
 
-1. `demand-intel-agent` identifies high-intent robot-team signals.
+1. `demand-intel-agent` adds or improves real robot-team targets.
 2. `robot-team-growth-agent` drafts the proof-led offer and message.
 3. `city-demand-agent` attaches the relevant city/site opportunity context when the motion is city-specific.
-4. `site-operator-partnership-agent` flags any optional access or operator lane needed for a specific site.
-5. Growth Lead records the target, evidence, artifact, message, send status, reply state, and outcome in the ledger.
+4. `site-operator-partnership-agent` flags optional access or commercialization context only for a specific target.
+5. Growth Lead records the target, evidence, artifact, message, recipient evidence, send status, reply state, and outcome in the ledger.
 6. Run `npm run gtm:hosted-review:audit` before claiming the day's motion is ready.
+7. Run `npm run gtm:hosted-review:daily -- --write --allow-blocked` so the founder sees one dashboard: targets added, recipient-backed targets, approvals, sends, replies, hosted-review starts, qualified calls, and blockers.
+
+Internal summaries do not count as daily progress unless they change one of those dashboard fields.
 
 ### Weekly Review
 
@@ -159,6 +164,17 @@ The pilot is worth scaling only if it creates at least one of:
 - capture request tied to a buyer workflow
 
 Scale means widening the same ledgered motion by city or vertical. It does not mean adding paid spend or high-volume cold outbound by default.
+
+## Current First Batch
+
+As of 2026-04-26, the canonical ledger contains the first 12 target rows. They are intentionally not marked sent or human-approved because recipient-backed contacts are still missing.
+
+The immediate work is:
+
+1. research explicit recipient-backed contacts for those targets
+2. have the founder approve or edit the first real outreach batch
+3. record every send in the ledger before counting it
+4. convert replies into calls, hosted-review starts, exact-site requests, or explicit blockers
 
 ## Blocked States
 

@@ -59,6 +59,8 @@ Exact-Site Hosted Review GTM pilot exception:
 - Growth Lead may run the 14-day pilot defined in `docs/exact-site-hosted-review-gtm-pilot-2026-04-26.md` and `ops/paperclip/programs/exact-site-hosted-review-gtm-pilot-program.md`
 - the pilot may wake `demand-intel-agent`, `robot-team-growth-agent`, `city-demand-agent`, and `site-operator-partnership-agent` only for targets recorded in `ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json`
 - every outbound-ready target must pass `npm run gtm:hosted-review:audit` before Growth Lead reports it as ready
+- every daily pilot pass must run `npm run gtm:hosted-review:daily -- --write --allow-blocked`
+- founder review should be limited to recipient-backed draft approval, trusted contact supply, qualified calls, and irreversible exceptions
 - live sends, public posts, paid spend, and commercial or rights/privacy commitments remain human-gated
 - the exception ends after the 14-day closeout unless Growth Lead records ledger evidence that justifies a narrower next run
 

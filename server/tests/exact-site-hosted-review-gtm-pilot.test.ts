@@ -26,6 +26,15 @@ function baseLedger(overrides: Partial<ExactSiteGtmPilotLedger> = {}): ExactSite
 }
 
 describe("Exact-Site Hosted Review GTM pilot ledger audit", () => {
+  it("blocks an active pilot with zero target rows", () => {
+    const result = auditExactSiteHostedReviewGtmLedger(baseLedger());
+
+    expect(result.ok).toBe(false);
+    expect(result.findings.map((finding) => finding.message)).toContain(
+      "The pilot cannot be marked ready with zero target rows; add real robot-team targets or pause the pilot.",
+    );
+  });
+
   it("accepts recipient-backed, proof-led outbound inside the controlled touch cap", () => {
     const result = auditExactSiteHostedReviewGtmLedger(baseLedger({
       targets: [
@@ -88,6 +97,9 @@ describe("Exact-Site Hosted Review GTM pilot ledger audit", () => {
 
     expect(result.ok).toBe(true);
     expect(result.summary.sentTargets).toBe(1);
+    expect(result.summary.recipientBackedTargets).toBe(1);
+    expect(result.summary.targetsMissingRecipientEvidence).toBe(0);
+    expect(result.summary.latestDay.contactDensityGap).toBe(0);
     expect(result.findings.filter((finding) => finding.severity === "error")).toHaveLength(0);
   });
 
@@ -123,6 +135,40 @@ describe("Exact-Site Hosted Review GTM pilot ledger audit", () => {
       expect.arrayContaining([
         "Placeholder or fake recipient emails are disallowed.",
         "Recipient email requires explicit evidence source and evidence type.",
+      ]),
+    );
+  });
+
+  it("warns when an active pilot has targets but no recipient-backed contacts or sends", () => {
+    const result = auditExactSiteHostedReviewGtmLedger(baseLedger({
+      targets: [
+        {
+          id: "target-1",
+          track: "proof_ready_outreach",
+          organizationName: "Robot Team",
+          buyerSegment: "Deployment team",
+          workflowNeed: "Inspect one exact public site before picking a deployment workflow.",
+          intentSignals: ["Public product positioning references deployment-site evaluation."],
+          evidence: { summary: "Target account is relevant, but recipient contact is not yet backed." },
+          artifact: {
+            type: "exact_site_hosted_review",
+            status: "review_ready",
+            path: "client/public/samples/sample-hosted-review-report.md",
+            siteWorldId: "sample-public-capture-cedar-market-aisle-loop",
+          },
+          outbound: {
+            status: "draft_ready",
+            messagePath: "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
+          },
+        },
+      ],
+    }));
+
+    expect(result.ok).toBe(true);
+    expect(result.findings.map((finding) => finding.message)).toEqual(
+      expect.arrayContaining([
+        "Active pilot has target rows but no recipient-backed contacts; live sends remain blocked on explicit contact evidence.",
+        "Active pilot has no sent targets yet; daily progress is still target research until a send ledger exists.",
       ]),
     );
   });
@@ -191,6 +237,9 @@ describe("Exact-Site Hosted Review GTM pilot ledger audit", () => {
 
     expect(result.ok).toBe(true);
     expect(result.summary.demandSourcedTargets).toBe(1);
+    expect(result.summary.draftReadyTargets).toBe(0);
+    expect(result.summary.humanApprovedTargets).toBe(1);
+    expect(result.summary.approvalNeededTargets).toBe(0);
     expect(result.findings.filter((finding) => finding.severity === "error")).toHaveLength(0);
   });
 

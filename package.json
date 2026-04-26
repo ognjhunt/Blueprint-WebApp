@@ -36,6 +36,7 @@
     "city-launch:coverage:plan": "tsx scripts/city-launch/plan-coverage-expansion.ts",
     "city-launch:coverage:run": "tsx scripts/city-launch/run-coverage-expansion.ts",
     "gtm:hosted-review:audit": "tsx scripts/gtm/audit-exact-site-hosted-review-pilot.ts",
+    "gtm:hosted-review:daily": "tsx scripts/gtm/render-exact-site-hosted-review-founder-review.ts",
     "city-launch:file-search-store": "tsx scripts/gemini/build-city-launch-file-search-store.ts",
     "deep-research:brief": "tsx scripts/gemini/run-deep-research-brief.ts",
     "notion-grounding:refresh": "tsx scripts/gemini/refresh-notion-grounding.ts",

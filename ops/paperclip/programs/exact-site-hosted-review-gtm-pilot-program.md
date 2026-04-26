@@ -42,6 +42,9 @@ Not allowed without explicit human approval:
 
 A daily pilot pass is done only when:
 
+1. the ledger has at least 10 real robot-team target rows while the pilot is active
+2. the daily founder review packet is generated with `npm run gtm:hosted-review:daily -- --write --allow-blocked`
+3. every agent update changes one of the buyer-motion fields: target, contact, draft, approval, send, reply, call, hosted-review start, or blocker
 1. every target has a real buying signal
 2. every target declares `proof_ready_outreach` or `demand_sourced_capture`
 3. every `proof_ready_outreach` target has a review-ready exact-site hosted-review artifact plus site-world id or hosted-review path
@@ -60,6 +63,7 @@ Good:
 - one proof artifact
 - one concrete next step
 - one inspectable ledger row
+- one founder-visible daily dashboard
 
 Track-specific good:
 
@@ -70,11 +74,22 @@ Bad:
 
 - generic AI/software pitch
 - broad cold outbound
+- target research that never becomes a contact, approval, send, reply, call, hosted-review start, or explicit blocker
 - guessed recipients
 - fake traction language
 - city-live claims without proof
 - hosted-review claims on demand-sourced capture targets
 - paid scale before organic signal
+
+## Three-Loop Operating Shape
+
+For the pilot window, collapse the autonomous org into three practical loops:
+
+- product/proof: keep the artifact honest and buyer-inspectable
+- demand/sales: add targets, find recipient-backed contacts, draft, approve, send, and follow up
+- reliability: keep reply resume, send ledgers, audit output, and blocker state truthful
+
+Do not restart broad content, city, or market routines unless they directly improve one of those three loops for the current target batch.
 
 ## Scale Gate
 

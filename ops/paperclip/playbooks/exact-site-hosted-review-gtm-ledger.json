@@ -3,15 +3,432 @@
   "pilot": {
     "name": "Blueprint uses Blueprint to sell Blueprint",
     "wedge": "Exact-Site Hosted Review",
-    "startDate": "2026-04-27",
+    "startDate": "2026-04-26",
     "endDate": "2026-05-10",
-    "status": "planned",
+    "status": "active",
     "dailyTouchTargetMin": 20,
     "dailyTouchTargetMax": 50,
     "paidScaleAllowed": false,
     "defaultTrack": "proof_ready_outreach",
     "paidScaleDecision": "No paid spend, influencer spend, or acquisition ads until this ledger records organic replies, hosted-review starts, or qualified calls from the Exact-Site Hosted Review wedge."
   },
-  "targets": [],
-  "dailyActivity": []
+  "targets": [
+    {
+      "id": "gtm-001-simbe-retail-aisle-review",
+      "track": "proof_ready_outreach",
+      "organizationName": "Simbe Robotics",
+      "buyerSegment": "Retail shelf-scanning robotics team",
+      "city": "Austin, TX",
+      "workflowNeed": "Inspect a grocery-style public aisle loop before deciding whether a more specific retail capture would be useful.",
+      "intentSignals": [
+        "Company publicly sells retail shelf-intelligence robots that operate in grocery and store aisles."
+      ],
+      "evidence": {
+        "summary": "Public product positioning indicates a retail-aisle robot workflow where exact-site hosted review could be a relevant first artifact.",
+        "sourceUrls": [
+          "https://www.simberobotics.com/"
+        ],
+        "repoArtifacts": [
+          "client/public/samples/sample-hosted-review-report.md"
+        ],
+        "notes": "No recipient-backed contact has been recorded yet."
+      },
+      "artifact": {
+        "type": "exact_site_hosted_review",
+        "status": "review_ready",
+        "path": "client/public/samples/sample-hosted-review-report.md",
+        "siteWorldId": "sample-public-capture-cedar-market-aisle-loop",
+        "hostedReviewPath": "/sample-evaluation"
+      },
+      "outbound": {
+        "status": "draft_ready",
+        "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md"
+      }
+    },
+    {
+      "id": "gtm-002-braincorp-retail-service-review",
+      "track": "proof_ready_outreach",
+      "organizationName": "Brain Corp",
+      "buyerSegment": "Retail and commercial service robotics team",
+      "workflowNeed": "Review a public-facing store route as a proxy for commercial-service robot perception and operations questions.",
+      "intentSignals": [
+        "Company publicly presents autonomous robots for commercial spaces including retail environments."
+      ],
+      "evidence": {
+        "summary": "Public positioning indicates commercial-service robot workflows in customer-facing spaces where public-capture review can be relevant.",
+        "sourceUrls": [
+          "https://www.braincorp.com/"
+        ],
+        "repoArtifacts": [
+          "client/public/samples/sample-hosted-review-report.md"
+        ],
+        "notes": "No recipient-backed contact has been recorded yet."
+      },
+      "artifact": {
+        "type": "exact_site_hosted_review",
+        "status": "review_ready",
+        "path": "client/public/samples/sample-hosted-review-report.md",
+        "siteWorldId": "sample-public-capture-cedar-market-aisle-loop",
+        "hostedReviewPath": "/sample-evaluation"
+      },
+      "outbound": {
+        "status": "draft_ready",
+        "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md"
+      }
+    },
+    {
+      "id": "gtm-003-agility-warehouse-humanoid",
+      "track": "demand_sourced_capture",
+      "organizationName": "Agility Robotics",
+      "buyerSegment": "Warehouse humanoid deployment team",
+      "workflowNeed": "Identify which warehouse aisle, tote movement, or staging workflow would be most useful to capture for a hosted review.",
+      "intentSignals": [
+        "Company publicly positions Digit for logistics and warehouse work."
+      ],
+      "evidence": {
+        "summary": "Public product materials indicate warehouse logistics workflows, but Blueprint does not yet have a buyer-specific Agility proof artifact.",
+        "sourceUrls": [
+          "https://agilityrobotics.com/products/digit"
+        ],
+        "repoArtifacts": [
+          "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md"
+        ],
+        "notes": "No recipient-backed contact has been recorded yet."
+      },
+      "artifact": {
+        "type": "city_site_opportunity_brief",
+        "status": "draft",
+        "path": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md"
+      },
+      "captureAsk": {
+        "requestedSiteType": "warehouse aisle, tote movement, or staging workflow",
+        "buyerQuestion": "Which logistics workflow would be useful enough for Blueprint to capture and host first?",
+        "status": "not_started"
+      },
+      "outbound": {
+        "status": "draft_ready",
+        "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md"
+      }
+    },
+    {
+      "id": "gtm-004-boston-dynamics-stretch-warehouse",
+      "track": "demand_sourced_capture",
+      "organizationName": "Boston Dynamics",
+      "buyerSegment": "Warehouse case-handling robotics team",
+      "workflowNeed": "Identify a trailer, dock, pallet, or case-handling site workflow worth capturing for review.",
+      "intentSignals": [
+        "Company publicly sells Stretch for warehouse case handling and unloading workflows."
+      ],
+      "evidence": {
+        "summary": "Public product materials indicate warehouse handling workflows, but Blueprint does not yet have a buyer-specific proof artifact for this team.",
+        "sourceUrls": [
+          "https://bostondynamics.com/products/stretch/"
+        ],
+        "repoArtifacts": [
+          "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md"
+        ],
+        "notes": "No recipient-backed contact has been recorded yet."
+      },
+      "artifact": {
+        "type": "city_site_opportunity_brief",
+        "status": "draft",
+        "path": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md"
+      },
+      "captureAsk": {
+        "requestedSiteType": "warehouse trailer, dock, pallet, or case-handling workflow",
+        "buyerQuestion": "Which warehouse handling site would make a hosted exact-site review useful?",
+        "status": "not_started"
+      },
+      "outbound": {
+        "status": "draft_ready",
+        "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md"
+      }
+    },
+    {
+      "id": "gtm-005-locus-fulfillment-amr",
+      "track": "demand_sourced_capture",
+      "organizationName": "Locus Robotics",
+      "buyerSegment": "Fulfillment AMR deployment team",
+      "workflowNeed": "Identify a pick aisle, induction, replenishment, or returns workflow worth capturing for hosted review.",
+      "intentSignals": [
+        "Company publicly positions autonomous mobile robots for warehouse fulfillment workflows."
+      ],
+      "evidence": {
+        "summary": "Public positioning indicates exact-site warehouse workflow relevance; recipient evidence still needs research.",
+        "sourceUrls": [
+          "https://locusrobotics.com/"
+        ],
+        "repoArtifacts": [
+          "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md"
+        ],
+        "notes": "No recipient-backed contact has been recorded yet."
+      },
+      "artifact": {
+        "type": "city_site_opportunity_brief",
+        "status": "draft",
+        "path": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md"
+      },
+      "captureAsk": {
+        "requestedSiteType": "fulfillment pick aisle, induction, replenishment, or returns workflow",
+        "buyerQuestion": "Which fulfillment workflow should Blueprint capture first to make a hosted review worth inspecting?",
+        "status": "not_started"
+      },
+      "outbound": {
+        "status": "draft_ready",
+        "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md"
+      }
+    },
+    {
+      "id": "gtm-006-seegrid-warehouse-amr",
+      "track": "demand_sourced_capture",
+      "organizationName": "Seegrid",
+      "buyerSegment": "Autonomous industrial vehicle team",
+      "workflowNeed": "Identify a material-movement route, staging lane, or dock-to-line workflow for exact-site review.",
+      "intentSignals": [
+        "Company publicly sells autonomous mobile robots for material handling in manufacturing, warehousing, and logistics."
+      ],
+      "evidence": {
+        "summary": "Public product positioning indicates material-handling workflows where site-specific review can matter.",
+        "sourceUrls": [
+          "https://seegrid.com/"
+        ],
+        "repoArtifacts": [
+          "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md"
+        ],
+        "notes": "No recipient-backed contact has been recorded yet."
+      },
+      "artifact": {
+        "type": "city_site_opportunity_brief",
+        "status": "draft",
+        "path": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md"
+      },
+      "captureAsk": {
+        "requestedSiteType": "material-movement route, staging lane, or dock-to-line workflow",
+        "buyerQuestion": "Which site route would help your team judge whether exact-site hosted review is useful?",
+        "status": "not_started"
+      },
+      "outbound": {
+        "status": "draft_ready",
+        "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md"
+      }
+    },
+    {
+      "id": "gtm-007-vecna-robotics-warehouse-orchestration",
+      "track": "demand_sourced_capture",
+      "organizationName": "Vecna Robotics",
+      "buyerSegment": "Warehouse automation and orchestration team",
+      "workflowNeed": "Identify a warehouse route or fleet-coordination site that would benefit from capture-backed review.",
+      "intentSignals": [
+        "Company publicly presents autonomous material-handling and workflow orchestration products."
+      ],
+      "evidence": {
+        "summary": "Public materials indicate warehouse automation workflows; Blueprint still needs a buyer-specific capture ask.",
+        "sourceUrls": [
+          "https://www.vecnarobotics.com/"
+        ],
+        "repoArtifacts": [
+          "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md"
+        ],
+        "notes": "No recipient-backed contact has been recorded yet."
+      },
+      "artifact": {
+        "type": "city_site_opportunity_brief",
+        "status": "draft",
+        "path": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md"
+      },
+      "captureAsk": {
+        "requestedSiteType": "warehouse route or fleet-coordination workflow",
+        "buyerQuestion": "Which site workflow would be worth reviewing before deeper integration work?",
+        "status": "not_started"
+      },
+      "outbound": {
+        "status": "draft_ready",
+        "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md"
+      }
+    },
+    {
+      "id": "gtm-008-fox-robotics-forklift-dock",
+      "track": "demand_sourced_capture",
+      "organizationName": "Fox Robotics",
+      "buyerSegment": "Autonomous forklift deployment team",
+      "workflowNeed": "Identify a dock, trailer, or pallet movement workflow worth capturing for hosted review.",
+      "intentSignals": [
+        "Company publicly presents autonomous forklifts for warehouse and logistics workflows."
+      ],
+      "evidence": {
+        "summary": "Public positioning indicates dock and forklift workflows where exact-site geometry and route review may be useful.",
+        "sourceUrls": [
+          "https://www.foxrobotics.com/"
+        ],
+        "repoArtifacts": [
+          "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md"
+        ],
+        "notes": "No recipient-backed contact has been recorded yet."
+      },
+      "artifact": {
+        "type": "city_site_opportunity_brief",
+        "status": "draft",
+        "path": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md"
+      },
+      "captureAsk": {
+        "requestedSiteType": "warehouse dock, trailer, or pallet movement workflow",
+        "buyerQuestion": "Which dock workflow would make an exact-site hosted review worth opening?",
+        "status": "not_started"
+      },
+      "outbound": {
+        "status": "draft_ready",
+        "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md"
+      }
+    },
+    {
+      "id": "gtm-009-diligent-healthcare-service-route",
+      "track": "demand_sourced_capture",
+      "organizationName": "Diligent Robotics",
+      "buyerSegment": "Healthcare service robot deployment team",
+      "workflowNeed": "Identify a hospital supply, hallway, or nursing-unit support route suitable for a privacy-safe hosted review.",
+      "intentSignals": [
+        "Company publicly presents Moxi as a healthcare support robot working in hospital environments."
+      ],
+      "evidence": {
+        "summary": "Public materials indicate hospital service workflows; any real capture would need tighter privacy and site-access review.",
+        "sourceUrls": [
+          "https://www.diligentrobots.com/moxi"
+        ],
+        "repoArtifacts": [
+          "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md"
+        ],
+        "notes": "No recipient-backed contact has been recorded yet."
+      },
+      "artifact": {
+        "type": "city_site_opportunity_brief",
+        "status": "draft",
+        "path": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md"
+      },
+      "captureAsk": {
+        "requestedSiteType": "hospital supply, hallway, or nursing-unit support route",
+        "buyerQuestion": "Which privacy-safe healthcare route would be useful enough to scope first?",
+        "status": "not_started"
+      },
+      "outbound": {
+        "status": "draft_ready",
+        "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md"
+      }
+    },
+    {
+      "id": "gtm-010-gecko-industrial-inspection",
+      "track": "demand_sourced_capture",
+      "organizationName": "Gecko Robotics",
+      "buyerSegment": "Industrial inspection robotics team",
+      "workflowNeed": "Identify an industrial inspection route or facility type where capture-backed hosted review would answer a site-planning question.",
+      "intentSignals": [
+        "Company publicly describes robotics and software for industrial asset inspection."
+      ],
+      "evidence": {
+        "summary": "Public positioning indicates industrial inspection workflows, but controlled-site access and rights review would be required.",
+        "sourceUrls": [
+          "https://www.geckorobotics.com/"
+        ],
+        "repoArtifacts": [
+          "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md"
+        ],
+        "notes": "No recipient-backed contact has been recorded yet."
+      },
+      "artifact": {
+        "type": "city_site_opportunity_brief",
+        "status": "draft",
+        "path": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md"
+      },
+      "captureAsk": {
+        "requestedSiteType": "industrial inspection route or facility type",
+        "buyerQuestion": "Which inspection route would help validate whether exact-site hosted review fits your workflow?",
+        "status": "not_started"
+      },
+      "outbound": {
+        "status": "draft_ready",
+        "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md"
+      }
+    },
+    {
+      "id": "gtm-011-anybotics-industrial-inspection",
+      "track": "demand_sourced_capture",
+      "organizationName": "ANYbotics",
+      "buyerSegment": "Autonomous industrial inspection team",
+      "workflowNeed": "Identify an industrial inspection route where a hosted site review would reduce field-planning uncertainty.",
+      "intentSignals": [
+        "Company publicly positions ANYmal for autonomous inspection in industrial environments."
+      ],
+      "evidence": {
+        "summary": "Public product positioning indicates site-specific industrial inspection workflows; recipient evidence is still needed.",
+        "sourceUrls": [
+          "https://www.anybotics.com/anymal-autonomous-inspection-robot/"
+        ],
+        "repoArtifacts": [
+          "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md"
+        ],
+        "notes": "No recipient-backed contact has been recorded yet."
+      },
+      "artifact": {
+        "type": "city_site_opportunity_brief",
+        "status": "draft",
+        "path": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md"
+      },
+      "captureAsk": {
+        "requestedSiteType": "industrial inspection route or facility type",
+        "buyerQuestion": "Which inspection route would be most useful to capture and review first?",
+        "status": "not_started"
+      },
+      "outbound": {
+        "status": "draft_ready",
+        "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md"
+      }
+    },
+    {
+      "id": "gtm-012-outrider-yard-automation",
+      "track": "demand_sourced_capture",
+      "organizationName": "Outrider",
+      "buyerSegment": "Autonomous yard operations team",
+      "workflowNeed": "Identify a yard, trailer movement, or distribution-center route where capture-backed hosted review could answer a planning question.",
+      "intentSignals": [
+        "Company publicly positions autonomous yard operations for logistics facilities."
+      ],
+      "evidence": {
+        "summary": "Public positioning indicates logistics-yard workflows; Blueprint would need a buyer-specific site/workflow ask before claiming proof readiness.",
+        "sourceUrls": [
+          "https://www.outrider.ai/"
+        ],
+        "repoArtifacts": [
+          "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md"
+        ],
+        "notes": "No recipient-backed contact has been recorded yet."
+      },
+      "artifact": {
+        "type": "city_site_opportunity_brief",
+        "status": "draft",
+        "path": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md"
+      },
+      "captureAsk": {
+        "requestedSiteType": "yard, trailer movement, or distribution-center route",
+        "buyerQuestion": "Which yard workflow would make a hosted exact-site review useful enough to inspect?",
+        "status": "not_started"
+      },
+      "outbound": {
+        "status": "draft_ready",
+        "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md"
+      }
+    }
+  ],
+  "dailyActivity": [
+    {
+      "date": "2026-04-26",
+      "targetsAdded": 12,
+      "draftedTouches": 12,
+      "approvedTouches": 0,
+      "sentTouches": 0,
+      "replies": 0,
+      "hostedReviewStarts": 0,
+      "qualifiedCalls": 0,
+      "contentDrafts": 0,
+      "paidSpendCents": 0
+    }
+  ]
 }

@@ -93,6 +93,7 @@ export interface ExactSiteGtmTarget {
 
 export interface ExactSiteGtmDailyActivity {
   date: string;
+  targetsAdded?: number;
   draftedTouches: number;
   approvedTouches: number;
   sentTouches: number;
@@ -117,11 +118,27 @@ export interface ExactSiteGtmAuditResult {
     proofReadyTargets: number;
     demandSourcedTargets: number;
     readyTargets: number;
+    draftReadyTargets: number;
+    humanApprovedTargets: number;
+    recipientBackedTargets: number;
+    targetsMissingRecipientEvidence: number;
+    approvalNeededTargets: number;
     sentTargets: number;
     replies: number;
     hostedReviewStarts: number;
     qualifiedCalls: number;
     totalPaidSpendCents: number;
+    latestDay: {
+      date: string | null;
+      targetsAdded: number;
+      draftedTouches: number;
+      approvedTouches: number;
+      sentTouches: number;
+      replies: number;
+      hostedReviewStarts: number;
+      qualifiedCalls: number;
+      contactDensityGap: number;
+    };
   };
 }
 
@@ -236,6 +253,15 @@ export function auditExactSiteHostedReviewGtmLedger(
 
   const targets = Array.isArray(ledger.targets) ? ledger.targets : [];
   const activity = Array.isArray(ledger.dailyActivity) ? ledger.dailyActivity : [];
+
+  if (targets.length === 0) {
+    addFinding(
+      findings,
+      "error",
+      "targets",
+      "The pilot cannot be marked ready with zero target rows; add real robot-team targets or pause the pilot.",
+    );
+  }
 
   targets.forEach((target, index) => {
     const basePath = `targets[${index}]`;
@@ -436,6 +462,7 @@ export function auditExactSiteHostedReviewGtmLedger(
       "qualifiedCalls",
       "contentDrafts",
       "paidSpendCents",
+      "targetsAdded",
     ] as const) {
       if (asNumber(day[key]) < 0) {
         addFinding(findings, "error", `${basePath}.${key}`, "Daily activity counts cannot be negative.");
@@ -481,21 +508,67 @@ export function auditExactSiteHostedReviewGtmLedger(
   ).length;
   const proofReadyTargets = targets.filter((target) => target.track === "proof_ready_outreach").length;
   const demandSourcedTargets = targets.filter((target) => target.track === "demand_sourced_capture").length;
+  const draftReadyTargets = targets.filter((target) => target.outbound?.status === "draft_ready").length;
+  const humanApprovedTargets = targets.filter((target) => target.outbound?.status === "human_approved").length;
+  const recipientBackedTargets = targets.filter((target) => hasMeaningfulString(target.recipient?.email)).length;
+  const targetsMissingRecipientEvidence = targets.filter((target) => !hasMeaningfulString(target.recipient?.email)).length;
+  const approvalNeededTargets = targets.filter((target) =>
+    target.outbound?.status === "draft_ready" && hasMeaningfulString(target.recipient?.email),
+  ).length;
   const sentTargets = targets.filter((target) =>
     ["sent", "replied", "hosted_review_started", "closed"].includes(target.outbound?.status),
   ).length;
+  const latestDay = [...activity]
+    .filter((day) => isIsoDate(asString(day.date)))
+    .sort((left, right) => asString(right.date).localeCompare(asString(left.date)))[0];
 
   const summary = {
     targets: targets.length,
     proofReadyTargets,
     demandSourcedTargets,
     readyTargets,
+    draftReadyTargets,
+    humanApprovedTargets,
+    recipientBackedTargets,
+    targetsMissingRecipientEvidence,
+    approvalNeededTargets,
     sentTargets,
     replies: activity.reduce((sum, day) => sum + asNumber(day.replies), 0),
     hostedReviewStarts: activity.reduce((sum, day) => sum + asNumber(day.hostedReviewStarts), 0),
     qualifiedCalls: activity.reduce((sum, day) => sum + asNumber(day.qualifiedCalls), 0),
     totalPaidSpendCents: paidSpendCents,
+    latestDay: {
+      date: asString(latestDay?.date) || null,
+      targetsAdded: asNumber(latestDay?.targetsAdded),
+      draftedTouches: asNumber(latestDay?.draftedTouches),
+      approvedTouches: asNumber(latestDay?.approvedTouches),
+      sentTouches: asNumber(latestDay?.sentTouches),
+      replies: asNumber(latestDay?.replies),
+      hostedReviewStarts: asNumber(latestDay?.hostedReviewStarts),
+      qualifiedCalls: asNumber(latestDay?.qualifiedCalls),
+      contactDensityGap: Math.max(
+        0,
+        asNumber(ledger.pilot.dailyTouchTargetMin) - asNumber(latestDay?.sentTouches),
+      ),
+    },
   };
+
+  if (ledger.pilot.status === "active" && targets.length > 0 && recipientBackedTargets === 0) {
+    addFinding(
+      findings,
+      "warning",
+      "targets.recipient",
+      "Active pilot has target rows but no recipient-backed contacts; live sends remain blocked on explicit contact evidence.",
+    );
+  }
+  if (ledger.pilot.status === "active" && targets.length > 0 && sentTargets === 0) {
+    addFinding(
+      findings,
+      "warning",
+      "targets.outbound",
+      "Active pilot has no sent targets yet; daily progress is still target research until a send ledger exists.",
+    );
+  }
 
   return {
     ok: findings.every((finding) => finding.severity !== "error"),
@@ -520,20 +593,33 @@ export function renderExactSiteHostedReviewGtmAuditMarkdown(
   ledgerPath: string,
 ): string {
   const relativePath = path.relative(process.cwd(), ledgerPath) || ledgerPath;
+  const status = !result.ok
+    ? "blocked"
+    : result.findings.length > 0
+      ? "ready_with_warnings"
+      : "ready";
   const lines = [
     "# Exact-Site Hosted Review GTM Pilot Audit",
     "",
     `- ledger: ${relativePath}`,
-    `- status: ${result.ok ? "ready" : "blocked"}`,
+    `- status: ${status}`,
     `- targets: ${result.summary.targets}`,
     `- proof-ready outreach targets: ${result.summary.proofReadyTargets}`,
     `- demand-sourced capture targets: ${result.summary.demandSourcedTargets}`,
     `- ready targets: ${result.summary.readyTargets}`,
+    `- draft-ready targets: ${result.summary.draftReadyTargets}`,
+    `- human-approved targets: ${result.summary.humanApprovedTargets}`,
+    `- recipient-backed targets: ${result.summary.recipientBackedTargets}`,
+    `- targets missing recipient evidence: ${result.summary.targetsMissingRecipientEvidence}`,
+    `- approval-needed targets: ${result.summary.approvalNeededTargets}`,
     `- sent targets: ${result.summary.sentTargets}`,
     `- replies: ${result.summary.replies}`,
     `- hosted review starts: ${result.summary.hostedReviewStarts}`,
     `- qualified calls: ${result.summary.qualifiedCalls}`,
     `- paid spend cents: ${result.summary.totalPaidSpendCents}`,
+    `- latest day: ${result.summary.latestDay.date ?? "none"}`,
+    `- latest day targets added: ${result.summary.latestDay.targetsAdded}`,
+    `- latest day contact-density gap: ${result.summary.latestDay.contactDensityGap}`,
     "",
     "## Findings",
     "",
@@ -546,6 +632,111 @@ export function renderExactSiteHostedReviewGtmAuditMarkdown(
       lines.push(`- ${finding.severity.toUpperCase()} ${finding.path}: ${finding.message}`);
     }
   }
+
+  return `${lines.join("\n")}\n`;
+}
+
+export function renderExactSiteHostedReviewGtmFounderReviewMarkdown(
+  ledger: ExactSiteGtmPilotLedger,
+  result: ExactSiteGtmAuditResult,
+  ledgerPath: string,
+  reportDate = new Date().toISOString().slice(0, 10),
+): string {
+  const relativePath = path.relative(process.cwd(), ledgerPath) || ledgerPath;
+  const needsRecipientEvidence = ledger.targets.filter((target) => !hasMeaningfulString(target.recipient?.email));
+  const needsApproval = ledger.targets.filter((target) =>
+    target.outbound?.status === "draft_ready" && hasMeaningfulString(target.recipient?.email),
+  );
+  const sentOrLater = ledger.targets.filter((target) =>
+    ["sent", "replied", "hosted_review_started", "closed"].includes(target.outbound?.status),
+  );
+  const latest = result.summary.latestDay;
+  const auditStatus = !result.ok
+    ? "blocked"
+    : result.findings.length > 0
+      ? "ready_with_warnings"
+      : "ready";
+  const lines = [
+    "# Exact-Site Hosted Review Daily Founder Review",
+    "",
+    `- report_date: ${reportDate}`,
+    `- ledger: ${relativePath}`,
+    `- pilot_status: ${ledger.pilot.status}`,
+    `- wedge: ${ledger.pilot.wedge}`,
+    `- north_star: qualified hosted-review starts or qualified buyer calls from proof-led outreach`,
+    `- audit_status: ${auditStatus}`,
+    "",
+    "## Daily Dashboard",
+    "",
+    `| Metric | Value |`,
+    `| --- | ---: |`,
+    `| Targets in ledger | ${result.summary.targets} |`,
+    `| Targets added latest day | ${latest.targetsAdded} |`,
+    `| Draft-ready targets | ${result.summary.draftReadyTargets} |`,
+    `| Recipient-backed targets | ${result.summary.recipientBackedTargets} |`,
+    `| Human-approved targets | ${result.summary.humanApprovedTargets} |`,
+    `| Sent targets | ${result.summary.sentTargets} |`,
+    `| Replies | ${result.summary.replies} |`,
+    `| Hosted-review starts | ${result.summary.hostedReviewStarts} |`,
+    `| Qualified calls | ${result.summary.qualifiedCalls} |`,
+    `| Latest day sent touches | ${latest.sentTouches} |`,
+    `| Latest day contact-density gap | ${latest.contactDensityGap} |`,
+    "",
+    "## Founder Action",
+    "",
+  ];
+
+  if (needsApproval.length > 0) {
+    lines.push(
+      `Approve, edit, or reject ${needsApproval.length} recipient-backed draft target(s). Do not authorize pricing, rights, permission, legal, or public-readiness commitments from this packet.`,
+    );
+  } else if (needsRecipientEvidence.length > 0) {
+    lines.push(
+      `Supply or approve recipient-backed contacts for ${needsRecipientEvidence.length} target(s), or direct agents to keep researching explicit contact evidence. No live send is ready yet.`,
+    );
+  } else if (sentOrLater.length > 0) {
+    lines.push("Review replies, calls, hosted-review starts, and blockers from sent targets.");
+  } else {
+    lines.push("Add target rows before using founder time on send approval.");
+  }
+
+  lines.push("", "## Targets Needing Recipient Evidence", "");
+  if (needsRecipientEvidence.length === 0) {
+    lines.push("- none");
+  } else {
+    for (const target of needsRecipientEvidence.slice(0, 20)) {
+      lines.push(
+        `- ${target.id}: ${target.organizationName} / ${target.buyerSegment} / ${target.workflowNeed}`,
+      );
+    }
+  }
+
+  lines.push("", "## Targets Needing Approval", "");
+  if (needsApproval.length === 0) {
+    lines.push("- none");
+  } else {
+    for (const target of needsApproval.slice(0, 20)) {
+      lines.push(
+        `- ${target.id}: ${target.organizationName} -> ${target.recipient?.email} (${target.recipient?.evidenceType})`,
+      );
+    }
+  }
+
+  lines.push("", "## Audit Findings", "");
+  if (result.findings.length === 0) {
+    lines.push("- none");
+  } else {
+    for (const finding of result.findings) {
+      lines.push(`- ${finding.severity.toUpperCase()} ${finding.path}: ${finding.message}`);
+    }
+  }
+
+  lines.push(
+    "",
+    "## Operating Rule",
+    "",
+    "For this 14-day window, the autonomous org is judged by targets added, recipient-backed touches approved/sent, replies, qualified calls, hosted-review starts, and explicit blockers. Internal summaries that do not move one of those numbers do not count as pilot progress.",
+  );
 
   return `${lines.join("\n")}\n`;
 }
