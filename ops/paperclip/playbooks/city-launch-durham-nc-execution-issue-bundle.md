@@ -200,13 +200,13 @@ This issue bundle turns the Durham playbook into executable lanes using the curr
   - At least one real Durham invite, reply, or applicant signal is landed in the live intake path with source bucket and next owner recorded.
   - Any copy stays draft-first and preserves no-guarantee capture language.
 
-## Run Durham public-commercial community sourcing
+## Run Durham indoor public-location supply sourcing
 
 - key: public-commercial-community-sourcing
 - phase: supply
 - agent owner: capturer-growth-agent
 - human owner: growth-lead
-- purpose: Build location supply for public, non-controlled commercial locations such as groceries, retail stores, and similar walk-in sites before waiting on city human signals. Materialize review-only location candidates first; treat community posting and replies as later distribution evidence.
+- purpose: Build broad indoor-only or indoor-primary location supply for public, non-controlled commercial/common-access spaces before waiting on city human signals. Materialize review-only location candidates first; treat community posting and replies as later distribution evidence.
 - policy_guardrail: none
 - dependencies: growth-source-policy, city-opening-first-wave-pack, city-opening-cta-routing
 - metrics dependencies: none
@@ -214,18 +214,28 @@ This issue bundle turns the Durham playbook into executable lanes using the curr
 - source: default_task_bundle
 - inputs:
   - capturer-supply-playbook.md
+  - ops/paperclip/programs/parallel-search-mcp-policy.md
+  - city-launch-durham-nc-deep-research.md
   - ops/paperclip/playbooks/city-launch-durham-nc.md
   - Durham source policy
   - Durham city-opening brief
   - Durham first-wave posting pack
-  - public-area-only capture brief
-  - public review candidate ledger
+  - ops/paperclip/playbooks/city-launch-durham-nc-indoor-location-supply.json
+  - ops/paperclip/playbooks/city-launch-durham-nc-indoor-location-supply-rejected.json
+  - ops/paperclip/playbooks/city-launch-durham-nc-indoor-location-supply-evidence-log.json
+  - ops/paperclip/playbooks/city-launch-durham-nc-indoor-location-supply-report.md
+  - scripts/city-launch/seed-public-review-candidates.ts --input <artifact> [--apply] [--skip-review]
+  - scripts/city-launch/review-public-candidates.ts --city <city> [--apply] for explicit reruns or backlog recovery
   - cityLaunchCandidateSignals review feed
 - done when:
-  - Durham public-commercial sourcing names concrete public-facing location candidates with source URLs, public-access posture, allowed capture zones, avoid zones, confidence, and review-only status.
-  - Durham review candidates are materialized into a durable candidate ledger or app-visible review feed without marking them approved, rights-cleared, payable, or derived-world-model-ready.
+  - Durham indoor supply names a broad set of concrete indoor-only or indoor-primary public-facing/common-access location candidates with source URLs, source queries, public-access posture, indoor posture, allowed capture zones, avoid zones, confidence, verification status, and review-only or promotion-ready state.
+  - Durham rejected candidates are saved with reason codes and evidence instead of silently disappearing.
+  - Durham evidence log records the search queries and fetched URLs used after reusing the city Deep Research artifact as a source map.
+  - Durham review candidates are validated with the seed script, materialized into a durable candidate ledger or app-visible review feed, and automatically passed through deterministic public-space review for the newly written ids without marking them rights-cleared, operator-approved, payable, or derived-world-model-ready.
+  - Outdoor-primary, unknown-indoor-posture, and campus/district-level mixed candidates cannot become approved launch targets unless an indoor zone-specific candidate passes the deterministic public-space review.
+  - Every accepted candidate includes estimated public area, capture minutes, capture complexity, suggested payout cents or range, and payout basis; the payout remains reviewable and non-guaranteed.
   - If no automated publication connector or local human response exists, the lane still completes location supply and leaves community posting/reply work as downstream distribution, not a blocker.
-  - The lane stays explicitly limited to lawful public areas and preserves privacy, signage, and provenance rules.
+  - The lane stays explicitly limited to lawful public/common-access indoor areas and preserves privacy, signage, and provenance rules.
 
 ## Route Durham applicants into qualification and approval
 
