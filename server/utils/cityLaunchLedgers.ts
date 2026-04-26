@@ -813,30 +813,59 @@ export async function intakeCityLaunchCandidateSignals(
 export async function listCityLaunchCandidateSignals(options?: {
   city?: string;
   statuses?: Array<CityLaunchCandidateSignalRecord["status"]>;
+  candidateIds?: string[];
+  limit?: number;
 }) {
   const filterStatuses = options?.statuses?.length ? new Set(options.statuses) : null;
   const filterCitySlug = options?.city ? normalizedCity(options.city).citySlug : null;
+  const requestedCandidateIds = Array.from(
+    new Set((options?.candidateIds ?? []).map((id) => id.trim()).filter(Boolean)),
+  ).slice(0, 100);
+  const limit = Math.max(1, Math.min(Math.trunc(options?.limit ?? 250), 1000));
+  const recordMatchesFilters = (record: CityLaunchCandidateSignalRecord) => {
+    if (filterCitySlug && record.citySlug !== filterCitySlug) return false;
+    if (filterStatuses && !filterStatuses.has(record.status)) return false;
+    return true;
+  };
 
   if (shouldUseInMemoryCandidateSignalStore()) {
-    return Array.from(candidateSignalMemoryStore.values()).filter((record) => {
-      if (filterCitySlug && record.citySlug !== filterCitySlug) return false;
-      if (filterStatuses && !filterStatuses.has(record.status)) return false;
-      return true;
-    });
+    const records = requestedCandidateIds.length
+      ? requestedCandidateIds
+        .map((id) =>
+          candidateSignalMemoryStore.get(id)
+          ?? Array.from(candidateSignalMemoryStore.values()).find((record) => record.id === id)
+          ?? null,
+        )
+        .filter((record): record is CityLaunchCandidateSignalRecord => Boolean(record))
+      : Array.from(candidateSignalMemoryStore.values());
+    return records.filter(recordMatchesFilters).slice(0, limit);
   }
   if (!db) {
     throw new Error("Database not available");
   }
+  const database = db;
 
-  let snapshot = await db.collection(COLLECTIONS.candidateSignals).limit(1000).get();
-  let records = snapshot.docs.map((doc) => doc.data() as CityLaunchCandidateSignalRecord);
+  if (requestedCandidateIds.length) {
+    const docs = await Promise.all(
+      requestedCandidateIds.map((id) => database.collection(COLLECTIONS.candidateSignals).doc(id).get()),
+    );
+    return docs
+      .filter((doc) => doc.exists)
+      .map((doc) => doc.data() as CityLaunchCandidateSignalRecord)
+      .filter(recordMatchesFilters)
+      .slice(0, limit);
+  }
+
+  let query: FirebaseFirestore.Query = database.collection(COLLECTIONS.candidateSignals);
   if (filterCitySlug) {
-    records = records.filter((record) => record.citySlug === filterCitySlug);
+    query = query.where("citySlug", "==", filterCitySlug);
+  } else if (filterStatuses && filterStatuses.size > 0 && filterStatuses.size <= 10) {
+    query = query.where("status", "in", Array.from(filterStatuses));
   }
-  if (filterStatuses) {
-    records = records.filter((record) => filterStatuses.has(record.status));
-  }
-  return records;
+  const snapshot = await query.limit(limit).get();
+  let records = snapshot.docs.map((doc) => doc.data() as CityLaunchCandidateSignalRecord);
+  records = records.filter(recordMatchesFilters);
+  return records.slice(0, limit);
 }
 
 export async function updateCityLaunchCandidateSignalReview(

@@ -29,6 +29,13 @@ describe("preferred execution lane", () => {
     })).toBe(true);
   });
 
+  it("keeps public capture candidate review with the public-space review specialist", () => {
+    expect(shouldPreservePreferredExecutionLane({
+      title: "Review Durham under-review capture candidates from app",
+      preferredAssignee: "public-space-review-agent",
+    })).toBe(true);
+  });
+
   it("does not preserve oversight-owned workspace management lanes", () => {
     expect(shouldPreservePreferredExecutionLane({
       title: "Notion drift: duplicate pages for Analytics Daily Snapshot - 2026-03-29",

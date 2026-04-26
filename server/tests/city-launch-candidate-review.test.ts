@@ -69,6 +69,12 @@ describe("city launch candidate review", () => {
     const { reviewCityLaunchCandidateBatch } = await import("../utils/cityLaunchCandidateReview");
     const result = await reviewCityLaunchCandidateBatch({ city: "Durham, NC", dryRun: false });
 
+    expect(listCityLaunchCandidateSignals).toHaveBeenCalledWith({
+      city: "Durham, NC",
+      statuses: ["queued", "in_review"],
+      candidateIds: [],
+      limit: 100,
+    });
     expect(result.promotedCount).toBe(1);
     expect(upsertCityLaunchProspect).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -88,6 +94,25 @@ describe("city launch candidate review", () => {
         reviewDecision: "promote",
       }),
     );
+  });
+
+  it("passes explicit candidate ids through so batch handoffs do not scan the whole city", async () => {
+    listCityLaunchCandidateSignals.mockResolvedValue([candidate({ id: "candidate-durham-2" })]);
+
+    const { reviewCityLaunchCandidateBatch } = await import("../utils/cityLaunchCandidateReview");
+    const result = await reviewCityLaunchCandidateBatch({
+      city: "Durham, NC",
+      candidateIds: [" candidate-durham-2 ", "candidate-durham-2"],
+      dryRun: true,
+    });
+
+    expect(listCityLaunchCandidateSignals).toHaveBeenCalledWith({
+      city: "Durham, NC",
+      statuses: ["queued", "in_review"],
+      candidateIds: ["candidate-durham-2"],
+      limit: 1,
+    });
+    expect(result.reviewedCount).toBe(1);
   });
 
   it("keeps candidates in review when source evidence is incomplete", async () => {

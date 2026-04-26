@@ -109,7 +109,7 @@ function buildHandoffDescription(input: {
     "",
     "Agent task:",
     "- Enrich each kept-in-review candidate with source URLs, public-access posture, indoor/common-access posture, allowed/avoid capture zones, camera-policy evidence, capture-time estimate, and payout basis where available.",
-    "- Re-run the deterministic reviewer after evidence is added.",
+    `- Re-run the deterministic reviewer after evidence is added: \`scripts/city-launch/review-public-candidates.ts --apply --candidate-ids ${input.candidates.map((candidate) => candidate.id).join(",")}\`.`,
     "- Promote only evidence-backed matches. Leave incomplete candidates under review with explicit missing-evidence reasons.",
     "",
     "Candidates:",
@@ -194,7 +194,7 @@ export async function dispatchCityLaunchCandidatePaperclipHandoff(input: {
       [
         `App-open nearby candidate batch reviewed at ${input.review.generatedAt}.`,
         `Promoted: ${input.review.promotedCount}; kept in review: ${input.review.keptInReviewCount}; rejected: ${input.review.rejectedCount}.`,
-        "If evidence confirms a match, update the candidate evidence and rerun `scripts/city-launch/review-public-candidates.ts --apply`.",
+        `If evidence confirms a match, update the candidate evidence and rerun \`scripts/city-launch/review-public-candidates.ts --apply --candidate-ids ${input.candidates.map((candidate) => candidate.id).join(",")}\`.`,
       ].join("\n"),
     ).catch(() => undefined);
 

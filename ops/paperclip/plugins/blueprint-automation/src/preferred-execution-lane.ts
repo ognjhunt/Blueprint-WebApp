@@ -37,6 +37,15 @@ export function shouldPreservePreferredExecutionLane(input: {
   const title = normalize(input.title);
   const sourceType = normalize(input.sourceType);
 
+  if (
+    preferredAssignee === "public-space-review-agent"
+    || title.includes("under-review capture candidates")
+    || title.includes("nearby candidate batch")
+    || title.includes("public-space review")
+  ) {
+    return true;
+  }
+
   if (sourceType === "notion-work-queue") {
     return true;
   }

@@ -345,18 +345,20 @@ export async function reviewCityLaunchCandidateBatch(input: {
   reviewedBy?: string | null;
 } = {}): Promise<CityLaunchCandidateReviewBatchResult> {
   const reviewedBy = input.reviewedBy?.trim() || PUBLIC_REVIEW_OWNER;
+  const candidateIds = Array.from(
+    new Set((input.candidateIds ?? []).map((id) => id.trim()).filter(Boolean)),
+  );
+  const limit = Math.max(
+    1,
+    Math.min(Math.trunc(input.limit || (candidateIds.length ? candidateIds.length : 100)), 500),
+  );
   const candidates = await listCityLaunchCandidateSignals({
     city: input.city || undefined,
     statuses: ["queued", "in_review"],
+    candidateIds,
+    limit,
   });
-  const candidateIdSet = input.candidateIds?.length
-    ? new Set(input.candidateIds.map((id) => id.trim()).filter(Boolean))
-    : null;
-  const reviewableCandidates = candidateIdSet
-    ? candidates.filter((candidate) => candidateIdSet.has(candidate.id))
-    : candidates;
-  const limit = Math.max(1, Math.min(Math.trunc(input.limit || 100), 500));
-  const selected = reviewableCandidates.slice(0, limit);
+  const selected = candidates.slice(0, limit);
   const reviewedAtIso = nowIso();
   const outcomes: CityLaunchCandidateReviewOutcome[] = [];
 

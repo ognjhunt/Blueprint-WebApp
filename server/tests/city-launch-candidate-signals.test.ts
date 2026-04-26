@@ -54,4 +54,53 @@ describe("city launch candidate signal intake", () => {
       }),
     );
   });
+
+  it("can fetch an explicit candidate id without listing unrelated candidate records", async () => {
+    const {
+      intakeCityLaunchCandidateSignals,
+      listCityLaunchCandidateSignals,
+      __resetCityLaunchCandidateSignalMemoryForTests,
+    } = await import("../utils/cityLaunchLedgers");
+
+    __resetCityLaunchCandidateSignalMemoryForTests();
+
+    await intakeCityLaunchCandidateSignals([
+      {
+        creatorId: "user-1",
+        city: "Durham, NC",
+        name: "Target Candidate",
+        address: "100 Main St",
+        lat: 36.001,
+        lng: -78.901,
+        provider: "apple_mapkit",
+        providerPlaceId: "mapkit:target",
+        types: ["store"],
+        sourceContext: "app_open_scan",
+      },
+      {
+        creatorId: "user-1",
+        city: "Durham, NC",
+        name: "Other Candidate",
+        address: "200 Main St",
+        lat: 36.002,
+        lng: -78.902,
+        provider: "apple_mapkit",
+        providerPlaceId: "mapkit:other",
+        types: ["store"],
+        sourceContext: "app_open_scan",
+      },
+    ]);
+
+    const records = await listCityLaunchCandidateSignals({
+      city: "Durham, NC",
+      candidateIds: ["candidate-durham-nc-mapkit-target"],
+      statuses: ["queued"],
+    });
+
+    expect(records).toHaveLength(1);
+    expect(records[0]).toEqual(expect.objectContaining({
+      id: "candidate-durham-nc-mapkit-target",
+      name: "Target Candidate",
+    }));
+  });
 });

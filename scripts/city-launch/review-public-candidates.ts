@@ -20,7 +20,15 @@ function parseArgs(argv: string[]) {
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const city = typeof args.get("city") === "string" ? String(args.get("city")).trim() : null;
-  const limit = typeof args.get("limit") === "string" ? Number(args.get("limit")) : 100;
+  const candidateIds = typeof args.get("candidate-ids") === "string"
+    ? String(args.get("candidate-ids"))
+      .split(",")
+      .map((id) => id.trim())
+      .filter(Boolean)
+    : [];
+  const limit = typeof args.get("limit") === "string"
+    ? Number(args.get("limit"))
+    : candidateIds.length || 100;
   const reviewedBy =
     typeof args.get("reviewed-by") === "string"
       ? String(args.get("reviewed-by")).trim()
@@ -29,6 +37,7 @@ async function main() {
 
   const result = await reviewCityLaunchCandidateBatch({
     city,
+    candidateIds,
     limit,
     dryRun,
     reviewedBy,
