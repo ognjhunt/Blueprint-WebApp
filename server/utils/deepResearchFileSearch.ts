@@ -192,7 +192,9 @@ export function buildDeepResearchTools(input: BuildDeepResearchToolsInput = {}) 
   }
 
   for (const server of input.mcpServers || []) {
-    tools.push(server as unknown as Record<string, unknown>);
+    // Strip Blueprint-specific allowed_tools field not recognized by Gemini API
+    const { allowed_tools, ...geminiCompatibleServer } = server;
+    tools.push(geminiCompatibleServer as unknown as Record<string, unknown>);
   }
 
   return tools.length > 0 ? tools : undefined;

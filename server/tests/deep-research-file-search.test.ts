@@ -110,4 +110,35 @@ describe("deep research file search helpers", () => {
       },
     ]);
   });
+
+  it("strips allowed_tools from MCP servers when building Gemini-compatible tools", () => {
+    const mcpServers = [
+      {
+        type: "mcp_server" as const,
+        name: "test-server",
+        url: "https://example.com/mcp",
+        allowed_tools: {
+          mode: "validated" as const,
+          tools: ["tool1"],
+        },
+      },
+    ];
+
+    const tools = buildDeepResearchTools({ mcpServers });
+    expect(tools).toEqual([
+      { type: "google_search" },
+      { type: "url_context" },
+      { type: "code_execution" },
+      {
+        type: "mcp_server",
+        name: "test-server",
+        url: "https://example.com/mcp",
+        // allowed_tools should be stripped for Gemini compatibility
+      },
+    ]);
+    // Explicitly verify allowed_tools is not present
+    const mcpTool = tools?.find(t => t.type === "mcp_server") as Record<string, unknown>;
+    expect(mcpTool).toBeDefined();
+    expect(mcpTool.allowed_tools).toBeUndefined();
+  });
 });
