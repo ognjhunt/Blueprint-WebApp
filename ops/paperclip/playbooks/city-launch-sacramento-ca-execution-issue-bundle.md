@@ -120,9 +120,9 @@ This issue bundle turns the Sacramento playbook into executable lanes using the 
 - purpose: Turn the Sacramento city-opening brief into concrete first-wave assets that can create the first responses: direct named outreach for warehouse/facility awareness and small bounded posting packages for public-commercial awareness.
 - policy_guardrail: Automatic policy block before any send, post, or expansion that outruns the written city-opening brief.
 - dependencies: city-opening-distribution, city-opening-cta-routing
-- metrics dependencies: none
+- metrics dependencies: first_lawful_access_path
 - validation required: false
-- source: default_task_bundle
+- source: activation_payload
 - inputs:
   - Sacramento city-opening brief
   - Sacramento channel map

@@ -2,7 +2,7 @@
 
 - city: Chicago, IL
 - city_slug: chicago-il
-- generated_at: 2026-04-26T11:02:51.950Z
+- generated_at: 2026-04-26T12:22:09.983Z
 - mode: deep_research_records
 - status: hypothesis-ranked targeting ledger, not a claim that every site is already accessible
 
@@ -47,7 +47,7 @@ This ledger is intentionally split into:
 
 ## Sources
 
-- [Chicago deep research playbook](/tmp/degraded-wake-city-launch-harness-z94lEC/chicago-il/2026-04-26T11-02-50.921Z/city-launch-contact-enrichment-chicago-il.json) — Latest completed deep-research artifact with structured launch records.
+- [Chicago deep research playbook](/tmp/auto-send-city-launch-harness-twmStH/chicago-il/2026-04-26T12-21-53.186Z/city-launch-contact-enrichment-chicago-il.json) — Latest completed deep-research artifact with structured launch records.
 
 ## Warnings
 

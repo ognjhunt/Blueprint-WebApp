@@ -5,7 +5,9 @@
 - evidence boundary: repo/live evidence first; no invented emails or roles
 
 ## Live recipient evidence already present
-- no live robot-team recipient emails are present yet in the city-launch ledger
+| Target | Recipient email | Lane | Source |
+| --- | --- | --- | --- |
+| Capital Robotics | taylor@capitalrobotics.com | warehouse-facility-direct | live send-action or delivery evidence in the city-launch ledger |
 
 ## Current buyer target set
 - no city-specific buyer targets are materialized yet
