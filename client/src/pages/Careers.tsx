@@ -5,31 +5,60 @@ import {
   MonochromeMedia,
 } from "@/components/site/editorial";
 import { editorialGeneratedAssets } from "@/lib/editorialGeneratedAssets";
-import { ArrowRight, Briefcase, Code2, PenTool } from "lucide-react";
+import {
+  ArrowRight,
+  Briefcase,
+  CheckCircle2,
+  MapPinned,
+  Network,
+  Workflow,
+} from "lucide-react";
 
 const roles = [
   {
-    title: "3D Artist",
-    type: "Contract",
-    location: "Remote",
+    title: "GTM Engineer",
+    type: "Full-time",
+    location: "Remote, with city-launch travel when useful",
     summary:
-      "Turn raw capture and reference material into clean, usable site assets with disciplined geometry, good judgment, and fast iteration.",
+      "Build the GTM scaffolding that lets Blueprint launch new cities, source real capture supply, and turn buyer demand into repeatable autonomous workflows.",
     description:
-      "This role is for someone who can take messy real-world inputs and make them legible. We care about accuracy, clean topology, and a practical eye for what a robot team actually needs back.",
-    href: "mailto:apply+artist@tryblueprint.io?subject=Blueprint%203D%20Artist",
-    icon: PenTool,
+      "This is a systems builder role for someone who can wire research, ledgers, agent runs, outbound drafts, city playbooks, and buyer follow-up into one operating loop. You will use GTM tools when they help, but the job is to make Blueprint's autonomous organization do more of the work every week without inventing traction or weakening provenance.",
+    href: "mailto:apply+gtm-engineer@tryblueprint.io?subject=Blueprint%20GTM%20Engineer",
+    icon: Workflow,
+  },
+];
+
+const roleScope = [
+  {
+    title: "Autonomous GTM systems",
+    body: "Design the agent workflows, scoring rules, review gates, dashboards, and first-party ledgers that move targets from research to outreach to buyer follow-up.",
+    icon: Network,
   },
   {
-    title: "USD Tools Engineer",
-    type: "Full-time",
-    location: "Remote",
-    summary:
-      "Build the tooling that turns capture inputs into production-ready world-model packages without burying the team in manual cleanup.",
-    description:
-      "You would work on the asset and packaging pipeline itself: validation, structure, repeatability, and the parts of the workflow that have to stay boring because buyers depend on them.",
-    href: "mailto:apply+usd@tryblueprint.io?subject=Blueprint%20USD%20Tools%20Engineer",
-    icon: Code2,
+    title: "City launches",
+    body: "Start from zero in a city: map target sites, build lawful capture supply, find robot-team demand, run small experiments, and leave behind a playbook the org can repeat.",
+    icon: MapPinned,
   },
+  {
+    title: "Proof-led growth",
+    body: "Keep every campaign tied to real capture provenance, site-specific packages, hosted-review artifacts, and buyer outcomes. No fake contact data, fake proof, or empty scale theatre.",
+    icon: CheckCircle2,
+  },
+];
+
+const responsibilities = [
+  "Build signal-based target discovery, enrichment, scoring, and routing around Blueprint's exact-site hosted-review wedge.",
+  "Turn city-launch experiments into repeatable agent programs, QA checks, owner handoffs, and operating metrics.",
+  "Create outbound and follow-up workflows that stay recipient-backed, approval-aware, and tied to real capture or demand evidence.",
+  "Partner with product and ops to close the loop between buyer asks, capture supply, hosted-session artifacts, and the next city playbook.",
+  "Use tools like Clay, CRMs, scraping/search providers, workflow automation, LLMs, and internal Paperclip agents where they fit. Build the missing glue when they do not.",
+];
+
+const goodFitSignals = [
+  "You have built revenue, growth, RevOps, sales engineering, marketplace ops, or city-launch systems from messy inputs.",
+  "You can ship lightweight software, automations, SQL or API integrations, spreadsheets, and dashboards without waiting for a full engineering pod.",
+  "You like field reality: local operators, supply constraints, buyer objections, messy source data, and small tests that prove what works.",
+  "You care about truth boundaries. You will not call a city live because a deck says so, and you will not let an agent invent a buyer, a site, or a send.",
 ];
 
 export default function Careers() {
@@ -37,7 +66,7 @@ export default function Careers() {
     <>
       <SEO
         title="Careers | Blueprint"
-        description="Open roles at Blueprint across asset production and tooling for site-specific world-model delivery."
+        description="Blueprint is hiring a GTM Engineer to build autonomous go-to-market systems and launch city-by-city growth loops for site-specific world-model products."
         canonical="/careers"
       />
 
@@ -54,13 +83,13 @@ export default function Careers() {
             <div className="absolute inset-0">
               <div className="mx-auto h-full max-w-[88rem] px-5 py-12 sm:px-8 lg:px-10 lg:py-16">
                 <div className="flex h-full max-w-[36rem] flex-col justify-end">
-                <EditorialSectionLabel light>Careers</EditorialSectionLabel>
-                <h1 className="font-editorial mt-6 text-[3.7rem] leading-[0.9] tracking-[-0.06em] text-white sm:text-[5rem]">
-                  Build the product layer between raw site capture and a buyer who needs a straight answer.
-                </h1>
-                <p className="mt-6 text-base leading-8 text-white/70">
-                  The work sits between asset production, tooling, and product judgment. It should feel like a serious craft company, not a jobs board.
-                </p>
+                  <EditorialSectionLabel light>Careers</EditorialSectionLabel>
+                  <h1 className="font-editorial mt-6 text-[3.7rem] leading-[0.9] text-white sm:text-[5rem]">
+                    Build the growth system that launches Blueprint city by city.
+                  </h1>
+                  <p className="mt-6 text-base leading-8 text-white/70">
+                    We need one GTM Engineer who can turn agents, research, capture supply, buyer demand, and city operations into a working machine.
+                  </p>
                 </div>
               </div>
             </div>
@@ -69,23 +98,23 @@ export default function Careers() {
 
         <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
           <div className="grid gap-4">
-            {roles.map((role, index) => {
+            {roles.map((role) => {
               const Icon = role.icon;
               return (
                 <div
                   key={role.title}
-                  className={index === 1 ? "bg-slate-950 p-6 text-white" : "bg-white p-6 text-slate-950"}
+                  className="bg-slate-950 p-6 text-white"
                 >
                   <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
                     <div className="flex gap-4">
-                      <div className={index === 1 ? "border border-white/15 bg-white/5 p-3 text-white" : "border border-black/10 bg-[#f5f3ef] p-3 text-slate-950"}>
+                      <div className="border border-white/15 bg-white/5 p-3 text-white">
                         <Icon className="h-5 w-5" />
                       </div>
                       <div>
-                        <h2 className="font-editorial text-[2.3rem] leading-[0.95] tracking-[-0.04em]">
+                        <h2 className="font-editorial text-[2.3rem] leading-[0.95]">
                           {role.title}
                         </h2>
-                        <div className={`mt-2 flex flex-wrap gap-3 text-sm ${index === 1 ? "text-white/55" : "text-slate-500"}`}>
+                        <div className="mt-2 flex flex-wrap gap-3 text-sm text-white/55">
                           <span className="inline-flex items-center gap-1.5">
                             <Briefcase className="h-4 w-4" />
                             {role.type}
@@ -96,29 +125,86 @@ export default function Careers() {
                     </div>
                     <a
                       href={role.href}
-                      className={index === 1 ? "inline-flex items-center bg-white px-5 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-slate-100" : "inline-flex items-center bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"}
+                      className="inline-flex items-center bg-white px-5 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
                     >
                       Apply by email
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </a>
                   </div>
-                  <p className={`mt-6 text-base leading-7 ${index === 1 ? "text-white/70" : "text-slate-600"}`}>{role.summary}</p>
-                  <p className={`mt-4 text-sm leading-7 ${index === 1 ? "text-white/65" : "text-slate-600"}`}>{role.description}</p>
+                  <p className="mt-6 max-w-4xl text-base leading-7 text-white/75">{role.summary}</p>
+                  <p className="mt-4 max-w-4xl text-sm leading-7 text-white/65">{role.description}</p>
                 </div>
               );
             })}
           </div>
         </section>
 
+        <section className="mx-auto max-w-[88rem] px-5 pb-12 sm:px-8 lg:px-10">
+          <div className="grid gap-4 md:grid-cols-3">
+            {roleScope.map((item) => {
+              const Icon = item.icon;
+              return (
+                <article key={item.title} className="border border-black/10 bg-white p-5">
+                  <Icon className="h-5 w-5 text-slate-950" />
+                  <h2 className="mt-5 text-lg font-semibold text-slate-950">{item.title}</h2>
+                  <p className="mt-3 text-sm leading-7 text-slate-600">{item.body}</p>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className="mx-auto grid max-w-[88rem] gap-8 px-5 pb-12 sm:px-8 lg:grid-cols-[0.95fr_1.05fr] lg:px-10 lg:pb-14">
+          <div>
+            <EditorialSectionLabel>What You Will Own</EditorialSectionLabel>
+            <h2 className="font-editorial mt-4 text-4xl leading-[0.95] text-slate-950 sm:text-[3.35rem]">
+              A city-launch loop that gets sharper every time it runs.
+            </h2>
+            <p className="mt-5 text-sm leading-7 text-slate-600">
+              The work should feel closer to an early city launcher than a conventional growth hire. You will be expected to build the system, run it in the real world, measure what happened, and make the next run easier for agents and humans.
+            </p>
+          </div>
+
+          <div className="grid gap-6">
+            <div className="bg-white p-6">
+              <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
+                Responsibilities
+              </h3>
+              <ul className="mt-5 grid gap-4">
+                {responsibilities.map((item) => (
+                  <li key={item} className="flex gap-3 text-sm leading-7 text-slate-700">
+                    <CheckCircle2 className="mt-1 h-4 w-4 shrink-0 text-slate-950" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="bg-white p-6">
+              <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
+                Good Fit Signals
+              </h3>
+              <ul className="mt-5 grid gap-4">
+                {goodFitSignals.map((item) => (
+                  <li key={item} className="flex gap-3 text-sm leading-7 text-slate-700">
+                    <CheckCircle2 className="mt-1 h-4 w-4 shrink-0 text-slate-950" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </section>
+
         <section className="mx-auto max-w-[88rem] px-5 pb-12 sm:px-8 lg:px-10 lg:pb-14">
           <EditorialCtaBand
-            eyebrow="Open line"
-            title="If the work is relevant, send the note."
-            description="Don’t see the exact fit? Send a short note and portfolio. If the work maps to the product, it will get read."
+            eyebrow="Apply"
+            title="Send the systems you have built."
+            description="A short note is enough. Include one workflow, launch, automation, or market buildout you owned end to end, plus what changed because of it."
             imageSrc={editorialGeneratedAssets.careersStudio}
             imageAlt="Blueprint careers studio"
-            primaryHref="mailto:careers@tryblueprint.io"
-            primaryLabel="careers@tryblueprint.io"
+            primaryHref="mailto:apply+gtm-engineer@tryblueprint.io?subject=Blueprint%20GTM%20Engineer"
+            primaryLabel="apply+gtm-engineer@tryblueprint.io"
             dark={false}
           />
         </section>

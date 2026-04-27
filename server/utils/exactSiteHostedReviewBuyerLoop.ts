@@ -11,6 +11,9 @@ export type ExactSiteBuyerLoopSummary = {
   reportDate: string;
   targetRows: number;
   recipientBackedTargets: number;
+  enrichmentAttemptedTargets: number;
+  enrichmentCandidateTargets: number;
+  enrichmentContactFoundTargets: number;
   approvalReadyTargets: number;
   founderApprovalNeededTargets: number;
   sentTargets: number;
@@ -123,6 +126,9 @@ export function buildExactSiteHostedReviewBuyerLoopReport(input: {
     ["sent", "replied", "hosted_review_started", "closed"].includes(target.outbound.status),
   ).length;
   const recipientBackedTargets = targets.filter((target) => hasText(target.recipient?.email)).length;
+  const enrichmentAttemptedTargets = targets.filter((target) => (target.enrichment?.providerRuns ?? []).length > 0).length;
+  const enrichmentCandidateTargets = targets.filter((target) => (target.enrichment?.recipientCandidates ?? []).length > 0).length;
+  const enrichmentContactFoundTargets = targets.filter((target) => target.enrichment?.status === "contact_found").length;
   const approvalReadyTargets = founderApprovalQueue.length;
   const daysElapsed = daysBetween(input.ledger.pilot.startDate, reportDate);
   const daysRemaining = Math.max(0, daysBetween(reportDate, input.ledger.pilot.endDate));
@@ -147,6 +153,9 @@ export function buildExactSiteHostedReviewBuyerLoopReport(input: {
     reportDate,
     targetRows: targets.length,
     recipientBackedTargets,
+    enrichmentAttemptedTargets,
+    enrichmentCandidateTargets,
+    enrichmentContactFoundTargets,
     approvalReadyTargets,
     founderApprovalNeededTargets: founderApprovalQueue.length,
     sentTargets,
@@ -188,6 +197,9 @@ export function buildExactSiteHostedReviewBuyerLoopReport(input: {
     "| --- | ---: |",
     `| Target rows | ${summary.targetRows} |`,
     `| Recipient-backed targets | ${summary.recipientBackedTargets} |`,
+    `| Enrichment attempted targets | ${summary.enrichmentAttemptedTargets} |`,
+    `| Enrichment candidate targets | ${summary.enrichmentCandidateTargets} |`,
+    `| Enrichment contact-found targets | ${summary.enrichmentContactFoundTargets} |`,
     `| Founder approval needed | ${summary.founderApprovalNeededTargets} |`,
     `| Sent touches | ${summary.sentTargets} |`,
     `| Replies | ${summary.replies} |`,
@@ -206,6 +218,9 @@ export function buildExactSiteHostedReviewBuyerLoopReport(input: {
     ...(targets.length > 0 ? targets.map(targetMarkdownLine) : ["| none | none | none | none | none | Add target rows. |"]),
     "",
     "## Recipient-Backed Contact Engine",
+    "",
+    "- Run `npm run gtm:enrichment:run -- --write` to refresh provider-backed recipient evidence before founder approval.",
+    "- Clay or another enrichment tool may feed this lane only as a provider-normalized candidate source; the GTM ledger remains the system of record.",
     "",
     ...(contactQueue.length > 0
       ? contactQueue.slice(0, 30).map(targetListLine)

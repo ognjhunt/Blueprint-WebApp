@@ -15,6 +15,14 @@ That means:
 - do not copy gig-economy tactics that trade trust for short-term volume
 - do optimize for reliable, rights-safe, high-quality local contributors
 
+## Exact-Site Proof Requirements
+Technical buyers across all markets consistently demand exact-site proof with these characteristics:
+1. **Exact-site specificity**: Proof must be tied to a real location, not generic demo environments.
+2. **Inspectable and replayable**: Artifacts that can be examined, replayed, and integrated into existing robotics/simulation workflows.
+3. **Clear provenance**: Transparent capture origin and version history to ensure auditability.
+4. **Hosted-review as evaluation**: Next steps should feel like technical validation, not marketing presentations.
+5. **Workflow alignment**: Proof must map to the buyer's actual operational context (e.g., warehouse receiving docks, hospital pharmacy routes, construction jobsites).
+
 Observed marketplace pattern:
 - reward and access loops should hinge on a verified first action, not a raw signup
 - city expansion should wait for a local supply pocket plus a trust gate plus a quality gate

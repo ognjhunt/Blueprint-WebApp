@@ -18,31 +18,31 @@ describe("market signal providers", () => {
   });
 
   it("normalizes deterministic web-search results into stable market signals", async () => {
-    vi.stubEnv("SEARCH_API_KEY", "search-key");
-    vi.stubEnv("SEARCH_API_PROVIDER", "brave");
+    vi.stubEnv("SEARCH_API_PROVIDER", "parallel_mcp");
+    vi.stubEnv("SEARCH_API_KEY", "");
+    vi.stubEnv("PARALLEL_API_KEY", "");
 
     vi.mocked(fetch).mockResolvedValue({
       ok: true,
       json: async () => ({
-        web: {
-          results: [
-            {
-              title: "Warehouse automation teams narrow pilot sites",
-              url: "https://example.com/post-1",
-              description: "Operators are selecting exact facilities earlier.",
-              extra_snippets: ["Travel-heavy reviews are being compressed."],
-            },
-            {
-              title: "Warehouse automation teams narrow pilot sites",
-              url: "https://example.com/post-1?utm_source=test",
-              description: "Duplicate result with tracking params.",
-            },
-            {
-              title: "Field robotics deployments favor exact-site validation",
-              url: "https://example.com/post-2",
-              description: "Teams want grounded site evidence before expansion.",
-            },
-          ],
+        result: {
+          structuredContent: {
+            results: [
+              {
+                title: "Warehouse automation teams narrow pilot sites",
+                url: "https://example.com/post-1",
+                excerpts: [
+                  "Operators are selecting exact facilities earlier.",
+                  "Travel-heavy reviews are being compressed.",
+                ],
+              },
+              {
+                title: "Field robotics deployments favor exact-site validation",
+                url: "https://example.com/post-2",
+                excerpts: ["Teams want grounded site evidence before expansion."],
+              },
+            ],
+          },
         },
       }),
     } as Response);
@@ -58,15 +58,16 @@ describe("market signal providers", () => {
         topic: "warehouse robotics",
         title: "Warehouse automation teams narrow pilot sites",
         url: "https://example.com/post-1",
-        source: "web_search:brave",
+        source: "web_search:parallel_mcp",
       }),
     );
     expect(result.signals[0]?.summary).toContain("Operators are selecting exact facilities earlier.");
   });
 
   it("prefers web search over Firehose when both are configured", () => {
-    vi.stubEnv("SEARCH_API_KEY", "search-key");
-    vi.stubEnv("SEARCH_API_PROVIDER", "brave");
+    vi.stubEnv("SEARCH_API_PROVIDER", "parallel_mcp");
+    vi.stubEnv("SEARCH_API_KEY", "");
+    vi.stubEnv("PARALLEL_API_KEY", "");
     vi.stubEnv("FIREHOSE_API_TOKEN", "fh-token");
     vi.stubEnv("FIREHOSE_BASE_URL", "https://firehose.test");
 

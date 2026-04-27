@@ -38,6 +38,9 @@ Not allowed without explicit human approval:
 - canonical ledger: `ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json`
 - robot-team playbook: `ops/paperclip/playbooks/robot-team-demand-playbook.md`
 - audit command: `npm run gtm:hosted-review:audit`
+- target expansion command: `npm run gtm:targets:expand -- --write`
+- enrichment command: `npm run gtm:enrichment:run -- --write`
+- send dry-run command: `npm run gtm:send -- --dry-run --allow-blocked`
 - buyer-loop command: `npm run gtm:hosted-review:buyer-loop -- --write --allow-blocked`
 - reply durability command: `npm run human-replies:audit-durability`
 
@@ -55,16 +58,34 @@ A daily pilot pass is done only when:
 2. the daily founder review packet is generated with `npm run gtm:hosted-review:daily -- --write --allow-blocked`
 3. every agent update changes one of the buyer-motion fields: target, contact, draft, approval, send, reply, call, hosted-review start, or blocker
 4. every first-batch buyer touch is recipient-backed and either waiting on founder approval or explicitly approved
-5. the buyer-loop report is generated with `npm run gtm:hosted-review:buyer-loop -- --write --allow-blocked`
-6. every target has a real buying signal
-7. every target declares `proof_ready_outreach` or `demand_sourced_capture`
-8. every `proof_ready_outreach` target has a review-ready exact-site hosted-review artifact plus site-world id or hosted-review path
-9. every `demand_sourced_capture` target has a capture ask and does not claim a live hosted review
-10. every human-approved or sent touch has recipient-backed email evidence
-11. every sent or later touch has a send receipt, reply path or reply watcher state, and explicit next action
-12. every content-loop draft cites the proof artifact it came from
-13. paid spend remains zero unless the ledger explicitly records a scale decision
-14. `npm run gtm:hosted-review:audit` passes, or the run blocks with the exact audit finding
+5. the reusable enrichment waterfall has run with `npm run gtm:enrichment:run -- --write`, or the exact blocker is recorded on each target row
+6. the buyer-loop report is generated with `npm run gtm:hosted-review:buyer-loop -- --write --allow-blocked`
+7. every target has a real buying signal
+8. every target declares `proof_ready_outreach` or `demand_sourced_capture`
+9. every `proof_ready_outreach` target has a review-ready exact-site hosted-review artifact plus site-world id or hosted-review path
+10. every `demand_sourced_capture` target has a capture ask and does not claim a live hosted review
+11. every human-approved or sent touch has recipient-backed email evidence
+12. every sent or later touch has a send receipt, reply path or reply watcher state, and explicit next action
+13. every content-loop draft cites the proof artifact it came from
+14. paid spend remains zero unless the ledger explicitly records a scale decision
+15. `npm run gtm:hosted-review:audit` passes, or the run blocks with the exact audit finding
+
+## GTM Enrichment Adapter Contract
+
+The repo-native GTM enrichment contract lives in `server/utils/gtmEnrichmentProviders.ts`.
+
+Provider outputs are candidate evidence only. A provider may add recipient candidates, evidence URLs, confidence, provider run state, and blockers under the target's `enrichment` field. The selected send-eligible recipient remains the target's top-level `recipient` field.
+
+Default providers:
+
+- `manual_human_supplied`: mirrors approved human-supplied recipient evidence already on a target
+- `repo_artifact`: searches repo issue updates and contact-list artifacts
+- `historical_campaign`: searches real historical growth campaign delivery evidence
+- `inbound_dossier`: searches high-intent lead enrichment dossiers
+- `governed_public_contact`: fetches allowlisted public contact pages only
+- `clay_export`: optional provider-normalized Clay JSON export; Clay is not a source of truth
+
+Clay or any future enrichment tool must sit behind this provider interface. It may speed up discovery, but it cannot replace Paperclip, the GTM ledger, send receipts, reply durability, proof artifacts, or founder/Growth Lead approval gates.
 
 ## Quality Bar
 

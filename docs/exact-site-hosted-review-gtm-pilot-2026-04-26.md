@@ -100,11 +100,13 @@ Blocked:
    `ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json`
 2. Run:
    `npm run gtm:hosted-review:audit`
-3. Generate the founder daily review packet:
+3. Run the reusable enrichment waterfall:
+   `npm run gtm:enrichment:run -- --write`
+4. Generate the founder daily review packet:
    `npm run gtm:hosted-review:daily -- --write --allow-blocked`
-4. Generate the buyer-loop report:
+5. Generate the buyer-loop report:
    `npm run gtm:hosted-review:buyer-loop -- --write --allow-blocked`
-5. Create the kickoff Paperclip issue from:
+6. Create the kickoff Paperclip issue from:
    `ops/paperclip/blueprint-company/tasks/exact-site-hosted-review-gtm-pilot/TASK.md`
 
 ### Daily Loop
@@ -113,10 +115,11 @@ Blocked:
 2. `robot-team-growth-agent` drafts the proof-led offer and message.
 3. `city-demand-agent` attaches the relevant city/site opportunity context when the motion is city-specific.
 4. `site-operator-partnership-agent` flags optional access or commercialization context only for a specific target.
-5. Growth Lead records the target, evidence, artifact, message, recipient evidence, send status, reply state, and outcome in the ledger.
-6. Run `npm run gtm:hosted-review:audit` before claiming the day's motion is ready.
-7. Run `npm run gtm:hosted-review:daily -- --write --allow-blocked` so the founder sees one dashboard: targets added, recipient-backed targets, approvals, sends, replies, hosted-review starts, qualified calls, and blockers.
-8. Run `npm run gtm:hosted-review:buyer-loop -- --write --allow-blocked` so the city-launch and sales loops use the same buyer-motion artifact.
+5. The GTM enrichment waterfall records provider runs, recipient candidates, selected recipient evidence, and blockers in the ledger.
+6. Growth Lead records the target, evidence, artifact, message, selected recipient, send status, reply state, and outcome in the ledger.
+7. Run `npm run gtm:hosted-review:audit` before claiming the day's motion is ready.
+8. Run `npm run gtm:hosted-review:daily -- --write --allow-blocked` so the founder sees one dashboard: targets added, enrichment attempts, recipient-backed targets, approvals, sends, replies, hosted-review starts, qualified calls, and blockers.
+9. Run `npm run gtm:hosted-review:buyer-loop -- --write --allow-blocked` so the city-launch and sales loops use the same buyer-motion artifact.
 
 Internal summaries do not count as daily progress unless they change one of those dashboard fields.
 
@@ -145,6 +148,7 @@ The canonical ledger tracks:
 - site-world id or hosted-review path for Track 1
 - capture ask for Track 2
 - recipient evidence, if outreach is ready
+- enrichment provider runs, recipient candidates, selected recipient evidence, and blockers
 - message/send status
 - content-loop drafts tied to proof artifacts
 - daily sent touches and outcome counts

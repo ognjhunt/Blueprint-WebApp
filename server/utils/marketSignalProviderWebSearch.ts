@@ -1,21 +1,12 @@
 import { createHash } from "node:crypto";
 
+import { webSearch, type WebSearchConfig } from "../../ops/paperclip/plugins/blueprint-automation/src/web-search";
 import { getConfiguredEnvValue } from "../config/env";
 import type {
-  MarketSignalFetchOptions,
   MarketSignalFetchResult,
   MarketSignalProvider,
   MarketSignalRecord,
 } from "./marketSignalProviders";
-
-type BraveSearchResult = {
-  title?: string;
-  url?: string;
-  description?: string;
-  extra_snippets?: string[];
-  age?: string;
-  page_age?: string;
-};
 
 function normalizeString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
@@ -50,53 +41,37 @@ function buildStableSignalId(topic: string, url: string | null, title: string) {
   return `web-search:${hash.digest("hex")}`;
 }
 
-function lookbackDaysFrom(options?: MarketSignalFetchOptions) {
-  if (typeof options?.since === "string" && options.since.trim()) {
-    const ms = Date.now() - Date.parse(options.since);
-    if (Number.isFinite(ms) && ms > 0) {
-      return Math.max(1, Math.ceil(ms / (24 * 60 * 60 * 1000)));
-    }
+function normalizeProviderPreference(value: string | null) {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/-/g, "_");
+  return normalized === "brave" ||
+    normalized === "parallel_mcp" ||
+    normalized === "parallel" ||
+    normalized === "perplexity"
+    ? normalized
+    : null;
+}
+
+function buildWebSearchConfig(): WebSearchConfig | null {
+  const provider = normalizeProviderPreference(getConfiguredEnvValue("SEARCH_API_PROVIDER")) || "brave";
+
+  if (provider === "parallel_mcp" || provider === "parallel") {
+    return {
+      provider,
+      apiKey: getConfiguredEnvValue("PARALLEL_API_KEY") || undefined,
+    };
   }
-  return Math.max(
-    1,
-    Number(getConfiguredEnvValue("BLUEPRINT_MARKET_SIGNAL_LOOKBACK_DAYS") || "7"),
-  );
-}
 
-function freshnessFromLookbackDays(days: number) {
-  if (days <= 1) return "pd";
-  if (days <= 7) return "pw";
-  if (days <= 31) return "pm";
-  return "py";
-}
-
-function normalizePublishedAt(result: BraveSearchResult) {
-  const raw = normalizeString(result.age) || normalizeString(result.page_age);
-  return raw || null;
-}
-
-function normalizeWebSearchSignal(topic: string, result: BraveSearchResult): MarketSignalRecord | null {
-  const title = stripHtml(normalizeString(result.title));
-  const rawUrl = normalizeString(result.url);
-  const url = rawUrl ? canonicalizeUrl(rawUrl) : null;
-  const description = stripHtml(normalizeString(result.description));
-  const extras = Array.isArray(result.extra_snippets)
-    ? result.extra_snippets.map((entry) => stripHtml(normalizeString(entry))).filter(Boolean)
-    : [];
-  const summary = [description, ...extras].filter(Boolean).join(" ").trim();
-
-  if (!title || !summary || !url) {
+  const apiKey = getConfiguredEnvValue("SEARCH_API_KEY");
+  if (!apiKey) {
     return null;
   }
 
   return {
-    id: buildStableSignalId(topic, url, title),
-    topic,
-    title,
-    summary,
-    url,
-    source: "web_search:brave",
-    publishedAt: normalizePublishedAt(result),
+    provider,
+    apiKey,
   };
 }
 
@@ -110,68 +85,80 @@ function dedupeSignals(signals: MarketSignalRecord[]) {
   return [...deduped.values()];
 }
 
-function getWebSearchProviderConfig() {
-  const apiKey = getConfiguredEnvValue("SEARCH_API_KEY");
-  const provider = (getConfiguredEnvValue("SEARCH_API_PROVIDER") || "brave").toLowerCase();
-  const configured = Boolean(apiKey) && provider === "brave";
+function parseWebSearchSignals(
+  topic: string,
+  provider: string,
+  answer: string,
+  citations: string[],
+): MarketSignalRecord[] {
+  const lines = answer
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
 
-  return {
-    apiKey,
-    provider,
-    configured,
-  };
+  const signals = lines
+    .map((line, index): MarketSignalRecord | null => {
+      const body = line.replace(/^-\s*/, "");
+      const citation = citations[index] ? canonicalizeUrl(citations[index]) : null;
+
+      let title = "";
+      let summary = "";
+      let url = citation;
+
+      const parallelMatch = body.match(/^(.+?)\s+\((https?:\/\/[^)]+)\):\s*(.+)$/);
+      if (parallelMatch) {
+        title = parallelMatch[1] ?? "";
+        url = canonicalizeUrl(parallelMatch[2] ?? "");
+        summary = parallelMatch[3] ?? "";
+      } else {
+        const colonIndex = body.indexOf(": ");
+        if (colonIndex >= 0) {
+          title = body.slice(0, colonIndex).trim();
+          summary = body.slice(colonIndex + 2).trim();
+        } else {
+          title = body.trim();
+          summary = body.trim();
+        }
+      }
+
+      title = stripHtml(normalizeString(title));
+      summary = stripHtml(normalizeString(summary));
+
+      if (!title || !summary) {
+        return null;
+      }
+
+      return {
+        id: buildStableSignalId(topic, url, title),
+        topic,
+        title,
+        summary,
+        url,
+        source: `web_search:${provider}`,
+        publishedAt: null,
+      };
+    })
+    .filter((signal): signal is MarketSignalRecord => Boolean(signal));
+
+  return dedupeSignals(signals);
 }
 
 export async function fetchWebSearchSignals(input: {
   topic: string;
   limit?: number;
   since?: string;
-  fetchImpl?: typeof fetch;
 }): Promise<MarketSignalFetchResult> {
-  const config = getWebSearchProviderConfig();
-  if (!config.configured || !config.apiKey) {
+  const config = buildWebSearchConfig();
+  if (!config) {
     throw new Error("Deterministic web search is not configured");
   }
 
-  const count = Math.min(
-    Math.max(1, Number(input.limit || getConfiguredEnvValue("BLUEPRINT_MARKET_SIGNAL_LIMIT") || "6")),
-    20,
-  );
-  const freshness = freshnessFromLookbackDays(lookbackDaysFrom({ since: input.since }));
-  const params = new URLSearchParams({
-    q: input.topic,
-    freshness,
-    count: String(count),
-    extra_snippets: "true",
-    country: "US",
-    search_lang: "en",
-  });
-
-  const response = await (input.fetchImpl || fetch)(
-    `https://api.search.brave.com/res/v1/web/search?${params.toString()}`,
-    {
-      method: "GET",
-      headers: {
-        "X-Subscription-Token": config.apiKey,
-        Accept: "application/json",
-      },
-    },
-  );
-
-  const payload = (await response.json()) as {
-    web?: {
-      results?: BraveSearchResult[];
-    };
-  };
-
-  if (!response.ok) {
-    throw new Error(`Web search ${response.status}: ${JSON.stringify(payload).slice(0, 300)}`);
-  }
-
-  const signals = dedupeSignals(
-    (payload.web?.results || [])
-      .map((result) => normalizeWebSearchSignal(input.topic, result))
-      .filter((signal): signal is MarketSignalRecord => Boolean(signal)),
+  const result = await webSearch(config, input.topic);
+  const signals = parseWebSearchSignals(
+    input.topic,
+    config.provider,
+    result.answer || "",
+    result.citations || [],
   );
 
   return {
@@ -181,8 +168,7 @@ export async function fetchWebSearchSignals(input: {
 }
 
 export function createWebSearchMarketSignalProvider(): MarketSignalProvider | null {
-  const config = getWebSearchProviderConfig();
-  if (!config.configured || !config.apiKey) {
+  if (!buildWebSearchConfig()) {
     return null;
   }
 

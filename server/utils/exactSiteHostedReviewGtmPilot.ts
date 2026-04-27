@@ -73,6 +73,35 @@ export interface ExactSiteGtmTarget {
     evidenceSource?: string;
     evidenceType?: "explicit_research" | "historical_campaign" | "human_supplied";
   };
+  enrichment?: {
+    status: "not_started" | "searching" | "contact_found" | "blocked" | "exhausted";
+    providerRuns?: Array<{
+      providerKey: string;
+      status: "skipped" | "searched" | "contact_found" | "blocked" | "error";
+      searchedAt: string;
+      candidateCount: number;
+      notes?: string;
+      error?: string;
+    }>;
+    recipientCandidates?: Array<{
+      email: string;
+      name?: string;
+      role?: string;
+      evidenceSource: string;
+      evidenceType: "explicit_research" | "historical_campaign" | "human_supplied";
+      providerKey: string;
+      confidence: "high" | "medium" | "low";
+      discoveredAt: string;
+      sourceUrl?: string;
+      notes?: string;
+    }>;
+    selectedRecipientEvidence?: {
+      providerKey: string;
+      selectedAt: string;
+      evidenceSource: string;
+    };
+    blockers?: string[];
+  };
   outbound: {
     status: ExactSiteGtmTargetStatus;
     approvalState?: "not_required" | "pending_first_send_approval" | "approved" | "blocked";
@@ -140,6 +169,11 @@ export interface ExactSiteGtmAuditResult {
     humanApprovedTargets: number;
     recipientBackedTargets: number;
     targetsMissingRecipientEvidence: number;
+    enrichmentAttemptedTargets: number;
+    enrichmentContactFoundTargets: number;
+    enrichmentCandidateTargets: number;
+    enrichmentBlockedTargets: number;
+    staleEnrichmentTargets: number;
     approvalNeededTargets: number;
     founderApprovalNeededTargets: number;
     sentTargets: number;
@@ -208,6 +242,13 @@ function isLikelyPlaceholderEmail(value: string): boolean {
 
 function isValidEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+function isStaleIsoTimestamp(value: string | undefined, maxAgeDays: number) {
+  if (!value) return false;
+  const timestamp = Date.parse(value);
+  if (!Number.isFinite(timestamp)) return false;
+  return Date.now() - timestamp > maxAgeDays * 86_400_000;
 }
 
 function requiresRecipientEvidence(status: ExactSiteGtmTargetStatus): boolean {
@@ -474,6 +515,69 @@ export function auditExactSiteHostedReviewGtmLedger(
         addFinding(findings, "error", `${basePath}.recipient.evidenceType`, "Recipient evidence type is invalid.");
       }
     }
+    const enrichment = target.enrichment;
+    if (enrichment) {
+      if (!["not_started", "searching", "contact_found", "blocked", "exhausted"].includes(asString(enrichment.status))) {
+        addFinding(findings, "error", `${basePath}.enrichment.status`, "Enrichment status is invalid.");
+      }
+      for (const [runIndex, run] of (enrichment.providerRuns ?? []).entries()) {
+        const runPath = `${basePath}.enrichment.providerRuns[${runIndex}]`;
+        if (!hasMeaningfulString(run.providerKey)) {
+          addFinding(findings, "error", `${runPath}.providerKey`, "Provider run key is required.");
+        }
+        if (!["skipped", "searched", "contact_found", "blocked", "error"].includes(asString(run.status))) {
+          addFinding(findings, "error", `${runPath}.status`, "Provider run status is invalid.");
+        }
+        if (!hasMeaningfulString(run.searchedAt)) {
+          addFinding(findings, "error", `${runPath}.searchedAt`, "Provider run timestamp is required.");
+        }
+      }
+      for (const [candidateIndex, candidate] of (enrichment.recipientCandidates ?? []).entries()) {
+        const candidatePath = `${basePath}.enrichment.recipientCandidates[${candidateIndex}]`;
+        const candidateEmail = asString(candidate.email);
+        if (!isValidEmail(candidateEmail)) {
+          addFinding(findings, "error", `${candidatePath}.email`, "Recipient candidate email is not valid.");
+        }
+        if (isLikelyPlaceholderEmail(candidateEmail)) {
+          addFinding(findings, "error", `${candidatePath}.email`, "Placeholder or fake recipient candidate emails are disallowed.");
+        }
+        if (!hasMeaningfulString(candidate.evidenceSource) || !hasMeaningfulString(candidate.providerKey)) {
+          addFinding(findings, "error", candidatePath, "Recipient candidates require evidence source and provider key.");
+        }
+        if (!["explicit_research", "historical_campaign", "human_supplied"].includes(asString(candidate.evidenceType))) {
+          addFinding(findings, "error", `${candidatePath}.evidenceType`, "Recipient candidate evidence type is invalid.");
+        }
+      }
+      if (
+        enrichment.recipientCandidates?.length
+        && !email
+        && target.outbound?.status !== "not_ready"
+      ) {
+        addFinding(
+          findings,
+          "warning",
+          `${basePath}.recipient`,
+          "Recipient candidates exist but no selected recipient is recorded; choose a recipient before founder approval or send.",
+        );
+      }
+      const latestRun = [...(enrichment.providerRuns ?? [])]
+        .sort((left, right) => asString(right.searchedAt).localeCompare(asString(left.searchedAt)))[0];
+      if (!email && latestRun && isStaleIsoTimestamp(latestRun.searchedAt, 30)) {
+        addFinding(
+          findings,
+          "warning",
+          `${basePath}.enrichment.providerRuns`,
+          "Latest enrichment run is older than 30 days and no selected recipient exists.",
+        );
+      }
+    } else if (!email && isOutboundActive(target.outbound?.status)) {
+      addFinding(
+        findings,
+        "warning",
+        `${basePath}.enrichment`,
+        "Active target has no enrichment attempt recorded; run the GTM enrichment waterfall before treating the row as send-ready.",
+      );
+    }
     if (requiresRecipientEvidence(target.outbound?.status) && !email) {
       addFinding(
         findings,
@@ -625,6 +729,18 @@ export function auditExactSiteHostedReviewGtmLedger(
   const humanApprovedTargets = targets.filter((target) => target.outbound?.status === "human_approved").length;
   const recipientBackedTargets = targets.filter((target) => hasMeaningfulString(target.recipient?.email)).length;
   const targetsMissingRecipientEvidence = targets.filter((target) => !hasMeaningfulString(target.recipient?.email)).length;
+  const enrichmentAttemptedTargets = targets.filter((target) => (target.enrichment?.providerRuns ?? []).length > 0).length;
+  const enrichmentContactFoundTargets = targets.filter((target) => target.enrichment?.status === "contact_found").length;
+  const enrichmentCandidateTargets = targets.filter((target) => (target.enrichment?.recipientCandidates ?? []).length > 0).length;
+  const enrichmentBlockedTargets = targets.filter((target) =>
+    target.enrichment?.status === "blocked" || target.enrichment?.status === "exhausted",
+  ).length;
+  const staleEnrichmentTargets = targets.filter((target) => {
+    if (hasMeaningfulString(target.recipient?.email)) return false;
+    const latestRun = [...(target.enrichment?.providerRuns ?? [])]
+      .sort((left, right) => asString(right.searchedAt).localeCompare(asString(left.searchedAt)))[0];
+    return Boolean(latestRun && isStaleIsoTimestamp(latestRun.searchedAt, 30));
+  }).length;
   const approvalNeededTargets = targets.filter((target) =>
     target.outbound?.status === "draft_ready" && hasMeaningfulString(target.recipient?.email),
   ).length;
@@ -665,6 +781,11 @@ export function auditExactSiteHostedReviewGtmLedger(
     humanApprovedTargets,
     recipientBackedTargets,
     targetsMissingRecipientEvidence,
+    enrichmentAttemptedTargets,
+    enrichmentContactFoundTargets,
+    enrichmentCandidateTargets,
+    enrichmentBlockedTargets,
+    staleEnrichmentTargets,
     approvalNeededTargets,
     founderApprovalNeededTargets,
     sentTargets,
@@ -703,6 +824,22 @@ export function auditExactSiteHostedReviewGtmLedger(
       "warning",
       "targets.recipient",
       "Active pilot has target rows but no recipient-backed contacts; live sends remain blocked on explicit contact evidence.",
+    );
+  }
+  if (ledger.pilot.status === "active" && targets.length > 0 && enrichmentAttemptedTargets === 0) {
+    addFinding(
+      findings,
+      "warning",
+      "targets.enrichment",
+      "Active pilot has no recorded enrichment attempts; run npm run gtm:enrichment:run before judging contact addressability.",
+    );
+  }
+  if (ledger.pilot.status === "active" && staleEnrichmentTargets > 0) {
+    addFinding(
+      findings,
+      "warning",
+      "targets.enrichment.providerRuns",
+      `${staleEnrichmentTargets} target row(s) have stale enrichment and no selected recipient.`,
     );
   }
   if (ledger.pilot.status === "active" && targets.length > 0 && sentTargets === 0) {
@@ -780,6 +917,11 @@ export function renderExactSiteHostedReviewGtmAuditMarkdown(
     `- human-approved targets: ${result.summary.humanApprovedTargets}`,
     `- recipient-backed targets: ${result.summary.recipientBackedTargets}`,
     `- targets missing recipient evidence: ${result.summary.targetsMissingRecipientEvidence}`,
+    `- enrichment attempted targets: ${result.summary.enrichmentAttemptedTargets}`,
+    `- enrichment contact-found targets: ${result.summary.enrichmentContactFoundTargets}`,
+    `- enrichment candidate targets: ${result.summary.enrichmentCandidateTargets}`,
+    `- enrichment blocked/exhausted targets: ${result.summary.enrichmentBlockedTargets}`,
+    `- stale enrichment targets: ${result.summary.staleEnrichmentTargets}`,
     `- approval-needed targets: ${result.summary.approvalNeededTargets}`,
     `- founder approval needed targets: ${result.summary.founderApprovalNeededTargets}`,
     `- sent targets: ${result.summary.sentTargets}`,
@@ -848,6 +990,10 @@ export function renderExactSiteHostedReviewGtmFounderReviewMarkdown(
     `| Targets added latest day | ${latest.targetsAdded} |`,
     `| Draft-ready targets | ${result.summary.draftReadyTargets} |`,
     `| Recipient-backed targets | ${result.summary.recipientBackedTargets} |`,
+    `| Enrichment attempted targets | ${result.summary.enrichmentAttemptedTargets} |`,
+    `| Enrichment contact-found targets | ${result.summary.enrichmentContactFoundTargets} |`,
+    `| Enrichment candidate targets | ${result.summary.enrichmentCandidateTargets} |`,
+    `| Enrichment blocked/exhausted targets | ${result.summary.enrichmentBlockedTargets} |`,
     `| Founder approval needed | ${result.summary.founderApprovalNeededTargets} |`,
     `| Human-approved targets | ${result.summary.humanApprovedTargets} |`,
     `| Sent targets | ${result.summary.sentTargets} |`,

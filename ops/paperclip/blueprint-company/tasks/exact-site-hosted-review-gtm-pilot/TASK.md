@@ -20,8 +20,10 @@ Primary sources:
 - keep the canonical ledger current
 - keep at least 30 real robot-team target rows in the ledger while the pilot is active, with a near-term minimum of 12 recipient-backed first-batch targets
 - treat target rows without recipient-backed contacts as research work, not send-ready work
+- run `npm run gtm:targets:expand -- --write --allow-empty` when target count is below the current 30-50 account goal and a seed/source exists
+- run `npm run gtm:enrichment:run -- --write` before reporting contact addressability, founder approval readiness, or send readiness
 - record approval state, send receipt, reply state, and next action on the same target row whenever those states exist
-- every daily pass must update the founder review packet with targets added, recipient-backed targets, approvals, sent touches, replies, hosted-review starts, qualified calls, and blockers
+- every daily pass must update the founder review packet with targets added, enrichment attempts, recipient-backed targets, approvals, sent touches, replies, hosted-review starts, qualified calls, and blockers
 - every daily pass must also generate `npm run gtm:hosted-review:buyer-loop -- --write --allow-blocked`
 - default the first setup pass to `proof_ready_outreach` if a captured, packaged, reviewable site-world is selected
 - use `demand_sourced_capture` when no reviewable site-world exists for the target and the ask is to learn which site/workflow should be captured next
@@ -31,6 +33,7 @@ Primary sources:
 - use `site-operator-partnership-agent` only when operator access or commercialization materially matters
 - run `npm run gtm:hosted-review:audit` before reporting the pilot as ready, active, or complete
 - run `npm run gtm:hosted-review:daily -- --write --allow-blocked` after material target, send, reply, or blocker changes
+- run `npm run gtm:send -- --dry-run --allow-blocked` before any live send batch; live sends require `--dry-run 0 --write` plus passing durability and approval gates
 - run `npm run human-replies:audit-durability` before claiming replies are production-durable
 
 ## Guardrails

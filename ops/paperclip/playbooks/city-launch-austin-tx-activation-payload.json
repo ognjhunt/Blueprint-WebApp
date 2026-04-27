@@ -146,5 +146,24 @@
       "notes": null
     }
   ],
-  "namedClaims": []
+  "namedClaims": [
+    {
+      "subject": "Austin, TX Capture Target Ledger",
+      "claimType": "system_artifact",
+      "claim": "Austin capture planning is hypothesis-ranked and source-tagged, not a claim that every city target is already accessible.",
+      "validationRequired": false,
+      "sourceUrls": [
+        "https://github.com/ognjhunt/Blueprint-WebApp/blob/main/ops/paperclip/playbooks/city-capture-target-ledger-austin-tx.md"
+      ]
+    },
+    {
+      "subject": "Austin, TX Demand Plan",
+      "claimType": "system_artifact",
+      "claim": "Austin demand planning stays proof-led and tied to exact-site or operator-lane work rather than public city-readiness claims.",
+      "validationRequired": false,
+      "sourceUrls": [
+        "https://github.com/ognjhunt/Blueprint-WebApp/blob/main/ops/paperclip/playbooks/city-demand-austin-tx.md"
+      ]
+    }
+  ]
 }

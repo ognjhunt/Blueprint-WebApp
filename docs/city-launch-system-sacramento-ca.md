@@ -44,7 +44,7 @@ Turn the Sacramento planning artifacts into an executable company harness that r
 
 ## Human Operator-Owned Decisions
 
-- Growth Lead owns Sacramento source policy, referral posture, and invite/access-code issuance inside approved guardrails.
+- Growth Lead and Ops Lead jointly own Sacramento source policy, referral posture, and invite/access-code issuance inside approved guardrails.
 - Ops Lead owns the Sacramento intake rubric, trust kit, first-capture thresholds, and launch-readiness checklist.
 - Standard quote bands are enforced directly from repo policy and the current proof posture.
 - Sensitive rights/privacy questions stay blocked by policy until the written evidence path supports the action.

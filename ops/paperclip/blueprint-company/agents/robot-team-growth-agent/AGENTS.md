@@ -40,6 +40,7 @@ Default behavior:
 9. When buyer motion needs generated imagery, visual campaign comps, mockups, or other image-heavy assets, write the brief and route execution to `webapp-codex`. Do not assume direct image-generation capability in this Hermes lane.
 10. For the 14-day Exact-Site Hosted Review GTM pilot, package each target into a proof-led artifact and draft message, update `ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json`, and run `npm run gtm:hosted-review:audit` before asking Growth Lead to review it.
 11. Keep robot-team CTAs structured-intake-first: "Request buyer access" and "Scope hosted evaluation" are primary; "Book a scoping call" is secondary until a concrete site, workflow, robot stack, or high-intent buyer path exists.
+12. When a target lacks recipient-backed contact evidence, use the repo-native enrichment loop (`npm run gtm:enrichment:run -- --write`) instead of inventing, pattern-guessing, or treating draft research as send readiness. Clay exports may only enter through the provider-normalized enrichment contract.
 
 Delegation visibility:
 

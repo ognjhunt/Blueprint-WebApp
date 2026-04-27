@@ -77,11 +77,12 @@ Turn the San Francisco planning artifacts into an executable company harness tha
 
 ## Activation Payload Highlights
 
-- No activation payload was available; treat execution posture as incomplete.
+- `ops/paperclip/playbooks/city-launch-san-francisco-ca-activation-payload.json` carries the city-tagged source data, validation blocker, and claim gate for this launch.
+- Treat the execution posture as incomplete until the proof-ready asset and hosted review exist.
 
 ## Metrics Blockers
 
-- No activation payload metrics contract is available yet.
+- The activation payload metrics contract is present but all metrics remain `required_not_tracked` until live proof motion exists.
 
 ## Expansion Guard
 

@@ -2390,22 +2390,14 @@ export const caseStudies: CaseStudy[] = [
 
 export const jobs: Job[] = [
   {
-    title: "3D Artist",
-    type: "Contract",
-    location: "Remote",
-    summary: "Create high-fidelity assets with watertight topology and clean UVs for SimReady handoff.",
-    description:
-      "You will translate capture outputs and kitbashed assets into polished simulation-ready geometry. Expect to iterate with our robotics specialists on articulation coverage, pivots, and collider tuning. Compensation is scoped to each project and averages approximately $50 per hour.",
-    applyEmail: "apply+artist@tryblueprint.io",
-  },
-  {
-    title: "USD Tools Engineer",
+    title: "GTM Engineer",
     type: "Full-time",
-    location: "Remote",
-    summary: "Build the authoring tools that automate SimReady finishing across our environment network.",
+    location: "Remote, with city-launch travel when useful",
+    summary:
+      "Build the GTM scaffolding that lets Blueprint launch new cities, source real capture supply, and turn buyer demand into repeatable autonomous workflows.",
     description:
-      "Design and ship USD pipelines that enforce our SimReady spec, from collider validation to articulation presets. You'll collaborate with artists and robotics teams to accelerate turnaround.",
-    applyEmail: "apply+usd@tryblueprint.io",
+      "You will design and run the systems that move Blueprint from city research to capture supply to buyer follow-up. Expect agent workflows, first-party ledgers, outbound review gates, local market tests, and a lot of practical judgment about what should be automated and what still needs a human in the loop.",
+    applyEmail: "apply+gtm-engineer@tryblueprint.io",
   },
 ];
 
@@ -4404,38 +4396,5 @@ export const bundleFeatureMatrix: BundleFeature[] = [
 //       "SLAM validation with synthetic-lidar",
 //     ],
 //     cta: "Get the retail pack",
-//   },
-// ];
-
-// export const jobs: Job[] = [
-//   {
-//     title: "3D Artist",
-//     type: "Contract",
-//     location: "Remote",
-//     summary:
-//       "Create high-fidelity assets with watertight topology and clean UVs for SimReady delivery.",
-//     description:
-//       "You will translate capture outputs and kitbashed assets into polished simulation-ready geometry. Expect to iterate with our robotics specialists on articulation coverage, pivots, and collider tuning.",
-//     applyEmail: "apply+artist@tryblueprint.io",
-//   },
-//   {
-//     title: "Technical Artist (Simulation)",
-//     type: "Contract",
-//     location: "Remote",
-//     summary:
-//       "Author scene stages, tune joints, and validate physics so labs can drop environments straight into their simulator.",
-//     description:
-//       "Work across DCC tools and our internal pipeline to ensure every scene ships with precise limits, semantic schemas, and test harnesses. Bonus points for experience automating annotation exports.",
-//     applyEmail: "apply+techartist@tryblueprint.io",
-//   },
-//   {
-//     title: "USD Tools Engineer",
-//     type: "Full-time",
-//     location: "Durham, NC or Remote",
-//     summary:
-//       "Build the authoring tools that automate SimReady finishing across our environment network.",
-//     description:
-//       "Design and ship USD pipelines that enforce our SimReady spec, from collider validation to articulation presets. You'll collaborate with artists and robotics teams to accelerate delivery.",
-//     applyEmail: "apply+usd@tryblueprint.io",
 //   },
 // ];

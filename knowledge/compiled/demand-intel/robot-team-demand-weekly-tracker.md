@@ -2,23 +2,25 @@
 authority: derived
 source_system: web
 source_urls:
+  - "https://www.worldlabs.ai/blog/spark-2.0"
+  - "https://nvidianews.nvidia.com/news/nvidia-announces-open-physical-ai-data-factory-blueprint-to-accelerate-robotics-vision-ai-agents-and-autonomous-vehicle-development"
+  - "https://nvidianews.nvidia.com/news/nvidia-and-global-robotics-leaders-take-physical-ai-to-the-real-world"
+  - "https://press.siemens.com/global/en/event/siemens-hannover-messe-2026"
   - "https://www.worldlabs.ai/blog/3d-as-code"
   - "https://www.worldlabs.ai/blog/announcing-the-world-api"
   - "https://www.worldlabs.ai/"
   - "https://docs.worldlabs.ai/api/examples"
-  - "https://nvidianews.nvidia.com/news/nvidia-announces-open-physical-ai-data-factory-blueprint-to-accelerate-robotics-vision-ai-agents-and-autonomous-vehicle-development"
-  - "https://nvidianews.nvidia.com/news/nvidia-and-global-robotics-leaders-take-physical-ai-to-the-real-world"
   - "https://nvidianews.nvidia.com/news/siemens-and-nvidia-expand-partnership-industrial-ai-operating-system"
   - "https://nvidianews.nvidia.com/news/latest?c=21926"
   - "https://poly.cam/press-release/space-mode-access-expanded-2026"
   - "https://a3.a3automate.org/a3/Events/Search"
-last_verified_at: "2026-04-13"
+last_verified_at: "2026-04-27"
 owner: demand-intel-agent
 sensitivity: internal
 confidence: 0.68
 subject_key: robot-team-demand-weekly-tracker
 freshness_sla_days: 7
-last_signal_at: "2026-04-13"
+last_signal_at: "2026-04-27"
 review_status: active
 canonical_refs:
   - system: paperclip
@@ -34,31 +36,32 @@ entity_tags:
 
 ## Summary
 
-Current technical-buyer demand is concentrating around developer-first spatial platforms, physical-AI data pipelines, and safety/validation workflows rather than generic "AI interest." The strongest signal is that serious robot-team buyers want structured, inspectable, exportable artifacts that can plug into simulation, robotics, CAD, and industrial software stacks. That points Blueprint toward proof-pack language, hosted-session flows, and provenance clarity that look more like infrastructure and evaluation tooling than marketing demos.
+Current technical-buyer demand is still concentrating around developer-first spatial platforms, physical-AI data pipelines, and safety/validation workflows rather than generic "AI interest." Fresh April signals reinforce that serious robot-team buyers want structured, inspectable, exportable artifacts that can plug into simulation, robotics, CAD, and industrial software stacks. That keeps Blueprint pointed at proof-pack language, hosted-session flows, and provenance clarity that look more like infrastructure and evaluation tooling than marketing demos.
 
 ## Current State
 
-- The strongest public demand signals now cluster around platformized physical AI and world-model products, not isolated model demos.
+- The strongest public demand signals still cluster around platformized physical AI and world-model products, not isolated model demos.
 - Buyers are being told to expect programmatic APIs, inspectable 3D outputs, simulation hooks, and reusable artifacts that can be versioned and reused.
 - Technical evaluation is increasingly framed around data generation, augmentation, evaluation, safety, and commissioning speed.
 - In-person technical communities remain important, especially robotics conferences, safety training, and developer workshops.
 
 ## Evidence
 
-- World Labs explicitly frames 3D as the interface for space and says world models should generate, edit, simulate, and share worlds together. Its 3D-as-code essay emphasizes inspectable and versioned artifacts, integration with robotics stacks and simulation systems, and a hybrid runtime where rules matter.
-- World Labs' World API is a public developer interface for generating explorable 3D worlds from text, images, panoramas, and video. The docs emphasize raw API usage, sample projects, and downstream rendering/export rather than a closed demo flow.
-- World Labs' public site now positions Marble for robotics, simulation, architecture, and health systems, which is a clear signal that buyer interest is being organized around application workflows, not generic awareness.
+- World Labs' April 14 Spark 2.0 update focuses on streamable, inspectable 3DGS rendering in the browser, which extends the market expectation for reusable and replayable spatial artifacts.
+- World Labs still frames 3D as the interface for space and keeps the robotics / simulation / architecture positioning visible in its product and docs language.
 - NVIDIA's Physical AI Data Factory Blueprint is explicitly about generating, augmenting, and evaluating training data at scale for robotics, vision AI agents, and autonomous vehicles. The release names robotics and industrial adopters, which is evidence that the platform message is landing with technical teams already building physical-AI systems.
-- NVIDIA and Siemens describe digital twins turning into active intelligence for the physical world and say customers are evaluating capabilities that reduce commissioning time and risk. That language is closer to procurement and deployment value than to top-of-funnel branding.
+- NVIDIA's March 16 ecosystem release also names a broad set of industrial, humanoid, and robot-brain companies, reinforcing that buyers are organizing around production-scale infrastructure rather than demo theater.
+- Siemens' Hannover Messe 2026 positioning keeps industrial AI centered on the digital twin, autonomous workflows, and value-chain execution, which maps to commissioning speed and operational reliability.
 - Polycam's non-LiDAR spatial capture release shows the market is lowering capture friction and normalizing walkthrough-based, dimensionally accurate 3D capture on commodity devices.
 - A3's 2026 event listings include mobile robot safety training, robot safety and risk assessment training, and the International Robot Safety Conference. That is evidence that safety, validation, and risk language remain high-signal in this buyer ecosystem.
 
 ## Signals
 
-- 2026-04-13: The clearest pattern is that robot-team demand is gravitating toward APIs, data pipelines, and simulation-ready artifacts that can be inspected and reused.
-- 2026-04-13: Technical buyer language is increasingly about evaluation, determinism, risk reduction, and commissioning speed rather than raw model novelty.
-- 2026-04-13: Robotics conferences and safety/risk training remain more credible than broad AI awareness channels for reaching serious deployment-minded buyers.
-- 2026-04-13: Capture friction is falling, which likely raises buyer expectations for more precise provenance and more usable spatial outputs.
+- 2026-04-27: The clearest pattern is still that robot-team demand is gravitating toward APIs, data pipelines, and simulation-ready artifacts that can be inspected and reused.
+- 2026-04-27: Technical buyer language is increasingly about evaluation, determinism, risk reduction, and commissioning speed rather than raw model novelty.
+- 2026-04-27: Robotics conferences and safety/risk training remain more credible than broad AI awareness channels for reaching serious deployment-minded buyers.
+- 2026-04-27: Capture friction is falling, which likely raises buyer expectations for more precise provenance and more usable spatial outputs.
+- 2026-04-27: Browser-streamable 3D and industrial AI platform launches are reinforcing that buyers want proof packs they can inspect, replay, and attach to real workflows.
 
 ## Implications For Blueprint
 
@@ -70,6 +73,7 @@ Current technical-buyer demand is concentrating around developer-first spatial p
 - Austin and San Francisco should be treated differently: Austin looks more like an industrial / deployment / safety-and-operations cluster, while San Francisco is more likely to reward developer-platform and world-model narrative work.
 - Austin now has a named target-account map anchored by Apptronik, Diligent Robotics, Fox Robotics, ICON, SparkCognition, Ocean Infinity, RoyCo Robotics, RobotLAB Austin, Texas Robotics, and Austin Robotics & AI, which makes the industrial/deployment posture more concrete than the older generic city split.
 - San Diego now has a distinct target-account map worth keeping separate from Austin and San Francisco: the strongest local anchors are Brain Corp, Shield AI, GA-ASI, UC San Diego CRI, and a set of industrial integrators and defense-adjacent buyers.
+- The current market keeps rewarding exact-site proof that can be inspected in a browser, replayed, and mapped to deployment reality, so Blueprint should keep hosted-review motions as artifact-first evaluation experiences.
 
 ## Open Questions
 

@@ -1,0 +1,188 @@
+{
+  "schemaVersion": "2026-04-13.city-launch-activation-payload.v1",
+  "machinePolicyVersion": "2026-04-13.city-launch-doctrine.v1",
+  "city": "San Francisco, CA",
+  "citySlug": "san-francisco-ca",
+  "cityThesis": "Run one proof-led warehouse wedge.",
+  "primarySiteLane": "industrial_warehouse",
+  "primaryWorkflowLane": "dock handoff",
+  "primaryBuyerProofPath": "exact_site",
+  "lawfulAccessModes": [
+    "buyer_requested_site",
+    "site_operator_intro"
+  ],
+  "preferredLawfulAccessMode": "buyer_requested_site",
+  "rightsPath": {
+    "summary": "Private controlled interiors require authorization.",
+    "privateControlledInteriorsRequireAuthorization": true,
+    "validationRequired": true,
+    "sourceUrls": []
+  },
+  "validationBlockers": [
+    {
+      "key": "sf-proof-ready-city-asset",
+      "summary": "San Francisco readiness claims stay blocked until at least one proof-ready city asset exists, the rights path is explicit, and hosted review is real.",
+      "severity": "high",
+      "ownerLane": "city-launch-agent",
+      "validationRequired": true,
+      "sourceUrls": [
+        "https://github.com/ognjhunt/Blueprint-WebApp/blob/main/ops/paperclip/playbooks/city-capture-target-ledger-san-francisco-ca.md",
+        "https://github.com/ognjhunt/Blueprint-WebApp/blob/main/ops/paperclip/playbooks/city-demand-san-francisco-ca.md"
+      ]
+    }
+  ],
+  "requiredApprovals": [
+    {
+      "lane": "founder",
+      "reason": "go/no-go"
+    }
+  ],
+  "ownerLanes": [
+    "city-launch-agent",
+    "city-demand-agent",
+    "capturer-growth-agent",
+    "buyer-solutions-agent",
+    "rights-provenance-agent",
+    "analytics-agent",
+    "revenue-ops-pricing-agent"
+  ],
+  "issueSeeds": [
+    {
+      "key": "sf-proof-pack-listings",
+      "title": "Assemble San Francisco proof packs and publish the first proof-ready listing",
+      "phase": "proof_assets",
+      "ownerLane": "buyer-solutions-agent",
+      "humanLane": "ops-lead",
+      "summary": "Turn the first San Francisco rights-cleared asset into a buyer-visible proof pack with hosted-review routing.",
+      "dependencyKeys": [
+        "rights-clearance"
+      ],
+      "successCriteria": [
+        "At least one San Francisco proof-ready listing or equivalent proof pack exists with exact-site labeling.",
+        "The proof pack includes provenance, coverage boundaries, hosted-review routing, and next-step guidance."
+      ],
+      "metricsDependencies": [
+        "proof_pack_delivered",
+        "hosted_review_ready"
+      ],
+      "validationRequired": true
+    },
+    {
+      "key": "sf-outbound-package",
+      "title": "Prepare San Francisco proof-led outbound package and first touches",
+      "phase": "demand",
+      "ownerLane": "robot-team-growth-agent",
+      "humanLane": "growth-lead",
+      "summary": "Prepare exact-site outbound for Bay Area buyers and keep the city in the proof-led lane.",
+      "dependencyKeys": [
+        "sf-proof-pack-listings"
+      ],
+      "successCriteria": [
+        "San Francisco first-touch copy is prepared with exact-site hosted-review posture.",
+        "San Francisco stays routed to a proof-led follow-up path instead of a public readiness claim."
+      ],
+      "metricsDependencies": [
+        "proof_path_assigned"
+      ],
+      "validationRequired": true
+    },
+    {
+      "key": "sf-city-scorecard",
+      "title": "Publish the San Francisco launch scorecard and blocker view",
+      "phase": "measurement",
+      "ownerLane": "analytics-agent",
+      "humanLane": "growth-lead",
+      "summary": "Keep San Francisco measurable from first outreach through proof and hosted review.",
+      "dependencyKeys": [
+        "sf-outbound-package"
+      ],
+      "successCriteria": [
+        "The scorecard reports supply, demand, proof, and hosted-review milestones using the approved event vocabulary.",
+        "Missing evidence remains explicit instead of being collapsed into narrative progress."
+      ],
+      "metricsDependencies": [
+        "robot_team_inbound_captured",
+        "proof_motion_stalled"
+      ],
+      "validationRequired": true
+    }
+  ],
+  "metricsDependencies": [
+    {
+      "key": "robot_team_inbound_captured",
+      "kind": "event",
+      "status": "required_not_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": "Track inbound buyer or operator requests with city and source attribution."
+    },
+    {
+      "key": "proof_path_assigned",
+      "kind": "event",
+      "status": "required_not_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": "Track exact_site versus scoped_follow_up routing."
+    },
+    {
+      "key": "proof_pack_delivered",
+      "kind": "event",
+      "status": "required_not_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": "Track the first buyer-visible San Francisco proof pack delivery."
+    },
+    {
+      "key": "hosted_review_ready",
+      "kind": "event",
+      "status": "required_not_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": "Track when a hosted review is genuinely ready to open."
+    },
+    {
+      "key": "hosted_review_started",
+      "kind": "event",
+      "status": "required_not_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": "Track the first hosted review start."
+    },
+    {
+      "key": "hosted_review_follow_up_sent",
+      "kind": "event",
+      "status": "required_not_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": "Track follow-up after hosted review."
+    },
+    {
+      "key": "human_commercial_handoff_started",
+      "kind": "event",
+      "status": "required_not_tracked",
+      "ownerLane": "revenue-ops-pricing-agent",
+      "notes": "Track when a buyer thread moves into commercial handling."
+    },
+    {
+      "key": "proof_motion_stalled",
+      "kind": "event",
+      "status": "required_not_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": "Track when proof motion stalls despite active routing."
+    }
+  ],
+  "namedClaims": [
+    {
+      "subject": "San Francisco, CA Capture Target Ledger",
+      "claimType": "system_artifact",
+      "claim": "San Francisco capture planning is hypothesis-ranked and source-tagged, not a claim that every corridor or site is already accessible.",
+      "validationRequired": false,
+      "sourceUrls": [
+        "https://github.com/ognjhunt/Blueprint-WebApp/blob/main/ops/paperclip/playbooks/city-capture-target-ledger-san-francisco-ca.md"
+      ]
+    },
+    {
+      "subject": "San Francisco, CA Demand Plan",
+      "claimType": "system_artifact",
+      "claim": "San Francisco demand planning stays proof-led and ecosystem-driven until rights-cleared proof assets and hosted reviews are real.",
+      "validationRequired": false,
+      "sourceUrls": [
+        "https://github.com/ognjhunt/Blueprint-WebApp/blob/main/ops/paperclip/playbooks/city-demand-san-francisco-ca.md"
+      ]
+    }
+  ]
+}
