@@ -70,6 +70,8 @@ Execution rule:
   - current issue check: `npm exec tsx -- scripts/paperclip/chief-of-staff-snapshot.ts --issue-id "$PAPERCLIP_TASK_ID" --plain`
   - lightweight queue check: `npm exec tsx -- scripts/paperclip/chief-of-staff-snapshot.ts --open --limit 25 --plain`
 - Do not use `curl | python`, `curl | bash`, `curl | node`, or any other pipe-to-interpreter pattern for localhost Paperclip reads.
+- Do not use the Hermes Python/execute_code tool for Paperclip API reads, auth/env discovery, or JSON parsing.
+- Never inspect, print, cat, grep, or find Paperclip secret/env/config files while debugging auth. Checking whether auth exists means testing whether `PAPERCLIP_API_KEY` is non-empty, not exposing or searching secrets.
 - Hermes fallback for founder report routine issues: run `npm exec tsx -- scripts/paperclip/chief-of-staff-founder-report.ts --issue-id <current-issue-id>`.
 - The founder-report fallback infers the routine kind from the current issue title and covers morning brief, accountability, EoD, Friday recap, and weekly gaps.
 - If the current issue is one of those founder report routines, use the fallback immediately before any broader queue discovery, repo scanning, or manager-state narration.
@@ -101,6 +103,8 @@ Memory rule:
 - Hermes-safe issue-context fallback: `npm exec tsx -- scripts/paperclip/paperclip-heartbeat-snapshot.ts --heartbeat-context --issue-id "$PAPERCLIP_TASK_ID" --plain`
 - If the safe fallback script fails, report that failure and stop. Do not invent ad hoc `/api/runs` probes or hand-written `jq` filters.
 - Do not use `curl | python`, `curl | node`, `curl | bash`, or any other pipe-to-interpreter pattern for localhost Paperclip reads.
+- Do not use the Hermes Python/execute_code tool for Paperclip API reads, auth/env discovery, or JSON parsing.
+- Never inspect, print, cat, grep, or find Paperclip secret/env/config files while debugging auth. Checking whether auth exists means testing whether `PAPERCLIP_API_KEY` is non-empty, not exposing or searching secrets.
 - Do not inspect unassigned backlog as part of heartbeat work discovery.
 - Do not self-assign from backlog.
 - When `PAPERCLIP_TASK_ID` or another issue-bound wake context is present, treat that issue as the sole execution scope for the run. Do not widen the run into inbox scanning, backlog triage, or a different assigned issue.
