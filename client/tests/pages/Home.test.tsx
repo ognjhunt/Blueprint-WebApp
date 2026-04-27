@@ -47,15 +47,15 @@ describe("Home", () => {
         /Evaluate exact deployment sites before the expensive part starts/i,
       ),
     ).toBeInTheDocument();
-	    expect(
-	      screen.getAllByRole("link", { name: /Inspect sample site/i })[0],
-	    ).toHaveAttribute("href", "/world-models/siteworld-f5fd54898cfb");
-	    expect(
-	      screen.getAllByRole("link", { name: /Scope hosted evaluation/i })[0],
-	    ).toHaveAttribute(
-	      "href",
-	      "/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=home-hero",
-	    );
+    expect(
+      screen.getAllByRole("link", { name: /Inspect sample site/i })[0],
+    ).toHaveAttribute("href", "/world-models/siteworld-f5fd54898cfb");
+    expect(
+      screen.getAllByRole("link", { name: /Request capture/i })[0],
+    ).toHaveAttribute(
+      "href",
+      "/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=request-capture&source=home-hero",
+    );
     expect(
       screen.getByText(/A site-specific digital environment built from real capture/i),
     ).toBeInTheDocument();
@@ -71,13 +71,13 @@ describe("Home", () => {
 
     expect(
       screen.getByRole("heading", {
-	        name: /Start with one complete proof journey\./i,
-	      }),
-	    ).toBeInTheDocument();
-	    expect(screen.getByRole("link", { name: /Open sample evaluation/i })).toHaveAttribute(
-	      "href",
-	      "/sample-evaluation",
-	    );
+        name: /Start with one complete proof journey\./i,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Open sample evaluation/i })).toHaveAttribute(
+      "href",
+      "/sample-evaluation",
+    );
     expect(
       screen.getByRole("heading", {
         name: /Everyday places can become robot-team evidence\./i,
