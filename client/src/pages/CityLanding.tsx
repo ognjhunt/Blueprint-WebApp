@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
-import { useParams, useNavigate } from "wouter";
+import { useLocation, useParams } from "wouter";
 import { ArrowRight, CheckCircle2, Clock3, MapPinned } from "lucide-react";
 import { SEO } from "@/components/SEO";
 import {
@@ -45,7 +45,7 @@ const captureRules = [
 export default function CityLanding() {
   const params = useParams<{ citySlug: string }>();
   const citySlug = params.citySlug || "";
-  const navigate = useNavigate();
+  const [, navigate] = useLocation();
   const { currentUser } = useAuth();
   const { data, loading } = usePublicLaunchStatus();
 
