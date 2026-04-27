@@ -119,6 +119,15 @@ function activationPayload(city: string, citySlug: string) {
       { key: "hosted_review_follow_up_sent" as const, kind: "event" as const, status: "required_tracked" as const, ownerLane: "analytics-agent" as const, notes: null },
       { key: "human_commercial_handoff_started" as const, kind: "event" as const, status: "required_tracked" as const, ownerLane: "analytics-agent" as const, notes: null },
       { key: "proof_motion_stalled" as const, kind: "event" as const, status: "required_tracked" as const, ownerLane: "analytics-agent" as const, notes: null },
+      // Austin proof-motion city launch events (8 required metrics)
+      { key: "city_launch_lawful_access_established" as const, kind: "event" as const, status: "required_tracked" as const, ownerLane: "analytics-agent" as const, notes: null },
+      { key: "city_launch_capturer_approved" as const, kind: "event" as const, status: "required_tracked" as const, ownerLane: "analytics-agent" as const, notes: null },
+      { key: "city_launch_capture_completed" as const, kind: "event" as const, status: "required_tracked" as const, ownerLane: "analytics-agent" as const, notes: null },
+      { key: "city_launch_capture_qa_passed" as const, kind: "event" as const, status: "required_tracked" as const, ownerLane: "analytics-agent" as const, notes: null },
+      { key: "city_launch_proof_asset_rights_cleared" as const, kind: "event" as const, status: "required_tracked" as const, ownerLane: "analytics-agent" as const, notes: null },
+      { key: "city_launch_proof_pack_delivered" as const, kind: "event" as const, status: "required_tracked" as const, ownerLane: "analytics-agent" as const, notes: null },
+      { key: "city_launch_hosted_review_ready" as const, kind: "event" as const, status: "required_tracked" as const, ownerLane: "analytics-agent" as const, notes: null },
+      { key: "city_launch_commercial_handoff" as const, kind: "event" as const, status: "required_tracked" as const, ownerLane: "analytics-agent" as const, notes: null },
     ],
     namedClaims: [],
   };

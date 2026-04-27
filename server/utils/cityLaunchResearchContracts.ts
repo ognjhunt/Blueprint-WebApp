@@ -91,6 +91,15 @@ export const CITY_LAUNCH_APPROVED_ANALYTICS_EVENTS = [
   "deeper_review_requested",
   "human_commercial_handoff_started",
   "proof_motion_stalled",
+  // Austin proof-motion city launch events (8 required metrics)
+  "city_launch_lawful_access_established",
+  "city_launch_capturer_approved",
+  "city_launch_capture_completed",
+  "city_launch_capture_qa_passed",
+  "city_launch_proof_asset_rights_cleared",
+  "city_launch_proof_pack_delivered",
+  "city_launch_hosted_review_ready",
+  "city_launch_commercial_handoff",
 ] as const;
 
 export const CITY_LAUNCH_APPROVED_ANALYTICS_MILESTONES = [
