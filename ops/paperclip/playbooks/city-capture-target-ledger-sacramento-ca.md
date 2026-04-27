@@ -2,7 +2,7 @@
 
 - city: Sacramento, CA
 - city_slug: sacramento-ca
-- generated_at: 2026-04-26T12:22:38.484Z
+- generated_at: 2026-04-27T18:22:33.570Z
 - mode: deep_research_records
 - status: hypothesis-ranked targeting ledger, not a claim that every site is already accessible
 
@@ -17,7 +17,7 @@ This ledger is intentionally split into:
 
 ## Workflow Priorities
 
-- Warehouse (tier_1): dock handoff
+- Warehouse (tier_1): Recipient sourced from real growth campaign delivery evidence for Northgate Logistics.
 
 ## Priority Proof Targets
 
@@ -47,7 +47,7 @@ This ledger is intentionally split into:
 
 ## Sources
 
-- [Sacramento deep research playbook](/tmp/enriched-outbound-city-launch-harness-rAbagm/sacramento-ca/2026-04-26T12-22-22.704Z/city-launch-contact-enrichment-sacramento-ca.json) — Latest completed deep-research artifact with structured launch records.
+- [Sacramento deep research playbook](/tmp/enriched-outbound-city-launch-harness-LfVFXI/sacramento-ca/2026-04-27T18-22-32.524Z/city-launch-contact-enrichment-sacramento-ca.json) — Latest completed deep-research artifact with structured launch records.
 
 ## Warnings
 
