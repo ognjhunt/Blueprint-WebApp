@@ -10504,10 +10504,11 @@ async function buildAnalyticsOutputProof(
       Boolean(
         process.env.FIREBASE_SERVICE_ACCOUNT_JSON ||
         process.env.GOOGLE_APPLICATION_CREDENTIALS ||
-        (process.env.GOOGLE_CLIENT_EMAIL && process.env.GOOGLE_PRIVATE_KEY),
+        (process.env.GOOGLE_CLIENT_EMAIL && process.env.GOOGLE_PRIVATE_KEY) ||
+        process.env.BLUEPRINT_FIRESTORE_READ_ONLY_FALLBACK === "true",
       ),
-      "Firestore admin credentials are present in the runtime environment.",
-      "Firestore admin credentials are not present in the Paperclip runtime environment.",
+      "Firestore admin credentials are present in the runtime environment or read-only fallback is enabled.",
+      "Firestore admin credentials are not present in the Paperclip runtime environment and no read-only fallback is configured.",
     ),
   ];
   const priorRunMatches = existingRun?.signature === reportSignature;
