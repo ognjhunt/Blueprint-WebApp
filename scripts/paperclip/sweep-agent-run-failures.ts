@@ -410,6 +410,34 @@ export function classifyFailureSignature(input: {
   }
 
   if (
+    rawText.includes("process lost -- child pid")
+    && (
+      rawText.includes("execute_code")
+      || rawText.includes("🐍")
+      || rawText.includes("exec import os")
+      || rawText.includes("python")
+    )
+  ) {
+    return {
+      key: "hermes_python_tool_process_loss",
+      title: "Hermes Python tool activity caused process loss",
+      category: "runtime_capacity" as const,
+      fixLayer: "Hermes runtime safety guardrails and host memory protection",
+      matchedBy: "process_lost plus Hermes execute_code/Python tool signal",
+    };
+  }
+
+  if (rawText.includes("process lost -- child pid") || rawText.includes("process lost -- server may have restarted")) {
+    return {
+      key: "process_loss_or_service_restart",
+      title: "Agent process was lost during the run",
+      category: "runtime_capacity" as const,
+      fixLayer: "runner stability and service restart handling",
+      matchedBy: "process loss signal",
+    };
+  }
+
+  if (
     rawText.includes("timed out while running")
     || rawText.includes("provider=openrouter")
     || rawText.includes(" via openrouter")
@@ -420,16 +448,6 @@ export function classifyFailureSignature(input: {
       category: "runtime_capacity" as const,
       fixLayer: "model ladder, timeout policy, or fallback lane",
       matchedBy: "provider/model timeout signal",
-    };
-  }
-
-  if (rawText.includes("process lost -- server may have restarted")) {
-    return {
-      key: "process_loss_or_service_restart",
-      title: "Agent process was lost during the run",
-      category: "runtime_capacity" as const,
-      fixLayer: "runner stability and service restart handling",
-      matchedBy: "process loss signal",
     };
   }
 

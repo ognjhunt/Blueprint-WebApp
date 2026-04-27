@@ -374,6 +374,27 @@ describe("sweep agent run failures", () => {
     expect(split.suppressedRecoveredCandidates).toHaveLength(1);
   });
 
+  it("classifies process loss during Hermes Python tool use before generic provider timeout signals", () => {
+    const signature = classifyFailureSignature({
+      run: {
+        id: "run-hermes-python-process-loss",
+        agentId: "agent-chief-of-staff",
+        companyId: "company-1",
+        status: "failed",
+        error: "Process lost -- child pid 628170 is no longer running",
+        errorCode: "process_lost",
+      },
+      logText: `
+        [hermes] Starting Hermes Agent (1/9, model=nvidia/nemotron-3-super-120b-a12b:free, provider=openrouter [adapterConfig], timeout=1800s)
+        ┊ 🐍 preparing execute_code…
+        ┊ 🐍 exec      import os  154.4s [error]
+      `,
+    });
+
+    expect(signature.key).toBe("hermes_python_tool_process_loss");
+    expect(signature.category).toBe("runtime_capacity");
+  });
+
   it("suppresses failure candidates whose related issues are already resolved", () => {
     const signature = classifyFailureSignature({
       run: {

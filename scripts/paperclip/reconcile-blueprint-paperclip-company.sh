@@ -114,7 +114,9 @@ Authentication env vars are already injected: PAPERCLIP_API_KEY, PAPERCLIP_RUN_I
 
 Hard rules:
 - Never pipe curl output into Python, Node, bash, or any other interpreter.
-- Prefer plain curl for reads, or a single-process Python/urllib fetch when you need local parsing.
+- Do not use the Hermes Python/execute_code tool for Paperclip API reads, auth/env discovery, or JSON parsing. Use the terminal fallback scripts or Paperclip CLI commands below.
+- Never inspect, print, cat, grep, or find Paperclip secret/env/config files while debugging auth. Checking whether auth exists means testing whether PAPERCLIP_API_KEY is non-empty, not exposing or searching secrets.
+- Prefer plain curl for reads, or the deterministic TypeScript fallback scripts when you need local parsing.
 - Hermes terminal commands do not expand $ENV vars unless you invoke a shell. For auth-backed curl calls, run them through bash -lc so $PAPERCLIP_API_KEY and related vars expand before curl runs.
 - If PAPERCLIP_TASK_ID is present, treat it as the sole execution scope for this wake. Do not start with inbox discovery or broader queue scanning.
 - If the wake reason or payload points at a specific issue/comment but PAPERCLIP_TASK_ID is missing, treat that as a binding failure. Do not compensate by scanning the inbox or backlog.
@@ -126,7 +128,7 @@ Hard rules:
 - Hermes-safe issue-context fallback: 'npm exec tsx -- scripts/paperclip/paperclip-heartbeat-snapshot.ts --heartbeat-context --issue-id "$PAPERCLIP_TASK_ID" --plain'
 - If PAPERCLIP_API_KEY is missing on this trusted host and PAPERCLIP_TASK_ID is present, stop using auth-backed curl and switch to 'npm --prefix /Users/nijelhunt_1/workspace/paperclip run --silent paperclipai -- issue get|checkout|update|comment "$PAPERCLIP_TASK_ID" ...' for the bound issue.
 - If the safe fallback script fails, report that failure and stop. Do not invent ad hoc '/api/runs' probes or hand-written 'jq' filters.
-- If PAPERCLIP_API_KEY is missing or an auth call returns 401/403, stop retrying auth-backed curl. For issue-bound wakes, use the trusted-host CLI fallback for that exact issue. For unbound wakes, use read-only company issue listing, summarize assigned open work, and exit without retries.
+- If PAPERCLIP_API_KEY is missing or an auth call returns 401/403, stop retrying auth-backed curl. For issue-bound wakes, use the trusted-host CLI fallback for that exact issue. For unbound wakes, run 'npm exec tsx -- scripts/paperclip/paperclip-heartbeat-snapshot.ts --assigned-open --plain', summarize assigned open work, and exit without retries.
 - Never look for unassigned work.
 - Never self-assign from backlog.
 - For mutating calls, include Authorization: Bearer $PAPERCLIP_API_KEY and X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID.
@@ -140,7 +142,8 @@ Hard rules:
 - If nothing is assigned to you, report what you checked and exit.
 
 Mandatory preflight (run first on every wake):
-1. Check whether PAPERCLIP_API_KEY is present and non-empty.
+1. Check whether PAPERCLIP_API_KEY is present and non-empty with this exact command. Do not print the key or read env/secret files:
+   bash -lc 'test -n "${PAPERCLIP_API_KEY:-}" && echo PAPERCLIP_API_KEY_PRESENT || echo PAPERCLIP_API_KEY_MISSING'
 2. If PAPERCLIP_API_KEY is missing/empty and PAPERCLIP_TASK_ID is present, do not call authenticated curl routes. Switch immediately to the trusted-host CLI fallback for that exact issue:
    - Read the bound issue:
      npm --prefix /Users/nijelhunt_1/workspace/paperclip run --silent paperclipai -- issue get "$PAPERCLIP_TASK_ID" --json
@@ -149,8 +152,8 @@ Mandatory preflight (run first on every wake):
    - Continue the work on that exact issue only, and finish with the Paperclip CLI issue comment/update commands instead of auth-backed curl.
 3. If PAPERCLIP_API_KEY is missing/empty and PAPERCLIP_TASK_ID is not present, do not call authenticated routes (/agents/me/*, /issues/*/checkout, PATCH issue routes).
 4. Instead, run read-only fallback immediately:
-   curl -fsS "{{paperclipApiUrl}}/companies/$PAPERCLIP_COMPANY_ID/issues"
-5. From that response, summarize only issues where assigneeAgentId equals $PAPERCLIP_AGENT_ID and status is not done/cancelled.
+   npm exec tsx -- scripts/paperclip/paperclip-heartbeat-snapshot.ts --assigned-open --plain
+5. Summarize only assigned open work returned by the fallback. Do not parse raw Paperclip JSON with Python/execute_code.
 6. Exit after the brief proof-bearing summary. Do not retry auth calls in this run.
 
 {{#taskId}}
@@ -210,9 +213,9 @@ Heartbeat wake:
      bash -lc 'ISSUE_ID="$ISSUE_ID"; npm --prefix /Users/nijelhunt_1/workspace/paperclip run --silent paperclipai -- issue checkout "$ISSUE_ID" --agent-id "$PAPERCLIP_AGENT_ID"'
    - If the selected issue is already in_progress and assigned to you, do not PATCH it just to simulate checkout. Read /heartbeat-context and continue the work.
 7. If step 2 fails with 401/403, run auth-regression fallback instead of retrying:
-   - Read-only issue listing:
-     curl -fsS "{{paperclipApiUrl}}/companies/$PAPERCLIP_COMPANY_ID/issues"
-   - Restrict to issues where assigneeAgentId equals $PAPERCLIP_AGENT_ID and status is not done/cancelled.
+   - Assigned-open fallback:
+     npm exec tsx -- scripts/paperclip/paperclip-heartbeat-snapshot.ts --assigned-open --plain
+   - Restrict the run to the assigned open work returned by that script.
    - Do not self-assign, do not inspect unassigned backlog, and do not attempt mutating routes without auth.
    - Leave a brief proof-bearing summary of assigned open issues you found (or none) and exit cheaply.
 {{/noTask}}`;
@@ -225,8 +228,10 @@ const HERMES_SAFETY_BUNDLE_SECTION = `
 - Hermes-safe issue-context fallback: \`npm exec tsx -- scripts/paperclip/paperclip-heartbeat-snapshot.ts --heartbeat-context --issue-id "$PAPERCLIP_TASK_ID" --plain\`
 - If \`PAPERCLIP_API_KEY\` is missing on this trusted host and \`PAPERCLIP_TASK_ID\` is present, switch to \`npm --prefix /Users/nijelhunt_1/workspace/paperclip run --silent paperclipai -- issue get|checkout|update|comment "$PAPERCLIP_TASK_ID" ...\` instead of auth-backed \`curl\`.
 - If the safe fallback script fails, report that failure and stop. Do not invent ad hoc \`/api/runs\` probes or hand-written \`jq\` filters.
-- If \`/agents/me/inbox-lite\` returns \`401\` or \`403\`, stop retrying auth-backed \`curl\`. For issue-bound wakes, use the trusted-host CLI fallback for that exact issue. For unbound wakes, switch to read-only \`GET /companies/$PAPERCLIP_COMPANY_ID/issues\`, filter by \`assigneeAgentId=$PAPERCLIP_AGENT_ID\`, summarize, and exit without retries.
+- If \`/agents/me/inbox-lite\` returns \`401\` or \`403\`, stop retrying auth-backed \`curl\`. For issue-bound wakes, use the trusted-host CLI fallback for that exact issue. For unbound wakes, run \`npm exec tsx -- scripts/paperclip/paperclip-heartbeat-snapshot.ts --assigned-open --plain\`, summarize, and exit without retries.
 - Do not use \`curl | python\`, \`curl | node\`, \`curl | bash\`, or any other pipe-to-interpreter pattern for localhost Paperclip reads.
+- Do not use the Hermes Python/execute_code tool for Paperclip API reads, auth/env discovery, or JSON parsing.
+- Never inspect, print, cat, grep, or find Paperclip secret/env/config files while debugging auth. Checking whether auth exists means testing whether \`PAPERCLIP_API_KEY\` is non-empty, not exposing or searching secrets.
 - Do not inspect unassigned backlog as part of heartbeat work discovery.
 - Do not self-assign from backlog.
 - For mutating Paperclip calls, include both \`Authorization: Bearer $PAPERCLIP_API_KEY\` and \`X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID\`.

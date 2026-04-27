@@ -14,6 +14,10 @@ const preferredCliLine =
   "For checkout, release, status updates, and comments, prefer `npm --prefix /Users/nijelhunt_1/workspace/paperclip run --silent paperclipai -- issue ...` so the CLI serializes JSON safely and forwards `PAPERCLIP_RUN_ID` automatically.";
 const missingJwtCliFallbackLine =
   'If PAPERCLIP_API_KEY is missing on this trusted host and PAPERCLIP_TASK_ID is present, stop using auth-backed curl and switch to \'npm --prefix /Users/nijelhunt_1/workspace/paperclip run --silent paperclipai -- issue get|checkout|update|comment "$PAPERCLIP_TASK_ID" ...\' for the bound issue.';
+const noHermesPythonPaperclipDiscoveryLine =
+  "Do not use the Hermes Python/execute_code tool for Paperclip API reads, auth/env discovery, or JSON parsing.";
+const noSecretFileAuthDebugLine =
+  "Never inspect, print, cat, grep, or find Paperclip secret/env/config files while debugging auth.";
 const noLocalhostProbeBeforePaperclipLine =
   "On issue-bound runs, before probing any localhost web-app port such as `3000`, first use the injected `PAPERCLIP_API_URL` or the safe heartbeat snapshot fallback to resolve the bound issue context.";
 
@@ -65,6 +69,8 @@ describe("Blueprint Paperclip agent instruction guards", () => {
     const content = await fs.readFile(reconcilePath, "utf8");
 
     expect(content).toContain(missingJwtCliFallbackLine);
+    expect(content).toContain(noHermesPythonPaperclipDiscoveryLine);
+    expect(content).toContain(noSecretFileAuthDebugLine);
   });
 
   it("keeps the chief of staff heartbeat pinned to the assigned issue on issue_assigned wakes", async () => {
