@@ -18,7 +18,7 @@ confidence: 0.74
 
 ## Summary
 
-Austin is publishable as an operator-facing blocker view, but the city/source funnel remains blocked because the live proof-motion path is not verified in this runtime and the latest repo truth still shows no routed city-opening response signal.
+Austin is publishable as an operator-facing blocker view, but the city/source funnel remains blocked because the live proof-motion path is not verified in this runtime and the latest repo truth still shows no routed city-opening response signal. The blocked metrics stay visible until live source access is confirmed so the scorecard does not imply measurement that we cannot prove yet.
 
 ## Evidence
 
