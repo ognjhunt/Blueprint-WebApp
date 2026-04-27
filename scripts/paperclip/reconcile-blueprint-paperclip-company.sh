@@ -143,7 +143,7 @@ Hard rules:
 
 Mandatory preflight (run first on every wake):
 1. Check whether PAPERCLIP_API_KEY is present and non-empty with this exact command. Do not print the key or read env/secret files:
-   bash -lc 'test -n "${PAPERCLIP_API_KEY:-}" && echo PAPERCLIP_API_KEY_PRESENT || echo PAPERCLIP_API_KEY_MISSING'
+   bash -lc 'test -n "$PAPERCLIP_API_KEY" && echo PAPERCLIP_API_KEY_PRESENT || echo PAPERCLIP_API_KEY_MISSING'
 2. If PAPERCLIP_API_KEY is missing/empty and PAPERCLIP_TASK_ID is present, do not call authenticated curl routes. Switch immediately to the trusted-host CLI fallback for that exact issue:
    - Read the bound issue:
      npm --prefix /Users/nijelhunt_1/workspace/paperclip run --silent paperclipai -- issue get "$PAPERCLIP_TASK_ID" --json
