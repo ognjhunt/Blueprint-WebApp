@@ -2390,14 +2390,24 @@ export const caseStudies: CaseStudy[] = [
 
 export const jobs: Job[] = [
   {
-    title: "GTM Engineer",
+    title: "Founding GTM Systems Lead",
     type: "Full-time",
     location: "Remote, with city-launch travel when useful",
     summary:
-      "Build the GTM scaffolding that lets Blueprint launch new cities, source real capture supply, and turn buyer demand into repeatable autonomous workflows.",
+      "Own the human-plus-agent GTM loop for Blueprint: city launches, buyer research, outbound, follow-up, content, reporting, and the agent harness behind it.",
     description:
-      "You will design and run the systems that move Blueprint from city research to capture supply to buyer follow-up. Expect agent workflows, first-party ledgers, outbound review gates, local market tests, and a lot of practical judgment about what should be automated and what still needs a human in the loop.",
-    applyEmail: "apply+gtm-engineer@tryblueprint.io",
+      "You will run a lean GTM org where agents do most of the execution. The job is to brief, route, inspect, and improve the agent lanes that move Blueprint from city research to capture supply to buyer follow-up, while keeping every claim tied to real provenance and buyer-visible proof.",
+    applyEmail: "apply+gtm-systems@tryblueprint.io",
+  },
+  {
+    title: "Founding Delivery Systems Lead",
+    type: "Full-time",
+    location: "Remote, with site or city travel when useful",
+    summary:
+      "Own the delivery operating loop for Blueprint: capture execution, site readiness, hosted-review delivery, buyer success, QA, provenance checks, and the agent harness behind it.",
+    description:
+      "You will turn messy field and customer requests into repeatable workflows. Agents, contractors, and tools will do much of the execution; your job is to set the lanes, check the evidence, catch weak handoffs, and make sure real-site outputs ship without fake readiness or loose provenance.",
+    applyEmail: "apply+delivery-systems@tryblueprint.io",
   },
 ];
 
