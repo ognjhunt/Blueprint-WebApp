@@ -109,6 +109,7 @@ import {
   FALLBACK_ORIGIN_ADAPTER_CONFIG_KEY,
   getLocalAdapterWorkspaceKey,
   getWorkspaceAdapterCooldownKey,
+  hasQuotaFallbackRetryForTask,
   isProviderAuthFailure,
   isQuotaOrRateLimitFailure,
   isProviderCreditFailure,
@@ -6921,10 +6922,15 @@ async function handleAgentRunFailureQuotaFallback(
   if (isToolRuntimeFailure(payload.errorCode, payload.error)) {
     return;
   }
+  const retryTaskKey =
+    payload.taskKey ??
+    payload.taskId ??
+    payload.issueId ??
+    `quota-fallback:${payload.agentId}:${payload.runId}`;
 
   const existingState =
     await readState<QuotaFallbackRetryState>(ctx, event.companyId, STATE_KEYS.quotaFallbackRetries) ?? {};
-  if (existingState[payload.runId]) {
+  if (hasQuotaFallbackRetryForTask(existingState, retryTaskKey)) {
     return;
   }
 
@@ -6991,7 +6997,7 @@ async function handleAgentRunFailureQuotaFallback(
         status: "skipped",
         agentId: agent.id,
         issueId: payload.issueId,
-        taskKey: payload.taskKey ?? payload.taskId,
+        taskKey: retryTaskKey,
         reason: "quota_fallback_skipped",
         note: `Agent adapter is ${agent.adapterType}, which has no configured quota fallback.`,
       }),
@@ -6999,11 +7005,6 @@ async function handleAgentRunFailureQuotaFallback(
     return;
   }
 
-  const retryTaskKey =
-    payload.taskKey ??
-    payload.taskId ??
-    payload.issueId ??
-    `quota-fallback:${agent.id}:${payload.runId}`;
   const workspaceKey = getLocalAdapterWorkspaceKey(failedAdapter.failedAdapterConfig);
   const cooldownUntil = resolveQuotaCooldownUntil(payload.error, {
     defaultCooldownMs: WORKSPACE_QUOTA_COOLDOWN_MS,

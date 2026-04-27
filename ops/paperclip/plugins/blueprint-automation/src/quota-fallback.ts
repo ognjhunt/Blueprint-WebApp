@@ -839,3 +839,20 @@ export function buildQuotaFallbackRetryRecord(input: {
     note: input.note ?? null,
   };
 }
+
+export function hasQuotaFallbackRetryForTask(
+  state: QuotaFallbackRetryState | null | undefined,
+  taskKey: string | null | undefined,
+): boolean {
+  const normalizedTaskKey = asTrimmedString(taskKey);
+  if (!normalizedTaskKey || !state) {
+    return false;
+  }
+
+  return Object.values(state).some((record) => {
+    if (!record || record.status === "skipped") {
+      return false;
+    }
+    return asTrimmedString(record.taskKey) === normalizedTaskKey;
+  });
+}

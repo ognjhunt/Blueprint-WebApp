@@ -11,6 +11,7 @@ import {
   extractLogicalSucceededRunFailure,
   FALLBACK_ORIGIN_ADAPTER_CONFIG_KEY,
   HERMES_MODEL_LADDER_CONFIG_KEY,
+  hasQuotaFallbackRetryForTask,
   getWorkspaceAdapterCooldownKey,
   inferFailedLocalAdapterType,
   isDisallowedHermesFallbackModel,
@@ -765,6 +766,31 @@ describe("quota fallback helpers", () => {
       wakeupRunId: null,
       note: null,
     });
+  });
+
+  it("matches quota fallback retries by task key instead of run id", () => {
+    const state = {
+      "run-1": buildQuotaFallbackRetryRecord({
+        attemptedAt: "2026-03-29T00:00:00.000Z",
+        status: "retried",
+        agentId: "agent-1",
+        issueId: "issue-1",
+        taskKey: "task-1",
+        reason: "quota_retry",
+      }),
+      "run-2": buildQuotaFallbackRetryRecord({
+        attemptedAt: "2026-03-29T00:05:00.000Z",
+        status: "skipped",
+        agentId: "agent-2",
+        issueId: "issue-1",
+        taskKey: "task-2",
+        reason: "quota_retry",
+      }),
+    };
+
+    expect(hasQuotaFallbackRetryForTask(state, "task-1")).toBe(true);
+    expect(hasQuotaFallbackRetryForTask(state, "task-2")).toBe(false);
+    expect(hasQuotaFallbackRetryForTask(state, "task-3")).toBe(false);
   });
 
   it("selects same-workspace agents for quota fallback", () => {
