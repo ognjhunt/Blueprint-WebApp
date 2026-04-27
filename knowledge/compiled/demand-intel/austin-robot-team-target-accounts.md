@@ -166,9 +166,98 @@ Why this cluster matters:
 - Which proof surface is strongest in Austin right now: warehouse, hospital, dock, jobsite, lab, oilfield, or operations center?
 - Which community anchor in Austin actually increases buyer follow-through rather than just event attendance?
 
+## Buyer Threads And First-Touch Candidates
+
+Austin now has enough public evidence to rank buyer threads by workflow rather than by company name alone. The strongest first-touch candidates are the public routes that already ask buyers to respond to a specific operational motion.
+
+### Humanoid workplace robotics
+
+- Apptronik
+- Diligent Robotics
+
+Why this thread matters:
+- These companies already sell human-environment robots into hard operational settings.
+- The first touch should be tied to a warehouse, manufacturing, or hospital workflow proof pack.
+
+Best first-touch surfaces:
+- Apptronik contact page
+- Diligent Robotics demo/contact page
+
+### Warehouse and dock automation
+
+- Fox Robotics
+- RobotLAB Austin
+
+Why this thread matters:
+- These buyers care about receiving docks, trailer unloading, pallet flow, and deployment support.
+- Exact-site warehouse and dock proof packs fit this thread best.
+
+Best first-touch surfaces:
+- Fox Robotics contact-sales form
+- RobotLAB Austin consultation or Austin contact route
+
+### Construction and infrastructure robotics
+
+- ICON
+
+Why this thread matters:
+- ICON now has both a builder motion and a defense / space motion, which makes the buyer thread more specific than a generic robotics pitch.
+
+Best first-touch surfaces:
+- Titan builder inquiry
+- Build-with-ICON form
+
+### Industrial autonomy and proving grounds
+
+- SparkCognition
+
+Why this thread matters:
+- HyperWerx remains the clearest Austin proof that buyers still pay for autonomy testing and physical-system evaluation.
+
+Best first-touch surface:
+- Public SparkCognition / HyperWerx inquiry path
+
+### Energy and field robotics
+
+- RoyCo Robotics
+- Ocean Infinity
+
+Why this thread matters:
+- These buyers care about remote operations, telemetry, and constrained field environments.
+
+Best first-touch surfaces:
+- RoyCo Robotics public contact route
+- Ocean Infinity sales contact route
+
+### Channel density
+
+- Texas Robotics at UT Austin
+- Austin Robotics & AI
+
+Why this thread matters:
+- These are useful for legitimacy and technical visibility, not direct buyer conversion.
+- Keep them in the channel lane unless buyer follow-through appears.
+
+Best first-touch surfaces:
+- Texas Robotics industry partnership or visit route
+- Austin Robotics & AI Meetup / Discord
+
+## First-Touch Candidate Rank
+
+| Candidate | Thread | Why it is a first-touch candidate | Public route | Evidence vs inference |
+|---|---|---|---|---|
+| Apptronik | Humanoid workplace robotics | Clear warehouse and manufacturing buyer language plus a live GXO proof thread | Contact page | Evidence |
+| Diligent Robotics | Humanoid healthcare robotics | Demo-first motion with current hospital pharmacy proof | Demo/contact page | Evidence |
+| Fox Robotics | Warehouse and dock automation | Direct dock workflow positioning and a current sales entry point | Contact-sales form | Evidence |
+| ICON | Construction and infrastructure robotics | Builder and government inquiry paths are explicit | Titan / build-with-ICON forms | Evidence |
+| Ocean Infinity | Energy and field robotics | Austin office plus sales inquiry surface for robotics and remote ops | Sales contact | Evidence |
+| RoyCo Robotics | Energy and field robotics | Public Austin routing and a narrow oilfield automation workflow | Contact email / form | Evidence |
+| RobotLAB Austin | Local integrator | Local consultative entry point for deployment-heavy conversations | Austin contact email / consultation | Evidence |
+
 ## Linked Reports
 
 - [Austin robot-company target accounts and buyer clusters](../../reports/demand-intel/2026-04-17-demand-intel-daily-digest-2026-04-17-austin-robot-company-target-accounts-and-buyer-clusters.md)
+- [Austin robot team buyer threads and first-touch candidates](../../reports/demand-intel/2026-04-27-austin-robot-team-buyer-threads-and-first-touch-candidates.md)
 - [Robot Team Demand Weekly Tracker](./robot-team-demand-weekly-tracker.md)
 
 ## Authority Boundary

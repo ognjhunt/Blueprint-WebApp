@@ -1,7 +1,7 @@
 # Austin, TX No-Signal Recovery
 
 - status: not_triggered
-- evaluated_at: 2026-04-26T13:07:37.134Z
+- evaluated_at: 2026-04-27T20:31:26.452Z
 - trigger_rule: no positive applicant/capturer/reply/operator signal after 3 days or 2 sent direct-outreach actions
 - reason: Not triggered because Austin, TX has not reached 3 days since first send or 2 sent direct-outreach actions.
 - dispatch_status: not_applicable

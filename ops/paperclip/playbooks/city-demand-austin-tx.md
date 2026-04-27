@@ -3,7 +3,7 @@
 ## Status
 - phase: activation_ready
 - owner: city-demand-agent
-- latest-refresh: 2026-04-26
+- latest-refresh: 2026-04-27
 - planning-state: completed
 - confidence: medium
 
@@ -39,6 +39,14 @@ Austin demand should stay proof-led: qualify real robot-team interest, classify 
 - hosted_review_follow_up_sent: required_tracked
 - human_commercial_handoff_started: required_tracked
 - proof_motion_stalled: required_tracked
+- city_launch_lawful_access_established: required_tracked
+- city_launch_capturer_approved: required_tracked
+- city_launch_capture_completed: required_tracked
+- city_launch_capture_qa_passed: required_tracked
+- city_launch_proof_asset_rights_cleared: required_tracked
+- city_launch_proof_pack_delivered: required_tracked
+- city_launch_hosted_review_ready: required_tracked
+- city_launch_commercial_handoff: required_tracked
 
 ## Sensitive-Lane Constraints
 - if a buyer sits in defense, aerospace, export-controlled, or air-gapped environments, block the standard hosted-review path until the policy and evidence path are explicit

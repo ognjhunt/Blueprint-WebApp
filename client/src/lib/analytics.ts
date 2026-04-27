@@ -85,10 +85,10 @@ function buildDemandAttributionEventParams(
     buyer_channel_source: attribution?.buyerChannelSource ?? undefined,
     buyer_channel_source_capture_mode:
       attribution?.buyerChannelSourceCaptureMode ?? undefined,
-    utm_source: attribution?.utm.source ?? undefined,
-    utm_medium: attribution?.utm.medium ?? undefined,
-    utm_campaign: attribution?.utm.campaign ?? undefined,
-    utm_content: attribution?.utm.content ?? undefined,
+    utm_source: attribution?.utm?.source ?? undefined,
+    utm_medium: attribution?.utm?.medium ?? undefined,
+    utm_campaign: attribution?.utm?.campaign ?? undefined,
+    utm_content: attribution?.utm?.content ?? undefined,
   });
 }
 
@@ -744,6 +744,49 @@ export const analyticsEvents = {
       ...buildDemandAttributionEventParams(properties.demandAttribution),
     }),
 
+  proofPathAssigned: (properties: {
+    city?: string;
+    outcome?: string;
+    assignedBy?: string;
+    buyerSegment?: string;
+    demandAttribution?: DemandAttribution;
+  }) =>
+    trackEvent("proof_path_assigned", {
+      city: properties.city,
+      outcome: properties.outcome,
+      assigned_by: properties.assignedBy,
+      buyer_segment: properties.buyerSegment,
+      ...buildDemandAttributionEventParams(properties.demandAttribution),
+    }),
+
+  proofPackDelivered: (properties: {
+    city?: string;
+    artifactSummary?: string;
+    buyerSegment?: string;
+    demandAttribution?: DemandAttribution;
+  }) =>
+    trackEvent("proof_pack_delivered", {
+      city: properties.city,
+      artifact_summary: properties.artifactSummary,
+      buyer_segment: properties.buyerSegment,
+      ...buildDemandAttributionEventParams(properties.demandAttribution),
+    }),
+
+  hostedReviewReady: (properties: {
+    city?: string;
+    hostedMode?: string;
+    reviewPath?: string;
+    buyerSegment?: string;
+    demandAttribution?: DemandAttribution;
+  }) =>
+    trackEvent("hosted_review_ready", {
+      city: properties.city,
+      hosted_mode: properties.hostedMode,
+      review_path: properties.reviewPath,
+      buyer_segment: properties.buyerSegment,
+      ...buildDemandAttributionEventParams(properties.demandAttribution),
+    }),
+
   robotTeamInboundCaptured: (properties: {
     city?: string;
     buyerRole?: string;
@@ -754,6 +797,19 @@ export const analyticsEvents = {
       city: properties.city,
       buyer_role: properties.buyerRole,
       requested_lane: properties.requestedLane,
+      ...buildDemandAttributionEventParams(properties.demandAttribution),
+    }),
+
+  hostedReviewFollowUpSent: (properties: {
+    city?: string;
+    nextStepRecommendation?: string;
+    buyerSegment?: string;
+    demandAttribution?: DemandAttribution;
+  }) =>
+    trackEvent("hosted_review_follow_up_sent", {
+      city: properties.city,
+      next_step_recommendation: properties.nextStepRecommendation,
+      buyer_segment: properties.buyerSegment,
       ...buildDemandAttributionEventParams(properties.demandAttribution),
     }),
 
@@ -800,6 +856,19 @@ export const analyticsEvents = {
       city: properties.city,
       blocker_reason: properties.blockerReason,
       blocker_detail: properties.blockerDetail,
+      ...buildDemandAttributionEventParams(properties.demandAttribution),
+    }),
+
+  humanCommercialHandoffStarted: (properties: {
+    city?: string;
+    handoffReason?: string;
+    buyerSegment?: string;
+    demandAttribution?: DemandAttribution;
+  }) =>
+    trackEvent("human_commercial_handoff_started", {
+      city: properties.city,
+      handoff_reason: properties.handoffReason,
+      buyer_segment: properties.buyerSegment,
       ...buildDemandAttributionEventParams(properties.demandAttribution),
     }),
 

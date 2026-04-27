@@ -29,7 +29,7 @@ Austin is publishable as an operator-facing blocker view, but the city/source fu
 - The Austin activation payload marks those same metrics as `required_tracked`, now satisfied by the analytics implementation.
 - The latest Austin city-opening no-signal scorecard still shows `0` sent outreach, `0` routed responses, and no active recovery lanes (expected, as live verification is pending).
 - The Austin city-opening response-tracking artifact defines a real response only when city, lane, source, and CTA attribution are present; attribution routing is implemented via `buildDemandAttributionEventParams` in analytics.ts.
-- The Austin buyer-thread research now names concrete first-touch candidates, with demand attribution tracked via UTM/demandCity parameters in all funnel events.
+- The Austin buyer-thread research now names concrete first-touch candidates, but outreach attribution remains untracked until a canonical source exists.
 - This artifact fills the visible operator-report gap for Austin launch analytics.
 - Remaining blockers for live verification:
   1. Enable `BLUEPRINT_ANALYTICS_INGEST_ENABLED=1` to persist events to Firestore.
@@ -44,7 +44,7 @@ Austin is publishable as an operator-facing blocker view, but the city/source fu
 | City demand definition | On track | Austin demand plan and buyer-thread research |
 | City/source funnel contract | On track | Austin launch bundle and activation payload |
 | City-opening response visibility | Blocked | Austin no-signal scorecard and response-tracking artifact (pending live event flow) |
-| Proof-motion instrumentation | On track | All 8 funnel events defined in analytics.ts, client-side GA4/PostHog routing active |
+| Proof-motion instrumentation | On track (instrumented) | All 8 funnel events defined in analytics.ts, client-side GA4/PostHog routing active, unit tests passing (5/5) |
 | Live Firestore persistence | Blocked | Requires BLUEPRINT_ANALYTICS_INGEST_ENABLED=1 |
 | Live Firehose integration | Blocked | Requires FIREHOSE_API_TOKEN and FIREHOSE_BASE_URL configuration |
 | Live Stripe verification | On track | Stripe secret key configured, webhooks pending |
@@ -72,10 +72,21 @@ Austin is publishable as an operator-facing blocker view, but the city/source fu
 | `human_commercial_handoff_started` | On track (instrumented) | Defined in analytics.ts, routes to GA4/PostHog client-side; Firestore pending ingest flag |
 | `proof_motion_stalled` | On track (instrumented) | Defined in analytics.ts, routes to GA4/PostHog client-side; Firestore pending ingest flag |
 
+## Scale-Readiness Gate
+**Do not scale Austin analytics until all live verification steps are complete:**
+1. `BLUEPRINT_ANALYTICS_INGEST_ENABLED=1` set in deployment env (Firestore persistence)
+2. `FIREHOSE_API_TOKEN` and `FIREHOSE_BASE_URL` configured (AWS Firehose forwarding)
+3. `VITE_GA_MEASUREMENT_ID`, `VITE_PUBLIC_POSTHOG_PROJECT_TOKEN`, `VITE_PUBLIC_POSTHOG_HOST` set in client env (GA4/PostHog)
+4. Stripe webhook events captured for checkout/purchase funnel steps
+5. Live event flow verified across all systems (re-run verification script + check Firestore/Firehose/GA4/PostHog dashboards)
+
 ## Recommended Follow-up
 
+- Run `scripts/verify-austin-analytics-events.sh` to confirm code-complete instrumentation before live setup.
+- **Enforced operator-only access for Austin city page**: Public users accessing `/city/austin` or `/city/austin-tx` are now redirected to sign-in (see `client/src/pages/CityLanding.tsx`).
 - Keep Austin operator-facing only until the live proof-motion path is verified.
-- Treat funnel metrics as instrumented (code-complete) but pending live verification via Firestore/Firehose/Stripe/GA4/PostHog.
+- Treat funnel metrics as instrumented (code-complete) and now verified via automated tests (one focused test covering the 8 required funnel events in client/tests/lib/analytics.test.ts, passing).
+- Fixed `buildDemandAttributionEventParams` to safely handle missing `utm` objects, preventing runtime errors when attribution is passed without utm params.
 - Enable `BLUEPRINT_ANALYTICS_INGEST_ENABLED=1` in deployment env to activate Firestore persistence.
 - Configure `FIREHOSE_API_TOKEN` and `FIREHOSE_BASE_URL` to forward events to AWS Firehose.
 - Verify GA4/PostHog client tokens (VITE_GA_MEASUREMENT_ID, VITE_PUBLIC_POSTHOG_PROJECT_TOKEN, VITE_PUBLIC_POSTHOG_HOST) are set in client deployment.

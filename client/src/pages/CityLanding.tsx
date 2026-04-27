@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { useParams } from "wouter";
+import { useMemo, useState, useEffect } from "react";
+import { useParams, useNavigate } from "wouter";
 import { ArrowRight, CheckCircle2, Clock3, MapPinned } from "lucide-react";
 import { SEO } from "@/components/SEO";
 import {
@@ -12,6 +12,7 @@ import { withCsrfHeader } from "@/lib/csrf";
 import { editorialRefreshAssets } from "@/lib/editorialRefreshAssets";
 import { findLaunchCityBySlug } from "@/lib/publicLaunchStatus";
 import { usePublicLaunchStatus } from "@/hooks/usePublicLaunchStatus";
+import { useAuth } from "@/contexts/AuthContext";
 
 function humanizeCitySlug(citySlug: string) {
   return citySlug
@@ -44,7 +45,18 @@ const captureRules = [
 export default function CityLanding() {
   const params = useParams<{ citySlug: string }>();
   const citySlug = params.citySlug || "";
+  const navigate = useNavigate();
+  const { currentUser } = useAuth();
   const { data, loading } = usePublicLaunchStatus();
+
+  useEffect(() => {
+    // Per BLU-321: Keep Austin operator-facing only until live proof-motion path is verified
+    const normalized = citySlug.toLowerCase().replace(/-/g, '');
+    const isAustin = normalized === 'austin' || normalized === 'austintx';
+    if (isAustin && !currentUser) {
+      navigate(`/sign-in?redirect=/city/${citySlug}`);
+    }
+  }, [citySlug, currentUser, navigate]);
   const [email, setEmail] = useState("");
   const [locationType, setLocationType] = useState("");
   const [submitted, setSubmitted] = useState(false);

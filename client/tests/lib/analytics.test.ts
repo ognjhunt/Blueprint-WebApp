@@ -304,4 +304,154 @@ describe("analytics contract", () => {
     expect(payload.properties).not.toHaveProperty("company");
     expect(payload.properties).not.toHaveProperty("firstName");
   });
+
+  it("emits all 8 Austin funnel events with correct properties and attribution", async () => {
+    // Test robot_team_inbound_captured
+    analyticsEvents.robotTeamInboundCaptured({
+      city: "austin",
+      buyerRole: "robot_team",
+      requestedLane: "deeper_evaluation",
+      demandAttribution: {
+        demandCity: "austin" as never,
+        buyerChannelSource: "founder_intro",
+        buyerChannelSourceCaptureMode: "explicit_query",
+        utm: { source: "google", medium: "cpc", campaign: "austin_launch" },
+      },
+    });
+    await flushAnalytics();
+    let payload = parseAnalyticsPayload(0);
+    expect(payload.event).toBe("robot_team_inbound_captured");
+    expect(payload.properties).toMatchObject({
+      city: "austin",
+      buyer_role: "robot_team",
+      requested_lane: "deeper_evaluation",
+      demand_city: "austin",
+      buyer_channel_source: "founder_intro",
+      utm_source: "google",
+    });
+
+    // Test proof_path_assigned
+    analyticsEvents.proofPathAssigned({
+      city: "austin",
+      outcome: "approved",
+      assignedBy: "system",
+      buyerSegment: "robot_team",
+      demandAttribution: { demandCity: "austin" as never },
+    });
+    await flushAnalytics();
+    payload = parseAnalyticsPayload(1);
+    expect(payload.event).toBe("proof_path_assigned");
+    expect(payload.properties).toMatchObject({
+      city: "austin",
+      outcome: "approved",
+      assigned_by: "system",
+      buyer_segment: "robot_team",
+      demand_city: "austin",
+    });
+
+    // Test proof_pack_delivered
+    analyticsEvents.proofPackDelivered({
+      city: "austin",
+      artifactSummary: "3 sites, 2 proofs",
+      buyerSegment: "robot_team",
+      demandAttribution: { demandCity: "austin" as never },
+    });
+    await flushAnalytics();
+    payload = parseAnalyticsPayload(2);
+    expect(payload.event).toBe("proof_pack_delivered");
+    expect(payload.properties).toMatchObject({
+      city: "austin",
+      artifact_summary: "3 sites, 2 proofs",
+      buyer_segment: "robot_team",
+      demand_city: "austin",
+    });
+
+    // Test hosted_review_ready
+    analyticsEvents.hostedReviewReady({
+      city: "austin",
+      hostedMode: "full_access",
+      reviewPath: "proof_pack",
+      buyerSegment: "robot_team",
+      demandAttribution: { demandCity: "austin" as never },
+    });
+    await flushAnalytics();
+    payload = parseAnalyticsPayload(3);
+    expect(payload.event).toBe("hosted_review_ready");
+    expect(payload.properties).toMatchObject({
+      city: "austin",
+      hosted_mode: "full_access",
+      review_path: "proof_pack",
+      buyer_segment: "robot_team",
+      demand_city: "austin",
+    });
+
+    // Test hosted_review_started
+    analyticsEvents.hostedReviewStarted({
+      city: "austin",
+      hostedMode: "full_access",
+      demandAttribution: { demandCity: "austin" as never },
+    });
+    await flushAnalytics();
+    payload = parseAnalyticsPayload(4);
+    expect(payload.event).toBe("hosted_review_started");
+    expect(payload.properties).toMatchObject({
+      city: "austin",
+      hosted_mode: "full_access",
+      demand_city: "austin",
+    });
+
+    // Test hosted_review_follow_up_sent
+    analyticsEvents.hostedReviewFollowUpSent({
+      city: "austin",
+      nextStepRecommendation: "human_handoff",
+      buyerSegment: "robot_team",
+      demandAttribution: { demandCity: "austin" as never },
+    });
+    await flushAnalytics();
+    payload = parseAnalyticsPayload(5);
+    expect(payload.event).toBe("hosted_review_follow_up_sent");
+    expect(payload.properties).toMatchObject({
+      city: "austin",
+      next_step_recommendation: "human_handoff",
+      buyer_segment: "robot_team",
+      demand_city: "austin",
+    });
+
+    // Test human_commercial_handoff_started
+    analyticsEvents.humanCommercialHandoffStarted({
+      city: "austin",
+      handoffReason: "complex_requirements",
+      buyerSegment: "robot_team",
+      demandAttribution: { demandCity: "austin" as never },
+    });
+    await flushAnalytics();
+    payload = parseAnalyticsPayload(6);
+    expect(payload.event).toBe("human_commercial_handoff_started");
+    expect(payload.properties).toMatchObject({
+      city: "austin",
+      handoff_reason: "complex_requirements",
+      buyer_segment: "robot_team",
+      demand_city: "austin",
+    });
+
+    // Test proof_motion_stalled
+    analyticsEvents.proofMotionStalled({
+      city: "austin",
+      blockerReason: "no_proof_pack",
+      blockerDetail: "Awaiting site access",
+      demandAttribution: { demandCity: "austin" as never },
+    });
+    await flushAnalytics();
+    payload = parseAnalyticsPayload(7);
+    expect(payload.event).toBe("proof_motion_stalled");
+    expect(payload.properties).toMatchObject({
+      city: "austin",
+      blocker_reason: "no_proof_pack",
+      blocker_detail: "Awaiting site access",
+      demand_city: "austin",
+    });
+
+    // Verify all 8 events were emitted
+    expect(fetchMock).toHaveBeenCalledTimes(8);
+  });
 });

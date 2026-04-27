@@ -3,9 +3,9 @@
 ## Status
 - phase: planning
 - owner: city-demand-agent
-- latest-refresh: 2026-04-17
+- latest-refresh: 2026-04-27
 - planning-state: target-ledger_ranked
-- confidence: medium-low
+- confidence: medium
 
 ## City Demand Thesis
 San Francisco demand should stay proof-led and ecosystem-driven: qualify real robot-team interest, prioritize Bay Area warehouse / parcel / 3PL and manufacturing corridors, and move serious threads into exact-site or operator-lane proof before any broader review motion.
@@ -13,8 +13,10 @@ San Francisco demand should stay proof-led and ecosystem-driven: qualify real ro
 ## What Changed This Pass
 - evidence-backed: the San Francisco capture target ledger now names Oakland airport logistics, Port of Oakland support facilities, Fremont manufacturing, Milpitas electronics corridors, South San Francisco industrial/warehouse, San Leandro distribution, Hayward industrial parks, and Peninsula demo / lab clusters.
 - evidence-backed: the Bay Area has dense robotics, logistics, and manufacturing ecosystems, so partner-introduced exact sites and operator intros should outrank broad public prospecting.
-- evidence-backed: BARA-style networks, port, cargo, and airport systems are the most credible ecosystem channels for qualified demand.
-- evidence-backed: the compact demand lane should stay subordinate to the launch system until a proof pack and hosted review are actually materialized.
+- evidence-backed: BARA-style networks, port, cargo, and airport systems remain the most credible ecosystem channels for qualified demand.
+- evidence-backed: the launch system is still draft_pending_founder_approval, so San Francisco remains strategically important but not yet operationally real.
+- evidence-backed: the Exact-Site Hosted Review pilot ledger currently has no San Francisco rows, so no SF-specific pilot target context was added in this pass.
+- evidence-backed: the San Francisco funnel now has an explicit machine-readable analytics contract for inbound capture through hosted-review follow-up.
 - warning: proof-ready listings, hosted reviews, and named first-touch accounts are still not materialized in the compact demand lane.
 
 ## Likely Robot-Team Buyer Clusters
@@ -45,6 +47,30 @@ San Francisco demand should stay proof-led and ecosystem-driven: qualify real ro
 - partner-introduced technical demo or pilot environments when they support real buyer evaluation
 - bounded logistics and robotics meetups that can produce qualified introductions without public city-launch language
 
+## Optional Site-Operator Opportunities
+- strongest when the site sits inside a port, cargo, manufacturing, or controlled-access industrial corridor
+- particularly relevant for Port of Oakland, SFO cargo, Fremont, Milpitas, and South San Francisco-adjacent facilities
+- keep operator-lane work secondary unless the site boundary, permission path, or tenant model makes it necessary
+- treat pricing, rights, privacy, and commercialization as human-only gates
+
+## Proof-Pack Expectations
+- exact site summary with buyer role, workflow, and facility type
+- capture provenance summary and recency window
+- hosted-review path or walkthrough entry point
+- artifact handoff checklist and compatibility notes for the buyer stack
+- rights, privacy, and consent boundary summary
+- explicit exact-site, adjacent-site, or scoped-follow-up label
+- clear statement of what exists now versus what still needs capture or approval
+
+## Operational and Commercial Dependencies
+- rights-cleared proof assets for at least one Bay Area logistics or manufacturing target
+- proof-pack assembly with provenance, rights, privacy, recency, and hosted-review fields intact
+- a named buyer-target ledger that turns corridors into concrete accounts and first touches
+- analytics validation for city/source-tagged funnel events before scaling outbound
+- human commercial owner for standard quotes, package bands, and any non-standard commercial ask
+- site-operator support only where the access path, tenant rules, or operator permission model changes the deal
+- downstream `demand-intel-agent` work to keep the target ledger current and tied to real buyer threads
+
 ## Demand Readiness Scorecard
 | Dimension | Score | Rationale |
 | --- | ---: | --- |
@@ -56,25 +82,7 @@ San Francisco demand should stay proof-led and ecosystem-driven: qualify real ro
 | strategic importance | 5/5 | San Francisco remains the highest-density Bay Area market for technically sophisticated buyers. |
 | overall readiness | 3/5 | Strong ecosystem density, but still blocked on proof-pack assembly and buyer-thread conversion. |
 
-## Instrumentation Standard
-| Stage | Event or state | Why it matters |
-|---|---|---|
-| demand signal | `robot_team_inbound_captured` with source, city, buyer role, and requested lane | separates real robot-team demand from generic awareness |
-| proof-path triage | `proof_path_assigned` with outcome: exact_site, adjacent_site, scoped_follow_up | shows whether the city has truthful proof scope |
-| proof delivery | `proof_pack_delivered` and `hosted_review_ready` | measures time-to-proof and whether a technical review surface exists |
-| hosted review | `hosted_review_started` and `hosted_review_follow_up_sent` | measures whether proof actually converts into technical review |
-| next action | `exact_site_request_created`, `deeper_review_requested`, or `human_commercial_handoff_started` | shows whether San Francisco is moving toward buyer pull or human-only commercial routing |
-
-## Operational and Commercial Dependencies
-- rights-cleared proof assets for at least one Bay Area logistics or manufacturing target
-- proof-pack assembly with provenance, rights, privacy, recency, and hosted-review fields intact
-- a named buyer-target ledger that turns corridors into concrete accounts and first touches
-- analytics validation for city/source-tagged funnel events before scaling outbound
-- human commercial owner for standard quotes, package bands, and any non-standard commercial ask
-- site-operator support only where the access path, tenant rules, or operator permission model changes the deal
-- downstream `demand-intel-agent` work to keep the target ledger current and tied to real buyer threads
-
-## Metrics Dependencies
+## Measurement Plan
 - `robot_team_inbound_captured`
 - `proof_path_assigned`
 - `proof_pack_delivered`
@@ -83,11 +91,26 @@ San Francisco demand should stay proof-led and ecosystem-driven: qualify real ro
 - `hosted_review_follow_up_sent`
 - `exact_site_request_created`
 - `human_commercial_handoff_started`
+- `proof_motion_stalled`
+
+## Metrics Dependencies
+
+- `robot_team_inbound_captured`: required_tracked
+- `proof_path_assigned`: required_tracked
+- `proof_pack_delivered`: required_tracked
+- `hosted_review_ready`: required_tracked
+- `hosted_review_started`: required_tracked
+- `hosted_review_follow_up_sent`: required_tracked
+- `exact_site_request_created`: required_tracked
+- `deeper_review_requested`: required_tracked
+- `human_commercial_handoff_started`: required_tracked
+- `proof_motion_stalled`: required_tracked
 
 ## Sensitive-Lane Constraints
 - if a buyer sits in defense, aerospace, export-controlled, or air-gapped environments, block the standard hosted-review path until the policy and evidence path are explicit
 - do not imply that Blueprint can serve sensitive or controlled-access environments over a standard cloud runtime without buyer-specific confirmation
 - operator-governed facilities and rights-sensitive exact-site requests should route through `rights-provenance-agent` plus automatic policy review
+- high-security Bay Area sites such as ports, cargo corridors, and major manufacturing campuses should stay operator-secondary until the rights path is explicit
 
 ## Immediate Next Actions
 1. hand `demand-intel-agent` the San Francisco target ledger so named corridors turn into buyer threads, facility owners, and first-touch candidates.
