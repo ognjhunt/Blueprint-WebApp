@@ -80,16 +80,16 @@ export default function Contact() {
     : robotTeamCityMessaging
       ? robotTeamCityMessaging.requestHeroTitle
       : persona === "site_operator"
-        ? "Tell us about the facility and the rules around it."
+        ? "Submit or claim a site for robot evaluation."
         : "Tell us the site, task, and robot in a few lines.";
   const heroBody = captureRequestMode
     ? "Name the place, workflow, and robot question. Blueprint will use that brief to decide whether the next step is a hosted review, capture ask, or follow-up question."
     : hostedMode
     ? "Confirm the site, the task, and the robot setup. Blueprint will use that to line up the right hosted evaluation path for your team."
-    : robotTeamCityMessaging
+      : robotTeamCityMessaging
       ? robotTeamCityMessaging.requestHeroBody
       : persona === "site_operator"
-        ? "Use this form if you run the facility and need to talk through capture access, privacy rules, or whether the site belongs in the catalog."
+        ? "Start with the facility, access rules, and privacy boundaries. A call comes later only when private areas, rights, or commercialization need a human pass."
         : "Use this form if your team needs one exact site for evaluation, site-specific data, release comparison, or package access.";
 
   const responseBody = captureRequestMode
@@ -99,7 +99,7 @@ export default function Contact() {
       : robotTeamCityMessaging
       ? robotTeamCityMessaging.requestResponseBody
       : persona === "site_operator"
-        ? "Blueprint reviews the facility details, access rules, and privacy notes first so the next reply can narrow the path quickly."
+        ? "Blueprint reviews the facility details, access rules, privacy notes, and commercialization preference first. A call is only the next step when those details are specific enough to resolve."
         : "Blueprint reviews the site, task, and robot details first. The reply points your team toward the package path, hosted evaluation path, or the follow-up question that actually matters.";
 
   const expectedNextStep =
@@ -142,19 +142,19 @@ export default function Contact() {
     persona === "site_operator"
       ? [
           {
+            href: "/contact/site-operator",
+            label: "Submit or claim a site",
+            detail: "Best first step when you can name the facility, access rules, and privacy boundaries.",
+          },
+          {
             href: "/governance",
             label: "Review governance",
             detail: "Best when privacy, restricted zones, rights, or commercialization rules come first.",
           },
           {
             href: "/capture-app/launch-access?role=site_operator",
-            label: "Signal local access",
+            label: "List a site for robot evaluation",
             detail: "Best when your facility or city is not in an active capture window yet.",
-          },
-          {
-            href: "/world-models",
-            label: "See public listing style",
-            detail: "Best when you want to understand what buyers can see before approval.",
           },
         ]
       : [

@@ -4,6 +4,10 @@ import { ArrowRight, Calendar, CheckCircle2, Clock, Mail } from "lucide-react";
 import { analyticsEvents, getSafeErrorType } from "@/lib/analytics";
 import { withCsrfHeader } from "@/lib/csrf";
 import {
+  PlaceAutocompleteInput,
+  resolvePlaceLocationMetadata,
+} from "@/components/site/PlaceAutocompleteInput";
+import {
   getDemandAttributionFromSearchParams,
   hasDemandAttribution,
 } from "@/lib/demandAttribution";
@@ -11,8 +15,11 @@ import { normalizeInterestToLane } from "@/lib/contactInterest";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "wouter";
 import type {
+  BudgetBucket,
   BuyerType,
   InboundRequestPayload,
+  PlaceLocationMetadata,
+  ProofPathPreference,
   RequestedLane,
   SubmitInboundRequestResponse,
 } from "@/types/inbound-request";
@@ -84,10 +91,19 @@ export function ContactForm() {
   const [email, setEmail] = useState("");
   const [siteName, setSiteName] = useState("");
   const [siteLocation, setSiteLocation] = useState("");
+  const [siteLocationMetadata, setSiteLocationMetadata] =
+    useState<PlaceLocationMetadata | null>(null);
   const [taskStatement, setTaskStatement] = useState("");
+  const [targetSiteType, setTargetSiteType] = useState("");
   const [targetRobotTeam, setTargetRobotTeam] = useState("");
+  const [budgetBucket, setBudgetBucket] = useState<BudgetBucket>("Undecided/Unsure");
+  const [proofPathPreference, setProofPathPreference] = useState<ProofPathPreference>(
+    hostedMode ? "exact_site_required" : "need_guidance",
+  );
   const [operatingConstraints, setOperatingConstraints] = useState("");
   const [privacySecurityConstraints, setPrivacySecurityConstraints] = useState("");
+  const [commercializationPreference, setCommercializationPreference] = useState("");
+  const [humanGateTopics, setHumanGateTopics] = useState("");
   const [detailsMessage, setDetailsMessage] = useState("");
   const [honeypot, setHoneypot] = useState("");
 
@@ -117,7 +133,14 @@ export function ContactForm() {
       setSiteName(prefills.siteName || userData?.siteName || "");
     }
     if (!siteLocation && (prefills.siteLocation || userData?.siteLocation)) {
-      setSiteLocation(prefills.siteLocation || userData?.siteLocation || "");
+      const defaultSiteLocation = prefills.siteLocation || userData?.siteLocation || "";
+      setSiteLocation(defaultSiteLocation);
+      setSiteLocationMetadata(
+        userData?.siteLocationMetadata || {
+          source: "manual",
+          formattedAddress: defaultSiteLocation,
+        },
+      );
     }
     if (!taskStatement && (prefills.taskStatement || userData?.taskStatement)) {
       setTaskStatement(prefills.taskStatement || userData?.taskStatement || "");
@@ -191,6 +214,9 @@ export function ContactForm() {
     if (persona === "robot_team" && !jobTitle.trim()) {
       missingFields.push("Your role");
     }
+    if (persona === "robot_team" && !siteName.trim() && !targetSiteType.trim()) {
+      missingFields.push("Target site or site class");
+    }
     if (persona === "site_operator" && !operatingConstraints.trim()) {
       missingFields.push("Access rules");
     }
@@ -236,19 +262,21 @@ export function ContactForm() {
       company: company.trim(),
       roleTitle: jobTitle.trim(),
       email: email.trim().toLowerCase(),
-      budgetBucket: "Undecided/Unsure",
+      budgetBucket,
       requestedLanes,
       buyerType,
       siteName: siteName.trim(),
       siteLocation: siteLocation.trim(),
+      siteLocationMetadata: resolvePlaceLocationMetadata(siteLocation, siteLocationMetadata),
       taskStatement: persona === "robot_team" ? taskStatement.trim() : "Operator intake",
-      targetSiteType: undefined,
-      proofPathPreference: undefined,
+      targetSiteType: targetSiteType.trim() || siteName.trim() || undefined,
+      proofPathPreference,
       existingStackReviewWorkflow: undefined,
-      humanGateTopics: undefined,
+      humanGateTopics: humanGateTopics.trim() || undefined,
       operatingConstraints: operatingConstraints.trim() || undefined,
       privacySecurityConstraints: privacySecurityConstraints.trim() || undefined,
       targetRobotTeam: persona === "robot_team" ? targetRobotTeam.trim() || undefined : undefined,
+      derivedScenePermission: persona === "site_operator" ? commercializationPreference.trim() || undefined : undefined,
       details: detailsMessage.trim() || undefined,
       context: {
         sourcePageUrl: typeof window !== "undefined" ? window.location.href : "",
@@ -494,16 +522,76 @@ export function ContactForm() {
               />
             </div>
           </div>
-          <div>
-            <label htmlFor="contact-site-location" className="mb-1 block text-sm font-medium text-zinc-700">Site location</label>
-            <input
-              id="contact-site-location"
-              className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
-              placeholder="City, state, facility address, or region"
-              value={siteLocation}
-              onChange={(event) => setSiteLocation(event.target.value)}
-            />
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <label htmlFor="contact-site-type" className="mb-1 block text-sm font-medium text-zinc-700">
+                Target site class
+              </label>
+              <input
+                id="contact-site-type"
+                className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
+                placeholder="Warehouse, hotel corridor, grocery backroom"
+                value={targetSiteType}
+                onChange={(event) => setTargetSiteType(event.target.value)}
+              />
+            </div>
+            <div>
+              <label htmlFor="contact-budget" className="mb-1 block text-sm font-medium text-zinc-700">
+                Budget or procurement range
+              </label>
+              <select
+                id="contact-budget"
+                className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
+                value={budgetBucket}
+                onChange={(event) => setBudgetBucket(event.target.value as BudgetBucket)}
+              >
+                <option value="Undecided/Unsure">Undecided/Unsure</option>
+                <option value="<$50K">&lt;$50K</option>
+                <option value="$50K-$300K">$50K-$300K</option>
+                <option value="$300K-$1M">$300K-$1M</option>
+                <option value=">$1M">&gt;$1M</option>
+              </select>
+            </div>
           </div>
+          <PlaceAutocompleteInput
+            id="contact-site-location"
+            label="Site location"
+            placeholder="City, state, facility address, or region"
+            value={siteLocation}
+            onChange={setSiteLocation}
+            onPlaceSelect={setSiteLocationMetadata}
+          />
+          {!hostedMode ? (
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label htmlFor="contact-proof-path" className="mb-1 block text-sm font-medium text-zinc-700">
+                  Proof path
+                </label>
+                <select
+                  id="contact-proof-path"
+                  className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
+                  value={proofPathPreference}
+                  onChange={(event) => setProofPathPreference(event.target.value as ProofPathPreference)}
+                >
+                  <option value="need_guidance">Need guidance</option>
+                  <option value="exact_site_required">Exact site required</option>
+                  <option value="adjacent_site_acceptable">Adjacent site acceptable</option>
+                </select>
+              </div>
+              <div>
+                <label htmlFor="contact-human-gates" className="mb-1 block text-sm font-medium text-zinc-700">
+                  Human-gated topics
+                </label>
+                <input
+                  id="contact-human-gates"
+                  className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
+                  placeholder="Procurement, legal, security, customer approval"
+                  value={humanGateTopics}
+                  onChange={(event) => setHumanGateTopics(event.target.value)}
+                />
+              </div>
+            </div>
+          ) : null}
           <div>
             <label htmlFor="contact-notes" className="mb-1 block text-sm font-medium text-zinc-700">Optional notes</label>
             <textarea
@@ -540,16 +628,14 @@ export function ContactForm() {
                 onChange={(event) => setSiteName(event.target.value)}
               />
             </div>
-            <div>
-              <label htmlFor="contact-site-location" className="mb-1 block text-sm font-medium text-zinc-700">Site location</label>
-              <input
-                id="contact-site-location"
-                className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
-                placeholder="City, state, or facility address*"
-                value={siteLocation}
-                onChange={(event) => setSiteLocation(event.target.value)}
-              />
-            </div>
+            <PlaceAutocompleteInput
+              id="contact-site-location"
+              label="Site location"
+              placeholder="City, state, or facility address*"
+              value={siteLocation}
+              onChange={setSiteLocation}
+              onPlaceSelect={setSiteLocationMetadata}
+            />
           </div>
           <div>
             <label htmlFor="contact-access-rules" className="mb-1 block text-sm font-medium text-zinc-700">Access rules</label>
@@ -571,6 +657,18 @@ export function ContactForm() {
               placeholder="Camera limits, redaction needs, safety or security restrictions."
               value={privacySecurityConstraints}
               onChange={(event) => setPrivacySecurityConstraints(event.target.value)}
+            />
+          </div>
+          <div>
+            <label htmlFor="contact-commercialization" className="mb-1 block text-sm font-medium text-zinc-700">
+              Commercialization preference
+            </label>
+            <textarea
+              id="contact-commercialization"
+              className="min-h-24 w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
+              placeholder="Whether the site can be listed for robot-team review, kept private, or discussed only after approval."
+              value={commercializationPreference}
+              onChange={(event) => setCommercializationPreference(event.target.value)}
             />
           </div>
         </>

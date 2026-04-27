@@ -5,6 +5,8 @@ import type {
   RequestDetails,
   ContactInfoStored,
   RequestDetailsStored,
+  PlaceLocationMetadata,
+  PlaceLocationMetadataStored,
 } from "../types/inbound-request";
 import type { EncryptedField, EncryptableString } from "../types/field-encryption";
 
@@ -200,6 +202,60 @@ export async function decryptOptionalField(
   return decryptFieldValue(value);
 }
 
+function hasLocationMetadata(value?: PlaceLocationMetadata | null): value is PlaceLocationMetadata {
+  if (!value) return false;
+  return [
+    value.placeId,
+    value.formattedAddress,
+    value.city,
+    value.state,
+    value.country,
+    value.postalCode,
+    value.lat,
+    value.lng,
+  ].some((entry) => entry !== null && entry !== undefined && entry !== "");
+}
+
+export async function encryptLocationMetadata(
+  value?: PlaceLocationMetadata | null
+): Promise<PlaceLocationMetadataStored | null> {
+  if (!hasLocationMetadata(value)) {
+    return null;
+  }
+
+  return {
+    source: value.source ?? null,
+    placeId: await encryptOptionalField(value.placeId ?? null),
+    formattedAddress: await encryptOptionalField(value.formattedAddress ?? null),
+    lat: typeof value.lat === "number" && Number.isFinite(value.lat) ? value.lat : null,
+    lng: typeof value.lng === "number" && Number.isFinite(value.lng) ? value.lng : null,
+    city: await encryptOptionalField(value.city ?? null),
+    state: await encryptOptionalField(value.state ?? null),
+    country: await encryptOptionalField(value.country ?? null),
+    postalCode: await encryptOptionalField(value.postalCode ?? null),
+  };
+}
+
+export async function decryptLocationMetadata(
+  value?: PlaceLocationMetadataStored | null
+): Promise<PlaceLocationMetadata | null> {
+  if (!value) {
+    return null;
+  }
+
+  return {
+    source: value.source ?? null,
+    placeId: await decryptOptionalField(value.placeId ?? null),
+    formattedAddress: await decryptOptionalField(value.formattedAddress ?? null),
+    lat: typeof value.lat === "number" && Number.isFinite(value.lat) ? value.lat : null,
+    lng: typeof value.lng === "number" && Number.isFinite(value.lng) ? value.lng : null,
+    city: await decryptOptionalField(value.city ?? null),
+    state: await decryptOptionalField(value.state ?? null),
+    country: await decryptOptionalField(value.country ?? null),
+    postalCode: await decryptOptionalField(value.postalCode ?? null),
+  };
+}
+
 export async function encryptInboundRequestForStorage<
   T extends {
     contact: ContactInfo;
@@ -229,6 +285,9 @@ export async function encryptInboundRequestForStorage<
       ),
       siteLocation: await encryptFieldValue(
         request.request.siteLocation || "Location pending"
+      ),
+      siteLocationMetadata: await encryptLocationMetadata(
+        request.request.siteLocationMetadata ?? null
       ),
       taskStatement: await encryptFieldValue(
         request.request.taskStatement || "Task statement pending"
@@ -306,6 +365,9 @@ export async function decryptInboundRequestForAdmin<
       siteLocation: request.request.siteLocation
         ? await decryptFieldValue(request.request.siteLocation)
         : "Legacy location",
+      siteLocationMetadata: await decryptLocationMetadata(
+        request.request.siteLocationMetadata ?? null
+      ),
       taskStatement: request.request.taskStatement
         ? await decryptFieldValue(request.request.taskStatement)
         : "Legacy submission requires manual scoping",

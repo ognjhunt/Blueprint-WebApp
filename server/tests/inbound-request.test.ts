@@ -45,6 +45,17 @@ function buildPayload(requestId: string, email: string) {
     buyerType: "site_operator",
     siteName: "Durham Facility",
     siteLocation: "Durham, NC",
+    siteLocationMetadata: {
+      source: "google_places",
+      placeId: "place-durham-facility",
+      formattedAddress: "Durham Facility, Durham, NC 27701, USA",
+      lat: 35.994,
+      lng: -78.8986,
+      city: "Durham",
+      state: "NC",
+      country: "US",
+      postalCode: "27701",
+    },
     taskStatement: "Review a picking workflow.",
     workflowContext: "Backroom to staging handoff.",
     operatingConstraints: "Two shifts, restricted loading dock access.",
@@ -174,11 +185,42 @@ describe("inbound request route", () => {
 
       const lines = fs.readFileSync(devLogPath, "utf8").trim().split("\n");
       const savedRequest = lines
-        .map((line) => JSON.parse(line) as { requestId: string; debug?: { mode?: string } })
+        .map((line) => JSON.parse(line) as {
+          requestId: string;
+          request?: {
+            siteLocationMetadata?: {
+              source?: string;
+              placeId?: string;
+              formattedAddress?: string;
+              lat?: number;
+              lng?: number;
+              city?: string;
+              state?: string;
+              country?: string;
+              postalCode?: string;
+            };
+          };
+          debug?: { mode?: string };
+          structured_intake?: { calendar_disposition?: string; recommended_path?: string };
+          ops_automation?: { recommended_path?: string };
+        })
         .find((entry) => entry.requestId === requestId);
 
       expect(savedRequest).toBeDefined();
+      expect(savedRequest?.request?.siteLocationMetadata).toMatchObject({
+        source: "google_places",
+        placeId: "place-durham-facility",
+        formattedAddress: "Durham Facility, Durham, NC 27701, USA",
+        lat: 35.994,
+        lng: -78.8986,
+        city: "Durham",
+        state: "NC",
+        country: "US",
+        postalCode: "27701",
+      });
       expect(savedRequest?.debug?.mode).toBe("dev_fallback");
+      expect(savedRequest?.structured_intake?.calendar_disposition).toBe("required_before_next_step");
+      expect(savedRequest?.ops_automation?.recommended_path).toBe("intake_then_required_scoping_call");
     } finally {
       await stopServer(server);
     }
@@ -238,12 +280,64 @@ describe("inbound request route", () => {
 
       const lines = fs.readFileSync(devLogPath, "utf8").trim().split("\n");
       const savedRequest = lines
-        .map((line) => JSON.parse(line) as { requestId: string; request?: Record<string, unknown> })
+        .map((line) => JSON.parse(line) as {
+          requestId: string;
+          request?: Record<string, unknown>;
+          structured_intake?: { calendar_disposition?: string; owner_lane?: string };
+        })
         .find((entry) => entry.requestId === requestId);
 
       expect(savedRequest?.request?.targetSiteType).toBe("Warehouse pallet putaway");
       expect(savedRequest?.request?.proofPathPreference).toBe("adjacent_site_acceptable");
       expect(savedRequest?.request?.siteName).toBe("");
+      expect(savedRequest?.structured_intake?.calendar_disposition).toBe("not_needed_yet");
+      expect(savedRequest?.structured_intake?.owner_lane).toBe("intake-agent");
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("marks operator rights and privacy boundaries as requiring a calendar checkpoint before movement", async () => {
+    process.env.NODE_ENV = "development";
+    vi.resetModules();
+
+    const { server, baseUrl } = await startRouterServer();
+
+    try {
+      const requestId = `operator-rights-${Date.now()}`;
+      const payload = {
+        ...buildPayload(requestId, `operator+${Date.now()}@example.com`),
+        privacySecurityConstraints: "No cameras in private storage, faces must be redacted.",
+        derivedScenePermission: "Keep private until owner review.",
+      };
+      const response = await fetch(`${baseUrl}/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      expect(response.status).toBe(201);
+
+      const lines = fs.readFileSync(devLogPath, "utf8").trim().split("\n");
+      const savedRequest = lines
+        .map((line) => JSON.parse(line) as {
+          requestId: string;
+          structured_intake?: {
+            calendar_disposition?: string;
+            calendar_reasons?: string[];
+            owner_lane?: string;
+          };
+          human_review_required?: boolean;
+        })
+        .find((entry) => entry.requestId === requestId);
+
+      expect(savedRequest?.structured_intake?.calendar_disposition).toBe("required_before_next_step");
+      expect(savedRequest?.structured_intake?.calendar_reasons).toContain(
+        "operator_named_rights_privacy_or_commercialization_boundary",
+      );
+      expect(savedRequest?.human_review_required).toBe(true);
     } finally {
       await stopServer(server);
     }

@@ -24,6 +24,8 @@ Capturer and private-beta intake submissions created by [waitlist.ts](/Users/nij
 | `intent` | string | Workflow intent |
 | `filter_tags` | string[] | Search/filter tags |
 | `ops_automation` | object | Automation state, next action, errors, and Phase 2 action state |
+| `lead_enrichment` | object or null | Active/near city lead dossier routing summary for high-intent or strong supply signals |
+| `city_demand_signal` | object or null | Aggregate-only signal summary when a waitlist submission should inform city scoring instead of one-off outreach |
 | `human_review_required` | boolean or null | Human gate flag |
 | `automation_confidence` | number or null | Model confidence |
 | `created_at` | timestamp | Creation time |
@@ -49,6 +51,8 @@ Buyer and site-operator inbound requests created by [inbound-request.ts](/Users/
 | `enrichment` | object | Company/domain enrichment |
 | `events` | object | Email/slack/crm timestamps |
 | `ops_automation` | object | Qualification automation state plus Phase 2 action history |
+| `structured_intake` | object | Structured-intake-first disposition, calendar posture, missing fields, owner lane, and recommended path |
+| `lead_enrichment` | object or null | Draft-first high-intent enrichment routing summary |
 | `human_review_required` | boolean or null | Human gate flag |
 | `automation_confidence` | number or null | Model confidence |
 | `buyer_review_access` | object | Buyer review URL/token metadata |
@@ -56,7 +60,13 @@ Buyer and site-operator inbound requests created by [inbound-request.ts](/Users/
 | `createdAt` | timestamp | Creation time |
 | `updatedAt` | timestamp | Update time when present |
 
-**Used by:** Intake Agent, Field Ops Agent, Ops Lead, Analytics Agent
+**Used by:** Intake Agent, Field Ops Agent, Ops Lead, Analytics Agent, Buyer Solutions Agent, Site Operator Partnership Agent, Rights Provenance Agent
+
+`structured_intake.calendar_disposition` values:
+- `not_needed_yet`: collect missing structured fields before suggesting a call
+- `eligible_optional`: call may be offered as secondary, but async intake can proceed
+- `recommended`: scoped call can accelerate a concrete robot-team or buyer path
+- `required_before_next_step`: human checkpoint is required before access, rights, privacy, or commercialization movement
 
 `ops.proof_path` milestone timestamps now include:
 - `exact_site_requested_at`
@@ -71,6 +81,37 @@ Buyer and site-operator inbound requests created by [inbound-request.ts](/Users/
 - `human_commercial_handoff_at`
 
 These fields are the authoritative measurement layer for the robot-team 24-hour proof-path funnel. Some are auto-stamped from request lifecycle events, while operator-only milestones are set from the admin lead workflow.
+
+### `leadEnrichmentDossiers`
+Draft-first high-intent lead dossiers created by [highIntentLeadEnrichment.ts](/Users/nijelhunt_1/workspace/Blueprint-WebApp/server/utils/highIntentLeadEnrichment.ts).
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `schema_version` | string | Dossier contract version |
+| `source_collection` | string | `inboundRequests` or `waitlistSubmissions` |
+| `source_doc_id` | string | Source Firestore document id |
+| `dossier_id` | string | Stable dossier id derived from source collection and source document id |
+| `status` | string | `draft_ready` or `aggregate_only` |
+| `classification` | string | `robot_team_buyer`, `site_operator`, `capturer_supply`, `city_launch_interest`, `partner`, or `low_signal` |
+| `trigger_kind` | string | Trigger rule that created the dossier |
+| `trigger_reasons` | string[] | Evidence-backed trigger reasons |
+| `owner_agent` | string | Paperclip owner agent |
+| `related_agents` | string[] | Adjacent agents that may need context |
+| `company` | object | Submitted company, safe derived domain, and website URL when available |
+| `submitted_context` | object | Minimal submitted fields needed for routing |
+| `public_research_plan` | object | Company/domain-only research posture and suggested queries |
+| `evidence` | object[] | Submitted, inferred, public company page, city activation, and guardrail evidence items |
+| `draft_follow_up` | object or null | Human-approved follow-up draft plus allowed and blocked claims |
+| `next_actions` | string[] | Owner next steps |
+| `guardrails` | string[] | Required no-spam/no-claim/no-live-send constraints |
+| `created_at_iso` | string | Creation timestamp string |
+| `updated_at_iso` | string | Update timestamp string |
+| `created_at` | timestamp | Firestore server creation timestamp |
+| `updated_at` | timestamp | Firestore server update timestamp |
+
+**Used by:** Intake Agent, Buyer Solutions Agent, Robot-Team Growth Agent, Site-Operator Partnership Agent, City Demand Agent
+
+`leadEnrichmentDossiers` are evidence packets, not authoritative truth. Source-of-truth state remains on the source Firestore request, city-launch ledgers, capture/job records, and Paperclip issue history.
 
 ### `contactRequests`
 Support/contact-form submissions created by [contact.ts](/Users/nijelhunt_1/workspace/Blueprint-WebApp/server/routes/contact.ts) and triaged by the support automation loop.

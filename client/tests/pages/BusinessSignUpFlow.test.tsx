@@ -37,6 +37,16 @@ vi.mock("@/lib/firebase", () => ({
   signInWithGoogle: vi.fn(),
 }));
 
+vi.mock("@/lib/client-env", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/client-env")>(
+    "@/lib/client-env",
+  );
+  return {
+    ...actual,
+    getGoogleMapsApiKey: () => null,
+  };
+});
+
 describe("BusinessSignUpFlow analytics", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -45,6 +55,24 @@ describe("BusinessSignUpFlow analytics", () => {
       user: { uid: "business-uid" },
     });
     setDocMock.mockResolvedValue(undefined);
+    global.fetch = vi.fn().mockImplementation((input: RequestInfo) => {
+      if (input === "/api/csrf") {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ csrfToken: "test-token" }),
+        });
+      }
+
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({
+          ok: true,
+          requestId: "structured-intake-1",
+          siteSubmissionId: "structured-intake-1",
+          status: "submitted",
+        }),
+      });
+    }) as typeof fetch;
   });
 
   it("tracks the funnel start with the default robot-team lane", () => {
@@ -144,6 +172,25 @@ describe("BusinessSignUpFlow analytics", () => {
 
     await waitFor(() => {
       expect(setLocationMock).toHaveBeenCalledWith("/onboarding");
+    });
+
+    const inboundCall = vi.mocked(global.fetch).mock.calls.find(
+      ([input]) => input === "/api/inbound-request",
+    );
+    expect(inboundCall).toBeDefined();
+    const inboundBody = JSON.parse(String(inboundCall?.[1]?.body));
+    expect(inboundBody).toMatchObject({
+      buyerType: "robot_team",
+      requestedLanes: ["deeper_evaluation"],
+      siteName: "Durham fulfillment center",
+      siteLocation: "Durham, NC",
+      siteLocationMetadata: {
+        source: "manual",
+        formattedAddress: "Durham, NC",
+      },
+      taskStatement: "Qualify a tote-picking workflow.",
+      budgetBucket: "$50K-$300K",
+      proofPathPreference: "need_guidance",
     });
 
     expect(analyticsEventsMock.businessSignupSubmitted).toHaveBeenCalledWith({

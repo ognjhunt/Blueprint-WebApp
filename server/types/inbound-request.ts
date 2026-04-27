@@ -61,6 +61,18 @@ export type OpportunityState =
 // Request status is retained as a compatibility mirror of qualification state.
 export type RequestStatus = QualificationState;
 
+export interface PlaceLocationMetadata {
+  source?: "google_places" | "manual" | string | null;
+  placeId?: string | null;
+  formattedAddress?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  city?: string | null;
+  state?: string | null;
+  country?: string | null;
+  postalCode?: string | null;
+}
+
 // Priority levels
 export type RequestPriority = "low" | "normal" | "high";
 
@@ -106,6 +118,7 @@ export interface RequestDetails {
   buyerType: BuyerType;
   siteName: string;
   siteLocation: string;
+  siteLocationMetadata?: PlaceLocationMetadata | null;
   taskStatement: string;
   targetSiteType?: string | null;
   proofPathPreference?: ProofPathPreference | null;
@@ -189,6 +202,28 @@ export interface OpsAutomationEnvelope {
   missing_information?: string[];
   internal_summary?: string | null;
   buyer_follow_up?: DraftMessage | null;
+}
+
+export type CalendarDisposition =
+  | "not_needed_yet"
+  | "eligible_optional"
+  | "recommended"
+  | "required_before_next_step";
+
+export type StructuredIntakeMode =
+  | "structured_intake_first"
+  | "calendar_accelerated";
+
+export interface StructuredIntakeSummary {
+  mode: StructuredIntakeMode;
+  primary_cta: string;
+  secondary_cta: string;
+  calendar_disposition: CalendarDisposition;
+  calendar_reasons: string[];
+  missing_structured_fields: string[];
+  owner_lane: string;
+  recommended_path: string;
+  next_action: string;
 }
 
 export interface PipelineArtifacts {
@@ -452,6 +487,7 @@ export interface InboundRequest {
   enrichment: EnrichmentData;
   events: RequestEvents;
   ops_automation?: OpsAutomationEnvelope;
+  structured_intake?: StructuredIntakeSummary;
   human_review_required?: boolean | null;
   automation_confidence?: number | null;
   buyer_review_access?: BuyerReviewAccess;
@@ -472,6 +508,18 @@ export interface ContactInfoStored {
   company: EncryptableString;
 }
 
+export interface PlaceLocationMetadataStored {
+  source?: string | null;
+  placeId?: EncryptableString | null;
+  formattedAddress?: EncryptableString | null;
+  lat?: number | null;
+  lng?: number | null;
+  city?: EncryptableString | null;
+  state?: EncryptableString | null;
+  country?: EncryptableString | null;
+  postalCode?: EncryptableString | null;
+}
+
 export interface RequestDetailsStored {
   budgetBucket: BudgetBucket;
   requestedLanes: RequestedLane[];
@@ -480,6 +528,7 @@ export interface RequestDetailsStored {
   buyerType: BuyerType;
   siteName: EncryptableString;
   siteLocation: EncryptableString;
+  siteLocationMetadata?: PlaceLocationMetadataStored | null;
   taskStatement: EncryptableString;
   targetSiteType?: EncryptableString | null;
   proofPathPreference?: ProofPathPreference | null;
@@ -516,6 +565,7 @@ export interface InboundRequestPayload {
   buyerType?: BuyerType;
   siteName?: string;
   siteLocation?: string;
+  siteLocationMetadata?: PlaceLocationMetadata | null;
   taskStatement?: string;
   targetSiteType?: string;
   proofPathPreference?: ProofPathPreference;
@@ -648,11 +698,13 @@ export interface InboundRequestListItem {
     buyerType: BuyerType;
     siteName: string;
     siteLocation: string;
+    siteLocationMetadata?: PlaceLocationMetadata | null;
     taskStatement: string;
     proofPathPreference?: ProofPathPreference | null;
   };
   owner: RequestOwner;
   ops_automation?: OpsAutomationEnvelope;
+  structured_intake?: StructuredIntakeSummary;
   buyer_review_access?: BuyerReviewAccess;
   ops?: OpsSummary;
   pipeline?: PipelineAttachment;

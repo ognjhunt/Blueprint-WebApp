@@ -15,6 +15,7 @@ import { createRequestReviewToken } from "../utils/request-review-auth";
 import { createSlaTracker } from "../utils/sla-enforcement";
 import { runInboundQualificationForRequest } from "../agents";
 import { logGrowthEvent } from "../utils/growth-events";
+import { runHighIntentLeadEnrichmentForRequest } from "../utils/highIntentLeadEnrichment";
 import {
   HELP_WITH_OPTIONS,
   LEGACY_HELP_WITH_TO_LANE,
@@ -22,6 +23,7 @@ import {
   REQUESTED_LANES,
 } from "../../client/src/lib/requestTaxonomy";
 import { getDemandAttributionFromContext } from "../../client/src/lib/demandAttribution";
+import { evaluateStructuredIntake } from "../../client/src/lib/structuredIntake";
 import type {
   InboundRequestPayload,
   InboundRequest,
@@ -35,6 +37,8 @@ import type {
   RequestQueueKey,
   GrowthWedgeKey,
   SubmitInboundRequestResponse,
+  StructuredIntakeSummary,
+  PlaceLocationMetadata,
 } from "../types/inbound-request";
 
 const router = Router();
@@ -285,6 +289,56 @@ function normalizeProofPathPreference(
   return VALID_PROOF_PATH_PREFERENCES.includes(value) ? value : null;
 }
 
+function normalizeOptionalString(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const normalized = value.trim();
+  return normalized ? normalized : null;
+}
+
+function normalizeOptionalNumber(value: unknown): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return null;
+  }
+
+  return value;
+}
+
+function normalizePlaceLocationMetadata(
+  value?: PlaceLocationMetadata | null
+): PlaceLocationMetadata | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const normalized: PlaceLocationMetadata = {
+    source: normalizeOptionalString(value.source) || "manual",
+    placeId: normalizeOptionalString(value.placeId),
+    formattedAddress: normalizeOptionalString(value.formattedAddress),
+    lat: normalizeOptionalNumber(value.lat),
+    lng: normalizeOptionalNumber(value.lng),
+    city: normalizeOptionalString(value.city),
+    state: normalizeOptionalString(value.state),
+    country: normalizeOptionalString(value.country),
+    postalCode: normalizeOptionalString(value.postalCode),
+  };
+
+  return [
+    normalized.placeId,
+    normalized.formattedAddress,
+    normalized.city,
+    normalized.state,
+    normalized.country,
+    normalized.postalCode,
+    normalized.lat,
+    normalized.lng,
+  ].some((entry) => entry !== null && entry !== undefined && entry !== "")
+    ? normalized
+    : null;
+}
+
 function normalizeToken(value: string | null | undefined) {
   return String(value || "")
     .trim()
@@ -337,6 +391,22 @@ function determineInboundRouting(params: {
     nextAction: isExactSiteHostedReview
       ? "review exact-site hosted-review scope, proof path, and buyer handoff readiness"
       : "generate qualification recommendation",
+  };
+}
+
+function toStructuredIntakeSummary(
+  decision: ReturnType<typeof evaluateStructuredIntake>
+): StructuredIntakeSummary {
+  return {
+    mode: decision.intakeMode,
+    primary_cta: decision.primaryCta,
+    secondary_cta: decision.secondaryCta,
+    calendar_disposition: decision.calendarDisposition,
+    calendar_reasons: decision.calendarReasons,
+    missing_structured_fields: decision.missingStructuredFields,
+    owner_lane: decision.ownerLane,
+    recommended_path: decision.recommendedPath,
+    next_action: decision.nextAction,
   };
 }
 
@@ -503,6 +573,9 @@ router.post("/", async (req: Request, res: Response) => {
     const buyerType = normalizeBuyerType(payload.buyerType);
     const siteName = payload.siteName?.trim() || "";
     const siteLocation = payload.siteLocation?.trim() || "";
+    const siteLocationMetadata = normalizePlaceLocationMetadata(
+      payload.siteLocationMetadata
+    );
     const taskStatement = payload.taskStatement?.trim() || "";
     const targetSiteType = payload.targetSiteType?.trim() || "";
     const proofPathPreference = normalizeProofPathPreference(
@@ -522,7 +595,7 @@ router.post("/", async (req: Request, res: Response) => {
     }
     if (buyerType === "robot_team") {
       if (!payload.roleTitle?.trim()) missingFields.push("roleTitle");
-      if (!targetSiteType) missingFields.push("targetSiteType");
+      if (!targetSiteType && !siteName) missingFields.push("targetSiteTypeOrSiteName");
       if (!proofPathPreference) missingFields.push("proofPathPreference");
     }
 
@@ -629,6 +702,29 @@ router.post("/", async (req: Request, res: Response) => {
       utmCampaign: payload.context?.utm?.campaign || null,
       utmSource: payload.context?.utm?.source || null,
     });
+    const structuredIntakeDecision = evaluateStructuredIntake({
+      buyerType,
+      requestedLanes,
+      budgetBucket: payload.budgetBucket,
+      siteName,
+      siteLocation,
+      taskStatement,
+      targetSiteType: payload.targetSiteType?.trim() || null,
+      proofPathPreference,
+      targetRobotTeam: payload.targetRobotTeam?.trim() || null,
+      roleTitle: payload.roleTitle?.trim() || null,
+      workflowContext: payload.workflowContext?.trim() || null,
+      operatingConstraints: payload.operatingConstraints?.trim() || null,
+      privacySecurityConstraints: payload.privacySecurityConstraints?.trim() || null,
+      knownBlockers: payload.knownBlockers?.trim() || null,
+      captureRights: payload.captureRights?.trim() || null,
+      derivedScenePermission: payload.derivedScenePermission?.trim() || null,
+      datasetLicensingPermission: payload.datasetLicensingPermission?.trim() || null,
+      payoutEligibility: payload.payoutEligibility?.trim() || null,
+      details: payload.details?.trim() || null,
+    });
+    const structuredIntake = toStructuredIntakeSummary(structuredIntakeDecision);
+    const queueTags = [...new Set([...routing.queueTags, ...structuredIntakeDecision.filterTags])];
 
     if (!db) {
       if (isProduction()) {
@@ -646,7 +742,7 @@ router.post("/", async (req: Request, res: Response) => {
         createdAt: new Date().toISOString(),
         queue_key: routing.queueKey,
         growth_wedge: routing.growthWedge,
-        queue_tags: routing.queueTags,
+        queue_tags: queueTags,
         status: "submitted",
         priority,
         owner,
@@ -664,6 +760,7 @@ router.post("/", async (req: Request, res: Response) => {
           buyerType,
           siteName,
           siteLocation,
+          siteLocationMetadata,
           taskStatement,
           targetSiteType: payload.targetSiteType?.trim() || null,
           proofPathPreference,
@@ -726,10 +823,14 @@ router.post("/", async (req: Request, res: Response) => {
           queue: routing.queueKey,
           queue_label: routing.queueLabel,
           wedge_key: routing.growthWedge,
-          filter_tags: routing.queueTags,
+          filter_tags: queueTags,
           intent: "inbound_qualification",
-          next_action: routing.nextAction,
+          next_action: structuredIntakeDecision.nextAction,
+          recommended_path: structuredIntakeDecision.recommendedPath,
+          requires_human_review: structuredIntakeDecision.requiresHumanReview,
         },
+        structured_intake: structuredIntake,
+        human_review_required: structuredIntakeDecision.requiresHumanReview,
         debug: {
           mode: "dev_fallback",
           logPath: DEV_INBOUND_REQUEST_LOG,
@@ -780,7 +881,7 @@ router.post("/", async (req: Request, res: Response) => {
       site_submission_id: payload.requestId,
       queue_key: routing.queueKey,
       growth_wedge: routing.growthWedge,
-      queue_tags: routing.queueTags,
+      queue_tags: queueTags,
       createdAt: now,
       status: "submitted" as RequestStatus,
       qualification_state: "submitted",
@@ -802,6 +903,7 @@ router.post("/", async (req: Request, res: Response) => {
         buyerType,
         siteName,
         siteLocation,
+        siteLocationMetadata,
         taskStatement,
         targetSiteType: payload.targetSiteType?.trim() || null,
         proofPathPreference,
@@ -855,11 +957,11 @@ router.post("/", async (req: Request, res: Response) => {
         queue_label: routing.queueLabel,
         intent: "inbound_qualification",
         wedge_key: routing.growthWedge,
-        filter_tags: routing.queueTags,
-        next_action: routing.nextAction,
-        recommended_path: null,
+        filter_tags: queueTags,
+        next_action: structuredIntakeDecision.nextAction,
+        recommended_path: structuredIntakeDecision.recommendedPath,
         confidence: null,
-        requires_human_review: null,
+        requires_human_review: structuredIntakeDecision.requiresHumanReview,
         provider: null,
         runtime: null,
         model: null,
@@ -870,7 +972,8 @@ router.post("/", async (req: Request, res: Response) => {
         last_attempt_at: null,
         processed_at: null,
       },
-      human_review_required: null,
+      structured_intake: structuredIntake,
+      human_review_required: structuredIntakeDecision.requiresHumanReview,
       automation_confidence: null,
       buyer_review_access: {
         buyer_review_url: reviewUrl,
@@ -884,7 +987,7 @@ router.post("/", async (req: Request, res: Response) => {
         capture_status: "not_requested",
         recapture_reason: null,
         quote_status: "not_started",
-        next_step: "Review the site scope and decide whether to request capture.",
+        next_step: structuredIntakeDecision.nextAction,
         last_buyer_ready_at: null,
         proof_path: {
           exact_site_requested_at:
@@ -1203,6 +1306,19 @@ View in admin: ${process.env.APP_URL || "https://tryblueprint.io"}/admin/leads/$
           logger.error(
             { error, requestId: payload.requestId },
             "Failed to run inbound qualification automation"
+          );
+        }
+      })()
+    );
+
+    automationPromises.push(
+      (async () => {
+        try {
+          await runHighIntentLeadEnrichmentForRequest(inboundRequest as InboundRequest);
+        } catch (error) {
+          logger.error(
+            { error, requestId: payload.requestId },
+            "Failed to run high-intent lead enrichment"
           );
         }
       })()

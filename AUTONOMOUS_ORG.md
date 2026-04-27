@@ -22,6 +22,7 @@ On the current trusted host, Paperclip uses local subscription-backed auth only.
 - Autoresearch-pattern loops drive continuous optimization (adapted from [Karpathy's autoresearch](https://github.com/karpathy/autoresearch))
 - Growth should stay anchored to one narrow commercial wedge at a time. The current priority wedge is **Exact-Site Hosted Review**: one real site, one workflow lane, one package-plus-hosted-review path, with explicit automatic policy enforcement on pricing, policy, rights, and irreversible commitments.
 - During the current wedge, the active org is judged through three loops only: product/proof, demand/sales, and reliability. Any routine that does not move targets, contacts, approvals, sends, replies, calls, hosted-review starts, capture asks, or blockers is commentary.
+- Website intake follows the **structured intake first, calendar second** contract in `ops/paperclip/programs/structured-intake-calendar-second-contract.md`: forms collect role-specific routing truth first, and calendar booking is only an accelerator or required human checkpoint when the structured record justifies it.
 - Founder scope stays narrow: strategic repo truth, policy updates, and architecture changes. Routine launch, commercial, and ops execution should run autonomously from written policy and evidence, not approval packets.
 - Named operator lanes in the current model: Growth Lead for channel/referral/source posture, Ops Lead for intake/threshold/trust-kit readiness, revenue-ops-pricing-agent for standard quote-band enforcement, and rights-provenance-agent for rights/privacy/commercialization evidence handling.
 
@@ -640,6 +641,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 
 **Inputs:**
 - Firestore inbound requests
+- `structured_intake` and `ops_automation.recommended_path` fields from the website intake funnel
 - Pipeline qualification state, opportunity state, derived assets
 - WebApp admin leads view
 - Buyer communications (email, form, Slack)
@@ -656,6 +658,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - Non-standard pricing, terms, or contract negotiation route to founder
 - Promises about capabilities Blueprint does not yet have
 - Any external buyer-facing communication that would create a non-standard commitment
+- Calendly links do not qualify a buyer by themselves; qualified handoff requires structured site/workflow/buyer context.
 
 **Graduation path:**
 | Phase | Behavior | Criteria to advance |
@@ -1093,6 +1096,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 
 **Inputs:**
 - Demand Intelligence briefs
+- Website intake disposition fields from `structured_intake`
 - `ops/paperclip/programs/robot-team-growth-agent-program.md`
 - `ops/paperclip/playbooks/robot-team-demand-playbook.md`
 - Analytics and ops feedback
@@ -1103,6 +1107,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - Execution queue for Conversion, Analytics, Intake, Ops, standard commercial handling, and City Demand
 
 **Policy guardrails:** Spend, discounts, pricing, contracts, outreach sends, and claims beyond current product truth.
+Calendar booking must stay secondary to structured intake unless the record is high-intent enough for scoped buyer-solutions follow-up.
 
 **Skill file:** `ops/paperclip/skills/robot-team-growth-agent.md`
 **Steering file:** `ops/paperclip/programs/robot-team-growth-agent-program.md`
@@ -1127,6 +1132,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 
 **Inputs:**
 - Demand Intelligence output
+- Website intake disposition fields from `structured_intake`
 - `ops/paperclip/programs/site-operator-partnership-agent-program.md`
 - `ops/paperclip/playbooks/site-operator-access-and-commercialization-playbook.md`
 - City Demand, Intake, Ops, and Finance feedback
@@ -1137,6 +1143,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - Execution queue for Ops, Intake, standard commercial handling, and City Demand
 
 **Policy guardrails:** Permission judgments, legal/privacy/rights interpretation, pricing, contracts, revenue-share commitments, and external outreach.
+Operator submission does not require a meeting, but private access, rights, privacy, or commercialization ambiguity requires a human checkpoint before the next operational step.
 
 **Skill file:** `ops/paperclip/skills/site-operator-partnership-agent.md`
 **Steering file:** `ops/paperclip/programs/site-operator-partnership-agent-program.md`

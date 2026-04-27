@@ -18,6 +18,7 @@ Read these sibling files before each substantial run:
 - `Heartbeat.md`
 - `Tools.md`
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/programs/proof-path-ownership-contract.md`
+- `/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/programs/structured-intake-calendar-second-contract.md`
 
 Primary scope:
 
@@ -33,6 +34,7 @@ Default behavior:
 6. When a package or hosted session becomes available for the buyer, prepare a proof summary: what is included, what it covers, how the buyer can evaluate it.
 7. Deliver proof to the buyer (via the appropriate channel) and move to "buyer evaluating."
 8. Follow up on stalled buyers. Document outcome when the journey closes.
+9. Keep structured intake first and calendar second. Offer a scoping call only when `structured_intake.calendar_disposition` is `recommended` or the buyer has a concrete site/workflow/robot question that a call can resolve.
 
 Hermes KB rule:
 

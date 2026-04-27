@@ -20,6 +20,7 @@ import {
   increment,
 } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
+import type { PlaceLocationMetadata } from "@/types/inbound-request";
 
 const viteEnv =
   typeof import.meta !== "undefined" && import.meta.env
@@ -169,16 +170,23 @@ export interface UserData {
   )[];
   siteName?: string;
   siteLocation?: string;
+  siteLocationMetadata?: PlaceLocationMetadata | null;
   taskStatement?: string;
   workflowContext?: string;
   operatingConstraints?: string;
   privacySecurityConstraints?: string;
   knownBlockers?: string;
   targetRobotTeam?: string;
+  targetSiteType?: string;
+  proofPathPreference?: "exact_site_required" | "adjacent_site_acceptable" | "need_guidance";
   captureRights?: string;
   derivedScenePermission?: string;
   datasetLicensingPermission?: string;
   payoutEligibility?: string;
+  structuredIntakeRequestId?: string;
+  structuredIntakeRecommendedPath?: string;
+  calendarDisposition?: "not_needed_yet" | "eligible_optional" | "recommended" | "required_before_next_step";
+  calendarReasons?: string[];
 
   // Legacy marketplace-first signup fields retained for compatibility
   primaryNeeds?: ("benchmark-packs" | "scene-library" | "dataset-packs" | "custom-capture" | "other")[];
@@ -195,6 +203,15 @@ export interface UserData {
     completeIntakeReview: boolean;
     reviewQualifiedOpportunities: boolean;
     inviteTeam: boolean;
+    buyerWorkflowConfirmed?: boolean;
+    packageOrHostedPathSelected?: boolean;
+    procurementReviewed?: boolean;
+    reviewSessionScoped?: boolean;
+    siteClaimConfirmed?: boolean;
+    accessBoundariesDefined?: boolean;
+    privacyRulesConfirmed?: boolean;
+    commercializationPreferenceSet?: boolean;
+    teamContactConfirmed?: boolean;
     completedAt?: Date;
   };
 

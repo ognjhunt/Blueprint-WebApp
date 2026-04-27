@@ -34,11 +34,18 @@ Not allowed without explicit human approval:
 ## Required Artifacts
 
 - pilot plan: `docs/exact-site-hosted-review-gtm-pilot-2026-04-26.md`
+- high-intent website input loop: `docs/high-intent-lead-enrichment-autonomous-loop-2026-04-27.md`
 - canonical ledger: `ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json`
 - robot-team playbook: `ops/paperclip/playbooks/robot-team-demand-playbook.md`
 - audit command: `npm run gtm:hosted-review:audit`
 - buyer-loop command: `npm run gtm:hosted-review:buyer-loop -- --write --allow-blocked`
 - reply durability command: `npm run human-replies:audit-durability`
+
+## Website Input Loop
+
+When a robot-team inbound request asks for Exact-Site Hosted Review, exact-site proof, deeper evaluation, data licensing, or managed tuning, the webapp creates a `leadEnrichmentDossiers` record and routes the draft-first handoff into Paperclip with `originKind=high_intent_lead_enrichment`.
+
+This loop is not permission to live-send. It produces company/domain evidence, a human-reviewed draft, and an owner assignment only.
 
 ## Daily Done Condition
 

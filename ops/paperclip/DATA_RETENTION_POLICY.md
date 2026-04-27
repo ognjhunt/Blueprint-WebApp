@@ -8,6 +8,7 @@
 |-----------|-----------|-----------|-------------|
 | `waitlistSubmissions` | email, phone, location, device | 12 months from creation; 30 days after explicit rejection | Legitimate interest |
 | `inboundRequests` | buyer contact info, site context, message details | 12 months from creation; 30 days after close if not converted | Legitimate interest / pre-contract |
+| `leadEnrichmentDossiers` | source document id, company/domain context, submitted context excerpts | Match source collection retention; delete when the source `waitlistSubmissions` or `inboundRequests` record is deleted | Legitimate interest / pre-contract |
 | `contactRequests` | name, email, company, message | 24 months from last resolution activity | Legitimate interest |
 | `capture_jobs` | site/operator context, assignment details | 24 months after closure unless converted into a longer-lived buyer record | Legitimate interest / operational necessity |
 | `creatorCaptures` | creator id, address, earnings context | Indefinite while commercially active; 90 days after delisting or rejection unless needed for disputes | Contractual / operational necessity |

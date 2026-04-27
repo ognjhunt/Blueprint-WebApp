@@ -30,6 +30,16 @@ vi.mock("@/lib/analytics", () => ({
   getSafeErrorType: vi.fn(() => "unknown"),
 }));
 
+vi.mock("@/lib/client-env", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/client-env")>(
+    "@/lib/client-env",
+  );
+  return {
+    ...actual,
+    getGoogleMapsApiKey: () => null,
+  };
+});
+
 beforeEach(() => {
   mockSearch = "";
   global.fetch = vi.fn().mockImplementation((input: RequestInfo, init?: RequestInit) => {
@@ -244,6 +254,11 @@ describe("Contact page", () => {
     expect(body.requestedLanes).toEqual(["deeper_evaluation"]);
     expect(body.budgetBucket).toBe("Undecided/Unsure");
     expect(body.siteName).toBe("Harborview Grocery Distribution Annex");
+    expect(body.siteLocation).toBe("1847 W Fulton St, Chicago, IL 60612");
+    expect(body.siteLocationMetadata).toEqual({
+      source: "manual",
+      formattedAddress: "1847 W Fulton St, Chicago, IL 60612",
+    });
     expect(body.context).toMatchObject({
       demandCity: null,
       buyerChannelSource: "site_worlds",

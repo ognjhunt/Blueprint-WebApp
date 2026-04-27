@@ -27,6 +27,10 @@ import {
   SurfaceSection,
   SurfaceTopBar,
 } from "@/components/site/privateSurface";
+import {
+  PlaceAutocompleteInput,
+  resolvePlaceLocationMetadata,
+} from "@/components/site/PlaceAutocompleteInput";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -34,12 +38,14 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { analyticsEvents, getSafeErrorType } from "@/lib/analytics";
+import { withCsrfHeader } from "@/lib/csrf";
 import {
   getDemandAttributionFromSearchParams,
   hasDemandAttribution,
   overlaySelfReportedBuyerChannelSource,
 } from "@/lib/demandAttribution";
-import type { UserData } from "@/lib/firebase";
+import { evaluateStructuredIntake } from "@/lib/structuredIntake";
+import type { PlaceLocationMetadata, ProofPathPreference } from "@/types/inbound-request";
 import {
   REQUESTED_LANE_DESCRIPTIONS,
   REQUESTED_LANE_LABELS,
@@ -122,6 +128,11 @@ type LegacyPrimaryNeed =
 const DEFAULT_BUYER_TYPE: BuyerType = "robot_team";
 const DEFAULT_REQUESTED_LANE: RequestedLane = "deeper_evaluation";
 const BUYER_STEP_LABELS = ["Organization", "Team", "Site & Workflow"] as const;
+const PROOF_PATH_OPTIONS: Array<{ value: ProofPathPreference; label: string }> = [
+  { value: "need_guidance", label: "Need guidance" },
+  { value: "exact_site_required", label: "Exact site required" },
+  { value: "adjacent_site_acceptable", label: "Adjacent site acceptable" },
+];
 
 const LEGACY_PRIMARY_NEED_BY_LANE: Record<RequestedLane, LegacyPrimaryNeed> = {
   qualification: "benchmark-packs",
@@ -138,6 +149,22 @@ function isValidEmail(value: string) {
 function isValidPhone(value: string) {
   if (!value.trim()) return true;
   return value.replace(/\D/g, "").length >= 10;
+}
+
+function generateRequestId(): string {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+
+  return `business-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function splitName(value: string): { firstName: string; lastName: string } {
+  const parts = value.trim().split(/\s+/).filter(Boolean);
+  return {
+    firstName: parts[0] || "Unknown",
+    lastName: parts.slice(1).join(" ") || "Contact",
+  };
 }
 
 function StepIndicator({
@@ -215,12 +242,18 @@ export default function BusinessSignUpFlow() {
 
   const [siteName, setSiteName] = useState("");
   const [siteLocation, setSiteLocation] = useState("");
+  const [siteLocationMetadata, setSiteLocationMetadata] =
+    useState<PlaceLocationMetadata | null>(null);
+  const [targetSiteType, setTargetSiteType] = useState("");
   const [taskStatement, setTaskStatement] = useState("");
   const [workflowContext, setWorkflowContext] = useState("");
   const [operatingConstraints, setOperatingConstraints] = useState("");
   const [privacySecurityConstraints, setPrivacySecurityConstraints] = useState("");
   const [knownBlockers, setKnownBlockers] = useState("");
   const [targetRobotTeam, setTargetRobotTeam] = useState("");
+  const [proofPathPreference, setProofPathPreference] =
+    useState<ProofPathPreference>("need_guidance");
+  const [timeline, setTimeline] = useState("");
   const [budgetRange, setBudgetRange] = useState<BudgetRange | "">("");
   const [referralSource, setReferralSource] = useState<ReferralSource | "">("");
   const searchDemandAttribution = useMemo(() => {
@@ -288,12 +321,13 @@ export default function BusinessSignUpFlow() {
 
   const step3Valid = useMemo(
     () =>
-      siteName.trim().length > 0 &&
+      (siteName.trim().length > 0 || (buyerType === "robot_team" && targetSiteType.trim().length > 0)) &&
       siteLocation.trim().length > 0 &&
       taskStatement.trim().length > 0 &&
+      (buyerType !== "site_operator" || operatingConstraints.trim().length > 0) &&
       budgetRange !== "" &&
       referralSource !== "",
-    [siteName, siteLocation, taskStatement, budgetRange, referralSource]
+    [buyerType, operatingConstraints, siteName, siteLocation, targetSiteType, taskStatement, budgetRange, referralSource]
   );
 
   const handleNext = useCallback(() => {
@@ -420,24 +454,27 @@ export default function BusinessSignUpFlow() {
 
   const handleSubmit = useCallback(async () => {
     if (!step3Valid) {
-      if (!siteName.trim()) setErrorMessage("Please enter the site name.");
+      if (!siteName.trim() && !(buyerType === "robot_team" && targetSiteType.trim())) setErrorMessage("Please enter the site name or target site class.");
       else if (!siteLocation.trim()) setErrorMessage("Please enter the site location.");
       else if (!taskStatement.trim()) setErrorMessage("Please enter the task statement.");
+      else if (buyerType === "site_operator" && !operatingConstraints.trim()) setErrorMessage("Please enter the access rules.");
       else if (!budgetRange) setErrorMessage("Please select a budget range.");
       else setErrorMessage("Please tell us how you heard about Blueprint.");
       analyticsEvents.businessSignupFailed({
         stage: "step_validation",
         stepNumber: 3,
         errorType:
-          !siteName.trim()
-            ? "missing_site_name"
+          !siteName.trim() && !(buyerType === "robot_team" && targetSiteType.trim())
+            ? "missing_site_name_or_type"
             : !siteLocation.trim()
               ? "missing_site_location"
               : !taskStatement.trim()
                 ? "missing_task_statement"
-                : !budgetRange
-                  ? "missing_budget_range"
-                  : "missing_referral_source",
+                : buyerType === "site_operator" && !operatingConstraints.trim()
+                  ? "missing_access_rules"
+                  : !budgetRange
+                    ? "missing_budget_range"
+                    : "missing_referral_source",
         buyerType,
         requestedLaneCount: requestedLanes.length,
         ...(signupAnalyticsAttribution
@@ -493,6 +530,24 @@ export default function BusinessSignUpFlow() {
 
       const primaryNeeds = requestedLanes.map((lane) => LEGACY_PRIMARY_NEED_BY_LANE[lane]);
       const username = contactName.toLowerCase().replace(/\s+/g, "_");
+      const structuredIntakeRequestId = generateRequestId();
+      const structuredIntakeDecision = evaluateStructuredIntake({
+        buyerType,
+        requestedLanes,
+        budgetBucket: budgetRange,
+        siteName,
+        siteLocation,
+        targetSiteType,
+        taskStatement,
+        proofPathPreference,
+        roleTitle: jobTitle,
+        workflowContext,
+        operatingConstraints,
+        privacySecurityConstraints,
+        knownBlockers,
+        targetRobotTeam,
+        details: timeline ? `Timeline: ${timeline}` : null,
+      });
 
       const newUserData: any = {
         uid,
@@ -506,14 +561,22 @@ export default function BusinessSignUpFlow() {
         phoneNumber: phoneNumber || undefined,
         buyerType,
         requestedLanes,
+        structuredIntakeRequestId,
+        structuredIntakeRecommendedPath: structuredIntakeDecision.recommendedPath,
+        calendarDisposition: structuredIntakeDecision.calendarDisposition,
+        calendarReasons: structuredIntakeDecision.calendarReasons,
         siteName,
         siteLocation,
+        siteLocationMetadata: resolvePlaceLocationMetadata(siteLocation, siteLocationMetadata),
+        targetSiteType: targetSiteType || undefined,
         taskStatement,
+        proofPathPreference,
         workflowContext: workflowContext || undefined,
         operatingConstraints: operatingConstraints || undefined,
         privacySecurityConstraints: privacySecurityConstraints || undefined,
         knownBlockers: knownBlockers || undefined,
         targetRobotTeam: targetRobotTeam || undefined,
+        timeline: timeline || undefined,
         primaryNeeds,
         companySize: companySize as CompanySize,
         projectDescription: workflowContext || undefined,
@@ -533,6 +596,15 @@ export default function BusinessSignUpFlow() {
         onboardingProgress: {
           profileComplete: true,
           defineSiteSubmission: true,
+          buyerWorkflowConfirmed: buyerType === "robot_team",
+          packageOrHostedPathSelected: buyerType === "robot_team" && requestedLanes.length > 0,
+          procurementReviewed: false,
+          reviewSessionScoped: structuredIntakeDecision.calendarDisposition === "not_needed_yet",
+          siteClaimConfirmed: buyerType === "site_operator",
+          accessBoundariesDefined: buyerType === "site_operator" && Boolean(operatingConstraints.trim()),
+          privacyRulesConfirmed: buyerType === "site_operator" && Boolean(privacySecurityConstraints.trim()),
+          commercializationPreferenceSet: false,
+          teamContactConfirmed: false,
           completeIntakeReview: false,
           reviewQualifiedOpportunities: false,
           inviteTeam: false,
@@ -577,6 +649,52 @@ export default function BusinessSignUpFlow() {
       };
 
       await setDoc(doc(db, "users", uid), newUserData);
+      const { firstName, lastName } = splitName(contactName);
+      const inboundResponse = await fetch("/api/inbound-request", {
+        method: "POST",
+        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        body: JSON.stringify({
+          requestId: structuredIntakeRequestId,
+          firstName,
+          lastName,
+          company: organizationName,
+          roleTitle: jobTitle || (buyerType === "site_operator" ? "Site operator" : "Robot team contact"),
+          email: userEmail.toLowerCase(),
+          budgetBucket: budgetRange,
+          requestedLanes,
+          buyerType,
+          siteName,
+          siteLocation,
+          siteLocationMetadata: resolvePlaceLocationMetadata(siteLocation, siteLocationMetadata),
+          taskStatement: buyerType === "site_operator" ? taskStatement || "Operator site claim" : taskStatement,
+          targetSiteType: targetSiteType || siteName,
+          proofPathPreference,
+          workflowContext: workflowContext || undefined,
+          operatingConstraints: operatingConstraints || undefined,
+          privacySecurityConstraints: privacySecurityConstraints || undefined,
+          knownBlockers: knownBlockers || undefined,
+          targetRobotTeam: targetRobotTeam || undefined,
+          details: timeline ? `Timeline: ${timeline}` : undefined,
+          context: {
+            sourcePageUrl: typeof window !== "undefined" ? window.location.href : "/signup/business",
+            referrer: typeof document !== "undefined" ? document.referrer || undefined : undefined,
+            demandCity: signupDemandAttribution?.demandCity ?? null,
+            buyerChannelSource: signupDemandAttribution?.buyerChannelSource ?? null,
+            buyerChannelSourceCaptureMode:
+              signupDemandAttribution?.buyerChannelSourceCaptureMode ?? "unknown",
+            buyerChannelSourceRaw: signupDemandAttribution?.buyerChannelSourceRaw ?? null,
+            utm: signupDemandAttribution?.utm ?? {},
+            timezoneOffset: new Date().getTimezoneOffset(),
+            locale: typeof navigator !== "undefined" ? navigator.language : undefined,
+            userAgent: typeof navigator !== "undefined" ? navigator.userAgent : undefined,
+          },
+        }),
+      });
+
+      if (!inboundResponse.ok) {
+        const responseBody = (await inboundResponse.json().catch(() => ({}))) as { message?: string };
+        throw new Error(responseBody.message || "Account was created, but intake routing failed.");
+      }
       analyticsEvents.businessSignupCompleted({
         buyerType,
         requestedLaneCount: requestedLanes.length,
@@ -620,15 +738,19 @@ export default function BusinessSignUpFlow() {
     organizationName,
     password,
     phoneNumber,
+    proofPathPreference,
     privacySecurityConstraints,
     referralSource,
     requestedLanes,
     setLocation,
     siteLocation,
+    siteLocationMetadata,
     siteName,
     step3Valid,
+    targetSiteType,
     targetRobotTeam,
     taskStatement,
+    timeline,
     workflowContext,
     searchAnalyticsAttribution,
     signupAnalyticsAttribution,
@@ -913,44 +1035,55 @@ export default function BusinessSignUpFlow() {
                           <div className="grid gap-5 md:grid-cols-2">
                             <div>
                               <Label htmlFor="siteName" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/45">
-                                Site name
+                                {buyerType === "site_operator" ? "Facility name" : "Site name"}
                               </Label>
                               <div className="relative mt-2">
                                 <Building2 className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/30" />
                                 <Input
                                   id="siteName"
                                   className="h-12 rounded-[1rem] border-black/10 bg-white pl-11"
-                                  placeholder="Durham fulfillment center"
+                                  placeholder={buyerType === "site_operator" ? "Brightleaf Books" : "Durham fulfillment center"}
                                   value={siteName}
                                   onChange={(event) => setSiteName(event.target.value)}
                                 />
                               </div>
                             </div>
-                            <div>
-                              <Label htmlFor="siteLocation" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/45">
-                                Site location
-                              </Label>
-                              <div className="relative mt-2">
-                                <MapPin className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/30" />
+                            <PlaceAutocompleteInput
+                              id="siteLocation"
+                              label="Site location"
+                              labelClassName="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/45"
+                              inputWrapperClassName="relative mt-2"
+                              inputClassName="flex h-12 w-full rounded-[1rem] border border-black/10 bg-white px-3 py-2 pl-11 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                              icon={<MapPin className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/30" />}
+                              placeholder="Durham, NC"
+                              value={siteLocation}
+                              onChange={setSiteLocation}
+                              onPlaceSelect={setSiteLocationMetadata}
+                            />
+                            {buyerType === "robot_team" ? (
+                              <div className="md:col-span-2">
+                                <Label htmlFor="targetSiteType" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/45">
+                                  Target site class
+                                </Label>
                                 <Input
-                                  id="siteLocation"
-                                  className="h-12 rounded-[1rem] border-black/10 bg-white pl-11"
-                                  placeholder="Durham, NC"
-                                  value={siteLocation}
-                                  onChange={(event) => setSiteLocation(event.target.value)}
+                                  id="targetSiteType"
+                                  className="mt-2 h-12 rounded-[1rem] border-black/10 bg-white"
+                                  placeholder="Warehouse, hotel, grocery backroom, hospital corridor"
+                                  value={targetSiteType}
+                                  onChange={(event) => setTargetSiteType(event.target.value)}
                                 />
                               </div>
-                            </div>
+                            ) : null}
                             <div className="md:col-span-2">
                               <Label htmlFor="taskStatement" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/45">
-                                Task statement
+                                {buyerType === "site_operator" ? "Operator intent" : "Task statement"}
                               </Label>
                               <div className="relative mt-2">
                                 <Target className="absolute left-4 top-4 h-4 w-4 text-black/30" />
                                 <Textarea
                                   id="taskStatement"
                                   className="min-h-28 rounded-[1rem] border-black/10 bg-white pl-11"
-                                  placeholder="What exact site and technical question should Blueprint help with?"
+                                  placeholder={buyerType === "site_operator" ? "What site are you submitting or claiming, and what kind of robot evaluation would you consider?" : "What exact site and technical question should Blueprint help with?"}
                                   value={taskStatement}
                                   onChange={(event) => setTaskStatement(event.target.value)}
                                 />
@@ -973,12 +1106,12 @@ export default function BusinessSignUpFlow() {
                             </div>
                             <div>
                               <Label htmlFor="operatingConstraints" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/45">
-                                Operating constraints
+                                {buyerType === "site_operator" ? "Access rules" : "Operating constraints"}
                               </Label>
                               <Textarea
                                 id="operatingConstraints"
                                 className="mt-2 min-h-24 rounded-[1rem] border-black/10 bg-white"
-                                placeholder="Hours, access windows, safety rules, bottlenecks."
+                                placeholder={buyerType === "site_operator" ? "Hours, access windows, escort needs, restricted areas." : "Hours, access windows, safety rules, bottlenecks."}
                                 value={operatingConstraints}
                                 onChange={(event) => setOperatingConstraints(event.target.value)}
                               />
@@ -1009,18 +1142,47 @@ export default function BusinessSignUpFlow() {
                             </div>
                             <div>
                               <Label htmlFor="targetRobotTeam" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/45">
-                                Target robot team or embodiment
+                                {buyerType === "site_operator" ? "Relevant robot teams" : "Target robot team or embodiment"}
                               </Label>
                               <div className="relative mt-2">
                                 <Users className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/30" />
                                 <Input
                                   id="targetRobotTeam"
                                   className="h-12 rounded-[1rem] border-black/10 bg-white pl-11"
-                                  placeholder="Optional"
+                                  placeholder={buyerType === "site_operator" ? "Optional buyer category or robot use case" : "Optional"}
                                   value={targetRobotTeam}
                                   onChange={(event) => setTargetRobotTeam(event.target.value)}
                                 />
                               </div>
+                            </div>
+                            <div>
+                              <Label htmlFor="proofPathPreference" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/45">
+                                Proof path
+                              </Label>
+                              <select
+                                id="proofPathPreference"
+                                className="mt-2 flex h-12 w-full rounded-[1rem] border border-black/10 bg-white px-4 text-sm text-[#111110]"
+                                value={proofPathPreference}
+                                onChange={(event) => setProofPathPreference(event.target.value as ProofPathPreference)}
+                              >
+                                {PROOF_PATH_OPTIONS.map((option) => (
+                                  <option key={option.value} value={option.value}>
+                                    {option.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <Label htmlFor="timeline" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/45">
+                                Timing
+                              </Label>
+                              <Input
+                                id="timeline"
+                                className="mt-2 h-12 rounded-[1rem] border-black/10 bg-white"
+                                placeholder="This month, this quarter, exploring"
+                                value={timeline}
+                                onChange={(event) => setTimeline(event.target.value)}
+                              />
                             </div>
                             <div>
                               <Label htmlFor="budgetRange" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/45">
@@ -1067,8 +1229,9 @@ export default function BusinessSignUpFlow() {
                             </div>
                             <p className="mt-3 leading-7">
                               Blueprint routes the request into the intake review hub so the team
-                              can confirm the site, workflow, and commercial lane before opening a
-                              hosted review or package path.
+                              can confirm the site, workflow, commercial lane, and whether a
+                              scoping call is actually needed before opening a hosted review or
+                              package path.
                             </p>
                           </div>
                         </motion.div>

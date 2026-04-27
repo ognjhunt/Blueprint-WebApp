@@ -10,6 +10,7 @@ import {
 import { isValidEmailAddress, isValidPhoneNumber } from "../utils/validation";
 import { listCityLaunchActivations, upsertCityLaunchProspect } from "../utils/cityLaunchLedgers";
 import { slugifyCityName } from "../utils/cityLaunchProfiles";
+import { runWaitlistLeadSignalRouting } from "../utils/highIntentLeadEnrichment";
 
 function toFilterToken(value: string) {
   return value
@@ -280,6 +281,20 @@ export default async function waitlistHandler(req: Request, res: Response) {
     } catch {
       // City-launch intake routing is best-effort and should not block the waitlist response.
     }
+  }
+
+  if (db && submissionId) {
+    runWaitlistLeadSignalRouting({
+      submissionId,
+      email: emailValue,
+      market: marketValue,
+      role: roleValue,
+      locationType: locationTypeValue,
+      device: deviceValue,
+      company: companyValue,
+      notes: notesValue,
+      source: sourceValue || (roleIncludesCapturer ? "capture_app_private_beta" : "website_waitlist"),
+    }).catch(() => undefined);
   }
 
 

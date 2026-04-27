@@ -7,9 +7,12 @@ import { doc, serverTimestamp, updateDoc } from "firebase/firestore";
 import {
   ArrowRight,
   Building2,
+  CalendarClock,
   CheckCircle2,
   ClipboardCheck,
+  CreditCard,
   FileSearch,
+  Route,
   Shield,
   Users,
 } from "lucide-react";
@@ -102,26 +105,131 @@ export default function OnboardingChecklist() {
     reviewQualifiedOpportunities: false,
     inviteTeam: false,
   };
+  const isRobotTeam = userData?.buyerType !== "site_operator";
+  const calendarDisposition = userData?.calendarDisposition || "not_needed_yet";
+  const calendarIsRecommended =
+    calendarDisposition === "recommended" || calendarDisposition === "required_before_next_step";
 
   const checklistItems: ChecklistItem[] = useMemo(
-    () => [
-      {
+    () => {
+      const baseItems: ChecklistItem[] = [{
         id: "profile",
         title: "Account profile complete",
         description: "Your account exists and the intake owner is identified.",
         completed: progress.profileComplete,
         icon: Shield,
-      },
-      {
+      }];
+
+      const roleItems: ChecklistItem[] = isRobotTeam
+        ? [
+            {
+              id: "buyer-workflow",
+              title: "Confirm robot workflow",
+              description:
+                "Keep the buyer path anchored to one task, robot stack, site, or site class.",
+              completed: Boolean(progress.buyerWorkflowConfirmed || progress.defineSiteSubmission),
+              icon: Route,
+              action: {
+                label: "Review intake",
+                href: "/contact?persona=robot-team",
+                updateField: "onboardingProgress.buyerWorkflowConfirmed",
+              },
+            },
+            {
+              id: "package-path",
+              title: "Pick package or hosted path",
+              description:
+                "Confirm whether the request starts with package access, hosted evaluation, data licensing, or guidance.",
+              completed: Boolean(progress.packageOrHostedPathSelected || progress.defineSiteSubmission),
+              icon: FileSearch,
+              action: {
+                label: "Open world models",
+                href: "/world-models",
+                updateField: "onboardingProgress.packageOrHostedPathSelected",
+              },
+            },
+            {
+              id: "procurement",
+              title: "Add procurement context",
+              description:
+                "Budget range, timing, and blockers help Blueprint decide whether a call accelerates the request.",
+              completed: Boolean(progress.procurementReviewed),
+              icon: CreditCard,
+              action: {
+                label: "Update intake",
+                href: "/contact?persona=robot-team",
+                updateField: "onboardingProgress.procurementReviewed",
+              },
+              optional: true,
+            },
+          ]
+        : [
+            {
+              id: "site-claim",
+              title: "Confirm the site claim",
+              description:
+                "Name the facility, operator, location, and why the site should enter the review queue.",
+              completed: Boolean(progress.siteClaimConfirmed || progress.defineSiteSubmission),
+              icon: Building2,
+              action: {
+                label: "Review site claim",
+                href: "/contact/site-operator",
+                updateField: "onboardingProgress.siteClaimConfirmed",
+              },
+            },
+            {
+              id: "access-boundaries",
+              title: "Define access boundaries",
+              description:
+                "Capture windows, restricted zones, escort rules, and safety limits stay structured before a meeting.",
+              completed: Boolean(progress.accessBoundariesDefined),
+              icon: ClipboardCheck,
+              action: {
+                label: "Update access rules",
+                href: "/contact/site-operator",
+                updateField: "onboardingProgress.accessBoundariesDefined",
+              },
+            },
+            {
+              id: "privacy-rules",
+              title: "Confirm privacy rules",
+              description:
+                "Camera limits, redaction needs, private areas, and security concerns decide whether human scoping is required.",
+              completed: Boolean(progress.privacyRulesConfirmed),
+              icon: Shield,
+              action: {
+                label: "Update privacy notes",
+                href: "/contact/site-operator",
+                updateField: "onboardingProgress.privacyRulesConfirmed",
+              },
+            },
+            {
+              id: "commercialization",
+              title: "Set commercialization preference",
+              description:
+                "Choose whether the site is private, claim-only, or potentially listable for robot-team evaluation.",
+              completed: Boolean(progress.commercializationPreferenceSet),
+              icon: FileSearch,
+              action: {
+                label: "Update preference",
+                href: "/contact/site-operator",
+                updateField: "onboardingProgress.commercializationPreferenceSet",
+              },
+              optional: true,
+            },
+          ];
+
+      const routingItems: ChecklistItem[] = [
+        {
         id: "submission",
-        title: "Confirm the site submission",
+        title: "Structured intake captured",
         description:
-          "Review the site, location, task, and constraints that Blueprint should use for intake review.",
+          "The website has enough structured detail to route the request before any calendar step.",
         completed: progress.defineSiteSubmission,
         icon: Building2,
         action: {
           label: "Review intake",
-          href: "/contact",
+          href: isRobotTeam ? "/contact?persona=robot-team" : "/contact/site-operator",
           updateField: "onboardingProgress.defineSiteSubmission",
         },
       },
@@ -129,14 +237,31 @@ export default function OnboardingChecklist() {
         id: "review",
         title: "Route the submission for review",
         description:
-          "Open the intake form and send the site into the intake review queue with the latest details.",
+          "The request enters the intake review queue before a package, hosted review, or operator call opens.",
         completed: progress.completeIntakeReview,
         icon: ClipboardCheck,
         action: {
           label: "Open submission form",
-          href: "/contact",
+          href: isRobotTeam ? "/contact?persona=robot-team" : "/contact/site-operator",
           updateField: "onboardingProgress.completeIntakeReview",
         },
+      },
+      {
+        id: "review-session",
+        title: calendarIsRecommended ? "Scope the human call" : "Keep calendar secondary",
+        description: calendarIsRecommended
+          ? "The intake is specific enough that a scoped meeting can accelerate the next decision."
+          : "A meeting is optional until the structured intake shows a concrete site, workflow, buyer, or rights question.",
+        completed: Boolean(progress.reviewSessionScoped) || !calendarIsRecommended,
+        icon: CalendarClock,
+        action: calendarIsRecommended
+          ? {
+              label: "Book scoping call",
+              href: "/book-exact-site-review",
+              updateField: "onboardingProgress.reviewSessionScoped",
+            }
+          : undefined,
+        optional: !calendarIsRecommended,
       },
       {
         id: "opportunities",
@@ -154,18 +279,24 @@ export default function OnboardingChecklist() {
       },
       {
         id: "team",
-        title: "Invite your team",
-        description: "Bring in teammates after the intake path is set.",
-        completed: progress.inviteTeam,
+        title: isRobotTeam ? "Invite your team" : "Confirm team contact",
+        description: isRobotTeam
+          ? "Bring in teammates after the intake path is set."
+          : "Identify the facility contact who can answer access, privacy, and scheduling questions.",
+        completed: Boolean(progress.teamContactConfirmed || progress.inviteTeam),
         icon: Users,
         action: {
           label: "Open settings",
           href: "/settings",
+          updateField: "onboardingProgress.teamContactConfirmed",
         },
         optional: true,
       },
-    ],
-    [progress]
+      ];
+
+      return [...baseItems, ...roleItems, ...routingItems];
+    },
+    [calendarIsRecommended, isRobotTeam, progress]
   );
 
   const completedCount = checklistItems.filter((item) => item.completed).length;
@@ -199,6 +330,8 @@ export default function OnboardingChecklist() {
 
   const intakeSummary = [
     { label: "Buyer type", value: userData?.buyerType === "robot_team" ? "Robot team" : "Site operator" },
+    { label: "Primary path", value: userData?.structuredIntakeRecommendedPath || "Structured intake review" },
+    { label: "Calendar", value: calendarDisposition.replaceAll("_", " ") },
     { label: "Site", value: userData?.siteName || "Not set yet" },
     { label: "Location", value: userData?.siteLocation || "Not set yet" },
     { label: "Task", value: userData?.taskStatement || "Not set yet" },
@@ -210,7 +343,7 @@ export default function OnboardingChecklist() {
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-semibold text-zinc-950">Intake review hub</h1>
           <p className="mt-2 text-zinc-600">
-            Confirm the submission, route it into review, and keep capture and world-model delivery at the center of the workflow.
+            Confirm the structured intake first. A calendar step only opens when the site, workflow, buyer, or rights question is concrete enough.
           </p>
         </div>
 

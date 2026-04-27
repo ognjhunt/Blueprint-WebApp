@@ -68,6 +68,18 @@ export type OpportunityState =
 
 export type RequestStatus = QualificationState;
 
+export interface PlaceLocationMetadata {
+  source?: "google_places" | "manual" | string | null;
+  placeId?: string | null;
+  formattedAddress?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  city?: string | null;
+  state?: string | null;
+  country?: string | null;
+  postalCode?: string | null;
+}
+
 // Priority levels
 export type RequestPriority = "low" | "normal" | "high";
 
@@ -108,6 +120,7 @@ export interface InboundRequestPayload {
   buyerType?: BuyerType;
   siteName?: string;
   siteLocation?: string;
+  siteLocationMetadata?: PlaceLocationMetadata | null;
   taskStatement?: string;
   targetSiteType?: string;
   proofPathPreference?: ProofPathPreference;
@@ -207,6 +220,28 @@ export interface OpsAutomationEnvelope {
   last_error?: string | null;
   last_attempt_at?: string | null;
   processed_at?: string | null;
+}
+
+export type CalendarDisposition =
+  | "not_needed_yet"
+  | "eligible_optional"
+  | "recommended"
+  | "required_before_next_step";
+
+export type StructuredIntakeMode =
+  | "structured_intake_first"
+  | "calendar_accelerated";
+
+export interface StructuredIntakeSummary {
+  mode: StructuredIntakeMode;
+  primary_cta: string;
+  secondary_cta: string;
+  calendar_disposition: CalendarDisposition;
+  calendar_reasons: string[];
+  missing_structured_fields: string[];
+  owner_lane: string;
+  recommended_path: string;
+  next_action: string;
 }
 
 export type ProviderRunStatus =
@@ -567,12 +602,14 @@ export interface InboundRequestListItem {
     buyerType: BuyerType;
     siteName: string;
     siteLocation: string;
+    siteLocationMetadata?: PlaceLocationMetadata | null;
     taskStatement: string;
     details?: string | null;
     proofPathPreference?: ProofPathPreference | null;
   };
   owner: RequestOwner;
   ops_automation?: OpsAutomationEnvelope;
+  structured_intake?: StructuredIntakeSummary;
   buyer_review_access?: BuyerReviewAccess;
   ops?: OpsSummary;
   pipeline?: PipelineAttachment;
@@ -610,6 +647,7 @@ export interface InboundRequestDetail extends InboundRequestListItem {
   derived_assets?: DerivedAssetsAttachment;
   request: InboundRequestListItem["request"] & {
     targetSiteType?: string | null;
+    siteLocationMetadata?: PlaceLocationMetadata | null;
     proofPathPreference?: ProofPathPreference | null;
     existingStackReviewWorkflow?: string | null;
     humanGateTopics?: string | null;
