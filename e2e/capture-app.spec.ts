@@ -10,7 +10,7 @@ test("capture app access page renders the handoff flow", async ({ page }) => {
   ).toBeVisible();
   await expect(
     page
-      .getByRole("link", { name: /Open capture app|Request capture access/i })
+      .getByRole("link", { name: /Open the capture app|Request capture access/i })
       .first(),
   ).toBeVisible();
   await expect(page.getByText(/Open Blueprint Capture to record public-facing places people visit every day/i)).toBeVisible();
