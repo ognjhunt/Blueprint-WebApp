@@ -1,9 +1,10 @@
 import { test, expect } from '@playwright/test';
 
-test('onboarding checklist page loads correctly', async ({ page }) => {
-  await page.goto('/onboarding', { waitUntil: 'networkidle' });
+test('business signup flow loads first step', async ({ page }) => {
+  await page.goto('/signup/business', { waitUntil: 'networkidle' });
 
+  // Step 1 heading should be visible
   await expect(
-    page.getByRole('heading', { name: /Intake review hub/i }),
+    page.getByRole('heading', { name: /Organization details/i }),
   ).toBeVisible();
 });
