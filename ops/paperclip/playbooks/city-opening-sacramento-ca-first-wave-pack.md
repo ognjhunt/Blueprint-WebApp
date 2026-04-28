@@ -4,7 +4,7 @@
 - purpose: first-wave asset pack for operator review; not evidence of a live send, post, or account setup
 
 ## Warehouse / Facility Direct Awareness
-- target 1: Capital Robotics — use a proof-led intro anchored to one workflow lane and one truthful CTA.
+- no named buyer-side targets are materialized yet; keep this lane in draft preparation only.
 - target site anchors currently available: Northgate Logistics.
 
 ## Public-Commercial Bounded Placements

@@ -23,7 +23,7 @@ Turn the San Jose planning artifacts into an executable company harness that run
 
 1. Generate and critique the San Jose plan through the existing Gemini Deep Research harness.
 2. Convert the compact San Jose city-launch and city-demand playbooks into a single San Jose operating system with explicit tasks, owners, thresholds, and handoff rules.
-3. Make city-opening distribution explicit through a city-opening brief, channel map, first-wave outreach/posting pack, exact CTA/intake routing, response tracking, reply-conversion cadence, channel registry, send ledger, and city-opening execution report so the city does not wait for replies from people who were never reached or lose the first replies once they arrive.
+3. Make city-opening distribution explicit through a city-opening brief, channel map, first-wave outreach/posting pack, exact CTA/intake routing, response tracking, reply-conversion cadence, channel registry, send ledger, exact-site buyer loop, and city-opening execution report so the city does not wait for replies from people who were never reached or lose the first replies once they arrive.
 4. Materialize the live Paperclip issue tree for the city launch so work is routable instead of staying trapped in artifacts.
 5. Measure the city through San Jose-specific distribution, supply, demand, spend, and proof-motion metrics so operators can see whether the city is actually becoming operationally real.
 6. Treat the machine-readable activation payload as the control-plane artifact for validation blockers, lane mapping, and metrics readiness.
@@ -53,7 +53,7 @@ Turn the San Jose planning artifacts into an executable company harness that run
 
 - city-launch-agent keeps the San Jose plan and dependency map current.
 - city-demand-agent maintains the San Jose target ledger and parallel lawful-access queue so the capture queue stays tied to real robot workflow demand without stalling on one facility.
-- city-launch-agent, capturer-growth-agent, ops-lead, and analytics-agent make San Jose city-opening distribution explicit through a city-opening brief, channel map, first-wave outreach/posting pack, city-facing CTA path, response-tracking view, reply-conversion cadence lane, channel registry, send ledger, and city-opening execution report before the system assumes the city has heard about Blueprint.
+- city-launch-agent, capturer-growth-agent, ops-lead, and analytics-agent make San Jose city-opening distribution explicit through a city-opening brief, channel map, first-wave outreach/posting pack, city-facing CTA path, response-tracking view, reply-conversion cadence lane, channel registry, send ledger, exact-site buyer loop, and city-opening execution report before the system assumes the city has heard about Blueprint.
 - site-operator-partnership-agent prepares operator-lane contact maps, value props, and approval sequences for warehouse/facility access paths before the city waits on a single signature thread.
 - capturer-growth-agent, intake-agent, capturer-success-agent, field-ops-agent, capture-qa-agent, and rights-provenance-agent run the supply loop continuously, producing drafts, packets, routing, and prep work even before the first real-world confirmations arrive.
 - demand-intel-agent, robot-team-growth-agent, outbound-sales-agent, buyer-solutions-agent, and revenue-ops-pricing-agent run the demand loop continuously, packaging truthful proof motion and only pausing at irreversible claim, rights, spend, or non-standard commercial gates.
@@ -72,7 +72,7 @@ Turn the San Jose planning artifacts into an executable company harness that run
 
 - Founder-approved San Jose posture remains required to activate the city.
 - San Jose capture target ledger with first proof candidates, queued lawful-access buckets, and longer-horizon discovery lanes is required to mark the city operationally real, but not required to begin execution.
-- San Jose city-opening brief, channel map, first-wave outreach/posting pack, CTA / intake path, response-tracking view, reply-conversion cadence lane, channel/account registry, send ledger, and city-opening execution report are required to prove the city was actually opened and that early replies are being worked instead of counted and lost.
+- San Jose city-opening brief, channel map, first-wave outreach/posting pack, CTA / intake path, response-tracking view, reply-conversion cadence lane, channel/account registry, send ledger, exact-site buyer loop, and city-opening execution report are required to prove the city was actually opened and that early replies are being worked instead of counted and lost.
 - San Jose ops packet: intake rubric, trust kit, first-capture thresholds, and launch-readiness checklist is a completion dependency, not a reason to leave execution lanes idle.
 - At least one clean San Jose proof pack with hosted-review path and rights/provenance clearance is required before claiming the city is live.
 - San Jose buyer target list and proof-led outbound package are completion requirements for launch quality, not start gates for agent work.

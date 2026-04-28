@@ -3,7 +3,7 @@
 ## Status
 - phase: activation_ready
 - owner: city-launch-agent
-- last-reviewed: 2026-04-26
+- last-reviewed: 2026-04-28
 - recommended-posture: gated cohort pilot
 - launch_policy_state: autonomous_execution_ready
 - planning-state: completed
@@ -48,6 +48,7 @@ Run one proof-led warehouse wedge.
 - San Jose channel/account registry with ready-to-create, created, or blocked state
 - San Jose live post/outreach send ledger with ready-to-send, sent, or blocked state plus first-send approval
 - San Jose city-opening execution report showing what actually went live versus what is still pending
+- San Jose exact-site buyer loop showing targets, recipient-backed contacts, founder approvals, sends, replies, calls, hosted-review starts, and blockers
 
 ## Target Capturer Profile
 - site-authorized surveying, AEC scanning, industrial inspection, or commercial mapping operator
@@ -77,7 +78,7 @@ Run one proof-led warehouse wedge.
 - A live response does not count as converted just because it exists; it counts when it receives a next step, follow-up cadence, and downstream routing decision.
 
 ## City-Opening Execution Layer
-- The city-opening execution layer should keep a first-class channel/account registry, a send ledger, and a current execution report.
+- The city-opening execution layer should keep a first-class channel/account registry, a send ledger, a buyer loop, and a current execution report.
 - Account creation, send readiness, send approval, sent state, and response ingest should stay visible in canonical artifacts instead of hiding in agent comments.
 - The reply-conversion lane should ingest responses from the send ledger rather than assuming responses will be routed manually.
 

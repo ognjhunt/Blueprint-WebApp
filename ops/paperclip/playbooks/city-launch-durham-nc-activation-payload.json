@@ -88,6 +88,62 @@
       "status": "required_tracked",
       "ownerLane": "analytics-agent",
       "notes": null
+    },
+    {
+      "key": "city_launch_lawful_access_established",
+      "kind": "event",
+      "status": "required_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": null
+    },
+    {
+      "key": "city_launch_capturer_approved",
+      "kind": "event",
+      "status": "required_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": null
+    },
+    {
+      "key": "city_launch_capture_completed",
+      "kind": "event",
+      "status": "required_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": null
+    },
+    {
+      "key": "city_launch_capture_qa_passed",
+      "kind": "event",
+      "status": "required_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": null
+    },
+    {
+      "key": "city_launch_proof_asset_rights_cleared",
+      "kind": "event",
+      "status": "required_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": null
+    },
+    {
+      "key": "city_launch_proof_pack_delivered",
+      "kind": "event",
+      "status": "required_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": null
+    },
+    {
+      "key": "city_launch_hosted_review_ready",
+      "kind": "event",
+      "status": "required_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": null
+    },
+    {
+      "key": "city_launch_commercial_handoff",
+      "kind": "event",
+      "status": "required_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": null
     }
   ],
   "namedClaims": []

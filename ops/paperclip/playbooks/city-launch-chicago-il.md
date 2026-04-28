@@ -9,13 +9,15 @@
 - planning-state: completed
 
 ## Launch Thesis
-Run one proof-led warehouse wedge.
+One site, one workflow, one hosted review wedge.
 
 ## What Changed This Pass
 - evidence-backed: the generic city-launch activation harness generated the Chicago system doc, execution issue bundle, target ledger, and compact city playbooks in one run.
 - evidence-backed: the launch harness now tracks planning state explicitly so activation can distinguish "not started" from "research still running".
 - evidence-backed: the compact launch packet uses the standard platform analytics event model rather than inventing city-specific telemetry.
-- evidence-backed: the target ledger mode for this city is `deep_research_records`. Research-backed named targets already available include Chicago Survey Ops.
+- evidence-backed: the target ledger mode for this city is `planning_placeholder`. No research-backed named targets are available yet, so the first live capture work should stay blocked until deep research materializes into named sites.
+- warning: No research-backed named targets are available yet. Complete or materialize deep research before using this ledger for real capture pursuit.
+- warning: Latest planning artifact: /tmp/city-launch/chicago-il/run-1/99-final-playbook.md
 
 ## Why This City Now
 - the city remains a planning candidate only if it can produce rights-cleared exact-site proof assets for real robotics workflows
@@ -84,7 +86,7 @@ Run one proof-led warehouse wedge.
 
 ## Rights Path
 
-Private controlled interiors require authorization.
+Rights summary
 
 ## Trust Infrastructure Required Before Expansion
 - written site-operator acquisition path and authority verification checklist
