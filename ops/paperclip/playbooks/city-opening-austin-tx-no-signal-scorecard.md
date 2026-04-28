@@ -1,7 +1,7 @@
 # Austin, TX City-Opening No-Signal Scorecard
 
 - status: not_triggered
-- evaluated_at: 2026-04-27T20:31:26.452Z
+- evaluated_at: 2026-04-28T02:20:15.796Z
 - trigger_rule: no positive applicant/capturer/reply/operator signal after 3 days or 2 sent direct-outreach actions
 
 ## Outcome Counters

@@ -31,24 +31,7 @@
     "capturer-growth-agent",
     "analytics-agent"
   ],
-  "issueSeeds": [
-    {
-      "key": "city-opening-first-wave-pack",
-      "title": "Assemble first-wave pack",
-      "phase": "supply",
-      "ownerLane": "capturer-growth-agent",
-      "humanLane": "growth-lead",
-      "summary": "Prepare first-wave outreach and posting assets.",
-      "dependencyKeys": [],
-      "successCriteria": [
-        "First-wave pack is ready."
-      ],
-      "metricsDependencies": [
-        "first_lawful_access_path"
-      ],
-      "validationRequired": false
-    }
-  ],
+  "issueSeeds": [],
   "metricsDependencies": [
     {
       "key": "robot_team_inbound_captured",
@@ -105,18 +88,63 @@
       "status": "required_tracked",
       "ownerLane": "analytics-agent",
       "notes": null
+    },
+    {
+      "key": "city_launch_lawful_access_established",
+      "kind": "event",
+      "status": "required_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": null
+    },
+    {
+      "key": "city_launch_capturer_approved",
+      "kind": "event",
+      "status": "required_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": null
+    },
+    {
+      "key": "city_launch_capture_completed",
+      "kind": "event",
+      "status": "required_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": null
+    },
+    {
+      "key": "city_launch_capture_qa_passed",
+      "kind": "event",
+      "status": "required_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": null
+    },
+    {
+      "key": "city_launch_proof_asset_rights_cleared",
+      "kind": "event",
+      "status": "required_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": null
+    },
+    {
+      "key": "city_launch_proof_pack_delivered",
+      "kind": "event",
+      "status": "required_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": null
+    },
+    {
+      "key": "city_launch_hosted_review_ready",
+      "kind": "event",
+      "status": "required_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": null
+    },
+    {
+      "key": "city_launch_commercial_handoff",
+      "kind": "event",
+      "status": "required_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": null
     }
   ],
-  "namedClaims": [
-    {
-      "subject": "Capital Robotics",
-      "claimType": "company",
-      "claim": "Capital Robotics is a named buyer target.",
-      "validationRequired": false,
-      "sourceUrls": [
-        "https://github.com/ognjhunt/Blueprint-WebApp/blob/main/ops/paperclip/playbooks/city-opening-sacramento-ca-send-ledger.md",
-        "https://github.com/ognjhunt/Blueprint-WebApp/blob/main/ops/paperclip/playbooks/city-opening-sacramento-ca-robot-team-contact-list.md"
-      ]
-    }
-  ]
+  "namedClaims": []
 }

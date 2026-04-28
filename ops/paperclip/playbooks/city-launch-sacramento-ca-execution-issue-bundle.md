@@ -111,25 +111,27 @@ This issue bundle turns the Sacramento playbook into executable lanes using the 
   - Sacramento CTA path states what Blueprint is asking for, what access or site facts respondents must provide, and what the next review step is.
   - Responses do not die in personal inboxes or draft docs; they enter the canonical intake queue or ledger path with next-owner visibility.
 
-## Assemble first-wave pack
+## Assemble the Sacramento first-wave outreach and posting pack
 
 - key: city-opening-first-wave-pack
 - phase: supply
 - agent owner: capturer-growth-agent
 - human owner: growth-lead
-- purpose: Prepare first-wave outreach and posting assets.
+- purpose: Turn the Sacramento city-opening brief into concrete first-wave assets that can create the first responses: direct named outreach for warehouse/facility awareness and small bounded posting packages for public-commercial awareness.
 - policy_guardrail: Automatic policy block before any send, post, or expansion that outruns the written city-opening brief.
 - dependencies: city-opening-distribution, city-opening-cta-routing
-- metrics dependencies: first_lawful_access_path
+- metrics dependencies: none
 - validation required: false
-- source: activation_payload
+- source: default_task_bundle
 - inputs:
   - Sacramento city-opening brief
   - Sacramento channel map
   - Sacramento CTA / intake path
   - ops/paperclip/playbooks/city-capture-target-ledger-sacramento-ca.md
 - done when:
-  - First-wave pack is ready.
+  - Sacramento warehouse/facility first-wave outreach pack names the first buyers, operators, integrators, or facilities to contact, the proof-led message variants, and the next move per target.
+  - Sacramento public-commercial first-wave posting pack names the first small community placements, the public-area-only brief, and the exact CTA copy for each placement.
+  - Every Sacramento first-wave asset points to the same truthful CTA path, uses source attribution, and avoids invented traction, blanket permission claims, or fake legal certainty.
 
 ## Run Sacramento site-operator partnership routing
 

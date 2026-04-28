@@ -1,6 +1,6 @@
 # Exact-Site Hosted Review Buyer Loop
 
-- report_date: 2026-04-27
+- report_date: 2026-04-28
 - city: Austin, TX
 - ledger: ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json
 - loop_status: blocked
@@ -13,6 +13,9 @@
 | --- | ---: |
 | Target rows | 1 |
 | Recipient-backed targets | 0 |
+| Enrichment attempted targets | 0 |
+| Enrichment candidate targets | 0 |
+| Enrichment contact-found targets | 0 |
 | Founder approval needed | 0 |
 | Sent touches | 0 |
 | Replies | 0 |
@@ -22,7 +25,7 @@
 | Capture asks | 0 |
 | Explicit next-action rows | 1 |
 | 100-touch decision gap | 100 |
-| Days remaining | 13 |
+| Days remaining | 12 |
 
 ## One Sales Ledger
 
@@ -31,6 +34,9 @@
 | Simbe Robotics | proof_ready_outreach | missing | draft_ready | blocked | Find explicit recipient-backed contact evidence before founder first-send approval. |
 
 ## Recipient-Backed Contact Engine
+
+- Run `npm run gtm:enrichment:run -- --write` to refresh provider-backed recipient evidence before founder approval.
+- Clay or another enrichment tool may feed this lane only as a provider-normalized candidate source; the GTM ledger remains the system of record.
 
 - gtm-001-simbe-retail-aisle-review: Simbe Robotics / Retail shelf-scanning robotics team / Find explicit recipient-backed contact evidence before founder first-send approval.
 

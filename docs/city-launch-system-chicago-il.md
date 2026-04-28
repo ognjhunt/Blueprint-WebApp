@@ -97,6 +97,14 @@ Turn the Chicago planning artifacts into an executable company harness that runs
 - hosted_review_follow_up_sent: required_tracked
 - human_commercial_handoff_started: required_tracked
 - proof_motion_stalled: required_tracked
+- city_launch_lawful_access_established: required_tracked
+- city_launch_capturer_approved: required_tracked
+- city_launch_capture_completed: required_tracked
+- city_launch_capture_qa_passed: required_tracked
+- city_launch_proof_asset_rights_cleared: required_tracked
+- city_launch_proof_pack_delivered: required_tracked
+- city_launch_hosted_review_ready: required_tracked
+- city_launch_commercial_handoff: required_tracked
 
 ## Expansion Guard
 
@@ -113,6 +121,14 @@ Turn the Chicago planning artifacts into an executable company harness that runs
 - hosted_review_follow_up_sent is required_tracked.
 - human_commercial_handoff_started is required_tracked.
 - proof_motion_stalled is required_tracked.
+- city_launch_lawful_access_established is required_tracked.
+- city_launch_capturer_approved is required_tracked.
+- city_launch_capture_completed is required_tracked.
+- city_launch_capture_qa_passed is required_tracked.
+- city_launch_proof_asset_rights_cleared is required_tracked.
+- city_launch_proof_pack_delivered is required_tracked.
+- city_launch_hosted_review_ready is required_tracked.
+- city_launch_commercial_handoff is required_tracked.
 
 ## Execution Bundle
 

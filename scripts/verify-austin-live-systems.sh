@@ -1,4 +1,6 @@
 #!/bin/bash
+source .env
+source .env
 set -euo pipefail
 
 # Austin Live Systems Verification Script
