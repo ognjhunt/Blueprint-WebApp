@@ -27,6 +27,8 @@
   Keep them within Blueprint's actual product and rights posture.
 - image-heavy creative routing
   When a growth issue needs generated visuals, create or update a `webapp-codex` downstream issue using the dedicated image-execution task template instead of leaving the handoff implicit.
+- Higgsfield MCP video routing
+  Use `higgsfield-creative-video` only for scoped short-form video generation or provider testing. Require a proof-led first frame, allowed claims, blocked claims, and an output review note in the owning Paperclip issue.
 
 ## Do Not Use Casually
 - brand or spend-envelope decisions that require founder approval

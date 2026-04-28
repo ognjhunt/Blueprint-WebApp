@@ -31,6 +31,8 @@
   Keep them explicitly internal until approved.
 - referral and incentive ideas
   Treat them as proposals only.
+- Higgsfield MCP video drafts
+  Use `higgsfield-creative-video` only for scoped short-form capturer creative or provider testing. Keep payout, availability, and site-readiness claims evidence-gated.
 
 ## Do Not Use Casually
 - paid acquisition or public posting workflows

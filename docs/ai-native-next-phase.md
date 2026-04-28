@@ -36,13 +36,14 @@ Implemented surfaces:
 - protected campaign-kit builder at `/admin/growth-studio`
 - `POST /api/admin/creative/campaign-kit` for proof-led landing/email/outbound/reel kits
 - `POST /api/admin/creative/generate-image` is disabled by policy for server-side paid image generation
-- `POST /api/admin/creative/generate-video` plus `GET /api/admin/creative/video-tasks/:taskId` for OpenRouter-backed video generation when `OPENROUTER_API_KEY` is configured
+- `POST /api/admin/creative/generate-video` plus `GET /api/admin/creative/video-tasks/:taskId` for OpenRouter-backed server-side video generation when `OPENROUTER_API_KEY` is configured
+- Higgsfield MCP as an agent-side Seedance 2.0 alternative for scoped creative/video issues when the connector is authenticated
 - `POST /api/admin/creative/render-proof-reel` for local Remotion proof-reel rendering
 
 This creative loop now splits by medium:
 
 - image-heavy execution routes to Codex lanes rather than server-side paid image APIs
-- video remains on the server-side/provider-based path
+- video remains on explicit provider paths: OpenRouter for server-side admin routes, Higgsfield MCP for approved agent-side video work
 
 The creative system is intentionally proof-led:
 

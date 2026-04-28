@@ -19,6 +19,8 @@
   Keep them tied to current product truth and human review.
 - proof-pack recommendations
   Mark clearly what exists today versus what still requires product work.
+- Higgsfield MCP video drafts
+  Use `higgsfield-creative-video` only for scoped short-form buyer motion or provider testing. Record the model, prompt, source frame, output, and review gates before public use.
 
 ## Do Not Use Casually
 - discounting, pricing, contract, or procurement language

@@ -5,6 +5,12 @@ import { createServer } from "http";
 import type { Server } from "node:http";
 
 const state = vi.hoisted(() => ({
+  stripeAccount: {
+    details_submitted: true,
+    payouts_enabled: true,
+    settings: { payouts: { schedule: { interval: "manual" } } },
+    requirements: { currently_due: [], past_due: [] },
+  } as Record<string, unknown>,
   availableAmount: 100_000,
   transferCreate: vi.fn().mockResolvedValue({ id: "tr_123" }),
   payoutCreate: vi.fn().mockResolvedValue({ id: "po_123" }),
@@ -30,12 +36,7 @@ vi.mock("../constants/stripe", () => ({
       list: vi.fn().mockResolvedValue({ data: [] }),
     },
     accounts: {
-      retrieve: vi.fn().mockResolvedValue({
-        details_submitted: true,
-        payouts_enabled: true,
-        settings: { payouts: { schedule: { interval: "manual" } } },
-        requirements: { currently_due: [] },
-      }),
+      retrieve: vi.fn().mockImplementation(async () => state.stripeAccount),
       listExternalAccounts: vi.fn().mockResolvedValue({ data: [] }),
       update: vi.fn().mockResolvedValue(undefined),
       deleteExternalAccount: vi.fn().mockResolvedValue(undefined),
@@ -100,6 +101,12 @@ async function stopServer(server: Server) {
 }
 
 afterEach(() => {
+  state.stripeAccount = {
+    details_submitted: true,
+    payouts_enabled: true,
+    settings: { payouts: { schedule: { interval: "manual" } } },
+    requirements: { currently_due: [], past_due: [] },
+  };
   state.availableAmount = 100_000;
   state.transferCreate.mockClear();
   state.payoutCreate.mockClear();
@@ -109,6 +116,42 @@ afterEach(() => {
 });
 
 describe("stripe treasury funding", () => {
+  it("blocks instant payouts when Stripe still has verification requirements", async () => {
+    state.stripeAccount = {
+      details_submitted: true,
+      payouts_enabled: false,
+      settings: { payouts: { schedule: { interval: "manual" } } },
+      requirements: {
+        currently_due: ["individual.verification.document"],
+        past_due: ["external_account"],
+        disabled_reason: "requirements.past_due",
+      },
+    };
+
+    const { server, baseUrl } = await startServer();
+    try {
+      const response = await fetch(`${baseUrl}/v1/stripe/account/instant_payout`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ amount_cents: 4500 }),
+      });
+
+      expect(response.status).toBe(409);
+      await expect(response.json()).resolves.toMatchObject({
+        error: "Stripe payouts are not enabled for this account.",
+        requirements_due: ["individual.verification.document"],
+        requirements_past_due: ["external_account"],
+        disabled_reason: "requirements.past_due",
+      });
+      expect(state.transferCreate).not.toHaveBeenCalled();
+      expect(state.payoutCreate).not.toHaveBeenCalled();
+    } finally {
+      await stopServer(server);
+    }
+  });
+
   it("funds the creator connected account before creating the payout", async () => {
     const { server, baseUrl } = await startServer();
     try {

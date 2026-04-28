@@ -20,6 +20,59 @@ type OnboardingStatusCode = typeof HTTP_STATUS.OK | typeof HTTP_STATUS.CREATED;
 
 const router = Router();
 
+function populatedRequirements(
+  requirements?: string[] | null,
+): string[] | null {
+  return requirements && requirements.length > 0 ? requirements : null;
+}
+
+function deadlineToISOString(deadline?: number | null): string | null {
+  return deadline ? new Date(deadline * 1000).toISOString() : null;
+}
+
+function stripeRequirementPayload(account: Stripe.Account) {
+  return {
+    requirements_due: populatedRequirements(account.requirements?.currently_due),
+    requirements_past_due: populatedRequirements(account.requirements?.past_due),
+    requirements_pending_verification: populatedRequirements(
+      account.requirements?.pending_verification,
+    ),
+    disabled_reason: account.requirements?.disabled_reason ?? null,
+  };
+}
+
+async function ensureAccountReadyForInstantPayout(
+  stripe: Stripe,
+  accountId: string,
+  res: Response,
+): Promise<boolean> {
+  const account = await stripe.accounts.retrieve(accountId);
+  const requirements = stripeRequirementPayload(account);
+  const hasBlockingRequirements = Boolean(
+    requirements.requirements_due ||
+      requirements.requirements_past_due ||
+      requirements.disabled_reason,
+  );
+
+  if (!account.details_submitted) {
+    res.status(409).json({
+      error: "Stripe onboarding is incomplete.",
+      ...requirements,
+    });
+    return false;
+  }
+
+  if (!account.payouts_enabled || hasBlockingRequirements) {
+    res.status(409).json({
+      error: "Stripe payouts are not enabled for this account.",
+      ...requirements,
+    });
+    return false;
+  }
+
+  return true;
+}
+
 router.use((req: Request, res: Response, next) => {
   const authenticatedUid = String(res.locals.firebaseUser?.uid || "").trim();
   if (!authenticatedUid) {
@@ -129,6 +182,11 @@ router.get("/account", async (req, res) => {
           instant_payout_eligible: false,
           next_payout: null,
           requirements_due: null,
+          requirements_past_due: null,
+          requirements_eventually_due: null,
+          requirements_pending_verification: null,
+          disabled_reason: null,
+          requirements_current_deadline: null,
         });
       }
       return;
@@ -164,10 +222,13 @@ router.get("/account", async (req, res) => {
             amount_cents: pendingPayout.amount,
           }
         : null,
-      requirements_due:
-        account.requirements?.currently_due && account.requirements.currently_due.length > 0
-          ? account.requirements.currently_due
-          : null,
+      ...stripeRequirementPayload(account),
+      requirements_eventually_due: populatedRequirements(
+        account.requirements?.eventually_due,
+      ),
+      requirements_current_deadline: deadlineToISOString(
+        account.requirements?.current_deadline,
+      ),
     });
   } catch (error) {
     const status = (error as any)?.status || 500;
@@ -227,7 +288,11 @@ async function createOnboardingLink(
     refresh_url: STRIPE_ONBOARDING_REFRESH_URL,
     return_url: STRIPE_ONBOARDING_RETURN_URL,
     type: "account_onboarding",
-  });
+    collection_options: {
+      fields: "eventually_due",
+      future_requirements: "include",
+    },
+  } as Stripe.AccountLinkCreateParams);
 
   return res.status(statusCode).json({
     onboarding_url: link.url,
@@ -303,6 +368,15 @@ router.post("/account/instant_payout", async (req, res) => {
       return res.status(400).json({
         error: "Invalid amount_cents. It must be a positive integer when provided.",
       });
+    }
+
+    const stripeAccountReady = await ensureAccountReadyForInstantPayout(
+      stripeContext.stripe,
+      stripeContext.accountId,
+      res,
+    );
+    if (!stripeAccountReady) {
+      return;
     }
 
     if (stripeContext.creatorId) {

@@ -1668,7 +1668,7 @@ Creative execution routing on this host is narrower than the general model ladde
 - Hermes lanes must not assume they can directly generate final imagery just because Codex can.
 - Final image execution should use Codex desktop OAuth image generation on `gpt-image-2`, not a separate image API.
 - Server-side autonomous workers keep explicit provider APIs for non-image work unless a separate migration changes their execution substrate.
-- Video generation remains on the explicit provider path; current default is OpenRouter video.
+- Video generation remains on an explicit provider path. The server-side default is OpenRouter video; Higgsfield MCP is an approved agent-side Seedance 2.0 alternative for scoped creative/video issues when account OAuth and credits are available.
 
 | Component | Status | Notes |
 |-----------|--------|-------|
@@ -1692,6 +1692,7 @@ Creative execution routing on this host is narrower than the general model ladde
 | Slack Incoming Webhook | All leads + CEO | P1 | Free | **Configured** |
 | SendGrid / Email API | Intake, Finance/Support, Growth | P1 | Free tier | **Repo wired; account config still needed** |
 | Codex OAuth image generation (`gpt-image-2`) | Growth, Community Updates, Robot Team Growth | P1 | Included with Codex lane availability | **Route through `webapp-codex`; no separate image API key path for final assets** |
+| Higgsfield MCP video generation (Seedance 2.0) | WebApp Codex, Growth Lead, Community Updates, Robot Team Growth, Capturer Growth | P1 | Higgsfield credits | **Agent-side MCP configured; requires Higgsfield account OAuth before use; use only through `higgsfield-creative-video`** |
 | ElevenLabs voice | Support, Growth, Buyer-facing demo booking | P1 | Usage-based | **Repo wired; key/voice config still needed** |
 | Notion API Token | All agents (via plugin) | P0 | Free | **Configured** |
 | Cloudflare Tunnel | Plugin webhook intake | P0 | Free | **Verified** |

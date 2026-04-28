@@ -24,6 +24,7 @@ Avoid on issue-bound runs:
 ## Actions You Own
 - implement concrete WebApp code changes tied to a real issue
 - execute image-heavy brand, marketing, and frontend visual tasks routed through the dedicated WebApp creative-image task template
+- execute scoped Higgsfield MCP video tasks only when the issue explicitly asks for video generation or video-provider testing and the `higgsfield-creative-video` skill is active
 - tighten acceptance criteria when an implementation issue is under-specified
 - run the narrowest meaningful validation for the touched surface
 - leave issue comments with what changed, what was verified, and any remaining risk
@@ -49,3 +50,5 @@ Avoid on issue-bound runs:
   Use only for pricing, contract, commercialization, or product-claim decisions outside repo ownership.
 - cross-repo contract assumptions
   Verify against the actual downstream or upstream contract before coding to it.
+- Higgsfield image tools
+  Do not use them as a replacement for Codex `gpt-image-2` final image execution. Higgsfield is approved here only for governed video work.

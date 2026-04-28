@@ -166,6 +166,7 @@ agents:
             - verification-before-completion
             - karpathy-guidelines
             - taste-skill
+            - higgsfield-creative-video
     budgetMonthlyCents: 3000
   webapp-review:
     role: engineer
@@ -526,6 +527,7 @@ agents:
             - exact-site-positioning
             - exact-site-messaging
             - exact-site-cro-research
+            - higgsfield-creative-video
             - writing-plans
             - hermes-kb-workflow
             - meeting-action-extractor
@@ -644,6 +646,7 @@ agents:
             - retro
             - truthful-quality-gate
             - humanizer
+            - higgsfield-creative-video
     budgetMonthlyCents: 2000
   metrics-reporter:
     role: engineer
@@ -773,6 +776,7 @@ agents:
             - analytics-tracking
             - writing-plans
             - capturer-growth-operations
+            - higgsfield-creative-video
     budgetMonthlyCents: 2500
   public-space-review-agent:
     role: engineer
@@ -879,6 +883,7 @@ agents:
             - exact-site-messaging
             - exact-site-offer-architecture
             - robot-team-outbound-operations
+            - higgsfield-creative-video
     budgetMonthlyCents: 2500
   site-operator-partnership-agent:
     role: engineer

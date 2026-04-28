@@ -27,6 +27,8 @@
   Use to verify a specific external URL before citing it in a community draft.
 - [$humanizer](/Users/nijelhunt_1/.agents/skills/humanizer/SKILL.md)
   Use for the final anti-AI editing pass.
+- `higgsfield-creative-video`
+  Use only when a community update issue explicitly needs a video draft or motion cutdown. Keep image execution on `webapp-codex`/`gpt-image-2`, and label generated clips as illustrative unless real proof assets support a stronger claim.
 
 ## Trust Model
 - shipped work and measured user-visible impact outrank internal narrative

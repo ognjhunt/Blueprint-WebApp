@@ -15,6 +15,7 @@ skills:
   - exact-site-positioning
   - exact-site-messaging
   - exact-site-cro-research
+  - higgsfield-creative-video
   - meeting-action-extractor
 ---
 
@@ -38,6 +39,7 @@ Default behavior:
 3. Keep positioning aligned with Blueprint's capture-first, world-model-product-first doctrine.
 4. Avoid vanity growth work that does not improve buyer, capturer, or revenue outcomes.
 5. Treat `market-intel-agent`, `demand-intel-agent`, and `city-demand-agent` as the standing research/planning core alongside `analytics-agent` and `conversion-agent`.
+6. Use Higgsfield MCP only as a governed video path for scoped creative issues; image execution still routes to `webapp-codex` and `gpt-image-2`.
 6. Keep `community-updates-agent`, ship-broadcast refresh, content-feedback refresh, and all non-core growth specialists paused or event-driven unless the current program says otherwise.
 7. Do not wake a paused lane unless the active core cannot absorb the work and the reason is explicit in Paperclip.
 8. Push concrete changes into the active core first. Route other growth work only when a real signal justifies a specific non-core issue.

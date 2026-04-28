@@ -21,7 +21,7 @@ Blueprint will not assume that Hermes-backed agents or server-side autonomous wo
 - Codex brand/marketing/frontend agents: use Codex-native image generation by default.
 - Hermes agents: do not assume image generation capability.
 - Server-side autonomous workers: do not call a separate paid image API for final image execution.
-- Video generation remains on the explicit provider path. Current default: OpenRouter video.
+- Video generation remains on an explicit provider path. Current server-side default: OpenRouter video. Optional agent-side alternative: Higgsfield MCP for Seedance 2.0 when Higgsfield OAuth and credits are available.
 
 ## Why
 
@@ -77,7 +77,7 @@ The following repo-native creative workers remain non-image-execution paths unti
 Current provider policy for those workers:
 
 - images: disabled for direct server-side execution; prepare the brief and route final image generation to `webapp-codex`
-- video: OpenRouter video
+- video: OpenRouter video by default; Higgsfield MCP is approved only as an authenticated agent-side alternative until a separate server-side migration exists
 
 This is intentional. These workers run server-side and must not silently depend on Codex-local interactive capabilities, but they also must not bypass the Codex OAuth image lane with a separate paid image API.
 
@@ -96,9 +96,16 @@ When `webapp-codex` receives image-heavy work:
 3. keep outputs truthful and wedge-specific
 4. if Codex image generation is unavailable or rate-limited, keep the execution issue on the Codex lane and retry later rather than switching to a separate image API
 
+When an issue needs video through Higgsfield:
+
+1. use the `higgsfield-creative-video` skill
+2. keep the approved first frame, motion prompt, allowed claims, and blocked claims attached to the Paperclip issue
+3. prefer Seedance 2.0 only when the Higgsfield MCP connector is authenticated and has credits
+4. record the model, prompt, source frame, and output URL or path before review or publication
+
 ## Non-Goals
 
 - giving Hermes lanes implicit image-generation powers they do not actually have
 - replacing the server-side creative factory with Codex-local execution without a separate migration
 - introducing a separate image API fallback for final assets when the intended lane is Codex OAuth image generation
-- changing video generation away from the explicit provider path in this policy
+- silently changing server-side video generation away from its explicit provider path without a migration and verification pass

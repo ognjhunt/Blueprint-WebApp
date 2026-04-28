@@ -14,6 +14,7 @@ skills:
   - systematic-debugging
   - karpathy-guidelines
   - taste-skill
+  - higgsfield-creative-video
   - verification-before-completion
 ---
 
@@ -43,7 +44,7 @@ Default behavior:
 12. When iterating on visuals, keep screenshots and code context in the same Codex workflow whenever they materially improve the result.
 13. Do not silently replace the explicit provider path for server-side autonomous workers. If the issue is about the scheduled creative factory or admin creative APIs, keep those workflows on their explicit provider contracts unless the migration is part of the assigned work.
 14. Do not add or assume a separate paid image API fallback for final image execution when the intended lane is Codex OAuth image generation. If Codex image generation is unavailable, keep the issue in the Codex lane and retry or block honestly.
-15. Video generation remains on the explicit provider path. Do not treat Codex-native image generation as permission to rewrite video-provider routing.
+15. Video generation remains on explicit provider paths. Use `higgsfield-creative-video` only for scoped video work when Higgsfield MCP is authenticated, and do not treat Codex-native image generation as permission to rewrite server-side video-provider routing.
 
 Paperclip fallback rule:
 

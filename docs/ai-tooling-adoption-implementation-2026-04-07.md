@@ -82,7 +82,7 @@ Creative execution addendum on the trusted host:
 - screenshots and code context should stay in the same Codex workflow when iterating on visuals
 - Hermes-backed lanes remain planning, research, copy, and routing lanes unless work is explicitly moved into Codex
 - server-side autonomous workers do not call a separate paid image API for final asset execution; they route image-heavy work into the Codex lane
-- video stays on the explicit provider path
+- video stays on an explicit provider path. OpenRouter remains the server-side default; Higgsfield MCP is an approved agent-side alternative for Seedance 2.0 when the connector is authenticated and the issue is explicitly video-scoped.
 
 ## Target Outcome By End Of Session
 
@@ -214,6 +214,7 @@ Work:
 - keep all public sends draft-first and approval-gated
 - for image-heavy creative work, route execution to Codex lanes that can use Codex-native image generation; keep Hermes lanes on brief-writing, evidence, and review
 - keep scheduled or server-side creative workers on explicit provider APIs until a separate migration is approved
+- use Higgsfield MCP only through the `higgsfield-creative-video` skill, with model, prompt, source frame, output, and human-review state recorded in Paperclip
 
 Acceptance criteria:
 

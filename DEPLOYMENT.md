@@ -137,6 +137,13 @@ Deep Research notes:
 - `*_MCP_SERVERS_JSON` must be a JSON array of remote MCP server configs with `name`, `url`, optional `headers`, and optional `allowed_tools`.
 - The Blueprint automation plugin registers `web-search` without a key when `SEARCH_API_PROVIDER=parallel_mcp`; it also registers `web-fetch` for specific public URL extraction through Parallel Search MCP.
 
+Agent-side creative MCP note:
+- Higgsfield MCP is configured at the client/agent layer, not as a required WebApp server secret.
+- Codex: `codex mcp add higgsfield --url https://mcp.higgsfield.ai/mcp`, then complete `codex mcp login higgsfield`.
+- Hermes: `mcp_servers.higgsfield.url=https://mcp.higgsfield.ai/mcp` with `auth: oauth`.
+- Use it only for scoped creative/video issues through the `higgsfield-creative-video` skill. Final image execution stays on Codex `gpt-image-2`.
+- If OAuth returns `redirect_uri` mismatch, the connector is installed but not usable in that client until Higgsfield supports the client's local OAuth callback or provides a compatible auth flow.
+
 ### Internal Marketplace + Pipeline
 - `PIPELINE_SYNC_TOKEN`
 - `BLUEPRINT_REQUEST_REVIEW_TOKEN_SECRET`

@@ -10730,10 +10730,17 @@ async function buildAnalyticsOutputProof(
     }
   }
 
-  result.proofLinks = [
-    result.kbArtifact?.path,
+  const proofLinkUrls = [
     result.notion?.workQueuePageUrl,
     result.notion?.knowledgePageUrl,
+  ].filter((value): value is string => typeof value === "string" && value.length > 0);
+  if (proofLinkUrls.length < 2) {
+    failureReasons.push("Missing both proof links.");
+  }
+
+  result.proofLinks = [
+    result.kbArtifact?.path,
+    ...proofLinkUrls,
   ].filter((value): value is string => typeof value === "string" && value.length > 0);
   result.failureReason = [...failureReasons, ...errors].join(" ");
   result.success = failureReasons.length === 0 && errors.length === 0;

@@ -214,7 +214,23 @@ Current default:
 - Codex-executed image work: Codex desktop OAuth image generation on `gpt-image-2`, ideally iterated with screenshots and code context
 - Hermes growth/research lanes: no direct image-generation assumption
 - server-side autonomous workers: no separate image API for final asset execution; route image work to Codex
-- video generation: explicit provider path, currently OpenRouter video
+- video generation: explicit provider path. OpenRouter remains the server-side default; Higgsfield MCP is allowed as an authenticated agent-side Seedance 2.0 path for approved creative/video issues.
+
+## Higgsfield MCP Rule
+
+Higgsfield MCP is conditionally allowed for creative/video lanes only.
+
+Allowed:
+
+- `webapp-codex`, `growth-lead`, `community-updates-agent`, `robot-team-growth-agent`, and `capturer-growth-agent` may use the `higgsfield-creative-video` skill when an issue explicitly calls for video generation or video-provider testing.
+- Seedance 2.0 through Higgsfield may be used instead of OpenRouter when the Higgsfield connector is authenticated and the issue records the prompt, source frame, model, output, and review gates.
+
+Not allowed:
+
+- using Higgsfield image tools as a replacement for Codex `gpt-image-2` final image execution
+- giving every Hermes lane broad creative-generation authority
+- presenting generated clips as capture proof, hosted-session evidence, buyer traction, or deployment success
+- moving server-side creative workers to Higgsfield without a separate migration and verification pass
 
 ## Claude-Specific Rule
 
