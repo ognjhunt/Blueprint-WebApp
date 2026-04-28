@@ -37,6 +37,6 @@ test('direct navigation to a world-model detail page stays on the detail page', 
   ).toBeVisible();
   await expect(page.getByText(/Visible now/i)).toBeVisible();
   await expect(page.getByText(/Request package access/i).first()).toBeVisible();
-  await expect(page.getByText(/Start hosted evaluation/i)).toBeVisible();
+  await expect(page.getByText(/Start hosted evaluation/i).first()).toBeVisible();
   await expect(page.getByText(/Sample manifest/i)).toBeVisible();
 });

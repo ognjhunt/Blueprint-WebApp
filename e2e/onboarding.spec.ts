@@ -1,12 +1,12 @@
 import { test, expect } from '@playwright/test';
 
 test('business signup onboarding flow loads first step', async ({ page }) => {
-  await page.goto('/signup/capturer', { waitUntil: 'networkidle' });
+  await page.goto('/onboarding', { waitUntil: 'networkidle' });
 
   await expect(
-    page.getByRole('heading', { name: /Buyer Access Request/i }),
+    page.getByRole('heading', { name: /Request exact-site access/i }),
   ).toBeVisible();
   await expect(
-    page.getByText(/Request exact-site packages or hosted evaluation through a private, context-rich intake instead of a generic marketplace signup./i),
+    page.getByText(/Use this path when your team needs a site-specific world-model package, hosted review, or private buyer workflow grounded in one real facility./i),
   ).toBeVisible();
 });
