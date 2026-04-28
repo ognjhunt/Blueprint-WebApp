@@ -80,11 +80,35 @@ Austin is publishable as an operator-facing blocker view, but the city/source fu
 4. Stripe webhook events captured for checkout/purchase funnel steps
 5. Live event flow verified across all systems (re-run verification script + check Firestore/Firehose/GA4/PostHog dashboards)
 
+## Unblock Path
+
+The Austin scorecard will remain blocked until **all** live verification checks pass in a single run. The verification script `scripts/verify-austin-live-systems.sh` enforces this by checking:
+
+1. **Firestore**: `BLUEPRINT_ANALYTICS_INGEST_ENABLED=1` set, test event written and verified in `growth_events` collection
+2. **Stripe**: `STRIPE_SECRET_KEY` valid, webhook endpoints accessible
+3. **GA4/PostHog**: `VITE_GA_MEASUREMENT_ID`, `VITE_PUBLIC_POSTHOG_PROJECT_TOKEN`, `VITE_PUBLIC_POSTHOG_HOST` set in client env
+4. **Firehose**: `FIREHOSE_API_TOKEN` and `FIREHOSE_BASE_URL` configured, test event forwarded
+5. **Slack**: `SLACK_WEBHOOK_URL` set, proof delivery message sent
+
+### How to Unblock
+1. Ensure all required environment variables are set in deployment (see `.env.example`)
+2. Run the verification script:
+   ```bash
+   cd /Users/nijelhunt_1/workspace/Blueprint-WebApp
+   bash scripts/verify-austin-live-systems.sh
+   ```
+3. If all checks pass:
+   - Scorecard `authority` field updates to `approved`
+   - `confidence` increases to `0.95`
+   - Slack proof delivery notification sent
+   - Paperclip issue BLU-335 marked as done
+4. If any check fails, scorecard remains blocked with `authority: draft`
+
 ## Recommended Follow-up
 
-- Run `scripts/verify-austin-analytics-events.sh` to confirm code-complete instrumentation before live setup.
+- Run `scripts/verify-austin-live-systems.sh` to verify all live systems in a single run before unblocking.
 - **Enforced operator-only access for Austin city page**: Public users accessing `/city/austin` or `/city/austin-tx` are now redirected to sign-in (see `client/src/pages/CityLanding.tsx`).
-- Keep Austin operator-facing only until the live proof-motion path is verified.
+- Keep Austin operator-facing only until the live proof-motion path is verified via the unblock script.
 - Treat funnel metrics as instrumented (code-complete) and now verified via automated tests (one focused test covering the 8 required funnel events in client/tests/lib/analytics.test.ts, passing).
 - Fixed `buildDemandAttributionEventParams` to safely handle missing `utm` objects, preventing runtime errors when attribution is passed without utm params.
 - Enable `BLUEPRINT_ANALYTICS_INGEST_ENABLED=1` in deployment env to activate Firestore persistence.
