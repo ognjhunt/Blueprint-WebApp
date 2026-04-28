@@ -859,6 +859,15 @@ export const analyticsEvents = {
       ...buildDemandAttributionEventParams(properties.demandAttribution),
     }),
 
+  sacramentoProofMotionContractInstrumented: (properties: {
+    city?: string;
+    demandAttribution?: DemandAttribution;
+  }) =>
+    trackEvent("sacramento_proof_motion_contract_instrumented", {
+      city: properties.city,
+      ...buildDemandAttributionEventParams(properties.demandAttribution),
+    }),
+
   humanCommercialHandoffStarted: (properties: {
     city?: string;
     handoffReason?: string;

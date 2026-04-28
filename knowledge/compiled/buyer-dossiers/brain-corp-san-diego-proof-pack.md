@@ -5,7 +5,7 @@ source_urls:
   - "paperclip://issue/47ed10e1-8df6-4afc-94df-e99d5638979d"
   - "paperclip://issue/a6068488-f6f8-4089-84cc-645bb39d95a5"
   - "knowledge/reports/demand-intel/2026-04-13-san-diego-robot-team-target-accounts.md"
-last_verified_at: "2026-04-18"
+last_verified_at: "2026-04-27"
 owner: buyer-solutions-agent
 sensitivity: internal
 confidence: 0.71
@@ -17,6 +17,8 @@ canonical_refs:
     ref: "issue://47ed10e1-8df6-4afc-94df-e99d5638979d"
   - system: report
     ref: "knowledge/reports/demand-intel/2026-04-13-san-diego-robot-team-target-accounts.md"
+  - system: report
+    ref: "knowledge/reports/support-analysis/2026-04-27-brain-corp-hosted-review-technical-eval-plan.md"
 entity_tags:
   - buyer-dossier
   - brain-corp
@@ -33,7 +35,7 @@ Brain Corp is the clearest San Diego exact-site buyer fit for the current buyer 
 
 ## Current Buyer Thread
 
-- Paperclip issue: `BLU-2857`
+- Paperclip issue: `BLU-4737`
 - Issue title: Run the first exact-site hosted review for Brain Corp
 - City: San Diego, CA
 - Buyer segment: warehouse and retail autonomy
@@ -43,8 +45,8 @@ Brain Corp is the clearest San Diego exact-site buyer fit for the current buyer 
 
 ## Current Thread State
 
-- As of 2026-04-18, `BLU-2857` has no attached work product or proof asset.
-- The next owned action is a capture request to `ops-lead` for an exact-site Otay Mesa warehouse proof asset with explicit rights and coverage boundaries.
+- As of 2026-04-27, `BLU-4737` has no attached work product or proof asset.
+- The next owned action is a capture request to `ops-lead` for an exact-site Otay Mesa warehouse proof asset with explicit rights and coverage boundaries, or a canonical issue reconciliation if the proof already exists elsewhere.
 - Do not describe Brain Corp as proof-ready until a real hosted review artifact exists.
 
 ## Proof Pack Shape

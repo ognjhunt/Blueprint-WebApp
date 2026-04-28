@@ -91,7 +91,7 @@ export const CITY_LAUNCH_APPROVED_ANALYTICS_EVENTS = [
   "deeper_review_requested",
   "human_commercial_handoff_started",
   "proof_motion_stalled",
-  // Austin proof-motion city launch events (8 required metrics)
+  // City-launch proof-motion instrumentation events
   "city_launch_lawful_access_established",
   "city_launch_capturer_approved",
   "city_launch_capture_completed",
@@ -100,6 +100,16 @@ export const CITY_LAUNCH_APPROVED_ANALYTICS_EVENTS = [
   "city_launch_proof_pack_delivered",
   "city_launch_hosted_review_ready",
   "city_launch_commercial_handoff",
+  // Sacramento proof-motion contract events (instrumented in live path)
+  "sacramento_proof_motion_contract_instrumented",
+  "sacramento_lawful_access_established",
+  "sacramento_capturer_approved",
+  "sacramento_capture_completed",
+  "sacramento_capture_qa_passed",
+  "sacramento_proof_asset_rights_cleared",
+  "sacramento_proof_pack_delivered",
+  "sacramento_hosted_review_ready",
+  "sacramento_commercial_handoff",
 ] as const;
 
 export const CITY_LAUNCH_APPROVED_ANALYTICS_MILESTONES = [

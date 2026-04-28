@@ -28,6 +28,16 @@ type MonochromeMediaProps = {
   loading?: "eager" | "lazy";
 };
 
+type MonochromeVideoProps = {
+  src: string;
+  poster?: string;
+  title: string;
+  className?: string;
+  videoClassName?: string;
+  overlayClassName?: string;
+  children?: ReactNode;
+};
+
 type ProofChipProps = {
   children: ReactNode;
   light?: boolean;
@@ -152,6 +162,43 @@ export function MonochromeMedia({
           imageClassName,
         )}
       />
+      <div
+        className={cn(
+          "pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.05),rgba(0,0,0,0.45))]",
+          overlayClassName,
+        )}
+      />
+      {children}
+    </div>
+  );
+}
+
+export function MonochromeVideo({
+  src,
+  poster,
+  title,
+  className,
+  videoClassName,
+  overlayClassName,
+  children,
+}: MonochromeVideoProps) {
+  return (
+    <div className={cn("relative overflow-hidden rounded-[2rem] bg-slate-950", className)}>
+      <video
+        aria-label={title}
+        autoPlay
+        muted
+        loop
+        playsInline
+        controls={false}
+        poster={poster}
+        className={cn(
+          "h-full w-full object-cover grayscale contrast-[1.02] brightness-[0.82]",
+          videoClassName,
+        )}
+      >
+        <source src={src} type="video/mp4" />
+      </video>
       <div
         className={cn(
           "pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.05),rgba(0,0,0,0.45))]",

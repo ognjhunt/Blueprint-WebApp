@@ -5,11 +5,12 @@ import {
   EditorialSectionIntro,
   EditorialSectionLabel,
   MonochromeMedia,
+  MonochromeVideo,
   RouteTraceOverlay,
 } from "@/components/site/editorial";
 import { siteWorldCards } from "@/data/siteWorlds";
 import { editorialGeneratedAssets } from "@/lib/editorialGeneratedAssets";
-import { publicDemoHref } from "@/lib/marketingProof";
+import { publicDemoHref, siteMotionLoopPosterSrc, siteMotionLoopVideoSrc } from "@/lib/marketingProof";
 import { publicCaptureProofStories } from "@/lib/proofEvidence";
 import { publicCaptureGeneratedAssets } from "@/lib/publicCaptureGeneratedAssets";
 import {
@@ -217,12 +218,13 @@ export default function Home() {
 	                </a>
 	              </div>
 	            </div>
-	            <MonochromeMedia
-	              src={editorialGeneratedAssets.sampleEvaluationProofBoard}
-	              alt="Blueprint sample evaluation proof board"
+	            <MonochromeVideo
+	              src={siteMotionLoopVideoSrc}
+	              poster={siteMotionLoopPosterSrc}
+	              title="Blueprint site motion loop"
 	              className="min-h-[30rem] rounded-none"
-	              imageClassName="min-h-[30rem]"
-	              overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.03),rgba(0,0,0,0.18))]"
+	              videoClassName="min-h-[30rem]"
+	              overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.02),rgba(0,0,0,0.16))]"
             />
           </div>
         </section>

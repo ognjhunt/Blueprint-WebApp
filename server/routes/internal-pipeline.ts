@@ -567,6 +567,21 @@ router.post("/attachments", requirePipelineToken, async (req: Request, res: Resp
       }).catch((err: unknown) => {
         logger.warn({ err, event: "proof_motion_stalled" }, "Failed to emit pipeline growth event");
       });
+
+      // Emit Sacramento proof-motion contract instrumented event if city is Sacramento
+      if (cityForEvent === "sacramento-ca") {
+        await logGrowthEvent({
+          event: "sacramento_proof_motion_contract_instrumented",
+          source: "server:pipeline_state_machine",
+          properties: {
+            request_id: requestIdForEvent,
+            city: cityForEvent,
+            pipeline_sync: true,
+          },
+        }).catch((err: unknown) => {
+          logger.warn({ err, event: "sacramento_proof_motion_contract_instrumented" }, "Failed to emit Sacramento contract event");
+        });
+      }
     }
 
     if (cityForEvent) {

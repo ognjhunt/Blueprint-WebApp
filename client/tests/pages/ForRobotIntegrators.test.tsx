@@ -29,9 +29,9 @@ describe("ForRobotIntegrators", () => {
     expect(
       screen.getByText(/A site-specific world model of one real facility and workflow lane/i),
     ).toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: /Explore world models/i })[0]).toHaveAttribute(
+    expect(screen.getAllByRole("link", { name: /Inspect sample review/i })[0]).toHaveAttribute(
       "href",
-      "/world-models",
+      "/sample-evaluation",
     );
     expect(screen.queryByText(/Shrink the demo-to-deployment gap\./i)).not.toBeInTheDocument();
   });
