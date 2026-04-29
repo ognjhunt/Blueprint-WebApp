@@ -34,5 +34,5 @@ test('direct navigation to a world-model detail page stays on the detail page', 
   // Check for visible text that should always be present
   await expect(page.getByText(/Visible now/i)).toBeVisible();
   await expect(page.getByText(/Request package access/i).first()).toBeVisible();
-  await expect(page.getByText(/Start hosted evaluation/i).first()).toBeVisible();
+  await expect(page.getByRole('link', { name: /Start hosted evaluation/i }).first()).toBeVisible();
 });
