@@ -58,3 +58,4 @@ scripts/gtm.bak/
 
 # Build artifacts for server/utils
 server/utils/growth-ops.*
+docs/development_artefacts/
