@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { getSiteWorldById } from "@/data/siteWorlds";
 import {
   getSiteWorldCommercialStatus,
+  getSiteWorldHostedAccessDisclosure,
   getSiteWorldPublicProofSummary,
   getSiteWorldReadinessDisclosure,
 } from "@/lib/siteWorldCommercialStatus";
@@ -28,5 +29,18 @@ describe("siteWorldCommercialStatus", () => {
       label: "Request-scoped commercial review",
     });
     expect(getSiteWorldReadinessDisclosure(site!)).toContain("not a deployment guarantee");
+    expect(getSiteWorldReadinessDisclosure(site!)).toContain("Hosted launch is checked separately");
+    expect(
+      getSiteWorldHostedAccessDisclosure({
+        ...site!,
+        deploymentReadiness: {
+          ...(site!.deploymentReadiness || {}),
+          native_world_model_primary: true,
+        },
+      }),
+    ).toMatchObject({
+      label: "Hosted request path",
+      launchVerified: false,
+    });
   });
 });

@@ -5,7 +5,7 @@ import {
   MonochromeMedia,
 } from "@/components/site/editorial";
 import { publicCaptureGeneratedAssets } from "@/lib/publicCaptureGeneratedAssets";
-import { defaultSupportedLaunchCities } from "@/lib/publicLaunchStatus";
+import { usePublicLaunchStatus } from "@/hooks/usePublicLaunchStatus";
 import { ArrowRight, DollarSign } from "lucide-react";
 
 const processRows = [
@@ -32,9 +32,14 @@ const processRows = [
   },
 ];
 
-const supportedCities = defaultSupportedLaunchCities.map((city) => city.displayName);
-
 export default function Capture() {
+  const {
+    data: publicLaunchStatus,
+    loading: launchStatusLoading,
+    error: launchStatusError,
+  } = usePublicLaunchStatus();
+  const supportedCities = publicLaunchStatus?.supportedCities ?? [];
+
   return (
     <>
       <SEO
@@ -206,19 +211,46 @@ export default function Capture() {
                 <div>
                   <div className="rounded-[1.8rem] border border-sky-200 bg-sky-50/60 p-5">
                     <p className="text-sm leading-7 text-slate-700">
-                      <strong>Currently supported:</strong> {supportedCities.join(", ")}. Only
-                      approved launch cities open public capture access and capture cards.
+                      {launchStatusLoading ? (
+                        <>
+                          <strong>Checking current launch cities.</strong> Capture access stays
+                          locked until the backend launch roster confirms a city is open.
+                        </>
+                      ) : launchStatusError ? (
+                        <>
+                          <strong>Launch status unavailable.</strong> This page is not treating any
+                          city as supported from static copy. Request access or check the launch map
+                          for the current backend status.
+                        </>
+                      ) : supportedCities.length ? (
+                        <>
+                          <strong>Currently supported:</strong>{" "}
+                          {supportedCities.map((city) => city.displayName).join(", ")}. Only
+                          approved launch cities open public capture access and capture cards.
+                        </>
+                      ) : (
+                        <>
+                          <strong>No public launch cities are marked open right now.</strong> You can
+                          still request access, but the app and capture feed stay locked until the
+                          city-launch org approves a city.
+                        </>
+                      )}
                     </p>
                   </div>
                   <div className="mt-4 flex flex-wrap gap-2">
                     {supportedCities.map((city) => (
                       <span
-                        key={city}
+                        key={city.citySlug}
                         className="rounded-full border border-black/10 bg-[#f5f3ef] px-4 py-2 text-sm text-slate-700"
                       >
-                        {city}
+                        {city.displayName}
                       </span>
                     ))}
+                    {!supportedCities.length ? (
+                      <span className="rounded-full border border-black/10 bg-[#f5f3ef] px-4 py-2 text-sm text-slate-700">
+                        Backend launch roster required
+                      </span>
+                    ) : null}
                   </div>
                 </div>
               </div>

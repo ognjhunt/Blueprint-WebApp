@@ -33,39 +33,6 @@ export type PublicLaunchStatus = {
   } | null;
 };
 
-export const defaultSupportedLaunchCities: SupportedLaunchCity[] = [
-  {
-    city: "Austin",
-    stateCode: "TX",
-    displayName: "Austin, TX",
-    citySlug: "austin-tx",
-  },
-  {
-    city: "Durham",
-    stateCode: "NC",
-    displayName: "Durham, NC",
-    citySlug: "durham-nc",
-  },
-  {
-    city: "Sacramento",
-    stateCode: "CA",
-    displayName: "Sacramento, CA",
-    citySlug: "sacramento-ca",
-  },
-  {
-    city: "San Diego",
-    stateCode: "CA",
-    displayName: "San Diego, CA",
-    citySlug: "san-diego-ca",
-  },
-  {
-    city: "San Jose",
-    stateCode: "CA",
-    displayName: "San Jose, CA",
-    citySlug: "san-jose-ca",
-  },
-];
-
 let cachedStatus: PublicLaunchStatus | null = null;
 let inflightStatusRequest: Promise<PublicLaunchStatus> | null = null;
 
@@ -129,7 +96,10 @@ export function joinLaunchCityLabels(cities: SupportedLaunchCity[]) {
   return `${labels.slice(0, -1).join(", ")}, and ${labels[labels.length - 1]}`;
 }
 
-export function findLaunchCityBySlug(cities: SupportedLaunchCity[], citySlug: string) {
+export function findLaunchCityBySlug<T extends SupportedLaunchCity>(
+  cities: T[],
+  citySlug: string,
+) {
   return cities.find((city) => city.citySlug === citySlug) || null;
 }
 

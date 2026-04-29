@@ -18,6 +18,7 @@ import {
 } from "@/lib/siteEditorialContent";
 import {
   getSiteWorldCatalogPriority,
+  getSiteWorldHostedAccessDisclosure,
   getSiteWorldPlainEnglishStatus,
   getSiteWorldStatusBadges,
   siteWorldStatusLegend,
@@ -27,13 +28,6 @@ import { ArrowRight, Box, Camera, MapPinned, Route, Smartphone } from "lucide-re
 import { useEffect, useMemo, useState } from "react";
 
 type SiteWorld = (typeof siteWorldCards)[number];
-
-function isHostedReady(site: SiteWorld) {
-  return (
-    Boolean(site.deploymentReadiness?.native_world_model_primary)
-    || Boolean(site.worldLabsPreview?.launchUrl)
-  );
-}
 
 function sortCatalog(sites: SiteWorld[]) {
   return [...sites].sort((left, right) => {
@@ -51,6 +45,7 @@ function SiteCard({
   large?: boolean;
 }) {
   const badges = getSiteWorldStatusBadges(site).slice(0, 3);
+  const hostedDisclosure = getSiteWorldHostedAccessDisclosure(site);
 
   return (
     <a
@@ -79,7 +74,7 @@ function SiteCard({
           </ProofChip>
           {badges.map((badge) => (
             <ProofChip key={badge.id} light className="border-white/20 bg-black/30 text-white/80">
-              {isHostedReady(site) && badge.id === "hosted_request_gated" ? "Hosted available" : badge.label}
+              {badge.id === "hosted_request_gated" ? hostedDisclosure.label : badge.label}
             </ProofChip>
           ))}
         </div>
@@ -125,7 +120,7 @@ const moreSites = useMemo(
       },
       {
         label: "Buying paths",
-        detail: "Every listing keeps the package path and the hosted-evaluation path legible.",
+        detail: "Every listing keeps the package path and the hosted-evaluation request path legible.",
       },
       {
         label: "Proof posture",
@@ -172,7 +167,7 @@ const moreSites = useMemo(
                 </p>
                 <div className="mt-6 flex flex-wrap gap-2">
                   <ProofChip light>Exact site</ProofChip>
-                  <ProofChip light>{isHostedReady(heroSite) ? "Hosted available" : "Request-scoped review"}</ProofChip>
+                  <ProofChip light>{getSiteWorldHostedAccessDisclosure(heroSite).label}</ProofChip>
                 </div>
               </div>
             </div>

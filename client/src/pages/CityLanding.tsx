@@ -10,7 +10,8 @@ import {
 import { analyticsEvents } from "@/lib/analytics";
 import { withCsrfHeader } from "@/lib/csrf";
 import { editorialRefreshAssets } from "@/lib/editorialRefreshAssets";
-import { findLaunchCityBySlug } from "@/lib/publicLaunchStatus";
+import { publicCaptureGeneratedAssets } from "@/lib/publicCaptureGeneratedAssets";
+import type { PublicLaunchCity, PublicLaunchCityStatus } from "@/lib/publicLaunchStatus";
 import { usePublicLaunchStatus } from "@/hooks/usePublicLaunchStatus";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -42,12 +43,113 @@ const captureRules = [
   },
 ];
 
+type CityPresentation = {
+  heroImage: string;
+  detailImage: string;
+  latitude?: number;
+  longitude?: number;
+};
+
+const cityPresentationBySlug: Record<string, CityPresentation> = {
+  "austin-tx": {
+    heroImage: editorialRefreshAssets.cityAustinHero,
+    detailImage: editorialRefreshAssets.cityMapBoard,
+    latitude: 30.2672,
+    longitude: -97.7431,
+  },
+  "durham-nc": {
+    heroImage: publicCaptureGeneratedAssets.everydayPlacesCollage,
+    detailImage: publicCaptureGeneratedAssets.hostedReviewPublicRoute,
+    latitude: 35.994,
+    longitude: -78.8986,
+  },
+  "sacramento-ca": {
+    heroImage: publicCaptureGeneratedAssets.harborMallCommonCorridor,
+    detailImage: editorialRefreshAssets.cityMapBoard,
+    latitude: 38.5816,
+    longitude: -121.4944,
+  },
+  "san-diego-ca": {
+    heroImage: publicCaptureGeneratedAssets.northlineHotelLobbyLoop,
+    detailImage: publicCaptureGeneratedAssets.everydayPlacesCollage,
+    latitude: 32.7157,
+    longitude: -117.1611,
+  },
+  "san-francisco-ca": {
+    heroImage: publicCaptureGeneratedAssets.atlasRetailServiceAisle,
+    detailImage: editorialRefreshAssets.cityMapBoard,
+    latitude: 37.7749,
+    longitude: -122.4194,
+  },
+  "san-jose-ca": {
+    heroImage: publicCaptureGeneratedAssets.cedarMarketAisleLoop,
+    detailImage: publicCaptureGeneratedAssets.cedarMarketProofBoard,
+    latitude: 37.3382,
+    longitude: -121.8863,
+  },
+  "seattle-wa": {
+    heroImage: publicCaptureGeneratedAssets.governancePublicCaptureExplainer,
+    detailImage: editorialRefreshAssets.cityMapBoard,
+    latitude: 47.6062,
+    longitude: -122.3321,
+  },
+};
+
+const defaultCityPresentation: CityPresentation = {
+  heroImage: editorialRefreshAssets.cityMapBoard,
+  detailImage: publicCaptureGeneratedAssets.everydayPlacesCollage,
+};
+
+function getCityPresentation(citySlug: string) {
+  return cityPresentationBySlug[citySlug.toLowerCase()] || defaultCityPresentation;
+}
+
+function formatCoordinate(value: number, positiveDirection: string, negativeDirection: string) {
+  const direction = value >= 0 ? positiveDirection : negativeDirection;
+  return `${Math.abs(value).toFixed(4)}° ${direction}`;
+}
+
+function getCoordinateLines(
+  city: PublicLaunchCity | null,
+  presentation: CityPresentation,
+) {
+  const latitude = typeof city?.latitude === "number" ? city.latitude : presentation.latitude;
+  const longitude = typeof city?.longitude === "number" ? city.longitude : presentation.longitude;
+
+  if (typeof latitude !== "number" || typeof longitude !== "number") {
+    return ["Coordinates pending", "Launch record required"];
+  }
+
+  return [
+    formatCoordinate(latitude, "N", "S"),
+    formatCoordinate(longitude, "E", "W"),
+  ];
+}
+
+function getCityStatusLabel(status: PublicLaunchCityStatus | null, fallback: "loading" | "error" | "untracked") {
+  if (fallback === "loading") return "Checking";
+  if (fallback === "error") return "Unverified";
+  if (status === "live") return "Current";
+  if (status === "planned") return "Planned";
+  if (status === "under_review") return "In review";
+  return "Future signal";
+}
+
+function getCityWindowLabel(status: PublicLaunchCityStatus | null, fallback: "loading" | "error" | "untracked") {
+  if (fallback === "loading") return "Checking";
+  if (fallback === "error") return "Verify first";
+  if (status === "live") return "Current";
+  if (status === "planned") return "Queued";
+  if (status === "under_review") return "Review";
+  return "TBD";
+}
+
 export default function CityLanding() {
   const params = useParams<{ citySlug: string }>();
-  const citySlug = params.citySlug || "";
+  const citySlug = (params.citySlug || "").toLowerCase();
   const [, navigate] = useLocation();
   const { currentUser } = useAuth();
-  const { data, loading } = usePublicLaunchStatus();
+  const { data, loading, error } = usePublicLaunchStatus();
 
   useEffect(() => {
     // Per BLU-321: Keep Austin operator-facing only until live proof-motion path is verified
@@ -62,15 +164,29 @@ export default function CityLanding() {
   const [submitted, setSubmitted] = useState(false);
 
   const supportedCities = data?.supportedCities ?? [];
+  const publicCities = data?.cities ?? [];
   const supportedCity = useMemo(
-    () =>
-      supportedCities.find((city) => city.citySlug === citySlug)
-      || findLaunchCityBySlug(supportedCities, citySlug),
+    () => supportedCities.find((city) => city.citySlug === citySlug) || null,
     [citySlug, supportedCities],
   );
-  const cityName = supportedCity?.displayName || humanizeCitySlug(citySlug);
-  const isSupported = Boolean(supportedCity);
-  const rosterCities = supportedCities.slice(0, 8);
+  const trackedCity = useMemo(
+    () => publicCities.find((city) => city.citySlug === citySlug) || null,
+    [citySlug, publicCities],
+  );
+  const cityRecord = trackedCity || supportedCity;
+  const cityName = cityRecord?.displayName || humanizeCitySlug(citySlug);
+  const isSupported = Boolean(supportedCity || trackedCity?.status === "live");
+  const cityStatus = trackedCity?.status ?? (isSupported ? "live" : null);
+  const fallbackState: "loading" | "error" | "untracked" = loading
+    ? "loading"
+    : error
+      ? "error"
+      : "untracked";
+  const statusLabel = getCityStatusLabel(cityStatus, fallbackState);
+  const windowLabel = getCityWindowLabel(cityStatus, fallbackState);
+  const cityPresentation = getCityPresentation(citySlug);
+  const coordinateLines = getCoordinateLines(trackedCity, cityPresentation);
+  const rosterCities = publicCities.slice(0, 8);
 
   const handleWaitlistSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -120,7 +236,11 @@ export default function CityLanding() {
           <div className="mx-auto grid max-w-[96rem] gap-px lg:grid-cols-[0.42fr_0.58fr]">
             <div className="bg-[#f5f3ef] px-8 py-10 lg:px-12 lg:py-14">
               <EditorialSectionLabel>
-                {isSupported ? "Current capture rollout" : "Future-city interest"}
+                {loading
+                  ? "Launch status check"
+                  : isSupported
+                    ? "Current capture rollout"
+                    : "Future-city interest"}
               </EditorialSectionLabel>
               <h1 className="font-editorial mt-6 text-[4.2rem] leading-[0.88] tracking-[-0.08em] text-slate-950 sm:text-[5.8rem]">
                 {cityName}
@@ -132,42 +252,46 @@ export default function CityLanding() {
               <p className="mt-6 max-w-[28rem] text-base leading-8 text-slate-700">
                 {loading
                   ? "Checking current launch-city support."
+                  : error
+                    ? `Blueprint could not verify current launch status for ${cityName}. This page will not treat the city as open from cached copy.`
                   : isSupported
-                    ? `${cityName} is open for capture. Field teams and partner reviewers are routed through the approved launch window for this city.`
+                    ? `${cityName} is in current launch-approved capture routing. Field teams and partner reviewers still go through the approved city window for this market.`
                     : `${cityName} is not in Blueprint's current capture rollout. You can still leave a signal here, but public capture access stays locked until the launch org approves the city.`}
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <a
-                  href={isSupported ? "/signup/capturer" : "#city-waitlist"}
+                  href={isSupported && !loading && !error ? "/signup/capturer" : "#city-waitlist"}
                   className="inline-flex items-center justify-center bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                 >
-                  {isSupported ? "Apply for capturer access" : "Join future-city waitlist"}
+                  {isSupported && !loading && !error
+                    ? "Apply for capturer access"
+                    : "Join future-city waitlist"}
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </a>
                 <a
-                  href={isSupported ? "/capture-app" : "/capture"}
+                  href={isSupported && !loading && !error ? "/capture-app" : "/capture"}
                   className="inline-flex items-center justify-center border border-black/10 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
                 >
-                  {isSupported ? "Open capture app" : "Read capture basics"}
+                  {isSupported && !loading && !error ? "Open capture app" : "Read capture basics"}
                 </a>
               </div>
               <div className="mt-8 grid max-w-[30rem] grid-cols-3 gap-4 border-t border-black/10 pt-5">
                 <div>
                   <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Status</p>
-                  <p className="mt-2 text-sm text-slate-900">{isSupported ? "Open" : "In review"}</p>
+                  <p className="mt-2 text-sm text-slate-900">{statusLabel}</p>
                 </div>
                 <div>
                   <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
                     Launch window
                   </p>
-                  <p className="mt-2 text-sm text-slate-900">{isSupported ? "Current" : "TBD"}</p>
+                  <p className="mt-2 text-sm text-slate-900">{windowLabel}</p>
                 </div>
                 <div>
                   <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
                     Capture partner
                   </p>
                   <p className="mt-2 text-sm text-slate-900">
-                    {isSupported ? "Vetted network" : "Future-city signal"}
+                    {isSupported ? "Vetted network" : "Signal needed"}
                   </p>
                 </div>
               </div>
@@ -175,16 +299,16 @@ export default function CityLanding() {
 
             <div className="relative min-h-[38rem]">
               <MonochromeMedia
-                src={editorialRefreshAssets.cityAustinHero}
-                alt={`${cityName} industrial edge`}
+                src={cityPresentation.heroImage}
+                alt={`${cityName} launch planning visual`}
                 className="min-h-[38rem] rounded-none"
                 loading="eager"
                 imageClassName="min-h-[38rem]"
                 overlayClassName="bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(0,0,0,0.08))]"
               />
               <div className="absolute right-8 top-8 text-right text-[12px] uppercase tracking-[0.18em] text-slate-900">
-                <div>30.2672° N</div>
-                <div className="mt-1">97.7431° W</div>
+                <div>{coordinateLines[0]}</div>
+                <div className="mt-1">{coordinateLines[1]}</div>
               </div>
             </div>
           </div>
@@ -220,7 +344,7 @@ export default function CityLanding() {
                       src={
                         index === 0
                           ? editorialRefreshAssets.cityMapBoard
-                          : editorialRefreshAssets.cityAustinHero
+                          : cityPresentation.detailImage
                       }
                       alt={rule.title}
                       className="aspect-[4/3] rounded-none"
@@ -250,6 +374,8 @@ export default function CityLanding() {
               <div className="divide-y divide-black/10">
                 {rosterCities.map((city) => {
                   const active = city.citySlug === citySlug;
+                  const rowStatus = getCityStatusLabel(city.status, "untracked");
+                  const rowWindow = getCityWindowLabel(city.status, "untracked");
                   return (
                     <a
                       key={city.citySlug}
@@ -261,8 +387,8 @@ export default function CityLanding() {
                       }`}
                     >
                       <span>{city.displayName}</span>
-                      <span>{active ? (isSupported ? "Open" : "Review") : "Open"}</span>
-                      <span>{active ? (isSupported ? "Current" : "Review") : "Current"}</span>
+                      <span>{rowStatus}</span>
+                      <span>{rowWindow}</span>
                       <ArrowRight className="h-4 w-4" />
                     </a>
                   );
@@ -301,7 +427,7 @@ export default function CityLanding() {
               <div className="mt-5 h-1 w-12 bg-slate-950" />
               <p className="mt-6 max-w-[28rem] text-sm leading-7 text-slate-700">
                 {isSupported
-                  ? `Field access still routes through review. Use this path if you want to capture in ${cityName} inside the current launch window.`
+                  ? `Field access still routes through review. Use this path if you want to capture in ${cityName} inside the current launch-approved window.`
                   : `Get notified when ${cityName} enters review or opens publicly. Early access goes to operators, owners, and independent capturers once the city actually qualifies.`}
               </p>
 
@@ -339,7 +465,7 @@ export default function CityLanding() {
 
             <div className="grid gap-4 lg:grid-rows-[1fr_auto]">
               <MonochromeMedia
-                src={editorialRefreshAssets.cityAustinHero}
+                src={cityPresentation.detailImage}
                 alt={`${cityName} launch packet`}
                 className="min-h-[22rem] border border-black/10 rounded-none"
                 imageClassName="min-h-[22rem] object-cover object-right"
@@ -351,7 +477,7 @@ export default function CityLanding() {
                   </p>
                   <p className="mt-3 text-2xl tracking-[-0.05em]">{cityName}</p>
                   <div className="mt-4 space-y-2 text-sm text-slate-700">
-                    <div>Status: {isSupported ? "Open" : "Review"}</div>
+                    <div>Status: {statusLabel}</div>
                     <div>Priority zones: city-approved only</div>
                     <div>Notes: field teams follow the launch packet</div>
                   </div>

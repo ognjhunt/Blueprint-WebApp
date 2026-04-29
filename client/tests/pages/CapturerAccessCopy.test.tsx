@@ -1,19 +1,12 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import Capture from "@/pages/Capture";
 import CaptureAppPlaceholder from "@/pages/CaptureAppPlaceholder";
+import CaptureLaunchAccess from "@/pages/CaptureLaunchAccess";
 import Login from "@/pages/Login";
 
-vi.mock("@/components/SEO", () => ({
-  SEO: () => null,
-}));
-
-vi.mock("@/lib/client-env", () => ({
-  getCaptureAppPlaceholderUrl: () => "https://capture.blueprint.test/app",
-}));
-
-vi.mock("@/hooks/usePublicLaunchStatus", () => ({
-  usePublicLaunchStatus: () => ({
+const launchStatusMock = vi.hoisted(() => ({
+  state: {
     data: {
       ok: true,
       supportedCities: [
@@ -26,10 +19,22 @@ vi.mock("@/hooks/usePublicLaunchStatus", () => ({
         },
       ],
       currentCity: null,
-    },
+    } as any,
     loading: false,
-    error: null,
-  }),
+    error: null as string | null,
+  },
+}));
+
+vi.mock("@/components/SEO", () => ({
+  SEO: () => null,
+}));
+
+vi.mock("@/lib/client-env", () => ({
+  getCaptureAppPlaceholderUrl: () => "https://capture.blueprint.test/app",
+}));
+
+vi.mock("@/hooks/usePublicLaunchStatus", () => ({
+  usePublicLaunchStatus: () => launchStatusMock.state,
 }));
 
 vi.mock("@/contexts/AuthContext", () => ({
@@ -40,6 +45,26 @@ vi.mock("@/contexts/AuthContext", () => ({
 }));
 
 describe("Capturer access copy", () => {
+  beforeEach(() => {
+    launchStatusMock.state = {
+      data: {
+        ok: true,
+        supportedCities: [
+          { city: "Austin", stateCode: "TX", displayName: "Austin, TX", citySlug: "austin-tx" },
+          {
+            city: "San Francisco",
+            stateCode: "CA",
+            displayName: "San Francisco, CA",
+            citySlug: "san-francisco-ca",
+          },
+        ],
+        currentCity: null,
+      },
+      loading: false,
+      error: null,
+    };
+  });
+
   it("keeps the capture overview explicit about invite and code gating", () => {
     render(<Capture />);
 
@@ -49,6 +74,34 @@ describe("Capturer access copy", () => {
     expect(screen.getByText(/invite- and code-gated/i)).toBeInTheDocument();
     expect(screen.getByText(/recording an everyday public-facing place/i)).toBeInTheDocument();
     expect(screen.getByText(/Currently supported:/i)).toBeInTheDocument();
+  });
+
+  it("does not infer supported capture cities when launch status is unavailable", () => {
+    launchStatusMock.state = {
+      data: null,
+      loading: false,
+      error: "Failed to load launch cities",
+    };
+
+    render(<Capture />);
+
+    expect(screen.getByText(/Launch status unavailable/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Austin, TX/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/Backend launch roster required/i)).toBeInTheDocument();
+  });
+
+  it("does not show default launch cities on the launch-access form when the API fails", () => {
+    launchStatusMock.state = {
+      data: null,
+      loading: false,
+      error: "Failed to load launch cities",
+    };
+
+    render(<CaptureLaunchAccess />);
+
+    expect(screen.getByText(/Launch status unavailable/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Austin, TX/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Request launch access/i })).toBeInTheDocument();
   });
 
   it("keeps the capture app handoff explicit about approval gates", () => {

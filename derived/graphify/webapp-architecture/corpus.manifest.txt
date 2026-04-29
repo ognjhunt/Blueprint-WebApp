@@ -1,0 +1,45 @@
+# Blueprint WebApp architecture pilot corpus.
+# Keep this narrow: doctrine plus the launch-status, city, capture, and hosted-session paths
+# that define public launch truth and buyer-facing hosted access.
+
+AGENTS.md
+PLATFORM_CONTEXT.md
+WORLD_MODEL_STRATEGY_CONTEXT.md
+AUTONOMOUS_ORG.md
+DEPLOYMENT.md
+package.json
+docs/ai-tooling-adoption-implementation-2026-04-07.md
+docs/ai-skills-governance-2026-04-07.md
+docs/alpha-launch-checklist.md
+
+client/src/hooks/usePublicLaunchStatus.ts
+client/src/lib/publicLaunchStatus.ts
+client/src/lib/launchMap.ts
+client/src/pages/Capture.tsx
+client/src/pages/CaptureAppPlaceholder.tsx
+client/src/pages/CaptureLaunchAccess.tsx
+client/src/pages/CityLanding.tsx
+client/src/pages/LaunchMap.tsx
+client/src/components/site/LaunchCityAvailability.tsx
+client/src/components/site/PublicLaunchMap.tsx
+server/routes/public-launch.ts
+server/utils/cityLaunchCaptureTargets.ts
+
+client/src/lib/siteWorldCommercialStatus.ts
+client/src/lib/siteWorldsApi.ts
+client/src/pages/SiteWorlds.tsx
+client/src/pages/SiteWorldDetail.tsx
+client/src/pages/HostedSessionSetup.tsx
+client/src/pages/HostedSessionWorkspace.tsx
+server/routes/site-worlds.ts
+server/routes/site-world-sessions.ts
+
+client/tests/pages/CapturerAccessCopy.test.tsx
+client/tests/pages/CityLanding.test.tsx
+client/tests/pages/SiteWorlds.test.tsx
+client/tests/pages/SiteWorldDetail.test.tsx
+client/tests/pages/HostedSessionSetup.test.tsx
+client/tests/lib/siteWorldCommercialStatus.test.ts
+server/tests/public-launch-route.test.ts
+server/tests/city-launch-status.test.ts
+server/tests/city-launch-capture-targets.test.ts

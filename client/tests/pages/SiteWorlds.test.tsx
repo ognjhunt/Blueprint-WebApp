@@ -26,7 +26,7 @@ describe("SiteWorlds", () => {
     );
 
     expect(screen.getAllByText(/Exact site/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Request-scoped review/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Hosted request/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Public catalog/i)).toBeInTheDocument();
 
     expect(

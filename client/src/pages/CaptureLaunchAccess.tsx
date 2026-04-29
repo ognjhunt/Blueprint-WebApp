@@ -11,7 +11,6 @@ import { withCsrfHeader } from "@/lib/csrf";
 import { usePublicLaunchStatus } from "@/hooks/usePublicLaunchStatus";
 import { analyticsEvents } from "@/lib/analytics";
 import { buildLaunchAccessWaitlistPayload, getLaunchAccessRoleLabel, normalizeLaunchAccessCity, type LaunchAccessRole } from "@/lib/launchAccess";
-import { defaultSupportedLaunchCities } from "@/lib/publicLaunchStatus";
 import { publicCaptureGeneratedAssets } from "@/lib/publicCaptureGeneratedAssets";
 
 const roleOptions: LaunchAccessRole[] = [
@@ -41,10 +40,12 @@ const signalReasons = [
 export default function CaptureLaunchAccess() {
   const search = useSearch();
   const searchParams = useMemo(() => new URLSearchParams(search), [search]);
-  const { data: publicLaunchStatus } = usePublicLaunchStatus();
-  const supportedCities = publicLaunchStatus?.supportedCities?.length
-    ? publicLaunchStatus.supportedCities
-    : defaultSupportedLaunchCities;
+  const {
+    data: publicLaunchStatus,
+    loading: launchStatusLoading,
+    error: launchStatusError,
+  } = usePublicLaunchStatus();
+  const supportedCities = publicLaunchStatus?.supportedCities ?? [];
   const prefilledCity = normalizeLaunchAccessCity(searchParams.get("city"));
   const prefilledRole = roleOptions.includes(searchParams.get("role") as LaunchAccessRole)
     ? (searchParams.get("role") as LaunchAccessRole)
@@ -195,7 +196,16 @@ export default function CaptureLaunchAccess() {
                   Current launch cities
                 </div>
                 <div className="mt-4 flex flex-wrap gap-2">
-                  {supportedCities.length ? (
+                  {launchStatusLoading ? (
+                    <p className="text-sm leading-7 text-slate-600">
+                      Checking backend launch status before showing open cities.
+                    </p>
+                  ) : launchStatusError ? (
+                    <p className="text-sm leading-7 text-slate-600">
+                      Launch status unavailable. This page will not assume a city is open from
+                      static fallback copy.
+                    </p>
+                  ) : supportedCities.length ? (
                     supportedCities.map((launchCity) => (
                       <span
                         key={launchCity.citySlug}
@@ -204,7 +214,12 @@ export default function CaptureLaunchAccess() {
                         {launchCity.displayName}
                       </span>
                     ))
-                  ) : null}
+                  ) : (
+                    <p className="text-sm leading-7 text-slate-600">
+                      No city is currently marked open in the public launch roster. Leave a signal
+                      and Blueprint will route it through city-launch review.
+                    </p>
+                  )}
                 </div>
               </div>
             </div>

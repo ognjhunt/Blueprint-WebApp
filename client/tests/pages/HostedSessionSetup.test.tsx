@@ -79,7 +79,7 @@ describe("HostedSessionSetup", () => {
     expect(screen.getByText(/scoped hosted-review request for Harborview Grocery Distribution Annex/i)).toBeInTheDocument();
     expect(screen.getAllByText(/World Model/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Robot profile/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Readiness/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Readiness/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Presentation demo/i)).toBeInTheDocument();
     expect(screen.getAllByText(/Observation frames/i).length).toBeGreaterThan(0);
   });

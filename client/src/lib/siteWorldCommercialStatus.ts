@@ -24,6 +24,12 @@ export type SiteWorldStatusBadge = {
   tone: string;
 };
 
+export type SiteWorldHostedAccessDisclosure = {
+  label: string;
+  summary: string;
+  launchVerified: boolean;
+};
+
 export const siteWorldStatusLegend: SiteWorldStatusBadge[] = [
   {
     id: "public_demo",
@@ -52,7 +58,8 @@ export const siteWorldStatusLegend: SiteWorldStatusBadge[] = [
   {
     id: "hosted_request_gated",
     label: "Hosted request-gated",
-    summary: "The hosted path is a valid commercial next step even when live runtime launch is gated.",
+    summary:
+      "The hosted path is a commercial next step, but live launch still depends on entitlement, account type, and runtime readiness.",
     tone: "border-sky-200 bg-sky-50 text-sky-700",
   },
   {
@@ -103,7 +110,7 @@ export function getSiteWorldCommercialStatus(
       label: "Public demo sample",
       tone: "border-indigo-200 bg-indigo-50 text-indigo-700",
       summary:
-        "This listing shows a real captured sample, example files, and hosted-review previews.",
+        "This listing shows a real captured sample, example files, and hosted-review request previews.",
       buyerNote:
         "The public demo lets you inspect the sample listing. It does not grant blanket facility approval or unrestricted commercial use for future requests.",
     };
@@ -137,18 +144,18 @@ export function getSiteWorldCommercialStatus(
     id: "request_scoped_review",
     label: "Request-scoped commercial review",
     tone: "border-emerald-200 bg-emerald-50 text-emerald-700",
-      summary:
-        "The listing is ready for buyer review with visible proof, export signals, and hosted-path disclosure, but final access still follows the request-specific rights and privacy review.",
-      buyerNote:
-        "This is a commercial review status, not a deployment guarantee or blanket approval statement for the underlying facility.",
+    summary:
+      "The listing is ready for buyer review with visible proof, export signals, and hosted-request disclosure, but final access still follows the request-specific rights and privacy review.",
+    buyerNote:
+      "This is a commercial review status, not a deployment guarantee or blanket approval statement for the underlying facility.",
   };
 }
 
 export function getSiteWorldProofDepth(site: PublicSiteWorldRecord) {
   if (isPublicSampleSiteWorld(site)) return "Public demo + current public proof assets";
-  if (isCommercialExemplarSiteWorld(site)) return "Commercial exemplar with listing proof fields + request-scoped hosted path";
-  if (site.worldLabsPreview?.launchUrl) return "Listing + hosted path disclosure + fallback preview";
-  if (site.deploymentReadiness?.native_world_model_primary) return "Listing + hosted path disclosure";
+  if (isCommercialExemplarSiteWorld(site)) return "Commercial exemplar with listing proof fields + request-scoped hosted request path";
+  if (site.worldLabsPreview?.launchUrl) return "Listing + hosted request path disclosure + fallback preview";
+  if (site.deploymentReadiness?.native_world_model_primary) return "Listing + hosted request path disclosure";
   return "Listing only";
 }
 
@@ -193,6 +200,7 @@ export function getSiteWorldReadinessDisclosure(site: PublicSiteWorldRecord) {
   const parts = [
     "This public listing proves what Blueprint is ready to show a buyer now.",
     "It is not a deployment guarantee and does not claim site-operator blanket approval or unrestricted rights.",
+    "Hosted launch is checked separately against entitlement, account type, runtime readiness, and production configuration.",
   ];
 
   if (site.deploymentReadiness?.export_readiness_status === "ready") {
@@ -246,11 +254,11 @@ export function getSiteWorldPlainEnglishStatus(site: PublicSiteWorldRecord) {
 
 export function getSiteWorldPlainEnglishProof(site: PublicSiteWorldRecord) {
   if (isPublicSampleSiteWorld(site)) {
-    return "This listing includes screenshots, sample files, and a hosted-review path.";
+    return "This listing includes screenshots, sample files, and a hosted-review request path.";
   }
 
   if (isCommercialExemplarSiteWorld(site)) {
-    return "This listing is the commercial exemplar: real pricing, listing proof fields, and a clearer path into hosted evaluation or package access.";
+    return "This listing is the commercial exemplar: real pricing, listing proof fields, and a clearer path into hosted evaluation request or package access.";
   }
 
   if (getSiteWorldPublicProofSummary(site) === "Listing metadata only") {
@@ -270,4 +278,45 @@ export function getSiteWorldPlainEnglishRestrictions(site: PublicSiteWorldRecord
   }
 
   return "Final access still follows the normal request-specific review, even when the listing looks ready.";
+}
+
+export function getSiteWorldHostedAccessDisclosure(
+  site: PublicSiteWorldRecord,
+): SiteWorldHostedAccessDisclosure {
+  if (
+    site.presentationDemoReadiness?.launchable
+    && site.presentationDemoReadiness.status === "presentation_ui_live"
+  ) {
+    return {
+      label: "Hosted demo verified",
+      summary:
+        "The public listing has a launchable presentation demo, while runtime sessions still check entitlement and backend readiness at setup.",
+      launchVerified: true,
+    };
+  }
+
+  if (site.worldLabsPreview?.launchUrl) {
+    return {
+      label: "Interactive preview ready",
+      summary:
+        "An optional provider preview is ready. The hosted evaluation still starts through the protected setup and readiness check.",
+      launchVerified: false,
+    };
+  }
+
+  if (site.deploymentReadiness?.native_world_model_primary) {
+    return {
+      label: "Hosted request path",
+      summary:
+        "The listing can support a hosted evaluation request, but the setup page must verify account access and runtime readiness before launch.",
+      launchVerified: false,
+    };
+  }
+
+  return {
+    label: "Hosted request-gated",
+    summary:
+      "Hosted evaluation is request-gated until site-world artifacts, entitlement, and runtime readiness are verified.",
+    launchVerified: false,
+  };
 }

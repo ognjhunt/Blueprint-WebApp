@@ -100,7 +100,7 @@ describe("SiteWorldDetail", () => {
       screen.getByRole("heading", { name: /Buy the site package\./i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /Start hosted evaluation for this site\./i }),
+      screen.getByRole("heading", { name: /Configure a hosted evaluation request for this site\./i }),
     ).toBeInTheDocument();
     expect(screen.getAllByText(/^Status$/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Request-scoped commercial review/i).length).toBeGreaterThan(0);
@@ -178,7 +178,7 @@ describe("SiteWorldDetail", () => {
     expect(
       await screen.findByRole("link", { name: /Open interactive preview/i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/The native package and hosted path stay primary on this listing\./i)).toBeInTheDocument();
+    expect(screen.getByText(/The native package and hosted request path stay primary on this listing\./i)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Generate preview/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Refresh status/i })).not.toBeInTheDocument();
   });

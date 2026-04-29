@@ -18,6 +18,7 @@ import {
 } from "@/lib/proofEvidence";
 import {
   getSiteWorldCommercialStatus,
+  getSiteWorldHostedAccessDisclosure,
   getSiteWorldPlainEnglishProof,
   getSiteWorldPlainEnglishRestrictions,
   getSiteWorldPlainEnglishStatus,
@@ -53,7 +54,7 @@ const WORLDLABS_STATUS_COPY: Record<
     label: "Not requested",
     tone: "border-slate-200 bg-slate-100 text-slate-700",
     summary:
-      "The listing is still anchored in the native package and hosted path. The optional interactive preview has not been requested yet.",
+      "The listing is still anchored in the native package and hosted request path. The optional interactive preview has not been requested yet.",
   },
   queued: {
     label: "Queued",
@@ -74,7 +75,7 @@ const WORLDLABS_STATUS_COPY: Record<
     label: "Failed",
     tone: "border-rose-200 bg-rose-50 text-rose-700",
     summary:
-      "The last interactive-preview attempt failed. The native package and hosted path remain the primary contract.",
+      "The last interactive-preview attempt failed. The native package and hosted request path remain the primary contract.",
   },
 };
 
@@ -268,6 +269,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
   }
 
   const commercialStatus = getSiteWorldCommercialStatus(site);
+  const hostedAccessDisclosure = getSiteWorldHostedAccessDisclosure(site);
   const isPublicSample = isPublicSampleSiteWorld(site);
   const publicProofSummary = getSiteWorldPublicProofSummary(site);
   const worldLabsPreview = site.worldLabsPreview || null;
@@ -385,7 +387,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
   ];
   const visibleNowRows = [
     ["Visible now", isPublicSample ? "Sample route, reference stills, sample files, and hosted request path." : "Site metadata, workflow lane, pricing frame, trust fields, and request path."],
-    ["Gated", "Package files, raw exports, live hosted runtime, and listing-specific commercial proof open through request review."],
+    ["Gated", "Package files, raw exports, live hosted runtime, and listing-specific commercial proof open through request review and runtime readiness checks."],
     ["Why gated", "Rights, privacy, freshness, and buyer context need to remain attached before access expands."],
   ];
 
@@ -456,7 +458,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                       href={`/world-models/${site.id}/start`}
                       className="inline-flex items-center justify-center border border-white/15 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
                     >
-                      Start hosted evaluation
+                      Check hosted setup
                     </a>
                   </div>
                 </div>
@@ -495,7 +497,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
               </div>
               <div>
                 <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Hosted</p>
-                <p className="mt-1 font-semibold text-slate-950">{hostedPackage?.priceLabel || "Request scoped"}</p>
+                <p className="mt-1 font-semibold text-slate-950">{hostedAccessDisclosure.label}</p>
               </div>
               <div>
                 <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Proof</p>
@@ -919,7 +921,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                     Listing boundary
                   </p>
                   <div className="mt-4 space-y-3 text-sm text-white/75">
-                    <div>The native package and hosted path stay primary on this listing.</div>
+                    <div>The native package and hosted request path stay primary on this listing.</div>
                     <div>Interactive preview is optional and does not redefine listing trust.</div>
                     <div>Public proof, freshness, and rights remain visible even without the preview.</div>
                   </div>
@@ -967,11 +969,13 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                 Hosted evaluation
               </p>
               <h2 className="mt-3 text-[2.1rem] leading-[0.98] tracking-[-0.05em] text-slate-950">
-                Start hosted evaluation for this site.
+                Configure a hosted evaluation request for this site.
               </h2>
               <p className="mt-4 text-sm leading-7 text-slate-700">
                 {hostedPackage?.summary
-                  || "Use the managed hosted path when the team wants reruns, review, and exports on the same site before moving the package."}
+                  || "Use the managed hosted request path when the team wants reruns, review, and exports on the same site before moving the package."}{" "}
+                The next screen verifies account access, entitlement, and runtime readiness before
+                anything launches.
               </p>
               <div className="mt-6 grid gap-3 sm:grid-cols-2">
                 {(hostedPackage?.deliverables || site.exportArtifacts).slice(0, 4).map((item) => (
@@ -982,15 +986,15 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
               </div>
               <div className="mt-6 border border-black/10 bg-slate-950 p-5 text-white">
                 <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Best fit</p>
-                <p className="mt-2 text-lg">Teams that want to run the site now</p>
-                <p className="mt-3 text-sm text-white/70">{hostedPackage?.priceLabel || "Request scoped review"}</p>
+                <p className="mt-2 text-lg">Teams that want Blueprint to verify a hosted run</p>
+                <p className="mt-3 text-sm text-white/70">{hostedAccessDisclosure.summary}</p>
               </div>
               <div className="mt-6 flex flex-wrap gap-3">
                 <a
                   href={`/world-models/${site.id}/start`}
                   className="inline-flex items-center justify-center bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                 >
-                  Start hosted evaluation
+                  Check hosted setup
                 </a>
                 <a
                   href={hostedPackage?.actionHref || "/contact?persona=robot-team"}
@@ -1007,13 +1011,13 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
           <EditorialCtaBand
             eyebrow="Next step"
             title="Ready to evaluate this site?"
-            description="Request access to start a hosted evaluation, or take the package path when your team wants the site data inside its own stack."
+            description="Request access to verify hosted evaluation readiness, or take the package path when your team wants the site data inside its own stack."
             imageSrc={editorialRefreshAssets.detailHeroWarehouse}
             imageAlt={site.siteName}
             primaryHref={scenePackage?.actionHref || "/contact?persona=robot-team"}
             primaryLabel="Request package access"
             secondaryHref={`/world-models/${site.id}/start`}
-            secondaryLabel="Start hosted evaluation"
+            secondaryLabel="Check hosted setup"
           />
         </section>
       </div>

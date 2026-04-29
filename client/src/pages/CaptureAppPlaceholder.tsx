@@ -11,7 +11,6 @@ import {
 } from "@/components/site/privateSurface";
 import { usePublicLaunchStatus } from "@/hooks/usePublicLaunchStatus";
 import { getCaptureAppPlaceholderUrl } from "@/lib/client-env";
-import { defaultSupportedLaunchCities } from "@/lib/publicLaunchStatus";
 import {
   publicCaptureLocationTypes,
   publicCaptureProofStories,
@@ -47,10 +46,12 @@ export default function CaptureAppPlaceholder() {
   const showExternalHandoff = hasExternalAppLink(captureAppUrl);
   const captureAccessUrl = "/capture-app/launch-access?source=capture-app-placeholder";
   const qrTargetUrl = showExternalHandoff ? captureAppUrl : captureAccessUrl;
-  const { data: publicLaunchStatus } = usePublicLaunchStatus();
-  const launchCities = publicLaunchStatus?.supportedCities?.length
-    ? publicLaunchStatus.supportedCities
-    : defaultSupportedLaunchCities;
+  const {
+    data: publicLaunchStatus,
+    loading: launchStatusLoading,
+    error: launchStatusError,
+  } = usePublicLaunchStatus();
+  const launchCities = publicLaunchStatus?.supportedCities ?? [];
   const [qrCode, setQrCode] = useState("");
 
   const launchCityLabels = useMemo(() => launchCities.map((city) => city.displayName), [launchCities]);
@@ -210,7 +211,16 @@ export default function CaptureAppPlaceholder() {
                       Available launch cities
                     </div>
                     <div className="mt-4 grid gap-2">
-                      {launchCityLabels.length > 0 ? (
+                      {launchStatusLoading ? (
+                        <p className="text-sm leading-7 text-black/55">
+                          Checking backend launch status before showing open cities.
+                        </p>
+                      ) : launchStatusError ? (
+                        <p className="text-sm leading-7 text-black/55">
+                          Launch status is unavailable. Request access instead of relying on a
+                          cached city list.
+                        </p>
+                      ) : launchCityLabels.length > 0 ? (
                         launchCityLabels.slice(0, 5).map((label) => (
                           <div
                             key={label}

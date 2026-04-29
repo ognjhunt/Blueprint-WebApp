@@ -396,16 +396,17 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
                     Back to site
                   </a>
                   <p className="mt-8 text-[11px] uppercase tracking-[0.18em] text-white/50">
-                    Hosted evaluation
+                    Hosted evaluation request
                   </p>
                   <h1 className="font-editorial mt-5 max-w-[24rem] text-[4.2rem] leading-[0.88] tracking-[-0.08em] sm:text-[5.4rem]">
                     Hosted Evaluation
                   </h1>
                   <p className="mt-5 max-w-[22rem] text-[1.9rem] leading-tight tracking-[-0.03em] text-white/90">
-                    Configure one exact-site run.
+                    Configure one exact-site readiness check.
                   </p>
                   <p className="mt-4 max-w-[28rem] text-base leading-8 text-white/70">
-                    Blueprint prepares the hosted review path. You get run evidence, outputs, and limits tied back to the same captured site.
+                    Blueprint verifies access and runtime readiness before any hosted review
+                    launches. When blocked, the configuration becomes a scoped request.
                   </p>
                 </div>
 
@@ -729,7 +730,8 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
 
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div className="text-sm text-slate-700">
-                Native site world remains the default path; request-gated runtime is still a valid hosted-evaluation request.
+                Native site world remains the default path; runtime launch depends on account,
+                entitlement, and readiness checks.
               </div>
               <div className="flex flex-col gap-3 sm:flex-row">
                 {runtimeLaunchBlocked ? (
