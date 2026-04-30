@@ -226,6 +226,70 @@ describe("city launch research parser", () => {
     expect(result.errors).toEqual([]);
   });
 
+  it("parses schema-prefixed activation payload fences", () => {
+    const markdown = [
+      "# Austin, TX Launch Playbook",
+      "",
+      "```city-launch-records",
+      JSON.stringify(
+        {
+          schema_version: CITY_LAUNCH_RESEARCH_SCHEMA_VERSION,
+          generated_at: "2026-04-12T12:00:00.000Z",
+          capture_location_candidates: [],
+          buyer_target_candidates: [],
+          first_touch_candidates: [],
+          budget_recommendations: [],
+        },
+        null,
+        2,
+      ),
+      "```",
+      "",
+      "```city-launch-activation-payload with schema \"2026-04-13.city-launch-activation-payload.v1\" and machine_policy_version \"2026-04-13.city-launch-doctrine.v1\"",
+      JSON.stringify(
+        {
+          schema_version: CITY_LAUNCH_ACTIVATION_PAYLOAD_SCHEMA_VERSION,
+          machine_policy_version: CITY_LAUNCH_MACHINE_POLICY_VERSION,
+          city: "Austin, TX",
+          city_slug: "austin-tx",
+          city_thesis: "Run one proof-led warehouse wedge.",
+          primary_site_lane: "industrial_warehouse",
+          primary_workflow_lane: "dock handoff",
+          primary_buyer_proof_path: "exact_site",
+          lawful_access_modes: ["buyer_requested_site"],
+          preferred_lawful_access_mode: "buyer_requested_site",
+          rights_path: {
+            summary: "Private controlled interiors require explicit authorization.",
+            private_controlled_interiors_require_authorization: true,
+            validation_required: false,
+            source_urls: [],
+          },
+          validation_blockers: [],
+          required_approvals: [],
+          owner_lanes: ["city-launch-agent"],
+          issue_seeds: [],
+          metrics_dependencies: [],
+          named_claims: [],
+        },
+        null,
+        2,
+      ),
+      "```",
+    ].join("\n");
+
+    const result = parseCityLaunchResearchArtifact({
+      city: "Austin, TX",
+      artifactPath: "/tmp/city-launch-austin.md",
+      markdown,
+    });
+
+    expect(result.activationPayload).not.toBeNull();
+    expect(result.activationPayload?.city).toBe("Austin, TX");
+    expect(result.warnings).not.toContain(
+      "Machine-readable city-launch activation payload was present but could not be parsed as valid JSON.",
+    );
+  });
+
   it("returns a warning when the structured appendix is absent", () => {
     const result = parseCityLaunchResearchArtifact({
       city: "Austin, TX",

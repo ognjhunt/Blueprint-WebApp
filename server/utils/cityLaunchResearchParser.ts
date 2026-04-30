@@ -447,7 +447,7 @@ function extractStructuredJsonBlock<T>(input: {
       continue;
     }
     try {
-      const parsed = JSON.parse(candidate) as {
+      const parsed = parseStructuredJsonCandidate(candidate) as {
         schema_version?: unknown;
       } & T;
       const schemaVersion = asString(parsed.schema_version);
@@ -462,6 +462,26 @@ function extractStructuredJsonBlock<T>(input: {
   }
 
   return { parsed: null, foundSchemaMismatch, foundInvalidJson };
+}
+
+function parseStructuredJsonCandidate(candidate: string) {
+  const trimmed = candidate.trim();
+
+  try {
+    return JSON.parse(trimmed) as unknown;
+  } catch (directError) {
+    const objectStart = trimmed.indexOf("{");
+    const objectEnd = trimmed.lastIndexOf("}");
+    if (objectStart >= 0 && objectEnd > objectStart) {
+      try {
+        return JSON.parse(trimmed.slice(objectStart, objectEnd + 1)) as unknown;
+      } catch {
+        // Fall through to the original parse error so callers still get the real failure shape.
+      }
+    }
+
+    throw directError;
+  }
 }
 
 function escapeRegExp(value: string) {
