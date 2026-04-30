@@ -3,7 +3,7 @@
 ## Status
 - phase: activation_ready
 - owner: city-demand-agent
-- latest-refresh: 2026-04-28
+- latest-refresh: 2026-04-30
 - planning-state: completed
 - confidence: medium
 
@@ -13,7 +13,7 @@ Austin demand should stay proof-led: qualify real robot-team interest, classify 
 ## What Changed This Pass
 - evidence-backed: the city launcher now generates the compact demand playbook during activation so downstream tasks have a real canonical reference.
 - evidence-backed: city demand instrumentation is pinned to the platform event model rather than custom city-specific events.
-- evidence-backed: current deep research names buyer targets such as Austin Robotics.
+- warning: no research-backed buyer target list has been materialized yet.
 
 ## Required Proof Motion
 - serious robot-team demand must hit 24-hour proof-path triage

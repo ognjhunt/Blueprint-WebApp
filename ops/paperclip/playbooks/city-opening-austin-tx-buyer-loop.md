@@ -1,6 +1,6 @@
 # Exact-Site Hosted Review Buyer Loop
 
-- report_date: 2026-04-28
+- report_date: 2026-04-30
 - city: Austin, TX
 - ledger: ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json
 - loop_status: blocked
@@ -13,7 +13,7 @@
 | --- | ---: |
 | Target rows | 1 |
 | Recipient-backed targets | 0 |
-| Enrichment attempted targets | 0 |
+| Enrichment attempted targets | 1 |
 | Enrichment candidate targets | 0 |
 | Enrichment contact-found targets | 0 |
 | Founder approval needed | 0 |
@@ -25,7 +25,7 @@
 | Capture asks | 0 |
 | Explicit next-action rows | 1 |
 | 100-touch decision gap | 100 |
-| Days remaining | 12 |
+| Days remaining | 10 |
 
 ## One Sales Ledger
 

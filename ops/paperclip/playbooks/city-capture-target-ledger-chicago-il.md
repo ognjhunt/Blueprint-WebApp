@@ -2,7 +2,7 @@
 
 - city: Chicago, IL
 - city_slug: chicago-il
-- generated_at: 2026-04-28T18:26:41.019Z
+- generated_at: 2026-04-30T02:22:23.013Z
 - mode: planning_placeholder
 - status: hypothesis-ranked targeting ledger, not a claim that every site is already accessible
 

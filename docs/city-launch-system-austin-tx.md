@@ -7,17 +7,17 @@
 
 ## Objective
 
-Turn the Austin planning artifacts into an executable company harness that runs the supply loop and demand loop in one autonomy-first sweep, with routine Austin operations owned by Growth Lead and Ops Lead inside written guardrails and only the gated-vs-expand decision left for founder review.
+Turn the Austin planning artifacts into an executable company harness that runs the supply loop and demand loop in one autonomy-first sweep without manual city-activation approval.
 
 ## Machine-Readable Budget Policy
 
-- budget_tier: zero_budget
-- total_envelope_usd: 0
-- operator_auto_approve_usd: 0
-- allow_paid_acquisition: false
+- budget_tier: low_budget
+- total_envelope_usd: 2500
+- operator_auto_approve_usd: 500
+- allow_paid_acquisition: true
 - allow_referral_rewards: false
-- allow_travel_reimbursement: false
-- founder_approval_required_above_usd: 0
+- allow_travel_reimbursement: true
+- founder_approval_required_above_usd: 2500
 
 ## What The Org Will Do
 
@@ -37,15 +37,13 @@ Turn the Austin planning artifacts into an executable company harness that runs 
 
 ## Founder-Only Decisions
 
-- Austin stays gated or expands based on proof and hosted-review milestones, not approval packets.
-- Founder does not stay in routine invite/access-code issuance, intake approval, threshold tuning, trust-kit updates, or proof-pack quality checks.
-- Any spend request beyond the written Austin zero budget policy is out of policy until the repo policy changes.
+- Austin city expansion stays gated by proof and hosted-review milestones, not approval packets.
+- Any spend request beyond the written Austin low budget policy is out of policy until the repo policy changes.
 - Any public statement that changes company posture or overstates Austin readiness is auto-blocked until supported in repo truth.
 - Any rights/privacy exception or non-standard commercial commitment is blocked until the written policy and evidence path are updated.
 
 ## Human Operator-Owned Decisions
 
-- Routine invite/access-code issuance, intake approval, threshold tuning, trust-kit updates, and proof-pack quality checks stay with Growth Lead and Ops Lead inside written guardrails.
 - Growth Lead owns Austin source policy, referral posture, and invite/access-code issuance inside approved guardrails.
 - Ops Lead owns the Austin intake rubric, trust kit, first-capture thresholds, and launch-readiness checklist.
 - Standard quote bands are enforced directly from repo policy and the current proof posture.
@@ -61,9 +59,18 @@ Turn the Austin planning artifacts into an executable company harness that runs 
 - demand-intel-agent, robot-team-growth-agent, outbound-sales-agent, buyer-solutions-agent, and revenue-ops-pricing-agent run the demand loop continuously, packaging truthful proof motion and only pausing at irreversible claim, rights, spend, or non-standard commercial gates.
 - analytics-agent and notion-manager-agent keep Austin measurable, reviewable, and mirrored into the operator surfaces.
 
+## Founder Approvals Required Before Activation
+
+- Autonomously activate Austin, TX as an active city-launch program and keep execution bounded to the selected city.
+- Run the Austin launch posture autonomously: gated cohort pilot, Exact-Site Hosted Review wedge, and truthful public claims only.
+- Autonomous spend posture for Austin: Low Budget with a total envelope up to $2,500.
+- Automatically block any Austin source-policy change that exceeds the current bounded channel stack until the written policy is updated in repo truth.
+- Automatically block any rights/privacy/commercialization exception that lacks repo-backed policy and evidence.
+- Automatically block any non-standard commercial term outside the standard Austin quote bands until the quote policy is updated in repo truth.
+
 ## Austin Completion Requirements
 
-- Founder approval is only required for the stay-gated-vs-expand decision; routine Austin ops are operator-owned inside the written policy.
+- Founder-approved Austin posture remains required to activate the city.
 - Austin capture target ledger with first proof candidates, queued lawful-access buckets, and longer-horizon discovery lanes is required to mark the city operationally real, but not required to begin execution.
 - Austin city-opening brief, channel map, first-wave outreach/posting pack, CTA / intake path, response-tracking view, reply-conversion cadence lane, channel/account registry, send ledger, exact-site buyer loop, and city-opening execution report are required to prove the city was actually opened and that early replies are being worked instead of counted and lost.
 - Austin ops packet: intake rubric, trust kit, first-capture thresholds, and launch-readiness checklist is a completion dependency, not a reason to leave execution lanes idle.
