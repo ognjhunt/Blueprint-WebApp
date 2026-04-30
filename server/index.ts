@@ -13,6 +13,7 @@ import { incrementRequestCount, incrementErrorCount } from "./routes/health";
 import { validateEnv } from "./config/env";
 import { createRateLimitRedisStore } from "./utils/rate-limit-redis";
 import { startOpsAutomationScheduler } from "./utils/opsAutomationScheduler";
+import { buildFirehoseConfig } from "./utils/marketSignalProviderFirehose";
 import {
   buildSitemapXml,
   getPublicAssetDir,
@@ -20,6 +21,14 @@ import {
 } from "./utils/public-artifacts";
 
 const env = validateEnv();
+
+// Log Firehose configuration status at startup
+const firehoseConfig = buildFirehoseConfig();
+if (firehoseConfig) {
+  console.log(`Firehose configured successfully. Base URL: ${firehoseConfig.baseUrl}`);
+} else {
+  console.warn("Firehose not configured: missing FIREHOSE_API_TOKEN or FIREHOSE_BASE_URL. Firehose signals will be skipped.");
+}
 
 const app = express();
 const isProduction = process.env.NODE_ENV === "production";

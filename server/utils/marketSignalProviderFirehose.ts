@@ -9,7 +9,7 @@ import type {
   MarketSignalRecord,
 } from "./marketSignalProviders";
 
-function buildFirehoseConfig(): FirehoseConfig | null {
+export function buildFirehoseConfig(): FirehoseConfig | null {
   const apiToken = getConfiguredEnvValue("FIREHOSE_API_TOKEN");
   const baseUrl = getConfiguredEnvValue("FIREHOSE_BASE_URL");
 
@@ -30,30 +30,43 @@ export async function fetchFirehoseMarketSignals(input: {
 }): Promise<MarketSignalFetchResult> {
   const config = buildFirehoseConfig();
   if (!config) {
-    throw new Error("Firehose is not configured");
+    // Return empty result instead of throwing to allow Analytics Daily to proceed with other sources
+    console.warn("Firehose is not configured: missing FIREHOSE_API_TOKEN or FIREHOSE_BASE_URL. Skipping Firehose signals.");
+    return {
+      providerKey: "firehose",
+      signals: [],
+    };
   }
 
-  const result = await fetchNormalizedFirehoseSignals(config, {
-    query: input.topic,
-    topics: [input.topic],
-    limit: input.limit,
-    since: input.since,
-  });
+  try {
+    const result = await fetchNormalizedFirehoseSignals(config, {
+      query: input.topic,
+      topics: [input.topic],
+      limit: input.limit,
+      since: input.since,
+    });
 
-  const signals: MarketSignalRecord[] = result.signals.map((signal) => ({
-    id: signal.id,
-    topic: signal.topic || input.topic,
-    title: signal.title,
-    summary: signal.summary,
-    url: signal.url || null,
-    source: signal.source || "firehose",
-    publishedAt: signal.publishedAt || null,
-  }));
+    const signals: MarketSignalRecord[] = result.signals.map((signal) => ({
+      id: signal.id,
+      topic: signal.topic || input.topic,
+      title: signal.title,
+      summary: signal.summary,
+      url: signal.url || null,
+      source: signal.source || "firehose",
+      publishedAt: signal.publishedAt || null,
+    }));
 
-  return {
-    providerKey: "firehose",
-    signals,
-  };
+    return {
+      providerKey: "firehose",
+      signals,
+    };
+  } catch (error) {
+    console.error("Firehose signal fetch failed:", error);
+    return {
+      providerKey: "firehose",
+      signals: [],
+    };
+  }
 }
 
 export function createFirehoseMarketSignalProvider(): MarketSignalProvider | null {

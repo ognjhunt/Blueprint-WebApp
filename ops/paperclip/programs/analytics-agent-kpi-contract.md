@@ -39,6 +39,7 @@ Treat these as blocked unless the live source path is verified for the current w
 - post-delivery buyer health metrics when active buyer volume is too low for standing trend claims
 - any funnel stage that exists only in narrative artifacts and not in Firestore, Stripe, PostHog, GA4, or Paperclip
 - any city-level growth claim not tied to tagged demand/source data
+- any city-level readiness claim, including San Francisco launch posture, until the live source path is verified end to end
 
 ## Verification Rules
 - never publish a KPI without naming the source system class behind it

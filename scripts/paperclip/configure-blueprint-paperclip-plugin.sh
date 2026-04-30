@@ -19,6 +19,7 @@ PAPERCLIP_HOST="${PAPERCLIP_HOST:-127.0.0.1}"
 PAPERCLIP_PORT="${PAPERCLIP_PORT:-3100}"
 PAPERCLIP_API_URL="${PAPERCLIP_API_URL:-http://${PAPERCLIP_HOST}:${PAPERCLIP_PORT}}"
 PAPERCLIP_PUBLIC_URL="${PAPERCLIP_PUBLIC_URL:-$PAPERCLIP_API_URL}"
+PAPERCLIP_FIREHOSE_BASE_URL="${BLUEPRINT_PAPERCLIP_FIREHOSE_BASE_URL:-${FIREHOSE_BASE_URL:-}}"
 COMPANY_NAME="${COMPANY_NAME:-Blueprint Autonomous Operations}"
 PAPERCLIP_HOME="${PAPERCLIP_HOME:-$WORKSPACE_ROOT/.paperclip-blueprint}"
 PAPERCLIP_INSTANCE_ID="${PAPERCLIP_INSTANCE_ID:-default}"
@@ -200,7 +201,7 @@ write_plugin_config() {
       template.marketingCapabilities.introwDefaultWorkspace = process.argv[26] || template.marketingCapabilities.introwDefaultWorkspace || "";
       template.enableOutboundNotifications = Boolean(process.argv[8]);
       process.stdout.write(JSON.stringify({configJson: template}));
-    ' "$CONFIG_TEMPLATE" "$COMPANY_NAME" "${BLUEPRINT_PAPERCLIP_GITHUB_OWNER:-}" "$github_token_id" "$github_webhook_secret_id" "$ci_secret_id" "$intake_secret_id" "$notification_webhook_id" "$notion_token_id" "$slack_ops_webhook_id" "$slack_growth_webhook_id" "$slack_exec_webhook_id" "$slack_engineering_webhook_id" "$slack_manager_webhook_id" "$search_api_key_id" "$search_api_provider_id" "$firehose_api_token_id" "$introw_api_token_id" "$stripe_secret_key_id" "$stripe_connect_account_id" "$stripe_webhook_secret_id" "${BLUEPRINT_PAPERCLIP_FIREHOSE_BASE_URL:-}" "${BLUEPRINT_PAPERCLIP_INTROW_BASE_URL:-}" "${BLUEPRINT_PAPERCLIP_FIREHOSE_DEFAULT_TOPICS:-}" "${BLUEPRINT_PAPERCLIP_FIREHOSE_MAX_SIGNALS_PER_READ:-}" "${BLUEPRINT_PAPERCLIP_INTROW_DEFAULT_WORKSPACE:-}"
+    ' "$CONFIG_TEMPLATE" "$COMPANY_NAME" "${BLUEPRINT_PAPERCLIP_GITHUB_OWNER:-}" "$github_token_id" "$github_webhook_secret_id" "$ci_secret_id" "$intake_secret_id" "$notification_webhook_id" "$notion_token_id" "$slack_ops_webhook_id" "$slack_growth_webhook_id" "$slack_exec_webhook_id" "$slack_engineering_webhook_id" "$slack_manager_webhook_id" "$search_api_key_id" "$search_api_provider_id" "$firehose_api_token_id" "$introw_api_token_id" "$stripe_secret_key_id" "$stripe_connect_account_id" "$stripe_webhook_secret_id" "$PAPERCLIP_FIREHOSE_BASE_URL" "${BLUEPRINT_PAPERCLIP_INTROW_BASE_URL:-}" "${BLUEPRINT_PAPERCLIP_FIREHOSE_DEFAULT_TOPICS:-}" "${BLUEPRINT_PAPERCLIP_FIREHOSE_MAX_SIGNALS_PER_READ:-}" "${BLUEPRINT_PAPERCLIP_INTROW_DEFAULT_WORKSPACE:-}"
   )"
 
   curl -fsS -X POST \

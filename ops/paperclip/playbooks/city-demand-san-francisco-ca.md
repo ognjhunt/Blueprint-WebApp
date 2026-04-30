@@ -71,7 +71,8 @@ San Francisco demand should stay proof-led and ecosystem-driven: qualify real ro
 - site-operator support only where the access path, tenant rules, or operator permission model changes the deal
 - downstream `demand-intel-agent` work to keep the target ledger current and tied to real buyer threads
 
-## Demand Readiness Scorecard
+## Demand Blocker Scorecard
+Treat the scores below as blocker visibility, not a launch-readiness claim, until the live source path is verified end to end.
 | Dimension | Score | Rationale |
 | --- | ---: | --- |
 | likely robot-team density | 4/5 | The Bay Area has dense logistics, manufacturing, robotics, and industrial ecosystems. |
@@ -80,7 +81,7 @@ San Francisco demand should stay proof-led and ecosystem-driven: qualify real ro
 | instrumentation readiness | 2/5 | The platform events exist, but San Francisco still lacks end-to-end live proof-motion coverage. |
 | operational follow-through readiness | 2/5 | Named buyer threads and proof packs are still missing, so execution is not yet self-propelling. |
 | strategic importance | 5/5 | San Francisco remains the highest-density Bay Area market for technically sophisticated buyers. |
-| overall readiness | 3/5 | Strong ecosystem density, but still blocked on proof-pack assembly and buyer-thread conversion. |
+| overall claim status | blocked | Strong ecosystem density, but the city stays blocked on proof-pack assembly, buyer-thread conversion, and live source-path verification. |
 
 ## Measurement Plan
 - `robot_team_inbound_captured`
