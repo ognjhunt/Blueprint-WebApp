@@ -66,6 +66,7 @@ export const TOOL_NAMES = {
   runtimeMemoryRead: "blueprint-runtime-memory-read",
   runtimeMemoryWrite: "blueprint-runtime-memory-write",
   runtimeSpawnSubagent: "blueprint-runtime-spawn-subagent",
+  requestSpend: "blueprint-request-spend",
   budgetStatus: "blueprint-budget-status",
   phaseStatus: "blueprint-phase-status",
   recordOverride: "blueprint-record-override",

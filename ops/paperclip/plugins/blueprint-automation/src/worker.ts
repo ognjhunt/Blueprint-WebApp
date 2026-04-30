@@ -98,6 +98,11 @@ import {
   loadPlatformDoctrineDocs,
   resolveConfiguredRepoRoot,
 } from "./repo-root.js";
+import { requestAgentSpend } from "../../../../../server/utils/agentSpendLedger.js";
+import {
+  buildAgentSpendToolContent,
+  parseAgentSpendToolParams,
+} from "./agent-spend-tool.js";
 import {
   pollGithubWorkflows as pollGithubWorkflowsHelper,
 } from "./github-workflow-polling.js";
@@ -14589,6 +14594,60 @@ async function registerToolHandlers(ctx: PluginContext) {
   );
 
   // ── Budget, Phase & Override Tools ──────────────────
+  ctx.tools.register(
+    TOOL_NAMES.requestSpend,
+    {
+      displayName: "Blueprint Request Spend",
+      description:
+        "Request city-launch spend through Blueprint's deterministic spend-control plane. This never returns raw payment credentials.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          city: { type: "string" },
+          amountUsd: { type: "number" },
+          category: {
+            type: "string",
+            enum: ["creative", "outbound", "community", "field_ops", "travel", "tools", "other"],
+          },
+          vendorName: { type: "string" },
+          vendorUrl: { type: "string" },
+          purpose: { type: "string" },
+          expectedOutcome: { type: "string" },
+          issueId: { type: "string" },
+          runId: { type: "string" },
+          launchId: { type: "string" },
+          requestedByAgent: { type: "string" },
+          requestedByRole: { type: "string" },
+          evidenceRefs: {
+            type: "array",
+            items: { type: "string" },
+          },
+          allowedVendorNames: {
+            type: "array",
+            items: { type: "string" },
+          },
+          provider: {
+            type: "string",
+            enum: ["manual", "link_cli_test", "stripe_issuing_sandbox", "stripe_issuing_live"],
+            default: "manual",
+          },
+        },
+        required: ["city", "amountUsd", "category", "vendorName", "purpose"],
+      },
+    },
+    async (params, runContext: ToolRunContext): Promise<ToolResult> => {
+      const spendInput = parseAgentSpendToolParams(
+        params as Record<string, unknown>,
+        runContext.agentId || null,
+      );
+      const spendRequest = await requestAgentSpend(spendInput);
+      return {
+        content: buildAgentSpendToolContent(spendRequest),
+        data: spendRequest,
+      };
+    },
+  );
+
   ctx.tools.register(
     TOOL_NAMES.budgetStatus,
     {

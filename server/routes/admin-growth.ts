@@ -53,6 +53,12 @@ import {
   upsertCityLaunchReplyConversion,
   upsertCityLaunchSendAction,
 } from "../utils/cityLaunchLedgers";
+import {
+  listAgentSpendRequests,
+  reconcileAgentSpendProviderEvent,
+  requestAgentSpend,
+} from "../utils/agentSpendLedger";
+import { isCityLaunchBudgetCategory } from "../utils/agentSpendPolicy";
 import { isCityLaunchBuyerProofPath } from "../utils/cityLaunchResearchContracts";
 import { sendEmail, getEmailTransportStatus } from "../utils/email";
 import {
@@ -907,6 +913,101 @@ router.post("/city-launch/ledgers/budget-events", requireOps, async (req, res) =
   }
 });
 
+router.post("/city-launch/spend-requests", requireOps, async (req, res) => {
+  try {
+    const city = normalizeString(req.body?.city);
+    const amountUsd = normalizeNumber(req.body?.amountUsd);
+    const category = normalizeString(req.body?.category);
+    const vendorName = normalizeString(req.body?.vendorName);
+    const purpose = normalizeString(req.body?.purpose);
+    if (!city || amountUsd === null || !category || !vendorName || !purpose) {
+      return res.status(400).json({
+        error: "city, amountUsd, category, vendorName, and purpose are required",
+      });
+    }
+    if (!isCityLaunchBudgetCategory(category)) {
+      return res.status(400).json({ error: "Unsupported spend category" });
+    }
+    const spendRequest = await requestAgentSpend({
+      id: normalizeString(req.body?.id) || undefined,
+      city,
+      launchId: normalizeString(req.body?.launchId) || null,
+      issueId: normalizeString(req.body?.issueId) || null,
+      runId: normalizeString(req.body?.runId) || null,
+      requestedByAgent: normalizeString(req.body?.requestedByAgent) || null,
+      requestedByRole: normalizeString(req.body?.requestedByRole) || (await operatorEmail(res)),
+      amountUsd,
+      currency: normalizeString(req.body?.currency) || "USD",
+      category,
+      vendorName,
+      vendorUrl: normalizeString(req.body?.vendorUrl) || null,
+      purpose,
+      expectedOutcome: normalizeString(req.body?.expectedOutcome) || null,
+      evidenceRefs: normalizeStringArray(req.body?.evidenceRefs),
+      provider: normalizeString(req.body?.provider) || "manual",
+      budgetTier:
+        normalizeString(req.body?.budgetTier) === "zero_budget" ||
+        normalizeString(req.body?.budgetTier) === "low_budget" ||
+        normalizeString(req.body?.budgetTier) === "funded"
+          ? (normalizeString(req.body?.budgetTier) as "zero_budget" | "low_budget" | "funded")
+          : null,
+      maxTotalApprovedUsd: normalizeNumber(req.body?.maxTotalApprovedUsd),
+      operatorAutoApproveUsd: normalizeNumber(req.body?.operatorAutoApproveUsd),
+      founderApprovedBudgetEnvelope:
+        typeof req.body?.founderApprovedBudgetEnvelope === "boolean"
+          ? req.body.founderApprovedBudgetEnvelope
+          : null,
+      allowedVendorNames: normalizeStringArray(req.body?.allowedVendorNames),
+      expiresAtIso: normalizeIsoOrNull(req.body?.expiresAtIso),
+      metadata: null,
+    });
+    return res.status(201).json({ ok: true, spendRequest });
+  } catch (error) {
+    logger.error({ err: error }, "Failed to request agent spend");
+    return res.status(500).json({ error: "Failed to request agent spend" });
+  }
+});
+
+router.get("/city-launch/spend-requests", requireOps, async (req, res) => {
+  try {
+    const city = normalizeString(req.query.city) || "Austin, TX";
+    return res.json({
+      ok: true,
+      spendRequests: await listAgentSpendRequests(city),
+    });
+  } catch (error) {
+    logger.error({ err: error }, "Failed to list agent spend requests");
+    return res.status(500).json({ error: "Failed to list agent spend requests" });
+  }
+});
+
+router.post("/city-launch/spend-requests/:spendRequestId/reconcile", requireOps, async (req, res) => {
+  try {
+    const spendRequestId = normalizeString(req.params.spendRequestId);
+    const status = normalizeString(req.body?.status);
+    if (!spendRequestId || !status) {
+      return res.status(400).json({ error: "spendRequestId and status are required" });
+    }
+    const spendRequest = await reconcileAgentSpendProviderEvent({
+      spendRequestId,
+      provider: normalizeString(req.body?.provider) || null,
+      providerEventId: normalizeString(req.body?.providerEventId) || null,
+      status,
+      paidAmountUsd: normalizeNumber(req.body?.paidAmountUsd),
+      note: normalizeString(req.body?.note) || null,
+      occurredAtIso: normalizeIsoOrNull(req.body?.occurredAtIso),
+      rawCredentialDelivered:
+        typeof req.body?.rawCredentialDelivered === "boolean"
+          ? req.body.rawCredentialDelivered
+          : null,
+    });
+    return res.json({ ok: true, spendRequest });
+  } catch (error) {
+    logger.error({ err: error }, "Failed to reconcile agent spend provider event");
+    return res.status(500).json({ error: "Failed to reconcile agent spend provider event" });
+  }
+});
+
 router.post("/city-launch/ledgers/channel-accounts", requireOps, async (req, res) => {
   try {
     const city = normalizeString(req.body?.city);
@@ -1391,6 +1492,7 @@ router.get("/city-launch/records", requireOps, async (req, res) => {
       buyerTargets: await listCityLaunchBuyerTargets(city),
       touches: await listCityLaunchTouches(city),
       budgetEvents: await listCityLaunchBudgetEvents(city),
+      spendRequests: await listAgentSpendRequests(city),
       channelAccounts: await listCityLaunchChannelAccounts(city),
       sendActions: await listCityLaunchSendActions(city),
       replyConversions: await listCityLaunchReplyConversions(city),
