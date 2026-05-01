@@ -140,7 +140,8 @@ require_routines() {
   routines_file="$(mktemp)"
   fetch_api_json "/api/companies/${company_id}/routines" >"$routines_file"
   local node_status=0
-  if ! node --input-type=module - "$REPO_ROOT/ops/paperclip/blueprint-company/.paperclip.yaml" "$routines_file" "$PAPERCLIP_API_URL" <<'NODE'
+  set +e
+  node --input-type=module - "$REPO_ROOT/ops/paperclip/blueprint-company/.paperclip.yaml" "$routines_file" "$PAPERCLIP_API_URL" <<'NODE'
     import fs from "node:fs";
     import { createRequire } from "node:module";
     import { pathToFileURL } from "node:url";
@@ -225,9 +226,10 @@ require_routines() {
         ? routineConfig.triggers.find((trigger) => trigger.kind === "schedule" && typeof trigger.cronExpression === "string")
         : null;
       if (!scheduleTrigger) return [];
+      const taskConfig = config.tasks?.[routineKey];
       return [{
         title: titleizeRoutineKey(routineKey),
-        expectedStatus: routineConfig?.status === "paused" ? "paused" : "active",
+        expectedStatus: routineConfig?.status === "paused" || taskConfig?.status === "paused" ? "paused" : "active",
         cronExpression: scheduleTrigger.cronExpression,
         timezone: scheduleTrigger.timezone ?? "America/New_York",
       }];
@@ -297,9 +299,8 @@ require_routines() {
       process.exit(1);
     }
 NODE
-  then
-    node_status=$?
-  fi
+  node_status=$?
+  set -e
   rm -f "$routines_file"
   return "$node_status"
 }

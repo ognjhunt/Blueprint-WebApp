@@ -63,10 +63,11 @@ It provides:
 
 - scheduled repo scans via the `repo-scan` job
 - scheduled Notion Work Queue sync via the `ops-queue-scan` job
+- scheduled mobile capture lifecycle scans via the `mobile-ops-lifecycle-scan` job
 - GitHub workflow and review webhook intake
 - generic CI webhook intake
 - generic operator-intake webhook suitable for Slack workflow or email-forward integrations
-- Firestore ops webhook intake for waitlist, inbound request, and capture-complete events
+- Firestore ops webhook intake for waitlist, inbound request, capture-complete, mobile capture, field-ops, and payout lifecycle events
 - Stripe ops webhook intake for payout, dispute, and account exceptions
 - support inbox webhook intake for routed support tickets
 - deduped issue upsert and resolution

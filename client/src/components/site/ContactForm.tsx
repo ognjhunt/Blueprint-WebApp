@@ -255,6 +255,10 @@ export function ContactForm() {
     }
 
     const requestId = generateRequestId();
+    const operatorTaskStatement =
+      detailsMessage.trim()
+      || commercializationPreference.trim()
+      || `Site operator claim for ${siteName.trim()}`;
     const payload: InboundRequestPayload = {
       requestId,
       firstName: firstName.trim(),
@@ -268,7 +272,7 @@ export function ContactForm() {
       siteName: siteName.trim(),
       siteLocation: siteLocation.trim(),
       siteLocationMetadata: resolvePlaceLocationMetadata(siteLocation, siteLocationMetadata),
-      taskStatement: persona === "robot_team" ? taskStatement.trim() : "Operator intake",
+      taskStatement: persona === "robot_team" ? taskStatement.trim() : operatorTaskStatement,
       targetSiteType: targetSiteType.trim() || siteName.trim() || undefined,
       proofPathPreference,
       existingStackReviewWorkflow: undefined,
@@ -364,14 +368,14 @@ export function ContactForm() {
           {hostedMode
             ? "Hosted evaluation request received"
             : persona === "site_operator"
-              ? "Facility inquiry received"
+              ? "Site claim received"
               : "Brief received"}
         </h2>
         <p className="mt-4 text-zinc-600">
           {hostedMode
             ? "Blueprint now has the request details for this hosted evaluation follow-up."
             : persona === "site_operator"
-              ? "Blueprint now has the facility details, access notes, and governance context needed for a follow-up."
+              ? "Blueprint now has the site claim, access notes, and governance boundaries needed for a measured follow-up."
               : "Blueprint now has the site, task, and robot details needed for a follow-up."}
         </p>
         <div className="mt-8 rounded-xl bg-zinc-50 p-6 text-left">
@@ -708,9 +712,9 @@ export function ContactForm() {
         {status === "loading"
           ? "Submitting..."
           : hostedMode
-            ? "Request hosted evaluation"
+              ? "Request hosted evaluation"
             : persona === "site_operator"
-              ? "Send facility inquiry"
+              ? "Submit site claim"
               : "Send a short brief"}
         <ArrowRight className="ml-2 h-4 w-4" />
       </button>

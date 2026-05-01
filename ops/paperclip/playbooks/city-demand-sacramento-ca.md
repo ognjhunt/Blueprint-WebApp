@@ -3,7 +3,7 @@
 ## Status
 - phase: activation_ready
 - owner: city-demand-agent
-- latest-refresh: 2026-04-30
+- latest-refresh: 2026-05-01
 - planning-state: completed
 - confidence: medium
 
@@ -13,7 +13,7 @@ Sacramento demand should stay proof-led: qualify real robot-team interest, class
 ## What Changed This Pass
 - evidence-backed: the city launcher now generates the compact demand playbook during activation so downstream tasks have a real canonical reference.
 - evidence-backed: city demand instrumentation is pinned to the platform event model rather than custom city-specific events.
-- warning: no research-backed buyer target list has been materialized yet.
+- evidence-backed: current deep research names buyer targets such as Capital Robotics.
 
 ## Required Proof Motion
 - serious robot-team demand must hit 24-hour proof-path triage
@@ -31,7 +31,22 @@ Sacramento demand should stay proof-led: qualify real robot-team interest, class
 
 ## Metrics Dependencies
 
-- No machine-readable metrics dependency payload is available yet.
+- robot_team_inbound_captured: required_tracked
+- proof_path_assigned: required_tracked
+- proof_pack_delivered: required_tracked
+- hosted_review_ready: required_tracked
+- hosted_review_started: required_tracked
+- hosted_review_follow_up_sent: required_tracked
+- human_commercial_handoff_started: required_tracked
+- proof_motion_stalled: required_tracked
+- city_launch_lawful_access_established: required_tracked
+- city_launch_capturer_approved: required_tracked
+- city_launch_capture_completed: required_tracked
+- city_launch_capture_qa_passed: required_tracked
+- city_launch_proof_asset_rights_cleared: required_tracked
+- city_launch_proof_pack_delivered: required_tracked
+- city_launch_hosted_review_ready: required_tracked
+- city_launch_commercial_handoff: required_tracked
 
 ## Sensitive-Lane Constraints
 - if a buyer sits in defense, aerospace, export-controlled, or air-gapped environments, block the standard hosted-review path until the policy and evidence path are explicit

@@ -2,13 +2,17 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useSearch } from "wouter";
 import {
   ArrowLeft,
-  BarChart3,
   Camera,
+  CheckCircle2,
+  CircleDashed,
   Compass,
   Download,
   ExternalLink,
   Layers3,
+  LifeBuoy,
+  MessageSquare,
   MonitorPlay,
+  PackageCheck,
   RotateCcw,
   Square,
 } from "lucide-react";
@@ -418,6 +422,134 @@ export function defaultWorkspaceViewMode(params: {
 
 export function shouldUseChunkReplacementMode(presentationMode?: string | null) {
   return String(presentationMode || "").trim().toLowerCase() === "truthful_preview";
+}
+
+export type BuyerSuccessChecklistStatus = "complete" | "ready" | "attention" | "pending";
+
+export interface BuyerSuccessChecklistItem {
+  key: "access" | "evidence" | "exports" | "feedback";
+  title: string;
+  body: string;
+  status: BuyerSuccessChecklistStatus;
+  statusLabel: string;
+  href?: string | null;
+  actionLabel?: string | null;
+}
+
+export function buildBuyerSuccessChecklist(params: {
+  sessionId: string;
+  sessionStatus: "starting" | "live" | "stopped" | "error";
+  workspaceError?: string | null;
+  hasEvidenceView: boolean;
+  canonicalPackageUri?: string | null;
+  latestFrameHref?: string | null;
+  exportManifestPath?: string | null;
+  rawBundlePath?: string | null;
+  rolloutVideoPath?: string | null;
+  datasetManifestUri?: string | null;
+  runtimeInteractive: boolean;
+  runtimeDiagnostic?: HostedSessionRecord["latestRuntimeFailure"] | null;
+  contactHref: string;
+}): BuyerSuccessChecklistItem[] {
+  const sessionUsable =
+    Boolean(params.sessionId) &&
+    params.sessionStatus !== "starting" &&
+    params.sessionStatus !== "error" &&
+    !params.workspaceError;
+  const evidenceHref = params.latestFrameHref || params.canonicalPackageUri || null;
+  const exportHref =
+    params.exportManifestPath ||
+    params.rawBundlePath ||
+    params.rolloutVideoPath ||
+    params.datasetManifestUri ||
+    null;
+
+  return [
+    {
+      key: "access",
+      title: "Access confirmed",
+      body: sessionUsable
+        ? "The buyer can load this hosted workspace and inspect the current exact-site session."
+        : params.workspaceError || params.sessionStatus === "error"
+          ? "Access or session loading needs buyer-success follow-up before this can count as onboarding progress."
+          : "The session is still starting. Keep onboarding tied to the real workspace state.",
+      status: sessionUsable ? "complete" : params.workspaceError || params.sessionStatus === "error" ? "attention" : "pending",
+      statusLabel: sessionUsable ? "Ready" : params.workspaceError || params.sessionStatus === "error" ? "Needs attention" : "Starting",
+      href: params.contactHref,
+      actionLabel: sessionUsable ? "Report access issue" : "Route access blocker",
+    },
+    {
+      key: "evidence",
+      title: "Evidence reviewed",
+      body: params.hasEvidenceView
+        ? "Observation or explorer evidence is visible, so the buyer can inspect what the run is actually grounded in."
+        : "No browser-visible evidence view is available yet. Use the canonical package link or route the gap before overclaiming the result.",
+      status: params.hasEvidenceView ? "complete" : params.canonicalPackageUri ? "ready" : "pending",
+      statusLabel: params.hasEvidenceView ? "Visible" : params.canonicalPackageUri ? "Package available" : "Pending evidence",
+      href: evidenceHref,
+      actionLabel: params.hasEvidenceView ? "Open evidence" : params.canonicalPackageUri ? "Open package" : null,
+    },
+    {
+      key: "exports",
+      title: "Artifact handoff",
+      body: exportHref
+        ? "The review has a buyer-visible export, raw bundle, rollout video, or dataset manifest attached."
+        : params.runtimeInteractive
+          ? "Exports are not attached yet. Generate or request the handoff before treating the session as delivered."
+          : "Exports depend on the active runtime or packaged artifacts for this session.",
+      status: exportHref ? "complete" : params.runtimeInteractive ? "ready" : "pending",
+      statusLabel: exportHref ? "Artifact ready" : params.runtimeInteractive ? "Ready to generate" : "Pending",
+      href: exportHref,
+      actionLabel: exportHref ? "Open artifact" : null,
+    },
+    {
+      key: "feedback",
+      title: "Feedback routed",
+      body: params.runtimeDiagnostic
+        ? "A runtime diagnostic is present. Buyer-success should route the blocker with the diagnostic attached."
+        : "Capture the buyer's blocker, missing output, or next exact-site question while the session context is still fresh.",
+      status: params.runtimeDiagnostic ? "attention" : "ready",
+      statusLabel: params.runtimeDiagnostic ? "Diagnostic present" : "Ready for check-in",
+      href: params.contactHref,
+      actionLabel: params.runtimeDiagnostic ? "Route diagnostic" : "Send feedback",
+    },
+  ];
+}
+
+const BUYER_SUCCESS_CADENCE = [
+  {
+    label: "Day 1",
+    title: "Confirm access",
+    body: "Can the team load the site-world, provenance, and hosted workspace?",
+  },
+  {
+    label: "Day 3",
+    title: "First run",
+    body: "Did they review or run a session against the exact workflow lane?",
+  },
+  {
+    label: "Day 10",
+    title: "Blockers",
+    body: "Are exports, runtime behavior, rights, or quality concerns blocking use?",
+  },
+  {
+    label: "Day 21",
+    title: "Feedback",
+    body: "What worked, what is missing, and what is the next exact-site question?",
+  },
+] as const;
+
+function buyerSuccessStatusClasses(status: BuyerSuccessChecklistStatus) {
+  if (status === "complete") {
+    return "border-emerald-200 bg-emerald-50 text-emerald-800";
+  }
+  if (status === "attention") {
+    return "border-amber-200 bg-amber-50 text-amber-900";
+  }
+  if (status === "ready") {
+    return "border-sky-200 bg-sky-50 text-sky-900";
+  }
+  return "border-slate-200 bg-slate-50 text-slate-700";
 }
 
 export default function HostedSessionWorkspace({ params }: HostedSessionWorkspaceProps) {
@@ -1055,6 +1187,36 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
     },
     { label: "Requested outputs", value: requestedOutputs.map((item) => requestedOutputLabel(item)).join(", ") },
   ];
+  const buyerSuccessContactHref = (() => {
+    const request = new URLSearchParams({
+      persona: "robot-team",
+      buyerType: "robot_team",
+      interest: "evaluation-package",
+      path: "buyer-success",
+      source: "hosted-session-workspace",
+      siteWorldId: site?.id || params.slug,
+      siteName: site?.siteName || "",
+      siteLocation: site?.siteAddress || "",
+      taskStatement: taskSelection?.taskText || "",
+      sessionId,
+    });
+    return `/contact?${request.toString()}`;
+  })();
+  const buyerSuccessChecklist = buildBuyerSuccessChecklist({
+    sessionId,
+    sessionStatus,
+    workspaceError,
+    hasEvidenceView: hasVisibleObservation || artifactExplorerReady,
+    canonicalPackageUri,
+    latestFrameHref: renderRouteHref || explorerFrameFetchHref || null,
+    exportManifestPath,
+    rawBundlePath,
+    rolloutVideoPath,
+    datasetManifestUri: datasetRlds?.manifestUri || null,
+    runtimeInteractive,
+    runtimeDiagnostic,
+    contactHref: buyerSuccessContactHref,
+  });
 
   useEffect(() => {
     if (userSelectedMode) {
@@ -2961,6 +3123,97 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
               </>
             )}
           </div>
+
+          <section className="mt-8 overflow-hidden rounded-[28px] border border-slate-200 bg-slate-950 text-white shadow-sm">
+            <div className="grid gap-0 lg:grid-cols-[0.42fr_0.58fr]">
+              <div className="border-b border-white/10 p-6 lg:border-b-0 lg:border-r lg:p-7">
+                <div className="flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white/75">
+                  <LifeBuoy className="h-5 w-5" />
+                </div>
+                <p className="mt-5 text-xs font-semibold uppercase tracking-[0.18em] text-white/45">
+                  Buyer Success Handoff
+                </p>
+                <h2 className="mt-3 max-w-xl text-2xl font-bold tracking-[-0.03em] text-white">
+                  Post-delivery onboarding stays attached to this session.
+                </h2>
+                <p className="mt-3 max-w-xl text-sm leading-6 text-white/65">
+                  Use the active hosted-review state to confirm access, inspect evidence, hand off exports, and route blockers while the exact-site context is still present.
+                </p>
+                <div className="mt-6 flex flex-wrap gap-3">
+                  <a
+                    href={buyerSuccessContactHref}
+                    className="inline-flex items-center justify-center rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
+                  >
+                    <MessageSquare className="mr-2 h-4 w-4" />
+                    Send session feedback
+                  </a>
+                  {exportManifestPath ? (
+                    <a
+                      href={exportManifestPath}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center justify-center rounded-full border border-white/15 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+                    >
+                      <Download className="mr-2 h-4 w-4" />
+                      Open export
+                    </a>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="grid gap-px bg-white/10 sm:grid-cols-2">
+                {buyerSuccessChecklist.map((item) => {
+                  const Icon =
+                    item.key === "access"
+                      ? CheckCircle2
+                      : item.key === "evidence"
+                        ? PackageCheck
+                        : item.key === "exports"
+                          ? Download
+                          : MessageSquare;
+                  const StateIcon = item.status === "complete" ? CheckCircle2 : CircleDashed;
+                  return (
+                    <div key={item.key} className="bg-slate-950 p-5">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/75">
+                          <Icon className="h-4 w-4" />
+                        </div>
+                        <div className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${buyerSuccessStatusClasses(item.status)}`}>
+                          <StateIcon className="mr-1.5 h-3.5 w-3.5" />
+                          {item.statusLabel}
+                        </div>
+                      </div>
+                      <h3 className="mt-5 text-base font-semibold text-white">{item.title}</h3>
+                      <p className="mt-2 min-h-[4.5rem] text-sm leading-6 text-white/62">{item.body}</p>
+                      {item.href && item.actionLabel ? (
+                        <a
+                          href={item.href}
+                          target={item.href.startsWith("http") || item.href.startsWith("gs://") ? "_blank" : undefined}
+                          rel={item.href.startsWith("http") || item.href.startsWith("gs://") ? "noreferrer" : undefined}
+                          className="mt-4 inline-flex items-center text-sm font-semibold text-white/85 transition hover:text-white"
+                        >
+                          {item.actionLabel}
+                          <ExternalLink className="ml-2 h-4 w-4" />
+                        </a>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="grid gap-px border-t border-white/10 bg-white/10 md:grid-cols-4">
+              {BUYER_SUCCESS_CADENCE.map((item) => (
+                <div key={item.label} className="bg-slate-900/95 px-5 py-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/42">
+                    {item.label}
+                  </p>
+                  <p className="mt-2 text-sm font-semibold text-white">{item.title}</p>
+                  <p className="mt-2 text-xs leading-5 text-white/58">{item.body}</p>
+                </div>
+              ))}
+            </div>
+          </section>
 
           <section className="mt-8 rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Session Snapshot</p>

@@ -214,6 +214,29 @@ export type StructuredIntakeMode =
   | "structured_intake_first"
   | "calendar_accelerated";
 
+export type ProofPathOutcome =
+  | "exact_site"
+  | "adjacent_site"
+  | "scoped_follow_up"
+  | "operator_handoff";
+
+export type ProofReadyOutcome =
+  | "proof_ready_intake"
+  | "needs_clarification"
+  | "operator_handoff";
+
+export type SiteOperatorClaimOutcome =
+  | "not_site_operator"
+  | "site_claim_needs_detail"
+  | "site_claim_needs_access_boundary"
+  | "site_claim_access_boundary_ready";
+
+export type AccessBoundaryOutcome =
+  | "not_applicable"
+  | "needs_access_rules"
+  | "needs_privacy_security_boundary"
+  | "access_boundary_defined";
+
 export interface StructuredIntakeSummary {
   mode: StructuredIntakeMode;
   primary_cta: string;
@@ -224,6 +247,16 @@ export interface StructuredIntakeSummary {
   owner_lane: string;
   recommended_path: string;
   next_action: string;
+  proof_ready_outcome: ProofReadyOutcome;
+  proof_path_outcome: ProofPathOutcome;
+  proof_readiness_score: number;
+  proof_ready_criteria: string[];
+  missing_proof_ready_fields: string[];
+  site_operator_claim_outcome: SiteOperatorClaimOutcome;
+  access_boundary_outcome: AccessBoundaryOutcome;
+  site_claim_readiness_score: number;
+  site_claim_criteria: string[];
+  missing_site_claim_fields: string[];
 }
 
 export interface PipelineArtifacts {

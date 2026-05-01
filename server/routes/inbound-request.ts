@@ -407,7 +407,27 @@ function toStructuredIntakeSummary(
     owner_lane: decision.ownerLane,
     recommended_path: decision.recommendedPath,
     next_action: decision.nextAction,
+    proof_ready_outcome: decision.proofReadyOutcome,
+    proof_path_outcome: decision.proofPathOutcome,
+    proof_readiness_score: decision.proofReadinessScore,
+    proof_ready_criteria: decision.proofReadyCriteria,
+    missing_proof_ready_fields: decision.missingProofReadyFields,
+    site_operator_claim_outcome: decision.siteOperatorClaimOutcome,
+    access_boundary_outcome: decision.accessBoundaryOutcome,
+    site_claim_readiness_score: decision.siteClaimReadinessScore,
+    site_claim_criteria: decision.siteClaimCriteria,
+    missing_site_claim_fields: decision.missingSiteClaimFields,
   };
+}
+
+function proofPathClassification(
+  outcome: ReturnType<typeof evaluateStructuredIntake>["proofPathOutcome"]
+) {
+  if (outcome === "exact_site" || outcome === "adjacent_site") {
+    return outcome;
+  }
+
+  return "needs_guidance";
 }
 
 function isProduction(): boolean {
@@ -725,6 +745,75 @@ router.post("/", async (req: Request, res: Response) => {
     });
     const structuredIntake = toStructuredIntakeSummary(structuredIntakeDecision);
     const queueTags = [...new Set([...routing.queueTags, ...structuredIntakeDecision.filterTags])];
+    const emitRobotTeamFitChecked = async () => {
+      if (buyerType !== "robot_team") {
+        return;
+      }
+
+      await logGrowthEvent({
+        event: "robot_team_fit_checked",
+        source: "server:inbound_request",
+        properties: {
+          request_id: payload.requestId,
+          city: demandAttribution.demandCity || null,
+          requested_lane: requestedLanes[0] || null,
+          requested_lane_count: requestedLanes.length,
+          buyer_segment: payload.roleTitle?.trim() || null,
+          exact_site_classification: proofPathClassification(
+            structuredIntakeDecision.proofPathOutcome
+          ),
+          adjacent_site_allowed: proofPathPreference === "adjacent_site_acceptable",
+          proof_path_preference: proofPathPreference || "unknown",
+          proof_ready_outcome: structuredIntakeDecision.proofReadyOutcome,
+          proof_path_outcome: structuredIntakeDecision.proofPathOutcome,
+          proof_readiness_score: structuredIntakeDecision.proofReadinessScore,
+          missing_proof_ready_fields: structuredIntakeDecision.missingProofReadyFields,
+        },
+        attribution: {
+          demandCity: demandAttribution.demandCity,
+          buyerChannelSource: demandAttribution.buyerChannelSource,
+          buyerChannelSourceCaptureMode:
+            demandAttribution.buyerChannelSourceCaptureMode,
+          utm: payload.context?.utm || {},
+        },
+        user: {
+          email: emailLower,
+        },
+      });
+    };
+    const emitSiteOperatorClaimChecked = async () => {
+      if (buyerType !== "site_operator") {
+        return;
+      }
+
+      await logGrowthEvent({
+        event: "site_operator_claim_checked",
+        source: "server:inbound_request",
+        properties: {
+          request_id: payload.requestId,
+          city: demandAttribution.demandCity || null,
+          requested_lane: requestedLanes[0] || null,
+          requested_lane_count: requestedLanes.length,
+          site_operator_claim_outcome: structuredIntakeDecision.siteOperatorClaimOutcome,
+          access_boundary_outcome: structuredIntakeDecision.accessBoundaryOutcome,
+          site_claim_readiness_score: structuredIntakeDecision.siteClaimReadinessScore,
+          missing_site_claim_fields: structuredIntakeDecision.missingSiteClaimFields,
+          has_access_rules: Boolean(payload.operatingConstraints?.trim()),
+          has_privacy_security_boundary: Boolean(payload.privacySecurityConstraints?.trim()),
+          has_commercialization_boundary: Boolean(payload.derivedScenePermission?.trim()),
+        },
+        attribution: {
+          demandCity: demandAttribution.demandCity,
+          buyerChannelSource: demandAttribution.buyerChannelSource,
+          buyerChannelSourceCaptureMode:
+            demandAttribution.buyerChannelSourceCaptureMode,
+          utm: payload.context?.utm || {},
+        },
+        user: {
+          email: emailLower,
+        },
+      });
+    };
 
     if (!db) {
       if (isProduction()) {
@@ -836,6 +925,9 @@ router.post("/", async (req: Request, res: Response) => {
           logPath: DEV_INBOUND_REQUEST_LOG,
         },
       });
+
+      await emitRobotTeamFitChecked().catch(() => null);
+      await emitSiteOperatorClaimChecked().catch(() => null);
 
       logger.warn(
         { requestId: payload.requestId, logPath: DEV_INBOUND_REQUEST_LOG },
@@ -1041,6 +1133,8 @@ router.post("/", async (req: Request, res: Response) => {
       );
 
     if (buyerType === "robot_team") {
+      await emitRobotTeamFitChecked().catch(() => null);
+
       await logGrowthEvent({
         event: "robot_team_inbound_captured",
         source: "server:inbound_request",
@@ -1112,6 +1206,9 @@ router.post("/", async (req: Request, res: Response) => {
           },
         }).catch(() => null);
       }
+    }
+    if (buyerType === "site_operator") {
+      await emitSiteOperatorClaimChecked().catch(() => null);
     }
 
     logger.info(

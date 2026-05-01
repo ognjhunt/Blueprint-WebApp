@@ -9,6 +9,7 @@ import type { Server } from "node:http";
 
 const sendEmail = vi.hoisted(() => vi.fn());
 const notifySlackInboundRequest = vi.hoisted(() => vi.fn());
+const logGrowthEvent = vi.hoisted(() => vi.fn().mockResolvedValue({ ok: true, persisted: false }));
 
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({
   default: {},
@@ -23,6 +24,10 @@ vi.mock("../utils/email", () => ({
 
 vi.mock("../utils/slack", () => ({
   notifySlackInboundRequest,
+}));
+
+vi.mock("../utils/growth-events", () => ({
+  logGrowthEvent,
 }));
 
 vi.mock("../utils/rate-limit-redis", () => ({
@@ -142,6 +147,8 @@ afterEach(() => {
   process.env.NODE_ENV = originalNodeEnv;
   sendEmail.mockReset();
   notifySlackInboundRequest.mockReset();
+  logGrowthEvent.mockReset();
+  logGrowthEvent.mockResolvedValue({ ok: true, persisted: false });
 
   if (fs.existsSync(devLogPath)) {
     fs.unlinkSync(devLogPath);
@@ -297,6 +304,72 @@ describe("inbound request route", () => {
     }
   });
 
+  it("persists and measures the robot-team proof-ready intake outcome", async () => {
+    process.env.NODE_ENV = "development";
+    vi.resetModules();
+
+    const { server, baseUrl } = await startRouterServer();
+
+    try {
+      const requestId = `robot-proof-ready-${Date.now()}`;
+      const payload = {
+        ...buildRobotTeamPayload(requestId, `proof-ready+${Date.now()}@example.com`),
+        requestedLanes: ["deeper_evaluation"],
+        siteName: "Durham fulfillment center",
+        siteLocation: "Durham, NC",
+        targetRobotTeam: "AMR fleet",
+        targetSiteType: "Warehouse",
+        proofPathPreference: "exact_site_required",
+      };
+
+      const response = await fetch(`${baseUrl}/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      expect(response.status).toBe(201);
+
+      const lines = fs.readFileSync(devLogPath, "utf8").trim().split("\n");
+      const savedRequest = lines
+        .map((line) => JSON.parse(line) as {
+          requestId: string;
+          structured_intake?: {
+            proof_ready_outcome?: string;
+            proof_path_outcome?: string;
+            proof_readiness_score?: number;
+            missing_proof_ready_fields?: string[];
+          };
+        })
+        .find((entry) => entry.requestId === requestId);
+
+      expect(savedRequest?.structured_intake).toMatchObject({
+        proof_ready_outcome: "proof_ready_intake",
+        proof_path_outcome: "exact_site",
+        proof_readiness_score: 100,
+        missing_proof_ready_fields: [],
+      });
+      expect(logGrowthEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: "robot_team_fit_checked",
+          source: "server:inbound_request",
+          properties: expect.objectContaining({
+            request_id: requestId,
+            exact_site_classification: "exact_site",
+            adjacent_site_allowed: false,
+            proof_path_preference: "exact_site_required",
+            proof_ready_outcome: "proof_ready_intake",
+            proof_readiness_score: 100,
+          }),
+        }),
+      );
+    } finally {
+      await stopServer(server);
+    }
+  });
+
   it("marks operator rights and privacy boundaries as requiring a calendar checkpoint before movement", async () => {
     process.env.NODE_ENV = "development";
     vi.resetModules();
@@ -338,6 +411,66 @@ describe("inbound request route", () => {
         "operator_named_rights_privacy_or_commercialization_boundary",
       );
       expect(savedRequest?.human_review_required).toBe(true);
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("persists and measures the site-operator claim and access-boundary outcome", async () => {
+    process.env.NODE_ENV = "development";
+    vi.resetModules();
+
+    const { server, baseUrl } = await startRouterServer();
+
+    try {
+      const requestId = `operator-claim-${Date.now()}`;
+      const payload = {
+        ...buildPayload(requestId, `operator-claim+${Date.now()}@example.com`),
+        taskStatement: "Claim this facility for a controlled robot-team evaluation.",
+        operatingConstraints: "Escorted access on weekdays, no capture near the cash office.",
+        privacySecurityConstraints: "No employee-only rooms and redact faces.",
+      };
+      const response = await fetch(`${baseUrl}/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      expect(response.status).toBe(201);
+
+      const lines = fs.readFileSync(devLogPath, "utf8").trim().split("\n");
+      const savedRequest = lines
+        .map((line) => JSON.parse(line) as {
+          requestId: string;
+          structured_intake?: {
+            site_operator_claim_outcome?: string;
+            access_boundary_outcome?: string;
+            site_claim_readiness_score?: number;
+            missing_site_claim_fields?: string[];
+          };
+        })
+        .find((entry) => entry.requestId === requestId);
+
+      expect(savedRequest?.structured_intake).toMatchObject({
+        site_operator_claim_outcome: "site_claim_access_boundary_ready",
+        access_boundary_outcome: "access_boundary_defined",
+        site_claim_readiness_score: 100,
+        missing_site_claim_fields: [],
+      });
+      expect(logGrowthEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: "site_operator_claim_checked",
+          source: "server:inbound_request",
+          properties: expect.objectContaining({
+            request_id: requestId,
+            site_operator_claim_outcome: "site_claim_access_boundary_ready",
+            access_boundary_outcome: "access_boundary_defined",
+            site_claim_readiness_score: 100,
+          }),
+        }),
+      );
     } finally {
       await stopServer(server);
     }

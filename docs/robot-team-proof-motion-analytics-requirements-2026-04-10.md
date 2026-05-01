@@ -41,6 +41,7 @@ These proof-motion signals already exist in the repo:
 | contact request submitted | `contact_request_submitted` | `client/src/lib/analytics.ts` and `client/src/components/site/ContactForm.tsx` |
 | contact request completed | `contact_request_completed` | `client/src/lib/analytics.ts` and `client/src/components/site/ContactForm.tsx` |
 | contact request failed | `contact_request_failed` | `client/src/lib/analytics.ts` and `client/src/components/site/ContactForm.tsx` |
+| robot-team fit checked | `robot_team_fit_checked` | `server/routes/inbound-request.ts` on intake capture and `server/routes/admin-leads.ts` on review update |
 | experiment exposure | `experiment_exposure` | `client/src/lib/analytics.ts` |
 | proof-path milestone persistence | `inboundRequests.ops.proof_path` | `client/src/types/inbound-request.ts` and server request types |
 
@@ -52,14 +53,14 @@ This means the repo already measures parts of the robot-team motion, but the fun
 
 The missing work is to make those pieces report as one coherent proof-motion funnel.
 
-## Required New Tracking
+## Tracking Contract
 
-These are the analytics signals the playbook still expects but the repo does not yet emit as dedicated events:
+These are the analytics signals the playbook expects. Some are now emitted directly from intake or ops update paths; later proof-delivery and conversion stages still depend on downstream package, hosted-review, and follow-up work.
 
 | Required signal | Required payload shape | Notes |
 | --- | --- | --- |
 | `robot_team_inbound_captured` | source, city, buyer_role, requested_lane | Captures the first serious robot-team signal before qualification framing expands it |
-| `robot_team_fit_checked` | exact_site_classification, adjacent_site_allowed, proof_path_preference | Records whether the request has a truthful proof scope |
+| `robot_team_fit_checked` | exact_site_classification, adjacent_site_allowed, proof_path_preference, proof_ready_outcome, proof_readiness_score | Records whether the request has a truthful proof scope |
 | `proof_path_assigned` | outcome, assigned_by, source, buyer_segment | Distinguishes exact-site, adjacent-site, or scoped follow-up |
 | `proof_pack_delivered` | delivery timestamp, artifact summary, source, buyer_segment | Measures time-to-proof and what was included |
 | `hosted_review_ready` | hosted_mode, review_path, buyer_segment | Confirms a real technical inspection surface exists |

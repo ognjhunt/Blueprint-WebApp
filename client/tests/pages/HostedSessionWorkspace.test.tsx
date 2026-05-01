@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import HostedSessionWorkspace, {
+  buildBuyerSuccessChecklist,
   defaultWorkspaceViewMode,
   shouldScheduleLiveRenderRetry,
   shouldUseChunkReplacementMode,
@@ -372,6 +373,14 @@ describe("HostedSessionWorkspace", () => {
       ).toBe(true);
     });
     await findModeLabel("Live Runtime");
+    expect(await screen.findByText(/Buyer Success Handoff/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Post-delivery onboarding stays attached to this session\./i),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Send session feedback/i })).toHaveAttribute(
+      "href",
+      expect.stringContaining("source=hosted-session-workspace"),
+    );
   });
 
   it("marks canonical fallback frames as retryable live renders", () => {
@@ -452,6 +461,34 @@ describe("HostedSessionWorkspace", () => {
     expect(defaultWorkspaceViewMode({ sessionMode: "runtime_only" })).toBe("live_runtime");
     expect(defaultWorkspaceViewMode({ sessionMode: "presentation_demo" })).toBe("presentation_world");
     expect(defaultWorkspaceViewMode({ sessionMode: null })).toBe("live_runtime");
+  });
+
+  it("builds post-delivery buyer-success checklist from real session artifacts", () => {
+    const checklist = buildBuyerSuccessChecklist({
+      sessionId: "session-success-1",
+      sessionStatus: "live",
+      hasEvidenceView: true,
+      canonicalPackageUri: "gs://bucket/site_world_spec.json",
+      latestFrameHref: "/api/site-worlds/sessions/session-success-1/render?cameraId=head_rgb",
+      exportManifestPath: "gs://bucket/export_manifest.json",
+      rawBundlePath: "",
+      rolloutVideoPath: "",
+      datasetManifestUri: "",
+      runtimeInteractive: true,
+      runtimeDiagnostic: null,
+      contactHref: "/contact?source=hosted-session-workspace",
+    });
+
+    expect(checklist.map((item) => item.key)).toEqual([
+      "access",
+      "evidence",
+      "exports",
+      "feedback",
+    ]);
+    expect(checklist.find((item) => item.key === "access")?.status).toBe("complete");
+    expect(checklist.find((item) => item.key === "evidence")?.href).toContain("/render?cameraId=head_rgb");
+    expect(checklist.find((item) => item.key === "exports")?.statusLabel).toBe("Artifact ready");
+    expect(checklist.find((item) => item.key === "feedback")?.status).toBe("ready");
   });
 
   it("switches the render camera in live runtime mode", async () => {

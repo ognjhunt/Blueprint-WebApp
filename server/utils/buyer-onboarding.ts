@@ -8,7 +8,11 @@ function serverTimestampValue() {
   return admin?.firestore?.FieldValue?.serverTimestamp?.() ?? new Date();
 }
 
-type OnboardingStepKey = "welcome" | "checkin_day3" | "activation_day7";
+type OnboardingStepKey =
+  | "access_day1"
+  | "first_run_day3"
+  | "blockers_day10"
+  | "feedback_day21";
 
 interface OnboardingStep {
   key: OnboardingStepKey;
@@ -42,41 +46,55 @@ function buildOnboardingSteps(params: CreateOnboardingParams): OnboardingStep[] 
 
   return [
     {
-      key: "welcome",
+      key: "access_day1",
       scheduledAt: new Date(now).toISOString(),
       sentAt: null,
       status: "pending",
-      emailSubject: `Your ${params.skuName} order is in motion`,
+      emailSubject: `Confirming access for ${params.skuName}`,
       emailBody: [
-        `Thanks for purchasing ${params.skuName} on the ${params.licenseTier} tier.`,
+        `Thanks for starting ${params.skuName} on the ${params.licenseTier} tier.`,
         "",
-        "Blueprint is now moving the exact-site package through provisioning. The next steps keep the site truth, capture provenance, and hosted-review path tied to the same facility instead of scattering the work across separate systems.",
+        "Day 1 is about access, not a broad status update: confirm that your team can open the site-world, see the capture provenance, and reach the hosted-review or session workspace tied to the same exact site.",
         "",
-        "If your team needs a walkthrough of the exact-site package or wants to flag a blocker early, reply here and Blueprint will route it to the right operator.",
+        "If access is blocked, reply with the page, account email, and exact site. Blueprint will route it as a buyer-success issue instead of treating it as a new sales request.",
       ].join("\n"),
     },
     {
-      key: "checkin_day3",
+      key: "first_run_day3",
       scheduledAt: new Date(now + 3 * 86_400_000).toISOString(),
       sentAt: null,
       status: "pending",
-      emailSubject: `Quick check on your ${params.skuName}`,
+      emailSubject: `First-session check for ${params.skuName}`,
       emailBody: [
-        `Three days in, most teams have opened ${params.skuName} and started checking the site provenance, workflow lane, and any hosted-review questions that need follow-up.`,
+        `Three days in, the useful signal is whether your team has loaded ${params.skuName}, inspected the site-world, and run or reviewed at least one hosted session path.`,
         "",
-        "If your team has not accessed the package yet, or if the exact-site scope needs adjustment before the next step, reply with the blocker and Blueprint will route it for review.",
+        "If the runtime, camera view, export path, or provenance trail is unclear, reply with the blocker and the robot/workflow you were testing. Blueprint will route the issue to the right owner.",
       ].join("\n"),
     },
     {
-      key: "activation_day7",
-      scheduledAt: new Date(now + 7 * 86_400_000).toISOString(),
+      key: "blockers_day10",
+      scheduledAt: new Date(now + 10 * 86_400_000).toISOString(),
       sentAt: null,
       status: "pending",
-      emailSubject: `Week-one activation ideas for ${params.skuName}`,
+      emailSubject: `Blocker check for ${params.skuName}`,
       emailBody: [
-        `A week after purchase, the useful next move is usually one of three things: review the hosted environment, export the site package into the buyer stack, or identify the next exact-site question the team needs answered.`,
+        `Ten days after delivery, the key question is whether ${params.skuName} is helping your team make the exact-site decision it was meant to support.`,
         "",
-        "If a hosted walkthrough or another exact-site review would help, reply with the deployment question and Blueprint will tee up the right follow-up path.",
+        "Reply with any blocker, missing artifact, data-quality concern, rights/privacy question, or export issue. Blueprint will keep the response tied to the current site package and hosted-review evidence.",
+      ].join("\n"),
+    },
+    {
+      key: "feedback_day21",
+      scheduledAt: new Date(now + 21 * 86_400_000).toISOString(),
+      sentAt: null,
+      status: "pending",
+      emailSubject: `Day-21 feedback for ${params.skuName}`,
+      emailBody: [
+        `At day 21, Blueprint needs the practical readout from your team: what worked, what did not, and what would make ${params.skuName} more useful in your stack.`,
+        "",
+        "A good reply can be short: one useful artifact, one missing output, one friction point, and the next exact-site or workflow question your team wants answered.",
+        "",
+        "If the next move is another site, additional modality, broader coverage, or a deeper managed review, say that plainly and Blueprint will hand it back to the right commercial owner.",
       ].join("\n"),
     },
   ];

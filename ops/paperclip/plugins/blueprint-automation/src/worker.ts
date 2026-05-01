@@ -41,6 +41,7 @@ import {
   handleFirestoreWebhook,
   handleStripeWebhook,
   handleSupportWebhook,
+  type OpsWebhookResult,
 } from "./ops-webhooks.js";
 import {
   analyzeWorkQueueItemsForScan,
@@ -65,7 +66,12 @@ import {
 } from "./notion.js";
 import { syncBlueprintAgentRegistryWithRetries, type LiveAgentRecord } from "./agent-registry-sync.js";
 import { assessNotionDrift, type NotionDriftAssessment } from "./notion-drift.js";
-import { collectFounderQueueAlerts, type FounderQueueAlert } from "./firestore.js";
+import {
+  collectFounderQueueAlerts,
+  collectMobileOpsLifecycleSignals,
+  type FounderQueueAlert,
+} from "./firestore.js";
+import { normalizeMobileOpsSignal } from "./mobile-ops-normalizer.js";
 import {
   buildSlackToolHandler,
   postSlackDigest,
@@ -2147,7 +2153,9 @@ function getOpsRoutingConfig(config: BlueprintAutomationConfig) {
   return {
     opsLead: agents?.opsLead ?? "ops-lead",
     intakeAgent: agents?.intake ?? "intake-agent",
+    captureCodexAgent: "capture-codex",
     captureQaAgent: agents?.captureQa ?? "capture-qa-agent",
+    capturerSuccessAgent: "capturer-success-agent",
     fieldOpsAgent: agents?.fieldOps ?? "field-ops-agent",
     financeSupportAgent: agents?.financeSupport ?? "finance-support-agent",
   };
@@ -15552,6 +15560,86 @@ async function runHandoffMonitorJob(ctx: PluginContext, companyId: string, confi
   return handoffAnalytics.summary;
 }
 
+async function upsertWebhookWorkItems(
+  ctx: PluginContext,
+  companyId: string,
+  parsed: OpsWebhookResult,
+  comment: string,
+) {
+  const workItems = [
+    ...(parsed.workItems ?? []),
+    ...(parsed.workItem ? [parsed.workItem] : []),
+  ];
+  if (workItems.length === 0) return parsed;
+
+  const issues = [];
+  for (const workItem of workItems) {
+    issues.push(await upsertManagedIssue(ctx, {
+      companyId,
+      ...workItem,
+      status: "todo",
+      comment,
+    }));
+  }
+
+  return {
+    handled: true,
+    count: issues.length,
+    workItems: issues,
+  };
+}
+
+async function runMobileOpsLifecycleScanJob(
+  ctx: PluginContext,
+  companyId: string,
+  config: BlueprintAutomationConfig,
+) {
+  const result = await collectMobileOpsLifecycleSignals();
+  if (result.skippedReason) {
+    await appendRecentEvent(ctx, companyId, {
+      kind: "mobile-ops-lifecycle-scan-skipped",
+      title: "Mobile ops lifecycle scan skipped",
+      detail: result.skippedReason,
+    });
+    return {
+      scannedSignals: 0,
+      workItems: 0,
+      skippedReason: result.skippedReason,
+    };
+  }
+
+  const routing = getOpsRoutingConfig(config);
+  const deduped = new Map<string, ReturnType<typeof normalizeMobileOpsSignal>[number]>();
+  const now = new Date();
+  for (const signal of result.signals) {
+    const workItems = normalizeMobileOpsSignal(signal, routing, { now });
+    for (const workItem of workItems) {
+      deduped.set(`${workItem.sourceType}:${workItem.sourceId}`, workItem);
+    }
+  }
+
+  const issues = [];
+  for (const workItem of deduped.values()) {
+    issues.push(await upsertManagedIssue(ctx, {
+      companyId,
+      ...workItem,
+      status: "todo",
+      comment: "Created or refreshed from mobile capture lifecycle scan.",
+    }));
+  }
+
+  await appendRecentEvent(ctx, companyId, {
+    kind: "mobile-ops-lifecycle-scan",
+    title: "Mobile capture lifecycle scan completed",
+    detail: `Scanned ${result.signals.length} ledger signal(s) and upserted ${issues.length} Paperclip issue(s).`,
+  });
+
+  return {
+    scannedSignals: result.signals.length,
+    workItems: issues.length,
+  };
+}
+
 async function handleWebhook(ctx: PluginContext, input: PluginWebhookInput) {
   const config = await getConfig(ctx);
   const payload = (input.parsedBody ?? {}) as Record<string, unknown>;
@@ -15569,39 +15657,15 @@ async function handleWebhook(ctx: PluginContext, input: PluginWebhookInput) {
   }
   if (input.endpointKey === WEBHOOK_KEYS.opsFirestore) {
     const parsed = await handleFirestoreWebhook(input, getOpsRoutingConfig(config));
-    if (parsed.workItem) {
-      return await upsertManagedIssue(ctx, {
-        companyId: company.id,
-        ...parsed.workItem,
-        status: "todo",
-        comment: "Created from Firestore ops webhook.",
-      });
-    }
-    return parsed;
+    return await upsertWebhookWorkItems(ctx, company.id, parsed, "Created from Firestore ops webhook.");
   }
   if (input.endpointKey === WEBHOOK_KEYS.opsStripe) {
     const parsed = await handleStripeWebhook(input, getOpsRoutingConfig(config));
-    if (parsed.workItem) {
-      return await upsertManagedIssue(ctx, {
-        companyId: company.id,
-        ...parsed.workItem,
-        status: "todo",
-        comment: "Created from Stripe ops webhook.",
-      });
-    }
-    return parsed;
+    return await upsertWebhookWorkItems(ctx, company.id, parsed, "Created from Stripe ops webhook.");
   }
   if (input.endpointKey === WEBHOOK_KEYS.opsSupport) {
     const parsed = await handleSupportWebhook(input, getOpsRoutingConfig(config));
-    if (parsed.workItem) {
-      return await upsertManagedIssue(ctx, {
-        companyId: company.id,
-        ...parsed.workItem,
-        status: "todo",
-        comment: "Created from support webhook.",
-      });
-    }
-    return parsed;
+    return await upsertWebhookWorkItems(ctx, company.id, parsed, "Created from support webhook.");
   }
   throw new Error(`Unsupported Blueprint webhook endpoint: ${input.endpointKey}`);
 }
@@ -15937,6 +16001,11 @@ const plugin: PaperclipPlugin = definePlugin({
       const config = await getConfig(ctx);
       const company = await findCompany(ctx, config.companyName);
       await runLocalHeadroomCheckJob(ctx, company.id, config);
+    });
+    ctx.jobs.register(JOB_KEYS.mobileOpsLifecycleScan, async () => {
+      const config = await getConfig(ctx);
+      const company = await findCompany(ctx, config.companyName);
+      await runMobileOpsLifecycleScanJob(ctx, company.id, config);
     });
     setTimeout(() => {
       void ensureStartupMaintenance(ctx);

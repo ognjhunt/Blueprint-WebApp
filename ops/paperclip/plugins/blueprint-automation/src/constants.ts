@@ -12,6 +12,7 @@ export const JOB_KEYS = {
   quotaCooldownEnforcer: "quota-cooldown-enforcer",
   executionDispatch: "execution-dispatch",
   localHeadroomCheck: "local-headroom-check",
+  mobileOpsLifecycleScan: "mobile-ops-lifecycle-scan",
 } as const;
 export const WEBHOOK_KEYS = {
   github: "github",

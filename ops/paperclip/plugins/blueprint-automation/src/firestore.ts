@@ -1,5 +1,6 @@
 import { applicationDefault, cert, getApp, getApps, initializeApp } from "firebase-admin/app";
 import { getFirestore, Timestamp, type Firestore } from "firebase-admin/firestore";
+import type { MobileOpsFirestoreSignal } from "./mobile-ops-normalizer.js";
 
 export type FounderQueueAlert = {
   queue: "inboundRequests" | "contactRequests" | "waitlistSubmissions" | "capture_jobs" | "creatorPayouts";
@@ -18,6 +19,14 @@ type QueueSnapshot = {
 
 const APP_NAME = "blueprint-paperclip-founder-visibility";
 const MAX_DOCS_PER_QUEUE = 1000;
+const MOBILE_OPS_COLLECTIONS = [
+  "capture_submissions",
+  "sessionEvents",
+  "creatorProfiles",
+  "capture_jobs",
+  "creatorPayouts",
+  "creatorCaptures",
+] as const;
 
 type QueueThresholdConfig = {
   countThreshold: number;
@@ -223,4 +232,99 @@ export async function collectFounderQueueAlerts(nowIso: string): Promise<Founder
   }
 
   return alerts;
+}
+
+type MobileOpsLifecycleScanOptions = {
+  maxDocsPerCollection?: number;
+};
+
+export async function collectMobileOpsLifecycleSignals(
+  options: MobileOpsLifecycleScanOptions = {},
+): Promise<{ signals: MobileOpsFirestoreSignal[]; skippedReason?: string }> {
+  const db = resolveFirestore();
+  if (!db) {
+    return {
+      signals: [],
+      skippedReason: "Firebase admin credentials are not configured for mobile ops lifecycle scan.",
+    };
+  }
+
+  const envMaxDocs = Number(process.env.BLUEPRINT_MOBILE_OPS_MAX_DOCS_PER_COLLECTION || "");
+  const maxDocsPerCollection = options.maxDocsPerCollection
+    ?? (Number.isFinite(envMaxDocs) && envMaxDocs > 0 ? envMaxDocs : 250);
+  const signals: MobileOpsFirestoreSignal[] = [];
+  const captureSubmissionRows: Array<{ id: string; data: Record<string, unknown> }> = [];
+
+  for (const collection of MOBILE_OPS_COLLECTIONS) {
+    const snapshot = await db.collection(collection).limit(maxDocsPerCollection).get();
+    for (const doc of snapshot.docs) {
+      const data = (doc.data() ?? {}) as Record<string, unknown>;
+      if (collection === "capture_submissions") {
+        captureSubmissionRows.push({ id: doc.id, data });
+      }
+      signals.push({
+        collection,
+        documentId: doc.id,
+        data,
+        source: "mobile-ops-lifecycle-scan",
+      });
+    }
+  }
+
+  appendFirstCaptureSignals(signals, captureSubmissionRows);
+
+  return { signals };
+}
+
+function appendFirstCaptureSignals(
+  signals: MobileOpsFirestoreSignal[],
+  captureSubmissionRows: Array<{ id: string; data: Record<string, unknown> }>,
+) {
+  const byCreator = new Map<string, Array<{ id: string; data: Record<string, unknown>; createdAt: Date | null }>>();
+  for (const row of captureSubmissionRows) {
+    const creatorId = asString(row.data.creator_id) ?? asString(row.data.creatorId);
+    if (!creatorId) continue;
+    const rows = byCreator.get(creatorId) ?? [];
+    rows.push({
+      ...row,
+      createdAt: toDate(createdAtForQueue("capture_jobs", row.data) ?? row.data.submitted_at ?? row.data.submittedAt),
+    });
+    byCreator.set(creatorId, rows);
+  }
+
+  for (const [creatorId, rows] of byCreator.entries()) {
+    const first = rows.sort((left, right) => {
+      const leftTime = left.createdAt?.getTime() ?? 0;
+      const rightTime = right.createdAt?.getTime() ?? 0;
+      return leftTime - rightTime;
+    })[0];
+    if (!first) continue;
+    const status = asString(first.data.status)?.toLowerCase().replace(/\s+/g, "_").replace(/-/g, "_");
+    const uploadState = asString(asRecord(first.data.operational_state)?.upload_state ?? first.data.upload_state ?? first.data.uploadState)
+      ?.toLowerCase().replace(/\s+/g, "_").replace(/-/g, "_");
+    const baseData = {
+      ...first.data,
+      creator_id: creatorId,
+      first_capture_submission_id: first.id,
+    };
+    if (["uploaded", "submitted", "complete", "completed"].includes(uploadState ?? "")
+      || ["submitted", "under_review", "processing", "qc", "approved", "paid"].includes(status ?? "")) {
+      signals.push({
+        event: "capturer.first_capture_uploaded",
+        collection: "capture_submissions",
+        documentId: creatorId,
+        data: baseData,
+        source: "mobile-ops-lifecycle-scan",
+      });
+    } else if (["failed", "upload_failed", "raw_validation_failed"].includes(uploadState ?? "")
+      || ["failed", "upload_failed", "raw_validation_failed"].includes(status ?? "")) {
+      signals.push({
+        event: "capturer.first_capture_failed",
+        collection: "capture_submissions",
+        documentId: creatorId,
+        data: baseData,
+        source: "mobile-ops-lifecycle-scan",
+      });
+    }
+  }
 }

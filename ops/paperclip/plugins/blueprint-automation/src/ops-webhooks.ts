@@ -1,10 +1,15 @@
 import type { PluginWebhookInput } from "@paperclipai/plugin-sdk";
+import { normalizeMobileOpsSignal } from "./mobile-ops-normalizer.js";
 
 type IssuePriority = "critical" | "high" | "medium" | "low";
 
 export interface OpsRoutingConfig {
+  opsLead?: string;
   intakeAgent: string;
+  captureCodexAgent?: string;
   captureQaAgent: string;
+  capturerSuccessAgent?: string;
+  fieldOpsAgent?: string;
   financeSupportAgent: string;
 }
 
@@ -22,6 +27,7 @@ export interface OpsIssueRequest {
 export interface OpsWebhookResult {
   handled: boolean;
   workItem?: OpsIssueRequest;
+  workItems?: OpsIssueRequest[];
 }
 
 function stringifyMetadata(value: unknown): string {
@@ -52,6 +58,8 @@ export async function handleFirestoreWebhook(
     documentId?: string;
     collection?: string;
     data?: Record<string, unknown>;
+    previousData?: Record<string, unknown> | null;
+    source?: string;
   };
 
   const event = asString(body.event);
@@ -61,6 +69,24 @@ export async function handleFirestoreWebhook(
 
   if (!event || !documentId) {
     return { handled: false };
+  }
+
+  const mobileWorkItems = normalizeMobileOpsSignal(
+    {
+      event,
+      documentId,
+      collection,
+      data,
+      previousData: body.previousData ?? null,
+      source: asString(body.source) ?? "ops-firestore-webhook",
+    },
+    routing,
+  );
+  if (mobileWorkItems.length > 0) {
+    return {
+      handled: true,
+      workItems: mobileWorkItems,
+    };
   }
 
   const eventHandlers: Record<string, Omit<OpsIssueRequest, "sourceId" | "metadata" | "description"> & { prefix: string }> = {

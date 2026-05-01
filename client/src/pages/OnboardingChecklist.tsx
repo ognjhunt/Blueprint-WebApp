@@ -14,6 +14,7 @@ import {
   FileSearch,
   Route,
   Shield,
+  Target,
   Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,12 @@ interface ChecklistItem {
     updateField?: string;
   };
   optional?: boolean;
+}
+
+function formatIntakeLabel(value: string) {
+  return value
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 function ChecklistCard({
@@ -109,6 +116,23 @@ export default function OnboardingChecklist() {
   const calendarDisposition = userData?.calendarDisposition || "not_needed_yet";
   const calendarIsRecommended =
     calendarDisposition === "recommended" || calendarDisposition === "required_before_next_step";
+  const proofReadyOutcome =
+    userData?.proofReadyOutcome || (isRobotTeam ? "needs_clarification" : "operator_handoff");
+  const proofPathOutcome =
+    userData?.proofPathOutcome || (isRobotTeam ? "scoped_follow_up" : "operator_handoff");
+  const proofReadinessScore =
+    typeof userData?.proofReadinessScore === "number" ? userData.proofReadinessScore : null;
+  const missingProofReadyFields = userData?.missingProofReadyFields || [];
+  const proofReadyIntakeComplete =
+    Boolean(progress.proofReadyIntake) || proofReadyOutcome === "proof_ready_intake";
+  const siteOperatorClaimOutcome =
+    userData?.siteOperatorClaimOutcome || (isRobotTeam ? "not_site_operator" : "site_claim_needs_detail");
+  const accessBoundaryOutcome =
+    userData?.accessBoundaryOutcome || (isRobotTeam ? "not_applicable" : "needs_access_rules");
+  const siteClaimReadinessScore =
+    typeof userData?.siteClaimReadinessScore === "number" ? userData.siteClaimReadinessScore : null;
+  const siteClaimCriteria = userData?.siteClaimCriteria || [];
+  const missingSiteClaimFields = userData?.missingSiteClaimFields || [];
 
   const checklistItems: ChecklistItem[] = useMemo(
     () => {
@@ -149,6 +173,24 @@ export default function OnboardingChecklist() {
               },
             },
             {
+              id: "proof-ready-intake",
+              title: proofReadyIntakeComplete
+                ? "Proof-ready intake measured"
+                : "Complete proof-ready intake",
+              description: proofReadyIntakeComplete
+                ? "The request has enough structured buyer, workflow, site, robot, and proof-path context for a first proof-path decision."
+                : missingProofReadyFields.length > 0
+                  ? `Add ${missingProofReadyFields.map(formatIntakeLabel).join(", ")} so intake can route the proof path without guessing.`
+                  : "Add enough structured proof-path context so the next step is a measured intake outcome, not another generic discovery loop.",
+              completed: proofReadyIntakeComplete,
+              icon: Target,
+              action: {
+                label: "Update proof details",
+                href: "/contact?persona=robot-team",
+                updateField: "onboardingProgress.proofReadyIntake",
+              },
+            },
+            {
               id: "procurement",
               title: "Add procurement context",
               description:
@@ -166,10 +208,19 @@ export default function OnboardingChecklist() {
         : [
             {
               id: "site-claim",
-              title: "Confirm the site claim",
+              title:
+                siteOperatorClaimOutcome === "site_claim_access_boundary_ready"
+                  ? "Site claim measured"
+                  : "Confirm the site claim",
               description:
-                "Name the facility, operator, location, and why the site should enter the review queue.",
-              completed: Boolean(progress.siteClaimConfirmed || progress.defineSiteSubmission),
+                missingSiteClaimFields.length > 0
+                  ? `Add ${missingSiteClaimFields.map(formatIntakeLabel).join(", ")} so the site claim can be routed without guessing.`
+                  : "Name the facility, operator, location, and why the site should enter the review queue.",
+              completed: Boolean(
+                progress.siteClaimConfirmed
+                || siteOperatorClaimOutcome === "site_claim_access_boundary_ready"
+                || siteOperatorClaimOutcome === "site_claim_needs_access_boundary",
+              ),
               icon: Building2,
               action: {
                 label: "Review site claim",
@@ -179,10 +230,15 @@ export default function OnboardingChecklist() {
             },
             {
               id: "access-boundaries",
-              title: "Define access boundaries",
+              title:
+                accessBoundaryOutcome === "access_boundary_defined"
+                  ? "Access boundary measured"
+                  : "Define access boundaries",
               description:
-                "Capture windows, restricted zones, escort rules, and safety limits stay structured before a meeting.",
-              completed: Boolean(progress.accessBoundariesDefined),
+                accessBoundaryOutcome === "needs_privacy_security_boundary"
+                  ? "Add privacy, security, or restricted-zone boundaries before treating the site claim as ready."
+                  : "Capture windows, restricted zones, escort rules, and safety limits stay structured before a meeting.",
+              completed: Boolean(progress.accessBoundariesDefined || accessBoundaryOutcome === "access_boundary_defined"),
               icon: ClipboardCheck,
               action: {
                 label: "Update access rules",
@@ -195,7 +251,10 @@ export default function OnboardingChecklist() {
               title: "Confirm privacy rules",
               description:
                 "Camera limits, redaction needs, private areas, and security concerns decide whether human scoping is required.",
-              completed: Boolean(progress.privacyRulesConfirmed),
+              completed: Boolean(
+                progress.privacyRulesConfirmed
+                || siteClaimCriteria.includes("privacy_security_boundary"),
+              ),
               icon: Shield,
               action: {
                 label: "Update privacy notes",
@@ -296,7 +355,17 @@ export default function OnboardingChecklist() {
 
       return [...baseItems, ...roleItems, ...routingItems];
     },
-    [calendarIsRecommended, isRobotTeam, progress]
+    [
+      calendarIsRecommended,
+      isRobotTeam,
+      missingProofReadyFields,
+      missingSiteClaimFields,
+      progress,
+      accessBoundaryOutcome,
+      proofReadyIntakeComplete,
+      siteClaimCriteria,
+      siteOperatorClaimOutcome,
+    ]
   );
 
   const completedCount = checklistItems.filter((item) => item.completed).length;
@@ -331,6 +400,23 @@ export default function OnboardingChecklist() {
   const intakeSummary = [
     { label: "Buyer type", value: userData?.buyerType === "robot_team" ? "Robot team" : "Site operator" },
     { label: "Primary path", value: userData?.structuredIntakeRecommendedPath || "Structured intake review" },
+    ...(isRobotTeam
+      ? [
+          { label: "Proof outcome", value: formatIntakeLabel(proofReadyOutcome) },
+          { label: "Proof path", value: formatIntakeLabel(proofPathOutcome) },
+          {
+            label: "Proof readiness",
+            value: proofReadinessScore === null ? "Not measured yet" : `${proofReadinessScore}%`,
+          },
+        ]
+      : [
+          { label: "Site claim", value: formatIntakeLabel(siteOperatorClaimOutcome) },
+          { label: "Access boundary", value: formatIntakeLabel(accessBoundaryOutcome) },
+          {
+            label: "Claim readiness",
+            value: siteClaimReadinessScore === null ? "Not measured yet" : `${siteClaimReadinessScore}%`,
+          },
+        ]),
     { label: "Calendar", value: calendarDisposition.replaceAll("_", " ") },
     { label: "Site", value: userData?.siteName || "Not set yet" },
     { label: "Location", value: userData?.siteLocation || "Not set yet" },

@@ -413,6 +413,15 @@ export default function BusinessSignUpFlow() {
     );
   }, []);
 
+  const handleBuyerTypeChange = useCallback((value: string) => {
+    const nextBuyerType = value as BuyerType;
+    setBuyerType(nextBuyerType);
+    setRequestedLanes(nextBuyerType === "site_operator" ? ["qualification"] : [DEFAULT_REQUESTED_LANE]);
+    if (nextBuyerType === "site_operator") {
+      setProofPathPreference("need_guidance");
+    }
+  }, []);
+
   const handleGoogleSignUp = useCallback(async () => {
     setIsSubmitting(true);
     setErrorMessage("");
@@ -565,6 +574,16 @@ export default function BusinessSignUpFlow() {
         structuredIntakeRecommendedPath: structuredIntakeDecision.recommendedPath,
         calendarDisposition: structuredIntakeDecision.calendarDisposition,
         calendarReasons: structuredIntakeDecision.calendarReasons,
+        proofReadyOutcome: structuredIntakeDecision.proofReadyOutcome,
+        proofPathOutcome: structuredIntakeDecision.proofPathOutcome,
+        proofReadinessScore: structuredIntakeDecision.proofReadinessScore,
+        proofReadyCriteria: structuredIntakeDecision.proofReadyCriteria,
+        missingProofReadyFields: structuredIntakeDecision.missingProofReadyFields,
+        siteOperatorClaimOutcome: structuredIntakeDecision.siteOperatorClaimOutcome,
+        accessBoundaryOutcome: structuredIntakeDecision.accessBoundaryOutcome,
+        siteClaimReadinessScore: structuredIntakeDecision.siteClaimReadinessScore,
+        siteClaimCriteria: structuredIntakeDecision.siteClaimCriteria,
+        missingSiteClaimFields: structuredIntakeDecision.missingSiteClaimFields,
         siteName,
         siteLocation,
         siteLocationMetadata: resolvePlaceLocationMetadata(siteLocation, siteLocationMetadata),
@@ -598,11 +617,18 @@ export default function BusinessSignUpFlow() {
           defineSiteSubmission: true,
           buyerWorkflowConfirmed: buyerType === "robot_team",
           packageOrHostedPathSelected: buyerType === "robot_team" && requestedLanes.length > 0,
+          proofReadyIntake: structuredIntakeDecision.proofReadyOutcome === "proof_ready_intake",
           procurementReviewed: false,
           reviewSessionScoped: structuredIntakeDecision.calendarDisposition === "not_needed_yet",
-          siteClaimConfirmed: buyerType === "site_operator",
-          accessBoundariesDefined: buyerType === "site_operator" && Boolean(operatingConstraints.trim()),
-          privacyRulesConfirmed: buyerType === "site_operator" && Boolean(privacySecurityConstraints.trim()),
+          siteClaimConfirmed:
+            buyerType === "site_operator"
+            && structuredIntakeDecision.siteOperatorClaimOutcome !== "site_claim_needs_detail",
+          accessBoundariesDefined:
+            buyerType === "site_operator"
+            && structuredIntakeDecision.accessBoundaryOutcome === "access_boundary_defined",
+          privacyRulesConfirmed:
+            buyerType === "site_operator"
+            && structuredIntakeDecision.siteClaimCriteria.includes("privacy_security_boundary"),
           commercializationPreferenceSet: false,
           teamContactConfirmed: false,
           completeIntakeReview: false,
@@ -981,7 +1007,7 @@ export default function BusinessSignUpFlow() {
                             <Label className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/45">
                               Buyer type
                             </Label>
-                            <RadioGroup value={buyerType} onValueChange={(value) => setBuyerType(value as BuyerType)} className="grid gap-3">
+                            <RadioGroup value={buyerType} onValueChange={handleBuyerTypeChange} className="grid gap-3">
                               {BUYER_TYPES.map((option) => (
                                 <label
                                   key={option.value}

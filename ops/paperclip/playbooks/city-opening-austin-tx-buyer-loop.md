@@ -1,10 +1,10 @@
 # Exact-Site Hosted Review Buyer Loop
 
-- report_date: 2026-04-30
+- report_date: 2026-05-01
 - city: Austin, TX
 - ledger: ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json
 - loop_status: blocked
-- durability_status: unknown
+- durability_status: blocked
 - note: Filtered to Austin, TX.
 
 ## Daily Dashboard
@@ -25,7 +25,7 @@
 | Capture asks | 0 |
 | Explicit next-action rows | 1 |
 | 100-touch decision gap | 100 |
-| Days remaining | 10 |
+| Days remaining | 9 |
 
 ## One Sales Ledger
 
@@ -50,8 +50,15 @@
 
 ## Durable Reply Plumbing
 
-- status: unknown
-- run `npm run human-replies:audit-durability` before marking buyer outreach production-durable.
+- status: blocked
+- sender_configured: true
+- sender_verification: verified
+- watcher_enabled: false
+- blockers:
+  - Human-reply ingest token is not configured, so internal blocker dispatch/reply intake cannot be treated as production durable.
+  - Human-reply approved identity is relying on code default. Set BLUEPRINT_HUMAN_REPLY_APPROVED_EMAIL=ohstnhunt@gmail.com in the live env so production routing is explicit.
+  - Gmail human-reply watcher is not enabled for the production scheduler.
+  - BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_ID, BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_SECRET, and BLUEPRINT_HUMAN_REPLY_GMAIL_REFRESH_TOKEN are required.
 
 ## Public Conversion Rule
 

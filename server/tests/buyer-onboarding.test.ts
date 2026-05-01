@@ -39,7 +39,7 @@ describe("buyer onboarding", () => {
     mockExecuteAction.mockResolvedValue({ state: "sent", ledgerDocId: "ledger_123" });
   });
 
-  it("creates a three-step onboarding sequence", async () => {
+  it("creates a four-step hosted-review buyer-success sequence", async () => {
     mockGet.mockResolvedValueOnce({ exists: false });
 
     const { createOnboardingSequence } = await import("../utils/buyer-onboarding");
@@ -52,7 +52,15 @@ describe("buyer onboarding", () => {
 
     expect(mockSet).toHaveBeenCalledTimes(1);
     const payload = mockSet.mock.calls[0]?.[0];
-    expect(payload.steps).toHaveLength(3);
+    expect(payload.steps).toHaveLength(4);
+    expect(payload.steps.map((step: { key: string }) => step.key)).toEqual([
+      "access_day1",
+      "first_run_day3",
+      "blockers_day10",
+      "feedback_day21",
+    ]);
+    expect(payload.steps[0].emailBody).toContain("confirm that your team can open the site-world");
+    expect(payload.steps[3].emailBody).toContain("one useful artifact, one missing output");
   });
 
   it("processes due onboarding steps", async () => {

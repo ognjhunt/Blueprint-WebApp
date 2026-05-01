@@ -2006,6 +2006,7 @@ routines:
         timezone: America/New_York
   capturer-growth-weekly:
     agent: capturer-growth-agent
+    status: paused
     priority: high
     concurrencyPolicy: always_enqueue
     catchUpPolicy: enqueue_missed_with_cap
@@ -2073,6 +2074,7 @@ routines:
         timezone: America/New_York
   robot-team-growth-weekly:
     agent: robot-team-growth-agent
+    status: paused
     priority: high
     concurrencyPolicy: always_enqueue
     catchUpPolicy: enqueue_missed_with_cap
@@ -2092,6 +2094,7 @@ routines:
         timezone: America/New_York
   site-operator-partnership-weekly:
     agent: site-operator-partnership-agent
+    status: paused
     priority: medium
     concurrencyPolicy: coalesce_if_active
     catchUpPolicy: enqueue_missed_with_cap

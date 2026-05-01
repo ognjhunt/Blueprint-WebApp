@@ -282,6 +282,13 @@ const manifest: PaperclipPluginManifestV1 = {
         "Checks local trusted-host disk headroom and opens a concrete Paperclip issue before low-storage conditions degrade the control plane.",
       schedule: "*/30 * * * *",
     },
+    {
+      jobKey: JOB_KEYS.mobileOpsLifecycleScan,
+      displayName: "Mobile Capture Lifecycle Scan",
+      description:
+        "Reads mobile capture, session, notification, job, QA, and payout ledgers and opens deduped Paperclip issues for closure work.",
+      schedule: "*/15 * * * *",
+    },
   ],
   webhooks: [
     {

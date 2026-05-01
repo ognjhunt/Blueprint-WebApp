@@ -187,6 +187,24 @@ export interface UserData {
   structuredIntakeRecommendedPath?: string;
   calendarDisposition?: "not_needed_yet" | "eligible_optional" | "recommended" | "required_before_next_step";
   calendarReasons?: string[];
+  proofReadyOutcome?: "proof_ready_intake" | "needs_clarification" | "operator_handoff";
+  proofPathOutcome?: "exact_site" | "adjacent_site" | "scoped_follow_up" | "operator_handoff";
+  proofReadinessScore?: number;
+  proofReadyCriteria?: string[];
+  missingProofReadyFields?: string[];
+  siteOperatorClaimOutcome?:
+    | "not_site_operator"
+    | "site_claim_needs_detail"
+    | "site_claim_needs_access_boundary"
+    | "site_claim_access_boundary_ready";
+  accessBoundaryOutcome?:
+    | "not_applicable"
+    | "needs_access_rules"
+    | "needs_privacy_security_boundary"
+    | "access_boundary_defined";
+  siteClaimReadinessScore?: number;
+  siteClaimCriteria?: string[];
+  missingSiteClaimFields?: string[];
 
   // Legacy marketplace-first signup fields retained for compatibility
   primaryNeeds?: ("benchmark-packs" | "scene-library" | "dataset-packs" | "custom-capture" | "other")[];
@@ -205,6 +223,7 @@ export interface UserData {
     inviteTeam: boolean;
     buyerWorkflowConfirmed?: boolean;
     packageOrHostedPathSelected?: boolean;
+    proofReadyIntake?: boolean;
     procurementReviewed?: boolean;
     reviewSessionScoped?: boolean;
     siteClaimConfirmed?: boolean;

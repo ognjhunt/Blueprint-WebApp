@@ -3,10 +3,19 @@ import type { Request, Response } from "express";
 const PAPERCLIP_OPS_FIRESTORE_WEBHOOK_URL = (
   process.env.PAPERCLIP_OPS_FIRESTORE_WEBHOOK_URL || ""
 ).trim();
+const PAPERCLIP_OPS_FIRESTORE_RELAY_SECRET = (
+  process.env.PAPERCLIP_OPS_FIRESTORE_RELAY_SECRET || ""
+).trim();
 
 export async function paperclipOpsFirestoreRelayHandler(req: Request, res: Response) {
   if (!PAPERCLIP_OPS_FIRESTORE_WEBHOOK_URL) {
     return res.status(503).json({ error: "Paperclip Firestore relay is not configured." });
+  }
+  if (PAPERCLIP_OPS_FIRESTORE_RELAY_SECRET) {
+    const expected = `Bearer ${PAPERCLIP_OPS_FIRESTORE_RELAY_SECRET}`;
+    if (req.get("authorization") !== expected) {
+      return res.status(401).json({ error: "Paperclip Firestore relay authorization failed." });
+    }
   }
 
   try {

@@ -73,6 +73,10 @@ All website intake records must carry a structured-intake disposition:
 - `structured_intake.missing_structured_fields`
 - `structured_intake.owner_lane`
 - `structured_intake.recommended_path`
+- `structured_intake.proof_ready_outcome`
+- `structured_intake.proof_path_outcome`
+- `structured_intake.proof_readiness_score`
+- `structured_intake.missing_proof_ready_fields`
 - `ops_automation.recommended_path`
 - `ops_automation.requires_human_review`
 
@@ -95,12 +99,20 @@ Current baseline implementation:
 - `client/src/pages/OnboardingChecklist.tsx` splits robot-team and site-operator onboarding tasks.
 - `ops/paperclip/programs/structured-intake-calendar-second-contract.md` gives Paperclip agents the operating contract.
 
+Robot-team intake also records a proof-readiness outcome so the first review can distinguish a proof-ready exact-site or adjacent-site request from a scoped follow-up without inventing readiness:
+
+- `proof_ready_outcome`: `proof_ready_intake`, `needs_clarification`, or `operator_handoff`
+- `proof_path_outcome`: `exact_site`, `adjacent_site`, `scoped_follow_up`, or `operator_handoff`
+- `proof_readiness_score`: completeness score for required robot-team proof-path fields
+- `missing_proof_ready_fields`: explicit fields blocking proof-ready intake
+
 ## Acceptance Criteria
 
 - Robot-team and site-operator CTAs are role-specific.
 - Signup and contact flows both produce structured intake records.
 - Calendar booking is never the only CTA.
 - The server stores a calendar disposition and missing-field list.
+- The server stores a proof-readiness outcome, proof-path outcome, score, and missing proof-ready fields.
 - Operator rights/privacy/commercialization ambiguity is human-gated.
 - Robot-team exact-site/high-intent requests route toward buyer-solutions scoping.
 - Agents can route from first-party intake fields without inventing buyer, site, rights, or readiness truth.

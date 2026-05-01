@@ -4,7 +4,7 @@ import path from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import { ensureKbReportArtifact } from "./kb-artifacts";
+import { ensureKbReportArtifact } from "./kb-artifacts.js";
 
 const tempRoots: string[] = [];
 

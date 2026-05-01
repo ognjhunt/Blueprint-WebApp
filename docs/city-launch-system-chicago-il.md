@@ -11,13 +11,13 @@ Turn the Chicago planning artifacts into an executable company harness that runs
 
 ## Machine-Readable Budget Policy
 
-- budget_tier: funded
-- total_envelope_usd: 25000
-- operator_auto_approve_usd: 2500
+- budget_tier: low_budget
+- total_envelope_usd: 2500
+- operator_auto_approve_usd: 500
 - allow_paid_acquisition: true
-- allow_referral_rewards: true
+- allow_referral_rewards: false
 - allow_travel_reimbursement: true
-- founder_approval_required_above_usd: 25000
+- founder_approval_required_above_usd: 2500
 
 ## What The Org Will Do
 
@@ -38,7 +38,7 @@ Turn the Chicago planning artifacts into an executable company harness that runs
 ## Founder-Only Decisions
 
 - Chicago city expansion stays gated by proof and hosted-review milestones, not approval packets.
-- Any spend request beyond the written Chicago funded policy is out of policy until the repo policy changes.
+- Any spend request beyond the written Chicago low budget policy is out of policy until the repo policy changes.
 - Any public statement that changes company posture or overstates Chicago readiness is auto-blocked until supported in repo truth.
 - Any rights/privacy exception or non-standard commercial commitment is blocked until the written policy and evidence path are updated.
 
@@ -63,7 +63,7 @@ Turn the Chicago planning artifacts into an executable company harness that runs
 
 - Autonomously activate Chicago, IL as an active city-launch program and keep execution bounded to the selected city.
 - Run the Chicago launch posture autonomously: gated cohort pilot, Exact-Site Hosted Review wedge, and truthful public claims only.
-- Autonomous spend posture for Chicago: Funded with a total envelope up to $25,000.
+- Autonomous spend posture for Chicago: Low Budget with a total envelope up to $2,500.
 - Automatically block any Chicago source-policy change that exceeds the current bounded channel stack until the written policy is updated in repo truth.
 - Automatically block any rights/privacy/commercialization exception that lacks repo-backed policy and evidence.
 - Automatically block any non-standard commercial term outside the standard Chicago quote bands until the quote policy is updated in repo truth.
