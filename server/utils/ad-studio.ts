@@ -1,4 +1,9 @@
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+import { recordCityLaunchTouch } from "./cityLaunchLedgers";
+import {
+  createPausedMetaAdsCliDraft,
+  type MetaAdsCliExecutor,
+} from "./meta-ads-cli";
 import { createPausedMetaDraft, type CreatePausedMetaDraftInput } from "./meta-marketing";
 import {
   createPaperclipIssueComment,
@@ -43,8 +48,12 @@ export interface AdStudioClaimsLedger {
 export interface AdStudioMetaDraft {
   campaignId: string | null;
   adSetId: string | null;
+  creativeId?: string | null;
   adId: string | null;
   status: "not_created" | "paused_created";
+  provider?: "graph_api" | "ads_cli" | null;
+  provenanceIds?: string[];
+  ledgerLink?: string | null;
 }
 
 export interface AdStudioRunRecord {
@@ -145,6 +154,16 @@ export interface CreateAdStudioImageExecutionHandoffInput {
 
 export interface CreatePersistedAdStudioMetaDraftInput extends Omit<CreatePausedMetaDraftInput, "accountId"> {
   accountId?: string | null;
+  provider?: "graph_api" | "ads_cli" | null;
+  mediaPath?: string | null;
+  mediaType?: "image" | "video" | null;
+  launchId?: string | null;
+  callToAction?: string | null;
+}
+
+export interface CreatePersistedAdStudioMetaDraftOptions {
+  fetchImpl?: typeof fetch;
+  cliExecutor?: MetaAdsCliExecutor;
 }
 
 function serverTimestampValue() {
@@ -202,6 +221,23 @@ function assertDb() {
   }
 
   return db;
+}
+
+function normalizeMetaDraftOptions(
+  input?: typeof fetch | CreatePersistedAdStudioMetaDraftOptions,
+): Required<Pick<CreatePersistedAdStudioMetaDraftOptions, "fetchImpl">> & {
+  cliExecutor?: MetaAdsCliExecutor;
+} {
+  if (typeof input === "function") {
+    return {
+      fetchImpl: input,
+    };
+  }
+
+  return {
+    fetchImpl: input?.fetchImpl || fetch,
+    cliExecutor: input?.cliExecutor,
+  };
 }
 
 function defaultReviewRecord(): AdStudioReviewRecord {
@@ -763,7 +799,7 @@ export async function reviewPersistedAdStudioCreative(
 export async function createPersistedAdStudioMetaDraft(
   runId: string,
   input: CreatePersistedAdStudioMetaDraftInput,
-  fetchImpl: typeof fetch = fetch,
+  optionsInput?: typeof fetch | CreatePersistedAdStudioMetaDraftOptions,
 ) {
   const run = await readAdStudioRun(runId);
   if (!run) {
@@ -773,29 +809,113 @@ export async function createPersistedAdStudioMetaDraft(
     throw new Error("Ad Studio run must be draft-safe before Meta draft creation.");
   }
 
+  const options = normalizeMetaDraftOptions(optionsInput);
+  const provider = normalizeString(input.provider) === "ads_cli" ? "ads_cli" : "graph_api";
+  const campaignName = normalizeString(input.campaignName) || `${run.lane} · ${run.audience}`;
+  const objective = normalizeString(input.objective) || "OUTCOME_TRAFFIC";
+  const dailyBudgetMinorUnits = Number(input.dailyBudgetMinorUnits || Math.round(run.budgetCapUsd * 100));
+  const primaryText =
+    normalizeString(input.primaryText)
+    || run.review.primaryText
+    || run.promptPack?.primaryTextOptions[0]
+    || "";
+  const headline =
+    normalizeString(input.headline)
+    || run.review.headline
+    || run.promptPack?.headlineOptions[0]
+    || "";
+  const destinationUrl = normalizeString(input.destinationUrl);
+  const pageId = normalizeString(input.pageId) || null;
+  const adSetName = normalizeString(input.adSetName) || null;
+  const adName = normalizeString(input.adName) || null;
+
+  if (provider === "ads_cli") {
+    const touchId = `ad_studio_meta_ads_cli_${run.id}`;
+    const ledgerLink = run.city ? `cityLaunchTouches/${touchId}` : `ad_studio_runs/${run.id}`;
+    const draft = await createPausedMetaAdsCliDraft(
+      {
+        accountId: normalizeString(input.accountId) || null,
+        campaignName,
+        objective,
+        dailyBudgetMinorUnits,
+        primaryText,
+        headline,
+        mediaPath: normalizeString(input.mediaPath),
+        mediaType: input.mediaType || null,
+        destinationUrl,
+        pageId,
+        adSetName,
+        adName,
+        callToAction: normalizeString(input.callToAction) || "learn_more",
+        city: run.city,
+        launchId: normalizeString(input.launchId) || null,
+        adStudioRunId: run.id,
+        ledgerLink,
+      },
+      options.cliExecutor,
+    );
+
+    if (run.city) {
+      await recordCityLaunchTouch({
+        id: touchId,
+        city: run.city,
+        launchId: normalizeString(input.launchId) || null,
+        referenceType: "general",
+        referenceId: run.id,
+        touchType: "first_touch",
+        channel: "meta_ads",
+        status: "draft",
+        campaignId: draft.campaignId,
+        issueId: null,
+        notes: [
+          `Paused Meta Ads CLI draft created for Ad Studio run ${run.id}.`,
+          `Provenance: ${draft.provenanceIds.join(", ")}`,
+        ].join(" "),
+        researchProvenance: null,
+      });
+    }
+
+    const metaDraft: AdStudioMetaDraft = {
+      campaignId: draft.campaignId,
+      adSetId: draft.adSetId,
+      creativeId: draft.creativeId,
+      adId: draft.adId,
+      status: "paused_created",
+      provider: "ads_cli",
+      provenanceIds: draft.provenanceIds,
+      ledgerLink,
+    };
+
+    const updated = await mergeAdStudioRun(runId, {
+      meta_draft: metaDraft,
+      status: "meta_draft_created",
+    });
+
+    if (!updated) {
+      throw new Error("Failed to persist Meta Ads CLI draft ids.");
+    }
+
+    return {
+      run: updated,
+      metaDraft,
+    };
+  }
+
   const draft = await createPausedMetaDraft(
     {
       accountId: normalizeString(input.accountId) || "",
-      campaignName: normalizeString(input.campaignName) || `${run.lane} · ${run.audience}`,
-      objective: normalizeString(input.objective) || "OUTCOME_TRAFFIC",
-      dailyBudgetMinorUnits: Number(input.dailyBudgetMinorUnits || Math.round(run.budgetCapUsd * 100)),
-      primaryText:
-        normalizeString(input.primaryText)
-        || run.review.primaryText
-        || run.promptPack?.primaryTextOptions[0]
-        || "",
-      headline:
-        normalizeString(input.headline)
-        || run.review.headline
-        || run.promptPack?.headlineOptions[0]
-        || "",
+      campaignName,
+      objective,
+      dailyBudgetMinorUnits,
+      primaryText,
+      headline,
       videoId: normalizeString(input.videoId),
-      destinationUrl: normalizeString(input.destinationUrl),
-      pageId: normalizeString(input.pageId) || null,
-      adSetName: normalizeString(input.adSetName) || null,
-      adName: normalizeString(input.adName) || null,
+      destinationUrl,
+      pageId,
+      adSetName,
+      adName,
     },
-    fetchImpl,
+    options.fetchImpl,
   );
 
   const metaDraft: AdStudioMetaDraft = {
@@ -803,6 +923,7 @@ export async function createPersistedAdStudioMetaDraft(
     adSetId: draft.adSetId,
     adId: draft.adId,
     status: "paused_created",
+    provider: "graph_api",
   };
 
   const updated = await mergeAdStudioRun(runId, {

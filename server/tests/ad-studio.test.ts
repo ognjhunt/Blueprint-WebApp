@@ -1,11 +1,19 @@
 // @vitest-environment node
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { MetaAdsCliExecutor } from "../utils/meta-ads-cli";
 
 const runDocs = new Map<string, Record<string, unknown>>();
+const metaCliDocs = new Map<string, Record<string, unknown>>();
+const touchDocs = new Map<string, Record<string, unknown>>();
 let autoIdCounter = 0;
 
 function resetState() {
   runDocs.clear();
+  metaCliDocs.clear();
+  touchDocs.clear();
   autoIdCounter = 0;
 }
 
@@ -19,6 +27,53 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
   },
   dbAdmin: {
     collection(name: string) {
+      if (name === "meta_ads_cli_runs") {
+        return {
+          doc(id?: string) {
+            const docId = id || `meta-cli-${++autoIdCounter}`;
+            return {
+              id: docId,
+              async get() {
+                return {
+                  exists: metaCliDocs.has(docId),
+                  data: () => metaCliDocs.get(docId),
+                };
+              },
+              async set(payload: Record<string, unknown>) {
+                metaCliDocs.set(docId, payload);
+              },
+            };
+          },
+        };
+      }
+
+      if (name === "cityLaunchTouches") {
+        return {
+          doc(id?: string) {
+            const docId = id || `touch-${++autoIdCounter}`;
+            return {
+              id: docId,
+              async get() {
+                return {
+                  exists: touchDocs.has(docId),
+                  data: () => touchDocs.get(docId),
+                };
+              },
+              async set(payload: Record<string, unknown>, options?: { merge?: boolean }) {
+                if (options?.merge) {
+                  touchDocs.set(docId, {
+                    ...(touchDocs.get(docId) || {}),
+                    ...payload,
+                  });
+                  return;
+                }
+                touchDocs.set(docId, payload);
+              },
+            };
+          },
+        };
+      }
+
       if (name !== "ad_studio_runs") {
         throw new Error(`Unexpected collection ${name}`);
       }
@@ -73,6 +128,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.clearAllMocks();
+  vi.unstubAllEnvs();
 });
 
 describe("ad studio service", () => {
@@ -277,6 +333,102 @@ describe("ad studio service", () => {
       adSetId: "adset_1",
       adId: "ad_1",
       status: "paused_created",
+      provider: "graph_api",
     });
+  });
+
+  it("creates a paused Meta Ads CLI draft with provenance and a city-launch touch", async () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "ad-studio-meta-cli-"));
+    const mediaPath = join(tempDir, "frame.jpg");
+    writeFileSync(mediaPath, "fake image bytes");
+
+    try {
+      const created = await createAdStudioRun({
+        lane: "capturer",
+        audience: "public indoor capturers",
+        cta: "Apply to capture public indoor spaces",
+        budgetCapUsd: 75,
+        city: "Atlanta",
+        allowedClaims: ["Illustrative scenes allowed"],
+        blockedClaims: ["No fabricated proof"],
+        aspectRatio: "9:16",
+      });
+      await buildAndPersistAdStudioBrief(created.run.id);
+      await reviewPersistedAdStudioCreative(created.run.id, {
+        headline: "Capture public indoor spaces near you",
+        primaryText:
+          "Illustrative concept ad for Blueprint's capture workflow. Real proof remains evidence-gated.",
+        claimsLedger: {
+          allowedClaims: ["Illustrative scenes allowed"],
+          blockedClaims: ["No fabricated proof"],
+          evidenceLinks: [],
+        },
+      });
+
+      vi.stubEnv("META_ADS_CLI_ENABLED", "1");
+      vi.stubEnv("META_ADS_ACCESS_TOKEN", "cli-token");
+      vi.stubEnv("META_ADS_AD_ACCOUNT_ID", "act_123");
+      vi.stubEnv("META_ADS_MAX_DAILY_BUDGET_USD", "100");
+
+      const cliExecutor = vi.fn<MetaAdsCliExecutor>().mockImplementation(async (_command, args) => {
+        const joined = args.join(" ");
+        if (joined.includes(" campaign create ")) {
+          return { stdout: JSON.stringify({ id: "cmp_1" }), stderr: "", exitCode: 0, signal: null };
+        }
+        if (joined.includes(" adset create ")) {
+          return { stdout: JSON.stringify({ id: "adset_1" }), stderr: "", exitCode: 0, signal: null };
+        }
+        if (joined.includes(" creative create ")) {
+          return { stdout: JSON.stringify({ id: "creative_1" }), stderr: "", exitCode: 0, signal: null };
+        }
+        if (joined.includes(" ad create ")) {
+          return { stdout: JSON.stringify({ id: "ad_1" }), stderr: "", exitCode: 0, signal: null };
+        }
+        throw new Error(`Unexpected CLI args: ${joined}`);
+      });
+
+      const metaResult = await createPersistedAdStudioMetaDraft(
+        created.run.id,
+        {
+          provider: "ads_cli",
+          accountId: "123",
+          campaignName: "Blueprint Capturer CLI Draft",
+          objective: "OUTCOME_TRAFFIC",
+          dailyBudgetMinorUnits: 7500,
+          primaryText:
+            "Illustrative concept ad for Blueprint's capture workflow. Real proof remains evidence-gated.",
+          headline: "Capture public indoor spaces near you",
+          videoId: "",
+          mediaPath,
+          mediaType: "image",
+          destinationUrl: "https://tryblueprint.io/capture",
+          pageId: "page_1",
+          launchId: "atlanta_launch",
+        },
+        { cliExecutor },
+      );
+
+      expect(metaResult.run.status).toBe("meta_draft_created");
+      expect(metaResult.metaDraft).toMatchObject({
+        campaignId: "cmp_1",
+        adSetId: "adset_1",
+        creativeId: "creative_1",
+        adId: "ad_1",
+        status: "paused_created",
+        provider: "ads_cli",
+        ledgerLink: `cityLaunchTouches/ad_studio_meta_ads_cli_${created.run.id}`,
+      });
+      expect(metaResult.metaDraft.provenanceIds).toHaveLength(4);
+      expect(metaCliDocs.size).toBe(4);
+      expect(touchDocs.get(`ad_studio_meta_ads_cli_${created.run.id}`)).toMatchObject({
+        city: "Atlanta",
+        channel: "meta_ads",
+        status: "draft",
+        campaignId: "cmp_1",
+      });
+      expect(cliExecutor.mock.calls.flatMap((call) => call[1])).not.toContain("active");
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
   });
 });

@@ -3,6 +3,7 @@ import {
   classifyFailureSignature,
   clusterRunFailures,
   isLogicalFailureSucceededRun,
+  resolvePaperclipApiTarget,
   resolveSinceTimestamp,
   splitRecoveredCandidates,
 } from "./sweep-agent-run-failures.ts";
@@ -240,6 +241,26 @@ describe("sweep agent run failures", () => {
         now: new Date("2026-04-10T12:00:00.000Z"),
       }),
     ).toBe("2026-04-10T06:00:00.000Z");
+  });
+
+  it("makes the Paperclip API target explicit for local and live sweeps", () => {
+    expect(resolvePaperclipApiTarget({})).toEqual({
+      apiUrl: "http://127.0.0.1:3100",
+      source: "default-local",
+      note: "Default local target. For live-agent decisions, run this on paperclip-prod-01 or pass --api-url/PAPERCLIP_API_URL for the live API.",
+    });
+
+    expect(resolvePaperclipApiTarget({ envApiUrl: "http://127.0.0.1:3100/" })).toEqual({
+      apiUrl: "http://127.0.0.1:3100",
+      source: "PAPERCLIP_API_URL",
+      note: "Loopback target. This inspects the Paperclip service on the current machine; run via SSH on paperclip-prod-01 for live VPS truth.",
+    });
+
+    expect(resolvePaperclipApiTarget({ liveHost: true })).toEqual({
+      apiUrl: "https://paperclip.tryblueprint.io",
+      source: "cli --live-host",
+      note: "Live-host sweeps may require PAPERCLIP_API_KEY unless run through a trusted host path.",
+    });
   });
 
   it("suppresses quota failures that already have a later recovered retry on the same task", () => {

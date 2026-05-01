@@ -71,6 +71,15 @@ import {
   queuePersistedAdStudioVideo,
   reviewPersistedAdStudioCreative,
 } from "../utils/ad-studio";
+import {
+  getMetaAdsCliStatus,
+  getMetaAdsInsights,
+  listMetaAdsAdAccounts,
+  listMetaAdsCampaigns,
+  listMetaAdsCatalogs,
+  listMetaAdsDatasets,
+  listMetaAdsPages,
+} from "../utils/meta-ads-cli";
 
 const router = Router();
 
@@ -113,6 +122,26 @@ function normalizeStringArray(value: unknown) {
     .filter((entry): entry is string => typeof entry === "string")
     .map((entry) => entry.trim())
     .filter(Boolean);
+}
+
+function normalizeQueryStringArray(value: unknown) {
+  if (Array.isArray(value)) {
+    return value
+      .filter((entry): entry is string => typeof entry === "string")
+      .flatMap((entry) => entry.split(","))
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+  }
+
+  return normalizeStringArray(value);
+}
+
+function normalizeQueryLimit(value: unknown, fallback: number) {
+  const parsed = normalizeNumber(value);
+  if (!parsed) {
+    return fallback;
+  }
+  return Math.max(1, Math.min(Math.round(parsed), 500));
 }
 
 function normalizeIsoOrNull(value: unknown) {
@@ -337,22 +366,150 @@ router.post("/ad-studio/runs/:runId/meta-draft", requireOps, async (req, res) =>
   try {
     const result = await createPersistedAdStudioMetaDraft(req.params.runId || "", {
       accountId: normalizeString(req.body?.accountId) || null,
+      provider: normalizeString(req.body?.provider) === "ads_cli" ? "ads_cli" : "graph_api",
       campaignName: normalizeString(req.body?.campaignName),
       objective: normalizeString(req.body?.objective),
       dailyBudgetMinorUnits: normalizeNumber(req.body?.dailyBudgetMinorUnits) || 0,
       primaryText: normalizeString(req.body?.primaryText),
       headline: normalizeString(req.body?.headline),
       videoId: normalizeString(req.body?.videoId),
+      mediaPath: normalizeString(req.body?.mediaPath) || null,
+      mediaType: normalizeString(req.body?.mediaType) === "image" ? "image" : "video",
       destinationUrl: normalizeString(req.body?.destinationUrl),
       pageId: normalizeString(req.body?.pageId) || null,
       adSetName: normalizeString(req.body?.adSetName) || null,
       adName: normalizeString(req.body?.adName) || null,
+      launchId: normalizeString(req.body?.launchId) || null,
+      callToAction: normalizeString(req.body?.callToAction) || null,
     });
     return res.json(result);
   } catch (error) {
     logger.error({ err: error }, "Failed to create Ad Studio Meta draft");
     return res.status(400).json({
       error: error instanceof Error ? error.message : "Failed to create Ad Studio Meta draft",
+    });
+  }
+});
+
+router.get("/meta-ads-cli/status", requireOps, async (_req, res) => {
+  return res.json(getMetaAdsCliStatus());
+});
+
+router.get("/meta-ads-cli/adaccounts", requireOps, async (req, res) => {
+  try {
+    const result = await listMetaAdsAdAccounts({
+      limit: normalizeQueryLimit(req.query.limit, 25),
+      city: normalizeString(req.query.city) || null,
+      launchId: normalizeString(req.query.launchId) || null,
+      ledgerLink: normalizeString(req.query.ledgerLink) || null,
+    });
+    return res.json({ ok: true, result: result.output, provenanceId: result.provenance.id });
+  } catch (error) {
+    logger.error({ err: error }, "Failed to list Meta ad accounts through Ads CLI");
+    return res.status(400).json({
+      error: error instanceof Error ? error.message : "Failed to list Meta ad accounts",
+    });
+  }
+});
+
+router.get("/meta-ads-cli/pages", requireOps, async (req, res) => {
+  try {
+    const result = await listMetaAdsPages({
+      limit: normalizeQueryLimit(req.query.limit, 25),
+      city: normalizeString(req.query.city) || null,
+      launchId: normalizeString(req.query.launchId) || null,
+      ledgerLink: normalizeString(req.query.ledgerLink) || null,
+    });
+    return res.json({ ok: true, result: result.output, provenanceId: result.provenance.id });
+  } catch (error) {
+    logger.error({ err: error }, "Failed to list Meta pages through Ads CLI");
+    return res.status(400).json({
+      error: error instanceof Error ? error.message : "Failed to list Meta pages",
+    });
+  }
+});
+
+router.get("/meta-ads-cli/campaigns", requireOps, async (req, res) => {
+  try {
+    const result = await listMetaAdsCampaigns({
+      limit: normalizeQueryLimit(req.query.limit, 10),
+      city: normalizeString(req.query.city) || null,
+      launchId: normalizeString(req.query.launchId) || null,
+      ledgerLink: normalizeString(req.query.ledgerLink) || null,
+      accountId: normalizeString(req.query.accountId) || null,
+    });
+    return res.json({ ok: true, result: result.output, provenanceId: result.provenance.id });
+  } catch (error) {
+    logger.error({ err: error }, "Failed to list Meta campaigns through Ads CLI");
+    return res.status(400).json({
+      error: error instanceof Error ? error.message : "Failed to list Meta campaigns",
+    });
+  }
+});
+
+router.get("/meta-ads-cli/datasets", requireOps, async (req, res) => {
+  try {
+    const result = await listMetaAdsDatasets({
+      limit: normalizeQueryLimit(req.query.limit, 25),
+      city: normalizeString(req.query.city) || null,
+      launchId: normalizeString(req.query.launchId) || null,
+      ledgerLink: normalizeString(req.query.ledgerLink) || null,
+      accountId: normalizeString(req.query.accountId) || null,
+      businessId: normalizeString(req.query.businessId) || null,
+    });
+    return res.json({ ok: true, result: result.output, provenanceId: result.provenance.id });
+  } catch (error) {
+    logger.error({ err: error }, "Failed to list Meta datasets through Ads CLI");
+    return res.status(400).json({
+      error: error instanceof Error ? error.message : "Failed to list Meta datasets",
+    });
+  }
+});
+
+router.get("/meta-ads-cli/catalogs", requireOps, async (req, res) => {
+  try {
+    const result = await listMetaAdsCatalogs({
+      limit: normalizeQueryLimit(req.query.limit, 25),
+      city: normalizeString(req.query.city) || null,
+      launchId: normalizeString(req.query.launchId) || null,
+      ledgerLink: normalizeString(req.query.ledgerLink) || null,
+      businessId: normalizeString(req.query.businessId) || null,
+    });
+    return res.json({ ok: true, result: result.output, provenanceId: result.provenance.id });
+  } catch (error) {
+    logger.error({ err: error }, "Failed to list Meta catalogs through Ads CLI");
+    return res.status(400).json({
+      error: error instanceof Error ? error.message : "Failed to list Meta catalogs",
+    });
+  }
+});
+
+router.get("/meta-ads-cli/insights", requireOps, async (req, res) => {
+  try {
+    const result = await getMetaAdsInsights({
+      limit: normalizeQueryLimit(req.query.limit, 50),
+      city: normalizeString(req.query.city) || null,
+      launchId: normalizeString(req.query.launchId) || null,
+      ledgerLink: normalizeString(req.query.ledgerLink) || null,
+      accountId: normalizeString(req.query.accountId) || null,
+      fields: Array.isArray(req.query.fields)
+        ? normalizeQueryStringArray(req.query.fields)
+        : normalizeString(req.query.fields) || null,
+      datePreset: normalizeString(req.query.datePreset) || null,
+      since: normalizeString(req.query.since) || null,
+      until: normalizeString(req.query.until) || null,
+      timeIncrement: normalizeString(req.query.timeIncrement) || null,
+      breakdowns: normalizeQueryStringArray(req.query.breakdowns),
+      campaignId: normalizeString(req.query.campaignId) || null,
+      adSetId: normalizeString(req.query.adSetId) || null,
+      adId: normalizeString(req.query.adId) || null,
+      sort: normalizeString(req.query.sort) || null,
+    });
+    return res.json({ ok: true, result: result.output, provenanceId: result.provenance.id });
+  } catch (error) {
+    logger.error({ err: error }, "Failed to query Meta insights through Ads CLI");
+    return res.status(400).json({
+      error: error instanceof Error ? error.message : "Failed to query Meta insights",
     });
   }
 });

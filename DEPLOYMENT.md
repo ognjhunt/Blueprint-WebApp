@@ -212,6 +212,16 @@ REDIS_URL=rediss://default:<token>@active-phoenix-39183.upstash.io:6379
 - Optional Exact-Site Hosted Review buyer-loop report:
   `npm run gtm:hosted-review:buyer-loop -- --write --allow-blocked`
   The report is local and file-backed. It turns the canonical GTM ledger plus reply durability state into the daily sales loop: targets, recipient-backed contacts, founder approvals, sends, replies, hosted-review starts, qualified calls, next actions, and the 100-touch decision gap.
+- Optional Meta Ads CLI pilot for Ad Studio paused drafts and read-only insights:
+  `pip install meta-ads`
+  `META_ADS_CLI_ENABLED=1`
+  `META_ADS_ACCESS_TOKEN` or `META_MARKETING_API_ACCESS_TOKEN`
+  `META_ADS_AD_ACCOUNT_ID` or `META_AD_ACCOUNT_ID`
+  `META_ADS_BUSINESS_ID` for catalog and business-owned dataset reads
+  `META_ADS_CLI_BIN=meta` if the binary is not on the default `PATH`
+  `META_ADS_CLI_TIMEOUT_MS=120000`
+  `META_ADS_MAX_DAILY_BUDGET_USD=250`
+  Allowed server routes are read-only ad account/page/campaign/dataset/catalog/insights commands plus Ad Studio paused draft creation. No route or adapter command can create or update ACTIVE Meta objects; live activation still requires the city budget envelope, recorded spend request, and explicit policy approval.
 - Optional human-reply ingest and email watcher:
   `BLUEPRINT_HUMAN_REPLY_INGEST_TOKEN`
   `BLUEPRINT_HUMAN_REPLY_APPROVED_EMAIL`

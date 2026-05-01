@@ -79,10 +79,80 @@ type Cluster = {
   }>;
 };
 
-const PAPERCLIP_API_URL = process.env.PAPERCLIP_API_URL ?? "http://127.0.0.1:3100";
+const DEFAULT_PAPERCLIP_API_URL = "http://127.0.0.1:3100";
+const BLUEPRINT_LIVE_PAPERCLIP_API_URL = "https://paperclip.tryblueprint.io";
+
+type PaperclipApiTargetSource = "cli --api-url" | "cli --live-host" | "PAPERCLIP_API_URL" | "default-local";
+
+type PaperclipApiTarget = {
+  apiUrl: string;
+  source: PaperclipApiTargetSource;
+  note: string | null;
+};
+
+let paperclipApiUrl = normalizePaperclipApiUrl(process.env.PAPERCLIP_API_URL ?? DEFAULT_PAPERCLIP_API_URL);
 const PAPERCLIP_API_KEY = process.env.PAPERCLIP_API_KEY;
 const PAPERCLIP_COMPANY_ID = process.env.PAPERCLIP_COMPANY_ID ?? "";
 const COMPANY_NAME = process.env.COMPANY_NAME ?? "Blueprint Autonomous Operations";
+
+function normalizePaperclipApiUrl(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    throw new Error("Paperclip API URL cannot be empty");
+  }
+  const parsed = new URL(trimmed);
+  return parsed.toString().replace(/\/$/, "");
+}
+
+function loopbackApiTargetNote(apiUrl: string) {
+  const hostname = new URL(apiUrl).hostname.toLowerCase();
+  if (hostname !== "127.0.0.1" && hostname !== "localhost" && hostname !== "[::1]") {
+    return null;
+  }
+  return "Loopback target. This inspects the Paperclip service on the current machine; run via SSH on paperclip-prod-01 for live VPS truth.";
+}
+
+export function resolvePaperclipApiTarget(input: {
+  explicitApiUrl?: string | null;
+  liveHost?: boolean;
+  envApiUrl?: string | null;
+}): PaperclipApiTarget {
+  if (input.explicitApiUrl && input.liveHost) {
+    throw new Error("Use either --api-url or --live-host, not both.");
+  }
+
+  if (input.explicitApiUrl) {
+    const apiUrl = normalizePaperclipApiUrl(input.explicitApiUrl);
+    return {
+      apiUrl,
+      source: "cli --api-url",
+      note: loopbackApiTargetNote(apiUrl),
+    };
+  }
+
+  if (input.liveHost) {
+    return {
+      apiUrl: BLUEPRINT_LIVE_PAPERCLIP_API_URL,
+      source: "cli --live-host",
+      note: "Live-host sweeps may require PAPERCLIP_API_KEY unless run through a trusted host path.",
+    };
+  }
+
+  if (input.envApiUrl) {
+    const apiUrl = normalizePaperclipApiUrl(input.envApiUrl);
+    return {
+      apiUrl,
+      source: "PAPERCLIP_API_URL",
+      note: loopbackApiTargetNote(apiUrl),
+    };
+  }
+
+  return {
+    apiUrl: DEFAULT_PAPERCLIP_API_URL,
+    source: "default-local",
+    note: "Default local target. For live-agent decisions, run this on paperclip-prod-01 or pass --api-url/PAPERCLIP_API_URL for the live API.",
+  };
+}
 
 function parseArgs(argv: string[]) {
   const args = new Map<string, string>();
@@ -110,7 +180,7 @@ function buildHeaders() {
 }
 
 async function fetchJson<T>(path: string): Promise<T> {
-  const response = await fetch(`${PAPERCLIP_API_URL}${path}`, {
+  const response = await fetch(`${paperclipApiUrl}${path}`, {
     headers: buildHeaders(),
   });
   if (!response.ok) {
@@ -595,6 +665,8 @@ function printHelp() {
 Cluster recent Paperclip heartbeat run failures into shared fix families.
 
 Options:
+  --api-url <url>           Paperclip API URL to inspect. Overrides PAPERCLIP_API_URL.
+  --live-host               Shortcut for Blueprint's public live Paperclip API URL.
   --company-id <id>         Paperclip company id. Defaults to PAPERCLIP_COMPANY_ID or COMPANY_NAME lookup.
   --agent-id <id>           Limit the sweep to one agent.
   --limit <n>               Max runs to inspect. Default: 250.
@@ -803,6 +875,9 @@ async function fetchRunDetail(runId: string) {
 }
 
 function buildMarkdownReport(input: {
+  paperclipApiUrl: string;
+  paperclipApiUrlSource: PaperclipApiTargetSource;
+  paperclipApiTargetNote?: string | null;
   inspectedRuns: number;
   candidateRuns: number;
   clusters: Cluster[];
@@ -815,6 +890,11 @@ function buildMarkdownReport(input: {
   const lines: string[] = [];
   lines.push("# Agent Run Failure Sweep");
   lines.push("");
+  lines.push(`- Paperclip API URL: \`${input.paperclipApiUrl}\``);
+  lines.push(`- Paperclip API source: ${input.paperclipApiUrlSource}`);
+  if (input.paperclipApiTargetNote) {
+    lines.push(`- Paperclip target note: ${input.paperclipApiTargetNote}`);
+  }
   lines.push(`- Inspected runs: ${input.inspectedRuns}`);
   lines.push(`- Candidate failed/stalled/logical-failure runs: ${input.candidateRuns}`);
   if (input.suppressedRecoveredCandidates > 0) {
@@ -899,6 +979,13 @@ async function main() {
     return;
   }
 
+  const apiTarget = resolvePaperclipApiTarget({
+    explicitApiUrl: args.get("api-url"),
+    liveHost: args.get("live-host") === "true",
+    envApiUrl: process.env.PAPERCLIP_API_URL,
+  });
+  paperclipApiUrl = apiTarget.apiUrl;
+
   const limit = Math.max(1, Math.min(1000, Number.parseInt(args.get("limit") ?? "250", 10) || 250));
   const stalledMinutes = Math.max(1, Number.parseInt(args.get("stalled-minutes") ?? "20", 10) || 20);
   const sinceHoursRaw = args.get("since-hours");
@@ -966,7 +1053,10 @@ async function main() {
   if (json) {
     console.log(JSON.stringify({
       generatedAt: new Date().toISOString(),
-        companyId,
+      paperclipApiUrl: apiTarget.apiUrl,
+      paperclipApiUrlSource: apiTarget.source,
+      paperclipApiTargetNote: apiTarget.note,
+      companyId,
       inspectedRuns: filteredRuns.length,
       candidateRuns: candidates.length,
       suppressedRecoveredRuns: suppressedRecoveredCandidates.length,
@@ -980,6 +1070,9 @@ async function main() {
   }
 
   console.log(buildMarkdownReport({
+    paperclipApiUrl: apiTarget.apiUrl,
+    paperclipApiUrlSource: apiTarget.source,
+    paperclipApiTargetNote: apiTarget.note,
     inspectedRuns: filteredRuns.length,
     candidateRuns: candidates.length,
     clusters,

@@ -290,8 +290,12 @@ type AdStudioRunRecord = {
   metaDraft: {
     campaignId: string | null;
     adSetId: string | null;
+    creativeId?: string | null;
     adId: string | null;
     status: string;
+    provider?: "graph_api" | "ads_cli" | null;
+    provenanceIds?: string[];
+    ledgerLink?: string | null;
   };
   createdAtIso: string;
   updatedAtIso: string;
@@ -348,6 +352,10 @@ export default function AdminGrowthStudio() {
     metaAccountId: "",
     metaPageId: "",
     metaVideoId: "",
+    metaProvider: "graph_api",
+    metaMediaPath: "",
+    metaMediaType: "video",
+    metaCallToAction: "learn_more",
     metaDestinationUrl: "https://tryblueprint.io/capture",
     metaCampaignName: "Blueprint Capturer Draft",
   });
@@ -356,7 +364,17 @@ export default function AdminGrowthStudio() {
     Record<string, { headline: string; primaryText: string }>
   >({});
   const [adStudioMetaDrafts, setAdStudioMetaDrafts] = useState<
-    Record<string, { accountId: string; pageId: string; videoId: string; destinationUrl: string; campaignName: string }>
+    Record<string, {
+      accountId: string;
+      pageId: string;
+      videoId: string;
+      provider: string;
+      mediaPath: string;
+      mediaType: string;
+      callToAction: string;
+      destinationUrl: string;
+      campaignName: string;
+    }>
   >({});
   const [kit, setKit] = useState<CampaignKitResponse["kit"] | null>(null);
   const [images, setImages] = useState<ImageGenerationResponse["images"]>([]);
@@ -963,6 +981,10 @@ export default function AdminGrowthStudio() {
       accountId: adStudioForm.metaAccountId,
       pageId: adStudioForm.metaPageId,
       videoId: adStudioForm.metaVideoId,
+      provider: adStudioForm.metaProvider,
+      mediaPath: adStudioForm.metaMediaPath,
+      mediaType: adStudioForm.metaMediaType,
+      callToAction: adStudioForm.metaCallToAction,
       destinationUrl: adStudioForm.metaDestinationUrl,
       campaignName: adStudioForm.metaCampaignName,
     };
@@ -974,8 +996,12 @@ export default function AdminGrowthStudio() {
         headers: await withCsrfHeader({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           accountId: metaDraft.accountId,
+          provider: metaDraft.provider,
           pageId: metaDraft.pageId,
           videoId: metaDraft.videoId,
+          mediaPath: metaDraft.mediaPath,
+          mediaType: metaDraft.mediaType,
+          callToAction: metaDraft.callToAction,
           destinationUrl: metaDraft.destinationUrl,
           campaignName: metaDraft.campaignName,
         }),
@@ -1413,6 +1439,10 @@ export default function AdminGrowthStudio() {
                       accountId: adStudioForm.metaAccountId,
                       pageId: adStudioForm.metaPageId,
                       videoId: adStudioForm.metaVideoId,
+                      provider: adStudioForm.metaProvider,
+                      mediaPath: adStudioForm.metaMediaPath,
+                      mediaType: adStudioForm.metaMediaType,
+                      callToAction: adStudioForm.metaCallToAction,
                       destinationUrl: adStudioForm.metaDestinationUrl,
                       campaignName: adStudioForm.metaCampaignName,
                     };
@@ -1426,7 +1456,9 @@ export default function AdminGrowthStudio() {
                               {run.status} {run.city ? `• ${run.city}` : ""}
                             </p>
                           </div>
-                          <p className="text-xs text-zinc-500">Meta: {run.metaDraft.status}</p>
+                          <p className="text-xs text-zinc-500">
+                            Meta: {run.metaDraft.status}{run.metaDraft.provider ? ` · ${run.metaDraft.provider}` : ""}
+                          </p>
                         </div>
 
                         <div className="mt-3 flex flex-wrap gap-2">
@@ -1539,6 +1571,43 @@ export default function AdminGrowthStudio() {
                         <div className="mt-3 grid gap-3 sm:grid-cols-2">
                           <label className="block">
                             <span className="mb-1 block text-xs font-medium uppercase tracking-[0.14em] text-zinc-500">
+                              Meta provider
+                            </span>
+                            <select
+                              className="w-full rounded-2xl border border-zinc-200 px-3 py-2 text-xs"
+                              value={metaDraft.provider}
+                              onChange={(event) =>
+                                setAdStudioMetaDrafts((current) => ({
+                                  ...current,
+                                  [run.id]: {
+                                    ...metaDraft,
+                                    provider: event.target.value,
+                                  },
+                                }))}
+                            >
+                              <option value="graph_api">Graph API video id</option>
+                              <option value="ads_cli">Ads CLI local media</option>
+                            </select>
+                          </label>
+                          <label className="block">
+                            <span className="mb-1 block text-xs font-medium uppercase tracking-[0.14em] text-zinc-500">
+                              Campaign name
+                            </span>
+                            <input
+                              className="w-full rounded-2xl border border-zinc-200 px-3 py-2 text-xs"
+                              value={metaDraft.campaignName}
+                              onChange={(event) =>
+                                setAdStudioMetaDrafts((current) => ({
+                                  ...current,
+                                  [run.id]: {
+                                    ...metaDraft,
+                                    campaignName: event.target.value,
+                                  },
+                                }))}
+                            />
+                          </label>
+                          <label className="block">
+                            <span className="mb-1 block text-xs font-medium uppercase tracking-[0.14em] text-zinc-500">
                               Meta account id
                             </span>
                             <input
@@ -1590,6 +1659,61 @@ export default function AdminGrowthStudio() {
                           </label>
                           <label className="block">
                             <span className="mb-1 block text-xs font-medium uppercase tracking-[0.14em] text-zinc-500">
+                              CLI media path
+                            </span>
+                            <input
+                              className="w-full rounded-2xl border border-zinc-200 px-3 py-2 text-xs"
+                              value={metaDraft.mediaPath}
+                              onChange={(event) =>
+                                setAdStudioMetaDrafts((current) => ({
+                                  ...current,
+                                  [run.id]: {
+                                    ...metaDraft,
+                                    mediaPath: event.target.value,
+                                  },
+                                }))}
+                              placeholder="/absolute/path/to/ad.mp4"
+                            />
+                          </label>
+                          <label className="block">
+                            <span className="mb-1 block text-xs font-medium uppercase tracking-[0.14em] text-zinc-500">
+                              CLI media type
+                            </span>
+                            <select
+                              className="w-full rounded-2xl border border-zinc-200 px-3 py-2 text-xs"
+                              value={metaDraft.mediaType}
+                              onChange={(event) =>
+                                setAdStudioMetaDrafts((current) => ({
+                                  ...current,
+                                  [run.id]: {
+                                    ...metaDraft,
+                                    mediaType: event.target.value,
+                                  },
+                                }))}
+                            >
+                              <option value="video">Video</option>
+                              <option value="image">Image</option>
+                            </select>
+                          </label>
+                          <label className="block">
+                            <span className="mb-1 block text-xs font-medium uppercase tracking-[0.14em] text-zinc-500">
+                              CTA
+                            </span>
+                            <input
+                              className="w-full rounded-2xl border border-zinc-200 px-3 py-2 text-xs"
+                              value={metaDraft.callToAction}
+                              onChange={(event) =>
+                                setAdStudioMetaDrafts((current) => ({
+                                  ...current,
+                                  [run.id]: {
+                                    ...metaDraft,
+                                    callToAction: event.target.value,
+                                  },
+                                }))}
+                            />
+                          </label>
+                          <label className="block">
+                            <span className="mb-1 block text-xs font-medium uppercase tracking-[0.14em] text-zinc-500">
                               Destination URL
                             </span>
                             <input
@@ -1617,7 +1741,8 @@ export default function AdminGrowthStudio() {
                         ) : null}
                         {(run.metaDraft.campaignId || run.metaDraft.adId) ? (
                           <p className="mt-2 text-xs text-emerald-700">
-                            Meta IDs: {run.metaDraft.campaignId || "none"} / {run.metaDraft.adSetId || "none"} / {run.metaDraft.adId || "none"}
+                            Meta IDs: {run.metaDraft.campaignId || "none"} / {run.metaDraft.adSetId || "none"} / {run.metaDraft.creativeId || "none"} / {run.metaDraft.adId || "none"}
+                            {run.metaDraft.provenanceIds?.length ? ` · provenance ${run.metaDraft.provenanceIds.join(", ")}` : ""}
                           </p>
                         ) : null}
                       </div>
