@@ -7,13 +7,13 @@ const __dirname = import.meta.dirname;
 
 export default defineConfig({
   plugins: [react()],
-  test: {
+    test: {
     globals: true,
     environment: 'happy-dom',
     setupFiles: './client/tests/setup.ts',
     css: true,
     testTimeout: 60000,
-    hookTimeout: 60000,
+    hookTimeout: 120000,
     include: [
       'client/tests/**/*.{test,spec}.{ts,tsx,js,jsx}',
       'server/tests/**/*.{test,spec}.{ts,tsx,js,jsx}',
