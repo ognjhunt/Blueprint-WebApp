@@ -104,20 +104,6 @@ const hostedOutputs = [
   ["Recommendations", "Route adjustments and inspection strategy"],
 ];
 
-function BlueprintMark() {
-  return (
-    <span className="inline-flex items-center gap-3 text-slate-950">
-      <span className="grid h-6 w-6 grid-cols-2 gap-1" aria-hidden="true">
-        <span className="bg-slate-950" />
-        <span className="bg-slate-950" />
-        <span className="bg-slate-950" />
-        <span className="bg-slate-950" />
-      </span>
-      <span className="text-[1.45rem] font-semibold tracking-[-0.05em]">blueprint</span>
-    </span>
-  );
-}
-
 function MiniMap() {
   return (
     <div className="relative h-full min-h-[8.75rem] overflow-hidden rounded-md bg-[#101418]">
@@ -150,42 +136,8 @@ export default function Proof() {
         canonical="/proof"
       />
 
-      <div className="min-h-screen bg-white text-slate-950">
-        <header className="border-b border-slate-200 bg-white">
-          <div className="mx-auto flex h-[4.5rem] max-w-[96rem] items-center justify-between px-5 sm:px-8">
-            <a href="/" aria-label="Blueprint home">
-              <BlueprintMark />
-            </a>
-            <nav className="hidden h-full items-center gap-10 text-[0.95rem] font-medium text-slate-600 lg:flex">
-              {[
-                ["Proof", "/proof"],
-                ["Capture", "/capture"],
-                ["Hosted Review", "/exact-site-hosted-review"],
-                ["Licensing", "/pricing"],
-              ].map(([label, href]) => (
-                <a
-                  key={label}
-                  href={href}
-                  className={`flex h-full items-center border-b-2 px-2 pt-0.5 transition ${
-                    label === "Proof"
-                      ? "border-blue-600 text-slate-950"
-                      : "border-transparent hover:text-slate-950"
-                  }`}
-                >
-                  {label}
-                </a>
-              ))}
-            </nav>
-            <a
-              href="/book-exact-site-review"
-              className="inline-flex min-h-11 items-center justify-center rounded-md bg-slate-950 px-5 text-sm font-semibold text-white shadow-[0_10px_24px_-18px_rgba(15,23,42,0.9)] transition hover:bg-slate-800"
-            >
-              Request hosted review
-            </a>
-          </div>
-        </header>
-
-        <main className="mx-auto max-w-[96rem] px-5 py-7 sm:px-8">
+      <div className="bg-white text-slate-950">
+        <div className="mx-auto max-w-[96rem] px-5 py-7 sm:px-8">
           <div className="flex flex-wrap items-center gap-3 text-sm">
             <a href="/case-studies" className="inline-flex items-center gap-2 font-medium text-blue-700">
               <ArrowLeft className="h-4 w-4" />
@@ -363,7 +315,7 @@ export default function Proof() {
               </a>
             </div>
           </section>
-        </main>
+        </div>
       </div>
     </>
   );
