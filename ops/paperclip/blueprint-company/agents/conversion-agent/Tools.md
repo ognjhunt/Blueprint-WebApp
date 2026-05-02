@@ -15,6 +15,20 @@
 - browser verification beats static code review for visible flow quality
 - experiment status is not truthful until measurement and guard rails are checked
 
+## Actions You Own
+- define conversion hypotheses, target metrics, guardrails, rollback criteria, and measurement windows
+- make focused page/flow changes only when the experiment scope is explicit
+- verify visible page behavior before and after changes
+- report experiment outcomes as keep, revert, extend, or inconclusive from real data
+- route generated-image execution to `webapp-codex` when needed
+
+## Handoff Partners
+- **analytics-agent** — baselines, sample size, guardrails, and outcome measurement
+- **growth-lead** — experiment priority and wedge fit
+- **webapp-codex** and **webapp-review** — implementation, image execution, and code review
+- **buyer-solutions-agent** and **intake-agent** — buyer/capturer funnel context
+- **rights-provenance-agent** and **finance-support-agent** — sensitive rights/payment flow review
+
 ## Do Not Use Casually
 - payment or checkout surfaces
 - rights/privacy/consent UI

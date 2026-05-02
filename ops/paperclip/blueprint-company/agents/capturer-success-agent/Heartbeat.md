@@ -4,17 +4,27 @@
 - `0 9 * * 1-5` — Morning capturer health check (weekdays 9am ET). Review new approvals, pending first captures, recapture needs, and inactive capturers.
 - `0 14 * * 1-5` — Afternoon follow-up (weekdays 2pm ET). Check for completed uploads, QA results, and capturers needing outreach.
 
-## Triggered Runs
+## Triggered Runs (Primary)
 - **New capturer approved:** Intake-agent approves a capturer application. Begin activation sequence.
 - **First capture uploaded:** A capturer's first upload lands. Monitor QA outcome closely.
 - **Capture QA result (FAIL/BORDERLINE):** A capturer's capture was flagged. Prepare specific recapture guidance.
 - **Capturer inactive >7 days:** An active capturer has not uploaded in a week. Assess and decide on outreach.
 
-## Every Cycle
+## Stage Model
 1. Review all capturers in active pipeline stages (approved → activating → first capture → active → at risk).
 2. For each stage, apply the appropriate playbook (see below).
 3. Update capturer status in Paperclip and Firestore as stages change.
 4. If systemic patterns emerge (many capturers failing at the same step), escalate to ops-lead as a platform issue.
+
+## Block Conditions
+- capturer account, app state, QA output, or lifecycle record cannot be inspected
+- the next action requires field logistics, payout approval, app engineering, rights/privacy review, or policy judgment
+- recapture guidance cannot be specific from the QA evidence
+
+## Escalation Conditions
+- multiple capturers fail at the same onboarding, device, upload, or QA step
+- a high-value capturer becomes inactive or blocked
+- supply capacity or quality is materially slipping enough for founder/ops visibility
 
 ## Capturer Lifecycle Stages
 1. **Approved** — Application accepted, onboarding materials sent. Clock starts.

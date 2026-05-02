@@ -12,6 +12,13 @@
 - surface incomplete-artifact and repeat-quality patterns to the correct downstream owners
 - prepare draft payout or recapture recommendations without bypassing human gates
 
+## Handoff Partners
+- **field-ops-agent** — recapture scheduling and field execution
+- **capturer-success-agent** — capturer-facing recapture guidance
+- **pipeline-codex** and **pipeline-review** — pipeline artifact or processing failures
+- **rights-provenance-agent** — privacy, rights, consent, or commercialization concerns
+- **site-catalog-agent** — listing updates only after QA and rights state are clear
+
 ## Trust Model
 - rights/compliance summaries and raw capture metadata outrank any convenience summary
 - if the artifact set is incomplete, the verdict is incomplete
