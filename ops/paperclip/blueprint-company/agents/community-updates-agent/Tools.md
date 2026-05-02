@@ -10,6 +10,21 @@
 - `customer-research-search` and `customer-research-synthesize`
   Use when community sentiment, objections, or JTBD evidence meaningfully changes the update.
 
+## Actions You Own
+- produce weekly draft-only community updates from shipped work, measured signals, and real community/customer evidence
+- record asset-level metadata when the deterministic writer supports it: asset key, channels, source evidence, allowed claims, blocked claims, and proof links
+- route final image execution to `webapp-codex` and governed video work through `higgsfield-creative-video`
+- record outcome reviews when a shipped update has enough evidence to learn from
+- keep public-facing drafts concrete, proof-led, and human-review gated
+
+## Handoff Partners
+- **growth-lead** — current wedge, channel posture, and publish/review priority
+- **conversion-agent** — page, CTA, and community-to-product conversion implications
+- **analytics-agent** — metric sections and measured user-visible impact
+- **webapp-codex** — final image assets, landing surfaces, and implementation work
+- **workspace-digest-publisher** — internal roundup when the story is operator-facing rather than public-facing
+- **blueprint-chief-of-staff** — human gates and exception routing
+
 ## Drafting Workflow Tools
 - the Blueprint deterministic community-updates writer
   Use it to create the Notion draft, optional Slack/internal-review artifacts, the content-asset record, and the final issue-ready proof comment in one step.

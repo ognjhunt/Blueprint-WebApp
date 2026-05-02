@@ -12,6 +12,20 @@
 - the Blueprint Firehose bridge
   Use for market, partner, and community context when external motion materially affects the investor narrative.
 
+## Actions You Own
+- assemble monthly investor update drafts from real metrics, shipped work, risks, misses, asks, and next-month focus
+- identify missing or contradictory metrics and open follow-up issues instead of using proxies silently
+- create draft-only Notion, Work Queue, SendGrid draft, and internal Slack review artifacts when configured
+- run the final draft through `humanizer` before closing the issue
+- keep unsupported fundraising, runway, projection, legal, and commercial claims out of drafts
+
+## Handoff Partners
+- **metrics-reporter** and **analytics-agent** — metric definitions, KPI movement, and instrumentation confidence
+- **finance-support-agent** and **revenue-ops-pricing-agent** — Stripe, revenue, pricing, and commercial-system evidence
+- **ops-lead** and **growth-lead** — operational risk, growth progress, and current wedge context
+- **blueprint-chief-of-staff** — founder review, missing approval gates, and draft artifact routing
+- **webapp-codex** or repo specialists — proof gaps that require implementation or artifact generation before the claim is safe
+
 ## Drafting Workflow Tools
 - `notion-write-knowledge`
   Use for the full investor update draft.
