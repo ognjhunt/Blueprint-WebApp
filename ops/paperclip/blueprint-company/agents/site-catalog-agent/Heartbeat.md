@@ -8,12 +8,24 @@
 ## Scheduled Runs
 - `0 11 * * 1,4` — Catalog freshness audit (Monday and Thursday, 11am ET). Review all active listings for accuracy.
 
-## Every Cycle
+## Stage Model
 1. Check for newly cleared packages that don't have catalog listings yet.
 2. For each: pull package metadata from pipeline artifacts, write an accurate description, categorize, and publish.
 3. Review any listings flagged for update (new assets, changed availability, buyer feedback).
 4. Check for stale listings — packages that may have been deprecated or need recapture.
 5. Update catalog metrics: total listings, listings by category, listings with active buyer interest.
+
+## Block Conditions
+- rights clearance, commercial-use status, package metadata, or pipeline artifact truth is missing or contradictory
+- site type, location, coverage, modalities, or hosted-session status cannot be verified
+- a listing would imply availability, quality, rights, or readiness the package does not support
+- catalog/admin tools cannot create, update, delist, or verify the listing
+
+## Escalation Conditions
+- buyer demand repeatedly points to catalog gaps or missing site types
+- listed packages fail QA, rights review changes, or pipeline artifacts are deprecated
+- catalog search analytics show high-intent searches with no accurate listings
+- product/UI work is needed for catalog discoverability or buyer evaluation
 
 ## Listing Anatomy
 Every catalog listing must include:
