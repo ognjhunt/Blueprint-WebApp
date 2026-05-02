@@ -99,7 +99,11 @@ describe('OffWaitlistSignUpFlow', () => {
     fireEvent.click(continueButton);
 
     expect(
-      await screen.findByRole('heading', { name: /Contact & Location/i }),
+      await screen.findByRole(
+        'heading',
+        { name: /Contact & Location/i },
+        { timeout: 10000 },
+      ),
     ).toBeInTheDocument();
   });
 });

@@ -186,6 +186,61 @@ export const CITY_LAUNCH_REQUIRED_METRIC_DEPENDENCY_KEYS = [
 export type CityLaunchRequiredMetricDependencyKey =
   (typeof CITY_LAUNCH_REQUIRED_METRIC_DEPENDENCY_KEYS)[number];
 
+export const CITY_LAUNCH_REQUIRED_SURFACE_KEYS = [
+  "city_thesis_and_wedge",
+  "lawful_access_and_rights",
+  "capture_supply",
+  "indoor_public_location_supply",
+  "capture_app_targets_and_notifications",
+  "site_operator_or_buyer_access",
+  "proof_assets_pipeline_and_qa",
+  "hosted_review_buyer_surface",
+  "buyer_targets_and_proof_path",
+  "first_wave_outreach",
+  "city_opening_distribution",
+  "cta_intake_and_response_tracking",
+  "reply_conversion_and_follow_up",
+  "channel_registry_and_send_ledger",
+  "budget_and_spend_policy",
+  "analytics_scorecard",
+  "paperclip_notion_and_issue_tree",
+  "public_claims_and_widening_gate",
+] as const;
+
+export type CityLaunchRequiredSurfaceKey =
+  (typeof CITY_LAUNCH_REQUIRED_SURFACE_KEYS)[number];
+
+export const CITY_LAUNCH_DEFAULT_ACTIVATION_TASK_KEYS = [
+  "city-target-ledger",
+  "parallel-lawful-access-queue",
+  "growth-source-policy",
+  "city-opening-distribution",
+  "city-opening-cta-routing",
+  "city-opening-first-wave-pack",
+  "site-operator-partnership",
+  "ops-rubric-thresholds",
+  "supply-prospects",
+  "public-commercial-community-sourcing",
+  "supply-qualification",
+  "capturer-activation-success",
+  "first-capture-routing",
+  "capture-qa",
+  "rights-clearance",
+  "proof-pack-listings",
+  "buyer-target-research",
+  "outbound-package",
+  "outbound-execution",
+  "buyer-thread-commercial",
+  "city-opening-response-tracking",
+  "city-opening-reply-conversion",
+  "city-scorecard",
+  "notion-breadcrumbs",
+  "switch-on-review",
+] as const;
+
+export type CityLaunchDefaultActivationTaskKey =
+  (typeof CITY_LAUNCH_DEFAULT_ACTIVATION_TASK_KEYS)[number];
+
 export const CITY_LAUNCH_REQUIRED_METRICS = [
   {
     key: "robot_team_inbound_captured",
@@ -242,6 +297,8 @@ export const CITY_LAUNCH_CONTROL_PLANE_RULES = {
   approvedBudgetCategories: CITY_LAUNCH_BUDGET_CATEGORY_VALUES,
   approvedAnalyticsReferences: CITY_LAUNCH_APPROVED_ANALYTICS_REFERENCES,
   requiredProofMotionMilestones: CITY_LAUNCH_REQUIRED_PROOF_MOTION_MILESTONES,
+  requiredSurfaceKeys: CITY_LAUNCH_REQUIRED_SURFACE_KEYS,
+  defaultActivationTaskKeys: CITY_LAUNCH_DEFAULT_ACTIVATION_TASK_KEYS,
   requiredMetrics: CITY_LAUNCH_REQUIRED_METRICS,
   agentLanes: CITY_LAUNCH_AGENT_LANE_VALUES,
   humanLanes: CITY_LAUNCH_HUMAN_LANE_VALUES,

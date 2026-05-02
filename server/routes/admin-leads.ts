@@ -2307,11 +2307,29 @@ router.get("/growth-scorecard", requireAdmin, async (req: Request, res: Response
       string,
       { views: number; contactStarts: number; contactSubmissions: number; contactCompleted: number }
     >();
+    const homeRobotTeamExperimentKey = "home_robot_team_conversion_v1";
+    const homeRobotTeamVariantMap = new Map<
+      string,
+      {
+        views: number;
+        sectionViews: number;
+        ctaClicks: number;
+        contactStarts: number;
+        contactSubmissions: number;
+        contactCompleted: number;
+      }
+    >();
 
     let exactSiteViews = 0;
     let exactSiteContactStarts = 0;
     let exactSiteContactSubmissions = 0;
     let exactSiteContactCompleted = 0;
+    let homeRobotTeamViews = 0;
+    let homeRobotTeamSectionViews = 0;
+    let homeRobotTeamCtaClicks = 0;
+    let homeRobotTeamContactStarts = 0;
+    let homeRobotTeamContactSubmissions = 0;
+    let homeRobotTeamContactCompleted = 0;
     let voiceStarts = 0;
     let voiceCompleted = 0;
 
@@ -2330,6 +2348,24 @@ router.get("/growth-scorecard", requireAdmin, async (req: Request, res: Response
         attribution.utm && typeof attribution.utm === "object"
           ? (attribution.utm as Record<string, unknown>)
           : {};
+      const assignments =
+        data.experiments && typeof data.experiments === "object"
+          ? (data.experiments as Record<string, unknown>)
+          : {};
+      const homeVariant =
+        typeof properties.variant_id === "string"
+          ? properties.variant_id
+          : typeof assignments[homeRobotTeamExperimentKey] === "string"
+            ? String(assignments[homeRobotTeamExperimentKey])
+            : "unassigned";
+      const homeBucket = homeRobotTeamVariantMap.get(homeVariant) || {
+        views: 0,
+        sectionViews: 0,
+        ctaClicks: 0,
+        contactStarts: 0,
+        contactSubmissions: 0,
+        contactCompleted: 0,
+      };
       const timestamp = parseGrowthEventTimestamp(data.created_at || data.created_at_iso);
       const dayKey = normalizeDateKey(timestamp || from);
       const daily = eventsByDay.get(dayKey) || {
@@ -2352,6 +2388,18 @@ router.get("/growth-scorecard", requireAdmin, async (req: Request, res: Response
         exactSiteViews += 1;
         daily.views += 1;
       }
+      if (event === "home_hero_view") {
+        homeRobotTeamViews += 1;
+        homeBucket.views += 1;
+      }
+      if (event === "home_section_viewed") {
+        homeRobotTeamSectionViews += 1;
+        homeBucket.sectionViews += 1;
+      }
+      if (event === "home_conversion_cta_clicked") {
+        homeRobotTeamCtaClicks += 1;
+        homeBucket.ctaClicks += 1;
+      }
       if (event === "contact_request_started" && isHostedReviewCampaign) {
         exactSiteContactStarts += 1;
         daily.contactStarts += 1;
@@ -2363,6 +2411,18 @@ router.get("/growth-scorecard", requireAdmin, async (req: Request, res: Response
       if (event === "contact_request_completed" && isHostedReviewCampaign) {
         exactSiteContactCompleted += 1;
         daily.contactCompleted += 1;
+      }
+      if (event === "contact_request_started" && assignments[homeRobotTeamExperimentKey]) {
+        homeRobotTeamContactStarts += 1;
+        homeBucket.contactStarts += 1;
+      }
+      if (event === "contact_request_submitted" && assignments[homeRobotTeamExperimentKey]) {
+        homeRobotTeamContactSubmissions += 1;
+        homeBucket.contactSubmissions += 1;
+      }
+      if (event === "contact_request_completed" && assignments[homeRobotTeamExperimentKey]) {
+        homeRobotTeamContactCompleted += 1;
+        homeBucket.contactCompleted += 1;
       }
       if (event === "voice_concierge_started") {
         voiceStarts += 1;
@@ -2399,6 +2459,17 @@ router.get("/growth-scorecard", requireAdmin, async (req: Request, res: Response
         bucket.exposures += 1;
         bucket.variants[variant] = (bucket.variants[variant] || 0) + 1;
         experimentMap.set(experimentKey, bucket);
+      }
+
+      if (
+        homeBucket.views > 0
+        || homeBucket.sectionViews > 0
+        || homeBucket.ctaClicks > 0
+        || homeBucket.contactStarts > 0
+        || homeBucket.contactSubmissions > 0
+        || homeBucket.contactCompleted > 0
+      ) {
+        homeRobotTeamVariantMap.set(homeVariant, homeBucket);
       }
 
       eventsByDay.set(dayKey, daily);
@@ -2553,8 +2624,24 @@ router.get("/growth-scorecard", requireAdmin, async (req: Request, res: Response
         exactSiteContactStarts,
         exactSiteContactSubmissions,
         exactSiteContactCompleted,
+        homeRobotTeamViews,
+        homeRobotTeamSectionViews,
+        homeRobotTeamCtaClicks,
+        homeRobotTeamContactStarts,
+        homeRobotTeamContactSubmissions,
+        homeRobotTeamContactCompleted,
         voiceStarts,
         voiceCompleted,
+      },
+      homeRobotTeamLanding: {
+        experimentKey: homeRobotTeamExperimentKey,
+        conversionGoal: "structured_robot_team_intake",
+        variants: [...homeRobotTeamVariantMap.entries()]
+          .map(([variant, value]) => ({
+            variant,
+            ...value,
+          }))
+          .sort((left, right) => right.contactCompleted - left.contactCompleted),
       },
       queue: {
         currentHostedReviewItems: currentQueueCount,

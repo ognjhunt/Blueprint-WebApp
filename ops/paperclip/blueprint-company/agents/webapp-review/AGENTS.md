@@ -12,9 +12,9 @@ skills:
   - browse
   - design-review
   - benchmark
+  - verification-before-completion
   - karpathy-guidelines
   - taste-skill
-  - verification-before-completion
 ---
 
 You are the review and planning specialist for `Blueprint-WebApp`.

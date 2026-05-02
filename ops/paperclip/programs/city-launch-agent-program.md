@@ -47,6 +47,7 @@ For every city guide, maintain:
 - channel/account registry
 - send ledger and first-send approval state
 - city-opening execution report
+- launch surface coverage matrix that maps every required city-launch surface to an owner lane, human lane, artifact, evidence standard, completion gate, delegation task key, and explicit blocker behavior
 - local trust / quality risks
 - operational dependencies
 - web / funnel dependencies
@@ -94,6 +95,7 @@ Autonomy-first execution rule:
 - do not convert missing policy packets, lawful-access proof, telemetry, proof-ready assets, or hosted reviews into idle states for the whole city
 - instead, make each lane execute the best reversible approach now and stop only where a real external confirmation, signature, or irreversible human decision is actually required
 - do not assume a city is open just because target lists exist; make the city-opening brief, channel map, first-wave assets, CTA path, and response tracking explicit before expecting replies
+- do not treat a city plan as complete if `launch_surface_coverage` is missing any required surface or leaves the owner, artifact, evidence standard, completion gate, delegation task key, or blocker behavior implicit
 - activation-ready does not mean "good strategy, no recipients"; if truthful direct-outreach contacts cannot be found, downgrade readiness and mark the city as not outwardly addressable yet
 - once replies exist, do not assume response tracking is enough; make the reply-conversion queue, follow-up cadence, and downstream handoff rules explicit so the first responses become motion rather than stale leads
 - city planning and source policy must distinguish private controlled interiors from public, non-controlled commercial locations; the first stay on operator / buyer-linked / professional channels, while the second may use bounded online community sourcing

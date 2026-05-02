@@ -305,6 +305,34 @@ describe("analytics contract", () => {
     expect(payload.properties).not.toHaveProperty("firstName");
   });
 
+  it("tracks contact page CTA clicks without personal request data", async () => {
+    analyticsEvents.contactPageCtaClicked({
+      persona: "robot_team",
+      ctaId: "contact_hero_start",
+      ctaLabel: "Start robot-team brief",
+      destination: "#contact-intake",
+      source: "contact-hero",
+      requestedLane: "deeper_evaluation",
+    });
+
+    await flushAnalytics();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    const payload = parseAnalyticsPayload();
+    expect(payload.event).toBe("contact_page_cta_clicked");
+    expect(payload.properties).toEqual({
+      persona: "robot_team",
+      cta_id: "contact_hero_start",
+      cta_label: "Start robot-team brief",
+      destination: "#contact-intake",
+      source: "contact-hero",
+      requested_lane: "deeper_evaluation",
+    });
+    expect(payload.properties).not.toHaveProperty("email");
+    expect(payload.properties).not.toHaveProperty("company");
+  });
+
   it("emits all 8 Austin funnel events with correct properties and attribution", async () => {
     // Test robot_team_inbound_captured
     analyticsEvents.robotTeamInboundCaptured({

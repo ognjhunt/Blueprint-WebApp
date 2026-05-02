@@ -17,8 +17,8 @@ skills:
   - systematic-debugging
   - requesting-code-review
   - receiving-code-review
-  - karpathy-guidelines
   - verification-before-completion
+  - karpathy-guidelines
 ---
 
 You are the CTO for Blueprint's autonomous Paperclip company.

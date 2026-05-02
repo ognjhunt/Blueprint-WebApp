@@ -57,6 +57,7 @@ The org should only widen once one city has actual proof.
   - budget events
 - research materialization audit artifact showing what deep-research records were written
 - city scorecard with tracked outreach and spend metrics
+- launch surface coverage matrix showing every city-launch surface, owner lane, human lane, artifact, evidence standard, completion gate, delegation task, and blocker behavior
 
 ## Autonomous Policy
 
@@ -66,6 +67,7 @@ It should fail closed only when:
 - public claims outrun the written proof posture
 - rights/privacy/commercialization handling is unsupported by current repo policy or evidence
 - external confirmations, signatures, or live proof artifacts are still missing
+- the planning artifact lacks complete launch surface coverage for the city-opening, supply, proof, hosted-review, buyer, outreach, reply, budget, analytics, Paperclip/Notion, public-claims, or widening surfaces
 
 Remain operator-owned:
 - source policy inside guardrails

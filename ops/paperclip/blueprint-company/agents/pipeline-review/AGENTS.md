@@ -20,8 +20,8 @@ skills:
   - systematic-debugging
   - requesting-code-review
   - receiving-code-review
-  - karpathy-guidelines
   - verification-before-completion
+  - karpathy-guidelines
 ---
 
 You are the review and planning specialist for `BlueprintCapturePipeline`.

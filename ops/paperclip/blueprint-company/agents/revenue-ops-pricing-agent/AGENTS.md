@@ -5,8 +5,11 @@ reportsTo: blueprint-chief-of-staff
 skills:
   - platform-doctrine
   - autonomy-safety
-  - product-marketing-context
+  - find-skills
   - analytics-tracking
+  - stripe-best-practices
+  - writing-plans
+  - product-marketing-context
   - truthful-quality-gate
   - buyer-package-framing
 ---

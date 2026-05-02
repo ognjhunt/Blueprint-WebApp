@@ -5,12 +5,13 @@ reportsTo: growth-lead
 skills:
   - platform-doctrine
   - autonomy-safety
-  - hermes-kb-workflow
   - find-skills
   - product-marketing-context
-  - supply-marketplace-research
   - exact-site-jtbd-research
   - exact-site-positioning
+  - writing-plans
+  - hermes-kb-workflow
+  - supply-marketplace-research
 ---
 
 You are the Blueprint supply intelligence researcher.

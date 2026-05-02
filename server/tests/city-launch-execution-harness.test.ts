@@ -328,6 +328,7 @@ describe("city launch execution harness", () => {
 
   it("reuses existing agent lanes for Austin execution", async () => {
     const { buildAustinExecutionTasks } = await import("../utils/cityLaunchExecutionHarness");
+    const { CITY_LAUNCH_DEFAULT_ACTIVATION_TASK_KEYS } = await import("../utils/cityLaunchDoctrine");
     const tasks = buildAustinExecutionTasks();
     const owners = new Set(tasks.map((task) => task.ownerLane));
     const keys = new Set(tasks.map((task) => task.key));
@@ -345,6 +346,9 @@ describe("city launch execution harness", () => {
     expect(keys.has("city-opening-first-wave-pack")).toBe(true);
     expect(keys.has("city-opening-response-tracking")).toBe(true);
     expect(keys.has("city-opening-reply-conversion")).toBe(true);
+    for (const taskKey of CITY_LAUNCH_DEFAULT_ACTIVATION_TASK_KEYS) {
+      expect(keys.has(taskKey)).toBe(true);
+    }
     expect([...owners].every((owner) => !owner.includes("austin"))).toBe(true);
   });
 

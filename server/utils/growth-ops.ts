@@ -1,17 +1,17 @@
-import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin.js";
 import {
   executeAction,
-} from "../agents/action-executor";
+} from "../agents/action-executor.js";
 import {
   GROWTH_CAMPAIGN_POLICY,
   LIFECYCLE_POLICY,
   SUPPORT_POLICY,
-} from "../agents/action-policies";
-import { getConfiguredEnvValue } from "../config/env";
-import { getEmailTransportStatus } from "./email";
-import { logGrowthEvent } from "./growth-events";
-import { summarizeRecentContentOutcomeReviews } from "./content-ops";
-import { buildGrowthIntegrationSummary } from "./provider-status";
+} from "../agents/action-policies.js";
+import { getConfiguredEnvValue } from "../config/env.js";
+import { getEmailTransportStatus } from "./email.js";
+import { logGrowthEvent } from "./growth-events.js";
+import { summarizeRecentContentOutcomeReviews } from "./content-ops.js";
+import { buildGrowthIntegrationSummary } from "./provider-status.js";
 
 function serverTimestampValue() {
   return admin?.firestore?.FieldValue?.serverTimestamp?.() ?? new Date();
@@ -210,7 +210,7 @@ export async function listGrowthCampaigns() {
     .orderBy("created_at", "desc")
     .limit(50)
     .get();
-  const localCampaigns = localCampaignsSnapshot.docs.map((doc) => ({
+  const localCampaigns = localCampaignsSnapshot.docs.map((doc: { id: string; data(): Record<string, unknown> }) => ({
     id: doc.id,
     ...doc.data(),
   }));

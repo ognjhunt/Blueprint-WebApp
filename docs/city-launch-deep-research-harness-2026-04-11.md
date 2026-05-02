@@ -193,6 +193,28 @@ That payload is the control-plane artifact for:
 - required approvals and validation blockers
 - issue seeds mapped to named Paperclip lanes
 - metrics dependencies that must be tracked before autonomous governance is trusted
+- launch surface coverage, with one row per required surface so every city plan names the owner lane, human lane, artifact, evidence standard, completion gate, delegation task, and blocker behavior before activation
+
+Required launch surface keys:
+
+- `city_thesis_and_wedge`
+- `lawful_access_and_rights`
+- `capture_supply`
+- `indoor_public_location_supply`
+- `capture_app_targets_and_notifications`
+- `site_operator_or_buyer_access`
+- `proof_assets_pipeline_and_qa`
+- `hosted_review_buyer_surface`
+- `buyer_targets_and_proof_path`
+- `first_wave_outreach`
+- `city_opening_distribution`
+- `cta_intake_and_response_tracking`
+- `reply_conversion_and_follow_up`
+- `channel_registry_and_send_ledger`
+- `budget_and_spend_policy`
+- `analytics_scorecard`
+- `paperclip_notion_and_issue_tree`
+- `public_claims_and_widening_gate`
 
 When `NOTION_API_TOKEN` or `NOTION_API_KEY` is configured, the harness also mirrors:
 

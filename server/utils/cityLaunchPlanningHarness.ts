@@ -29,10 +29,12 @@ import {
 import {
   CITY_LAUNCH_ACTIVATION_PAYLOAD_SCHEMA_VERSION,
   CITY_LAUNCH_CONTROL_PLANE_RULES,
+  CITY_LAUNCH_DEFAULT_ACTIVATION_TASK_KEYS,
   CITY_LAUNCH_LAWFUL_ACCESS_MODE_VALUES,
   CITY_LAUNCH_MACHINE_POLICY_VERSION,
   CITY_LAUNCH_REQUIRED_METRIC_DEPENDENCY_KEYS,
   CITY_LAUNCH_REQUIRED_PROOF_MOTION_MILESTONES,
+  CITY_LAUNCH_REQUIRED_SURFACE_KEYS,
 } from "./cityLaunchDoctrine";
 import {
   CITY_LAUNCH_APPROVED_ANALYTICS_EVENTS,
@@ -140,8 +142,10 @@ export function buildPlaybookRepairPrompt(input: {
     `- preserve the Blueprint proof-motion framing and the city-specific substance that is still valid`,
     `- fix every validation error listed below`,
     `- keep the exact section headings "## Machine-readable activation payload" and "## Structured launch data appendix"`,
+    `- include the exact section heading "## Launch surface coverage matrix"`,
     `- include a valid \`\`\`city-launch-activation-payload fence under the first heading`,
     `- include a valid \`\`\`city-launch-records fence under the second heading`,
+    `- include complete activation_payload.launch_surface_coverage entries for every required surface: ${renderRequiredSurfaceKeys()}`,
     `- do not emit placeholder URLs such as example.com`,
     `- if a source URL is unknown, leave source_urls empty and keep validation_required=true where appropriate`,
     `- keep unsupported claims labeled verify-before-outreach rather than turning hypotheses into facts`,
@@ -178,6 +182,10 @@ function renderAllowedValues(values: readonly string[]) {
   return values.map((value) => `\`${value}\``).join(", ");
 }
 
+function renderRequiredSurfaceKeys() {
+  return CITY_LAUNCH_REQUIRED_SURFACE_KEYS.map((value) => `\`${value}\``).join(", ");
+}
+
 function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -205,6 +213,13 @@ export function validateCityLaunchPlaybookMarkdown(input: {
   ]
     .map((match) => match[0])
     .filter((value): value is string => Boolean(value));
+  const placeholderValueMatches = [
+    ...input.markdown.matchAll(/<researched-[^>\n]+>/gi),
+    ...input.markdown.matchAll(/\bReplace with[^"`\n]+/gi),
+    ...input.markdown.matchAll(/\b(?:jane\.doe|site-operator-or-professional-contact)@example\.com\b/gi),
+  ]
+    .map((match) => match[0])
+    .filter((value): value is string => Boolean(value));
   const requiredHeadings = [
     "Truth constraints",
     "Evidence-backed claims",
@@ -212,6 +227,7 @@ export function validateCityLaunchPlaybookMarkdown(input: {
     "Hypotheses needing validation",
     "What Must Be Validated Before Live Outreach",
     "What not to say publicly yet",
+    "Launch surface coverage matrix",
     "Instrumentation spec",
     "Machine-readable activation payload",
     "Structured launch data appendix",
@@ -226,6 +242,11 @@ export function validateCityLaunchPlaybookMarkdown(input: {
   if (placeholderUrlMatches.length > 0) {
     errors.push(
       `Structured playbook includes placeholder source URLs: ${[...new Set(placeholderUrlMatches)].join(", ")}.`,
+    );
+  }
+  if (placeholderValueMatches.length > 0) {
+    errors.push(
+      `Structured playbook includes placeholder schema values: ${[...new Set(placeholderValueMatches)].join(", ")}.`,
     );
   }
 
@@ -304,6 +325,33 @@ export function validateCityLaunchPlaybookMarkdown(input: {
       errors.push(
         "Activation payload must include named_claims for company, stack, or delivery assertions.",
       );
+    }
+
+    const coveredSurfaceKeys = new Set(
+      parsed.activationPayload.launchSurfaceCoverage.map((entry) => entry.surfaceKey),
+    );
+    const allowedDelegationTaskKeys = new Set([
+      ...CITY_LAUNCH_DEFAULT_ACTIVATION_TASK_KEYS,
+      ...parsed.activationPayload.issueSeeds.map((entry) => entry.key),
+    ]);
+    if (parsed.activationPayload.launchSurfaceCoverage.length === 0) {
+      errors.push(
+        "Activation payload must include launch_surface_coverage so every launch surface has an owner, artifact, evidence standard, completion gate, and delegation task.",
+      );
+    }
+    for (const requiredSurfaceKey of CITY_LAUNCH_REQUIRED_SURFACE_KEYS) {
+      if (!coveredSurfaceKeys.has(requiredSurfaceKey)) {
+        errors.push(
+          `Activation payload launch_surface_coverage is missing required surface "${requiredSurfaceKey}".`,
+        );
+      }
+    }
+    for (const surfaceCoverage of parsed.activationPayload.launchSurfaceCoverage) {
+      if (!allowedDelegationTaskKeys.has(surfaceCoverage.delegationTaskKey)) {
+        errors.push(
+          `Activation payload launch_surface_coverage entry "${surfaceCoverage.surfaceKey}" uses unknown delegation_task_key "${surfaceCoverage.delegationTaskKey}". Use an issue_seeds key or one of the default activation task keys.`,
+        );
+      }
     }
   }
 
@@ -407,6 +455,7 @@ export function buildResearchPrompt(input: {
     `- Buyer proof-path routing system using only exact_site, adjacent_site, scoped_follow_up vocabulary`,
     `- Hosted-review conversion system: review readiness, follow-up triggers, stall reasons, and human commercial handoff conditions`,
     `- Human vs agent operating model split by founder-only, human operator-owned, agent-prepared/autonomous, and exception-only escalation`,
+    `- Launch surface coverage matrix covering every surface key: ${renderRequiredSurfaceKeys()}`,
     `- Instrumentation and scorecard spec using canonical proof-motion analytics plus inboundRequests.ops.proof_path milestones`,
     `- Budget policy and approval thresholds`,
     `- Daily / weekly operating cadence`,
@@ -429,6 +478,9 @@ export function buildResearchPrompt(input: {
     `- label each meaningful claim as evidence-backed, inferred, or hypothesis-level`,
     `- explicitly mark buyer stack, integration, delivery, legal, security, and partner assumptions as "verify before outreach" unless directly supported`,
     `- separate settled operating facts from leading hypotheses so a human can see what is activation-ready versus validation-required`,
+    `- every launch surface coverage row must name surface_key, owner_lane, human_lane, artifact, evidence_standard, completion_gate, delegation_task_key, blocker behavior, and whether validation_required remains true`,
+    `- every launch surface delegation_task_key must be either an issue_seeds key in the same activation payload or one of the existing default activation task keys: ${renderAllowedValues(CITY_LAUNCH_DEFAULT_ACTIVATION_TASK_KEYS)}`,
+    `- the launch surface coverage matrix must cover planning truth, lawful access, capture supply, Capture app/creator notifications, proof assets, hosted review, buyer demand, city-opening distribution, intake/reply routing, send ledgers, budget, analytics, Paperclip/Notion, public claims, and widening gates`,
     `- activation-ready does not mean "good strategy, no recipients"; if truthful recipients cannot be found, downgrade readiness and say the city is not outwardly addressable yet`,
     `- distinguish direct-outreach lanes from artifact-only/community lanes; community lanes may stay artifact-only until a real publication connector exists`,
     `- every direct-outreach-ready buyer_target_candidates or capture_location_candidates entry must include explicit \`contact_email\` fields; do not invent or infer emails`,
@@ -465,6 +517,8 @@ export function buildCritiquePrompt(previousResearch: string) {
     `- unaddressed defense, ITAR, export-control, or air-gapped review constraints`,
     `- missing city-specific channel and trust mechanics`,
     `- missing operator-vs-agent ownership splits`,
+    `- missing launch surface coverage matrix rows for capture app targets, creator notifications, proof assets, hosted review, first-wave sends, reply conversion, budget, analytics, Paperclip/Notion, public claims, or widening gates`,
+    `- launch surface rows that lack an owner lane, human lane, artifact, evidence standard, completion gate, delegation task key, or explicit blocker behavior`,
     `- missing instrumentation, activation gates, widening gates, or go/no-go thresholds`,
     `- outreach plans that assume volume before proof`,
     `- parser/materializer enum mismatches, unsupported appendix values, or vocabulary drift from current repo contracts`,
@@ -504,6 +558,7 @@ export function buildFollowUpResearchPrompt(input: {
     `- preserve the distinction between evidence-backed claims, inferred claims, and hypotheses needing validation`,
     `- resolve lawful access path evidence, rights/provenance mechanics, buyer proof-path fit, hosted-review readiness, commercial handoff readiness, and company-specific validation gaps before adding new surface area`,
     `- keep buyer-stack, integration, delivery, security, rights, and partner assumptions marked "verify before outreach" unless directly supported`,
+    `- resolve the launch surface coverage matrix until every required surface key has an owner lane, human lane, artifact, evidence standard, completion gate, delegation task key, and blocker behavior`,
     `- if the prior draft says a city is activation-ready, require 1-3 recipient-backed first-wave direct outreach contacts with explicit contact_email evidence or downgrade readiness`,
     `- keep direct-outreach lanes separate from artifact-only/community lanes instead of treating "good strategy, no recipients" as launchable`,
     `- keep the machine-readable activation payload aligned with the prose so issue seeds, required approvals, metrics dependencies, and named claims can be delegated safely`,
@@ -549,6 +604,7 @@ export function buildSynthesisPrompt(input: {
     `- Buyer proof-path routing system`,
     `- Hosted-review conversion system`,
     `- Human vs agent operating model`,
+    `- Launch surface coverage matrix`,
     `- Instrumentation spec`,
     `- Budget policy and approval thresholds`,
     `- Daily / weekly operating cadence`,
@@ -570,6 +626,10 @@ export function buildSynthesisPrompt(input: {
     `- preserve uncertainty labels`,
     `- organize the document as a Blueprint city proof-motion launcher, not a generic marketplace launch plan`,
     `- keep analogous companies as a secondary sanity-check section only, not the main narrative frame`,
+    `- include a "Launch surface coverage matrix" with one row per required surface key: ${renderRequiredSurfaceKeys()}`,
+    `- each launch surface row must name the owner_lane, human_lane, artifact/report surface, evidence_standard, completion_gate, delegation_task_key, blocker behavior, and whether validation_required remains true`,
+    `- every delegation_task_key in launch surface coverage must match an issue_seeds key in the same activation payload or one of the default activation task keys: ${renderAllowedValues(CITY_LAUNCH_DEFAULT_ACTIVATION_TASK_KEYS)}`,
+    `- every required surface must be delegated to existing Blueprint lanes; do not create city-specific agents or leave a surface owned by "TBD"`,
     `- use the exact heading text "## Machine-readable activation payload" immediately before the \`\`\`city-launch-activation-payload fence`,
     `- use the exact heading text "## Structured launch data appendix" immediately before the \`\`\`city-launch-records fence`,
     `- do not introduce city-specific analytics event names; use only approved repo analytics vocabulary with a city/source tag`,
@@ -582,7 +642,7 @@ export function buildSynthesisPrompt(input: {
     `- do not use manipulative, exclusivity, fake urgency, or posture-changing language`,
     `- do not claim "no custom telemetry" while introducing new event names; distinguish current repo events, approved missing proof-motion events, and \`inboundRequests.ops.proof_path\` milestones explicitly`,
     `- align the result with the current city-launch execution docs and activation program, and distinguish activation gates vs widening gates vs outreach gates`,
-    `- never copy placeholder schema values such as Example Robotics, Example warehouse, or example.com from the schema examples below into the final playbook`,
+    `- never copy placeholder schema values such as Example Robotics, Example warehouse, <researched-company>, "Replace with...", or example.com from the schema examples below into the final playbook`,
     `- if a source URL is unknown, use an empty array and keep the claim validation-required; never emit placeholder URLs`,
     `- include a fenced \`\`\`city-launch-activation-payload block that acts as the control-plane artifact for activation, issue routing, approvals, and metrics blockers`,
     `- end the document with a fenced JSON block using \`\`\`city-launch-records`,
@@ -600,6 +660,9 @@ export function buildSynthesisPrompt(input: {
     `- activation payload issue_seeds human_lane values must use only: ${renderAllowedValues(CITY_LAUNCH_CONTROL_PLANE_RULES.humanLanes)}`,
     `- activation payload issue_seeds must map every recommended action to named lanes from the current autonomous org and activation program`,
     `- activation payload named_claims must include every named company, stack, or delivery claim and each claim must either carry source_urls or set validation_required=true`,
+    `- activation payload launch_surface_coverage must include every required surface key and mirror the prose coverage matrix`,
+    `- each launch_surface_coverage entry must include surface_key, owner_lane, human_lane, artifact, evidence_standard, completion_gate, delegation_task_key, validation_required, and source_urls`,
+    `- each launch_surface_coverage delegation_task_key must match a same-payload issue_seeds key or an existing default activation task key`,
     `- activation payload metrics_dependencies must cover: ${renderAllowedValues(CITY_LAUNCH_REQUIRED_METRIC_DEPENDENCY_KEYS)}`,
     `- activation payload may also track proof milestones such as: ${renderAllowedValues(CITY_LAUNCH_REQUIRED_PROOF_MOTION_MILESTONES)}`,
     `- allowed capture status values: ${renderAllowedValues(CITY_LAUNCH_PROSPECT_STATUS_VALUES)}`,
@@ -630,8 +693,8 @@ export function buildSynthesisPrompt(input: {
           summary:
             "Use the lawful access mode per target. Private controlled interiors require explicit authorization before capture dispatch.",
           private_controlled_interiors_require_authorization: true,
-          validation_required: false,
-          source_urls: ["https://example.com/rights"],
+          validation_required: true,
+          source_urls: [],
         },
         validation_blockers: [
           {
@@ -747,6 +810,30 @@ export function buildSynthesisPrompt(input: {
             source_urls: [],
           },
         ],
+        launch_surface_coverage: CITY_LAUNCH_REQUIRED_SURFACE_KEYS.map((surfaceKey) => ({
+          surface_key: surfaceKey,
+          owner_lane:
+            surfaceKey === "analytics_scorecard"
+              ? "analytics-agent"
+              : surfaceKey === "paperclip_notion_and_issue_tree"
+                ? "notion-manager-agent"
+                : "city-launch-agent",
+          human_lane:
+            surfaceKey === "public_claims_and_widening_gate"
+              ? "founder"
+              : surfaceKey === "budget_and_spend_policy"
+                ? "growth-lead"
+                : "ops-lead",
+          artifact: `Replace with the concrete ${surfaceKey} artifact or report path.`,
+          evidence_standard:
+            "Replace with the proof required before this surface is considered complete.",
+          completion_gate:
+            "Replace with the exact done condition or explicit blocker state.",
+          delegation_task_key:
+            "Replace with the matching issue seed key or existing activation task key.",
+          validation_required: true,
+          source_urls: [],
+        })),
       },
       null,
       2,

@@ -8,6 +8,7 @@ skills:
   - find-skills
   - product-marketing-context
   - analytics-tracking
+  - page-cro
   - city-demand-operations
 ---
 

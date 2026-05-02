@@ -248,7 +248,7 @@ export function planBlockedIssueFollowUp(
 
   const assigneeRepo = repoConfigForAgent(assignee, config.repoCatalog);
   if (assigneeRepo) {
-    projectName = assigneeRepo.projectName;
+    projectName = assigneeRepo.projectName ?? projectName;
   }
 
   if (!projectName) {

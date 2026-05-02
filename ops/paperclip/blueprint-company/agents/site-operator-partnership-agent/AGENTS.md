@@ -7,6 +7,7 @@ skills:
   - autonomy-safety
   - find-skills
   - product-marketing-context
+  - writing-plans
   - site-operator-partnership-operations
 ---
 

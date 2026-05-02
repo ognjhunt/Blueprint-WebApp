@@ -12,7 +12,10 @@ import {
 import { CITY_LAUNCH_RESEARCH_SCHEMA_VERSION } from "../utils/cityLaunchResearchParser";
 import {
   CITY_LAUNCH_ACTIVATION_PAYLOAD_SCHEMA_VERSION,
+  CITY_LAUNCH_DEFAULT_ACTIVATION_TASK_KEYS,
   CITY_LAUNCH_MACHINE_POLICY_VERSION,
+  CITY_LAUNCH_REQUIRED_METRIC_DEPENDENCY_KEYS,
+  CITY_LAUNCH_REQUIRED_SURFACE_KEYS,
 } from "../utils/cityLaunchDoctrine";
 import {
   buildDeepResearchTools,
@@ -60,6 +63,10 @@ describe("city launch planning harness", () => {
     expect(prompt).toContain("Budget policy and approval thresholds");
     expect(prompt).toContain("Daily / weekly operating cadence");
     expect(prompt).toContain("Hypotheses needing validation");
+    expect(prompt).toContain("Launch surface coverage matrix");
+    expect(prompt).toContain("capture_app_targets_and_notifications");
+    expect(prompt).toContain("paperclip_notion_and_issue_tree");
+    expect(prompt).toContain("switch-on-review");
     expect(prompt).toContain("What Must Be Validated Before Live Outreach");
     expect(prompt).toContain("Machine-readable activation payload");
     expect(prompt).toContain(CITY_LAUNCH_ACTIVATION_PAYLOAD_SCHEMA_VERSION);
@@ -83,6 +90,7 @@ describe("city launch planning harness", () => {
     expect(prompt).toContain("lawful access path evidence");
     expect(prompt).toContain("hosted-review readiness");
     expect(prompt).toContain("commercial handoff readiness");
+    expect(prompt).toContain("launch surface coverage matrix");
     expect(prompt).toContain("machine-readable activation payload");
     expect(prompt).toContain("do not drift into generic marketplace framing");
   });
@@ -101,6 +109,8 @@ describe("city launch planning harness", () => {
     expect(prompt).toContain("repairing a Blueprint city proof-motion playbook for Sacramento, CA");
     expect(prompt).toContain("Return a full corrected Markdown playbook, not a diff.");
     expect(prompt).toContain('keep the exact section headings "## Machine-readable activation payload"');
+    expect(prompt).toContain('include the exact section heading "## Launch surface coverage matrix"');
+    expect(prompt).toContain("launch_surface_coverage");
     expect(prompt).toContain("do not emit placeholder URLs such as example.com");
     expect(prompt).toContain("Validation errors to fix:");
     expect(prompt).toContain("warning one");
@@ -204,6 +214,11 @@ describe("city launch planning harness", () => {
     expect(prompt).toContain("What Must Be Validated Before Live Outreach");
     expect(prompt).toContain("Human vs agent operating model");
     expect(prompt).toContain("What not to say publicly yet");
+    expect(prompt).toContain("Launch surface coverage matrix");
+    expect(prompt).toContain("launch_surface_coverage");
+    expect(prompt).toContain("capture_app_targets_and_notifications");
+    expect(prompt).toContain("paperclip_notion_and_issue_tree");
+    expect(prompt).toContain("default activation task keys");
     expect(prompt).toContain("Machine-readable activation payload");
     expect(prompt).toContain("Structured launch data appendix");
     expect(prompt).toContain("not a generic marketplace launch plan");
@@ -222,6 +237,12 @@ describe("city launch planning harness", () => {
     expect(prompt).toContain("```city-launch-records");
     expect(prompt).toContain('exact heading text "## Machine-readable activation payload"');
     expect(prompt).toContain("never emit placeholder URLs");
+    for (const surfaceKey of CITY_LAUNCH_REQUIRED_SURFACE_KEYS) {
+      expect(prompt).toContain(surfaceKey);
+    }
+    for (const taskKey of CITY_LAUNCH_DEFAULT_ACTIVATION_TASK_KEYS) {
+      expect(prompt).toContain(taskKey);
+    }
   });
 
   it("rejects synthesized playbooks that drift on telemetry, messaging, or appendix contracts", () => {
@@ -338,9 +359,143 @@ describe("city launch planning harness", () => {
     expect(result.errors.join("\n")).toContain("Manipulative or posture-drifting language detected");
     expect(result.errors.join("\n")).toContain("unsupported analytics vocabulary");
     expect(result.errors.join("\n")).toContain('Missing required section heading: "What Must Be Validated Before Live Outreach"');
+    expect(result.errors.join("\n")).toContain('Missing required section heading: "Launch surface coverage matrix"');
+    expect(result.errors.join("\n")).toContain("Activation payload must include launch_surface_coverage");
+    expect(result.errors.join("\n")).toContain('missing required surface "capture_app_targets_and_notifications"');
     expect(result.errors.join("\n")).toContain("Structured playbook includes placeholder source URLs");
     expect(result.errors.join("\n")).toContain(
       'Activation payload is missing required metrics_dependencies key "proof_path_assigned"',
+    );
+  });
+
+  it("rejects launch surface coverage that cannot map back to a real delegation task", () => {
+    const activationPayload = {
+      schema_version: CITY_LAUNCH_ACTIVATION_PAYLOAD_SCHEMA_VERSION,
+      machine_policy_version: CITY_LAUNCH_MACHINE_POLICY_VERSION,
+      city: "Austin, TX",
+      city_slug: "austin-tx",
+      city_thesis: "Run one proof-led warehouse wedge.",
+      primary_site_lane: "industrial_warehouse",
+      primary_workflow_lane: "dock handoff",
+      primary_buyer_proof_path: "exact_site",
+      lawful_access_modes: ["buyer_requested_site"],
+      preferred_lawful_access_mode: "buyer_requested_site",
+      rights_path: {
+        summary: "Private controlled interiors require explicit authorization.",
+        private_controlled_interiors_require_authorization: true,
+        validation_required: true,
+        source_urls: [],
+      },
+      validation_blockers: [],
+      required_approvals: [{ lane: "founder", reason: "go/no-go" }],
+      owner_lanes: ["city-launch-agent", "analytics-agent"],
+      issue_seeds: [
+        {
+          key: "known-seed",
+          title: "Known seed",
+          phase: "founder_gates",
+          owner_lane: "city-launch-agent",
+          human_lane: "growth-lead",
+          summary: "Known seed summary.",
+          dependency_keys: [],
+          success_criteria: ["Known seed can be delegated."],
+          metrics_dependencies: ["first_lawful_access_path"],
+          validation_required: true,
+        },
+      ],
+      metrics_dependencies: CITY_LAUNCH_REQUIRED_METRIC_DEPENDENCY_KEYS.map((key) => ({
+        key,
+        kind: "event",
+        status: "required_tracked",
+        owner_lane: "analytics-agent",
+      })),
+      named_claims: [
+        {
+          subject: "Warehouse Robotics Co",
+          claim_type: "company",
+          claim: "Warehouse Robotics Co is a named buyer target.",
+          validation_required: true,
+          source_urls: [],
+        },
+      ],
+      launch_surface_coverage: CITY_LAUNCH_REQUIRED_SURFACE_KEYS.map((surfaceKey) => ({
+        surface_key: surfaceKey,
+        owner_lane: "city-launch-agent",
+        human_lane: "growth-lead",
+        artifact: "ops/paperclip/playbooks/city-launch-austin-tx-deep-research.md",
+        evidence_standard: "Evidence standard is explicit.",
+        completion_gate: "Completion gate is explicit.",
+        delegation_task_key: "not-a-real-task",
+        validation_required: true,
+        source_urls: [],
+      })),
+    };
+    const markdown = [
+      "# Austin, TX",
+      "",
+      "## Truth constraints",
+      "validation required before outreach.",
+      "",
+      "## Evidence-backed claims",
+      "- Warehouse Robotics Co is named in the structured appendix.",
+      "",
+      "## Inferred claims",
+      "- none",
+      "",
+      "## Hypotheses needing validation",
+      "- buyer stack fit is validation required.",
+      "",
+      "## What not to say publicly yet",
+      "- no city-live claim.",
+      "",
+      "## Launch surface coverage matrix",
+      "| Surface | Task |",
+      "|---|---|",
+      "| all | not-a-real-task |",
+      "",
+      "## Instrumentation spec",
+      "- use `growth_events`.",
+      "",
+      "## What Must Be Validated Before Live Outreach",
+      "- buyer stack fit is verify before outreach.",
+      "",
+      "## Machine-readable activation payload",
+      "```city-launch-activation-payload",
+      JSON.stringify(activationPayload, null, 2),
+      "```",
+      "",
+      "## Structured launch data appendix",
+      "```city-launch-records",
+      JSON.stringify(
+        {
+          schema_version: CITY_LAUNCH_RESEARCH_SCHEMA_VERSION,
+          generated_at: "2026-04-13T00:00:00.000Z",
+          buyer_target_candidates: [
+            {
+              company_name: "Warehouse Robotics Co",
+              contact_email: "ops@warehouse-robotics.test",
+              status: "researched",
+              proof_path: "exact_site",
+              source_urls: [],
+              explicit_fields: ["company_name", "contact_email"],
+              inferred_fields: [],
+            },
+          ],
+        },
+        null,
+        2,
+      ),
+      "```",
+    ].join("\n");
+
+    const result = validateCityLaunchPlaybookMarkdown({
+      city: "Austin, TX",
+      markdown,
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.errors.join("\n")).toContain(
+      'uses unknown delegation_task_key "not-a-real-task"',
     );
   });
 });

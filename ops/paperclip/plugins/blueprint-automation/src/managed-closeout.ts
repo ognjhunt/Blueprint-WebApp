@@ -7,7 +7,7 @@ type CommentLike = {
 const CLOSEOUT_MARKER = /^(##\s*(done|closeout)\b|closeout:|review complete\b)/i;
 const PROOF_SIGNAL = /(`[^`]+`|https?:\/\/|www\.|notion\.so|github\.com|\bnpm run\b|\bnpx\b|\bverified\b|\bvalidated\b|\/[A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+)+)/i;
 
-function toTimestamp(value: string | null | undefined) {
+function toTimestamp(value: string | Date | null | undefined) {
   if (value instanceof Date) {
     return value.getTime();
   }

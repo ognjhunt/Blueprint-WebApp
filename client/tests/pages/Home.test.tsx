@@ -44,18 +44,18 @@ describe("Home", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        /Evaluate exact deployment sites before the expensive part starts/i,
+        /Inspect real captured places, then send the site, workflow, and robot setup/i,
       ),
     ).toBeInTheDocument();
     expect(
-      screen.getAllByRole("link", { name: /Inspect sample site/i })[0],
-    ).toHaveAttribute("href", "/world-models/siteworld-f5fd54898cfb");
-    expect(
-      screen.getAllByRole("link", { name: /Request capture/i })[0],
+      screen.getAllByRole("link", { name: /Scope hosted review/i })[0],
     ).toHaveAttribute(
       "href",
-      "/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=request-capture&source=home-hero",
+      expect.stringContaining("/contact?persona=robot-team"),
     );
+    expect(
+      screen.getAllByRole("link", { name: /Inspect sample review/i })[0],
+    ).toHaveAttribute("href", "/sample-evaluation");
     expect(
       screen.getByText(/A site-specific digital environment built from real capture/i),
     ).toBeInTheDocument();
@@ -97,7 +97,7 @@ describe("Home", () => {
     expect(screen.getAllByText(/See what a robot team would inspect/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Cedar Market Aisle Loop/i)).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /Start with the site that matters\./i }),
+      screen.getByRole("heading", { name: /Start with the site, task, and robot question\./i }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: /View sample deliverables/i }),

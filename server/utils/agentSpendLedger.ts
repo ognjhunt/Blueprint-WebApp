@@ -1,13 +1,13 @@
-import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
-import { slugifyCityName } from "./cityLaunchProfiles";
+import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin.js";
+import { slugifyCityName } from "./cityLaunchProfiles.js";
 import {
   listCityLaunchBudgetEvents,
   readCityLaunchActivation,
   recordCityLaunchBudgetEvent,
   type CityLaunchBudgetEventRecord,
-} from "./cityLaunchLedgers";
-import type { CityLaunchBudgetPolicy, CityLaunchBudgetTier } from "./cityLaunchPolicy";
-import type { CityLaunchBudgetCategory } from "./cityLaunchResearchContracts";
+} from "./cityLaunchLedgers.js";
+import type { CityLaunchBudgetPolicy, CityLaunchBudgetTier } from "./cityLaunchPolicy.js";
+import type { CityLaunchBudgetCategory } from "./cityLaunchResearchContracts.js";
 import {
   evaluateAgentSpendPolicy,
   isAgentSpendStatus,
@@ -16,11 +16,11 @@ import {
   type AgentSpendPolicyDecision,
   type AgentSpendProvider,
   type AgentSpendStatus,
-} from "./agentSpendPolicy";
+} from "./agentSpendPolicy.js";
 import {
   requestAgentSpendProvider,
   type AgentSpendProviderRequestResult,
-} from "./agentSpendProviders";
+} from "./agentSpendProviders.js";
 
 export const AGENT_SPEND_REQUEST_COLLECTION = "agentSpendRequests";
 
@@ -180,7 +180,7 @@ async function listByCity<T>(collectionName: string, citySlug: string) {
     .where("citySlug", "==", citySlug)
     .limit(1000)
     .get();
-  return snapshot.docs.map((doc) => doc.data() as T);
+  return snapshot.docs.map((doc: { data(): unknown }) => doc.data() as T);
 }
 
 export async function listAgentSpendRequests(city: string) {

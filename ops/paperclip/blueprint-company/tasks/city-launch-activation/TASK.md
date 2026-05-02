@@ -18,6 +18,7 @@ Each run must:
 - require the city-opening distribution layer to be explicit through a city-opening brief, channel map, first-wave outreach/posting pack, city-facing CTA path, and response-tracking view before the city is treated as opened
 - require a reply-conversion / follow-up cadence lane once responses start arriving so live city-opening replies get queue ownership, next-step routing, and stale-response handling
 - require a city-opening execution layer with a channel/account registry, send ledger, first-send approval state, response-ingest state, and execution report showing what actually went live
+- require the activation payload `launch_surface_coverage` matrix to cover every city-launch surface with owner lane, human lane, artifact, evidence standard, completion gate, delegation task key, and blocker behavior before treating the plan as fully delegate-ready
 - treat policy packets, lawful access, telemetry, proof assets, and hosted reviews as completion gates rather than activation-time idle states
 - require the source policy to separate private controlled interiors from public, non-controlled commercial locations so bounded online community sourcing is enabled only for the latter
 - require supply prospecting to push the first policy-compliant invite, reply, or applicant signal into the live intake path instead of stopping at list drafting alone

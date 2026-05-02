@@ -17,8 +17,10 @@ import {
   getEditorialFeaturedSites,
   getEditorialSiteLocation,
 } from "@/lib/siteEditorialContent";
+import { analyticsEvents } from "@/lib/analytics";
+import { resolveExperimentVariant } from "@/lib/experiments";
 import { ArrowRight } from "lucide-react";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 const productPaths = [
   {
@@ -49,6 +51,86 @@ const captureExamples = [
   "Public customer areas and everyday service locations",
   "Lawfully accessible walkthroughs with privacy rules visible",
 ];
+
+const HOME_ROBOT_TEAM_EXPERIMENT_KEY = "home_robot_team_conversion_v1";
+const HOME_ROBOT_TEAM_CONVERSION_GOAL = "structured_robot_team_intake";
+const homeRobotTeamVariants = ["hosted_review", "proof_pack"] as const;
+
+type HomeRobotTeamVariant = (typeof homeRobotTeamVariants)[number];
+
+const homeVariantContent: Record<
+  HomeRobotTeamVariant,
+  {
+    title: string;
+    description: string;
+    primaryLabel: string;
+    primaryPath: "hosted-evaluation" | "request-capture";
+    secondaryLabel: string;
+    secondaryHref: string;
+    panelTitle: string;
+    panelBody: string;
+  }
+> = {
+  hosted_review: {
+    title: "Site-specific world models for real places.",
+    description:
+      "Inspect real captured places, then send the site, workflow, and robot setup your team needs to evaluate next.",
+    primaryLabel: "Scope hosted review",
+    primaryPath: "hosted-evaluation",
+    secondaryLabel: "Inspect sample review",
+    secondaryHref: "/sample-evaluation",
+    panelTitle: "Structured robot-team brief",
+    panelBody:
+      "The conversion goal is a site, task, robot, and proof-path record. A call comes second, when the request is specific enough to scope.",
+  },
+  proof_pack: {
+    title: "Site-specific world models for real places.",
+    description:
+      "Start with the deployment question, not a generic demo. Blueprint keeps capture provenance, package scope, hosted review, and rights boundaries attached to one site.",
+    primaryLabel: "Send site brief",
+    primaryPath: "request-capture",
+    secondaryLabel: "Inspect sample site",
+    secondaryHref: publicDemoHref,
+    panelTitle: "Exact-site proof path",
+    panelBody:
+      "A first-time robot team should leave the page knowing what to inspect, what to request, and how the request will be measured.",
+  },
+};
+
+const robotTeamDecisionSteps = [
+  {
+    title: "Name the site and task",
+    body: "One facility, site class, or route. One robot stack. One question your team needs answered before committing more time.",
+  },
+  {
+    title: "Inspect the proof shape",
+    body: "Review the sample listing, evidence packet, hosted-review report, restrictions, freshness, and export boundaries.",
+  },
+  {
+    title: "Move into hosted review",
+    body: "Blueprint routes the structured brief toward package access, hosted review, a capture ask, or a specific blocker.",
+  },
+];
+
+function buildRobotTeamContactHref(
+  variantId: HomeRobotTeamVariant,
+  source: string,
+  path: "hosted-evaluation" | "request-capture",
+) {
+  const params = new URLSearchParams({
+    persona: "robot-team",
+    buyerType: "robot_team",
+    interest: "evaluation-package",
+    path,
+    source,
+    utm_source: "homepage",
+    utm_medium: "website",
+    utm_campaign: HOME_ROBOT_TEAM_EXPERIMENT_KEY,
+    utm_content: `${variantId}:${source}`,
+  });
+
+  return `/contact?${params.toString()}`;
+}
 
 function HomeSiteCard({
   title,
@@ -95,6 +177,24 @@ export default function Home() {
     [],
   );
   const heroSite = featuredSites[0];
+  const [heroVariant, setHeroVariant] =
+    useState<HomeRobotTeamVariant>("hosted_review");
+  const heroContent = homeVariantContent[heroVariant];
+  const heroPrimaryHref = buildRobotTeamContactHref(
+    heroVariant,
+    "home-hero-primary",
+    heroContent.primaryPath,
+  );
+  const decisionPathHref = buildRobotTeamContactHref(
+    heroVariant,
+    "home-decision-path",
+    "hosted-evaluation",
+  );
+  const bottomCtaHref = buildRobotTeamContactHref(
+    heroVariant,
+    "home-bottom",
+    heroContent.primaryPath,
+  );
 
   const metrics = useMemo(
     () => [
@@ -118,6 +218,79 @@ export default function Home() {
     [],
   );
 
+  useEffect(() => {
+    let isMounted = true;
+
+    void resolveExperimentVariant(
+      HOME_ROBOT_TEAM_EXPERIMENT_KEY,
+      homeRobotTeamVariants,
+    ).then((resolvedVariant) => {
+      if (!isMounted) return;
+      const nextVariant = resolvedVariant as HomeRobotTeamVariant;
+      setHeroVariant(nextVariant);
+      analyticsEvents.experimentExposure(
+        HOME_ROBOT_TEAM_EXPERIMENT_KEY,
+        nextVariant,
+        "home",
+      );
+      analyticsEvents.homeHeroView({
+        variantId: nextVariant,
+        source: "home",
+        conversionGoal: HOME_ROBOT_TEAM_CONVERSION_GOAL,
+      });
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !("IntersectionObserver" in window)) {
+      return;
+    }
+
+    const seenSections = new Set<string>();
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          const section = entry.target.getAttribute("data-home-section");
+          if (!section || seenSections.has(section)) return;
+          seenSections.add(section);
+          analyticsEvents.homeSectionViewed({
+            variantId: heroVariant,
+            section,
+            conversionGoal: HOME_ROBOT_TEAM_CONVERSION_GOAL,
+          });
+        });
+      },
+      { threshold: 0.35 },
+    );
+
+    document.querySelectorAll<HTMLElement>("[data-home-section]").forEach((node) => {
+      observer.observe(node);
+    });
+
+    return () => observer.disconnect();
+  }, [heroVariant]);
+
+  const trackHomeCtaClick = (
+    ctaId: string,
+    ctaLabel: string,
+    destination: string,
+    source: string,
+  ) => {
+    analyticsEvents.homeConversionCtaClicked({
+      variantId: heroVariant,
+      ctaId,
+      ctaLabel,
+      destination,
+      source,
+      conversionGoal: HOME_ROBOT_TEAM_CONVERSION_GOAL,
+    });
+  };
+
   if (!heroSite) {
     return null;
   }
@@ -131,7 +304,7 @@ export default function Home() {
       />
 
       <div className="bg-[#f5f3ef] text-slate-950">
-        <section className="border-b border-black/10">
+        <section className="border-b border-black/10" data-home-section="hero">
           <MonochromeMedia
             src={editorialGeneratedAssets.homeHero}
             alt={heroSite.siteName}
@@ -147,26 +320,42 @@ export default function Home() {
               <div className="mx-auto grid h-full max-w-[88rem] gap-10 px-5 py-12 sm:px-8 lg:grid-cols-[0.62fr_0.38fr] lg:px-10 lg:py-16">
                 <div className="flex min-h-[34rem] flex-col justify-end">
                 <EditorialSectionLabel light>Blueprint</EditorialSectionLabel>
-	                <h1 className="font-editorial mt-6 max-w-[34rem] text-[3.7rem] leading-[0.9] tracking-[-0.06em] text-white sm:text-[5.2rem]">
-	                  Site-specific world models for real places.
+	                <h1 className="font-editorial mt-6 max-w-[38rem] text-[3.45rem] leading-[0.9] tracking-[-0.06em] text-white sm:text-[4.9rem]">
+	                  {heroContent.title}
 	                </h1>
-	                <p className="mt-6 max-w-[28rem] text-base leading-8 text-white opacity-90 sm:text-[1.03rem]">
-	                  Evaluate exact deployment sites before the expensive part starts. Inspect the captured place, then choose package access or hosted review.
+	                <p className="mt-6 max-w-[32rem] text-base leading-8 text-white opacity-90 sm:text-[1.03rem]">
+	                  {heroContent.description}
 	                </p>
 
 	                <div className="mt-8 flex flex-wrap gap-3">
 	                  <a
-	                    href={publicDemoHref}
+	                    href={heroPrimaryHref}
+                      onClick={() =>
+                        trackHomeCtaClick(
+                          "home_hero_primary",
+                          heroContent.primaryLabel,
+                          heroPrimaryHref,
+                          "home-hero-primary",
+                        )
+                      }
 	                    className="inline-flex items-center justify-center bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
 	                  >
-	                    Inspect sample site
+	                    {heroContent.primaryLabel}
 	                    <ArrowRight className="ml-2 h-4 w-4" />
 	                  </a>
 	                  <a
-	                    href="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=request-capture&source=home-hero"
+	                    href={heroContent.secondaryHref}
+                      onClick={() =>
+                        trackHomeCtaClick(
+                          "home_hero_secondary",
+                          heroContent.secondaryLabel,
+                          heroContent.secondaryHref,
+                          "home-hero-secondary",
+                        )
+                      }
 	                    className="inline-flex items-center justify-center border border-white/15 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
 	                  >
-	                    Request capture
+	                    {heroContent.secondaryLabel}
 	                  </a>
                 </div>
               </div>
@@ -174,14 +363,14 @@ export default function Home() {
                 <div className="hidden items-end justify-end lg:flex">
                   <div className="w-full max-w-[18rem] border border-white/15 bg-black/35 p-5 text-white shadow-[0_24px_60px_-40px_rgba(0,0,0,0.58)] backdrop-blur-sm">
                   <p className="text-[11px] uppercase tracking-[0.2em] text-white/45">
-                    Catalog on site
+                    Robot-team next step
                   </p>
-                  <h2 className="mt-4 text-lg font-semibold">{heroSite.siteName}</h2>
+                  <h2 className="mt-4 text-lg font-semibold">{heroContent.panelTitle}</h2>
                   <p className="mt-2 text-sm text-white/60">
-                    {getEditorialSiteLocation(heroSite)}
+                    {heroContent.panelBody}
                   </p>
                   <div className="mt-5 border-t border-white/10 pt-4 text-sm text-white/70">
-                    One exact site. Two buying paths. Proof stays attached.
+                    One exact site. One workflow lane. Proof stays attached.
                   </div>
                   </div>
                 </div>
@@ -190,11 +379,56 @@ export default function Home() {
           </MonochromeMedia>
         </section>
 
-        <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10">
+        <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10" data-home-section="metrics">
           <EditorialMetricStrip items={metrics} />
         </section>
 
-        <section className="border-y border-black/10 bg-white">
+        <section className="border-y border-black/10 bg-white" data-home-section="robot-team-path">
+          <div className="mx-auto grid max-w-[88rem] gap-px px-5 py-10 sm:px-8 lg:grid-cols-[0.35fr_0.65fr] lg:px-10">
+            <div className="bg-[#f5f3ef] px-6 py-8 lg:px-8 lg:py-10">
+              <EditorialSectionIntro
+                eyebrow="For robot teams"
+                title="The first conversion is a usable site brief."
+                description="A first-time visitor should not have to guess whether to buy, book, or wait. Blueprint asks for the minimum structured context needed to route the next step truthfully."
+              />
+              <a
+                href={decisionPathHref}
+                onClick={() =>
+                  trackHomeCtaClick(
+                    "home_decision_path",
+                    "Send robot-team brief",
+                    decisionPathHref,
+                    "home-decision-path",
+                  )
+                }
+                className="mt-7 inline-flex items-center justify-center bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+              >
+                Send robot-team brief
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </a>
+            </div>
+            <div className="grid gap-px bg-black/10 md:grid-cols-3">
+              {robotTeamDecisionSteps.map((step, index) => (
+                <div
+                  key={step.title}
+                  className={index === 1 ? "bg-slate-950 p-6 text-white" : "bg-white p-6 text-slate-950"}
+                >
+                  <p className={`text-[11px] uppercase tracking-[0.18em] ${index === 1 ? "text-white/45" : "text-slate-400"}`}>
+                    0{index + 1}
+                  </p>
+                  <h2 className="font-editorial mt-4 text-[2rem] leading-[0.95] tracking-[-0.04em]">
+                    {step.title}
+                  </h2>
+                  <p className={`mt-4 text-sm leading-7 ${index === 1 ? "text-white/70" : "text-slate-600"}`}>
+                    {step.body}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="border-y border-black/10 bg-white" data-home-section="sample-evaluation">
           <div className="mx-auto grid max-w-[88rem] gap-px px-5 py-10 sm:px-8 lg:grid-cols-[0.38fr_0.62fr] lg:px-10">
             <div className="bg-[#f5f3ef] px-6 py-8 lg:px-8 lg:py-10">
 	              <EditorialSectionIntro
@@ -205,6 +439,14 @@ export default function Home() {
 	              <div className="mt-7 flex flex-wrap gap-3">
 	                <a
 	                  href="/sample-evaluation"
+                    onClick={() =>
+                      trackHomeCtaClick(
+                        "home_sample_evaluation_primary",
+                        "Open sample evaluation",
+                        "/sample-evaluation",
+                        "home-sample-evaluation",
+                      )
+                    }
 	                  className="inline-flex items-center justify-center bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
 	                >
 	                  Open sample evaluation
@@ -212,6 +454,14 @@ export default function Home() {
 	                </a>
 	                <a
 	                  href={publicDemoHref}
+                    onClick={() =>
+                      trackHomeCtaClick(
+                        "home_sample_site_secondary",
+                        "Inspect sample site",
+                        publicDemoHref,
+                        "home-sample-evaluation",
+                      )
+                    }
 	                  className="inline-flex items-center justify-center border border-black/10 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
 	                >
 	                  Inspect sample site
@@ -229,7 +479,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="mx-auto max-w-[88rem] px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
+        <section className="mx-auto max-w-[88rem] px-5 py-8 sm:px-8 lg:px-10 lg:py-10" data-home-section="catalog">
           <EditorialSectionIntro
                 eyebrow="Real places"
                 title="Everyday places can become robot-team evidence."
@@ -256,7 +506,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="border-y border-black/10 bg-white">
+        <section className="border-y border-black/10 bg-white" data-home-section="product-paths">
           <div className="mx-auto grid max-w-[88rem] gap-px px-5 py-10 sm:px-8 lg:grid-cols-[0.44fr_0.56fr] lg:px-10">
             <div className="bg-[#f5f3ef] px-6 py-8 lg:px-8 lg:py-10">
               <EditorialSectionIntro
@@ -282,6 +532,14 @@ export default function Home() {
                   </p>
                   <a
                     href={path.href}
+                    onClick={() =>
+                      trackHomeCtaClick(
+                        `home_product_${path.title.toLowerCase().replace(/\s+/g, "_")}`,
+                        path.label,
+                        path.href,
+                        "home-product-paths",
+                      )
+                    }
                     className={`mt-6 inline-flex items-center text-sm font-semibold ${path.dark ? "text-white" : "text-slate-950"}`}
                   >
                     {path.label}
@@ -293,7 +551,7 @@ export default function Home() {
           </div>
         </section>
 
-	        <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
+	        <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12" data-home-section="proof">
 	          <div className="grid overflow-hidden rounded-[2rem] border border-black/10 bg-white lg:grid-cols-[0.46fr_0.54fr]">
             <MonochromeMedia
               src={publicCaptureGeneratedAssets.cedarMarketProofBoard}
@@ -332,12 +590,28 @@ export default function Home() {
               <div className="mt-8 flex flex-wrap gap-3">
                 <a
                   href="/sample-deliverables"
+                  onClick={() =>
+                    trackHomeCtaClick(
+                      "home_sample_deliverables",
+                      "View sample deliverables",
+                      "/sample-deliverables",
+                      "home-proof",
+                    )
+                  }
                   className="inline-flex items-center justify-center bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                 >
                   View sample deliverables
                 </a>
                 <a
                   href="/exact-site-hosted-review"
+                  onClick={() =>
+                    trackHomeCtaClick(
+                      "home_hosted_review",
+                      "See hosted review",
+                      "/exact-site-hosted-review",
+                      "home-proof",
+                    )
+                  }
                   className="inline-flex items-center justify-center border border-black/10 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
                 >
                   See hosted review
@@ -347,7 +621,7 @@ export default function Home() {
           </div>
 	        </section>
 
-        <section className="border-y border-black/10 bg-white">
+        <section className="border-y border-black/10 bg-white" data-home-section="capture-examples">
           <div className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10">
             <EditorialSectionIntro
               eyebrow="Capture examples"
@@ -382,7 +656,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="border-y border-black/10 bg-white">
+        <section className="border-y border-black/10 bg-white" data-home-section="capture-supply">
           <div className="mx-auto grid max-w-[88rem] gap-px px-5 py-10 sm:px-8 lg:grid-cols-[0.38fr_0.62fr] lg:px-10">
             <div className="bg-[#f5f3ef] px-6 py-8 lg:px-8 lg:py-10">
               <EditorialSectionIntro
@@ -401,17 +675,33 @@ export default function Home() {
           </div>
         </section>
 
-	        <section className="mx-auto max-w-[88rem] px-5 pb-12 sm:px-8 lg:px-10 lg:pb-14">
+	        <section className="mx-auto max-w-[88rem] px-5 pb-12 sm:px-8 lg:px-10 lg:pb-14" data-home-section="bottom-cta">
           <EditorialCtaBand
             eyebrow="Start"
-            title="Start with the site that matters."
-            description="Browse a real listing, open the hosted path, or send a short brief tied to one exact site."
+            title="Start with the site, task, and robot question."
+            description="Blueprint can only route the next step well when the brief names what the team needs to evaluate."
             imageSrc={editorialGeneratedAssets.homeHero}
             imageAlt="Blueprint hosted runtime still"
-            primaryHref={publicDemoHref}
-            primaryLabel="Inspect sample site"
-            secondaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=request-capture&source=home-bottom"
-            secondaryLabel="Request capture"
+            primaryHref={bottomCtaHref}
+            primaryLabel={heroContent.primaryLabel}
+            primaryOnClick={() =>
+              trackHomeCtaClick(
+                "home_bottom_primary",
+                heroContent.primaryLabel,
+                bottomCtaHref,
+                "home-bottom",
+              )
+            }
+            secondaryHref={heroContent.secondaryHref}
+            secondaryLabel={heroContent.secondaryLabel}
+            secondaryOnClick={() =>
+              trackHomeCtaClick(
+                "home_bottom_secondary",
+                heroContent.secondaryLabel,
+                heroContent.secondaryHref,
+                "home-bottom",
+              )
+            }
           />
         </section>
       </div>

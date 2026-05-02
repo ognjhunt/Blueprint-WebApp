@@ -1226,7 +1226,7 @@ export async function syncBlueprintAgentRegistry(input: {
 
     const existingPage = matchExistingAgentPage(existingAgentPages, key, entry.title);
     const upserted = existingPage
-      ? await updatePageMetadata(input.notionClient, existingPage.id, "agents", entry)
+      ? await updatePageMetadata(input.notionClient, existingPage.id, "agents", entry as unknown as Record<string, unknown>)
       : await createAgentRegistryEntry(input.notionClient, entry);
     syncedRows.set(key, {
       bodyBlocks: [],

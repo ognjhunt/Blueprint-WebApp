@@ -87,6 +87,12 @@ Turn the Durham planning artifacts into an executable company harness that runs 
 - primary_buyer_proof_path: exact_site
 - lawful_access_modes: buyer_requested_site
 
+## Launch Surface Coverage
+
+| Surface | Owner | Artifact | Gate |
+|---|---|---|---|
+| validation_required | city-launch-agent | activation payload missing launch_surface_coverage | refresh the city deep-research playbook with the current harness |
+
 ## Metrics Blockers
 
 - robot_team_inbound_captured: required_tracked

@@ -8,6 +8,7 @@ skills:
   - find-skills
   - product-marketing-context
   - analytics-tracking
+  - writing-plans
   - capturer-growth-operations
   - higgsfield-creative-video
 ---

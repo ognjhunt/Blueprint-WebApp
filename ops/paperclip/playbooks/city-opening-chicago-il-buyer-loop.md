@@ -1,6 +1,6 @@
 # Exact-Site Hosted Review Buyer Loop
 
-- report_date: 2026-05-01
+- report_date: 2026-05-02
 - city: Chicago, IL
 - ledger: ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json
 - loop_status: blocked
@@ -25,7 +25,7 @@
 | Capture asks | 10 |
 | Explicit next-action rows | 12 |
 | 100-touch decision gap | 100 |
-| Days remaining | 9 |
+| Days remaining | 8 |
 
 ## One Sales Ledger
 

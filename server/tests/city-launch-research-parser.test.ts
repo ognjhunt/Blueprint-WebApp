@@ -193,6 +193,19 @@ describe("city launch research parser", () => {
               source_urls: ["https://example.com/buyer"],
             },
           ],
+          launch_surface_coverage: [
+            {
+              surface_key: "city_thesis_and_wedge",
+              owner_lane: "city-launch-agent",
+              human_lane: "growth-lead",
+              artifact: "ops/paperclip/playbooks/city-launch-austin-tx-deep-research.md",
+              evidence_standard: "City thesis, wedge, and proof path are explicitly named.",
+              completion_gate: "Activation payload and final playbook agree on the selected wedge.",
+              delegation_task_key: "city-opening-distribution",
+              validation_required: true,
+              source_urls: [],
+            },
+          ],
         },
         null,
         2,
@@ -222,6 +235,11 @@ describe("city launch research parser", () => {
     expect(result.budgetRecommendations[0]?.amountUsd).toBe(250);
     expect(result.activationPayload?.cityThesis).toBe("Run one proof-led warehouse wedge.");
     expect(result.activationPayload?.issueSeeds[0]?.ownerLane).toBe("city-launch-agent");
+    expect(result.activationPayload?.launchSurfaceCoverage[0]).toMatchObject({
+      surfaceKey: "city_thesis_and_wedge",
+      ownerLane: "city-launch-agent",
+      delegationTaskKey: "city-opening-distribution",
+    });
     expect(result.warnings).toEqual([]);
     expect(result.errors).toEqual([]);
   });

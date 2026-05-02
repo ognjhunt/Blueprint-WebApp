@@ -330,8 +330,61 @@ export const analyticsEvents = {
       handoff_required: handoffRequired,
     }),
 
-  homeHeroView: (variantId: string, source: string) =>
-    trackEvent("home_hero_view", { variant_id: variantId, source }),
+  homeHeroView: (properties: {
+    variantId: string;
+    source: string;
+    conversionGoal: string;
+  }) =>
+    trackEvent("home_hero_view", {
+      variant_id: properties.variantId,
+      source: properties.source,
+      conversion_goal: properties.conversionGoal,
+    }),
+
+  homeSectionViewed: (properties: {
+    variantId: string;
+    section: string;
+    conversionGoal: string;
+  }) =>
+    trackEvent("home_section_viewed", {
+      variant_id: properties.variantId,
+      section: properties.section,
+      conversion_goal: properties.conversionGoal,
+    }),
+
+  homeConversionCtaClicked: (properties: {
+    variantId: string;
+    ctaId: string;
+    ctaLabel: string;
+    destination: string;
+    source: string;
+    conversionGoal: string;
+  }) =>
+    trackEvent("home_conversion_cta_clicked", {
+      variant_id: properties.variantId,
+      cta_id: properties.ctaId,
+      cta_label: properties.ctaLabel,
+      destination: properties.destination,
+      source: properties.source,
+      conversion_goal: properties.conversionGoal,
+    }),
+
+  contactPageCtaClicked: (properties: {
+    persona: string;
+    ctaId: string;
+    ctaLabel: string;
+    destination: string;
+    source: string;
+    requestedLane: string;
+  }) =>
+    trackEvent("contact_page_cta_clicked", {
+      persona: properties.persona,
+      cta_id: properties.ctaId,
+      cta_label: properties.ctaLabel,
+      destination: properties.destination,
+      source: properties.source,
+      requested_lane: properties.requestedLane,
+    }),
 
   contactFormSubmit: (formType: string) =>
     trackEvent("contact_form_submit", { form_type: formType }),

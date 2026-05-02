@@ -5,6 +5,9 @@ reportsTo: ops-lead
 skills:
   - platform-doctrine
   - autonomy-safety
+  - find-skills
+  - analytics-tracking
+  - product-marketing-context
   - capture-repo-operations
 ---
 

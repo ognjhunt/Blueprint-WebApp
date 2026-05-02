@@ -895,7 +895,7 @@ async function queryDatabaseByTitle(client: Client, database: NotionDatabaseKey,
   const allResults: any[] = [];
   let startCursor: string | undefined = undefined;
   do {
-    const response = await notion.dataSources.query({
+    const response: any = await notion.dataSources.query({
       data_source_id: DATABASE_CONFIG[database].dataSourceId,
       filter: {
         property: DATABASE_CONFIG[database].titleProperty,

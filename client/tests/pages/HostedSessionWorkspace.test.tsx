@@ -711,7 +711,14 @@ describe("HostedSessionWorkspace", () => {
 
     render(<HostedSessionWorkspace params={{ slug: "siteworld-f5fd54898cfb" }} />);
 
-    const operatorLink = await screen.findByRole("link", { name: /Open private operator view/i });
+    const exploreButton = await screen.findByRole("button", { name: /Explore Site-World/i });
+    fireEvent.click(exploreButton);
+
+    const operatorLink = await screen.findByRole(
+      "link",
+      { name: /Open private operator view/i },
+      { timeout: 10000 },
+    );
     expect(operatorLink.getAttribute("href") || "").toMatch(
       /\/api\/site-worlds\/sessions\/session-operator\/ui\/bootstrap|https:\/\/neoverse\.example\/operator/,
     );

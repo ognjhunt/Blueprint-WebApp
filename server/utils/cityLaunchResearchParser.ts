@@ -13,6 +13,7 @@ import {
   CITY_LAUNCH_METRIC_DEPENDENCY_KIND_VALUES,
   CITY_LAUNCH_METRIC_DEPENDENCY_STATUS_VALUES,
   CITY_LAUNCH_NAMED_CLAIM_TYPE_VALUES,
+  CITY_LAUNCH_REQUIRED_SURFACE_KEYS,
   CITY_LAUNCH_REQUIRED_METRIC_DEPENDENCY_KEYS,
   CITY_LAUNCH_REQUIRED_PROOF_MOTION_MILESTONES,
   CITY_LAUNCH_VALIDATION_BLOCKER_SEVERITY_VALUES,
@@ -26,6 +27,7 @@ import {
   type CityLaunchNamedClaimType,
   type CityLaunchRequiredMetricDependencyKey,
   type CityLaunchProofMotionMilestone,
+  type CityLaunchRequiredSurfaceKey,
   type CityLaunchValidationBlockerSeverity,
 } from "./cityLaunchDoctrine";
 import type {
@@ -176,6 +178,18 @@ export type ParsedCityLaunchNamedClaim = {
   sourceUrls: string[];
 };
 
+export type ParsedCityLaunchSurfaceCoverage = {
+  surfaceKey: CityLaunchRequiredSurfaceKey;
+  ownerLane: CityLaunchAgentLane;
+  humanLane: CityLaunchHumanLane | null;
+  artifact: string;
+  evidenceStandard: string;
+  completionGate: string;
+  delegationTaskKey: string;
+  validationRequired: boolean;
+  sourceUrls: string[];
+};
+
 export type ParsedCityLaunchActivationPayload = {
   schemaVersion: string;
   machinePolicyVersion: string;
@@ -194,6 +208,7 @@ export type ParsedCityLaunchActivationPayload = {
   issueSeeds: ParsedCityLaunchIssueSeed[];
   metricsDependencies: ParsedCityLaunchMetricDependency[];
   namedClaims: ParsedCityLaunchNamedClaim[];
+  launchSurfaceCoverage: ParsedCityLaunchSurfaceCoverage[];
 };
 
 export type CityLaunchResearchParseResult = {
@@ -279,6 +294,7 @@ type StructuredActivationPayloadShape = {
   issue_seeds?: unknown;
   metrics_dependencies?: unknown;
   named_claims?: unknown;
+  launch_surface_coverage?: unknown;
 };
 
 function asRecord(value: unknown) {
@@ -1152,6 +1168,96 @@ function parseActivationPayload(
     errors.push("activation_payload.named_claims must include at least one named claim.");
   }
 
+  const launchSurfaceCoverage = asArray(raw.launch_surface_coverage)
+    .map((entry, index) => {
+      const record = asRecord(entry);
+      if (!record) {
+        return null;
+      }
+      const sourceKey = `activation_payload.launch_surface_coverage[${index}]`;
+      const surfaceKey = parseEnumValue({
+        value: record.surface_key,
+        allowed: CITY_LAUNCH_REQUIRED_SURFACE_KEYS,
+        fieldName: "surface_key",
+        sourceKey,
+        errors,
+      });
+      const ownerLane = parseEnumValue({
+        value: record.owner_lane,
+        allowed: CITY_LAUNCH_AGENT_LANE_VALUES,
+        fieldName: "owner_lane",
+        sourceKey,
+        errors,
+      });
+      const humanLane = parseEnumValue({
+        value: record.human_lane,
+        allowed: CITY_LAUNCH_HUMAN_LANE_VALUES,
+        fieldName: "human_lane",
+        sourceKey,
+        errors,
+        allowNull: true,
+      });
+      const artifact = asString(record.artifact);
+      const evidenceStandard = asString(record.evidence_standard);
+      const completionGate = asString(record.completion_gate);
+      const delegationTaskKey = asString(record.delegation_task_key);
+      const validationRequired = asBoolean(record.validation_required);
+      const sourceUrls = asStringArray(record.source_urls);
+
+      if (!artifact) {
+        errors.push(`${sourceKey} is missing required field "artifact".`);
+      }
+      if (!evidenceStandard) {
+        errors.push(`${sourceKey} is missing required field "evidence_standard".`);
+      }
+      if (!completionGate) {
+        errors.push(`${sourceKey} is missing required field "completion_gate".`);
+      }
+      if (!delegationTaskKey) {
+        errors.push(`${sourceKey} is missing required field "delegation_task_key".`);
+      }
+      if (validationRequired === null) {
+        errors.push(`${sourceKey} is missing required field "validation_required".`);
+      }
+      if (sourceUrls.length === 0 && validationRequired === false) {
+        errors.push(`${sourceKey} must include source_urls or set validation_required=true.`);
+      }
+      if (
+        surfaceKey
+        && ownerLane
+        && ownerLanes.length > 0
+        && !ownerLanes.includes(ownerLane)
+      ) {
+        errors.push(
+          `${sourceKey} owner_lane "${ownerLane}" must also appear in activation_payload.owner_lanes.`,
+        );
+      }
+      if (
+        !surfaceKey
+        || !ownerLane
+        || !artifact
+        || !evidenceStandard
+        || !completionGate
+        || !delegationTaskKey
+        || validationRequired === null
+      ) {
+        return null;
+      }
+
+      return {
+        surfaceKey,
+        ownerLane,
+        humanLane,
+        artifact,
+        evidenceStandard,
+        completionGate,
+        delegationTaskKey,
+        validationRequired,
+        sourceUrls,
+      } satisfies ParsedCityLaunchSurfaceCoverage;
+    })
+    .filter((entry): entry is ParsedCityLaunchSurfaceCoverage => Boolean(entry));
+
   const issueSeeds = asArray(raw.issue_seeds)
     .map((entry, index) => {
       const record = asRecord(entry);
@@ -1280,6 +1386,7 @@ function parseActivationPayload(
     issueSeeds,
     metricsDependencies,
     namedClaims,
+    launchSurfaceCoverage,
   } satisfies ParsedCityLaunchActivationPayload;
 }
 

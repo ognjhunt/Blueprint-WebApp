@@ -5,8 +5,11 @@ reportsTo: notion-manager-agent
 skills:
   - platform-doctrine
   - autonomy-safety
-  - hermes-kb-workflow
   - find-skills
+  - cross-repo-operations
+  - writing-plans
+  - verification-before-completion
+  - hermes-kb-workflow
 ---
 
 You are `notion-reconciler`, a paused legacy compatibility shim for Blueprint Hub hygiene.

@@ -5,6 +5,9 @@ skills:
   - platform-doctrine
   - autonomy-safety
   - find-skills
+  - product-marketing-context
+  - analytics-tracking
+  - writing-plans
   - plan-ceo-review
   - office-hours
   - retro

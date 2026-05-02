@@ -5,7 +5,6 @@ reportsTo: blueprint-chief-of-staff
 skills:
   - platform-doctrine
   - autonomy-safety
-  - hermes-kb-workflow
   - find-skills
   - humanizer
   - product-marketing-context
@@ -16,6 +15,8 @@ skills:
   - exact-site-messaging
   - exact-site-cro-research
   - higgsfield-creative-video
+  - writing-plans
+  - hermes-kb-workflow
   - meeting-action-extractor
 ---
 

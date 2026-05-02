@@ -6,8 +6,10 @@ skills:
   - platform-doctrine
   - autonomy-safety
   - find-skills
+  - humanizer
   - product-marketing-context
   - analytics-tracking
+  - page-cro
   - robot-team-growth-operations
   - exact-site-positioning
   - exact-site-messaging

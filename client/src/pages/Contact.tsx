@@ -4,10 +4,11 @@ import {
   EditorialSectionLabel,
   MonochromeMedia,
 } from "@/components/site/editorial";
+import { analyticsEvents } from "@/lib/analytics";
 import { normalizeInterestToLane } from "@/lib/contactInterest";
 import { getDemandCityMessaging } from "@/lib/cityDemandMessaging";
 import { editorialGeneratedAssets } from "@/lib/editorialGeneratedAssets";
-import { Mail, MessageSquare, Sparkles } from "lucide-react";
+import { ArrowRight, CheckCircle2, Mail, MessageSquare, Sparkles } from "lucide-react";
 import { useMemo } from "react";
 import { useLocation, useSearch } from "wouter";
 
@@ -32,8 +33,9 @@ export default function Contact() {
   const scenario = cleanParam(searchParams.get("scenario"));
   const requestedOutputs = cleanParam(searchParams.get("requestedOutputs"));
   const cityMessaging = getDemandCityMessaging(searchParams.get("city"));
+  const normalizedInterestLane = normalizeInterestToLane(interest);
   const hostedMode =
-    normalizeInterestToLane(interest) === "deeper_evaluation" && buyerType === "robot_team";
+    normalizedInterestLane === "deeper_evaluation" && buyerType === "robot_team";
   const captureRequestMode = sourcePath === "request-capture" && buyerType === "robot_team";
   const persona =
     hostedMode || personaParam === "robot-team" || buyerType === "robot_team"
@@ -44,6 +46,8 @@ export default function Contact() {
         ? "site_operator"
         : "robot_team";
   const robotTeamCityMessaging = persona === "robot_team" ? cityMessaging : null;
+  const requestedLane =
+    normalizedInterestLane || (persona === "site_operator" ? "qualification" : "deeper_evaluation");
 
   const seoTitle = captureRequestMode
     ? "Request Capture | Blueprint"
@@ -159,11 +163,6 @@ export default function Contact() {
         ]
       : [
           {
-            href: "/book-exact-site-review",
-            label: "Book a scoping call",
-            detail: "Best when the site is already known and your team wants a fast human pass.",
-          },
-          {
             href: "/exact-site-hosted-review",
             label: "See hosted evaluation",
             detail: "Best when your team wants the runtime path explained before it writes a brief.",
@@ -173,7 +172,44 @@ export default function Contact() {
             label: "Inspect the sample listing",
             detail: "Best when your team wants to validate the proof style before any outreach.",
           },
+          {
+            href: "/book-exact-site-review",
+            label: "Book a scoping call",
+            detail: "Best when the site is already known and the structured brief is specific enough for a fast human pass.",
+          },
         ];
+  const primaryActionLabel =
+    captureRequestMode
+      ? "Start capture request"
+      : hostedMode
+        ? "Start hosted evaluation brief"
+        : persona === "site_operator"
+          ? "Start site claim"
+          : "Start robot-team brief";
+  const proofPoints =
+    persona === "site_operator"
+      ? ["Facility first", "Access rules visible", "Call only when needed"]
+      : ["Site, task, robot first", "Calendar second", "Proof boundaries visible"];
+  const formSummary =
+    persona === "site_operator"
+      ? "Required: contact details, facility, location, and access rules."
+      : "Required: contact details, role, first question, and a site or site class.";
+
+  const trackContactCta = (
+    ctaId: string,
+    ctaLabel: string,
+    destination: string,
+    sourceName: string,
+  ) => {
+    analyticsEvents.contactPageCtaClicked({
+      persona,
+      ctaId,
+      ctaLabel,
+      destination,
+      source: sourceName,
+      requestedLane,
+    });
+  };
 
   return (
     <>
@@ -204,15 +240,74 @@ export default function Contact() {
                   {heroTitle}
                 </h1>
                 <p className="mt-6 text-base leading-8 text-slate-700">{heroBody}</p>
+                <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                  <a
+                    href="#contact-intake"
+                    onClick={() =>
+                      trackContactCta(
+                        "contact_hero_start",
+                        primaryActionLabel,
+                        "#contact-intake",
+                        "contact-hero",
+                      )
+                    }
+                    className="inline-flex items-center justify-center bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                  >
+                    {primaryActionLabel}
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </a>
+                  <a
+                    href={persona === "site_operator" ? "/governance" : "/world-models"}
+                    onClick={() =>
+                      trackContactCta(
+                        "contact_hero_proof",
+                        persona === "site_operator" ? "Review governance" : "Inspect sample listing",
+                        persona === "site_operator" ? "/governance" : "/world-models",
+                        "contact-hero",
+                      )
+                    }
+                    className="inline-flex items-center justify-center border border-black/10 bg-white/70 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-white"
+                  >
+                    {persona === "site_operator" ? "Review governance" : "Inspect sample listing"}
+                  </a>
+                </div>
+                <div className="mt-6 grid max-w-[31rem] gap-2 sm:grid-cols-3">
+                  {proofPoints.map((point) => (
+                    <div key={point} className="flex items-center gap-2 bg-white/75 px-3 py-2 text-xs font-semibold text-slate-700">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-slate-950" />
+                      {point}
+                    </div>
+                  ))}
+                </div>
                 </div>
               </div>
             </div>
           </MonochromeMedia>
         </section>
 
-        <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
+        <section id="contact-intake" className="mx-auto max-w-[88rem] scroll-mt-8 px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
           <div className="grid gap-8 lg:grid-cols-[0.56fr_0.44fr]">
             <div className="border border-black/10 bg-white p-6 shadow-[0_20px_60px_-44px_rgba(15,23,42,0.22)]">
+              <div className="mb-6 border-b border-black/10 pb-5">
+                <EditorialSectionLabel>Structured intake</EditorialSectionLabel>
+                <div className="mt-3 grid gap-4 lg:grid-cols-[1fr_auto] lg:items-end">
+                  <div>
+                    <h2 className="font-editorial text-[2.45rem] leading-[0.95] tracking-[-0.05em] text-slate-950">
+                      Start with the brief Blueprint can route.
+                    </h2>
+                    <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600">
+                      {formSummary} The request becomes a package path, hosted-review path,
+                      capture ask, or a specific blocker.
+                    </p>
+                  </div>
+                  <div className="border border-black/10 bg-[#f8f6f1] px-4 py-3 text-sm text-slate-700">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                      Cadence
+                    </p>
+                    <p className="mt-2 font-medium text-slate-950">Brief first. Calendar second.</p>
+                  </div>
+                </div>
+              </div>
               {hasSourceContext ? (
                 <div className="mb-6 border border-black/10 bg-[#f8f6f1] p-5">
                   <EditorialSectionLabel>Request context</EditorialSectionLabel>
@@ -266,7 +361,19 @@ export default function Contact() {
                 <EditorialSectionLabel>Fastest Paths</EditorialSectionLabel>
                 <div className="mt-4 space-y-3">
                   {fastPaths.map((path) => (
-                    <a key={path.href} href={path.href} className="block border border-black/10 bg-[#f5f3ef] px-4 py-4 transition hover:bg-white">
+                    <a
+                      key={path.href}
+                      href={path.href}
+                      onClick={() =>
+                        trackContactCta(
+                          `contact_fast_path_${path.label.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "")}`,
+                          path.label,
+                          path.href,
+                          "contact-fast-paths",
+                        )
+                      }
+                      className="block border border-black/10 bg-[#f5f3ef] px-4 py-4 transition hover:bg-white"
+                    >
                       <p className="font-medium text-slate-950">{path.label}</p>
                       <p className="mt-2 text-sm leading-6 text-slate-600">{path.detail}</p>
                     </a>
@@ -274,6 +381,14 @@ export default function Contact() {
                 </div>
                 <a
                   href="mailto:hello@tryblueprint.io?subject=Blueprint%20brief"
+                  onClick={() =>
+                    trackContactCta(
+                      "contact_email_brief",
+                      "Email a short brief to hello@tryblueprint.io",
+                      "mailto:hello@tryblueprint.io?subject=Blueprint%20brief",
+                      "contact-fast-paths",
+                    )
+                  }
                   className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-slate-900 transition hover:text-slate-700 hover:underline"
                 >
                   <Mail className="h-4 w-4" />

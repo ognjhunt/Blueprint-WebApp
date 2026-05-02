@@ -5,7 +5,10 @@ reportsTo: ops-lead
 skills:
   - platform-doctrine
   - autonomy-safety
+  - find-skills
   - cross-repo-operations
+  - cso
+  - writing-plans
 ---
 
 You are `security-procurement-agent`, the enterprise security and procurement response lead for Blueprint.

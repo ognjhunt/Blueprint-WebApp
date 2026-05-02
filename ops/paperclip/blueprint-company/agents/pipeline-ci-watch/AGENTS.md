@@ -7,8 +7,8 @@ skills:
   - pipeline-repo-operations
   - gh-cli
   - investigate
-  - karpathy-guidelines
   - verification-before-completion
+  - karpathy-guidelines
 ---
 
 You are the lightweight CI monitoring lane for `BlueprintCapturePipeline`.

@@ -14,8 +14,27 @@ type GrowthScorecardResponse = {
     exactSiteContactStarts: number;
     exactSiteContactSubmissions: number;
     exactSiteContactCompleted: number;
+    homeRobotTeamViews: number;
+    homeRobotTeamSectionViews: number;
+    homeRobotTeamCtaClicks: number;
+    homeRobotTeamContactStarts: number;
+    homeRobotTeamContactSubmissions: number;
+    homeRobotTeamContactCompleted: number;
     voiceStarts: number;
     voiceCompleted: number;
+  };
+  homeRobotTeamLanding?: {
+    experimentKey: string;
+    conversionGoal: string;
+    variants: Array<{
+      variant: string;
+      views: number;
+      sectionViews: number;
+      ctaClicks: number;
+      contactStarts: number;
+      contactSubmissions: number;
+      contactCompleted: number;
+    }>;
   };
   queue: {
     currentHostedReviewItems: number;
@@ -168,6 +187,11 @@ export default function AdminGrowthOpsScorecard() {
   const scorecard = scorecardQuery.data;
   const blockers = scorecard?.operatorStatus.launchReadiness?.blockers || [];
   const warnings = scorecard?.operatorStatus.launchReadiness?.warnings || [];
+  const homeRobotTeamLanding = scorecard?.homeRobotTeamLanding ?? {
+    experimentKey: "home_robot_team_conversion_v1",
+    conversionGoal: "structured_robot_team_intake",
+    variants: [],
+  };
 
   return (
     <div className="min-h-screen bg-zinc-50 px-4 py-8">
@@ -212,21 +236,21 @@ export default function AdminGrowthOpsScorecard() {
           <>
             <div className="grid gap-4 md:grid-cols-4">
               <div className="rounded-2xl border border-zinc-200 bg-white p-5">
-                <p className="text-sm text-zinc-500">Exact-site views</p>
+                <p className="text-sm text-zinc-500">Home landing views</p>
                 <p className="mt-2 text-3xl font-semibold text-zinc-950">
-                  {scorecard.funnel.exactSiteViews}
+                  {scorecard.funnel.homeRobotTeamViews}
                 </p>
               </div>
               <div className="rounded-2xl border border-zinc-200 bg-white p-5">
-                <p className="text-sm text-zinc-500">Contact submissions</p>
+                <p className="text-sm text-zinc-500">Home CTA clicks</p>
                 <p className="mt-2 text-3xl font-semibold text-zinc-950">
-                  {scorecard.funnel.exactSiteContactSubmissions}
+                  {scorecard.funnel.homeRobotTeamCtaClicks}
                 </p>
                 <p className="mt-2 text-xs text-zinc-500">
                   {conversionRate(
-                    scorecard.funnel.exactSiteContactSubmissions,
-                    scorecard.funnel.exactSiteViews,
-                  )} view → submit
+                    scorecard.funnel.homeRobotTeamCtaClicks,
+                    scorecard.funnel.homeRobotTeamViews,
+                  )} view → click
                 </p>
               </div>
               <div className="rounded-2xl border border-zinc-200 bg-white p-5">
@@ -262,6 +286,60 @@ export default function AdminGrowthOpsScorecard() {
                     {warning}
                   </div>
                 ))}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-zinc-200 bg-white p-6">
+              <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                    Homepage robot-team experiment
+                  </p>
+                  <h2 className="mt-2 text-xl font-semibold text-zinc-950">
+                    {homeRobotTeamLanding.experimentKey}
+                  </h2>
+                  <p className="mt-1 text-sm text-zinc-500">
+                    Goal: {humanizeKey(homeRobotTeamLanding.conversionGoal)}
+                  </p>
+                </div>
+                <div className="text-sm text-zinc-600">
+                  {conversionRate(
+                    scorecard.funnel.homeRobotTeamContactCompleted,
+                    scorecard.funnel.homeRobotTeamViews,
+                  )} view → completed intake
+                </div>
+              </div>
+              <div className="mt-5 overflow-hidden rounded-xl border border-zinc-200">
+                <div className="grid grid-cols-6 bg-zinc-50 px-4 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">
+                  <span>Variant</span>
+                  <span>Views</span>
+                  <span>Clicks</span>
+                  <span>Starts</span>
+                  <span>Submits</span>
+                  <span>Completed</span>
+                </div>
+                {homeRobotTeamLanding.variants.length === 0 ? (
+                  <p className="px-4 py-5 text-sm text-zinc-500">No homepage experiment data yet.</p>
+                ) : (
+                  homeRobotTeamLanding.variants.map((variant) => (
+                    <div
+                      key={variant.variant}
+                      className="grid grid-cols-6 border-t border-zinc-200 px-4 py-3 text-sm text-zinc-700"
+                    >
+                      <strong className="text-zinc-950">{humanizeKey(variant.variant)}</strong>
+                      <span>{variant.views}</span>
+                      <span>
+                        {variant.ctaClicks}{" "}
+                        <span className="text-xs text-zinc-400">
+                          ({conversionRate(variant.ctaClicks, variant.views)})
+                        </span>
+                      </span>
+                      <span>{variant.contactStarts}</span>
+                      <span>{variant.contactSubmissions}</span>
+                      <span>{variant.contactCompleted}</span>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
 

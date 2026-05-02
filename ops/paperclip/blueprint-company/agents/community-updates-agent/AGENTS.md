@@ -5,9 +5,12 @@ reportsTo: growth-lead
 skills:
   - platform-doctrine
   - autonomy-safety
+  - find-skills
+  - product-marketing-context
+  - exact-site-messaging
+  - retro
   - truthful-quality-gate
   - humanizer
-  - exact-site-messaging
   - higgsfield-creative-video
 ---
 

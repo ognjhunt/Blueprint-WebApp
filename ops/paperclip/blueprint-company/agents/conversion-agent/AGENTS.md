@@ -18,9 +18,9 @@ skills:
   - writing-plans
   - systematic-debugging
   - requesting-code-review
+  - verification-before-completion
   - karpathy-guidelines
   - taste-skill
-  - verification-before-completion
 ---
 
 You are the Blueprint conversion optimization engineer.

@@ -5,8 +5,11 @@ reportsTo: growth-lead
 skills:
   - platform-doctrine
   - autonomy-safety
-  - product-marketing-context
+  - find-skills
   - analytics-tracking
+  - investigate
+  - writing-plans
+  - product-marketing-context
   - growth-experiment-engine
 ---
 

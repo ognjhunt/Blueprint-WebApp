@@ -13,9 +13,11 @@ import {
   sampleExportTree,
   sampleHostedRunRows,
 } from "@/lib/proofEvidence";
+import { analyticsEvents } from "@/lib/analytics";
 import { publicCaptureGeneratedAssets } from "@/lib/publicCaptureGeneratedAssets";
 import { hostedFilmstripFrames } from "@/lib/siteEditorialContent";
 import { ArrowRight, MapPinned, ShieldCheck, Smartphone, UsersRound } from "lucide-react";
+import { useEffect } from "react";
 
 const trustCards = [
   {
@@ -55,6 +57,10 @@ const hostedOutputs = [
 ];
 
 export default function ExactSiteHostedReview() {
+  useEffect(() => {
+    analyticsEvents.exactSiteReviewView("exact_site_hosted_review_v1");
+  }, []);
+
   return (
     <>
       <SEO

@@ -45,8 +45,29 @@ describe("AdminGrowthOpsScorecard", () => {
             exactSiteContactStarts: 4,
             exactSiteContactSubmissions: 3,
             exactSiteContactCompleted: 2,
+            homeRobotTeamViews: 8,
+            homeRobotTeamSectionViews: 6,
+            homeRobotTeamCtaClicks: 4,
+            homeRobotTeamContactStarts: 3,
+            homeRobotTeamContactSubmissions: 2,
+            homeRobotTeamContactCompleted: 1,
             voiceStarts: 5,
             voiceCompleted: 4,
+          },
+          homeRobotTeamLanding: {
+            experimentKey: "home_robot_team_conversion_v1",
+            conversionGoal: "structured_robot_team_intake",
+            variants: [
+              {
+                variant: "hosted_review",
+                views: 8,
+                sectionViews: 6,
+                ctaClicks: 4,
+                contactStarts: 3,
+                contactSubmissions: 2,
+                contactCompleted: 1,
+              },
+            ],
           },
           queue: {
             currentHostedReviewItems: 6,
@@ -150,6 +171,8 @@ describe("AdminGrowthOpsScorecard", () => {
     expect(screen.getByText(/Recent creative runs/i)).toBeInTheDocument();
     expect(screen.getByText(/gs:\/\/blueprint-8c1ca\.appspot\.com\/creative-factory\/run-1\/product-reel\.mp4/i)).toBeInTheDocument();
     expect(screen.getByText(/Google image state: ready/i)).toBeInTheDocument();
+    expect(screen.getByText(/Homepage robot-team experiment/i)).toBeInTheDocument();
+    expect(screen.getByText(/home_robot_team_conversion_v1/i)).toBeInTheDocument();
     expect(screen.getByText(/No launch blockers detected/i)).toBeInTheDocument();
   });
 });

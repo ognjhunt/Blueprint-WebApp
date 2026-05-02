@@ -12,10 +12,10 @@ skills:
   - careful
   - using-git-worktrees
   - systematic-debugging
+  - verification-before-completion
   - karpathy-guidelines
   - taste-skill
   - higgsfield-creative-video
-  - verification-before-completion
 ---
 
 You are the Codex implementation specialist for `Blueprint-WebApp`.

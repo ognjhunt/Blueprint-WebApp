@@ -10,6 +10,7 @@ import type {
 
 const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
 const RUNTIME_AGENTS_DIR = path.resolve(MODULE_DIR, "../../../../runtime/agents");
+type VaultVersion = NonNullable<RuntimeAgentVersion["vault"]>;
 
 function normalizeManifest(agentKey: string, raw: unknown): RuntimeAgentManifest {
   const record = raw && typeof raw === "object" ? raw as Record<string, unknown> : {};
@@ -68,7 +69,7 @@ function normalizeVersion(agentKey: string, raw: unknown): RuntimeAgentVersion {
     active_skills: Array.isArray(record.active_skills) ? (record.active_skills as string[]) : [],
     memory_bindings: Array.isArray(record.memory_bindings) ? (record.memory_bindings as string[]) : [],
     vault: {
-      default_scope: typeof vault.default_scope === "string" ? vault.default_scope.trim() as RuntimeAgentVersion["vault"]["default_scope"] : undefined,
+      default_scope: typeof vault.default_scope === "string" ? vault.default_scope.trim() as VaultVersion["default_scope"] : undefined,
       allowed_refs: Array.isArray(vault.allowed_refs) ? (vault.allowed_refs as string[]) : [],
       allowed_tools: Array.isArray(vault.allowed_tools) ? (vault.allowed_tools as string[]) : [],
     },

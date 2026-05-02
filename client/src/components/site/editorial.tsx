@@ -74,8 +74,10 @@ type CtaBandProps = {
   imageAlt: string;
   primaryHref: string;
   primaryLabel: string;
+  primaryOnClick?: () => void;
   secondaryHref?: string;
   secondaryLabel?: string;
+  secondaryOnClick?: () => void;
   dark?: boolean;
   className?: string;
 };
@@ -338,8 +340,10 @@ export function EditorialCtaBand({
   imageAlt,
   primaryHref,
   primaryLabel,
+  primaryOnClick,
   secondaryHref,
   secondaryLabel,
+  secondaryOnClick,
   dark = true,
   className,
 }: CtaBandProps) {
@@ -372,6 +376,7 @@ export function EditorialCtaBand({
         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
           <a
             href={primaryHref}
+            onClick={primaryOnClick}
             className={cn(
               "inline-flex items-center justify-center rounded-full px-6 py-3 text-sm font-semibold transition",
               dark
@@ -385,6 +390,7 @@ export function EditorialCtaBand({
           {secondaryHref && secondaryLabel ? (
             <a
               href={secondaryHref}
+              onClick={secondaryOnClick}
               className={cn(
                 "inline-flex items-center justify-center rounded-full border px-6 py-3 text-sm font-semibold transition",
                 dark

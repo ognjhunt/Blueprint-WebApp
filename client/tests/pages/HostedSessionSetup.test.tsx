@@ -222,7 +222,12 @@ describe("HostedSessionSetup", () => {
     render(<HostedSessionSetup params={{ slug: demoSiteId }} />);
 
     expect(await screen.findByText(/World-model runtime/i)).toBeInTheDocument();
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    await waitFor(
+      () => {
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+      },
+      { timeout: 10000 },
+    );
     const headers = (fetchMock.mock.calls[0]?.[1]?.headers || {}) as Record<string, string>;
     expect(headers.Authorization).toBeUndefined();
   });

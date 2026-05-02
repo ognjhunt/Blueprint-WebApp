@@ -6,6 +6,7 @@ import type { EnvironmentProfile } from "./types.js";
 
 const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
 const RUNTIME_ENVIRONMENTS_DIR = path.resolve(MODULE_DIR, "../../../../runtime/environments");
+type VaultProfile = NonNullable<EnvironmentProfile["vault"]>;
 
 function normalizeProfile(raw: unknown, fallbackKey: string): EnvironmentProfile {
   const record = raw && typeof raw === "object" ? raw as Record<string, unknown> : {};
@@ -32,7 +33,7 @@ function normalizeProfile(raw: unknown, fallbackKey: string): EnvironmentProfile
     vault: record.vault && typeof record.vault === "object"
       ? {
         default_scope: typeof (record.vault as Record<string, unknown>).default_scope === "string"
-          ? String((record.vault as Record<string, unknown>).default_scope).trim() as EnvironmentProfile["vault"]["default_scope"]
+          ? String((record.vault as Record<string, unknown>).default_scope).trim() as VaultProfile["default_scope"]
           : undefined,
         allowed_refs: Array.isArray((record.vault as Record<string, unknown>).allowed_refs)
           ? ((record.vault as Record<string, unknown>).allowed_refs as string[])

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useSearch } from "wouter";
 import { ArrowRight, Calendar, CheckCircle2, Clock, Mail } from "lucide-react";
 import { analyticsEvents, getSafeErrorType } from "@/lib/analytics";
@@ -57,6 +57,45 @@ function getPersonaFromSearch(
   if (personaParam === "robot-team") return "robot_team";
   if (buyerTypeParam === "site_operator") return "site_operator";
   return "robot_team";
+}
+
+const labelClassName = "mb-1.5 block text-sm font-semibold text-slate-800";
+const inputClassName =
+  "w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-950 focus:ring-2 focus:ring-slate-950/10";
+const textareaClassName =
+  "min-h-24 w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm leading-6 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-950 focus:ring-2 focus:ring-slate-950/10";
+const helperClassName = "mt-1.5 text-xs leading-5 text-slate-500";
+
+function RequiredMark() {
+  return (
+    <span className="ml-1 text-slate-500" aria-hidden="true">
+      *
+    </span>
+  );
+}
+
+function FormSection({
+  eyebrow,
+  title,
+  children,
+}: {
+  eyebrow: string;
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="space-y-4 border-t border-black/10 pt-6">
+      <div>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+          {eyebrow}
+        </p>
+        <h3 className="mt-2 text-lg font-semibold tracking-[-0.02em] text-slate-950">
+          {title}
+        </h3>
+      </div>
+      {children}
+    </section>
+  );
 }
 
 export function ContactForm() {
@@ -177,6 +216,10 @@ export function ContactForm() {
     ? ["deeper_evaluation"]
     : [interestLane || getDefaultRequestedLane(persona)];
   const requestedLane = requestedLanes[0] || "qualification";
+  const requiredFieldSummary =
+    persona === "site_operator"
+      ? ["Name", "Operator", "Work email", "Facility", "Location", "Access rules"]
+      : ["Name", "Company", "Work email", "Role", "First question", "Site or site class"];
 
   useEffect(() => {
     analyticsEvents.contactRequestStarted({
@@ -411,32 +454,66 @@ export function ContactForm() {
   }
 
   return (
-    <form className="space-y-6" onSubmit={handleSubmit}>
+    <form id="contact-form" className="space-y-7" onSubmit={handleSubmit} noValidate>
+      <div className="border border-black/10 bg-[#f8f6f1] p-4">
+        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+              Required to route
+            </p>
+            <p className="mt-2 text-sm leading-6 text-slate-700">
+              Keep the first pass short. Blueprint can ask for detail after the path is clear.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2 md:max-w-[20rem] md:justify-end">
+            {requiredFieldSummary.map((field) => (
+              <span
+                key={field}
+                className="border border-black/10 bg-white px-2.5 py-1 text-xs font-medium text-slate-700"
+              >
+                {field}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+
       {hostedMode ? (
-        <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 px-4 py-3 text-sm text-zinc-700">
+        <div className="border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700">
           You are requesting a hosted evaluation for a specific site. Keep the submission tight.
           {siteName ? ` Site: ${siteName}.` : ""}
           {siteLocation ? ` Location: ${siteLocation}.` : ""}
         </div>
       ) : null}
 
+      <FormSection eyebrow="01 Contact" title="Who should Blueprint follow up with?">
       <div className="grid gap-4 md:grid-cols-2">
         <div>
-          <label htmlFor="contact-first-name" className="mb-1 block text-sm font-medium text-zinc-700">First name</label>
+          <label htmlFor="contact-first-name" className={labelClassName}>
+            First name
+            <RequiredMark />
+          </label>
           <input
             id="contact-first-name"
-            className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
+            className={inputClassName}
             placeholder="First name*"
+            autoComplete="given-name"
+            aria-required="true"
             value={firstName}
             onChange={(event) => setFirstName(event.target.value)}
           />
         </div>
         <div>
-          <label htmlFor="contact-last-name" className="mb-1 block text-sm font-medium text-zinc-700">Last name</label>
+          <label htmlFor="contact-last-name" className={labelClassName}>
+            Last name
+            <RequiredMark />
+          </label>
           <input
             id="contact-last-name"
-            className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
+            className={inputClassName}
             placeholder="Last name*"
+            autoComplete="family-name"
+            aria-required="true"
             value={lastName}
             onChange={(event) => setLastName(event.target.value)}
           />
@@ -445,81 +522,100 @@ export function ContactForm() {
 
       <div className="grid gap-4 md:grid-cols-2">
         <div>
-          <label htmlFor="contact-company" className="mb-1 block text-sm font-medium text-zinc-700">
+          <label htmlFor="contact-company" className={labelClassName}>
             {persona === "site_operator" ? "Company or operator" : "Company"}
+            <RequiredMark />
           </label>
           <input
             id="contact-company"
-            className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
+            className={inputClassName}
             placeholder={persona === "site_operator" ? "Operator or company*" : "Company name*"}
+            autoComplete="organization"
+            aria-required="true"
             value={company}
             onChange={(event) => setCompany(event.target.value)}
           />
         </div>
         <div>
-          <label htmlFor="contact-email" className="mb-1 block text-sm font-medium text-zinc-700">Work email</label>
+          <label htmlFor="contact-email" className={labelClassName}>
+            Work email
+            <RequiredMark />
+          </label>
           <input
             id="contact-email"
-            className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
+            type="email"
+            className={inputClassName}
             placeholder="Work email*"
+            autoComplete="email"
+            aria-required="true"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
           />
         </div>
       </div>
+      </FormSection>
 
       {persona === "robot_team" ? (
         <>
+          <FormSection eyebrow="02 Request" title="What should the next step be scoped around?">
           <div>
-            <label htmlFor="contact-title" className="mb-1 block text-sm font-medium text-zinc-700">
+            <label htmlFor="contact-title" className={labelClassName}>
               Your role
+              <RequiredMark />
             </label>
             <input
               id="contact-title"
-              className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
+              className={inputClassName}
               placeholder="Autonomy lead, deployment engineer, perception lead"
+              autoComplete="organization-title"
+              aria-required="true"
               value={jobTitle}
               onChange={(event) => setJobTitle(event.target.value)}
             />
+            <p className={helperClassName}>Use the role that owns the deployment, evaluation, or procurement question.</p>
           </div>
           <div>
-            <label htmlFor="contact-task" className="mb-1 block text-sm font-medium text-zinc-700">
+            <label htmlFor="contact-task" className={labelClassName}>
               What should Blueprint help your team answer first?
+              <RequiredMark />
             </label>
             <textarea
               id="contact-task"
-              className="min-h-24 w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
+              className={textareaClassName}
               placeholder="Describe the deployment question, site review, or package need you want answered first.*"
+              aria-required="true"
               value={taskStatement}
               onChange={(event) => setTaskStatement(event.target.value)}
             />
+            <p className={helperClassName}>One concrete question converts better than a broad discovery note.</p>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <div>
               <label
                 htmlFor="contact-site-name"
-                className="mb-1 block text-sm font-medium text-zinc-700"
+                className={labelClassName}
               >
                 Site or facility
               </label>
               <input
                 id="contact-site-name"
-                className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
+                className={inputClassName}
                 placeholder={hostedMode ? "Prefilled from the listing when available" : "Facility name, customer site, or short site label"}
                 value={siteName}
                 onChange={(event) => setSiteName(event.target.value)}
               />
+              <p className={helperClassName}>Use a real place when known. Otherwise use the closest site class.</p>
             </div>
             <div>
               <label
                 htmlFor="contact-embodiment"
-                className="mb-1 block text-sm font-medium text-zinc-700"
+                className={labelClassName}
               >
                 Robot or stack
               </label>
               <input
                 id="contact-embodiment"
-                className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
+                className={inputClassName}
                 placeholder="Robot platform, stack, or policy/checkpoint name"
                 value={targetRobotTeam}
                 onChange={(event) => setTargetRobotTeam(event.target.value)}
@@ -528,24 +624,24 @@ export function ContactForm() {
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <label htmlFor="contact-site-type" className="mb-1 block text-sm font-medium text-zinc-700">
+              <label htmlFor="contact-site-type" className={labelClassName}>
                 Target site class
               </label>
               <input
                 id="contact-site-type"
-                className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
+                className={inputClassName}
                 placeholder="Warehouse, hotel corridor, grocery backroom"
                 value={targetSiteType}
                 onChange={(event) => setTargetSiteType(event.target.value)}
               />
             </div>
             <div>
-              <label htmlFor="contact-budget" className="mb-1 block text-sm font-medium text-zinc-700">
+              <label htmlFor="contact-budget" className={labelClassName}>
                 Budget or procurement range
               </label>
               <select
                 id="contact-budget"
-                className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
+                className={inputClassName}
                 value={budgetBucket}
                 onChange={(event) => setBudgetBucket(event.target.value as BudgetBucket)}
               >
@@ -564,16 +660,20 @@ export function ContactForm() {
             value={siteLocation}
             onChange={setSiteLocation}
             onPlaceSelect={setSiteLocationMetadata}
+            labelClassName={labelClassName}
+            inputClassName={inputClassName}
           />
+          </FormSection>
+          <FormSection eyebrow="03 Routing" title="What should not be missed?">
           {!hostedMode ? (
             <div className="grid gap-4 md:grid-cols-2">
               <div>
-                <label htmlFor="contact-proof-path" className="mb-1 block text-sm font-medium text-zinc-700">
+                <label htmlFor="contact-proof-path" className={labelClassName}>
                   Proof path
                 </label>
                 <select
                   id="contact-proof-path"
-                  className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
+                  className={inputClassName}
                   value={proofPathPreference}
                   onChange={(event) => setProofPathPreference(event.target.value as ProofPathPreference)}
                 >
@@ -583,12 +683,12 @@ export function ContactForm() {
                 </select>
               </div>
               <div>
-                <label htmlFor="contact-human-gates" className="mb-1 block text-sm font-medium text-zinc-700">
+                <label htmlFor="contact-human-gates" className={labelClassName}>
                   Human-gated topics
                 </label>
                 <input
                   id="contact-human-gates"
-                  className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
+                  className={inputClassName}
                   placeholder="Procurement, legal, security, customer approval"
                   value={humanGateTopics}
                   onChange={(event) => setHumanGateTopics(event.target.value)}
@@ -597,37 +697,42 @@ export function ContactForm() {
             </div>
           ) : null}
           <div>
-            <label htmlFor="contact-notes" className="mb-1 block text-sm font-medium text-zinc-700">Optional notes</label>
+            <label htmlFor="contact-notes" className={labelClassName}>Optional notes</label>
             <textarea
               id="contact-notes"
-              className="min-h-24 w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
+              className={textareaClassName}
               placeholder="Anything useful about timing, constraints, integrations, rights questions, or why this site matters now."
               value={detailsMessage}
               onChange={(event) => setDetailsMessage(event.target.value)}
             />
           </div>
+          </FormSection>
         </>
       ) : (
         <>
+          <FormSection eyebrow="02 Site" title="What facility and access path are you bringing?">
           <div>
-            <label htmlFor="contact-title" className="mb-1 block text-sm font-medium text-zinc-700">Title</label>
+            <label htmlFor="contact-title" className={labelClassName}>Title</label>
             <input
               id="contact-title"
-              className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
+              className={inputClassName}
               placeholder="Ops lead, facility manager, innovation lead"
+              autoComplete="organization-title"
               value={jobTitle}
               onChange={(event) => setJobTitle(event.target.value)}
             />
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <label htmlFor="contact-site-name" className="mb-1 block text-sm font-medium text-zinc-700">
+              <label htmlFor="contact-site-name" className={labelClassName}>
                 Facility name
+                <RequiredMark />
               </label>
               <input
                 id="contact-site-name"
-                className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
+                className={inputClassName}
                 placeholder="Facility name*"
+                aria-required="true"
                 value={siteName}
                 onChange={(event) => setSiteName(event.target.value)}
               />
@@ -639,51 +744,61 @@ export function ContactForm() {
               value={siteLocation}
               onChange={setSiteLocation}
               onPlaceSelect={setSiteLocationMetadata}
+              required
+              labelClassName={labelClassName}
+              inputClassName={inputClassName}
             />
           </div>
           <div>
-            <label htmlFor="contact-access-rules" className="mb-1 block text-sm font-medium text-zinc-700">Access rules</label>
+            <label htmlFor="contact-access-rules" className={labelClassName}>
+              Access rules
+              <RequiredMark />
+            </label>
             <textarea
               id="contact-access-rules"
-              className="min-h-24 w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
+              className={textareaClassName}
               placeholder="Hours, escort requirements, restricted areas, or other operating rules.*"
+              aria-required="true"
               value={operatingConstraints}
               onChange={(event) => setOperatingConstraints(event.target.value)}
             />
           </div>
+          </FormSection>
+          <FormSection eyebrow="03 Governance" title="Set the boundaries before a call.">
           <div>
-            <label htmlFor="contact-privacy-notes" className="mb-1 block text-sm font-medium text-zinc-700">
+            <label htmlFor="contact-privacy-notes" className={labelClassName}>
               Privacy and security notes
             </label>
             <textarea
               id="contact-privacy-notes"
-              className="min-h-24 w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
+              className={textareaClassName}
               placeholder="Camera limits, redaction needs, safety or security restrictions."
               value={privacySecurityConstraints}
               onChange={(event) => setPrivacySecurityConstraints(event.target.value)}
             />
           </div>
           <div>
-            <label htmlFor="contact-commercialization" className="mb-1 block text-sm font-medium text-zinc-700">
+            <label htmlFor="contact-commercialization" className={labelClassName}>
               Commercialization preference
             </label>
             <textarea
               id="contact-commercialization"
-              className="min-h-24 w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
+              className={textareaClassName}
               placeholder="Whether the site can be listed for robot-team review, kept private, or discussed only after approval."
               value={commercializationPreference}
               onChange={(event) => setCommercializationPreference(event.target.value)}
             />
           </div>
+          </FormSection>
         </>
       )}
 
       {persona === "site_operator" ? (
-        <div>
-          <label htmlFor="contact-notes" className="mb-1 block text-sm font-medium text-zinc-700">Notes</label>
+        <div className="border-t border-black/10 pt-6">
+          <label htmlFor="contact-notes" className={labelClassName}>Notes</label>
           <textarea
             id="contact-notes"
-            className="min-h-24 w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
+            className={textareaClassName}
             placeholder="Anything else Blueprint should know about the facility or approval path."
             value={detailsMessage}
             onChange={(event) => setDetailsMessage(event.target.value)}
@@ -702,22 +817,37 @@ export function ContactForm() {
         />
       </div>
 
-      {message ? <p className="text-sm text-red-600">{message}</p> : null}
+      {message ? (
+        <div
+          role="alert"
+          aria-live="polite"
+          className="border border-red-200 bg-red-50 px-4 py-3 text-sm leading-6 text-red-700"
+        >
+          <p className="font-semibold text-red-800">Fix before sending</p>
+          <p className="mt-1">{message}</p>
+        </div>
+      ) : null}
 
-      <button
-        type="submit"
-        disabled={status === "loading"}
-        className="inline-flex items-center rounded-full bg-zinc-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-zinc-700 disabled:opacity-60"
-      >
-        {status === "loading"
-          ? "Submitting..."
-          : hostedMode
-              ? "Request hosted evaluation"
-            : persona === "site_operator"
-              ? "Submit site claim"
-              : "Send a short brief"}
-        <ArrowRight className="ml-2 h-4 w-4" />
-      </button>
+      <div className="flex flex-col gap-3 border-t border-black/10 pt-6 sm:flex-row sm:items-center sm:justify-between">
+        <p className="max-w-md text-xs leading-5 text-slate-500">
+          Submitting creates a structured intake record. It does not claim buyer readiness,
+          rights clearance, or a live capture commitment.
+        </p>
+        <button
+          type="submit"
+          disabled={status === "loading"}
+          className="inline-flex w-full items-center justify-center bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+        >
+          {status === "loading"
+            ? "Submitting..."
+            : hostedMode
+                ? "Request hosted evaluation"
+              : persona === "site_operator"
+                ? "Submit site claim"
+                : "Send a short brief"}
+          <ArrowRight className="ml-2 h-4 w-4" />
+        </button>
+      </div>
     </form>
   );
 }

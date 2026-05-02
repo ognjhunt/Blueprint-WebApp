@@ -496,6 +496,27 @@ function laneDisplayName(lane: CityLaunchAgentLane | CityLaunchHumanLane) {
   return CITY_LAUNCH_LANE_DISPLAY_NAMES[lane];
 }
 
+function renderLaunchSurfaceCoverageRows(
+  activationPayload: ParsedCityLaunchActivationPayload | null,
+) {
+  const coverage = activationPayload?.launchSurfaceCoverage || [];
+  if (coverage.length === 0) {
+    return [
+      "| Surface | Owner | Artifact | Gate |",
+      "|---|---|---|---|",
+      "| validation_required | city-launch-agent | activation payload missing launch_surface_coverage | refresh the city deep-research playbook with the current harness |",
+    ];
+  }
+
+  return [
+    "| Surface | Owner | Artifact | Gate |",
+    "|---|---|---|---|",
+    ...coverage.map((entry) =>
+      `| ${entry.surfaceKey} | ${laneDisplayName(entry.ownerLane)} | ${entry.artifact} | ${entry.completionGate}${entry.validationRequired ? " (validation required)" : ""} |`,
+    ),
+  ];
+}
+
 function buildCompactLaunchPlaybookMarkdown(input: {
   profile: CityLaunchProfile;
   status: CityLaunchExecutionStatus;
@@ -619,6 +640,10 @@ function buildCompactLaunchPlaybookMarkdown(input: {
           `- ${blocker.severity}: ${blocker.summary}${blocker.validationRequired ? " (validation required)" : ""}`,
         )
       : ["- none recorded in the current activation payload"]),
+    "",
+    "## Launch Surface Coverage",
+    "",
+    ...renderLaunchSurfaceCoverageRows(input.activationPayload),
     "",
     "## Readiness Scorecard",
     "| Dimension | Score | Rationale |",
@@ -2240,6 +2265,10 @@ function buildSystemDocMarkdown(input: {
           `- lawful_access_modes: ${input.activationPayload.lawfulAccessModes.join(", ")}`,
         ]
       : ["- No activation payload was available; treat execution posture as incomplete."]),
+    "",
+    "## Launch Surface Coverage",
+    "",
+    ...renderLaunchSurfaceCoverageRows(input.activationPayload),
     "",
     "## Metrics Blockers",
     "",

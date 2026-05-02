@@ -104,7 +104,7 @@ import {
   loadPlatformDoctrineDocs,
   resolveConfiguredRepoRoot,
 } from "./repo-root.js";
-import { requestAgentSpend } from "../../../../../server/utils/agentSpendLedger.js";
+import { requestAgentSpend } from "./server-agent-spend-ledger.js";
 import {
   buildAgentSpendToolContent,
   parseAgentSpendToolParams,
@@ -117,6 +117,7 @@ import {
   buildClaudeFallbackAdapterConfig,
   buildCodexFallbackAdapterConfig,
   buildQuotaFallbackRetryRecord,
+  type LocalQuotaFallbackDescriptor,
   FALLBACK_ORIGIN_ADAPTER_CONFIG_KEY,
   getLocalAdapterWorkspaceKey,
   getWorkspaceAdapterCooldownKey,
@@ -451,17 +452,9 @@ function firstHttpUrl(values: Array<string | undefined | null>) {
   return values.find((value) => typeof value === "string" && /^https?:\/\//i.test(value)) ?? undefined;
 }
 
-type GrowthOpsModule = typeof import("../../../../../server/utils/growth-ops.js");
+import { loadGrowthOpsModule } from "./server-growth-ops.js";
 
-let growthOpsModulePromise: Promise<GrowthOpsModule> | null = null;
 const resolvedSecretCache = new Map<string, string | null>();
-
-function loadGrowthOpsModule() {
-  if (!growthOpsModulePromise) {
-    growthOpsModulePromise = import("../../../../../server/utils/growth-ops.js");
-  }
-  return growthOpsModulePromise;
-}
 
 type RepoConfig = {
   key: string;
@@ -565,6 +558,7 @@ type HeartbeatRunRecord = {
   agentId: string;
   contextSnapshot?: Record<string, unknown> | null;
   createdAt?: string | null;
+  errorCode?: string | null;
   id: string;
   status?: string | null;
 };
@@ -885,6 +879,8 @@ type DemandIntelOutputProof = {
     target: SlackDeliveryTarget;
     statusCode?: number;
     responseBody?: string;
+    deduped?: boolean;
+    deliveredAt?: string;
   };
   proofLinks: string[];
   issueComment: string;
@@ -1364,6 +1360,17 @@ function extractUrls(value: string | null | undefined) {
   return [...value.matchAll(/https?:\/\/[^\s)\]]+/gi)].map((match) => match[0]);
 }
 
+function commentTimestamp(value: string | Date | null | undefined) {
+  if (value instanceof Date) {
+    return value.getTime();
+  }
+  if (!value) {
+    return Number.NEGATIVE_INFINITY;
+  }
+  const timestamp = Date.parse(value);
+  return Number.isNaN(timestamp) ? Number.NEGATIVE_INFINITY : timestamp;
+}
+
 function parseAgentRunFailurePayload(value: unknown): AgentRunFailurePayload {
   const payload = asRecord(value) ?? {};
   return {
@@ -1395,7 +1402,7 @@ function buildQuotaFallbackDescriptor(
     adapterConfig: Record<string, unknown> | null | undefined;
   } | null,
   failureReason?: string | null,
-) {
+): LocalQuotaFallbackDescriptor | null {
   if (isOrgForcedCodexMode()) {
     if (adapterType === "codex_local") {
       return null;
@@ -2558,7 +2565,7 @@ function boundIssueIdFromRunContext(
 ): string | null {
   const taskId = asString(context?.taskId);
   if (taskId) return taskId;
-  return asString(context?.issueId);
+  return asString(context?.issueId) ?? null;
 }
 
 function isTerminalHeartbeatRunStatus(status: string | null | undefined) {
@@ -2602,7 +2609,7 @@ async function recoverIssueExecutionLockIfNeeded(
   );
   const isStaleRunningLock =
     Boolean(run)
-    && !isTerminalHeartbeatRunStatus(run.status)
+    && !isTerminalHeartbeatRunStatus(run?.status)
     && Number.isFinite(newestActivityMs)
     && (Date.now() - newestActivityMs) >= staleAfterMs;
   const isForeignLock =
@@ -2893,6 +2900,7 @@ function buildLogicalSucceededRunFailurePayload(
     taskId: asString(context?.taskId) ?? null,
     taskKey: asString(context?.taskKey) ?? null,
     error,
+    errorCode: asString(run.errorCode) ?? null,
   };
 }
 
@@ -2941,8 +2949,11 @@ function toLiveAgentRegistryRecord(agent: Agent): LiveAgentRecord | null {
   }
 
   const record = agent as unknown as Record<string, unknown>;
+  const adapter = record.adapter && typeof record.adapter === "object"
+    ? record.adapter as Record<string, unknown>
+    : null;
   return {
-    adapterType: asString(record.adapterType) ?? asString(record.adapter?.type) ?? null,
+    adapterType: asString(record.adapterType) ?? asString(adapter?.type) ?? null,
     createdAt: asString(record.createdAt) ?? null,
     id: agent.id,
     name: asString(agent.name) ?? asString(record.title) ?? key,
@@ -4174,7 +4185,7 @@ async function rerouteUnavailableIssueOwners(
         },
       ).catch(() => undefined);
       const refreshedAssignee = await ctx.agents.get(assignee.id, companyId).catch(() => assignee);
-      if (!isAgentUnavailable(refreshedAssignee) && agentHasDesiredAdapter(refreshedAssignee, refreshedAssignee.urlKey ?? "")) {
+      if (refreshedAssignee && !isAgentUnavailable(refreshedAssignee) && agentHasDesiredAdapter(refreshedAssignee, refreshedAssignee.urlKey ?? "")) {
         continue;
       }
       await appendRecentEvent(ctx, companyId, {
@@ -4742,7 +4753,7 @@ function latestSubstantiveBlockedComment(comments: IssueComment[]) {
   ];
 
   const ordered = [...comments].sort(
-    (left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt),
+    (left, right) => commentTimestamp(right.createdAt) - commentTimestamp(left.createdAt),
   );
   return ordered.find((comment) => {
     const body = comment.body.trim().toLowerCase();
@@ -5325,7 +5336,7 @@ async function runDelegationScaffoldingPass(
         "Automation quarantined this smoke-test artifact so test traffic does not stay mixed into the real execution queue.",
         companyId,
       ).catch(() => undefined);
-      quarantined.push(issue.identifier);
+      quarantined.push(issue.identifier ?? issue.id);
     }
   }
 
@@ -6495,12 +6506,12 @@ function buildResolvedWorkQueueItem(
   return normalizeWorkQueueItem(
     {
       title,
-      priority: typeof metadata.priority === "string" ? metadata.priority : undefined,
-      system: typeof metadata.system === "string" ? metadata.system : undefined,
-      businessLane: typeof metadata.businessLane === "string" ? metadata.businessLane : undefined,
+      priority: typeof metadata.priority === "string" ? metadata.priority as WorkQueueItem["priority"] : undefined,
+      system: typeof metadata.system === "string" ? metadata.system as WorkQueueItem["system"] : undefined,
+      businessLane: typeof metadata.businessLane === "string" ? metadata.businessLane as WorkQueueItem["businessLane"] : undefined,
       lifecycleStage: workQueueLifecycleStageForResolution(resolutionStatus),
-      workType: typeof metadata.workType === "string" ? metadata.workType : undefined,
-      substage: typeof metadata.substage === "string" ? metadata.substage : undefined,
+      workType: typeof metadata.workType === "string" ? metadata.workType as WorkQueueItem["workType"] : undefined,
+      substage: typeof metadata.substage === "string" ? metadata.substage as WorkQueueItem["substage"] : undefined,
       lastStatusChange: nowIso(),
       naturalKey: mapping.sourceId.includes("::") ? mapping.sourceId : undefined,
     },
@@ -7872,6 +7883,7 @@ async function resolveManagedIssue(ctx: PluginContext, input: ResolveManagedIssu
   });
 
   if (existingData.sourceType === "notion-work-queue") {
+    const resolvedStatus = input.resolutionStatus === "blocked" ? "done" : input.resolutionStatus;
     await syncResolvedNotionWorkQueuePage(
       ctx,
       {
@@ -7885,11 +7897,11 @@ async function resolveManagedIssue(ctx: PluginContext, input: ResolveManagedIssu
         hits: existingData.hits ?? 1,
         firstSeenAt: existingData.firstSeenAt ?? nowIso(),
         lastSeenAt: nowIso(),
-        resolutionStatus: input.resolutionStatus,
+        resolutionStatus: resolvedStatus,
         metadata: existingData.metadata,
       },
       updatedIssue.title,
-      input.resolutionStatus,
+      resolvedStatus,
     ).catch(() => undefined);
   }
 
@@ -9175,7 +9187,7 @@ async function queueOperatorReadyShipBroadcasts(
   const assetState = await readState<ContentAssetRunState>(ctx, companyId, STATE_KEYS.contentAssetRuns) ?? {};
   const now = Date.now();
   const operatorEmail =
-    getConfiguredEnvValue("BLUEPRINT_SUPPORT_EMAIL")
+    process.env.BLUEPRINT_SUPPORT_EMAIL?.trim()
     || "ops@tryblueprint.io";
   const results: Array<Record<string, unknown>> = [];
 
@@ -9190,7 +9202,7 @@ async function queueOperatorReadyShipBroadcasts(
       ? await loadGrowthOpsModule()
       : null;
     const campaign = asset.growthCampaignDraftId
-      ? await growthOpsModule?.getGrowthCampaignRecord(asset.growthCampaignDraftId).catch(() => null)
+      ? await growthOpsModule?.getGrowthCampaignRecord(asset.growthCampaignDraftId).catch(() => null) ?? null
       : null;
     const decision = evaluateOperatorReadyShipBroadcast(asset, campaign, now);
 
@@ -9237,6 +9249,7 @@ function formatAnalyticsIssueComment(result: {
   outcome: "done" | "blocked";
   report: AnalyticsStructuredReport;
   cadence: AnalyticsReportCadence;
+  kbArtifact?: AnalyticsOutputProof["kbArtifact"];
   notion?: AnalyticsOutputProof["notion"];
   slack?: AnalyticsOutputProof["slack"];
   followUpIssues?: AnalyticsOutputProof["followUpIssues"];
@@ -9607,7 +9620,7 @@ async function buildMetricsReporterOutputProof(
   companyId: string,
   params: Record<string, unknown>,
 ): Promise<MetricsReporterOutputProof> {
-  const owningAgentKey = "analytics-agent";
+  const owningAgentKey: PilotAgentKey = "metrics-reporter";
   const cadence = asString(params.cadence) === "weekly" ? "weekly" : "daily";
   const generatedAt = nowIso();
   const reportDate = formatDateInTimeZone(new Date(generatedAt), "America/New_York");
@@ -9981,7 +9994,7 @@ async function recordNotionReconcilerRun(
   companyId: string,
   params: Record<string, unknown>,
 ): Promise<NotionReconcilerRunProof> {
-  const owningAgentKey = "notion-manager-agent";
+  const owningAgentKey: PilotAgentKey = "notion-reconciler";
   const mode = asString(params.mode) === "weekly"
     ? "weekly"
     : asString(params.mode) === "manual"
@@ -11568,6 +11581,7 @@ function formatDemandIntelIssueComment(result: {
   outcome: "done" | "blocked";
   report: DemandIntelStructuredReport;
   cadence: DemandIntelReportCadence;
+  kbArtifact?: DemandIntelOutputProof["kbArtifact"];
   notion?: DemandIntelOutputProof["notion"];
   slack?: DemandIntelOutputProof["slack"];
   failureReason?: string;
@@ -12031,6 +12045,7 @@ function formatMarketIntelIssueComment(result: {
   outcome: "done" | "blocked";
   report: MarketIntelStructuredReport;
   cadence: MarketIntelReportCadence;
+  kbArtifact?: MarketIntelOutputProof["kbArtifact"];
   notion?: MarketIntelOutputProof["notion"];
   slack?: MarketIntelOutputProof["slack"];
   failureReason?: string;

@@ -5,9 +5,18 @@ reportsTo: blueprint-ceo
 skills:
   - platform-doctrine
   - autonomy-safety
-  - hermes-kb-workflow
   - find-skills
   - humanizer
+  - writing-plans
+  - cross-repo-operations
+  - dispatching-parallel-agents
+  - retro
+  - gh-cli
+  - plan-eng-review
+  - investigate
+  - review
+  - verification-before-completion
+  - hermes-kb-workflow
   - meeting-action-extractor
 ---
 

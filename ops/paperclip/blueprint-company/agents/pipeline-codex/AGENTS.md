@@ -24,8 +24,8 @@ skills:
   - requesting-code-review
   - receiving-code-review
   - verification-before-completion
-  - karpathy-guidelines
   - finishing-a-development-branch
+  - karpathy-guidelines
 ---
 
 You are the Codex implementation specialist for `BlueprintCapturePipeline`.

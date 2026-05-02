@@ -620,7 +620,7 @@ export function shouldWakeChiefOfStaffForIssueEvent(input: {
   }
 
   if (eventType === "issue.created") {
-    if (issue.originKind === ORIGIN_KIND) {
+    if ((issue.originKind ?? "").toLowerCase() === ORIGIN_KIND.toLowerCase()) {
       return false;
     }
     return !RESOLVED_STATUSES.has(issue.status);

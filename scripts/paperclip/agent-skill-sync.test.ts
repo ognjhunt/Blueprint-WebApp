@@ -68,11 +68,16 @@ describe("Blueprint Paperclip skill sync", () => {
       const frontmatter = parseFrontmatter(instructions);
       const declaredSkills = normalizeStringArray(frontmatter.skills);
       const syncedSkills = normalizeStringArray(config.paperclipSkillSync?.desiredSkills);
-      const missingSkills = declaredSkills.filter((skill) => !syncedSkills.includes(skill));
+      const missingRuntimeSkills = declaredSkills.filter((skill) => !syncedSkills.includes(skill));
+      const missingFrontmatterSkills = syncedSkills.filter((skill) => !declaredSkills.includes(skill));
 
       expect(
-        missingSkills,
+        missingRuntimeSkills,
         `${agentKey} is missing AGENTS.md skills in .paperclip.yaml paperclipSkillSync.desiredSkills`,
+      ).toEqual([]);
+      expect(
+        missingFrontmatterSkills,
+        `${agentKey} is missing .paperclip.yaml desiredSkills in AGENTS.md frontmatter`,
       ).toEqual([]);
     }
   });

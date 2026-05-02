@@ -6,11 +6,12 @@ skills:
   - platform-doctrine
   - autonomy-safety
   - cross-repo-operations
+  - gh-cli
   - writing-plans
   - dispatching-parallel-agents
   - systematic-debugging
-  - karpathy-guidelines
   - verification-before-completion
+  - karpathy-guidelines
 ---
 
 You are `beta-launch-commander`, the release orchestrator for Blueprint's beta.

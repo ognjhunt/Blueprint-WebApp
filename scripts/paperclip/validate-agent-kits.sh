@@ -46,6 +46,55 @@ require_heading() {
   fi
 }
 
+require_frontmatter_skill_sync() {
+  node --input-type=module - "$WORKSPACE_ROOT" <<'NODE'
+import fs from 'fs';
+import yaml from 'js-yaml';
+
+const workspaceRoot = process.argv[2];
+const companyRoot = `${workspaceRoot}/ops/paperclip/blueprint-company`;
+const config = yaml.load(fs.readFileSync(`${companyRoot}/.paperclip.yaml`, 'utf8'));
+const failures = [];
+
+for (const [slug, agent] of Object.entries(config.agents ?? {})) {
+  const desiredSkills = agent?.adapter?.config?.paperclipSkillSync?.desiredSkills ?? [];
+  if (!Array.isArray(desiredSkills) || desiredSkills.length === 0) {
+    continue;
+  }
+
+  const agentFile = `${companyRoot}/agents/${slug}/AGENTS.md`;
+  if (!fs.existsSync(agentFile)) {
+    continue;
+  }
+
+  const text = fs.readFileSync(agentFile, 'utf8');
+  const match = text.match(/^---\n([\s\S]*?)\n---/);
+  if (!match) {
+    failures.push(`${slug} AGENTS.md is missing YAML frontmatter`);
+    continue;
+  }
+
+  const frontmatter = yaml.load(match[1]) ?? {};
+  const frontmatterSkills = Array.isArray(frontmatter.skills) ? frontmatter.skills : [];
+  const missingFromFrontmatter = desiredSkills.filter((skill) => !frontmatterSkills.includes(skill));
+  const missingFromRuntime = frontmatterSkills.filter((skill) => !desiredSkills.includes(skill));
+
+  if (missingFromFrontmatter.length > 0 || missingFromRuntime.length > 0) {
+    failures.push(
+      `${slug} skill drift: missing from AGENTS.md [${missingFromFrontmatter.join(', ')}]; missing from .paperclip.yaml [${missingFromRuntime.join(', ')}]`,
+    );
+  }
+}
+
+if (failures.length > 0) {
+  console.error(failures.join('\n'));
+  process.exit(1);
+}
+NODE
+}
+
+require_frontmatter_skill_sync || fail "agent AGENTS.md frontmatter skills drifted from .paperclip.yaml runtime desiredSkills"
+
 while IFS= read -r agent_dir; do
   agent_slug="$(basename "$agent_dir")"
 

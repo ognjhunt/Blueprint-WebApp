@@ -8,6 +8,7 @@ const analyticsEventsMock = vi.hoisted(() => ({
   contactRequestSubmitted: vi.fn(),
   contactRequestCompleted: vi.fn(),
   contactRequestFailed: vi.fn(),
+  contactPageCtaClicked: vi.fn(),
 }));
 
 vi.mock("@/contexts/AuthContext", () => ({
@@ -41,6 +42,7 @@ vi.mock("@/lib/client-env", async () => {
 });
 
 beforeEach(() => {
+  vi.clearAllMocks();
   mockSearch = "";
   global.fetch = vi.fn().mockImplementation((input: RequestInfo, init?: RequestInit) => {
     if (input === "/api/csrf") {
@@ -77,6 +79,9 @@ describe("Contact page", () => {
     expect(screen.getByText(/Rights, privacy, and proof boundaries stay explicit/i)).toBeInTheDocument();
     expect(screen.queryByText(/Buyer type/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Requested lanes/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Start robot-team brief/i })).toBeInTheDocument();
+    expect(screen.getByText(/Brief first\. Calendar second\./i)).toBeInTheDocument();
+    expect(screen.getByText(/Required to route/i)).toBeInTheDocument();
     expect(screen.getByText(/Fastest paths/i)).toBeInTheDocument();
     expect(screen.getByText(/Book a scoping call/i)).toBeInTheDocument();
     expect(
@@ -92,6 +97,21 @@ describe("Contact page", () => {
       requestedLane: "deeper_evaluation",
       authenticated: false,
       prefilledSiteContext: false,
+    });
+  });
+
+  it("tracks the hero start CTA without adding personal data", () => {
+    render(<Contact />);
+
+    fireEvent.click(screen.getByRole("link", { name: /Start robot-team brief/i }));
+
+    expect(analyticsEventsMock.contactPageCtaClicked).toHaveBeenCalledWith({
+      persona: "robot_team",
+      ctaId: "contact_hero_start",
+      ctaLabel: "Start robot-team brief",
+      destination: "#contact-intake",
+      source: "contact-hero",
+      requestedLane: "deeper_evaluation",
     });
   });
 

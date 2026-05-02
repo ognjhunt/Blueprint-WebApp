@@ -12,9 +12,9 @@ export function workQueueLifecycleStageForResolution(resolutionStatus: QueueReso
   return "Done";
 }
 
-function timestampRank(value: string | undefined) {
+function timestampRank(value: string | Date | undefined) {
   if (!value) return Number.NEGATIVE_INFINITY;
-  const timestamp = Date.parse(value);
+  const timestamp = value instanceof Date ? value.getTime() : Date.parse(value);
   return Number.isNaN(timestamp) ? Number.NEGATIVE_INFINITY : timestamp;
 }
 
@@ -28,7 +28,7 @@ export function queueActivityTimestamp(item: {
 export function shouldPreserveResolvedNotionQueueIssue(
   issue: {
     status: string;
-    updatedAt?: string;
+    updatedAt?: string | Date;
   },
   mapping: {
     lastSeenAt?: string;

@@ -63,6 +63,31 @@ describe("Austin Proof-Motion Analytics Events", () => {
     vi.clearAllMocks();
   });
 
+  it("tracks homepage robot-team conversion CTA clicks with experiment context", async () => {
+    analyticsEvents.homeConversionCtaClicked({
+      variantId: "hosted_review",
+      ctaId: "home_hero_primary",
+      ctaLabel: "Scope hosted review",
+      destination: "/contact?persona=robot-team",
+      source: "home-hero-primary",
+      conversionGoal: "structured_robot_team_intake",
+    });
+
+    await flushAnalytics();
+
+    expect(latestAnalyticsPayload()).toMatchObject({
+      event: "home_conversion_cta_clicked",
+      properties: {
+        variant_id: "hosted_review",
+        cta_id: "home_hero_primary",
+        cta_label: "Scope hosted review",
+        destination: "/contact?persona=robot-team",
+        source: "home-hero-primary",
+        conversion_goal: "structured_robot_team_intake",
+      },
+    });
+  });
+
   it("calls cityLaunchLawfulAccessEstablished with correct parameters", async () => {
     analyticsEvents.cityLaunchLawfulAccessEstablished({
       city: "Austin",

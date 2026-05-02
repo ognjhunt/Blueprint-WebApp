@@ -99,6 +99,7 @@ export async function ensureRuntimeSession(
     ?? runtimeMetadata?.manifest.default_environment_profile
     ?? "engineering_impl_default";
   const environmentProfile = loadEnvironmentProfile(environmentProfileKey);
+  const vaultProfile = environmentProfile?.vault;
   const sessionId = randomUUID();
   const session: RuntimeSession = {
     id: sessionId,
@@ -128,14 +129,14 @@ export async function ensureRuntimeSession(
     updatedAt: nowIso(),
   };
 
-  if ((environmentProfile?.vault?.allowed_refs ?? []).length > 0) {
+  if ((vaultProfile?.allowed_refs ?? []).length > 0) {
     const grant = await createVaultGrant(ctx, companyId, {
-      scope: environmentProfile.vault?.default_scope ?? "session",
+      scope: vaultProfile?.default_scope ?? "session",
       scopeRef: session.id,
       sessionId: session.id,
       agentKey: input.agentKey,
-      secretRefs: environmentProfile.vault?.allowed_refs ?? [],
-      allowedTools: environmentProfile.vault?.allowed_tools ?? [],
+      secretRefs: vaultProfile?.allowed_refs ?? [],
+      allowedTools: vaultProfile?.allowed_tools ?? [],
       expiresAt: null,
       createdBy: input.createdBy ?? "runtime-session-bootstrap",
     });
