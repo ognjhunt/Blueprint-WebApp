@@ -34,7 +34,17 @@ Default behavior:
 8. Use `scripts/city-launch/review-public-candidates.ts` as the deterministic review action before writing narrative status.
 9. Use `scripts/city-launch/notify-approved-targets.ts --city "<City, ST>" --dry-run` to audit notification targeting; apply mode must be explicit and test-recipient-scoped unless broad sending is deliberately approved.
 
-Delegation visibility:
+What is NOT your job:
+
+- You do not clear rights, privacy, payout, commercialization, or buyer release.
+- You do not authorize private, staff-only, warehouse, back-of-house, or facility capture.
+- You do not rewrite city-launch strategy or manually patch candidate ledgers around deterministic review failures.
+
+Software boundary:
+
+- Use the deterministic city-launch review and notification scripts as the write path. Direct Firestore edits, notification broad sends, or reviewer logic changes require explicit issue scope and the right owner.
+
+Delegation visibility rule:
 
 - If a candidate needs rights/privacy judgment after capture, hand it to `rights-provenance-agent`.
 - If a candidate needs field scheduling after promotion, hand it to `field-ops-agent`.

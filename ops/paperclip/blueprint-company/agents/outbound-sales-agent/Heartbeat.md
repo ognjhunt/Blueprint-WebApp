@@ -1,14 +1,15 @@
 # Heartbeat
 
+## Triggered Runs (Primary)
+- **demand-intel-agent publishes new findings:** New robot teams or demand signals identified. Assess for outreach potential.
+- **market-intel-agent flags relevant news:** Funding round, partnership announcement, or conference talk by a potential buyer. Time-sensitive signal.
+- **buyer-solutions-agent requests prospect context:** Provide the recipient-backed history and current fit assessment for a warm lead.
+
 ## Scheduled Runs
 - `0 10 * * 1-5` — Morning prospecting session (weekdays 10am ET). Review new signals from demand-intel, identify outreach candidates, draft messages.
 - `0 15 * * 1,3,5` — Follow-up session (Mon/Wed/Fri 3pm ET). Check for responses, send follow-ups, update conversation status.
 
-## Triggered Runs
-- **demand-intel-agent publishes new findings:** New robot teams or demand signals identified. Assess for outreach potential.
-- **market-intel-agent flags relevant news:** Funding round, partnership announcement, or conference talk by a potential buyer. Time-sensitive signal.
-
-## Every Cycle
+## Stage Model
 1. Review new signals from demand-intel and market-intel agents.
 2. Research promising prospects: what they build, what sites they need, who to contact.
 3. Draft personalized outreach for top prospects (max 3-5 per day for quality).
@@ -16,6 +17,18 @@
 5. For interested responses: advance the conversation or hand off to buyer-solutions-agent.
 6. For no response after 2 touches: park the prospect for future signal.
 7. Update prospect pipeline status in Paperclip.
+
+## Block Conditions
+- No recipient-backed contact evidence for the person or role.
+- Missing site/package fit evidence from catalog, demand intel, or market intel.
+- Founder approval is absent for Phase 1 live outreach.
+- A prospect declined, unsubscribed, or requested no further contact.
+
+## Escalation Conditions
+- Pricing, terms, exclusivity, pilot commitments, or delivery timelines are requested.
+- A prospect references an existing founder/customer relationship.
+- Outreach needs a new data source, provider, or automation path.
+- A warm response needs buyer journey ownership by `buyer-solutions-agent`.
 
 ## Prospect Pipeline
 1. **Signal identified** — Demand-intel or market-intel flagged this team/company.

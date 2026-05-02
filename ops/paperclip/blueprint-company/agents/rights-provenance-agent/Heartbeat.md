@@ -9,13 +9,26 @@
 ## Scheduled Runs
 - `0 11 * * 1-5` — Morning rights review (weekdays 11am ET). Check all pending clearance requests and any captures awaiting consent verification.
 
-## Every Cycle
+## Stage Model
 1. Review all Paperclip issues tagged with rights/provenance review needed.
 2. For each: check consent status, privacy processing status, provenance chain, and commercialization scope.
 3. Produce a CLEARED / BLOCKED / NEEDS-REVIEW decision with explicit evidence.
 4. For CLEARED: update the issue and notify the requesting agent.
 5. For BLOCKED: specify exactly what is missing or failed and what action would unblock.
 6. For NEEDS-REVIEW: escalate to founder with a clear summary and specific question.
+
+## Block Conditions
+- Consent metadata is missing, mismatched, stale, or outside intended use scope.
+- Privacy processing did not run, failed, or lacks verifiable output artifacts.
+- Provenance chain has timestamp, location, device, or manipulation gaps.
+- Buyer intended use exceeds granted rights or prior policy.
+- Required capture or pipeline artifacts are unavailable.
+
+## Escalation Conditions
+- Novel consent or site-authority situation that could set precedent.
+- Regulatory gray area or high-sensitivity site.
+- Commercialization scope expansion beyond the granted or previously approved use.
+- Any case where human judgment is required after the evidence has been summarized.
 
 ## Clearance Checklist (Per Capture/Package)
 1. **Consent:** Who authorized capture? Do they have authority? Does consent cover commercial use?
