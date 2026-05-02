@@ -66,7 +66,7 @@ export default function Contact() {
       ? robotTeamCityMessaging.requestHeroBody
       : persona === "site_operator"
         ? "Talk to Blueprint about facility participation, access rules, and governance."
-        : "Send Blueprint a short brief about the site, task, and robot setup you want to evaluate.";
+        : "Tell Blueprint which site, workflow, and robot setup your team wants to evaluate.";
 
   const badgeLabel = captureRequestMode
     ? "Request Capture"
@@ -87,7 +87,7 @@ export default function Contact() {
         ? "Submit or claim a site for robot evaluation."
         : "Tell us the site, task, and robot in a few lines.";
   const heroBody = captureRequestMode
-    ? "Name the place, workflow, and robot question. Blueprint will use that brief to decide whether the next step is a hosted review, capture ask, or follow-up question."
+    ? "Name the place, workflow, and robot question. Blueprint will confirm whether we can open a capture path, point you to an existing site package, or ask one narrow follow-up."
     : hostedMode
     ? "Confirm the site, the task, and the robot setup. Blueprint will use that to line up the right hosted evaluation path for your team."
       : robotTeamCityMessaging
@@ -97,14 +97,14 @@ export default function Contact() {
         : "Use this form if your team needs one exact site for evaluation, site-specific data, release comparison, or package access.";
 
   const responseBody = captureRequestMode
-    ? "Fill out the short form and Blueprint will follow up with the capture path, hosted-review option, or the specific gap that needs to be resolved first."
+    ? "Fill out the short form and Blueprint will reply with the capture option, hosted evaluation path, or the one missing detail we need first."
     : hostedMode
     ? "Fill out the short form and Blueprint will follow up to confirm the site, robot setup, and the next step toward a hosted evaluation."
       : robotTeamCityMessaging
       ? robotTeamCityMessaging.requestResponseBody
       : persona === "site_operator"
         ? "Blueprint reviews the facility details, access rules, privacy notes, and commercialization preference first. A call is only the next step when those details are specific enough to resolve."
-        : "Blueprint reviews the site, task, and robot details first. The reply points your team toward the package path, hosted evaluation path, or the follow-up question that actually matters.";
+        : "Blueprint reviews the site, task, and robot details first. The reply points your team toward package access, hosted evaluation, or one concrete follow-up question.";
 
   const expectedNextStep =
     sourcePath === "request-capture"
@@ -114,7 +114,7 @@ export default function Contact() {
       : sourcePath === "package-access"
         ? "Blueprint confirms rights, export scope, and package access for the requested site."
         : interest
-          ? "Blueprint routes the request to the right package, hosted-review, or follow-up path."
+          ? "Blueprint confirms whether the next step is package access, hosted evaluation, or a narrower follow-up."
           : "";
 
   const sourceAwareRows = [
@@ -165,7 +165,7 @@ export default function Contact() {
           {
             href: "/exact-site-hosted-review",
             label: "See hosted evaluation",
-            detail: "Best when your team wants the runtime path explained before it writes a brief.",
+            detail: "Best when your team wants to understand hosted evaluation before sharing site details.",
           },
           {
             href: "/world-models",
@@ -175,21 +175,21 @@ export default function Contact() {
           {
             href: "/book-exact-site-review",
             label: "Book a scoping call",
-            detail: "Best when the site is already known and the structured brief is specific enough for a fast human pass.",
+            detail: "Best when the site is already known and a short call would save time.",
           },
         ];
   const primaryActionLabel =
     captureRequestMode
       ? "Start capture request"
       : hostedMode
-        ? "Start hosted evaluation brief"
+        ? "Request hosted evaluation"
         : persona === "site_operator"
           ? "Start site claim"
-          : "Start robot-team brief";
+          : "Request site review";
   const proofPoints =
     persona === "site_operator"
       ? ["Facility first", "Access rules visible", "Call only when needed"]
-      : ["Site, task, robot first", "Calendar second", "Proof boundaries visible"];
+      : ["Site, task, robot first", "Proof boundaries visible", "Call only when useful"];
   const formSummary =
     persona === "site_operator"
       ? "Required: contact details, facility, location, and access rules."
@@ -289,22 +289,21 @@ export default function Contact() {
           <div className="grid gap-8 lg:grid-cols-[0.56fr_0.44fr]">
             <div className="border border-black/10 bg-white p-6 shadow-[0_20px_60px_-44px_rgba(15,23,42,0.22)]">
               <div className="mb-6 border-b border-black/10 pb-5">
-                <EditorialSectionLabel>Structured intake</EditorialSectionLabel>
+                <EditorialSectionLabel>Start here</EditorialSectionLabel>
                 <div className="mt-3 grid gap-4 lg:grid-cols-[1fr_auto] lg:items-end">
                   <div>
                     <h2 className="font-editorial text-[2.45rem] leading-[0.95] tracking-[-0.05em] text-slate-950">
-                      Start with the brief Blueprint can route.
+                      Tell us the site and the decision you need to make.
                     </h2>
                     <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600">
-                      {formSummary} The request becomes a package path, hosted-review path,
-                      capture ask, or a specific blocker.
+                      {formSummary} We will reply with the available package path, hosted evaluation option, capture request, or the one missing detail we need.
                     </p>
                   </div>
                   <div className="border border-black/10 bg-[#f8f6f1] px-4 py-3 text-sm text-slate-700">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
                       Cadence
                     </p>
-                    <p className="mt-2 font-medium text-slate-950">Brief first. Calendar second.</p>
+                    <p className="mt-2 font-medium text-slate-950">Short form first. Call only when useful.</p>
                   </div>
                 </div>
               </div>
@@ -380,19 +379,19 @@ export default function Contact() {
                   ))}
                 </div>
                 <a
-                  href="mailto:hello@tryblueprint.io?subject=Blueprint%20brief"
+                  href="mailto:hello@tryblueprint.io?subject=Blueprint%20site%20review"
                   onClick={() =>
                     trackContactCta(
                       "contact_email_brief",
-                      "Email a short brief to hello@tryblueprint.io",
-                      "mailto:hello@tryblueprint.io?subject=Blueprint%20brief",
+                      "Email a site review request to hello@tryblueprint.io",
+                      "mailto:hello@tryblueprint.io?subject=Blueprint%20site%20review",
                       "contact-fast-paths",
                     )
                   }
                   className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-slate-900 transition hover:text-slate-700 hover:underline"
                 >
                   <Mail className="h-4 w-4" />
-                  Email a short brief to hello@tryblueprint.io
+                  Email a site review request to hello@tryblueprint.io
                 </a>
               </div>
             </div>

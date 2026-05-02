@@ -97,7 +97,7 @@ export default function FAQ() {
           <EditorialCtaBand
             eyebrow="Next step"
             title="Talk to Blueprint about a real site."
-            description="If one real site already matters, the fastest move is to send a short brief tied to that site and workflow question."
+            description="If one real site already matters, tell Blueprint the place, workflow, and robot question your team needs answered."
             imageSrc={editorialGeneratedAssets.scopingRoom}
             imageAlt="Scoping room"
             primaryHref="/contact?persona=robot-team"

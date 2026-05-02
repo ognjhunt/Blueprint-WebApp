@@ -49,7 +49,7 @@ const captureAnnex = [
 const roleAnnex = [
   {
     title: "Robot teams",
-    body: "Buyer workspaces may include requests, site briefs, robot profiles, hosted-session notes, exports, and account activity.",
+    body: "Buyer workspaces may include site requests, robot profiles, hosted-session notes, exports, and account activity.",
   },
   {
     title: "Site operators",

@@ -41,13 +41,13 @@ const sampleSections = [
   {
     title: "Review memo",
     body:
-      "A short report with blockers, evidence quality notes, a risk map, and a clear recommendation on what to do next.",
+      "A short report with open issues, evidence quality notes, a risk map, and a clear recommendation on what to do next.",
     icon: <FileText className="h-5 w-5" />,
   },
   {
     title: "Robot-team evaluation path",
     body:
-      "A simple handoff that lets robot teams review the site brief before anyone burns field time or pilot budget.",
+      "A simple handoff that lets robot teams review the site record before anyone burns field time or pilot budget.",
     icon: <ShieldCheck className="h-5 w-5" />,
   },
 ];
@@ -59,7 +59,7 @@ const reportSections = [
   "Risk map: where the site is likely to block rollout",
   "Pass / fail criteria: what a team needs to prove next",
   "Readiness verdict: ready, risky, or not ready yet",
-  "Recommended next step: fix blockers, gather more evidence, or start team evaluation",
+  "Recommended next step: fix open issues, gather more evidence, or start team evaluation",
 ];
 
 export default function ReadinessPack() {
@@ -88,7 +88,7 @@ export default function ReadinessPack() {
                 <p className="max-w-2xl text-lg leading-relaxed text-slate-600">
                   Most teams start with the site package or hosted evaluation path. The readiness
                   review is the extra layer for high-stakes deployments, buyer signoff, or
-                  commercialization decisions that need a clear record of blockers, evidence gaps,
+                  commercialization decisions that need a clear record of open issues, evidence gaps,
                   and next steps.
                 </p>
 
@@ -104,7 +104,7 @@ export default function ReadinessPack() {
                 <p className="text-xs font-bold uppercase tracking-widest text-slate-400">
                   Sample verdict
                 </p>
-                <h2 className="mt-3 text-2xl font-bold text-slate-950">Ready with two blockers</h2>
+                <h2 className="mt-3 text-2xl font-bold text-slate-950">Ready with two open issues</h2>
                 <p className="mt-3 text-sm leading-relaxed text-slate-600">
                   The route is workable and the handoff is clear. The current gaps are a narrow dock
                   turn and incomplete evidence around a restricted storage aisle.
@@ -112,7 +112,7 @@ export default function ReadinessPack() {
                 <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
                   <p className="text-sm font-semibold text-slate-900">Next step</p>
                   <p className="mt-2 text-sm text-slate-600">
-                    Fix the dock turn, confirm aisle access rules, then open the site brief
+                    Fix the dock turn, confirm aisle access rules, then open the site record
                     for robot-team review.
                   </p>
                 </div>
@@ -160,7 +160,7 @@ export default function ReadinessPack() {
                 <p className="text-slate-600">
                   Use this when a buyer, operator, or internal deployment lead needs a tighter
                   review before approving deeper work. Robot teams can use it to understand
-                  blockers without making review the center of the product story.
+                  open issues without making review the center of the product story.
                 </p>
                 <a
                   href="/contact?interest=site-review"

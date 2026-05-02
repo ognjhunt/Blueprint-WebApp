@@ -202,7 +202,7 @@ export default function CaseStudies() {
           <EditorialCtaBand
             eyebrow="Next step"
             title="Turn a public-facing capture into buyer evidence."
-            description="Start with the sample listing, the capture app, or a short brief tied to one site and workflow question."
+            description="Start with the sample listing, the capture app, or a direct request tied to one site and workflow question."
             imageSrc={publicCaptureGeneratedAssets.cedarMarketProofBoard}
             imageAlt="Proof packet board"
             primaryHref={publicDemoHref}

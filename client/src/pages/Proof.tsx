@@ -298,7 +298,7 @@ export default function Proof() {
           <EditorialCtaBand
             eyebrow="Next step"
             title="Move from proof into the exact-site path."
-            description="Inspect the listing first, then continue into deliverables, hosted review, or a direct buyer brief."
+            description="Inspect the listing first, then continue into deliverables, hosted review, or a direct request for one site."
             imageSrc={publicCaptureGeneratedAssets.governancePublicCaptureExplainer}
             imageAlt="Proof board"
             primaryHref="/world-models"

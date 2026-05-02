@@ -79,13 +79,13 @@ describe("Contact page", () => {
     expect(screen.getByText(/Rights, privacy, and proof boundaries stay explicit/i)).toBeInTheDocument();
     expect(screen.queryByText(/Buyer type/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Requested lanes/i)).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Start robot-team brief/i })).toBeInTheDocument();
-    expect(screen.getByText(/Brief first\. Calendar second\./i)).toBeInTheDocument();
-    expect(screen.getByText(/Required to route/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Request site review/i })).toBeInTheDocument();
+    expect(screen.getByText(/Short form first\. Call only when useful\./i)).toBeInTheDocument();
+    expect(screen.getByText(/Useful to include/i)).toBeInTheDocument();
     expect(screen.getByText(/Fastest paths/i)).toBeInTheDocument();
     expect(screen.getByText(/Book a scoping call/i)).toBeInTheDocument();
     expect(
-      screen.getByText(/Best when your team wants the runtime path explained before it writes a brief\./i),
+      screen.getByText(/Best when your team wants to understand hosted evaluation before sharing site details\./i),
     ).toBeInTheDocument();
     expect(screen.getByText(/Inspect the sample listing/i)).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: /What should Blueprint help your team answer first\?/i })).toBeInTheDocument();
@@ -103,12 +103,12 @@ describe("Contact page", () => {
   it("tracks the hero start CTA without adding personal data", () => {
     render(<Contact />);
 
-    fireEvent.click(screen.getByRole("link", { name: /Start robot-team brief/i }));
+    fireEvent.click(screen.getByRole("link", { name: /Request site review/i }));
 
     expect(analyticsEventsMock.contactPageCtaClicked).toHaveBeenCalledWith({
       persona: "robot_team",
       ctaId: "contact_hero_start",
-      ctaLabel: "Start robot-team brief",
+      ctaLabel: "Request site review",
       destination: "#contact-intake",
       source: "contact-hero",
       requestedLane: "deeper_evaluation",
@@ -203,7 +203,7 @@ describe("Contact page", () => {
       target: { value: "Unitree G1" },
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /Send a short brief/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Request site review/i }));
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
@@ -212,7 +212,7 @@ describe("Contact page", () => {
       );
     });
 
-    expect(screen.getByText(/Brief received/i)).toBeInTheDocument();
+    expect(screen.getByText(/Site review request received/i)).toBeInTheDocument();
     expect(analyticsEventsMock.contactRequestSubmitted).toHaveBeenCalledWith({
       persona: "robot_team",
       hostedMode: false,
@@ -298,7 +298,7 @@ describe("Contact page", () => {
   it("tracks a validation failure when required contact fields are missing", async () => {
     render(<Contact />);
 
-    fireEvent.click(screen.getByRole("button", { name: /Send a short brief/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Request site review/i }));
 
     expect(analyticsEventsMock.contactRequestFailed).toHaveBeenCalledWith({
       stage: "validation",

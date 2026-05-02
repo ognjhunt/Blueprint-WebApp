@@ -309,7 +309,7 @@ describe("analytics contract", () => {
     analyticsEvents.contactPageCtaClicked({
       persona: "robot_team",
       ctaId: "contact_hero_start",
-      ctaLabel: "Start robot-team brief",
+      ctaLabel: "Request site review",
       destination: "#contact-intake",
       source: "contact-hero",
       requestedLane: "deeper_evaluation",
@@ -324,7 +324,7 @@ describe("analytics contract", () => {
     expect(payload.properties).toEqual({
       persona: "robot_team",
       cta_id: "contact_hero_start",
-      cta_label: "Start robot-team brief",
+      cta_label: "Request site review",
       destination: "#contact-intake",
       source: "contact-hero",
       requested_lane: "deeper_evaluation",

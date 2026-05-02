@@ -172,7 +172,7 @@ export function OfferComparison({
           <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-900">Next step</div>
           <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Inspect a listing, review the manifest and trust card, then request package access for that site.</div>
           <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Review the hosted flow, confirm the robot and workflow question, then submit hosted-eval scoping.</div>
-          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Send a brief with the facility, rights needs, and commercial constraints so Blueprint can scope the program.</div>
+          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Tell Blueprint the facility, rights needs, and operating constraints so we can scope the program.</div>
         </div>
       </div>
     </section>

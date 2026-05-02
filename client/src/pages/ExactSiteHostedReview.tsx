@@ -41,11 +41,11 @@ const reviewSteps = [
   },
   {
     title: "Run",
-    body: "Blueprint opens a hosted review session against the exact-site package and records observations, route behavior, and blockers.",
+    body: "Blueprint opens a hosted review session against the exact-site package and records observations, route behavior, and limits.",
   },
   {
     title: "Export",
-    body: "The buyer leaves with a review summary, run evidence, export framing, and the next commercial recommendation.",
+    body: "The buyer leaves with a review summary, run evidence, export framing, and a clear recommendation for what to do next.",
   },
 ];
 
@@ -124,7 +124,7 @@ export default function ExactSiteHostedReview() {
                       Review: reruns, observations, exports
                     </div>
                     <div className="rounded-[1rem] border border-white/10 bg-white/[0.08] p-4 text-sm text-white/[0.72]">
-                      Output: next commercial step stays explicit
+                      Output: next step stays explicit
                     </div>
                   </div>
                   </div>
@@ -301,7 +301,7 @@ export default function ExactSiteHostedReview() {
                     <div>1. Pick the site and workflow.</div>
                     <div>2. Confirm the robot setup in scope.</div>
                     <div>3. Run the hosted review and inspect the evidence.</div>
-                    <div>4. Decide the next commercial step with the proof still attached.</div>
+                    <div>4. Decide what to do next with the proof still attached.</div>
                   </div>
                   <div className="mt-8 border border-black/10 bg-white p-5">
                     <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Standard output shape</p>

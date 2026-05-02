@@ -110,7 +110,7 @@ const inlinePreviews = [
     body: [
       ["scope", "One exact site, one robot profile, one workflow lane"],
       ["runs", "Baseline, occlusion, approach, restricted-zone review"],
-      ["output", "Observation notes and next commercial recommendation"],
+      ["output", "Observation notes and next-step recommendation"],
       ["limit", "Not a deployment guarantee"],
     ],
   },

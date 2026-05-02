@@ -35,11 +35,11 @@ const DEMAND_CITY_MESSAGING: Record<DemandCityKey, DemandCityMessaging> = {
       "Blueprint reviews the site, workflow, and intro context first so the follow-up can stay narrow: exact-site proof path, provenance clarity, and a fast hosted-review next step if the request looks workable.",
     requestCardTitle: "Austin request lens",
     requestCardBody:
-      "This city leans on high-trust introductions rather than mass demand, so the brief should make the exact-site relevance legible immediately.",
+      "This city leans on high-trust introductions rather than mass demand, so the request should make the exact-site relevance clear right away.",
     requestCardPoints: [
       "Reference whether the request came through Texas Robotics, a founder intro, a university contact, or an industrial partner.",
       "Call out the facility type and what exact-site proof the buyer needs before deeper work.",
-      "Keep rights, privacy, and provenance visible without turning the brief into a qualification-heavy intake.",
+      "Keep rights, privacy, and provenance visible without turning the request into a qualification worksheet.",
     ],
   },
   "san-francisco": {
@@ -58,7 +58,7 @@ const DEMAND_CITY_MESSAGING: Record<DemandCityKey, DemandCityMessaging> = {
     requestHeroBody:
       "Use this form to anchor the request in one real site, the current stack, and the exact review question. San Francisco buyers will move faster when the proof path is technical, specific, and honest about what still needs human approval.",
     requestResponseBody:
-      "Blueprint reviews the site, workflow, and technical constraints first so the reply can point toward the right package path, hosted review, or a narrow follow-up on stack fit and human-gated topics.",
+      "Blueprint reviews the site, workflow, and technical constraints first so the reply can point toward package access, hosted evaluation, or a narrow follow-up on stack fit and human-gated topics.",
     requestCardTitle: "San Francisco request lens",
     requestCardBody:
       "This city has denser buyer and partner channels, but the proof needs to hold up under sharper technical scrutiny.",

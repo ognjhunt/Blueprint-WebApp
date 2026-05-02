@@ -79,36 +79,36 @@ const homeVariantContent: Record<
     primaryPath: "hosted-evaluation",
     secondaryLabel: "Inspect sample review",
     secondaryHref: "/sample-evaluation",
-    panelTitle: "Structured robot-team brief",
+    panelTitle: "Start with one site",
     panelBody:
-      "The conversion goal is a site, task, robot, and proof-path record. A call comes second, when the request is specific enough to scope.",
+      "Tell us the place, the robot, and the decision your team needs to make. We will point you to the right listing, hosted evaluation, or capture path.",
   },
   proof_pack: {
     title: "Site-specific world models for real places.",
     description:
       "Start with the deployment question, not a generic demo. Blueprint keeps capture provenance, package scope, hosted review, and rights boundaries attached to one site.",
-    primaryLabel: "Send site brief",
+    primaryLabel: "Request site review",
     primaryPath: "request-capture",
     secondaryLabel: "Inspect sample site",
     secondaryHref: publicDemoHref,
     panelTitle: "Exact-site proof path",
     panelBody:
-      "A first-time robot team should leave the page knowing what to inspect, what to request, and how the request will be measured.",
+      "See what is already inspectable, then request the site or workflow your team actually needs.",
   },
 };
 
 const robotTeamDecisionSteps = [
   {
-    title: "Name the site and task",
-    body: "One facility, site class, or route. One robot stack. One question your team needs answered before committing more time.",
+    title: "Pick the place",
+    body: "Start with one facility, site class, or route your team needs to understand before spending more time.",
   },
   {
-    title: "Inspect the proof shape",
-    body: "Review the sample listing, evidence packet, hosted-review report, restrictions, freshness, and export boundaries.",
+    title: "Check the evidence",
+    body: "Look at the sample listing, capture notes, rights limits, freshness, hosted review report, and export shape.",
   },
   {
-    title: "Move into hosted review",
-    body: "Blueprint routes the structured brief toward package access, hosted review, a capture ask, or a specific blocker.",
+    title: "Request the next step",
+    body: "Ask for package access, hosted evaluation, or a new capture when the exact place is not available yet.",
   },
 ];
 
@@ -388,22 +388,22 @@ export default function Home() {
             <div className="bg-[#f5f3ef] px-6 py-8 lg:px-8 lg:py-10">
               <EditorialSectionIntro
                 eyebrow="For robot teams"
-                title="The first conversion is a usable site brief."
-                description="A first-time visitor should not have to guess whether to buy, book, or wait. Blueprint asks for the minimum structured context needed to route the next step truthfully."
+                title="Start with the site your robot needs to understand."
+                description="Blueprint helps your team inspect what exists, request what is missing, and move toward hosted evaluation without a long discovery loop."
               />
               <a
                 href={decisionPathHref}
                 onClick={() =>
                   trackHomeCtaClick(
                     "home_decision_path",
-                    "Send robot-team brief",
+                    "Request site review",
                     decisionPathHref,
                     "home-decision-path",
                   )
                 }
                 className="mt-7 inline-flex items-center justify-center bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
               >
-                Send robot-team brief
+                Request site review
                 <ArrowRight className="ml-2 h-4 w-4" />
               </a>
             </div>
@@ -679,7 +679,7 @@ export default function Home() {
           <EditorialCtaBand
             eyebrow="Start"
             title="Start with the site, task, and robot question."
-            description="Blueprint can only route the next step well when the brief names what the team needs to evaluate."
+            description="Blueprint can give a better answer when your request names the place, workflow, and robot setup your team needs to evaluate."
             imageSrc={editorialGeneratedAssets.homeHero}
             imageAlt="Blueprint hosted runtime still"
             primaryHref={bottomCtaHref}

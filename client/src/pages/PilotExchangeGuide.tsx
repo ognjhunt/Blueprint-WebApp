@@ -148,7 +148,7 @@ export default function PilotExchangeGuide() {
             </h1>
             <p className="text-lg text-zinc-600 leading-relaxed mb-8">
               Blueprint captures and packages real sites first. Then robot teams can review a
-              clearer brief, open hosted access, and respond with less guesswork.
+              clearer site record, open hosted access, and respond with less guesswork.
             </p>
             <div className="flex flex-wrap items-center gap-4">
               <a href="/qualified-opportunities">

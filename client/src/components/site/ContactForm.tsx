@@ -412,14 +412,14 @@ export function ContactForm() {
             ? "Hosted evaluation request received"
             : persona === "site_operator"
               ? "Site claim received"
-              : "Brief received"}
+              : "Site review request received"}
         </h2>
         <p className="mt-4 text-zinc-600">
           {hostedMode
             ? "Blueprint now has the request details for this hosted evaluation follow-up."
             : persona === "site_operator"
               ? "Blueprint now has the site claim, access notes, and governance boundaries needed for a measured follow-up."
-              : "Blueprint now has the site, task, and robot details needed for a follow-up."}
+              : "Blueprint now has the site, task, and robot details needed to answer with a useful next step."}
         </p>
         <div className="mt-8 rounded-xl bg-zinc-50 p-6 text-left">
           <h3 className="mb-4 text-sm font-semibold text-zinc-900">What happens next?</h3>
@@ -428,7 +428,7 @@ export function ContactForm() {
               <div className="mt-0.5 rounded-full bg-indigo-100 p-1 text-indigo-600">
                 <Clock className="h-3 w-3" />
               </div>
-              <p>Blueprint reviews the brief and confirms the most credible next step.</p>
+              <p>Blueprint reviews the site, task, and robot details, then replies with the next useful step.</p>
             </div>
             <div className="flex items-start gap-3">
               <div className="mt-0.5 rounded-full bg-indigo-100 p-1 text-indigo-600">
@@ -459,10 +459,10 @@ export function ContactForm() {
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-              Required to route
+              Useful to include
             </p>
             <p className="mt-2 text-sm leading-6 text-slate-700">
-              Keep the first pass short. Blueprint can ask for detail after the path is clear.
+              Keep the first pass short. Blueprint can ask for detail after we understand the site and workflow.
             </p>
           </div>
           <div className="flex flex-wrap gap-2 md:max-w-[20rem] md:justify-end">
@@ -830,8 +830,7 @@ export function ContactForm() {
 
       <div className="flex flex-col gap-3 border-t border-black/10 pt-6 sm:flex-row sm:items-center sm:justify-between">
         <p className="max-w-md text-xs leading-5 text-slate-500">
-          Submitting creates a structured intake record. It does not claim buyer readiness,
-          rights clearance, or a live capture commitment.
+          Submitting this form does not claim buyer readiness, rights clearance, or a live capture commitment.
         </p>
         <button
           type="submit"
@@ -841,10 +840,10 @@ export function ContactForm() {
           {status === "loading"
             ? "Submitting..."
             : hostedMode
-                ? "Request hosted evaluation"
+              ? "Request hosted evaluation"
               : persona === "site_operator"
                 ? "Submit site claim"
-                : "Send a short brief"}
+                : "Request site review"}
           <ArrowRight className="ml-2 h-4 w-4" />
         </button>
       </div>

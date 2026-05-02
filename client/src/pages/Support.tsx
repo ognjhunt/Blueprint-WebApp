@@ -21,7 +21,7 @@ const helpPaths = [
   {
     title: "Buyer questions",
     body:
-      "Use this when the question is about one exact site, hosted evaluation, package access, or the next commercial step.",
+      "Use this when the question is about one exact site, hosted evaluation, package access, or what to do next.",
     href: "/contact?persona=robot-team",
     icon: LifeBuoy,
   },
