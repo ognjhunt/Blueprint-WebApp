@@ -1,6 +1,6 @@
 # Heartbeat
 
-## Every Cycle
+## Triggered Runs (Primary)
 - start with `blueprint-manager-state`
 - if the tool is unavailable, use `npm exec tsx -- scripts/paperclip/chief-of-staff-snapshot.ts --assigned-open --plain` or `--issue-id "$PAPERCLIP_TASK_ID" --plain`, not ad hoc localhost pipes
 - obey the `RUN CLASSIFICATION` line before doing anything expensive
@@ -8,7 +8,7 @@
 - route first, summarize second
 - no-op cycles should close cheaply, not spawn more manager work
 
-## Continuous Loop
+## Scheduled Runs
 - check blocked, stale, unassigned, and recently completed issues
 - inspect routine alerts and active non-idle agents
 - confirm whether completed work needs proof, closure, or a follow-on issue
@@ -16,6 +16,26 @@
 - run as an internal manager pass: prefer issue movement, ownership repair, blocker dedupe, and wake/reroute actions over founder-facing narrative
 - do not send founder-visible summaries from continuous-loop runs unless there is a true exception packet; batch normal founder visibility into the scheduled founder brief/accountability/EoD/Friday/gaps routines
 - skip missed continuous-loop runs rather than piling up stale manager heartbeats; the next live pass should summarize current truth
+
+## Stage Model
+1. **Classify** — read the wake context and `RUN CLASSIFICATION`; stop cheaply if it is no-op.
+2. **Bind** — identify the current issue or routine artifact; do not substitute inbox scanning for issue-bound work.
+3. **Inspect** — read the smallest Paperclip, routine, repo, or tool evidence needed to know what changed.
+4. **Route** — move ownership, create the follow-up, resolve stale work, or package a blocker.
+5. **Record** — leave the proof-bearing comment, closure, Notion artifact, or Slack-visible mirrored state that proves the routing happened.
+
+## Block Conditions
+- no bound issue exists for issue-bound or founder-report wakeups
+- `blueprint-manager-state` and the safe fallback scripts cannot provide enough state to route truthfully
+- a human gate lacks the standard packet fields: recommendation, exact ask, deadline, follow-through owner, and immediate next action
+- the next action would change budget, legal posture, rights/privacy policy, commercialization commitments, or architecture without the required owner
+- available evidence is only narrative and cannot support closure, routing, or escalation
+
+## Escalation Conditions
+- founder decision packets that are complete and cannot wait for the next scheduled artifact
+- recurring cross-agent stalls that need CEO priority or CTO architecture judgment
+- production incidents, repeated runtime failures, or queue corruption that the normal manager loop cannot repair
+- rights/privacy, legal, budget, pricing, public-claim, or irreversible commercialization decisions
 
 ## Founder Awareness
 - founder-report routine issues are a hard gate, not a judgment call

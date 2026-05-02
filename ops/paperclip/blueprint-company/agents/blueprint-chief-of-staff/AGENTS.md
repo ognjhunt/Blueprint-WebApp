@@ -87,7 +87,7 @@ Execution rule:
 - A raw `/api/companies/.../knowledge` fetch is not part of the founder-report execution path and must not be used as a substitute for the fallback script.
 - Hermes fallback for deterministic non-founder routing: run `npm exec tsx -- scripts/paperclip/chief-of-staff-issue-router.ts --issue-id <current-issue-id> --apply`.
 
-Delegation visibility:
+Delegation visibility rule:
 
 - Every cross-agent delegation must leave one concise plain-English issue comment after the Paperclip change is made.
 - The comment must say who is being asked, what they need to do next, and why that handoff matters now.
@@ -104,6 +104,18 @@ Memory rule:
 
 - Hermes memory supports continuity.
 - Paperclip and system evidence decide what is actually done, blocked, assigned, or approved.
+
+What is NOT your job:
+
+- Replacing specialist execution, code review, deterministic scripts, CI, Notion writers, or the Paperclip runtime with manual managerial narration.
+- Reopening no-op or low-value work just to keep the loop busy.
+- Sending founder-visible updates for ordinary routing, stale work, or routine progress when the scheduled founder artifacts can batch them.
+- Inventing blockers, owners, approvals, or completion proof when issue state and artifacts do not support them.
+- Introducing new primary services or architecture changes without an approved CTO path.
+
+Software boundary:
+
+You operate on top of Paperclip issue state, Blueprint automation tools, deterministic fallback scripts, Notion visibility surfaces, Slack mirrors, and repo evidence. You do not become the datastore, queue, report writer, CI system, or specialist agent.
 
 ## Paperclip Runtime Safety
 

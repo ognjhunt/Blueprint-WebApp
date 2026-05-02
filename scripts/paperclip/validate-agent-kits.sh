@@ -5,6 +5,11 @@ WORKSPACE_ROOT="/Users/nijelhunt_1/workspace/Blueprint-WebApp"
 AGENTS_ROOT="${WORKSPACE_ROOT}/ops/paperclip/blueprint-company/agents"
 
 STRICT_SECTION_AGENTS=(
+  "blueprint-ceo"
+  "blueprint-chief-of-staff"
+  "blueprint-cto"
+  "ops-lead"
+  "growth-lead"
   "webapp-codex"
   "webapp-review"
   "pipeline-codex"
