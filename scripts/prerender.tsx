@@ -215,7 +215,7 @@ const staticRoutes: StaticRoute[] = [
   { path: "/for-robot-teams", component: ForRobotIntegrators },
   { path: "/solutions", component: Solutions },
   { path: "/pricing", component: Pricing },
-  { path: "/proof", component: Proof },
+  { path: "/proof", component: Proof, shell: "bare" },
   { path: "/sample-evaluation", component: SampleEvaluation },
   { path: "/sample-deliverables", component: SampleDeliverables },
   { path: "/case-studies", component: CaseStudies },
