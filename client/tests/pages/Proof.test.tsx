@@ -21,63 +21,71 @@ describe("Proof page", () => {
     render(<Proof />);
 
     expect(
-      screen.getByRole("heading", { name: /See the site before you commit to the path\./i }),
+      screen.getByRole("heading", { name: /Grocery aisle proof packet/i }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Public capture can start with everyday places\./i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Useful sites are not warehouse-only\./i })).toBeInTheDocument();
-    expect(screen.getByText(/Cedar Market Aisle Loop/i)).toBeInTheDocument();
-    expect(screen.getByText(/Hosted report preview/i)).toBeInTheDocument();
-    expect(screen.queryByRole("heading", {
-      name: /Austin demand is relationship-led, so the proof needs to get specific fast\./i,
-    })).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Contact Blueprint/i })).toHaveAttribute(
+    expect(
+      screen.getByText(/A real-route capture example for shelf navigation, aisle obstruction checks, and robot team inspection\./i),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /What the robot team inspects/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Capture provenance/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Hosted review output \(sample\)/i })).toBeInTheDocument();
+    expect(screen.getByText(/Aisle geometry/i)).toBeInTheDocument();
+    expect(screen.getByText(/Capture device/i)).toBeInTheDocument();
+    expect(screen.getByText(/Navigability assessment/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Example packet/i).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Austin, TX/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/San Francisco, CA/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Discuss a similar site/i })).toHaveAttribute(
       "href",
       "/contact?persona=robot-team",
     );
-    expect(screen.getByRole("heading", { name: /Choose what to inspect next\./i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Capture examples/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /View full provenance/i })).toHaveAttribute(
       "href",
-      "/case-studies",
+      "/sample-deliverables",
+    );
+    expect(screen.getByRole("link", { name: /See inspection checklist/i })).toHaveAttribute(
+      "href",
+      "/sample-evaluation",
+    );
+    expect(screen.getByRole("link", { name: /Discuss a similar site/i })).toHaveAttribute(
+      "href",
+      "/contact?persona=robot-team",
+    );
+    expect(screen.getByRole("link", { name: /Open hosted review/i })).toHaveAttribute(
+      "href",
+      "/world-models/siteworld-f5fd54898cfb/start",
     );
   });
 
-  it("renders Austin-specific proof guidance and preserves city context in the CTA", () => {
+  it("ignores Austin city context and preserves the proof packet CTA", () => {
     mockSearch = "?city=austin";
 
     render(<Proof />);
 
-    expect(screen.getAllByText(/Austin, TX/i).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Austin, TX/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Grocery aisle proof packet/i })).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", {
-        name: /Austin demand is relationship-led, so the proof needs to get specific fast\./i,
-      }),
+      screen.getByText(/A real-route capture example for shelf navigation, aisle obstruction checks, and robot team inspection\./i),
     ).toBeInTheDocument();
-    expect(
-      screen.getByText(/lead with one exact site, the facility type, and a proof path that is easy to inspect/i),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Contact Blueprint/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Discuss a similar site/i })).toHaveAttribute(
       "href",
-      "/contact?persona=robot-team&city=austin",
+      "/contact?persona=robot-team",
     );
   });
 
-  it("renders San Francisco-specific proof guidance and preserves city context in the CTA", () => {
+  it("ignores San Francisco city context and preserves the proof packet CTA", () => {
     mockSearch = "?city=san-francisco";
 
     render(<Proof />);
 
-    expect(screen.getByText(/San Francisco, CA/i)).toBeInTheDocument();
+    expect(screen.queryByText(/San Francisco, CA/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Grocery aisle proof packet/i })).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", {
-        name: /San Francisco buyers will pressure-test technical clarity immediately\./i,
-      }),
+      screen.getByText(/A real-route capture example for shelf navigation, aisle obstruction checks, and robot team inspection\./i),
     ).toBeInTheDocument();
-    expect(
-      screen.getByText(/lead with exact-site proof, current-stack fit, and what can be reviewed asynchronously/i),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Contact Blueprint/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Discuss a similar site/i })).toHaveAttribute(
       "href",
-      "/contact?persona=robot-team&city=san-francisco",
+      "/contact?persona=robot-team",
     );
   });
 });
