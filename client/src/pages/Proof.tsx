@@ -1,313 +1,369 @@
 import { SEO } from "@/components/SEO";
 import {
-  EditorialCtaBand,
-  EditorialSectionIntro,
-  EditorialSectionLabel,
-  MonochromeMedia,
-} from "@/components/site/editorial";
-import { getDemandCityMessaging, withDemandCityQuery } from "@/lib/cityDemandMessaging";
-import {
-  proofEvidencePacket,
-  publicCaptureProofStories,
-  sampleHostedRunRows,
-  sampleProofTimeline,
-} from "@/lib/proofEvidence";
-import { publicCaptureGeneratedAssets } from "@/lib/publicCaptureGeneratedAssets";
-import { ArrowRight } from "lucide-react";
-import { useMemo } from "react";
-import { useSearch } from "wouter";
+  ArrowLeft,
+  ArrowUpRight,
+  Building2,
+  CalendarClock,
+  CheckCircle2,
+  ClipboardCheck,
+  Copy,
+  Eye,
+  FileText,
+  LockKeyhole,
+  Map,
+  MessageSquare,
+  Play,
+  Route,
+  ShieldCheck,
+  Sparkles,
+  Sun,
+  Warehouse,
+} from "lucide-react";
 
-const proofRoutes = [
+const captureImage = "/proof/grocery-aisle-proof-capture.png";
+
+const proofSummary = [
   {
-    title: "How it works",
-    body: "Follow the path from capture to package to run to delivery.",
-    href: "/how-it-works",
+    icon: Building2,
+    label: "Site type",
+    value: "Grocery retail - supermarket",
   },
   {
-    title: "Hosted review",
-    body: "See how the managed review path stays tied to the same exact site.",
-    href: "/exact-site-hosted-review",
+    icon: Route,
+    label: "Capture route",
+    value: "Aisle 12, cereal to snacks",
+    action: "View route map",
   },
   {
-    title: "Deliverables",
-    body: "Inspect manifests, rights sheets, and output bundles tied to one listing.",
-    href: "/sample-deliverables",
+    icon: ShieldCheck,
+    label: "Rights posture",
+    value: "Example packet",
+    note: "Lawful route required for your site",
   },
   {
-    title: "Capture examples",
-    body: "Review grocery, retail, lobby, and common-area routes a capturer could submit.",
-    href: "/case-studies",
+    icon: LockKeyhole,
+    label: "Privacy posture",
+    value: "Privacy-safe review",
+    note: "No faces or PII captured",
+  },
+  {
+    icon: Sparkles,
+    label: "Robot question",
+    value: "Can our robot navigate this aisle, detect obstructions, and inspect shelf fronts?",
+  },
+  {
+    icon: CheckCircle2,
+    label: "Evidence status",
+    value: "Example packet",
+    note: "For evaluation and planning only",
   },
 ];
 
-const proofSignals = [
-  "The site is visible before the buyer commits to the path.",
-  "Package and hosted paths remain tied to the same source record.",
-  "Rights, privacy, and proof labels stay readable instead of implied.",
+const inspectionItems = [
+  {
+    icon: Eye,
+    title: "Aisle geometry",
+    detail: "Widths, clearances, turn points",
+  },
+  {
+    icon: Sun,
+    title: "Lighting and reflection",
+    detail: "Illumination, glare, floor reflectance",
+  },
+  {
+    icon: Warehouse,
+    title: "Shelf visibility",
+    detail: "Front facings, occlusions, sightlines",
+  },
+  {
+    icon: ClipboardCheck,
+    title: "Delivery and ops notes",
+    detail: "Typical stock times, doorways, staging",
+  },
+  {
+    icon: Route,
+    title: "Traffic and obstruction points",
+    detail: "Carts, displays, floor stock, cross-traffic",
+  },
 ];
 
-const proofLibrary = [
-  {
-    label: "Approved public proof",
-    title: "Public demo listing",
-    body: "A real inspectable demo path with listing, start flow, sample deliverables, and hosted-review report shape.",
-    href: "/world-models/siteworld-f5fd54898cfb",
-    action: "Open public demo",
-  },
-  {
-    label: "Composite samples",
-    title: "Launch case-study placeholders",
-    body: "Polished grocery, hotel, retail, and mall examples that make the buyer story complete without claiming customer results.",
-    href: "/case-studies",
-    action: "View composite studies",
-  },
-  {
-    label: "Request-gated proof",
-    title: "Commercial listings",
-    body: "Exact-site commercial pages can show approved metadata while package files, hosted sessions, and exports stay gated.",
-    href: "/world-models",
-    action: "Browse catalog",
-  },
-  {
-    label: "Governance boundary",
-    title: "What is not claimed",
-    body: "No blanket site approval, unrestricted raw export, deployment guarantee, or private-area capture without authority.",
-    href: "/governance",
-    action: "Read governance",
-  },
+const provenanceRows = [
+  ["Capture device", "Insta360 Titan (8K)"],
+  ["Date / time", "May 14, 2025 at 10:42 AM local"],
+  ["Route type", "Autonomous cart-mounted"],
+  ["Route length", "128 m"],
+  ["Frames", "2,184 panoramic frames"],
+  ["Coverage", "98% of navigable path"],
+  ["Hash", "a7f9c2e4...9b21d0f7"],
 ];
+
+const hostedOutputs = [
+  ["Navigability assessment", "Clearance map, bottlenecks, turn feasibility"],
+  ["Shelf inspection summary", "Shelf visibility, occlusions, low-edge gaps"],
+  ["Obstruction events", "Locations, sizes, and frequency"],
+  ["Recommendations", "Route adjustments and inspection strategy"],
+];
+
+function BlueprintMark() {
+  return (
+    <span className="inline-flex items-center gap-3 text-slate-950">
+      <span className="grid h-6 w-6 grid-cols-2 gap-1" aria-hidden="true">
+        <span className="bg-slate-950" />
+        <span className="bg-slate-950" />
+        <span className="bg-slate-950" />
+        <span className="bg-slate-950" />
+      </span>
+      <span className="text-[1.45rem] font-semibold tracking-[-0.05em]">blueprint</span>
+    </span>
+  );
+}
+
+function MiniMap() {
+  return (
+    <div className="relative h-full min-h-[8.75rem] overflow-hidden rounded-md bg-[#101418]">
+      <div className="absolute left-6 top-5 h-24 w-36 rotate-[-8deg] border border-white/15 bg-white/5" />
+      <div className="absolute right-7 top-8 h-14 w-24 rotate-[12deg] border border-white/15 bg-white/5" />
+      <div className="absolute bottom-5 left-12 h-12 w-28 rotate-[6deg] border border-white/15 bg-white/5" />
+      <div className="absolute inset-x-8 top-1/2 h-px bg-white/20" />
+      <div className="absolute left-[28%] top-[28%] h-16 w-28 rounded-[50%] border border-emerald-300/70" />
+      <div className="absolute left-[36%] top-[35%] h-3 w-3 rounded-full bg-emerald-300 shadow-[0_0_18px_rgba(110,231,183,0.9)]" />
+      <div className="absolute right-[24%] top-[42%] h-2.5 w-2.5 rounded-full bg-red-300 shadow-[0_0_16px_rgba(252,165,165,0.9)]" />
+      <svg className="absolute inset-0 h-full w-full" viewBox="0 0 260 150" fill="none" aria-hidden="true">
+        <path
+          d="M35 112 C68 92 90 88 114 68 C138 48 158 48 198 35"
+          stroke="#60a5fa"
+          strokeWidth="2"
+          strokeDasharray="5 5"
+        />
+        <path d="M112 68 L198 35" stroke="#f59e0b" strokeWidth="2" />
+      </svg>
+    </div>
+  );
+}
 
 export default function Proof() {
-  const search = useSearch();
-  const searchParams = useMemo(() => new URLSearchParams(search), [search]);
-  const cityMessaging = getDemandCityMessaging(searchParams.get("city"));
-
   return (
     <>
       <SEO
-        title="Proof | Blueprint"
-        description="Inspect the public proof path first: the sample listing, how it works, deliverables, and the next exact-site commercial step."
+        title="Grocery aisle proof packet | Blueprint"
+        description="A Blueprint example proof packet for a grocery aisle robot inspection, including route capture, provenance, privacy posture, and hosted-review outputs."
         canonical="/proof"
       />
 
-      <div className="bg-[#f5f3ef] text-slate-950">
-        <section className="border-b border-black/10">
-          <MonochromeMedia
-            src={publicCaptureGeneratedAssets.governancePublicCaptureExplainer}
-            alt="Proof hub hero"
-            className="min-h-[38rem] rounded-none"
-            loading="eager"
-            imageClassName="min-h-[38rem]"
-            overlayClassName="bg-[linear-gradient(90deg,rgba(255,255,255,0.9)_0%,rgba(255,255,255,0.74)_34%,rgba(255,255,255,0.2)_78%)]"
-          >
-            <div className="absolute inset-0">
-              <div className="mx-auto h-full max-w-[88rem] px-5 py-12 sm:px-8 lg:px-10 lg:py-16">
-                <div className="flex h-full max-w-[34rem] flex-col justify-end">
-                <EditorialSectionLabel>Proof</EditorialSectionLabel>
-                <h1 className="font-editorial mt-6 text-[3.7rem] leading-[0.9] tracking-[-0.06em] sm:text-[5rem]">
-                  See the site before you commit to the path.
-                </h1>
-                <p className="mt-6 text-base leading-8 text-slate-700">
-                  Start with the public listing, then inspect how the product works, what the deliverables look like, and how the exact-site path stays grounded in one real facility.
-                </p>
-                </div>
-              </div>
-            </div>
-          </MonochromeMedia>
-        </section>
-
-        {cityMessaging ? (
-          <section className="mx-auto max-w-[88rem] px-5 pt-8 sm:px-8 lg:px-10">
-            <div className="border border-black/10 bg-white p-6">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">{cityMessaging.label}</p>
-              <h2 className="font-editorial mt-4 text-[2.5rem] leading-[0.94] tracking-[-0.04em] text-slate-950">
-                {cityMessaging.proofHeading}
-              </h2>
-              <p className="mt-4 max-w-[42rem] text-sm leading-7 text-slate-600">
-                {cityMessaging.proofBody}
-              </p>
-            </div>
-          </section>
-        ) : null}
-
-        <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
-          <div className="grid gap-4 lg:grid-cols-[0.48fr_0.52fr]">
-            <MonochromeMedia
-              src={publicCaptureGeneratedAssets.cedarMarketProofBoard}
-              alt="Public demo proof board"
-              className="min-h-[30rem]"
-              overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.04),rgba(0,0,0,0.12))]"
-            />
-            <div className="bg-white px-6 py-8 lg:px-8 lg:py-10">
-              <EditorialSectionIntro
-                eyebrow="Public proof"
-                title="The first proof is simple: the site is real and the workflow is specific."
-                description="Blueprint uses the public sample listing to show the physical site, the task lane, and the buying paths before any form is submitted."
-              />
-            </div>
-          </div>
-        </section>
-
-        <section className="border-y border-black/10 bg-white">
-          <div className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
-            <EditorialSectionIntro
-              eyebrow="Proof library"
-              title="Know which evidence is real, sample, gated, or not claimed."
-              description="This is the launch trust index: buyers can inspect public proof, composite examples, request-gated proof paths, and the limits Blueprint refuses to blur."
-              className="max-w-3xl"
-            />
-            <div className="mt-8 grid gap-4 lg:grid-cols-4">
-              {proofLibrary.map((item) => (
-                <a key={item.title} href={item.href} className="group border border-black/10 bg-[#f5f3ef] p-5 transition hover:bg-white">
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">{item.label}</p>
-                  <h2 className="font-editorial mt-4 text-[2rem] leading-[0.95] tracking-[-0.04em] text-slate-950">
-                    {item.title}
-                  </h2>
-                  <p className="mt-4 text-sm leading-7 text-slate-600">{item.body}</p>
-                  <span className="mt-6 inline-flex items-center text-sm font-semibold text-slate-950">
-                    {item.action}
-                    <ArrowRight className="ml-2 h-4 w-4 transition group-hover:translate-x-1" />
-                  </span>
+      <div className="min-h-screen bg-white text-slate-950">
+        <header className="border-b border-slate-200 bg-white">
+          <div className="mx-auto flex h-[4.5rem] max-w-[96rem] items-center justify-between px-5 sm:px-8">
+            <a href="/" aria-label="Blueprint home">
+              <BlueprintMark />
+            </a>
+            <nav className="hidden h-full items-center gap-10 text-[0.95rem] font-medium text-slate-600 lg:flex">
+              {[
+                ["Proof", "/proof"],
+                ["Capture", "/capture"],
+                ["Hosted Review", "/exact-site-hosted-review"],
+                ["Licensing", "/pricing"],
+              ].map(([label, href]) => (
+                <a
+                  key={label}
+                  href={href}
+                  className={`flex h-full items-center border-b-2 px-2 pt-0.5 transition ${
+                    label === "Proof"
+                      ? "border-blue-600 text-slate-950"
+                      : "border-transparent hover:text-slate-950"
+                  }`}
+                >
+                  {label}
                 </a>
               ))}
-            </div>
+            </nav>
+            <a
+              href="/book-exact-site-review"
+              className="inline-flex min-h-11 items-center justify-center rounded-md bg-slate-950 px-5 text-sm font-semibold text-white shadow-[0_10px_24px_-18px_rgba(15,23,42,0.9)] transition hover:bg-slate-800"
+            >
+              Request hosted review
+            </a>
           </div>
-        </section>
+        </header>
 
-        <section className="border-y border-black/10 bg-white">
-          <div className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
-            <div className="grid gap-4 lg:grid-cols-[0.36fr_0.64fr]">
-              <div className="bg-[#f5f3ef] p-6 lg:p-8">
-                <EditorialSectionIntro
-                  eyebrow="Sample packet"
-                  title={proofEvidencePacket.headline}
-                  description={proofEvidencePacket.summary}
-                />
-                <p className="mt-5 text-sm leading-7 text-slate-600">
-                  {proofEvidencePacket.disclosure}
-                </p>
+        <main className="mx-auto max-w-[96rem] px-5 py-7 sm:px-8">
+          <div className="flex flex-wrap items-center gap-3 text-sm">
+            <a href="/case-studies" className="inline-flex items-center gap-2 font-medium text-blue-700">
+              <ArrowLeft className="h-4 w-4" />
+              Capture examples
+            </a>
+            <span className="text-slate-300">/</span>
+            <span className="text-slate-600">Grocery aisle robot inspection</span>
+          </div>
+
+          <section className="mt-7">
+            <h1 className="max-w-4xl text-[2.4rem] font-semibold leading-[1.02] tracking-[-0.055em] text-slate-950 sm:text-[3.1rem]">
+              Grocery aisle proof packet
+            </h1>
+            <p className="mt-3 max-w-4xl text-base leading-7 text-slate-600">
+              A real-route capture example for shelf navigation, aisle obstruction checks, and robot team inspection.
+            </p>
+          </section>
+
+          <section className="mt-6 grid gap-6 xl:grid-cols-[1.88fr_1fr]">
+            <div className="relative overflow-hidden rounded-md border border-slate-200 bg-slate-950 shadow-[0_26px_80px_-58px_rgba(15,23,42,0.72)]">
+              <img
+                src={captureImage}
+                alt="Annotated grocery aisle capture for robot inspection"
+                className="aspect-[16/9] h-full w-full object-cover"
+              />
+              <div className="absolute left-4 top-4 inline-flex items-center gap-3 rounded-md bg-black/72 px-3 py-2 text-xs font-semibold text-white backdrop-blur">
+                <CalendarClock className="h-4 w-4" />
+                <span>Captured</span>
+                <span className="font-medium text-white/80">May 14, 2025</span>
+                <span className="font-medium text-white/80">10:42 AM local</span>
               </div>
-              <div className="grid gap-px bg-black/10 md:grid-cols-4">
-                {sampleProofTimeline.map((item) => (
-                  <div key={item.label} className="bg-white p-5">
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">{item.label}</p>
-                    <p className="mt-4 text-sm leading-6 text-slate-700">{item.detail}</p>
+              <div className="absolute bottom-4 left-4 inline-flex items-center gap-2 rounded-md bg-black/76 px-4 py-2.5 text-sm font-semibold text-white backdrop-blur">
+                <ArrowUpRight className="h-4 w-4" />
+                View capture details
+              </div>
+              <div className="absolute bottom-4 right-4 flex items-center gap-2">
+                <button className="inline-flex min-h-10 items-center gap-2 rounded-md bg-black/78 px-4 text-sm font-semibold text-white backdrop-blur transition hover:bg-black">
+                  <Play className="h-4 w-4" />
+                  Play path
+                </button>
+                <button className="inline-flex min-h-10 items-center gap-2 rounded-md bg-black/78 px-4 text-sm font-semibold text-white backdrop-blur transition hover:bg-black">
+                  <Map className="h-4 w-4" />
+                  3D map
+                </button>
+              </div>
+            </div>
+
+            <aside className="rounded-md border border-slate-200 bg-white px-6 py-4 shadow-[0_18px_60px_-48px_rgba(15,23,42,0.55)]">
+              <div className="divide-y divide-slate-200">
+                {proofSummary.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <div key={item.label} className="grid gap-4 py-4 sm:grid-cols-[1.1fr_1.5fr]">
+                      <div className="flex items-start gap-4">
+                        <Icon className="mt-0.5 h-5 w-5 text-slate-700" />
+                        <p className="text-sm font-semibold text-slate-700">{item.label}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold leading-5 text-slate-950">{item.value}</p>
+                        {item.note ? <p className="mt-1 text-sm leading-5 text-slate-500">{item.note}</p> : null}
+                        {item.action ? (
+                          <a href="/world-models/siteworld-f5fd54898cfb/start" className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-blue-700">
+                            {item.action}
+                            <ArrowUpRight className="h-3.5 w-3.5" />
+                          </a>
+                        ) : null}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <a href="/sample-deliverables" className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-blue-700">
+                View full provenance
+                <ArrowUpRight className="h-3.5 w-3.5" />
+              </a>
+            </aside>
+          </section>
+
+          <section className="mt-6 grid gap-4 xl:grid-cols-[1fr_0.9fr_1fr]">
+            <div className="rounded-md border border-slate-200 bg-white p-5">
+              <div className="flex items-center gap-3">
+                <Eye className="h-5 w-5 text-slate-700" />
+                <h2 className="text-lg font-semibold tracking-[-0.025em]">What the robot team inspects</h2>
+              </div>
+              <div className="mt-4 grid gap-px border-t border-slate-200 pt-4 sm:grid-cols-2">
+                {inspectionItems.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <div key={item.title} className="flex gap-3 py-3 pr-4">
+                      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-slate-600" />
+                      <div>
+                        <p className="text-sm font-semibold text-slate-950">{item.title}</p>
+                        <p className="mt-1 text-xs leading-5 text-slate-500">{item.detail}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <a href="/sample-evaluation" className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-blue-700">
+                See inspection checklist
+                <ArrowUpRight className="h-3.5 w-3.5" />
+              </a>
+            </div>
+
+            <div className="rounded-md border border-slate-200 bg-white p-5">
+              <div className="flex items-center gap-3">
+                <ShieldCheck className="h-5 w-5 text-slate-700" />
+                <h2 className="text-lg font-semibold tracking-[-0.025em]">Capture provenance</h2>
+              </div>
+              <dl className="mt-4 border-t border-slate-200 pt-4">
+                {provenanceRows.map(([label, value]) => (
+                  <div key={label} className="grid grid-cols-[0.85fr_1.15fr] gap-4 py-1 text-sm leading-5">
+                    <dt className="text-slate-500">{label}</dt>
+                    <dd className="flex items-center gap-2 font-medium text-slate-800">
+                      {value}
+                      {label === "Hash" ? <Copy className="h-3.5 w-3.5 text-slate-400" /> : null}
+                    </dd>
                   </div>
                 ))}
-              </div>
+              </dl>
+              <a href="/sample-deliverables" className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-blue-700">
+                View capture log
+                <ArrowUpRight className="h-3.5 w-3.5" />
+              </a>
             </div>
-          </div>
-        </section>
 
-        <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
-          <EditorialSectionIntro
-            eyebrow="Public-facing examples"
-            title="Useful sites are not warehouse-only."
-            description="Everyday public areas can be valuable when the route is legal to capture, privacy rules are visible, and the robot question is specific."
-            className="max-w-3xl"
-          />
-          <div className="mt-8 grid gap-4 lg:grid-cols-4">
-            {publicCaptureProofStories.map((story) => (
-              <article key={story.id} className="overflow-hidden border border-black/10 bg-white">
-                <MonochromeMedia
-                  src={story.image}
-                  alt={story.locationName}
-                  className="aspect-[4/3] rounded-none"
-                  imageClassName="aspect-[4/3]"
-                  overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.04),rgba(0,0,0,0.34))]"
-                />
-                <div className="p-5">
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">{story.label}</p>
-                  <h2 className="mt-3 text-xl font-semibold leading-tight text-slate-950">
-                    {story.locationName}
-                  </h2>
-                  <p className="mt-2 text-sm text-slate-500">{story.locationType} / {story.city}</p>
-                  <p className="mt-4 text-sm leading-6 text-slate-700">{story.robotQuestion}</p>
-                  <a
-                    href="/sample-deliverables"
-                    className="mt-5 inline-flex items-center text-sm font-semibold text-slate-950"
-                  >
-                    Inspect example files
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </a>
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
-
-        <section className="border-y border-black/10 bg-white">
-          <div className="mx-auto grid max-w-[88rem] gap-4 px-5 py-10 sm:px-8 lg:grid-cols-[0.58fr_0.42fr] lg:px-10 lg:py-12">
-            <div className="border border-black/10 bg-[#f5f3ef] p-6">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Hosted report preview</p>
-              <div className="mt-5 divide-y divide-black/10 border border-black/10 bg-white">
-                {sampleHostedRunRows.map((row) => (
-                  <div key={row.run} className="grid gap-3 p-4 text-sm leading-6 text-slate-700 md:grid-cols-[0.16fr_0.28fr_0.36fr_0.2fr]">
-                    <span className="font-semibold text-slate-950">{row.run}</span>
-                    <span>{row.scenario}</span>
-                    <span>{row.observation}</span>
-                    <span className="text-slate-950">{row.output}</span>
-                  </div>
-                ))}
+            <div className="rounded-md border border-slate-200 bg-white p-5">
+              <div className="flex items-center gap-3">
+                <FileText className="h-5 w-5 text-slate-700" />
+                <h2 className="text-lg font-semibold tracking-[-0.025em]">Hosted review output (sample)</h2>
               </div>
-            </div>
-            <div className="bg-slate-950 p-6 text-white">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">What this proves</p>
-              <h2 className="font-editorial mt-4 text-[2.6rem] leading-[0.94] tracking-[-0.05em]">
-                Route, rights, report, and next step.
-              </h2>
-              <p className="mt-5 text-sm leading-7 text-white/70">
-                The proof is ready when a buyer can see where the capture came from, which public areas were in scope, what was redacted, what the hosted review observed, and which package or hosted path comes next.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        <section className="border-y border-black/10 bg-white">
-          <div className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
-	            <EditorialSectionIntro
-	              eyebrow="Next routes"
-	              title="Choose what to inspect next."
-	              description="Move from the proof hub into the page that answers your next buyer, operator, or capturer question."
-	              className="max-w-3xl"
-	            />
-            <div className="mt-8 grid gap-4 lg:grid-cols-[0.62fr_0.38fr]">
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                {proofRoutes.map((route) => (
-                  <a key={route.href} href={route.href} className="border border-black/10 bg-[#f5f3ef] p-5 transition hover:bg-white">
-                    <h2 className="font-editorial text-[1.8rem] leading-[0.95] tracking-[-0.04em] text-slate-950">
-                      {route.title}
-                    </h2>
-                    <p className="mt-4 text-sm leading-7 text-slate-600">{route.body}</p>
-                  </a>
-                ))}
-              </div>
-              <div className="bg-slate-950 px-6 py-8 text-white lg:px-8 lg:py-10">
-                <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Trust signals</p>
-                <div className="mt-6 space-y-4 text-sm leading-7 text-white/70">
-                  {proofSignals.map((item) => (
-                    <div key={item}>{item}</div>
+              <div className="mt-4 grid gap-4 border-t border-slate-200 pt-4 sm:grid-cols-[1fr_0.82fr]">
+                <div className="space-y-3">
+                  {hostedOutputs.map(([title, detail]) => (
+                    <div key={title} className="flex gap-3">
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-slate-700" />
+                      <div>
+                        <p className="text-sm font-semibold leading-5 text-slate-950">{title}</p>
+                        <p className="text-xs leading-5 text-slate-500">{detail}</p>
+                      </div>
+                    </div>
                   ))}
                 </div>
+                <MiniMap />
               </div>
+              <a href="/sample-deliverables" className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-blue-700">
+                See sample output
+                <ArrowUpRight className="h-3.5 w-3.5" />
+              </a>
             </div>
-          </div>
-        </section>
+          </section>
 
-        <section className="mx-auto max-w-[88rem] px-5 pb-12 sm:px-8 lg:px-10 lg:pb-14">
-          <EditorialCtaBand
-            eyebrow="Next step"
-            title="Move from proof into the exact-site path."
-            description="Inspect the listing first, then continue into deliverables, hosted review, or a direct request for one site."
-            imageSrc={publicCaptureGeneratedAssets.governancePublicCaptureExplainer}
-            imageAlt="Proof board"
-            primaryHref="/world-models"
-            primaryLabel="View sample listing"
-            secondaryHref={withDemandCityQuery("/contact?persona=robot-team", cityMessaging?.key ?? null)}
-            secondaryLabel="Contact Blueprint"
-            dark={false}
-          />
-        </section>
+          <section className="mt-7 flex flex-col gap-4 pb-8 lg:flex-row lg:items-center lg:justify-between">
+            <div className="inline-flex items-center gap-3 text-sm text-slate-500">
+              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-slate-300 text-xs font-semibold text-slate-600">
+                i
+              </span>
+              <span className="font-semibold text-slate-700">Example packet</span>
+              <span>Not a guarantee of performance</span>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:min-w-[31rem]">
+              <a
+                href="/contact?persona=robot-team"
+                className="inline-flex min-h-14 items-center justify-center gap-3 rounded-md border border-slate-300 bg-white px-6 text-base font-semibold text-slate-800 transition hover:bg-slate-50"
+              >
+                <MessageSquare className="h-5 w-5" />
+                Discuss a similar site
+              </a>
+              <a
+                href="/world-models/siteworld-f5fd54898cfb/start"
+                className="inline-flex min-h-14 items-center justify-center gap-3 rounded-md bg-slate-950 px-6 text-base font-semibold text-white transition hover:bg-slate-800"
+              >
+                Open hosted review
+                <ArrowUpRight className="h-5 w-5" />
+              </a>
+            </div>
+          </section>
+        </main>
       </div>
     </>
   );

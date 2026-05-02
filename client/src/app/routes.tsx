@@ -143,7 +143,7 @@ export const appRoutes: AppRoute[] = [
   { path: "/exact-site-hosted-review", layout: "public", component: ExactSiteHostedReview },
   { path: "/book-exact-site-review", layout: "public", component: BookExactSiteReview },
   { path: "/how-it-works", layout: "public", component: HowItWorks },
-  { path: "/proof", layout: "public", component: Proof },
+  { path: "/proof", layout: "public", shell: "bare", component: Proof },
   { path: "/faq", layout: "public", component: FAQ },
   { path: "/governance", layout: "public", component: Governance },
   { path: "/about", layout: "public", component: About },
