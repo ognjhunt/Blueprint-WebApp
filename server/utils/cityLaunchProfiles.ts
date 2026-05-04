@@ -1,4 +1,4 @@
-import { buildCityLaunchBudgetPolicy, type CityLaunchBudgetTier } from "./cityLaunchPolicy";
+import { buildCityLaunchBudgetPolicy, type CityLaunchBudgetTier } from "./cityLaunchPolicy.ts";
 
 export type FocusCityKey = "austin-tx" | "san-francisco-ca";
 

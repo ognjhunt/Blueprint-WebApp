@@ -1,7 +1,7 @@
-import { dbAdmin as db } from "./client/src/lib/firebaseAdmin";
-import { decryptInboundRequestForAdmin } from "./server/utils/field-encryption";
-import { normalizeDemandCity } from "./client/src/lib/cityDemandMessaging";
-import { slugifyCityName } from "./server/utils/cityLaunchProfiles";
+import { dbAdmin as db } from "./client/src/lib/firebaseAdmin.ts";
+import { decryptInboundRequestForAdmin } from "./server/utils/field-encryption.ts";
+import { normalizeDemandCity } from "./client/src/lib/cityDemandMessaging.ts";
+import { slugifyCityName } from "./server/utils/cityLaunchProfiles.ts";
 
 function normalizeToken(value: string | null | undefined) {
   return String(value || "")
