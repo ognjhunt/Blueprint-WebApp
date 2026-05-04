@@ -18,6 +18,8 @@ It exists so `Blueprint-WebApp`, `BlueprintCapture`, `BlueprintPipeline`, and Pa
 
 This contract is Phase 0 doctrine. Code and automation can only claim progress against these stages when the required evidence exists in first-party ledgers, manifests, attachments, entitlements, hosted-session state, or runtime artifacts.
 
+State closeouts must also follow the shared [Autonomous Loop Evidence Checklist](./autonomous-loop-evidence-checklist-2026-05-03.md) before claiming `done`, `blocked`, or `awaiting_human_decision`.
+
 ## Doctrine anchors
 
 - Keep Blueprint capture-first and world-model-product-first.
@@ -150,6 +152,18 @@ Definition:
 - required evidence has been written
 - either the lifecycle advanced or the branch legitimately terminated with no immediate next action
 
+## Shared closeout checklist
+
+Every repo-local loop and Paperclip issue closeout must map its state claim to the shared checklist:
+
+| State claim | Minimum closeout proof |
+|---|---|
+| `done` / `completed` | Objective, stage reached, durable outputs, verification result, requirement coverage, operating graph or Paperclip update, remaining risk, and next action or explicit no-next-action. |
+| `blocked` | Earliest hard stop, stage reached, exact evidence, why no reversible work remains, next required input, owner, retry/resume condition, and linked follow-up when another lane owns the unblock. |
+| `awaiting_human_decision` | Gate category, decision requested, recommendation, evidence packet, durable blocker id, routing surface, watcher/owner, resume condition, and deadline when available. |
+
+Passing tests, adapter success, green status, or a closed issue is only supporting evidence. It is not sufficient unless it covers every explicit requirement in the objective.
+
 ## Canonical blocker routing matrix
 
 Every human-involved stop must resolve to exactly one routing class:
@@ -243,6 +257,7 @@ Phase 0 is successful only when all of the following are true:
 
 ## References
 
+- [Autonomous Loop Evidence Checklist](./autonomous-loop-evidence-checklist-2026-05-03.md)
 - [Autonomous Org Unification Program Implementation Plan](./superpowers/plans/2026-04-20-autonomous-org-unification-program.md)
 - [Founder Inbox Contract](./founder-inbox-contract-2026-04-20.md)
 - [Company Metrics Contract](./company-metrics-contract-2026-04-20.md)

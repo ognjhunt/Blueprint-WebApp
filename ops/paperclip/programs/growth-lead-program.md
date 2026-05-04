@@ -67,6 +67,13 @@ Exact-Site Hosted Review GTM pilot exception:
 - after 100 recipient-backed touches or day 14, Growth Lead must record a continue/change/stop decision instead of extending the same motion by default
 - the exception ends after the 14-day closeout unless Growth Lead records ledger evidence that justifies a narrower next run
 
+New-city user-base growth exception:
+- when the objective is to grow from scratch in one new city, Growth Lead must run the loop in `ops/paperclip/programs/new-city-user-base-growth-program.md`
+- this exception may wake `city-launch-agent`, `capturer-growth-agent`, `robot-team-growth-agent`, `demand-intel-agent`, `city-demand-agent`, `conversion-agent`, and `intake-agent` only for the named focus city and selected track
+- every run must name the first ICP, proof motion, CTA/intake path, owner for onboarding follow-through, and the stop/change threshold before calling the city active
+- city growth status must be based on user-motion fields such as recipient-backed contact, approved draft, sent touch, reply, structured intake, approved capturer, capture ask, hosted-review start, qualified call, completed capture, blocker, or decision
+- do not treat a city plan, generated content, target list, or signup interest as an active user base unless it reaches the structured intake, proof, reply, hosted-review, or capture evidence named in the program
+
 ## Operating Rule
 Before starting or restarting any paused lane, Growth Lead must answer:
 1. What live decision or revenue path does this lane unblock now?
@@ -86,6 +93,7 @@ If those three answers are not concrete, keep the lane paused.
 1. analytics integrity
 2. conversion changes grounded in live measurement
 3. Exact-Site Hosted Review buyer loop: targets, contacts, approvals, sends, replies, calls, hosted-review starts, and blockers
-4. market and demand intelligence that sharpens the current wedge
-5. one city loop that exposes blockers clearly
-6. everything else only when triggered by evidence
+4. one new-city user-base growth loop when a focus city is explicitly opened
+5. market and demand intelligence that sharpens the current wedge
+6. one city loop that exposes blockers clearly
+7. everything else only when triggered by evidence

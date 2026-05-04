@@ -73,14 +73,14 @@ This also follows the repo's own recent conclusions:
 - live session and rate-limit support: Redis
 - workspace and review surface: Notion
 - autonomous org and execution record: Paperclip
-- AI runtime lanes: OpenAI, Anthropic, ACP/OpenClaw paths already modeled in env and runtime code
+- AI runtime lanes: DeepSeek official API is the default structured-agent text path; OpenAI, Anthropic, ACP/OpenClaw paths remain modeled as explicit fallbacks or specialized lanes
 - growth and comms: PostHog/GA, SendGrid, existing creative and outbound loops
 
 Creative execution addendum on the trusted host:
 
 - Codex-executed brand, marketing, and frontend image work should use Codex desktop's OAuth-backed native image workflow with `gpt-image-2` by default
 - screenshots and code context should stay in the same Codex workflow when iterating on visuals
-- Hermes-backed lanes remain planning, research, copy, and routing lanes unless work is explicitly moved into Codex
+- Hermes-backed lanes remain planning, research, copy, and routing lanes, powered by DeepSeek V4 Flash through the official DeepSeek endpoint on this host unless work is explicitly moved into Codex
 - server-side autonomous workers do not call a separate paid image API for final asset execution; they route image-heavy work into the Codex lane
 - video stays on an explicit provider path. OpenRouter remains the server-side default; Higgsfield MCP is an approved agent-side alternative for Seedance 2.0 when the connector is authenticated and the issue is explicitly video-scoped.
 

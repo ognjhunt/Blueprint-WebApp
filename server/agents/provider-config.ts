@@ -8,10 +8,16 @@ import type { AgentProvider, AgentTaskKind } from "./types";
 
 type StructuredProvider = Extract<
   AgentProvider,
-  "openai_responses" | "anthropic_agent_sdk" | "acp_harness" | "openclaw" | "codex_local"
+  | "deepseek_chat"
+  | "openai_responses"
+  | "anthropic_agent_sdk"
+  | "acp_harness"
+  | "openclaw"
+  | "codex_local"
 >;
 
 const STRUCTURED_PROVIDER_VALUES = new Set<StructuredProvider>([
+  "deepseek_chat",
   "openai_responses",
   "anthropic_agent_sdk",
   "acp_harness",
@@ -31,6 +37,7 @@ const TASK_MODEL_SUFFIXES: Partial<Record<AgentTaskKind, string>> = {
 };
 
 const DEFAULT_MODELS: Record<StructuredProvider, string> = {
+  deepseek_chat: "deepseek-v4-flash",
   openai_responses: "gpt-5.4",
   anthropic_agent_sdk: "claude-sonnet-4-5",
   acp_harness: "codex",
@@ -79,6 +86,8 @@ export function isProviderConfigured(provider: StructuredProvider): boolean {
   switch (provider) {
     case "codex_local":
       return isCodexLocalConfigured();
+    case "deepseek_chat":
+      return Boolean(process.env.DEEPSEEK_API_KEY?.trim());
     case "openai_responses":
       return Boolean(process.env.OPENAI_API_KEY?.trim());
     case "anthropic_agent_sdk":
@@ -101,6 +110,7 @@ export function getStructuredAutomationProvider(): StructuredProvider {
   const candidates = [
     preferred,
     fallback,
+    normalizeProvider(process.env.DEEPSEEK_API_KEY ? "deepseek_chat" : null),
     normalizeProvider(isCodexLocalConfigured() ? "codex_local" : null),
     normalizeProvider(process.env.ACP_HARNESS_URL ? "acp_harness" : null),
     normalizeProvider(process.env.ANTHROPIC_API_KEY ? "anthropic_agent_sdk" : null),
@@ -125,6 +135,7 @@ export function getStructuredAutomationFallbackProvider():
   const candidates = [
     preferredFallback,
     "codex_local" as StructuredProvider,
+    "deepseek_chat" as StructuredProvider,
     "anthropic_agent_sdk" as StructuredProvider,
     "openai_responses" as StructuredProvider,
     "acp_harness" as StructuredProvider,
@@ -143,6 +154,10 @@ export function getTaskModelByProvider(taskKind: AgentTaskKind) {
       (suffix ? process.env[`CODEX_${suffix}`]?.trim() : null)
       || process.env.CODEX_DEFAULT_MODEL?.trim()
       || DEFAULT_MODELS.codex_local,
+    deepseek_chat:
+      (suffix ? process.env[`DEEPSEEK_${suffix}`]?.trim() : null)
+      || process.env.DEEPSEEK_DEFAULT_MODEL?.trim()
+      || DEFAULT_MODELS.deepseek_chat,
     openai_responses:
       (suffix ? process.env[`OPENAI_${suffix}`]?.trim() : null)
       || process.env.OPENAI_DEFAULT_MODEL?.trim()

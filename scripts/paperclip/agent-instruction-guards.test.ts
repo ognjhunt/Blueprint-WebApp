@@ -20,6 +20,7 @@ const noSecretFileAuthDebugLine =
   "Never inspect, print, cat, grep, or find Paperclip secret/env/config files while debugging auth.";
 const noLocalhostProbeBeforePaperclipLine =
   "On issue-bound runs, before probing any localhost web-app port such as `3000`, first use the injected `PAPERCLIP_API_URL` or the safe heartbeat snapshot fallback to resolve the bound issue context.";
+const sharedEvidenceChecklistLine = "docs/autonomous-loop-evidence-checklist-2026-05-03.md";
 
 async function collectAgentInstructionFiles(root: string): Promise<string[]> {
   const entries = await fs.readdir(root, { withFileTypes: true });
@@ -93,6 +94,23 @@ describe("Blueprint Paperclip agent instruction guards", () => {
       expect(content, `${file} is missing the Paperclip-before-localhost guard`).toContain(
         noLocalhostProbeBeforePaperclipLine,
       );
+    }
+  });
+
+  it("keeps cross-repo autonomy loops pinned to the shared evidence checklist", async () => {
+    const guardedFiles = [
+      path.resolve("ops/paperclip/blueprint-company/tasks/webapp-autonomy-loop/TASK.md"),
+      path.resolve("ops/paperclip/blueprint-company/tasks/capture-autonomy-loop/TASK.md"),
+      path.resolve("ops/paperclip/blueprint-company/tasks/pipeline-autonomy-loop/TASK.md"),
+    ];
+
+    for (const file of guardedFiles) {
+      const content = await fs.readFile(file, "utf8");
+      expect(content, `${file} is missing the shared evidence checklist`).toContain(sharedEvidenceChecklistLine);
+      expect(content, `${file} must guard done closeout evidence`).toContain("claiming `done`");
+      expect(content, `${file} must guard blocked closeout evidence`).toContain("`blocked`");
+      expect(content, `${file} must guard awaiting-human closeout evidence`).toContain("`awaiting_human_decision`");
+      expect(content, `${file} must require requirement coverage`).toContain("requirement coverage");
     }
   });
 });

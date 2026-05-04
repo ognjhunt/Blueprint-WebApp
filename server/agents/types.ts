@@ -1,6 +1,7 @@
 import type { z } from "zod";
 
 export type AgentProvider =
+  | "deepseek_chat"
   | "openclaw"
   | "openai_responses"
   | "anthropic_agent_sdk"

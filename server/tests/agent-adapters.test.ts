@@ -2,12 +2,18 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const openAiCreate = vi.hoisted(() => vi.fn());
+const deepSeekChatCreate = vi.hoisted(() => vi.fn());
 const anthropicCreate = vi.hoisted(() => vi.fn());
 
 vi.mock("openai", () => ({
   default: class OpenAI {
     responses = {
       create: openAiCreate,
+    };
+    chat = {
+      completions: {
+        create: deepSeekChatCreate,
+      },
     };
   },
 }));
@@ -22,10 +28,16 @@ vi.mock("@anthropic-ai/sdk", () => ({
 
 afterEach(() => {
   delete process.env.OPENAI_API_KEY;
+  delete process.env.DEEPSEEK_API_KEY;
+  delete process.env.DEEPSEEK_BASE_URL;
+  delete process.env.DEEPSEEK_DEFAULT_MODEL;
+  delete process.env.DEEPSEEK_REASONING_EFFORT;
+  delete process.env.DEEPSEEK_THINKING;
   delete process.env.ANTHROPIC_API_KEY;
   delete process.env.ACP_HARNESS_URL;
   delete process.env.ACP_HARNESS_TOKEN;
   openAiCreate.mockReset();
+  deepSeekChatCreate.mockReset();
   anthropicCreate.mockReset();
   vi.restoreAllMocks();
   vi.resetModules();
@@ -74,6 +86,86 @@ describe("agent adapters", () => {
     expect(result.output).toMatchObject({
       reply: "Done.",
       requires_human_review: false,
+    });
+  });
+
+  it("normalizes DeepSeek chat output and records cache usage", async () => {
+    process.env.DEEPSEEK_API_KEY = "test-key";
+    process.env.DEEPSEEK_REASONING_EFFORT = "xhigh";
+    deepSeekChatCreate.mockResolvedValue({
+      id: "deepseek-response-1",
+      usage: {
+        prompt_tokens: 100,
+        completion_tokens: 20,
+        total_tokens: 120,
+        prompt_cache_hit_tokens: 80,
+        prompt_cache_miss_tokens: 20,
+      },
+      choices: [
+        {
+          message: {
+            content:
+              '{"reply":"DeepSeek handled it.","summary":"Handled with DeepSeek.","suggested_actions":["Keep DeepSeek primary"],"requires_human_review":false}',
+          },
+        },
+      ],
+    });
+
+    const { runDeepSeekChatTask } = await import("../agents/adapters/deepseek-chat");
+    const { operatorThreadTask } = await import("../agents/tasks/operator-thread");
+
+    const result = await runDeepSeekChatTask({
+      kind: "operator_thread",
+      input: { message: "Status?" },
+      provider: "deepseek_chat",
+      runtime: "deepseek_chat",
+      model: "deepseek-v4-flash",
+      tool_policy: {
+        mode: "mixed",
+        prefer_direct_api: true,
+        browser_fallback_allowed: false,
+        isolated_runtime_required: false,
+        allowed_mcp_servers: [],
+        allowed_domains: [],
+        allowed_actions: [],
+      },
+      approval_policy: {
+        require_human_approval: false,
+        sensitive_actions: [],
+        allow_preapproval: false,
+      },
+      session_policy: {
+        dispatch_mode: "collect",
+        lane: "session",
+        max_concurrent: 1,
+      },
+      definition: operatorThreadTask,
+    });
+
+    expect(deepSeekChatCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: "deepseek-v4-flash",
+        response_format: { type: "json_object" },
+        reasoning_effort: "max",
+        extra_body: { thinking: { type: "enabled" } },
+      }),
+    );
+    expect(result.status).toBe("completed");
+    expect(result.output).toMatchObject({
+      reply: "DeepSeek handled it.",
+      requires_human_review: false,
+    });
+    expect(result.artifacts).toMatchObject({
+      provider: "deepseek_chat",
+      model: "deepseek-v4-flash",
+      deepseek_response_id: "deepseek-response-1",
+      prompt_tokens: 100,
+      completion_tokens: 20,
+      total_tokens: 120,
+      prompt_cache_hit_tokens: 80,
+      prompt_cache_miss_tokens: 20,
+      prompt_cache_hit_ratio: 0.8,
+      max_tokens: 2000,
     });
   });
 

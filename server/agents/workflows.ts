@@ -140,6 +140,7 @@ function getAutoAgentShadowProvider(): AgentProvider {
   const configuredProvider = (process.env.BLUEPRINT_AUTOAGENT_SHADOW_PROVIDER || "").trim();
   switch (configuredProvider) {
     case "openai_responses":
+    case "deepseek_chat":
     case "anthropic_agent_sdk":
     case "openclaw":
     case "acp_harness":

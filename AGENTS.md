@@ -47,6 +47,7 @@ Before making changes, read:
 - Treat the current Firebase, Firestore, Stripe, Render, Redis, Notion, and Paperclip stack as the default operating stack for this repo.
 - Do not use external boilerplates, skill packs, or AI-generated migration suggestions to introduce new primary services unless `blueprint-cto` explicitly approves the change.
 - Anything that applies to Claude guidance in this repo also applies to Codex and Hermes-backed agents unless a narrower runtime rule explicitly overrides it.
+- For autonomous-loop closeouts, use `/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/autonomous-loop-evidence-checklist-2026-05-03.md` before claiming `done`, `blocked`, or `awaiting_human_decision`.
 
 ## Human Gates
 

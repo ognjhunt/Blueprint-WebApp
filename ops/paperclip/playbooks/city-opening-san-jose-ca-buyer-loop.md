@@ -1,6 +1,6 @@
 # Exact-Site Hosted Review Buyer Loop
 
-- report_date: 2026-05-02
+- report_date: 2026-05-03
 - city: San Jose, CA
 - ledger: ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json
 - loop_status: blocked
@@ -24,8 +24,10 @@
 | Proof-ready artifacts | 2 |
 | Capture asks | 10 |
 | Explicit next-action rows | 12 |
+| Open blockers | 26 |
+| Paperclip-linked blockers | 26 |
 | 100-touch decision gap | 100 |
-| Days remaining | 8 |
+| Days remaining | 7 |
 
 ## One Sales Ledger
 
@@ -78,6 +80,37 @@
 - gtm-010-gecko-industrial-inspection: Gecko Robotics / Industrial inspection robotics team / Find explicit recipient-backed contact evidence before founder first-send approval.
 - gtm-011-anybotics-industrial-inspection: ANYbotics / Autonomous industrial inspection team / Find explicit recipient-backed contact evidence before founder first-send approval.
 - gtm-012-outrider-yard-automation: Outrider / Autonomous yard operations team / Find explicit recipient-backed contact evidence before founder first-send approval.
+
+## Blocker Ledger
+
+| Target | Blocker | Owner | Status | Paperclip issue | Next action |
+| --- | --- | --- | --- | --- | --- |
+| pilot | The active pilot has 12 target rows, below the 30-account floor needed before judging the wedge. | demand-intel-agent | open | BLU-5394 | Add real robot-team target rows from explicit buying signals while keeping recipient fields empty unless evidence-backed. |
+| pilot | The active pilot has two proof-ready hosted-review artifacts, below the three-artifact scale checkpoint. | robot-team-growth-agent | open | BLU-5395 | Create or attach one more buyer-specific hosted-review artifact from real capture provenance, or keep the capture-ask track explicit until a real artifact exists. |
+| gtm-001-simbe-retail-aisle-review: Simbe Robotics | Governed recipient discovery is blocked because BLUEPRINT_GTM_CONTACT_DISCOVERY_ALLOWED_HOSTS is not configured and no selected recipient evidence exists. | growth-lead | blocked | BLU-5392 | Configure a governed contact-discovery allowlist or record explicit recipient-backed evidence before founder first-send approval. |
+| gtm-001-simbe-retail-aisle-review: Simbe Robotics | Buyer sends and replies cannot be treated as production-durable until sender verification and Gmail human-reply watcher credentials are configured. | growth-lead | blocked | BLU-5393 | Set sender verification, human-reply ingest token, approved identity, enable Gmail watcher, and provide Gmail OAuth credentials before counting live replies as durable. |
+| gtm-002-braincorp-retail-service-review: Brain Corp | Governed recipient discovery is blocked because BLUEPRINT_GTM_CONTACT_DISCOVERY_ALLOWED_HOSTS is not configured and no selected recipient evidence exists. | growth-lead | blocked | BLU-5392 | Configure a governed contact-discovery allowlist or record explicit recipient-backed evidence before founder first-send approval. |
+| gtm-002-braincorp-retail-service-review: Brain Corp | Buyer sends and replies cannot be treated as production-durable until sender verification and Gmail human-reply watcher credentials are configured. | growth-lead | blocked | BLU-5393 | Set sender verification, human-reply ingest token, approved identity, enable Gmail watcher, and provide Gmail OAuth credentials before counting live replies as durable. |
+| gtm-003-agility-warehouse-humanoid: Agility Robotics | Governed recipient discovery is blocked because BLUEPRINT_GTM_CONTACT_DISCOVERY_ALLOWED_HOSTS is not configured and no selected recipient evidence exists. | growth-lead | blocked | BLU-5392 | Configure a governed contact-discovery allowlist or record explicit recipient-backed evidence before founder first-send approval. |
+| gtm-003-agility-warehouse-humanoid: Agility Robotics | Buyer sends and replies cannot be treated as production-durable until sender verification and Gmail human-reply watcher credentials are configured. | growth-lead | blocked | BLU-5393 | Set sender verification, human-reply ingest token, approved identity, enable Gmail watcher, and provide Gmail OAuth credentials before counting live replies as durable. |
+| gtm-004-boston-dynamics-stretch-warehouse: Boston Dynamics | Governed recipient discovery is blocked because BLUEPRINT_GTM_CONTACT_DISCOVERY_ALLOWED_HOSTS is not configured and no selected recipient evidence exists. | growth-lead | blocked | BLU-5392 | Configure a governed contact-discovery allowlist or record explicit recipient-backed evidence before founder first-send approval. |
+| gtm-004-boston-dynamics-stretch-warehouse: Boston Dynamics | Buyer sends and replies cannot be treated as production-durable until sender verification and Gmail human-reply watcher credentials are configured. | growth-lead | blocked | BLU-5393 | Set sender verification, human-reply ingest token, approved identity, enable Gmail watcher, and provide Gmail OAuth credentials before counting live replies as durable. |
+| gtm-005-locus-fulfillment-amr: Locus Robotics | Governed recipient discovery is blocked because BLUEPRINT_GTM_CONTACT_DISCOVERY_ALLOWED_HOSTS is not configured and no selected recipient evidence exists. | growth-lead | blocked | BLU-5392 | Configure a governed contact-discovery allowlist or record explicit recipient-backed evidence before founder first-send approval. |
+| gtm-005-locus-fulfillment-amr: Locus Robotics | Buyer sends and replies cannot be treated as production-durable until sender verification and Gmail human-reply watcher credentials are configured. | growth-lead | blocked | BLU-5393 | Set sender verification, human-reply ingest token, approved identity, enable Gmail watcher, and provide Gmail OAuth credentials before counting live replies as durable. |
+| gtm-006-seegrid-warehouse-amr: Seegrid | Governed recipient discovery is blocked because BLUEPRINT_GTM_CONTACT_DISCOVERY_ALLOWED_HOSTS is not configured and no selected recipient evidence exists. | growth-lead | blocked | BLU-5392 | Configure a governed contact-discovery allowlist or record explicit recipient-backed evidence before founder first-send approval. |
+| gtm-006-seegrid-warehouse-amr: Seegrid | Buyer sends and replies cannot be treated as production-durable until sender verification and Gmail human-reply watcher credentials are configured. | growth-lead | blocked | BLU-5393 | Set sender verification, human-reply ingest token, approved identity, enable Gmail watcher, and provide Gmail OAuth credentials before counting live replies as durable. |
+| gtm-007-vecna-robotics-warehouse-orchestration: Vecna Robotics | Governed recipient discovery is blocked because BLUEPRINT_GTM_CONTACT_DISCOVERY_ALLOWED_HOSTS is not configured and no selected recipient evidence exists. | growth-lead | blocked | BLU-5392 | Configure a governed contact-discovery allowlist or record explicit recipient-backed evidence before founder first-send approval. |
+| gtm-007-vecna-robotics-warehouse-orchestration: Vecna Robotics | Buyer sends and replies cannot be treated as production-durable until sender verification and Gmail human-reply watcher credentials are configured. | growth-lead | blocked | BLU-5393 | Set sender verification, human-reply ingest token, approved identity, enable Gmail watcher, and provide Gmail OAuth credentials before counting live replies as durable. |
+| gtm-008-fox-robotics-forklift-dock: Fox Robotics | Governed recipient discovery is blocked because BLUEPRINT_GTM_CONTACT_DISCOVERY_ALLOWED_HOSTS is not configured and no selected recipient evidence exists. | growth-lead | blocked | BLU-5392 | Configure a governed contact-discovery allowlist or record explicit recipient-backed evidence before founder first-send approval. |
+| gtm-008-fox-robotics-forklift-dock: Fox Robotics | Buyer sends and replies cannot be treated as production-durable until sender verification and Gmail human-reply watcher credentials are configured. | growth-lead | blocked | BLU-5393 | Set sender verification, human-reply ingest token, approved identity, enable Gmail watcher, and provide Gmail OAuth credentials before counting live replies as durable. |
+| gtm-009-diligent-healthcare-service-route: Diligent Robotics | Governed recipient discovery is blocked because BLUEPRINT_GTM_CONTACT_DISCOVERY_ALLOWED_HOSTS is not configured and no selected recipient evidence exists. | growth-lead | blocked | BLU-5392 | Configure a governed contact-discovery allowlist or record explicit recipient-backed evidence before founder first-send approval. |
+| gtm-009-diligent-healthcare-service-route: Diligent Robotics | Buyer sends and replies cannot be treated as production-durable until sender verification and Gmail human-reply watcher credentials are configured. | growth-lead | blocked | BLU-5393 | Set sender verification, human-reply ingest token, approved identity, enable Gmail watcher, and provide Gmail OAuth credentials before counting live replies as durable. |
+| gtm-010-gecko-industrial-inspection: Gecko Robotics | Governed recipient discovery is blocked because BLUEPRINT_GTM_CONTACT_DISCOVERY_ALLOWED_HOSTS is not configured and no selected recipient evidence exists. | growth-lead | blocked | BLU-5392 | Configure a governed contact-discovery allowlist or record explicit recipient-backed evidence before founder first-send approval. |
+| gtm-010-gecko-industrial-inspection: Gecko Robotics | Buyer sends and replies cannot be treated as production-durable until sender verification and Gmail human-reply watcher credentials are configured. | growth-lead | blocked | BLU-5393 | Set sender verification, human-reply ingest token, approved identity, enable Gmail watcher, and provide Gmail OAuth credentials before counting live replies as durable. |
+| gtm-011-anybotics-industrial-inspection: ANYbotics | Governed recipient discovery is blocked because BLUEPRINT_GTM_CONTACT_DISCOVERY_ALLOWED_HOSTS is not configured and no selected recipient evidence exists. | growth-lead | blocked | BLU-5392 | Configure a governed contact-discovery allowlist or record explicit recipient-backed evidence before founder first-send approval. |
+| gtm-011-anybotics-industrial-inspection: ANYbotics | Buyer sends and replies cannot be treated as production-durable until sender verification and Gmail human-reply watcher credentials are configured. | growth-lead | blocked | BLU-5393 | Set sender verification, human-reply ingest token, approved identity, enable Gmail watcher, and provide Gmail OAuth credentials before counting live replies as durable. |
+| gtm-012-outrider-yard-automation: Outrider | Governed recipient discovery is blocked because BLUEPRINT_GTM_CONTACT_DISCOVERY_ALLOWED_HOSTS is not configured and no selected recipient evidence exists. | growth-lead | blocked | BLU-5392 | Configure a governed contact-discovery allowlist or record explicit recipient-backed evidence before founder first-send approval. |
+| gtm-012-outrider-yard-automation: Outrider | Buyer sends and replies cannot be treated as production-durable until sender verification and Gmail human-reply watcher credentials are configured. | growth-lead | blocked | BLU-5393 | Set sender verification, human-reply ingest token, approved identity, enable Gmail watcher, and provide Gmail OAuth credentials before counting live replies as durable. |
 
 ## Durable Reply Plumbing
 

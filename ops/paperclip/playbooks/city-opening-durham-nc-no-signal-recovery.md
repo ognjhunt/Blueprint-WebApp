@@ -1,7 +1,7 @@
 # Durham, NC No-Signal Recovery
 
 - status: triggered
-- evaluated_at: 2026-05-02T14:38:31.711Z
+- evaluated_at: 2026-05-03T23:04:51.088Z
 - trigger_rule: no positive applicant/capturer/reply/operator signal after 3 days or 2 sent direct-outreach actions
 - reason: Triggered because Durham, NC has 2 sent direct-outreach actions, 0 recorded responses, 0 live supply responses, and 0 live buyer/operator engagements.
 - dispatch_status: dispatched
@@ -18,7 +18,7 @@
 | sent direct outreach | 2 |
 | sent direct outreach with recipient evidence | 2 |
 | first sent at | 2026-04-20T00:00:00.000Z |
-| days since first send | 12.61 |
+| days since first send | 13.96 |
 | recorded responses | 0 |
 | routed responses | 0 |
 | reply conversions | 0 |

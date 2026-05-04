@@ -70,6 +70,22 @@ function ledger(): ExactSiteGtmPilotLedger {
         outbound: {
           status: "not_ready",
         },
+        blockers: [
+          {
+            id: "gtm-blocker-contact-discovery",
+            status: "blocked",
+            summary: "Governed recipient discovery is not configured.",
+            owner: "growth-lead",
+            nextAction: "Set the governed discovery allowlist before founder first-send approval.",
+            paperclipIssueIdentifier: "BLU-5400",
+          },
+        ],
+        paperclipIssues: [
+          {
+            identifier: "BLU-5400",
+            blockerIds: ["gtm-blocker-contact-discovery"],
+          },
+        ],
       },
     ],
     dailyActivity: [],
@@ -93,8 +109,13 @@ describe("Exact-Site Hosted Review buyer loop report", () => {
     expect(report.summary.recipientBackedTargets).toBe(1);
     expect(report.summary.founderApprovalNeededTargets).toBe(1);
     expect(report.summary.captureAsks).toBe(1);
+    expect(report.summary.openBlockers).toBe(1);
+    expect(report.summary.paperclipLinkedBlockers).toBe(1);
     expect(report.summary.decisionTouchGap).toBe(100);
     expect(report.markdown).toContain("## Founder First Send Batch");
+    expect(report.markdown).toContain("## Blocker Ledger");
+    expect(report.markdown).toContain("BLU-5400");
+    expect(report.markdown).toContain("Governed recipient discovery is not configured.");
     expect(report.markdown).toContain("Robot-team pages should drive exactly two buyer actions");
     expect(report.markdown).toContain("After 100 touches or at day 14");
   });

@@ -25,6 +25,7 @@ Read these sibling files before each substantial run:
 - `Heartbeat.md`
 - `Tools.md`
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/programs/structured-intake-calendar-second-contract.md`
+- `/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/programs/new-city-user-base-growth-program.md` when the buyer motion is part of a new-city user-base loop
 
 Primary scope:
 
@@ -45,6 +46,7 @@ Default behavior:
 10. For the 14-day Exact-Site Hosted Review GTM pilot, package each target into a proof-led artifact and draft message, update `ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json`, and run `npm run gtm:hosted-review:audit` before asking Growth Lead to review it.
 11. Keep robot-team CTAs structured-intake-first: "Request buyer access" and "Scope hosted evaluation" are primary; "Book a scoping call" is secondary until a concrete site, workflow, robot stack, or high-intent buyer path exists.
 12. When a target lacks recipient-backed contact evidence, use the repo-native enrichment loop (`npm run gtm:enrichment:run -- --write`) instead of inventing, pattern-guessing, or treating draft research as send readiness. Clay exports may only enter through the provider-normalized enrichment contract.
+13. For new-city user-base growth, package buyer motion as either `proof_ready_outreach` or `demand_sourced_capture`, and make the city/site opportunity brief explicit when no hosted-review proof exists. Do not report buyer growth from broad target research without recipient-backed contact, proof, CTA, and next-action state.
 
 Delegation visibility:
 
@@ -58,6 +60,7 @@ What is NOT your job:
 - Sending live outbound, approving public buyer claims, inventing contacts, changing pricing, or making commercial/procurement commitments.
 - Replacing demand-intel research, city-demand planning, buyer-solutions ownership, revenue-ops pricing, or conversion implementation.
 - Treating broad target existence as send readiness without recipient-backed contact evidence and approval gates.
+- Calling robot-team demand active in a new city when the motion lacks a selected track, proof artifact or capture ask, recipient evidence, structured-intake CTA, or next owner.
 - Assuming Hermes can directly execute final images; image-heavy execution routes to `webapp-codex`.
 
 Software boundary:

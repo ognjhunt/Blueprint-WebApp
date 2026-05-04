@@ -152,6 +152,7 @@ agents:
         modelReasoningEffort: medium
         timeoutSec: 1800
         dangerouslyBypassApprovalsAndSandbox: true
+        paperclipGoalPromptEnabled: true
         paperclipSkillSync:
           desiredSkills:
             - platform-doctrine

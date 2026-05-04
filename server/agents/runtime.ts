@@ -566,6 +566,7 @@ function buildForkedSessionTitle(sourceTitle: string, phase: AgentThreadPhase, r
 function normalizeAgentProvider(provider?: AgentProvider): AgentProvider {
   switch (provider) {
     case "codex_local":
+    case "deepseek_chat":
     case "openai_responses":
     case "anthropic_agent_sdk":
     case "acp_harness":
@@ -580,6 +581,8 @@ function defaultModelForProvider(provider: AgentProvider) {
   switch (provider) {
     case "codex_local":
       return process.env.CODEX_DEFAULT_MODEL?.trim() || "gpt-5.4-mini";
+    case "deepseek_chat":
+      return process.env.DEEPSEEK_DEFAULT_MODEL?.trim() || "deepseek-v4-flash";
     case "openai_responses":
       return process.env.OPENAI_DEFAULT_MODEL?.trim() || "gpt-5.4";
     case "anthropic_agent_sdk":
@@ -803,6 +806,11 @@ async function executeTask<TInput, TOutput>(
   if (task.provider === "openai_responses") {
     const { runOpenAIResponsesTask } = await import("./adapters/openai-responses");
     return runOpenAIResponsesTask(task);
+  }
+
+  if (task.provider === "deepseek_chat") {
+    const { runDeepSeekChatTask } = await import("./adapters/deepseek-chat");
+    return runDeepSeekChatTask(task);
   }
 
   if (task.provider === "codex_local") {

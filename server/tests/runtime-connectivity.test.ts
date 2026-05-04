@@ -11,6 +11,10 @@ afterEach(() => {
   delete process.env.CODEX_LOCAL_AVAILABLE;
   delete process.env.CODEX_AUTH_FILE;
   delete process.env.CODEX_DEFAULT_MODEL;
+  delete process.env.DEEPSEEK_API_KEY;
+  delete process.env.DEEPSEEK_DEFAULT_MODEL;
+  delete process.env.DEEPSEEK_OPERATOR_THREAD_MODEL;
+  delete process.env.DEEPSEEK_TIMEOUT_MS;
   delete process.env.OPENAI_API_KEY;
   delete process.env.ANTHROPIC_API_KEY;
   delete process.env.ACP_HARNESS_URL;
@@ -73,6 +77,21 @@ describe("runtime connectivity", () => {
         runtime: "anthropic_agent_sdk",
       }),
     );
+  });
+
+  it("prefers DeepSeek when a DeepSeek key is configured", async () => {
+    process.env.DEEPSEEK_API_KEY = "deepseek-key";
+    process.env.DEEPSEEK_DEFAULT_MODEL = "deepseek-v4-flash";
+
+    const { getAgentRuntimeConnectionMetadata } = await import(
+      "../agents/runtime-connectivity"
+    );
+
+    expect(getAgentRuntimeConnectionMetadata()).toMatchObject({
+      provider: "deepseek_chat",
+      configured: true,
+      default_model: "deepseek-v4-flash",
+    });
   });
 
   it("prefers local Codex when the auth file is present", async () => {

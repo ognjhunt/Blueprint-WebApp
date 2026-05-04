@@ -6,7 +6,13 @@ import {
   buildMetricsWindow,
   projectCompanyMetricsView,
 } from "./companyMetrics";
-import type { BlockingCondition, NextAction, OperatingGraphState } from "./operatingGraphTypes";
+import type {
+  BlockingCondition,
+  NextAction,
+  OperatingGraphEvent,
+  OperatingGraphStage,
+  OperatingGraphState,
+} from "./operatingGraphTypes";
 
 export const COMPANY_SCOREBOARD_VERSION = "2026-04-20.company-scoreboard.v1";
 
@@ -34,6 +40,241 @@ function sortByNewest<T>(items: T[], readIso: (item: T) => string | null | undef
 
 function isCityProgramState(state: OperatingGraphState) {
   return state.entityType === "city_program";
+}
+
+const CAPTURE_TO_HOSTED_REVIEW_STAGES = [
+  "capture_uploaded",
+  "pipeline_packaging",
+  "package_ready",
+  "hosted_review_ready",
+  "hosted_review_started",
+] as const satisfies readonly OperatingGraphStage[];
+
+type CaptureToHostedReviewStage = (typeof CAPTURE_TO_HOSTED_REVIEW_STAGES)[number];
+
+function isCaptureToHostedReviewStage(stage: OperatingGraphStage): stage is CaptureToHostedReviewStage {
+  return CAPTURE_TO_HOSTED_REVIEW_STAGES.includes(stage as CaptureToHostedReviewStage);
+}
+
+function readMetadataString(
+  metadata: Record<string, unknown> | undefined,
+  keys: string[],
+) {
+  if (!metadata) return "";
+
+  for (const key of keys) {
+    const value = metadata[key];
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+
+  const nested = metadata.canonical_foreign_keys;
+  if (nested && typeof nested === "object" && !Array.isArray(nested)) {
+    const nestedRecord = nested as Record<string, unknown>;
+    for (const key of keys) {
+      const value = nestedRecord[key];
+      if (typeof value === "string" && value.trim()) {
+        return value.trim();
+      }
+    }
+  }
+
+  return "";
+}
+
+function eventMatchesAnyMetadata(
+  event: OperatingGraphEvent,
+  keyGroups: string[][],
+  candidates: Set<string>,
+) {
+  return keyGroups.some((keys) => {
+    const value = readMetadataString(event.metadata, keys);
+    return Boolean(value && candidates.has(value));
+  });
+}
+
+function latestIso(values: Array<string | null | undefined>) {
+  return values
+    .filter((value): value is string => Boolean(value))
+    .sort((left, right) => timestampMs(right) - timestampMs(left))[0] || null;
+}
+
+function buildLifecycleNextAction(input: {
+  captureId: string;
+  nextMissingStage: CaptureToHostedReviewStage | null;
+  sourceRef: string;
+}): NextAction | null {
+  if (!input.nextMissingStage) {
+    return null;
+  }
+
+  const nextActionByStage: Record<CaptureToHostedReviewStage, Omit<NextAction, "id" | "sourceRef"> | null> = {
+    capture_uploaded: null,
+    pipeline_packaging: {
+      summary: "Run or verify pipeline packaging from the durable uploaded capture.",
+      owner: "pipeline-codex",
+      status: "ready_to_execute",
+    },
+    package_ready: {
+      summary: "Wait for package_ready pipeline sync evidence from the uploaded capture.",
+      owner: "pipeline-codex",
+      status: "awaiting_external_confirmation",
+    },
+    hosted_review_ready: {
+      summary: "Verify hosted-review prerequisites in WebApp state without overstating readiness.",
+      owner: "webapp-codex",
+      status: "ready_to_execute",
+    },
+    hosted_review_started: {
+      summary: "Start buyer-facing hosted review from the ready package and write runtime evidence.",
+      owner: "buyer-success-agent",
+      status: "ready_to_execute",
+    },
+  };
+  const action = nextActionByStage[input.nextMissingStage];
+  if (!action) return null;
+
+  return {
+    id: `capture_to_hosted_review:${input.captureId}:${input.nextMissingStage}`,
+    sourceRef: input.sourceRef,
+    ...action,
+  };
+}
+
+function buildCaptureToHostedReviewLifecycle(snapshot: CompanyMetricsSnapshot) {
+  const uploadedCaptures = snapshot.captureSubmissions.filter((submission) =>
+    Boolean(submission.captureUploadedAtIso),
+  );
+  const rows = uploadedCaptures.map((submission) => {
+    const captureId = submission.captureId || submission.id;
+    const identityCandidates = new Set(
+      [
+        captureId,
+        submission.siteSubmissionId,
+        submission.buyerRequestId,
+      ].filter((value): value is string => Boolean(value)),
+    );
+    const packageEvents = snapshot.operatingGraphEvents.filter(
+      (event) =>
+        event.entity_type === "package_run"
+        && eventMatchesAnyMetadata(
+          event,
+          [
+            ["capture_id", "captureId"],
+            ["site_submission_id", "siteSubmissionId"],
+            ["buyer_request_id", "buyerRequestId"],
+          ],
+          identityCandidates,
+        ),
+    );
+    const packageIds = new Set(
+      packageEvents
+        .map((event) => readMetadataString(event.metadata, ["package_id", "packageId"]))
+        .filter(Boolean),
+    );
+    const hostedReviewEvents = snapshot.operatingGraphEvents.filter((event) => {
+      if (event.entity_type !== "hosted_review_run") {
+        return false;
+      }
+      if (
+        eventMatchesAnyMetadata(
+          event,
+          [
+            ["capture_id", "captureId"],
+            ["site_submission_id", "siteSubmissionId"],
+            ["buyer_request_id", "buyerRequestId"],
+          ],
+          identityCandidates,
+        )
+      ) {
+        return true;
+      }
+      return packageIds.size > 0
+        && eventMatchesAnyMetadata(
+          event,
+          [["package_id", "packageId"]],
+          packageIds,
+        );
+    });
+    const lifecycleEvents = [...packageEvents, ...hostedReviewEvents].filter((event) =>
+      isCaptureToHostedReviewStage(event.stage),
+    );
+    const completedStageSet = new Set<CaptureToHostedReviewStage>(["capture_uploaded"]);
+    for (const event of lifecycleEvents) {
+      if (isCaptureToHostedReviewStage(event.stage)) {
+        completedStageSet.add(event.stage);
+      }
+    }
+    const completedStages = CAPTURE_TO_HOSTED_REVIEW_STAGES.filter((stage) =>
+      completedStageSet.has(stage),
+    );
+    const currentStage = completedStages[completedStages.length - 1];
+    const currentStageIndex = CAPTURE_TO_HOSTED_REVIEW_STAGES.indexOf(currentStage);
+    const nextMissingStage =
+      CAPTURE_TO_HOSTED_REVIEW_STAGES
+        .slice(currentStageIndex + 1)
+        .find((stage) => !completedStageSet.has(stage)) || null;
+    const evidenceEvents = sortByNewest(
+      lifecycleEvents,
+      (event) => event.recorded_at_iso,
+    );
+    const evidenceRefs = [
+      `capture_submissions/${submission.id || captureId}`,
+      ...evidenceEvents.map((event) => `operatingGraphEvents/${event.id}`),
+    ];
+
+    return {
+      captureId,
+      city: submission.city,
+      citySlug: submission.citySlug,
+      currentStage,
+      completedStages,
+      nextMissingStage,
+      latestEvidenceAtIso: latestIso([
+        submission.captureUploadedAtIso,
+        ...evidenceEvents.map((event) => event.recorded_at_iso),
+      ]),
+      sourceRepos: Array.from(
+        new Set([
+          "BlueprintCapture",
+          ...evidenceEvents.map((event) => event.source_repo),
+        ]),
+      ),
+      evidenceRefs,
+      packageRunIds: Array.from(new Set(packageEvents.map((event) => event.entity_id))),
+      hostedReviewRunIds: Array.from(new Set(hostedReviewEvents.map((event) => event.entity_id))),
+      nextAction: buildLifecycleNextAction({
+        captureId,
+        nextMissingStage,
+        sourceRef: evidenceRefs[0],
+      }),
+    };
+  });
+  const stageCounts = CAPTURE_TO_HOSTED_REVIEW_STAGES.reduce(
+    (acc, stage) => {
+      acc[stage] = rows.filter((row) => row.currentStage === stage).length;
+      return acc;
+    },
+    {} as Record<CaptureToHostedReviewStage, number>,
+  );
+
+  return {
+    summary: {
+      uploadedCaptures: rows.length,
+      packageReadyCaptures: rows.filter(
+        (row) => row.completedStages.includes("package_ready"),
+      ).length,
+      hostedReviewReadyCaptures: rows.filter(
+        (row) => row.completedStages.includes("hosted_review_ready"),
+      ).length,
+      hostedReviewStartedCaptures: rows.filter((row) =>
+        row.completedStages.includes("hosted_review_started"),
+      ).length,
+      currentStageCounts: stageCounts,
+    },
+    rows,
+  };
 }
 
 function summarizeMetricHealth(view: ReturnType<typeof projectCompanyMetricsView>) {
@@ -120,7 +361,9 @@ function buildCeoOperatingScreen(
     (outcome) => timestampMs(outcome.recordedAtIso) >= sinceMs,
   );
   const recentHumanThreads = snapshot.humanBlockerThreads.filter(
-    (thread) => timestampMs(thread.createdAtIso) >= sinceMs,
+    (thread) =>
+      thread.gateMode === "universal_founder_inbox"
+      && timestampMs(thread.createdAtIso) >= sinceMs,
   );
 
   const needsFounder = [
@@ -182,6 +425,7 @@ function buildCeoOperatingScreen(
   };
 
   const activeCityClosure = readCityClosureHint(snapshot, activeCity);
+  const captureToHostedReviewLifecycle = buildCaptureToHostedReviewLifecycle(snapshot);
 
   return {
     generatedAt,
@@ -217,6 +461,7 @@ function buildCeoOperatingScreen(
       weekly: summarizeMetricHealth(views.weekly),
     },
     activeCityClosure,
+    captureToHostedReviewLifecycle,
   };
 }
 

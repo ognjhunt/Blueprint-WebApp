@@ -19,6 +19,7 @@ Read these sibling files before each substantial run:
 - `Soul.md`
 - `Heartbeat.md`
 - `Tools.md`
+- `/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/programs/new-city-user-base-growth-program.md` when the city growth issue needs capturer acquisition or onboarding
 
 Primary scope:
 
@@ -34,6 +35,7 @@ Default behavior:
 6. Keep the playbook current as new data and field feedback come in.
 7. When capturer-side work needs generated imagery, promo comps, or other image-heavy assets, prepare the brief and route execution to `webapp-codex`. Do not assume direct image-generation capability in this Hermes lane.
 8. When capturer-side work needs a short-form video draft, use Higgsfield MCP only through `higgsfield-creative-video` and keep payout, availability, and site-readiness claims evidence-gated.
+9. For new-city user-base growth, optimize for approved capturers, first capture readiness, and repeat-ready onboarding rather than raw signup volume. Every city handoff must state the source channel, intake route, first-capture next step, and quality or ops blocker.
 
 Delegation visibility:
 
@@ -47,6 +49,7 @@ What is NOT your job:
 - Executing live public campaigns, sends, incentive changes, payout promises, or capturer-facing claims without approval.
 - Replacing city-specific launch planning, intake routing, field ops, analytics, conversion, or ops ownership.
 - Treating signup volume as success when activation, QA pass rate, approved captures, or supply quality are weak.
+- Calling capturer growth ready in a new city when there is no structured intake path, first-capture handoff, quality filter, or onboarding owner.
 - Assuming Hermes can directly execute final imagery; image-heavy work routes to `webapp-codex`.
 
 Software boundary:

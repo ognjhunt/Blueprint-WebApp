@@ -25,8 +25,11 @@ BLUEPRINT_PAPERCLIP_CLAUDE_LANE_MODE="${BLUEPRINT_PAPERCLIP_CLAUDE_LANE_MODE:-au
 BLUEPRINT_PAPERCLIP_FORCE_CODEX_CLAUDE_LANES="${BLUEPRINT_PAPERCLIP_FORCE_CODEX_CLAUDE_LANES:-0}"
 BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_MODEL="${BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_MODEL:-gpt-5.4-mini}"
 BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT="${BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT:-medium}"
-BLUEPRINT_PAPERCLIP_HERMES_PRIMARY_MODEL="${BLUEPRINT_PAPERCLIP_HERMES_PRIMARY_MODEL:-nvidia/nemotron-3-super-120b-a12b:free}"
-BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL="${BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL:-nvidia/nemotron-3-super-120b-a12b:free}"
+BLUEPRINT_PAPERCLIP_HERMES_PRIMARY_MODEL="${BLUEPRINT_PAPERCLIP_HERMES_PRIMARY_MODEL:-deepseek-v4-flash}"
+BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL="${BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL:-deepseek-v4-pro[1m]}"
+BLUEPRINT_PAPERCLIP_HERMES_PROVIDER="${BLUEPRINT_PAPERCLIP_HERMES_PROVIDER:-anthropic}"
+BLUEPRINT_PAPERCLIP_HERMES_BASE_URL="${BLUEPRINT_PAPERCLIP_HERMES_BASE_URL:-https://api.deepseek.com/anthropic}"
+BLUEPRINT_PAPERCLIP_HERMES_INCLUDE_OPENROUTER_FALLBACKS="${BLUEPRINT_PAPERCLIP_HERMES_INCLUDE_OPENROUTER_FALLBACKS:-0}"
 
 if RESOLVED_API_URL="$(paperclip_resolve_api_url "$PAPERCLIP_API_URL" "$PAPERCLIP_HOME" "$PAPERCLIP_HOST")"; then
   PAPERCLIP_API_URL="$RESOLVED_API_URL"
@@ -44,6 +47,9 @@ export \
   BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_MODEL \
   BLUEPRINT_PAPERCLIP_HERMES_PRIMARY_MODEL \
   BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL \
+  BLUEPRINT_PAPERCLIP_HERMES_PROVIDER \
+  BLUEPRINT_PAPERCLIP_HERMES_BASE_URL \
+  BLUEPRINT_PAPERCLIP_HERMES_INCLUDE_OPENROUTER_FALLBACKS \
   BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT
 
 node --input-type=module <<'NODE'
@@ -67,28 +73,20 @@ const fallbackCodexModel =
   process.env.BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_MODEL ?? "gpt-5.4-mini";
 const fallbackCodexReasoningEffort =
   process.env.BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT ?? "medium";
-const DEFAULT_HERMES_MODEL = "nvidia/nemotron-3-super-120b-a12b:free";
+const DEFAULT_HERMES_MODEL = "deepseek-v4-flash";
+const DEFAULT_HERMES_FALLBACK_MODEL = "deepseek-v4-pro[1m]";
+const DEFAULT_HERMES_PROVIDER = "anthropic";
+const DEFAULT_HERMES_BASE_URL = "https://api.deepseek.com/anthropic";
 const allowPaidHermesModels = /^(1|true|yes)$/i.test(
   process.env.BLUEPRINT_PAPERCLIP_HERMES_ALLOW_PAID_MODELS ?? "",
 );
+const includeLegacyOpenRouterHermesFallbacks = /^(1|true|yes)$/i.test(
+  process.env.BLUEPRINT_PAPERCLIP_HERMES_INCLUDE_OPENROUTER_FALLBACKS ?? "",
+);
 const DISALLOWED_HERMES_MODEL_RE =
   /^(?:(?:anthropic\/)?claude(?:[-/].*)?|openrouter\/free|(?:openrouter\/)?arcee-ai\/trinity-large-preview(?::free)?|(?:openrouter\/)?nvidia\/nemotron-3-super(?::free)?|(?:openrouter\/)?(?:qwen\/)?qwen3\.6-plus(?:-preview)?(?::free)?|(?:openrouter\/)?inclusionai\/ling-2\.6-(?:flash|1t)(?::free)?|(?:openrouter\/)?stepfun\/step-3\.5-flash(?::free)?)$/i;
-const hermesPrimaryModel = sanitizeHermesModel(
-  process.env.BLUEPRINT_PAPERCLIP_HERMES_PRIMARY_MODEL,
-  DEFAULT_HERMES_MODEL,
-);
-const hermesFallbackModel = sanitizeHermesModel(
-  process.env.BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL,
-  DEFAULT_HERMES_MODEL,
-);
-const forceAdapterSync = /^(1|true|yes)$/i.test(
-  process.env.BLUEPRINT_PAPERCLIP_FORCE_ADAPTER_SYNC ?? "",
-);
-const hermesFreeModels = normalizeHermesModelList([
-  hermesPrimaryModel,
-  ...parseModelList(process.env.BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODELS),
-  hermesFallbackModel,
-  DEFAULT_HERMES_MODEL,
+const LEGACY_OPENROUTER_HERMES_MODELS = [
+  "nvidia/nemotron-3-super-120b-a12b:free",
   "tencent/hy3-preview:free",
   "minimax/minimax-m2.5:free",
   "google/gemma-4-31b-it:free",
@@ -97,6 +95,35 @@ const hermesFreeModels = normalizeHermesModelList([
   "openai/gpt-oss-120b:free",
   "z-ai/glm-4.5-air:free",
   "qwen/qwen3-coder:free",
+];
+const hermesPrimaryModel = sanitizeHermesModel(
+  process.env.BLUEPRINT_PAPERCLIP_HERMES_PRIMARY_MODEL,
+  DEFAULT_HERMES_MODEL,
+);
+const hermesFallbackModel = sanitizeHermesModel(
+  process.env.BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL,
+  DEFAULT_HERMES_FALLBACK_MODEL,
+);
+const hermesProvider =
+  typeof process.env.BLUEPRINT_PAPERCLIP_HERMES_PROVIDER === "string"
+    && process.env.BLUEPRINT_PAPERCLIP_HERMES_PROVIDER.trim().length > 0
+    ? process.env.BLUEPRINT_PAPERCLIP_HERMES_PROVIDER.trim()
+    : DEFAULT_HERMES_PROVIDER;
+const hermesBaseUrl =
+  typeof process.env.BLUEPRINT_PAPERCLIP_HERMES_BASE_URL === "string"
+    && process.env.BLUEPRINT_PAPERCLIP_HERMES_BASE_URL.trim().length > 0
+    ? process.env.BLUEPRINT_PAPERCLIP_HERMES_BASE_URL.trim()
+    : DEFAULT_HERMES_BASE_URL;
+const forceAdapterSync = /^(1|true|yes)$/i.test(
+  process.env.BLUEPRINT_PAPERCLIP_FORCE_ADAPTER_SYNC ?? "",
+);
+const hermesFreeModels = normalizeHermesModelList([
+  hermesPrimaryModel,
+  ...parseModelList(process.env.BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODELS),
+  hermesFallbackModel,
+  DEFAULT_HERMES_MODEL,
+  DEFAULT_HERMES_FALLBACK_MODEL,
+  ...(includeLegacyOpenRouterHermesFallbacks ? LEGACY_OPENROUTER_HERMES_MODELS : []),
 ]);
 const hermesPaidModels = normalizeHermesModelList([
   ...(allowPaidHermesModels ? parseModelList(process.env.BLUEPRINT_PAPERCLIP_HERMES_PAID_MODELS) : []),
@@ -295,8 +322,22 @@ function isDisallowedHermesModel(value) {
   return typeof value === "string" && DISALLOWED_HERMES_MODEL_RE.test(value.trim());
 }
 
+function isDeepSeekHermesModel(value) {
+  if (typeof value !== "string") return false;
+  const trimmed = value.trim().toLowerCase();
+  return /^deepseek-v4-(?:flash|pro)(?:\[[^\]]+\])?$/.test(trimmed)
+    || trimmed === "deepseek-chat"
+    || trimmed === "deepseek-reasoner";
+}
+
 function isHermesFreeModel(value) {
   return typeof value === "string" && value.trim().toLowerCase().endsWith(":free");
+}
+
+function isApprovedHermesModel(value) {
+  return isDeepSeekHermesModel(value)
+    || (includeLegacyOpenRouterHermesFallbacks && isHermesFreeModel(value))
+    || allowPaidHermesModels;
 }
 
 function sanitizeHermesModel(value, fallback) {
@@ -304,7 +345,7 @@ function sanitizeHermesModel(value, fallback) {
     return fallback;
   }
   const trimmed = value.trim();
-  if (!trimmed || isDisallowedHermesModel(trimmed) || (!allowPaidHermesModels && !isHermesFreeModel(trimmed))) {
+  if (!trimmed || isDisallowedHermesModel(trimmed) || !isApprovedHermesModel(trimmed)) {
     return fallback;
   }
   return trimmed;
@@ -316,7 +357,7 @@ function normalizeHermesModelList(values) {
       (value) =>
         typeof value === "string"
         && !isDisallowedHermesModel(value)
-        && (allowPaidHermesModels || isHermesFreeModel(value)),
+        && isApprovedHermesModel(value),
     ),
   );
 }
@@ -324,17 +365,27 @@ function normalizeHermesModelList(values) {
 async function fetchJson(resourcePath, init = {}) {
   const attempts = Number(process.env.PAPERCLIP_FETCH_ATTEMPTS || "3");
   const delayMs = Number(process.env.PAPERCLIP_FETCH_DELAY_MS || "500");
+  const { timeoutMs: requestTimeoutMs, ...fetchInit } = init;
+  const timeoutMs = Number(
+    requestTimeoutMs ?? process.env.PAPERCLIP_FETCH_TIMEOUT_MS ?? "30000",
+  );
   let lastError = `Empty response for ${resourcePath}`;
 
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    const controller = new AbortController();
+    const timeout = Number.isFinite(timeoutMs) && timeoutMs > 0
+      ? setTimeout(() => controller.abort(), timeoutMs)
+      : null;
+    timeout?.unref?.();
     try {
       const response = await fetch(`${paperclipApiUrl}${resourcePath}`, {
-        headers: { "Content-Type": "application/json", ...(init.headers ?? {}) },
-        ...init,
+        headers: { "Content-Type": "application/json", ...(fetchInit.headers ?? {}) },
+        ...fetchInit,
+        signal: fetchInit.signal ?? controller.signal,
       });
       if (!response.ok) {
         const text = await response.text();
-        throw new Error(`${init.method ?? "GET"} ${resourcePath} failed: ${response.status} ${text}`);
+        throw new Error(`${fetchInit.method ?? "GET"} ${resourcePath} failed: ${response.status} ${text}`);
       }
       const text = await response.text();
       if (!text || text.trim().length === 0) {
@@ -355,6 +406,10 @@ async function fetchJson(resourcePath, init = {}) {
       }
     } catch (error) {
       lastError = error instanceof Error ? error.message : String(error);
+    } finally {
+      if (timeout) {
+        clearTimeout(timeout);
+      }
     }
 
     if (attempt < attempts) {
@@ -805,6 +860,9 @@ function buildHermesProbeConfig(adapterConfig) {
     ...(typeof normalized.provider === "string" && normalized.provider.trim().length > 0
       ? { provider: normalized.provider }
       : {}),
+    ...(normalized.env && typeof normalized.env === "object" && !Array.isArray(normalized.env)
+      ? { env: normalized.env }
+      : {}),
     ...(typeof normalized.timeoutSec === "number" ? { timeoutSec: normalized.timeoutSec } : {}),
   };
 }
@@ -844,6 +902,10 @@ function buildCodexAdapterConfig(adapterConfig) {
 function buildHermesAdapterConfig(adapterConfig) {
   const next = { ...(adapterConfig ?? {}) };
   delete next[HERMES_MODEL_LADDER_CONFIG_KEY];
+  delete next.base_url;
+  delete next.baseUrl;
+  delete next.api_key;
+  delete next.api_key_env;
   const configuredModel = sanitizeHermesModel(
     typeof adapterConfig?.model === "string" ? adapterConfig.model : "",
     "",
@@ -856,12 +918,24 @@ function buildHermesAdapterConfig(adapterConfig) {
     configuredModel.length > 0 && configuredModel !== legacyHermesModel
       ? configuredModel
       : hermesPrimaryModel;
+  const provider = isDeepSeekHermesModel(model) ? hermesProvider : "openrouter";
+  const existingEnv =
+    next.env && typeof next.env === "object" && !Array.isArray(next.env)
+      ? next.env
+      : {};
+  const env = provider === hermesProvider
+    ? {
+        ...existingEnv,
+        ANTHROPIC_BASE_URL: hermesBaseUrl,
+      }
+    : existingEnv;
 
   return {
     ...next,
     model,
-    provider: "openrouter",
+    provider,
     [HERMES_MODEL_LADDER_CONFIG_KEY]: ladder,
+    ...(Object.keys(env).length > 0 ? { env } : {}),
     paperclipApiUrl,
     promptTemplate:
       typeof adapterConfig?.promptTemplate === "string" && adapterConfig.promptTemplate.trim().length > 0
@@ -870,7 +944,7 @@ function buildHermesAdapterConfig(adapterConfig) {
     modelReasoningEffort:
       typeof adapterConfig?.modelReasoningEffort === "string" && adapterConfig.modelReasoningEffort.trim().length > 0
         ? adapterConfig.modelReasoningEffort
-        : "medium",
+        : "max",
     timeoutSec: typeof adapterConfig?.timeoutSec === "number" ? adapterConfig.timeoutSec : 1800,
   };
 }
@@ -899,11 +973,13 @@ function summarizeProbeFailure(result, fallbackMessage) {
 
 async function probeAdapter(companyId, adapterType, adapterConfig) {
   try {
+    const timeoutMs = Number(process.env.PAPERCLIP_ADAPTER_PROBE_TIMEOUT_MS || "10000");
     const result = await fetchJson(
       `/api/companies/${companyId}/adapters/${adapterType}/test-environment`,
       {
         method: "POST",
         body: JSON.stringify({ adapterConfig }),
+        timeoutMs,
       },
     );
     return {

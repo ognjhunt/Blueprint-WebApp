@@ -103,6 +103,8 @@ describe("Exact-Site Hosted Review GTM pilot ledger audit", () => {
     expect(result.summary.sentTargets).toBe(1);
     expect(result.summary.recipientBackedTargets).toBe(1);
     expect(result.summary.targetsMissingRecipientEvidence).toBe(0);
+    expect(result.summary.closureStateTargets).toBe(1);
+    expect(result.summary.targetsMissingClosureState).toBe(0);
     expect(result.summary.latestDay.contactDensityGap).toBe(0);
     expect(result.findings.filter((finding) => finding.severity === "error")).toHaveLength(0);
   });
@@ -305,5 +307,138 @@ describe("Exact-Site Hosted Review GTM pilot ledger audit", () => {
         "Paid scale requires organic replies, hosted reviews, or qualified calls first.",
       ]),
     );
+  });
+
+  it("requires Paperclip issue linkage for open target blockers", () => {
+    const result = auditExactSiteHostedReviewGtmLedger(baseLedger({
+      targets: [
+        {
+          id: "target-1",
+          track: "proof_ready_outreach",
+          organizationName: "Robot Team",
+          buyerSegment: "Deployment team",
+          workflowNeed: "Inspect one exact public site before picking a deployment workflow.",
+          intentSignals: ["Public product positioning references deployment-site evaluation."],
+          evidence: { summary: "Real exact-site buying signal." },
+          artifact: {
+            type: "exact_site_hosted_review",
+            status: "review_ready",
+            path: "client/public/samples/sample-hosted-review-report.md",
+            siteWorldId: "sample-public-capture-cedar-market-aisle-loop",
+          },
+          outbound: {
+            status: "draft_ready",
+            messagePath: "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
+          },
+          sales: {
+            nextAction: "Resolve the contact-discovery blocker before first-send approval.",
+          },
+          blockers: [
+            {
+              id: "gtm-blocker-contact-discovery",
+              status: "blocked",
+              summary: "Governed public contact discovery is not configured.",
+              owner: "growth-lead",
+              nextAction: "Set the governed contact discovery allowlist or provide explicit recipient evidence.",
+            },
+          ],
+        },
+      ],
+    }));
+
+    expect(result.ok).toBe(false);
+    expect(result.summary.openTargetBlockers).toBe(1);
+    expect(result.summary.paperclipLinkedTargetBlockers).toBe(0);
+    expect(result.findings.map((finding) => finding.message)).toContain(
+      "Open target blockers must link to a Paperclip issue id or identifier.",
+    );
+  });
+
+  it("blocks target rows that have no next action, recipient state, send state, or blocker", () => {
+    const result = auditExactSiteHostedReviewGtmLedger(baseLedger({
+      targets: [
+        {
+          id: "target-1",
+          track: "proof_ready_outreach",
+          organizationName: "Robot Team",
+          buyerSegment: "Deployment team",
+          workflowNeed: "Inspect one exact public site before picking a deployment workflow.",
+          intentSignals: ["Public product positioning references deployment-site evaluation."],
+          evidence: { summary: "Real exact-site buying signal." },
+          artifact: {
+            type: "exact_site_hosted_review",
+            status: "review_ready",
+            path: "client/public/samples/sample-hosted-review-report.md",
+            siteWorldId: "sample-public-capture-cedar-market-aisle-loop",
+          },
+          outbound: {
+            status: "not_ready",
+          },
+        },
+      ],
+    }));
+
+    expect(result.ok).toBe(false);
+    expect(result.summary.closureStateTargets).toBe(0);
+    expect(result.summary.targetsMissingClosureState).toBe(1);
+    expect(result.findings.map((finding) => finding.message)).toContain(
+      "Every target must record a next action, recipient evidence state, send/reply state, or explicit blocker.",
+    );
+  });
+
+  it("counts Paperclip-linked target blockers without creating fake recipient progress", () => {
+    const result = auditExactSiteHostedReviewGtmLedger(baseLedger({
+      targets: [
+        {
+          id: "target-1",
+          track: "proof_ready_outreach",
+          organizationName: "Robot Team",
+          buyerSegment: "Deployment team",
+          workflowNeed: "Inspect one exact public site before picking a deployment workflow.",
+          intentSignals: ["Public product positioning references deployment-site evaluation."],
+          evidence: { summary: "Real exact-site buying signal." },
+          artifact: {
+            type: "exact_site_hosted_review",
+            status: "review_ready",
+            path: "client/public/samples/sample-hosted-review-report.md",
+            siteWorldId: "sample-public-capture-cedar-market-aisle-loop",
+          },
+          outbound: {
+            status: "draft_ready",
+            messagePath: "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
+          },
+          sales: {
+            nextAction: "Resolve the contact-discovery blocker before first-send approval.",
+          },
+          blockers: [
+            {
+              id: "gtm-blocker-contact-discovery",
+              status: "blocked",
+              summary: "Governed public contact discovery is not configured.",
+              owner: "growth-lead",
+              nextAction: "Set the governed contact discovery allowlist or provide explicit recipient evidence.",
+              paperclipIssueIdentifier: "BLU-5400",
+            },
+          ],
+          paperclipIssues: [
+            {
+              id: "issue-1",
+              identifier: "BLU-5400",
+              title: "Configure governed GTM contact discovery",
+              status: "blocked",
+              blockerIds: ["gtm-blocker-contact-discovery"],
+            },
+          ],
+        },
+      ],
+    }));
+
+    expect(result.ok).toBe(true);
+    expect(result.summary.openTargetBlockers).toBe(1);
+    expect(result.summary.paperclipLinkedTargetBlockers).toBe(1);
+    expect(result.summary.recipientBackedTargets).toBe(0);
+    expect(result.summary.closureStateTargets).toBe(1);
+    expect(result.summary.targetsMissingClosureState).toBe(0);
+    expect(result.findings.filter((finding) => finding.severity === "error")).toHaveLength(0);
   });
 });

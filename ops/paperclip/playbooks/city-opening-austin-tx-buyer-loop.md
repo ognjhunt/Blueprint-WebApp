@@ -1,6 +1,6 @@
 # Exact-Site Hosted Review Buyer Loop
 
-- report_date: 2026-05-02
+- report_date: 2026-05-03
 - city: Austin, TX
 - ledger: ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json
 - loop_status: blocked
@@ -24,8 +24,10 @@
 | Proof-ready artifacts | 1 |
 | Capture asks | 0 |
 | Explicit next-action rows | 1 |
+| Open blockers | 4 |
+| Paperclip-linked blockers | 4 |
 | 100-touch decision gap | 100 |
-| Days remaining | 8 |
+| Days remaining | 7 |
 
 ## One Sales Ledger
 
@@ -47,6 +49,15 @@
 ## Proof Artifact Queue
 
 - all rows in this view have review-ready or delivered proof artifacts
+
+## Blocker Ledger
+
+| Target | Blocker | Owner | Status | Paperclip issue | Next action |
+| --- | --- | --- | --- | --- | --- |
+| pilot | The active pilot has 12 target rows, below the 30-account floor needed before judging the wedge. | demand-intel-agent | open | BLU-5394 | Add real robot-team target rows from explicit buying signals while keeping recipient fields empty unless evidence-backed. |
+| pilot | The active pilot has two proof-ready hosted-review artifacts, below the three-artifact scale checkpoint. | robot-team-growth-agent | open | BLU-5395 | Create or attach one more buyer-specific hosted-review artifact from real capture provenance, or keep the capture-ask track explicit until a real artifact exists. |
+| gtm-001-simbe-retail-aisle-review: Simbe Robotics | Governed recipient discovery is blocked because BLUEPRINT_GTM_CONTACT_DISCOVERY_ALLOWED_HOSTS is not configured and no selected recipient evidence exists. | growth-lead | blocked | BLU-5392 | Configure a governed contact-discovery allowlist or record explicit recipient-backed evidence before founder first-send approval. |
+| gtm-001-simbe-retail-aisle-review: Simbe Robotics | Buyer sends and replies cannot be treated as production-durable until sender verification and Gmail human-reply watcher credentials are configured. | growth-lead | blocked | BLU-5393 | Set sender verification, human-reply ingest token, approved identity, enable Gmail watcher, and provide Gmail OAuth credentials before counting live replies as durable. |
 
 ## Durable Reply Plumbing
 

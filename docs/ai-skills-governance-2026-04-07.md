@@ -184,7 +184,7 @@ They are not authoritative for:
 - provenance
 - package/runtime truth
 
-Hermes-backed agents operating in this repo must still anchor decisions in repo files, Paperclip state, Notion state where applicable, and the live system evidence.
+Hermes-backed agents operating in this repo use DeepSeek V4 Flash through the official DeepSeek endpoint by default, and must still anchor decisions in repo files, Paperclip state, Notion state where applicable, and the live system evidence.
 
 Hermes-backed agents must not assume direct image-generation capability just because Codex supports it.
 
@@ -212,7 +212,7 @@ The current creative routing policy is documented in [docs/codex-creative-routin
 Current default:
 
 - Codex-executed image work: Codex desktop OAuth image generation on `gpt-image-2`, ideally iterated with screenshots and code context
-- Hermes growth/research lanes: no direct image-generation assumption
+- Hermes growth/research lanes: DeepSeek-backed text/research/planning only, no direct image-generation assumption
 - server-side autonomous workers: no separate image API for final asset execution; route image work to Codex
 - video generation: explicit provider path. OpenRouter remains the server-side default; Higgsfield MCP is allowed as an authenticated agent-side Seedance 2.0 path for approved creative/video issues.
 

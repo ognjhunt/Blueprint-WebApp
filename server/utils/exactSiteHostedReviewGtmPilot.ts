@@ -16,6 +16,35 @@ export type ExactSiteGtmTrack =
   | "proof_ready_outreach"
   | "demand_sourced_capture";
 
+export type ExactSiteGtmBlockerStatus =
+  | "open"
+  | "blocked"
+  | "waiting_on_human"
+  | "waiting_on_provider"
+  | "resolved";
+
+export interface ExactSiteGtmPaperclipIssueRef {
+  id?: string;
+  identifier?: string;
+  title?: string;
+  status?: string;
+  url?: string;
+  blockerIds?: string[];
+}
+
+export interface ExactSiteGtmBlocker {
+  id: string;
+  status: ExactSiteGtmBlockerStatus;
+  summary: string;
+  owner: string;
+  nextAction: string;
+  paperclipIssueId?: string;
+  paperclipIssueIdentifier?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  resolvedAt?: string;
+}
+
 export interface ExactSiteGtmPilotLedger {
   schema: string;
   pilot: {
@@ -34,6 +63,8 @@ export interface ExactSiteGtmPilotLedger {
     targetAccountGoalMin?: number;
     targetAccountGoalMax?: number;
   };
+  blockers?: ExactSiteGtmBlocker[];
+  paperclipIssues?: ExactSiteGtmPaperclipIssueRef[];
   targets: ExactSiteGtmTarget[];
   dailyActivity: ExactSiteGtmDailyActivity[];
 }
@@ -122,6 +153,8 @@ export interface ExactSiteGtmTarget {
     callStatus?: "not_started" | "requested" | "scheduled" | "completed" | "no_fit";
     decision?: "continue" | "change_icp" | "change_offer" | "change_artifact" | "change_cta" | "stop";
   };
+  blockers?: ExactSiteGtmBlocker[];
+  paperclipIssues?: ExactSiteGtmPaperclipIssueRef[];
   contentLoop?: Array<{
     channel: "linkedin" | "x" | "reddit" | "youtube" | "blog" | "newsletter" | "other";
     draftPath: string;
@@ -178,10 +211,18 @@ export interface ExactSiteGtmAuditResult {
     founderApprovalNeededTargets: number;
     sentTargets: number;
     explicitNextActionTargets: number;
+    closureStateTargets: number;
+    targetsMissingClosureState: number;
     replies: number;
     hostedReviewStarts: number;
     qualifiedCalls: number;
     totalPaidSpendCents: number;
+    openBlockers: number;
+    paperclipLinkedBlockers: number;
+    openLedgerBlockers: number;
+    paperclipLinkedLedgerBlockers: number;
+    openTargetBlockers: number;
+    paperclipLinkedTargetBlockers: number;
     decisionRule: {
       touchGoal: number;
       touches: number;
@@ -267,6 +308,126 @@ function isAllowedTrack(value: unknown): value is ExactSiteGtmTrack {
 
 function isOutboundActive(status: ExactSiteGtmTargetStatus | undefined): boolean {
   return status !== undefined && status !== "not_ready";
+}
+
+function isAllowedBlockerStatus(value: unknown): value is ExactSiteGtmBlockerStatus {
+  return typeof value === "string"
+    && ["open", "blocked", "waiting_on_human", "waiting_on_provider", "resolved"].includes(value);
+}
+
+function isOpenBlocker(blocker: ExactSiteGtmBlocker): boolean {
+  return blocker.status !== "resolved";
+}
+
+function targetHasRecipientEvidenceState(target: ExactSiteGtmTarget): boolean {
+  if (
+    hasMeaningfulString(target.recipient?.email)
+    || hasMeaningfulString(target.recipient?.evidenceSource)
+    || hasMeaningfulString(target.recipient?.evidenceType)
+  ) {
+    return true;
+  }
+
+  if (!target.enrichment) return false;
+  return hasMeaningfulString(target.enrichment.status)
+    || (target.enrichment.providerRuns ?? []).length > 0
+    || (target.enrichment.recipientCandidates ?? []).length > 0
+    || (target.enrichment.blockers ?? []).some(hasMeaningfulString);
+}
+
+function targetHasSendReplyState(target: ExactSiteGtmTarget): boolean {
+  if (!target.outbound) return false;
+  if (["draft_ready", "human_approved", "sent", "replied", "hosted_review_started", "closed"].includes(target.outbound.status)) {
+    return true;
+  }
+  return hasMeaningfulString(target.outbound.approvalState)
+    || hasMeaningfulString(target.outbound.messagePath)
+    || hasMeaningfulString(target.outbound.sendLedgerPath)
+    || hasMeaningfulString(target.outbound.sendReceipt)
+    || hasMeaningfulString(target.outbound.replyThreadPath)
+    || hasMeaningfulString(target.outbound.sentAt)
+    || hasMeaningfulString(target.outbound.replyAt);
+}
+
+function targetHasExplicitBlocker(target: ExactSiteGtmTarget): boolean {
+  return (target.blockers ?? []).some((blocker) =>
+    isOpenBlocker(blocker)
+      && hasMeaningfulString(blocker.summary)
+      && hasMeaningfulString(blocker.nextAction),
+  );
+}
+
+function targetHasClosureState(target: ExactSiteGtmTarget): boolean {
+  return hasMeaningfulString(target.sales?.nextAction)
+    || targetHasRecipientEvidenceState(target)
+    || targetHasSendReplyState(target)
+    || targetHasExplicitBlocker(target);
+}
+
+function blockerHasPaperclipIssueLink(
+  blocker: ExactSiteGtmBlocker,
+  paperclipIssues: ExactSiteGtmPaperclipIssueRef[] | undefined,
+): boolean {
+  if (hasMeaningfulString(blocker.paperclipIssueId) || hasMeaningfulString(blocker.paperclipIssueIdentifier)) {
+    return true;
+  }
+  return Boolean((paperclipIssues ?? []).some((issue) => {
+    const hasIssueReference = hasMeaningfulString(issue.id) || hasMeaningfulString(issue.identifier);
+    if (!hasIssueReference) return false;
+    if ((issue.blockerIds ?? []).includes(blocker.id)) return true;
+    return (issue.blockerIds ?? []).length === 0;
+  }));
+}
+
+function auditGtmBlockers(
+  findings: ExactSiteGtmAuditFinding[],
+  pathValue: string,
+  blockers: ExactSiteGtmBlocker[] | undefined,
+  paperclipIssues: ExactSiteGtmPaperclipIssueRef[] | undefined,
+): { open: number; paperclipLinked: number } {
+  if (blockers === undefined) {
+    return { open: 0, paperclipLinked: 0 };
+  }
+  if (!Array.isArray(blockers)) {
+    addFinding(findings, "error", pathValue, "Blockers must be an array.");
+    return { open: 0, paperclipLinked: 0 };
+  }
+
+  let open = 0;
+  let paperclipLinked = 0;
+  blockers.forEach((blocker, index) => {
+    const blockerPath = `${pathValue}[${index}]`;
+    if (!hasMeaningfulString(blocker.id)) {
+      addFinding(findings, "error", `${blockerPath}.id`, "Blocker id is required.");
+    }
+    if (!isAllowedBlockerStatus(blocker.status)) {
+      addFinding(findings, "error", `${blockerPath}.status`, "Blocker status is invalid.");
+    }
+    if (!hasMeaningfulString(blocker.summary)) {
+      addFinding(findings, "error", `${blockerPath}.summary`, "Blocker summary is required.");
+    }
+    if (!hasMeaningfulString(blocker.owner)) {
+      addFinding(findings, "error", `${blockerPath}.owner`, "Blocker owner is required.");
+    }
+    if (!hasMeaningfulString(blocker.nextAction)) {
+      addFinding(findings, "error", `${blockerPath}.nextAction`, "Blocker next action is required.");
+    }
+    if (isOpenBlocker(blocker)) {
+      open += 1;
+      if (blockerHasPaperclipIssueLink(blocker, paperclipIssues)) {
+        paperclipLinked += 1;
+      } else {
+        addFinding(
+          findings,
+          "error",
+          `${blockerPath}.paperclipIssueIdentifier`,
+          "Open target blockers must link to a Paperclip issue id or identifier.",
+        );
+      }
+    }
+  });
+
+  return { open, paperclipLinked };
 }
 
 function addFinding(
@@ -360,6 +521,9 @@ export function auditExactSiteHostedReviewGtmLedger(
 
   const targets = Array.isArray(ledger.targets) ? ledger.targets : [];
   const activity = Array.isArray(ledger.dailyActivity) ? ledger.dailyActivity : [];
+  const ledgerBlockers = auditGtmBlockers(findings, "blockers", ledger.blockers, ledger.paperclipIssues);
+  let openTargetBlockers = 0;
+  let paperclipLinkedTargetBlockers = 0;
 
   if (targets.length === 0) {
     addFinding(
@@ -630,6 +794,18 @@ export function auditExactSiteHostedReviewGtmLedger(
         "Sent or later targets should record a next action, objection, buyer outcome, or closeout decision.",
       );
     }
+    if (!targetHasClosureState(target)) {
+      addFinding(
+        findings,
+        "error",
+        `${basePath}.sales.nextAction`,
+        "Every target must record a next action, recipient evidence state, send/reply state, or explicit blocker.",
+      );
+    }
+
+    const targetBlockers = auditGtmBlockers(findings, `${basePath}.blockers`, target.blockers, target.paperclipIssues);
+    openTargetBlockers += targetBlockers.open;
+    paperclipLinkedTargetBlockers += targetBlockers.paperclipLinked;
 
     for (const [contentIndex, content] of (target.contentLoop ?? []).entries()) {
       if (!hasMeaningfulString(content.draftPath)) {
@@ -753,6 +929,8 @@ export function auditExactSiteHostedReviewGtmLedger(
     ["sent", "replied", "hosted_review_started", "closed"].includes(target.outbound?.status),
   ).length;
   const explicitNextActionTargets = targets.filter((target) => hasMeaningfulString(target.sales?.nextAction)).length;
+  const closureStateTargets = targets.filter(targetHasClosureState).length;
+  const targetsMissingClosureState = targets.length - closureStateTargets;
   const latestDay = [...activity]
     .filter((day) => isIsoDate(asString(day.date)))
     .sort((left, right) => asString(right.date).localeCompare(asString(left.date)))[0];
@@ -790,10 +968,18 @@ export function auditExactSiteHostedReviewGtmLedger(
     founderApprovalNeededTargets,
     sentTargets,
     explicitNextActionTargets,
+    closureStateTargets,
+    targetsMissingClosureState,
     replies: totalReplies,
     hostedReviewStarts: totalHostedReviewStarts,
     qualifiedCalls: totalQualifiedCalls,
     totalPaidSpendCents: paidSpendCents,
+    openBlockers: ledgerBlockers.open + openTargetBlockers,
+    paperclipLinkedBlockers: ledgerBlockers.paperclipLinked + paperclipLinkedTargetBlockers,
+    openLedgerBlockers: ledgerBlockers.open,
+    paperclipLinkedLedgerBlockers: ledgerBlockers.paperclipLinked,
+    openTargetBlockers,
+    paperclipLinkedTargetBlockers,
     decisionRule: {
       touchGoal: decisionTouchGoal,
       touches: sentTargets,
@@ -926,10 +1112,16 @@ export function renderExactSiteHostedReviewGtmAuditMarkdown(
     `- founder approval needed targets: ${result.summary.founderApprovalNeededTargets}`,
     `- sent targets: ${result.summary.sentTargets}`,
     `- explicit next-action targets: ${result.summary.explicitNextActionTargets}`,
+    `- closure-state targets: ${result.summary.closureStateTargets}`,
+    `- targets missing closure state: ${result.summary.targetsMissingClosureState}`,
     `- replies: ${result.summary.replies}`,
     `- hosted review starts: ${result.summary.hostedReviewStarts}`,
     `- qualified calls: ${result.summary.qualifiedCalls}`,
     `- paid spend cents: ${result.summary.totalPaidSpendCents}`,
+    `- open blockers: ${result.summary.openBlockers}`,
+    `- Paperclip-linked blockers: ${result.summary.paperclipLinkedBlockers}`,
+    `- open target blockers: ${result.summary.openTargetBlockers}`,
+    `- Paperclip-linked target blockers: ${result.summary.paperclipLinkedTargetBlockers}`,
     `- decision touch goal: ${result.summary.decisionRule.touchGoal}`,
     `- decision touch gap: ${result.summary.decisionRule.gap}`,
     `- decision status: ${result.summary.decisionRule.status}`,
@@ -1002,6 +1194,10 @@ export function renderExactSiteHostedReviewGtmFounderReviewMarkdown(
     `| Qualified calls | ${result.summary.qualifiedCalls} |`,
     `| Proof artifacts or capture asks | ${result.summary.proofArtifactsOrCaptureAsks} |`,
     `| Explicit next-action targets | ${result.summary.explicitNextActionTargets} |`,
+    `| Closure-state targets | ${result.summary.closureStateTargets} |`,
+    `| Targets missing closure state | ${result.summary.targetsMissingClosureState} |`,
+    `| Open blockers | ${result.summary.openBlockers} |`,
+    `| Paperclip-linked blockers | ${result.summary.paperclipLinkedBlockers} |`,
     `| 100-touch decision gap | ${result.summary.decisionRule.gap} |`,
     `| Latest day sent touches | ${latest.sentTouches} |`,
     `| Latest day contact-density gap | ${latest.contactDensityGap} |`,

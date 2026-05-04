@@ -1,7 +1,9 @@
 import path from "node:path";
 import {
   type ExactSiteGtmAuditResult,
+  type ExactSiteGtmBlocker,
   type ExactSiteGtmPilotLedger,
+  type ExactSiteGtmPaperclipIssueRef,
   type ExactSiteGtmTarget,
 } from "./exactSiteHostedReviewGtmPilot";
 import type { OutboundReplyDurabilityStatus } from "./outbound-reply-durability";
@@ -23,6 +25,8 @@ export type ExactSiteBuyerLoopSummary = {
   proofReadyArtifacts: number;
   captureAsks: number;
   nextActionRows: number;
+  openBlockers: number;
+  paperclipLinkedBlockers: number;
   decisionTouches: number;
   decisionTouchGoal: number;
   decisionTouchGap: number;
@@ -40,7 +44,14 @@ export type ExactSiteBuyerLoopReport = {
   founderApprovalQueue: ExactSiteGtmTarget[];
   proofArtifactQueue: ExactSiteGtmTarget[];
   nextActionQueue: ExactSiteGtmTarget[];
+  blockerQueue: ExactSiteBuyerLoopBlockerRow[];
   markdown: string;
+};
+
+export type ExactSiteBuyerLoopBlockerRow = {
+  targetLabel: string;
+  blocker: ExactSiteGtmBlocker;
+  paperclipIssue: string;
 };
 
 function hasText(value: string | undefined | null) {
@@ -95,6 +106,38 @@ function targetListLine(target: ExactSiteGtmTarget) {
   return `- ${target.id}: ${target.organizationName} / ${target.buyerSegment} / ${targetNextAction(target)}`;
 }
 
+function cleanTableValue(value: string | undefined | null) {
+  return String(value || "").replace(/\|/g, "/").trim();
+}
+
+function isOpenBlocker(blocker: ExactSiteGtmBlocker) {
+  return blocker.status !== "resolved";
+}
+
+function paperclipIssueLabel(
+  blocker: ExactSiteGtmBlocker,
+  paperclipIssues: ExactSiteGtmPaperclipIssueRef[] | undefined,
+) {
+  if (hasText(blocker.paperclipIssueIdentifier)) return blocker.paperclipIssueIdentifier || "";
+  if (hasText(blocker.paperclipIssueId)) return blocker.paperclipIssueId || "";
+  const issue = (paperclipIssues ?? []).find((entry) =>
+    ((entry.blockerIds ?? []).includes(blocker.id) || (entry.blockerIds ?? []).length === 0)
+    && (hasText(entry.identifier) || hasText(entry.id)),
+  );
+  return issue?.identifier || issue?.id || "missing";
+}
+
+function blockerMarkdownLine(row: ExactSiteBuyerLoopBlockerRow) {
+  return [
+    cleanTableValue(row.targetLabel),
+    cleanTableValue(row.blocker.summary),
+    cleanTableValue(row.blocker.owner),
+    cleanTableValue(row.blocker.status),
+    cleanTableValue(row.paperclipIssue || "missing"),
+    cleanTableValue(row.blocker.nextAction),
+  ].join(" | ");
+}
+
 export function buildExactSiteHostedReviewBuyerLoopReport(input: {
   ledger: ExactSiteGtmPilotLedger;
   audit: ExactSiteGtmAuditResult;
@@ -118,6 +161,23 @@ export function buildExactSiteHostedReviewBuyerLoopReport(input: {
     || (target.artifact.status !== "review_ready" && target.artifact.status !== "delivered"),
   );
   const nextActionQueue = targets.filter((target) => !hasText(target.sales?.nextAction));
+  const ledgerBlockerRows: ExactSiteBuyerLoopBlockerRow[] = (input.ledger.blockers ?? [])
+    .filter(isOpenBlocker)
+    .map((blocker) => ({
+      targetLabel: "pilot",
+      blocker,
+      paperclipIssue: paperclipIssueLabel(blocker, input.ledger.paperclipIssues),
+    }));
+  const targetBlockerRows: ExactSiteBuyerLoopBlockerRow[] = targets.flatMap((target) =>
+    (target.blockers ?? [])
+      .filter(isOpenBlocker)
+      .map((blocker) => ({
+        targetLabel: `${target.id}: ${target.organizationName}`,
+        blocker,
+        paperclipIssue: paperclipIssueLabel(blocker, target.paperclipIssues),
+      })),
+  );
+  const blockerQueue = [...ledgerBlockerRows, ...targetBlockerRows];
   const proofReadyArtifacts = targets.filter((target) =>
     target.artifact.status === "review_ready" || target.artifact.status === "delivered",
   ).length;
@@ -130,6 +190,7 @@ export function buildExactSiteHostedReviewBuyerLoopReport(input: {
   const enrichmentCandidateTargets = targets.filter((target) => (target.enrichment?.recipientCandidates ?? []).length > 0).length;
   const enrichmentContactFoundTargets = targets.filter((target) => target.enrichment?.status === "contact_found").length;
   const approvalReadyTargets = founderApprovalQueue.length;
+  const paperclipLinkedBlockers = blockerQueue.filter((row) => row.paperclipIssue !== "missing").length;
   const daysElapsed = daysBetween(input.ledger.pilot.startDate, reportDate);
   const daysRemaining = Math.max(0, daysBetween(reportDate, input.ledger.pilot.endDate));
   const decisionTouchGoal = input.ledger.pilot.decisionTouchGoal || 100;
@@ -165,6 +226,8 @@ export function buildExactSiteHostedReviewBuyerLoopReport(input: {
     proofReadyArtifacts,
     captureAsks,
     nextActionRows: targets.length - nextActionQueue.length,
+    openBlockers: blockerQueue.length,
+    paperclipLinkedBlockers,
     decisionTouches: sentTargets,
     decisionTouchGoal,
     decisionTouchGap,
@@ -208,6 +271,8 @@ export function buildExactSiteHostedReviewBuyerLoopReport(input: {
     `| Proof-ready artifacts | ${summary.proofReadyArtifacts} |`,
     `| Capture asks | ${summary.captureAsks} |`,
     `| Explicit next-action rows | ${summary.nextActionRows} |`,
+    `| Open blockers | ${summary.openBlockers} |`,
+    `| Paperclip-linked blockers | ${summary.paperclipLinkedBlockers} |`,
     `| 100-touch decision gap | ${summary.decisionTouchGap} |`,
     `| Days remaining | ${summary.daysRemaining} |`,
     "",
@@ -240,6 +305,14 @@ export function buildExactSiteHostedReviewBuyerLoopReport(input: {
     ...(proofArtifactQueue.length > 0
       ? proofArtifactQueue.slice(0, 30).map(targetListLine)
       : ["- all rows in this view have review-ready or delivered proof artifacts"]),
+    "",
+    "## Blocker Ledger",
+    "",
+    "| Target | Blocker | Owner | Status | Paperclip issue | Next action |",
+    "| --- | --- | --- | --- | --- | --- |",
+    ...(blockerQueue.length > 0
+      ? blockerQueue.slice(0, 30).map((row) => `| ${blockerMarkdownLine(row)} |`)
+      : ["| none | none | none | none | none | none |"]),
     "",
     "## Durable Reply Plumbing",
     "",
@@ -285,6 +358,7 @@ export function buildExactSiteHostedReviewBuyerLoopReport(input: {
     founderApprovalQueue,
     proofArtifactQueue,
     nextActionQueue,
+    blockerQueue,
     markdown: `${markdown}\n`,
   };
 }

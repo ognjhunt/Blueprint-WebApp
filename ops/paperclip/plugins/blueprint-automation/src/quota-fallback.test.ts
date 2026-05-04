@@ -32,8 +32,25 @@ import {
   upsertWorkspaceAdapterCooldownState,
 } from "./quota-fallback.js";
 
+const DEFAULT_DEEPSEEK_HERMES_ENV = {
+  ANTHROPIC_BASE_URL: "https://api.deepseek.com/anthropic",
+};
+
+function expectedDefaultDeepSeekHermesConfig(cwd: string, timeoutSec = 1800) {
+  return {
+    cwd,
+    provider: "anthropic",
+    model: DEFAULT_HERMES_FALLBACK_MODEL,
+    [HERMES_MODEL_LADDER_CONFIG_KEY]: [...DEFAULT_HERMES_FALLBACK_MODELS],
+    modelReasoningEffort: "max",
+    env: DEFAULT_DEEPSEEK_HERMES_ENV,
+    timeoutSec,
+  };
+}
+
 describe("quota fallback helpers", () => {
   beforeEach(() => {
+    vi.stubEnv("BLUEPRINT_PAPERCLIP_HERMES_PRIMARY_MODEL", DEFAULT_HERMES_FALLBACK_MODEL);
     vi.stubEnv("BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL", DEFAULT_HERMES_FALLBACK_MODEL);
     vi.stubEnv(
       "BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODELS",
@@ -192,14 +209,7 @@ describe("quota fallback helpers", () => {
         model: "qwen/qwen3.6-plus-preview:free",
         timeoutSec: 1800,
       }),
-    ).toEqual({
-      cwd: "/tmp/project",
-      provider: "openrouter",
-      model: DEFAULT_HERMES_FALLBACK_MODEL,
-      [HERMES_MODEL_LADDER_CONFIG_KEY]: [...DEFAULT_HERMES_FALLBACK_MODELS],
-      modelReasoningEffort: "medium",
-      timeoutSec: 1800,
-    });
+    ).toEqual(expectedDefaultDeepSeekHermesConfig("/tmp/project"));
   });
 
   it("does not carry Codex or Claude model ids onto Hermes free fallback", () => {
@@ -215,14 +225,7 @@ describe("quota fallback helpers", () => {
         dangerouslyBypassApprovalsAndSandbox: true,
         timeoutSec: 900,
       }),
-    ).toEqual({
-      cwd: "/tmp/capture",
-      provider: "openrouter",
-      model: DEFAULT_HERMES_FALLBACK_MODEL,
-      [HERMES_MODEL_LADDER_CONFIG_KEY]: [...DEFAULT_HERMES_FALLBACK_MODELS],
-      modelReasoningEffort: "medium",
-      timeoutSec: 900,
-    });
+    ).toEqual(expectedDefaultDeepSeekHermesConfig("/tmp/capture", 900));
   });
 
   it("rejects deprecated qwen3.6-plus fallback ids even when env drift reintroduces them", () => {
@@ -241,7 +244,7 @@ describe("quota fallback helpers", () => {
     expect(isDisallowedHermesFallbackModel("qwen/qwen3.6-plus:free")).toBe(true);
     expect(isDisallowedHermesFallbackModel("nvidia/nemotron-3-super-120b-a12b:free")).toBe(false);
     const resolved = resolveHermesFallbackModels({ cwd: "/tmp/project" });
-    expect(resolved[0]).toBe(DEFAULT_HERMES_FALLBACK_MODEL);
+    expect(resolved).toContain(DEFAULT_HERMES_FALLBACK_MODEL);
     expect(resolved).not.toContain("openrouter/qwen/qwen3.6-plus:free");
     expect(resolved).not.toContain("qwen/qwen3.6-plus:free");
     expect(resolved).not.toContain("openrouter/free");
@@ -250,11 +253,11 @@ describe("quota fallback helpers", () => {
       model: "qwen/qwen3.6-plus:free",
     });
     expect(config.cwd).toBe("/tmp/project");
-    expect(config.provider).toBe("openrouter");
+    expect(config.provider).toBe("anthropic");
     expect(config.model).toBe(DEFAULT_HERMES_FALLBACK_MODEL);
     expect(config[HERMES_MODEL_LADDER_CONFIG_KEY]).not.toContain("openrouter/qwen/qwen3.6-plus:free");
     expect(config[HERMES_MODEL_LADDER_CONFIG_KEY]).not.toContain("qwen/qwen3.6-plus:free");
-    expect(config.modelReasoningEffort).toBe("medium");
+    expect(config.modelReasoningEffort).toBe("max");
     expect(config.timeoutSec).toBe(1800);
   });
 
@@ -276,7 +279,7 @@ describe("quota fallback helpers", () => {
       cwd: "/tmp/project",
       model: "stepfun/step-3.5-flash:free",
     });
-    expect(config.provider).toBe("openrouter");
+    expect(config.provider).toBe("anthropic");
     expect(config.model).toBe(DEFAULT_HERMES_FALLBACK_MODEL);
     expect(config[HERMES_MODEL_LADDER_CONFIG_KEY]).not.toContain("stepfun/step-3.5-flash:free");
   });
@@ -315,6 +318,45 @@ describe("quota fallback helpers", () => {
     ).toEqual([...DEFAULT_HERMES_FALLBACK_MODELS]);
   });
 
+  it("keeps the configured DeepSeek primary ahead of the fallback escalation model", () => {
+    vi.stubEnv("BLUEPRINT_PAPERCLIP_HERMES_PRIMARY_MODEL", "deepseek-v4-flash");
+    vi.stubEnv("BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL", "deepseek-v4-pro[1m]");
+
+    const config = buildHermesFallbackAdapterConfig({
+      cwd: "/tmp/project",
+    });
+
+    expect(config.model).toBe("deepseek-v4-flash");
+    expect(config[HERMES_MODEL_LADDER_CONFIG_KEY]).toEqual([
+      "deepseek-v4-flash",
+      "deepseek-v4-pro[1m]",
+    ]);
+  });
+
+  it("keeps legacy OpenRouter text fallback logic behind an explicit flag", () => {
+    vi.stubEnv("BLUEPRINT_PAPERCLIP_HERMES_INCLUDE_OPENROUTER_FALLBACKS", "1");
+    vi.stubEnv(
+      "BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODELS",
+      [
+        "nvidia/nemotron-3-super-120b-a12b:free",
+        "qwen/qwen3-coder:free",
+      ].join(","),
+    );
+
+    expect(resolveHermesFallbackModels({ cwd: "/tmp/project" })).toEqual([
+      "nvidia/nemotron-3-super-120b-a12b:free",
+      "qwen/qwen3-coder:free",
+      ...DEFAULT_HERMES_FALLBACK_MODELS,
+      "tencent/hy3-preview:free",
+      "minimax/minimax-m2.5:free",
+      "google/gemma-4-31b-it:free",
+      "google/gemma-4-26b-a4b-it:free",
+      "qwen/qwen3-next-80b-a3b-instruct:free",
+      "openai/gpt-oss-120b:free",
+      "z-ai/glm-4.5-air:free",
+    ]);
+  });
+
   it("filters paid openrouter models unless explicitly re-enabled", () => {
     vi.stubEnv(
       "BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODELS",
@@ -327,15 +369,7 @@ describe("quota fallback helpers", () => {
     );
 
     expect(resolveHermesFallbackModels({ cwd: "/tmp/project" })).toEqual([
-      "nvidia/nemotron-3-super-120b-a12b:free",
-      "qwen/qwen3-coder:free",
-      "tencent/hy3-preview:free",
-      "minimax/minimax-m2.5:free",
-      "google/gemma-4-31b-it:free",
-      "google/gemma-4-26b-a4b-it:free",
-      "qwen/qwen3-next-80b-a3b-instruct:free",
-      "openai/gpt-oss-120b:free",
-      "z-ai/glm-4.5-air:free",
+      ...DEFAULT_HERMES_FALLBACK_MODELS,
     ]);
 
     vi.stubEnv("BLUEPRINT_PAPERCLIP_HERMES_ALLOW_PAID_MODELS", "1");
@@ -355,24 +389,7 @@ describe("quota fallback helpers", () => {
           "openai/gpt-oss-120b:free",
         ],
       }),
-    ).toEqual({
-      cwd: "/tmp/project",
-      provider: "openrouter",
-      model: "tencent/hy3-preview:free",
-      [HERMES_MODEL_LADDER_CONFIG_KEY]: [
-        "nvidia/nemotron-3-super-120b-a12b:free",
-        "tencent/hy3-preview:free",
-        "openai/gpt-oss-120b:free",
-        "minimax/minimax-m2.5:free",
-        "google/gemma-4-31b-it:free",
-        "google/gemma-4-26b-a4b-it:free",
-        "qwen/qwen3-next-80b-a3b-instruct:free",
-        "z-ai/glm-4.5-air:free",
-        "qwen/qwen3-coder:free",
-      ],
-      modelReasoningEffort: "medium",
-      timeoutSec: 1800,
-    });
+    ).toEqual(expectedDefaultDeepSeekHermesConfig("/tmp/project"));
   });
 
   it("replaces a leaked Codex model with the first free Hermes ladder step", () => {
@@ -386,14 +403,7 @@ describe("quota fallback helpers", () => {
           "tencent/hy3-preview:free",
         ],
       }),
-    ).toEqual({
-      cwd: "/tmp/project",
-      provider: "openrouter",
-      model: "nvidia/nemotron-3-super-120b-a12b:free",
-      [HERMES_MODEL_LADDER_CONFIG_KEY]: [...DEFAULT_HERMES_FALLBACK_MODELS],
-      modelReasoningEffort: "medium",
-      timeoutSec: 1800,
-    });
+    ).toEqual(expectedDefaultDeepSeekHermesConfig("/tmp/project"));
   });
 
   it("replaces an invalid Hermes free-model id with the first valid ladder step", () => {
@@ -407,14 +417,7 @@ describe("quota fallback helpers", () => {
           "tencent/hy3-preview:free",
         ],
       }),
-    ).toEqual({
-      cwd: "/tmp/project",
-      provider: "openrouter",
-      model: "nvidia/nemotron-3-super-120b-a12b:free",
-      [HERMES_MODEL_LADDER_CONFIG_KEY]: [...DEFAULT_HERMES_FALLBACK_MODELS],
-      modelReasoningEffort: "medium",
-      timeoutSec: 1800,
-    });
+    ).toEqual(expectedDefaultDeepSeekHermesConfig("/tmp/project"));
   });
 
   it("detects shared OpenRouter free-pool rate limits", () => {
@@ -497,7 +500,11 @@ describe("quota fallback helpers", () => {
           cwd: "/tmp/project",
           provider: "openrouter",
           model: "openai/gpt-oss-120b:free",
-          [HERMES_MODEL_LADDER_CONFIG_KEY]: [...DEFAULT_HERMES_FALLBACK_MODELS],
+          [HERMES_MODEL_LADDER_CONFIG_KEY]: [
+            "openai/gpt-oss-120b:free",
+            "z-ai/glm-4.5-air:free",
+            ...DEFAULT_HERMES_FALLBACK_MODELS,
+          ],
         },
         desiredAdapterType: "hermes_local",
         desiredAdapterConfig: {
@@ -509,14 +516,7 @@ describe("quota fallback helpers", () => {
     ).toEqual({
       adapterType: "hermes_local",
       reason: "quota_fallback_to_next_hermes_free_model",
-      adapterConfig: {
-        cwd: "/tmp/project",
-        provider: "openrouter",
-        model: "z-ai/glm-4.5-air:free",
-        [HERMES_MODEL_LADDER_CONFIG_KEY]: [...DEFAULT_HERMES_FALLBACK_MODELS],
-        modelReasoningEffort: "medium",
-        timeoutSec: 1800,
-      },
+      adapterConfig: expectedDefaultDeepSeekHermesConfig("/tmp/project"),
     });
   });
 
@@ -539,14 +539,7 @@ describe("quota fallback helpers", () => {
     ).toEqual({
       adapterType: "hermes_local",
       reason: "quota_fallback_to_hermes_free_after_claude_auth_failure",
-      adapterConfig: {
-        cwd: "/tmp/project",
-        provider: "openrouter",
-        model: DEFAULT_HERMES_FALLBACK_MODEL,
-        [HERMES_MODEL_LADDER_CONFIG_KEY]: [...DEFAULT_HERMES_FALLBACK_MODELS],
-        modelReasoningEffort: "medium",
-        timeoutSec: 1800,
-      },
+      adapterConfig: expectedDefaultDeepSeekHermesConfig("/tmp/project"),
     });
   });
 
@@ -568,14 +561,7 @@ describe("quota fallback helpers", () => {
     ).toEqual({
       adapterType: "hermes_local",
       reason: "quota_fallback_to_hermes_free_after_codex_auth_failure",
-      adapterConfig: {
-        cwd: "/tmp/project",
-        provider: "openrouter",
-        model: DEFAULT_HERMES_FALLBACK_MODEL,
-        [HERMES_MODEL_LADDER_CONFIG_KEY]: [...DEFAULT_HERMES_FALLBACK_MODELS],
-        modelReasoningEffort: "medium",
-        timeoutSec: 1800,
-      },
+      adapterConfig: expectedDefaultDeepSeekHermesConfig("/tmp/project"),
     });
   });
 
@@ -625,18 +611,18 @@ describe("quota fallback helpers", () => {
     ).toBeNull();
   });
 
-  it("never allows non-openrouter providers in hermes adapter config", () => {
+  it("normalizes invalid Hermes providers to the DeepSeek-compatible provider", () => {
     const config = buildHermesFallbackAdapterConfig({
       cwd: "/tmp/project",
       provider: "invalid-provider",
       model: "gpt-5.4-mini",
     });
-    expect(config.provider).toBe("openrouter");
+    expect(config.provider).toBe("anthropic");
     expect(config.model).not.toBe("gpt-5.4-mini");
     expect(config.model).toBe(DEFAULT_HERMES_FALLBACK_MODEL);
   });
 
-  it("rebuilds hermes onto OpenRouter free models after provider auth failure", () => {
+  it("moves DeepSeek-backed hermes to codex after provider auth failure", () => {
     expect(
       buildLocalQuotaFallbackDescriptor({
         currentAdapterType: "hermes_local",
@@ -651,15 +637,14 @@ describe("quota fallback helpers", () => {
         failureReason: "HTTP 401: unauthorized: invalid api key",
       }),
     ).toEqual({
-      adapterType: "hermes_local",
-      reason: "quota_fallback_to_hermes_openrouter_after_provider_auth_failure",
+      adapterType: "codex_local",
+      reason: "quota_fallback_to_codex_local_after_provider_auth_failure",
       adapterConfig: {
         cwd: "/tmp/project",
-        provider: "openrouter",
-        model: DEFAULT_HERMES_FALLBACK_MODEL,
-        [HERMES_MODEL_LADDER_CONFIG_KEY]: [...DEFAULT_HERMES_FALLBACK_MODELS],
+        model: "gpt-5.4-mini",
         modelReasoningEffort: "medium",
-        timeoutSec: 1800,
+        dangerouslyBypassApprovalsAndSandbox: true,
+        [FALLBACK_ORIGIN_ADAPTER_CONFIG_KEY]: "hermes_local",
       },
     });
   });
@@ -738,10 +723,11 @@ describe("quota fallback helpers", () => {
       reason: "quota_fallback_to_next_hermes_free_model_after_codex_credit_exhaustion",
       adapterConfig: {
         cwd: "/tmp/project",
-        provider: "openrouter",
-        model: "tencent/hy3-preview:free",
+        provider: "anthropic",
+        model: "deepseek-v4-pro[1m]",
         [HERMES_MODEL_LADDER_CONFIG_KEY]: [...DEFAULT_HERMES_FALLBACK_MODELS],
-        modelReasoningEffort: "medium",
+        modelReasoningEffort: "max",
+        env: DEFAULT_DEEPSEEK_HERMES_ENV,
         timeoutSec: 1800,
       },
     });
@@ -977,7 +963,7 @@ describe("quota fallback helpers", () => {
     });
   });
 
-  it("sanitizes hermes per-adapter overrides back to the OpenRouter ladder", () => {
+  it("sanitizes hermes per-adapter overrides back to the DeepSeek ladder", () => {
     expect(
       syncExecutionPolicyToAdapter(
         {
@@ -998,14 +984,7 @@ describe("quota fallback helpers", () => {
         preferredAdapterTypes: ["hermes_local", "codex_local"],
         compatibleAdapterTypes: ["hermes_local", "codex_local"],
         perAdapterConfig: {
-          hermes_local: {
-            cwd: "/tmp/webapp",
-            provider: "openrouter",
-            model: DEFAULT_HERMES_FALLBACK_MODEL,
-            [HERMES_MODEL_LADDER_CONFIG_KEY]: [...DEFAULT_HERMES_FALLBACK_MODELS],
-            modelReasoningEffort: "medium",
-            timeoutSec: 1800,
-          },
+          hermes_local: expectedDefaultDeepSeekHermesConfig("/tmp/webapp"),
         },
       },
     });

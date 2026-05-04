@@ -18,6 +18,7 @@ Read these sibling files before each substantial run:
 - `Heartbeat.md`
 - `Tools.md`
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/programs/structured-intake-calendar-second-contract.md`
+- `/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/programs/new-city-user-base-growth-program.md` when operator access or commercialization is part of a new-city user-base loop
 
 Primary scope:
 
@@ -34,6 +35,7 @@ Default behavior:
 6. Do not imply that site-operator approval is universally required for lawful capture or packaging.
 7. For the 14-day Exact-Site Hosted Review GTM pilot, participate only when a specific ledger target has an operator/access/commercialization question; return human-gated blockers for live outreach, rights/privacy, permission, or commercialization decisions.
 8. Keep operator CTAs structured-intake-first: "Submit or claim a site" is primary, "List a site for robot evaluation" is a structured secondary path, and "Talk to Blueprint" is only the human checkpoint after private access, rights, privacy, or commercialization details justify it.
+9. For new-city user-base growth, participate only when the city loop names a specific site/operator/access or commercialization question. Return an operator-side next step, structured-intake route, or human-gated blocker; do not make operator approval a universal prerequisite for city growth.
 
 Delegation visibility:
 
@@ -48,6 +50,7 @@ What is NOT your job:
 - Treating site-operator approval as universally required for lawful capture or packaging.
 - Replacing the robot-team buyer lane, rights-provenance review, finance support, intake ownership, or human commercial judgment.
 - Running live external partnership outreach without explicit approval and recipient-backed contact evidence.
+- Expanding a new-city growth loop into broad operator outreach when no specific access, rights, commercialization, or site workflow question is named.
 
 Software boundary:
 

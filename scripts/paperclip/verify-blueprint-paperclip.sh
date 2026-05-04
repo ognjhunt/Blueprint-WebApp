@@ -27,7 +27,9 @@ RUN_SMOKE=0
 CLAUDE_LANE_MODE="${BLUEPRINT_PAPERCLIP_CLAUDE_LANE_MODE:-auto}"
 VERIFY_CLAUDE="${BLUEPRINT_PAPERCLIP_VERIFY_CLAUDE:-1}"
 VERIFY_HERMES="${BLUEPRINT_PAPERCLIP_VERIFY_HERMES:-auto}"
-HERMES_FALLBACK_MODEL="${BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL:-nvidia/nemotron-3-super-120b-a12b:free}"
+HERMES_FALLBACK_MODEL="${BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL:-deepseek-v4-flash}"
+HERMES_PROVIDER="${BLUEPRINT_PAPERCLIP_HERMES_PROVIDER:-anthropic}"
+HERMES_BASE_URL="${BLUEPRINT_PAPERCLIP_HERMES_BASE_URL:-https://api.deepseek.com/anthropic}"
 FORCE_CODEX_CLAUDE_LANES="${BLUEPRINT_PAPERCLIP_FORCE_CODEX_CLAUDE_LANES:-0}"
 HERMES_INSTRUCTIONS_FILE="/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/blueprint-chief-of-staff/AGENTS.md"
 AGENT_KIT_VALIDATOR="${SCRIPT_DIR}/validate-agent-kits.sh"
@@ -85,6 +87,16 @@ is_free_model() {
   [[ "${1:-}" == *:free ]]
 }
 
+is_deepseek_model() {
+  [[ "${1:-}" =~ ^deepseek-v4-(flash|pro)(\[[^]]+\])?$ || "${1:-}" == "deepseek-chat" || "${1:-}" == "deepseek-reasoner" ]]
+}
+
+is_approved_hermes_model() {
+  is_deepseek_model "${1:-}" \
+    || { is_truthy "${BLUEPRINT_PAPERCLIP_HERMES_INCLUDE_OPENROUTER_FALLBACKS:-0}" && is_free_model "${1:-}"; } \
+    || is_truthy "${BLUEPRINT_PAPERCLIP_HERMES_ALLOW_PAID_MODELS:-0}"
+}
+
 is_disallowed_hermes_model() {
   [[ "${1:-}" =~ $DISALLOWED_HERMES_MODEL_RE ]]
 }
@@ -97,8 +109,8 @@ validate_free_only_runtime_env() {
     for model in \
       "${BLUEPRINT_PAPERCLIP_HERMES_PRIMARY_MODEL:-}" \
       "${BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL:-}"; do
-      if [ -n "$model" ] && ! is_free_model "$model"; then
-        failures+=("Hermes model must stay free-only when BLUEPRINT_PAPERCLIP_HERMES_ALLOW_PAID_MODELS=0: ${model}")
+      if [ -n "$model" ] && ! is_approved_hermes_model "$model"; then
+        failures+=("Hermes model must be DeepSeek direct or explicitly approved when BLUEPRINT_PAPERCLIP_HERMES_ALLOW_PAID_MODELS=0: ${model}")
       fi
       if [ -n "$model" ] && is_disallowed_hermes_model "$model"; then
         failures+=("Hermes model is deprecated/disallowed and must be removed: ${model}")
@@ -109,8 +121,8 @@ validate_free_only_runtime_env() {
     for model in "${hermes_models[@]}"; do
       model="${model//[[:space:]]/}"
       [ -n "$model" ] || continue
-      if ! is_free_model "$model"; then
-        failures+=("Hermes fallback ladder must stay free-only when BLUEPRINT_PAPERCLIP_HERMES_ALLOW_PAID_MODELS=0: ${model}")
+      if ! is_approved_hermes_model "$model"; then
+        failures+=("Hermes fallback ladder must stay DeepSeek-direct/free-only when BLUEPRINT_PAPERCLIP_HERMES_ALLOW_PAID_MODELS=0: ${model}")
       fi
       if is_disallowed_hermes_model "$model"; then
         failures+=("Hermes fallback ladder contains a deprecated/disallowed model: ${model}")
@@ -503,10 +515,25 @@ hermes_oauth_only_probe_ok() {
         .filter((check) => check && check.level === "warn")
         .map((check) => check.code)
         .filter(Boolean);
+      const hasDeepSeekModel = checks.some((check) =>
+        check
+        && check.code === "hermes_model_configured"
+        && /Model:\s*deepseek-/i.test(String(check.message ?? ""))
+      );
+      const hasAnthropicCompatibleKey = checks.some((check) =>
+        check
+        && check.code === "hermes_api_keys_found"
+        && /\bAnthropic\b/i.test(String(check.message ?? ""))
+      );
+      const providerOverrideIsIntentional = (code) =>
+        code === "hermes_provider_mismatch"
+        && hasDeepSeekModel
+        && hasAnthropicCompatibleKey;
       const allowedWarns = warnCodes.every((code) =>
         code === "hermes_no_api_keys"
         || code === "hermes_version_failed"
         || code === "hermes_version_unknown"
+        || providerOverrideIsIntentional(code)
       );
       const hasVersion =
         checks.some((check) => check && check.code === "hermes_version")
@@ -576,6 +603,11 @@ main() {
           const allowPaidOpenCode = /^(1|true|yes)$/i.test(process.env.BLUEPRINT_PAPERCLIP_OPENCODE_ALLOW_PAID_MODELS ?? "");
           const disallowedHermesModelRe = /^(openrouter\/free|(?:openrouter\/)?arcee-ai\/trinity-large-preview(?::free)?|(?:openrouter\/)?nvidia\/nemotron-3-super(?::free)?|(?:openrouter\/)?(?:qwen\/)?qwen3\.6-plus(?:-preview)?(?::free)?|(?:openrouter\/)?inclusionai\/ling-2\.6-(?:flash|1t)(?::free)?|(?:openrouter\/)?stepfun\/step-3\.5-flash(?::free)?)$/i;
           const isFreeModel = (value) => typeof value === "string" && value.trim().toLowerCase().endsWith(":free");
+          const isDeepSeekModel = (value) =>
+            typeof value === "string"
+            && (/^deepseek-v4-(?:flash|pro)(?:\[[^\]]+\])?$/i.test(value.trim()) || /^(deepseek-chat|deepseek-reasoner)$/i.test(value.trim()));
+          const includeLegacyOpenRouter = /^(1|true|yes)$/i.test(process.env.BLUEPRINT_PAPERCLIP_HERMES_INCLUDE_OPENROUTER_FALLBACKS ?? "");
+          const isApprovedHermesModel = (value) => isDeepSeekModel(value) || (includeLegacyOpenRouter && isFreeModel(value)) || allowPaidHermes;
           const toPerAdapterConfig = (row) => row.runtimeConfig?.executionPolicy?.perAdapterConfig ?? {};
           for (const row of rows) {
             if (row.adapterType !== "hermes_local") continue;
@@ -587,8 +619,8 @@ main() {
             }
             const hermesConfig = toPerAdapterConfig(row).hermes_local ?? {};
             const hermesModel = typeof hermesConfig.model === "string" ? hermesConfig.model.trim() : "";
-            if (hermesModel && (!allowPaidHermes && !isFreeModel(hermesModel))) {
-              failures.push(`${row.name || row.id}: hermes runtime model is paid even though paid Hermes models are disabled (${hermesModel})`);
+            if (hermesModel && !isApprovedHermesModel(hermesModel)) {
+              failures.push(`${row.name || row.id}: hermes runtime model is not DeepSeek direct/free-approved (${hermesModel})`);
             }
             if (hermesModel && disallowedHermesModelRe.test(hermesModel)) {
               failures.push(`${row.name || row.id}: hermes runtime model is deprecated/disallowed (${hermesModel})`);
@@ -598,8 +630,8 @@ main() {
               : [];
             for (const model of hermesLadder) {
               if (typeof model !== "string" || model.trim().length === 0) continue;
-              if (!allowPaidHermes && !isFreeModel(model)) {
-                failures.push(`${row.name || row.id}: hermes runtime ladder still contains a paid model (${model})`);
+              if (!isApprovedHermesModel(model)) {
+                failures.push(`${row.name || row.id}: hermes runtime ladder contains a non-DeepSeek/non-free model (${model})`);
               }
               if (disallowedHermesModelRe.test(model)) {
                 failures.push(`${row.name || row.id}: hermes runtime ladder still contains a deprecated/disallowed model (${model})`);
@@ -699,7 +731,11 @@ main() {
       \"adapterConfig\": {
         \"cwd\": \"/Users/nijelhunt_1/workspace/Blueprint-WebApp\",
         \"model\": \"${HERMES_FALLBACK_MODEL}\",
-        \"modelReasoningEffort\": \"medium\",
+        \"provider\": \"${HERMES_PROVIDER}\",
+        \"modelReasoningEffort\": \"max\",
+        \"env\": {
+          \"ANTHROPIC_BASE_URL\": \"${HERMES_BASE_URL}\"
+        },
         \"instructionsFilePath\": \"${HERMES_INSTRUCTIONS_FILE}\",
         \"timeoutSec\": 1200
       }

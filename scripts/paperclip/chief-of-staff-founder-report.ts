@@ -253,7 +253,7 @@ function extractPacketValue(description: string | null | undefined, labels: stri
 
 function fallbackFounderWhyNow(issue: Issue) {
   if (issue.status === "blocked") {
-    return "Execution is blocked on a founder-gated decision or missing founder input.";
+    return "This is flagged for founder review, but the packet does not state the irreversible decision clearly enough.";
   }
   if (issue.priority === "critical") {
     return "This is the highest-priority founder-gated item still open.";
@@ -331,11 +331,68 @@ function section(title: string, lines: string[]) {
   return `## ${title}\n${lines.length > 0 ? lines.join("\n") : "- None."}`;
 }
 
+function issueSearchText(issue: Issue) {
+  return `${issue.title}\n${issue.description ?? ""}`;
+}
+
+function hasStructuredFounderPacket(issue: Issue) {
+  const description = issue.description ?? "";
+  const hasDecisionWhy = Boolean(extractPacketValue(description, [
+    "Why Decision Is Needed Now",
+    "Why This Is Blocked",
+    "Why This Is Open",
+    "Why now",
+  ]));
+  const hasDecisionAsk = Boolean(extractPacketValue(description, [
+    "Exact Approval Or Info Needed",
+    "Exact Response Needed",
+    "Approval Needed",
+    "Decision Needed",
+  ]));
+  const hasRecommendation = Boolean(extractPacketValue(description, [
+    "Recommended Answer",
+    "Recommended answer",
+  ]));
+
+  return hasDecisionWhy && hasDecisionAsk && hasRecommendation;
+}
+
+function isFounderDecisionIssue(issue: Issue) {
+  const text = issueSearchText(issue);
+  const title = issue.title.toLowerCase();
+  const lower = text.toLowerCase();
+
+  if (/repo_local_no_send/.test(lower) && !/universal_founder_inbox|awaiting_human_decision/.test(lower)) {
+    return false;
+  }
+
+  if (/universal_founder_inbox|awaiting_human_decision|founder[- ]inbox|founder[- ]packet/.test(lower)) {
+    return true;
+  }
+
+  if (
+    /founder[- ]?(approval|approved|decision|gated|review|answer)|approval from founder|founder must approve/.test(lower)
+  ) {
+    return true;
+  }
+
+  if (/launch posture/.test(lower) && /decide|decision|approve|defer|founder/.test(lower)) {
+    return true;
+  }
+
+  if (hasStructuredFounderPacket(issue) && /irreversible_action_class|decision_type|founder/.test(lower)) {
+    return true;
+  }
+
+  const titleNamesIrreversibleTopic =
+    /non-standard|pricing|discount|quote exception|payment term|payout exception|refund exception|rights|privacy|consent|commercialization|lawful[- ]access|legal|contract|policy change|posture-changing|public claim|readiness claim|budget|spend envelope|paid spend|live send|live buyer send|public post|production-only irreversible|external artifact/.test(title);
+  const titleRequestsDecision = /approval|approve|decision|decide|exception|defer/.test(title);
+
+  return titleNamesIrreversibleTopic && titleRequestsDecision;
+}
+
 function founderWatchlist(issues: Issue[]) {
-  return issues.filter((issue) => {
-    if (issue.status === "blocked" && ["high", "critical"].includes(issue.priority)) return true;
-    return /founder|payment|payout|rights|privacy|legal|contract|security|decide|approve|defer|launch posture/i.test(issue.title);
-  });
+  return issues.filter(isFounderDecisionIssue);
 }
 
 function withinHours(issue: Issue, hours: number, referenceTime: Date) {

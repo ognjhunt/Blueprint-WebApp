@@ -194,4 +194,52 @@ describe("chief of staff founder report", () => {
     expect(report.content).toContain("Who executes immediately after approval: Ops Lead");
     expect(report.content).toContain("Alternatives: Missing alternatives — packet incomplete.");
   });
+
+  it("keeps repo-local blockers out of founder decision packets", () => {
+    const issues: Issue[] = [
+      {
+        id: "repo-local-1",
+        identifier: "BLU-30",
+        title: "Unblock Solutions Engineering Active Delivery Review",
+        status: "blocked",
+        priority: "high",
+        assigneeAgentId: "ops",
+        updatedAt: "2026-04-01T20:00:00.000Z",
+        description: [
+          "Auto-created from a blocked issue so the failure turns into tracked follow-through instead of stopping at manager state.",
+          "",
+          "## Blocker Summary",
+          "Missing proof links should be regenerated from repo-local artifacts by the owning agent.",
+          "",
+          "Routing class: repo_local_no_send",
+        ].join("\n"),
+      },
+      {
+        id: "first-send-1",
+        identifier: "BLU-31",
+        title: "Approve first live buyer send batch for Exact-Site Hosted Review",
+        status: "blocked",
+        priority: "high",
+        assigneeAgentId: "ops",
+        updatedAt: "2026-04-01T19:00:00.000Z",
+        description: [
+          "## Why Decision Is Needed Now",
+          "This would create a real external buyer touch.",
+          "",
+          "## Recommended Answer",
+          "Approve the recipient-backed first batch.",
+          "",
+          "## Decision Needed",
+          "Approve or reject the first live buyer send batch.",
+        ].join("\n"),
+      },
+    ];
+
+    const report = buildReport("morning", "2026-04-01", issues, assignees);
+
+    expect(report.content).toContain("[Operations] Unblock Solutions Engineering Active Delivery Review");
+    expect(report.content).not.toContain("### Unblock Solutions Engineering Active Delivery Review");
+    expect(report.content).toContain("### Approve first live buyer send batch for Exact-Site Hosted Review");
+    expect(report.content).toContain("Recommended answer: Approve the recipient-backed first batch.");
+  });
 });

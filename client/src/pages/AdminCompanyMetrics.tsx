@@ -15,6 +15,27 @@ type CompanyMetricResult = {
   note: string | null;
 };
 
+type CaptureToHostedReviewLifecycleRow = {
+  captureId: string;
+  city: string | null;
+  citySlug: string | null;
+  currentStage: string;
+  completedStages: string[];
+  nextMissingStage: string | null;
+  latestEvidenceAtIso: string | null;
+  sourceRepos: string[];
+  evidenceRefs: string[];
+  packageRunIds: string[];
+  hostedReviewRunIds: string[];
+  nextAction: {
+    id: string;
+    owner: string | null;
+    status?: string | null;
+    summary: string;
+    sourceRef?: string | null;
+  } | null;
+};
+
 type CeoOperatingScreen = {
   generatedAt: string;
   activeCity: {
@@ -73,6 +94,16 @@ type CeoOperatingScreen = {
       partialMetrics: Array<{ key: string; label: string; note: string | null }>;
     };
   };
+  captureToHostedReviewLifecycle: {
+    summary: {
+      uploadedCaptures: number;
+      packageReadyCaptures: number;
+      hostedReviewReadyCaptures: number;
+      hostedReviewStartedCaptures: number;
+      currentStageCounts: Record<string, number>;
+    };
+    rows: CaptureToHostedReviewLifecycleRow[];
+  };
 };
 
 type CompanyMetricsResponse = {
@@ -112,6 +143,12 @@ function metricValue(metric: CompanyMetricResult) {
   return Number.isInteger(metric.value) ? String(metric.value) : metric.value.toFixed(2);
 }
 
+function lifecycleStageClass(stage: string) {
+  if (stage === "hosted_review_started") return "text-emerald-700";
+  if (stage === "hosted_review_ready" || stage === "package_ready") return "text-amber-700";
+  return "text-stone-700";
+}
+
 export default function AdminCompanyMetrics() {
   const { currentUser } = useAuth();
   const metricsQuery = useQuery<CompanyMetricsResponse>({
@@ -129,6 +166,7 @@ export default function AdminCompanyMetrics() {
 
   const screen = metricsQuery.data?.scoreboard.ceoOperatingScreen;
   const weeklyMetrics = metricsQuery.data?.scoreboard.views.weekly.metrics || [];
+  const captureLifecycle = screen?.captureToHostedReviewLifecycle;
 
   return (
     <main className="min-h-screen bg-[#f5f1e9] px-4 py-8 text-stone-950">
@@ -277,6 +315,77 @@ export default function AdminCompanyMetrics() {
                     </div>
                   </div>
                 ))}
+              </div>
+            </section>
+
+            <section className="border-t border-stone-300 pt-6">
+              <div className="grid gap-5 lg:grid-cols-[1fr_auto] lg:items-end">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">
+                    Operating Graph
+                  </p>
+                  <h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em]">
+                    Capture To Hosted Review
+                  </h2>
+                </div>
+                <div className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
+                  <div>
+                    <p className="text-stone-500">uploaded</p>
+                    <p className="mt-1 text-xl font-semibold">{captureLifecycle?.summary.uploadedCaptures || 0}</p>
+                  </div>
+                  <div>
+                    <p className="text-stone-500">package_ready</p>
+                    <p className="mt-1 text-xl font-semibold">{captureLifecycle?.summary.packageReadyCaptures || 0}</p>
+                  </div>
+                  <div>
+                    <p className="text-stone-500">hosted_ready</p>
+                    <p className="mt-1 text-xl font-semibold">{captureLifecycle?.summary.hostedReviewReadyCaptures || 0}</p>
+                  </div>
+                  <div>
+                    <p className="text-stone-500">started</p>
+                    <p className="mt-1 text-xl font-semibold">{captureLifecycle?.summary.hostedReviewStartedCaptures || 0}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-5 divide-y divide-stone-300">
+                {(captureLifecycle?.rows || []).slice(0, 8).map((row) => (
+                  <div key={row.captureId} className="grid gap-4 py-5 lg:grid-cols-[180px_170px_1fr_1.2fr]">
+                    <div>
+                      <p className="font-semibold">{row.captureId}</p>
+                      <p className="mt-1 text-sm text-stone-500">{row.city || "unknown city"}</p>
+                    </div>
+                    <div>
+                      <p className={`font-medium ${lifecycleStageClass(row.currentStage)}`}>
+                        {row.currentStage}
+                      </p>
+                      <p className="mt-1 text-sm text-stone-500">
+                        Next {row.nextMissingStage || "none"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-stone-700">{row.completedStages.join(" -> ")}</p>
+                      <p className="mt-1 text-sm text-stone-500">
+                        Latest {formatDate(row.latestEvidenceAtIso)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-stone-900">
+                        {row.nextAction?.owner || "no next action"}
+                      </p>
+                      <p className="mt-1 text-sm text-stone-600">
+                        {row.nextAction?.summary || "Reached hosted_review_started."}
+                      </p>
+                      <div className="mt-2 space-y-1">
+                        {row.evidenceRefs.slice(0, 3).map((ref) => (
+                          <p key={ref} className="break-all text-xs text-stone-500">{ref}</p>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {(captureLifecycle?.rows || []).length === 0 && (
+                  <p className="py-5 text-stone-600">No uploaded capture rows are projected into this view.</p>
+                )}
               </div>
             </section>
 

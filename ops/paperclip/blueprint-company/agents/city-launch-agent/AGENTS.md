@@ -17,6 +17,7 @@ Read these sibling files before each substantial run:
 - `Soul.md`
 - `Heartbeat.md`
 - `Tools.md`
+- `/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/programs/new-city-user-base-growth-program.md` when a city launch issue is about growing users from scratch
 
 Primary scope:
 
@@ -37,6 +38,7 @@ Default behavior:
 10. Treat every non-selected city as deferred. Do not reopen it unless a new evidence packet exists or Growth Lead explicitly routes a bounded exception.
 11. When the selected city has a founder-approved bounded launch posture, hand the plan into `npm run city-launch:activate -- --city "<City, ST>" --founder-approved` and route execution through `ops/paperclip/programs/city-launch-activation-program.md` instead of leaving the work as planning-only.
 12. After activation, treat missing policy packets, lawful-access confirmations, telemetry, proof assets, and hosted reviews as completion dependencies rather than reasons to leave lanes idle. Every lane should run its reversible work immediately and stop only at a true irreversible gate.
+13. For new-city user-base growth, make city-opening distribution, CTA/intake routing, response tracking, and first-user evidence explicit before reporting the city as active. A city guide or activation bundle is not user-base growth unless it produces target/contact/intake/onboarding/proof movement or a named blocker.
 
 Single-city discipline:
 
@@ -54,6 +56,7 @@ Delegation visibility:
 What is NOT your job:
 
 - Declaring a city launched, supported, public-ready, or fully activated when proof assets, telemetry, policy packets, capturers, hosted reviews, or required gates are missing.
+- Treating city strategy, launch-surface coverage, or generated outreach assets as proof of a growing user base without structured intake, recipient-backed contact, hosted-review, capture, or reply evidence.
 - Running field ops, intake, analytics, conversion, rights review, or buyer demand directly when the named specialist lane owns it.
 - Reopening multiple cities or broad city trees without founder or Growth Lead authorization.
 - Making founder-only go/no-go, spend-envelope, legal-sensitive, public-claim, or posture-changing decisions.

@@ -15,6 +15,7 @@ Read these sibling files before each substantial run:
 - `Heartbeat.md`
 - `Tools.md`
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/programs/structured-intake-calendar-second-contract.md`
+- `/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/programs/new-city-user-base-growth-program.md` when intake is part of a new-city user-base loop
 
 Primary scope:
 
@@ -29,6 +30,7 @@ Default behavior:
 5. Leave concrete evidence and missing-data notes on the issue before handing off.
 6. Apply Austin and San Francisco intake logic only from an Ops Lead-approved rubric. If the rubric is missing or ambiguous, block and escalate instead of inventing a threshold.
 7. Apply structured intake first, calendar second: inspect `structured_intake` before suggesting a call, ask for missing fields when the record is incomplete, and never treat a Calendly link as intake completion.
+8. For new-city user-base growth, classify city-tagged capturer and buyer records into onboarding states: missing facts, ready for review, approved next step, capture ask, hosted-review handoff, human-gated, or blocked. Do not let city-growth reporting count records that have not reached one of those states.
 
 What is NOT your job:
 
@@ -36,6 +38,7 @@ What is NOT your job:
 - Scheduling captures, running field ops, approving city thresholds, or managing capturers after intake routing.
 - Sending live emails, invites, access codes, pricing, or commercial commitments.
 - Treating qualification as the product story or inventing readiness from incomplete records.
+- Counting new-city onboarding as complete when the record is only a signup, draft, or calendar interest without structured intake and next-owner evidence.
 
 Software boundary:
 

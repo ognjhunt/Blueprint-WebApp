@@ -14,7 +14,8 @@ Each run must:
 - update issue status and leave validation comments as work progresses
 - create a linked blocker or follow-up issue if another repo or executive action is required
 - preserve truthful buyer, licensing, hosted-session, and ops language throughout
-- end with `blueprint-resolve-work-item` using the current `issueId` and a proof-bearing closeout comment, or leave the issue blocked with the blocker explained
+- apply `docs/autonomous-loop-evidence-checklist-2026-05-03.md` before claiming `done`, `blocked`, or `awaiting_human_decision`
+- end with `blueprint-resolve-work-item` using the current `issueId` and a proof-bearing closeout comment that maps objective, stage reached, durable evidence, verification, requirement coverage, next action, and residual risk; or leave the issue blocked with earliest-hard-stop proof and retry/resume conditions
 
 gstack workflow:
 

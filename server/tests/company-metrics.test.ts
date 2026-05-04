@@ -251,6 +251,15 @@ describe("company metrics projector", () => {
             createdAtIso: "2026-04-19T16:00:00.000Z",
             reportPaths: ["ops/paperclip/reports/city-launch-execution/san-francisco-ca/report.md"],
           },
+          {
+            id: "thread-repo-local",
+            blockerId: "solutions-engineering-missing-buyer-context",
+            title: "Missing buyer context for Solutions Engineering review",
+            channel: "repo",
+            gateMode: "repo_local_no_send",
+            createdAtIso: "2026-04-20T10:00:00.000Z",
+            reportPaths: ["ops/paperclip/reports/solutions-engineering/review.md"],
+          },
         ],
         humanBlockerDispatches: [
           {
@@ -332,10 +341,67 @@ describe("company metrics projector", () => {
         value: 1,
       }),
     ]);
+    expect(scoreboard.ceoOperatingScreen.needsFounder).toEqual([
+      expect.objectContaining({
+        id: "city-launch-approval-san-francisco-ca",
+        reason: "founder_inbox_thread",
+      }),
+    ]);
+    expect(scoreboard.ceoOperatingScreen.needsFounder).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "solutions-engineering-missing-buyer-context",
+        }),
+      ]),
+    );
+    expect(scoreboard.ceoOperatingScreen.recentChangeSummary.founderThreads).toBe(1);
 
     expect(weeklyMetrics.capture_to_upload_success_rate.status).toBe("blocked");
     expect(weeklyMetrics.upload_to_package_success_rate.status).toBe("truthful");
     expect(weeklyMetrics.upload_to_package_success_rate.value).toBeCloseTo(2 / 3, 5);
+
+    expect(scoreboard.ceoOperatingScreen.captureToHostedReviewLifecycle.summary).toMatchObject({
+      uploadedCaptures: 3,
+      packageReadyCaptures: 2,
+      hostedReviewReadyCaptures: 1,
+      hostedReviewStartedCaptures: 1,
+    });
+    expect(scoreboard.ceoOperatingScreen.captureToHostedReviewLifecycle.rows).toEqual([
+      expect.objectContaining({
+        captureId: "cap-austin-1",
+        currentStage: "hosted_review_started",
+        completedStages: [
+          "capture_uploaded",
+          "package_ready",
+          "hosted_review_ready",
+          "hosted_review_started",
+        ],
+        nextMissingStage: null,
+        evidenceRefs: expect.arrayContaining([
+          "capture_submissions/cap-austin-1",
+          "operatingGraphEvents/package-austin-1",
+          "operatingGraphEvents/package-austin-2",
+          "operatingGraphEvents/review-austin-start",
+        ]),
+      }),
+      expect.objectContaining({
+        captureId: "cap-austin-2",
+        currentStage: "capture_uploaded",
+        completedStages: ["capture_uploaded"],
+        nextMissingStage: "pipeline_packaging",
+        evidenceRefs: ["capture_submissions/cap-austin-2"],
+      }),
+      expect.objectContaining({
+        captureId: "cap-sf-1",
+        currentStage: "package_ready",
+        completedStages: ["capture_uploaded", "package_ready"],
+        nextMissingStage: "hosted_review_ready",
+        evidenceRefs: expect.arrayContaining([
+          "capture_submissions/cap-sf-1",
+          "operatingGraphEvents/package-sf-1",
+        ]),
+      }),
+    ]);
   });
 });
 

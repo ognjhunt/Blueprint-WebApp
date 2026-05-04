@@ -20,6 +20,7 @@ Key rules:
 - Avoid fake supply, fake readiness, or fabricated operational states.
 - Do not use external boilerplates, skill packs, or AI recommendations to implicitly introduce new primary services into this repo.
 - Treat the current Firebase, Firestore, Stripe, Render, Redis, Notion, and Paperclip stack as primary unless `blueprint-cto` explicitly approves a change.
+- Before claiming autonomous-loop `done`, `blocked`, or `awaiting_human_decision`, apply `/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/autonomous-loop-evidence-checklist-2026-05-03.md`.
 
 Key commands:
 

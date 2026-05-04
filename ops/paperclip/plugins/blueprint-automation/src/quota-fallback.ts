@@ -34,8 +34,12 @@ export type WorkspaceAdapterCooldownRecord = {
 
 export type WorkspaceAdapterCooldownState = Record<string, WorkspaceAdapterCooldownRecord>;
 
-export const DEFAULT_HERMES_FALLBACK_MODEL = "nvidia/nemotron-3-super-120b-a12b:free";
+export const DEFAULT_HERMES_FALLBACK_MODEL = "deepseek-v4-flash";
 export const DEFAULT_HERMES_FALLBACK_MODELS = [
+  "deepseek-v4-flash",
+  "deepseek-v4-pro[1m]",
+] as const;
+export const LEGACY_OPENROUTER_HERMES_FALLBACK_MODELS = [
   "nvidia/nemotron-3-super-120b-a12b:free",
   "tencent/hy3-preview:free",
   "minimax/minimax-m2.5:free",
@@ -48,6 +52,8 @@ export const DEFAULT_HERMES_FALLBACK_MODELS = [
 ] as const;
 export const HERMES_MODEL_LADDER_CONFIG_KEY = "blueprintHermesModelLadder";
 export const FALLBACK_ORIGIN_ADAPTER_CONFIG_KEY = "blueprintFallbackOriginAdapterType";
+const DEFAULT_HERMES_DEEPSEEK_PROVIDER = "anthropic";
+const DEFAULT_HERMES_DEEPSEEK_BASE_URL = "https://api.deepseek.com/anthropic";
 const LOCAL_EXECUTION_POLICY_ADAPTERS: LocalQuotaFallbackAdapterType[] = [
   "codex_local",
   "hermes_local",
@@ -182,9 +188,28 @@ function arePaidHermesModelsAllowed(): boolean {
   return /^(1|true|yes)$/i.test(process.env.BLUEPRINT_PAPERCLIP_HERMES_ALLOW_PAID_MODELS ?? "");
 }
 
+function shouldIncludeLegacyOpenRouterHermesFallbacks(): boolean {
+  return /^(1|true|yes)$/i.test(
+    process.env.BLUEPRINT_PAPERCLIP_HERMES_INCLUDE_OPENROUTER_FALLBACKS ?? "",
+  );
+}
+
+function isHermesDeepSeekDirectModel(model: string | null | undefined): boolean {
+  const trimmed = (model ?? "").trim().toLowerCase();
+  return /^deepseek-v4-(?:flash|pro)(?:\[[^\]]+\])?$/.test(trimmed)
+    || trimmed === "deepseek-chat"
+    || trimmed === "deepseek-reasoner";
+}
+
 function isHermesFreeRoutingModel(model: string | null | undefined): boolean {
   const trimmed = (model ?? "").trim().toLowerCase();
   return trimmed.endsWith(":free");
+}
+
+function isApprovedHermesRoutingModel(model: string | null | undefined): boolean {
+  return isHermesDeepSeekDirectModel(model)
+    || (shouldIncludeLegacyOpenRouterHermesFallbacks() && isHermesFreeRoutingModel(model))
+    || arePaidHermesModelsAllowed();
 }
 
 function normalizeModelList(values: Iterable<string>): string[] {
@@ -267,13 +292,22 @@ export function isDisallowedHermesFallbackModel(model: string | null | undefined
 }
 
 function filterCompatibleHermesLadderModels(models: string[]): string[] {
-  const allowPaid = arePaidHermesModelsAllowed();
   return models.filter(
     (id) =>
       !isIncompatibleHermesFreeRoutingModel(id)
       && !isDisallowedHermesFallbackModel(id)
-      && (allowPaid || isHermesFreeRoutingModel(id)),
+      && isApprovedHermesRoutingModel(id),
   );
+}
+
+function readApprovedHermesEnvModel(envKey: string): string | null {
+  const raw = asTrimmedString(process.env[envKey]);
+  return raw
+    && !isIncompatibleHermesFreeRoutingModel(raw)
+    && !isDisallowedHermesFallbackModel(raw)
+    && isApprovedHermesRoutingModel(raw)
+    ? raw
+    : null;
 }
 
 export function resolveHermesFallbackModels(
@@ -282,7 +316,6 @@ export function resolveHermesFallbackModels(
     includeCurrentModel?: boolean;
   },
 ): string[] {
-  const allowPaid = arePaidHermesModelsAllowed();
   const includeCurrentModel = options?.includeCurrentModel !== false;
   const currentModel = asTrimmedString(adapterConfig?.model);
   const configuredLadder = filterCompatibleHermesLadderModels(
@@ -291,27 +324,25 @@ export function resolveHermesFallbackModels(
   const envLadder = filterCompatibleHermesLadderModels(
     parseModelList(process.env.BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODELS),
   );
-  const singleEnvRaw = asTrimmedString(process.env.BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL);
-  const singleEnvModel =
-    singleEnvRaw
-      && !isIncompatibleHermesFreeRoutingModel(singleEnvRaw)
-      && !isDisallowedHermesFallbackModel(singleEnvRaw)
-      && (allowPaid || isHermesFreeRoutingModel(singleEnvRaw))
-      ? singleEnvRaw
-      : null;
+  const envPrimaryModel = readApprovedHermesEnvModel("BLUEPRINT_PAPERCLIP_HERMES_PRIMARY_MODEL");
+  const envFallbackModel = readApprovedHermesEnvModel("BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL");
 
   const includeCurrent =
     includeCurrentModel
     && currentModel
     && !isIncompatibleHermesFreeRoutingModel(currentModel)
-    && (allowPaid || isHermesFreeRoutingModel(currentModel));
+    && isApprovedHermesRoutingModel(currentModel);
 
   return normalizeModelList([
     ...(includeCurrent ? [currentModel] : []),
     ...configuredLadder,
     ...envLadder,
-    ...(singleEnvModel ? [singleEnvModel] : []),
+    ...(envPrimaryModel ? [envPrimaryModel] : []),
+    ...(envFallbackModel ? [envFallbackModel] : []),
     ...DEFAULT_HERMES_FALLBACK_MODELS,
+    ...(shouldIncludeLegacyOpenRouterHermesFallbacks()
+      ? LEGACY_OPENROUTER_HERMES_FALLBACK_MODELS
+      : []),
   ]);
 }
 
@@ -360,41 +391,53 @@ export function buildHermesFallbackAdapterConfig(
     cwd?: string;
   },
 ): Record<string, unknown> {
-  const allowPaid = arePaidHermesModelsAllowed();
   const next = { ...(adapterConfig ?? {}) };
   delete next.dangerouslySkipPermissions;
   delete next.dangerouslyBypassApprovalsAndSandbox;
   delete next.model;
   delete next.provider;
+  delete next.base_url;
+  delete next.baseUrl;
+  delete next.api_key;
+  delete next.api_key_env;
   const ladder = resolveHermesFallbackModels(adapterConfig, { includeCurrentModel: false });
   const optionModel = asTrimmedString(options?.model as string | undefined);
   const chosen =
     optionModel
       && !isIncompatibleHermesFreeRoutingModel(optionModel)
       && !isDisallowedHermesFallbackModel(optionModel)
-      && (allowPaid || isHermesFreeRoutingModel(optionModel))
+      && isApprovedHermesRoutingModel(optionModel)
       ? optionModel
       : null;
-  const envFallback = asTrimmedString(process.env.BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL);
-  const envPrimary =
-    envFallback
-      && !isIncompatibleHermesFreeRoutingModel(envFallback)
-      && !isDisallowedHermesFallbackModel(envFallback)
-      && (allowPaid || isHermesFreeRoutingModel(envFallback))
-      ? envFallback
-      : null;
+  const envPrimary = readApprovedHermesEnvModel("BLUEPRINT_PAPERCLIP_HERMES_PRIMARY_MODEL");
   const model =
     chosen
     ?? ladder[0]
     ?? envPrimary
     ?? DEFAULT_HERMES_FALLBACK_MODEL;
+  const provider = isHermesDeepSeekDirectModel(model)
+    ? (process.env.BLUEPRINT_PAPERCLIP_HERMES_PROVIDER?.trim() || DEFAULT_HERMES_DEEPSEEK_PROVIDER)
+    : "openrouter";
+  const existingEnv =
+    next.env && typeof next.env === "object" && !Array.isArray(next.env)
+      ? next.env as Record<string, unknown>
+      : {};
+  const hermesEnv = provider === DEFAULT_HERMES_DEEPSEEK_PROVIDER
+    ? {
+        ...existingEnv,
+        ANTHROPIC_BASE_URL:
+          process.env.BLUEPRINT_PAPERCLIP_HERMES_BASE_URL?.trim()
+          || DEFAULT_HERMES_DEEPSEEK_BASE_URL,
+      }
+    : existingEnv;
 
   return {
     ...next,
-    provider: "openrouter",
+    provider,
     model,
     [HERMES_MODEL_LADDER_CONFIG_KEY]: ladder.length > 0 ? ladder : [...DEFAULT_HERMES_FALLBACK_MODELS],
-    modelReasoningEffort: next.modelReasoningEffort ?? "medium",
+    modelReasoningEffort: next.modelReasoningEffort ?? "max",
+    ...(Object.keys(hermesEnv).length > 0 ? { env: hermesEnv } : {}),
     cwd: options?.cwd ?? next.cwd ?? "/Users/nijelhunt_1/workspace/Blueprint-WebApp",
     timeoutSec: next.timeoutSec ?? 1800,
   };
@@ -403,7 +446,6 @@ export function buildHermesFallbackAdapterConfig(
 export function buildNextHermesFallbackAdapterConfig(
   adapterConfig: Record<string, unknown> | null | undefined,
 ): Record<string, unknown> | null {
-  const allowPaid = arePaidHermesModelsAllowed();
   const currentModel = asTrimmedString(adapterConfig?.model);
   const ladder = resolveHermesFallbackModels(adapterConfig, { includeCurrentModel: false });
   if (ladder.length === 0) {
@@ -414,7 +456,7 @@ export function buildNextHermesFallbackAdapterConfig(
     currentModel
     && !isIncompatibleHermesFreeRoutingModel(currentModel)
     && !isDisallowedHermesFallbackModel(currentModel)
-    && (allowPaid || isHermesFreeRoutingModel(currentModel))
+    && isApprovedHermesRoutingModel(currentModel)
       ? currentModel
       : null;
   const currentIndex = routableCurrent ? ladder.indexOf(routableCurrent) : -1;

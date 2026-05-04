@@ -1,7 +1,7 @@
 # Chicago, IL City-Opening No-Signal Scorecard
 
 - status: not_triggered
-- evaluated_at: 2026-05-02T14:37:20.174Z
+- evaluated_at: 2026-05-03T23:04:38.472Z
 - trigger_rule: no positive applicant/capturer/reply/operator signal after 3 days or 2 sent direct-outreach actions
 
 ## Outcome Counters
