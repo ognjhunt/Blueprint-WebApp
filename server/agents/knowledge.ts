@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 
@@ -206,13 +207,22 @@ async function readRepoDocExcerpt(
   try {
     const content = await fs.readFile(absolutePath, "utf8");
     const maxLength = options?.compact ? 900 : 4000;
+    const excerpt = content.slice(0, maxLength).trim();
     return {
       path: relativeDocPath,
-      excerpt: content.slice(0, maxLength).trim(),
+      checksum: `sha256:${crypto.createHash("sha256").update(content).digest("hex")}`,
+      content_length: content.length,
+      excerpt_length: excerpt.length,
+      excerpt_truncated: content.length > maxLength,
+      excerpt,
     };
   } catch {
     return {
       path: relativeDocPath,
+      checksum: null,
+      content_length: 0,
+      excerpt_length: 0,
+      excerpt_truncated: false,
       excerpt: "Unable to read this repo document in the current environment.",
     };
   }
@@ -243,26 +253,35 @@ async function readKnowledgePage(
     const title = titleMatch?.[1]?.trim() || path.basename(relativePagePath, ".md");
     const excerptBody = body.replace(/^#\s+.+\n?/, "").trim();
     const maxLength = options?.compact ? 900 : 2200;
+    const excerpt = excerptBody.slice(0, maxLength).trim();
 
     return {
       path: relativePagePath,
+      checksum: `sha256:${crypto.createHash("sha256").update(content).digest("hex")}`,
       title,
       page_kind: parseFrontmatterScalar(frontmatterRaw, "page_kind"),
       owner: parseFrontmatterScalar(frontmatterRaw, "owner"),
       authority: parseFrontmatterScalar(frontmatterRaw, "authority"),
       review_status: parseFrontmatterScalar(frontmatterRaw, "review_status"),
       last_verified_at: parseFrontmatterScalar(frontmatterRaw, "last_verified_at") || null,
-      excerpt: excerptBody.slice(0, maxLength).trim(),
+      content_length: content.length,
+      excerpt_length: excerpt.length,
+      excerpt_truncated: excerptBody.length > maxLength,
+      excerpt,
     };
   } catch {
     return {
       path: relativePagePath,
+      checksum: null,
       title: relativePagePath,
       page_kind: undefined,
       owner: undefined,
       authority: undefined,
       review_status: undefined,
       last_verified_at: null,
+      content_length: 0,
+      excerpt_length: 0,
+      excerpt_truncated: false,
       excerpt: "Unable to read this KB page in the current environment.",
     };
   }

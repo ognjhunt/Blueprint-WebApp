@@ -125,6 +125,7 @@ export const STATE_KEYS = {
   runtimeFailureRetries: "runtime-failure-retries",
   freshSessionRetries: "fresh-session-retries",
   workspaceAdapterCooldowns: "workspace-adapter-cooldowns",
+  chiefOfStaffWakeups: "chief-of-staff-wakeups",
   firehoseSignalCache: "firehose-signal-cache",
   founderVisibility: "founder-visibility",
   founderRemediation: "founder-remediation",

@@ -12,6 +12,7 @@
     "start": "NODE_ENV=production node dist/index.js",
     "check": "tsc -p tsconfig.full.json --noEmit",
     "smoke:agent": "tsx scripts/agent-runtime-smoke.ts",
+    "agent:cost-cache-report": "tsx scripts/agent-cache-cost-report.ts",
     "smoke:openclaw": "tsx scripts/agent-runtime-smoke.ts",
     "autoagent:export": "tsx scripts/autoagent/export-historical-cases.ts --overwrite",
     "autoagent:build-harbor": "tsx scripts/autoagent/build-harbor-tasks.ts --overwrite",

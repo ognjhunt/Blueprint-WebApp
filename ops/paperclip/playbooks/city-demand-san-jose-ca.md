@@ -3,7 +3,7 @@
 ## Status
 - phase: activation_ready
 - owner: city-demand-agent
-- latest-refresh: 2026-05-03
+- latest-refresh: 2026-05-05
 - planning-state: completed
 - confidence: medium
 

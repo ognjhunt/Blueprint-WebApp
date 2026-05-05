@@ -30,6 +30,10 @@ BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL="${BLUEPRINT_PAPERCLIP_HERMES_FALLBACK
 BLUEPRINT_PAPERCLIP_HERMES_PROVIDER="${BLUEPRINT_PAPERCLIP_HERMES_PROVIDER:-openrouter}"
 BLUEPRINT_PAPERCLIP_HERMES_BASE_URL="${BLUEPRINT_PAPERCLIP_HERMES_BASE_URL:-https://api.deepseek.com/anthropic}"
 BLUEPRINT_PAPERCLIP_HERMES_INCLUDE_OPENROUTER_FALLBACKS="${BLUEPRINT_PAPERCLIP_HERMES_INCLUDE_OPENROUTER_FALLBACKS:-0}"
+BLUEPRINT_PAPERCLIP_HERMES_OPENROUTER_PROVIDER_ONLY="${BLUEPRINT_PAPERCLIP_HERMES_OPENROUTER_PROVIDER_ONLY:-deepseek,atlas-cloud/fp8,novita,siliconflow/fp8}"
+BLUEPRINT_PAPERCLIP_HERMES_OPENROUTER_PROVIDER_ORDER="${BLUEPRINT_PAPERCLIP_HERMES_OPENROUTER_PROVIDER_ORDER:-deepseek,atlas-cloud/fp8,novita,siliconflow/fp8}"
+BLUEPRINT_PAPERCLIP_HERMES_OPENROUTER_PROVIDER_IGNORE="${BLUEPRINT_PAPERCLIP_HERMES_OPENROUTER_PROVIDER_IGNORE:-parasail,parasail/fp8,akashml,akashml/fp8,deepinfra,deepinfra/fp4}"
+BLUEPRINT_PAPERCLIP_HERMES_OPENROUTER_ALLOW_FALLBACKS="${BLUEPRINT_PAPERCLIP_HERMES_OPENROUTER_ALLOW_FALLBACKS:-1}"
 
 if RESOLVED_API_URL="$(paperclip_resolve_api_url "$PAPERCLIP_API_URL" "$PAPERCLIP_HOME" "$PAPERCLIP_HOST")"; then
   PAPERCLIP_API_URL="$RESOLVED_API_URL"
@@ -50,6 +54,10 @@ export \
   BLUEPRINT_PAPERCLIP_HERMES_PROVIDER \
   BLUEPRINT_PAPERCLIP_HERMES_BASE_URL \
   BLUEPRINT_PAPERCLIP_HERMES_INCLUDE_OPENROUTER_FALLBACKS \
+  BLUEPRINT_PAPERCLIP_HERMES_OPENROUTER_PROVIDER_ONLY \
+  BLUEPRINT_PAPERCLIP_HERMES_OPENROUTER_PROVIDER_ORDER \
+  BLUEPRINT_PAPERCLIP_HERMES_OPENROUTER_PROVIDER_IGNORE \
+  BLUEPRINT_PAPERCLIP_HERMES_OPENROUTER_ALLOW_FALLBACKS \
   BLUEPRINT_PAPERCLIP_FORCE_ADAPTER_SYNC \
   BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT
 
@@ -79,6 +87,20 @@ const DEFAULT_HERMES_FALLBACK_MODEL = "deepseek/deepseek-v4-pro";
 const DEFAULT_HERMES_PROVIDER = "openrouter";
 const DEFAULT_HERMES_DIRECT_PROVIDER = "anthropic";
 const DEFAULT_HERMES_BASE_URL = "https://api.deepseek.com/anthropic";
+const DEFAULT_HERMES_OPENROUTER_PROVIDER_ORDER = [
+  "deepseek",
+  "atlas-cloud/fp8",
+  "novita",
+  "siliconflow/fp8",
+];
+const DEFAULT_HERMES_OPENROUTER_PROVIDER_IGNORE = [
+  "parasail",
+  "parasail/fp8",
+  "akashml",
+  "akashml/fp8",
+  "deepinfra",
+  "deepinfra/fp4",
+];
 const allowPaidHermesModels = /^(1|true|yes)$/i.test(
   process.env.BLUEPRINT_PAPERCLIP_HERMES_ALLOW_PAID_MODELS ?? "",
 );
@@ -324,6 +346,51 @@ function normalizeModelList(values) {
     normalized.push(trimmed);
   }
   return normalized;
+}
+
+function envList(envKey, fallback) {
+  const raw = process.env[envKey];
+  if (typeof raw !== "string" || raw.trim().length === 0) return [...fallback];
+  const parsed = normalizeModelList(raw.split(","));
+  return parsed.length > 0 ? parsed : [...fallback];
+}
+
+function envBoolean(envKey, fallback) {
+  const raw = process.env[envKey];
+  if (typeof raw !== "string" || raw.trim().length === 0) return fallback;
+  return /^(1|true|yes|on)$/i.test(raw.trim());
+}
+
+function buildOpenRouterProviderRouting() {
+  const order = envList(
+    "BLUEPRINT_PAPERCLIP_HERMES_OPENROUTER_PROVIDER_ORDER",
+    DEFAULT_HERMES_OPENROUTER_PROVIDER_ORDER,
+  );
+  return {
+    only: envList("BLUEPRINT_PAPERCLIP_HERMES_OPENROUTER_PROVIDER_ONLY", order),
+    order,
+    ignore: envList(
+      "BLUEPRINT_PAPERCLIP_HERMES_OPENROUTER_PROVIDER_IGNORE",
+      DEFAULT_HERMES_OPENROUTER_PROVIDER_IGNORE,
+    ),
+    allow_fallbacks: envBoolean(
+      "BLUEPRINT_PAPERCLIP_HERMES_OPENROUTER_ALLOW_FALLBACKS",
+      true,
+    ),
+  };
+}
+
+function withOpenRouterProviderEnv(existingEnv, routing) {
+  const only = Array.isArray(routing.only) ? routing.only.filter((entry) => typeof entry === "string") : [];
+  const order = Array.isArray(routing.order) ? routing.order.filter((entry) => typeof entry === "string") : [];
+  const ignore = Array.isArray(routing.ignore) ? routing.ignore.filter((entry) => typeof entry === "string") : [];
+  return {
+    ...existingEnv,
+    OPENROUTER_PROVIDER_ONLY: only.join(","),
+    OPENROUTER_PROVIDER_ORDER: order.join(","),
+    OPENROUTER_PROVIDER_IGNORE: ignore.join(","),
+    OPENROUTER_ALLOW_FALLBACKS: routing.allow_fallbacks === false ? "0" : "1",
+  };
 }
 
 function isDisallowedHermesModel(value) {
@@ -948,11 +1015,15 @@ function buildHermesAdapterConfig(adapterConfig) {
     next.env && typeof next.env === "object" && !Array.isArray(next.env)
       ? next.env
       : {};
+  const openRouterProviderRouting =
+    provider === DEFAULT_HERMES_PROVIDER ? buildOpenRouterProviderRouting() : null;
   const env = provider === hermesDirectProvider
     ? {
         ...existingEnv,
         ANTHROPIC_BASE_URL: hermesBaseUrl,
       }
+    : openRouterProviderRouting
+      ? withOpenRouterProviderEnv(existingEnv, openRouterProviderRouting)
     : existingEnv;
 
   return {
@@ -960,6 +1031,13 @@ function buildHermesAdapterConfig(adapterConfig) {
     model,
     provider,
     [HERMES_MODEL_LADDER_CONFIG_KEY]: ladder,
+    ...(openRouterProviderRouting
+      ? {
+          providerRouting: openRouterProviderRouting,
+          openrouterProviderRouting: openRouterProviderRouting,
+          openrouterProviderStrategy: "cache_read_cost_primary_avoid_parasail",
+        }
+      : {}),
     ...(Object.keys(env).length > 0 ? { env } : {}),
     paperclipApiUrl,
     promptTemplate:

@@ -8,6 +8,8 @@ import {
   buildQuotaFallbackRetryRecord,
   DEFAULT_HERMES_FALLBACK_MODEL,
   DEFAULT_HERMES_FALLBACK_MODELS,
+  DEFAULT_HERMES_OPENROUTER_PROVIDER_IGNORE,
+  DEFAULT_HERMES_OPENROUTER_PROVIDER_ORDER,
   extractLogicalSucceededRunFailure,
   FALLBACK_ORIGIN_ADAPTER_CONFIG_KEY,
   HERMES_MODEL_LADDER_CONFIG_KEY,
@@ -32,13 +34,31 @@ import {
   upsertWorkspaceAdapterCooldownState,
 } from "./quota-fallback.js";
 
+const expectedOpenRouterProviderRouting = {
+  only: [...DEFAULT_HERMES_OPENROUTER_PROVIDER_ORDER],
+  order: [...DEFAULT_HERMES_OPENROUTER_PROVIDER_ORDER],
+  ignore: [...DEFAULT_HERMES_OPENROUTER_PROVIDER_IGNORE],
+  allow_fallbacks: true,
+};
+
+const expectedOpenRouterProviderEnv = {
+  OPENROUTER_PROVIDER_ONLY: DEFAULT_HERMES_OPENROUTER_PROVIDER_ORDER.join(","),
+  OPENROUTER_PROVIDER_ORDER: DEFAULT_HERMES_OPENROUTER_PROVIDER_ORDER.join(","),
+  OPENROUTER_PROVIDER_IGNORE: DEFAULT_HERMES_OPENROUTER_PROVIDER_IGNORE.join(","),
+  OPENROUTER_ALLOW_FALLBACKS: "1",
+};
+
 function expectedDefaultDeepSeekHermesConfig(cwd: string, timeoutSec = 1800) {
   return {
     cwd,
     provider: "openrouter",
     model: DEFAULT_HERMES_FALLBACK_MODEL,
     [HERMES_MODEL_LADDER_CONFIG_KEY]: [...DEFAULT_HERMES_FALLBACK_MODELS],
+    providerRouting: expectedOpenRouterProviderRouting,
+    openrouterProviderRouting: expectedOpenRouterProviderRouting,
+    openrouterProviderStrategy: "cache_read_cost_primary_avoid_parasail",
     modelReasoningEffort: "max",
+    env: expectedOpenRouterProviderEnv,
     timeoutSec,
   };
 }
@@ -128,6 +148,16 @@ describe("quota fallback helpers", () => {
         `,
       ),
     ).toContain("HTTP 404: No endpoints found for stepfun/step-3.5-flash:free.");
+
+    expect(
+      extractLogicalSucceededRunFailure(
+        `
+          [hermes] Starting Hermes Agent
+          Final error: HTTP 401: unauthorized: invalid api key
+          [hermes] Exit code: 0, timed out: false
+        `,
+      ),
+    ).toContain("HTTP 401: unauthorized: invalid api key");
 
     expect(extractLogicalSucceededRunFailure("[hermes] Exit code: 0, timed out: false")).toBeNull();
   });
@@ -735,12 +765,8 @@ describe("quota fallback helpers", () => {
       adapterType: "hermes_local",
       reason: "quota_fallback_to_next_hermes_free_model_after_codex_credit_exhaustion",
       adapterConfig: {
-        cwd: "/tmp/project",
-        provider: "openrouter",
+        ...expectedDefaultDeepSeekHermesConfig("/tmp/project"),
         model: "deepseek/deepseek-v4-pro",
-        [HERMES_MODEL_LADDER_CONFIG_KEY]: [...DEFAULT_HERMES_FALLBACK_MODELS],
-        modelReasoningEffort: "max",
-        timeoutSec: 1800,
       },
     });
   });

@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import type { StructuredTaskDefinition } from "../types";
+import { buildCacheFriendlyPrompt } from "./prompt-cache";
 
 export const externalHarnessThreadOutputSchema = z.object({
   reply: z.string().min(1).max(4000),
@@ -57,7 +58,8 @@ export const externalHarnessThreadTask: StructuredTaskDefinition<
     max_concurrent: 1,
   },
   build_prompt(input) {
-    return `Route this request to the external ACP harness selected for Blueprint.
+    return buildCacheFriendlyPrompt({
+      instructions: `Route this request to the external ACP harness selected for Blueprint.
 
 Return JSON only with a concise acknowledgement. No markdown.
 
@@ -66,17 +68,14 @@ If startup_context is present, treat it as the approved context package for the 
 When knowledge pages are attached:
 - use them to understand prior reusable context, claim boundaries, proof patterns, and buyer or market background
 - treat them as derivative support context, not as permission to override canonical repo or runtime truth
-- prefer them over ad hoc re-research when they already cover the topic
-
-Payload:
-${JSON.stringify(input, null, 2)}
-
-Return JSON:
-{
-  "reply": "",
-  "summary": "",
-  "suggested_actions": [],
-  "requires_human_review": false
-}`;
+ - prefer them over ad hoc re-research when they already cover the topic`,
+      returnShape: {
+        reply: "",
+        summary: "",
+        suggested_actions: [],
+        requires_human_review: false,
+      },
+      payload: input,
+    });
   },
 };

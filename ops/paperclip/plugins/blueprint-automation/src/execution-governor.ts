@@ -26,6 +26,25 @@ export type RoutineExecutionIssueLike = {
   updatedAt?: string | null;
 };
 
+export type WakeupSuppressionRecord = {
+  firstAttemptAtMs: number;
+  lastAttemptAtMs: number;
+  nextAllowedAtMs: number;
+  expiresAtMs: number;
+  attempts: number;
+};
+
+export type WakeupSuppressionState = Record<string, WakeupSuppressionRecord>;
+
+export type WakeupSuppressionDecision = {
+  decision: "allow" | "skip";
+  reason: "allowed" | "backoff" | "max_attempts";
+  attempts: number;
+  nextAllowedAtMs: number;
+  expiresAtMs: number;
+  state: WakeupSuppressionState;
+};
+
 type ManagementRouting = {
   chiefOfStaffKey: string;
   ctoKey: string;
@@ -144,6 +163,112 @@ export function recommendedRoutineExecutionPolicy(): RoutineExecutionPolicy {
   return {
     concurrencyPolicy: "coalesce_if_active",
     catchUpPolicy: "skip_missed",
+  };
+}
+
+function normalizeWakeKeyPart(value: string | null | undefined) {
+  return (value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._:-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+export function buildIssueWakeCooldownKey(input: {
+  companyId: string;
+  agentId: string;
+  issueId: string;
+  reason: string | null | undefined;
+  stateFingerprint?: string | null;
+}) {
+  return [
+    "issue-wake",
+    normalizeWakeKeyPart(input.companyId),
+    normalizeWakeKeyPart(input.agentId),
+    normalizeWakeKeyPart(input.issueId),
+    normalizeWakeKeyPart(input.reason) || "unknown-reason",
+    normalizeWakeKeyPart(input.stateFingerprint) || "no-state",
+  ].join(":");
+}
+
+function pruneWakeupSuppressionState(
+  state: WakeupSuppressionState,
+  nowMs: number,
+): WakeupSuppressionState {
+  return Object.fromEntries(
+    Object.entries(state).filter(([, record]) => record.expiresAtMs > nowMs),
+  );
+}
+
+export function evaluateWakeupSuppression(params: {
+  state: WakeupSuppressionState;
+  key: string;
+  nowMs: number;
+  ttlMs: number;
+  baseBackoffMs: number;
+  maxAttempts: number;
+}): WakeupSuppressionDecision {
+  const key = params.key.trim();
+  const nowMs = params.nowMs;
+  const ttlMs = Math.max(1, params.ttlMs);
+  const maxAttempts = Math.max(1, Math.floor(params.maxAttempts));
+  const baseBackoffMs = Math.max(1, params.baseBackoffMs);
+  const state = pruneWakeupSuppressionState(params.state || {}, nowMs);
+  const previous = state[key] ?? null;
+
+  if (previous && nowMs < previous.nextAllowedAtMs) {
+    return {
+      decision: "skip",
+      reason: "backoff",
+      attempts: previous.attempts,
+      nextAllowedAtMs: previous.nextAllowedAtMs,
+      expiresAtMs: previous.expiresAtMs,
+      state,
+    };
+  }
+
+  const attempts = previous ? previous.attempts + 1 : 1;
+  if (previous && attempts > maxAttempts) {
+    return {
+      decision: "skip",
+      reason: "max_attempts",
+      attempts: previous.attempts,
+      nextAllowedAtMs: previous.expiresAtMs,
+      expiresAtMs: previous.expiresAtMs,
+      state: {
+        ...state,
+        [key]: {
+          ...previous,
+          nextAllowedAtMs: previous.expiresAtMs,
+        },
+      },
+    };
+  }
+
+  const firstAttemptAtMs = previous?.firstAttemptAtMs ?? nowMs;
+  const expiresAtMs = Math.max(previous?.expiresAtMs ?? 0, firstAttemptAtMs + ttlMs);
+  const nextAllowedAtMs = Math.min(
+    expiresAtMs,
+    nowMs + baseBackoffMs * Math.pow(2, attempts - 1),
+  );
+  const nextState = {
+    ...state,
+    [key]: {
+      firstAttemptAtMs,
+      lastAttemptAtMs: nowMs,
+      nextAllowedAtMs,
+      expiresAtMs,
+      attempts,
+    },
+  };
+
+  return {
+    decision: "allow",
+    reason: "allowed",
+    attempts,
+    nextAllowedAtMs,
+    expiresAtMs,
+    state: nextState,
   };
 }
 

@@ -52,13 +52,18 @@ function normalize(value?: string | null) {
 }
 
 function baseBlockedTitle(title: string) {
-  return title
-    .trim()
-    .replace(/^implement unblock path for\s+/i, "")
-    .replace(/^review unblock path for\s+/i, "")
-    .replace(/^route unblock path for\s+/i, "")
-    .replace(/^escalate unblock path for\s+/i, "")
-    .replace(/^unblock\s+/i, "");
+  let current = title.trim();
+  while (true) {
+    const next = current
+      .replace(/^implement unblock path for\s+/i, "")
+      .replace(/^review unblock path for\s+/i, "")
+      .replace(/^route unblock path for\s+/i, "")
+      .replace(/^escalate unblock path for\s+/i, "")
+      .replace(/^unblock\s+/i, "")
+      .trim();
+    if (next === current) return current;
+    current = next;
+  }
 }
 
 function blockedFollowUpKind(title: string) {
@@ -98,6 +103,12 @@ export function isBlockedFollowUpTitle(title: string) {
 
 export function blockedFollowUpFamilyKey(title: string) {
   return normalize(baseBlockedTitle(title));
+}
+
+export function sameBlockedFollowUpObjective(leftTitle: string, rightTitle: string) {
+  const left = blockedFollowUpFamilyKey(leftTitle);
+  const right = blockedFollowUpFamilyKey(rightTitle);
+  return left.length > 0 && left === right;
 }
 
 function repoConfigForProject(

@@ -1654,32 +1654,32 @@ routines:
         timezone: America/New_York
   pipeline-autonomy-loop:
     priority: high
-    concurrencyPolicy: always_enqueue
-    catchUpPolicy: enqueue_missed_with_cap
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 15 12 * * 1-5
         timezone: America/New_York
   pipeline-review-loop:
     priority: medium
-    concurrencyPolicy: always_enqueue
-    catchUpPolicy: enqueue_missed_with_cap
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 45 12 * * 1-5
         timezone: America/New_York
   capture-autonomy-loop:
     priority: high
-    concurrencyPolicy: always_enqueue
-    catchUpPolicy: enqueue_missed_with_cap
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 15 13 * * 1-5
         timezone: America/New_York
   capture-review-loop:
     priority: medium
-    concurrencyPolicy: always_enqueue
-    catchUpPolicy: enqueue_missed_with_cap
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 45 13 * * 1-5
@@ -1687,8 +1687,8 @@ routines:
   ops-lead-morning:
     agent: ops-lead
     priority: high
-    concurrencyPolicy: always_enqueue
-    catchUpPolicy: enqueue_missed_with_cap
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 0 9 * * 1-5
@@ -1696,8 +1696,8 @@ routines:
   ops-lead-afternoon:
     agent: ops-lead
     priority: medium
-    concurrencyPolicy: always_enqueue
-    catchUpPolicy: enqueue_missed_with_cap
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 45 14 * * 1-5
@@ -1705,8 +1705,8 @@ routines:
   intake-agent-hourly:
     agent: intake-agent
     priority: medium
-    concurrencyPolicy: always_enqueue
-    catchUpPolicy: enqueue_missed_with_cap
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 45 10,15 * * 1-5
@@ -1715,7 +1715,7 @@ routines:
     agent: capture-qa-agent
     priority: medium
     concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: enqueue_missed_with_cap
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 20 10 * * 1-5
@@ -1724,7 +1724,7 @@ routines:
     agent: field-ops-agent
     priority: medium
     concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: enqueue_missed_with_cap
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 20 7 * * 1-5
@@ -1732,8 +1732,8 @@ routines:
   finance-support-daily:
     agent: finance-support-agent
     priority: medium
-    concurrencyPolicy: always_enqueue
-    catchUpPolicy: enqueue_missed_with_cap
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 15 14 * * 1-5
@@ -1741,8 +1741,8 @@ routines:
   growth-lead-daily:
     agent: growth-lead
     priority: high
-    concurrencyPolicy: always_enqueue
-    catchUpPolicy: enqueue_missed_with_cap
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 0 10 * * 1-5
@@ -1751,7 +1751,7 @@ routines:
     agent: growth-lead
     priority: high
     concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: enqueue_missed_with_cap
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 20 10 * * 1-5
@@ -1960,8 +1960,8 @@ routines:
   conversion-weekly:
     agent: conversion-agent
     priority: medium
-    concurrencyPolicy: always_enqueue
-    catchUpPolicy: enqueue_missed_with_cap
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 0 11 * * 1
@@ -2029,7 +2029,7 @@ routines:
     agent: public-space-review-agent
     priority: high
     concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: enqueue_missed_with_cap
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 20 9 * * 1-5
@@ -2117,7 +2117,7 @@ routines:
     agent: city-demand-agent
     priority: high
     concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: enqueue_missed_with_cap
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 30 14 * * 1
@@ -2136,7 +2136,7 @@ routines:
     agent: buyer-solutions-agent
     priority: high
     concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: enqueue_missed_with_cap
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 15 10 * * 1-5
@@ -2145,7 +2145,7 @@ routines:
     agent: solutions-engineering-agent
     priority: high
     concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: enqueue_missed_with_cap
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 45 13 * * 1,4
@@ -2154,7 +2154,7 @@ routines:
     agent: security-procurement-agent
     priority: high
     concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: enqueue_missed_with_cap
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 30 14 * * 1,4
@@ -2173,7 +2173,7 @@ routines:
     agent: docs-agent
     priority: medium
     concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: enqueue_missed_with_cap
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 0 10 * * 2,5

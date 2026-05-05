@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { getStructuredAutomationProvider, getTaskModelByProvider } from "../provider-config";
 import type { StructuredTaskDefinition } from "../types";
+import { buildCacheFriendlyPrompt } from "./prompt-cache";
 
 export const supportTriageOutputSchema = z.object({
   automation_status: z.enum(["completed", "blocked"]),
@@ -73,7 +74,8 @@ export const supportTriageTask: StructuredTaskDefinition<
     };
   },
   build_prompt(input) {
-    return `You are Blueprint's support and ops triage specialist.
+    return buildCacheFriendlyPrompt({
+      instructions: `You are Blueprint's support and ops triage specialist.
 
 Classify the inbound support/contact issue, recommend the right queue and next action, and draft a concise response.
 
@@ -83,28 +85,26 @@ Rules:
 - Prioritize mapping reschedules and technical blockers.
 - Set requires_human_review=true for billing, refund, legal, account-access, or otherwise blocked issues that should stay with an operator.
 - Use automation_status="blocked" for billing, refunds, legal, or unclear account issues that must fail closed.
-- Keep the suggested response concise and operator-friendly.
-
-Payload:
-${JSON.stringify(input, null, 2)}
-
-Return JSON with this exact shape:
-{
-  "automation_status": "completed" | "blocked",
-  "block_reason_code": "string or null",
-  "retryable": false,
-  "category": "general_support" | "sales_follow_up" | "mapping_reschedule" | "billing_question" | "technical_issue" | "qualification_follow_up",
-  "queue": "",
-  "priority": "low" | "normal" | "high",
-  "confidence": 0.0,
-  "requires_human_review": true,
-  "next_action": "",
-  "rationale": "",
-  "internal_summary": "",
-  "suggested_response": {
-    "subject": "",
-    "body": ""
-  }
-}`;
+ - Keep the suggested response concise and operator-friendly.`,
+      returnShape: {
+        automation_status: "completed | blocked",
+        block_reason_code: "string or null",
+        retryable: false,
+        category:
+          "general_support | sales_follow_up | mapping_reschedule | billing_question | technical_issue | qualification_follow_up",
+        queue: "",
+        priority: "low | normal | high",
+        confidence: 0.0,
+        requires_human_review: true,
+        next_action: "",
+        rationale: "",
+        internal_summary: "",
+        suggested_response: {
+          subject: "",
+          body: "",
+        },
+      },
+      payload: input,
+    });
   },
 };

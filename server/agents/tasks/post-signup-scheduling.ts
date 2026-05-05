@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { getStructuredAutomationProvider, getTaskModelByProvider } from "../provider-config";
 import type { StructuredTaskDefinition } from "../types";
+import { buildCacheFriendlyPrompt } from "./prompt-cache";
 
 const draftSchema = z.object({
   subject: z.string().min(1).max(200),
@@ -70,7 +71,8 @@ export const postSignupSchedulingTask: StructuredTaskDefinition<
     browser_fallback_allowed: false,
   },
   build_prompt(input) {
-    return `You are Blueprint's post-signup scheduling specialist.
+    return buildCacheFriendlyPrompt({
+      instructions: `You are Blueprint's post-signup scheduling specialist.
 
 You turn a new blueprint signup into a structured coordination plan for scheduling, reminder drafting, CRM contact lookup, and Slack/email handoff.
 
@@ -81,38 +83,35 @@ Rules:
 - Set requires_human_review=true when automation_status="blocked" or when the plan is missing the contact or schedule needed to complete execution cleanly.
 - If contact or scheduling data is incomplete, use automation_status="blocked" with a short snake_case block_reason_code.
 - Do not claim that external actions have already been executed.
-- Draft communications should be ready for an ops reviewer to send.
-
-Request:
-${JSON.stringify(input, null, 2)}
-
-Return JSON with this exact shape:
-{
-  "automation_status": "completed" | "blocked",
-  "block_reason_code": "string or null",
-  "retryable": false,
-  "confidence": 0.0,
-  "requires_human_review": true,
-  "next_action": "",
-  "schedule_summary": "",
-  "contact_lookup_plan": [],
-  "confirmations": {
-    "email": {
-      "subject": "",
-      "body": ""
-    },
-    "slack": ""
-  },
-  "action_plan": {
-    "resolve_contact": true,
-    "create_calendar_event": false,
-    "send_confirmation_email": true,
-    "send_slack_notification": true,
-    "update_google_sheet": false,
-    "calendar_title": "",
-    "calendar_description": "",
-    "sheet_status_note": ""
-  }
-}`;
+ - Draft communications should be ready for an ops reviewer to send.`,
+      returnShape: {
+        automation_status: "completed | blocked",
+        block_reason_code: "string or null",
+        retryable: false,
+        confidence: 0.0,
+        requires_human_review: true,
+        next_action: "",
+        schedule_summary: "",
+        contact_lookup_plan: [],
+        confirmations: {
+          email: {
+            subject: "",
+            body: "",
+          },
+          slack: "",
+        },
+        action_plan: {
+          resolve_contact: true,
+          create_calendar_event: false,
+          send_confirmation_email: true,
+          send_slack_notification: true,
+          update_google_sheet: false,
+          calendar_title: "",
+          calendar_description: "",
+          sheet_status_note: "",
+        },
+      },
+      payload: input,
+    });
   },
 };

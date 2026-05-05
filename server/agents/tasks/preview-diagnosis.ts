@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { getStructuredAutomationProvider, getTaskModelByProvider } from "../provider-config";
 import type { StructuredTaskDefinition } from "../types";
+import { buildCacheFriendlyPrompt } from "./prompt-cache";
 
 export const previewDiagnosisOutputSchema = z.object({
   disposition: z.enum([
@@ -49,7 +50,8 @@ export const previewDiagnosisTask: StructuredTaskDefinition<
     prefer_direct_api: true,
   },
   build_prompt(input) {
-    return `You are Blueprint's preview diagnosis specialist.
+    return buildCacheFriendlyPrompt({
+      instructions: `You are Blueprint's preview diagnosis specialist.
 
 Analyze the preview failure state and decide whether the issue is transient, retryable, or needs escalation.
 
@@ -59,24 +61,22 @@ Rules:
 - Use retry_now only when the failure looks transient and bounded.
 - Use provider_escalation for repeated provider-side or artifact-side failures.
 - Set requires_human_review=true when automation_status="blocked" or when the disposition is "provider_escalation" or "blocked_release_risk".
-- Use automation_status="blocked" with disposition="blocked_release_risk" when the release must fail closed until artifacts or provider state are corrected.
-
-Payload:
-${JSON.stringify(input, null, 2)}
-
-Return JSON with this exact shape:
-{
-  "disposition": "retry_now" | "retry_later" | "blocked_release_risk" | "provider_escalation" | "not_actionable",
-  "automation_status": "completed" | "blocked",
-  "block_reason_code": "string or null",
-  "retryable": false,
-  "queue": "",
-  "confidence": 0.0,
-  "requires_human_review": true,
-  "retry_recommended": false,
-  "next_action": "",
-  "rationale": "",
-  "internal_summary": ""
-}`;
+ - Use automation_status="blocked" with disposition="blocked_release_risk" when the release must fail closed until artifacts or provider state are corrected.`,
+      returnShape: {
+        disposition:
+          "retry_now | retry_later | blocked_release_risk | provider_escalation | not_actionable",
+        automation_status: "completed | blocked",
+        block_reason_code: "string or null",
+        retryable: false,
+        queue: "",
+        confidence: 0.0,
+        requires_human_review: true,
+        retry_recommended: false,
+        next_action: "",
+        rationale: "",
+        internal_summary: "",
+      },
+      payload: input,
+    });
   },
 };

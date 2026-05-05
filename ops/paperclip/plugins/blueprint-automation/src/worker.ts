@@ -209,6 +209,7 @@ import {
   isHumanGatedBlockedIssue,
   isBlockedFollowUpTitle,
   planBlockedIssueFollowUp,
+  sameBlockedFollowUpObjective,
 } from "./blocked-followups.js";
 import {
   inferExecutionOwnerFromContext,
@@ -227,11 +228,14 @@ import {
   type AnalyticsFollowUpIssue,
 } from "./analytics-followups.js";
 import {
+  buildIssueWakeCooldownKey,
   buildRoutineCatchUpWindowKey,
+  evaluateWakeupSuppression,
   isStaleRoutineExecutionIssue,
   recommendedRoutineExecutionPolicy,
   selectHealthyAgentKey,
   shouldTriggerRoutineCatchUp,
+  type WakeupSuppressionState,
 } from "./execution-governor.js";
 import {
   shouldPreservePreferredExecutionLane,
@@ -3535,13 +3539,60 @@ async function postFounderException(
   });
 }
 
+function readPositiveNumberEnv(envKey: string, fallback: number) {
+  const parsed = Number(process.env[envKey]);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
 const CHIEF_OF_STAFF_WAKEUP_COOLDOWN_MS = 5 * 60 * 1000;
+const CHIEF_OF_STAFF_WAKEUP_SUPPRESSION_TTL_MS = readPositiveNumberEnv(
+  "BLUEPRINT_CHIEF_OF_STAFF_WAKE_TTL_MS",
+  60 * 60 * 1000,
+);
+const CHIEF_OF_STAFF_WAKEUP_BACKOFF_MS = readPositiveNumberEnv(
+  "BLUEPRINT_CHIEF_OF_STAFF_WAKE_BACKOFF_MS",
+  30 * 60 * 1000,
+);
+const CHIEF_OF_STAFF_WAKEUP_MAX_ATTEMPTS = readPositiveNumberEnv(
+  "BLUEPRINT_CHIEF_OF_STAFF_WAKE_MAX_ATTEMPTS",
+  2,
+);
 const CHIEF_OF_STAFF_STALE_RUNNING_IDLE_MS = 12 * 60 * 1000;
 const CHIEF_OF_STAFF_RUN_RECOVERY_LIMIT = 50;
 const STALE_RUN_RECOVERY_IDLE_MS = 20 * 60 * 1000;
 const STALE_RUN_RECOVERY_BATCH_LIMIT = 200;
 const STALE_RUN_RECOVERY_MAX_CANCELS_PER_AGENT = 10;
 const chiefOfStaffLastWakeupByCompany = new Map<string, number>();
+
+function chiefOfStaffWakeupSuppressionKey(input: {
+  idempotencyKey: string;
+  reason: string;
+  eventIssueId?: string;
+  payload: Record<string, unknown>;
+}) {
+  const issueId =
+    input.eventIssueId
+    ?? (typeof input.payload.issueId === "string" ? input.payload.issueId : null)
+    ?? (typeof input.payload.signalIssueId === "string" ? input.payload.signalIssueId : null);
+  if (!issueId) {
+    return `chief-of-staff:unbound:${input.idempotencyKey}`;
+  }
+  const stateFingerprint = [
+    asString(input.payload.signalType) ?? input.reason,
+    asString(input.payload.status),
+    asString(input.payload.priority),
+    asString(input.payload.assigneeAgentId),
+    asString(input.payload.failedAgentId),
+    asString(input.payload.runStatus),
+  ].filter(Boolean).join(":") || "no-state";
+  return buildIssueWakeCooldownKey({
+    companyId: "chief-of-staff",
+    agentId: "blueprint-chief-of-staff",
+    issueId,
+    reason: input.reason,
+    stateFingerprint,
+  });
+}
 
 async function recoverStaleAgentRuns(
   ctx: PluginContext,
@@ -3654,6 +3705,43 @@ async function wakeChiefOfStaff(
     eventIssueId?: string;
   },
 ) {
+  if (!input.bypassCooldown) {
+    const suppressionKey = chiefOfStaffWakeupSuppressionKey(input);
+    const suppressionState =
+      await readState<WakeupSuppressionState>(ctx, companyId, STATE_KEYS.chiefOfStaffWakeups) ?? {};
+    const suppression = evaluateWakeupSuppression({
+      state: suppressionState,
+      key: suppressionKey,
+      nowMs: Date.now(),
+      ttlMs: CHIEF_OF_STAFF_WAKEUP_SUPPRESSION_TTL_MS,
+      baseBackoffMs: CHIEF_OF_STAFF_WAKEUP_BACKOFF_MS,
+      maxAttempts: CHIEF_OF_STAFF_WAKEUP_MAX_ATTEMPTS,
+    });
+    await writeState(ctx, companyId, STATE_KEYS.chiefOfStaffWakeups, suppression.state).catch(() => undefined);
+    if (suppression.decision === "skip") {
+      const waitMs = Math.max(0, suppression.nextAllowedAtMs - Date.now());
+      ctx.logger.info("chief-of-staff wakeup suppressed by idempotency/backoff policy", {
+        reason: input.reason,
+        suppressionKey,
+        suppressionReason: suppression.reason,
+        attempts: suppression.attempts,
+        waitMs,
+      });
+      await appendRecentEvent(ctx, companyId, {
+        kind: "chief-of-staff-wakeup-skipped",
+        title: `Skipped chief-of-staff wakeup: ${input.title}`,
+        issueId:
+          input.eventIssueId
+          ?? (typeof input.payload.issueId === "string" ? input.payload.issueId : undefined),
+        detail:
+          suppression.reason === "max_attempts"
+            ? `Suppressed by max attempts (${suppression.attempts}) for ${suppressionKey}.`
+            : `Suppressed by wake backoff with ${waitMs}ms remaining for ${suppressionKey}.`,
+      });
+      return null;
+    }
+  }
+
   if (!input.bypassCooldown) {
     const lastWakeup = chiefOfStaffLastWakeupByCompany.get(companyId) ?? 0;
     const elapsed = Date.now() - lastWakeup;
@@ -4867,6 +4955,26 @@ async function maybeCreateBlockedIssueFollowUp(
   );
   if (activeChildren.length > 0) {
     return null;
+  }
+
+  const existingCanonicalFollowUp = issues.find((candidate) =>
+    candidate.id !== issue.id
+    && !["done", "cancelled"].includes(candidate.status)
+    && isBlockedFollowUpTitle(candidate.title)
+    && sameBlockedFollowUpObjective(candidate.title, issue.title),
+  );
+  if (existingCanonicalFollowUp) {
+    await ctx.issues.createComment(
+      existingCanonicalFollowUp.id,
+      `Automation refreshed this canonical blocker instead of creating another child for ${issue.identifier ?? issue.id}.`,
+      companyId,
+    ).catch(() => undefined);
+    await ctx.issues.createComment(
+      issue.id,
+      `Automation reused existing blocker follow-up ${existingCanonicalFollowUp.identifier ?? existingCanonicalFollowUp.id} for the same root objective.`,
+      companyId,
+    ).catch(() => undefined);
+    return existingCanonicalFollowUp;
   }
 
   const projectNameById = new Map(projects.map((project) => [project.id, project.name] as const));
@@ -10864,6 +10972,41 @@ async function createFollowUpIssue(
   );
   const assigneeResolution = await resolveAssignableAgent(ctx, companyId, config, routedAssignee);
   const assignee = assigneeResolution.agent;
+  const blockerObjectiveKey = blockedFollowUpFamilyKey(input.title);
+  const blockerOriginId = `blocker:${input.projectName}:${blockerObjectiveKey}`;
+  const existingFollowUp = (await listAllIssues(ctx, companyId).catch(() => [] as Issue[]))
+    .find((candidate) => {
+      if (candidate.id === input.parentIssueId) return false;
+      if (["done", "cancelled"].includes(candidate.status)) return false;
+      const originId = asString((candidate as unknown as Record<string, unknown>).originId);
+      return originId === blockerOriginId
+        || (isBlockedFollowUpTitle(candidate.title) && sameBlockedFollowUpObjective(candidate.title, input.title));
+    });
+
+  if (existingFollowUp) {
+    await ctx.issues.createComment(
+      existingFollowUp.id,
+      [
+        "Duplicate blocker follow-up suppressed.",
+        `- Requested parent issue: ${input.parentIssueId}`,
+        `- Requested title: ${input.title}`,
+      ].join("\n"),
+      companyId,
+    ).catch(() => undefined);
+    await ctx.issues.createComment(
+      input.parentIssueId,
+      `Skipped duplicate blocker follow-up; continuing on existing issue ${existingFollowUp.id}: ${existingFollowUp.title}`,
+      companyId,
+    ).catch(() => undefined);
+    await appendRecentEvent(ctx, companyId, {
+      kind: "blocker-follow-up-deduped",
+      title: input.title,
+      issueId: existingFollowUp.id,
+      detail: `Parent issue ${input.parentIssueId}`,
+    });
+    return existingFollowUp;
+  }
+
   const followUp = await (ctx.issues.create as any)({
     companyId,
     projectId: project.id,
@@ -10874,7 +11017,7 @@ async function createFollowUpIssue(
     assigneeAgentId: assignee.id,
     status: "todo",
     originKind: ORIGIN_KIND,
-    originId: `blocker:${input.parentIssueId}:${input.projectName}:${input.title}`,
+    originId: blockerOriginId,
   });
   await ctx.issues.createComment(
     input.parentIssueId,
@@ -11453,6 +11596,35 @@ async function runFullRepoScan(
   });
   await writeHealth(ctx, companyId, errors.length > 0 ? "degraded" : "ok", "Repo scan completed");
   return summary;
+}
+
+function issueAllowsBroadQueueDiscovery(issue: Pick<Issue, "title" | "description">) {
+  const evidence = `${issue.title}\n${issue.description ?? ""}`;
+  return /(?:queue|routing|routine|paperclip health|run[-\s]?failure|failure sweep|manager loop|autonomy loop|repo scan)/i.test(evidence);
+}
+
+async function blockBroadQueueDiscoveryForNarrowIssueRun(
+  ctx: PluginContext,
+  companyId: string,
+  runContext: ToolRunContext,
+): Promise<ToolResult | null> {
+  const run = await fetchPaperclipApiJson<HeartbeatRunDetail>(`/api/heartbeat-runs/${runContext.runId}`).catch(() => null);
+  const boundIssueId = boundIssueIdFromRunContext(run?.contextSnapshot ?? null);
+  if (!boundIssueId) return null;
+
+  const issue = await fetchIssueByIdWithFallback(ctx, companyId, boundIssueId).catch(() => null);
+  if (!issue || issueAllowsBroadQueueDiscovery(issue)) return null;
+
+  return {
+    error: "issue_bound_broad_scan_blocked",
+    content: `Skipped broad repo/queue discovery because this run is bound to issue ${issue.identifier ?? issue.id}: ${issue.title}. Use issue-specific evidence and tools unless the issue is explicitly about queue or routing health.`,
+    data: {
+      issueId: issue.id,
+      issueIdentifier: issue.identifier ?? null,
+      title: issue.title,
+      runId: runContext.runId,
+    },
+  };
 }
 
 function parseBearerSecret(headers: Record<string, string | string[]>) {
@@ -12896,6 +13068,8 @@ async function registerToolHandlers(ctx: PluginContext) {
     async (params, runContext: ToolRunContext): Promise<ToolResult> => {
       const config = await getConfig(ctx);
       const company = await findCompany(ctx, asString((params as Record<string, unknown>).companyName) ?? config.companyName);
+      const narrowRunBlock = await blockBroadQueueDiscoveryForNarrowIssueRun(ctx, company.id, runContext);
+      if (narrowRunBlock) return narrowRunBlock;
       const summary = await runFullRepoScan(ctx, company.id, config, `agent-tool:${runContext.agentId}`);
       return {
         content: `Scanned ${summary.repoSummaries.length} Blueprint repos and polled ${summary.githubSummary.polled} GitHub workflow feeds.`,

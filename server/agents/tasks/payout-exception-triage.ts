@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { getStructuredAutomationProvider, getTaskModelByProvider } from "../provider-config";
 import type { StructuredTaskDefinition } from "../types";
+import { buildCacheFriendlyPrompt } from "./prompt-cache";
 
 export const payoutExceptionOutputSchema = z.object({
   disposition: z.enum([
@@ -47,7 +48,8 @@ export const payoutExceptionTriageTask: StructuredTaskDefinition<
     prefer_direct_api: true,
   },
   build_prompt(input) {
-    return `You are Blueprint's payout exception triage specialist.
+    return buildCacheFriendlyPrompt({
+      instructions: `You are Blueprint's payout exception triage specialist.
 
 Analyze the payout exception and recommend the correct ops/finance next step.
 
@@ -57,23 +59,21 @@ Rules:
 - Never authorize or execute funds movement.
 - Always set requires_human_review=true. Finance and payout exceptions must be reviewed by a human operator before any irreversible follow-up.
 - Use automation_status="blocked" with disposition="blocked_for_policy" when the payout state must fail closed pending new facts or policy-safe remediation.
-- Distinguish treasury balance problems from missing information or Stripe event failures.
-
-Payload:
-${JSON.stringify(input, null, 2)}
-
-Return JSON with this exact shape:
-{
-  "disposition": "blocked_for_policy" | "collect_missing_info" | "stripe_follow_up" | "treasury_balance_issue" | "retryable_webhook_issue",
-  "automation_status": "completed" | "blocked",
-  "block_reason_code": "string or null",
-  "retryable": false,
-  "queue": "",
-  "confidence": 0.0,
-  "requires_human_review": true,
-  "next_action": "",
-  "rationale": "",
-  "internal_summary": ""
-}`;
+ - Distinguish treasury balance problems from missing information or Stripe event failures.`,
+      returnShape: {
+        disposition:
+          "blocked_for_policy | collect_missing_info | stripe_follow_up | treasury_balance_issue | retryable_webhook_issue",
+        automation_status: "completed | blocked",
+        block_reason_code: "string or null",
+        retryable: false,
+        queue: "",
+        confidence: 0.0,
+        requires_human_review: true,
+        next_action: "",
+        rationale: "",
+        internal_summary: "",
+      },
+      payload: input,
+    });
   },
 };

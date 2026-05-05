@@ -55,6 +55,20 @@ export const FALLBACK_ORIGIN_ADAPTER_CONFIG_KEY = "blueprintFallbackOriginAdapte
 const DEFAULT_HERMES_DEEPSEEK_PROVIDER = "anthropic";
 const DEFAULT_HERMES_DEEPSEEK_BASE_URL = "https://api.deepseek.com/anthropic";
 const DEFAULT_HERMES_OPENROUTER_PROVIDER = "openrouter";
+export const DEFAULT_HERMES_OPENROUTER_PROVIDER_ORDER = [
+  "deepseek",
+  "atlas-cloud/fp8",
+  "novita",
+  "siliconflow/fp8",
+] as const;
+export const DEFAULT_HERMES_OPENROUTER_PROVIDER_IGNORE = [
+  "parasail",
+  "parasail/fp8",
+  "akashml",
+  "akashml/fp8",
+  "deepinfra",
+  "deepinfra/fp4",
+] as const;
 const LOCAL_EXECUTION_POLICY_ADAPTERS: LocalQuotaFallbackAdapterType[] = [
   "codex_local",
   "hermes_local",
@@ -167,12 +181,22 @@ export function extractLogicalSucceededRunFailure(message: string | null | undef
     const match = normalized.match(pattern);
     if (!match) continue;
     const candidate = (match[1] ?? match[0] ?? "").replace(/\s+/g, " ").trim();
-    if (isQuotaOrRateLimitFailure(candidate) || isModelNotFoundFailure(candidate)) {
+    if (
+      isQuotaOrRateLimitFailure(candidate) ||
+      isProviderAuthFailure(candidate) ||
+      isProviderCreditFailure(candidate) ||
+      isModelNotFoundFailure(candidate)
+    ) {
       return candidate;
     }
   }
 
-  if (isQuotaOrRateLimitFailure(normalized) || isModelNotFoundFailure(normalized)) {
+  if (
+    isQuotaOrRateLimitFailure(normalized) ||
+    isProviderAuthFailure(normalized) ||
+    isProviderCreditFailure(normalized) ||
+    isModelNotFoundFailure(normalized)
+  ) {
     return normalized.slice(0, 400);
   }
 
@@ -183,6 +207,54 @@ function asTrimmedString(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function parseEnvList(envKey: string, fallback: readonly string[]): string[] {
+  const raw = process.env[envKey];
+  if (!raw || raw.trim().length === 0) return [...fallback];
+  const parsed = raw
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+  return parsed.length > 0 ? parsed : [...fallback];
+}
+
+function parseEnvBoolean(envKey: string, fallback: boolean): boolean {
+  const raw = process.env[envKey];
+  if (!raw || raw.trim().length === 0) return fallback;
+  return /^(1|true|yes|on)$/i.test(raw.trim());
+}
+
+export function buildOpenRouterProviderRouting(): Record<string, unknown> {
+  const order = parseEnvList(
+    "BLUEPRINT_PAPERCLIP_HERMES_OPENROUTER_PROVIDER_ORDER",
+    DEFAULT_HERMES_OPENROUTER_PROVIDER_ORDER,
+  );
+  return {
+    only: parseEnvList("BLUEPRINT_PAPERCLIP_HERMES_OPENROUTER_PROVIDER_ONLY", order),
+    order,
+    ignore: parseEnvList(
+      "BLUEPRINT_PAPERCLIP_HERMES_OPENROUTER_PROVIDER_IGNORE",
+      DEFAULT_HERMES_OPENROUTER_PROVIDER_IGNORE,
+    ),
+    allow_fallbacks: parseEnvBoolean(
+      "BLUEPRINT_PAPERCLIP_HERMES_OPENROUTER_ALLOW_FALLBACKS",
+      true,
+    ),
+  };
+}
+
+function withOpenRouterProviderEnv(existingEnv: Record<string, unknown>, routing: Record<string, unknown>) {
+  const only = Array.isArray(routing.only) ? routing.only.filter((entry): entry is string => typeof entry === "string") : [];
+  const order = Array.isArray(routing.order) ? routing.order.filter((entry): entry is string => typeof entry === "string") : [];
+  const ignore = Array.isArray(routing.ignore) ? routing.ignore.filter((entry): entry is string => typeof entry === "string") : [];
+  return {
+    ...existingEnv,
+    OPENROUTER_PROVIDER_ONLY: only.join(","),
+    OPENROUTER_PROVIDER_ORDER: order.join(","),
+    OPENROUTER_PROVIDER_IGNORE: ignore.join(","),
+    OPENROUTER_ALLOW_FALLBACKS: routing.allow_fallbacks === false ? "0" : "1",
+  };
 }
 
 function arePaidHermesModelsAllowed(): boolean {
@@ -449,6 +521,8 @@ export function buildHermesFallbackAdapterConfig(
     next.env && typeof next.env === "object" && !Array.isArray(next.env)
       ? next.env as Record<string, unknown>
       : {};
+  const openRouterProviderRouting =
+    provider === DEFAULT_HERMES_OPENROUTER_PROVIDER ? buildOpenRouterProviderRouting() : null;
   const hermesEnv = provider === DEFAULT_HERMES_DEEPSEEK_PROVIDER
     ? {
         ...existingEnv,
@@ -456,6 +530,8 @@ export function buildHermesFallbackAdapterConfig(
           process.env.BLUEPRINT_PAPERCLIP_HERMES_BASE_URL?.trim()
           || DEFAULT_HERMES_DEEPSEEK_BASE_URL,
       }
+    : openRouterProviderRouting
+      ? withOpenRouterProviderEnv(existingEnv, openRouterProviderRouting)
     : existingEnv;
 
   return {
@@ -463,6 +539,13 @@ export function buildHermesFallbackAdapterConfig(
     provider,
     model,
     [HERMES_MODEL_LADDER_CONFIG_KEY]: ladder.length > 0 ? ladder : [...DEFAULT_HERMES_FALLBACK_MODELS],
+    ...(openRouterProviderRouting
+      ? {
+          providerRouting: openRouterProviderRouting,
+          openrouterProviderRouting: openRouterProviderRouting,
+          openrouterProviderStrategy: "cache_read_cost_primary_avoid_parasail",
+        }
+      : {}),
     modelReasoningEffort: next.modelReasoningEffort ?? "max",
     ...(Object.keys(hermesEnv).length > 0 ? { env: hermesEnv } : {}),
     cwd: options?.cwd ?? next.cwd ?? "/Users/nijelhunt_1/workspace/Blueprint-WebApp",

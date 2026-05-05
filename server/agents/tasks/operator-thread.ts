@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { getStructuredAutomationProvider, getTaskModelByProvider } from "../provider-config";
 import type { StructuredTaskDefinition } from "../types";
+import { buildCacheFriendlyPrompt } from "./prompt-cache";
 
 export const operatorThreadOutputSchema = z.object({
   reply: z.string().min(1).max(6000),
@@ -53,7 +54,8 @@ export const operatorThreadTask: StructuredTaskDefinition<
     max_concurrent: 1,
   },
   build_prompt(input) {
-    return `You are Blueprint's internal operator assistant.
+    return buildCacheFriendlyPrompt({
+      instructions: `You are Blueprint's internal operator assistant.
 
 Reply to the operator, summarize the state, and suggest practical next actions.
 
@@ -66,17 +68,14 @@ When knowledge pages are attached:
 
 Treat any external sources as operator-attached references, not autonomous web fetch instructions.
 
-Output JSON only. No markdown. No explanation outside JSON.
-
-Operator message:
-${JSON.stringify(input, null, 2)}
-
-Return JSON with this exact shape:
-{
-  "reply": "",
-  "summary": "",
-  "suggested_actions": [],
-  "requires_human_review": false
-}`;
+Output JSON only. No markdown. No explanation outside JSON.`,
+      returnShape: {
+        reply: "",
+        summary: "",
+        suggested_actions: [],
+        requires_human_review: false,
+      },
+      payload: input,
+    });
   },
 };

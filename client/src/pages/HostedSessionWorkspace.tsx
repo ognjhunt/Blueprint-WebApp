@@ -2525,6 +2525,28 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                     <MetadataLink href={rawBundlePath || null} label="Open raw bundle" />
                   </div>
                 </article>
+                <article className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Capture Provenance</p>
+                  <h3 className="mt-3 text-lg font-semibold text-slate-950">Exact site capture truth</h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    Provenance metadata ties this hosted review to the original real-site capture, including timestamps, device metadata, and grounding status.
+                  </p>
+                  {sessionRecord?.siteModel?.backendVariants?.[activeBackend]?.provenance ? (
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                      {Object.entries(sessionRecord.siteModel.backendVariants[activeBackend].provenance).map(([key, value]) => (
+                        <DetailPill key={key} label={key.replaceAll("_", " ")} value={String(value || "")} />
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="mt-4 text-sm text-slate-500">No provenance metadata available for this backend variant.</p>
+                  )}
+                  <div className="mt-4 flex flex-wrap gap-3">
+                    <MetadataLink
+                      href={String(sessionRecord?.siteModel?.backendVariants?.[activeBackend]?.provenance?.capture_source_uri || "") || null}
+                      label="View capture source"
+                    />
+                  </div>
+                </article>
               </section>
             </>
           ) : null}

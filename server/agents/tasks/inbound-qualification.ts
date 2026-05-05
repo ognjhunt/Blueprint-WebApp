@@ -6,6 +6,7 @@ import type {
 } from "../../types/inbound-request";
 import { getStructuredAutomationProvider, getTaskModelByProvider } from "../provider-config";
 import type { StructuredTaskDefinition } from "../types";
+import { buildCacheFriendlyPrompt } from "./prompt-cache";
 
 const qualificationStateEnum = z.enum([
   "submitted",
@@ -96,7 +97,8 @@ export const inboundQualificationTask: StructuredTaskDefinition<
     prefer_direct_api: true,
   },
   build_prompt(input) {
-    return `You are Blueprint's inbound qualification specialist.
+    return buildCacheFriendlyPrompt({
+      instructions: `You are Blueprint's inbound qualification specialist.
 
 You classify new buyer/site requests, summarize what matters, identify missing information, and recommend the next internal action.
 
@@ -115,29 +117,28 @@ Rules:
 - When automation_status="blocked", set block_reason_code to a short snake_case reason and retryable=true only when new buyer evidence could unblock the request.
 - Only recommend "qualified_ready" when the request is unusually clear, low-risk, and already has enough detail to move confidently.
 - Prefer "in_review" or "needs_more_evidence" when information is incomplete.
-- Keep buyer follow-up specific and concise.
-
-Request:
-${JSON.stringify(input, null, 2)}
-
-Return JSON with this exact shape:
-{
-  "automation_status": "completed" | "blocked",
-  "block_reason_code": "string or null",
-  "retryable": false,
-  "qualification_state_recommendation": "submitted" | "capture_requested" | "qa_passed" | "needs_more_evidence" | "in_review" | "qualified_ready" | "qualified_risky" | "needs_refresh" | "not_ready_yet",
-  "opportunity_state_recommendation": "not_applicable" | "handoff_ready" | "escalated_to_geometry" | "escalated_to_validation",
-  "confidence": 0.0,
-  "requires_human_review": true,
-  "next_action": "",
-  "rationale": "",
-  "internal_summary": "",
-  "missing_information": [],
-  "buyer_follow_up": {
-    "subject": "",
-    "body": ""
-  }
-}`;
+ - Keep buyer follow-up specific and concise.`,
+      returnShape: {
+        automation_status: "completed | blocked",
+        block_reason_code: "string or null",
+        retryable: false,
+        qualification_state_recommendation:
+          "submitted | capture_requested | qa_passed | needs_more_evidence | in_review | qualified_ready | qualified_risky | needs_refresh | not_ready_yet",
+        opportunity_state_recommendation:
+          "not_applicable | handoff_ready | escalated_to_geometry | escalated_to_validation",
+        confidence: 0.0,
+        requires_human_review: true,
+        next_action: "",
+        rationale: "",
+        internal_summary: "",
+        missing_information: [],
+        buyer_follow_up: {
+          subject: "",
+          body: "",
+        },
+      },
+      payload: input,
+    });
   },
 };
 

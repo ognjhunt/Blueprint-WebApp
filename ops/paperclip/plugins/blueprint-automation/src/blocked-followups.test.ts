@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   blockedFollowUpFamilyKey,
   isBlockedFollowUpTitle,
+  sameBlockedFollowUpObjective,
   planBlockedIssueFollowUp,
 } from "./blocked-followups.js";
 
@@ -204,5 +205,28 @@ describe("blocked issue follow-up planning", () => {
     ).toBe(
       blockedFollowUpFamilyKey("[\"Fix analytics live verification webapp check 182140\"]"),
     );
+  });
+
+  it("treats nested blocker chains for the same root objective as duplicates", () => {
+    expect(
+      sameBlockedFollowUpObjective(
+        "Implement unblock path for Austin launch human blocker",
+        "Review unblock path for Austin launch human blocker",
+      ),
+    ).toBe(true);
+
+    expect(
+      sameBlockedFollowUpObjective(
+        "Route unblock path for Unblock Austin launch human blocker",
+        "Austin launch human blocker",
+      ),
+    ).toBe(true);
+
+    expect(
+      sameBlockedFollowUpObjective(
+        "Implement unblock path for Austin launch human blocker",
+        "Implement unblock path for Chicago launch human blocker",
+      ),
+    ).toBe(false);
   });
 });

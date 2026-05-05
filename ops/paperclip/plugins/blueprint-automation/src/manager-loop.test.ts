@@ -280,7 +280,7 @@ describe("manager loop helpers", () => {
     expect(snapshot.agentsRan[1]?.assessment).toBe("low_value");
   });
 
-  it("wakes the chief of staff on meaningful issue changes, including issues assigned to chief of staff by others", () => {
+  it("wakes the chief of staff only on ownership gaps, blockers, or direct chief ownership", () => {
     expect(
       shouldWakeChiefOfStaffForIssueEvent({
         eventType: "issue.created",
@@ -292,7 +292,7 @@ describe("manager loop helpers", () => {
           createdByAgentId: "ops-lead",
         } as any,
       }),
-    ).toBe(true);
+    ).toBe(false);
 
     expect(
       shouldWakeChiefOfStaffForIssueEvent({
@@ -315,6 +315,32 @@ describe("manager loop helpers", () => {
           status: "done",
           priority: "medium",
           assigneeAgentId: "ops-lead",
+          createdByAgentId: "ops-lead",
+        } as any,
+      }),
+    ).toBe(false);
+
+    expect(
+      shouldWakeChiefOfStaffForIssueEvent({
+        eventType: "issue.updated",
+        chiefOfStaffAgentId: "chief-1",
+        issue: {
+          status: "blocked",
+          priority: "medium",
+          assigneeAgentId: "ops-lead",
+          createdByAgentId: "ops-lead",
+        } as any,
+      }),
+    ).toBe(true);
+
+    expect(
+      shouldWakeChiefOfStaffForIssueEvent({
+        eventType: "issue.updated",
+        chiefOfStaffAgentId: "chief-1",
+        issue: {
+          status: "todo",
+          priority: "medium",
+          assigneeAgentId: null,
           createdByAgentId: "ops-lead",
         } as any,
       }),

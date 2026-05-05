@@ -19,6 +19,12 @@ import {
   safelyDispatchHumanBlocker,
 } from "../utils/human-blocker-autonomy";
 import {
+  extractAgentCostTelemetry,
+  summarizeRollingAgentSpend,
+  type AgentSpendThresholds,
+  type AgentCostTelemetryRecord,
+} from "../utils/agentCostTelemetry";
+import {
   mergeApprovalPolicy,
   mergeSessionPolicy,
   mergeToolPolicy,
@@ -953,6 +959,188 @@ async function getRun(runId: string) {
   return doc.data() as PersistedAgentRun;
 }
 
+function readUsdThreshold(envKey: string) {
+  const raw = process.env[envKey];
+  if (!raw || raw.trim().length === 0) return undefined;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+}
+
+function readCostThresholds(kind: "WARN" | "STOP"): AgentSpendThresholds {
+  return {
+    last15m: readUsdThreshold(`BLUEPRINT_AGENT_COST_${kind}_15M_USD`),
+    lastHour: readUsdThreshold(`BLUEPRINT_AGENT_COST_${kind}_HOUR_USD`),
+    lastDay: readUsdThreshold(`BLUEPRINT_AGENT_COST_${kind}_DAY_USD`),
+  };
+}
+
+function hasThresholds(thresholds: AgentSpendThresholds) {
+  return Object.values(thresholds).some((value) => typeof value === "number" && value > 0);
+}
+
+async function listRecentRunsForCostTelemetry(limit = 500): Promise<PersistedAgentRun[]> {
+  if (!db) return [];
+  const snapshot = await db
+    .collection("agentRuns")
+    .orderBy("created_at", "desc")
+    .limit(Math.max(1, Math.min(limit, 1000)))
+    .get();
+  return snapshot.docs.map((doc) => ({
+    ...(doc.data() as PersistedAgentRun),
+    id: doc.id,
+  }));
+}
+
+function compactRollingSpendSummary(params: {
+  summary: ReturnType<typeof summarizeRollingAgentSpend>;
+  agentKey: string;
+}) {
+  return {
+    windows: params.summary.windows,
+    agent_windows: params.summary.by_agent[params.agentKey] ?? null,
+  };
+}
+
+function highestSpendGuardrailStatus(
+  metadata: Awaited<ReturnType<typeof buildRollingSpendMetadata>> | null,
+) {
+  if (!metadata) return null;
+  const stopped = Object.entries(metadata.windows).find(([, window]) => window.status === "stop");
+  if (stopped) return { status: "stop" as const, windowKey: stopped[0], window: stopped[1] };
+  const warned = Object.entries(metadata.windows).find(([, window]) => window.status === "warn");
+  if (warned) return { status: "warn" as const, windowKey: warned[0], window: warned[1] };
+  return null;
+}
+
+async function buildRollingSpendMetadata(params: {
+  currentRun?: PersistedAgentRun;
+  currentTelemetry?: AgentCostTelemetryRecord;
+}) {
+  const warnUsd = readCostThresholds("WARN");
+  const stopUsd = readCostThresholds("STOP");
+  const recentRuns = await listRecentRunsForCostTelemetry();
+  const runsForSummary =
+    params.currentRun
+      ? [params.currentRun, ...recentRuns.filter((run) => run.id !== params.currentRun?.id)]
+      : recentRuns;
+  const summary = summarizeRollingAgentSpend(runsForSummary, { warnUsd, stopUsd });
+  const agentKey = params.currentTelemetry?.agent_key ?? "unknown";
+  return {
+    warn_usd: warnUsd,
+    stop_usd: stopUsd,
+    ...compactRollingSpendSummary({ summary, agentKey }),
+  };
+}
+
+async function evaluatePreRunCostStop(params: {
+  task: NormalizedAgentTask<unknown, unknown>;
+  runId: string;
+  sessionId?: string | null;
+}) {
+  const stopUsd = readCostThresholds("STOP");
+  if (!hasThresholds(stopUsd)) {
+    return null;
+  }
+  const warnUsd = readCostThresholds("WARN");
+  const recentRuns = await listRecentRunsForCostTelemetry();
+  const summary = summarizeRollingAgentSpend(recentRuns, { warnUsd, stopUsd });
+  const stoppedWindow = Object.entries(summary.windows).find(([, window]) => window.status === "stop");
+  if (!stoppedWindow) {
+    return {
+      stopped: false as const,
+      metadata: {
+        warn_usd: warnUsd,
+        stop_usd: stopUsd,
+        windows: summary.windows,
+      },
+    };
+  }
+  const [windowKey, window] = stoppedWindow;
+  const error = `Agent runtime cost stop threshold reached for ${windowKey}: $${window.cost_usd.toFixed(4)}.`;
+  const metadata = {
+    warn_usd: warnUsd,
+    stop_usd: stopUsd,
+    windows: summary.windows,
+    stopped_window: windowKey,
+    stopped_cost_usd: window.cost_usd,
+  };
+  await markRunStatus(params.runId, "failed", {
+    error,
+    requires_human_review: true,
+    metadata: {
+      cost_guardrail: metadata,
+    },
+    outcome_evaluation: {
+      status: "fail",
+      score: 0,
+      summary: "Run stopped before provider execution by the runtime cost guardrail.",
+      checks: [
+        {
+          label: "cost_stop_threshold",
+          passed: false,
+          detail: error,
+        },
+      ],
+    },
+  });
+  await logRunEvent(params.task, {
+    runId: params.runId,
+    sessionId: params.sessionId || params.task.session_id || null,
+    actionKey: "agent.run.cost_guardrail",
+    status: "failed",
+    summary: error,
+    requiresApproval: true,
+    metadata,
+  });
+  if (params.sessionId) {
+    await recordRuntimeEvent({
+      session_id: params.sessionId,
+      run_id: params.runId,
+      kind: "run.cost_guardrail.stop",
+      status: "error",
+      summary: error,
+      metadata,
+    });
+  }
+  return { stopped: true as const, error, metadata };
+}
+
+function buildCompletedRunForCostTelemetry(params: {
+  task: NormalizedAgentTask<unknown, unknown>;
+  runId: string;
+  sessionId?: string | null;
+  result: AgentResult<unknown>;
+  status: AgentRunStatus;
+  createdAtIso: string;
+}): PersistedAgentRun {
+  return {
+    id: params.runId,
+    session_id: params.sessionId || params.task.session_id || null,
+    session_key: params.task.session_key || null,
+    task_kind: params.task.kind,
+    provider: params.task.provider,
+    runtime: params.task.runtime,
+    model: params.task.model,
+    status: params.status,
+    dispatch_mode: params.task.session_policy.dispatch_mode,
+    input: params.task,
+    output: params.result.output,
+    raw_output_text: params.result.raw_output_text || null,
+    artifacts: params.result.artifacts || null,
+    logs: params.result.logs || null,
+    error: params.result.error || null,
+    requires_human_review: params.result.requires_human_review,
+    tool_policy: params.task.tool_policy,
+    approval_policy: params.task.approval_policy,
+    outcome_contract: params.task.outcome_contract,
+    metadata: params.task.metadata || {},
+    resume_from_run_id: params.task.resume_from_run_id || null,
+    parent_run_id: params.task.parent_run_id || null,
+    created_at: params.createdAtIso,
+    updated_at: params.createdAtIso,
+  };
+}
+
 async function getSession(sessionId: string) {
   if (!db) {
     return null;
@@ -1328,6 +1516,35 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
     }
   }
 
+  const preRunCostStop = await evaluatePreRunCostStop({
+    task: normalizedTaskForLogs,
+    runId,
+    sessionId: options?.sessionId || normalizedTask.session_id || null,
+  });
+  if (preRunCostStop?.stopped) {
+    return {
+      status: "failed",
+      provider: normalizedTask.provider,
+      runtime: normalizedTask.runtime,
+      model: normalizedTask.model,
+      tool_mode: normalizedTask.tool_policy.mode,
+      error: preRunCostStop.error,
+      requires_human_review: true,
+      requires_approval: false,
+      artifacts: {
+        cost_guardrail: preRunCostStop.metadata,
+      },
+      logs: [
+        {
+          event_type: "provider.request.skipped",
+          status: "warning",
+          summary: "Provider request skipped by runtime cost stop threshold",
+          cost_guardrail: preRunCostStop.metadata,
+        },
+      ],
+    };
+  }
+
   await logRunEvent(normalizedTaskForLogs, {
     runId,
     sessionId: options?.sessionId || normalizedTask.session_id || null,
@@ -1374,6 +1591,25 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
     const status = resultStatus(result);
     const latencyMs = Date.now() - startedAtMs;
     const outcomeEvaluation = gradeOutcome(normalizedTaskForLogs, result as AgentResult<unknown>);
+    const telemetryRun = buildCompletedRunForCostTelemetry({
+      task: normalizedTaskForLogs,
+      runId,
+      sessionId: options?.sessionId || normalizedTask.session_id || null,
+      result: result as AgentResult<unknown>,
+      status,
+      createdAtIso: new Date(startedAtMs).toISOString(),
+    });
+    const costTelemetry = extractAgentCostTelemetry(telemetryRun);
+    const costGuardrail = await buildRollingSpendMetadata({
+      currentRun: telemetryRun,
+      currentTelemetry: costTelemetry,
+    }).catch((error) => ({
+      error: error instanceof Error ? error.message : String(error),
+    }));
+    const spendAlert =
+      "windows" in costGuardrail
+        ? highestSpendGuardrailStatus(costGuardrail)
+        : null;
 
     if (db) {
       await markRunStatus(runId, status, {
@@ -1387,6 +1623,10 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
         openclaw_session_id: result.openclaw_session_id || null,
         openclaw_run_id: result.openclaw_run_id || null,
         outcome_evaluation: outcomeEvaluation,
+        metadata: {
+          cost_telemetry: costTelemetry,
+          cost_guardrail: costGuardrail,
+        },
       });
     }
 
@@ -1452,10 +1692,40 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
           tool_mode: normalizedTask.tool_policy.mode,
           output: result.output ?? null,
           artifacts: result.artifacts ?? null,
+          cost_telemetry: costTelemetry,
+          cost_guardrail: costGuardrail,
           raw_output_text: result.raw_output_text ?? null,
           outcome_evaluation: outcomeEvaluation,
         },
       });
+    }
+
+    if (spendAlert) {
+      const summary = `Agent spend ${spendAlert.status} threshold in ${spendAlert.windowKey}: $${spendAlert.window.cost_usd.toFixed(4)}.`;
+      await logRunEvent(normalizedTaskForLogs, {
+        runId,
+        sessionId: options?.sessionId || normalizedTask.session_id || null,
+        actionKey: "agent.run.cost_guardrail",
+        status: spendAlert.status === "stop" ? "failed" : "info",
+        summary,
+        metadata: {
+          cost_telemetry: costTelemetry,
+          cost_guardrail: costGuardrail,
+        },
+      });
+      if (options?.sessionId) {
+        await recordRuntimeEvent({
+          session_id: options.sessionId,
+          run_id: runId,
+          kind: `run.cost_guardrail.${spendAlert.status}`,
+          status: spendAlert.status === "stop" ? "error" : "warning",
+          summary,
+          metadata: {
+            cost_telemetry: costTelemetry,
+            cost_guardrail: costGuardrail,
+          },
+        });
+      }
     }
 
     await logRunEvent(normalizedTaskForLogs, {
@@ -1471,6 +1741,8 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
       latencyMs,
       metadata: {
         requires_human_review: result.requires_human_review,
+        cost_telemetry: costTelemetry,
+        cost_guardrail: costGuardrail,
         ...((((normalizedTask.metadata || {}) as Record<string, unknown>)
           .resolved_startup_context as Record<string, unknown> | undefined) || {}),
       },

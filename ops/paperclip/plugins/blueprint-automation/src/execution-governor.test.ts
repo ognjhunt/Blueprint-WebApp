@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildIssueWakeCooldownKey,
   buildRoutineCatchUpWindowKey,
   isAgentOperational,
   isStaleRoutineExecutionIssue,
   recommendedRoutineExecutionPolicy,
+  evaluateWakeupSuppression,
   selectHealthyAgentKey,
   shouldTriggerRoutineCatchUp,
 } from "./execution-governor.js";
@@ -97,6 +99,95 @@ describe("execution governor helpers", () => {
       concurrencyPolicy: "coalesce_if_active",
       catchUpPolicy: "skip_missed",
     });
+  });
+
+  it("suppresses duplicate wakeups with TTL, backoff, and max attempts", () => {
+    const first = evaluateWakeupSuppression({
+      state: {},
+      key: "chief-of-staff:issue:BLU-1",
+      nowMs: 1_000,
+      ttlMs: 15 * 60 * 1000,
+      baseBackoffMs: 60_000,
+      maxAttempts: 2,
+    });
+    expect(first.decision).toBe("allow");
+
+    const duplicate = evaluateWakeupSuppression({
+      state: first.state,
+      key: "chief-of-staff:issue:BLU-1",
+      nowMs: 1_500,
+      ttlMs: 15 * 60 * 1000,
+      baseBackoffMs: 60_000,
+      maxAttempts: 2,
+    });
+    expect(duplicate).toMatchObject({
+      decision: "skip",
+      reason: "backoff",
+    });
+
+    const second = evaluateWakeupSuppression({
+      state: duplicate.state,
+      key: "chief-of-staff:issue:BLU-1",
+      nowMs: 62_000,
+      ttlMs: 15 * 60 * 1000,
+      baseBackoffMs: 60_000,
+      maxAttempts: 2,
+    });
+    expect(second).toMatchObject({
+      decision: "allow",
+      attempts: 2,
+    });
+
+    const maxed = evaluateWakeupSuppression({
+      state: second.state,
+      key: "chief-of-staff:issue:BLU-1",
+      nowMs: 183_000,
+      ttlMs: 15 * 60 * 1000,
+      baseBackoffMs: 60_000,
+      maxAttempts: 2,
+    });
+    expect(maxed).toMatchObject({
+      decision: "skip",
+      reason: "max_attempts",
+    });
+  });
+
+  it("keys no-change issue wake cooldowns by issue and reason, not event id", () => {
+    expect(
+      buildIssueWakeCooldownKey({
+        companyId: "company-1",
+        agentId: "chief-1",
+        issueId: "issue-austin-blocker",
+        reason: "issue.updated",
+        stateFingerprint: "blocked:no-change",
+      }),
+    ).toBe(
+      buildIssueWakeCooldownKey({
+        companyId: "company-1",
+        agentId: "chief-1",
+        issueId: "issue-austin-blocker",
+        reason: "issue.updated",
+        stateFingerprint: "blocked:no-change",
+      }),
+    );
+
+    expect(
+      buildIssueWakeCooldownKey({
+        companyId: "company-1",
+        agentId: "chief-1",
+        issueId: "issue-austin-blocker",
+        reason: "issue.updated",
+        stateFingerprint: "blocked:no-change",
+      }),
+    ).not.toBe(
+      buildIssueWakeCooldownKey({
+        companyId: "company-1",
+        agentId: "chief-1",
+        issueId: "issue-austin-blocker",
+        reason: "issue.updated",
+        stateFingerprint: "blocked:human-comment",
+      }),
+    );
   });
 
   it("reroutes unavailable CI watchers into the implementation lane before escalating", () => {

@@ -219,7 +219,27 @@ require_routines() {
       "solutions-engineering-active-delivery-review": "Solutions Engineering Active Delivery Review",
       "security-procurement-active-reviews": "Security Procurement Active Reviews",
       "revenue-ops-pricing-weekly": "Revenue Ops Pricing Weekly",
+      "buyer-solutions-active-pipeline-review": "Buyer Solutions Active Pipeline Review",
+      "docs-agent-sweep": "Docs Agent Sweep",
+      "exact-site-hosted-review-buyer-loop": "Exact Site Hosted Review Buyer Loop",
     };
+
+    const ALWAYS_ENQUEUE_ALLOWLIST = new Set([
+      "ceo-daily-review",
+      "cto-cross-repo-triage",
+      "founder-morning-brief",
+      "founder-daily-accountability-report",
+      "founder-eod-brief",
+      "founder-friday-operating-recap",
+      "founder-weekly-gaps-report",
+      "analytics-daily",
+      "analytics-weekly",
+      "growth-lead-weekly",
+      "market-intel-weekly",
+      "demand-intel-weekly",
+      "capturer-growth-weekly",
+      "robot-team-growth-weekly",
+    ]);
 
     function titleizeToken(token) {
       const overrides = { ceo: "CEO", cto: "CTO", qa: "QA", webapp: "WebApp" };
@@ -240,15 +260,34 @@ require_routines() {
       if (!scheduleTrigger) return [];
       const taskConfig = config.tasks?.[routineKey];
       return [{
+        routineKey,
         title: titleizeRoutineKey(routineKey),
         expectedStatus: routineConfig?.status === "paused" || taskConfig?.status === "paused" ? "paused" : "active",
         cronExpression: scheduleTrigger.cronExpression,
         timezone: scheduleTrigger.timezone ?? "America/New_York",
+        concurrencyPolicy: routineConfig?.concurrencyPolicy ?? "coalesce_if_active",
+        catchUpPolicy: routineConfig?.catchUpPolicy ?? "skip_missed",
       }];
     });
+    const expectedByTitle = new Map(expectedRoutines.map((routine) => [routine.title, routine]));
 
     const failures = [];
     const routineDetailCache = new Map();
+
+    function readRoutinePolicy(row, detail, key) {
+      return detail?.[key] ?? detail?.routine?.[key] ?? row?.[key] ?? null;
+    }
+
+    function hasActiveIssue(row, detail) {
+      return Boolean(
+        row?.activeIssue ||
+        row?.activeIssueId ||
+        detail?.activeIssue ||
+        detail?.activeIssueId ||
+        detail?.routine?.activeIssue ||
+        detail?.routine?.activeIssueId,
+      );
+    }
 
     async function fetchRoutineDetail(routineId) {
       if (!routineDetailCache.has(routineId)) {
@@ -286,6 +325,15 @@ require_routines() {
         if (activeMatches.length !== 1) {
           failures.push(`${expected.title} should have exactly one active routine, found ${activeMatches.length}`);
         }
+        for (const { row, detail } of detailMatches.filter(({ row }) => row.status === "active")) {
+          const concurrencyPolicy = readRoutinePolicy(row, detail, "concurrencyPolicy");
+          const catchUpPolicy = readRoutinePolicy(row, detail, "catchUpPolicy");
+          if (concurrencyPolicy !== expected.concurrencyPolicy || catchUpPolicy !== expected.catchUpPolicy) {
+            failures.push(
+              `${expected.title} execution policy drifted: expected ${expected.concurrencyPolicy} / ${expected.catchUpPolicy}, got ${concurrencyPolicy ?? "null"} / ${catchUpPolicy ?? "null"}`,
+            );
+          }
+        }
         if (enabledScheduleTriggers.length !== 1) {
           failures.push(`${expected.title} should have exactly one enabled schedule trigger, found ${enabledScheduleTriggers.length}`);
         } else {
@@ -302,6 +350,19 @@ require_routines() {
         }
         if (enabledScheduleTriggers.length !== 0) {
           failures.push(`${expected.title} should have zero enabled schedule triggers while paused, found ${enabledScheduleTriggers.length}`);
+        }
+      }
+    }
+
+    for (const row of liveRows) {
+      if (row.status !== "active") continue;
+      const expected = expectedByTitle.get(row.title);
+      if (expected && ALWAYS_ENQUEUE_ALLOWLIST.has(expected.routineKey)) continue;
+      if (expected?.concurrencyPolicy !== "always_enqueue") {
+        const detail = await fetchRoutineDetail(row.id);
+        const concurrencyPolicy = readRoutinePolicy(row, detail, "concurrencyPolicy");
+        if (concurrencyPolicy === "always_enqueue" && hasActiveIssue(row, detail)) {
+          failures.push(`${row.title} is active with always_enqueue and an active open issue without an explicit allowlist`);
         }
       }
     }
@@ -608,6 +669,7 @@ main() {
             && (/^deepseek-v4-(?:flash|pro)(?:\[[^\]]+\])?$/i.test(value.trim()) || /^deepseek\/deepseek-v4-(?:flash|pro)$/i.test(value.trim()) || /^(deepseek-chat|deepseek-reasoner)$/i.test(value.trim()));
           const includeLegacyOpenRouter = /^(1|true|yes)$/i.test(process.env.BLUEPRINT_PAPERCLIP_HERMES_INCLUDE_OPENROUTER_FALLBACKS ?? "");
           const isApprovedHermesModel = (value) => isDeepSeekModel(value) || (includeLegacyOpenRouter && isFreeModel(value)) || allowPaidHermes;
+          const includes = (values, target) => Array.isArray(values) && values.some((value) => typeof value === "string" && value.trim().toLowerCase() === target);
           const toPerAdapterConfig = (row) => row.runtimeConfig?.executionPolicy?.perAdapterConfig ?? {};
           for (const row of rows) {
             if (row.adapterType !== "hermes_local") continue;
@@ -624,6 +686,25 @@ main() {
             }
             if (hermesModel && disallowedHermesModelRe.test(hermesModel)) {
               failures.push(`${row.name || row.id}: hermes runtime model is deprecated/disallowed (${hermesModel})`);
+            }
+            const hermesProvider = typeof hermesConfig.provider === "string" ? hermesConfig.provider.trim().toLowerCase() : "";
+            const providerRouting = hermesConfig.providerRouting ?? hermesConfig.openrouterProviderRouting ?? {};
+            if (hermesProvider === "openrouter" || /^deepseek\/deepseek-v4-(?:flash|pro)$/i.test(hermesModel)) {
+              const only = Array.isArray(providerRouting.only) ? providerRouting.only : [];
+              const order = Array.isArray(providerRouting.order) ? providerRouting.order : [];
+              const ignore = Array.isArray(providerRouting.ignore) ? providerRouting.ignore : [];
+              if (!includes(only, "deepseek")) {
+                failures.push(`${row.name || row.id}: hermes OpenRouter routing must restrict provider slug deepseek into the allowed provider set`);
+              }
+              if (includes(only, "parasail") || includes(only, "parasail/fp8")) {
+                failures.push(`${row.name || row.id}: hermes OpenRouter routing allows Parasail high cache-read endpoint`);
+              }
+              if (!includes(order, "deepseek")) {
+                failures.push(`${row.name || row.id}: hermes OpenRouter routing must prefer provider slug deepseek before fallback providers`);
+              }
+              if (!includes(ignore, "parasail") && !includes(ignore, "parasail/fp8")) {
+                failures.push(`${row.name || row.id}: hermes OpenRouter routing does not ignore Parasail high cache-read endpoint`);
+              }
             }
             const hermesLadder = Array.isArray(hermesConfig.blueprintHermesModelLadder)
               ? hermesConfig.blueprintHermesModelLadder

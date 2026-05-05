@@ -623,10 +623,14 @@ export function shouldWakeChiefOfStaffForIssueEvent(input: {
     if ((issue.originKind ?? "").toLowerCase() === ORIGIN_KIND.toLowerCase()) {
       return false;
     }
-    return !RESOLVED_STATUSES.has(issue.status);
+    if (RESOLVED_STATUSES.has(issue.status)) return false;
+    return issue.status === "blocked"
+      || !issue.assigneeAgentId
+      || Boolean(chiefOfStaffAgentId && issue.assigneeAgentId === chiefOfStaffAgentId)
+      || issue.priority === "critical";
   }
 
-  if (issue.status === "blocked" || RESOLVED_STATUSES.has(issue.status)) {
+  if (issue.status === "blocked") {
     return true;
   }
 
@@ -634,5 +638,5 @@ export function shouldWakeChiefOfStaffForIssueEvent(input: {
     return true;
   }
 
-  return issue.priority === "critical" || issue.priority === "high";
+  return Boolean(chiefOfStaffAgentId && issue.assigneeAgentId === chiefOfStaffAgentId);
 }

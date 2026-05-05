@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { getStructuredAutomationProvider, getTaskModelByProvider } from "../provider-config";
 import type { StructuredTaskDefinition } from "../types";
+import { buildCacheFriendlyPrompt } from "./prompt-cache";
 
 const draftEmailSchema = z.object({
   subject: z.string().min(1).max(200),
@@ -78,7 +79,8 @@ export const waitlistTriageTask: StructuredTaskDefinition<
     prefer_direct_api: true,
   },
   build_prompt(input) {
-    return `You are an operations triage worker for Blueprint Capture.
+    return buildCacheFriendlyPrompt({
+      instructions: `You are an operations triage worker for Blueprint Capture.
 
 You must score a capturer beta request and draft the next response.
 
@@ -99,43 +101,27 @@ Decision rules:
   - capturer_beta_hold
   - capturer_beta_follow_up
   - capturer_beta_declined
-  - capturer_beta_review
-
-Submission:
-${JSON.stringify(input.submission, null, 2)}
-
-Market context:
-${JSON.stringify(
-      input.market_context || {
-        sameMarketCount: 0,
-        sameMarketDeviceCount: 0,
-        sameMarketPendingCount: 0,
-        sameRoleCount: 0,
-        recentExamples: [],
+  - capturer_beta_review`,
+      returnShape: {
+        automation_status: "completed | blocked",
+        block_reason_code: "string or null",
+        retryable: false,
+        recommendation: "invite_now | hold_for_market | request_follow_up | decline_for_now",
+        confidence: 0.0,
+        market_fit_score: 0,
+        device_fit_score: 0,
+        invite_readiness_score: 0,
+        recommended_queue: "capturer_beta_review",
+        next_action: "",
+        rationale: "",
+        market_summary: "",
+        requires_human_review: false,
+        draft_email: {
+          subject: "",
+          body: "",
+        },
       },
-      null,
-      2,
-    )}
-
-Return JSON with this exact shape:
-{
-  "automation_status": "completed" | "blocked",
-  "block_reason_code": "string or null",
-  "retryable": false,
-  "recommendation": "invite_now" | "hold_for_market" | "request_follow_up" | "decline_for_now",
-  "confidence": 0.0,
-  "market_fit_score": 0,
-  "device_fit_score": 0,
-  "invite_readiness_score": 0,
-  "recommended_queue": "capturer_beta_review",
-  "next_action": "",
-  "rationale": "",
-  "market_summary": "",
-  "requires_human_review": false,
-  "draft_email": {
-    "subject": "",
-    "body": ""
-  }
-}`;
+      payload: input,
+    });
   },
 };
