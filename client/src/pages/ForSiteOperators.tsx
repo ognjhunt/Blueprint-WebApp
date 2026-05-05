@@ -95,7 +95,7 @@ export default function ForSiteOperators() {
           <EditorialSectionIntro
             eyebrow="Operator value"
             title="What operators get."
-            description="The point is to make the control layer product-visible without turning it into a legal page."
+            description="The point is to make site control easy to see without turning the page into legal fine print."
             className="max-w-3xl"
           />
           <div className="mt-8 grid gap-4 lg:grid-cols-3">
@@ -146,7 +146,7 @@ export default function ForSiteOperators() {
               <EditorialSectionIntro
 	                eyebrow="Eligibility"
 	                title="What kinds of spaces fit."
-	                description="The governance layer works for real indoor facilities, not just one narrow template."
+	                description="The operator path works for real indoor facilities, not just one narrow template."
 	              />
               <div className="mt-8 flex flex-wrap gap-2">
                 {facilityTypes.map((item) => (

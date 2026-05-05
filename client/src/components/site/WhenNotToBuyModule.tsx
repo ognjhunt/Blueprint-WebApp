@@ -6,7 +6,7 @@ interface WhenNotToBuyModuleProps {
 const reasons = [
   {
     title: "You do not have a target facility yet",
-    body: "Exact-site work is strongest when one real site and one workflow lane already matter. If the question is still broad, generic sim or earlier discovery is usually cheaper first.",
+    body: "Exact-site work is strongest when one real site and one workflow already matter. If the question is still broad, generic sim or earlier discovery is usually cheaper first.",
   },
   {
     title: "You only need broad pretraining",

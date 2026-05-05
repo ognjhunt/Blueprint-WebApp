@@ -413,7 +413,7 @@ export default function PilotExchangeGuide() {
                 </div>
                 <div className="border border-zinc-200 rounded-lg p-4 bg-white">
                   <p className="text-xs font-bold uppercase tracking-widest text-zinc-400 mb-2">Mode 3</p>
-                  <h4 className="font-semibold text-zinc-900 mb-2">Runtime Conditioning</h4>
+                  <h4 className="font-semibold text-zinc-900 mb-2">Scene-Context Conditioning</h4>
                   <p className="text-sm text-zinc-600">Emerging approach where a model receives scene context at inference time instead of only in weights.</p>
                 </div>
               </div>
@@ -474,7 +474,7 @@ export default function PilotExchangeGuide() {
           <section className="mb-20 rounded-3xl border border-zinc-200 bg-zinc-50 p-5 sm:mb-24 sm:p-10">
             <div className="max-w-2xl mb-10">
               <h2 className="text-3xl font-bold text-zinc-900 mb-3">Industry Insights</h2>
-              <p className="text-zinc-600">Pre-qualification guidance based on aggregated network data. (Illustrative metrics).</p>
+              <p className="text-zinc-600">Pre-qualification guidance based on aggregated network data. Sample metrics.</p>
             </div>
 
             <div className="grid lg:grid-cols-2 gap-8 mb-8">

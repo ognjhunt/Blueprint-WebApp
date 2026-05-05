@@ -85,7 +85,7 @@ export function LaunchCityAvailability({
             <span className="font-semibold">
               {loading ? "Checking current launch cities..." : `Currently supported: ${supportedCitySummary}.`}
             </span>{" "}
-            Only approved launch cities open capture access and public capture cards. Nearby places can enter review for future launch, but they do not show as open until the city-launch org approves them.
+            Only approved launch cities open capture access and public capture cards. Nearby places can enter review for future launch, but they do not show as open until Blueprint approves them.
           </div>
         </div>
 

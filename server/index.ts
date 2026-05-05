@@ -33,6 +33,26 @@ if (firehoseConfig) {
 const app = express();
 const isProduction = process.env.NODE_ENV === "production";
 
+const noIndexPathPatterns = [
+  /^\/admin(?:\/|$)/,
+  /^\/dashboard(?:\/|$)/,
+  /^\/onboarding(?:\/|$)/,
+  /^\/settings(?:\/|$)/,
+  /^\/requests(?:\/|$)/,
+  /^\/portal(?:\/|$)/,
+  /^\/sign-in(?:\/|$)/,
+  /^\/login(?:\/|$)/,
+  /^\/forgot-password(?:\/|$)/,
+  /^\/signup(?:\/|$)/,
+  /^\/off-waitlist-signup(?:\/|$)/,
+  /^\/capture-app\/?$/,
+  /^\/world-models\/[^/]+\/(?:start|workspace)(?:\/|$)/,
+];
+
+function shouldNoIndexPath(pathname: string) {
+  return noIndexPathPatterns.some((pattern) => pattern.test(pathname));
+}
+
 function captureRawBody(req: Request & { rawBody?: string }, _res: Response, buf: Buffer) {
   if (buf.length > 0) {
     req.rawBody = buf.toString("utf8");
@@ -188,6 +208,9 @@ app.use((req, res, next) => {
   );
   if (isProduction) {
     res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  }
+  if (shouldNoIndexPath(req.path)) {
+    res.setHeader("X-Robots-Tag", "noindex, nofollow");
   }
   next();
 });
@@ -391,21 +414,33 @@ app.use((req, res, next) => {
     return res.sendStatus(404);
   });
 
-  const legacyPublicRedirects = [
-    ["/pilot-exchange", "/world-models"],
-    ["/pilot-exchange-guide", "/world-models"],
-    ["/qualified-opportunities", "/world-models"],
-    ["/qualified-opportunities-guide", "/world-models"],
-    ["/readiness-pack", "/how-it-works"],
-    ["/quality-standard", "/how-it-works"],
-    ["/for-robot-integrators", "/for-robot-teams"],
-  ] as const;
+  const legacyPublicRedirects: Array<{
+    from: string;
+    to: string | ((req: Request) => string);
+  }> = [
+    { from: "/pilot-exchange", to: "/world-models" },
+    { from: "/pilot-exchange-guide", to: "/world-models" },
+    { from: "/qualified-opportunities", to: "/world-models" },
+    { from: "/qualified-opportunities-guide", to: "/world-models" },
+    { from: "/readiness-pack", to: "/how-it-works" },
+    { from: "/quality-standard", to: "/how-it-works" },
+    { from: "/for-robot-integrators", to: "/for-robot-teams" },
+    { from: "/solutions", to: "/for-robot-teams" },
+    { from: "/docs", to: "/sample-deliverables" },
+    { from: "/partners", to: "/contact" },
+    { from: "/environments", to: "/world-models" },
+    { from: "/site-worlds", to: "/world-models" },
+    { from: "/site-worlds/:slug", to: (req) => `/world-models/${req.params.slug}` },
+    { from: "/site-worlds/:slug/start", to: (req) => `/world-models/${req.params.slug}/start` },
+    { from: "/site-worlds/:slug/workspace", to: (req) => `/world-models/${req.params.slug}/workspace` },
+  ];
 
-  legacyPublicRedirects.forEach(([from, to]) => {
+  legacyPublicRedirects.forEach(({ from, to }) => {
     app.get([from, `${from}/`], (req, res) => {
       const queryStart = req.originalUrl.indexOf("?");
       const query = queryStart >= 0 ? req.originalUrl.slice(queryStart) : "";
-      return res.redirect(301, `${to}${query}`);
+      const target = typeof to === "function" ? to(req) : to;
+      return res.redirect(301, `${target}${query}`);
     });
   });
 

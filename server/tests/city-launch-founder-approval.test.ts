@@ -1,10 +1,17 @@
 // @vitest-environment node
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+const getHumanBlockerThread = vi.hoisted(() => vi.fn());
+
+vi.mock("../utils/human-reply-store", () => ({
+  getHumanBlockerThread,
+}));
 
 import {
   buildCityLaunchFounderApprovalPacket,
   getCityLaunchFounderApprovalBlockerId,
   isCityLaunchFounderApprovalResolved,
+  resolveCityLaunchFounderApprovalFromDurableState,
 } from "../utils/cityLaunchFounderApproval";
 
 describe("city launch founder approval helpers", () => {
@@ -67,5 +74,29 @@ describe("city launch founder approval helpers", () => {
     expect(packet.resumeAction?.kind).toBe("city_launch_activate");
     expect(packet.executionOwner).toBe("city-launch-agent");
     expect(packet.evidence.length).toBeGreaterThan(0);
+    expect(packet.exactResponseNeeded).toContain("Reply APPROVE");
+    expect(packet.whyBlocked).toContain("founder-gated");
+  });
+
+  it("does not infer founder approval when no durable approval thread exists", async () => {
+    getHumanBlockerThread.mockResolvedValue(null);
+
+    const result = await resolveCityLaunchFounderApprovalFromDurableState({
+      city: "San Jose, CA",
+      budgetPolicy: {
+        tier: "zero_budget",
+        label: "Zero Budget",
+        maxTotalApprovedUsd: 0,
+        operatorAutoApproveUsd: 0,
+        allowPaidAcquisition: false,
+        allowReferralRewards: false,
+        allowTravelReimbursement: false,
+        founderApprovalRequiredAboveUsd: 0,
+        founderApprovalTriggers: [],
+        operatorLane: "growth-lead",
+      },
+    });
+
+    expect(result.founderApproved).toBe(false);
   });
 });

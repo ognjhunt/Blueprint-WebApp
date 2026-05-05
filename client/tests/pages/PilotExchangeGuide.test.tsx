@@ -51,7 +51,7 @@ describe("PilotExchangeGuide", () => {
     expect(screen.getByText(/Why Pilots Fail \(Attribution\)/i)).toBeInTheDocument();
     expect(screen.getByText(/Who Pays for What\?/i)).toBeInTheDocument();
 
-    expect(screen.getByText(/Illustrative metrics/i)).toBeInTheDocument();
+    expect(screen.getByText(/Sample metrics/i)).toBeInTheDocument();
     expect(analyticsEventsMock.pilotExchangeView).toHaveBeenCalledTimes(1);
     expect(analyticsEventsMock.pilotExchangeChartView).toHaveBeenCalledTimes(4);
   });

@@ -2,6 +2,7 @@ import { promises as fs } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { slugifyCityName } from "./cityLaunchProfiles";
+import { validateCityLaunchPlaybookMarkdown } from "./cityLaunchPlanningHarness";
 
 const REPO_ROOT = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -43,13 +44,10 @@ async function fileExists(filePath: string) {
   }
 }
 
-async function fileHasStructuredAppendix(filePath: string) {
+async function fileHasValidPlaybook(filePath: string, city: string) {
   try {
     const content = await fs.readFile(filePath, "utf8");
-    return (
-      /^##\s+Machine-readable activation payload\s*$/im.test(content)
-      && /^##\s+Structured launch data appendix\s*$/im.test(content)
-    );
+    return validateCityLaunchPlaybookMarkdown({ city, markdown: content }).ok;
   } catch {
     return false;
   }
@@ -115,7 +113,7 @@ async function resolveLatestArtifactPath(runDirectory: string | null) {
   return null;
 }
 
-async function resolveLatestCompletedArtifactPath(cityReportsRoot: string) {
+async function resolveLatestCompletedArtifactPath(cityReportsRoot: string, city: string) {
   if (!(await fileExists(cityReportsRoot))) {
     return null;
   }
@@ -156,10 +154,7 @@ async function resolveLatestCompletedArtifactPath(cityReportsRoot: string) {
       if (!(await fileExists(candidatePath))) {
         continue;
       }
-      if (
-        candidate === "01-initial-research.md"
-        && !(await fileHasStructuredAppendix(candidatePath))
-      ) {
+      if (!(await fileHasValidPlaybook(candidatePath, city))) {
         continue;
       }
       return candidatePath;
@@ -188,18 +183,25 @@ export async function resolveCityLaunchPlanningState(input: {
     ? path.join(latestRun.runDirectory, "manifest.json")
     : null;
   const canonicalExists = await fileExists(canonicalPlaybookPath);
-  const latestCompletedArtifactPath = await resolveLatestCompletedArtifactPath(cityReportsRoot);
+  const canonicalValid = canonicalExists
+    ? await fileHasValidPlaybook(canonicalPlaybookPath, city)
+    : false;
+  const latestCompletedArtifactPath = await resolveLatestCompletedArtifactPath(cityReportsRoot, city);
 
   let status: CityLaunchPlanningStateStatus = "not_started";
   let completedArtifactPath: string | null = null;
   const warnings: string[] = [];
 
-  if (canonicalExists) {
+  if (canonicalExists && canonicalValid) {
     completedArtifactPath = canonicalPlaybookPath;
     status = "completed";
   } else if (latestCompletedArtifactPath) {
     completedArtifactPath = latestCompletedArtifactPath;
     status = "completed";
+  }
+
+  if (canonicalExists && !canonicalValid) {
+    warnings.push("Canonical city-launch playbook exists but fails the current machine-readable validation contract.");
   }
 
   const hasPartialRun = Boolean(

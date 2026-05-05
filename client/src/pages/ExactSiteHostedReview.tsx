@@ -16,6 +16,7 @@ import {
 import { analyticsEvents } from "@/lib/analytics";
 import { publicCaptureGeneratedAssets } from "@/lib/publicCaptureGeneratedAssets";
 import { hostedFilmstripFrames } from "@/lib/siteEditorialContent";
+import { breadcrumbJsonLd, productJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 import { ArrowRight, MapPinned, ShieldCheck, Smartphone, UsersRound } from "lucide-react";
 import { useEffect } from "react";
 
@@ -37,7 +38,7 @@ const trustCards = [
 const reviewSteps = [
   {
     title: "Scope",
-    body: "Pick one listing or facility, one workflow lane, and the robot setup or policy question that matters.",
+    body: "Pick one listing or facility, one workflow, and the robot setup or policy question that matters.",
   },
   {
     title: "Run",
@@ -65,8 +66,34 @@ export default function ExactSiteHostedReview() {
     <>
       <SEO
         title="Exact-Site Hosted Review | Blueprint"
-        description="Blueprint's hosted review path for one exact site: a capture-backed managed run with review evidence, export framing, and a clear next step."
+        description="Hosted robot evaluation for one exact-site world model: a capture-backed managed run with review evidence, export scope, and a clear next step."
         canonical="/exact-site-hosted-review"
+        type="product"
+        jsonLd={[
+          webPageJsonLd({
+            path: "/exact-site-hosted-review",
+            name: "Exact-Site Hosted Review",
+            description:
+              "Hosted robot evaluation for one exact-site world model, with capture-backed review evidence, export scope, and explicit limits.",
+          }),
+          breadcrumbJsonLd([
+            { name: "Home", path: "/" },
+            { name: "Exact-Site Hosted Review", path: "/exact-site-hosted-review" },
+          ]),
+          productJsonLd({
+            path: "/exact-site-hosted-review",
+            name: "Exact-Site Hosted Review",
+            description:
+              "A Blueprint-managed hosted evaluation path for one real site, one workflow, and one robot-team decision.",
+            image: publicCaptureGeneratedAssets.hostedReviewPublicRoute,
+            category: "Hosted robot evaluation",
+            properties: [
+              { name: "Capture basis", value: "Real-site capture with provenance metadata" },
+              { name: "Output", value: "Review summary, run evidence, export scope, and next-step recommendation" },
+              { name: "Boundary", value: "Not a deployment guarantee" },
+            ],
+          }),
+        ]}
       />
 
       <div className="bg-[#f5f3ef] text-slate-950">
@@ -92,7 +119,7 @@ export default function ExactSiteHostedReview() {
                 <div className="mt-8 flex flex-wrap gap-2">
                   <ProofChip light>Request-gated access</ProofChip>
                   <ProofChip light>Review runs</ProofChip>
-                  <ProofChip light>Export artifacts</ProofChip>
+                  <ProofChip light>Export scope</ProofChip>
                 </div>
                 <div className="mt-8 flex flex-wrap gap-3">
                   <a
@@ -103,10 +130,10 @@ export default function ExactSiteHostedReview() {
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </a>
                   <a
-	                    href="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=request-capture&source=hosted-review"
+	                    href="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=hosted-review"
                     className="inline-flex items-center justify-center border border-white/[0.16] px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/[0.08]"
                   >
-	                    Request capture
+	                    Request hosted review
                   </a>
                 </div>
               </div>
@@ -190,7 +217,7 @@ export default function ExactSiteHostedReview() {
                     {
                       icon: UsersRound,
                       label: "Buyer room",
-                      body: "Robot teams inspect run evidence, limits, and export shape before committing.",
+                      body: "Robot teams inspect run evidence, limits, and export scope before committing.",
                     },
                   ].map((item) => {
                     const Icon = item.icon;
@@ -206,7 +233,7 @@ export default function ExactSiteHostedReview() {
                 <div className="border border-black/10 bg-slate-950 p-5 text-white">
                   <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-white/45">
                     <MapPinned className="h-4 w-4" />
-                    Public-capture story set
+                    Capture example set
                   </div>
                   <div className="mt-4 grid gap-2 md:grid-cols-2">
                     {publicCaptureProofStories.map((story) => (
@@ -295,7 +322,7 @@ export default function ExactSiteHostedReview() {
                 <EditorialSectionIntro
                   eyebrow="Commercial shape"
                   title="Hosted review sits between listing and commitment."
-                  description="It is the managed review room for one site, not a generic benchmark console."
+                  description="It is the managed review path for one site, not a generic benchmark console."
                 />
                   <div className="mt-8 space-y-3 text-sm leading-7 text-slate-700">
                     <div>1. Pick the site and workflow.</div>
@@ -304,7 +331,7 @@ export default function ExactSiteHostedReview() {
                     <div>4. Decide what to do next with the proof still attached.</div>
                   </div>
                   <div className="mt-8 border border-black/10 bg-white p-5">
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Standard output shape</p>
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">What you receive</p>
                     <div className="mt-4 space-y-3 text-sm leading-6 text-slate-700">
                       {hostedOutputs.map((item) => (
                         <div key={item}>{item}</div>
@@ -342,14 +369,14 @@ export default function ExactSiteHostedReview() {
         <section className="mx-auto max-w-[88rem] px-5 pb-12 sm:px-8 lg:px-10 lg:pb-14">
           <EditorialCtaBand
             eyebrow="Next step"
-            title="Open the hosted path only after the site feels real."
+            title="Open hosted review when the site is clear."
             description="Hosted evaluation is the clearest way to choose the right world model before package access or a broader program."
             imageSrc={publicCaptureGeneratedAssets.hostedReviewPublicRoute}
             imageAlt="Hosted review hero"
             primaryHref="/sample-evaluation"
             primaryLabel="Inspect sample review"
-            secondaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=request-capture&source=hosted-review-bottom"
-            secondaryLabel="Request capture"
+            secondaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=hosted-review-bottom"
+            secondaryLabel="Request hosted review"
           />
         </section>
       </div>

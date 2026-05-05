@@ -51,7 +51,7 @@ const artifactPreviews = [
     title: "Export bundle",
     label: "JSON sample",
     href: "/samples/sample-export-bundle.json",
-    body: "A compact example of the run summary, artifact list, and notes a robot team can inspect after hosted review.",
+    body: "A compact example of the run summary, file list, and notes a robot team can inspect after hosted review.",
     icon: PackageOpen,
     action: "Download sample export bundle",
   },
@@ -108,7 +108,7 @@ const inlinePreviews = [
   {
     title: "Hosted report preview",
     body: [
-      ["scope", "One exact site, one robot profile, one workflow lane"],
+      ["scope", "One exact site, one robot profile, one workflow"],
       ["runs", "Baseline, occlusion, approach, restricted-zone review"],
       ["output", "Observation notes and next-step recommendation"],
       ["limit", "Not a deployment guarantee"],
@@ -121,7 +121,7 @@ export default function SampleDeliverables() {
     <>
       <SEO
         title="Deliverables | Blueprint"
-        description="See the sample contracts, exports, and package-vs-hosted deliverables tied to one exact-site Blueprint listing."
+        description="See sample manifests, exports, rights sheets, and package-vs-hosted deliverables tied to one exact-site Blueprint listing."
         canonical="/sample-deliverables"
       />
 
@@ -143,7 +143,7 @@ export default function SampleDeliverables() {
                   Sample deliverables from one real site.
                 </h1>
                 <p className="mt-6 text-base leading-8 text-slate-700">
-                  The point is to make the manifest, rights sheet, and package-versus-hosted output shape obvious before the buyer conversation starts.
+                  See the manifest, rights sheet, package files, and hosted-review report before the buyer conversation starts.
                 </p>
                 </div>
               </div>
@@ -153,8 +153,8 @@ export default function SampleDeliverables() {
 
         <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
           <EditorialSectionIntro
-            eyebrow="Contracts"
-            title="See the sample contract before the call."
+            eyebrow="Files"
+            title="See the sample files before the call."
             description="These public samples show the files your team would review without presenting them as customer results."
             className="max-w-3xl"
           />
@@ -277,7 +277,7 @@ export default function SampleDeliverables() {
                       <Icon className="h-5 w-5" />
                     </div>
                     <p className={`mt-5 text-[11px] uppercase tracking-[0.18em] ${dark ? "text-white/45" : "text-slate-400"}`}>
-                      Sample artifact · {artifact.label}
+                      Sample file · {artifact.label}
                     </p>
                     <h2 className="font-editorial mt-3 text-[2rem] leading-[0.95] tracking-[-0.04em]">
                       {artifact.title}

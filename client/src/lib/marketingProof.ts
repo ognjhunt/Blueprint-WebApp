@@ -16,8 +16,8 @@ export const publicProofAssets = [
     detail: "Inspect one captured site, the package path, and the hosted-review path from a single listing.",
   },
   {
-    title: "Runtime reference still",
-    label: "Runtime still",
+    title: "Hosted-review reference still",
+    label: "Hosted-review still",
     href: runtimeReferenceHref,
     detail: "A current still from the demo path so the page is anchored in actual capture media.",
   },
@@ -46,7 +46,7 @@ export const resultHighlights = [
   {
     title: "Real capture proof",
     outcome: "Real listing asset",
-    detail: "Walkthrough media, runtime stills, and listing evidence stay tied to the same site.",
+    detail: "Walkthrough media, hosted-review stills, and listing evidence stay tied to the same site.",
   },
   {
     title: "Hosted product preview",

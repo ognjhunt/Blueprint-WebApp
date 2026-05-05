@@ -1,6 +1,7 @@
 "use client";
 
 import { CreditCard, Mail, ShieldCheck, ShoppingBag, User } from "lucide-react";
+import { SEO } from "@/components/SEO";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   SurfaceBrowserFrame,
@@ -28,9 +29,16 @@ export default function SettingsPage() {
   const purchases = userData?.purchases || userData?.library || userData?.purchasedItems || [];
 
   return (
-    <SurfacePage>
-      <SurfaceTopBar eyebrow="Private Workspace" rightLabel="Invite Only" />
-      <SurfaceSection className="py-8">
+    <>
+      <SEO
+        title="Account Settings | Blueprint"
+        description="Private Blueprint account settings."
+        canonical="/settings"
+        noIndex
+      />
+      <SurfacePage>
+        <SurfaceTopBar eyebrow="Private Workspace" rightLabel="Invite Only" />
+        <SurfaceSection className="py-8">
         <SurfaceBrowserFrame>
           <div className="border-b border-black/10 px-7 py-6 lg:px-8">
             <SurfaceMiniLabel>Settings</SurfaceMiniLabel>
@@ -38,7 +46,7 @@ export default function SettingsPage() {
               Account overview
             </h1>
             <p className="mt-3 max-w-[38rem] text-base leading-8 text-black/60">
-              Private account surface for profile, sign-in details, billing methods, billing
+              Private account page for profile, sign-in details, billing methods, billing
               history, and purchased packages.
             </p>
           </div>
@@ -167,7 +175,8 @@ export default function SettingsPage() {
             </div>
           )}
         </SurfaceBrowserFrame>
-      </SurfaceSection>
-    </SurfacePage>
+        </SurfaceSection>
+      </SurfacePage>
+    </>
   );
 }

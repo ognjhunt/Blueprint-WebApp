@@ -16,6 +16,7 @@ import {
   CITY_LAUNCH_REQUIRED_SURFACE_KEYS,
   CITY_LAUNCH_REQUIRED_METRIC_DEPENDENCY_KEYS,
   CITY_LAUNCH_REQUIRED_PROOF_MOTION_MILESTONES,
+  CITY_LAUNCH_SURFACE_BLOCKER_BEHAVIOR_VALUES,
   CITY_LAUNCH_VALIDATION_BLOCKER_SEVERITY_VALUES,
   type CityLaunchAgentLane,
   type CityLaunchApprovalLane,
@@ -28,6 +29,7 @@ import {
   type CityLaunchRequiredMetricDependencyKey,
   type CityLaunchProofMotionMilestone,
   type CityLaunchRequiredSurfaceKey,
+  type CityLaunchSurfaceBlockerBehavior,
   type CityLaunchValidationBlockerSeverity,
 } from "./cityLaunchDoctrine";
 import type {
@@ -47,6 +49,7 @@ import {
   CITY_LAUNCH_TOUCH_STATUS_VALUES,
   CITY_LAUNCH_TOUCH_TYPE_VALUES,
 } from "./cityLaunchResearchContracts";
+import { isValidEmailAddress } from "./validation";
 
 export const CITY_LAUNCH_RESEARCH_SCHEMA_VERSION = "2026-04-12.city-launch-research.v1";
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
@@ -186,6 +189,7 @@ export type ParsedCityLaunchSurfaceCoverage = {
   evidenceStandard: string;
   completionGate: string;
   delegationTaskKey: string;
+  blockerBehavior: CityLaunchSurfaceBlockerBehavior;
   validationRequired: boolean;
   sourceUrls: string[];
 };
@@ -524,6 +528,64 @@ function validateFieldClassification(input: {
   }
 }
 
+function isPlaceholderEmailDomain(email: string) {
+  const domain = email.split("@")[1]?.trim().toLowerCase() || "";
+  return (
+    domain === "example.com"
+    || domain === "example.org"
+    || domain === "example.net"
+    || domain === "test.com"
+    || domain.endsWith(".example")
+    || domain.endsWith(".test")
+    || domain.endsWith(".invalid")
+    || domain.endsWith(".localhost")
+  );
+}
+
+function validateRecipientBackedContactEmail(input: {
+  contactEmail: string | null;
+  sourceKey: string;
+  explicitFields: string[];
+  sourceUrls: string[];
+  errors: string[];
+}) {
+  if (!input.contactEmail) {
+    return null;
+  }
+
+  const contactEmail = input.contactEmail.trim();
+  if (!isValidEmailAddress(contactEmail)) {
+    input.errors.push(`${input.sourceKey}.contact_email is not a valid email address.`);
+    return null;
+  }
+
+  if (isPlaceholderEmailDomain(contactEmail)) {
+    input.errors.push(
+      `${input.sourceKey}.contact_email uses a placeholder or non-deliverable email domain.`,
+    );
+    return null;
+  }
+
+  if (
+    !input.explicitFields.includes("contact_email")
+    && !input.explicitFields.includes("email")
+  ) {
+    input.errors.push(
+      `${input.sourceKey}.contact_email must be listed in explicit_fields before it can count as recipient-backed evidence.`,
+    );
+    return null;
+  }
+
+  if (input.sourceUrls.length === 0) {
+    input.errors.push(
+      `${input.sourceKey}.contact_email must include source_urls evidence before it can count as recipient-backed outreach.`,
+    );
+    return null;
+  }
+
+  return contactEmail;
+}
+
 function parseCaptureCandidates(
   citySlug: string,
   artifactPath: string,
@@ -546,6 +608,7 @@ function parseCaptureCandidates(
       const explicitFields = asStringArray(record.explicit_fields);
       const inferredFields = asStringArray(record.inferred_fields);
       const sourceKey = `capture_location_candidates[${index}]`;
+      const sourceUrls = asStringArray(record.source_urls);
       validateFieldClassification({
         sourceKey,
         explicitFields,
@@ -572,7 +635,13 @@ function parseCaptureCandidates(
       return {
         stableKey,
         name,
-        contactEmail: asOptionalString(record.contact_email || record.email),
+        contactEmail: validateRecipientBackedContactEmail({
+          contactEmail: asOptionalString(record.contact_email || record.email),
+          sourceKey,
+          explicitFields,
+          sourceUrls,
+          errors,
+        }),
         sourceBucket,
         channel,
         status,
@@ -583,13 +652,13 @@ function parseCaptureCandidates(
         siteCategory: asOptionalString(record.site_category),
         workflowFit: asOptionalString(record.workflow_fit),
         priorityNote: asOptionalString(record.priority_note || record.why_now),
-        sourceUrls: asStringArray(record.source_urls),
+        sourceUrls,
         explicitFields,
         inferredFields,
         provenance: buildProvenance({
           artifactPath,
           sourceKey,
-          sourceUrls: asStringArray(record.source_urls),
+          sourceUrls,
           explicitFields,
           inferredFields,
         }),
@@ -618,6 +687,7 @@ function parseBuyerTargets(
       const explicitFields = asStringArray(record.explicit_fields);
       const inferredFields = asStringArray(record.inferred_fields);
       const sourceKey = `buyer_target_candidates[${index}]`;
+      const sourceUrls = asStringArray(record.source_urls);
       validateFieldClassification({
         sourceKey,
         explicitFields,
@@ -659,19 +729,25 @@ function parseBuyerTargets(
         stableKey,
         companyName,
         contactName: asOptionalString(record.contact_name),
-        contactEmail: asOptionalString(record.contact_email || record.email),
+        contactEmail: validateRecipientBackedContactEmail({
+          contactEmail: asOptionalString(record.contact_email || record.email),
+          sourceKey,
+          explicitFields,
+          sourceUrls,
+          errors,
+        }),
         status,
         workflowFit: asOptionalString(record.workflow_fit),
         proofPath,
         notes: asOptionalString(record.notes || record.why_now),
         sourceBucket: asOptionalString(record.source_bucket),
-        sourceUrls: asStringArray(record.source_urls),
+        sourceUrls,
         explicitFields,
         inferredFields,
         provenance: buildProvenance({
           artifactPath,
           sourceKey,
-          sourceUrls: asStringArray(record.source_urls),
+          sourceUrls,
           explicitFields,
           inferredFields,
         }),
@@ -1168,8 +1244,8 @@ function parseActivationPayload(
     errors.push("activation_payload.named_claims must include at least one named claim.");
   }
 
-  const launchSurfaceCoverage = asArray(raw.launch_surface_coverage)
-    .map((entry, index) => {
+  const launchSurfaceCoverage: ParsedCityLaunchSurfaceCoverage[] = asArray(raw.launch_surface_coverage)
+    .map((entry, index): ParsedCityLaunchSurfaceCoverage | null => {
       const record = asRecord(entry);
       if (!record) {
         return null;
@@ -1195,12 +1271,18 @@ function parseActivationPayload(
         fieldName: "human_lane",
         sourceKey,
         errors,
-        allowNull: true,
       });
       const artifact = asString(record.artifact);
       const evidenceStandard = asString(record.evidence_standard);
       const completionGate = asString(record.completion_gate);
       const delegationTaskKey = asString(record.delegation_task_key);
+      const blockerBehavior = parseEnumValue({
+        value: record.blocker_behavior,
+        allowed: CITY_LAUNCH_SURFACE_BLOCKER_BEHAVIOR_VALUES,
+        fieldName: "blocker_behavior",
+        sourceKey,
+        errors,
+      });
       const validationRequired = asBoolean(record.validation_required);
       const sourceUrls = asStringArray(record.source_urls);
 
@@ -1235,10 +1317,12 @@ function parseActivationPayload(
       if (
         !surfaceKey
         || !ownerLane
+        || !humanLane
         || !artifact
         || !evidenceStandard
         || !completionGate
         || !delegationTaskKey
+        || !blockerBehavior
         || validationRequired === null
       ) {
         return null;
@@ -1252,11 +1336,12 @@ function parseActivationPayload(
         evidenceStandard,
         completionGate,
         delegationTaskKey,
+        blockerBehavior,
         validationRequired,
         sourceUrls,
       } satisfies ParsedCityLaunchSurfaceCoverage;
     })
-    .filter((entry): entry is ParsedCityLaunchSurfaceCoverage => Boolean(entry));
+    .filter((entry): entry is ParsedCityLaunchSurfaceCoverage => entry !== null);
 
   const issueSeeds = asArray(raw.issue_seeds)
     .map((entry, index) => {

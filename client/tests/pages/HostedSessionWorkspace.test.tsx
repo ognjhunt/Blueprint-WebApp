@@ -226,13 +226,13 @@ describe("HostedSessionWorkspace", () => {
   const findModeLabel = (label: string) =>
     screen.findByText((_, element) => element?.textContent === `Mode: ${label}`);
 
-  it("renders the interactive site-world viewer shell with explicit mode and artifact lanes", async () => {
+  it("renders the interactive site-world viewer shell with explicit modes and file paths", async () => {
     render(<HostedSessionWorkspace params={{ slug: "siteworld-f5fd54898cfb" }} />);
 
     expect(
       await screen.findByRole("heading", { name: /Control room for one exact-site world\./i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/A session ID is required before the live runtime/i)).toBeInTheDocument();
+    expect(screen.getByText(/A session ID is required before the hosted workspace/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Back to setup/i })).toHaveAttribute(
       "href",
       "/world-models/siteworld-f5fd54898cfb/start",
@@ -320,10 +320,10 @@ describe("HostedSessionWorkspace", () => {
     );
     expect(resetCallIndex).toBeGreaterThanOrEqual(0);
     expect(renderCallIndex).toBeGreaterThan(resetCallIndex);
-    await findModeLabel("Live Runtime");
+    await findModeLabel("Live Session");
   });
 
-  it("keeps Live Runtime as the default mode for runtime-only sessions after a live frame is fetched", async () => {
+  it("keeps Live Session as the default mode for runtime-only sessions after a live frame is fetched", async () => {
     mockSearch = "sessionId=session-live-flip";
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       if (String(input).includes("/api/site-worlds/sessions/session-live-flip/render?cameraId=head_rgb")) {
@@ -372,8 +372,8 @@ describe("HostedSessionWorkspace", () => {
         ),
       ).toBe(true);
     });
-    await findModeLabel("Live Runtime");
-    expect(await screen.findByText(/Buyer Success Handoff/i)).toBeInTheDocument();
+    await findModeLabel("Live Session");
+    expect(await screen.findByText(/Buyer Success Follow-Up/i)).toBeInTheDocument();
     expect(
       screen.getByText(/Post-delivery onboarding stays attached to this session\./i),
     ).toBeInTheDocument();
@@ -457,7 +457,7 @@ describe("HostedSessionWorkspace", () => {
     });
   });
 
-  it("defaults runtime-only sessions to Live Runtime and presentation demos to Explorer", () => {
+  it("defaults runtime-only sessions to Live Session and presentation demos to Explorer", () => {
     expect(defaultWorkspaceViewMode({ sessionMode: "runtime_only" })).toBe("live_runtime");
     expect(defaultWorkspaceViewMode({ sessionMode: "presentation_demo" })).toBe("presentation_world");
     expect(defaultWorkspaceViewMode({ sessionMode: null })).toBe("live_runtime");
@@ -487,7 +487,7 @@ describe("HostedSessionWorkspace", () => {
     ]);
     expect(checklist.find((item) => item.key === "access")?.status).toBe("complete");
     expect(checklist.find((item) => item.key === "evidence")?.href).toContain("/render?cameraId=head_rgb");
-    expect(checklist.find((item) => item.key === "exports")?.statusLabel).toBe("Artifact ready");
+    expect(checklist.find((item) => item.key === "exports")?.statusLabel).toBe("Export ready");
     expect(checklist.find((item) => item.key === "feedback")?.status).toBe("ready");
   });
 
@@ -546,7 +546,7 @@ describe("HostedSessionWorkspace", () => {
         ),
       ).toBe(true);
     });
-    await findModeLabel("Live Runtime");
+    await findModeLabel("Live Session");
 
     fireEvent.click(screen.getByRole("button", { name: /wrist/i }));
 
@@ -559,7 +559,7 @@ describe("HostedSessionWorkspace", () => {
     });
   });
 
-  it("shows an artifact-backed explorer when no private operator view is live", async () => {
+  it("shows a saved-file explorer when no private operator view is live", async () => {
     mockSearch = "sessionId=session-presentation";
     vi.stubGlobal(
       "fetch",
@@ -642,7 +642,7 @@ describe("HostedSessionWorkspace", () => {
       "href",
       expect.stringContaining("presentation_world_manifest.json"),
     );
-    expect(screen.getAllByRole("link", { name: /Open runtime demo manifest/i })[0]).toHaveAttribute(
+    expect(screen.getAllByRole("link", { name: /Open hosted-demo manifest/i })[0]).toHaveAttribute(
       "href",
       expect.stringContaining("runtime_demo_manifest.json"),
     );

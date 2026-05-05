@@ -61,7 +61,7 @@ const RUNTIME_ACTION_PRESETS = [
   {
     id: "auto-step",
     label: "Advance one step",
-    description: "Ask the runtime for the next action on the current policy binding.",
+    description: "Ask the hosted session for the next action on the current policy binding.",
     action: null as number[] | null,
     autoPolicy: true,
   },
@@ -158,7 +158,7 @@ const SCRIPTED_WALKTHROUGH = [
     action: [0.45, 0, 0, 0, 0, 0, 1],
   },
   {
-    label: "Inspect surfaces",
+    label: "Inspect site areas",
     action: [0, 0, -0.2, 0.12, 0, 0.06, 0],
   },
 ] as const;
@@ -491,22 +491,22 @@ export function buildBuyerSuccessChecklist(params: {
     },
     {
       key: "exports",
-      title: "Artifact handoff",
+      title: "Export files",
       body: exportHref
         ? "The review has a buyer-visible export, raw bundle, rollout video, or dataset manifest attached."
         : params.runtimeInteractive
-          ? "Exports are not attached yet. Generate or request the handoff before treating the session as delivered."
-          : "Exports depend on the active runtime or packaged artifacts for this session.",
+          ? "Exports are not attached yet. Generate or request them before treating the session as delivered."
+          : "Exports depend on the active hosted session or packaged files for this session.",
       status: exportHref ? "complete" : params.runtimeInteractive ? "ready" : "pending",
-      statusLabel: exportHref ? "Artifact ready" : params.runtimeInteractive ? "Ready to generate" : "Pending",
+      statusLabel: exportHref ? "Export ready" : params.runtimeInteractive ? "Ready to generate" : "Pending",
       href: exportHref,
-      actionLabel: exportHref ? "Open artifact" : null,
+      actionLabel: exportHref ? "Open export" : null,
     },
     {
       key: "feedback",
       title: "Feedback routed",
       body: params.runtimeDiagnostic
-        ? "A runtime diagnostic is present. Buyer-success should route the blocker with the diagnostic attached."
+        ? "A hosted-session diagnostic is present. Buyer-success should route the blocker with the diagnostic attached."
         : "Capture the buyer's blocker, missing output, or next exact-site question while the session context is still fresh.",
       status: params.runtimeDiagnostic ? "attention" : "ready",
       statusLabel: params.runtimeDiagnostic ? "Diagnostic present" : "Ready for check-in",
@@ -525,12 +525,12 @@ const BUYER_SUCCESS_CADENCE = [
   {
     label: "Day 3",
     title: "First run",
-    body: "Did they review or run a session against the exact workflow lane?",
+    body: "Did they review or run a session against the exact workflow?",
   },
   {
     label: "Day 10",
     title: "Blockers",
-    body: "Are exports, runtime behavior, rights, or quality concerns blocking use?",
+    body: "Are exports, hosted behavior, rights, or quality concerns blocking use?",
   },
   {
     label: "Day 21",
@@ -761,7 +761,11 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
       return;
     }
     setRuntimeBusyLabel((current) =>
-      current === "Resetting runtime" || current === "Applying action" ? "" : current,
+      current === "Resetting hosted session" ||
+      current === "Resetting hosted session and fetching the first frame" ||
+      current === "Applying action"
+        ? ""
+        : current,
     );
   }, [sessionRecord?.activeOperation?.label, sessionRecord?.activeOperation?.status, sessionRecord?.activeOperation?.updatedAt]);
 
@@ -947,7 +951,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
         dim: 0,
         labels: [],
       },
-      actionSpaceSummary: "Runtime contract unavailable.",
+      actionSpaceSummary: "Hosted-session contract unavailable.",
     };
   const requestedOutputs =
     sessionRecord?.requestedOutputs ||
@@ -1139,15 +1143,15 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
   const presentationAvailabilityLabel = presentationInteractive
     ? "Private operator view live"
     : artifactExplorerReady
-      ? "Artifact-backed exploration ready"
+      ? "Saved-file exploration ready"
       : "Exploration assets unavailable";
   const runtimeModeState = runtimeDegraded
-    ? { label: "Live Runtime: Degraded", tone: "amber" as const }
+    ? { label: "Live Session: Degraded", tone: "amber" as const }
     : hasLiveVideoObservation || hasGenuineLiveObservation
-      ? { label: "Live Runtime: Live", tone: "emerald" as const }
+      ? { label: "Live Session: Live", tone: "emerald" as const }
       : runtimeDiagnostic
-        ? { label: "Live Runtime: Failed", tone: "rose" as const }
-        : { label: "Live Runtime: Ready", tone: "slate" as const };
+        ? { label: "Live Session: Failed", tone: "rose" as const }
+        : { label: "Live Session: Ready", tone: "slate" as const };
   const handleViewportImageLoad = (event: React.SyntheticEvent<HTMLImageElement>) => {
     const { naturalWidth, naturalHeight } = event.currentTarget;
     if (naturalWidth > 0 && naturalHeight > 0) {
@@ -1158,7 +1162,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
   const presentationModeState = presentationInteractive
     ? { label: "Explore Site-World: Operator view live", tone: "emerald" as const }
     : artifactExplorerReady
-      ? { label: "Explore Site-World: Artifact-backed", tone: "amber" as const }
+      ? { label: "Explore Site-World: Saved files ready", tone: "amber" as const }
       : { label: "Explore Site-World: Missing", tone: "rose" as const };
   const explorerFrameHref = explorerState?.explorerFrame?.framePath || "";
   const explorerSnapshotId = String(explorerState?.explorerFrame?.snapshotId || "").trim();
@@ -1277,7 +1281,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
           }
         : current,
     );
-    setControlError(diagnostic?.summary || fallback || "Runtime request failed");
+    setControlError(diagnostic?.summary || fallback || "Hosted-session request failed");
   };
 
   const applyEpisodeUpdate = (episode: HostedSessionRecord["latestEpisode"]) => {
@@ -1667,7 +1671,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
         const contentType = String(response.headers.get("content-type") || "").toLowerCase();
         if (!response.ok || contentType.includes("application/json")) {
           const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-          throw new Error(payload?.error || "Runtime media fetch failed");
+          throw new Error(payload?.error || "Hosted-session media fetch failed");
         }
         if (!contentType.startsWith("video/")) {
           return;
@@ -1693,7 +1697,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
       } catch (error) {
         if (!cancelled) {
           setLiveMediaStatus("media_failed");
-          setControlError(error instanceof Error ? error.message : "Runtime media fetch failed");
+          setControlError(error instanceof Error ? error.message : "Hosted-session media fetch failed");
         }
       }
     })();
@@ -1825,8 +1829,8 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
   const handleReset = async (options?: { silent?: boolean }) => {
     if (!sessionId || !runtimeInteractive) return false;
     const busyLabel = options?.silent
-      ? "Resetting runtime and fetching the first frame"
-      : "Resetting runtime";
+      ? "Resetting hosted session and fetching the first frame"
+      : "Resetting hosted session";
     setRuntimeBusyLabel(busyLabel);
     setControlError("");
     let keepBusyLabel = false;
@@ -2184,7 +2188,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
   if (!site) {
     return (
       <SurfacePage>
-        <SurfaceTopBar eyebrow="Hosted Session Workspace" rightLabel="Private Runtime" />
+        <SurfaceTopBar eyebrow="Hosted Session Workspace" rightLabel="Private Hosted Workspace" />
         <SurfaceSection className="py-8">
           <SurfaceBrowserFrame>
             <div className="grid min-h-[34rem] place-items-center bg-[#f8f4ec] p-8 text-center">
@@ -2211,22 +2215,23 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
           title={`Hosted Session | ${site.siteName} | Blueprint`}
           description={`Hosted session workspace for ${site.siteName}.`}
           canonical={`/world-models/${site.id}/workspace`}
+          noIndex
         />
 
         <SurfacePage tone="ink">
-          <SurfaceTopBar eyebrow="Hosted Session Workspace" rightLabel="Private Runtime" dark />
+          <SurfaceTopBar eyebrow="Hosted Session Workspace" rightLabel="Private Hosted Workspace" dark />
           <SurfaceSection className="py-8">
             <SurfaceBrowserFrame dark className="overflow-hidden border-white/10">
               <div className="grid xl:grid-cols-[0.68fr_0.32fr]">
                 <div className="relative min-h-[42rem] overflow-hidden bg-black text-white">
                   <img
                     src={privateGeneratedAssets.workspaceRuntimeWarehouse}
-                    alt={`${site.siteName} runtime workspace`}
+                    alt={`${site.siteName} hosted workspace`}
                     className="absolute inset-0 h-full w-full object-cover"
                   />
                   <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.4),rgba(0,0,0,0.14)_55%,rgba(0,0,0,0.35))]" />
                   <div className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between gap-3 border-b border-white/10 px-6 py-4 text-[11px] uppercase tracking-[0.22em] text-white/50">
-                    <span>Live runtime</span>
+                    <span>Live session</span>
                     <span>Presentation world</span>
                     <span>Diagnostics</span>
                   </div>
@@ -2239,7 +2244,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                       <p className="mt-5 text-sm leading-7 text-white/75">
                         This workspace opens after the hosted review setup creates a real session.
                         Until then, Blueprint keeps the exact-site scene, controls, and export rails
-                        attached to the setup path instead of inventing a fake runtime.
+                        attached to the setup path instead of pretending a live session exists.
                       </p>
                       <div className="mt-7 flex flex-wrap gap-3">
                         <a
@@ -2269,7 +2274,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                     <div className="rounded-[1.35rem] border border-white/10 bg-white/5 p-5">
                       <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/45">Why the workspace is empty</p>
                       <p className="mt-4 text-sm leading-7 text-white/70">
-                        A session ID is required before the live runtime, observation cameras,
+                        A session ID is required before the hosted workspace, observation cameras,
                         diagnostics, and export panels become active.
                       </p>
                     </div>
@@ -2296,6 +2301,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
         title={`Hosted Session | ${site.siteName} | Blueprint`}
         description={`Hosted session workspace for ${site.siteName}.`}
         canonical={`/world-models/${site.id}/workspace`}
+        noIndex
       />
 
       <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(15,23,42,0.06),_transparent_30%),linear-gradient(180deg,#f8fafc_0%,#eef2ff_100%)]">
@@ -2320,8 +2326,8 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                 Interactive Site-World Viewer
               </h1>
               <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-                One page for the grounded canonical site-world, the scene-memory conditioning package, the live robot
-                runtime, and the derived presentation world.
+                One page for the grounded site-world package, saved exploration view, live robot
+                session, and review outputs.
               </p>
               <p className="mt-3 text-lg font-semibold text-slate-900">{site.siteName}</p>
               <p className="mt-1 text-sm text-slate-500">{site.siteAddress}</p>
@@ -2337,10 +2343,10 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                 Active: {activeBackend || site.defaultRuntimeBackend}
               </div>
               <div className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700">
-                Runtime mode: {activeExecutionMode || "unknown"}
+                Hosted mode: {activeExecutionMode || "unknown"}
               </div>
               <div className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700">
-                Mode: {activeMode === "live_runtime" ? "Live Runtime" : "Explorer"}
+                Mode: {activeMode === "live_runtime" ? "Live Session" : "Explorer"}
               </div>
               <div className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700">
                 Elapsed: {formatElapsed(elapsedSeconds)}
@@ -2377,7 +2383,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
           ) : null}
 
           <DiagnosticPanel
-            title={runtimeDiagnostic?.source === "presentation_demo" ? "Presentation diagnostics" : "Runtime diagnostics"}
+            title={runtimeDiagnostic?.source === "presentation_demo" ? "Presentation diagnostics" : "Hosted-session diagnostics"}
             diagnostic={runtimeDiagnostic}
           />
 
@@ -2388,19 +2394,19 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Built World Model Demo</p>
                     <h2 className="mt-3 max-w-3xl text-3xl font-bold tracking-tight text-slate-950">
-                      The site-world is already built. This page now optimizes for dependable exploration first, live runtime second.
+                      The site-world is already built. Start with dependable exploration, then move into live controls when the session supports them.
                     </h2>
                     <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-                      `Explore Site-World` is the default customer-facing path when live runtime frames are unavailable.
-                      `Live Runtime` stays grounded in the real session outputs, and the private operator bridge only appears when
-                      a real internal operator UI is actually live.
+                      `Explore Site-World` is the default customer-facing path when live frames are unavailable.
+                      `Live Session` stays grounded in real session outputs, and the private operator bridge only appears when
+                      an internal operator UI is actually live.
                     </p>
                     <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                       <DetailPill label="Canonical Version" value={canonicalPackageVersion || "Unspecified"} />
                       <DetailPill label="Requested Backend" value={requestedBackend || "Unspecified"} />
                       <DetailPill label="Active Backend" value={activeBackend || "Unspecified"} />
-                      <DetailPill label="Runtime Mode" value={activeExecutionMode || "Unknown"} />
-                      <DetailPill label="Runtime Step" value={String(runtimeStepIndex)} />
+                      <DetailPill label="Hosted Mode" value={activeExecutionMode || "Unknown"} />
+                      <DetailPill label="Session Step" value={String(runtimeStepIndex)} />
                       <DetailPill label="Reward" value={latestEpisode?.reward != null ? String(latestEpisode.reward) : "0"} />
                       <DetailPill label="Exploration Mode" value={presentationAvailabilityLabel} />
                     </div>
@@ -2409,8 +2415,8 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                   <div className="grid gap-4">
                     <div className="grid gap-3 sm:grid-cols-2">
                       <ModeToggleButton
-                        title="Live Runtime"
-                        description="Robot-session controls, camera switching, first-frame bootstrapping, and runtime outputs."
+                        title="Live Session"
+                        description="Robot-session controls, camera switching, first-frame bootstrapping, and hosted outputs."
                         active={false}
                         onClick={() => {
                           setUserSelectedMode(true);
@@ -2419,7 +2425,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                       />
                       <ModeToggleButton
                         title="Explore Site-World"
-                        description="Artifact-backed exploration first, with a private operator bridge only when a live internal UI exists."
+                        description="Saved-file exploration first, with a private operator bridge only when a live internal UI exists."
                         active
                         onClick={() => {
                           setUserSelectedMode(true);
@@ -2431,9 +2437,9 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Demo Guarantees</p>
                       <ul className="mt-4 space-y-3 text-sm text-slate-300">
                         {[
-                          "Canonical site-world is the grounded source of truth.",
-                          "Scene-memory conditioning is related support data, not the canonical runtime binding.",
-                          "Runtime session outputs stay labeled as downstream observations and exports.",
+                          "The site-world package is the grounded source of truth.",
+                          "Saved exploration data supports the view without replacing the site package.",
+                          "Hosted-session outputs stay labeled as downstream observations and exports.",
                         ].map((item) => (
                           <li key={item} className="flex items-start gap-3">
                             <span className="mt-1 h-2.5 w-2.5 rounded-full bg-emerald-400" />
@@ -2448,10 +2454,10 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
 
               <section className="mt-6 grid gap-4 lg:grid-cols-3">
                 <article className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Canonical Site-World</p>
-                  <h3 className="mt-3 text-lg font-semibold text-slate-950">Grounded runtime binding</h3>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Grounded Site-World</p>
+                  <h3 className="mt-3 text-lg font-semibold text-slate-950">Grounded site package</h3>
                   <p className="mt-2 text-sm leading-6 text-slate-600">
-                    The grounded site-world package is the authoritative source the runtime is bound to for this session.
+                    The site-world package is the source this session is tied to.
                   </p>
                   <div className="mt-4 grid gap-3 sm:grid-cols-2">
                     <DetailPill label="Scene" value={site.sceneId} />
@@ -2476,18 +2482,17 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                     />
                   </div>
                   <div className="mt-4 flex flex-wrap gap-3">
-                    <MetadataLink href={canonicalPackageUri} label="View canonical package" />
-                    <MetadataLink href={siteWorldRegistrationUri} label="View runtime registration" />
+                    <MetadataLink href={canonicalPackageUri} label="View site package" />
+                    <MetadataLink href={siteWorldRegistrationUri} label="View hosted-session registration" />
                     <MetadataLink href={siteWorldHealthUri} label="View site-world health" />
                   </div>
                 </article>
 
                 <article className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Scene-Memory Conditioning Package</p>
-                  <h3 className="mt-3 text-lg font-semibold text-slate-950">Support artifacts for conditioning</h3>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Saved Exploration Data</p>
+                  <h3 className="mt-3 text-lg font-semibold text-slate-950">Support files for reconstruction</h3>
                   <p className="mt-2 text-sm leading-6 text-slate-600">
-                    These artifacts inform reconstruction and presentation, but they are not the same object as the canonical
-                    runtime package.
+                    These files inform reconstruction and presentation, but they are not the same thing as the site package.
                   </p>
                   <div className="mt-4 grid gap-3 sm:grid-cols-2">
                     <DetailPill label="Primary backend" value={sessionRecord?.siteModel?.defaultRuntimeBackend || site.defaultRuntimeBackend} />
@@ -2507,10 +2512,10 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                 </article>
 
                 <article className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Runtime Session Outputs</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Hosted Session Outputs</p>
                   <h3 className="mt-3 text-lg font-semibold text-slate-950">Downstream session products</h3>
                   <p className="mt-2 text-sm leading-6 text-slate-600">
-                    Observation frames, rollout media, exports, and batch summaries all come from the current runtime session.
+                    Observation frames, rollout media, exports, and batch summaries all come from the current hosted session.
                   </p>
                   <div className="mt-4 grid gap-3 sm:grid-cols-2">
                     <DetailPill label="Current step" value={String(runtimeStepIndex)} />
@@ -2557,19 +2562,19 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                 <section className="overflow-hidden rounded-[36px] border border-slate-200 bg-white/95 p-4 shadow-[0_24px_80px_rgba(15,23,42,0.12)] sm:p-5">
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">Live Runtime</p>
+                      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">Live Session</p>
                       <h2 className="mt-2 text-[clamp(2rem,3vw,3.6rem)] font-bold tracking-[-0.04em] text-slate-950">
                         World-first live exploration
                       </h2>
                       <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-                        The viewport is now the primary surface. Movement, orientation, and grasp actions stay attached to
+                        The viewport is now the main view. Movement, orientation, and grasp actions stay attached to
                         the live world instead of living inside a small preview box.
                       </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-3">
                       <ModeStateBadge label={runtimeModeState.label} tone={runtimeModeState.tone} />
                       <div className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700">
-                        {runtimeBusyLabel || (autoBootstrapState === "running" ? "Resetting runtime and fetching the first frame" : "Ready")}
+                        {runtimeBusyLabel || (autoBootstrapState === "running" ? "Resetting hosted session and fetching the first frame" : "Ready")}
                       </div>
                     </div>
                   </div>
@@ -2622,14 +2627,14 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                         <div className="absolute inset-0 flex flex-col bg-white/90">
                           <img
                             src={runtimeReferenceImageUrl || ""}
-                            alt="Validated runtime reference frame"
+                            alt="Validated hosted-session reference frame"
                             className={`h-full w-full flex-1 ${
                               liveViewportFrameMode === "portrait" ? "object-contain" : "object-cover"
                             }`}
                             onLoad={handleViewportImageLoad}
                           />
                           <div className="border-t border-amber-200 bg-amber-50 px-6 py-4 text-sm text-amber-950">
-                            Live stepping did not return a browser-visible frame. Showing the validated March 13 reference render while the current runtime path is unavailable.
+                            Live stepping did not return a browser-visible frame. Showing the validated March 13 reference render while the current hosted path is unavailable.
                           </div>
                         </div>
                       ) : (
@@ -2637,7 +2642,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                           <div className="max-w-lg rounded-[28px] border border-slate-200 bg-white/90 px-8 py-10 text-slate-900 backdrop-blur-sm">
                             <Camera className="mx-auto h-10 w-10 text-slate-400" />
                             <p className="mt-4 text-lg font-semibold">
-                              {runtimeInteractive ? "No browser-visible frame yet" : "Live runtime controls are unavailable in this session mode"}
+                              {runtimeInteractive ? "No browser-visible frame yet" : "Live session controls are unavailable in this session mode"}
                             </p>
                             <p className="mt-3 text-sm leading-6 text-slate-600">
                               {runtimeInteractive
@@ -2681,7 +2686,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                             <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">Movement</p>
                             <p className="mt-2 text-base font-semibold">Hold WASD or the arrow keys to steer the chunked rollout.</p>
                             <p className="mt-2 text-sm text-slate-600">
-                              Control updates stream continuously. Video chunks catch up as the runtime generates them and will report buffering or underrun explicitly if generation falls behind.
+                              Control updates stream continuously. Video chunks catch up as the hosted session generates them and will report buffering or underrun explicitly if generation falls behind.
                             </p>
                           </div>
                           <div className="pointer-events-auto grid grid-cols-3 gap-2">
@@ -2759,7 +2764,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                         <div className="flex items-center justify-between gap-3">
                           <div>
                             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Observation cameras</p>
-                            <p className="mt-1 text-xs text-slate-500">Swap camera feeds without leaving the runtime.</p>
+                            <p className="mt-1 text-xs text-slate-500">Swap camera feeds without leaving the session.</p>
                           </div>
                           <div className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
                             {selectedCameraId || "Auto"}
@@ -2796,7 +2801,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                           <p>Refinement status: {humanizeValue(effectiveRefinementStatus, "disabled")}</p>
                           <p>Media status: {humanizeValue(liveMediaStatus || rolloutStatus, "idle")}</p>
                           <p>Active chunk: {liveVideoChunkId || activeRolloutChunkId || "Pending"}</p>
-                          <p>Primary runtime backend: {humanizeValue(primaryRuntimeBackend, "unknown")}</p>
+                          <p>Primary hosted backend: {humanizeValue(primaryRuntimeBackend, "unknown")}</p>
                           <p>World-model backend: {humanizeValue(worldModelBackend, "unknown")}</p>
                           <p>Scene representation: {humanizeValue(sceneRepresentation, "unknown")}</p>
                           <p>Grounding status: {humanizeValue(groundingStatus, "unknown")}</p>
@@ -2834,7 +2839,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                             </p>
                           </div>
                           <div>
-                            <p className="text-sm font-medium text-slate-500">Runtime endpoint</p>
+                            <p className="text-sm font-medium text-slate-500">Hosted endpoint</p>
                             <p className="mt-1 break-all text-sm text-slate-900">
                               {String(sessionRecord?.runtimeHandle?.runtime_base_url || site.runtimeManifest?.runtimeBaseUrl || "Not connected")}
                             </p>
@@ -2855,10 +2860,10 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                         Video-grounded interactive explorer
                       </p>
                       <h2 className="mt-2 text-[clamp(2rem,3vw,3.6rem)] font-bold tracking-[-0.04em] text-slate-950">
-                        World-first artifact exploration
+                        Site-first exploration
                       </h2>
                       <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-                        The explorer uses the same large-viewport treatment as Live Runtime, but every frame is a grounded
+                        The explorer uses the same large-viewport treatment as Live Session, but every frame is a grounded
                         preview rendered from the current pose rather than a continuous live stream.
                       </p>
                     </div>
@@ -2921,7 +2926,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                             <p className="mt-4 text-lg font-semibold">Explorer frame unavailable</p>
                             <p className="mt-3 text-sm leading-6 text-slate-600">
                               The grounded explorer has not returned a browser-visible frame yet. If the site package lacks
-                              ARKit/depth inputs, the runtime will fall back to canonical imagery.
+                              ARKit/depth inputs, the hosted view will fall back to site package imagery.
                             </p>
                           </div>
                         </div>
@@ -3017,17 +3022,17 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                           Private Operator View
                         </p>
                         <p className="mt-4 text-lg font-semibold">
-                          {presentationInteractive ? "Internal runtime bridge is live" : artifactExplorer?.operatorView.label || "Internal bridge unavailable"}
+                          {presentationInteractive ? "Internal operator bridge is live" : artifactExplorer?.operatorView.label || "Internal bridge unavailable"}
                         </p>
                         <p className="mt-2 text-sm leading-6 text-slate-300">
                           {presentationInteractive
-                            ? "Use this only for internal movement and debugging. It is a real proxied operator UI, not the public product surface."
+                            ? "Use this only for internal movement and debugging. It is a real proxied operator UI, not the public product."
                             : artifactExplorer?.operatorView.description || "The operator bridge only appears when a stable internal UI URL is configured."}
                         </p>
                         <div className="mt-5 flex flex-wrap gap-3">
                           {openDemoUrl ? <MetadataLink href={openDemoUrl} label="Open private operator view" /> : null}
                           <MetadataLink href={presentationWorldManifestUri} label="Open presentation manifest" />
-                          <MetadataLink href={runtimeDemoManifestUri} label="Open runtime demo manifest" />
+                          <MetadataLink href={runtimeDemoManifestUri} label="Open hosted-demo manifest" />
                         </div>
                       </article>
                     </aside>
@@ -3055,7 +3060,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                     <div>
                       <p className="text-lg font-semibold text-slate-950">Grounded preview first, refinement second</p>
                       <p className="mt-2 text-sm leading-6 text-slate-600">
-                        The explorer frame is sourced from ARKit/video reprojection when available and only uses masked runtime refinement for uncertain or unseen regions.
+                        The explorer frame is sourced from ARKit/video reprojection when available and only uses masked refinement for uncertain or unseen regions.
                       </p>
                     </div>
                     <div className="grid gap-3 sm:grid-cols-2">
@@ -3110,11 +3115,11 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                       <div>
                         <p className="text-sm font-medium text-slate-500">Derived presentation caveat</p>
                         <p className="mt-1 text-sm text-slate-900">
-                          Runtime refinement is advisory and mask-limited. Protected regions stay grounded to canonical/site evidence.
+                          Hosted-view refinement is advisory and mask-limited. Protected regions stay grounded to site evidence.
                         </p>
                       </div>
                       <div className="flex flex-wrap gap-3">
-                        <MetadataLink href={canonicalPackageUri} label="View canonical package" />
+                        <MetadataLink href={canonicalPackageUri} label="View site package" />
                         <MetadataLink href={sceneMemoryManifestUri} label="View scene-memory manifest" />
                         <MetadataLink href={conditioningBundleUri} label="View conditioning bundle" />
                       </div>
@@ -3127,7 +3132,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                       Site-World Topology
                     </p>
                     <p className="mt-4 text-sm leading-6 text-slate-600">
-                      The topology graphic stays anchored to the same site record while the artifact viewer swaps the saved
+                      The topology graphic stays anchored to the same site record while the viewer swaps the saved
                       viewpoints. Use it as the stable map while moving through the saved outputs.
                     </p>
                     <div className="mt-4 rounded-3xl border border-slate-200 bg-slate-50 p-4">
@@ -3153,13 +3158,13 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                   <LifeBuoy className="h-5 w-5" />
                 </div>
                 <p className="mt-5 text-xs font-semibold uppercase tracking-[0.18em] text-white/45">
-                  Buyer Success Handoff
+                  Buyer Success Follow-Up
                 </p>
                 <h2 className="mt-3 max-w-xl text-2xl font-bold tracking-[-0.03em] text-white">
                   Post-delivery onboarding stays attached to this session.
                 </h2>
                 <p className="mt-3 max-w-xl text-sm leading-6 text-white/65">
-                  Use the active hosted-review state to confirm access, inspect evidence, hand off exports, and route blockers while the exact-site context is still present.
+                  Use the active hosted-review state to confirm access, inspect evidence, share exports, and route blockers while the exact-site context is still present.
                 </p>
                 <div className="mt-6 flex flex-wrap gap-3">
                   <a

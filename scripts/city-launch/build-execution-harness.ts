@@ -1,7 +1,10 @@
+import { promises as fs } from "node:fs";
 import path from "node:path";
 import { runCityLaunchExecutionHarness } from "../../server/utils/cityLaunchExecutionHarness";
 import { buildCityLaunchBudgetPolicy } from "../../server/utils/cityLaunchPolicy";
 import { summarizeCityLaunchAutonomyCertification } from "../../server/utils/cityLaunchAutonomyCertification";
+import { renderCityLaunchFounderApprovalArtifact } from "../../server/utils/cityLaunchFounderApproval";
+import { slugifyCityName } from "../../server/utils/cityLaunchProfiles";
 
 function hasFlag(args: string[], flag: string) {
   return args.includes(flag);
@@ -26,6 +29,10 @@ function getCommaSeparatedFlagValues(args: string[], flag: string) {
     .filter(Boolean);
 }
 
+function timestampForFile(date = new Date()) {
+  return date.toISOString().replaceAll(":", "-");
+}
+
 async function main() {
   const args = process.argv.slice(2);
   const city = getFlagValue(args, "--city") || "Austin, TX";
@@ -45,7 +52,7 @@ async function main() {
       ? Number(operatorAutoApproveUsdValue)
       : undefined,
   });
-  const founderApproved = hasFlag(args, "--founder-approved") || true;
+  const founderApproved = hasFlag(args, "--founder-approved");
 
   const reportsRoot =
     getFlagValue(args, "--reports-root")
@@ -53,6 +60,40 @@ async function main() {
       process.cwd(),
       "ops/paperclip/reports/city-launch-execution",
     );
+
+  if (!founderApproved) {
+    const citySlug = slugifyCityName(city);
+    const runDirectory = path.join(reportsRoot, citySlug, timestampForFile());
+    const founderDecisionPacketPath = path.join(runDirectory, "founder-decision-packet.md");
+    await fs.mkdir(runDirectory, { recursive: true });
+    await fs.writeFile(
+      founderDecisionPacketPath,
+      renderCityLaunchFounderApprovalArtifact({
+        city,
+        budgetPolicy,
+      }),
+      "utf8",
+    );
+
+    console.log(
+      JSON.stringify(
+        {
+          ok: true,
+          state: "awaiting_human_decision",
+          city,
+          budgetTier: budgetPolicy.tier,
+          stageReached: "founder_decision_packet_generated",
+          founderApproved: false,
+          founderDecisionPacketPath,
+          activationStarted: false,
+          nextAction: "Founder replies APPROVE, then rerun with --founder-approved.",
+        },
+        null,
+        2,
+      ),
+    );
+    return;
+  }
 
   const result = await runCityLaunchExecutionHarness({
     city,

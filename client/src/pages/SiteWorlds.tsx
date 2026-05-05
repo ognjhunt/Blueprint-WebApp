@@ -7,23 +7,27 @@ import {
   ProofChip,
   RouteTraceOverlay,
 } from "@/components/site/editorial";
+import { SiteWorldGraphic } from "@/components/site/SiteWorldGraphic";
 import { siteWorldCards } from "@/data/siteWorlds";
 import { publicDemoHref } from "@/lib/marketingProof";
 import { publicCaptureLocationTypes } from "@/lib/proofEvidence";
 import {
   getEditorialFeaturedSites,
-  getEditorialMoreSites,
-  getEditorialSiteImage,
   getEditorialSiteLocation,
 } from "@/lib/siteEditorialContent";
 import {
   getSiteWorldCatalogPriority,
+  getSiteWorldFreshnessSummary,
   getSiteWorldHostedAccessDisclosure,
+  getSiteWorldPackageAccessSummary,
   getSiteWorldPlainEnglishStatus,
+  getSiteWorldPublicProofSummary,
   getSiteWorldStatusBadges,
+  getSiteWorldVisualDisclosure,
   siteWorldStatusLegend,
 } from "@/lib/siteWorldCommercialStatus";
 import { fetchSiteWorldCatalog } from "@/lib/siteWorldsApi";
+import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 import { ArrowRight, Box, Camera, MapPinned, Route, Smartphone } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -46,40 +50,97 @@ function SiteCard({
 }) {
   const badges = getSiteWorldStatusBadges(site).slice(0, 3);
   const hostedDisclosure = getSiteWorldHostedAccessDisclosure(site);
+  const visualDisclosure = getSiteWorldVisualDisclosure(site);
+  const scenePackage = site.packages[0];
+  const proofSummary = getSiteWorldPublicProofSummary(site);
+  const freshnessSummary = getSiteWorldFreshnessSummary(site);
+  const packageSummary = getSiteWorldPackageAccessSummary(site);
+  const factRows = [
+    ["Proof", proofSummary],
+    ["Freshness", freshnessSummary],
+    ["Hosted", hostedDisclosure.label],
+  ];
 
   return (
-    <a
-      href={`/world-models/${site.id}`}
-      className={`group relative overflow-hidden rounded-[1.8rem] border border-black/10 bg-slate-950 shadow-[0_22px_60px_-44px_rgba(15,23,42,0.38)] ${
-        large ? "min-h-[21rem]" : "min-h-[15.5rem]"
+    <article
+      className={`group grid overflow-hidden border border-black/10 bg-white shadow-[0_22px_60px_-48px_rgba(15,23,42,0.38)] ${
+        large ? "lg:grid-cols-[0.46fr_0.54fr]" : ""
       }`}
     >
-      <MonochromeMedia
-        src={getEditorialSiteImage(site)}
-        alt={site.siteName}
-        className="h-full rounded-none"
-        imageClassName="h-full transition duration-700 group-hover:scale-[1.03]"
-        overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.04),rgba(0,0,0,0.82))]"
-      />
-      <div className="absolute inset-x-0 bottom-0 p-5">
-        <p className="text-[11px] uppercase tracking-[0.22em] text-white/60">
-          {getEditorialSiteLocation(site)}
-        </p>
-        <h3 className={`mt-2 font-medium tracking-tight text-white ${large ? "text-[2rem]" : "text-[1.6rem]"}`}>
-          {site.siteName}
-        </h3>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <ProofChip light className="border-white/20 bg-black/30 text-white/80">
+      <a
+        href={`/world-models/${site.id}`}
+        className="block bg-[#f5f3ef] p-3 transition group-hover:bg-[#efebe2]"
+        aria-label={`Inspect ${site.siteName}`}
+      >
+        <SiteWorldGraphic site={site} />
+      </a>
+      <div className="flex min-h-full flex-col p-5 sm:p-6">
+        <div className="flex flex-wrap items-center gap-2">
+          <ProofChip className="border-black/10 bg-[#f5f3ef] text-slate-700">
             Exact site
           </ProofChip>
-          {badges.map((badge) => (
-            <ProofChip key={badge.id} light className="border-white/20 bg-black/30 text-white/80">
-              {badge.id === "hosted_request_gated" ? hostedDisclosure.label : badge.label}
-            </ProofChip>
+          <ProofChip className="border-black/10 bg-[#f5f3ef] text-slate-700">
+            {visualDisclosure.label}
+          </ProofChip>
+        </div>
+        <p className="mt-5 text-[11px] uppercase tracking-[0.22em] text-slate-500">
+          {getEditorialSiteLocation(site)} / {site.industry}
+        </p>
+        <h3 className={`mt-2 font-medium tracking-tight text-slate-950 ${large ? "text-[2rem]" : "text-[1.6rem]"}`}>
+          <a href={`/world-models/${site.id}`} className="transition hover:text-slate-700">
+            {site.siteName}
+          </a>
+        </h3>
+        <p className="mt-3 text-sm leading-6 text-slate-700">{site.summary}</p>
+
+        <div className="mt-5 grid gap-px bg-black/10 sm:grid-cols-3">
+          {factRows.map(([label, value]) => (
+            <div key={label} className="min-h-[5rem] bg-[#f8f6f1] p-3">
+              <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">{label}</p>
+              <p className="mt-2 text-sm leading-5 text-slate-800">{value}</p>
+            </div>
           ))}
         </div>
+
+        <div className="mt-4 grid gap-2">
+          {badges.map((badge) => (
+            <div key={badge.id} className={`border px-3 py-2 text-xs leading-5 ${badge.tone}`}>
+              <span className="font-semibold">
+                {badge.id === "hosted_request_gated" ? hostedDisclosure.label : badge.label}
+              </span>
+              <span className="ml-1 opacity-80">{badge.summary}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-4 border-t border-black/10 pt-4 text-xs leading-5 text-slate-600">
+          <p>{visualDisclosure.summary}</p>
+          <p className="mt-2">{packageSummary}</p>
+        </div>
+
+        <div className="mt-auto flex flex-wrap gap-2 pt-5">
+          <a
+            href={`/world-models/${site.id}`}
+            className="inline-flex items-center justify-center bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+          >
+            Inspect listing
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </a>
+          <a
+            href={`/world-models/${site.id}/start`}
+            className="inline-flex items-center justify-center border border-black/10 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
+          >
+            Hosted setup
+          </a>
+          <a
+            href={scenePackage?.actionHref || "/contact?persona=robot-team"}
+            className="inline-flex items-center justify-center border border-black/10 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
+          >
+            Package access
+          </a>
+        </div>
       </div>
-    </a>
+    </article>
   );
 }
 
@@ -105,10 +166,7 @@ export default function SiteWorlds() {
   const sortedCatalog = useMemo(() => sortCatalog(catalog), [catalog]);
   const featuredSites = useMemo(() => getEditorialFeaturedSites(sortedCatalog, 4), [sortedCatalog]);
   const heroSite = featuredSites[0] || sortedCatalog[0];
-const moreSites = useMemo(
-    () => getEditorialMoreSites(sortedCatalog, 5, featuredSites.map((site) => site.id)),
-    [featuredSites, sortedCatalog],
-  );
+  const catalogSites = sortedCatalog;
 
   const heroImageSrc = "/generated/editorial/world-models-hero.png";
 
@@ -123,11 +181,11 @@ const moreSites = useMemo(
         detail: "Every listing keeps the package path and the hosted-evaluation request path legible.",
       },
       {
-        label: "Proof posture",
+        label: "Proof shown",
         detail: "Public proof depth and commercial status stay attached to each exact-site card.",
       },
       {
-        label: "Trust boundary",
+        label: "Access limits",
         detail: "Rights, freshness, and hosted-access limits remain visible instead of implied.",
       },
     ],
@@ -142,8 +200,20 @@ const moreSites = useMemo(
     <>
       <SEO
         title="World Models | Blueprint"
-        description="Browse exact-site world models built from real capture, with clear paths into site packages or hosted evaluation."
+        description="Browse capture-backed exact-site world models for robotics teams, with clear paths into site packages, hosted evaluation, and provenance review."
         canonical="/world-models"
+        jsonLd={[
+          webPageJsonLd({
+            path: "/world-models",
+            name: "Blueprint World Models",
+            description:
+              "A catalog of capture-backed exact-site world models for robotics teams, site packages, hosted evaluation, and provenance review.",
+          }),
+          breadcrumbJsonLd([
+            { name: "Home", path: "/" },
+            { name: "World Models", path: "/world-models" },
+          ]),
+        ]}
       />
 
       <div className="bg-[#f5f3ef] text-slate-950">
@@ -201,9 +271,9 @@ const moreSites = useMemo(
         <section className="border-y border-black/10 bg-white">
           <div className="mx-auto grid max-w-[88rem] gap-6 px-5 py-10 sm:px-8 lg:grid-cols-[0.34fr_0.66fr] lg:px-10 lg:py-12">
             <EditorialSectionIntro
-              eyebrow="Status legend"
-              title="Know what is visible now."
-              description="Every listing keeps public proof, request gates, package access, and hosted availability separate so broad catalog coverage does not pretend every page has the same proof depth."
+	              eyebrow="Status legend"
+	              title="Know what is visible now."
+	              description="Every listing keeps public proof, request gates, package access, and hosted availability separate so broad catalog coverage does not pretend every site has the same proof depth."
             />
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {siteWorldStatusLegend.map((item) => (
@@ -220,15 +290,15 @@ const moreSites = useMemo(
           <div className="mx-auto grid max-w-[88rem] gap-px px-5 py-10 sm:px-8 lg:grid-cols-[0.36fr_0.64fr] lg:px-10 lg:py-12">
             <div className="bg-[#f5f3ef] p-6 lg:p-8">
               <EditorialSectionIntro
-                eyebrow="Capture app supply"
-                title="Most future worlds start as public-facing captures."
-                description="The catalog should not feel warehouse-only. Blueprint can source proof from grocery stores, retail floors, lobbies, malls, museums, and other everyday locations when the capturer stays inside public-facing areas and review rules."
+                eyebrow="Capture app"
+                title="More sites can start with public-facing capture."
+                description="The catalog is not warehouse-only. Blueprint can source proof from grocery stores, retail floors, lobbies, malls, museums, and other everyday locations when the capturer stays inside public-facing areas and review rules."
               />
               <a
-                href="/capture-app"
+                href="/capture"
                 className="mt-7 inline-flex items-center justify-center bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
               >
-                Open capture app
+                See capture rules
                 <Smartphone className="ml-2 h-4 w-4" />
               </a>
             </div>
@@ -263,7 +333,7 @@ const moreSites = useMemo(
                   {
                     icon: Camera,
                     title: "Photoreal textures",
-                    body: "Capture-backed imagery and runtime stills instead of generic synthetic polish.",
+                    body: "Capture-backed imagery and hosted-review stills instead of generic synthetic polish.",
                   },
                   {
                     icon: Route,
@@ -290,7 +360,7 @@ const moreSites = useMemo(
             <div className="relative min-h-[24rem] border-t border-white/10 lg:border-l lg:border-t-0">
               <MonochromeMedia
                 src={heroImageSrc}
-                alt={`${heroSite.siteName} runtime reference`}
+                alt={`${heroSite.siteName} hosted-review reference`}
                 className="h-full rounded-none"
                 imageClassName="h-full"
                 overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.12),rgba(0,0,0,0.35))]"
@@ -305,8 +375,8 @@ const moreSites = useMemo(
         <section id="catalog" className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
           <div className="mb-5 flex items-center justify-between gap-4">
             <EditorialSectionIntro
-              eyebrow="More real sites"
-              title="The catalog expands from the same visual language."
+              eyebrow="Full catalog"
+              title="Scan every listing by proof, access, and freshness."
               description={getSiteWorldPlainEnglishStatus(heroSite)}
               className="max-w-3xl"
             />
@@ -319,13 +389,10 @@ const moreSites = useMemo(
             </a>
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-            {moreSites[0] ? <SiteCard site={moreSites[0]} large /> : null}
-            <div className="grid gap-4 sm:grid-cols-2">
-              {moreSites.slice(1).map((site) => (
-                <SiteCard key={site.id} site={site} />
-              ))}
-            </div>
+          <div className="grid gap-4 xl:grid-cols-2">
+            {catalogSites.map((site, index) => (
+              <SiteCard key={site.id} site={site} large={index < 2} />
+            ))}
           </div>
         </section>
 

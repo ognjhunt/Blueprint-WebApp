@@ -30,11 +30,11 @@ const sampleMetrics = [
     detail: mediaRoomSampleEvaluation.robotSetup,
   },
   {
-    label: "Workflow lane",
+    label: "Workflow",
     detail: mediaRoomSampleEvaluation.workflowLane,
   },
   {
-    label: "Truth boundary",
+    label: "Proof boundary",
     detail: "Example material. Not a customer result or deployment guarantee.",
   },
 ];
@@ -81,9 +81,9 @@ const sampleFrames = [
   },
   {
     src: "/siteworld-f5fd54898cfb-runtime-reference.png",
-    alt: "Runtime reference",
+    alt: "Hosted-review reference",
     time: "02",
-    title: "Runtime",
+    title: "Hosted",
   },
   {
     src: "/siteworld-f5fd54898cfb-presentation-reference.png",
@@ -128,12 +128,12 @@ export default function SampleEvaluation() {
                   </h1>
                   <p className="mt-6 max-w-[31rem] text-base leading-8 text-white/85">
                     An example showing how Blueprint turns a captured site into
-                    manifest, rights, hosted setup, run evidence, export shape, and limits.
+                    a manifest, rights sheet, hosted setup, run evidence, export files, and limits.
                   </p>
                   <div className="mt-7 flex flex-wrap gap-2">
                     <ProofChip light>Example sample</ProofChip>
                     <ProofChip light>Capture-backed route</ProofChip>
-                    <ProofChip light>Request-gated runtime</ProofChip>
+                    <ProofChip light>Request-gated hosted review</ProofChip>
                   </div>
                   <div className="mt-8 flex flex-wrap gap-3">
                     <a
@@ -179,7 +179,7 @@ export default function SampleEvaluation() {
           <div className="mx-auto grid max-w-[88rem] gap-4 px-5 py-10 sm:px-8 lg:grid-cols-[0.38fr_0.62fr] lg:px-10 lg:py-12">
             <div className="bg-[#f5f3ef] p-6 lg:p-8">
               <EditorialSectionIntro
-                eyebrow="Packet flow"
+                eyebrow="Review flow"
                 title="The site stays attached from capture to export."
                 description="This page stays focused on one exact site so a robot team can see the path without mixing in unrelated examples."
               />
@@ -211,7 +211,7 @@ export default function SampleEvaluation() {
             </div>
             <div className="border border-black/10 bg-white p-6 lg:p-8">
               <EditorialSectionIntro
-                eyebrow="Truth boundary"
+                eyebrow="Proof boundary"
                 title="Polished sample, explicit limits."
                 description={mediaRoomSampleEvaluation.disclosure}
               />

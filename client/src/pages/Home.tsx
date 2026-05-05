@@ -1,6 +1,7 @@
 import { SEO } from "@/components/SEO";
 import {
   EditorialCtaBand,
+  EditorialFaq,
   EditorialMetricStrip,
   EditorialSectionIntro,
   EditorialSectionLabel,
@@ -19,6 +20,13 @@ import {
 } from "@/lib/siteEditorialContent";
 import { analyticsEvents } from "@/lib/analytics";
 import { resolveExperimentVariant } from "@/lib/experiments";
+import {
+  breadcrumbJsonLd,
+  faqJsonLd,
+  organizationJsonLd,
+  webPageJsonLd,
+  websiteJsonLd,
+} from "@/lib/seoStructuredData";
 import { ArrowRight } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -33,7 +41,7 @@ const productPaths = [
   {
     title: "Hosted Evaluation",
     body:
-      "Start with the managed runtime when you need reruns, review, and proof before moving files or sending the team on-site.",
+      "Start with hosted review when your team needs reruns, observations, and a clear next step before moving files or sending people on-site.",
     href: "/exact-site-hosted-review",
     label: "See hosted path",
     dark: true,
@@ -50,6 +58,29 @@ const captureExamples = [
   "Grocery aisles and retail backrooms",
   "Public customer areas and everyday service locations",
   "Lawfully accessible walkthroughs with privacy rules visible",
+];
+
+const homeDirectAnswers = [
+  {
+    question: "What is Blueprint?",
+    answer:
+      "Blueprint turns real-site capture into site-specific world-model products, hosted review, and package access for robot teams.",
+  },
+  {
+    question: "What is a site-specific world model?",
+    answer:
+      "A site-specific world model is a digital environment tied to one real facility or public-facing place, with capture provenance, rights, privacy, and package limits kept attached.",
+  },
+  {
+    question: "What does a robot team get?",
+    answer:
+      "A robot team can inspect a site package, request hosted evaluation, review sample exports, and move toward package access only when the exact site and proof path are clear.",
+  },
+  {
+    question: "What is sample versus proof?",
+    answer:
+      "Public examples are labeled as samples unless they are tied to an approved listing, capture record, rights posture, and hosted-review result.",
+  },
 ];
 
 const HOME_ROBOT_TEAM_EXPERIMENT_KEY = "home_robot_team_conversion_v1";
@@ -200,7 +231,7 @@ export default function Home() {
     () => [
       {
         label: "World model",
-        detail: "A site-specific digital environment built from real capture of one place and workflow lane.",
+        detail: "A site-specific digital environment built from real capture of one place and workflow.",
       },
       {
         label: "Site package",
@@ -299,8 +330,20 @@ export default function Home() {
     <>
       <SEO
         title="Blueprint | Site-Specific World Models For Real Places"
-        description="Blueprint helps robot teams inspect, license, and run exact-site world-model products built from real capture."
+        description="Blueprint helps robot teams inspect exact-site world models, hosted robot evaluation, and site packages built from real capture."
         canonical="/"
+        jsonLd={[
+          organizationJsonLd(),
+          websiteJsonLd(),
+          webPageJsonLd({
+            path: "/",
+            name: "Blueprint",
+            description:
+              "Site-specific world models, hosted robot evaluation, and capture-backed site packages for robot teams.",
+          }),
+          breadcrumbJsonLd([{ name: "Home", path: "/" }]),
+          faqJsonLd(homeDirectAnswers),
+        ]}
       />
 
       <div className="bg-[#f5f3ef] text-slate-950">
@@ -370,7 +413,7 @@ export default function Home() {
                     {heroContent.panelBody}
                   </p>
                   <div className="mt-5 border-t border-white/10 pt-4 text-sm text-white/70">
-                    One exact site. One workflow lane. Proof stays attached.
+                    One exact site. One workflow. Proof stays attached.
                   </div>
                   </div>
                 </div>
@@ -434,7 +477,7 @@ export default function Home() {
 	              <EditorialSectionIntro
 	                eyebrow="Sample evaluation"
 	                title="Start with one complete proof journey."
-	                description="Before the capture-supply story, inspect the sample path: one exact site, one package shape, one hosted-review request, and limits that stay visible."
+	                description="Before you request a new site, inspect the sample path: one exact site, one package, one hosted-review request, and limits that stay visible."
 	              />
 	              <div className="mt-7 flex flex-wrap gap-3">
 	                <a
@@ -471,7 +514,7 @@ export default function Home() {
 	            <MonochromeVideo
 	              src={siteMotionLoopVideoSrc}
 	              poster={siteMotionLoopPosterSrc}
-	              title="Blueprint site motion loop"
+	              title="Blueprint exact-site walkthrough"
 	              className="min-h-[30rem] rounded-none"
 	              videoClassName="min-h-[30rem]"
 	              overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.02),rgba(0,0,0,0.16))]"
@@ -512,7 +555,7 @@ export default function Home() {
               <EditorialSectionIntro
                 eyebrow="Products"
                 title="Two ways to work with one exact site."
-                description="The catalog opens with the site, then the buyer chooses how far to go."
+                description="Start with the listing, then choose package access or hosted review."
               />
             </div>
             <div className="grid gap-px bg-black/10 md:grid-cols-2">
@@ -551,6 +594,14 @@ export default function Home() {
           </div>
         </section>
 
+        <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12" data-home-section="direct-answers">
+          <EditorialFaq
+            title="Direct answers"
+            description="Short definitions for teams comparing exact-site packages, hosted review, capture provenance, rights, and sample boundaries."
+            items={homeDirectAnswers}
+          />
+        </section>
+
 	        <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12" data-home-section="proof">
 	          <div className="grid overflow-hidden rounded-[2rem] border border-black/10 bg-white lg:grid-cols-[0.46fr_0.54fr]">
             <MonochromeMedia
@@ -574,8 +625,8 @@ export default function Home() {
             <div className="bg-[#f5f3ef] px-6 py-8 lg:px-8 lg:py-10">
 	              <EditorialSectionIntro
 	                eyebrow="Proof"
-	                title="See what attaches before it commits."
-	                description="The listing keeps the package, hosted path, rights, freshness, and restrictions readable before a buyer moves forward."
+	                title="See what is attached before you commit."
+	                description="The listing keeps the package, hosted path, rights, freshness, and restrictions readable before your team moves forward."
 	              />
               <div className="mt-8 space-y-3">
                 {proofItems.map((item) => (
@@ -661,7 +712,7 @@ export default function Home() {
             <div className="bg-[#f5f3ef] px-6 py-8 lg:px-8 lg:py-10">
               <EditorialSectionIntro
                 eyebrow="Capture supply"
-                title="Public-facing capture is the supply wedge."
+                title="Everyday capture expands the catalog."
                 description="The Capture app path is for everyday places people can actually reach, not only industrial facilities."
               />
             </div>
@@ -681,7 +732,7 @@ export default function Home() {
             title="Start with the site, task, and robot question."
             description="Blueprint can give a better answer when your request names the place, workflow, and robot setup your team needs to evaluate."
             imageSrc={editorialGeneratedAssets.homeHero}
-            imageAlt="Blueprint hosted runtime still"
+            imageAlt="Blueprint hosted review still"
             primaryHref={bottomCtaHref}
             primaryLabel={heroContent.primaryLabel}
             primaryOnClick={() =>

@@ -11,7 +11,7 @@ describe("BookExactSiteReview", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        /Use this page when one real site, one workflow lane, and one deployment question are ready for a focused scoping pass\./i,
+        /Use this page when one real site, one workflow, and one deployment question are ready for a focused scoping pass\./i,
       ),
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Open scheduling/i })).toHaveAttribute(

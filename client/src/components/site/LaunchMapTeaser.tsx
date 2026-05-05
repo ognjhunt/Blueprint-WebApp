@@ -20,7 +20,7 @@ export function LaunchMapTeaser() {
           <p className="mt-4 max-w-3xl text-base leading-8 text-[color:var(--ink-soft)]">
             The map is the public answer to launch availability. Live cities can support stronger
             capture actions. Planned and under-review cities stay in future-city interest and
-            launch work until the city-launch org moves them forward.
+            launch work until Blueprint marks them open.
           </p>
           <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             <a
@@ -60,7 +60,7 @@ export function LaunchMapTeaser() {
             )}
           </div>
           <p className="mt-4 text-sm leading-6 text-[color:var(--ink-soft)]">
-            Use the dedicated map to inspect the full United States surface, hover each city, and
+            Use the dedicated map to inspect the full United States map, hover each city, and
             open the role-specific next actions without leaving the page.
           </p>
         </div>

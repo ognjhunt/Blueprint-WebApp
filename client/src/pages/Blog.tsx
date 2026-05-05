@@ -20,11 +20,11 @@ const updates = [
     body:
       "From raw scans to placeable geometry and behavior, the package stays tied to one facility.",
   },
-	  {
+  {
 	    index: "03",
 	    title: "Inside a site package",
 	    body:
-	      "What is included, how it is structured, and why the buyer path stays readable.",
+	      "What is included, how it is organized, and why buyers can understand the next step.",
 	  },
 	  {
 	    index: "04",
@@ -42,7 +42,7 @@ const updates = [
     index: "06",
     title: "Small decisions, big impact",
     body:
-      "The implementation choices that decide whether a world-model product feels truthful or ornamental.",
+      "The product choices that decide whether a world-model package feels truthful or ornamental.",
   },
 ];
 
@@ -61,7 +61,7 @@ export default function Blog() {
             <div className="px-8 py-10 lg:px-12 lg:py-14">
               <EditorialSectionLabel>Blog</EditorialSectionLabel>
               <h1 className="font-editorial mt-6 max-w-[26rem] text-[4rem] leading-[0.88] tracking-[-0.07em] text-slate-950 sm:text-[5.2rem]">
-                Notes on how Blueprint is being packaged.
+                Notes on exact-site world models.
               </h1>
               <div className="mt-8 h-1 w-24 bg-slate-950" />
             </div>
@@ -123,10 +123,10 @@ export default function Blog() {
             <div className="px-6 py-8 text-white lg:px-8 lg:py-10">
               <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Feature</p>
               <h2 className="font-editorial mt-5 max-w-[18rem] text-[2.9rem] leading-[0.94] tracking-[-0.05em]">
-                A packaged digital twin, ready for site review.
+                A site package ready for review.
               </h2>
               <p className="mt-5 max-w-[18rem] text-sm leading-7 text-white/70">
-                How Blueprint brings survey, context, and behavior together in one deliverable.
+                How Blueprint brings survey, context, and behavior together in one site-specific package.
               </p>
               <div className="mt-6 inline-flex items-center text-sm font-semibold text-white/85">
                 Read feature

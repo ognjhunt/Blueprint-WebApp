@@ -276,8 +276,13 @@ describe("city launch autonomy regression", () => {
     expect(certification.planningReady).toBe(true);
     expect(certification.activationReady).toBe(true);
     expect(certification.issueTreeReady).toBe(true);
-    expect(certification.manualInterventionRequired).toBe(false);
+    expect(certification.wakeReady).toBe(true);
+    expect(certification.executionEvidenceReady).toBe(false);
+    expect(certification.manualInterventionRequired).toBe(true);
     expect(certification.blockingExecutionStates).not.toContain("contacts");
+    expect(certification.blockingExecutionStates).toEqual(
+      expect.arrayContaining(["proofMotion", "hostedReview"]),
+    );
   });
 
   it("certifies degraded-but-routed execution when contacts, proof, hosted review, and Firehose are missing", async () => {
@@ -348,7 +353,9 @@ describe("city launch autonomy regression", () => {
     expect(certification.planningReady).toBe(true);
     expect(certification.activationReady).toBe(true);
     expect(certification.issueTreeReady).toBe(true);
-    expect(certification.manualInterventionRequired).toBe(false);
+    expect(certification.wakeReady).toBe(true);
+    expect(certification.executionEvidenceReady).toBe(false);
+    expect(certification.manualInterventionRequired).toBe(true);
     expect(certification.blockingExecutionStates).toEqual(
       expect.arrayContaining(["contacts", "proofMotion", "hostedReview"]),
     );

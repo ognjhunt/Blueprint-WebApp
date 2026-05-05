@@ -30,7 +30,7 @@ export const mediaRoomSampleEvaluation = {
   siteName: "Media Room Demo Walkthrough",
   siteCode: "SW-DEMO-01",
   siteType: "Captured indoor media and mechanical-room route",
-  location: "Blueprint hosted runtime demo",
+  location: "Blueprint hosted review demo",
   captureBasis: "Blueprint demo capture with example buyer deliverables",
   robotSetup: "Mobile manipulator with head and wrist cameras",
   workflowLane: "Media room entry, rack approach, cabinet inspection, and exit route",
@@ -49,7 +49,7 @@ export const mediaRoomSampleEvaluation = {
     "Not a deployment guarantee",
     "Example, not a customer result",
     "Export approval is request-scoped",
-    "Runtime access remains request-gated unless a live workspace is available",
+    "Hosted access remains request-gated unless a live workspace is available",
   ],
 };
 
@@ -95,7 +95,7 @@ export const publicCaptureProofStories: PublicProofStory[] = [
     evidenceOpened: [
       "Corridor geometry preview with entrance, kiosk, elevator-bank, and seating-zone frames",
       "Rights sheet showing public-common-area limits and store-entry exclusions",
-      "Export bundle tree with route notes, raw walkthrough pointer, and review memo",
+      "Export bundle tree with route notes, raw walkthrough reference, and review summary",
     ],
     decisionNote:
       "A buyer can keep the corridor in review while leaving storefront interiors out of scope until each store gives permission.",
@@ -117,7 +117,7 @@ export const publicCaptureProofStories: PublicProofStory[] = [
     buyerPersona: "Priya Raman",
     buyerRole: "Robot delivery partnerships",
     robotQuestion:
-      "Can a delivery robot reason about lobby approach, elevator threshold, and concierge-adjacent handoff areas without entering private guest zones?",
+      "Can a delivery robot reason about lobby approach, elevator threshold, and concierge-adjacent transfer areas without entering private guest zones?",
     evidenceOpened: [
       "Lobby filmstrip with entrance, seating, elevator approach, and front-desk avoidance notes",
       "Redaction summary for people, screens, and guest-facing paperwork",
@@ -175,7 +175,7 @@ export const sampleHostedRunRows: HostedRunRow[] = [
     run: "Run 01",
     scenario: "Baseline aisle navigation",
     observation: "Route is readable through endcap and mid-aisle transitions.",
-    output: "Keep lane in hosted review",
+    output: "Keep in hosted review",
   },
   {
     run: "Run 02",
@@ -241,7 +241,7 @@ export const publicCaptureLocationTypes = [
   },
   {
     label: "Hotel lobbies",
-    detail: "Delivery, handoff, concierge-adjacent, and elevator-approach review.",
+    detail: "Delivery, transfer, concierge-adjacent, and elevator-approach review.",
   },
   {
     label: "Museums and venues",

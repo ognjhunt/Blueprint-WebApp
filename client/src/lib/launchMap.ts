@@ -62,7 +62,7 @@ export function getLaunchAudienceActions(city: PublicLaunchCity): LaunchAudience
         audience: "Capturers",
         label: "Open capture app",
         href: "/capture-app",
-        note: "Use the app handoff if you already have an invite or access code for a live city.",
+        note: "Use the app link if you already have an invite or access code for a live city.",
       },
     ];
   }
@@ -95,7 +95,7 @@ export function getLaunchAudienceActions(city: PublicLaunchCity): LaunchAudience
       audience: "Robot teams",
       label: "Request launch updates",
       href: "/contact?persona=launch-map",
-      note: "Stay close to the review lane without treating the city as launched.",
+      note: "Stay close to the review path without treating the city as launched.",
     },
     {
       audience: "Site operators",

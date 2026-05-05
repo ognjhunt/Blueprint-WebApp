@@ -426,6 +426,7 @@ describe("city launch planning harness", () => {
         evidence_standard: "Evidence standard is explicit.",
         completion_gate: "Completion gate is explicit.",
         delegation_task_key: "not-a-real-task",
+        blocker_behavior: "blocked",
         validation_required: true,
         source_urls: [],
       })),

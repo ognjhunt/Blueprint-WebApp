@@ -2,9 +2,12 @@ import { describe, expect, it } from "vitest";
 import { getSiteWorldById } from "@/data/siteWorlds";
 import {
   getSiteWorldCommercialStatus,
+  getSiteWorldFreshnessSummary,
   getSiteWorldHostedAccessDisclosure,
+  getSiteWorldPackageAccessSummary,
   getSiteWorldPublicProofSummary,
   getSiteWorldReadinessDisclosure,
+  getSiteWorldVisualDisclosure,
 } from "@/lib/siteWorldCommercialStatus";
 
 describe("siteWorldCommercialStatus", () => {
@@ -16,7 +19,11 @@ describe("siteWorldCommercialStatus", () => {
       id: "public_demo_sample",
       label: "Public demo sample",
     });
-    expect(getSiteWorldPublicProofSummary(site!)).toContain("runtime still");
+    expect(getSiteWorldPublicProofSummary(site!)).toContain("hosted still");
+    expect(getSiteWorldVisualDisclosure(site!)).toMatchObject({
+      label: "Public sample proof",
+      proofBacked: true,
+    });
     expect(getSiteWorldReadinessDisclosure(site!)).toContain("public listing proves");
   });
 
@@ -30,6 +37,12 @@ describe("siteWorldCommercialStatus", () => {
     });
     expect(getSiteWorldReadinessDisclosure(site!)).toContain("not a deployment guarantee");
     expect(getSiteWorldReadinessDisclosure(site!)).toContain("Hosted launch is checked separately");
+    expect(getSiteWorldVisualDisclosure(site!)).toMatchObject({
+      label: "Listing proof preview",
+      proofBacked: true,
+    });
+    expect(getSiteWorldFreshnessSummary(site!)).toBe("Freshness confirmed during request review");
+    expect(getSiteWorldPackageAccessSummary(site!)).toContain("request-specific rights");
     expect(
       getSiteWorldHostedAccessDisclosure({
         ...site!,

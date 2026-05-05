@@ -30,6 +30,12 @@ export type SiteWorldHostedAccessDisclosure = {
   launchVerified: boolean;
 };
 
+export type SiteWorldVisualDisclosure = {
+  label: string;
+  summary: string;
+  proofBacked: boolean;
+};
+
 export const siteWorldStatusLegend: SiteWorldStatusBadge[] = [
   {
     id: "public_demo",
@@ -59,7 +65,7 @@ export const siteWorldStatusLegend: SiteWorldStatusBadge[] = [
     id: "hosted_request_gated",
     label: "Hosted request-gated",
     summary:
-      "The hosted path is a commercial next step, but live launch still depends on entitlement, account type, and runtime readiness.",
+      "The hosted path is a commercial next step, but live launch still depends on entitlement, account type, and hosted-session availability.",
     tone: "border-sky-200 bg-sky-50 text-sky-700",
   },
   {
@@ -161,11 +167,11 @@ export function getSiteWorldProofDepth(site: PublicSiteWorldRecord) {
 
 export function getSiteWorldPublicProofSummary(site: PublicSiteWorldRecord) {
   const proofAssets = [
-    site.runtimeReferenceImageUrl ? "runtime still" : null,
+    site.runtimeReferenceImageUrl ? "hosted still" : null,
     site.presentationReferenceImageUrl ? "presentation still" : null,
     isPublicSampleSiteWorld(site) ? "sample manifest" : null,
     isPublicSampleSiteWorld(site) ? "sample rights sheet" : null,
-    isCommercialExemplarSiteWorld(site) ? "buyer memo" : null,
+    isCommercialExemplarSiteWorld(site) ? "buyer note" : null,
   ].filter(Boolean) as string[];
 
   if (proofAssets.length === 0) {
@@ -173,6 +179,59 @@ export function getSiteWorldPublicProofSummary(site: PublicSiteWorldRecord) {
   }
 
   return proofAssets.join(" + ");
+}
+
+export function getSiteWorldFreshnessSummary(site: PublicSiteWorldRecord) {
+  if (site.deploymentReadiness?.recapture_required) {
+    return "Recapture required before commercial use";
+  }
+
+  const freshnessDate = String(site.deploymentReadiness?.freshness_date || "").trim();
+  if (freshnessDate) {
+    return `Freshness dated ${freshnessDate.slice(0, 10)}`;
+  }
+
+  if (site.deploymentReadiness?.recapture_status) {
+    return `Recapture status: ${site.deploymentReadiness.recapture_status.replaceAll("_", " ")}`;
+  }
+
+  return "Freshness confirmed during request review";
+}
+
+export function getSiteWorldVisualDisclosure(site: PublicSiteWorldRecord): SiteWorldVisualDisclosure {
+  if (isPublicSampleSiteWorld(site)) {
+    return {
+      label: "Public sample proof",
+      summary:
+        "Public demo material with linked sample files. It is still an example, not a customer result or blanket site approval.",
+      proofBacked: true,
+    };
+  }
+
+  if (site.worldLabsPreview?.panoUrl || site.worldLabsPreview?.thumbnailUrl) {
+    return {
+      label: "Provider preview image",
+      summary:
+        "Image comes from a generated preview attachment. It supports inspection but does not replace capture provenance or request review.",
+      proofBacked: true,
+    };
+  }
+
+  if (site.runtimeReferenceImageUrl || site.presentationReferenceImageUrl) {
+    return {
+      label: "Listing proof preview",
+      summary:
+        "Public reference stills are attached to this listing. Raw exports and full hosted evidence remain request-gated.",
+      proofBacked: true,
+    };
+  }
+
+  return {
+    label: "Composite route diagram",
+    summary:
+      "Polished composite map for catalog scanning. It is not a listing-specific capture still or customer proof.",
+    proofBacked: false,
+  };
 }
 
 export function getSiteWorldStatusBadges(site: PublicSiteWorldRecord): SiteWorldStatusBadge[] {
@@ -200,7 +259,7 @@ export function getSiteWorldReadinessDisclosure(site: PublicSiteWorldRecord) {
   const parts = [
     "This public listing proves what Blueprint is ready to show a buyer now.",
     "It is not a deployment guarantee and does not claim site-operator blanket approval or unrestricted rights.",
-    "Hosted launch is checked separately against entitlement, account type, runtime readiness, and production configuration.",
+    "Hosted launch is checked separately against entitlement, account type, hosted-session availability, and production configuration.",
   ];
 
   if (site.deploymentReadiness?.export_readiness_status === "ready") {
@@ -280,6 +339,18 @@ export function getSiteWorldPlainEnglishRestrictions(site: PublicSiteWorldRecord
   return "Final access still follows the normal request-specific review, even when the listing looks ready.";
 }
 
+export function getSiteWorldPackageAccessSummary(site: PublicSiteWorldRecord) {
+  if (isPublicSampleSiteWorld(site)) {
+    return "Sample files are public; commercial package access still uses request review.";
+  }
+
+  if (site.deploymentReadiness?.export_readiness_status === "ready") {
+    return "Package path is documented, with release still tied to rights and buyer scope.";
+  }
+
+  return "Package contents and raw exports open only after request-specific rights and privacy review.";
+}
+
 export function getSiteWorldHostedAccessDisclosure(
   site: PublicSiteWorldRecord,
 ): SiteWorldHostedAccessDisclosure {
@@ -290,7 +361,7 @@ export function getSiteWorldHostedAccessDisclosure(
     return {
       label: "Hosted demo verified",
       summary:
-        "The public listing has a launchable presentation demo, while runtime sessions still check entitlement and backend readiness at setup.",
+        "The public listing has a launchable presentation demo, while hosted sessions still check entitlement and setup availability.",
       launchVerified: true,
     };
   }
@@ -299,7 +370,7 @@ export function getSiteWorldHostedAccessDisclosure(
     return {
       label: "Interactive preview ready",
       summary:
-        "An optional provider preview is ready. The hosted evaluation still starts through the protected setup and readiness check.",
+        "An optional provider preview is ready. The hosted evaluation still starts through the protected setup check.",
       launchVerified: false,
     };
   }
@@ -308,7 +379,7 @@ export function getSiteWorldHostedAccessDisclosure(
     return {
       label: "Hosted request path",
       summary:
-        "The listing can support a hosted evaluation request, but the setup page must verify account access and runtime readiness before launch.",
+        "The listing can support a hosted evaluation request, but the setup page must verify account access and hosted-session availability before launch.",
       launchVerified: false,
     };
   }
@@ -316,7 +387,7 @@ export function getSiteWorldHostedAccessDisclosure(
   return {
     label: "Hosted request-gated",
     summary:
-      "Hosted evaluation is request-gated until site-world artifacts, entitlement, and runtime readiness are verified.",
+      "Hosted evaluation is request-gated until site package files, entitlement, and hosted-session availability are verified.",
     launchVerified: false,
   };
 }

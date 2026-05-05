@@ -202,6 +202,7 @@ describe("city launch research parser", () => {
               evidence_standard: "City thesis, wedge, and proof path are explicitly named.",
               completion_gate: "Activation payload and final playbook agree on the selected wedge.",
               delegation_task_key: "city-opening-distribution",
+              blocker_behavior: "ready_to_execute",
               validation_required: true,
               source_urls: [],
             },
@@ -306,6 +307,45 @@ describe("city launch research parser", () => {
     expect(result.warnings).not.toContain(
       "Machine-readable city-launch activation payload was present but could not be parsed as valid JSON.",
     );
+  });
+
+  it("rejects placeholder or unsourced contact_email values as recipient evidence", () => {
+    const markdown = [
+      "# Austin, TX Launch Playbook",
+      "",
+      "```city-launch-records",
+      JSON.stringify(
+        {
+          schema_version: CITY_LAUNCH_RESEARCH_SCHEMA_VERSION,
+          generated_at: "2026-04-12T12:00:00.000Z",
+          buyer_target_candidates: [
+            {
+              company_name: "Placeholder Robotics",
+              contact_email: "ops@example.com",
+              status: "researched",
+              workflow_fit: "dock handoff",
+              proof_path: "exact_site",
+              source_urls: [],
+              explicit_fields: ["company_name", "contact_email"],
+              inferred_fields: [],
+            },
+          ],
+        },
+        null,
+        2,
+      ),
+      "```",
+    ].join("\n");
+
+    const result = parseCityLaunchResearchArtifact({
+      city: "Austin, TX",
+      artifactPath: "/tmp/city-launch-austin.md",
+      markdown,
+      skipActivationReadyDirectOutreachValidation: true,
+    });
+
+    expect(result.buyerTargets[0]?.contactEmail).toBeNull();
+    expect(result.errors.join("\n")).toContain("placeholder or non-deliverable email domain");
   });
 
   it("returns a warning when the structured appendix is absent", () => {

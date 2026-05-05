@@ -19,7 +19,7 @@ import {
 const packageBullets = [
   "Capture manifest, site notes, and provenance",
   "Geometry/depth assets when the package supports them",
-  "Route graph and workflow lanes for the selected site",
+  "Route graph and workflow paths for the selected site",
   "Rights sheet, freshness state, and export limits",
   "Offline export bundle for your stack",
 ];
@@ -249,7 +249,7 @@ export default function Pricing() {
             eyebrow="Private sites, multiple markets, or deeper ops."
             title="Enterprise"
             price="$50,000+ scoped"
-            body="Use this path when the site is private, the rights model is custom, or your team needs Blueprint-managed rollout support across multiple locations."
+            body="Use this path when the site is private, the rights model is custom, or your team needs Blueprint-managed support across multiple locations."
             bullets={enterpriseBullets}
             image="/generated/editorial/manufacturing-plant.png"
             imageAlt="Enterprise operations view"
@@ -259,7 +259,7 @@ export default function Pricing() {
               <div className="w-full max-w-[34rem] overflow-hidden rounded-[1.8rem] border border-white/10 bg-black/70 shadow-[0_24px_60px_-36px_rgba(0,0,0,0.62)]">
                 <div className="flex items-center justify-between border-b border-white/10 px-5 py-4 text-[11px] uppercase tracking-[0.18em] text-white/45">
                   <span>Enterprise overview</span>
-                  <span>Example ops view</span>
+                  <span>Example rollout view</span>
                 </div>
                 <div className="grid gap-px bg-white/10 md:grid-cols-[0.62fr_0.38fr]">
                   <div className="bg-black/35 px-5 py-4 text-sm text-white/70">
@@ -338,7 +338,7 @@ export default function Pricing() {
               <EditorialSectionIntro
                 eyebrow="What you get"
                 title="A simpler visual comparison."
-                description="Compare the first artifact a buyer sees on each commercial path instead of reading through a dense pricing table."
+                description="Compare the first file or review your team sees on each commercial path instead of reading through a dense pricing table."
                 className="max-w-3xl"
               />
             </div>

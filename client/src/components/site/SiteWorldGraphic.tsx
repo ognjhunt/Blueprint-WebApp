@@ -1,13 +1,18 @@
 import type { SiteWorldCard } from "@/data/siteWorlds";
+import { getSiteWorldVisualDisclosure } from "@/lib/siteWorldCommercialStatus";
 
 export function SiteWorldGraphic({ site }: { site: SiteWorldCard }) {
   const realImageUrl = site.worldLabsPreview?.panoUrl || site.worldLabsPreview?.thumbnailUrl;
+  const visualDisclosure = getSiteWorldVisualDisclosure(site);
 
   if (realImageUrl) {
     return (
       <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${site.tone} p-3`}>
         <div className="absolute right-4 top-4 z-10 rounded-full border border-white/70 bg-white/80 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-600 backdrop-blur">
           {site.siteCode}
+        </div>
+        <div className="absolute bottom-4 left-4 z-10 rounded-full border border-white/70 bg-white/85 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-700 backdrop-blur">
+          {visualDisclosure.label}
         </div>
         <img
           src={realImageUrl}
@@ -60,7 +65,7 @@ export function SiteWorldGraphic({ site }: { site: SiteWorldCard }) {
             <circle cx="272" cy="244" r="16" fill={site.accent} fillOpacity="0.2" stroke={site.accent} strokeWidth="2" />
             <text x="78" y="94" className={labelStyle}>cart</text>
             <text x="232" y="94" className={labelStyle}>station</text>
-            <text x="392" y="94" className={labelStyle}>handoff</text>
+            <text x="392" y="94" className={labelStyle}>transfer</text>
           </>
         );
       case "laundry":
@@ -195,6 +200,9 @@ export function SiteWorldGraphic({ site }: { site: SiteWorldCard }) {
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.65),transparent_42%)]" />
       <div className="absolute right-4 top-4 rounded-full border border-white/70 bg-white/80 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-600 backdrop-blur">
         {site.siteCode}
+      </div>
+      <div className="absolute bottom-4 left-4 z-10 rounded-full border border-white/70 bg-white/85 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-700 backdrop-blur">
+        {visualDisclosure.proofBacked ? "Proof preview" : "Composite preview"}
       </div>
       <svg viewBox="0 0 560 320" className="relative h-44 w-full rounded-2xl border border-white/70 bg-white/85 shadow-sm">
         <rect x="20" y="20" width="520" height="280" rx="28" fill="white" opacity="0.72" />

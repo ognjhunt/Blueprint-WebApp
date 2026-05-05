@@ -97,7 +97,7 @@ export function SurfaceBrowserFrame(props: PropsWithChildren<{ className?: strin
           <span className={cn("h-2 w-2 rounded-full", props.dark ? "bg-white/20" : "bg-black/10")} />
           <span className={cn("h-2 w-2 rounded-full", props.dark ? "bg-white/20" : "bg-black/10")} />
         </div>
-        <span>Private Surface</span>
+        <span>Private Workspace</span>
         <span>{props.dark ? "Secured" : "Blueprint"}</span>
       </div>
       {props.children}

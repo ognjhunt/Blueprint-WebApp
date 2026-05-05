@@ -10,6 +10,7 @@ import {
 import {
   editorialGeneratedAssets,
 } from "@/lib/editorialGeneratedAssets";
+import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
 
 const useCases = [
@@ -31,7 +32,7 @@ const useCases = [
 ];
 
 const includedItems = [
-  "A site-specific world model of one real facility and workflow lane",
+  "A site-specific world model of one real facility and workflow",
   "Resettable runs on the same exact site so checkpoints are easier to compare",
   "Scenario changes and export bundles for debugging, tuning, or review",
   "Package and hosted paths tied back to the same source capture record",
@@ -41,9 +42,21 @@ export default function ForRobotIntegrators() {
   return (
     <>
       <SEO
-        title="For Robot Integrators | Blueprint"
-        description="Blueprint helps robot teams test one exact site before deployment with site-specific packages and hosted review built from real capture."
-        canonical="/for-robot-integrators"
+        title="For Robot Teams | Blueprint"
+        description="Blueprint helps robotics teams test one exact site before deployment with site-specific world-model packages and hosted review built from real capture."
+        canonical="/for-robot-teams"
+        jsonLd={[
+          webPageJsonLd({
+            path: "/for-robot-teams",
+            name: "Blueprint for Robot Teams",
+            description:
+              "How robotics teams use Blueprint for exact-site world models, capture-backed site packages, hosted evaluation, and deployment-site review.",
+          }),
+          breadcrumbJsonLd([
+            { name: "Home", path: "/" },
+            { name: "For Robot Teams", path: "/for-robot-teams" },
+          ]),
+        ]}
       />
 
       <div className="bg-[#f5f3ef] text-slate-950">
@@ -141,8 +154,8 @@ export default function ForRobotIntegrators() {
             <div className="bg-slate-950 px-6 py-8 text-white lg:px-8 lg:py-10">
 	              <EditorialSectionIntro
 	                eyebrow="What this is"
-	                title="A site-specific product, not a benchmark theater."
-	                description="This path makes the deliverable and the truthful limits visible before the team moves deeper."
+	                title="A site-specific product, not a generic benchmark."
+	                description="This path makes the package, hosted review, and limits visible before more budget goes in."
 	                light
 	              />
               <p className="mt-8 text-sm leading-7 text-white/70">

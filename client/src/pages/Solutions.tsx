@@ -17,7 +17,7 @@ const sharedWorkflow = [
     icon: <ClipboardCheck className="h-5 w-5 text-slate-700" />,
   },
   {
-    title: "Operational handoff",
+    title: "Operating plan",
     description:
       "Teams align on scorecards, constraints, and next steps before moving into a site-specific engagement or an operator-led pilot search.",
     icon: <ShieldCheck className="h-5 w-5 text-slate-700" />,

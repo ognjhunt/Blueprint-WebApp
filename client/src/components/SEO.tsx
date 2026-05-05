@@ -1,5 +1,7 @@
 import { Helmet } from "react-helmet";
 
+export type JsonLdValue = Record<string, unknown>;
+
 interface SEOProps {
   title: string;
   description: string;
@@ -7,10 +9,11 @@ interface SEOProps {
   image?: string;
   type?: "website" | "article" | "product";
   noIndex?: boolean;
+  jsonLd?: JsonLdValue | JsonLdValue[];
 }
 
 const BASE_URL = "https://tryblueprint.io";
-const DEFAULT_IMAGE = `${BASE_URL}/images/og-default.png`;
+const DEFAULT_IMAGE = `${BASE_URL}/generated/editorial/world-models-hero.png`;
 const SITE_NAME = "Blueprint";
 
 export function SEO({
@@ -20,9 +23,15 @@ export function SEO({
   image = DEFAULT_IMAGE,
   type = "website",
   noIndex = false,
+  jsonLd,
 }: SEOProps) {
   const fullTitle = title.includes("Blueprint") ? title : `${title} | ${SITE_NAME}`;
-  const canonicalUrl = canonical ? `${BASE_URL}${canonical}` : undefined;
+  const canonicalUrl = canonical
+    ? canonical.startsWith("http")
+      ? canonical
+      : `${BASE_URL}${canonical}`
+    : undefined;
+  const jsonLdItems = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
 
   return (
     <Helmet>
@@ -47,6 +56,7 @@ export function SEO({
       <meta property="og:title" content={fullTitle} />
       <meta property="og:description" content={description} />
       <meta property="og:image" content={image} />
+      <meta property="og:image:alt" content="Blueprint exact-site world model preview" />
       <meta property="og:site_name" content={SITE_NAME} />
       {canonicalUrl && <meta property="og:url" content={canonicalUrl} />}
 
@@ -55,6 +65,12 @@ export function SEO({
       <meta name="twitter:title" content={fullTitle} />
       <meta name="twitter:description" content={description} />
       <meta name="twitter:image" content={image} />
+
+      {jsonLdItems.map((item, index) => (
+        <script key={`json-ld-${index}`} type="application/ld+json">
+          {JSON.stringify(item)}
+        </script>
+      ))}
     </Helmet>
   );
 }

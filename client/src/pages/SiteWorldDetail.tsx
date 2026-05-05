@@ -25,9 +25,11 @@ import {
   getSiteWorldProofDepth,
   getSiteWorldPublicProofSummary,
   getSiteWorldStatusBadges,
+  getSiteWorldVisualDisclosure,
   isPublicSampleSiteWorld,
 } from "@/lib/siteWorldCommercialStatus";
 import { fetchSiteWorldDetail } from "@/lib/siteWorldsApi";
+import { breadcrumbJsonLd, productJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 import type { PublicSiteWorldRecord } from "@/types/inbound-request";
 import { ArrowLeft, ArrowRight, ExternalLink, RefreshCw } from "lucide-react";
 
@@ -54,7 +56,7 @@ const WORLDLABS_STATUS_COPY: Record<
     label: "Not requested",
     tone: "border-slate-200 bg-slate-100 text-slate-700",
     summary:
-      "The listing is still anchored in the native package and hosted request path. The optional interactive preview has not been requested yet.",
+      "The listing still centers on the site package and hosted request path. The optional interactive preview has not been requested yet.",
   },
   queued: {
     label: "Queued",
@@ -64,7 +66,7 @@ const WORLDLABS_STATUS_COPY: Record<
   processing: {
     label: "Processing",
     tone: "border-sky-200 bg-sky-50 text-sky-700",
-    summary: "The provider-generated preview is still rendering from the walkthrough artifacts.",
+    summary: "The provider-generated preview is still rendering from the walkthrough files.",
   },
   ready: {
     label: "Ready",
@@ -75,7 +77,7 @@ const WORLDLABS_STATUS_COPY: Record<
     label: "Failed",
     tone: "border-rose-200 bg-rose-50 text-rose-700",
     summary:
-      "The last interactive-preview attempt failed. The native package and hosted request path remain the primary contract.",
+      "The last interactive-preview attempt failed. The site package and hosted request path remain primary.",
   },
 };
 
@@ -115,22 +117,22 @@ const sampleArtifactLinks = [
   {
     label: "Sample manifest",
     href: "/samples/sample-site-package-manifest.json",
-    body: "Representative package fields, capture provenance, route lanes, export modes, and quality checks.",
+    body: "Sample package fields, capture provenance, routes, export modes, and quality checks.",
   },
   {
     label: "Sample rights sheet",
     href: "/samples/sample-rights-sheet.md",
-    body: "Representative rights class, sharing limits, redaction handling, and buyer-use boundaries.",
+    body: "Sample rights class, sharing limits, redaction handling, and buyer-use boundaries.",
   },
   {
     label: "Sample export bundle",
     href: "/samples/sample-export-bundle.json",
-    body: "Representative export file tree and technical handoff shape.",
+    body: "Sample export file tree and technical delivery notes.",
   },
   {
     label: "Sample hosted report",
     href: "/samples/sample-hosted-review-report.md",
-    body: "Representative hosted-review notes, run evidence, and follow-up questions.",
+    body: "Sample hosted-review notes, run evidence, and follow-up questions.",
   },
 ] as const;
 
@@ -272,6 +274,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
   const hostedAccessDisclosure = getSiteWorldHostedAccessDisclosure(site);
   const isPublicSample = isPublicSampleSiteWorld(site);
   const publicProofSummary = getSiteWorldPublicProofSummary(site);
+  const visualDisclosure = getSiteWorldVisualDisclosure(site);
   const worldLabsPreview = site.worldLabsPreview || null;
   const proofStory = pickProofStoryForSite(site.id);
   const statusBadges = getSiteWorldStatusBadges(site);
@@ -297,38 +300,38 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
   const overviewRows = [
     { title: "Site code", value: site.siteCode || "Current listing" },
     { title: "Industry", value: site.industry || "Exact-site walkthrough" },
-    { title: "Workflow lane", value: site.taskLane || site.sampleTask || "Current workflow" },
-    { title: "Runtime", value: site.runtime || "Hosted evaluation" },
+    { title: "Workflow", value: site.taskLane || site.sampleTask || "Current workflow" },
+    { title: "Hosted review", value: site.runtime || "Hosted evaluation" },
   ];
 
   const taskRows = [
     {
-      title: site.sampleTask || site.taskCatalog[0]?.taskText || "Primary lane",
-      body: "Base workflow lane tied to the exact site.",
+      title: site.sampleTask || site.taskCatalog[0]?.taskText || "Primary workflow",
+      body: "Base workflow tied to the exact site.",
       image: editorialRefreshAssets.detailHeroWarehouse,
       imageClassName: "object-cover object-center",
-      meta: "Base lane",
+      meta: "Base workflow",
     },
     {
       title: "Lighting variation",
       body: "Same site, adjusted lighting assumptions.",
       image: editorialRefreshAssets.detailProofCapture,
       imageClassName: "object-cover object-center",
-      meta: "1.2 km est. path",
+      meta: "Composite variant",
     },
     {
       title: "Clutter variation",
       body: "Same route, more clutter and occlusion.",
       image: editorialRefreshAssets.detailSitePlan,
       imageClassName: "object-cover object-center",
-      meta: "620 m est. path",
+      meta: "Composite variant",
     },
     {
       title: "Export review",
       body: "Package and hosted outputs read back against the same exact site.",
       image: editorialRefreshAssets.detailProofCapture,
       imageClassName: "object-cover object-right",
-      meta: "480 m est. path",
+      meta: "Request-scoped",
     },
   ];
 
@@ -353,7 +356,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
     },
     {
       src: editorialRefreshAssets.detailHeroWarehouse,
-      alt: "Route lane",
+      alt: "Route path",
       time: "03",
       title: "Route",
     },
@@ -379,15 +382,15 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
       body: getSiteWorldPlainEnglishRestrictions(site),
     },
     {
-      title: "Artifacts visible today",
+      title: "Files visible today",
       body: isPublicSample
         ? "Sample manifest, rights sheet, export bundle, and hosted-review report are linked below."
         : "This listing shows site metadata, price, trust fields, and request-scoped paths. Screenshots or export previews open during follow-up when approved.",
     },
   ];
   const visibleNowRows = [
-    ["Visible now", isPublicSample ? "Sample route, reference stills, sample files, and hosted request path." : "Site metadata, workflow lane, pricing frame, trust fields, and request path."],
-    ["Gated", "Package files, raw exports, live hosted runtime, and listing-specific commercial proof open through request review and runtime readiness checks."],
+    ["Visible now", isPublicSample ? "Sample route, reference stills, sample files, and hosted request path." : "Site metadata, workflow, pricing frame, trust fields, and request path."],
+    ["Gated", "Package files, raw exports, live hosted sessions, and listing-specific commercial proof open through request review and hosted-access checks."],
     ["Why gated", "Rights, privacy, freshness, and buyer context need to remain attached before access expands."],
   ];
 
@@ -398,8 +401,34 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
     <>
       <SEO
         title={`${site.siteName} | World Models | Blueprint`}
-        description={`${site.siteName} is a site-specific world model listing for buyer review, hosted evaluation, and package access.`}
+        description={`${site.siteName} is a capture-backed site-specific world model listing for buyer review, hosted evaluation, package access, and provenance checks.`}
         canonical={`/world-models/${site.id}`}
+        type="product"
+        jsonLd={[
+          webPageJsonLd({
+            path: `/world-models/${site.id}`,
+            name: `${site.siteName} world model`,
+            description: `${site.siteName} is a site-specific world model listing for buyer review, hosted evaluation, package access, and provenance checks.`,
+          }),
+          breadcrumbJsonLd([
+            { name: "Home", path: "/" },
+            { name: "World Models", path: "/world-models" },
+            { name: site.siteName, path: `/world-models/${site.id}` },
+          ]),
+          productJsonLd({
+            path: `/world-models/${site.id}`,
+            name: `${site.siteName} site-specific world model`,
+            description: `${site.summary} ${getSiteWorldPlainEnglishStatus(site)}`,
+            image: editorialRefreshAssets.detailHeroWarehouse,
+            category: "Site-specific world model",
+            properties: [
+              { name: "Site", value: site.siteName },
+              { name: "Workflow", value: site.taskLane || site.sampleTask },
+              { name: "Capture provenance", value: "Capture, rights, freshness, and restriction details stay attached to the listing" },
+              { name: "Hosted access", value: getSiteWorldHostedAccessDisclosure(site).label },
+            ],
+          }),
+        ]}
       />
 
       <div className="bg-[#f5f3ef] text-slate-950">
@@ -539,9 +568,9 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                 What is real, sample, and gated.
               </h2>
               <p className="mt-4 text-sm leading-7 text-slate-700">
-                The listing is allowed to look polished without pretending every downstream
-                artifact is open. Buyers should be able to see exactly what the public page
-                proves and what still needs request review.
+                The listing is allowed to look polished without pretending every file or hosted
+                path is open. Buyers should be able to see exactly what the public page shows and
+                what still needs request review.
               </p>
             </div>
             <div className="grid gap-3">
@@ -598,7 +627,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                 Tasks in this world model
               </h2>
               <p className="mt-2 text-sm leading-7 text-slate-700">
-                Pre-configured evaluation lanes for hosted review.
+                Pre-configured evaluation tasks for hosted review.
               </p>
               <div className="mt-6 space-y-3">
                 {taskRows.map((row, index) => (
@@ -630,11 +659,16 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
         <section className="border-b border-black/10 bg-white">
           <div className="mx-auto max-w-[96rem] px-5 py-10 sm:px-8 lg:px-10">
             <h2 className="font-editorial text-[2.6rem] leading-[0.94] tracking-[-0.05em] text-slate-950">
-              Hosted evaluation preview
+              Composite hosted evaluation preview
             </h2>
             <p className="mt-2 text-sm leading-7 text-slate-700">
-              See the site through the review experience before moving into a deeper scoped session.
+              These frames explain the hosted-review flow. They are polished composite visuals unless
+              a listing-specific preview or proof still is explicitly attached.
             </p>
+            <div className="mt-4 inline-flex max-w-3xl items-start border border-black/10 bg-[#f8f6f1] px-4 py-3 text-sm leading-6 text-slate-700">
+              <span className="mr-3 font-semibold text-slate-950">{visualDisclosure.label}</span>
+              <span>{visualDisclosure.summary}</span>
+            </div>
             <div className="mt-6 bg-slate-950 p-4">
               <EditorialFilmstrip frames={previewFrames} />
             </div>
@@ -650,19 +684,19 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
               <p className="mt-2 text-sm text-slate-700">
                 {isPublicSample
                   ? "Captured sample with public example files."
-                  : "Listing proof fields with request-scoped artifacts."}
+                  : "Listing proof fields with request-scoped files. Composite visuals are labeled separately from proof."}
               </p>
               <div className="mt-6 grid gap-3 sm:grid-cols-[0.34fr_0.33fr_0.33fr]">
                 <MonochromeMedia
                   src={editorialRefreshAssets.detailProofCapture}
-                  alt="Capture proof"
+                  alt="Proof preview visual"
                   className="aspect-square rounded-none border border-black/10"
                   imageClassName="aspect-square object-cover"
                   overlayClassName="bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02))]"
                 />
                 <MonochromeMedia
                   src={editorialRefreshAssets.detailHeroWarehouse}
-                  alt="Warehouse still"
+                  alt="Hosted review visual"
                   className="aspect-square rounded-none border border-black/10"
                   imageClassName="aspect-square object-cover object-center"
                   overlayClassName="bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02))]"
@@ -673,7 +707,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                   </p>
                   <div className="mt-4 space-y-2 text-sm text-slate-700">
                     <div>Session ID: {site.captureId}</div>
-                    <div>Frames: capture-backed</div>
+                    <div>Visual status: {visualDisclosure.label}</div>
                     <div>Coverage: {publicProofSummary}</div>
                     <div>Capture date: {formatCaptureDate(site)}</div>
                     <div>Freshness: {formatFreshnessState(site)}</div>
@@ -712,9 +746,9 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                   overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.08),rgba(0,0,0,0.72))]"
                 >
                   <div className="absolute inset-x-0 bottom-0 p-6">
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-white/50">
-                      {proofStory.label}
-                    </p>
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-white/50">
+                    {proofStory.label}
+                  </p>
                     <h2 className="font-editorial mt-4 text-[2.8rem] leading-[0.94] tracking-[-0.05em]">
                       {proofStory.locationName}
                     </h2>
@@ -728,13 +762,16 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
               <div className="grid gap-4">
                 <div className="border border-black/10 bg-[#f5f3ef] p-6 lg:p-8">
                   <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
-                    Capture example
+                    Representative capture example
                   </p>
                   <h2 className="font-editorial mt-4 text-[2.8rem] leading-[0.94] tracking-[-0.05em] text-slate-950">
-                    Public capture example for this listing.
+                    Public capture pattern, not listing-specific proof.
                   </h2>
                   <p className="mt-4 text-sm leading-7 text-slate-700">
-                    This example shows what a robot team can inspect for a public-facing route: capture cue, capturer rules, robot question, hosted report rows, and export files. Listing-specific proof appears here when it is approved.
+                    This representative example shows what a robot team can inspect for a public-facing route:
+                    capture cue, capturer rules, robot question, hosted report rows, and export files.
+                    It does not claim a buyer send, customer result, or open export for this listing.
+                    Listing-specific proof appears here only when it is approved.
                   </p>
                   <div className="mt-6 grid gap-3 md:grid-cols-3">
                     {[
@@ -811,10 +848,10 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
               <div className="grid gap-4 lg:grid-cols-[0.36fr_0.64fr]">
                 <div>
                   <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
-                    Public sample artifacts
+                    Public sample files
                   </p>
                   <h2 className="font-editorial mt-3 text-[2.8rem] leading-[0.94] tracking-[-0.05em] text-slate-950">
-                    Inspect the deliverable shape.
+                    Inspect the sample files.
                   </h2>
                   <p className="mt-4 text-sm leading-7 text-slate-700">
                     These files are examples, not customer results. They show the manifest,
@@ -921,7 +958,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                     Listing boundary
                   </p>
                   <div className="mt-4 space-y-3 text-sm text-white/75">
-                    <div>The native package and hosted request path stay primary on this listing.</div>
+                    <div>The site package and hosted request path stay primary on this listing.</div>
                     <div>Interactive preview is optional and does not redefine listing trust.</div>
                     <div>Public proof, freshness, and rights remain visible even without the preview.</div>
                   </div>
@@ -973,8 +1010,8 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
               </h2>
               <p className="mt-4 text-sm leading-7 text-slate-700">
                 {hostedPackage?.summary
-                  || "Use the managed hosted request path when the team wants reruns, review, and exports on the same site before moving the package."}{" "}
-                The next screen verifies account access, entitlement, and runtime readiness before
+                  || "Use the hosted request path when the team wants reruns, review, and exports on the same site before moving the package."}{" "}
+                The next screen verifies account access, entitlement, and hosted-session availability before
                 anything launches.
               </p>
               <div className="mt-6 grid gap-3 sm:grid-cols-2">
@@ -1011,7 +1048,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
           <EditorialCtaBand
             eyebrow="Next step"
             title="Ready to evaluate this site?"
-            description="Request access to verify hosted evaluation readiness, or take the package path when your team wants the site data inside its own stack."
+            description="Request access to confirm hosted evaluation availability, or take the package path when your team wants the site data inside its own stack."
             imageSrc={editorialRefreshAssets.detailHeroWarehouse}
             imageAlt={site.siteName}
             primaryHref={scenePackage?.actionHref || "/contact?persona=robot-team"}

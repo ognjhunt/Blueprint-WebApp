@@ -227,7 +227,7 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
                   Loading request
                 </h1>
                 <p className="mt-4 text-sm leading-7 text-black/60">
-                  Blueprint is pulling the current readiness, evidence, and provenance state for
+                  Blueprint is pulling the current review, evidence, and provenance state for
                   this exact-site request.
                 </p>
               </div>
@@ -482,7 +482,7 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
                     <Clock3 className="h-5 w-5 text-black/45" />
                     <div>
                       <SurfaceMiniLabel>Current State</SurfaceMiniLabel>
-                      <p className="mt-1 text-sm text-black/55">Live request status across readiness, rights, and capture.</p>
+                      <p className="mt-1 text-sm text-black/55">Live request status across review, rights, and capture.</p>
                     </div>
                   </div>
                   <SurfaceStatusList
@@ -518,14 +518,14 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
                   <div className="flex items-center gap-3">
                     <Sparkles className="h-5 w-5 text-white/60" />
                     <div>
-                      <SurfaceMiniLabel className="text-white/40">Next Lane</SurfaceMiniLabel>
+                      <SurfaceMiniLabel className="text-white/40">Next Step</SurfaceMiniLabel>
                       <p className="mt-1 text-sm text-white/70">
-                        Preview generation and delivery stay downstream of the readiness record.
+                        Preview generation waits for the review record.
                       </p>
                     </div>
                   </div>
                   <p className="mt-5 text-base leading-7 text-white/80">
-                    {ops?.next_step || "Blueprint will route the next lane once the readiness record is stable."}
+                    {ops?.next_step || "Blueprint will route the next step once the review record is stable."}
                   </p>
                   {previewRun?.provider_name ? (
                     <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70">

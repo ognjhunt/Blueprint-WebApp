@@ -814,6 +814,7 @@ describe("city launch execution harness", () => {
     const result = await runCityLaunchExecutionHarness({
       city: "Chicago, IL",
       reportsRoot,
+      founderApproved: true,
       budgetTier: "funded",
     });
 
@@ -821,6 +822,13 @@ describe("city launch execution harness", () => {
     const launchPlaybook = await fs.readFile(result.artifacts.launchPlaybookPath, "utf8");
     const demandPlaybook = await fs.readFile(result.artifacts.demandPlaybookPath, "utf8");
     const targetLedger = await fs.readFile(result.artifacts.targetLedgerPath, "utf8");
+    const indoorSupply = JSON.parse(
+      await fs.readFile(result.artifacts.indoorLocationSupplyArtifacts.run.supplyPath, "utf8"),
+    );
+    const indoorSupplyReport = await fs.readFile(
+      result.artifacts.indoorLocationSupplyArtifacts.run.reportPath,
+      "utf8",
+    );
 
     expect(result.citySlug).toBe("chicago-il");
     expect(systemDoc).toContain("Chicago, IL Launch System");
@@ -832,6 +840,9 @@ describe("city launch execution harness", () => {
     expect(result.paperclip?.rootIssueIdentifier).toBe("BLU-1");
     expect(wakePaperclipAgent).toHaveBeenCalled();
     expect(result.wideningGuard.reasons.join("\n")).toContain("proof_path_assigned is required_tracked.");
+    expect(indoorSupply.accepted_candidates).toEqual([]);
+    expect(indoorSupply.evidence_boundary).toContain("Placeholder blocker artifact");
+    expect(indoorSupplyReport).toContain("not proof of approved capture targets");
   });
 
   it("fails closed on founder-approved activation when the live Paperclip tree is not created or updated", async () => {

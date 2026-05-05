@@ -9,7 +9,7 @@ Example sample only. This is not a customer report, deployment guarantee, safety
 - Location type: Grocery store public aisles
 - City: Austin, TX
 - Review type: Hosted evaluation sample
-- Workflow lane: Public aisle loop, endcap transition, refrigeration approach
+- Workflow: Public aisle loop, endcap transition, refrigeration approach
 - Robot setup: Sample shelf-scanning AMR with forward RGB camera
 - Session scope: One public-facing route, four review runs, privacy and export notes attached
 
@@ -23,7 +23,7 @@ Example sample only. This is not a customer report, deployment guarantee, safety
 
 | Run | Scenario | Observation | Output |
 | --- | --- | --- | --- |
-| Run 01 | Baseline aisle navigation | Route is readable through endcap and mid-aisle transitions. | Keep lane in hosted review. |
+| Run 01 | Baseline aisle navigation | Route is readable through endcap and mid-aisle transitions. | Keep in hosted review. |
 | Run 02 | Busy public aisle | People and carts create occlusion risk; privacy redaction remains required. | Review only, no raw public export. |
 | Run 03 | Refrigeration approach | Lighting and reflective glass need a dedicated perception note. | Add capture note to manifest. |
 | Run 04 | Checkout-adjacent exclusion | Route should stop before payment and identifiable-customer zones. | Restricted zone attached. |
@@ -32,7 +32,7 @@ Example sample only. This is not a customer report, deployment guarantee, safety
 
 - Observation frames: included in sample export layout
 - Route review: example route replay and waypoint notes
-- Redacted walkthrough reference: buyer-facing review artifact
+- Redacted walkthrough reference: buyer-facing review record
 - Action trace: example action-summary export
 - Rights sheet: see `sample-rights-sheet.md`
 - Export bundle: see `sample-export-bundle.json`
@@ -42,7 +42,7 @@ Example sample only. This is not a customer report, deployment guarantee, safety
 - The sample demonstrates how Blueprint presents one public-facing exact site, its capture provenance, and the hosted-review output shape.
 - The buyer question was whether a grocery-specific hosted review was worth scoping before sending a field team.
 - The sample answer was "yes, hosted review first," while raw-media export and commercial sharing stay review-gated.
-- A real buyer report depends on the listing, available capture artifacts, requested robot setup, and scoped rights/export review.
+- A real buyer report depends on the listing, available capture files, requested robot setup, and scoped rights/export review.
 - Hosted review reduces uncertainty before deeper deployment work; it does not replace safety validation, on-site signoff, or stack-specific testing.
 
 ## Public Capture Guardrails

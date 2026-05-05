@@ -16,7 +16,7 @@ const offerCards = [
       "Everything your team needs to run its own world model on that facility — walkthrough media, geometry, metadata, and rights.",
     bullets: [
       "Walkthrough video, timestamps, and camera poses",
-      "Depth and geometry artifacts when available from source capture",
+      "Depth and geometry files when available from source capture",
       "Rights, freshness, provenance, and package notes",
     ],
     href: "/world-models",
@@ -24,7 +24,7 @@ const offerCards = [
     icon: ScanLine,
     imageSrc: "/illustrations/offer-site-package-preview.svg",
     imageAlt:
-      "Illustration of the site package as a capture-backed data bundle with walkthrough frames, geometry artifacts, and rights materials.",
+      "Site package shown as a capture-backed data bundle with walkthrough frames, geometry files, and rights materials.",
     accent: "bg-slate-950 text-white",
     cardTone: "border-slate-200 bg-white",
     bulletTone: "bg-slate-400",
@@ -145,7 +145,7 @@ export function OfferComparison({
             Compare the three commercial paths.
           </p>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-            The same site can support multiple buying motions. The right first step depends on whether your team needs raw site data, runtime evidence, or a private program.
+            The same site can support multiple buying motions. The right first step depends on whether your team needs raw site data, hosted-run evidence, or a private program.
           </p>
         </div>
         <div className="grid gap-px bg-slate-200 lg:grid-cols-[1.05fr_1fr_1fr_1fr]">
@@ -156,12 +156,12 @@ export function OfferComparison({
 
           <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-900">Best when</div>
           <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Your team wants the data contract and plans to run its own stack.</div>
-          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Your team wants runtime evidence, reruns, comparison, and exports before moving files around.</div>
+          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Your team wants hosted-run evidence, reruns, comparison, and exports before moving files around.</div>
           <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">The site is private, the rights model is custom, or the work needs hands-on support and commercial review.</div>
 
           <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-900">Buyer gets first</div>
           <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Walkthrough media, poses, geometry coverage, manifest, and rights metadata.</div>
-          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">A managed runtime session on one exact site with run review and export outputs.</div>
+          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">A hosted evaluation on one exact site with run review and export outputs.</div>
           <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">A scoped program covering capture, packaging, hosted access, and any private operating constraints.</div>
 
           <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-900">Typical first purchase</div>

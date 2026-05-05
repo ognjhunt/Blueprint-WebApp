@@ -90,12 +90,12 @@ describe("SiteWorldDetail", () => {
     expect(screen.getByText(/1847 W Fulton St, Chicago, IL 60612/i)).toBeInTheDocument();
     expect(
       screen.getByText(
-        /A backroom layout with dock access, aisle replenishment paths, and a short handoff into shelf staging/i,
+        /A backroom layout with dock access, aisle replenishment paths, and a short transfer into shelf staging/i,
       ),
     ).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Site overview/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Tasks in this world model/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Hosted evaluation preview/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Composite hosted evaluation preview/i })).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: /Buy the site package\./i }),
     ).toBeInTheDocument();
@@ -106,9 +106,12 @@ describe("SiteWorldDetail", () => {
     expect(screen.getAllByText(/Request-scoped commercial review/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Proof depth/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Freshness/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/runtime still \+ presentation still \+ buyer memo/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Capture example/i).length).toBeGreaterThan(0);
-    expect(screen.getByRole("heading", { name: /Public capture example for this listing\./i })).toBeInTheDocument();
+    expect(screen.getAllByText(/hosted still \+ presentation still \+ buyer note/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Listing proof preview/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Composite visuals are labeled separately from proof/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Representative capture example/i).length).toBeGreaterThan(0);
+    expect(screen.getByRole("heading", { name: /Public capture pattern, not listing-specific proof\./i })).toBeInTheDocument();
+    expect(screen.getByText(/does not claim a buyer send, customer result, or open export/i)).toBeInTheDocument();
     expect(screen.getByText(/Capture app cue/i)).toBeInTheDocument();
     expect(screen.getByText(/Evidence opened/i)).toBeInTheDocument();
     expect(screen.getAllByText(/Guardrails/i).length).toBeGreaterThan(0);
@@ -178,7 +181,7 @@ describe("SiteWorldDetail", () => {
     expect(
       await screen.findByRole("link", { name: /Open interactive preview/i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/The native package and hosted request path stay primary on this listing\./i)).toBeInTheDocument();
+    expect(screen.getByText(/The site package and hosted request path stay primary on this listing\./i)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Generate preview/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Refresh status/i })).not.toBeInTheDocument();
   });

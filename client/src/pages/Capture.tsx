@@ -6,6 +6,7 @@ import {
 } from "@/components/site/editorial";
 import { publicCaptureGeneratedAssets } from "@/lib/publicCaptureGeneratedAssets";
 import { usePublicLaunchStatus } from "@/hooks/usePublicLaunchStatus";
+import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 import { ArrowRight, DollarSign } from "lucide-react";
 
 const processRows = [
@@ -14,14 +15,14 @@ const processRows = [
     label: "Capture",
     title: "Open the app",
     body:
-      "Capturers do the work in the mobile app. This page gets you to the right handoff.",
+      "Capturers record in the mobile app. Use this page to open the app or request access.",
   },
   {
     step: "02",
     label: "Upload",
     title: "Keep one walkthrough moving",
     body:
-      "Record one complete pass, keep the app open, and let Blueprint review coverage before anything becomes downstream package work.",
+      "Record one complete pass, keep the app open, and let Blueprint review coverage before the capture supports a package.",
   },
   {
     step: "03",
@@ -43,10 +44,21 @@ export default function Capture() {
   return (
     <>
       <SEO
-        title="Capture Basics | Blueprint"
-        description="Blueprint's capturer handoff, invite-gated access, and mobile capture path."
+        title="Capture-Backed World Models | Blueprint"
+        description="See how lawful public-facing walkthroughs become reviewed provenance for site-specific world-model products."
         canonical="/capture"
-        noIndex={true}
+        jsonLd={[
+          webPageJsonLd({
+            path: "/capture",
+            name: "Blueprint Capture",
+            description:
+              "How lawful public-facing capture, review gates, provenance, privacy, and rights handling support site-specific world-model products.",
+          }),
+          breadcrumbJsonLd([
+            { name: "Home", path: "/" },
+            { name: "Capture", path: "/capture" },
+          ]),
+        ]}
       />
 
       <div className="bg-[#f5f3ef] text-slate-950">
@@ -60,7 +72,7 @@ export default function Capture() {
               <p className="mt-8 max-w-[30rem] text-base leading-8 text-slate-700">
                 Blueprint&apos;s main site is for buyers inspecting exact-site world models. If
                 you are the person recording an everyday public-facing place, this page is the
-                narrow handoff into the capture lane.
+                route into the capture app and access request.
               </p>
               <div className="mt-10 flex flex-wrap gap-3">
                 <a
@@ -203,7 +215,7 @@ export default function Capture() {
                     Current capture access is limited to launch-approved cities.
                   </h2>
                   <p className="mt-4 max-w-[40rem] text-sm leading-7 text-slate-700">
-                    Blueprint Capture follows the city-launch org state. If your city is not in the
+                    Blueprint Capture follows the current launch-city roster. If your city is not in the
                     current rollout, you can still register interest, but the app and public
                     capture feed stay locked until the city is approved.
                   </p>
@@ -214,12 +226,12 @@ export default function Capture() {
                       {launchStatusLoading ? (
                         <>
                           <strong>Checking current launch cities.</strong> Capture access stays
-                          locked until the backend launch roster confirms a city is open.
+                          locked until the launch roster confirms a city is open.
                         </>
                       ) : launchStatusError ? (
                         <>
                           <strong>Launch status unavailable.</strong> This page is not treating any
-                          city as supported from static copy. Request access or check the launch map
+                          city as supported from saved page copy. Request access or check the launch map
                           for the current backend status.
                         </>
                       ) : supportedCities.length ? (
@@ -232,7 +244,7 @@ export default function Capture() {
                         <>
                           <strong>No public launch cities are marked open right now.</strong> You can
                           still request access, but the app and capture feed stay locked until the
-                          city-launch org approves a city.
+                          city is approved.
                         </>
                       )}
                     </p>
@@ -262,9 +274,9 @@ export default function Capture() {
           <EditorialCtaBand
 	            eyebrow="Buyer side"
 	            title="Looking for the buyer side instead?"
-	            description="Robot teams start in the world-model catalog and the hosted-review path, not in the capturer handoff."
+	            description="Robot teams start in the world-model catalog and hosted-review path, not in capture access."
 	            imageSrc={publicCaptureGeneratedAssets.everydayPlacesCollage}
-            imageAlt="Blueprint capture lane"
+            imageAlt="Blueprint capture route"
             primaryHref="/world-models"
             primaryLabel="Explore world models"
             secondaryHref="mailto:hello@tryblueprint.io?subject=Blueprint%20Capture%20Support"

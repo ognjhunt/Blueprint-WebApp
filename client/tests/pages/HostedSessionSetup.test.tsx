@@ -79,7 +79,7 @@ describe("HostedSessionSetup", () => {
     expect(screen.getByText(/scoped hosted-review request for Harborview Grocery Distribution Annex/i)).toBeInTheDocument();
     expect(screen.getAllByText(/World Model/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Robot profile/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Readiness/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Launch check/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Presentation demo/i)).toBeInTheDocument();
     expect(screen.getAllByText(/Observation frames/i).length).toBeGreaterThan(0);
   });
@@ -121,12 +121,12 @@ describe("HostedSessionSetup", () => {
 
     expect(await screen.findByText(/Presentation demo/i)).toBeInTheDocument();
     expect(
-      await screen.findByText(/Artifacts are ready\. Private operator UI is request-gated\./i),
+      await screen.findByText(/Presentation files are ready\. Private operator UI is request-gated\./i),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/Runtime session is request-gated\. Submit the configuration instead\./i),
+      screen.getByText(/Hosted session is request-gated\. Submit the configuration instead\./i),
     ).toBeInTheDocument();
-    expect(screen.getByText(/World-model runtime/i)).toBeInTheDocument();
+    expect(screen.getByText(/Hosted workspace/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Submit hosted evaluation request/i })).toBeInTheDocument();
   });
 
@@ -168,9 +168,9 @@ describe("HostedSessionSetup", () => {
     render(<HostedSessionSetup params={{ slug: demoSiteId }} />);
 
     expect(
-      await screen.findByText(/Embedded demo is request-gated, but the world-model runtime is available\./i),
+      await screen.findByText(/Embedded demo is request-gated, but the hosted workspace is available\./i),
     ).toBeInTheDocument();
-    const runtimeButton = screen.getByRole("button", { name: /Launch runtime session/i });
+    const runtimeButton = screen.getByRole("button", { name: /Launch hosted session/i });
     expect(runtimeButton).toBeEnabled();
 
     fireEvent.click(runtimeButton);
@@ -221,7 +221,7 @@ describe("HostedSessionSetup", () => {
 
     render(<HostedSessionSetup params={{ slug: demoSiteId }} />);
 
-    expect(await screen.findByText(/World-model runtime/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Hosted workspace/i)).toBeInTheDocument();
     await waitFor(
       () => {
         expect(fetchMock).toHaveBeenCalledTimes(1);

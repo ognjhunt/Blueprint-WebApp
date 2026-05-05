@@ -210,6 +210,16 @@ export const CITY_LAUNCH_REQUIRED_SURFACE_KEYS = [
 export type CityLaunchRequiredSurfaceKey =
   (typeof CITY_LAUNCH_REQUIRED_SURFACE_KEYS)[number];
 
+export const CITY_LAUNCH_SURFACE_BLOCKER_BEHAVIOR_VALUES = [
+  "ready_to_execute",
+  "awaiting_human_decision",
+  "awaiting_external_confirmation",
+  "blocked",
+] as const;
+
+export type CityLaunchSurfaceBlockerBehavior =
+  (typeof CITY_LAUNCH_SURFACE_BLOCKER_BEHAVIOR_VALUES)[number];
+
 export const CITY_LAUNCH_DEFAULT_ACTIVATION_TASK_KEYS = [
   "city-target-ledger",
   "parallel-lawful-access-queue",
@@ -240,6 +250,63 @@ export const CITY_LAUNCH_DEFAULT_ACTIVATION_TASK_KEYS = [
 
 export type CityLaunchDefaultActivationTaskKey =
   (typeof CITY_LAUNCH_DEFAULT_ACTIVATION_TASK_KEYS)[number];
+
+export const CITY_LAUNCH_REQUIRED_FINAL_PLAYBOOK_ARTIFACTS = [
+  {
+    key: "city_opening_brief",
+    label: "city-opening brief",
+    surfaceKey: "city_opening_distribution",
+  },
+  {
+    key: "channel_map",
+    label: "channel map",
+    surfaceKey: "city_opening_distribution",
+  },
+  {
+    key: "first_wave_outreach_posting_pack",
+    label: "first-wave outreach/posting pack",
+    surfaceKey: "first_wave_outreach",
+  },
+  {
+    key: "cta_intake_path",
+    label: "CTA / intake path",
+    surfaceKey: "cta_intake_and_response_tracking",
+  },
+  {
+    key: "response_tracking_view",
+    label: "response-tracking view",
+    surfaceKey: "cta_intake_and_response_tracking",
+  },
+  {
+    key: "reply_conversion_queue_and_cadence",
+    label: "reply-conversion queue and follow-up cadence",
+    surfaceKey: "reply_conversion_and_follow_up",
+  },
+  {
+    key: "channel_account_registry",
+    label: "channel/account registry",
+    surfaceKey: "channel_registry_and_send_ledger",
+  },
+  {
+    key: "send_ledger",
+    label: "send ledger",
+    surfaceKey: "channel_registry_and_send_ledger",
+  },
+  {
+    key: "city_opening_execution_report",
+    label: "city-opening execution report",
+    surfaceKey: "city_opening_distribution",
+  },
+  {
+    key: "exact_site_buyer_loop_artifact",
+    label: "exact-site buyer-loop artifact",
+    surfaceKey: "hosted_review_buyer_surface",
+  },
+] as const satisfies ReadonlyArray<{
+  key: string;
+  label: string;
+  surfaceKey: CityLaunchRequiredSurfaceKey;
+}>;
 
 export const CITY_LAUNCH_REQUIRED_METRICS = [
   {
@@ -298,6 +365,8 @@ export const CITY_LAUNCH_CONTROL_PLANE_RULES = {
   approvedAnalyticsReferences: CITY_LAUNCH_APPROVED_ANALYTICS_REFERENCES,
   requiredProofMotionMilestones: CITY_LAUNCH_REQUIRED_PROOF_MOTION_MILESTONES,
   requiredSurfaceKeys: CITY_LAUNCH_REQUIRED_SURFACE_KEYS,
+  surfaceBlockerBehaviors: CITY_LAUNCH_SURFACE_BLOCKER_BEHAVIOR_VALUES,
+  requiredFinalPlaybookArtifacts: CITY_LAUNCH_REQUIRED_FINAL_PLAYBOOK_ARTIFACTS,
   defaultActivationTaskKeys: CITY_LAUNCH_DEFAULT_ACTIVATION_TASK_KEYS,
   requiredMetrics: CITY_LAUNCH_REQUIRED_METRICS,
   agentLanes: CITY_LAUNCH_AGENT_LANE_VALUES,

@@ -8,47 +8,47 @@ import {
 } from "../utils/cityLaunchApprovalMode";
 
 describe("city launch approval mode", () => {
-  it("auto-approves full city-launch runs by default", () => {
+  it("does not auto-approve full city-launch runs by default", () => {
     const founderApproved = resolveCityLaunchFounderApproval({
       phase: "full",
       founderApprovedFlag: false,
       requireFounderApproval: false,
     });
 
-    expect(founderApproved).toBe(true);
+    expect(founderApproved).toBe(false);
     expect(
       shouldDispatchCityLaunchApproval({
         phase: "full",
         founderApproved,
         requireFounderApproval: false,
       }),
-    ).toBe(false);
+    ).toBe(true);
   });
 
-  it("does not re-enable manual approval when requireFounderApproval is set", () => {
+  it("keeps manual approval required when requireFounderApproval is set", () => {
     const founderApproved = resolveCityLaunchFounderApproval({
       phase: "full",
       founderApprovedFlag: false,
       requireFounderApproval: true,
     });
 
-    expect(founderApproved).toBe(true);
+    expect(founderApproved).toBe(false);
     expect(
       shouldDispatchCityLaunchApproval({
         phase: "full",
         founderApproved,
         requireFounderApproval: true,
       }),
-    ).toBe(false);
+    ).toBe(true);
   });
 
-  it("auto-approves activation requests unless explicitly disabled", () => {
+  it("requires explicit approval for activation requests", () => {
     expect(
       resolveCityLaunchActivationFounderApproval({
         founderApproved: undefined,
         requireFounderApproval: undefined,
       }),
-    ).toBe(true);
+    ).toBe(false);
 
     expect(
       resolveCityLaunchActivationFounderApproval({

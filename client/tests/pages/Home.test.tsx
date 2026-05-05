@@ -90,7 +90,7 @@ describe("Home", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
-        name: /See what attaches before it commits\./i,
+        name: /See what is attached before you commit\./i,
       }),
     ).toBeInTheDocument();
     expect(screen.getAllByText(/Capture provenance/i).length).toBeGreaterThan(0);

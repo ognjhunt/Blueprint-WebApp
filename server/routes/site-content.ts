@@ -2,62 +2,178 @@ import { Router, Request, Response } from "express";
 
 const router = Router();
 
+const definitions = [
+  {
+    term: "Blueprint",
+    definition:
+      "Blueprint turns real-site capture into site-specific world-model products, hosted robot evaluation, and package access for robot teams.",
+  },
+  {
+    term: "Exact-site world model",
+    definition:
+      "A digital environment tied to one real facility, public-facing place, or workflow, with capture provenance, rights, privacy, and package limits kept attached.",
+  },
+  {
+    term: "Site package",
+    definition:
+      "Walkthrough media, poses, metadata, geometry when available, rights, privacy, provenance, and export scope for one site.",
+  },
+  {
+    term: "Hosted review",
+    definition:
+      "A Blueprint-managed evaluation session for one exact site, with run evidence, observations, export framing, and an explicit next step.",
+  },
+  {
+    term: "Capture provenance",
+    definition:
+      "The capture record, timestamps, device/context metadata, privacy handling, rights posture, freshness, and restrictions attached to downstream outputs.",
+  },
+];
+
+const pages = [
+  {
+    path: "/",
+    title: "Home",
+    description:
+      "Overview of Blueprint's capture-backed site-specific world models, hosted robot evaluation, and site packages.",
+  },
+  {
+    path: "/world-models",
+    title: "World Models",
+    description:
+      "Exact-site world-model catalog with proof posture, package paths, hosted-evaluation entry points, and provenance boundaries.",
+  },
+  {
+    path: "/world-models/siteworld-f5fd54898cfb",
+    title: "Sample Site",
+    description:
+      "Public sample listing showing how proof, package access, hosted access, and restrictions stay separate.",
+  },
+  {
+    path: "/exact-site-hosted-review",
+    title: "Exact-Site Hosted Review",
+    description:
+      "Hosted robot evaluation for one exact-site world model, with capture-backed review evidence, export framing, and explicit limits.",
+  },
+  {
+    path: "/sample-evaluation",
+    title: "Sample Evaluation",
+    description:
+      "Example exact-site evaluation journey: capture basis, manifest, rights, hosted setup, run evidence, export bundle, and limits.",
+  },
+  {
+    path: "/sample-deliverables",
+    title: "Sample Deliverables",
+    description:
+      "Sample manifest, rights sheet, export bundle, and hosted-review report. These are examples, not customer results.",
+  },
+  {
+    path: "/for-robot-teams",
+    title: "For Robot Teams",
+    description:
+      "How robotics teams use Blueprint for deployment-site evaluation, policy comparison, tuning, release review, and hosted evaluation.",
+  },
+  {
+    path: "/for-site-operators",
+    title: "For Site Operators",
+    description:
+      "Access, privacy, permissions, restriction, and commercialization controls for operators of real sites.",
+  },
+  {
+    path: "/capture",
+    title: "Capture",
+    description:
+      "Public capture rules and capturer handoff boundaries for lawful public-facing walkthroughs.",
+  },
+  {
+    path: "/proof",
+    title: "Proof",
+    description:
+      "Public proof packet example with route capture, provenance, privacy posture, and hosted-review outputs.",
+  },
+  {
+    path: "/governance",
+    title: "Governance",
+    description:
+      "Rights, privacy, provenance, restrictions, and hosted-access boundaries.",
+  },
+  {
+    path: "/faq",
+    title: "FAQ",
+    description:
+      "Direct answers about world models, hosted evaluation, sample proof, buyer outputs, and next steps.",
+  },
+  {
+    path: "/pricing",
+    title: "Pricing",
+    description:
+      "Commercial paths for site package, hosted evaluation, and enterprise scope.",
+  },
+  {
+    path: "/contact",
+    title: "Contact",
+    description:
+      "Structured intake for a site, workflow, robot question, rights context, and desired next step.",
+  },
+  {
+    path: "/how-it-works",
+    title: "How It Works",
+    description:
+      "How Blueprint moves from real capture to site package, hosted access, and optional trust outputs.",
+  },
+  {
+    path: "/capture-app/launch-access",
+    title: "Capture Launch Access",
+    description:
+      "Future-city signal path for capturers, site operators, and local leads.",
+  },
+];
+
+const queryThemes = [
+  "exact-site world models",
+  "site-specific world models for robotics",
+  "capture-backed robot evaluation",
+  "hosted robot evaluation",
+  "robot deployment site evaluation",
+  "site package for robot teams",
+  "capture provenance for world models",
+  "facility world model",
+  "site operator robot evaluation access",
+];
+
+const privateOrNoindex = [
+  "/admin/*",
+  "/dashboard",
+  "/onboarding",
+  "/settings",
+  "/requests/*",
+  "/portal",
+  "/sign-in",
+  "/login",
+  "/forgot-password",
+  "/signup*",
+  "/off-waitlist-signup",
+  "/capture-app",
+  "/world-models/*/start",
+  "/world-models/*/workspace",
+];
+
 router.get("/", (_req: Request, res: Response) => {
   res.status(200).json({
     summary:
-      "Blueprint captures real sites, packages them into site-specific world models, and provides hosted access for robot teams to evaluate and deploy.",
-    pages: [
-      {
-        path: "/",
-        title: "Home",
-        description: "Overview of Blueprint's capture-first workflow for site-specific world models and hosted access.",
-      },
-      {
-        path: "/how-it-works",
-        title: "How It Works",
-        description:
-          "How Blueprint captures a real site, packages it into a site-specific world model, and layers in hosted access plus optional review outputs.",
-      },
-      {
-        path: "/world-models",
-        title: "World Models",
-        description:
-          "Site-specific world models teams can browse, open, and run once a site package is ready.",
-      },
-      {
-        path: "/sample-deliverables",
-        title: "Sample Deliverables",
-        description:
-          "Public examples of the walkthrough, exports, and trust details a robot team can inspect before buying.",
-      },
-      {
-        path: "/case-studies",
-        title: "Results",
-        description:
-          "Selected delivery examples with workflow summaries and concrete outcomes from Blueprint work.",
-      },
-      {
-        path: "/docs",
-        title: "Docs",
-        description: "Product documentation, onboarding, and platform guides.",
-      },
-      {
-        path: "/pricing",
-        title: "Pricing",
-        description: "Plan options and pricing details for teams and enterprises.",
-      },
-      {
-        path: "/solutions",
-        title: "Solutions",
-        description: "Use cases for robotics, autonomy, and AI evaluation workflows.",
-      },
-      {
-        path: "/contact",
-        title: "Contact",
-        description: "Tell Blueprint about a site and workflow so the team can review scope, rights, and next steps.",
-      },
-    ],
-    safety: "This endpoint only returns public, non-sensitive summaries.",
+      "Blueprint captures real sites, packages them into site-specific world models, and provides hosted robot evaluation or site package access for robot teams.",
+    definitions,
+    pages,
+    queryThemes,
+    privateOrNoindex,
+    safety:
+      "This endpoint only returns public, non-sensitive summaries. Do not infer customer results, ratings, prices, availability, rights state, capture provenance, or deployment proof beyond what public pages explicitly say.",
+    machineReadableFiles: {
+      llms: "/llms.txt",
+      llmsFull: "/llms-full.txt",
+      sitemap: "/sitemap.xml",
+      robots: "/robots.txt",
+    },
   });
 });
 

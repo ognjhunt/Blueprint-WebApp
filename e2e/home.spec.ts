@@ -18,7 +18,7 @@ test('homepage leads with capture and world models', async ({ page }) => {
     page.getByRole('link', { name: /^Scope hosted review$|^Request site review$/i }).first(),
   ).toBeVisible();
   await expect(page.getByRole('link', { name: /See hosted path/i }).first()).toBeVisible();
-  await expect(page.getByText(/One exact site\. One workflow lane\. Proof stays attached\./i)).toBeVisible();
+  await expect(page.getByText(/One exact site\. One workflow\. Proof stays attached\./i)).toBeVisible();
   await expect(
     page.getByRole('heading', { name: /Start with the site your robot needs to understand\./i }),
   ).toBeVisible();

@@ -11,7 +11,7 @@ import { editorialGeneratedAssets } from "@/lib/editorialGeneratedAssets";
 const reviewCards = [
   {
     title: "Book the call",
-    body: "A narrow scoping pass on one real site, one workflow lane, and one deployment question.",
+    body: "A narrow scoping pass on one real site, one workflow, and one deployment question.",
   },
   {
     title: "What to bring",
@@ -50,7 +50,7 @@ export default function BookExactSiteReview() {
                   Book an exact-site scoping call.
                 </h1>
                 <p className="mt-6 text-base leading-8 text-slate-700">
-                  Use this page when one real site, one workflow lane, and one deployment question are ready for a focused scoping pass.
+                  Use this page when one real site, one workflow, and one deployment question are ready for a focused scoping pass.
                 </p>
                 </div>
               </div>
@@ -85,7 +85,7 @@ export default function BookExactSiteReview() {
                 description="The output is a tighter path, not a vague intro meeting."
               />
               <div className="mt-8 space-y-3 text-sm leading-7 text-slate-700">
-                <div>Confirm the real facility and workflow lane.</div>
+                <div>Confirm the real facility and workflow.</div>
                 <div>Clarify whether package, hosted review, or a custom path fits.</div>
                 <div>Keep rights, privacy, and export considerations visible from the start.</div>
               </div>

@@ -151,8 +151,8 @@ export default function Governance() {
             />
             <div className="bg-[#f5f3ef] px-6 py-8 lg:px-8 lg:py-10">
               <EditorialSectionIntro
-                eyebrow="Public-capture boundary"
-                title="The rules are operational, not just legal copy."
+	                eyebrow="Public-capture boundary"
+	                title="The rules are practical, not just legal copy."
                 description="Everyday public-facing places only work when the listing shows what was allowed, what was restricted, what was redacted, and what the buyer may inspect."
               />
               <div className="mt-7 space-y-3">
@@ -197,12 +197,12 @@ export default function Governance() {
         <section className="border-y border-black/10 bg-white">
           <div className="mx-auto grid max-w-[88rem] gap-4 px-5 py-10 sm:px-8 lg:grid-cols-[0.42fr_0.58fr] lg:px-10 lg:py-12">
             <div className="bg-slate-950 p-6 text-white lg:p-8">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Operational control matrix</p>
+              <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Operator control checklist</p>
               <h2 className="font-editorial mt-4 text-[2.7rem] leading-[0.94] tracking-[-0.05em]">
-                Operator control is a product surface.
+                Operator controls are part of the product.
               </h2>
               <p className="mt-5 text-sm leading-7 text-white/70">
-                A serious site owner needs more than a generic contact form. The public site now explains which fields Blueprint expects before a facility is listed, captured, or commercialized.
+                A serious site owner needs more than a generic contact form. This page shows which details Blueprint needs before a facility is listed, captured, or commercialized.
               </p>
             </div>
             <div className="divide-y divide-black/10 border border-black/10 bg-white">
@@ -218,9 +218,9 @@ export default function Governance() {
 
         <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
           <EditorialSectionIntro
-            eyebrow="Governance artifacts"
-            title="The trust details become files and fields, not vibes."
-            description="These artifacts are public-facing descriptions of the records Blueprint expects to attach to real listings, hosted sessions, and capture workflows."
+            eyebrow="Governance records"
+            title="The trust details become files and fields, not vague promises."
+            description="These are plain descriptions of the records Blueprint expects to attach to real listings, hosted sessions, and capture workflows."
             className="max-w-3xl"
           />
           <div className="mt-8 grid gap-4 lg:grid-cols-4">

@@ -29,7 +29,7 @@ const sampleSections = [
   {
     title: "Site record overview",
     body:
-      "A clean view of the work area, route, handoff points, and restricted zones so everyone starts from the same picture.",
+      "A clean view of the work area, route, transfer points, and restricted zones so everyone starts from the same picture.",
     icon: <Map className="h-5 w-5" />,
   },
   {
@@ -39,7 +39,7 @@ const sampleSections = [
     icon: <ScanLine className="h-5 w-5" />,
   },
   {
-    title: "Review memo",
+    title: "Review summary",
     body:
       "A short report with open issues, evidence quality notes, a risk map, and a clear recommendation on what to do next.",
     icon: <FileText className="h-5 w-5" />,
@@ -47,7 +47,7 @@ const sampleSections = [
   {
     title: "Robot-team evaluation path",
     body:
-      "A simple handoff that lets robot teams review the site record before anyone burns field time or pilot budget.",
+      "A simple review path that lets robot teams inspect the site record before anyone burns field time or pilot budget.",
     icon: <ShieldCheck className="h-5 w-5" />,
   },
 ];
@@ -106,7 +106,7 @@ export default function ReadinessPack() {
                 </p>
                 <h2 className="mt-3 text-2xl font-bold text-slate-950">Ready with two open issues</h2>
                 <p className="mt-3 text-sm leading-relaxed text-slate-600">
-                  The route is workable and the handoff is clear. The current gaps are a narrow dock
+                  The route is workable and the transfer point is clear. The current gaps are a narrow dock
                   turn and incomplete evidence around a restricted storage aisle.
                 </p>
                 <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4">

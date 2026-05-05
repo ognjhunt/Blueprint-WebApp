@@ -1,5 +1,5 @@
 {
-  "sample_disclosure": "Composite demo export bundle. Replace the location, story, and run outputs with real approved capture artifacts before making customer claims.",
+  "sample_disclosure": "Sample demo export bundle. Swap in approved real capture files before making customer claims.",
   "bundle_id": "sample-export-bundle-public-capture-0426",
   "site_id": "sample-public-capture-cedar-market-aisle-loop",
   "site_name": "Cedar Market Aisle Loop",
@@ -57,7 +57,7 @@
       "run": "Run 01",
       "scenario": "Baseline aisle navigation",
       "observation": "Route is readable through endcap and mid-aisle transitions.",
-      "output": "Keep lane in hosted review"
+      "output": "Keep in hosted review"
     },
     {
       "run": "Run 02",

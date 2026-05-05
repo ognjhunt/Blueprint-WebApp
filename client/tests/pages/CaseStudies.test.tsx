@@ -6,12 +6,12 @@ describe("CaseStudies", () => {
   it("presents public capture examples instead of internal proof notes", () => {
     render(<CaseStudies />);
 
-    expect(screen.getByRole("heading", { name: /Complete stories, clearly marked as composite\./i })).toBeInTheDocument();
-    expect(screen.getByText(/Launch-ready placeholder studies for grocery, retail, lobby, and common-area routes/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Complete examples, clearly marked as samples\./i })).toBeInTheDocument();
+    expect(screen.getByText(/Each sample study shows the location type, capture cue, robot question/i)).toBeInTheDocument();
     expect(screen.getAllByText(/Example public capture/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Composite placeholder/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Sample example/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Cedar Market Aisle Loop/i)).toBeInTheDocument();
-    expect(screen.getByText(/Composite outcome board/i)).toBeInTheDocument();
+    expect(screen.getByText(/Sample outcome board/i)).toBeInTheDocument();
     expect(
       screen
         .getAllByRole("link", { name: /Inspect sample listing/i })

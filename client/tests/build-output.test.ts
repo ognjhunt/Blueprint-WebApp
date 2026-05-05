@@ -82,13 +82,17 @@ describe("build output", () => {
     );
 
     expect(sitemap).toContain("https://tryblueprint.io/world-models/sw-chi-01");
-    expect(sitemap).toContain("https://tryblueprint.io/docs");
+    expect(sitemap).toContain("https://tryblueprint.io/sample-evaluation");
+    expect(sitemap).toContain("https://tryblueprint.io/proof");
+    expect(sitemap).toContain("https://tryblueprint.io/capture");
     expect(sitemap).toContain("https://tryblueprint.io/blog");
     expect(sitemap).toContain("https://tryblueprint.io/exact-site-hosted-review");
     expect(sitemap).toContain("https://tryblueprint.io/book-exact-site-review");
     expect(sitemap).toContain("https://tryblueprint.io/help");
     expect(sitemap).toContain("https://tryblueprint.io/launch-map");
     expect(sitemap).not.toContain("https://tryblueprint.io/site-worlds");
+    expect(sitemap).not.toContain("https://tryblueprint.io/docs");
+    expect(sitemap).not.toContain("https://tryblueprint.io/solutions");
   });
 
   it("ships crawl artifacts for public marketing routes", () => {
@@ -103,11 +107,32 @@ describe("build output", () => {
 
     expect(robots).toContain("User-agent: *");
     expect(robots).toContain("Allow: /");
+    expect(robots).toContain("User-agent: OAI-SearchBot");
+    expect(robots).toContain("User-agent: GPTBot");
+    expect(robots).toContain("Disallow: /admin/");
+    expect(robots).toContain("Disallow: /world-models/*/workspace");
     expect(sitemap).toContain("https://tryblueprint.io/about");
     expect(sitemap).toContain("https://tryblueprint.io/faq");
   });
 
-  it("ships honest proof surfaces without unsplash references on the examples page", () => {
+  it("ships current machine-readable AI answer files", () => {
+    const llms = fs.readFileSync(
+      path.resolve(process.cwd(), "dist/public/llms.txt"),
+      "utf8",
+    );
+    const llmsFull = fs.readFileSync(
+      path.resolve(process.cwd(), "dist/public/llms-full.txt"),
+      "utf8",
+    );
+
+    expect(llms).toContain("site-specific world-model products");
+    expect(llms).toContain("https://tryblueprint.io/exact-site-hosted-review");
+    expect(llms).not.toContain("https://tryblueprint.io/solutions");
+    expect(llmsFull).toContain("hosted robot evaluation");
+    expect(llmsFull).toContain("Do not invent customer results");
+  });
+
+  it("ships honest proof pages without unsplash references on the examples page", () => {
     const examplesHtml = fs.readFileSync(
       path.resolve(process.cwd(), "dist/public/sample-deliverables/index.html"),
       "utf8",
@@ -118,8 +143,11 @@ describe("build output", () => {
     );
 
     expect(examplesHtml).not.toContain("images.unsplash.com");
-    expect(examplesHtml).toContain("Sample artifact");
+    expect(examplesHtml).toContain("Sample file");
     expect(homeHtml).toContain('rel="canonical" href="https://tryblueprint.io/"');
+    expect(homeHtml).toContain('property="og:image" content="https://tryblueprint.io/generated/editorial/world-models-hero.png"');
+    expect(homeHtml).toContain('type="application/ld+json"');
+    expect(homeHtml).toContain("What is a site-specific world model?");
   });
 
   it("ships the placeholder proof assets", () => {

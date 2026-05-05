@@ -9,7 +9,7 @@ describe("SampleDeliverables", () => {
     expect(
       screen.getByRole("heading", { name: /Sample deliverables from one real site\./i }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /See the sample contract before the call\./i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /See the sample files before the call\./i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Public capture can start with everyday places\./i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Open the sample files\./i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Not just facilities\./i })).toBeInTheDocument();

@@ -792,7 +792,7 @@ export default function BusinessSignUpFlow() {
     <>
       <SEO
         title="Buyer Access Request | Blueprint"
-        description="Request buyer access for exact-site packages and hosted evaluation."
+        description="Request buyer access for exact-site packages, hosted review, and capture-backed site evaluation."
         canonical="/signup/business"
         noIndex
       />
@@ -827,6 +827,14 @@ export default function BusinessSignUpFlow() {
                       book a scoping call
                     </a>
                     .
+                    <div className="mt-3 flex flex-wrap gap-3 text-sm">
+                      <a href="/sample-evaluation" className="font-semibold text-[#111110] underline-offset-4 hover:underline">
+                        Inspect sample review
+                      </a>
+                      <a href="/sample-deliverables" className="font-semibold text-[#111110] underline-offset-4 hover:underline">
+                        See sample files
+                      </a>
+                    </div>
                   </div>
 
                   <div className="mt-8">

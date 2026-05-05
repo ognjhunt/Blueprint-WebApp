@@ -19,7 +19,6 @@ import SiteWorldDetail from "../client/src/pages/SiteWorldDetail";
 import HostedSessionSetup from "../client/src/pages/HostedSessionSetup";
 import ForSiteOperators from "../client/src/pages/ForSiteOperators";
 import ForRobotIntegrators from "../client/src/pages/ForRobotIntegrators";
-import Solutions from "../client/src/pages/Solutions";
 import Pricing from "../client/src/pages/Pricing";
 import SampleDeliverables from "../client/src/pages/SampleDeliverables";
 import SampleEvaluation from "../client/src/pages/SampleEvaluation";
@@ -38,7 +37,6 @@ import Privacy from "../client/src/pages/Privacy";
 import Terms from "../client/src/pages/Terms";
 import Login from "../client/src/pages/Login";
 import Blog from "../client/src/pages/Blog";
-import Docs from "../client/src/pages/Docs";
 import LaunchMap from "../client/src/pages/LaunchMap";
 import { siteWorldCards } from "../client/src/data/siteWorlds";
 
@@ -63,6 +61,8 @@ function BareStaticPage({
   secondaryHref,
   secondaryLabel,
   rows,
+  canonical,
+  noIndex = false,
 }: {
   title: string;
   description: string;
@@ -74,12 +74,16 @@ function BareStaticPage({
   secondaryHref?: string;
   secondaryLabel?: string;
   rows: string[];
+  canonical?: string;
+  noIndex?: boolean;
 }) {
   return (
     <>
       <Helmet>
         <title>{title}</title>
         <meta name="description" content={description} />
+        {canonical ? <link rel="canonical" href={`https://tryblueprint.io${canonical}`} /> : null}
+        {noIndex ? <meta name="robots" content="noindex, nofollow" /> : null}
       </Helmet>
       <main className="min-h-screen bg-[#f8f4ec] px-6 py-8 text-[#111110]">
         <section className="mx-auto max-w-[72rem] overflow-hidden rounded-[2rem] border border-black/10 bg-white shadow-[0_30px_90px_-70px_rgba(17,17,16,0.5)]">
@@ -144,6 +148,8 @@ const PrerenderPortal = () => (
       "Hosted review outputs, exports, and rights context are visible only to approved users.",
       "New teams should request buyer access before expecting a private portal workspace.",
     ]}
+    canonical="/portal"
+    noIndex
   />
 );
 
@@ -163,6 +169,8 @@ const PrerenderBusinessSignup = () => (
       "Package and hosted-review requests stay tied to capture provenance, rights, privacy, and export scope.",
       "Existing portal users should sign in instead of creating a second account path.",
     ]}
+    canonical="/signup/business"
+    noIndex
   />
 );
 
@@ -182,6 +190,8 @@ const PrerenderCapturerSignup = () => (
       "Blueprint reviews coverage, privacy, usefulness, and market fit before a capture becomes downstream output.",
       "Approval and payout eligibility are not automatic; each submission remains review-gated.",
     ]}
+    canonical="/signup/capturer"
+    noIndex
   />
 );
 
@@ -201,6 +211,8 @@ const PrerenderForgotPassword = () => (
       "New robot teams should request buyer access; capturers should use the capturer application.",
       "If the reset link does not arrive, contact Blueprint from the same work email.",
     ]}
+    canonical="/forgot-password"
+    noIndex
   />
 );
 
@@ -208,12 +220,10 @@ const staticRoutes: StaticRoute[] = [
   { path: "/", component: Home },
   { path: "/capture", component: Capture },
   { path: "/world-models", component: SiteWorlds },
-  { path: "/site-worlds", component: SiteWorlds },
   { path: "/capture-app", component: CaptureAppPlaceholder },
   { path: "/capture-app/launch-access", component: CaptureLaunchAccess },
   { path: "/for-site-operators", component: ForSiteOperators },
   { path: "/for-robot-teams", component: ForRobotIntegrators },
-  { path: "/solutions", component: Solutions },
   { path: "/pricing", component: Pricing },
   { path: "/proof", component: Proof, shell: "bare" },
   { path: "/sample-evaluation", component: SampleEvaluation },
@@ -229,7 +239,6 @@ const staticRoutes: StaticRoute[] = [
   { path: "/faq", component: FAQ },
   { path: "/governance", component: Governance },
   { path: "/about", component: About },
-  { path: "/docs", component: Docs },
   { path: "/blog", component: Blog },
   { path: "/careers", component: Careers },
   { path: "/sign-in", component: Login },
@@ -238,7 +247,6 @@ const staticRoutes: StaticRoute[] = [
   { path: "/signup/business", component: PrerenderBusinessSignup, shell: "bare" },
   { path: "/signup/capturer", component: PrerenderCapturerSignup, shell: "bare" },
   { path: "/forgot-password", component: PrerenderForgotPassword, shell: "bare" },
-  { path: "/partners", component: Contact },
   { path: "/privacy", component: Privacy },
   { path: "/terms", component: Terms },
   ...siteWorldCards.map((site) => ({

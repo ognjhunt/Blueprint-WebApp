@@ -4,7 +4,7 @@ const sections = [
   {
     title: "Stable contract",
     body:
-      "These parts of the product stay the same regardless of which site or runtime backend is used.",
+      "These parts of the product stay the same regardless of which site or hosted backend is used.",
     bullets: [
       "Capture truth: walkthrough media, timestamps, poses, and device metadata",
       "Rights, privacy, consent, and provenance metadata",
@@ -18,7 +18,7 @@ const sections = [
       "The site package gives your team everything it needs to run its own world model stack on that facility.",
     bullets: [
       "Walkthrough video, timestamps, and camera poses tied to one real facility",
-      "Intrinsics, depth, and geometry artifacts when the source capture supports them",
+      "Intrinsics, depth, and geometry files when the source capture supports them",
       "Site notes, provenance, privacy, and rights metadata",
       "Package manifest and reference material for building your own world model",
     ],
@@ -26,18 +26,18 @@ const sections = [
   {
     title: "Hosted evaluation outputs",
     body:
-      "Hosted evaluation is a managed runtime session on one exact site. Your team can run, review, and export without moving data into your own stack first.",
+      "Hosted evaluation is a Blueprint-managed hosted session on one exact site. Your team can run, review, and export without moving data into your own stack first.",
     bullets: [
       "Repeatable runs on the same exact site",
       "Rollout video, failure review, and checkpoint comparison",
       "Dataset, raw bundle, and export generation tied to the listing",
-      "A browser-accessible runtime session — no local setup required",
+      "A browser-accessible hosted session — no local setup required",
     ],
   },
   {
     title: "What varies by listing",
     body:
-      "Not every site has the same artifacts or export options. Check the listing before assuming every lane supports the same depth of work.",
+      "Not every site has the same files or export options. Check the listing before assuming every workflow supports the same depth of work.",
     bullets: [
       "Depth and geometry coverage",
       "Available scenario variations and start states",
@@ -53,7 +53,7 @@ const exportSchemaRows = [
   ["freshness_state", "Current, stale, sample, or pending recapture."],
   ["rights_class", "What can be inspected, shared, exported, or commercialized."],
   ["privacy_state", "Redaction status, raw-media retention, and buyer-visible limits."],
-  ["artifact_set", "Manifest, rights sheet, hosted report, export bundle, route notes."],
+  ["file_set", "Manifest, rights sheet, hosted report, export bundle, route notes."],
 ];
 
 const bundleTree = [
@@ -68,14 +68,14 @@ const bundleTree = [
 const assumptions = [
   {
     title: "Robot profile",
-    body: "Hosted review scopes one robot class, sensor posture, task lane, and scenario set. Blueprint does not assume every robot can use every export.",
+    body: "Hosted review scopes one robot class, sensor posture, task, and scenario set. Blueprint does not assume every robot can use every export.",
   },
   {
     title: "Sensors and geometry",
-    body: "Camera, pose, depth, LiDAR, and geometry artifacts depend on the capture method and listing. The manifest should say what exists before export access.",
+    body: "Camera, pose, depth, LiDAR, and geometry files depend on the capture method and listing. The manifest should say what exists before export access.",
   },
   {
-    title: "Runtime limits",
+    title: "Hosted-session limits",
     body: "Hosted sessions are review environments. They can expose route behavior, observations, and comparison notes; they are not deployment certification.",
   },
   {

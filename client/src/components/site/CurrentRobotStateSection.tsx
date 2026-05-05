@@ -18,7 +18,7 @@ const evidenceCards: EvidenceCard[] = [
     summary:
       "Figure's Helix 02 tidy demo is a real capability signal. The room is known. The task is bounded. That helps the robot keep a steady loop.",
     note:
-      "That setup matters. When the layout, safety rules, or handoffs drift, performance usually drifts too.",
+      "That setup matters. When the layout, safety rules, or transfer points drift, performance usually drifts too.",
     imageSrc: "/images/humanoids/figure-helix-02-living-room.jpg",
     imageAlt: "Figure Helix 02 living room tidy demo thumbnail.",
     ctaLabel: "Watch demo",
@@ -37,10 +37,10 @@ const evidenceCards: EvidenceCard[] = [
     ctaHref: "https://www.pi.website/blog/partner",
   },
   {
-    tag: "Live lane",
-    title: "Robots are reaching live sites, but usually in a well-scoped lane.",
+    tag: "Live site",
+    title: "Robots are reaching live sites, but usually in a well-scoped workflow.",
     summary:
-      "Figure's BMW work is a useful example. A robot can add value on a real floor when the lane is defined and the workflow is clear.",
+      "Figure's BMW work is a useful example. A robot can add value on a real floor when the route is defined and the workflow is clear.",
     note:
       "The hard part is not one clean clip. It is whether the same task still works in the actual site next week.",
     imageSrc: "/images/humanoids/agility-digit-profile.jpg",
@@ -148,7 +148,7 @@ export function CurrentRobotStateSection() {
           <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">What Blueprint does</p>
           <p className="mt-3 max-w-3xl text-base leading-relaxed text-zinc-200">
             Robots do not usually fail because the demo was fake. They fail because the live site
-            is different: different layout, different traffic, different handoffs, different
+            is different: different layout, different traffic, different transfer points, different
             safety rules, different pass bar. Blueprint reduces that deployment gap by giving
             teams a site-specific world model and hosted evaluation path built from real capture.
           </p>

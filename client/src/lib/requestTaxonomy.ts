@@ -108,7 +108,7 @@ export const CONTACT_INTEREST_TO_LANE = {
 
 export const OPPORTUNITY_STATE_LABELS = {
   not_applicable: "Not Applicable",
-  handoff_ready: "Handoff Ready",
+  handoff_ready: "Ready For Review",
   escalated_to_geometry: "Preview / Asset Prep",
   escalated_to_validation: "Evaluation Package Active",
 } as const;

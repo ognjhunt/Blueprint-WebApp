@@ -1,25 +1,33 @@
-Blueprint is capture-first and world-model-product-first. It helps operators and robot teams submit a site, review evidence, package real sites into site-specific world models, and use hosted access plus optional review outputs.
+# Blueprint
 
-High-priority public URLs:
-- /
-- /how-it-works
-- /world-models
-- /for-robot-teams
-- /for-site-operators
-- /sample-deliverables
-- /case-studies
-- /pricing
-- /solutions
-- /faq
-- /docs
-- /governance
-- /contact
-- /about
-- /careers
-- /privacy
-- /terms
+Blueprint turns real-site capture into site-specific world-model products, hosted robot evaluation, and package access for robot teams. This file is a machine-readable website map, not a permissions file or guaranteed ranking signal. Crawler access is controlled by `/robots.txt`.
 
-Full content: /llms-full.txt
+## Core Definitions
 
-API endpoints:
-- /api/site-content (public JSON summary of key pages and non-sensitive content)
+- Exact-site world model: a digital environment tied to one real facility, public-facing place, or workflow.
+- Site package: walkthrough media, poses, metadata, geometry when available, rights, privacy, provenance, and export scope for one site.
+- Hosted review: a Blueprint-managed evaluation session for one exact site, with run evidence, observations, export framing, and an explicit next step.
+- Capture provenance: the capture record, timestamps, device/context metadata, privacy handling, rights posture, freshness, and restrictions attached to downstream outputs.
+- Sample proof: public example files labeled as samples unless they are tied to an approved real listing and evidence chain.
+
+## High-Priority Public Pages
+
+- [Home](https://tryblueprint.io/): concise overview of Blueprint for site-specific world models, hosted evaluation, and capture-backed site packages.
+- [World Models](https://tryblueprint.io/world-models): exact-site world-model catalog with proof posture, package paths, and hosted-evaluation entry points.
+- [Sample Site](https://tryblueprint.io/world-models/siteworld-f5fd54898cfb): public sample listing showing how proof, package access, hosted access, and restrictions stay separate.
+- [Exact-Site Hosted Review](https://tryblueprint.io/exact-site-hosted-review): hosted robot evaluation for one exact-site world model.
+- [Sample Evaluation](https://tryblueprint.io/sample-evaluation): sample evaluation journey with capture basis, manifest, rights, hosted setup, run evidence, exports, and limits.
+- [Sample Deliverables](https://tryblueprint.io/sample-deliverables): sample manifest, rights sheet, export bundle, and hosted-review report.
+- [For Robot Teams](https://tryblueprint.io/for-robot-teams): buyer-language explanation for robotics teams evaluating one real deployment site.
+- [For Site Operators](https://tryblueprint.io/for-site-operators): access, privacy, permissions, and commercialization controls for site operators.
+- [Capture](https://tryblueprint.io/capture): public capture rules and capturer access boundaries.
+- [Proof](https://tryblueprint.io/proof): public proof packet example with sample-vs-real boundaries.
+- [Governance](https://tryblueprint.io/governance): rights, privacy, provenance, restrictions, and hosted-access boundaries.
+- [FAQ](https://tryblueprint.io/faq): direct answers about world models, hosted evaluation, sample proof, and buyer next steps.
+- [Pricing](https://tryblueprint.io/pricing): site package, hosted evaluation, and enterprise scope options.
+- [Contact](https://tryblueprint.io/contact): structured intake for a site, workflow, robot question, rights context, and next step.
+
+## Full Machine-Readable Overview
+
+- [llms-full.txt](https://tryblueprint.io/llms-full.txt): longer public overview, page map, query themes, and answer guidance.
+- [Public site-content API](https://tryblueprint.io/api/site-content): non-sensitive JSON summary of the same public pages.

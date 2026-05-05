@@ -17,7 +17,7 @@ const companyCards = [
   {
     title: "What Blueprint is not",
     body:
-      "Not a generic AI marketplace, not a model-demo theater, and not a deployment-guarantee layer pretending uncertainty has disappeared.",
+      "Not a generic AI marketplace, not a model demo, and not a deployment guarantee pretending uncertainty has disappeared.",
   },
 ];
 

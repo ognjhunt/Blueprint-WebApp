@@ -1,5 +1,5 @@
 import { renderHumanBlockerPacketText, type HumanBlockerPacket } from "./human-blocker-packet";
-import type { HumanBlockerThreadRecord } from "./human-reply-store";
+import { getHumanBlockerThread, type HumanBlockerThreadRecord } from "./human-reply-store";
 import type { CityLaunchBudgetPolicy, CityLaunchBudgetTier } from "./cityLaunchPolicy";
 import { resolveCityLaunchProfile, type CityLaunchProfile } from "./cityLaunchProfiles";
 
@@ -50,11 +50,11 @@ export function buildCityLaunchFounderApprovalPacket(input: {
     summary: `Autonomous launch policy for ${profile.city} with ${input.budgetPolicy.label} budget ($${input.budgetPolicy.maxTotalApprovedUsd.toLocaleString()}). ${approvals.length} governing rules.`,
     decisionType: "city_launch_activation",
     recommendedAnswer:
-      "AUTO-RUN — execute the city activation autonomously inside the written spend, policy, rights, and commercial guardrails.",
+      "APPROVE — activate the selected city as a gated Exact-Site Hosted Review launch inside the written spend, policy, rights, and commercial guardrails.",
     exactResponseNeeded:
-      "No reply required. Treat this artifact as the current autonomous operating policy for the city launch.",
+      "Reply APPROVE to activate this city, or REJECT with the specific city, spend, posture, rights/privacy, or commercial change required.",
     whyBlocked:
-      "City launch activation no longer requires manual approval. The system should auto-run and fail closed only on missing policy, missing evidence, or unsupported claims.",
+      "City go/no-go, spend posture, posture-changing public claims, rights/privacy exceptions, and non-standard commercial commitments remain founder-gated before activation.",
     alternatives: [
       "AUTO-RUN — execute within the written launch posture",
       "UPDATE POLICY — change the written launch policy in repo truth, then rerun",
@@ -108,7 +108,7 @@ export function isCityLaunchFounderApprovalResolved(
     | undefined,
 ) {
   if (!thread) {
-    return true;
+    return false;
   }
 
   if (thread.resume_action?.kind !== "city_launch_activate") {
@@ -130,12 +130,15 @@ export async function resolveCityLaunchFounderApprovalFromDurableState(input: {
   city: string;
   budgetPolicy: CityLaunchBudgetPolicy;
 }) {
+  const blockerId = getCityLaunchFounderApprovalBlockerId(
+    input.city,
+    input.budgetPolicy.tier,
+  );
+  const thread = await getHumanBlockerThread(blockerId).catch(() => null);
+
   return {
-    blockerId: getCityLaunchFounderApprovalBlockerId(
-      input.city,
-      input.budgetPolicy.tier,
-    ),
-    founderApproved: true,
-    thread: null,
+    blockerId,
+    founderApproved: isCityLaunchFounderApprovalResolved(thread),
+    thread,
   };
 }

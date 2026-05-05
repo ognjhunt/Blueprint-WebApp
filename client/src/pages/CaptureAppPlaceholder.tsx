@@ -95,7 +95,7 @@ export default function CaptureAppPlaceholder() {
 	      />
 
       <SurfacePage>
-        <SurfaceTopBar eyebrow="Capture Access" rightLabel="Public Capture Handoff" />
+        <SurfaceTopBar eyebrow="Capture Access" rightLabel="Public Capture Path" />
         <SurfaceSection className="py-8">
           <SurfaceBrowserFrame className="overflow-hidden">
             <div className="grid xl:grid-cols-[0.56fr_0.44fr]">
@@ -113,7 +113,7 @@ export default function CaptureAppPlaceholder() {
                 </div>
                 <div className="relative flex h-full items-end px-6 py-8 lg:px-8">
                   <div className="max-w-[28rem]">
-	                    <SurfaceMiniLabel className="text-white/50">Public Capture Handoff</SurfaceMiniLabel>
+	                    <SurfaceMiniLabel className="text-white/50">Public Capture Path</SurfaceMiniLabel>
 	                    <h1 className="mt-5 text-[clamp(3.5rem,7vw,6rem)] font-semibold uppercase leading-[0.86] tracking-[-0.08em] text-white">
 	                      Everyday site.
 	                      <br />
@@ -186,8 +186,8 @@ export default function CaptureAppPlaceholder() {
                       </div>
                     <p className="mt-4 text-center text-sm leading-6 text-white/65">
                       {showExternalHandoff
-                        ? "Capturers use this stable handoff to open the app, follow field rules, and submit walkthroughs for review."
-                        : "The app link is invite-gated for now. Request access or apply as a capturer so Blueprint can route the right handoff."}
+                        ? "Capturers use this stable path to open the app, follow field rules, and submit walkthroughs for review."
+                        : "The app link is invite-gated for now. Request access or apply as a capturer so Blueprint can route the right access path."}
                     </p>
                     </div>
                     <div className="mt-5">
@@ -262,7 +262,7 @@ export default function CaptureAppPlaceholder() {
                 <div className="rounded-[1.35rem] border border-black/10 bg-[#111110] p-5 text-white">
                   <SurfaceMiniLabel className="text-white/50">Need The Buyer Side Instead?</SurfaceMiniLabel>
                   <p className="mt-4 text-base leading-7 text-white/75">
-	                    Robot teams browse exact-site worlds and hosted review. Capturers use this handoff to record lawful public-facing locations for review.
+	                    Robot teams browse exact-site worlds and hosted review. Capturers use this path to record lawful public-facing locations for review.
                   </p>
                   <a
                     href="/world-models"

@@ -24,19 +24,19 @@ function humanizeCitySlug(citySlug: string) {
 
 const captureRules = [
   {
-    title: "Infrastructure readiness",
+    title: "Launch fit",
     body:
-      "Industrial density, road coverage, and permitting conditions should support high-quality, repeatable capture before the city reads as open.",
+      "Nearby site density, access rules, and repeatable capture conditions need to support useful coverage before the city reads as open.",
     icon: CheckCircle2,
   },
   {
-    title: "Operational variance",
+    title: "Different site types",
     body:
-      "A launch city should have enough varied facilities and workflows that the capture program becomes useful beyond one single pilot lane.",
+      "A launch city should have enough varied facilities and workflows that capture is useful beyond one single route.",
     icon: Clock3,
   },
   {
-    title: "Partner network",
+    title: "Local support",
     body:
       "Local operators and reviewers need to be in place to support safety, compliance, and review quality before public availability opens.",
     icon: MapPinned,
@@ -256,7 +256,7 @@ export default function CityLanding() {
                     ? `Blueprint could not verify current launch status for ${cityName}. This page will not treat the city as open from cached copy.`
                   : isSupported
                     ? `${cityName} is in current launch-approved capture routing. Field teams and partner reviewers still go through the approved city window for this market.`
-                    : `${cityName} is not in Blueprint's current capture rollout. You can still leave a signal here, but public capture access stays locked until the launch org approves the city.`}
+                    : `${cityName} is not in Blueprint's current capture rollout. You can still leave a signal here, but public capture access stays locked until Blueprint marks the city open.`}
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <a
@@ -322,7 +322,7 @@ export default function CityLanding() {
                 <article key={rule.title} className="border border-black/10 bg-white">
                   <div className="px-6 py-5">
                     <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
-                      Launch logic
+                      Why city status changes
                     </p>
                     <div className="mt-5 flex items-start gap-4">
                       <div className="flex h-11 w-11 items-center justify-center rounded-full border border-black/10 bg-[#f5f3ef] text-slate-700">
@@ -428,7 +428,7 @@ export default function CityLanding() {
               <p className="mt-6 max-w-[28rem] text-sm leading-7 text-slate-700">
                 {isSupported
                   ? `Field access still routes through review. Use this path if you want to capture in ${cityName} inside the current launch-approved window.`
-                  : `Get notified when ${cityName} enters review or opens publicly. Early access goes to operators, owners, and independent capturers once the city actually qualifies.`}
+                  : `Get notified when ${cityName} enters review or opens publicly. Early access goes to operators, owners, and independent capturers once the city qualifies.`}
               </p>
 
               {submitted ? (

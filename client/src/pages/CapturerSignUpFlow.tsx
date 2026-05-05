@@ -479,7 +479,7 @@ export default function CapturerSignUpFlow() {
     <>
       <SEO
         title="Capturer Access | Blueprint"
-        description="Apply for capturer access and complete the Blueprint mobile capture handoff."
+        description="Apply for capturer access and complete Blueprint mobile capture setup."
         canonical="/signup/capturer"
         noIndex={true}
       />
@@ -563,7 +563,7 @@ export default function CapturerSignUpFlow() {
                   Web role
                 </p>
                 <p className="mt-3 text-2xl font-semibold">Apply + status</p>
-                <p className="mt-1 text-sm text-[color:var(--ink-soft)]">Not the primary work surface.</p>
+                <p className="mt-1 text-sm text-[color:var(--ink-soft)]">Not the primary place to work.</p>
               </div>
             </div>
 
@@ -571,7 +571,7 @@ export default function CapturerSignUpFlow() {
               tone="paper"
               className="p-5"
               title="Current capture rollout is city-limited."
-              description="This web form follows the same launch-city truth as Blueprint Capture. Supported cities can move into capturer review now. Other cities stay in the future-city queue until the launch org opens them."
+              description="This web form follows the same launch-city truth as Blueprint Capture. Supported cities can move into capturer review now. Other cities stay in the future-city queue until Blueprint opens them."
               primaryCta={{ href: "/capture", label: "Capture overview" }}
             />
 
@@ -798,7 +798,7 @@ export default function CapturerSignUpFlow() {
                         <div>
                           <p className="font-semibold text-[color:var(--ink)]">Gated access and approval</p>
                           <p className="mt-1 text-sm leading-6 text-[color:var(--ink-soft)]">
-                            Blueprint capturer access is public to request and review-based. Submitting this application does not guarantee approval. We review each submission for launch-city fit, device availability, privacy readiness, and cohort capacity before sending capture onboarding instructions.
+                            Blueprint capturer access is public to request and review-based. Submitting this application does not guarantee approval. We review each submission for launch-city fit, device availability, privacy fit, and cohort capacity before sending capture onboarding instructions.
                           </p>
                         </div>
                       </div>
@@ -1029,7 +1029,7 @@ export default function CapturerSignUpFlow() {
                           {captureAppQrCode ? (
                             <img
                               src={captureAppQrCode}
-                              alt="QR code for the Blueprint Capture placeholder link"
+                              alt="QR code for the Blueprint Capture access link"
                               className="h-full w-full rounded-xl"
                             />
                           ) : (

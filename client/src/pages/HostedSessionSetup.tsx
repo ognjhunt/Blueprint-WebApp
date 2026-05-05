@@ -373,6 +373,7 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
         title={`Hosted Evaluation Setup | ${site.siteName} | Blueprint`}
         description={`Configure a hosted evaluation workspace for ${site.siteName}.`}
         canonical={`/world-models/${site.id}/start`}
+        noIndex
       />
 
       <div className="bg-[#f5f3ef] text-slate-950">
@@ -402,11 +403,11 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
                     Hosted Evaluation
                   </h1>
                   <p className="mt-5 max-w-[22rem] text-[1.9rem] leading-tight tracking-[-0.03em] text-white/90">
-                    Configure one exact-site readiness check.
+                    Configure one exact-site hosted review.
                   </p>
                   <p className="mt-4 max-w-[28rem] text-base leading-8 text-white/70">
-                    Blueprint verifies access and runtime readiness before any hosted review
-                    launches. When blocked, the configuration becomes a scoped request.
+                    Blueprint verifies access and hosted-session availability before any review
+                    launches. If it cannot launch immediately, this becomes a scoped request.
                   </p>
                 </div>
 
@@ -564,7 +565,7 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
                     Exact-site run
                   </p>
                   <p className="mt-4 max-w-[20rem] text-sm leading-7 text-slate-700">
-                    Blueprint will turn this configuration into a scoped hosted-review request for {site.siteName}. One site, one robot profile, one buyer question, and explicit runtime limits.
+                    Blueprint will turn this configuration into a scoped hosted-review request for {site.siteName}. One site, one robot profile, one buyer question, and explicit hosted-session limits.
                   </p>
                   <p className="mt-6 text-sm text-slate-950">Blueprint Team</p>
                 </div>
@@ -644,7 +645,7 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
                   </div>
                   <div className="border border-black/10 bg-[#f8f6f1] px-4 py-4 sm:col-span-2">
                     <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
-                      Runtime capabilities
+                      Hosted capabilities
                     </p>
                     <p className="mt-2 text-sm text-slate-950">
                       Backend: {site.runtimeManifest?.defaultBackend || site.defaultRuntimeBackend}
@@ -667,29 +668,29 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
               <div className="border border-black/10 bg-slate-950 p-6 text-white">
                 <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-white/45">
                   <Settings2 className="h-4 w-4" />
-                  Readiness
+                  Launch check
                 </div>
                 <div className="mt-4 space-y-4 text-sm">
                   <div className="border border-white/10 bg-white/5 px-4 py-4">
                     <p className="font-semibold text-white">Presentation demo</p>
                     <p className="mt-2 text-white/70">
                       {checkingReadiness
-                        ? "Checking presentation readiness."
+                        ? "Checking presentation demo."
                         : presentationReadiness?.launchable
                           ? presentationReadiness?.status === "presentation_ui_unconfigured"
-                            ? "Artifacts are ready. Private operator UI is request-gated."
+                            ? "Presentation files are ready. Private operator UI is request-gated."
                             : "Embedded demo can launch."
                           : "Embedded demo is request-gated for this public path."}
                     </p>
                   </div>
                   <div className="border border-white/10 bg-white/5 px-4 py-4">
-                    <p className="font-semibold text-white">World-model runtime</p>
+                    <p className="font-semibold text-white">Hosted workspace</p>
                     <p className="mt-2 text-white/70">
                       {checkingReadiness
-                        ? "Checking runtime readiness."
+                        ? "Checking hosted-session availability."
                         : runtimeReadiness?.launchable
-                          ? "Runtime session can launch from this setup."
-                          : "Runtime session is request-gated. Submit the configuration instead."}
+                          ? "Hosted session can launch from this setup."
+                          : "Hosted session is request-gated. Submit the configuration instead."}
                     </p>
                   </div>
                   <div className="border border-white/10 bg-white/5 px-4 py-4">
@@ -719,10 +720,10 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
             {suggestRuntimeFallback ? (
               <div className="border border-sky-200 bg-sky-50 px-5 py-4 text-sm text-sky-900">
                 <p className="font-semibold">
-                  Embedded demo is request-gated, but the world-model runtime is available.
+                  Embedded demo is request-gated, but the hosted workspace is available.
                 </p>
                 <p className="mt-1">
-                  Launch the runtime workspace directly while the embedded demo UI remains
+                  Launch the hosted workspace directly while the embedded demo UI remains
                   unavailable.
                 </p>
               </div>
@@ -730,8 +731,8 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
 
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div className="text-sm text-slate-700">
-                Native site world remains the default path; runtime launch depends on account,
-                entitlement, and readiness checks.
+                The site package remains the default path; hosted launch depends on account,
+                entitlement, and availability checks.
               </div>
               <div className="flex flex-col gap-3 sm:flex-row">
                 {runtimeLaunchBlocked ? (
@@ -748,7 +749,7 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
                     disabled={submitting}
                     className="inline-flex items-center justify-center bg-slate-950 px-8 py-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {submitting ? "Launching..." : "Launch runtime session"}
+                    {submitting ? "Launching..." : "Launch hosted session"}
                   </button>
                 )}
                 <button

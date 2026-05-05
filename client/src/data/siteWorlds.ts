@@ -287,7 +287,7 @@ function buildHostedDemoOverrideCard(): SiteWorldCard | null {
   const runtimeBaseUrl = DEMO_RUNTIME_BASE_URL;
   const websocketBaseUrl = DEMO_RUNTIME_WEBSOCKET_BASE_URL;
   const siteName = HOSTED_DEMO_SITE_NAME || "Temporary Live Site-World Demo";
-  const siteAddress = HOSTED_DEMO_SITE_ADDRESS || "Blueprint tunnel-backed runtime demo";
+  const siteAddress = HOSTED_DEMO_SITE_ADDRESS || "Blueprint tunnel-backed hosted review demo";
   const sceneMemoryManifestUri = buildHostedDemoArtifactUri("scene_memory/scene_memory_manifest.json");
   const conditioningBundleUri = buildHostedDemoArtifactUri("scene_memory/conditioning_bundle.json");
   const siteWorldSpecUri = buildHostedDemoArtifactUri("evaluation_prep/site_world_spec.json");
@@ -307,15 +307,15 @@ function buildHostedDemoOverrideCard(): SiteWorldCard | null {
     pipelinePrefix,
     category: "Service",
     industry: "Temporary hosted demo",
-    taskLane: "Native runtime verification",
+    taskLane: "Native hosted verification",
     tone: "from-emerald-100 via-white to-sky-50",
     accent: "#0f766e",
     thumbnailKind: "electronics",
     summary:
-      "A temporary truthful demo card pointing at one exact live site-world package and runtime bridge. This is for local/demo verification, not proof that the production catalog is wired.",
-    bestFor: "Internal verification of one live native-runtime site world through a tunnel-backed launch path.",
+      "A temporary truthful demo card pointing at one exact live site-world package and hosted bridge. This is for local/demo verification, not proof that the production catalog is wired.",
+    bestFor: "Internal verification of one live native-hosted site world through a tunnel-backed launch path.",
     startStates: [HOSTED_DEMO_START_STATE_NAME],
-    runtime: "Native runtime via SSH tunnel",
+    runtime: "Native hosted review via SSH tunnel",
     defaultRuntimeBackend: "native_world_model",
     availableRuntimeBackends: ["native_world_model"],
     sampleRobot: "Mobile manipulator with head RGB camera",
@@ -331,7 +331,7 @@ function buildHostedDemoOverrideCard(): SiteWorldCard | null {
         dim: 7,
         labels: ["base_x", "base_y", "base_yaw", "ee_x", "ee_y", "ee_z", "gripper"],
       },
-      actionSpaceSummary: "Bounded robot action vector for exact-site runtime verification.",
+      actionSpaceSummary: "Bounded robot action vector for exact-site hosted verification.",
       gripperSemantics: "Binary grasp / release state on the active manipulator.",
       baseSemantics: "Planar base translation with heading control for site navigation.",
       urdfRef: null,
@@ -340,9 +340,9 @@ function buildHostedDemoOverrideCard(): SiteWorldCard | null {
       defaultPolicyAdapter: "openvla_oft",
     },
     sampleTask: HOSTED_DEMO_TASK_TEXT,
-    samplePolicy: "Tunnel-backed live runtime probe",
+    samplePolicy: "Tunnel-backed live hosted probe",
     scenarioVariants: [HOSTED_DEMO_SCENARIO_NAME],
-    exportArtifacts: ["Runtime render", "Runtime session log", "Canonical package links", "Benchmark bundle"],
+    exportArtifacts: ["Hosted render", "Hosted session log", "Site package links", "Benchmark bundle"],
     runtimeManifest: {
       defaultBackend: "native_world_model",
       runtimeBaseUrl,
@@ -389,7 +389,7 @@ function buildHostedDemoOverrideCard(): SiteWorldCard | null {
           dim: 7,
           labels: ["base_x", "base_y", "base_yaw", "ee_x", "ee_y", "ee_z", "gripper"],
         },
-        actionSpaceSummary: "Bounded robot action vector for exact-site runtime verification.",
+        actionSpaceSummary: "Bounded robot action vector for exact-site hosted verification.",
         gripperSemantics: "Binary grasp / release state on the active manipulator.",
         baseSemantics: "Planar base translation with heading control for site navigation.",
         urdfRef: null,
@@ -421,7 +421,7 @@ function buildHostedDemoOverrideCard(): SiteWorldCard | null {
       missing_evidence: [],
       exports_available: ["raw_bundle"],
       task_categories: ["generic"],
-      runtime_label: "Native runtime via SSH tunnel",
+      runtime_label: "Native hosted review via SSH tunnel",
       native_world_model_status: "primary_ready",
       native_world_model_primary: true,
       provider_fallback_preview_status: "not_requested",
@@ -432,7 +432,7 @@ function buildHostedDemoOverrideCard(): SiteWorldCard | null {
     },
     presentationDemoReadiness: {
       launchable: false,
-      blockers: ["Temporary tunnel-backed runtime only. Presentation demo assets are not being claimed as production-ready."],
+      blockers: ["Temporary tunnel-backed hosted review only. Presentation demo assets are not being claimed as production-ready."],
       status: "presentation_ui_unconfigured",
       presentationWorldManifestUri,
       runtimeDemoManifestUri,
@@ -494,7 +494,7 @@ function inferActionSpaceSummary(sampleRobot: string) {
   if (normalized.includes("arm")) return "End-effector pose deltas plus gripper open/close.";
   if (normalized.includes("humanoid")) return "Base locomotion, torso reach, and hand state transitions.";
   if (normalized.includes("cart") || normalized.includes("tug")) {
-    return "Base motion, docking alignment, and handoff state changes.";
+    return "Base motion, docking alignment, and transfer state changes.";
   }
   return "Bounded robot action vector for site-conditioned rollout control.";
 }
@@ -516,7 +516,7 @@ function inferBaseSemantics(sampleRobot: string) {
     return "Planar base translation with heading control for lane and aisle navigation.";
   }
   if (normalized.includes("humanoid")) {
-    return "Footstep and body-pose control for approach and handoff alignment.";
+    return "Footstep and body-pose control for approach and transfer alignment.";
   }
   return "Stationary or task-local base semantics.";
 }
@@ -549,11 +549,11 @@ function buildStaticArtifactExplorer(site: RawSiteWorldCard): ArtifactExplorerSu
   const views: ArtifactExplorerSummary["views"] = [];
 
   const sources = [
-    { id: "canonical", label: "Canonical package", uri: site.siteWorldSpecUri || null, detail: "Grounded source of truth" },
-    { id: "scene-memory", label: "Scene-memory manifest", uri: site.sceneMemoryManifestUri || null, detail: "Conditioning support artifacts" },
+    { id: "canonical", label: "Site package", uri: site.siteWorldSpecUri || null, detail: "Grounded source of truth" },
+    { id: "scene-memory", label: "Scene-memory manifest", uri: site.sceneMemoryManifestUri || null, detail: "Conditioning support files" },
     { id: "conditioning", label: "Conditioning bundle", uri: site.conditioningBundleUri || null, detail: "Reconstruction and presentation inputs" },
-    { id: "presentation", label: "Presentation manifest", uri: presentationManifestUri, detail: "Derived presentation-world lane" },
-    { id: "runtime-demo", label: "Runtime demo manifest", uri: runtimeDemoManifestUri, detail: "Saved runtime demo configuration" },
+    { id: "presentation", label: "Presentation manifest", uri: presentationManifestUri, detail: "Derived presentation-world path" },
+    { id: "runtime-demo", label: "Hosted-demo manifest", uri: runtimeDemoManifestUri, detail: "Saved hosted-demo configuration" },
   ].filter((item) => Boolean(item.uri));
 
   if (sources.length === 0) {
@@ -580,8 +580,8 @@ function buildStaticArtifactExplorer(site: RawSiteWorldCard): ArtifactExplorerSu
       uiBaseUrl: site.presentationDemoReadiness?.uiBaseUrl || null,
       label: site.presentationDemoReadiness?.uiBaseUrl ? "Private operator view available" : "Private operator view unavailable",
       description: site.presentationDemoReadiness?.uiBaseUrl
-        ? "An internal runtime operator UI is configured for this site."
-        : "Use artifact-backed exploration when no private operator bridge is configured.",
+        ? "An internal operator UI is configured for this site."
+        : "Use saved-file exploration when no private operator bridge is configured.",
     },
   };
 }
@@ -662,7 +662,7 @@ function buildPackages(config: PackageConfig): [SiteWorldPackage, SiteWorldPacka
       deliverables: [
         "Walkthrough video, timestamps, and camera poses",
         "Site metadata, workflow notes, and provenance",
-        "Geometry / depth artifacts when available from source capture",
+        "Geometry / depth files when available from source capture",
         "Package manifest plus rights and privacy terms",
       ],
       emphasis: "recommended",
@@ -670,13 +670,13 @@ function buildPackages(config: PackageConfig): [SiteWorldPackage, SiteWorldPacka
     {
       name: "Hosted Evaluation",
       summary:
-        "Request a Blueprint-managed runtime session for this exact site when your team wants reruns, review, and exports without moving the package first.",
+        "Request a Blueprint-managed hosted session for this exact site when your team wants reruns, review, and exports without moving the package first.",
       priceLabel: config.hostedRate,
       payerLabel: "Robot team",
       actionLabel: "Request hosted evaluation",
       actionHref: buildContactHref("evaluation-package", config),
       deliverables: [
-        "Streamed world-model runtime on one exact site",
+        "Streamed hosted review on one exact site",
         "Reset, rerun, and scenario changes",
         "Rollout exports, datasets, and raw bundles",
         "Policy comparison on the same site",
@@ -702,9 +702,9 @@ const rawSiteWorldCards: RawSiteWorldCard[] = [
     accent: "#10b981",
     thumbnailKind: "grocery",
     summary:
-      "A backroom layout with dock access, aisle replenishment paths, and a short handoff into shelf staging.",
+      "A backroom layout with dock access, aisle replenishment paths, and a short transfer into shelf staging.",
     bestFor: "Shelf replenishment validation before a rollout.",
-    startStates: ["Dock-side tote stack", "Open aisle replenishment lane", "Shelf staging handoff"],
+    startStates: ["Dock-side tote stack", "Open aisle replenishment lane", "Shelf staging transfer"],
     runtime: "Vision + wrist cams",
     sampleRobot: "Unitree G1 with head cam and wrist cam",
     sampleTask: "Walk to shelf staging and pick the blue tote",
@@ -734,12 +734,12 @@ const rawSiteWorldCards: RawSiteWorldCard[] = [
     pipelinePrefix: "scenes/scene-peachtree-parcel-south/captures/cap-peachtree-parcel-south-v1/pipeline",
     category: "Logistics",
     industry: "Parcel logistics",
-    taskLane: "Induct, handoff, and tote reset",
+    taskLane: "Induct, transfer, and tote reset",
     tone: "from-sky-100 via-white to-sky-50",
     accent: "#0ea5e9",
     thumbnailKind: "parcel",
-    summary: "A parcel feed lane with induct points, diverter handoffs, and tote reset positions.",
-    bestFor: "Fast lane resets and handoff checks.",
+    summary: "A parcel feed lane with induct points, diverter transfers, and tote reset positions.",
+    bestFor: "Fast lane resets and transfer checks.",
     startStates: ["Single-box induct", "Mixed parcel wave", "Tote clear and reset"],
     runtime: "Vision + overhead",
     sampleRobot: "Mobile manipulator with mast cam and overhead assist view",
@@ -768,7 +768,7 @@ const rawSiteWorldCards: RawSiteWorldCard[] = [
     pipelinePrefix: "scenes/scene-sonoran-assembly-cart-bay/captures/cap-sonoran-assembly-cart-bay-v1/pipeline",
     category: "Manufacturing",
     industry: "Light manufacturing",
-    taskLane: "Cart fetch and station handoff",
+    taskLane: "Cart fetch and station transfer",
     tone: "from-amber-100 via-white to-orange-50",
     accent: "#f59e0b",
     thumbnailKind: "lineSide",
@@ -780,7 +780,7 @@ const rawSiteWorldCards: RawSiteWorldCard[] = [
     sampleRobot: "Autonomous cart tug with front stereo pair",
     sampleTask: "Fetch the staged cart and deliver it to the resupply station",
     samplePolicy: "Resupply checkpoint B",
-    scenarioVariants: ["Clear lane", "Narrow return path", "Busy station handoff"],
+    scenarioVariants: ["Clear lane", "Narrow return path", "Busy station transfer"],
     exportArtifacts: ["Sensor trace", "Rendered views", "Task outcomes", "Episode summary"],
     packages: buildPackages({
       siteId: "sw-phx-03",
@@ -807,14 +807,14 @@ const rawSiteWorldCards: RawSiteWorldCard[] = [
     tone: "from-violet-100 via-white to-fuchsia-50",
     accent: "#8b5cf6",
     thumbnailKind: "laundry",
-    summary: "A repeatable laundry floor with intake bags, sort tables, and fold-outbound handoffs.",
+    summary: "A repeatable laundry floor with intake bags, sort tables, and fold-outbound transfers.",
     bestFor: "Narrow service workflows with steady repetition.",
     startStates: ["Bag at intake", "Active sort table", "Outbound transfer ready"],
     runtime: "Vision + top-down",
     sampleRobot: "Humanoid with head cam and top-down supervisor view",
     sampleTask: "Lift the intake bag, sort it, and transfer the load to outbound",
     samplePolicy: "Laundry sort v12",
-    scenarioVariants: ["Normal floor", "Crowded intake", "Delayed outbound handoff"],
+    scenarioVariants: ["Normal floor", "Crowded intake", "Delayed outbound transfer"],
     exportArtifacts: ["Rollout video", "Pick and place trace", "Station timing", "Failure tags"],
     packages: buildPackages({
       siteId: "sw-dal-04",
@@ -842,12 +842,12 @@ const rawSiteWorldCards: RawSiteWorldCard[] = [
     accent: "#06b6d4",
     thumbnailKind: "coldChain",
     summary:
-      "A chilled pick room with an airlock handoff, insulated staging, and short route lengths.",
+      "A chilled pick room with an airlock transfer, insulated staging, and short route lengths.",
     bestFor: "Temperature-sensitive pick flows.",
     startStates: ["Airlock entry", "Cold pick bay", "Outbound insulated bin"],
     runtime: "Vision + thermal tags",
     sampleRobot: "Cold-room picker with arm camera and thermal state feed",
-    sampleTask: "Pick the target bin and hand it off without breaking the route timing",
+    sampleTask: "Pick the target bin and transfer it without breaking the route timing",
     samplePolicy: "Cold-chain policy 3.4",
     scenarioVariants: ["Normal chill cycle", "Airlock delay", "Reordered outbound bins"],
     exportArtifacts: ["Thermal tags", "Episode log", "Video frames", "Timing metrics"],
@@ -857,7 +857,7 @@ const rawSiteWorldCards: RawSiteWorldCard[] = [
       siteAddress: "1911 Groveport Rd, Columbus, OH 43207",
       scenePrice: "$3,200",
       hostedRate: "$24 / session-hour",
-      sampleTask: "Pick the target bin and hand it off without breaking the route timing",
+      sampleTask: "Pick the target bin and transfer it without breaking the route timing",
       sampleRobot: "Cold-room picker with arm camera and thermal state feed",
     }),
   },
@@ -879,7 +879,7 @@ const rawSiteWorldCards: RawSiteWorldCard[] = [
     summary:
       "A returns lane with intake, triage, and routing tables for fast judgment and tote movement.",
     bestFor: "Quick visual judgment and routing loops.",
-    startStates: ["Single-item intake", "Mixed return batch", "Outbound route handoff"],
+    startStates: ["Single-item intake", "Mixed return batch", "Outbound route transfer"],
     runtime: "Vision + table cams",
     sampleRobot: "Stationary arm with table cams and barcode reader",
     sampleTask: "Triage the returned item and route it to the correct tote",
@@ -911,14 +911,14 @@ const rawSiteWorldCards: RawSiteWorldCard[] = [
     tone: "from-lime-100 via-white to-lime-50",
     accent: "#65a30d",
     thumbnailKind: "microFulfillment",
-    summary: "A dense micro-fulfillment layout with short aisle hops and a clean pack-side handoff.",
+    summary: "A dense micro-fulfillment layout with short aisle hops and a clean pack-side transfer.",
     bestFor: "Short-hop fulfillment loops.",
     startStates: ["Single order pick", "Multi-order batch", "Pack station transfer"],
     runtime: "Vision + map state",
     sampleRobot: "AMR with shelf-facing camera and tote sensor",
     sampleTask: "Pick the order items and transfer the tote to pack",
     samplePolicy: "Grid pick v5",
-    scenarioVariants: ["Single order", "Multi-order wave", "Blocked pack handoff"],
+    scenarioVariants: ["Single order", "Multi-order wave", "Blocked pack transfer"],
     exportArtifacts: ["Episode events", "Rendered video", "Aisle path summary", "Success rate"],
     packages: buildPackages({
       siteId: "sw-sjc-07",
@@ -946,7 +946,7 @@ const rawSiteWorldCards: RawSiteWorldCard[] = [
     accent: "#6366f1",
     thumbnailKind: "pharmacy",
     summary:
-      "A pharmacy refill lane with shelf picks, verification, and secure bin handoff under audit constraints.",
+      "A pharmacy refill lane with shelf picks, verification, and secure bin transfer under audit constraints.",
     bestFor: "Structured, auditable refill workflows.",
     startStates: ["Shelf refill pick", "Barcode verify", "Secure bin transfer"],
     runtime: "Vision + barcode state",
@@ -976,17 +976,17 @@ const rawSiteWorldCards: RawSiteWorldCard[] = [
     pipelinePrefix: "scenes/scene-motor-city-battery-staging-cell/captures/cap-motor-city-battery-staging-cell-v1/pipeline",
     category: "Manufacturing",
     industry: "Battery assembly",
-    taskLane: "Part feed and fixture handoff",
+    taskLane: "Part feed and fixture transfer",
     tone: "from-yellow-100 via-white to-yellow-50",
     accent: "#eab308",
     thumbnailKind: "battery",
     summary:
-      "A subassembly cell with parts feed, fixture positioning, and tightly bounded handoff stations.",
-    bestFor: "Structured assembly handoffs.",
-    startStates: ["Parts feed active", "Fixture aligned", "Buffer handoff ready"],
+      "A subassembly cell with parts feed, fixture positioning, and tightly bounded transfer stations.",
+    bestFor: "Structured assembly transfers.",
+    startStates: ["Parts feed active", "Fixture aligned", "Buffer transfer ready"],
     runtime: "Vision + force traces",
     sampleRobot: "Assembly arm with force trace stream and wrist camera",
-    sampleTask: "Move the part feed into the fixture and complete the handoff",
+    sampleTask: "Move the part feed into the fixture and complete the transfer",
     samplePolicy: "Subassembly checkpoint 402",
     scenarioVariants: ["Nominal fixture", "Offset fixture", "Late buffer arrival"],
     exportArtifacts: ["Force trace", "Episode video", "Task outcome labels", "Failure review"],
@@ -996,7 +996,7 @@ const rawSiteWorldCards: RawSiteWorldCard[] = [
       siteAddress: "7440 Lynch Rd, Detroit, MI 48234",
       scenePrice: "$3,400",
       hostedRate: "$29 / session-hour",
-      sampleTask: "Move the part feed into the fixture and complete the handoff",
+      sampleTask: "Move the part feed into the fixture and complete the transfer",
       sampleRobot: "Assembly arm with force trace stream and wrist camera",
     }),
   },
@@ -1015,7 +1015,7 @@ const rawSiteWorldCards: RawSiteWorldCard[] = [
     tone: "from-blue-100 via-white to-sky-50",
     accent: "#3b82f6",
     thumbnailKind: "airport",
-    summary: "A baggage feed layout with scan points, belt handoff logic, and lane-clear cycles.",
+    summary: "A baggage feed layout with scan points, belt transfer logic, and lane-clear cycles.",
     bestFor: "Scan-to-route handling loops.",
     startStates: ["Single bag scan", "Mixed baggage wave", "Lane recovery pass"],
     runtime: "Vision + scan events",
@@ -1051,7 +1051,7 @@ const rawSiteWorldCards: RawSiteWorldCard[] = [
     thumbnailKind: "hospital",
     summary: "A supply room flow with cart loading, corridor return, and room restock points.",
     bestFor: "Steady restock and return loops.",
-    startStates: ["Cart load", "Room-side handoff", "Return path clear"],
+    startStates: ["Cart load", "Room-side transfer", "Return path clear"],
     runtime: "Vision + map state",
     sampleRobot: "Hospital cart robot with head cam and map state feed",
     sampleTask: "Load the cart, deliver to the room, and return through the clear corridor",
@@ -1079,20 +1079,20 @@ const rawSiteWorldCards: RawSiteWorldCard[] = [
     pipelinePrefix: "scenes/scene-soundside-electronics-rework-lab/captures/cap-soundside-electronics-rework-lab-v1/pipeline",
     category: "Manufacturing",
     industry: "Electronics repair",
-    taskLane: "Tray fetch and bench handoff",
+    taskLane: "Tray fetch and bench transfer",
     tone: "from-pink-100 via-white to-pink-50",
     accent: "#ec4899",
     thumbnailKind: "electronics",
     summary:
-      "A rework bench cell with tray fetch, bench-side part handoff, and test station transitions.",
-    bestFor: "Short-horizon bench-side handoffs.",
-    startStates: ["Tray fetch", "Bench handoff", "Test queue"],
+      "A rework bench cell with tray fetch, bench-side part transfer, and test station transitions.",
+    bestFor: "Short-horizon bench-side transfers.",
+    startStates: ["Tray fetch", "Bench transfer", "Test queue"],
     runtime: "Vision + wrist cams",
     sampleRobot: "Bench-side arm with wrist cams and tray state sensor",
     sampleTask: "Fetch the tray and hand the part to the rework bench",
-    samplePolicy: "Bench handoff policy R3",
+    samplePolicy: "Bench transfer policy R3",
     scenarioVariants: ["Nominal tray", "Shifted tray position", "Busy test queue"],
-    exportArtifacts: ["Wrist camera feed", "Episode summary", "Handoff result", "Failure notes"],
+    exportArtifacts: ["Wrist camera feed", "Episode summary", "Transfer result", "Failure notes"],
     packages: buildPackages({
       siteId: "sw-sea-12",
       siteName: "Soundside Electronics Rework Lab",
@@ -1115,7 +1115,7 @@ if (DEMO_SITE_WORLDS_ENABLED || SITE_WORLD_FIXTURE_MODE !== "production") {
   id: "siteworld-f5fd54898cfb",
   siteCode: "SW-DEMO-01",
   siteName: "Media Room Demo Walkthrough",
-  siteAddress: "Blueprint hosted runtime demo",
+  siteAddress: "Blueprint hosted review demo",
   sceneId: "9483414B-8776-4F68-AC80-D3B3BA774A90",
   captureId: "6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3",
   siteSubmissionId: "9483414B-8776-4F68-AC80-D3B3BA774A90:6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3",
@@ -1131,7 +1131,7 @@ if (DEMO_SITE_WORLDS_ENABLED || SITE_WORLD_FIXTURE_MODE !== "production") {
     "A public demo listing that shows the exact site, buyer framing, and hosted path in one place.",
   bestFor: "First-pass buyer review before a deeper package or hosted-evaluation request.",
   startStates: ["default_start_state"],
-  runtime: "Native hosted runtime demo",
+  runtime: "Native hosted review demo",
   defaultRuntimeBackend: "neoverse",
   availableRuntimeBackends: ["neoverse"],
   sampleRobot: "Mobile manipulator with head and wrist cameras",
@@ -1224,7 +1224,7 @@ if (DEMO_SITE_WORLDS_ENABLED || SITE_WORLD_FIXTURE_MODE !== "production") {
   packages: buildPackages({
     siteId: "siteworld-f5fd54898cfb",
     siteName: "Media Room Demo Walkthrough",
-    siteAddress: "Blueprint hosted runtime demo",
+    siteAddress: "Blueprint hosted review demo",
     scenePrice: "Public demo",
     hostedRate: "Hosted demo",
     sampleTask: "Media room",
@@ -1243,7 +1243,7 @@ if (DEMO_SITE_WORLDS_ENABLED || SITE_WORLD_FIXTURE_MODE !== "production") {
     missing_evidence: [],
     exports_available: ["raw_bundle", "rlds_dataset"],
     task_categories: ["generic"],
-    runtime_label: "NeoVerse production runtime",
+    runtime_label: "NeoVerse hosted review",
   },
   presentationDemoReadiness: {
     launchable: false,

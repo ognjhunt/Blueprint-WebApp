@@ -1,3 +1,4 @@
+import { promises as fs } from "node:fs";
 import path from "node:path";
 import {
   runCityLaunchExecutionHarness,
@@ -14,6 +15,7 @@ import {
   resolveCityLaunchFounderApproval,
 } from "../../server/utils/cityLaunchApprovalMode";
 import { resolveHistoricalRecipientEvidence } from "../../server/utils/cityLaunchRecipientEvidence";
+import { renderCityLaunchFounderApprovalArtifact } from "../../server/utils/cityLaunchFounderApproval";
 
 function getFlagValue(args: string[], flag: string) {
   const index = args.indexOf(flag);
@@ -28,6 +30,34 @@ function hasFlag(args: string[], flag: string) {
 }
 
 type RunPhase = "plan" | "enrich" | "approve" | "activate" | "full";
+
+function timestampForFile(date = new Date()) {
+  return date.toISOString().replaceAll(":", "-");
+}
+
+async function writeFounderDecisionPacket(input: {
+  city: string;
+  budgetPolicy: ReturnType<typeof buildCityLaunchBudgetPolicy>;
+}) {
+  const citySlug = slugifyCityName(input.city);
+  const runDirectory = path.resolve(
+    process.cwd(),
+    "ops/paperclip/reports/city-launch-execution",
+    citySlug,
+    timestampForFile(),
+  );
+  const founderDecisionPacketPath = path.join(runDirectory, "founder-decision-packet.md");
+  await fs.mkdir(runDirectory, { recursive: true });
+  await fs.writeFile(
+    founderDecisionPacketPath,
+    renderCityLaunchFounderApprovalArtifact({
+      city: input.city,
+      budgetPolicy: input.budgetPolicy,
+    }),
+    "utf8",
+  );
+  return founderDecisionPacketPath;
+}
 
 async function main() {
   const args = process.argv.slice(2);
@@ -71,7 +101,7 @@ async function main() {
   });
   const founderApproved = founderApprovedFlag
     ? true
-    : founderApprovedByMode || true;
+    : founderApprovedByMode;
 
   console.log(
     JSON.stringify({
@@ -162,11 +192,28 @@ async function main() {
 
   // Phase 3: Approve (Autonomous no-op retained for phase compatibility)
   if (!skipApproval && (phase === "approve" || phase === "full" || phase === "activate")) {
+    if (!founderApproved) {
+      const founderDecisionPacketPath = await writeFounderDecisionPacket({
+        city,
+        budgetPolicy,
+      });
+      console.log(JSON.stringify({
+        phase: "approve",
+        status: "awaiting_human_decision",
+        city,
+        founderApproved: false,
+        founderDecisionPacketPath,
+        message: "Founder approval is required before city-launch activation. Rerun with --founder-approved after approval is recorded.",
+      }));
+
+      return;
+    }
+
     console.log(JSON.stringify({
       phase: "approve",
-      status: "skipped",
+      status: "founder_approved",
       city,
-      message: "City launch approvals are handled autonomously; no manual approval dispatch is required.",
+      message: "Founder-approved flag supplied; activation may proceed.",
     }));
 
     if (phase === "approve") {
@@ -176,6 +223,22 @@ async function main() {
 
   // Phase 4: Activate (Build execution harness + dispatch Paperclip issues)
   if (phase === "activate" || phase === "full") {
+    if (!founderApproved) {
+      const founderDecisionPacketPath = await writeFounderDecisionPacket({
+        city,
+        budgetPolicy,
+      });
+      console.log(JSON.stringify({
+        phase: "activate",
+        status: "awaiting_human_decision",
+        city,
+        founderApproved: false,
+        founderDecisionPacketPath,
+        message: "Activation was not started because --founder-approved was not supplied.",
+      }));
+      return;
+    }
+
     console.log(JSON.stringify({ phase: "activate", status: "starting", city }));
 
     const activateResult = await runCityLaunchExecutionHarness({

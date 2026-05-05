@@ -41,7 +41,7 @@ export const simplePricingOptions: SimplePricingOption[] = [
       "Site-specific spatial data from real capture",
       "Scene package tied to one exact site and workflow",
       "Hosted access or packaged delivery paths",
-      "Exports, runtime notes, and stated limitations for that listing",
+      "Exports, hosted-review notes, and stated limitations for that listing",
     ],
   },
   {

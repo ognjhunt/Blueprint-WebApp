@@ -25,7 +25,7 @@ describe("Governance", () => {
     expect(screen.getAllByText(/Redaction and retention/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Public-facing capture/i)).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /The rules are operational, not just legal copy\./i }),
+      screen.getByRole("heading", { name: /The rules are practical, not just legal copy\./i }),
     ).toBeInTheDocument();
 
     expect(
@@ -50,7 +50,11 @@ describe("Governance", () => {
         .some((link) => link.getAttribute("href") === "/world-models"),
     ).toBe(true);
 
-    expect(screen.getByText(/Operational control matrix/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", {
+        name: /The trust details become files and fields, not vague promises\./i,
+      }),
+    ).toBeInTheDocument();
     expect(screen.getByText(/Operator participation sheet/i)).toBeInTheDocument();
   });
 });

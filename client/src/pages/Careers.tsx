@@ -21,9 +21,9 @@ const roles = [
     type: "Full-time",
     location: "Remote, with city-launch travel when useful",
     summary:
-      "Own the human-plus-agent GTM loop for Blueprint: city launches, buyer research, outbound, follow-up, content, reporting, and the agent harness behind it.",
+      "Own the human-plus-agent GTM system for Blueprint: city launches, buyer research, outbound, follow-up, content, reporting, and the workflows behind it.",
     description:
-      "This is for someone who wants to run a lean GTM org where agents do most of the execution. You do not need to be a software engineer. You do need to be unusually good at breaking work into agent-owned lanes, writing clear briefs, setting review gates, checking outputs, and turning messy market signal into a system the next run can reuse.",
+      "This is for someone who wants to run a lean GTM org where agents do most of the execution. You do not need to be a software engineer. You do need to be unusually good at breaking work into clearly owned workstreams, writing clear briefs, setting review gates, checking outputs, and turning messy market signal into a system the next run can reuse.",
     href: "mailto:apply+gtm-systems@tryblueprint.io?subject=Blueprint%20Founding%20GTM%20Systems%20Lead",
     icon: Workflow,
   },
@@ -32,9 +32,9 @@ const roles = [
     type: "Full-time",
     location: "Remote, with site or city travel when useful",
     summary:
-      "Own the delivery operating loop for Blueprint: capture execution, site readiness, hosted-review delivery, buyer success, QA, provenance checks, and the agent harness behind it.",
+      "Own the delivery system for Blueprint: capture execution, site readiness, hosted-review delivery, buyer success, QA, provenance checks, and the workflows behind it.",
     description:
-      "This is for someone who can turn messy field and customer requests into repeatable workflows. Agents, contractors, and tools will do much of the execution. Your job is to set the lanes, check the evidence, catch weak handoffs, and make sure real-site outputs ship without fake readiness or loose provenance.",
+      "This is for someone who can turn messy field and customer requests into repeatable workflows. Agents, contractors, and tools will do much of the execution. Your job is to set the path, check the evidence, catch weak follow-through, and make sure real-site outputs ship without fake readiness or loose provenance.",
     href: "mailto:apply+delivery-systems@tryblueprint.io?subject=Blueprint%20Founding%20Delivery%20Systems%20Lead",
     icon: PackageCheck,
   },
@@ -42,27 +42,27 @@ const roles = [
 
 const roleScope = [
   {
-    title: "Agent pod ownership",
-    body: "Run the GTM agent pod like a small team: buyer research, city demand, outbound drafts, reply triage, content, analytics, and partner discovery.",
+    title: "Agent workflow ownership",
+    body: "Run the GTM agent workflows like a small team: buyer research, city demand, outbound drafts, reply triage, content, analytics, and partner discovery.",
     icon: Network,
   },
   {
     title: "City launches",
-    body: "Start from zero in a city, use agents to map the market, find robot-team demand, identify capture supply, and leave behind a repeatable operating loop.",
+    body: "Start from zero in a city, use agents to map the market, find robot-team demand, identify capture supply, and leave behind a repeatable launch system.",
     icon: MapPinned,
   },
   {
     title: "Delivery loops",
-    body: "Connect capture ops, site access, QA, provenance, hosted-review delivery, and buyer success so real-site work does not live in scattered notes.",
+    body: "Connect capture work, site access, QA, provenance, hosted-review delivery, and buyer success so real-site work does not live in scattered notes.",
     icon: CheckCircle2,
   },
 ];
 
 const gtmResponsibilities = [
-  "Own the GTM operating system: agent briefs, lane assignments, QA checks, review gates, dashboards, and weekly operating rhythm.",
+  "Own the GTM system: agent briefs, workstream assignments, QA checks, review gates, dashboards, and weekly operating rhythm.",
   "Build city-launch playbooks that start with a city and end with named targets, capture opportunities, buyer follow-up, and a clear next experiment.",
   "Use agents for the heavy work: account research, enrichment, first drafts, market maps, content variants, reply summaries, CRM hygiene, and status reporting.",
-  "Inspect the outputs. Fix weak prompts, bad handoffs, unclear owners, stale ledgers, and agent loops that look busy without moving the business.",
+  "Inspect the outputs. Fix weak prompts, unclear owners, stale records, and agent loops that look busy without moving the business.",
   "Work with the founder on the wedge: exact-site hosted review for robot teams, backed by real capture provenance and buyer-visible proof.",
   "Use tools like Clay, CRMs, search providers, workflow automation, spreadsheets, LLMs, and Paperclip agents where they help. Keep the system simple enough to understand.",
 ];
@@ -84,25 +84,25 @@ const gtmGoodFitSignals = [
 ];
 
 const deliveryResponsibilities = [
-  "Own the delivery operating system: capture briefs, site-readiness checks, hosted-review handoffs, QA gates, buyer updates, and proof ledgers.",
-  "Run the delivery agent pod: capture ops, rights and provenance, buyer success, hosted review, field ops, site access, QA, and package delivery.",
+  "Own the delivery system: capture briefs, site-readiness checks, hosted-review follow-through, QA gates, buyer updates, and proof records.",
+  "Run the delivery agent workflows: capture work, rights and provenance, buyer success, hosted review, field work, site access, QA, and package delivery.",
   "Turn messy buyer and field requests into repeatable workflows with owners, due dates, acceptance criteria, and clear escalation points.",
-  "Check the hard truth: capture provenance, rights and privacy state, site access, package manifests, hosted-session artifacts, and buyer-visible deliverables.",
+  "Check the hard truth: capture provenance, rights and privacy state, site access, package manifests, hosted-session files, and buyer-visible deliverables.",
   "Work with GTM and the founder to decide which delivery requests are real opportunities, which are distractions, and what the next run should automate.",
-  "Keep the system boring where it needs to be boring: status, evidence, checklists, handoffs, and buyer promises should be easy to audit.",
+  "Keep the system boring where it needs to be boring: status, evidence, checklists, and buyer promises should be easy to audit.",
 ];
 
 const deliveryWeekExamples = [
   "Take a buyer or site request and turn it into a capture and delivery brief that agents can actually execute.",
   "Review agent-prepared site readiness, access, QA, and provenance packets before work moves forward.",
-  "Spot the missing proof: a vague capture source, unclear rights state, weak hosted-review artifact, or buyer update that overclaims.",
-  "Coordinate the human parts of delivery: local capture, site contact, contractor handoff, buyer check-in, or founder escalation.",
+  "Spot the missing proof: a vague capture source, unclear rights state, weak hosted-review record, or buyer update that overclaims.",
+  "Coordinate the human parts of delivery: local capture, site contact, contractor follow-up, buyer check-in, or founder escalation.",
   "Write the delivery readout: what shipped, what is blocked, what proof exists, and which workflow should become agent-owned next time.",
 ];
 
 const deliveryGoodFitSignals = [
   "You have run operations, customer delivery, field programs, implementation, technical account work, marketplace supply, or production workflows.",
-  "You are comfortable managing agents and humans in the same loop. Some work is digital, some work is field reality, and both need clean handoffs.",
+  "You are comfortable managing agents and humans in the same loop. Some work is digital, some work is field reality, and both need clean follow-through.",
   "You can read a messy request and turn it into a checklist, a runbook, a QA gate, and a buyer-facing update without making it bureaucratic.",
   "You care about evidence. If a package is not ready, a site is not cleared, or a hosted review is not real yet, you say that plainly.",
   "You are calm around operational mess: late inputs, partial captures, unclear ownership, buyer pressure, and tools that almost work.",
@@ -132,7 +132,7 @@ export default function Careers() {
                 <div className="flex h-full max-w-[36rem] flex-col justify-end">
                   <EditorialSectionLabel light>Careers</EditorialSectionLabel>
                   <h1 className="font-editorial mt-6 text-[3.7rem] leading-[0.9] text-white sm:text-[5rem]">
-                    Run the company with small human teams and serious agent pods.
+                    Run the company with small human teams and serious agent workflows.
                   </h1>
                   <p className="mt-6 text-base leading-8 text-white/70">
                     We are looking for people who can turn agent runs, city research, capture supply, buyer requests, and delivery work into systems that get sharper every week.
@@ -206,10 +206,10 @@ export default function Careers() {
           <div>
             <EditorialSectionLabel>What You Will Own</EditorialSectionLabel>
             <h2 className="font-editorial mt-4 text-4xl leading-[0.95] text-slate-950 sm:text-[3.35rem]">
-              The first real GTM operating system for an autonomous org.
+              The first real GTM system for a lean company.
             </h2>
             <p className="mt-5 text-sm leading-7 text-slate-600">
-              The work should feel closer to an early Uber city launcher than a conventional growth hire. You will build the harness, run it in the real world, measure what happened, and make the next run easier for both agents and humans.
+              The work should feel closer to an early Uber city launcher than a conventional growth hire. You will build the process, run it in the real world, measure what happened, and make the next run easier for both agents and humans.
             </p>
           </div>
 
@@ -265,7 +265,7 @@ export default function Careers() {
               Make real-site delivery repeatable before it turns into chaos.
             </h2>
             <p className="mt-5 text-sm leading-7 text-slate-600">
-              This role sits between capture, site access, hosted review, buyer success, and the agents that keep those lanes moving. The goal is simple: every messy request should become a clearer workflow, stronger proof, and a cleaner handoff the next time it happens.
+              This role sits between capture, site access, hosted review, buyer success, and the agents that keep the work moving. The goal is simple: every messy request should become a clearer workflow, stronger proof, and a cleaner next step.
             </p>
           </div>
 

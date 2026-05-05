@@ -6,22 +6,23 @@ import {
   MonochromeMedia,
 } from "@/components/site/editorial";
 import { editorialGeneratedAssets } from "@/lib/editorialGeneratedAssets";
+import { breadcrumbJsonLd, faqJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
 const faqs = [
   {
     question: "What is a Blueprint world model?",
     answer:
-      "A digital environment built from real capture of one site and one workflow lane. It is not a generic benchmark scene or a synthetic environment generator.",
+      "A digital environment built from real capture of one site and one workflow. It is not a generic benchmark scene or a synthetic environment generator.",
   },
   {
     question: "What does a buyer actually receive with the site package?",
     answer:
-      "The walkthrough media, timestamps, camera poses, intrinsics, site notes, and any available depth or geometry artifacts for that site, plus rights, privacy, and provenance metadata.",
+      "The walkthrough media, timestamps, camera poses, intrinsics, site notes, and any available depth or geometry files for that site, plus rights, privacy, and provenance metadata.",
   },
   {
     question: "What is hosted evaluation?",
     answer:
-      "A Blueprint-managed runtime session on one exact site. Your team can rerun scoped tasks, review failures, compare policies or checkpoints when configured, and export results without moving data into its own stack first.",
+      "A Blueprint-managed hosted session on one exact site. Your team can rerun scoped tasks, review failures, compare policies or checkpoints when configured, and export results without moving data into its own stack first.",
   },
   {
     question: "How close is this to a deployment guarantee?",
@@ -57,6 +58,19 @@ export default function FAQ() {
         title="FAQ | Blueprint"
         description="Straight answers about Blueprint world models, site packages, hosted evaluation, proof boundaries, and how to start."
         canonical="/faq"
+        jsonLd={[
+          webPageJsonLd({
+            path: "/faq",
+            name: "Blueprint FAQ",
+            description:
+              "Questions and answers about Blueprint world models, site packages, hosted evaluation, proof boundaries, and buyer next steps.",
+          }),
+          breadcrumbJsonLd([
+            { name: "Home", path: "/" },
+            { name: "FAQ", path: "/faq" },
+          ]),
+          faqJsonLd(faqs),
+        ]}
       />
 
       <div className="bg-[#f5f3ef] text-slate-950">

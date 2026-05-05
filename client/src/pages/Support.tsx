@@ -49,7 +49,7 @@ export default function Support() {
     <>
       <SEO
         title="Support | Blueprint"
-        description="Get help with Blueprint's buyer path, hosted evaluation, package questions, and capture-app handoff."
+        description="Get help with Blueprint's buyer path, hosted evaluation, package questions, and capture app access."
         canonical="/help"
       />
 
@@ -189,10 +189,10 @@ export default function Support() {
                 For capture teams
               </p>
               <h2 className="font-editorial mt-4 text-[2.4rem] leading-[0.94] tracking-[-0.05em]">
-                Handoff to Blueprint Capture.
+                Blueprint Capture access.
               </h2>
 	                  <p className="mt-4 text-sm leading-7 text-white/70">
-	                The capture app is not the primary buyer route. It is the public handoff
+	                The capture app is not the primary buyer route. It is the public path
 	                for capturers who want to record everyday public-facing locations, follow privacy rules, and submit captures for review.
 	              </p>
               <div className="mt-8 grid gap-2 text-sm text-white/75">
@@ -219,7 +219,7 @@ export default function Support() {
           <EditorialCtaBand
 	            eyebrow="Decision"
 	            title="Start with the path that matches the question."
-	            description="The public site routes the buyer to the next useful step without turning support into a handbook."
+	            description="The public site routes the buyer to the next useful step without making you read a handbook."
 	            imageSrc={editorialRefreshAssets.helpScopingRoom}
             imageAlt="Blueprint scoping room"
             primaryHref="/contact?persona=robot-team"

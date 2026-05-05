@@ -125,7 +125,7 @@ export const trustFaqItems = [
   {
     question: "What proof is included with every public world-model listing?",
     answer:
-      "Blueprint keeps the site identifier, capture timing, proof depth, and public artifact framing visible. Some listings also include runtime stills, sample manifests, or hosted-path disclosure.",
+      "Blueprint keeps the site identifier, capture timing, proof depth, and public proof details visible. Some listings also include hosted stills, sample manifests, or hosted-path disclosure.",
   },
   {
     question: "Who owns the data and the world model?",
@@ -140,6 +140,6 @@ export const trustFaqItems = [
   {
     question: "How often do we recapture a site?",
     answer:
-      "That depends on operational drift and the workflow in scope. Blueprint surfaces freshness and recapture signals so the buyer can decide whether the current package is still fit for the question at hand.",
+      "That depends on operational drift and the workflow in scope. Blueprint shows freshness and recapture signals so the buyer can decide whether the current package is still fit for the question at hand.",
   },
 ];

@@ -38,6 +38,7 @@ export default function ForgotPassword() {
         title="Reset Password"
         description="Reset your Blueprint account password. Enter your email to receive a password reset link."
         canonical="/forgot-password"
+        noIndex
       />
 
       <SurfacePage>

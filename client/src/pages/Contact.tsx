@@ -224,9 +224,9 @@ export default function Contact() {
           <MonochromeMedia
             src={editorialGeneratedAssets.scopingRoom}
             alt="Contact hero"
-            className="min-h-[38rem] rounded-none"
+            className="min-h-[45rem] rounded-none sm:min-h-[38rem]"
             loading="eager"
-            imageClassName="min-h-[38rem]"
+            imageClassName="min-h-[45rem] sm:min-h-[38rem]"
             overlayClassName="bg-[linear-gradient(90deg,rgba(255,255,255,0.88)_0%,rgba(255,255,255,0.72)_34%,rgba(255,255,255,0.2)_78%)]"
           >
             <div className="absolute inset-0">

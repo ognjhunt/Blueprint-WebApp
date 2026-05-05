@@ -830,7 +830,7 @@ export function ContactForm() {
 
       <div className="flex flex-col gap-3 border-t border-black/10 pt-6 sm:flex-row sm:items-center sm:justify-between">
         <p className="max-w-md text-xs leading-5 text-slate-500">
-          Submitting this form does not claim buyer readiness, rights clearance, or a live capture commitment.
+          Submitting this form does not claim buyer fit, rights clearance, or a live capture commitment.
         </p>
         <button
           type="submit"

@@ -21,16 +21,17 @@ describe("Proof page", () => {
     render(<Proof />);
 
     expect(
-      screen.getByRole("heading", { name: /Grocery aisle proof packet/i }),
+      screen.getByRole("heading", { name: /Sample grocery aisle proof packet/i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/A real-route capture example for shelf navigation, aisle obstruction checks, and robot team inspection\./i),
+      screen.getByText(/A composite sample showing how shelf navigation, aisle obstruction checks, provenance, and hosted-review outputs stay readable for a robot team\./i),
     ).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /What the robot team inspects/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Capture provenance/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Hosted review output \(sample\)/i })).toBeInTheDocument();
     expect(screen.getByText(/Aisle geometry/i)).toBeInTheDocument();
-    expect(screen.getByText(/Capture device/i)).toBeInTheDocument();
+    expect(screen.getByText(/Capture basis/i)).toBeInTheDocument();
+    expect(screen.getByText(/Composite public-route sample/i)).toBeInTheDocument();
     expect(screen.getByText(/Navigability assessment/i)).toBeInTheDocument();
     expect(screen.getAllByText(/Example packet/i).length).toBeGreaterThan(0);
     expect(screen.queryByText(/Austin, TX/i)).not.toBeInTheDocument();
@@ -63,9 +64,9 @@ describe("Proof page", () => {
     render(<Proof />);
 
     expect(screen.queryByText(/Austin, TX/i)).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Grocery aisle proof packet/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Sample grocery aisle proof packet/i })).toBeInTheDocument();
     expect(
-      screen.getByText(/A real-route capture example for shelf navigation, aisle obstruction checks, and robot team inspection\./i),
+      screen.getByText(/A composite sample showing how shelf navigation, aisle obstruction checks, provenance, and hosted-review outputs stay readable for a robot team\./i),
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Discuss a similar site/i })).toHaveAttribute(
       "href",
@@ -79,9 +80,9 @@ describe("Proof page", () => {
     render(<Proof />);
 
     expect(screen.queryByText(/San Francisco, CA/i)).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Grocery aisle proof packet/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Sample grocery aisle proof packet/i })).toBeInTheDocument();
     expect(
-      screen.getByText(/A real-route capture example for shelf navigation, aisle obstruction checks, and robot team inspection\./i),
+      screen.getByText(/A composite sample showing how shelf navigation, aisle obstruction checks, provenance, and hosted-review outputs stay readable for a robot team\./i),
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Discuss a similar site/i })).toHaveAttribute(
       "href",

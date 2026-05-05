@@ -5,6 +5,9 @@ export type CityLaunchAutonomyCertification = {
   planningReady: boolean;
   activationReady: boolean;
   issueTreeReady: boolean;
+  wakeReady: boolean;
+  executionEvidenceReady: boolean;
+  notionMirrorReady: boolean | null;
   manualInterventionRequired: boolean;
   blockingExecutionStates: string[];
   doctrineGatesRemaining: string[];
@@ -43,6 +46,20 @@ export function summarizeCityLaunchAutonomyCertification(
     warnings.push(...result.outboundReadiness.warnings);
   }
 
+  if (result.paperclip?.error) {
+    warnings.push(result.paperclip.error);
+  }
+
+  for (const dispatch of result.paperclip?.dispatched || []) {
+    if (dispatch.wakeError) {
+      warnings.push(`Paperclip wake degraded for ${dispatch.key}: ${dispatch.wakeError}`);
+    }
+  }
+
+  if (result.notionSyncStatus === "failed") {
+    warnings.push(`Notion mirror failed: ${result.notionSyncError || "unknown error"}`);
+  }
+
   if (executionStates?.analytics.status === "warning") {
     warnings.push("External market-signal enrichment unavailable; using first-party city-launch ledgers only.");
   }
@@ -56,15 +73,34 @@ export function summarizeCityLaunchAutonomyCertification(
     result.status === "founder_approved_activation_ready"
     && result.activationStatus === "activation_ready";
   const issueTreeReady = Boolean(
-    result.paperclip?.rootIssueId && (result.paperclip?.dispatched.length || 0) > 0,
+    result.paperclip?.rootIssueId
+    && (result.paperclip?.dispatched.length || 0) > 0
+    && result.paperclipUpdateStatus !== "failed",
   );
+  const wakeReady = Boolean(
+    issueTreeReady
+    && result.paperclipUpdateStatus !== "degraded"
+    && !(result.paperclip?.dispatched || []).some((entry) => Boolean(entry.wakeError)),
+  );
+  const executionEvidenceReady = uniqueBlockingStates.length === 0 && uniqueDoctrineGates.length === 0;
+  const notionMirrorReady =
+    result.notionSyncStatus === "synced"
+      ? true
+      : result.notionSyncStatus === "skipped_not_configured"
+        ? null
+        : false;
 
   return {
     city: result.city,
     planningReady,
     activationReady,
     issueTreeReady,
-    manualInterventionRequired: !(planningReady && activationReady && issueTreeReady),
+    wakeReady,
+    executionEvidenceReady,
+    notionMirrorReady,
+    manualInterventionRequired:
+      !(planningReady && activationReady && issueTreeReady && wakeReady && executionEvidenceReady)
+      || notionMirrorReady === false,
     blockingExecutionStates: uniqueBlockingStates,
     doctrineGatesRemaining: uniqueDoctrineGates,
     warnings: uniqueWarnings,

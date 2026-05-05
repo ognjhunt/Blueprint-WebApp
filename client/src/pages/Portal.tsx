@@ -73,7 +73,7 @@ export default function Portal() {
               <div className="border-r border-white/10 bg-[#0f0f0e] p-5">
                 <div className="rounded-[1.4rem] border border-white/10 bg-white/5 p-4">
                   <SurfaceMiniLabel className="text-white/45">Private workspace</SurfaceMiniLabel>
-                  <p className="mt-3 text-sm font-semibold text-white">Invite-only surface</p>
+                  <p className="mt-3 text-sm font-semibold text-white">Invite-only workspace</p>
                 </div>
                 <div className="mt-5 space-y-2">
                   {railItems.map((item, index) => (
@@ -150,7 +150,7 @@ export default function Portal() {
                     <SurfaceCard className="bg-white">
                       <SurfaceMiniLabel>Request metadata</SurfaceMiniLabel>
                       <p className="mt-4 text-sm leading-7 text-black/60">
-                        Representative private-surface layout for review queues, deadlines,
+                        Sample private-workspace layout for review queues, deadlines,
                         assignment, and protection state.
                       </p>
                     </SurfaceCard>

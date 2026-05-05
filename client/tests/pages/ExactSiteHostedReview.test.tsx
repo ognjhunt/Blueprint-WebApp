@@ -43,11 +43,11 @@ describe("ExactSiteHostedReview", () => {
     );
     expect(
       screen
-	        .getAllByRole("link", { name: /Request capture/i })
+	        .getAllByRole("link", { name: /Request hosted review/i })
 	        .some(
 	          (link) =>
 	            link.getAttribute("href")
-	            === "/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=request-capture&source=hosted-review",
+	            === "/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=hosted-review",
 	        ),
     ).toBe(true);
 

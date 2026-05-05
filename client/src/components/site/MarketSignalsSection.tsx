@@ -16,7 +16,7 @@ const humanoidEvidenceCards: HumanoidEvidenceCard[] = [
     tag: "Home demo",
     title: "Helix 02 can tidy a room without a person in the loop.",
     summary:
-      "Figure's living-room demo shows real progress: navigation through clutter, mixed-object pickup, and handoffs inside one continuous task.",
+      "Figure's living-room demo shows real progress: navigation through clutter, mixed-object pickup, and object transfers inside one continuous task.",
     insight:
       "That matters. It still happens in a known room with a known goal. Most pilots break when the layout, safety rules, and pass bar stop being that clean.",
     imageSrc: "/images/humanoids/figure-helix-02-living-room.jpg",
@@ -59,7 +59,7 @@ const whyBlueprintExists = [
   {
     title: "The task needs a real pass bar",
     description:
-      "A pilot only means something if the workflow, handoffs, fallback path, and success threshold are defined up front.",
+      "A pilot only means something if the workflow, transfer points, fallback path, and success threshold are defined up front.",
   },
   {
     title: "More robots multiply deployment work",
@@ -179,7 +179,7 @@ type MarketSignalsSectionProps = {
 export function MarketSignalsSection({
   eyebrow = "Why We Exist",
   title = "The robot may work. The site is still the hard part.",
-  description = "Robots do not usually fail because the demo was fake. They fail because the live site is different: different layout, traffic, handoffs, safety rules, and pass bar. Blueprint helps teams inspect that gap earlier, before pilot budget gets burned.",
+  description = "Robots do not usually fail because the demo was fake. They fail because the live site is different: different layout, traffic, transfer points, safety rules, and pass bar. Blueprint helps teams inspect that gap earlier, before pilot budget gets burned.",
 }: MarketSignalsSectionProps) {
   return (
     <section className="border-y border-zinc-100 bg-zinc-50/60 py-12 sm:py-16">

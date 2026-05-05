@@ -20,7 +20,7 @@ const compositeOutcomes = [
     body: "Endcaps, refrigeration glass, checkout-adjacent exclusions, and cart occlusion became visible before a robot team asked for a private site walk.",
   },
   {
-    title: "Hotel delivery handoff",
+    title: "Hotel delivery transfer",
     metric: "3 approval questions clarified",
     body: "Lobby access, elevator threshold, and front-desk privacy boundaries became the operator discussion instead of an abstract demo request.",
   },
@@ -34,7 +34,7 @@ const compositeOutcomes = [
 const launchStudyStages = [
   "Capture a lawful public-facing route or operator-approved facility path.",
   "Attach manifest, rights, privacy, restricted-zone, and freshness labels.",
-  "Open a buyer-readable hosted report with observations and non-guarantee limits.",
+  "Open a hosted report with observations and non-guarantee limits a buyer can read.",
   "Route the serious buyer into package access, hosted review, or operator permissioning.",
 ];
 
@@ -42,8 +42,8 @@ export default function CaseStudies() {
   return (
     <>
       <SEO
-        title="Composite Case Studies | Blueprint"
-        description="Composite launch studies showing how public-facing captures can become site packages and hosted review evidence for robot teams."
+        title="Capture Examples | Blueprint"
+        description="Sample case studies showing how public-facing captures can become site packages and hosted review evidence for robot teams."
         canonical="/case-studies"
       />
 
@@ -60,12 +60,12 @@ export default function CaseStudies() {
             <div className="absolute inset-0">
               <div className="mx-auto h-full max-w-[88rem] px-5 py-12 sm:px-8 lg:px-10 lg:py-16">
                 <div className="flex h-full max-w-[34rem] flex-col justify-end text-white">
-                  <EditorialSectionLabel light>Composite Case Studies</EditorialSectionLabel>
+                  <EditorialSectionLabel light>Capture Examples</EditorialSectionLabel>
                   <h1 className="font-editorial mt-6 text-[3.7rem] leading-[0.9] tracking-[-0.06em] sm:text-[5rem]">
-                    Complete stories, clearly marked as composite.
+                    Complete examples, clearly marked as samples.
                   </h1>
                   <p className="mt-6 text-base leading-8 text-white/75">
-                    Launch-ready placeholder studies for grocery, retail, lobby, and common-area routes. Replace the names later; the proof structure is ready now.
+                    Sample studies for grocery, retail, lobby, and common-area routes. They show the evidence structure without claiming real customer results.
                   </p>
                 </div>
               </div>
@@ -75,9 +75,9 @@ export default function CaseStudies() {
 
         <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
           <EditorialSectionIntro
-            eyebrow="Story set"
+            eyebrow="Examples"
             title="A case study is useful only when the evidence path is visible."
-            description="Each composite study shows the location type, capture cue, robot question, evidence a buyer would inspect, rules for the capturer, and the next decision."
+            description="Each sample study shows the location type, capture cue, robot question, evidence a buyer would inspect, rules for the capturer, and the next decision."
             className="max-w-3xl"
           />
           <div className="mt-8 grid gap-4 lg:grid-cols-2">
@@ -92,7 +92,7 @@ export default function CaseStudies() {
                     overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.05),rgba(0,0,0,0.42))]"
                   />
                   <div className="bg-white p-6">
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Composite placeholder / {story.label}</p>
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Sample example / {story.label}</p>
                     <h2 className="font-editorial mt-4 text-[2.5rem] leading-[0.94] tracking-[-0.05em] text-slate-950">
                       {story.locationName}
                     </h2>
@@ -137,12 +137,12 @@ export default function CaseStudies() {
         <section className="border-y border-black/10 bg-white">
           <div className="mx-auto grid max-w-[88rem] gap-4 px-5 py-10 sm:px-8 lg:grid-cols-[0.34fr_0.66fr] lg:px-10 lg:py-12">
             <div className="bg-slate-950 p-6 text-white lg:p-8">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Composite outcome board</p>
+              <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Sample outcome board</p>
               <h2 className="font-editorial mt-4 text-[2.7rem] leading-[0.94] tracking-[-0.05em]">
                 The story looks real because the workflow is concrete.
               </h2>
               <p className="mt-5 text-sm leading-7 text-white/70">
-                These are not customer testimonials. They are finished placeholder stories that show how Blueprint should present approved real case studies when available.
+                These are not customer testimonials. They show how Blueprint should present approved real case studies when customer proof is available.
               </p>
             </div>
             <div className="grid gap-4 md:grid-cols-3">
@@ -182,9 +182,9 @@ export default function CaseStudies() {
         <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
           <div className="grid gap-4 lg:grid-cols-[0.4fr_0.6fr]">
             <div className="bg-[#f5f3ef] p-6 lg:p-8">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Case-study template</p>
+              <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Case-study checklist</p>
               <h2 className="font-editorial mt-4 text-[2.7rem] leading-[0.94] tracking-[-0.05em]">
-                Replace the placeholder, keep the structure.
+                Keep the proof visible when a real story is approved.
               </h2>
             </div>
             <div className="grid gap-px bg-black/10 md:grid-cols-4">

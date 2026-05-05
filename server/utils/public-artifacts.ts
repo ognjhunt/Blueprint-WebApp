@@ -14,18 +14,20 @@ const staticSitemapRoutes: SitemapRoute[] = [
   { path: "/how-it-works", changefreq: "weekly", priority: 0.9 },
   { path: "/world-models", changefreq: "weekly", priority: 0.9 },
   { path: "/exact-site-hosted-review", changefreq: "weekly", priority: 0.9 },
+  { path: "/sample-evaluation", changefreq: "weekly", priority: 0.8 },
   { path: "/sample-deliverables", changefreq: "weekly", priority: 0.8 },
   { path: "/book-exact-site-review", changefreq: "monthly", priority: 0.8 },
   { path: "/case-studies", changefreq: "weekly", priority: 0.8 },
   { path: "/for-robot-teams", changefreq: "weekly", priority: 0.8 },
+  { path: "/capture", changefreq: "monthly", priority: 0.7 },
+  { path: "/proof", changefreq: "weekly", priority: 0.7 },
   { path: "/for-site-operators", changefreq: "monthly", priority: 0.7 },
   { path: "/launch-map", changefreq: "weekly", priority: 0.7 },
-  { path: "/solutions", changefreq: "monthly", priority: 0.7 },
   { path: "/pricing", changefreq: "monthly", priority: 0.7 },
   { path: "/contact", changefreq: "monthly", priority: 0.6 },
+  { path: "/capture-app/launch-access", changefreq: "monthly", priority: 0.6 },
   { path: "/help", changefreq: "monthly", priority: 0.6 },
   { path: "/faq", changefreq: "monthly", priority: 0.6 },
-  { path: "/docs", changefreq: "monthly", priority: 0.6 },
   { path: "/blog", changefreq: "monthly", priority: 0.5 },
   { path: "/governance", changefreq: "monthly", priority: 0.5 },
   { path: "/about", changefreq: "monthly", priority: 0.5 },
@@ -66,7 +68,7 @@ export function getSitemapBuildDate() {
       .slice(0, 10);
   }
 
-  return "2026-03-13";
+  return "2026-05-05";
 }
 
 export function buildSitemapXml(buildDate = getSitemapBuildDate()) {

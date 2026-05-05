@@ -20,7 +20,7 @@ export const footerProductLinks = [
   { href: "/world-models/siteworld-f5fd54898cfb", label: "Sample Site" },
   { href: "/sample-deliverables", label: "Sample Deliverables" },
   { href: "/case-studies", label: "Proof Stories" },
-  { href: "/capture-app", label: "Capture & Earn" },
+  { href: "/capture", label: "Capture Rules" },
 ];
 
 export const footerCompanyLinks = [

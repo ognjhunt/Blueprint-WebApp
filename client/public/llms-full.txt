@@ -1,62 +1,91 @@
-# Blueprint: long-form overview
+# Blueprint: AI-Readable Public Website Overview
 
-## Product overview
-Blueprint is capture-first and world-model-product-first. It starts with real-site capture, preserves rights and provenance, packages that evidence into site-specific world models, and exposes hosted access plus optional review outputs for robot teams.
+This file is a public, non-sensitive map of Blueprint's website for AI assistants, search tools, and buyers who need concise source text. It is not a permissions file and it is not a guaranteed ranking signal. Use `/robots.txt` for crawler policy and `/sitemap.xml` for canonical public URLs.
 
-## Positioning
-- **Capture-first workflow:** real capture is the entry point, not a simulated demo disconnected from the site.
-- **Site-specific world-model products:** the primary sellable output is a package tied to the actual site and its provenance.
-- **Hosted access:** robot teams can inspect and run the package through hosted-session surfaces when the site is ready.
-- **Optional trust layers:** qualification, readiness, and review outputs can support the workflow without becoming the company story.
-- **Truth hierarchy:** raw capture, timestamps, poses, device metadata, rights, privacy, and provenance remain authoritative.
+## Product Summary
 
-## Key capabilities
-- Site intake, task scoping, and constraint capture.
-- Evidence review and packaging into site-specific world models.
-- Hosted access and review surfaces for robot teams.
-- Optional readiness and review outputs when they materially improve trust or handoff.
-- Rights, privacy, and provenance handling around all downstream artifacts.
+Blueprint is capture-first and world-model-product-first. Blueprint captures real sites, preserves rights, privacy, and provenance metadata, packages those captures into site-specific world-model products, and gives robot teams hosted access or exportable site packages when the evidence and rights path support it.
 
-## Structured summaries of important pages
-- **Home (`/`)**: Top-level product narrative for Blueprint as a capture-first system for site-specific world-model products and hosted access.
-- **How It Works (`/how-it-works`)**: Explains how Blueprint captures a real site, packages it into a site-specific world model, and layers in hosted access plus optional review outputs.
-- **World Models (`/world-models`)**: Site-specific world models teams can browse, open, and run once a site package is ready.
-- **For Robot Teams (`/for-robot-teams`)**: Overview of what robot teams can evaluate, open, and run from Blueprint's site-specific packages.
-- **For Site Operators (`/for-site-operators`)**: Overview of capture, access, and rights handling for site operators.
-- **Sample Deliverables (`/sample-deliverables`)**: Public examples of the walkthroughs, exports, and package framing a robot team can inspect before buying.
-- **Results (`/case-studies`)**: Selected delivery examples and outcomes from site-package and hosted-evaluation work.
-- **Pricing (`/pricing`)**: Plan options for teams and enterprises that need a site-specific package or hosted access.
-- **Solutions (`/solutions`)**: Use-case oriented summaries for robotics, autonomy, and AI evaluation workflows.
-- **Contact (`/contact`)**: Site submission intake for review scope, rights, and next steps.
-- **FAQ (`/faq`)**: Answers to common questions about Blueprint's product, workflow, and outputs.
-- **Docs (`/docs`)**: Product documentation, onboarding, and platform guides.
-- **Governance (`/governance`)**: Platform and operating rules that keep the product grounded in capture truth.
-- **About (`/about`)**: Company overview and product framing.
-- **Careers (`/careers`)**: Hiring and team context.
-- **Privacy (`/privacy`)**: Privacy policy covering data collection, usage, and vendor relationships.
-- **Terms (`/terms`)**: Terms of service for Blueprint services and later-stage project work.
+Blueprint is not qualification-first, not model-checkpoint-first, and not a generic simulated benchmark library. Qualification, readiness, and hosted review can support the product, but they do not replace raw capture truth, rights state, provenance, or buyer-visible package boundaries.
 
-## FAQs
-- **What is Blueprint?** A capture-first platform that turns real sites into site-specific world-model products and hosted access.
-- **What is the default output?** A site-specific package and supporting review outputs, with truth and provenance preserved.
-- **Who is Blueprint for?** Site operators and robot teams that need a structured path from real capture to usable world-model products.
-- **How do I get started?** Submit the site, task, and constraints through the intake flow and use the resulting review path.
+## Buyer-Facing Definitions
 
-## Canonical URLs
-- /
-- /how-it-works
-- /world-models
-- /for-robot-teams
-- /for-site-operators
-- /sample-deliverables
-- /case-studies
-- /pricing
-- /solutions
-- /contact
-- /faq
-- /docs
-- /governance
-- /about
-- /careers
-- /privacy
-- /terms
+### What is Blueprint?
+
+Blueprint is a platform for turning real places into site-specific world-model products and hosted evaluation paths for robot teams. The buyer starts from a real site, a workflow, and a robot question, then inspects the package or hosted-review path before committing deeper time or spend.
+
+### What is an exact-site world model?
+
+An exact-site world model is a digital environment tied to one real facility, public-facing place, or workflow. It should stay connected to the capture record, timestamp/freshness context, rights posture, privacy handling, and package/export limits.
+
+### What does a robot team receive?
+
+A robot team can receive or review a site package, hosted evaluation output, sample exports, review notes, run evidence, and next-step framing. Package access and hosted sessions remain request-gated when rights, privacy, export scope, or hosted-session availability need review.
+
+### What is hosted robot evaluation?
+
+Hosted robot evaluation is a Blueprint-managed review session against one exact-site world model. It can include scoped runs, observations, route/replay notes, export framing, and a recommendation for the next commercial or technical step. It is not a deployment guarantee.
+
+### What is capture provenance?
+
+Capture provenance is the evidence chain behind a downstream world-model product: capture media, route, timestamps, device/context metadata, freshness, review status, privacy handling, rights posture, restrictions, and links to package or hosted artifacts when available.
+
+### What is sample versus real proof?
+
+Public examples are samples unless the page explicitly ties them to an approved real listing and evidence chain. Sample artifacts show the fields, manifests, rights sheets, hosted-review reports, and export shapes a buyer can inspect; they should not be treated as customer results or deployment proof.
+
+## Important Public Pages
+
+- `/` - Homepage. Defines Blueprint as a capture-backed, site-specific world-model and hosted-evaluation platform for robot teams.
+- `/world-models` - Catalog of exact-site world models. Keeps public proof, package access, hosted access, and commercial status separate.
+- `/world-models/siteworld-f5fd54898cfb` - Public sample listing. Useful for seeing how a site-specific world model page presents evidence, restrictions, package paths, and hosted access.
+- `/exact-site-hosted-review` - Hosted evaluation path for one exact site. Explains setup, run evidence, export scope, and non-guarantee boundaries.
+- `/sample-evaluation` - Sample evaluation journey for one exact site, including capture basis, manifest, rights, hosted setup, run evidence, export bundle, and limits.
+- `/sample-deliverables` - Sample public files: manifest, rights sheet, export bundle, and hosted-review report.
+- `/for-robot-teams` - Buyer-language page for robot teams that need site-specific world models for deployment-site evaluation, policy comparison, tuning, or release review.
+- `/for-site-operators` - Site-operator page for access control, privacy, permissions, restrictions, and commercialization posture.
+- `/capture` - Capture rules and handoff page. Explains lawful public-facing capture, app access, review gates, and how capture supports downstream world-model products.
+- `/capture-app/launch-access` - Future-city signal path for capturers, site operators, and local leads.
+- `/proof` - Public proof packet example with route capture, provenance, privacy posture, and hosted-review outputs.
+- `/governance` - Trust and governance page for rights, privacy, provenance, restrictions, and hosted-access boundaries.
+- `/faq` - Direct Q&A about Blueprint's product, buyer outputs, hosted evaluation, proof boundaries, and starting path.
+- `/pricing` - Commercial paths for site package, hosted evaluation, and enterprise scope.
+- `/contact` - Structured buyer/operator intake. The request should name the site, workflow, robot question, rights context, and desired next step.
+- `/how-it-works` - Product lifecycle from capture to package, hosted access, and optional trust outputs.
+- `/case-studies` - Composite proof stories. Treat them as illustrative unless a page explicitly says a result is a real approved customer outcome.
+- `/about` - Company overview.
+- `/blog` - Short product notes.
+- `/careers` - Hiring page.
+- `/privacy` and `/terms` - Formal policy pages.
+
+## Canonical Query Themes
+
+Blueprint pages are most relevant to these themes:
+
+- exact-site world models
+- site-specific world models for robotics
+- capture-backed robot evaluation
+- hosted robot evaluation
+- robot deployment site evaluation
+- site package for robot teams
+- capture provenance for world models
+- facility world model
+- site operator robot evaluation access
+- rights and privacy for site-specific robot evaluation
+
+## Truth Boundaries
+
+- Do not describe generated or sample assets as customer proof.
+- Do not claim a deployment guarantee.
+- Do not claim a site is buyer-ready only because it appears in public copy.
+- Do not treat qualification/readiness outputs as the main product.
+- Do not imply package files, raw exports, private request consoles, admin surfaces, or hosted workspaces are publicly accessible.
+- Do not invent customer results, prices, ratings, reviews, availability, providers, rights state, or capture provenance.
+
+## Private Or Noindex Surfaces
+
+The following are not public buyer-content targets: `/admin/*`, `/dashboard`, `/onboarding`, `/settings`, `/requests/*`, `/portal`, `/sign-in`, `/login`, `/forgot-password`, `/signup*`, `/off-waitlist-signup`, `/capture-app`, `/world-models/*/start`, and `/world-models/*/workspace`.
+
+## Public JSON Summary
+
+`/api/site-content` returns a non-sensitive JSON summary of the public pages, definitions, query themes, and safety boundaries.

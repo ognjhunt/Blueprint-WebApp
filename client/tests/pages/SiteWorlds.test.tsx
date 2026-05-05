@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import SiteWorlds from "@/pages/SiteWorlds";
+import { siteWorldCards } from "@/data/siteWorlds";
 
 describe("SiteWorlds", () => {
   it("renders the simplified catalog-first world-models page", () => {
@@ -44,9 +45,17 @@ describe("SiteWorlds", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /The catalog expands from the same visual language\./i,
+        name: /Scan every listing by proof, access, and freshness\./i,
       }),
     ).toBeInTheDocument();
+
+    siteWorldCards.forEach((site) => {
+      expect(screen.getAllByText(site.siteName).length).toBeGreaterThan(0);
+    });
+    expect(screen.getAllByText(/Freshness/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Composite preview/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: /Hosted setup/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: /Package access/i }).length).toBeGreaterThan(0);
 
     expect(screen.getByText(/True-to-site geometry/i)).toBeInTheDocument();
     expect(screen.getByText(/Photoreal textures/i)).toBeInTheDocument();
@@ -58,7 +67,7 @@ describe("SiteWorlds", () => {
     ).toBeInTheDocument();
 
     expect(
-      screen.queryByText(/Common reasons robot teams buy this surface/i),
+      screen.queryByText(/Common reasons robot teams buy this path/i),
     ).not.toBeInTheDocument();
     expect(screen.queryByText(/What public status means/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Choose how you want access/i)).not.toBeInTheDocument();

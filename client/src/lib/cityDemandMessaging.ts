@@ -51,8 +51,8 @@ const DEMAND_CITY_MESSAGING: Record<DemandCityKey, DemandCityMessaging> = {
       "For San Francisco buyer work, lead with exact-site proof, current-stack fit, and what can be reviewed asynchronously after a BARA-style matchmaking, founder, or partner referral.",
     proofPoints: [
       "Make it clear whether the motion came through buyer matchmaking, a founder intro, a proof-led event, or a partner referral.",
-      "Put exact-site proof, stack compatibility, and async artifact review ahead of generic AI language.",
-      "Surface human-gated commercialization, privacy, and access topics earlier instead of burying them.",
+      "Put exact-site proof, stack compatibility, and async sample review ahead of generic AI language.",
+      "Raise human-gated commercialization, privacy, and access topics earlier instead of burying them.",
     ],
     requestHeroTitle: "Frame the San Francisco request for a technical buyer fast.",
     requestHeroBody:
@@ -63,7 +63,7 @@ const DEMAND_CITY_MESSAGING: Record<DemandCityKey, DemandCityMessaging> = {
     requestCardBody:
       "This city has denser buyer and partner channels, but the proof needs to hold up under sharper technical scrutiny.",
     requestCardPoints: [
-      "Name the current stack or review workflow when async artifact review matters to the buyer.",
+      "Name the current stack or review workflow when async sample review matters to the buyer.",
       "Be explicit about the exact-site requirement versus an adjacent-site proof path.",
       "Raise commercialization, rights, privacy, or sensitive access topics early when they are likely to slow a serious follow-up.",
     ],

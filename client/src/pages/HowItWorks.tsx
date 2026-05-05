@@ -32,8 +32,8 @@ const chapterCards = [
   {
     id: "04",
     title: "Deliver",
-    body: "You get a versioned world model and the artifacts needed to use it.",
-    proof: "Export complete · artifact bundle · run-ready package",
+    body: "You get a versioned world model and the files needed to use it.",
+    proof: "Export complete · review bundle · run-ready package",
   },
 ];
 
@@ -57,7 +57,7 @@ function ChapterLabel({
       <p className="mt-6 max-w-[15rem] text-base leading-7 text-slate-700">{body}</p>
       <div className="mt-10 border-t border-black/10 pt-4">
         <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
-          Illustrative sample
+          Sample values
         </p>
         <p className="mt-2 text-sm leading-6 text-slate-500">{proof}</p>
       </div>
@@ -71,7 +71,7 @@ function PackagePanel() {
       <div className="grid max-w-[42rem] gap-4 md:grid-cols-[0.6fr_0.4fr]">
         <div className="rotate-[-3deg] rounded-[1.8rem] border border-black/10 bg-white p-6 shadow-[0_26px_50px_-36px_rgba(15,23,42,0.22)]">
           <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
-            Illustrative sample manifest
+            Sample manifest
           </p>
           <h3 className="mt-5 text-2xl font-semibold text-slate-950">Plant 7</h3>
           <div className="mt-6 grid gap-y-3 text-sm text-slate-700">
@@ -153,7 +153,7 @@ function DeliverPanel() {
           <div className="rounded-[1.3rem] border border-black/10 bg-white px-5 py-4 shadow-[0_16px_28px_-24px_rgba(15,23,42,0.18)]">
             <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Export bundle</p>
             <p className="mt-3 text-sm leading-6 text-slate-700">
-              MP4 sessions, JSON maps, ZIP observations, logs, and package metadata ready for handoff.
+              MP4 sessions, JSON maps, ZIP observations, logs, and package metadata ready to review.
             </p>
           </div>
         </div>
@@ -167,7 +167,7 @@ export default function HowItWorks() {
     <>
       <SEO
         title="How It Works | Blueprint"
-        description="See how Blueprint moves from real capture to site package, run-ready world model, and delivery artifacts."
+        description="See how Blueprint moves from real capture to site package, run-ready world model, and delivery files."
         canonical="/how-it-works"
       />
 
@@ -184,7 +184,7 @@ export default function HowItWorks() {
                   Real places. Real routes. Site-specific world models that robots can run.
                 </p>
                 <p className="mt-5 max-w-[19rem] text-xs leading-6 text-slate-500">
-                  Metrics shown on this page are illustrative samples unless a listing marks them as
+                  Metrics shown on this page are sample values unless a listing marks them as
                   approved real-site proof.
                 </p>
               </div>
@@ -192,7 +192,7 @@ export default function HowItWorks() {
               <div className="relative min-h-[34rem]">
                 <div className="absolute right-[4%] top-0 z-20 rotate-[1deg] rounded-[0.2rem] bg-white px-5 py-4 shadow-[0_16px_30px_-20px_rgba(15,23,42,0.24)]">
                   <p className="font-editorial text-[1.1rem] italic">Sample site: Plant 7</p>
-                  <p className="mt-2 text-sm text-slate-700">Illustrative date: 04 / 18</p>
+                  <p className="mt-2 text-sm text-slate-700">Sample date: 04 / 18</p>
                   <p className="text-sm text-slate-700">Sample capture: 2 of 3</p>
                 </div>
                 <div className="absolute left-[22%] right-[8%] top-[2.5rem] rounded-[1.3rem] border border-black/10 bg-white p-3 shadow-[0_24px_44px_-26px_rgba(15,23,42,0.2)]">

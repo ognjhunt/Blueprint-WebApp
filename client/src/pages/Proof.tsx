@@ -26,12 +26,12 @@ const proofSummary = [
   {
     icon: Building2,
     label: "Site type",
-    value: "Grocery retail - supermarket",
+    value: "Grocery retail sample",
   },
   {
     icon: Route,
     label: "Capture route",
-    value: "Aisle 12, cereal to snacks",
+    value: "Public-aisle route sample",
     action: "View route map",
   },
   {
@@ -44,7 +44,7 @@ const proofSummary = [
     icon: LockKeyhole,
     label: "Privacy posture",
     value: "Privacy-safe review",
-    note: "No faces or PII captured",
+    note: "Real requests still require route-specific redaction review",
   },
   {
     icon: Sparkles,
@@ -88,13 +88,13 @@ const inspectionItems = [
 ];
 
 const provenanceRows = [
-  ["Capture device", "Insta360 Titan (8K)"],
-  ["Date / time", "May 14, 2025 at 10:42 AM local"],
-  ["Route type", "Autonomous cart-mounted"],
-  ["Route length", "128 m"],
-  ["Frames", "2,184 panoramic frames"],
-  ["Coverage", "98% of navigable path"],
-  ["Hash", "a7f9c2e4...9b21d0f7"],
+  ["Capture basis", "Composite public-route sample"],
+  ["Date / time", "Example timestamp"],
+  ["Route type", "Illustrative customer-area walkthrough"],
+  ["Route length", "Sample value, not measured proof"],
+  ["Frames", "Sample value, not measured proof"],
+  ["Coverage", "Illustrative route coverage"],
+  ["Hash", "sample-hash-placeholder"],
 ];
 
 const hostedOutputs = [
@@ -131,8 +131,8 @@ export default function Proof() {
   return (
     <>
       <SEO
-        title="Grocery aisle proof packet | Blueprint"
-        description="A Blueprint example proof packet for a grocery aisle robot inspection, including route capture, provenance, privacy posture, and hosted-review outputs."
+        title="Sample Grocery Aisle Proof Packet | Blueprint"
+        description="A Blueprint sample proof packet for a grocery aisle robot inspection, including route capture, provenance, privacy posture, and hosted-review outputs without claiming live customer proof."
         canonical="/proof"
       />
 
@@ -144,15 +144,15 @@ export default function Proof() {
               Capture examples
             </a>
             <span className="text-slate-300">/</span>
-            <span className="text-slate-600">Grocery aisle robot inspection</span>
+            <span className="text-slate-600">Sample grocery aisle robot inspection</span>
           </div>
 
           <section className="mt-7">
             <h1 className="max-w-4xl text-[2.4rem] font-semibold leading-[1.02] tracking-[-0.055em] text-slate-950 sm:text-[3.1rem]">
-              Grocery aisle proof packet
+              Sample grocery aisle proof packet
             </h1>
             <p className="mt-3 max-w-4xl text-base leading-7 text-slate-600">
-              A real-route capture example for shelf navigation, aisle obstruction checks, and robot team inspection.
+              A composite sample showing how shelf navigation, aisle obstruction checks, provenance, and hosted-review outputs stay readable for a robot team.
             </p>
           </section>
 
@@ -165,9 +165,9 @@ export default function Proof() {
               />
               <div className="absolute left-4 top-4 inline-flex items-center gap-3 rounded-md bg-black/72 px-3 py-2 text-xs font-semibold text-white backdrop-blur">
                 <CalendarClock className="h-4 w-4" />
-                <span>Captured</span>
-                <span className="font-medium text-white/80">May 14, 2025</span>
-                <span className="font-medium text-white/80">10:42 AM local</span>
+                <span>Sample packet</span>
+                <span className="font-medium text-white/80">Composite route</span>
+                <span className="font-medium text-white/80">Not live proof</span>
               </div>
               <div className="absolute bottom-4 left-4 inline-flex items-center gap-2 rounded-md bg-black/76 px-4 py-2.5 text-sm font-semibold text-white backdrop-blur">
                 <ArrowUpRight className="h-4 w-4" />

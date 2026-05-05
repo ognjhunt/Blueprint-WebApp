@@ -15,7 +15,7 @@ const sections = [
   {
     title: "What we collect",
     body:
-      "We collect the information you submit through forms, account creation, checkout, support requests, and capture-related workflows. Depending on the product surface, that can include contact details, account information, company information, payment metadata from our payment processor, uploaded files, and technical logs tied to site packages or hosted sessions.",
+      "We collect the information you submit through forms, account creation, checkout, support requests, and capture-related workflows. Depending on the product area, that can include contact details, account information, company information, payment metadata from our payment processor, uploaded files, and technical logs tied to site packages or hosted sessions.",
     icon: SquareStack,
   },
   {

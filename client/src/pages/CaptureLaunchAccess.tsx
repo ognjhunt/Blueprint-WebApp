@@ -12,6 +12,7 @@ import { usePublicLaunchStatus } from "@/hooks/usePublicLaunchStatus";
 import { analyticsEvents } from "@/lib/analytics";
 import { buildLaunchAccessWaitlistPayload, getLaunchAccessRoleLabel, normalizeLaunchAccessCity, type LaunchAccessRole } from "@/lib/launchAccess";
 import { publicCaptureGeneratedAssets } from "@/lib/publicCaptureGeneratedAssets";
+import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
 const roleOptions: LaunchAccessRole[] = [
   "capturer",
@@ -27,7 +28,7 @@ const signalReasons = [
   },
   {
     title: "Local operators matter",
-    body: "If you can open doors, validate access rules, or host early capture, that changes how quickly a city becomes actionable.",
+    body: "If you can open doors, validate access rules, or host early capture, that changes how quickly a city can open.",
     icon: ShieldCheck,
   },
   {
@@ -111,6 +112,19 @@ export default function CaptureLaunchAccess() {
         title="Request Launch Access | Blueprint Capture"
         description="Tell Blueprint which city you are in, whether you can capture or operate locally, and get notified as the rollout moves toward your market."
         canonical="/capture-app/launch-access"
+        jsonLd={[
+          webPageJsonLd({
+            path: "/capture-app/launch-access",
+            name: "Blueprint Capture Launch Access",
+            description:
+              "A public city signal path for capturers and site operators who want future Blueprint Capture access.",
+          }),
+          breadcrumbJsonLd([
+            { name: "Home", path: "/" },
+            { name: "Capture", path: "/capture" },
+            { name: "Launch Access", path: "/capture-app/launch-access" },
+          ]),
+        ]}
       />
 
       <div className="bg-[#f5f3ef] text-slate-950">
@@ -124,7 +138,7 @@ export default function CaptureLaunchAccess() {
               <p className="mt-6 max-w-[31rem] text-base leading-8 text-slate-700">
                 Leave a city signal if Blueprint is not live where you are yet. We use this list to
                 prioritize rollout, identify boots-on-the-ground capturers, and find site operators
-                who can help us unlock a market faster.
+                who can help us open a market sooner.
               </p>
               <div className="mt-7 flex flex-wrap gap-3">
                 <ProofChip>Future-city demand</ProofChip>
@@ -149,7 +163,7 @@ export default function CaptureLaunchAccess() {
 
             <MonochromeMedia
               src={publicCaptureGeneratedAssets.captureAppHero}
-              alt="Blueprint capture lane"
+              alt="Blueprint capture route"
               className="min-h-[34rem] rounded-none"
               loading="eager"
               imageClassName="min-h-[34rem]"
@@ -159,7 +173,7 @@ export default function CaptureLaunchAccess() {
                 <div className="max-w-[22rem] rounded-[1.6rem] border border-white/10 bg-black/55 p-5 text-white backdrop-blur-sm">
                   <EditorialSectionLabel light>Why this matters</EditorialSectionLabel>
                   <p className="mt-4 text-sm leading-7 text-white/75">
-                    This is not just a passive newsletter list. It is the intake we use to spot
+                    This is how we spot
                     markets with enough real local support to justify opening sooner.
                   </p>
                 </div>
@@ -203,7 +217,7 @@ export default function CaptureLaunchAccess() {
                   ) : launchStatusError ? (
                     <p className="text-sm leading-7 text-slate-600">
                       Launch status unavailable. This page will not assume a city is open from
-                      static fallback copy.
+                      saved fallback copy.
                     </p>
                   ) : supportedCities.length ? (
                     supportedCities.map((launchCity) => (
@@ -217,7 +231,7 @@ export default function CaptureLaunchAccess() {
                   ) : (
                     <p className="text-sm leading-7 text-slate-600">
                       No city is currently marked open in the public launch roster. Leave a signal
-                      and Blueprint will route it through city-launch review.
+                      and Blueprint will route it through launch review.
                     </p>
                   )}
                 </div>
@@ -231,7 +245,7 @@ export default function CaptureLaunchAccess() {
               </h2>
               <p className="mt-4 text-sm leading-7 text-slate-700">
                 We will use this to keep you updated, notify you when launch planning reaches your
-                city, and potentially pull you in early as a local power user.
+                city, and potentially pull you in early as a local reviewer.
               </p>
 
               <form onSubmit={handleSubmit} className="mt-7 space-y-4">
@@ -312,7 +326,7 @@ export default function CaptureLaunchAccess() {
                     value={notes}
                     onChange={(event) => setNotes(event.target.value)}
                     rows={4}
-                    placeholder="Tell us what kinds of sites you could help capture or unlock in your city."
+                    placeholder="Tell us what kinds of sites you could help capture or open in your city."
                     className="w-full resize-none border border-black/10 bg-[#f8f6f1] px-4 py-3 text-sm leading-7 text-slate-950 outline-none transition focus:border-slate-400"
                   />
                 </label>
@@ -335,7 +349,7 @@ export default function CaptureLaunchAccess() {
 
               <div className="mt-6 border-t border-black/10 pt-4 text-sm leading-7 text-slate-600">
                 We only use this for Blueprint launch updates and local rollout follow-up. If your
-                city starts moving, this is the list we come back to.
+                city enters launch planning, this is the list we come back to.
               </div>
               <a
                 href="mailto:hello@tryblueprint.io?subject=Blueprint%20future%20city%20launch"
@@ -360,7 +374,7 @@ export default function CaptureLaunchAccess() {
             <div className="bg-[#f5f3ef] px-8 py-10 lg:px-12 lg:py-12">
               <EditorialSectionLabel>What this queue does</EditorialSectionLabel>
               <h2 className="font-editorial mt-5 max-w-[12ch] text-[3.2rem] leading-[0.92] tracking-[-0.06em] text-slate-950">
-                Demand, capturers, and operator access in one place.
+                Buyer demand, local capturers, and site access in one place.
               </h2>
               <p className="mt-5 max-w-[34rem] text-base leading-8 text-slate-700">
                 We use this future-city intake to see where buyer demand is building, where we have

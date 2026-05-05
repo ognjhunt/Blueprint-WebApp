@@ -36,7 +36,12 @@ export async function dispatchCityLaunchFounderApproval(input: {
     approvalCount: 0,
     emailSent: false,
     slackMirrored: false,
-    alreadyApproved: true,
-    alreadyPending: Boolean(existingThread && existingThread.status !== "resolved" && existingThread.status !== "blocked"),
+    alreadyApproved: durableApproval.founderApproved,
+    alreadyPending: Boolean(
+      existingThread
+      && !durableApproval.founderApproved
+      && existingThread.status !== "resolved"
+      && existingThread.status !== "blocked",
+    ),
   };
 }

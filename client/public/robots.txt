@@ -1,20 +1,88 @@
-# https://www.robotstxt.org/robotstxt.html
+# Blueprint public crawler policy.
+# Search crawlers are allowed for public buyer pages. Training/grounding controls
+# stay separate from search visibility so ChatGPT Search and Google Search can
+# crawl public pages without treating training opt-in as the same decision.
+
 User-agent: Googlebot
 Allow: /
+Disallow: /admin/
+Disallow: /dashboard/
+Disallow: /onboarding/
+Disallow: /settings/
+Disallow: /requests/
+Disallow: /portal
+Disallow: /sign-in
+Disallow: /login
+Disallow: /forgot-password
+Disallow: /signup
+Disallow: /off-waitlist-signup
+Disallow: /capture-app
+Allow: /capture-app/launch-access
+Disallow: /world-models/*/start
+Disallow: /world-models/*/workspace
 
-User-agent: Google-InspectionTool
+User-agent: OAI-SearchBot
 Allow: /
+Disallow: /admin/
+Disallow: /dashboard/
+Disallow: /onboarding/
+Disallow: /settings/
+Disallow: /requests/
+Disallow: /portal
+Disallow: /sign-in
+Disallow: /login
+Disallow: /forgot-password
+Disallow: /signup
+Disallow: /off-waitlist-signup
+Disallow: /capture-app
+Allow: /capture-app/launch-access
+Disallow: /world-models/*/start
+Disallow: /world-models/*/workspace
+
+# User-triggered fetches are not the ChatGPT Search crawl signal, but public
+# pages should still be reachable when a user asks ChatGPT to inspect them.
+User-agent: ChatGPT-User
+Allow: /
+Disallow: /admin/
+Disallow: /dashboard/
+Disallow: /onboarding/
+Disallow: /settings/
+Disallow: /requests/
+Disallow: /portal
+Disallow: /sign-in
+Disallow: /login
+Disallow: /forgot-password
+Disallow: /signup
+Disallow: /off-waitlist-signup
+Disallow: /capture-app
+Allow: /capture-app/launch-access
+Disallow: /world-models/*/start
+Disallow: /world-models/*/workspace
+
+# These controls are for AI training/grounding outside public search surfaces.
+# Keeping them disallowed preserves the search-vs-training distinction.
+User-agent: GPTBot
+Disallow: /
 
 User-agent: Google-Extended
-Allow: /
+Disallow: /
 
 User-agent: *
 Allow: /
+Disallow: /admin/
+Disallow: /dashboard/
+Disallow: /onboarding/
+Disallow: /settings/
+Disallow: /requests/
+Disallow: /portal
+Disallow: /sign-in
+Disallow: /login
+Disallow: /forgot-password
+Disallow: /signup
+Disallow: /off-waitlist-signup
+Disallow: /capture-app
+Allow: /capture-app/launch-access
+Disallow: /world-models/*/start
+Disallow: /world-models/*/workspace
 
-# Sitemap location
 Sitemap: https://tryblueprint.io/sitemap.xml
-
-# LLM/AI crawler information
-# For AI assistants and language models, see:
-# https://tryblueprint.io/llms.txt
-# https://tryblueprint.io/llms-full.txt
