@@ -25,9 +25,9 @@ BLUEPRINT_PAPERCLIP_CLAUDE_LANE_MODE="${BLUEPRINT_PAPERCLIP_CLAUDE_LANE_MODE:-au
 BLUEPRINT_PAPERCLIP_FORCE_CODEX_CLAUDE_LANES="${BLUEPRINT_PAPERCLIP_FORCE_CODEX_CLAUDE_LANES:-0}"
 BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_MODEL="${BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_MODEL:-gpt-5.4-mini}"
 BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT="${BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT:-medium}"
-BLUEPRINT_PAPERCLIP_HERMES_PRIMARY_MODEL="${BLUEPRINT_PAPERCLIP_HERMES_PRIMARY_MODEL:-deepseek-v4-flash}"
-BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL="${BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL:-deepseek-v4-pro[1m]}"
-BLUEPRINT_PAPERCLIP_HERMES_PROVIDER="${BLUEPRINT_PAPERCLIP_HERMES_PROVIDER:-anthropic}"
+BLUEPRINT_PAPERCLIP_HERMES_PRIMARY_MODEL="${BLUEPRINT_PAPERCLIP_HERMES_PRIMARY_MODEL:-deepseek/deepseek-v4-flash}"
+BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL="${BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL:-deepseek/deepseek-v4-pro}"
+BLUEPRINT_PAPERCLIP_HERMES_PROVIDER="${BLUEPRINT_PAPERCLIP_HERMES_PROVIDER:-openrouter}"
 BLUEPRINT_PAPERCLIP_HERMES_BASE_URL="${BLUEPRINT_PAPERCLIP_HERMES_BASE_URL:-https://api.deepseek.com/anthropic}"
 BLUEPRINT_PAPERCLIP_HERMES_INCLUDE_OPENROUTER_FALLBACKS="${BLUEPRINT_PAPERCLIP_HERMES_INCLUDE_OPENROUTER_FALLBACKS:-0}"
 
@@ -50,6 +50,7 @@ export \
   BLUEPRINT_PAPERCLIP_HERMES_PROVIDER \
   BLUEPRINT_PAPERCLIP_HERMES_BASE_URL \
   BLUEPRINT_PAPERCLIP_HERMES_INCLUDE_OPENROUTER_FALLBACKS \
+  BLUEPRINT_PAPERCLIP_FORCE_ADAPTER_SYNC \
   BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT
 
 node --input-type=module <<'NODE'
@@ -73,9 +74,10 @@ const fallbackCodexModel =
   process.env.BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_MODEL ?? "gpt-5.4-mini";
 const fallbackCodexReasoningEffort =
   process.env.BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT ?? "medium";
-const DEFAULT_HERMES_MODEL = "deepseek-v4-flash";
-const DEFAULT_HERMES_FALLBACK_MODEL = "deepseek-v4-pro[1m]";
-const DEFAULT_HERMES_PROVIDER = "anthropic";
+const DEFAULT_HERMES_MODEL = "deepseek/deepseek-v4-flash";
+const DEFAULT_HERMES_FALLBACK_MODEL = "deepseek/deepseek-v4-pro";
+const DEFAULT_HERMES_PROVIDER = "openrouter";
+const DEFAULT_HERMES_DIRECT_PROVIDER = "anthropic";
 const DEFAULT_HERMES_BASE_URL = "https://api.deepseek.com/anthropic";
 const allowPaidHermesModels = /^(1|true|yes)$/i.test(
   process.env.BLUEPRINT_PAPERCLIP_HERMES_ALLOW_PAID_MODELS ?? "",
@@ -109,6 +111,12 @@ const hermesProvider =
     && process.env.BLUEPRINT_PAPERCLIP_HERMES_PROVIDER.trim().length > 0
     ? process.env.BLUEPRINT_PAPERCLIP_HERMES_PROVIDER.trim()
     : DEFAULT_HERMES_PROVIDER;
+const configuredHermesProvider = hermesProvider.toLowerCase();
+const hermesDirectProvider =
+  configuredHermesProvider.length > 0
+    && configuredHermesProvider !== DEFAULT_HERMES_PROVIDER
+    ? process.env.BLUEPRINT_PAPERCLIP_HERMES_PROVIDER.trim()
+    : DEFAULT_HERMES_DIRECT_PROVIDER;
 const hermesBaseUrl =
   typeof process.env.BLUEPRINT_PAPERCLIP_HERMES_BASE_URL === "string"
     && process.env.BLUEPRINT_PAPERCLIP_HERMES_BASE_URL.trim().length > 0
@@ -330,14 +338,31 @@ function isDeepSeekHermesModel(value) {
     || trimmed === "deepseek-reasoner";
 }
 
+function isOpenRouterDeepSeekHermesModel(value) {
+  if (typeof value !== "string") return false;
+  const trimmed = value.trim().toLowerCase();
+  return /^deepseek\/deepseek-v4-(?:flash|pro)$/.test(trimmed);
+}
+
 function isHermesFreeModel(value) {
   return typeof value === "string" && value.trim().toLowerCase().endsWith(":free");
 }
 
 function isApprovedHermesModel(value) {
-  return isDeepSeekHermesModel(value)
+  return isOpenRouterDeepSeekHermesModel(value)
+    || isDeepSeekHermesModel(value)
     || (includeLegacyOpenRouterHermesFallbacks && isHermesFreeModel(value))
     || allowPaidHermesModels;
+}
+
+function providerForHermesModel(model) {
+  if (isOpenRouterDeepSeekHermesModel(model)) {
+    return "openrouter";
+  }
+  if (isDeepSeekHermesModel(model)) {
+    return hermesDirectProvider;
+  }
+  return "openrouter";
 }
 
 function sanitizeHermesModel(value, fallback) {
@@ -918,12 +943,12 @@ function buildHermesAdapterConfig(adapterConfig) {
     configuredModel.length > 0 && configuredModel !== legacyHermesModel
       ? configuredModel
       : hermesPrimaryModel;
-  const provider = isDeepSeekHermesModel(model) ? hermesProvider : "openrouter";
+  const provider = providerForHermesModel(model);
   const existingEnv =
     next.env && typeof next.env === "object" && !Array.isArray(next.env)
       ? next.env
       : {};
-  const env = provider === hermesProvider
+  const env = provider === hermesDirectProvider
     ? {
         ...existingEnv,
         ANTHROPIC_BASE_URL: hermesBaseUrl,

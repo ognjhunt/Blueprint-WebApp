@@ -34,10 +34,10 @@ export type WorkspaceAdapterCooldownRecord = {
 
 export type WorkspaceAdapterCooldownState = Record<string, WorkspaceAdapterCooldownRecord>;
 
-export const DEFAULT_HERMES_FALLBACK_MODEL = "deepseek-v4-flash";
+export const DEFAULT_HERMES_FALLBACK_MODEL = "deepseek/deepseek-v4-flash";
 export const DEFAULT_HERMES_FALLBACK_MODELS = [
-  "deepseek-v4-flash",
-  "deepseek-v4-pro[1m]",
+  "deepseek/deepseek-v4-flash",
+  "deepseek/deepseek-v4-pro",
 ] as const;
 export const LEGACY_OPENROUTER_HERMES_FALLBACK_MODELS = [
   "nvidia/nemotron-3-super-120b-a12b:free",
@@ -54,6 +54,7 @@ export const HERMES_MODEL_LADDER_CONFIG_KEY = "blueprintHermesModelLadder";
 export const FALLBACK_ORIGIN_ADAPTER_CONFIG_KEY = "blueprintFallbackOriginAdapterType";
 const DEFAULT_HERMES_DEEPSEEK_PROVIDER = "anthropic";
 const DEFAULT_HERMES_DEEPSEEK_BASE_URL = "https://api.deepseek.com/anthropic";
+const DEFAULT_HERMES_OPENROUTER_PROVIDER = "openrouter";
 const LOCAL_EXECUTION_POLICY_ADAPTERS: LocalQuotaFallbackAdapterType[] = [
   "codex_local",
   "hermes_local",
@@ -201,15 +202,34 @@ function isHermesDeepSeekDirectModel(model: string | null | undefined): boolean 
     || trimmed === "deepseek-reasoner";
 }
 
+function isHermesOpenRouterDeepSeekModel(model: string | null | undefined): boolean {
+  const trimmed = (model ?? "").trim().toLowerCase();
+  return /^deepseek\/deepseek-v4-(?:flash|pro)$/.test(trimmed);
+}
+
 function isHermesFreeRoutingModel(model: string | null | undefined): boolean {
   const trimmed = (model ?? "").trim().toLowerCase();
   return trimmed.endsWith(":free");
 }
 
 function isApprovedHermesRoutingModel(model: string | null | undefined): boolean {
-  return isHermesDeepSeekDirectModel(model)
+  return isHermesOpenRouterDeepSeekModel(model)
+    || isHermesDeepSeekDirectModel(model)
     || (shouldIncludeLegacyOpenRouterHermesFallbacks() && isHermesFreeRoutingModel(model))
     || arePaidHermesModelsAllowed();
+}
+
+function providerForHermesModel(model: string): string {
+  if (isHermesOpenRouterDeepSeekModel(model)) {
+    return DEFAULT_HERMES_OPENROUTER_PROVIDER;
+  }
+  if (isHermesDeepSeekDirectModel(model)) {
+    const configuredProvider = process.env.BLUEPRINT_PAPERCLIP_HERMES_PROVIDER?.trim();
+    return configuredProvider && configuredProvider.toLowerCase() !== DEFAULT_HERMES_OPENROUTER_PROVIDER
+      ? configuredProvider
+      : DEFAULT_HERMES_DEEPSEEK_PROVIDER;
+  }
+  return DEFAULT_HERMES_OPENROUTER_PROVIDER;
 }
 
 function normalizeModelList(values: Iterable<string>): string[] {
@@ -409,15 +429,22 @@ export function buildHermesFallbackAdapterConfig(
       && isApprovedHermesRoutingModel(optionModel)
       ? optionModel
       : null;
+  const configuredModel = asTrimmedString(adapterConfig?.model);
+  const configured =
+    configuredModel
+      && !isIncompatibleHermesFreeRoutingModel(configuredModel)
+      && !isDisallowedHermesFallbackModel(configuredModel)
+      && isApprovedHermesRoutingModel(configuredModel)
+      ? configuredModel
+      : null;
   const envPrimary = readApprovedHermesEnvModel("BLUEPRINT_PAPERCLIP_HERMES_PRIMARY_MODEL");
   const model =
     chosen
-    ?? ladder[0]
+    ?? configured
     ?? envPrimary
+    ?? ladder[0]
     ?? DEFAULT_HERMES_FALLBACK_MODEL;
-  const provider = isHermesDeepSeekDirectModel(model)
-    ? (process.env.BLUEPRINT_PAPERCLIP_HERMES_PROVIDER?.trim() || DEFAULT_HERMES_DEEPSEEK_PROVIDER)
-    : "openrouter";
+  const provider = providerForHermesModel(model);
   const existingEnv =
     next.env && typeof next.env === "object" && !Array.isArray(next.env)
       ? next.env as Record<string, unknown>

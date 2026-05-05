@@ -132,7 +132,7 @@ These contracts establish that:
 |-------|-------|
 | **Department** | Executive |
 | **Reports to** | CEO |
-| **Model** | Hermes (DeepSeek V4 Flash primary via official DeepSeek endpoint, DeepSeek V4 Pro discounted fallback before Codex fallback) |
+| **Model** | Hermes (OpenRouter DeepSeek V4 Flash primary, OpenRouter DeepSeek V4 Pro fallback before Codex fallback) |
 | **Status** | Live in Paperclip package |
 
 **Purpose:** Runs the continuous managerial loop. Watches issue state, routine health, queue changes, and agent activity; decides what finished, what stalled, and what needs a next action; routes or closes work in Paperclip; and turns missing policy or missing evidence into explicit blockers instead of vague escalation.
@@ -196,7 +196,7 @@ These contracts establish that:
 |-------|-------|
 | **Department** | Executive |
 | **Reports to** | Chief of Staff |
-| **Model** | Hermes (DeepSeek V4 Flash primary via official DeepSeek endpoint, DeepSeek V4 Pro discounted fallback before Codex fallback) |
+| **Model** | Hermes (OpenRouter DeepSeek V4 Flash primary, OpenRouter DeepSeek V4 Pro fallback before Codex fallback) |
 | **Status** | New |
 
 **Purpose:** Produces the monthly investor update from real month-over-month metrics, shipped work, operating risks, and concrete asks. Drafts investor-facing blog/email artifacts but never sends them live.
@@ -229,7 +229,7 @@ These contracts establish that:
 |-------|-------|
 | **Department** | Executive |
 | **Reports to** | Chief of Staff |
-| **Model** | Hermes (DeepSeek V4 Flash primary via official DeepSeek endpoint, DeepSeek V4 Pro discounted fallback before Codex fallback) |
+| **Model** | Hermes (OpenRouter DeepSeek V4 Flash primary, OpenRouter DeepSeek V4 Pro fallback before Codex fallback) |
 | **Status** | New |
 
 **Purpose:** Sole owner of Blueprint's Notion hygiene. Keeps Work Queue, Knowledge, Skills, and linked Hub surfaces correctly placed, properly related, visibly fresh, and safely deduped without replacing Paperclip as the execution record.
@@ -293,7 +293,7 @@ These contracts establish that:
 |-------|-------|
 | **Department** | Executive |
 | **Reports to** | Chief of Staff |
-| **Model** | Hermes (DeepSeek V4 Flash primary via official DeepSeek endpoint, DeepSeek V4 Pro discounted fallback before Codex fallback) |
+| **Model** | Hermes (OpenRouter DeepSeek V4 Flash primary, OpenRouter DeepSeek V4 Pro fallback before Codex fallback) |
 | **Status** | New |
 
 **Purpose:** Maintains Blueprint's pricing and commercial system discipline. Connects buyer demand, site-catalog supply, usage, and delivery-cost signals into draft pricebook updates, package guidance, quote support, and discount guardrails without taking over buyer-thread ownership or making live commercial commitments. The revenue-ops-pricing-agent uses this lane for standard quote decisions inside approved bands.
@@ -348,7 +348,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 |-------|-------|
 | **Department** | Ops |
 | **Reports to** | Chief of Staff |
-| **Model** | Hermes (DeepSeek V4 Flash primary via official DeepSeek endpoint, DeepSeek V4 Pro discounted fallback before Codex fallback) |
+| **Model** | Hermes (OpenRouter DeepSeek V4 Flash primary, OpenRouter DeepSeek V4 Pro fallback before Codex fallback) |
 | **Status** | New |
 
 **Purpose:** Coordinates all product operations. Routes work between intake, QA, scheduling, and finance agents. Produces daily ops summary. Owns routine city-launch ops guardrails: intake rubric approval, first-capture thresholds, trust kit, and launch-readiness checklist for Austin and San Francisco. Escalates only true exceptions to CEO/founder lanes.
@@ -626,7 +626,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 |-------|-------|
 | **Department** | Ops |
 | **Reports to** | Ops Lead |
-| **Model** | Hermes (DeepSeek V4 Flash primary via official DeepSeek endpoint, DeepSeek V4 Pro discounted fallback before Codex fallback) |
+| **Model** | Hermes (OpenRouter DeepSeek V4 Flash primary, OpenRouter DeepSeek V4 Pro fallback before Codex fallback) |
 | **Status** | New |
 
 **Purpose:** Single commercial journey owner from qualified inbound to proof-ready commercial motion. Interprets messy buyer requests, translates them into concrete package requirements, tracks through capture matching and packaging, and delivers proof for buyer evaluation without letting pricing or technical specialists fragment ownership.
@@ -677,7 +677,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 |-------|-------|
 | **Department** | Ops |
 | **Reports to** | Ops Lead |
-| **Model** | Hermes (DeepSeek V4 Flash primary via official DeepSeek endpoint, DeepSeek V4 Pro discounted fallback before Codex fallback) |
+| **Model** | Hermes (OpenRouter DeepSeek V4 Flash primary, OpenRouter DeepSeek V4 Pro fallback before Codex fallback) |
 | **Status** | New |
 
 **Purpose:** Owns technical buyer enablement inside the buyer-solutions thread from proof-ready to implementation-ready. Converts buyer stack questions, hosted-session requirements, export expectations, and deployment readiness into explicit evaluation plans and integration checklists grounded in the product and artifacts that already exist.
@@ -767,7 +767,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 |-------|-------|
 | **Department** | Ops |
 | **Reports to** | Ops Lead |
-| **Model** | Hermes (DeepSeek V4 Flash primary via official DeepSeek endpoint, DeepSeek V4 Pro discounted fallback before Codex fallback) |
+| **Model** | Hermes (OpenRouter DeepSeek V4 Flash primary, OpenRouter DeepSeek V4 Pro fallback before Codex fallback) |
 | **Status** | New |
 
 **Purpose:** Drafts Blueprint's buyer-facing security, architecture, data-handling, and procurement responses from real system evidence. Keeps enterprise security review and procurement work moving without overstating legal, compliance, or certification posture.
@@ -807,7 +807,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 |-------|-------|
 | **Department** | Ops |
 | **Reports to** | Ops Lead |
-| **Model** | Hermes (DeepSeek V4 Flash primary via official DeepSeek endpoint, DeepSeek V4 Pro discounted fallback before Codex fallback) |
+| **Model** | Hermes (OpenRouter DeepSeek V4 Flash primary, OpenRouter DeepSeek V4 Pro fallback before Codex fallback) |
 | **Status** | New |
 
 **Purpose:** Owns capturer activation and retention. Guides approved capturers through first capture success, translates QA feedback into actionable recapture instructions, monitors activity patterns, and identifies systemic platform issues from individual capturer struggles.
@@ -859,7 +859,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 |-------|-------|
 | **Department** | Ops |
 | **Reports to** | Ops Lead |
-| **Model** | Hermes (DeepSeek V4 Flash primary via official DeepSeek endpoint, DeepSeek V4 Pro discounted fallback before Codex fallback) |
+| **Model** | Hermes (OpenRouter DeepSeek V4 Flash primary, OpenRouter DeepSeek V4 Pro fallback before Codex fallback) |
 | **Status** | New |
 
 **Purpose:** Reviews batches of public-facing city-launch candidates and promotes evidence-backed common-access locations into approved capture targets without treating them as rights-cleared, payable, or derived-world-model-ready.
@@ -901,7 +901,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 |-------|-------|
 | **Department** | Growth |
 | **Reports to** | Chief of Staff |
-| **Model** | Hermes (DeepSeek V4 Flash primary via official DeepSeek endpoint, DeepSeek V4 Pro discounted fallback before Codex fallback) |
+| **Model** | Hermes (OpenRouter DeepSeek V4 Flash primary, OpenRouter DeepSeek V4 Pro fallback before Codex fallback) |
 | **Status** | New |
 
 **Purpose:** Coordinates a smaller active growth core: analytics, conversion, market intelligence, demand intelligence, and one city-demand loop. Sets experiment priorities using ICE scoring. Owns routine channel posture, referral mechanics, source policy, and city invite posture inside approved guardrails. Everything else in growth stays paused or event-driven unless evidence justifies restart.
@@ -950,7 +950,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 |-------|-------|
 | **Department** | Growth |
 | **Reports to** | Growth Lead |
-| **Model** | Hermes (DeepSeek V4 Flash primary via official DeepSeek endpoint, DeepSeek V4 Pro discounted fallback before Codex fallback) |
+| **Model** | Hermes (OpenRouter DeepSeek V4 Flash primary, OpenRouter DeepSeek V4 Pro fallback before Codex fallback) |
 | **Status** | New |
 
 **Purpose:** Researches historical and current marketplace supply playbooks with emphasis on boots-on-the-ground growth, launch sequencing, incentive structures, referral loops, trust systems, and channel economics.
@@ -984,7 +984,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 |-------|-------|
 | **Department** | Growth |
 | **Reports to** | Growth Lead |
-| **Model** | Hermes (DeepSeek V4 Flash primary via official DeepSeek endpoint, DeepSeek V4 Pro discounted fallback before Codex fallback) |
+| **Model** | Hermes (OpenRouter DeepSeek V4 Flash primary, OpenRouter DeepSeek V4 Pro fallback before Codex fallback) |
 | **Status** | New |
 
 **Purpose:** Converts supply-intel research into Blueprint's reusable capturer acquisition playbook. Maintains the generic channel, messaging, referral, and activation system that later city launches should inherit.
@@ -1018,7 +1018,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 |-------|-------|
 | **Department** | Growth |
 | **Reports to** | Growth Lead |
-| **Model** | Hermes (DeepSeek V4 Flash primary via official DeepSeek endpoint, DeepSeek V4 Pro discounted fallback before Codex fallback) |
+| **Model** | Hermes (OpenRouter DeepSeek V4 Flash primary, OpenRouter DeepSeek V4 Pro fallback before Codex fallback) |
 | **Status** | New |
 
 **Purpose:** Adapts Blueprint's generic capturer growth playbook to specific cities. Starts with Austin, TX and San Francisco, CA. Every city guide must make the split explicit between founder-only work, human operator-owned work, agent-prepared work, and exception-only escalation.
@@ -1052,7 +1052,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 |-------|-------|
 | **Department** | Growth |
 | **Reports to** | Growth Lead |
-| **Model** | Hermes (DeepSeek V4 Flash primary via official DeepSeek endpoint, DeepSeek V4 Pro discounted fallback before Codex fallback) |
+| **Model** | Hermes (OpenRouter DeepSeek V4 Flash primary, OpenRouter DeepSeek V4 Pro fallback before Codex fallback) |
 | **Status** | New |
 
 **Purpose:** Researches how robotics infrastructure, autonomy, simulation/data, and world-model businesses generated buyer demand from robot teams and adjacent technical buyers. Focuses on channels, proof requirements, hosted-demo motions, procurement triggers, and city/vertical demand signals.
@@ -1086,7 +1086,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 |-------|-------|
 | **Department** | Growth |
 | **Reports to** | Growth Lead |
-| **Model** | Hermes (DeepSeek V4 Flash primary via official DeepSeek endpoint, DeepSeek V4 Pro discounted fallback before Codex fallback) |
+| **Model** | Hermes (OpenRouter DeepSeek V4 Flash primary, OpenRouter DeepSeek V4 Pro fallback before Codex fallback) |
 | **Status** | New |
 
 **Purpose:** Converts demand-intel research into Blueprint's reusable robot-team demand playbook. Maintains the generic ICP, messaging, proof-pack, hosted-session demo motion, and buyer funnel that later city-demand work should inherit.
@@ -1122,7 +1122,7 @@ Calendar booking must stay secondary to structured intake unless the record is h
 |-------|-------|
 | **Department** | Growth |
 | **Reports to** | Growth Lead |
-| **Model** | Hermes (DeepSeek V4 Flash primary via official DeepSeek endpoint, DeepSeek V4 Pro discounted fallback before Codex fallback) |
+| **Model** | Hermes (OpenRouter DeepSeek V4 Flash primary, OpenRouter DeepSeek V4 Pro fallback before Codex fallback) |
 | **Status** | New |
 
 **Purpose:** Maintains Blueprint's optional third lane for site operators. Defines when site-operator demand matters, what access/privacy/rights/commercialization conversations are legitimate, and how this lane stays separate from the core robot-team buyer motion.
@@ -1158,7 +1158,7 @@ Operator submission does not require a meeting, but private access, rights, priv
 |-------|-------|
 | **Department** | Growth |
 | **Reports to** | Growth Lead |
-| **Model** | Hermes (DeepSeek V4 Flash primary via official DeepSeek endpoint, DeepSeek V4 Pro discounted fallback before Codex fallback) |
+| **Model** | Hermes (OpenRouter DeepSeek V4 Flash primary, OpenRouter DeepSeek V4 Pro fallback before Codex fallback) |
 | **Status** | New |
 
 **Purpose:** Adapts Blueprint's generic robot-team demand playbook to specific cities. Starts with Austin, TX and San Francisco, CA. Maps likely buyer clusters, facility-type demand, optional operator-lane opportunities, and city readiness.
@@ -1255,7 +1255,7 @@ Operator submission does not require a meeting, but private access, rights, priv
 |-------|-------|
 | **Department** | Growth |
 | **Reports to** | Growth Lead |
-| **Model** | Hermes (DeepSeek V4 Flash primary via official DeepSeek endpoint, DeepSeek V4 Pro discounted fallback before Codex fallback) |
+| **Model** | Hermes (OpenRouter DeepSeek V4 Flash primary, OpenRouter DeepSeek V4 Pro fallback before Codex fallback) |
 | **Status** | New |
 
 **Purpose:** KPI contract owner across Firestore, Stripe, PostHog/GA4, and Paperclip. Pulls, aggregates, and interprets measurable signals, detects anomalies, publishes daily/weekly reports, and keeps blocked metrics visible instead of inventing them. Canonical metric definitions and scoreboard truth are governed by the Phase 0 company metrics contract in `docs/company-metrics-contract-2026-04-20.md`.
@@ -1343,7 +1343,7 @@ Operator submission does not require a meeting, but private access, rights, priv
 |-------|-------|
 | **Department** | Growth |
 | **Reports to** | Growth Lead |
-| **Model** | Hermes (DeepSeek V4 Flash primary via official DeepSeek endpoint, DeepSeek V4 Pro discounted fallback before Codex fallback) |
+| **Model** | Hermes (OpenRouter DeepSeek V4 Flash primary, OpenRouter DeepSeek V4 Pro fallback before Codex fallback) |
 | **Status** | New |
 
 **Purpose:** Produces the weekly Blueprint community update for users, capturers, robot teams, partners, and interested operators. Turns real shipped work and community-relevant signals into a concise blog-plus-email draft.
@@ -1408,7 +1408,7 @@ Operator submission does not require a meeting, but private access, rights, priv
 |-------|-------|
 | **Department** | Growth |
 | **Reports to** | Growth Lead |
-| **Model** | Hermes (DeepSeek V4 Flash primary via official DeepSeek endpoint, DeepSeek V4 Pro discounted fallback before Codex fallback) |
+| **Model** | Hermes (OpenRouter DeepSeek V4 Flash primary, OpenRouter DeepSeek V4 Pro fallback before Codex fallback) |
 | **Status** | New |
 
 **Purpose:** Autoresearch-pattern agent for business intelligence. Continuously researches competitors, market trends, new papers/techniques, pricing movements, partnership opportunities, and regulatory changes.
@@ -1472,7 +1472,7 @@ Operator submission does not require a meeting, but private access, rights, priv
 |-------|-------|
 | **Department** | Ops |
 | **Reports to** | Ops Lead |
-| **Model** | Hermes (DeepSeek V4 Flash primary via official DeepSeek endpoint, DeepSeek V4 Pro discounted fallback before Codex fallback) |
+| **Model** | Hermes (OpenRouter DeepSeek V4 Flash primary, OpenRouter DeepSeek V4 Pro fallback before Codex fallback) |
 | **Status** | New |
 
 **Purpose:** Product listing manager for Blueprint's site-world catalog. Creates and maintains accurate, discoverable listings for every package that clears QA and rights review. Ensures descriptions match reality — no embellishment, no underselling.
@@ -1513,7 +1513,7 @@ Operator submission does not require a meeting, but private access, rights, priv
 |-------|-------|
 | **Department** | Growth |
 | **Reports to** | Growth Lead |
-| **Model** | Hermes (DeepSeek V4 Flash primary via official DeepSeek endpoint, DeepSeek V4 Pro discounted fallback before Codex fallback) |
+| **Model** | Hermes (OpenRouter DeepSeek V4 Flash primary, OpenRouter DeepSeek V4 Pro fallback before Codex fallback) |
 | **Status** | New |
 
 **Purpose:** Blueprint's business development representative for robot team outreach. Monitors market and demand intel for strong signals, researches prospects, drafts personalized outreach, tracks conversations, and hands off qualified leads to buyer-solutions-agent.
@@ -1564,7 +1564,7 @@ Operator submission does not require a meeting, but private access, rights, priv
 |-------|-------|
 | **Department** | Ops |
 | **Reports to** | Ops Lead |
-| **Model** | Hermes (DeepSeek V4 Flash primary via official DeepSeek endpoint, DeepSeek V4 Pro discounted fallback before Codex fallback) |
+| **Model** | Hermes (OpenRouter DeepSeek V4 Flash primary, OpenRouter DeepSeek V4 Pro fallback before Codex fallback) |
 | **Status** | New |
 
 **Purpose:** Lightweight post-delivery buyer support lane. Handles onboarding, support, feedback, expansion signals, and churn risk after handoff, but stays event-driven until buyer volume is high enough to justify a standing cadence.

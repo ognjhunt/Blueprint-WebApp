@@ -27,8 +27,8 @@ RUN_SMOKE=0
 CLAUDE_LANE_MODE="${BLUEPRINT_PAPERCLIP_CLAUDE_LANE_MODE:-auto}"
 VERIFY_CLAUDE="${BLUEPRINT_PAPERCLIP_VERIFY_CLAUDE:-1}"
 VERIFY_HERMES="${BLUEPRINT_PAPERCLIP_VERIFY_HERMES:-auto}"
-HERMES_FALLBACK_MODEL="${BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL:-deepseek-v4-flash}"
-HERMES_PROVIDER="${BLUEPRINT_PAPERCLIP_HERMES_PROVIDER:-anthropic}"
+HERMES_FALLBACK_MODEL="${BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL:-deepseek/deepseek-v4-flash}"
+HERMES_PROVIDER="${BLUEPRINT_PAPERCLIP_HERMES_PROVIDER:-openrouter}"
 HERMES_BASE_URL="${BLUEPRINT_PAPERCLIP_HERMES_BASE_URL:-https://api.deepseek.com/anthropic}"
 FORCE_CODEX_CLAUDE_LANES="${BLUEPRINT_PAPERCLIP_FORCE_CODEX_CLAUDE_LANES:-0}"
 HERMES_INSTRUCTIONS_FILE="/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/blueprint-chief-of-staff/AGENTS.md"
@@ -88,7 +88,7 @@ is_free_model() {
 }
 
 is_deepseek_model() {
-  [[ "${1:-}" =~ ^deepseek-v4-(flash|pro)(\[[^]]+\])?$ || "${1:-}" == "deepseek-chat" || "${1:-}" == "deepseek-reasoner" ]]
+  [[ "${1:-}" =~ ^deepseek-v4-(flash|pro)(\[[^]]+\])?$ || "${1:-}" =~ ^deepseek/deepseek-v4-(flash|pro)$ || "${1:-}" == "deepseek-chat" || "${1:-}" == "deepseek-reasoner" ]]
 }
 
 is_approved_hermes_model() {
@@ -518,17 +518,17 @@ hermes_oauth_only_probe_ok() {
       const hasDeepSeekModel = checks.some((check) =>
         check
         && check.code === "hermes_model_configured"
-        && /Model:\s*deepseek-/i.test(String(check.message ?? ""))
+        && /Model:\s*(?:deepseek-|deepseek\/deepseek-)/i.test(String(check.message ?? ""))
       );
-      const hasAnthropicCompatibleKey = checks.some((check) =>
+      const hasHermesProviderKey = checks.some((check) =>
         check
         && check.code === "hermes_api_keys_found"
-        && /\bAnthropic\b/i.test(String(check.message ?? ""))
+        && /\b(?:Anthropic|OpenRouter)\b/i.test(String(check.message ?? ""))
       );
       const providerOverrideIsIntentional = (code) =>
         code === "hermes_provider_mismatch"
         && hasDeepSeekModel
-        && hasAnthropicCompatibleKey;
+        && hasHermesProviderKey;
       const allowedWarns = warnCodes.every((code) =>
         code === "hermes_no_api_keys"
         || code === "hermes_version_failed"
@@ -605,7 +605,7 @@ main() {
           const isFreeModel = (value) => typeof value === "string" && value.trim().toLowerCase().endsWith(":free");
           const isDeepSeekModel = (value) =>
             typeof value === "string"
-            && (/^deepseek-v4-(?:flash|pro)(?:\[[^\]]+\])?$/i.test(value.trim()) || /^(deepseek-chat|deepseek-reasoner)$/i.test(value.trim()));
+            && (/^deepseek-v4-(?:flash|pro)(?:\[[^\]]+\])?$/i.test(value.trim()) || /^deepseek\/deepseek-v4-(?:flash|pro)$/i.test(value.trim()) || /^(deepseek-chat|deepseek-reasoner)$/i.test(value.trim()));
           const includeLegacyOpenRouter = /^(1|true|yes)$/i.test(process.env.BLUEPRINT_PAPERCLIP_HERMES_INCLUDE_OPENROUTER_FALLBACKS ?? "");
           const isApprovedHermesModel = (value) => isDeepSeekModel(value) || (includeLegacyOpenRouter && isFreeModel(value)) || allowPaidHermes;
           const toPerAdapterConfig = (row) => row.runtimeConfig?.executionPolicy?.perAdapterConfig ?? {};

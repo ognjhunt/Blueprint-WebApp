@@ -32,18 +32,13 @@ import {
   upsertWorkspaceAdapterCooldownState,
 } from "./quota-fallback.js";
 
-const DEFAULT_DEEPSEEK_HERMES_ENV = {
-  ANTHROPIC_BASE_URL: "https://api.deepseek.com/anthropic",
-};
-
 function expectedDefaultDeepSeekHermesConfig(cwd: string, timeoutSec = 1800) {
   return {
     cwd,
-    provider: "anthropic",
+    provider: "openrouter",
     model: DEFAULT_HERMES_FALLBACK_MODEL,
     [HERMES_MODEL_LADDER_CONFIG_KEY]: [...DEFAULT_HERMES_FALLBACK_MODELS],
     modelReasoningEffort: "max",
-    env: DEFAULT_DEEPSEEK_HERMES_ENV,
     timeoutSec,
   };
 }
@@ -253,7 +248,7 @@ describe("quota fallback helpers", () => {
       model: "qwen/qwen3.6-plus:free",
     });
     expect(config.cwd).toBe("/tmp/project");
-    expect(config.provider).toBe("anthropic");
+    expect(config.provider).toBe("openrouter");
     expect(config.model).toBe(DEFAULT_HERMES_FALLBACK_MODEL);
     expect(config[HERMES_MODEL_LADDER_CONFIG_KEY]).not.toContain("openrouter/qwen/qwen3.6-plus:free");
     expect(config[HERMES_MODEL_LADDER_CONFIG_KEY]).not.toContain("qwen/qwen3.6-plus:free");
@@ -279,7 +274,7 @@ describe("quota fallback helpers", () => {
       cwd: "/tmp/project",
       model: "stepfun/step-3.5-flash:free",
     });
-    expect(config.provider).toBe("anthropic");
+    expect(config.provider).toBe("openrouter");
     expect(config.model).toBe(DEFAULT_HERMES_FALLBACK_MODEL);
     expect(config[HERMES_MODEL_LADDER_CONFIG_KEY]).not.toContain("stepfun/step-3.5-flash:free");
   });
@@ -318,19 +313,36 @@ describe("quota fallback helpers", () => {
     ).toEqual([...DEFAULT_HERMES_FALLBACK_MODELS]);
   });
 
-  it("keeps the configured DeepSeek primary ahead of the fallback escalation model", () => {
-    vi.stubEnv("BLUEPRINT_PAPERCLIP_HERMES_PRIMARY_MODEL", "deepseek-v4-flash");
-    vi.stubEnv("BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL", "deepseek-v4-pro[1m]");
+  it("keeps the configured OpenRouter DeepSeek primary ahead of the fallback escalation model", () => {
+    vi.stubEnv("BLUEPRINT_PAPERCLIP_HERMES_PRIMARY_MODEL", "deepseek/deepseek-v4-flash");
+    vi.stubEnv("BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL", "deepseek/deepseek-v4-pro");
 
     const config = buildHermesFallbackAdapterConfig({
       cwd: "/tmp/project",
     });
 
-    expect(config.model).toBe("deepseek-v4-flash");
+    expect(config.provider).toBe("openrouter");
+    expect(config.model).toBe("deepseek/deepseek-v4-flash");
     expect(config[HERMES_MODEL_LADDER_CONFIG_KEY]).toEqual([
-      "deepseek-v4-flash",
-      "deepseek-v4-pro[1m]",
+      "deepseek/deepseek-v4-flash",
+      "deepseek/deepseek-v4-pro",
     ]);
+  });
+
+  it("keeps direct DeepSeek Anthropic-compatible routing as an explicit opt-in", () => {
+    vi.stubEnv("BLUEPRINT_PAPERCLIP_HERMES_PRIMARY_MODEL", "deepseek-v4-flash");
+    vi.stubEnv("BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL", "deepseek-v4-pro[1m]");
+    vi.stubEnv("BLUEPRINT_PAPERCLIP_HERMES_PROVIDER", "anthropic");
+
+    const config = buildHermesFallbackAdapterConfig({
+      cwd: "/tmp/project",
+    });
+
+    expect(config.provider).toBe("anthropic");
+    expect(config.model).toBe("deepseek-v4-flash");
+    expect(config.env).toMatchObject({
+      ANTHROPIC_BASE_URL: "https://api.deepseek.com/anthropic",
+    });
   });
 
   it("keeps legacy OpenRouter text fallback logic behind an explicit flag", () => {
@@ -617,12 +629,12 @@ describe("quota fallback helpers", () => {
       provider: "invalid-provider",
       model: "gpt-5.4-mini",
     });
-    expect(config.provider).toBe("anthropic");
+    expect(config.provider).toBe("openrouter");
     expect(config.model).not.toBe("gpt-5.4-mini");
     expect(config.model).toBe(DEFAULT_HERMES_FALLBACK_MODEL);
   });
 
-  it("moves DeepSeek-backed hermes to codex after provider auth failure", () => {
+  it("moves direct DeepSeek-backed hermes to codex after provider auth failure", () => {
     expect(
       buildLocalQuotaFallbackDescriptor({
         currentAdapterType: "hermes_local",
@@ -633,6 +645,7 @@ describe("quota fallback helpers", () => {
         desiredAdapterType: "hermes_local",
         desiredAdapterConfig: {
           cwd: "/tmp/project",
+          model: "deepseek-v4-flash",
         },
         failureReason: "HTTP 401: unauthorized: invalid api key",
       }),
@@ -723,11 +736,10 @@ describe("quota fallback helpers", () => {
       reason: "quota_fallback_to_next_hermes_free_model_after_codex_credit_exhaustion",
       adapterConfig: {
         cwd: "/tmp/project",
-        provider: "anthropic",
-        model: "deepseek-v4-pro[1m]",
+        provider: "openrouter",
+        model: "deepseek/deepseek-v4-pro",
         [HERMES_MODEL_LADDER_CONFIG_KEY]: [...DEFAULT_HERMES_FALLBACK_MODELS],
         modelReasoningEffort: "max",
-        env: DEFAULT_DEEPSEEK_HERMES_ENV,
         timeoutSec: 1800,
       },
     });
