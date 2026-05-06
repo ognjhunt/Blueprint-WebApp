@@ -16,7 +16,7 @@ test("blog page is publicly reachable", async ({ page }) => {
 
   await expect(
     page.getByRole("heading", {
-      name: /Notes on how Blueprint is being packaged\./i,
+      name: /Notes on exact-site world models\./i,
     }),
   ).toBeVisible();
 });

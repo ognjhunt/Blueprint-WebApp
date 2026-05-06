@@ -13,9 +13,9 @@ test("exact-site hosted review route keeps the sample-review selector path stabl
     page.getByRole("link", { name: /Inspect sample review/i }).first(),
   ).toHaveAttribute("href", "/sample-evaluation");
   await expect(
-    page.getByRole("link", { name: /Request capture/i }).first(),
+    page.getByRole("link", { name: /Request hosted review/i }).first(),
   ).toHaveAttribute(
     "href",
-    "/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=request-capture&source=hosted-review",
+    "/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=hosted-review",
   );
 });

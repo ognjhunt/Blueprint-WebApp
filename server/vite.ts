@@ -42,8 +42,9 @@ export async function setupVite(app: Express, server: Server) {
   });
 }
 
-export function serveStatic(app: Express) {
-  const distPath = path.resolve(__dirname, "..", "dist", "public");
+export function serveStatic(app: Express, distPathOverride?: string) {
+  const distPath =
+    distPathOverride ?? path.resolve(__dirname, "..", "dist", "public");
   const indexPath = path.resolve(distPath, "index.html");
 
   if (!fs.existsSync(distPath)) {
@@ -54,9 +55,9 @@ export function serveStatic(app: Express) {
 
   app.use(express.static(distPath, { redirect: false }));
 
-  // fall through to index.html if the file doesn't exist
-  app.use("*", (req, res) => {
-    if (req.method !== "GET") {
+  // fall through to route-specific HTML first, then the SPA shell.
+  app.use((req, res) => {
+    if (req.method !== "GET" && req.method !== "HEAD") {
       res.sendStatus(404);
       return;
     }
