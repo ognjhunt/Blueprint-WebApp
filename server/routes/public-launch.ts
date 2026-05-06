@@ -1,15 +1,15 @@
 import { Router } from "express";
-import { buildCreatorLaunchStatus } from "../utils/cityLaunchCaptureTargets";
+import { buildCreatorLaunchStatus, buildUnavailableCreatorLaunchStatus } from "../utils/cityLaunchCaptureTargets";
 
 const router = Router();
 
 router.get("/status", async (req, res) => {
+  const city = String(req.query.city || "").trim();
+  const stateCode = String(req.query.state_code || "").trim() || null;
+  const resolvedCity = city ? { city, stateCode } : null;
   try {
-    const city = String(req.query.city || "").trim();
-    const stateCode = String(req.query.state_code || "").trim() || null;
-
     const status = await buildCreatorLaunchStatus({
-      resolvedCity: city ? { city, stateCode } : null,
+      resolvedCity,
     });
 
     res.json({
@@ -17,9 +17,12 @@ router.get("/status", async (req, res) => {
       ...status,
     });
   } catch (error) {
-    res.status(500).json({
-      ok: false,
-      error: error instanceof Error ? error.message : String(error),
+    res.json({
+      ok: true,
+      ...buildUnavailableCreatorLaunchStatus({
+        resolvedCity,
+        warning: `publicLaunchStatus:${error instanceof Error ? error.message : String(error)}`,
+      }),
     });
   }
 });

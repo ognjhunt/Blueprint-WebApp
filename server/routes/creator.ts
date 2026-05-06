@@ -8,6 +8,7 @@ import {
   buildCityLaunchCaptureTargetFeed,
   buildCityLaunchUnderReviewFeed,
   buildCreatorLaunchStatus,
+  buildUnavailableCreatorLaunchStatus,
 } from "../utils/cityLaunchCaptureTargets";
 import { reviewCityLaunchCandidateBatch } from "../utils/cityLaunchCandidateReview";
 import { dispatchCityLaunchCandidatePaperclipHandoff } from "../utils/cityLaunchCandidatePaperclipHandoff";
@@ -408,12 +409,22 @@ router.get("/city-launch/targets", async (req: Request, res: Response) => {
 router.get("/launch-status", async (req: Request, res: Response) => {
   const city = String(req.query.city || "").trim();
   const stateCode = String(req.query.state_code || "").trim() || null;
+  const resolvedCity = city ? { city, stateCode } : null;
 
-  return res.json(
-    await buildCreatorLaunchStatus({
-      resolvedCity: city ? { city, stateCode } : null,
-    }),
-  );
+  try {
+    return res.json(
+      await buildCreatorLaunchStatus({
+        resolvedCity,
+      }),
+    );
+  } catch (error) {
+    return res.json(
+      buildUnavailableCreatorLaunchStatus({
+        resolvedCity,
+        warning: `creatorLaunchStatus:${error instanceof Error ? error.message : String(error)}`,
+      }),
+    );
+  }
 });
 
 router.post("/city-launch/candidate-signals", async (req: Request, res: Response) => {

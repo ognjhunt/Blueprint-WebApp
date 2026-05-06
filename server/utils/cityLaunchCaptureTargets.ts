@@ -94,6 +94,12 @@ export type CreatorLaunchStatus = {
     isPubliclyTracked: boolean;
     status: "live" | "planned" | "under_review" | null;
   } | null;
+  sourceStatus: {
+    cityLaunchActivations: "available" | "unavailable";
+    cityLaunchProspects: "available" | "partial" | "unavailable";
+    cityLaunchCandidateSignals: "available" | "unavailable";
+    warnings: string[];
+  };
 };
 
 function splitCityLabel(city: string) {
@@ -134,14 +140,73 @@ function averageCoordinates(points: Array<{ lat: number | null; lng: number | nu
   };
 }
 
+function ledgerErrorWarning(source: string, error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return `${source}:${message}`;
+}
+
+export function buildUnavailableCreatorLaunchStatus(input: {
+  resolvedCity?: { city: string; stateCode?: string | null } | null;
+  warning: string;
+}): CreatorLaunchStatus {
+  const resolvedCity = input.resolvedCity || null;
+  return {
+    cities: [],
+    supportedCities: [],
+    statusCounts: {
+      live: 0,
+      planned: 0,
+      underReview: 0,
+    },
+    currentCity: resolvedCity
+      ? {
+          city: resolvedCity.city,
+          stateCode: resolvedCity.stateCode || null,
+          displayName: resolvedCity.stateCode
+            ? `${resolvedCity.city}, ${resolvedCity.stateCode}`
+            : resolvedCity.city,
+          citySlug: null,
+          isSupported: false,
+          isPubliclyTracked: false,
+          status: null,
+        }
+      : null,
+    sourceStatus: {
+      cityLaunchActivations: "unavailable",
+      cityLaunchProspects: "unavailable",
+      cityLaunchCandidateSignals: "unavailable",
+      warnings: [input.warning],
+    },
+  };
+}
+
 export async function buildCreatorLaunchStatus(input: {
   resolvedCity?: { city: string; stateCode?: string | null } | null;
 }): Promise<CreatorLaunchStatus> {
-  const activations = await listCityLaunchActivations();
+  const sourceWarnings: string[] = [];
+  let activations: Awaited<ReturnType<typeof listCityLaunchActivations>> = [];
+  let cityLaunchActivations: CreatorLaunchStatus["sourceStatus"]["cityLaunchActivations"] = "available";
+  let cityLaunchProspects: CreatorLaunchStatus["sourceStatus"]["cityLaunchProspects"] = "available";
+  let cityLaunchCandidateSignals: CreatorLaunchStatus["sourceStatus"]["cityLaunchCandidateSignals"] = "available";
+
+  try {
+    activations = await listCityLaunchActivations();
+  } catch (error) {
+    cityLaunchActivations = "unavailable";
+    cityLaunchProspects = "unavailable";
+    sourceWarnings.push(ledgerErrorWarning("cityLaunchActivations", error));
+  }
+
   const activationCoordinates = new Map<string, { latitude: number | null; longitude: number | null }>();
   await Promise.all(
     activations.map(async (activation) => {
-      const prospects = await listCityLaunchProspects(activation.city);
+      let prospects: Awaited<ReturnType<typeof listCityLaunchProspects>> = [];
+      try {
+        prospects = await listCityLaunchProspects(activation.city);
+      } catch (error) {
+        cityLaunchProspects = cityLaunchProspects === "unavailable" ? "unavailable" : "partial";
+        sourceWarnings.push(ledgerErrorWarning(`cityLaunchProspects:${activation.citySlug}`, error));
+      }
       activationCoordinates.set(
         activation.citySlug,
         averageCoordinates(
@@ -164,7 +229,9 @@ export async function buildCreatorLaunchStatus(input: {
     underReviewSignals = await listCityLaunchCandidateSignals({
       statuses: ["queued", "in_review"],
     });
-  } catch {
+  } catch (error) {
+    cityLaunchCandidateSignals = "unavailable";
+    sourceWarnings.push(ledgerErrorWarning("cityLaunchCandidateSignals", error));
     underReviewSignals = [];
   }
 
@@ -287,6 +354,12 @@ export async function buildCreatorLaunchStatus(input: {
       underReview: cities.filter((city) => city.status === "under_review").length,
     },
     currentCity,
+    sourceStatus: {
+      cityLaunchActivations,
+      cityLaunchProspects,
+      cityLaunchCandidateSignals,
+      warnings: sourceWarnings,
+    },
   };
 }
 

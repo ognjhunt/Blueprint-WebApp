@@ -136,4 +136,72 @@ describe("city launch status", () => {
       }),
     );
   });
+
+  it("fails closed when activation ledger reads are unavailable", async () => {
+    listCityLaunchActivations.mockRejectedValue(new Error("8 RESOURCE_EXHAUSTED: Quota exceeded."));
+    listCityLaunchProspects.mockResolvedValue([]);
+    listCityLaunchCandidateSignals.mockResolvedValue([]);
+
+    const { buildCreatorLaunchStatus } = await import("../utils/cityLaunchCaptureTargets");
+    const result = await buildCreatorLaunchStatus({
+      resolvedCity: {
+        city: "Austin",
+        stateCode: "TX",
+      },
+    });
+
+    expect(result.supportedCities).toEqual([]);
+    expect(result.cities).toEqual([]);
+    expect(result.statusCounts).toEqual({
+      live: 0,
+      planned: 0,
+      underReview: 0,
+    });
+    expect(result.currentCity).toEqual(
+      expect.objectContaining({
+        city: "Austin",
+        stateCode: "TX",
+        isSupported: false,
+        isPubliclyTracked: false,
+        citySlug: null,
+        status: null,
+      }),
+    );
+    expect(result.sourceStatus).toEqual(
+      expect.objectContaining({
+        cityLaunchActivations: "unavailable",
+        cityLaunchProspects: "unavailable",
+        cityLaunchCandidateSignals: "available",
+      }),
+    );
+    expect(result.sourceStatus.warnings.join("\n")).toContain("RESOURCE_EXHAUSTED");
+  });
+
+  it("builds an unavailable status payload for route-level fallback", async () => {
+    const { buildUnavailableCreatorLaunchStatus } = await import("../utils/cityLaunchCaptureTargets");
+    const result = buildUnavailableCreatorLaunchStatus({
+      resolvedCity: {
+        city: "Austin",
+        stateCode: "TX",
+      },
+      warning: "creatorLaunchStatus:unexpected builder failure",
+    });
+
+    expect(result.supportedCities).toEqual([]);
+    expect(result.currentCity).toEqual(
+      expect.objectContaining({
+        city: "Austin",
+        stateCode: "TX",
+        citySlug: null,
+        isSupported: false,
+        status: null,
+      }),
+    );
+    expect(result.sourceStatus).toEqual({
+      cityLaunchActivations: "unavailable",
+      cityLaunchProspects: "unavailable",
+      cityLaunchCandidateSignals: "unavailable",
+      warnings: ["creatorLaunchStatus:unexpected builder failure"],
+    });
+  });
 });

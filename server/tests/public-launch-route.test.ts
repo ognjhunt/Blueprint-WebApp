@@ -41,6 +41,7 @@ async function stopServer(server: Server) {
 afterEach(() => {
   vi.resetModules();
   vi.clearAllMocks();
+  vi.doUnmock("../utils/cityLaunchCaptureTargets");
 });
 
 describe("public launch route", () => {
@@ -141,6 +142,99 @@ describe("public launch route", () => {
           status: "live",
         }),
       );
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("returns fail-closed status when launch ledgers are unavailable", async () => {
+    listCityLaunchActivations.mockRejectedValue(new Error("8 RESOURCE_EXHAUSTED: Quota exceeded."));
+    listCityLaunchProspects.mockResolvedValue([]);
+    listCityLaunchCandidateSignals.mockResolvedValue([]);
+
+    const { server, baseUrl } = await startServer();
+    try {
+      const response = await fetch(`${baseUrl}/api/public/launch/status?city=Austin&state_code=TX`);
+      expect(response.status).toBe(200);
+      const payload = (await response.json()) as {
+        ok: boolean;
+        supportedCities: Array<{ displayName: string }>;
+        currentCity: { isSupported: boolean; citySlug: string | null; status: string | null } | null;
+        sourceStatus: { cityLaunchActivations: string; warnings: string[] };
+      };
+
+      expect(payload.ok).toBe(true);
+      expect(payload.supportedCities).toEqual([]);
+      expect(payload.currentCity).toEqual(
+        expect.objectContaining({
+          isSupported: false,
+          citySlug: null,
+          status: null,
+        }),
+      );
+      expect(payload.sourceStatus.cityLaunchActivations).toBe("unavailable");
+      expect(payload.sourceStatus.warnings.join("\n")).toContain("RESOURCE_EXHAUSTED");
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("returns fail-closed status if the status builder throws unexpectedly", async () => {
+    vi.doMock("../utils/cityLaunchCaptureTargets", () => ({
+      buildCreatorLaunchStatus: vi.fn(async () => {
+        throw new Error("unexpected builder failure");
+      }),
+      buildUnavailableCreatorLaunchStatus: (input: {
+        resolvedCity?: { city: string; stateCode?: string | null } | null;
+        warning: string;
+      }) => ({
+        cities: [],
+        supportedCities: [],
+        statusCounts: { live: 0, planned: 0, underReview: 0 },
+        currentCity: input.resolvedCity
+          ? {
+              city: input.resolvedCity.city,
+              stateCode: input.resolvedCity.stateCode || null,
+              displayName: input.resolvedCity.stateCode
+                ? `${input.resolvedCity.city}, ${input.resolvedCity.stateCode}`
+                : input.resolvedCity.city,
+              citySlug: null,
+              isSupported: false,
+              isPubliclyTracked: false,
+              status: null,
+            }
+          : null,
+        sourceStatus: {
+          cityLaunchActivations: "unavailable",
+          cityLaunchProspects: "unavailable",
+          cityLaunchCandidateSignals: "unavailable",
+          warnings: [input.warning],
+        },
+      }),
+    }));
+
+    const { server, baseUrl } = await startServer();
+    try {
+      const response = await fetch(`${baseUrl}/api/public/launch/status?city=Austin&state_code=TX`);
+      expect(response.status).toBe(200);
+      const payload = (await response.json()) as {
+        ok: boolean;
+        supportedCities: Array<{ displayName: string }>;
+        currentCity: { isSupported: boolean; citySlug: string | null; status: string | null } | null;
+        sourceStatus: { cityLaunchActivations: string; warnings: string[] };
+      };
+
+      expect(payload.ok).toBe(true);
+      expect(payload.supportedCities).toEqual([]);
+      expect(payload.currentCity).toEqual(
+        expect.objectContaining({
+          isSupported: false,
+          citySlug: null,
+          status: null,
+        }),
+      );
+      expect(payload.sourceStatus.cityLaunchActivations).toBe("unavailable");
+      expect(payload.sourceStatus.warnings.join("\n")).toContain("unexpected builder failure");
     } finally {
       await stopServer(server);
     }
