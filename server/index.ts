@@ -19,6 +19,7 @@ import {
   getPublicAssetDir,
   getPublicAssetPath,
 } from "./utils/public-artifacts";
+import { buildContentSecurityPolicy } from "./utils/contentSecurityPolicy";
 
 const env = validateEnv();
 
@@ -58,53 +59,6 @@ function captureRawBody(req: Request & { rawBody?: string }, _res: Response, buf
     req.rawBody = buf.toString("utf8");
   }
 }
-
-function derivePostHogAssetHost(host: string | undefined | null) {
-  const value = String(host || "").trim();
-  if (!value) {
-    return null;
-  }
-
-  return value.replace("://us.i.posthog.com", "://us-assets.i.posthog.com");
-}
-
-const analyticsConnectAllowlist = Array.from(
-  new Set(
-    [
-      process.env.VITE_PUBLIC_POSTHOG_HOST,
-      derivePostHogAssetHost(process.env.VITE_PUBLIC_POSTHOG_HOST),
-    ]
-      .map((value) => String(value || "").trim())
-      .filter(Boolean),
-  ),
-);
-
-const cspScriptAllowlist = Array.from(
-  new Set(
-    [
-      "https://js.stripe.com",
-      "https://cdnjs.cloudflare.com",
-      "https://apis.google.com",
-      "https://accounts.google.com",
-      "https://www.googletagmanager.com",
-      derivePostHogAssetHost(process.env.VITE_PUBLIC_POSTHOG_HOST),
-    ]
-      .map((value) => String(value || "").trim())
-      .filter(Boolean),
-  ),
-);
-
-const cspConnectAllowlist = Array.from(
-  new Set(
-    [
-      env.BLUEPRINT_HOSTED_DEMO_RUNTIME_BASE_URL,
-      env.BLUEPRINT_HOSTED_DEMO_RUNTIME_WEBSOCKET_BASE_URL,
-      ...analyticsConnectAllowlist,
-    ]
-      .map((value) => String(value || "").trim())
-      .filter(Boolean),
-  ),
-);
 
 const createRateLimitStore = (prefix: string) => createRateLimitRedisStore(prefix);
 
@@ -176,27 +130,13 @@ app.post(
 app.use(express.json({ limit: defaultBodyLimit, verify: captureRawBody }));
 app.use(express.urlencoded({ extended: false, limit: defaultBodyLimit }));
 
-const cspDirectives = [
-  "default-src 'self'",
-  "base-uri 'self'",
-  "object-src 'none'",
-  "frame-ancestors 'self'",
-  `script-src 'self' 'unsafe-inline' ${
-    isProduction ? "" : "'unsafe-eval' http://localhost:5173"
-  } ${cspScriptAllowlist.join(" ")}`,
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-  "img-src 'self' data: blob: https:",
-  "font-src 'self' https://fonts.gstatic.com data:",
-  "frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://chat.lindy.ai https://www.youtube-nocookie.com https://*.firebaseapp.com",
-  "worker-src 'self' blob: https://cdnjs.cloudflare.com",
-  "media-src 'self' blob: https:",
-  `connect-src 'self' ${
-    isProduction ? "" : "http://localhost:5173 ws://localhost:5173"
-  } ${cspConnectAllowlist.join(" ")} https://api.openai.com https://api.lumalabs.ai https://api.firecrawl.dev https://api.gumloop.com https://public.lindy.ai https://chat.lindy.ai https://*.googleapis.com https://*.gstatic.com https://*.firebaseio.com https://*.firebaseapp.com https://firebasestorage.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com https://maps.googleapis.com https://places.googleapis.com https://generativelanguage.googleapis.com wss://generativelanguage.googleapis.com https://js.stripe.com`,
-  "upgrade-insecure-requests",
-]
-  .map((directive) => directive.trim())
-  .join("; ");
+const cspDirectives = buildContentSecurityPolicy({
+  isProduction,
+  posthogHost: process.env.VITE_PUBLIC_POSTHOG_HOST,
+  hostedDemoRuntimeBaseUrl: env.BLUEPRINT_HOSTED_DEMO_RUNTIME_BASE_URL,
+  hostedDemoRuntimeWebsocketBaseUrl:
+    env.BLUEPRINT_HOSTED_DEMO_RUNTIME_WEBSOCKET_BASE_URL,
+});
 
 app.use((req, res, next) => {
   res.setHeader("Content-Security-Policy", cspDirectives);
