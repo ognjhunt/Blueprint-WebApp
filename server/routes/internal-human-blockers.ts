@@ -52,6 +52,17 @@ const humanBlockerPacketSchema = z.object({
     reasonCategory: z.string().trim().max(240).optional().nullable(),
     autoExecutionEligible: z.boolean().optional().nullable(),
   }).optional().nullable(),
+  resumeAction: z.object({
+    kind: z.enum([
+      "rerun_launch_smoke",
+      "inspect_logs",
+      "manual_followup",
+      "ops_followup",
+      "city_launch_activate",
+    ]),
+    description: z.string().trim().max(2000).optional(),
+    metadata: z.record(z.string(), z.unknown()).optional(),
+  }).optional(),
 });
 
 const dispatchSchema = z.object({
@@ -62,6 +73,7 @@ const dispatchSchema = z.object({
   email_target: z.string().email().optional(),
   mirror_to_slack: z.boolean().optional(),
   slack_webhook_url: z.string().url().optional(),
+  slack_target_user_id: z.string().trim().max(200).optional(),
   routing_owner: z.string().trim().max(120).optional(),
   execution_owner: z.string().trim().max(120).optional(),
   escalation_owner: z.string().trim().max(120).optional(),
@@ -126,6 +138,7 @@ router.post("/dispatch", async (req: Request, res: Response) => {
       email_target: parsed.data.email_target,
       mirror_to_slack: parsed.data.mirror_to_slack,
       slack_webhook_url: parsed.data.slack_webhook_url,
+      slack_target_user_id: parsed.data.slack_target_user_id,
       routing_owner: parsed.data.routing_owner,
       execution_owner: parsed.data.execution_owner,
       escalation_owner: parsed.data.escalation_owner,

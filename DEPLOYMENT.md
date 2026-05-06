@@ -234,6 +234,21 @@ REDIS_URL=rediss://default:<token>@active-phoenix-39183.upstash.io:6379
 - Optional Exact-Site Hosted Review buyer-loop report:
   `npm run gtm:hosted-review:buyer-loop -- --write --allow-blocked`
   The report is local and file-backed. It turns the canonical GTM ledger plus reply durability state into the daily sales loop: targets, recipient-backed contacts, founder approvals, sends, replies, hosted-review starts, qualified calls, next actions, and the 100-touch decision gap.
+- Optional Exact-Site Hosted Review GTM recipient enrichment:
+  `npm run gtm:recipient-evidence:validate -- --human-recipient-evidence-path <path-to-recipient-evidence.json>`
+  `npm run gtm:enrichment:run -- --write`
+  `npm run gtm:enrichment:run -- --write --select-recipients`
+  Optional provider controls:
+  `BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1`
+  `BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1`
+  `BLUEPRINT_GTM_CONTACT_DISCOVERY_ALLOWED_HOSTS`
+  `BLUEPRINT_GTM_CONTACT_DISCOVERY_SEARCH_ENABLED=1`
+  `BLUEPRINT_GTM_CONTACT_DISCOVERY_SEARCH_URL`
+  `BLUEPRINT_GTM_CONTACT_DISCOVERY_SEARCH_ALLOWED_HOSTS`
+  `BLUEPRINT_GTM_HUMAN_RECIPIENT_EVIDENCE_PATH`
+  `BLUEPRINT_GTM_CLAY_EXPORT_PATH`
+  The enrichment waterfall is fail-closed. It can mirror existing human-supplied recipients, a human-supplied recipient evidence JSON file, repo artifact evidence, historical campaign evidence, inbound lead dossiers, allowlisted public contact pages, allowlisted search results that resolve back to allowed public contact pages, or a provider-normalized Clay export. It must not guess role aliases, infer email formats, or treat target research as send-ready recipient evidence.
+  Human evidence JSON accepts either an array or `{ "recipients": [...] }`. Each row must match by `targetId`/`targetIds` or exact `organizationName`/`company`, include a non-placeholder `email`, include an evidence source such as `evidenceSource` or `sourceUrl`, and explicitly set `selectedForFirstSend: true` before `--select-recipients` can move that row into first-send approval. Run `gtm:recipient-evidence:validate` before enrichment to prove target matching, selected-row count, and row blockers without mutating the ledger. Matching rows with missing evidence, placeholder emails, invalid emails, or reserved test-domain emails such as `.example`, `.invalid`, `.test`, and `.localhost` are reported as blockers or discarded before selection.
 - Optional Meta Ads CLI pilot for Ad Studio paused drafts and read-only insights:
   `pip install meta-ads`
   `META_ADS_CLI_ENABLED=1`
@@ -257,6 +272,9 @@ REDIS_URL=rediss://default:<token>@active-phoenix-39183.upstash.io:6379
   `BLUEPRINT_HUMAN_REPLY_GMAIL_WATCHER_BATCH_SIZE`
   `BLUEPRINT_HUMAN_REPLY_GMAIL_WATCHER_STARTUP_DELAY_MS`
 - Optional Slack human-reply watcher policy:
+  `SLACK_SIGNING_SECRET`
+  `SLACK_BOT_TOKEN`
+  `BLUEPRINT_HUMAN_BLOCKER_SLACK_USER_ID`
   `BLUEPRINT_HUMAN_REPLY_SLACK_ALLOW_DMS=1`
   `BLUEPRINT_HUMAN_REPLY_SLACK_ALLOWED_CHANNELS`
 - Optional operating-graph evidence projection worker:
@@ -277,7 +295,7 @@ Important:
 - The Growth Studio sync path can be run by scheduler, by `POST /api/admin/growth/notion/sync`, or from the shell with `npm run notion:sync:growth-studio`.
 - The human-reply Gmail watcher is valid only when the authenticated mailbox is the approved org-facing identity `ohstnhunt@gmail.com`. If Gmail OAuth resolves to another mailbox, the watcher must fail closed.
 - Outbound/reply durability is production-ready only when `npm run human-replies:audit-durability` passes: sender transport is configured, the city-launch sender is marked verified, `BLUEPRINT_HUMAN_REPLY_INGEST_TOKEN` is set, `BLUEPRINT_HUMAN_REPLY_APPROVED_EMAIL=ohstnhunt@gmail.com`, Gmail OAuth is production-ready, and `BLUEPRINT_HUMAN_REPLY_GMAIL_WATCHER_ENABLED=1`.
-- Slack remains a notification or mirror surface only for founder interrupts. The Slack human-reply env vars do not create a durable resume path by themselves.
+- Slack DM is the default fast founder-interrupt path when `SLACK_BOT_TOKEN` and `BLUEPRINT_HUMAN_BLOCKER_SLACK_USER_ID` point to Nijel Hunt. Slack replies are durable only when the Events API can see the DM or allowlisted thread and the reply correlates to a blocker id or Slack thread id.
 - City-launch direct outreach is outwardly launchable only when at least one direct-outreach action has a real recipient and the active sender address is truthful.
 - `BLUEPRINT_CITY_LAUNCH_SENDER_VERIFICATION` is a manual mirror of sender/domain verification state for outbound city-launch mail. Use `verified` only after confirming the configured sender/domain is actually verified in the live provider; leave it unset if verification is unknown, and treat `unverified` as fail-closed for real sends.
 - Governed external city-launch contact discovery is opt-in. It only fetches explicit public contact evidence from hosts listed in `BLUEPRINT_CITY_LAUNCH_CONTACT_DISCOVERY_ALLOWED_HOSTS`, and it only accepts email addresses that appear explicitly on those pages. It does not guess, derive, or synthesize emails.
@@ -285,7 +303,7 @@ Important:
 - `BLUEPRINT_HUMAN_REPLY_INGEST_TOKEN` also authorizes the internal human-blocker dispatch route used by Blueprint automation tools to queue or send standard blocker packets from Paperclip agent lanes.
 - `BLUEPRINT_HUMAN_REPLY_GMAIL_OAUTH_PUBLISHING_STATUS` is a manual mirror of the Google OAuth consent-screen publishing state. If it is unset, treat Gmail OAuth durability as unknown rather than production-grade.
 - `BLUEPRINT_OPERATING_GRAPH_PROJECTION_ENABLED=1` promotes first-party capture submissions and city-launch supply targets into append-only operating graph events. Leave disabled only when intentionally running projections by `npm run operating-graph:project` or a closure drill.
-- Slack reply-watching env vars are forward-looking configuration only. Until inbound correlation and resume handoff are fully implemented, Slack replies are non-authoritative mirrors and email remains the only durable founder reply path.
+- Email to `ohstnhunt@gmail.com` remains the default durable trail for asynchronous founder decisions. Slack is a durable fast path only for configured DM or allowlisted thread replies that land in `humanReplyEvents`, update `humanBlockerThreads`, and resume the owning issue/work item through the same reply worker.
 
 ### Creative Pipeline
 - Codex-executed image generation is the default lane for image-heavy brand, marketing, and frontend work.

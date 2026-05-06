@@ -16,4 +16,14 @@ describe("city launch recipient evidence", () => {
     expect(matches.get("lineagelogistics")?.recipientEmail).toBe("mbeer@sir-robotics.com");
     expect(matches.get("raymondwest")?.source).toContain("issue-updates/");
   });
+
+  it("does not recover reserved example-domain rows from repo artifacts", async () => {
+    const { resolveRepoArtifactRecipientEvidence } = await import("../utils/cityLaunchRecipientEvidence");
+    const matches = await resolveRepoArtifactRecipientEvidence({
+      targets: ["BotBuilt", "Triangle Capture Ops"],
+    });
+
+    expect(matches.has("botbuilt")).toBe(false);
+    expect(matches.has("trianglecaptureops")).toBe(false);
+  });
 });

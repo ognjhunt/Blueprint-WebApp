@@ -112,7 +112,7 @@ describe("slack events route", () => {
       expect(ingestHumanReplyPayload).toHaveBeenCalledWith({
         channel: "slack",
         external_message_id: "1712960000.000200",
-        external_thread_id: "1712960000.000100",
+        external_thread_id: "D123:1712960000.000100",
         sender: "U123",
         recipient: "D123",
         subject: null,

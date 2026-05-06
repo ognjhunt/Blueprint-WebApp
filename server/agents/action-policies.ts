@@ -195,6 +195,45 @@ export const SITE_ACCESS_POLICY: LaneSafetyPolicy = {
 // Helpers
 // ---------------------------------------------------------------------------
 
+function normalizeRecipientEmail(value: unknown): string {
+  return typeof value === "string" ? value.trim().toLowerCase() : "";
+}
+
+function isReservedOrPlaceholderEmail(value: string): boolean {
+  const normalized = normalizeRecipientEmail(value);
+  const domain = normalized.split("@").at(-1) || "";
+  return normalized.endsWith("@example.com")
+    || normalized.endsWith("@example.org")
+    || normalized.endsWith("@example.net")
+    || normalized.endsWith("@test.com")
+    || domain === "example"
+    || domain.endsWith(".example")
+    || domain === "localhost"
+    || domain.endsWith(".localhost")
+    || domain === "invalid"
+    || domain.endsWith(".invalid")
+    || domain === "test"
+    || domain.endsWith(".test")
+    || normalized.includes("placeholder")
+    || normalized.includes("fake");
+}
+
+export function validateRecipientEmailAddress(
+  value: unknown,
+): { valid: boolean; reason?: string } {
+  const email = normalizeRecipientEmail(value);
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return { valid: false, reason: "Invalid recipient email" };
+  }
+  if (isReservedOrPlaceholderEmail(email)) {
+    return {
+      valid: false,
+      reason: "Recipient email uses a reserved or placeholder domain",
+    };
+  }
+  return { valid: true };
+}
+
 export function evaluateActionTier(
   draft: DraftOutput,
   policy: LaneSafetyPolicy,
@@ -250,8 +289,8 @@ export function classifyActionExecution(params: {
 export function validateEmailContent(
   payload: ActionPayload,
 ): { valid: boolean; reason?: string } {
-  if (!payload.to || !payload.to.includes("@"))
-    return { valid: false, reason: "Invalid recipient email" };
+  const recipientValidation = validateRecipientEmailAddress(payload.to);
+  if (!recipientValidation.valid) return recipientValidation;
   if (!payload.subject || payload.subject.trim().length === 0)
     return { valid: false, reason: "Empty subject" };
   if (!payload.body || payload.body.length < 50)

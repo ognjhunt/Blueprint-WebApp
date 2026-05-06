@@ -38,7 +38,7 @@ function ledger(): ExactSiteGtmPilotLedger {
           siteWorldId: "sample-public-capture-cedar-market-aisle-loop",
         },
         recipient: {
-          email: "buyer@robotteamone.invalid",
+          email: "buyer@robotteamone.co",
           evidenceSource: "Human-supplied founder target sheet.",
           evidenceType: "human_supplied",
         },
@@ -118,5 +118,30 @@ describe("Exact-Site Hosted Review buyer loop report", () => {
     expect(report.markdown).toContain("Governed recipient discovery is not configured.");
     expect(report.markdown).toContain("Robot-team pages should drive exactly two buyer actions");
     expect(report.markdown).toContain("After 100 touches or at day 14");
+  });
+
+  it("keeps invalid or unevidenced emails out of recipient-backed and founder approval counts", () => {
+    const pilotLedger = ledger();
+    pilotLedger.targets[0].recipient = {
+      email: "buyer@robotteamone.invalid",
+      evidenceSource: "Reserved test-domain fixture.",
+      evidenceType: "human_supplied",
+    };
+    const audit = auditExactSiteHostedReviewGtmLedger(pilotLedger);
+    const report = buildExactSiteHostedReviewBuyerLoopReport({
+      ledger: pilotLedger,
+      audit,
+      ledgerPath: "/repo/ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json",
+      city: "Durham, NC",
+      reportDate: "2026-04-28",
+      durability: null,
+    });
+
+    expect(report.summary.recipientBackedTargets).toBe(0);
+    expect(report.summary.founderApprovalNeededTargets).toBe(0);
+    expect(report.summary.approvalReadyTargets).toBe(0);
+    expect(report.contactQueue.map((target) => target.id)).toContain("target-1");
+    expect(report.founderApprovalQueue.map((target) => target.id)).not.toContain("target-1");
+    expect(report.summary.loopStatus).toBe("blocked");
   });
 });

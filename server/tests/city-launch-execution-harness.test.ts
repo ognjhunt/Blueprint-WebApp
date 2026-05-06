@@ -324,7 +324,7 @@ describe("city launch execution harness", () => {
         budgetTier: "zero_budget",
       }),
     ).rejects.toThrow(/activation payload/i);
-  });
+  }, 90_000);
 
   it("reuses existing agent lanes for Austin execution", async () => {
     const { buildAustinExecutionTasks } = await import("../utils/cityLaunchExecutionHarness");

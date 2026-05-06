@@ -79,6 +79,10 @@ async function main() {
   const selectRecipients = args.get("select-recipients") === "1";
   const targetIds = csv(args.get("target-id") || args.get("target-ids"));
   const providerKeys = csv(args.get("provider") || args.get("providers"));
+  const humanEvidencePath = args.get("human-recipient-evidence-path") || args.get("human-evidence-path");
+  if (humanEvidencePath) {
+    process.env.BLUEPRINT_GTM_HUMAN_RECIPIENT_EVIDENCE_PATH = humanEvidencePath;
+  }
   const ledger = await loadExactSiteHostedReviewGtmLedger(ledgerPath);
   const result = await runGtmEnrichmentWaterfall({
     ledger,

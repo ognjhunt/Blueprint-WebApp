@@ -149,7 +149,7 @@ const LOW_CAP_POLICY: LaneSafetyPolicy = {
 
 const validEmailPayload: ActionPayload = {
   type: "send_email",
-  to: "user@example.com",
+  to: "buyer@warehouse-robotics.co",
   subject: "Welcome to Blueprint",
   body: "Thank you for signing up for Blueprint. We are excited to have you on board and look forward to working with you.",
 };
@@ -207,6 +207,36 @@ describe("executeAction", () => {
     expect(result.ledgerDocId).toBe("existing-ledger-1");
     expect(result.autoApproveReason).toBe("already_sent");
     // Should NOT call sendEmail again
+    expect(mockSendEmail).not.toHaveBeenCalled();
+  });
+
+  it("does not treat an already-sent idempotency match as sent when the current email payload is invalid", async () => {
+    mockQueryGet.mockResolvedValueOnce({
+      empty: false,
+      docs: [
+        {
+          id: "existing-ledger-1",
+          data: () => ({
+            status: "sent",
+            action_tier: 1,
+          }),
+        },
+      ],
+    });
+
+    const result = await executeAction(
+      makeParams({
+        safetyPolicy: CONTENT_CHECK_POLICY,
+        actionPayload: {
+          ...validEmailPayload,
+          to: "person@example.com",
+        },
+      }),
+    );
+
+    expect(result.state).toBe("pending_approval");
+    expect(result.tier).toBe(3);
+    expect(result.error).toMatch(/reserved|placeholder|Invalid recipient/i);
     expect(mockSendEmail).not.toHaveBeenCalled();
   });
 
@@ -268,7 +298,7 @@ describe("executeAction", () => {
     expect(mockDocSet).toHaveBeenCalled();
     expect(mockSendEmail).toHaveBeenCalledWith(
       expect.objectContaining({
-        to: "user@example.com",
+        to: "buyer@warehouse-robotics.co",
         subject: "Welcome to Blueprint",
       }),
     );
@@ -300,7 +330,7 @@ describe("executeAction", () => {
 
     const badPayload: ActionPayload = {
       type: "send_email",
-      to: "user@example.com",
+      to: "buyer@warehouse-robotics.co",
       subject: "Welcome",
       body: "Short", // too short
     };
@@ -315,6 +345,95 @@ describe("executeAction", () => {
     expect(result.state).toBe("pending_approval");
     expect(result.tier).toBe(3);
     expect(result.error).toMatch(/Body too short/i);
+    expect(mockSendEmail).not.toHaveBeenCalled();
+  });
+
+  it("routes campaign sends to pending_approval when recipient evidence is required but missing", async () => {
+    mockQueryGet.mockResolvedValueOnce({ empty: true, docs: [] });
+
+    const payload: ActionPayload = {
+      type: "send_campaign_emails",
+      recipients: ["buyer@robotteam.co"],
+      subject: "Exact-site hosted review",
+      body: "Blueprint has a capture-backed hosted-review draft ready for a real deployment-site workflow question.",
+      recipientEvidenceRequired: true,
+    };
+
+    const result = await executeAction(
+      makeParams({
+        actionType: "send_campaign_emails",
+        actionPayload: payload,
+        safetyPolicy: CONTENT_CHECK_POLICY,
+      }),
+    );
+
+    expect(result.state).toBe("pending_approval");
+    expect(result.tier).toBe(3);
+    expect(result.error).toContain("Recipient evidence required");
+    expect(mockSendEmail).not.toHaveBeenCalled();
+  });
+
+  it("allows campaign content validation when required recipient evidence is present", async () => {
+    mockQueryGet
+      .mockResolvedValueOnce({ empty: true, docs: [] })
+      .mockResolvedValueOnce({ size: 0 });
+
+    const payload: ActionPayload = {
+      type: "send_campaign_emails",
+      recipients: ["buyer@robotteam.co"],
+      subject: "Exact-site hosted review",
+      body: "Blueprint has a capture-backed hosted-review draft ready for a real deployment-site workflow question.",
+      recipientEvidenceRequired: true,
+      recipientEvidence: [
+        {
+          email: "buyer@robotteam.co",
+          evidenceSource: "unit-test-fixture:recipient-evidence",
+        },
+      ],
+    };
+
+    const result = await executeAction(
+      makeParams({
+        actionType: "send_campaign_emails",
+        actionPayload: payload,
+        safetyPolicy: CONTENT_CHECK_POLICY,
+      }),
+    );
+
+    expect(result.state).toBe("sent");
+    expect(mockSendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ to: "buyer@robotteam.co" }),
+    );
+  });
+
+  it("routes campaign sends to pending_approval when recipients use reserved test domains", async () => {
+    mockQueryGet.mockResolvedValueOnce({ empty: true, docs: [] });
+
+    const payload: ActionPayload = {
+      type: "send_campaign_emails",
+      recipients: ["buyer@robotteam.invalid"],
+      subject: "Exact-site hosted review",
+      body: "Blueprint has a capture-backed hosted-review draft ready for a real deployment-site workflow question.",
+      recipientEvidenceRequired: true,
+      recipientEvidence: [
+        {
+          email: "buyer@robotteam.invalid",
+          evidenceSource: "unit-test-fixture:recipient-evidence",
+        },
+      ],
+    };
+
+    const result = await executeAction(
+      makeParams({
+        actionType: "send_campaign_emails",
+        actionPayload: payload,
+        safetyPolicy: CONTENT_CHECK_POLICY,
+      }),
+    );
+
+    expect(result.state).toBe("pending_approval");
+    expect(result.tier).toBe(3);
+    expect(result.error).toMatch(/placeholder|reserved|Invalid campaign recipient/i);
     expect(mockSendEmail).not.toHaveBeenCalled();
   });
 
@@ -416,6 +535,104 @@ describe("approveAction", () => {
       approveAction("ledger-99", "ops@blueprint.io"),
     ).rejects.toThrow(/Cannot approve/i);
   });
+
+  it("keeps approval pending and does not send when required campaign recipient evidence is missing", async () => {
+    mockDocGet.mockResolvedValueOnce({
+      exists: true,
+      data: () => ({
+        status: "pending_approval",
+        action_type: "send_campaign_emails",
+        action_payload: {
+          type: "send_campaign_emails",
+          recipients: ["buyer@robotteam.co"],
+          subject: "Exact-site hosted review",
+          body: "Blueprint has a capture-backed hosted-review draft ready for a real deployment-site workflow question.",
+          recipientEvidenceRequired: true,
+        },
+        action_tier: 3,
+        execution_attempts: 0,
+      }),
+    });
+
+    const result = await approveAction("ledger-99", "ops@blueprint.io");
+
+    expect(result.state).toBe("pending_approval");
+    expect(result.error).toContain("Recipient evidence required");
+    expect(mockSendEmail).not.toHaveBeenCalled();
+    expect(mockDocUpdate).not.toHaveBeenCalledWith(
+      expect.objectContaining({ status: "operator_approved" }),
+    );
+    expect(mockDocUpdate).not.toHaveBeenCalledWith(
+      expect.objectContaining({ status: "executing" }),
+    );
+  });
+
+  it("keeps approval pending and does not execute direct emails with reserved recipients", async () => {
+    mockDocGet.mockResolvedValueOnce({
+      exists: true,
+      data: () => ({
+        status: "pending_approval",
+        action_type: "send_email",
+        action_payload: {
+          type: "send_email",
+          to: "person@example.com",
+          subject: "Welcome to Blueprint",
+          body: "Thank you for signing up for Blueprint. We are excited to have you on board and look forward to working with you.",
+        },
+        action_tier: 3,
+        execution_attempts: 0,
+      }),
+    });
+
+    const result = await approveAction("ledger-99", "ops@blueprint.io");
+
+    expect(result.state).toBe("pending_approval");
+    expect(result.error).toMatch(/reserved|placeholder|Invalid recipient/i);
+    expect(mockSendEmail).not.toHaveBeenCalled();
+    expect(mockDocUpdate).not.toHaveBeenCalledWith(
+      expect.objectContaining({ status: "operator_approved" }),
+    );
+    expect(mockDocUpdate).not.toHaveBeenCalledWith(
+      expect.objectContaining({ status: "executing" }),
+    );
+  });
+
+  it("keeps approval pending and does not execute campaign emails with reserved recipients", async () => {
+    mockDocGet.mockResolvedValueOnce({
+      exists: true,
+      data: () => ({
+        status: "pending_approval",
+        action_type: "send_campaign_emails",
+        action_payload: {
+          type: "send_campaign_emails",
+          recipients: ["buyer@robotteam.invalid"],
+          subject: "Exact-site hosted review",
+          body: "Blueprint has a capture-backed hosted-review draft ready for a real deployment-site workflow question.",
+          recipientEvidenceRequired: true,
+          recipientEvidence: [
+            {
+              email: "buyer@robotteam.invalid",
+              evidenceSource: "unit-test-fixture:recipient-evidence",
+            },
+          ],
+        },
+        action_tier: 3,
+        execution_attempts: 0,
+      }),
+    });
+
+    const result = await approveAction("ledger-99", "ops@blueprint.io");
+
+    expect(result.state).toBe("pending_approval");
+    expect(result.error).toMatch(/reserved|placeholder|Invalid campaign recipient/i);
+    expect(mockSendEmail).not.toHaveBeenCalled();
+    expect(mockDocUpdate).not.toHaveBeenCalledWith(
+      expect.objectContaining({ status: "operator_approved" }),
+    );
+    expect(mockDocUpdate).not.toHaveBeenCalledWith(
+      expect.objectContaining({ status: "executing" }),
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -493,6 +710,61 @@ describe("retryFailedAction", () => {
     expect(mockSendEmail).toHaveBeenCalled();
     expect(mockDocUpdate).toHaveBeenCalledWith(
       expect.objectContaining({ status: "sent" }),
+    );
+  });
+
+  it("keeps retry pending and does not execute direct emails with reserved recipients", async () => {
+    mockDocGet.mockResolvedValueOnce({
+      exists: true,
+      data: () => ({
+        status: "failed",
+        action_type: "send_email",
+        action_payload: {
+          type: "send_email",
+          to: "person@example.com",
+          subject: "Welcome to Blueprint",
+          body: "Thank you for signing up for Blueprint. We are excited to have you on board and look forward to working with you.",
+        },
+        action_tier: 1,
+        execution_attempts: 1,
+      }),
+    });
+
+    const result = await retryFailedAction("ledger-200");
+
+    expect(result.state).toBe("pending_approval");
+    expect(result.error).toMatch(/reserved|placeholder|Invalid recipient/i);
+    expect(mockSendEmail).not.toHaveBeenCalled();
+    expect(mockDocUpdate).not.toHaveBeenCalledWith(
+      expect.objectContaining({ status: "executing" }),
+    );
+  });
+
+  it("keeps retry pending and does not execute campaign emails without required recipient evidence", async () => {
+    mockDocGet.mockResolvedValueOnce({
+      exists: true,
+      data: () => ({
+        status: "failed",
+        action_type: "send_campaign_emails",
+        action_payload: {
+          type: "send_campaign_emails",
+          recipients: ["buyer@robotteam.co"],
+          subject: "Exact-site hosted review",
+          body: "Blueprint has a capture-backed hosted-review draft ready for a real deployment-site workflow question.",
+          recipientEvidenceRequired: true,
+        },
+        action_tier: 1,
+        execution_attempts: 1,
+      }),
+    });
+
+    const result = await retryFailedAction("ledger-200");
+
+    expect(result.state).toBe("pending_approval");
+    expect(result.error).toContain("Recipient evidence required");
+    expect(mockSendEmail).not.toHaveBeenCalled();
+    expect(mockDocUpdate).not.toHaveBeenCalledWith(
+      expect.objectContaining({ status: "executing" }),
     );
   });
 

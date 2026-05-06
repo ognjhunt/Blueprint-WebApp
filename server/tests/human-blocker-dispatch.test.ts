@@ -7,6 +7,7 @@ const opsActionLogStore = new Map<string, Record<string, unknown>>();
 
 const sendEmail = vi.hoisted(() => vi.fn());
 const sendSlackMessage = vi.hoisted(() => vi.fn());
+const sendSlackDirectMessage = vi.hoisted(() => vi.fn());
 const recordExternalGapReport = vi.hoisted(() => vi.fn());
 const resolveExternalGapReport = vi.hoisted(() => vi.fn());
 
@@ -112,6 +113,7 @@ vi.mock("../utils/email", () => ({
 
 vi.mock("../utils/slack", () => ({
   sendSlackMessage,
+  sendSlackDirectMessage,
 }));
 
 vi.mock("../utils/gap-closure", () => ({
@@ -125,6 +127,7 @@ afterEach(() => {
   opsActionLogStore.clear();
   sendEmail.mockReset();
   sendSlackMessage.mockReset();
+  sendSlackDirectMessage.mockReset();
   recordExternalGapReport.mockReset();
   resolveExternalGapReport.mockReset();
   vi.resetModules();
@@ -134,6 +137,7 @@ describe("human blocker dispatch", () => {
   it("sends the email, creates the thread, mirrors to slack, and records a dispatch artifact", async () => {
     sendEmail.mockResolvedValue({ sent: true });
     sendSlackMessage.mockResolvedValue({ sent: true });
+    sendSlackDirectMessage.mockResolvedValue({ sent: false });
     recordExternalGapReport.mockResolvedValue({
       stable_id: "human_blocker:blocker-123",
       is_new: true,
@@ -143,6 +147,7 @@ describe("human blocker dispatch", () => {
     const result = await dispatchHumanBlocker({
       blocker_kind: "technical",
       mirror_to_slack: true,
+      slack_webhook_url: "https://hooks.slack.test/human-blocker",
       packet: {
         blockerId: "blocker-123",
         title: "Production inbound write smoke returned 500 on tryblueprint.io",
@@ -174,6 +179,7 @@ describe("human blocker dispatch", () => {
     expect(String(sendEmail.mock.calls[0]?.[0]?.subject || "")).toContain("blocker-123");
 
     expect(sendSlackMessage).toHaveBeenCalledTimes(1);
+    expect(sendSlackDirectMessage).not.toHaveBeenCalled();
     expect(recordExternalGapReport).toHaveBeenCalledWith(
       expect.objectContaining({
         stable_id: "human_blocker:blocker-123",
@@ -204,6 +210,84 @@ describe("human blocker dispatch", () => {
     );
     expect(actionKeys).toContain("human.blocker.upsert");
     expect(actionKeys).toContain("human.blocker.dispatch");
+  });
+
+  it("uses the configured Nijel Slack DM target and stores Slack thread correlation", async () => {
+    vi.stubEnv("BLUEPRINT_HUMAN_BLOCKER_SLACK_USER_ID", "U_NIJEL");
+    sendEmail.mockResolvedValue({ sent: true });
+    sendSlackDirectMessage.mockResolvedValue({
+      sent: true,
+      channel: "D123",
+      ts: "1712960000.000100",
+    });
+    recordExternalGapReport.mockResolvedValue({
+      stable_id: "human_blocker:blocker-slack-dm",
+      is_new: true,
+    });
+
+    const { dispatchHumanBlocker } = await import("../utils/human-blocker-dispatch");
+    const result = await dispatchHumanBlocker({
+      blocker_kind: "technical",
+      mirror_to_slack: true,
+      packet: {
+        blockerId: "blocker-slack-dm",
+        title: "Preview deployment approval needed",
+        summary: "A preview deployment approval needs a fast founder reply.",
+        recommendedAnswer: "Approve the bounded preview smoke.",
+        exactResponseNeeded: "Reply APPROVE or REJECT.",
+        whyBlocked: "The preview smoke touches a human-gated production boundary.",
+        alternatives: ["Wait for email approval."],
+        risk: "Wrong approval can validate the wrong environment.",
+        executionOwner: "webapp-codex",
+        immediateNextAction: "Rerun the preview smoke.",
+        deadline: "Today",
+        evidence: ["Preview smoke is prepared."],
+        nonScope: "No broader release approval.",
+      },
+    });
+
+    expect(sendSlackDirectMessage).toHaveBeenCalledWith(
+      expect.stringContaining("blocker-slack-dm"),
+      expect.objectContaining({
+        userId: "U_NIJEL",
+        targetName: "Nijel Hunt",
+      }),
+    );
+    expect(sendSlackMessage).not.toHaveBeenCalled();
+    expect(result.slack_sent).toBe(true);
+
+    const thread = threadStore.get("blocker-slack-dm");
+    expect(
+      ((thread?.correlation as Record<string, unknown> | undefined)?.slack_thread_id as string) || "",
+    ).toBe("D123:1712960000.000100");
+  });
+
+  it("rejects the disallowed org-facing email identity for blocker dispatches", async () => {
+    const { dispatchHumanBlocker } = await import("../utils/human-blocker-dispatch");
+
+    await expect(
+      dispatchHumanBlocker({
+        blocker_kind: "technical",
+        email_target: "hlfabhunt@gmail.com",
+        packet: {
+          blockerId: "blocker-disallowed-email",
+          title: "Disallowed identity smoke",
+          summary: "This should never route to the disallowed org identity.",
+          recommendedAnswer: "Use the approved durable founder inbox.",
+          exactResponseNeeded: "Use ohstnhunt@gmail.com.",
+          whyBlocked: "The configured identity is disallowed by policy.",
+          alternatives: ["Use the approved default email target."],
+          risk: "Using the wrong inbox breaks durable org reply routing.",
+          executionOwner: "webapp-codex",
+          immediateNextAction: "Stop and fix the target.",
+          deadline: "Immediate",
+          evidence: ["Human blocker packet standard disallows hlfabhunt@gmail.com."],
+          nonScope: "No real send should happen.",
+        },
+      }),
+    ).rejects.toThrow("hlfabhunt@gmail.com");
+
+    expect(sendEmail).not.toHaveBeenCalled();
   });
 
   it("queues a human blocker for review without sending it", async () => {
@@ -289,6 +373,7 @@ describe("human blocker dispatch", () => {
     });
 
     expect(sendEmail).not.toHaveBeenCalled();
+    sendSlackDirectMessage.mockResolvedValue({ sent: true });
     const sent = await dispatchHumanBlocker({
       delivery_mode: "send_saved_draft",
       dispatch_id: queued.dispatch_id,

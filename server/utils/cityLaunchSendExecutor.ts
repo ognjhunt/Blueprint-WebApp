@@ -16,6 +16,7 @@ import {
 } from "./email";
 import { logger } from "../logger";
 import { recordCityLaunchTouch } from "./cityLaunchLedgers";
+import { validateRecipientEmailAddress } from "../agents/action-policies";
 
 export type CityLaunchSendExecutionResult = {
   city: string;
@@ -44,12 +45,21 @@ export type CityLaunchOutboundReadiness = {
   warnings: string[];
 };
 
+export function hasCityLaunchRecipientBackedEmail(
+  entry: Pick<CityLaunchSendActionRecord, "recipientEmail">,
+) {
+  return validateRecipientEmailAddress(entry.recipientEmail).valid;
+}
+
 export function assessCityLaunchOutboundReadiness(input: {
   city: string;
   sendActions: CityLaunchSendActionRecord[];
 }): CityLaunchOutboundReadiness {
   const directOutreachActions = input.sendActions.filter((entry) => entry.actionType === "direct_outreach");
-  const recipientBacked = directOutreachActions.filter((entry) => Boolean(entry.recipientEmail));
+  const recipientBacked = directOutreachActions.filter(hasCityLaunchRecipientBackedEmail);
+  const invalidRecipientEmails = directOutreachActions.filter((entry) =>
+    Boolean(entry.recipientEmail) && !hasCityLaunchRecipientBackedEmail(entry),
+  );
   const approvalNeeded = recipientBacked.filter((entry) =>
     entry.status === "ready_to_send" && entry.approvalState === "pending_first_send_approval",
   );
@@ -71,6 +81,11 @@ export function assessCityLaunchOutboundReadiness(input: {
   if (recipientBacked.length === 0) {
     blockers.push(
       `No recipient-backed direct-outreach send actions were seeded for ${input.city}.`,
+    );
+  }
+  if (invalidRecipientEmails.length > 0) {
+    blockers.push(
+      `${invalidRecipientEmails.length} direct-outreach action(s) have invalid or placeholder recipient emails and cannot count as recipient-backed.`,
     );
   }
   if (approvalNeeded.length > 0) {
@@ -126,6 +141,10 @@ export async function executeCityLaunchSends(input: {
       skippedAlreadySent++;
       return false;
     }
+    if (action.actionType === "direct_outreach" && !hasCityLaunchRecipientBackedEmail(action)) {
+      skippedNoRecipient++;
+      return false;
+    }
     if (action.status === "blocked") {
       return false;
     }
@@ -147,10 +166,11 @@ export async function executeCityLaunchSends(input: {
   for (const action of toSend) {
     // Direct outreach requires a recipient email
     if (action.actionType === "direct_outreach") {
-      if (!action.recipientEmail) {
+      if (!hasCityLaunchRecipientBackedEmail(action)) {
         skippedNoRecipient++;
         continue;
       }
+      const recipientEmail = String(action.recipientEmail).trim();
 
       if (dryRun) {
         logger.info(
@@ -158,7 +178,7 @@ export async function executeCityLaunchSends(input: {
             city,
             actionId: action.id,
             lane: action.lane,
-            recipient: action.recipientEmail,
+            recipient: recipientEmail,
             subject: action.emailSubject,
           },
           "[DRY RUN] Would send city-launch direct outreach",
@@ -169,7 +189,7 @@ export async function executeCityLaunchSends(input: {
 
       try {
         const result = await sendEmail({
-          to: action.recipientEmail,
+          to: recipientEmail,
           subject: action.emailSubject || `${city} City Launch — Blueprint`,
           text:
             action.emailBody
@@ -202,7 +222,7 @@ export async function executeCityLaunchSends(input: {
             targetLabel: action.targetLabel,
             assetKey: action.assetKey,
             ownerAgent: action.ownerAgent,
-            recipientEmail: action.recipientEmail,
+            recipientEmail,
             emailSubject: action.emailSubject,
             emailBody: action.emailBody,
             status: "sent",
@@ -225,7 +245,7 @@ export async function executeCityLaunchSends(input: {
             status: "sent",
             campaignId: null,
             issueId: action.issueId,
-            notes: `Direct outreach sent to ${action.recipientEmail}`,
+            notes: `Direct outreach sent to ${recipientEmail}`,
             researchProvenance: null,
           });
 
@@ -328,6 +348,33 @@ export async function approveCityLaunchSendAction(input: {
     throw new Error(`Send action ${input.actionId} not found`);
   }
   if (action.approvalState !== "pending_first_send_approval") {
+    return { approved: false, actionId: input.actionId };
+  }
+  if (action.actionType === "direct_outreach" && !hasCityLaunchRecipientBackedEmail(action)) {
+    await upsertCityLaunchSendAction({
+      id: action.id,
+      city: action.city,
+      launchId: action.launchId,
+      lane: action.lane,
+      actionType: action.actionType,
+      channelAccountId: action.channelAccountId,
+      channelLabel: action.channelLabel,
+      targetLabel: action.targetLabel,
+      assetKey: action.assetKey,
+      ownerAgent: action.ownerAgent,
+      recipientEmail: action.recipientEmail,
+      emailSubject: action.emailSubject,
+      emailBody: action.emailBody,
+      status: "blocked",
+      approvalState: "blocked",
+      responseIngestState: action.responseIngestState,
+      issueId: action.issueId,
+      notes:
+        (action.notes || "")
+        + ` | Approval blocked at ${new Date().toISOString()}: direct outreach requires a non-placeholder recipient email.`,
+      sentAtIso: action.sentAtIso,
+      firstResponseAtIso: action.firstResponseAtIso,
+    });
     return { approved: false, actionId: input.actionId };
   }
 

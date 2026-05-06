@@ -282,6 +282,11 @@ describe("runAutonomousResearchOutboundLoop", () => {
       expect.objectContaining({
         channel: "sendgrid",
         recipientEmails: ["ops@tryblueprint.io", "team@tryblueprint.io"],
+        recipientEvidenceRequired: true,
+        automationContext: expect.objectContaining({
+          source: "autonomous_research_outbound",
+          recipientEvidenceRequired: true,
+        }),
       }),
     );
     expect(queueGrowthCampaignSend).toHaveBeenCalledWith({
@@ -352,6 +357,7 @@ describe("runAutonomousResearchOutboundLoop", () => {
       expect.objectContaining({
         name: "Autonomous outbound: warehouse robotics",
         body: expect.stringContaining("Grounded deployment signal"),
+        recipientEvidenceRequired: true,
       }),
     );
   });

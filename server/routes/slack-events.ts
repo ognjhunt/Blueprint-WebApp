@@ -5,6 +5,7 @@ import { z } from "zod";
 import { logger } from "../logger";
 import { evaluateSlackHumanReplySurface } from "../utils/human-reply-slack";
 import { ingestHumanReplyPayload } from "../utils/human-reply-worker";
+import { buildSlackThreadCorrelationId } from "../utils/human-reply-routing";
 
 const router = Router();
 
@@ -103,7 +104,7 @@ async function maybeIngestSlackReply(
   const ingestResult = await ingestHumanReplyPayload({
     channel: "slack",
     external_message_id: ts,
-    external_thread_id: threadTs || ts,
+    external_thread_id: buildSlackThreadCorrelationId(channel, threadTs || ts),
     sender: user,
     recipient: channel,
     subject: null,

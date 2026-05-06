@@ -2,6 +2,7 @@
 import { describe, expect, it } from "vitest";
 import {
   auditExactSiteHostedReviewGtmLedger,
+  renderExactSiteHostedReviewGtmFounderReviewMarkdown,
   type ExactSiteGtmPilotLedger,
 } from "../utils/exactSiteHostedReviewGtmPilot";
 
@@ -60,7 +61,7 @@ describe("Exact-Site Hosted Review GTM pilot ledger audit", () => {
           recipient: {
             name: "Buyer Contact",
             role: "Deployment lead",
-            email: "buyer@warehouse-robotics.invalid",
+            email: "buyer@warehouse-robotics.co",
             evidenceSource: "Explicit public contact page captured in research notes.",
             evidenceType: "explicit_research",
           },
@@ -109,7 +110,7 @@ describe("Exact-Site Hosted Review GTM pilot ledger audit", () => {
     expect(result.findings.filter((finding) => finding.severity === "error")).toHaveLength(0);
   });
 
-  it("blocks live outbound when the recipient email is missing explicit evidence", () => {
+  it("blocks live outbound and does not count recipient progress when the email is missing explicit evidence", () => {
     const result = auditExactSiteHostedReviewGtmLedger(baseLedger({
       targets: [
         {
@@ -127,7 +128,7 @@ describe("Exact-Site Hosted Review GTM pilot ledger audit", () => {
             siteWorldId: "siteworld-proof-ready",
           },
           recipient: {
-            email: "hello@example.com",
+            email: "hello@robotteam.co",
           },
           outbound: {
             status: "human_approved",
@@ -138,15 +139,116 @@ describe("Exact-Site Hosted Review GTM pilot ledger audit", () => {
     }));
 
     expect(result.ok).toBe(false);
+    expect(result.summary.recipientBackedTargets).toBe(0);
+    expect(result.summary.targetsMissingRecipientEvidence).toBe(1);
+    expect(result.summary.approvalNeededTargets).toBe(0);
     expect(result.findings.map((finding) => finding.message)).toEqual(
       expect.arrayContaining([
-        "Placeholder or fake recipient emails are disallowed.",
         "Recipient email requires explicit evidence source and evidence type.",
       ]),
     );
   });
 
-  it("warns when an active pilot has targets but no recipient-backed contacts or sends", () => {
+  it("blocks reserved test-domain recipient emails", () => {
+    const result = auditExactSiteHostedReviewGtmLedger(baseLedger({
+      targets: [
+        {
+          id: "target-1",
+          track: "proof_ready_outreach",
+          organizationName: "Robot Team",
+          buyerSegment: "Autonomy team",
+          workflowNeed: "Exact-site review.",
+          intentSignals: ["Pilot signal."],
+          evidence: { summary: "Real signal." },
+          artifact: {
+            type: "exact_site_hosted_review",
+            status: "review_ready",
+            path: "ops/paperclip/playbooks/brief.md",
+            siteWorldId: "siteworld-proof-ready",
+          },
+          recipient: {
+            email: "buyer@robotteam.invalid",
+            evidenceSource: "Reserved test-domain address supplied in a fixture.",
+            evidenceType: "human_supplied",
+          },
+          enrichment: {
+            status: "blocked",
+            providerRuns: [
+              {
+                providerKey: "manual_human_supplied",
+                status: "blocked",
+                searchedAt: "2026-01-01T00:00:00.000Z",
+              },
+            ],
+            recipientCandidates: [],
+          },
+          outbound: {
+            status: "human_approved",
+            approvalState: "approved",
+          },
+        },
+      ],
+    }));
+
+    expect(result.ok).toBe(false);
+    expect(result.summary.recipientBackedTargets).toBe(0);
+    expect(result.summary.targetsMissingRecipientEvidence).toBe(1);
+    expect(result.summary.staleEnrichmentTargets).toBe(1);
+    expect(result.findings.map((finding) => finding.message)).toContain(
+      "Placeholder or fake recipient emails are disallowed.",
+    );
+    expect(result.findings.map((finding) => finding.message)).toContain(
+      "Latest enrichment run is older than 30 days and no selected recipient exists.",
+    );
+  });
+
+  it("keeps reserved or unevidenced recipients out of the founder approval packet", () => {
+    const pilotLedger = baseLedger({
+      targets: [
+        {
+          id: "target-1",
+          track: "proof_ready_outreach",
+          organizationName: "Robot Team",
+          buyerSegment: "Autonomy team",
+          workflowNeed: "Exact-site review.",
+          intentSignals: ["Pilot signal."],
+          evidence: { summary: "Real signal." },
+          artifact: {
+            type: "exact_site_hosted_review",
+            status: "review_ready",
+            path: "ops/paperclip/playbooks/brief.md",
+            siteWorldId: "siteworld-proof-ready",
+          },
+          recipient: {
+            email: "buyer@robotteam.invalid",
+            evidenceSource: "Reserved test-domain address supplied in a fixture.",
+            evidenceType: "human_supplied",
+          },
+          outbound: {
+            status: "draft_ready",
+            approvalState: "pending_first_send_approval",
+            messagePath: "ops/paperclip/playbooks/message.md",
+          },
+        },
+      ],
+    });
+    const result = auditExactSiteHostedReviewGtmLedger(pilotLedger);
+    const markdown = renderExactSiteHostedReviewGtmFounderReviewMarkdown(
+      pilotLedger,
+      result,
+      "/repo/ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json",
+      "2026-04-28",
+    );
+
+    expect(markdown).toContain("Supply or approve recipient-backed contacts for 1 target(s)");
+    expect(markdown).toContain("## Targets Needing Recipient Evidence");
+    expect(markdown).toContain("- target-1: Robot Team / Autonomy team / Exact-site review.");
+    expect(markdown).toContain("## Targets Needing Approval\n\n- none");
+    expect(markdown).not.toContain("Approve, edit, or reject 1 recipient-backed draft target(s)");
+    expect(markdown).not.toContain("buyer@robotteam.invalid (human_supplied)");
+  });
+
+  it("blocks when an active pilot has targets but no recipient-backed contacts", () => {
     const result = auditExactSiteHostedReviewGtmLedger(baseLedger({
       targets: [
         {
@@ -171,7 +273,7 @@ describe("Exact-Site Hosted Review GTM pilot ledger audit", () => {
       ],
     }));
 
-    expect(result.ok).toBe(true);
+    expect(result.ok).toBe(false);
     expect(result.findings.map((finding) => finding.message)).toEqual(
       expect.arrayContaining([
         "Active pilot has target rows but no recipient-backed contacts; live sends remain blocked on explicit contact evidence.",
@@ -230,7 +332,7 @@ describe("Exact-Site Hosted Review GTM pilot ledger audit", () => {
             status: "not_started",
           },
           recipient: {
-            email: "buyer@robot-team.invalid",
+            email: "buyer@robot-team.co",
             evidenceSource: "Human-supplied pilot contact from founder research notes.",
             evidenceType: "human_supplied",
           },
@@ -386,7 +488,7 @@ describe("Exact-Site Hosted Review GTM pilot ledger audit", () => {
     );
   });
 
-  it("counts Paperclip-linked target blockers without creating fake recipient progress", () => {
+  it("counts Paperclip-linked target blockers without creating fake recipient progress or readiness", () => {
     const result = auditExactSiteHostedReviewGtmLedger(baseLedger({
       targets: [
         {
@@ -433,12 +535,14 @@ describe("Exact-Site Hosted Review GTM pilot ledger audit", () => {
       ],
     }));
 
-    expect(result.ok).toBe(true);
+    expect(result.ok).toBe(false);
     expect(result.summary.openTargetBlockers).toBe(1);
     expect(result.summary.paperclipLinkedTargetBlockers).toBe(1);
     expect(result.summary.recipientBackedTargets).toBe(0);
     expect(result.summary.closureStateTargets).toBe(1);
     expect(result.summary.targetsMissingClosureState).toBe(0);
-    expect(result.findings.filter((finding) => finding.severity === "error")).toHaveLength(0);
+    expect(result.findings.map((finding) => finding.message)).toContain(
+      "Active pilot has target rows but no recipient-backed contacts; live sends remain blocked on explicit contact evidence.",
+    );
   });
 });

@@ -226,6 +226,8 @@ export async function createGrowthCampaignDraft(params: {
   audienceQuery?: string | null;
   channel?: string | null;
   recipientEmails?: string[] | null;
+  recipientEvidence?: Array<Record<string, unknown>> | null;
+  recipientEvidenceRequired?: boolean | null;
   audienceId?: string | null;
   sequenceId?: string | null;
   automationContext?: Record<string, unknown> | null;
@@ -235,6 +237,9 @@ export async function createGrowthCampaignDraft(params: {
   }
 
   const recipientEmails = normalizeRecipientEmails(params.recipientEmails || []);
+  const recipientEvidenceRequired = params.recipientEvidenceRequired === true
+    || params.automationContext?.recipientEvidenceRequired === true
+    || params.automationContext?.requiresRecipientEvidence === true;
   const creativeContext = await latestCreativeRunContext();
   const channel = "sendgrid";
   const createdAtIso = new Date().toISOString();
@@ -247,6 +252,10 @@ export async function createGrowthCampaignDraft(params: {
     channel,
     recipient_emails: recipientEmails,
     recipient_count: recipientEmails.length,
+    recipient_evidence_required: recipientEvidenceRequired,
+    recipient_evidence: Array.isArray(params.recipientEvidence)
+      ? params.recipientEvidence
+      : [],
     delivery_provider: getEmailTransportStatus().provider || "sendgrid",
     creative_context: creativeContext,
     automation_context:
@@ -311,6 +320,18 @@ export async function queueGrowthCampaignSend(params: {
   const campaign = doc.data() as Record<string, unknown>;
   const channel = normalizeString(campaign.channel) || "sendgrid";
   const recipientEmails = normalizeRecipientEmails(campaign.recipient_emails);
+  const recipientEvidenceRequired = campaign.recipient_evidence_required === true
+    || (
+      campaign.automation_context
+      && typeof campaign.automation_context === "object"
+      && (
+        (campaign.automation_context as Record<string, unknown>).recipientEvidenceRequired === true
+        || (campaign.automation_context as Record<string, unknown>).requiresRecipientEvidence === true
+      )
+    );
+  const recipientEvidence = Array.isArray(campaign.recipient_evidence)
+    ? campaign.recipient_evidence
+    : [];
   const creativeContext =
     campaign.creative_context && typeof campaign.creative_context === "object"
       ? (campaign.creative_context as Record<string, unknown>)
@@ -334,6 +355,8 @@ export async function queueGrowthCampaignSend(params: {
       collection: "growthCampaigns",
       docId: params.campaignId,
       creativeContext,
+      recipientEvidenceRequired,
+      recipientEvidence,
     },
     safetyPolicy: GROWTH_CAMPAIGN_POLICY,
     draftOutput: {

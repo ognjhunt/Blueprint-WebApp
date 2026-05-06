@@ -85,6 +85,7 @@ describe("paperclip project resolution", () => {
 
   it("patches an existing issue without resolving the project directory", async () => {
     process.env.BLUEPRINT_PAPERCLIP_COMPANY_ID = "company-1";
+    let patchBody: Record<string, unknown> | null = null;
 
     const fetchMock = vi.fn((url: string, init?: RequestInit) => {
       if (url === "http://127.0.0.1:3100/api/companies/company-1/agents") {
@@ -107,6 +108,7 @@ describe("paperclip project resolution", () => {
       }
 
       if (url === "http://127.0.0.1:3100/api/issues/issue-1" && init?.method === "PATCH") {
+        patchBody = JSON.parse(String(init.body));
         return Promise.resolve(
           new Response(
             JSON.stringify({
@@ -140,10 +142,16 @@ describe("paperclip project resolution", () => {
       originKind: "city_launch_activation",
       originId: "sacramento-ca",
       existingIssueId: "issue-1",
+      comment: "Bridge refreshed without standalone comment wake.",
     });
 
     expect(result.created).toBe(false);
     expect(result.issue.id).toBe("issue-1");
+    expect(patchBody).toEqual(
+      expect.objectContaining({
+        comment: "Bridge refreshed without standalone comment wake.",
+      }),
+    );
     expect(fetchMock).not.toHaveBeenCalledWith(
       "http://127.0.0.1:3100/api/companies/company-1/projects",
       expect.anything(),

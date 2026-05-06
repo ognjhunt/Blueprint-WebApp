@@ -5,6 +5,7 @@ import {
   type ExactSiteGtmPilotLedger,
   type ExactSiteGtmPaperclipIssueRef,
   type ExactSiteGtmTarget,
+  hasExactSiteRecipientBackedEvidence,
 } from "./exactSiteHostedReviewGtmPilot";
 import type { OutboundReplyDurabilityStatus } from "./outbound-reply-durability";
 
@@ -77,7 +78,7 @@ function targetNextAction(target: ExactSiteGtmTarget) {
   if (hasText(target.sales?.nextAction)) {
     return target.sales?.nextAction || "";
   }
-  if (!hasText(target.recipient?.email)) {
+  if (!hasExactSiteRecipientBackedEvidence(target)) {
     return "Find explicit recipient-backed contact evidence or keep this row in research.";
   }
   if (target.outbound.status === "draft_ready") {
@@ -152,9 +153,9 @@ export function buildExactSiteHostedReviewBuyerLoopReport(input: {
     ? input.ledger.targets.filter((target) => normalizeCity(target.city) === cityKey)
     : input.ledger.targets;
   const targets = cityKey && cityTargets.length === 0 ? input.ledger.targets : cityTargets;
-  const contactQueue = targets.filter((target) => !hasText(target.recipient?.email));
+  const contactQueue = targets.filter((target) => !hasExactSiteRecipientBackedEvidence(target));
   const founderApprovalQueue = targets.filter((target) =>
-    target.outbound.status === "draft_ready" && hasText(target.recipient?.email),
+    target.outbound.status === "draft_ready" && hasExactSiteRecipientBackedEvidence(target),
   );
   const proofArtifactQueue = targets.filter((target) =>
     target.track === "demand_sourced_capture"
@@ -185,7 +186,7 @@ export function buildExactSiteHostedReviewBuyerLoopReport(input: {
   const sentTargets = targets.filter((target) =>
     ["sent", "replied", "hosted_review_started", "closed"].includes(target.outbound.status),
   ).length;
-  const recipientBackedTargets = targets.filter((target) => hasText(target.recipient?.email)).length;
+  const recipientBackedTargets = targets.filter(hasExactSiteRecipientBackedEvidence).length;
   const enrichmentAttemptedTargets = targets.filter((target) => (target.enrichment?.providerRuns ?? []).length > 0).length;
   const enrichmentCandidateTargets = targets.filter((target) => (target.enrichment?.recipientCandidates ?? []).length > 0).length;
   const enrichmentContactFoundTargets = targets.filter((target) => target.enrichment?.status === "contact_found").length;

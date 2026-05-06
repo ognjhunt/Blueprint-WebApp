@@ -183,7 +183,7 @@ describe("city launch research materializer", () => {
             capture_location_candidates: [
               {
                 name: "Dock One",
-                contact_email: "dockone@example.com",
+                contact_email: "ops+test-dockone@tryblueprint.io",
                 source_bucket: "industrial_warehouse",
                 channel: "operator_intro",
                 status: "qualified",
@@ -199,7 +199,7 @@ describe("city launch research materializer", () => {
             buyer_target_candidates: [
               {
                 company_name: "Warehouse Robotics Co",
-                contact_email: "warehouse@example.com",
+                contact_email: "ops+test-warehouse-robotics@tryblueprint.io",
                 status: "researched",
                 workflow_fit: "dock handoff",
                 proof_path: "exact_site",

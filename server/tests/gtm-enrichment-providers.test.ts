@@ -1,10 +1,17 @@
 // @vitest-environment node
-import { describe, expect, it } from "vitest";
+import { promises as fs } from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ExactSiteGtmPilotLedger } from "../utils/exactSiteHostedReviewGtmPilot";
 import {
+  createGovernedPublicContactProvider,
   runGtmEnrichmentWaterfall,
+  validateHumanRecipientEvidenceFile,
   type GtmEnrichmentProvider,
 } from "../utils/gtmEnrichmentProviders";
+
+const tempDirs: string[] = [];
 
 function ledger(): ExactSiteGtmPilotLedger {
   return {
@@ -46,6 +53,16 @@ function ledger(): ExactSiteGtmPilotLedger {
   };
 }
 
+afterEach(async () => {
+  vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
+  await Promise.all(
+    tempDirs.splice(0, tempDirs.length).map((dir) =>
+      fs.rm(dir, { recursive: true, force: true }),
+    ),
+  );
+});
+
 describe("GTM enrichment waterfall", () => {
   it("records provider runs and selects a recipient only from normalized evidence", async () => {
     const provider: GtmEnrichmentProvider = {
@@ -60,8 +77,8 @@ describe("GTM enrichment waterfall", () => {
           },
           candidates: [
             {
-              email: "buyer@robotteam.invalid",
-              evidenceSource: "Recipient sourced from explicit public contact evidence at https://robotteam.invalid/contact.",
+              email: "buyer@robotteam.co",
+              evidenceSource: "Recipient sourced from explicit public contact evidence at https://robotteam.co/contact.",
               evidenceType: "explicit_research",
               providerKey: "repo_artifact",
               confidence: "high",
@@ -81,7 +98,7 @@ describe("GTM enrichment waterfall", () => {
     const target = result.ledger.targets[0];
     expect(result.summary.candidatesAdded).toBe(1);
     expect(result.summary.selectedRecipients).toBe(1);
-    expect(target.recipient?.email).toBe("buyer@robotteam.invalid");
+    expect(target.recipient?.email).toBe("buyer@robotteam.co");
     expect(target.outbound.approvalState).toBe("pending_first_send_approval");
     expect(target.enrichment?.status).toBe("contact_found");
     expect(target.enrichment?.providerRuns).toHaveLength(1);
@@ -122,5 +139,340 @@ describe("GTM enrichment waterfall", () => {
     expect(result.ledger.targets[0].recipient).toBeUndefined();
     expect(result.ledger.targets[0].enrichment?.recipientCandidates).toHaveLength(0);
     expect(result.ledger.targets[0].enrichment?.status).toBe("exhausted");
+  });
+
+  it("rejects reserved test-domain recipient candidates", async () => {
+    const provider: GtmEnrichmentProvider = {
+      key: "repo_artifact",
+      async enrich() {
+        return {
+          run: {
+            providerKey: "repo_artifact",
+            status: "contact_found",
+            searchedAt: "2026-04-27T12:00:00.000Z",
+            candidateCount: 1,
+          },
+          candidates: [
+            {
+              email: "buyer@robotteam.invalid",
+              evidenceSource: "Reserved test-domain evidence.",
+              evidenceType: "explicit_research",
+              providerKey: "repo_artifact",
+              confidence: "high",
+              discoveredAt: "2026-04-27T12:00:00.000Z",
+            },
+          ],
+        };
+      },
+    };
+
+    const result = await runGtmEnrichmentWaterfall({
+      ledger: ledger(),
+      providers: [provider],
+      selectRecipients: true,
+    });
+
+    expect(result.ledger.targets[0].recipient).toBeUndefined();
+    expect(result.ledger.targets[0].enrichment?.recipientCandidates).toHaveLength(0);
+    expect(result.ledger.targets[0].enrichment?.status).toBe("exhausted");
+  });
+
+  it("records human-supplied recipient evidence from a file without selecting unapproved rows", async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "gtm-human-evidence-"));
+    tempDirs.push(tempDir);
+    const evidencePath = path.join(tempDir, "recipients.json");
+    await fs.writeFile(
+      evidencePath,
+      JSON.stringify({
+        recipients: [
+          {
+            targetId: "target-1",
+            email: "buyer@robotteam.co",
+            evidenceSource: "Human supplied explicit evidence from CRM note 123.",
+            selectedForFirstSend: false,
+          },
+        ],
+      }),
+      "utf8",
+    );
+    vi.stubEnv("BLUEPRINT_GTM_HUMAN_RECIPIENT_EVIDENCE_PATH", evidencePath);
+
+    const result = await runGtmEnrichmentWaterfall({
+      ledger: ledger(),
+      providerKeys: ["manual_human_supplied"],
+      selectRecipients: true,
+    });
+
+    const target = result.ledger.targets[0];
+    expect(result.summary.candidatesAdded).toBe(1);
+    expect(result.summary.selectedRecipients).toBe(0);
+    expect(target.recipient).toBeUndefined();
+    expect(target.enrichment?.recipientCandidates?.[0]?.email).toBe("buyer@robotteam.co");
+    expect(target.enrichment?.recipientCandidates?.[0]?.selectable).toBe(false);
+  });
+
+  it("selects human-supplied recipient evidence only when the row is explicitly selected", async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "gtm-human-evidence-"));
+    tempDirs.push(tempDir);
+    const evidencePath = path.join(tempDir, "recipients.json");
+    await fs.writeFile(
+      evidencePath,
+      JSON.stringify([
+        {
+          organizationName: "Robot Team",
+          email: "approved@robotteam.co",
+          evidenceSource: "Human supplied explicit evidence from CRM note 456.",
+          selectedForFirstSend: true,
+        },
+      ]),
+      "utf8",
+    );
+    vi.stubEnv("BLUEPRINT_GTM_HUMAN_RECIPIENT_EVIDENCE_PATH", evidencePath);
+
+    const result = await runGtmEnrichmentWaterfall({
+      ledger: ledger(),
+      providerKeys: ["manual_human_supplied"],
+      selectRecipients: true,
+    });
+
+    const target = result.ledger.targets[0];
+    expect(result.summary.candidatesAdded).toBe(1);
+    expect(result.summary.selectedRecipients).toBe(1);
+    expect(target.recipient?.email).toBe("approved@robotteam.co");
+    expect(target.recipient?.evidenceType).toBe("human_supplied");
+    expect(target.outbound.approvalState).toBe("pending_first_send_approval");
+  });
+
+  it("validates human-supplied recipient evidence before ledger mutation", async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "gtm-human-evidence-"));
+    tempDirs.push(tempDir);
+    const evidencePath = path.join(tempDir, "recipients.json");
+    await fs.writeFile(
+      evidencePath,
+      JSON.stringify({
+        recipients: [
+          {
+            targetId: "target-1",
+            organizationName: "Robot Team",
+            email: "approved@robotteam.co",
+            evidenceSource: "Human supplied explicit evidence from CRM note 456.",
+            selectedForFirstSend: true,
+          },
+          {
+            organizationName: "Different Team",
+            email: "person@example.com",
+            evidenceSource: "Placeholder row that must stay blocked.",
+            selectedForFirstSend: true,
+          },
+        ],
+      }),
+      "utf8",
+    );
+
+    const result = await validateHumanRecipientEvidenceFile({
+      ledger: ledger(),
+      evidencePath,
+    });
+
+    expect(result.totalRows).toBe(2);
+    expect(result.validSelectedRows).toBe(1);
+    expect(result.targetsWithSelectedEvidence).toEqual(["target-1"]);
+    expect(result.blockers.join("\n")).toContain("row 2 does not exactly match");
+    expect(result.blockers.join("\n")).toContain("invalid or placeholder email");
+  });
+
+  it("rejects human-supplied recipient rows with placeholder evidence sources", async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "gtm-human-evidence-"));
+    tempDirs.push(tempDir);
+    const evidencePath = path.join(tempDir, "recipients.json");
+    await fs.writeFile(
+      evidencePath,
+      JSON.stringify([
+        {
+          targetId: "target-1",
+          email: "approved@robotteam.co",
+          evidenceSource: "<source URL or durable source note>",
+          selectedForFirstSend: true,
+        },
+      ]),
+      "utf8",
+    );
+    vi.stubEnv("BLUEPRINT_GTM_HUMAN_RECIPIENT_EVIDENCE_PATH", evidencePath);
+
+    const validation = await validateHumanRecipientEvidenceFile({
+      ledger: ledger(),
+      evidencePath,
+    });
+    expect(validation.validSelectedRows).toBe(0);
+    expect(validation.blockers.join("\n")).toContain("missing a real evidence source");
+
+    const result = await runGtmEnrichmentWaterfall({
+      ledger: ledger(),
+      providerKeys: ["manual_human_supplied"],
+      selectRecipients: true,
+    });
+    expect(result.summary.candidatesAdded).toBe(0);
+    expect(result.summary.selectedRecipients).toBe(0);
+    expect(result.summary.blockers).toBe(1);
+    expect(result.ledger.targets[0].recipient).toBeUndefined();
+    expect(result.ledger.targets[0].enrichment?.status).toBe("blocked");
+    expect(result.ledger.targets[0].enrichment?.blockers?.join("\n")).toContain("missing a real evidence source");
+  });
+
+  it("blocks malformed non-object rows in human-supplied recipient files", async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "gtm-human-evidence-"));
+    tempDirs.push(tempDir);
+    const evidencePath = path.join(tempDir, "recipients.json");
+    await fs.writeFile(
+      evidencePath,
+      JSON.stringify({
+        recipients: [
+          "not-a-row",
+          null,
+        ],
+      }),
+      "utf8",
+    );
+    vi.stubEnv("BLUEPRINT_GTM_HUMAN_RECIPIENT_EVIDENCE_PATH", evidencePath);
+
+    const validation = await validateHumanRecipientEvidenceFile({
+      ledger: ledger(),
+      evidencePath,
+    });
+    expect(validation.totalRows).toBe(0);
+    expect(validation.blockers.join("\n")).toContain("malformed recipient row");
+
+    const result = await runGtmEnrichmentWaterfall({
+      ledger: ledger(),
+      providerKeys: ["manual_human_supplied"],
+      selectRecipients: true,
+    });
+    expect(result.summary.candidatesAdded).toBe(0);
+    expect(result.summary.selectedRecipients).toBe(0);
+    expect(result.summary.blockers).toBe(1);
+    expect(result.ledger.targets[0].recipient).toBeUndefined();
+    expect(result.ledger.targets[0].enrichment?.status).toBe("blocked");
+    expect(result.ledger.targets[0].enrichment?.blockers?.join("\n")).toContain("malformed recipient row");
+  });
+
+  it("does not match partial organization names in human-supplied recipient evidence", async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "gtm-human-evidence-"));
+    tempDirs.push(tempDir);
+    const evidencePath = path.join(tempDir, "recipients.json");
+    await fs.writeFile(
+      evidencePath,
+      JSON.stringify([
+        {
+          organizationName: "Robot",
+          email: "approved@robot.co",
+          evidenceSource: "Human supplied explicit evidence for a different target.",
+          selectedForFirstSend: true,
+        },
+      ]),
+      "utf8",
+    );
+    vi.stubEnv("BLUEPRINT_GTM_HUMAN_RECIPIENT_EVIDENCE_PATH", evidencePath);
+
+    const result = await runGtmEnrichmentWaterfall({
+      ledger: ledger(),
+      providerKeys: ["manual_human_supplied"],
+      selectRecipients: true,
+    });
+
+    const target = result.ledger.targets[0];
+    expect(result.summary.candidatesAdded).toBe(0);
+    expect(result.summary.selectedRecipients).toBe(0);
+    expect(target.recipient).toBeUndefined();
+    expect(target.enrichment?.recipientCandidates).toHaveLength(0);
+    expect(target.enrichment?.status).toBe("exhausted");
+  });
+
+  it("blocks malformed matching human-supplied recipient evidence rows", async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "gtm-human-evidence-"));
+    tempDirs.push(tempDir);
+    const evidencePath = path.join(tempDir, "recipients.json");
+    await fs.writeFile(
+      evidencePath,
+      JSON.stringify([
+        {
+          targetId: "target-1",
+          email: "person@example.com",
+          selectedForFirstSend: true,
+        },
+      ]),
+      "utf8",
+    );
+    vi.stubEnv("BLUEPRINT_GTM_HUMAN_RECIPIENT_EVIDENCE_PATH", evidencePath);
+
+    const result = await runGtmEnrichmentWaterfall({
+      ledger: ledger(),
+      providerKeys: ["manual_human_supplied"],
+      selectRecipients: true,
+    });
+
+    const target = result.ledger.targets[0];
+    expect(result.summary.candidatesAdded).toBe(0);
+    expect(result.summary.selectedRecipients).toBe(0);
+    expect(result.summary.blockers).toBe(1);
+    expect(target.recipient).toBeUndefined();
+    expect(target.enrichment?.status).toBe("blocked");
+    expect(target.enrichment?.blockers?.join("\n")).toContain("invalid or placeholder email");
+  });
+
+  it("discovers allowlisted public contact pages through governed search", async () => {
+    vi.stubEnv("BLUEPRINT_GTM_CONTACT_DISCOVERY_ALLOWED_HOSTS", "robotteam.co");
+    vi.stubEnv("BLUEPRINT_GTM_CONTACT_DISCOVERY_SEARCH_ENABLED", "1");
+    vi.stubEnv("BLUEPRINT_GTM_CONTACT_DISCOVERY_SEARCH_URL", "https://search.invalid/html");
+    vi.stubEnv("BLUEPRINT_GTM_CONTACT_DISCOVERY_SEARCH_ALLOWED_HOSTS", "search.invalid");
+    const input = ledger();
+    input.targets[0].evidence.sourceUrls = ["https://robotteam.co/"];
+
+    const fetchMock = vi.fn(async (url: string | URL) => {
+      const href = String(url);
+      if (href.startsWith("https://search.invalid/html")) {
+        return new Response(
+          [
+            "<html><body>",
+            "<a href=\"https://robotteam.co/contact\">Contact</a>",
+            "<a href=\"https://outside.co/contact\">Outside</a>",
+            "</body></html>",
+          ].join(""),
+          {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+          },
+        );
+      }
+      if (href === "https://robotteam.co/contact") {
+        return new Response("<html>Contact: buyer@robotteam.co</html>", {
+          status: 200,
+          headers: { "Content-Type": "text/html" },
+        });
+      }
+      throw new Error(`Unexpected fetch: ${href}`);
+    }) as unknown as typeof fetch;
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await runGtmEnrichmentWaterfall({
+      ledger: input,
+      providers: [createGovernedPublicContactProvider()],
+      selectRecipients: true,
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringMatching(/^https:\/\/search\.invalid\/html\?/),
+      expect.objectContaining({ method: "GET" }),
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://robotteam.co/contact",
+      expect.objectContaining({
+        headers: { "User-Agent": "Blueprint GTM contact discovery" },
+      }),
+    );
+    expect(result.summary.candidatesAdded).toBe(1);
+    expect(result.summary.selectedRecipients).toBe(1);
+    expect(result.ledger.targets[0].recipient?.email).toBe("buyer@robotteam.co");
+    expect(result.ledger.targets[0].enrichment?.selectedRecipientEvidence?.providerKey)
+      .toBe("governed_public_contact");
   });
 });

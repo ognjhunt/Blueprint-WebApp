@@ -1,5 +1,6 @@
 export const APPROVED_HUMAN_REPLY_EMAIL = "ohstnhunt@gmail.com";
 export const DISALLOWED_HUMAN_REPLY_EMAIL = "hlfabhunt@gmail.com";
+export const DEFAULT_HUMAN_BLOCKER_SLACK_TARGET_NAME = "Nijel Hunt";
 export const DEFAULT_HUMAN_REPLY_ROUTING_OWNER = "blueprint-chief-of-staff";
 export const DEFAULT_TECHNICAL_EXECUTION_OWNER = "webapp-codex";
 export const DEFAULT_TECHNICAL_ESCALATION_OWNER = "blueprint-cto";
@@ -77,6 +78,17 @@ export function buildHumanBlockerChannelTag(
   channel: HumanReplyChannel,
 ) {
   return `[Blueprint ${channel.toUpperCase()} Reply ID: ${blockerId}]`;
+}
+
+export function buildSlackThreadCorrelationId(
+  channel: string | null | undefined,
+  threadTs: string | null | undefined,
+) {
+  const normalizedChannel = String(channel || "").trim();
+  const normalizedThreadTs = String(threadTs || "").trim();
+  return normalizedChannel && normalizedThreadTs
+    ? `${normalizedChannel}:${normalizedThreadTs}`
+    : null;
 }
 
 export function renderHumanBlockerCorrelationSection(blockerId: string) {

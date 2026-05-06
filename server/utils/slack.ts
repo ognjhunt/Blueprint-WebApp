@@ -353,3 +353,72 @@ export async function sendSlackMessage(
     return { sent: false, error };
   }
 }
+
+export async function sendSlackDirectMessage(
+  message: string,
+  options?: {
+    userId?: string | null;
+    targetName?: string | null;
+    botToken?: string | null;
+  },
+): Promise<{
+  sent: boolean;
+  channel?: string | null;
+  ts?: string | null;
+  targetName: string;
+  error?: unknown;
+}> {
+  const targetName = options?.targetName?.trim() || "Nijel Hunt";
+  const botToken = options?.botToken?.trim() || process.env.SLACK_BOT_TOKEN?.trim() || "";
+  const userId =
+    options?.userId?.trim()
+    || process.env.BLUEPRINT_HUMAN_BLOCKER_SLACK_USER_ID?.trim()
+    || process.env.BLUEPRINT_FOUNDER_SLACK_USER_ID?.trim()
+    || "";
+
+  if (!botToken || !userId) {
+    logger.warn(
+      { targetName, hasBotToken: Boolean(botToken), hasUserId: Boolean(userId) },
+      "Slack bot token or founder user id not configured; skipping direct message",
+    );
+    return {
+      sent: false,
+      targetName,
+      error:
+        "Slack DM requires SLACK_BOT_TOKEN and BLUEPRINT_HUMAN_BLOCKER_SLACK_USER_ID or BLUEPRINT_FOUNDER_SLACK_USER_ID.",
+    };
+  }
+
+  try {
+    const response = await fetch("https://slack.com/api/chat.postMessage", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${botToken}`,
+        "Content-Type": "application/json; charset=utf-8",
+      },
+      body: JSON.stringify({
+        channel: userId,
+        text: message,
+      }),
+    });
+    const payload = await response.json().catch(() => null) as Record<string, unknown> | null;
+    if (!response.ok || payload?.ok !== true) {
+      const error = payload?.error || response.statusText;
+      logger.error(
+        { status: response.status, error, targetName },
+        "Failed to send Slack direct message",
+      );
+      return { sent: false, targetName, error };
+    }
+
+    return {
+      sent: true,
+      targetName,
+      channel: typeof payload.channel === "string" ? payload.channel : null,
+      ts: typeof payload.ts === "string" ? payload.ts : null,
+    };
+  } catch (error) {
+    logger.error({ error, targetName }, "Error sending Slack direct message");
+    return { sent: false, targetName, error };
+  }
+}

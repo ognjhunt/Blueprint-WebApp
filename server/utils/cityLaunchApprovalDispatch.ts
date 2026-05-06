@@ -1,4 +1,5 @@
 import type { CityLaunchBudgetPolicy } from "./cityLaunchPolicy";
+import { dispatchHumanBlocker } from "./human-blocker-dispatch";
 import { getHumanBlockerThread } from "./human-reply-store";
 import {
   buildCityLaunchFounderApprovalPacket,
@@ -29,19 +30,43 @@ export async function dispatchCityLaunchFounderApproval(input: {
     budgetPolicy,
   });
   const existingThread = await getHumanBlockerThread(packet.blockerId || "").catch(() => null);
+  const alreadyApproved = durableApproval.founderApproved;
+  const alreadyPending = Boolean(
+    existingThread
+    && !alreadyApproved
+    && existingThread.status !== "resolved"
+    && existingThread.status !== "blocked",
+  );
+
+  if (alreadyApproved || alreadyPending) {
+    return {
+      dispatched: false,
+      blockerId: durableApproval.blockerId,
+      approvalCount: packet.evidence.length,
+      emailSent: false,
+      slackMirrored: false,
+      alreadyApproved,
+      alreadyPending,
+    };
+  }
+
+  const dispatch = await dispatchHumanBlocker({
+    delivery_mode: "send_now",
+    blocker_kind: "ops_commercial",
+    mirror_to_slack: true,
+    routing_owner: "blueprint-chief-of-staff",
+    execution_owner: "city-launch-agent",
+    sender_owner: "city-launch-agent",
+    packet,
+  });
 
   return {
-    dispatched: false,
+    dispatched: true,
     blockerId: durableApproval.blockerId,
-    approvalCount: 0,
-    emailSent: false,
-    slackMirrored: false,
-    alreadyApproved: durableApproval.founderApproved,
-    alreadyPending: Boolean(
-      existingThread
-      && !durableApproval.founderApproved
-      && existingThread.status !== "resolved"
-      && existingThread.status !== "blocked",
-    ),
+    approvalCount: packet.evidence.length,
+    emailSent: dispatch.email_sent === true,
+    slackMirrored: dispatch.slack_sent === true,
+    alreadyApproved,
+    alreadyPending,
   };
 }

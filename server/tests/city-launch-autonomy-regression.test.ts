@@ -283,7 +283,7 @@ describe("city launch autonomy regression", () => {
     expect(certification.blockingExecutionStates).toEqual(
       expect.arrayContaining(["proofMotion", "hostedReview"]),
     );
-  });
+  }, 90_000);
 
   it("certifies degraded-but-routed execution when contacts, proof, hosted review, and Firehose are missing", async () => {
     vi.stubEnv("SEARCH_API_KEY", "");

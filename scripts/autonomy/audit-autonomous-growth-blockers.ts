@@ -2,12 +2,14 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import {
   AUTONOMOUS_GROWTH_BLOCKER_ORIGIN_KIND,
+  autonomousGrowthBridgeIssueFingerprint,
+  autonomousGrowthBridgeIssueStatus,
   autonomousGrowthBlockerOriginId,
   buildAutonomousGrowthBlockerStatus,
   renderAutonomousGrowthBlockerMarkdown,
+  shouldRefreshAutonomousGrowthBridgeIssue,
 } from "../../server/utils/autonomousGrowthBlockerStatus";
 import {
-  createPaperclipIssueComment,
   upsertPaperclipIssue,
 } from "../../server/utils/paperclip";
 
@@ -56,7 +58,7 @@ async function main() {
   await fs.mkdir(outputRoot, { recursive: true });
   await fs.writeFile(jsonPath, JSON.stringify(report, null, 2), "utf8");
   await fs.writeFile(markdownPath, renderAutonomousGrowthBlockerMarkdown(report), "utf8");
-  let bridgeIssue: { id: string; identifier?: string | null; created: boolean } | null = null;
+  let bridgeIssue: { id: string; identifier?: string | null; created: boolean; refreshed?: boolean } | null = null;
 
   if (hasFlag("--create-paperclip-bridge")) {
     const bridgePaperclipApiUrl =
@@ -73,47 +75,64 @@ async function main() {
     ) {
       process.env.BLUEPRINT_PAPERCLIP_COMPANY_ID = report.paperclip.publicCompany.id;
     }
-    const description = [
-      `# Autonomous Growth Blocker Bridge - ${report.city}`,
-      "",
-      "This issue bridges the founder-visible Paperclip control plane to the current repo-backed blocker artifact.",
-      "",
-      `- generated_at: ${report.generatedAt}`,
-      `- overall_status: ${report.overallStatus}`,
-      `- blocker_report_json: ${jsonPath}`,
-      `- blocker_report_markdown: ${markdownPath}`,
-      `- latest_city_manifest: ${report.latestManifestPath || "none"}`,
-      "",
-      "Use this issue as the public execution pointer until full Paperclip company-state migration is intentionally performed.",
-      "",
-      "Current blockers:",
-      ...report.blockers.map((entry) => `- ${entry.status}: ${entry.name} -> ${entry.nextAction}`),
-    ].join("\n");
-
-    const upsert = await upsertPaperclipIssue({
-      projectName: "blueprint-executive-ops",
-      assigneeKey: "growth-lead",
-      title: `Autonomous growth blocker bridge: ${report.city}`,
-      description,
-      priority: "high",
-      status: "todo",
-      originKind: AUTONOMOUS_GROWTH_BLOCKER_ORIGIN_KIND,
-      originId: autonomousGrowthBlockerOriginId(report.citySlug),
-      existingIssueId: report.paperclip.publicBridgeIssue?.id || null,
+    const desiredBridgeStatus = autonomousGrowthBridgeIssueStatus(report.overallStatus);
+    const desiredBridgeFingerprint = autonomousGrowthBridgeIssueFingerprint({
+      blockers: report.blockers,
     });
-    await createPaperclipIssueComment(
-      upsert.issue.id,
-      [
-        `Autonomous growth blocker status refreshed for ${report.city}.`,
-        `Report: ${markdownPath}`,
-        `Overall status: ${report.overallStatus}`,
-      ].join("\n"),
-    ).catch(() => undefined);
-    bridgeIssue = {
-      id: upsert.issue.id,
-      identifier: upsert.issue.identifier || null,
-      created: upsert.created,
-    };
+    const existingBridgeIssue = report.paperclip.publicBridgeIssue;
+    const forceBridgeRefresh = hasFlag("--force-paperclip-bridge-refresh");
+
+    const shouldRefreshBridge = shouldRefreshAutonomousGrowthBridgeIssue({
+      existingIssue: existingBridgeIssue,
+      desiredStatus: desiredBridgeStatus,
+      desiredFingerprint: desiredBridgeFingerprint,
+      force: forceBridgeRefresh,
+    });
+
+    if (!shouldRefreshBridge && existingBridgeIssue?.id) {
+      bridgeIssue = {
+        id: existingBridgeIssue.id,
+        identifier: existingBridgeIssue.identifier || null,
+        created: false,
+        refreshed: false,
+      };
+    } else {
+      const description = [
+        `# Autonomous Growth Blocker Bridge - ${report.city}`,
+        "",
+        "This issue bridges the founder-visible Paperclip control plane to the current repo-backed blocker artifact.",
+        "",
+        `- generated_at: ${report.generatedAt}`,
+        `- overall_status: ${report.overallStatus}`,
+        `- blocker_report_json: ${jsonPath}`,
+        `- blocker_report_markdown: ${markdownPath}`,
+        `- latest_city_manifest: ${report.latestManifestPath || "none"}`,
+        `- blocker_fingerprint: ${desiredBridgeFingerprint}`,
+        "",
+        "Use this issue as the public execution pointer until full Paperclip company-state migration is intentionally performed.",
+        "",
+        "Current blockers:",
+        ...report.blockers.map((entry) => `- ${entry.status}: ${entry.name} -> ${entry.nextAction}`),
+      ].join("\n");
+
+      const upsert = await upsertPaperclipIssue({
+        projectName: "blueprint-executive-ops",
+        assigneeKey: "growth-lead",
+        title: `Autonomous growth blocker bridge: ${report.city}`,
+        description,
+        priority: "high",
+        status: desiredBridgeStatus,
+        originKind: AUTONOMOUS_GROWTH_BLOCKER_ORIGIN_KIND,
+        originId: autonomousGrowthBlockerOriginId(report.citySlug),
+        existingIssueId: existingBridgeIssue?.id || null,
+      });
+      bridgeIssue = {
+        id: upsert.issue.id,
+        identifier: upsert.issue.identifier || null,
+        created: upsert.created,
+        refreshed: true,
+      };
+    }
   }
 
   const summary = {

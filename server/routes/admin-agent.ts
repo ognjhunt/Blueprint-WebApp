@@ -414,6 +414,8 @@ const humanBlockerPacketSchema = z.object({
   blockerId: z.string().min(1).max(200).optional(),
   title: z.string().min(1).max(240),
   summary: z.string().min(1).max(2000),
+  decisionType: z.string().max(240).optional().nullable(),
+  irreversibleActionClass: z.string().max(240).optional().nullable(),
   recommendedAnswer: z.string().min(1).max(2000),
   exactResponseNeeded: z.string().min(1).max(2000),
   whyBlocked: z.string().min(1).max(3000),
@@ -424,6 +426,29 @@ const humanBlockerPacketSchema = z.object({
   deadline: z.string().min(1).max(240),
   evidence: z.array(z.string().min(1).max(2000)).min(1).max(12),
   nonScope: z.string().min(1).max(2000),
+  repoContext: z.object({
+    repo: z.string().min(1).max(240),
+    project: z.string().max(240).optional().nullable(),
+    issueId: z.string().max(240).optional().nullable(),
+    opsWorkItemId: z.string().max(240).optional().nullable(),
+    sourceRef: z.string().max(1000).optional().nullable(),
+  }).optional().nullable(),
+  policyContext: z.object({
+    gateMode: z.enum(["universal_founder_inbox", "repo_local_no_send"]),
+    reasonCategory: z.string().max(240).optional().nullable(),
+    autoExecutionEligible: z.boolean().optional().nullable(),
+  }).optional().nullable(),
+  resumeAction: z.object({
+    kind: z.enum([
+      "rerun_launch_smoke",
+      "inspect_logs",
+      "manual_followup",
+      "ops_followup",
+      "city_launch_activate",
+    ]),
+    description: z.string().max(2000).optional(),
+    metadata: z.record(z.string(), z.unknown()).optional(),
+  }).optional(),
 });
 
 const dispatchHumanBlockerSchema = z.object({
@@ -434,6 +459,7 @@ const dispatchHumanBlockerSchema = z.object({
   email_target: z.string().email().optional(),
   mirror_to_slack: z.boolean().optional(),
   slack_webhook_url: z.string().url().optional(),
+  slack_target_user_id: z.string().max(200).optional(),
   routing_owner: z.string().max(120).optional(),
   execution_owner: z.string().max(120).optional(),
   escalation_owner: z.string().max(120).optional(),

@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   auditExactSiteHostedReviewGtmLedger,
+  hasExactSiteRecipientBackedEvidence,
   type ExactSiteGtmPilotLedger,
   type ExactSiteGtmTarget,
 } from "./exactSiteHostedReviewGtmPilot";
@@ -108,12 +109,33 @@ function eligibleTargets(ledger: ExactSiteGtmPilotLedger, targetIds?: string[]) 
   const filter = new Set(targetIds ?? []);
   return ledger.targets.filter((target) => {
     if (filter.size > 0 && !filter.has(target.id)) return false;
-    return target.outbound.status === "human_approved"
+    return target.outbound?.status === "human_approved"
       || (
-        target.outbound.status === "draft_ready"
-        && target.outbound.approvalState === "approved"
+        target.outbound?.status === "draft_ready"
+        && target.outbound?.approvalState === "approved"
       );
   });
+}
+
+function targetRequiresSendPrep(target: ExactSiteGtmTarget) {
+  return ["draft_ready", "human_approved"].includes(target.outbound?.status);
+}
+
+function noEligibleSendReason(summary: GtmSendExecutionResult["summary"]) {
+  const reasons: string[] = [];
+  if (summary.skippedNoRecipient > 0) {
+    reasons.push(`${summary.skippedNoRecipient} target(s) lack recipient-backed email evidence`);
+  }
+  if (summary.skippedApproval > 0) {
+    reasons.push(`${summary.skippedApproval} draft(s) are not founder/operator approved`);
+  }
+  if (summary.skippedNoMessage > 0) {
+    reasons.push(`${summary.skippedNoMessage} target(s) lack a recorded message path/body`);
+  }
+  if (summary.skippedAlreadySent > 0) {
+    reasons.push(`${summary.skippedAlreadySent} target(s) are already sent or later`);
+  }
+  return reasons.length > 0 ? reasons.join("; ") : "no target rows matched the selected send criteria";
 }
 
 export async function executeGtmSends(input: {
@@ -124,22 +146,61 @@ export async function executeGtmSends(input: {
   skipDurability?: boolean;
 }): Promise<GtmSendExecutionResult> {
   const dryRun = input.dryRun !== false;
+  const targetFilter = new Set(input.targetIds ?? []);
+  const allTargets = input.ledger.targets.filter((target) =>
+    targetFilter.size === 0 || targetFilter.has(target.id),
+  );
+  const targets = eligibleTargets(input.ledger, input.targetIds).slice(0, input.maxSends ?? Number.POSITIVE_INFINITY);
+  const receipts: string[] = [];
+  const errors: string[] = [];
+  const summary: GtmSendExecutionResult["summary"] = {
+    eligible: targets.length,
+    sent: 0,
+    dryRun: 0,
+    skippedApproval: allTargets.filter((target) =>
+      target.outbound?.status === "draft_ready" && target.outbound?.approvalState !== "approved",
+    ).length,
+    skippedNoRecipient: allTargets.filter((target) =>
+      targetRequiresSendPrep(target) && !hasExactSiteRecipientBackedEvidence(target),
+    ).length,
+    skippedNoMessage: allTargets.filter((target) =>
+      targetRequiresSendPrep(target) && hasExactSiteRecipientBackedEvidence(target) && !emailBodyForTarget(target),
+    ).length,
+    skippedAlreadySent: allTargets.filter((target) =>
+      ["sent", "replied", "hosted_review_started", "closed"].includes(target.outbound?.status),
+    ).length,
+    failed: 0,
+  };
+
   const audit = auditExactSiteHostedReviewGtmLedger(input.ledger);
   if (!audit.ok) {
     return {
       ledger: input.ledger,
       summary: {
-        eligible: 0,
-        sent: 0,
-        dryRun: 0,
-        skippedApproval: 0,
-        skippedNoRecipient: 0,
-        skippedNoMessage: 0,
-        skippedAlreadySent: 0,
+        ...summary,
         failed: 1,
       },
-      receipts: [],
-      errors: ["GTM ledger audit has errors; sends are blocked until audit passes."],
+      receipts,
+      errors: [
+        "GTM ledger audit has errors; sends are blocked until audit passes.",
+        ...audit.findings
+          .filter((finding) => finding.severity === "error")
+          .map((finding) => `${finding.path}: ${finding.message}`),
+      ],
+    };
+  }
+
+  if (targets.length === 0) {
+    return {
+      ledger: input.ledger,
+      summary: {
+        ...summary,
+        failed: 1,
+      },
+      receipts,
+      errors: [
+        `No eligible GTM sends: ${noEligibleSendReason(summary)}.`,
+      ],
     };
   }
 
@@ -149,13 +210,7 @@ export async function executeGtmSends(input: {
       return {
         ledger: input.ledger,
         summary: {
-          eligible: 0,
-          sent: 0,
-          dryRun: 0,
-          skippedApproval: 0,
-          skippedNoRecipient: 0,
-          skippedNoMessage: 0,
-          skippedAlreadySent: 0,
+          ...summary,
           failed: 1,
         },
         receipts: [],
@@ -168,36 +223,13 @@ export async function executeGtmSends(input: {
   }
 
   const sender = getCityLaunchSenderStatus();
-  const allTargets = input.ledger.targets.filter((target) =>
-    !input.targetIds || input.targetIds.includes(target.id),
-  );
-  const targets = eligibleTargets(input.ledger, input.targetIds).slice(0, input.maxSends ?? Number.POSITIVE_INFINITY);
-  const receipts: string[] = [];
-  const errors: string[] = [];
-  const summary: GtmSendExecutionResult["summary"] = {
-    eligible: targets.length,
-    sent: 0,
-    dryRun: 0,
-    skippedApproval: allTargets.filter((target) =>
-      target.outbound.status === "draft_ready" && target.outbound.approvalState !== "approved",
-    ).length,
-    skippedNoRecipient: 0,
-    skippedNoMessage: 0,
-    skippedAlreadySent: allTargets.filter((target) =>
-      ["sent", "replied", "hosted_review_started", "closed"].includes(target.outbound.status),
-    ).length,
-    failed: 0,
-  };
-
   for (const target of targets) {
     const recipientEmail = target.recipient?.email?.trim();
     if (!recipientEmail) {
-      summary.skippedNoRecipient += 1;
       continue;
     }
     const body = emailBodyForTarget(target);
     if (!body) {
-      summary.skippedNoMessage += 1;
       continue;
     }
     if (dryRun) {

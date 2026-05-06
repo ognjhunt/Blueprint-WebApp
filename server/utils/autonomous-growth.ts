@@ -165,6 +165,12 @@ export async function runAutonomousResearchOutboundLoop(params?: {
       channel,
       recipientEmails: recipients,
       audienceQuery: `autonomous-topic:${topic}`,
+      recipientEvidenceRequired: true,
+      automationContext: {
+        source: "autonomous_research_outbound",
+        recipientEvidenceRequired: true,
+        recipientSource: "BLUEPRINT_AUTONOMOUS_OUTBOUND_RECIPIENTS",
+      },
     });
 
     let queueResult: Awaited<ReturnType<typeof queueGrowthCampaignSend>> | null = null;

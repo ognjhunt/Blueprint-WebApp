@@ -23,9 +23,35 @@ const runOpenAIResponsesTask = vi.hoisted(() =>
     requires_approval: false,
   }),
 );
+const runDeepSeekChatTask = vi.hoisted(() =>
+  vi.fn().mockResolvedValue({
+    status: "completed",
+    provider: "deepseek_chat",
+    runtime: "deepseek_chat",
+    model: "deepseek-v4-flash",
+    tool_mode: "mixed",
+    output: {
+      reply: "Managed profile completed.",
+      summary: "Profile task accepted.",
+      suggested_actions: ["Record the checkpoint"],
+      requires_human_review: false,
+    },
+    raw_output_text:
+      '{"reply":"Managed profile completed.","summary":"Profile task accepted.","suggested_actions":["Record the checkpoint"],"requires_human_review":false}',
+    artifacts: {
+      deepseek_request_id: "ds_123",
+    },
+    requires_human_review: false,
+    requires_approval: false,
+  }),
+);
 
 vi.mock("../agents/adapters/openai-responses", () => ({
   runOpenAIResponsesTask,
+}));
+
+vi.mock("../agents/adapters/deepseek-chat", () => ({
+  runDeepSeekChatTask,
 }));
 
 type QueryFilter = {
@@ -33,6 +59,30 @@ type QueryFilter = {
   op: string;
   value: unknown;
 };
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value)
+    && typeof value === "object"
+    && !Array.isArray(value)
+    && !(value instanceof Date);
+}
+
+function deepMergeRecords(
+  current: Record<string, unknown>,
+  next: Record<string, unknown>,
+): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries({ ...current, ...next }).map(([key, value]) => {
+      const currentValue = current[key];
+      return [
+        key,
+        isPlainRecord(currentValue) && isPlainRecord(value)
+          ? deepMergeRecords(currentValue, value)
+          : value,
+      ];
+    }),
+  );
+}
 
 function createFakeDb() {
   const store = {
@@ -102,7 +152,7 @@ function createFakeDb() {
             return {
               async set(value: Record<string, unknown>, options?: { merge?: boolean }) {
                 const current = store[name].get(id) || {};
-                store[name].set(id, options?.merge ? { ...current, ...value } : value);
+                store[name].set(id, options?.merge ? deepMergeRecords(current, value) : value);
               },
               async get() {
                 const value = store[name].get(id);
@@ -115,6 +165,12 @@ function createFakeDb() {
           },
           where(field: string, op: string, value: unknown) {
             return makeQuery(name, [{ field, op, value }]);
+          },
+          orderBy() {
+            return makeQuery(name);
+          },
+          limit(value: number) {
+            return makeQuery(name, [], value);
           },
         };
       },
@@ -152,6 +208,7 @@ beforeEach(() => {
 
 afterEach(() => {
   runOpenAIResponsesTask.mockClear();
+  runDeepSeekChatTask.mockClear();
   vi.resetModules();
 });
 

@@ -13,10 +13,13 @@ import {
 } from "./human-blocker-packet";
 import {
   APPROVED_HUMAN_REPLY_EMAIL,
+  DEFAULT_HUMAN_BLOCKER_SLACK_TARGET_NAME,
   DEFAULT_HUMAN_REPLY_ROUTING_OWNER,
   DEFAULT_OPS_EXECUTION_OWNER,
   DEFAULT_TECHNICAL_ESCALATION_OWNER,
   DEFAULT_TECHNICAL_EXECUTION_OWNER,
+  DISALLOWED_HUMAN_REPLY_EMAIL,
+  buildSlackThreadCorrelationId,
   type HumanBlockerKind,
 } from "./human-reply-routing";
 import {
@@ -24,7 +27,7 @@ import {
   getHumanBlockerThread,
   upsertHumanBlockerThread,
 } from "./human-reply-store";
-import { sendSlackMessage } from "./slack";
+import { sendSlackDirectMessage, sendSlackMessage } from "./slack";
 
 const DISPATCH_COLLECTION = "humanBlockerDispatches";
 
@@ -61,6 +64,9 @@ export type HumanBlockerDispatchRecord = {
   email_sent: boolean;
   slack_mirrored: boolean;
   slack_sent: boolean;
+  slack_target: string | null;
+  slack_channel_id: string | null;
+  slack_thread_id: string | null;
   routing_owner: string;
   execution_owner: string;
   escalation_owner: string | null;
@@ -126,6 +132,8 @@ type PreparedHumanBlockerDispatch = {
   packetText: string;
   packetHtml: string;
   packetSlack: string;
+  slackTargetUserId: string | null;
+  slackTargetName: string;
   reportPaths: string[];
   paperclipIssueId: string | null;
   opsWorkItemId: string | null;
@@ -140,6 +148,7 @@ function prepareHumanBlockerDispatch(input: {
   escalation_owner?: string | null;
   review_owner?: string | null;
   sender_owner?: string | null;
+  slack_target_user_id?: string | null;
   report_paths?: string[];
   paperclip_issue_id?: string | null;
   ops_work_item_id?: string | null;
@@ -160,11 +169,19 @@ function prepareHumanBlockerDispatch(input: {
   const senderOwner = normalizeString(input.sender_owner) || reviewOwner || executionOwner;
   const emailTarget =
     normalizeString(input.email_target) || APPROVED_HUMAN_REPLY_EMAIL;
+  if (emailTarget.toLowerCase() === DISALLOWED_HUMAN_REPLY_EMAIL.toLowerCase()) {
+    throw new Error(`${DISALLOWED_HUMAN_REPLY_EMAIL} is disallowed for human blocker dispatch routing.`);
+  }
   const packet: HumanBlockerPacket = {
     ...input.packet,
     blockerId,
     executionOwner,
   };
+  const slackTargetUserId =
+    normalizeString(input.slack_target_user_id)
+    || normalizeString(process.env.BLUEPRINT_HUMAN_BLOCKER_SLACK_USER_ID)
+    || normalizeString(process.env.BLUEPRINT_FOUNDER_SLACK_USER_ID)
+    || null;
 
   return {
     blockerId,
@@ -179,6 +196,8 @@ function prepareHumanBlockerDispatch(input: {
     packetText: renderHumanBlockerPacketText(packet),
     packetHtml: renderHumanBlockerPacketHtml(packet),
     packetSlack: renderHumanBlockerPacketSlack(packet),
+    slackTargetUserId,
+    slackTargetName: DEFAULT_HUMAN_BLOCKER_SLACK_TARGET_NAME,
     reportPaths: normalizeStringArray(input.report_paths),
     paperclipIssueId: normalizeString(input.paperclip_issue_id) || null,
     opsWorkItemId: normalizeString(input.ops_work_item_id) || null,
@@ -192,6 +211,8 @@ async function upsertHumanBlockerThreadForDispatch(
     status: HumanBlockerThreadRecord["status"];
     review_status: HumanBlockerThreadRecord["review_status"];
     last_dispatch_id?: string | null;
+    slack_thread_id?: string | null;
+    slack_message_id?: string | null;
   },
 ) {
   return await upsertHumanBlockerThread({
@@ -248,6 +269,8 @@ async function upsertHumanBlockerThreadForDispatch(
     },
     correlation: {
       outbound_subject: prepared.emailSubject,
+      slack_thread_id: params.slack_thread_id,
+      external_message_id: params.slack_message_id,
     },
     last_dispatch_id: params.last_dispatch_id ?? null,
   });
@@ -269,6 +292,8 @@ async function persistGapAndOpsLog(input: {
   emailSent: boolean;
   slackMirrored: boolean;
   slackSent: boolean;
+  slackTarget?: string | null;
+  slackThreadId?: string | null;
 }) {
   const gapTitle =
     input.deliveryMode === "review_required"
@@ -321,6 +346,8 @@ async function persistGapAndOpsLog(input: {
       email_sent: input.emailSent,
       slack_mirrored: input.slackMirrored,
       slack_sent: input.slackSent,
+      slack_target: input.slackTarget || null,
+      slack_thread_id: input.slackThreadId || null,
       delivery_mode: input.deliveryMode,
       delivery_status: input.deliveryStatus,
       gap_id: gap.stable_id,
@@ -356,18 +383,36 @@ async function sendPreparedHumanBlockerDispatch(
   });
 
   let slackSent = false;
+  let slackTarget: string | null = null;
+  let slackChannelId: string | null = null;
+  let slackThreadId: string | null = null;
   if (input.mirrorToSlack) {
-    const slackResult = await sendSlackMessage(
-      prepared.packetSlack,
-      normalizeString(input.slackWebhookUrl) || undefined,
-    );
+    const slackWebhookUrl = normalizeString(input.slackWebhookUrl);
+    const slackResult = slackWebhookUrl
+      ? await sendSlackMessage(prepared.packetSlack, slackWebhookUrl)
+      : await sendSlackDirectMessage(prepared.packetSlack, {
+          userId: prepared.slackTargetUserId,
+          targetName: prepared.slackTargetName,
+        });
     slackSent = slackResult.sent === true;
+    slackTarget = slackWebhookUrl ? "Slack webhook" : prepared.slackTargetName;
+    slackChannelId =
+      "channel" in slackResult && typeof slackResult.channel === "string"
+        ? slackResult.channel
+        : null;
+    const slackTs =
+      "ts" in slackResult && typeof slackResult.ts === "string"
+        ? slackResult.ts
+        : null;
+    slackThreadId = buildSlackThreadCorrelationId(slackChannelId, slackTs);
   }
 
   await upsertHumanBlockerThreadForDispatch(prepared, input.blockerKind, {
     status: "awaiting_reply",
     review_status: prepared.reviewOwner ? "approved" : "not_required",
     last_dispatch_id: input.dispatchId,
+    slack_thread_id: slackThreadId,
+    slack_message_id: slackThreadId,
   });
 
   const record: HumanBlockerDispatchRecord = {
@@ -382,6 +427,9 @@ async function sendPreparedHumanBlockerDispatch(
     email_sent: emailResult.sent === true,
     slack_mirrored: input.mirrorToSlack,
     slack_sent: slackSent,
+    slack_target: slackTarget,
+    slack_channel_id: slackChannelId,
+    slack_thread_id: slackThreadId,
     routing_owner: prepared.routingOwner,
     execution_owner: prepared.executionOwner,
     escalation_owner: prepared.escalationOwner,
@@ -446,6 +494,8 @@ async function sendPreparedHumanBlockerDispatch(
     emailSent: record.email_sent,
     slackMirrored: record.slack_mirrored,
     slackSent: record.slack_sent,
+    slackTarget: record.slack_target,
+    slackThreadId: record.slack_thread_id,
   });
 
   const thread = await getHumanBlockerThread(prepared.blockerId);
@@ -471,6 +521,7 @@ export async function dispatchHumanBlocker(input: {
   email_target?: string | null;
   mirror_to_slack?: boolean;
   slack_webhook_url?: string | null;
+  slack_target_user_id?: string | null;
   routing_owner?: string | null;
   execution_owner?: string | null;
   escalation_owner?: string | null;
@@ -520,6 +571,9 @@ export async function dispatchHumanBlocker(input: {
       email_sent: false,
       slack_mirrored: input.mirror_to_slack === true,
       slack_sent: false,
+      slack_target: input.mirror_to_slack === true ? prepared.slackTargetName : null,
+      slack_channel_id: null,
+      slack_thread_id: null,
       routing_owner: prepared.routingOwner,
       execution_owner: prepared.executionOwner,
       escalation_owner: prepared.escalationOwner,
@@ -578,6 +632,8 @@ export async function dispatchHumanBlocker(input: {
       emailSent: false,
       slackMirrored: record.slack_mirrored,
       slackSent: false,
+      slackTarget: record.slack_target,
+      slackThreadId: record.slack_thread_id,
     });
     return {
       blocker_id: prepared.blockerId,
@@ -615,6 +671,12 @@ export async function dispatchHumanBlocker(input: {
       packetText: existing.packet_text,
       packetHtml: existing.packet_html,
       packetSlack: existing.packet_slack,
+      slackTargetUserId:
+        normalizeString(input.slack_target_user_id)
+        || normalizeString(process.env.BLUEPRINT_HUMAN_BLOCKER_SLACK_USER_ID)
+        || normalizeString(process.env.BLUEPRINT_FOUNDER_SLACK_USER_ID)
+        || null,
+      slackTargetName: existing.slack_target || DEFAULT_HUMAN_BLOCKER_SLACK_TARGET_NAME,
       reportPaths: existing.report_paths,
       paperclipIssueId: existing.paperclip_issue_id,
       opsWorkItemId: existing.ops_work_item_id,

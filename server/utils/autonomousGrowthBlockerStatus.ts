@@ -3,6 +3,7 @@ import path from "node:path";
 import yaml from "js-yaml";
 import { getConfiguredEnvValue } from "../config/env";
 import { buildOutboundReplyDurabilityStatus } from "./outbound-reply-durability";
+import { validateRecipientEmailAddress } from "../agents/action-policies";
 
 const DEFAULT_PUBLIC_PAPERCLIP_API_URL = "https://paperclip.tryblueprint.io";
 const DEFAULT_LOCAL_PAPERCLIP_API_URL = "http://127.0.0.1:3100";
@@ -11,6 +12,41 @@ export const AUTONOMOUS_GROWTH_BLOCKER_ORIGIN_KIND = "autonomous_growth_blocker_
 
 export function autonomousGrowthBlockerOriginId(citySlug: string) {
   return `autonomous-growth-blockers:${citySlug}`;
+}
+
+export function autonomousGrowthBridgeIssueStatus(overallStatus: string) {
+  return overallStatus === "blocked" ? "blocked" : "todo";
+}
+
+export function autonomousGrowthBridgeIssueFingerprint(input: {
+  blockers: Array<Pick<BlockerStatus, "key" | "status">>;
+}) {
+  return input.blockers
+    .map((entry) => `${entry.key}:${entry.status}`)
+    .join("|");
+}
+
+export function shouldRefreshAutonomousGrowthBridgeIssue(input: {
+  existingIssue?: {
+    id?: string | null;
+    status?: string | null;
+    description?: string | null;
+  } | null;
+  desiredStatus: string;
+  desiredFingerprint?: string | null;
+  force?: boolean;
+}) {
+  if (input.force) return true;
+  if (!input.existingIssue?.id) return true;
+  if (input.existingIssue.status !== input.desiredStatus) return true;
+  if (
+    input.desiredFingerprint
+    && typeof input.existingIssue.description === "string"
+    && !input.existingIssue.description.includes(`- blocker_fingerprint: ${input.desiredFingerprint}`)
+  ) {
+    return true;
+  }
+  return false;
 }
 
 type Status = "clear" | "warning" | "blocked" | "human_gated" | "external_gated" | "unknown";
@@ -27,6 +63,67 @@ type BlockerStatus = {
   nextAction: string;
   missingEnv?: string[];
 };
+
+type BridgeIssueSnapshot = {
+  id?: string;
+  identifier?: string;
+  status?: string;
+  title?: string;
+  description?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+function blockerStatusRank(status: Status) {
+  switch (status) {
+    case "blocked":
+      return 0;
+    case "human_gated":
+      return 1;
+    case "external_gated":
+      return 2;
+    case "warning":
+      return 3;
+    case "unknown":
+      return 4;
+    case "clear":
+      return 5;
+    default:
+      return 6;
+  }
+}
+
+function rankBlockers(blockers: BlockerStatus[]) {
+  return blockers
+    .map((entry, index) => ({ entry, index }))
+    .sort((left, right) => {
+      const statusDelta = blockerStatusRank(left.entry.status) - blockerStatusRank(right.entry.status);
+      if (statusDelta !== 0) return statusDelta;
+      return left.index - right.index;
+    })
+    .map(({ entry }) => entry);
+}
+
+function issueIdentifierNumber(identifier: string | null | undefined) {
+  const match = String(identifier || "").match(/(\d+)$/);
+  return match ? Number(match[1]) : Number.MAX_SAFE_INTEGER;
+}
+
+function selectCanonicalBridgeIssue(rows: BridgeIssueSnapshot[], city: string) {
+  const title = `Autonomous growth blocker bridge: ${city}`;
+  const activeRows = rows
+    .filter((row) => row.title === title)
+    .filter((row) => !["done", "cancelled"].includes(String(row.status || "")));
+  return activeRows.sort((left, right) => {
+    const identifierDelta = issueIdentifierNumber(left.identifier) - issueIdentifierNumber(right.identifier);
+    if (identifierDelta !== 0) return identifierDelta;
+    return String(left.createdAt || "").localeCompare(String(right.createdAt || ""));
+  })[0] || null;
+}
+
+function issueSearchQuery(city: string) {
+  return `Autonomous growth blocker bridge: ${city}`;
+}
 
 type CompanySnapshot = {
   id?: string;
@@ -82,6 +179,51 @@ type ContactEnrichment = {
   }>;
 };
 
+function contactRowSaysNotLaunchReady(value: string | null | undefined) {
+  const normalized = String(value || "").toLowerCase();
+  return normalized.includes("until recipient-backed contact")
+    || normalized.includes("until recipient-backed buyer contact")
+    || normalized.includes("until recipient-backed contact evidence")
+    || normalized.includes("not treat the generic")
+    || normalized.includes("not launch-ready buyer evidence")
+    || normalized.includes("research-only until recipient-backed")
+    || normalized.includes("stays parked until recipient-backed")
+    || normalized.includes("parked buyer");
+}
+
+function summarizeBuyerContactEvidence(enrichment: ContactEnrichment | null | undefined) {
+  const explicitUnresolved = new Set(
+    (enrichment?.unresolved_buyer_targets || [])
+      .map((entry) => String(entry || "").trim())
+      .filter(Boolean),
+  );
+  const candidates = enrichment?.buyer_target_candidates || [];
+  if (candidates.length === 0) {
+    return {
+      launchReadyContacts: Number(enrichment?.recovered_buyer_target_contacts || 0),
+      artifactRecoveredContacts: Number(enrichment?.recovered_buyer_target_contacts || 0),
+      unresolvedBuyerTargets: [...explicitUnresolved],
+    };
+  }
+
+  let launchReadyContacts = 0;
+  for (const candidate of candidates) {
+    const companyName = String(candidate.company_name || "").trim() || "unknown buyer target";
+    const emailValidation = validateRecipientEmailAddress(candidate.contact_email);
+    if (!emailValidation.valid || contactRowSaysNotLaunchReady(candidate.notes)) {
+      explicitUnresolved.add(companyName);
+      continue;
+    }
+    launchReadyContacts += 1;
+  }
+
+  return {
+    launchReadyContacts,
+    artifactRecoveredContacts: Number(enrichment?.recovered_buyer_target_contacts || 0),
+    unresolvedBuyerTargets: [...explicitUnresolved],
+  };
+}
+
 type NoSignalSnapshot = {
   sentDirectOutreach: number;
   recipientBackedSent: number;
@@ -95,6 +237,32 @@ type NoSignalSnapshot = {
 type RoutineStatus = {
   active: string[];
   paused: string[];
+};
+
+type ExactSiteBuyerLoopManifest = {
+  reportDate?: string;
+  city?: string | null;
+  ledgerPath?: string;
+  auditStatus?: string;
+  auditFindings?: Array<{
+    severity?: string;
+    path?: string;
+    message?: string;
+  }>;
+  summary?: {
+    targetRows?: number;
+    recipientBackedTargets?: number;
+    approvalReadyTargets?: number;
+    founderApprovalNeededTargets?: number;
+    sentTargets?: number;
+    replies?: number;
+    hostedReviewStarts?: number;
+    qualifiedCalls?: number;
+    openBlockers?: number;
+    paperclipLinkedBlockers?: number;
+    durabilityStatus?: string;
+    loopStatus?: string;
+  };
 };
 
 type BuildOptions = {
@@ -150,6 +318,16 @@ async function findFiles(dir: string, fileName: string): Promise<string[]> {
   return results;
 }
 
+async function findLatestReportFile(repoRoot: string, prefix: string) {
+  const reportsDir = path.join(repoRoot, "ops/paperclip/reports");
+  const entries = await fs.readdir(reportsDir, { withFileTypes: true }).catch(() => []);
+  return entries
+    .filter((entry) => entry.isFile() && entry.name.startsWith(prefix) && entry.name.endsWith(".md"))
+    .map((entry) => path.join(reportsDir, entry.name))
+    .sort()
+    .at(-1) || null;
+}
+
 async function findLatestManifest(input: { repoRoot: string; city?: string }) {
   const baseDir = path.join(input.repoRoot, "ops/paperclip/reports/city-launch-execution");
   const citySlug = input.city ? slugify(input.city) : "";
@@ -162,6 +340,22 @@ async function findLatestManifest(input: { repoRoot: string; city?: string }) {
     })),
   );
   return withStats.sort((left, right) => right.mtimeMs - left.mtimeMs)[0]?.filePath || null;
+}
+
+async function findLatestExactSiteBuyerLoopManifest(repoRoot: string) {
+  const baseDir = path.join(repoRoot, "ops/paperclip/reports/exact-site-hosted-review-buyer-loop");
+  const manifests = await findFiles(baseDir, "buyer-loop-manifest.json");
+  const withStats = await Promise.all(
+    manifests.map(async (filePath) => ({
+      filePath,
+      mtimeMs: (await fs.stat(filePath)).mtimeMs,
+    })),
+  );
+  return withStats.sort((left, right) => right.mtimeMs - left.mtimeMs)[0]?.filePath || null;
+}
+
+function siblingMarkdownManifestPath(manifestPath: string | null) {
+  return manifestPath ? path.join(path.dirname(manifestPath), "buyer-loop.md") : null;
 }
 
 function parseCount(markdown: string, label: string) {
@@ -259,7 +453,7 @@ async function fetchPublicBridgeIssue(input: {
   citySlug: string;
 }) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 3000);
+  const timeout = setTimeout(() => controller.abort(), 8000);
   try {
     const search = new URLSearchParams({
       originKind: AUTONOMOUS_GROWTH_BLOCKER_ORIGIN_KIND,
@@ -270,16 +464,28 @@ async function fetchPublicBridgeIssue(input: {
       { signal: controller.signal },
     );
     if (!response.ok) return null;
-    const rows = await response.json() as Array<{ id?: string; identifier?: string; status?: string; title?: string }>;
-    if (rows[0]) return rows[0];
+    const rows = await response.json() as BridgeIssueSnapshot[];
+    const originIssue = selectCanonicalBridgeIssue(rows, input.city) || rows[0] || null;
+    if (originIssue) return originIssue;
+
+    const titleSearch = new URLSearchParams({ q: issueSearchQuery(input.city) });
+    const titleResponse = await input.fetchImpl(
+      `${input.apiUrl.replace(/\/+$/, "")}/api/companies/${input.companyId}/issues?${titleSearch.toString()}`,
+      { signal: controller.signal },
+    );
+    if (titleResponse.ok) {
+      const titleRows = await titleResponse.json() as BridgeIssueSnapshot[];
+      const titleIssue = selectCanonicalBridgeIssue(titleRows, input.city);
+      if (titleIssue) return titleIssue;
+    }
 
     const fallbackResponse = await input.fetchImpl(
       `${input.apiUrl.replace(/\/+$/, "")}/api/companies/${input.companyId}/issues`,
       { signal: controller.signal },
     );
     if (!fallbackResponse.ok) return null;
-    const fallbackRows = await fallbackResponse.json() as Array<{ id?: string; identifier?: string; status?: string; title?: string }>;
-    return fallbackRows.find((row) => row.title === `Autonomous growth blocker bridge: ${input.city}`) || null;
+    const fallbackRows = await fallbackResponse.json() as BridgeIssueSnapshot[];
+    return selectCanonicalBridgeIssue(fallbackRows, input.city);
   } catch {
     return null;
   } finally {
@@ -388,6 +594,15 @@ export async function buildAutonomousGrowthBlockerStatus(options: BuildOptions =
   const latestManifest = latestManifestPath
     ? await readJson<CityLaunchManifest>(latestManifestPath)
     : null;
+  const exactSiteBuyerLoopManifestPath = await findLatestExactSiteBuyerLoopManifest(repoRoot);
+  const exactSiteBuyerLoopManifest = exactSiteBuyerLoopManifestPath
+    ? await readJson<ExactSiteBuyerLoopManifest>(exactSiteBuyerLoopManifestPath)
+    : null;
+  const exactSiteBuyerLoopMarkdownPath = siblingMarkdownManifestPath(exactSiteBuyerLoopManifestPath);
+  const exactSiteRecipientHumanBlockerPacketPath = await findLatestReportFile(
+    repoRoot,
+    "human-blocker-exact-site-recipient-evidence-",
+  );
   const city = options.city || latestManifest?.city || "unknown";
   const citySlug = slugify(city);
   const runDir = latestManifestPath ? path.dirname(latestManifestPath) : null;
@@ -417,14 +632,27 @@ export async function buildAutonomousGrowthBlockerStatus(options: BuildOptions =
       )
     : false;
   const noSignalSnapshot = noSignal.snapshot;
-  const buyerContactsRecovered = Number(contact.enrichment?.recovered_buyer_target_contacts || 0);
-  const unresolvedBuyerTargets = contact.enrichment?.unresolved_buyer_targets || [];
+  const buyerContactEvidence = summarizeBuyerContactEvidence(contact.enrichment);
+  const buyerContactsRecovered = buyerContactEvidence.launchReadyContacts;
+  const artifactRecoveredBuyerContacts = buyerContactEvidence.artifactRecoveredContacts;
+  const unresolvedBuyerTargets = buyerContactEvidence.unresolvedBuyerTargets;
   const sentCount = latestManifest?.outboundReadiness?.directOutreachActions?.sent || noSignalSnapshot?.sentDirectOutreach || 0;
   const responseCount =
     (noSignalSnapshot?.recordedResponses || 0)
     + (noSignalSnapshot?.routedResponses || 0)
     + (noSignalSnapshot?.liveSupplyResponses || 0)
     + (noSignalSnapshot?.liveBuyerOperatorEngagements || 0);
+  const buyerLoopSummary = exactSiteBuyerLoopManifest?.summary || {};
+  const buyerLoopHasTargets = Number(buyerLoopSummary.targetRows || 0) > 0;
+  const buyerLoopRecipientBackedTargets = Number(buyerLoopSummary.recipientBackedTargets || 0);
+  const buyerLoopAuditErrors = (exactSiteBuyerLoopManifest?.auditFindings || [])
+    .filter((finding) => finding.severity === "error");
+  const buyerLoopRecipientBlocked =
+    buyerLoopHasTargets
+    && (
+      buyerLoopRecipientBackedTargets === 0
+      || buyerLoopAuditErrors.some((finding) => finding.path === "targets.recipient")
+    );
   const blockers: BlockerStatus[] = [
     {
       key: "paperclip_state_sync",
@@ -479,17 +707,54 @@ export async function buildAutonomousGrowthBlockerStatus(options: BuildOptions =
         : "Route the live signal into qualification, operator partnership, or buyer follow-through.",
     },
     {
+      key: "exact_site_buyer_loop_recipient_evidence",
+      name: "Exact-Site buyer loop needs recipient-backed contacts before founder approval or sends",
+      status: buyerLoopRecipientBlocked
+        ? "blocked"
+        : buyerLoopHasTargets && buyerLoopRecipientBackedTargets > 0
+          ? "human_gated"
+          : exactSiteBuyerLoopManifest
+            ? "warning"
+            : "unknown",
+      lane: "Exact-Site Hosted Review GTM buyer loop",
+      stageReached: exactSiteBuyerLoopManifest
+        ? `targetRows=${buyerLoopSummary.targetRows ?? 0}, recipientBackedTargets=${buyerLoopRecipientBackedTargets}, approvalReadyTargets=${buyerLoopSummary.approvalReadyTargets ?? 0}, sentTargets=${buyerLoopSummary.sentTargets ?? 0}, replies=${buyerLoopSummary.replies ?? 0}, hostedReviewStarts=${buyerLoopSummary.hostedReviewStarts ?? 0}, auditStatus=${exactSiteBuyerLoopManifest.auditStatus || "unknown"}`
+        : "no Exact-Site buyer-loop manifest found",
+      evidence: [
+        exactSiteBuyerLoopManifestPath ? rel(repoRoot, exactSiteBuyerLoopManifestPath) : "no buyer-loop manifest",
+        exactSiteBuyerLoopMarkdownPath && await fileExists(exactSiteBuyerLoopMarkdownPath)
+          ? rel(repoRoot, exactSiteBuyerLoopMarkdownPath)
+          : "no buyer-loop markdown",
+        exactSiteBuyerLoopManifest?.ledgerPath || "ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json",
+        ...(exactSiteRecipientHumanBlockerPacketPath
+          ? [rel(repoRoot, exactSiteRecipientHumanBlockerPacketPath)]
+          : []),
+        ...buyerLoopAuditErrors.map((finding) => `${finding.path || "audit"}: ${finding.message || "audit error"}`),
+      ],
+      why: buyerLoopRecipientBlocked
+        ? "Active buyer-loop targets cannot advance to founder first-send approval, send receipts, durable replies, hosted-review starts, or closeout evidence without explicit recipient-backed contacts."
+        : buyerLoopHasTargets && buyerLoopRecipientBackedTargets > 0
+          ? "Recipient-backed contacts exist; founder first-send approval and durability checks still gate live sends."
+          : "The Exact-Site buyer loop is missing or not populated enough to prove buyer-loop readiness.",
+      owner: "growth-lead, outbound-sales-agent",
+      nextAction: buyerLoopRecipientBlocked
+        ? "Run governed enrichment with allowlisted source/search config, or record explicit recipient-backed contacts via BLUEPRINT_GTM_HUMAN_RECIPIENT_EVIDENCE_PATH / --human-recipient-evidence-path; keep all buyer sends draft-only until recipient evidence exists."
+        : buyerLoopHasTargets && buyerLoopRecipientBackedTargets > 0
+          ? "Queue founder first-send approval and then run the GTM send preflight."
+          : "Generate the Exact-Site buyer-loop report and populate real target rows before claiming sales-loop readiness.",
+    },
+    {
       key: "buyer_recipient_evidence",
       name: "Buyer direct outreach needs explicit recipient-backed contact evidence",
       status: unresolvedBuyerTargets.length > 0 ? "blocked" : buyerContactsRecovered > 0 ? "human_gated" : "unknown",
       lane: "buyer outreach, city demand",
-      stageReached: `recoveredBuyerTargetContacts=${buyerContactsRecovered}, unresolvedBuyerTargets=${unresolvedBuyerTargets.length}`,
+      stageReached: `launchReadyBuyerTargetContacts=${buyerContactsRecovered}, artifactRecoveredBuyerTargetContacts=${artifactRecoveredBuyerContacts}, unresolvedBuyerTargets=${unresolvedBuyerTargets.length}`,
       evidence: [
         contact.path ? rel(repoRoot, contact.path) : "no contact-enrichment artifact",
         `ops/paperclip/playbooks/city-opening-${citySlug}-robot-team-contact-list.md`,
       ],
       why: unresolvedBuyerTargets.length > 0
-        ? "Named buyer targets still lack explicit contact_email evidence."
+        ? "Named buyer targets still lack explicit launch-ready recipient evidence."
         : "Explicit buyer recipient evidence exists, but live buyer send still requires proof-led copy and approval.",
       owner: "city-demand-agent, outbound-sales-agent",
       nextAction: unresolvedBuyerTargets.length > 0
@@ -587,7 +852,7 @@ export async function buildAutonomousGrowthBlockerStatus(options: BuildOptions =
       : blockers.some((entry) => entry.status === "warning" || entry.status === "human_gated" || entry.status === "external_gated")
         ? "gated"
         : "clear",
-    blockers,
+    blockers: rankBlockers(blockers),
     paperclip: {
       publicCompany,
       localCompany,

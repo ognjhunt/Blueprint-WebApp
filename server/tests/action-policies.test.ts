@@ -418,7 +418,7 @@ describe("evaluateActionTier", () => {
 describe("validateEmailContent", () => {
   const validPayload: ActionPayload = {
     type: "send_email",
-    to: "test@example.com",
+    to: "buyer@warehouse-robotics.co",
     subject: "Welcome to Blueprint",
     body: "Thank you for signing up for Blueprint. We are excited to have you on board and look forward to working with you.",
   };
@@ -437,6 +437,33 @@ describe("validateEmailContent", () => {
     const result = validateEmailContent({ ...validPayload, to: "invalid" });
     expect(result.valid).toBe(false);
     expect(result.reason).toMatch(/Invalid recipient/i);
+  });
+
+  it("rejects reserved example-domain recipients", () => {
+    const result = validateEmailContent({
+      ...validPayload,
+      to: "person@example.com",
+    });
+    expect(result.valid).toBe(false);
+    expect(result.reason).toMatch(/placeholder|reserved|Invalid recipient/i);
+  });
+
+  it("rejects reserved example-TLD recipients", () => {
+    const result = validateEmailContent({
+      ...validPayload,
+      to: "person@robotteam.example",
+    });
+    expect(result.valid).toBe(false);
+    expect(result.reason).toMatch(/placeholder|reserved|Invalid recipient/i);
+  });
+
+  it("rejects invalid-test-domain recipients", () => {
+    const result = validateEmailContent({
+      ...validPayload,
+      to: "person@robotteam.invalid",
+    });
+    expect(result.valid).toBe(false);
+    expect(result.reason).toMatch(/placeholder|reserved|Invalid recipient/i);
   });
 
   it("rejects empty subject", () => {

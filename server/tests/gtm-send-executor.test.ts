@@ -32,7 +32,7 @@ function ledger(): ExactSiteGtmPilotLedger {
           siteWorldId: "site-world-1",
         },
         recipient: {
-          email: "buyer@robotteam.invalid",
+          email: "buyer@robotteam.co",
           evidenceSource: "Recipient sourced from explicit public contact evidence.",
           evidenceType: "explicit_research",
         },
@@ -75,5 +75,54 @@ describe("GTM send executor", () => {
     expect(result.summary.sent).toBe(0);
     expect(result.receipts).toHaveLength(0);
     expect(pilotLedger.targets[0].outbound.status).toBe("draft_ready");
+  });
+
+  it("reports missing recipient evidence before downstream durability gaps when no sends are eligible", async () => {
+    const pilotLedger = ledger();
+    pilotLedger.targets[0].recipient = undefined;
+    pilotLedger.targets[0].enrichment = {
+      status: "blocked",
+      providerRuns: [],
+      recipientCandidates: [],
+      blockers: ["Governed contact discovery is not configured."],
+    };
+    pilotLedger.targets[0].outbound = {
+      status: "draft_ready",
+      approvalState: "blocked",
+      messagePath: "ops/paperclip/playbooks/message.md",
+    };
+    pilotLedger.targets[0].sales = {
+      nextAction: "Find explicit recipient-backed contact evidence before first-send approval.",
+    };
+
+    const result = await executeGtmSends({
+      ledger: pilotLedger,
+      dryRun: true,
+      targetIds: [],
+    });
+
+    expect(result.summary.eligible).toBe(0);
+    expect(result.summary.skippedNoRecipient).toBe(1);
+    expect(result.summary.skippedApproval).toBe(1);
+    expect(result.errors.join("\n")).toContain("GTM ledger audit has errors");
+    expect(result.errors.join("\n")).toContain("no recipient-backed contacts");
+    expect(result.errors.join("\n")).not.toContain("Outbound reply durability is blocked");
+  });
+
+  it("counts emails without explicit evidence as missing recipient-backed evidence", async () => {
+    const pilotLedger = ledger();
+    pilotLedger.targets[0].recipient = {
+      email: "buyer@robotteam.co",
+    };
+
+    const result = await executeGtmSends({
+      ledger: pilotLedger,
+      dryRun: true,
+      skipDurability: true,
+    });
+
+    expect(result.summary.skippedNoRecipient).toBe(1);
+    expect(result.summary.skippedNoMessage).toBe(0);
+    expect(result.errors.join("\n")).toContain("Recipient email requires explicit evidence source and evidence type");
   });
 });

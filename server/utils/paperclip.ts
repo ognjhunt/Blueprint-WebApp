@@ -335,6 +335,7 @@ export async function updatePaperclipIssue(
   input: Partial<Pick<PaperclipIssueRecord, "title" | "status" | "priority" | "assigneeAgentId">> & {
     description?: string | null;
     parentId?: string | null;
+    comment?: string | null;
   },
 ) {
   return await fetchPaperclipJsonWithRetry<PaperclipIssueRecord>(`/api/issues/${issueId}`, {
@@ -355,6 +356,7 @@ export async function upsertPaperclipIssue(input: {
   status: string;
   originKind: string;
   originId: string;
+  comment?: string | null;
   parentId?: string | null;
   existingIssueId?: string | null;
   onBoundConflict?: {
@@ -434,6 +436,7 @@ export async function upsertPaperclipIssue(input: {
         status: input.status,
         assigneeAgentId,
         parentId: input.parentId ?? null,
+        ...(input.comment ? { comment: input.comment } : {}),
       });
       return {
         companyId,
@@ -475,6 +478,7 @@ export async function upsertPaperclipIssue(input: {
           status: input.status,
           assigneeAgentId,
           parentId: input.parentId ?? null,
+          ...(input.comment ? { comment: input.comment } : {}),
         }),
         timeoutMs: 12_000,
         retries: 2,

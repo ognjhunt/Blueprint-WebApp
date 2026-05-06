@@ -37,6 +37,7 @@ export type GtmRecipientCandidate = {
   discoveredAt: string;
   sourceUrl?: string;
   notes?: string;
+  selectable?: boolean;
 };
 
 export type GtmProviderRunRecord = {
@@ -85,6 +86,25 @@ export type GtmEnrichmentWaterfallResult = {
   }>;
 };
 
+export type GtmHumanRecipientEvidenceValidationResult = {
+  evidencePath: string;
+  totalRows: number;
+  matchedRows: number;
+  selectedRows: number;
+  validSelectedRows: number;
+  targetsWithSelectedEvidence: string[];
+  blockers: string[];
+  rowResults: Array<{
+    index: number;
+    status: "valid_selected" | "valid_unselected" | "blocked";
+    targetIds: string[];
+    organizationNames: string[];
+    email: string | null;
+    selectedForFirstSend: boolean;
+    blockers: string[];
+  }>;
+};
+
 function nowIso() {
   return new Date().toISOString();
 }
@@ -110,11 +130,38 @@ function isValidEmail(value: string) {
 
 function isLikelyPlaceholderEmail(value: string) {
   const normalized = value.toLowerCase();
+  const domain = normalized.split("@").at(-1) || "";
   return normalized.endsWith("@example.com")
     || normalized.endsWith("@example.org")
+    || normalized.endsWith("@example.net")
     || normalized.endsWith("@test.com")
+    || domain === "example"
+    || domain.endsWith(".example")
+    || domain === "localhost"
+    || domain.endsWith(".localhost")
+    || domain === "invalid"
+    || domain.endsWith(".invalid")
+    || domain === "test"
+    || domain.endsWith(".test")
     || normalized.includes("placeholder")
     || normalized.includes("fake");
+}
+
+function isLikelyPlaceholderEvidenceSource(value: string) {
+  const normalized = value.trim().toLowerCase();
+  return normalized.length === 0
+    || /<[^>]+>/.test(normalized)
+    || normalized.includes("placeholder")
+    || normalized.includes("fake")
+    || normalized.includes("[todo]")
+    || normalized.includes("todo:")
+    || normalized === "todo"
+    || normalized === "tbd"
+    || normalized === "n/a"
+    || normalized === "na"
+    || normalized.includes("source url")
+    || normalized.includes("source note")
+    || normalized.includes("durable source note");
 }
 
 function candidateKey(candidate: Pick<GtmRecipientCandidate, "email" | "providerKey" | "evidenceSource">) {
@@ -122,7 +169,9 @@ function candidateKey(candidate: Pick<GtmRecipientCandidate, "email" | "provider
 }
 
 function validCandidate(candidate: GtmRecipientCandidate) {
-  return isValidEmail(candidate.email) && !isLikelyPlaceholderEmail(candidate.email);
+  return isValidEmail(candidate.email)
+    && !isLikelyPlaceholderEmail(candidate.email)
+    && !isLikelyPlaceholderEvidenceSource(candidate.evidenceSource);
 }
 
 function mergeCandidates(
@@ -153,6 +202,15 @@ function rankCandidates(candidates: GtmRecipientCandidate[]) {
   });
 }
 
+function asBoolean(value: unknown) {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value !== 0;
+  if (typeof value !== "string") return undefined;
+  if (/^(1|true|yes|y|selected|select)$/i.test(value.trim())) return true;
+  if (/^(0|false|no|n|unselected|hold|review)$/i.test(value.trim())) return false;
+  return undefined;
+}
+
 function targetNames(target: ExactSiteGtmTarget) {
   return [
     target.organizationName,
@@ -178,6 +236,155 @@ function providerRun(
   };
 }
 
+function humanRecipientEvidencePath() {
+  return process.env.BLUEPRINT_GTM_HUMAN_RECIPIENT_EVIDENCE_PATH
+    || process.env.BLUEPRINT_GTM_MANUAL_RECIPIENT_EVIDENCE_PATH
+    || "";
+}
+
+function matchHumanEvidenceRow(target: ExactSiteGtmTarget, row: Record<string, unknown>) {
+  const targetId = asString(row.targetId) || asString(row.target_id);
+  if (targetId && targetId === target.id) return true;
+  const targetIds = row.targetIds || row.target_ids;
+  if (
+    Array.isArray(targetIds)
+    && targetIds.some((entry) => asString(entry) === target.id)
+  ) {
+    return true;
+  }
+  const organization = normalizeComparableText(
+    asString(row.organizationName)
+    || asString(row.organization)
+    || asString(row.company)
+    || asString(row.companyName),
+  );
+  return organization.length > 0 && organization === normalizeComparableText(target.organizationName);
+}
+
+function evidenceSourceFromHumanRow(row: Record<string, unknown>) {
+  return asString(row.evidenceSource)
+    || asString(row.evidence_source)
+    || asString(row.evidenceSourceUrl)
+    || asString(row.evidence_source_url)
+    || asString(row.sourceUrl)
+    || asString(row.source_url)
+    || asString(row.source)
+    || asString(row.sourceNote)
+    || asString(row.source_note)
+    || asString(row.evidenceNote)
+    || asString(row.evidence_note);
+}
+
+async function readHumanRecipientEvidenceRows(configuredPath: string) {
+  if (!configuredPath) return { rows: [] as Array<Record<string, unknown>>, blocker: null as string | null };
+  const resolvedPath = path.resolve(REPO_ROOT, configuredPath);
+  const raw = await fs.readFile(resolvedPath, "utf8").catch(() => "");
+  if (!raw.trim()) {
+    return {
+      rows: [],
+      blocker: `Human recipient evidence file not readable at ${resolvedPath}.`,
+    };
+  }
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    const rows: unknown[] = Array.isArray(parsed)
+      ? parsed
+      : parsed && typeof parsed === "object" && Array.isArray((parsed as Record<string, unknown>).recipients)
+        ? (parsed as Record<string, unknown>).recipients as unknown[]
+        : [];
+    const validRows = rows.filter((row): row is Record<string, unknown> =>
+      Boolean(row) && typeof row === "object" && !Array.isArray(row),
+    );
+    const malformedRows = rows.length - validRows.length;
+    return {
+      rows: validRows,
+      blocker:
+        rows.length === 0
+          ? `Human recipient evidence file at ${resolvedPath} has no recipients array.`
+          : malformedRows > 0
+            ? `Human recipient evidence file at ${resolvedPath} has ${malformedRows} malformed recipient row(s); each row must be an object.`
+            : null,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return {
+      rows: [],
+      blocker: `Human recipient evidence file is not valid JSON at ${resolvedPath}: ${message}`,
+    };
+  }
+}
+
+export async function validateHumanRecipientEvidenceFile(input: {
+  ledger: ExactSiteGtmPilotLedger;
+  evidencePath: string;
+}): Promise<GtmHumanRecipientEvidenceValidationResult> {
+  const fileEvidence = await readHumanRecipientEvidenceRows(input.evidencePath);
+  const blockers: string[] = [];
+  if (fileEvidence.blocker) {
+    blockers.push(fileEvidence.blocker);
+  }
+
+  const rowResults: GtmHumanRecipientEvidenceValidationResult["rowResults"] = [];
+  for (const [index, row] of fileEvidence.rows.entries()) {
+    const rowBlockers: string[] = [];
+    const matchingTargets = input.ledger.targets.filter((target) => matchHumanEvidenceRow(target, row));
+    const email = normalizeEmail(asString(row.email) || asString(row.recipientEmail) || asString(row.recipient_email));
+    const evidenceSource = evidenceSourceFromHumanRow(row);
+    const selectedForFirstSend = asBoolean(
+      row.selectedForFirstSend
+      ?? row.selected_for_first_send
+      ?? row.selectRecipient
+      ?? row.select_recipient
+      ?? row.selected,
+    ) === true;
+
+    if (matchingTargets.length === 0) {
+      rowBlockers.push(`row ${index + 1} does not exactly match a GTM target id or organization name.`);
+    }
+    if (!email) {
+      rowBlockers.push(`row ${index + 1} is missing an explicit email.`);
+    } else if (!isValidEmail(email) || isLikelyPlaceholderEmail(email)) {
+      rowBlockers.push(`row ${index + 1} has an invalid or placeholder email: ${email}.`);
+    }
+    if (!evidenceSource || isLikelyPlaceholderEvidenceSource(evidenceSource)) {
+      rowBlockers.push(`row ${index + 1} is missing a real evidence source.`);
+    }
+
+    blockers.push(...rowBlockers);
+    rowResults.push({
+      index: index + 1,
+      status: rowBlockers.length > 0
+        ? "blocked"
+        : selectedForFirstSend
+          ? "valid_selected"
+          : "valid_unselected",
+      targetIds: matchingTargets.map((target) => target.id),
+      organizationNames: matchingTargets.map((target) => target.organizationName),
+      email: email || null,
+      selectedForFirstSend,
+      blockers: rowBlockers,
+    });
+  }
+
+  const targetsWithSelectedEvidence = [...new Set(rowResults
+    .filter((row) => row.status === "valid_selected")
+    .flatMap((row) => row.targetIds))];
+  if (fileEvidence.rows.length > 0 && targetsWithSelectedEvidence.length === 0) {
+    blockers.push("Human recipient evidence file has no valid rows selected for first-send approval.");
+  }
+
+  return {
+    evidencePath: path.resolve(REPO_ROOT, input.evidencePath),
+    totalRows: fileEvidence.rows.length,
+    matchedRows: rowResults.filter((row) => row.targetIds.length > 0).length,
+    selectedRows: rowResults.filter((row) => row.selectedForFirstSend).length,
+    validSelectedRows: rowResults.filter((row) => row.status === "valid_selected").length,
+    targetsWithSelectedEvidence,
+    blockers,
+    rowResults,
+  };
+}
+
 function contactAllowedHosts() {
   const configured = process.env.BLUEPRINT_GTM_CONTACT_DISCOVERY_ALLOWED_HOSTS
     || process.env.BLUEPRINT_CITY_LAUNCH_CONTACT_DISCOVERY_ALLOWED_HOSTS
@@ -186,6 +393,22 @@ function contactAllowedHosts() {
     .split(",")
     .map((entry) => entry.trim().toLowerCase())
     .filter(Boolean);
+}
+
+function contactSearchAllowedHosts() {
+  const configured = process.env.BLUEPRINT_GTM_CONTACT_DISCOVERY_SEARCH_ALLOWED_HOSTS
+    || process.env.BLUEPRINT_CITY_LAUNCH_CONTACT_DISCOVERY_SEARCH_ALLOWED_HOSTS
+    || "";
+  return configured
+    .split(",")
+    .map((entry) => entry.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function contactSearchUrl() {
+  return process.env.BLUEPRINT_GTM_CONTACT_DISCOVERY_SEARCH_URL
+    || process.env.BLUEPRINT_CITY_LAUNCH_CONTACT_DISCOVERY_SEARCH_URL
+    || "";
 }
 
 function hostAllowed(url: URL, allowedHosts: string[]) {
@@ -206,33 +429,180 @@ function sourceUrlsForTarget(target: ExactSiteGtmTarget) {
   ].filter((entry): entry is string => Boolean(entry)))];
 }
 
+function extractCandidateUrlsFromSearchHtml(input: {
+  html: string;
+  allowedHosts: string[];
+}) {
+  const hrefs = [...input.html.matchAll(/href=["']([^"'#]+)["']/gi)]
+    .map((match) => match[1]?.trim() || "")
+    .filter(Boolean);
+  const candidates: string[] = [];
+
+  for (const href of hrefs) {
+    try {
+      const url = new URL(href);
+      if (!hostAllowed(url, input.allowedHosts)) continue;
+      if (!/contact|email|reach|get-in-touch|team|people|staff|leadership|about|company/i.test(url.pathname)) {
+        continue;
+      }
+      candidates.push(url.href);
+    } catch {
+      continue;
+    }
+  }
+
+  return [...new Set(candidates)];
+}
+
+async function discoverGtmCandidateContactPagesViaGovernedSearch(input: {
+  target: ExactSiteGtmTarget;
+  allowedHosts: string[];
+}) {
+  if (
+    process.env.BLUEPRINT_GTM_CONTACT_DISCOVERY_SEARCH_ENABLED !== "1"
+    && process.env.BLUEPRINT_CITY_LAUNCH_CONTACT_DISCOVERY_SEARCH_ENABLED !== "1"
+  ) {
+    return [];
+  }
+
+  const searchUrl = contactSearchUrl();
+  if (!searchUrl) return [];
+
+  const searchAllowedHosts = contactSearchAllowedHosts();
+  try {
+    const providerUrl = new URL(searchUrl);
+    if (searchAllowedHosts.length === 0 || !hostAllowed(providerUrl, searchAllowedHosts)) {
+      return [];
+    }
+
+    const targetText = [
+      input.target.organizationName,
+      input.target.buyerSegment,
+      input.target.workflowNeed,
+    ].filter(Boolean).join(" ");
+    const query = input.allowedHosts
+      .map((host) => `site:${host} "${targetText}" (contact OR team OR about OR email)`)
+      .join(" OR ");
+    providerUrl.searchParams.set("q", query);
+
+    const response = await fetch(providerUrl.href, {
+      method: "GET",
+      headers: { "User-Agent": "Blueprint GTM contact discovery search" },
+    });
+    if (!response.ok) return [];
+
+    const html = await response.text();
+    return extractCandidateUrlsFromSearchHtml({
+      html,
+      allowedHosts: input.allowedHosts,
+    });
+  } catch {
+    return [];
+  }
+}
+
 export function createManualHumanSuppliedProvider(): GtmEnrichmentProvider {
   return {
     key: "manual_human_supplied",
     async enrich({ target }) {
+      const candidates: GtmRecipientCandidate[] = [];
       if (
-        !target.recipient?.email
-        || target.recipient.evidenceType !== "human_supplied"
-        || !target.recipient.evidenceSource
+        target.recipient?.email
+        && target.recipient.evidenceType === "human_supplied"
+        && target.recipient.evidenceSource
       ) {
+        candidates.push({
+          email: normalizeEmail(target.recipient.email),
+          name: target.recipient.name,
+          role: target.recipient.role,
+          evidenceSource: target.recipient.evidenceSource,
+          evidenceType: "human_supplied",
+          providerKey: "manual_human_supplied",
+          confidence: "high",
+          discoveredAt: nowIso(),
+        });
+      }
+
+      const configuredPath = humanRecipientEvidencePath();
+      const fileEvidence = await readHumanRecipientEvidenceRows(configuredPath);
+      const rowBlockers: string[] = [];
+      if (fileEvidence.blocker) {
         return {
-          run: providerRun("manual_human_supplied", "skipped", 0, "No human-supplied selected recipient on target."),
-          candidates: [],
+          run: providerRun("manual_human_supplied", "blocked", candidates.length, fileEvidence.blocker),
+          candidates,
+          blockers: [fileEvidence.blocker],
         };
       }
-      const candidate: GtmRecipientCandidate = {
-        email: normalizeEmail(target.recipient.email),
-        name: target.recipient.name,
-        role: target.recipient.role,
-        evidenceSource: target.recipient.evidenceSource,
-        evidenceType: "human_supplied",
-        providerKey: "manual_human_supplied",
-        confidence: "high",
-        discoveredAt: nowIso(),
-      };
+
+      const matchingRows = fileEvidence.rows.filter((entry) => matchHumanEvidenceRow(target, entry));
+      for (const [rowIndex, row] of matchingRows.entries()) {
+        const rowLabel = `${target.id} human recipient evidence row ${rowIndex + 1}`;
+        const email = normalizeEmail(asString(row.email) || asString(row.recipientEmail) || asString(row.recipient_email));
+        const evidenceSource = evidenceSourceFromHumanRow(row);
+        if (!email) {
+          rowBlockers.push(`${rowLabel} is missing an explicit email.`);
+          continue;
+        }
+        if (!isValidEmail(email) || isLikelyPlaceholderEmail(email)) {
+          rowBlockers.push(`${rowLabel} has an invalid or placeholder email: ${email}.`);
+          continue;
+        }
+        if (!evidenceSource || isLikelyPlaceholderEvidenceSource(evidenceSource)) {
+          rowBlockers.push(`${rowLabel} is missing a real evidence source.`);
+          continue;
+        }
+        const selectable = asBoolean(
+          row.selectedForFirstSend
+          ?? row.selected_for_first_send
+          ?? row.selectRecipient
+          ?? row.select_recipient
+          ?? row.selected,
+        );
+        candidates.push({
+          email,
+          name: asString(row.name) || asString(row.recipientName) || asString(row.recipient_name) || undefined,
+          role: asString(row.role) || asString(row.title) || undefined,
+          evidenceSource,
+          evidenceType: "human_supplied",
+          providerKey: "manual_human_supplied",
+          confidence: selectable === true ? "high" : "medium",
+          discoveredAt: nowIso(),
+          sourceUrl: asString(row.sourceUrl) || asString(row.source_url) || asString(row.evidenceSourceUrl) || asString(row.evidence_source_url) || undefined,
+          notes: selectable !== true
+            ? "Human-supplied recipient evidence recorded, but not selected for first-send approval."
+            : undefined,
+          selectable: selectable === true,
+        });
+      }
+
+      if (candidates.length === 0) {
+        return {
+          run: providerRun(
+            "manual_human_supplied",
+            rowBlockers.length > 0 ? "blocked" : "skipped",
+            0,
+            rowBlockers.length > 0
+              ? "Human-supplied recipient evidence matched this target but failed validation."
+              : configuredPath
+                ? "No matching human-supplied recipient evidence for target."
+                : "No human-supplied selected recipient on target.",
+          ),
+          candidates: [],
+          ...(rowBlockers.length > 0 ? { blockers: rowBlockers } : {}),
+        };
+      }
+
       return {
-        run: providerRun("manual_human_supplied", "contact_found", 1, "Existing human-supplied recipient mirrored into enrichment candidates."),
-        candidates: [candidate],
+        run: providerRun(
+          "manual_human_supplied",
+          "contact_found",
+          candidates.length,
+          rowBlockers.length > 0
+            ? "Human-supplied recipient evidence mirrored into enrichment candidates; some matching rows failed validation."
+            : "Human-supplied recipient evidence mirrored into enrichment candidates.",
+        ),
+        candidates,
+        ...(rowBlockers.length > 0 ? { blockers: rowBlockers } : {}),
       };
     },
   };
@@ -316,7 +686,14 @@ export function createGovernedPublicContactProvider(): GtmEnrichmentProvider {
       }
 
       const candidates: GtmRecipientCandidate[] = [];
-      for (const urlValue of sourceUrlsForTarget(target)) {
+      const urlsToFetch = [
+        ...sourceUrlsForTarget(target),
+        ...await discoverGtmCandidateContactPagesViaGovernedSearch({
+          target,
+          allowedHosts,
+        }),
+      ];
+      for (const urlValue of [...new Set(urlsToFetch)]) {
         try {
           const url = new URL(urlValue);
           if (!hostAllowed(url, allowedHosts)) continue;
@@ -546,8 +923,9 @@ export async function runGtmEnrichmentWaterfall(input: {
 
     const rankedCandidates = rankCandidates(nextCandidates);
     let selectedRecipient = target.recipient?.email || null;
-    if (input.selectRecipients && !selectedRecipient && rankedCandidates.length > 0) {
-      const candidate = rankedCandidates[0];
+    const selectableCandidates = rankedCandidates.filter((candidate) => candidate.selectable !== false);
+    if (input.selectRecipients && !selectedRecipient && selectableCandidates.length > 0) {
+      const candidate = selectableCandidates[0];
       target.recipient = {
         name: candidate.name,
         role: candidate.role,

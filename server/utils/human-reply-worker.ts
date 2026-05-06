@@ -11,6 +11,7 @@ import {
   wakePaperclipAgent,
 } from "./paperclip";
 import {
+  buildSlackThreadCorrelationId,
   classifyHumanReply,
   extractHumanBlockerIdFromText,
   normalizeCorrelationSubject,
@@ -73,6 +74,7 @@ function findMatchingThread(
   threads: HumanBlockerThreadRecord[],
   message: {
     external_thread_id: string | null;
+    recipient?: string | null;
     subject: string | null;
     body: string;
   },
@@ -83,12 +85,23 @@ function findMatchingThread(
   }
 
   const normalizedSubject = normalizeCorrelationSubject(message.subject);
+  const slackThreadIds = [
+    message.external_thread_id,
+    buildSlackThreadCorrelationId(message.recipient, message.external_thread_id),
+  ].filter(Boolean);
   return (
     threads.find((thread) => {
       if (
         message.external_thread_id
         && thread.correlation.gmail_thread_id
         && message.external_thread_id === thread.correlation.gmail_thread_id
+      ) {
+        return true;
+      }
+      if (
+        slackThreadIds.length > 0
+        && thread.correlation.slack_thread_id
+        && slackThreadIds.includes(thread.correlation.slack_thread_id)
       ) {
         return true;
       }
@@ -309,6 +322,7 @@ export async function ingestHumanReplyPayload(params: {
   const openThreads = await listOpenHumanBlockerThreads(250);
   const matchedThread = findMatchingThread(openThreads, {
     external_thread_id: params.external_thread_id || null,
+    recipient: params.recipient || null,
     subject: params.subject || null,
     body: params.body,
   });

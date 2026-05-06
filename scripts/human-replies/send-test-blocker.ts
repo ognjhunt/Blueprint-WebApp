@@ -56,7 +56,7 @@ async function main() {
       evidence: [
         "Founder inbox contract requires durable email reply correlation.",
         "Approved durable identity is ohstnhunt@gmail.com.",
-        "Slack remains mirror-only until inbound Slack resume is implemented end to end.",
+        "Slack replies are durable only for configured DM or allowlisted thread events that correlate to this blocker id.",
       ],
       nonScope:
         "This smoke does not authorize commercial, legal, rights, pricing, or production customer commitments.",

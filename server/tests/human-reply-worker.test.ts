@@ -210,6 +210,87 @@ describe("human reply worker", () => {
     });
   });
 
+  it("correlates Slack thread replies and resumes the owning Paperclip issue", async () => {
+    resolveHumanBlockerAwaitingReply.mockResolvedValue(true);
+    listOpenHumanBlockerThreads.mockResolvedValue([
+      {
+        blocker_id: "blocker-slack",
+        title: "Slack blocker",
+        blocker_kind: "technical",
+        routing_owner: "blueprint-chief-of-staff",
+        execution_owner: "webapp-codex",
+        escalation_owner: "blueprint-cto",
+        approved_identity: "ohstnhunt@gmail.com",
+        record_of_truth: {
+          report_paths: [],
+          paperclip_issue_id: "issue-slack",
+          ops_work_item_id: null,
+        },
+        correlation: {
+          blocker_id: "blocker-slack",
+          outbound_subject: null,
+          slack_thread_id: "D123:1712960000.000100",
+        },
+        resume_action: {
+          kind: "manual_followup",
+          description: "Resume from Slack reply",
+          metadata: {},
+        },
+      },
+    ]);
+    getHumanReplyEvent.mockResolvedValue(null);
+    recordHumanReplyEvent.mockResolvedValue({
+      id: "slack:1712960000.000200",
+    });
+    recordExternalGapReport.mockResolvedValue({ stable_id: "human_reply:blocker-slack" });
+    resolvePaperclipCompanyId.mockResolvedValue("company-1");
+    resolvePaperclipAgentId.mockResolvedValue("agent-slack");
+    getPaperclipIssue.mockResolvedValue({
+      id: "issue-slack",
+      assigneeAgentId: "agent-old",
+    });
+    updatePaperclipIssue.mockResolvedValue({});
+    createPaperclipIssueComment.mockResolvedValue({});
+    resetPaperclipAgentSession.mockResolvedValue({});
+    wakePaperclipAgent.mockResolvedValue({ runId: "run-slack" });
+
+    const { ingestHumanReplyPayload } = await import("../utils/human-reply-worker");
+    const result = await ingestHumanReplyPayload({
+      channel: "slack",
+      external_message_id: "1712960000.000200",
+      external_thread_id: "D123:1712960000.000100",
+      sender: "U_NIJEL",
+      recipient: "D123",
+      body: "Approved. Go ahead.",
+      received_at: "2026-05-05T19:00:00.000Z",
+    });
+
+    expect(recordHumanReplyEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        blocker_id: "blocker-slack",
+        channel: "slack",
+        external_thread_id: "D123:1712960000.000100",
+        should_resume_now: true,
+      }),
+    );
+    expect(createPaperclipIssueComment).toHaveBeenCalledWith(
+      "issue-slack",
+      expect.stringContaining("Human reply recorded for blocker blocker-slack."),
+    );
+    expect(wakePaperclipAgent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        agentId: "agent-slack",
+        reason: "human_reply_resolved",
+        idempotencyKey: "human-reply:blocker-slack:slack:1712960000.000200",
+      }),
+    );
+    expect(result).toMatchObject({
+      processed: true,
+      blocker_id: "blocker-slack",
+      resolution: "resolved_input",
+    });
+  });
+
   it("auto-activates city launches from approval replies without a manual rerun", async () => {
     resolveHumanBlockerAwaitingReply.mockResolvedValue(true);
     listOpenHumanBlockerThreads.mockResolvedValue([

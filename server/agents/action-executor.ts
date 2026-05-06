@@ -32,6 +32,7 @@ import {
   type LaneSafetyPolicy,
   evaluateActionTier,
   validateEmailContent,
+  validateRecipientEmailAddress,
 } from "./action-policies";
 
 // ---------------------------------------------------------------------------
@@ -79,15 +80,181 @@ function validateCampaignEmailPayload(
   }
 
   for (const recipient of recipients) {
-    if (!recipient.includes("@")) {
-      return { valid: false, reason: `Invalid campaign recipient email: ${recipient}` };
+    const recipientValidation = validateRecipientEmailAddress(recipient);
+    if (!recipientValidation.valid) {
+      return {
+        valid: false,
+        reason: `Invalid campaign recipient email: ${recipient} (${recipientValidation.reason})`,
+      };
     }
+  }
+
+  const evidenceValidation = validateRequiredCampaignRecipientEvidence(payload, recipients);
+  if (!evidenceValidation.valid) {
+    return evidenceValidation;
   }
 
   return validateEmailContent({
     ...payload,
     to: recipients[0],
   });
+}
+
+function normalizeEmail(value: unknown) {
+  return typeof value === "string" ? value.trim().toLowerCase() : "";
+}
+
+function hasEvidenceSource(value: unknown): boolean {
+  if (typeof value === "string") {
+    return value.trim().length > 0;
+  }
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const record = value as Record<string, unknown>;
+  const sourceValues = [
+    record.evidenceSource,
+    record.evidence_source,
+    record.source,
+    record.sourceUrl,
+    record.source_url,
+    record.url,
+  ];
+  if (sourceValues.some((entry) => typeof entry === "string" && entry.trim().length > 0)) {
+    return true;
+  }
+  const sourceUrls = record.sourceUrls || record.source_urls;
+  return Array.isArray(sourceUrls)
+    && sourceUrls.some((entry) => typeof entry === "string" && entry.trim().length > 0);
+}
+
+function hasRecipientEvidence(payload: ActionPayload, recipient: string) {
+  const normalizedRecipient = normalizeEmail(recipient);
+  if (!normalizedRecipient) {
+    return false;
+  }
+
+  const evidenceByEmail = payload.recipientEvidenceByEmail || payload.recipient_evidence_by_email;
+  if (evidenceByEmail && typeof evidenceByEmail === "object" && !Array.isArray(evidenceByEmail)) {
+    const directEvidence = (evidenceByEmail as Record<string, unknown>)[normalizedRecipient]
+      || (evidenceByEmail as Record<string, unknown>)[recipient];
+    if (hasEvidenceSource(directEvidence)) {
+      return true;
+    }
+  }
+
+  const evidence = payload.recipientEvidence || payload.recipient_evidence;
+  if (!Array.isArray(evidence)) {
+    return false;
+  }
+
+  return evidence.some((entry) => {
+    if (!entry || typeof entry !== "object") {
+      return false;
+    }
+    const record = entry as Record<string, unknown>;
+    const evidenceEmail = normalizeEmail(
+      record.email
+      || record.recipientEmail
+      || record.recipient_email
+      || record.to,
+    );
+    return evidenceEmail === normalizedRecipient && hasEvidenceSource(record);
+  });
+}
+
+function validateRequiredCampaignRecipientEvidence(
+  payload: ActionPayload,
+  recipients?: string[],
+): { valid: boolean; reason?: string } {
+  if (payload.recipientEvidenceRequired !== true) {
+    return { valid: true };
+  }
+  const normalizedRecipients = recipients ?? (
+    Array.isArray(payload.recipients)
+      ? payload.recipients.filter((value): value is string => typeof value === "string")
+      : []
+  );
+  const missingEvidence = normalizedRecipients.filter((recipient) =>
+    !hasRecipientEvidence(payload, recipient),
+  );
+  if (missingEvidence.length === 0) {
+    return { valid: true };
+  }
+  return {
+    valid: false,
+    reason: `Recipient evidence required for campaign sends: missing evidence for ${missingEvidence.join(", ")}`,
+  };
+}
+
+function validateActionPayloadBeforeExecution(
+  actionType: ActionType,
+  payload: ActionPayload,
+): { valid: boolean; reason?: string } {
+  if (actionType === "send_campaign_emails") {
+    return validateCampaignEmailPayload(payload);
+  }
+  if (actionType === "send_email") {
+    return validateEmailContent(payload);
+  }
+  return { valid: true };
+}
+
+async function routeContentValidationFailure(params: {
+  existingLedgerId?: string | null;
+  idempotencyKey: string;
+  lane: string;
+  actionType: ActionType;
+  sourceCollection: string;
+  sourceDocId: string;
+  actionPayload: ActionPayload;
+  draftOutput: DraftOutput;
+  reason: string;
+}): Promise<ActionResult> {
+  const approvalReason = `content_validation_failed: ${params.reason}`;
+  const ledgerDocId = params.existingLedgerId ?? await writeLedgerDoc({
+    idempotencyKey: params.idempotencyKey,
+    lane: params.lane,
+    actionType: params.actionType,
+    tier: 3,
+    sourceCollection: params.sourceCollection,
+    sourceDocId: params.sourceDocId,
+    actionPayload: params.actionPayload,
+    draftOutput: params.draftOutput,
+    status: "pending_approval",
+    autoApproveReason: null,
+    approvalReason,
+  });
+  if (params.existingLedgerId) {
+    await updateLedgerStatus(params.existingLedgerId, "pending_approval", {
+      approval_reason: approvalReason,
+    });
+  }
+  await syncSourceDocumentState({
+    sourceCollection: params.sourceCollection,
+    sourceDocId: params.sourceDocId,
+    actionType: params.actionType,
+    actionPayload: params.actionPayload,
+    ledgerDocId,
+    state: "pending_approval",
+    approvalReason,
+  });
+  await safelyDispatchHumanBlocker("action.content_validation_failed", () =>
+    dispatchActionApprovalHumanBlocker({
+      lane: params.lane,
+      sourceCollection: params.sourceCollection,
+      sourceDocId: params.sourceDocId,
+      actionType: params.actionType,
+      approvalReason,
+      ledgerDocId,
+    }),
+  );
+  return {
+    state: "pending_approval",
+    tier: 3,
+    ledgerDocId,
+    error: params.reason,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -109,6 +276,24 @@ export async function executeAction(
 
   // 1. Idempotency check — look up existing ledger doc
   const existingLedger = await findLedgerByIdempotencyKey(idempotencyKey);
+  const contentValidation =
+    safetyPolicy.contentChecks &&
+    (actionType === "send_email" || actionType === "send_campaign_emails")
+      ? validateActionPayloadBeforeExecution(actionType, actionPayload)
+      : { valid: true };
+  if (!contentValidation.valid) {
+    return routeContentValidationFailure({
+      existingLedgerId: typeof existingLedger?.id === "string" ? existingLedger.id : null,
+      idempotencyKey,
+      lane: safetyPolicy.lane,
+      actionType,
+      sourceCollection,
+      sourceDocId,
+      actionPayload,
+      draftOutput,
+      reason: contentValidation.reason || "Invalid action content",
+    });
+  }
   if (existingLedger) {
     if (existingLedger.status === "sent") {
       return {
@@ -140,49 +325,18 @@ export async function executeAction(
     safetyPolicy.contentChecks &&
     (actionType === "send_email" || actionType === "send_campaign_emails")
   ) {
-    const validation =
-      actionType === "send_campaign_emails"
-        ? validateCampaignEmailPayload(actionPayload)
-        : validateEmailContent(actionPayload);
+    const validation = contentValidation;
     if (!validation.valid) {
-      const ledgerDocId = await writeLedgerDoc({
+      return routeContentValidationFailure({
         idempotencyKey,
         lane: safetyPolicy.lane,
         actionType,
-        tier: 3,
         sourceCollection,
         sourceDocId,
         actionPayload,
         draftOutput,
-        status: "pending_approval",
-        autoApproveReason: null,
-        approvalReason: `content_validation_failed: ${validation.reason}`,
+        reason: validation.reason || "Invalid action content",
       });
-      await syncSourceDocumentState({
-        sourceCollection,
-        sourceDocId,
-        actionType,
-        actionPayload,
-        ledgerDocId,
-        state: "pending_approval",
-        approvalReason: `content_validation_failed: ${validation.reason}`,
-      });
-      await safelyDispatchHumanBlocker("action.content_validation_failed", () =>
-        dispatchActionApprovalHumanBlocker({
-          lane: safetyPolicy.lane,
-          sourceCollection,
-          sourceDocId,
-          actionType,
-          approvalReason: `content_validation_failed: ${validation.reason}`,
-          ledgerDocId,
-        }),
-      );
-      return {
-        state: "pending_approval",
-        tier: 3,
-        ledgerDocId,
-        error: validation.reason,
-      };
     }
   }
 
@@ -378,6 +532,32 @@ export async function approveAction(
     throw new Error(`Cannot approve action in state: ${data.status}`);
   }
 
+  if (data.action_type === "send_email" || data.action_type === "send_campaign_emails") {
+    const validation = validateActionPayloadBeforeExecution(data.action_type, data.action_payload);
+    if (!validation.valid) {
+      const approvalReason = `content_validation_failed: ${validation.reason}`;
+      await ledgerRef.update({
+        approval_reason: approvalReason,
+        updated_at: new Date(),
+      });
+      await syncSourceDocumentState({
+        sourceCollection: data.source_collection,
+        sourceDocId: data.source_doc_id,
+        actionType: data.action_type,
+        actionPayload: data.action_payload,
+        ledgerDocId,
+        state: "pending_approval",
+        approvalReason,
+      });
+      return {
+        state: "pending_approval",
+        tier: data.action_tier,
+        ledgerDocId,
+        error: validation.reason,
+      };
+    }
+  }
+
   await ledgerRef.update({
     status: "operator_approved",
     approved_by: operatorEmail,
@@ -516,6 +696,31 @@ export async function retryFailedAction(
   if (data.status !== "failed")
     throw new Error(`Cannot retry action in state: ${data.status}`);
   if (data.execution_attempts >= 3) throw new Error("Max retries exceeded");
+
+  const validation = validateActionPayloadBeforeExecution(data.action_type, data.action_payload);
+  if (!validation.valid) {
+    const approvalReason = `content_validation_failed: ${validation.reason}`;
+    await ledgerRef.update({
+      status: "pending_approval",
+      approval_reason: approvalReason,
+      updated_at: new Date(),
+    });
+    await syncSourceDocumentState({
+      sourceCollection: data.source_collection,
+      sourceDocId: data.source_doc_id,
+      actionType: data.action_type,
+      actionPayload: data.action_payload,
+      ledgerDocId,
+      state: "pending_approval",
+      approvalReason,
+    });
+    return {
+      state: "pending_approval",
+      tier: data.action_tier,
+      ledgerDocId,
+      error: validation.reason,
+    };
+  }
 
   try {
     await ledgerRef.update({ status: "executing", updated_at: new Date() });
@@ -739,19 +944,43 @@ async function performAction(
   payload: ActionPayload,
 ): Promise<void> {
   switch (actionType) {
-    case "send_email":
+    case "send_email": {
+      const validation = validateEmailContent(payload);
+      if (!validation.valid) {
+        throw new Error(`Email content validation failed: ${validation.reason}`);
+      }
       await sendEmail({
         to: payload.to!,
         subject: payload.subject!,
         text: payload.body!,
       });
       break;
+    }
     case "send_campaign_emails": {
       const recipients = Array.isArray(payload.recipients)
-        ? payload.recipients.filter((value): value is string => typeof value === "string" && value.includes("@"))
+        ? payload.recipients.filter((value): value is string => typeof value === "string")
         : [];
       if (recipients.length === 0) {
         throw new Error("Campaign send requires at least one recipient");
+      }
+      for (const recipient of recipients) {
+        const recipientValidation = validateRecipientEmailAddress(recipient);
+        if (!recipientValidation.valid) {
+          throw new Error(
+            `Invalid campaign recipient email: ${recipient} (${recipientValidation.reason})`,
+          );
+        }
+      }
+      const contentValidation = validateEmailContent({
+        ...payload,
+        to: recipients[0],
+      });
+      if (!contentValidation.valid) {
+        throw new Error(`Campaign content validation failed: ${contentValidation.reason}`);
+      }
+      const evidenceValidation = validateRequiredCampaignRecipientEvidence(payload, recipients);
+      if (!evidenceValidation.valid) {
+        throw new Error(evidenceValidation.reason || "Campaign send requires recipient-backed evidence");
       }
 
       const failures: string[] = [];

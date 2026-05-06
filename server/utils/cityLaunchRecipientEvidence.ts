@@ -2,6 +2,7 @@ import { promises as fs } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+import { validateRecipientEmailAddress } from "../agents/action-policies";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const EMAIL_PATTERN = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/ig;
@@ -58,8 +59,12 @@ function extractRepoRecipientEvidence(input: {
 
     const sameLineEmails = currentLine.match(EMAIL_PATTERN);
     if (sameLineEmails && sameLineEmails.length > 0) {
+      const recipientEmail = sameLineEmails[0].toLowerCase();
+      if (!validateRecipientEmailAddress(recipientEmail).valid) {
+        continue;
+      }
       return {
-        recipientEmail: sameLineEmails[0].toLowerCase(),
+        recipientEmail,
         source: `Recipient sourced from repo artifact evidence in ${path.relative(REPO_ROOT, input.filePath).replaceAll(path.sep, "/")} for ${input.target.raw}.`,
       };
     }
@@ -71,8 +76,12 @@ function extractRepoRecipientEvidence(input: {
     if (!nearbyEmails || nearbyEmails.length === 0) {
       continue;
     }
+    const recipientEmail = nearbyEmails[0].toLowerCase();
+    if (!validateRecipientEmailAddress(recipientEmail).valid) {
+      continue;
+    }
     return {
-      recipientEmail: nearbyEmails[0].toLowerCase(),
+      recipientEmail,
       source: `Recipient sourced from repo artifact evidence in ${path.relative(REPO_ROOT, input.filePath).replaceAll(path.sep, "/")} for ${input.target.raw}.`,
     };
   }
@@ -196,7 +205,9 @@ export async function resolveHistoricalRecipientEvidence(params: {
     const recipientEmails = Array.isArray(data.recipient_emails)
       ? data.recipient_emails.filter(
           (entry): entry is string =>
-            typeof entry === "string" && Boolean(entry.trim()),
+            typeof entry === "string"
+            && Boolean(entry.trim())
+            && validateRecipientEmailAddress(entry).valid,
         )
       : [];
     if (recipientEmails.length === 0) {

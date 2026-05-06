@@ -125,6 +125,7 @@ export interface ExactSiteGtmTarget {
       discoveredAt: string;
       sourceUrl?: string;
       notes?: string;
+      selectable?: boolean;
     }>;
     selectedRecipientEvidence?: {
       providerKey: string;
@@ -274,9 +275,19 @@ function daysBetween(start: string, end: string): number {
 
 function isLikelyPlaceholderEmail(value: string): boolean {
   const normalized = value.toLowerCase();
+  const domain = normalized.split("@").at(-1) || "";
   return normalized.endsWith("@example.com")
     || normalized.endsWith("@example.org")
+    || normalized.endsWith("@example.net")
     || normalized.endsWith("@test.com")
+    || domain === "example"
+    || domain.endsWith(".example")
+    || domain === "localhost"
+    || domain.endsWith(".localhost")
+    || domain === "invalid"
+    || domain.endsWith(".invalid")
+    || domain === "test"
+    || domain.endsWith(".test")
     || normalized.includes("placeholder")
     || normalized.includes("fake");
 }
@@ -294,6 +305,15 @@ function isStaleIsoTimestamp(value: string | undefined, maxAgeDays: number) {
 
 function requiresRecipientEvidence(status: ExactSiteGtmTargetStatus): boolean {
   return ["human_approved", "sent", "replied", "hosted_review_started", "closed"].includes(status);
+}
+
+export function hasExactSiteRecipientBackedEvidence(target: ExactSiteGtmTarget): boolean {
+  const email = asString(target.recipient?.email);
+  if (!email || !isValidEmail(email) || isLikelyPlaceholderEmail(email)) {
+    return false;
+  }
+  return hasMeaningfulString(target.recipient?.evidenceSource)
+    && ["explicit_research", "historical_campaign", "human_supplied"].includes(asString(target.recipient?.evidenceType));
 }
 
 function isAllowedTargetStatus(value: unknown): value is ExactSiteGtmTargetStatus {
@@ -726,7 +746,7 @@ export function auditExactSiteHostedReviewGtmLedger(
       }
       const latestRun = [...(enrichment.providerRuns ?? [])]
         .sort((left, right) => asString(right.searchedAt).localeCompare(asString(left.searchedAt)))[0];
-      if (!email && latestRun && isStaleIsoTimestamp(latestRun.searchedAt, 30)) {
+      if (!hasExactSiteRecipientBackedEvidence(target) && latestRun && isStaleIsoTimestamp(latestRun.searchedAt, 30)) {
         addFinding(
           findings,
           "warning",
@@ -903,8 +923,8 @@ export function auditExactSiteHostedReviewGtmLedger(
   ).length;
   const draftReadyTargets = targets.filter((target) => target.outbound?.status === "draft_ready").length;
   const humanApprovedTargets = targets.filter((target) => target.outbound?.status === "human_approved").length;
-  const recipientBackedTargets = targets.filter((target) => hasMeaningfulString(target.recipient?.email)).length;
-  const targetsMissingRecipientEvidence = targets.filter((target) => !hasMeaningfulString(target.recipient?.email)).length;
+  const recipientBackedTargets = targets.filter(hasExactSiteRecipientBackedEvidence).length;
+  const targetsMissingRecipientEvidence = targets.length - recipientBackedTargets;
   const enrichmentAttemptedTargets = targets.filter((target) => (target.enrichment?.providerRuns ?? []).length > 0).length;
   const enrichmentContactFoundTargets = targets.filter((target) => target.enrichment?.status === "contact_found").length;
   const enrichmentCandidateTargets = targets.filter((target) => (target.enrichment?.recipientCandidates ?? []).length > 0).length;
@@ -912,17 +932,17 @@ export function auditExactSiteHostedReviewGtmLedger(
     target.enrichment?.status === "blocked" || target.enrichment?.status === "exhausted",
   ).length;
   const staleEnrichmentTargets = targets.filter((target) => {
-    if (hasMeaningfulString(target.recipient?.email)) return false;
+    if (hasExactSiteRecipientBackedEvidence(target)) return false;
     const latestRun = [...(target.enrichment?.providerRuns ?? [])]
       .sort((left, right) => asString(right.searchedAt).localeCompare(asString(left.searchedAt)))[0];
     return Boolean(latestRun && isStaleIsoTimestamp(latestRun.searchedAt, 30));
   }).length;
   const approvalNeededTargets = targets.filter((target) =>
-    target.outbound?.status === "draft_ready" && hasMeaningfulString(target.recipient?.email),
+    target.outbound?.status === "draft_ready" && hasExactSiteRecipientBackedEvidence(target),
   ).length;
   const founderApprovalNeededTargets = targets.filter((target) =>
     target.outbound?.status === "draft_ready"
-    && hasMeaningfulString(target.recipient?.email)
+    && hasExactSiteRecipientBackedEvidence(target)
     && target.outbound.approvalState !== "approved",
   ).length;
   const sentTargets = targets.filter((target) =>
@@ -1007,7 +1027,7 @@ export function auditExactSiteHostedReviewGtmLedger(
   if (ledger.pilot.status === "active" && targets.length > 0 && recipientBackedTargets === 0) {
     addFinding(
       findings,
-      "warning",
+      "error",
       "targets.recipient",
       "Active pilot has target rows but no recipient-backed contacts; live sends remain blocked on explicit contact evidence.",
     );
@@ -1151,9 +1171,9 @@ export function renderExactSiteHostedReviewGtmFounderReviewMarkdown(
   reportDate = new Date().toISOString().slice(0, 10),
 ): string {
   const relativePath = path.relative(process.cwd(), ledgerPath) || ledgerPath;
-  const needsRecipientEvidence = ledger.targets.filter((target) => !hasMeaningfulString(target.recipient?.email));
+  const needsRecipientEvidence = ledger.targets.filter((target) => !hasExactSiteRecipientBackedEvidence(target));
   const needsApproval = ledger.targets.filter((target) =>
-    target.outbound?.status === "draft_ready" && hasMeaningfulString(target.recipient?.email),
+    target.outbound?.status === "draft_ready" && hasExactSiteRecipientBackedEvidence(target),
   );
   const sentOrLater = ledger.targets.filter((target) =>
     ["sent", "replied", "hosted_review_started", "closed"].includes(target.outbound?.status),
