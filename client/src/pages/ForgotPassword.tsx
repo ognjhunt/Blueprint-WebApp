@@ -11,7 +11,6 @@ import {
   SurfaceSection,
   SurfaceTopBar,
 } from "@/components/site/privateSurface";
-import { auth, sendPasswordResetEmail } from "@/lib/firebase";
 import { privateGeneratedAssets } from "@/lib/privateGeneratedAssets";
 
 export default function ForgotPassword() {
@@ -23,6 +22,7 @@ export default function ForgotPassword() {
     event.preventDefault();
     setIsLoading(true);
     try {
+      const { auth, sendPasswordResetEmail } = await import("@/lib/firebase");
       await sendPasswordResetEmail(auth, email);
     } catch {
       // Use the same response for all outcomes to avoid account enumeration.

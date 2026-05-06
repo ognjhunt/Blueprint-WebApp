@@ -7,6 +7,7 @@ const reportDir = path.join(repoRoot, ".tmp");
 const reportPath = path.join(reportDir, "vitest-alpha-report.json");
 
 fs.mkdirSync(reportDir, { recursive: true });
+fs.rmSync(reportPath, { force: true });
 
 function run(command, args) {
   const result = spawnSync(command, args, {
@@ -55,6 +56,9 @@ run("npx", [
   "run",
   "--coverage",
   "--reporter=json",
+  "--maxWorkers=1",
+  "--minWorkers=1",
+  "--no-file-parallelism",
   `--outputFile=${reportPath}`,
 ]);
 

@@ -1,74 +1,41 @@
 // @vitest-environment node
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import express from "express";
-import { createServer } from "http";
-import type { Server } from "http";
+import { describe, expect, it, vi } from "vitest";
+import type { NextFunction, Request, Response } from "express";
+import verifyFirebaseToken from "../middleware/verifyFirebaseToken";
 
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({
-  default: {},
-  dbAdmin: null,
-  storageAdmin: null,
   authAdmin: null,
 }));
 
-let server: Server;
-let baseUrl: string;
-let csrfCookie: string;
-let csrfToken: string;
-
-beforeAll(async () => {
-  const { registerRoutes } = await import("../routes");
-
-  const app = express();
-  app.use(express.json());
-  registerRoutes(app);
-
-  server = createServer(app);
-  await new Promise<void>((resolve) => {
-    server.listen(0, () => {
-      const address = server.address();
-      if (!address || typeof address === "string") {
-        throw new Error("Failed to bind test server");
-      }
-      baseUrl = `http://127.0.0.1:${address.port}`;
-      resolve();
-    });
-  });
-
-  const csrfResponse = await fetch(`${baseUrl}/api/csrf`);
-  const setCookie = csrfResponse.headers.get("set-cookie");
-  csrfCookie = setCookie ? setCookie.split(";")[0] : "";
-  const data = (await csrfResponse.json()) as { csrfToken?: string };
-  csrfToken = data.csrfToken ?? "";
-}, 30000);
-
-afterAll(async () => {
-  if (!server) {
-    return;
-  }
-  await new Promise<void>((resolve, reject) => {
-    server.close((error) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-      resolve();
-    });
-  });
-});
+function buildMockResponse() {
+  const response = {
+    locals: {},
+    status: vi.fn(),
+    json: vi.fn(),
+  };
+  response.status.mockReturnValue(response);
+  response.json.mockReturnValue(response);
+  return response as unknown as Response & {
+    status: ReturnType<typeof vi.fn>;
+    json: ReturnType<typeof vi.fn>;
+  };
+}
 
 describe("verifyFirebaseToken configuration guard", () => {
   it("returns 503 when Firebase Admin auth is unavailable even if a bearer token is provided", async () => {
-    const response = await fetch(`${baseUrl}/api/marketplace/entitlements/current?sku=test`, {
+    const request = {
       headers: {
-        Authorization: "Bearer test-token",
-        Cookie: csrfCookie,
-        "X-CSRF-Token": csrfToken,
+        authorization: "Bearer test-token",
       },
-    });
+    } as Request;
+    const response = buildMockResponse();
+    const next = vi.fn() as NextFunction;
 
-    expect(response.status).toBe(503);
-    await expect(response.json()).resolves.toMatchObject({
+    await verifyFirebaseToken(request, response, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(response.status).toHaveBeenCalledWith(503);
+    expect(response.json).toHaveBeenCalledWith({
       error: expect.stringMatching(/Firebase Admin auth is not configured/i),
     });
   });

@@ -20,16 +20,16 @@ const packageBullets = [
   "Capture manifest, site notes, and provenance",
   "Geometry/depth assets when the package supports them",
   "Route graph and workflow paths for the selected site",
-  "Rights sheet, freshness state, and export limits",
-  "Offline export bundle for your stack",
+  "Rights sheet, freshness state, and approved export limits",
+  "Offline bundle for your team to run in its own stack",
 ];
 
 const hostedBullets = [
-  "Hosted exact-site environment",
+  "Browser access to the hosted exact-site environment",
   "Scoped route replay and scenario variation",
   "Observation frames from hosted review",
   "Sharable session notes and result exports",
-  "Run evidence with truthful limits called out",
+  "Run evidence with package and export limits called out",
 ];
 
 const enterpriseBullets = [
@@ -41,32 +41,32 @@ const enterpriseBullets = [
 ];
 
 const comparisonArtifacts = [
-  { label: "Capture record", detail: "Where evidence came from", icon: Boxes },
-  { label: "Route graph", detail: "Site-specific paths", icon: Map },
-  { label: "Rights sheet", detail: "Use and export limits", icon: ShieldCheck },
-  { label: "Hosted review", detail: "Scoped reruns", icon: CirclePlay },
-  { label: "Observation frames", detail: "Review what the run saw", icon: ScanEye },
-  { label: "Change state", detail: "Freshness and recapture notes", icon: ShieldCheck },
+  { label: "Package manifest", detail: "The file-backed access path starts here.", icon: Boxes },
+  { label: "Export bundle", detail: "Files move only when the listing supports that use.", icon: Map },
+  { label: "Rights sheet", detail: "Use, sharing, and export limits stay attached.", icon: ShieldCheck },
+  { label: "Hosted review", detail: "The managed session path starts in the browser.", icon: CirclePlay },
+  { label: "Observation frames", detail: "Review what the hosted run saw.", icon: ScanEye },
+  { label: "Change state", detail: "Freshness and recapture notes stay visible.", icon: ShieldCheck },
 ];
 
-const pricingExamples = [
+const accessModels = [
   {
-    title: "First exact-site evaluation",
-    price: "$2,150-$3,500 typical",
-    body: "One public or commercial site package plus three hosted review hours. Useful when the team needs one concrete site decision before travel, pilot planning, or integration work.",
-    items: ["Site package", "3 hosted hours", "Manifest, rights sheet, hosted report"],
+    title: "Package access first",
+    price: "$2,100-$3,400",
+    body: "Use this when your team wants the site package files, manifest, routes, and approved exports for its own stack.",
+    items: ["Files and manifest", "Export limits", "Optional hosted add-on"],
   },
   {
-    title: "Hosted-only fit check",
-    price: "$160-$435 typical",
-    body: "Five to fifteen hosted review hours on a request-scoped site at $16-$29 per session-hour, with a $160 minimum when setup, scoping, or report prep is required.",
-    items: ["Hosted setup minimum", "Run notes", "Evidence export"],
+    title: "Hosted review first",
+    price: "$16-$29 / session-hour",
+    body: "Use this when your team wants Blueprint to run the exact site before a file handoff, local setup, or deeper package request.",
+    items: ["Browser session", "Reruns and notes", "Export scope"],
   },
   {
-    title: "Bring your site",
+    title: "Custom scope first",
     price: "Scoped",
-    body: "A grocery, retail, service, campus, or private facility can enter the capture path when lawful access, privacy handling, and buyer usefulness are clear enough to review.",
-    items: ["Capture scope", "Privacy review", "Package or hosted path"],
+    body: "Use this when the site is private, the rights model is unusual, or the work needs multi-site delivery and managed support.",
+    items: ["Capture plan", "Rights review", "Commercial terms"],
   },
 ];
 
@@ -75,6 +75,21 @@ const scopeFactors = [
   "Private-site access or custom rights review",
   "Export format and integration requirements",
   "Recapture, change detection, or multi-site rollout",
+];
+
+const trustNotes = [
+  {
+    title: "Package access",
+    body: "A package license covers the listed capture-backed artifacts and approved export modes. It does not clear unrelated sites or unsupported uses.",
+  },
+  {
+    title: "Hosted review",
+    body: "A hosted review gives your team managed session access, run evidence, and next-step notes. It is not a package license by itself.",
+  },
+  {
+    title: "What pricing does not claim",
+    body: "Public prices do not promise deployment readiness, private-site permission, unrestricted exports, or rights approval before the request is reviewed.",
+  },
 ];
 
 function PricePanel({
@@ -143,7 +158,7 @@ export default function Pricing() {
     <>
       <SEO
         title="Pricing | Blueprint"
-        description="Choose the right path into one exact-site world model: site package, hosted evaluation, or enterprise scope."
+        description="Public pricing for site-package access, hosted review, and custom exact-site scope."
         canonical="/pricing"
       />
 
@@ -161,10 +176,10 @@ export default function Pricing() {
               <div className="max-w-[34rem]">
                 <EditorialSectionLabel>Pricing</EditorialSectionLabel>
                 <h1 className="font-editorial mt-6 text-[3.7rem] leading-[0.9] tracking-[-0.06em] text-slate-950 sm:text-[5.1rem]">
-                  Choose the right path.
+                  Pricing for package access and hosted review.
                 </h1>
                 <p className="mt-6 text-lg leading-8 text-slate-700">
-                  Exact-site world models for real locations, from everyday public-facing places to private deployment sites.
+                  Buy the site package when your team wants files and export scope. Start hosted review when it wants Blueprint to run one exact-site session first.
                 </p>
               </div>
             </div>
@@ -174,10 +189,10 @@ export default function Pricing() {
         <section className="mx-auto max-w-[88rem] space-y-4 px-5 py-10 sm:px-8 lg:px-10">
           <PricePanel
             index="01"
-            eyebrow="Own your exact-site world model."
-            title="Site Package"
+            eyebrow="Files and license for your stack."
+            title="Site Package Access"
             price="$2,100 – $3,400"
-            body="License one captured site package with the manifest, routes, rights notes, and exports your team needs to evaluate the exact place."
+            body="License the capture-backed package for one exact site: manifest, routes, provenance, rights notes, and the export modes cleared for that listing."
             bullets={packageBullets}
             image="/generated/editorial/pricing-hero.png"
             imageAlt="Site package illustration"
@@ -206,10 +221,10 @@ export default function Pricing() {
 
           <PricePanel
             index="02"
-            eyebrow="Test on your site. Remotely."
-            title="Hosted Evaluation"
+            eyebrow="Managed session before file handoff."
+            title="Hosted Review"
             price="$16 – $29 / session-hour"
-            body="Blueprint hosts the exact-site world model so your team can review configured routes, reruns, observations, and outputs before moving deeper."
+            body="Blueprint hosts the exact-site world model so your team can review configured routes, reruns, observations, and outputs before deciding whether package access should open next."
             bullets={hostedBullets}
             image="/generated/editorial/hosted-hero.png"
             imageAlt="Hosted evaluation panel"
@@ -247,18 +262,18 @@ export default function Pricing() {
           <PricePanel
             index="03"
             eyebrow="Private sites, multiple markets, or deeper ops."
-            title="Enterprise"
+            title="Custom Scope"
             price="$50,000+ scoped"
             body="Use this path when the site is private, the rights model is custom, or your team needs Blueprint-managed support across multiple locations."
             bullets={enterpriseBullets}
             image="/generated/editorial/manufacturing-plant.png"
-            imageAlt="Enterprise operations view"
+            imageAlt="Custom operations view"
             dark
           >
             <div className="absolute inset-0 flex items-center justify-center p-6 lg:justify-end lg:p-8">
               <div className="w-full max-w-[34rem] overflow-hidden rounded-[1.8rem] border border-white/10 bg-black/70 shadow-[0_24px_60px_-36px_rgba(0,0,0,0.62)]">
                 <div className="flex items-center justify-between border-b border-white/10 px-5 py-4 text-[11px] uppercase tracking-[0.18em] text-white/45">
-                  <span>Enterprise overview</span>
+                  <span>Custom scope overview</span>
                   <span>Example rollout view</span>
                 </div>
                 <div className="grid gap-px bg-white/10 md:grid-cols-[0.62fr_0.38fr]">
@@ -296,9 +311,9 @@ export default function Pricing() {
           <div className="grid gap-4 lg:grid-cols-[0.42fr_0.58fr]">
             <div className="border border-black/10 bg-white p-6 lg:p-8">
               <EditorialSectionIntro
-                eyebrow="Example scopes"
-                title="What the first bill usually means."
-                description="Pricing changes when the place is larger, the rights path is custom, or the export contract needs deeper integration work."
+                eyebrow="Access model"
+                title="Choose by what your team needs first."
+                description="Package access means files and approved exports. Hosted review means managed browser sessions and run evidence. Custom scope is for private or multi-site work."
               />
               <div className="mt-6 border-t border-black/10 pt-5">
                 <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Scope changes with</p>
@@ -312,7 +327,7 @@ export default function Pricing() {
               </div>
             </div>
             <div className="grid gap-4 md:grid-cols-3">
-              {pricingExamples.map((example) => (
+              {accessModels.map((example) => (
                 <article key={example.title} className="border border-black/10 bg-white p-5">
                   <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">{example.price}</p>
                   <h2 className="mt-4 text-[1.55rem] leading-[1.02] tracking-[-0.04em] text-slate-950">
@@ -333,12 +348,21 @@ export default function Pricing() {
         </section>
 
         <section className="mx-auto max-w-[88rem] px-5 pb-16 sm:px-8 lg:px-10 lg:pb-20">
+          <div className="mb-8 grid gap-4 md:grid-cols-3">
+            {trustNotes.map((note) => (
+              <article key={note.title} className="border border-black/10 bg-[#ebe7dd] p-5">
+                <h2 className="text-lg font-semibold tracking-[-0.02em] text-slate-950">{note.title}</h2>
+                <p className="mt-3 text-sm leading-6 text-slate-700">{note.body}</p>
+              </article>
+            ))}
+          </div>
+
           <div className="overflow-hidden rounded-[2rem] border border-black/10 bg-white shadow-[0_24px_60px_-42px_rgba(15,23,42,0.18)]">
             <div className="border-b border-black/10 px-6 py-5">
               <EditorialSectionIntro
                 eyebrow="What you get"
-                title="A simpler visual comparison."
-                description="Compare the first file or review your team sees on each commercial path instead of reading through a dense pricing table."
+                title="What each path unlocks first."
+                description="The package path starts with capture-backed files and rights metadata. The hosted path starts with a managed review session tied to the same exact site."
                 className="max-w-3xl"
               />
             </div>
@@ -370,7 +394,7 @@ export default function Pricing() {
               href="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=pricing"
               className="inline-flex items-center justify-center rounded-full border border-black/10 bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-50"
             >
-              Scope hosted evaluation
+              Request hosted review
             </a>
             <a
               href="/contact?persona=robot-team&interest=enterprise"

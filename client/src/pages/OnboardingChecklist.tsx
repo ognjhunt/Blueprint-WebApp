@@ -41,6 +41,10 @@ function formatIntakeLabel(value: string) {
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+function hasText(value: unknown) {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
 function ChecklistCard({
   item,
   index,
@@ -133,6 +137,49 @@ export default function OnboardingChecklist() {
     typeof userData?.siteClaimReadinessScore === "number" ? userData.siteClaimReadinessScore : null;
   const siteClaimCriteria = userData?.siteClaimCriteria || [];
   const missingSiteClaimFields = userData?.missingSiteClaimFields || [];
+  const rightsControlDefined = hasText(userData?.captureRights);
+  const privacyControlDefined =
+    Boolean(progress.privacyRulesConfirmed)
+    || siteClaimCriteria.includes("privacy_security_boundary")
+    || hasText(userData?.privacySecurityConstraints);
+  const commercialControlDefined =
+    Boolean(progress.commercializationPreferenceSet)
+    || hasText(userData?.derivedScenePermission)
+    || hasText(userData?.datasetLicensingPermission);
+  const operatorControlRows = [
+    {
+      label: "Rights",
+      value: rightsControlDefined ? "Rights note captured" : "Needs owner or release context",
+      detail: rightsControlDefined
+        ? "Approval and rights context stay attached to the site claim."
+        : "Add who can approve capture, release, or downstream use before this moves.",
+    },
+    {
+      label: "Privacy",
+      value: privacyControlDefined ? "Privacy boundary captured" : "Needs privacy boundary",
+      detail: privacyControlDefined
+        ? "Private areas, redaction, or security limits are visible for review."
+        : "Add camera limits, restricted areas, redaction needs, or security rules.",
+    },
+    {
+      label: "Access",
+      value:
+        accessBoundaryOutcome === "access_boundary_defined"
+          ? "Access rules defined"
+          : "Needs access rules",
+      detail:
+        accessBoundaryOutcome === "access_boundary_defined"
+          ? "Capture windows, escort rules, and restricted zones are structured."
+          : "Add capture windows, escort rules, restricted zones, or safety limits.",
+    },
+    {
+      label: "Commercial control",
+      value: commercialControlDefined ? "Commercial posture captured" : "Needs commercial preference",
+      detail: commercialControlDefined
+        ? "Private, claim-only, or listable use is visible before buyer-facing motion."
+        : "Choose whether the site stays private, claim-only, or potentially listable.",
+    },
+  ];
 
   const checklistItems: ChecklistItem[] = useMemo(
     () => {
@@ -463,6 +510,24 @@ export default function OnboardingChecklist() {
             </div>
 
             <div className="rounded-2xl border border-zinc-200 bg-white p-6">
+              {!isRobotTeam ? (
+                <div className="mb-6 border-b border-zinc-200 pb-6">
+                  <p className="text-sm font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                    Operator control map
+                  </p>
+                  <div className="mt-4 grid gap-3">
+                    {operatorControlRows.map((item) => (
+                      <div key={item.label} className="rounded-lg border border-zinc-200 bg-zinc-50 p-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-sm font-semibold text-zinc-950">{item.label}</p>
+                          <p className="text-xs font-medium text-zinc-500">{item.value}</p>
+                        </div>
+                        <p className="mt-1 text-xs leading-5 text-zinc-600">{item.detail}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
               <div className="mb-4 flex items-center justify-between text-sm text-zinc-500">
                 <span>Checklist progress</span>
                 <span>

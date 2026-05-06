@@ -295,6 +295,67 @@ describe("Contact page", () => {
     expect(screen.getByText(/Hosted evaluation request received/i)).toBeInTheDocument();
   });
 
+  it("submits site-operator rights, privacy, access, and commercial boundaries", async () => {
+    mockSearch = "?persona=site-operator";
+
+    render(<Contact />);
+
+    fireEvent.change(screen.getByPlaceholderText("First name*"), {
+      target: { value: "Nina" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("Last name*"), {
+      target: { value: "Operator" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("Operator or company*"), {
+      target: { value: "Brightleaf Ops" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("Work email*"), {
+      target: { value: "nina@example.com" },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: /Facility name/i }), {
+      target: { value: "Brightleaf Books" },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: /Site location/i }), {
+      target: { value: "Durham, NC" },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: /Access rules/i }), {
+      target: { value: "Escorted weekdays, no capture near the cash office." },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: /Rights and ownership notes/i }), {
+      target: { value: "Owner approval required before release." },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: /Privacy and security notes/i }), {
+      target: { value: "Redact faces and skip employee-only rooms." },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: /Commercialization preference/i }), {
+      target: { value: "Keep private until owner review." },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Submit site claim/i }));
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        "/api/inbound-request",
+        expect.objectContaining({ method: "POST" }),
+      );
+    });
+
+    const submitCall = vi.mocked(global.fetch).mock.calls.find(
+      ([input]) => input === "/api/inbound-request",
+    );
+    const body = JSON.parse(String(submitCall?.[1]?.body));
+    expect(body).toMatchObject({
+      buyerType: "site_operator",
+      siteName: "Brightleaf Books",
+      siteLocation: "Durham, NC",
+      operatingConstraints: "Escorted weekdays, no capture near the cash office.",
+      captureRights: "Owner approval required before release.",
+      privacySecurityConstraints: "Redact faces and skip employee-only rooms.",
+      derivedScenePermission: "Keep private until owner review.",
+    });
+    expect(screen.getByText(/Site claim received/i)).toBeInTheDocument();
+  });
+
   it("tracks a validation failure when required contact fields are missing", async () => {
     render(<Contact />);
 

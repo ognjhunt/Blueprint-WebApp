@@ -8,31 +8,35 @@ describe("Pricing", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Choose the right path\./i,
+        name: /Pricing for package access and hosted review\./i,
       }),
     ).toBeInTheDocument();
 
-    expect(screen.getAllByRole("heading", { name: /^Site Package$/i }).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole("heading", { name: /^Hosted Evaluation$/i }).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole("heading", { name: /^Enterprise$/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("heading", { name: /^Site Package Access$/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("heading", { name: /^Hosted Review$/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("heading", { name: /^Custom Scope$/i }).length).toBeGreaterThan(0);
 
     expect(screen.getAllByText(/\$2,100 – \$3,400/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/\$16 – \$29 \/ session-hour/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/\$50,000\+ scoped/i)).toBeInTheDocument();
 
     expect(
-      screen.getByRole("heading", { name: /What the first bill usually means\./i }),
+      screen.getByRole("heading", { name: /Choose by what your team needs first\./i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/First exact-site evaluation/i)).toBeInTheDocument();
-    expect(screen.getByText(/Hosted-only fit check/i)).toBeInTheDocument();
-    expect(screen.getByText(/Bring your site/i)).toBeInTheDocument();
+    expect(screen.getByText(/Package access first/i)).toBeInTheDocument();
+    expect(screen.getByText(/Hosted review first/i)).toBeInTheDocument();
+    expect(screen.getByText(/Custom scope first/i)).toBeInTheDocument();
+    expect(screen.getByText(/Package access means files and approved exports/i)).toBeInTheDocument();
+    expect(screen.getByText(/managed browser sessions and run evidence/i)).toBeInTheDocument();
 
     expect(screen.getByText(/Scope changes with/i)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /A simpler visual comparison\./i })).toBeInTheDocument();
+    expect(screen.getByText(/What pricing does not claim/i)).toBeInTheDocument();
+    expect(screen.getByText(/not a package license by itself/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /What each path unlocks first\./i })).toBeInTheDocument();
 
     expect(
       screen
-        .getAllByRole("link", { name: /Scope hosted evaluation/i })
+        .getAllByRole("link", { name: /Request hosted review/i })
         .some((link) =>
           link.getAttribute("href") ===
           "/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=pricing",

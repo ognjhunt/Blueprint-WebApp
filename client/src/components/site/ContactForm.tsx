@@ -140,6 +140,7 @@ export function ContactForm() {
     hostedMode ? "exact_site_required" : "need_guidance",
   );
   const [operatingConstraints, setOperatingConstraints] = useState("");
+  const [captureRights, setCaptureRights] = useState("");
   const [privacySecurityConstraints, setPrivacySecurityConstraints] = useState("");
   const [commercializationPreference, setCommercializationPreference] = useState("");
   const [humanGateTopics, setHumanGateTopics] = useState("");
@@ -190,10 +191,14 @@ export function ContactForm() {
     if (!operatingConstraints && userData?.operatingConstraints) {
       setOperatingConstraints(userData.operatingConstraints);
     }
+    if (!captureRights && userData?.captureRights) {
+      setCaptureRights(userData.captureRights);
+    }
     if (!privacySecurityConstraints && userData?.privacySecurityConstraints) {
       setPrivacySecurityConstraints(userData.privacySecurityConstraints);
     }
   }, [
+    captureRights,
     company,
     currentUser,
     email,
@@ -321,6 +326,7 @@ export function ContactForm() {
       existingStackReviewWorkflow: undefined,
       humanGateTopics: humanGateTopics.trim() || undefined,
       operatingConstraints: operatingConstraints.trim() || undefined,
+      captureRights: persona === "site_operator" ? captureRights.trim() || undefined : undefined,
       privacySecurityConstraints: privacySecurityConstraints.trim() || undefined,
       targetRobotTeam: persona === "robot_team" ? targetRobotTeam.trim() || undefined : undefined,
       derivedScenePermission: persona === "site_operator" ? commercializationPreference.trim() || undefined : undefined,
@@ -711,84 +717,96 @@ export function ContactForm() {
       ) : (
         <>
           <FormSection eyebrow="02 Site" title="What facility and access path are you bringing?">
-          <div>
-            <label htmlFor="contact-title" className={labelClassName}>Title</label>
-            <input
-              id="contact-title"
-              className={inputClassName}
-              placeholder="Ops lead, facility manager, innovation lead"
-              autoComplete="organization-title"
-              value={jobTitle}
-              onChange={(event) => setJobTitle(event.target.value)}
-            />
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <label htmlFor="contact-site-name" className={labelClassName}>
-                Facility name
-                <RequiredMark />
-              </label>
+              <label htmlFor="contact-title" className={labelClassName}>Title</label>
               <input
-                id="contact-site-name"
+                id="contact-title"
                 className={inputClassName}
-                placeholder="Facility name*"
-                aria-required="true"
-                value={siteName}
-                onChange={(event) => setSiteName(event.target.value)}
+                placeholder="Ops lead, facility manager, innovation lead"
+                autoComplete="organization-title"
+                value={jobTitle}
+                onChange={(event) => setJobTitle(event.target.value)}
               />
             </div>
-            <PlaceAutocompleteInput
-              id="contact-site-location"
-              label="Site location"
-              placeholder="City, state, or facility address*"
-              value={siteLocation}
-              onChange={setSiteLocation}
-              onPlaceSelect={setSiteLocationMetadata}
-              required
-              labelClassName={labelClassName}
-              inputClassName={inputClassName}
-            />
-          </div>
-          <div>
-            <label htmlFor="contact-access-rules" className={labelClassName}>
-              Access rules
-              <RequiredMark />
-            </label>
-            <textarea
-              id="contact-access-rules"
-              className={textareaClassName}
-              placeholder="Hours, escort requirements, restricted areas, or other operating rules.*"
-              aria-required="true"
-              value={operatingConstraints}
-              onChange={(event) => setOperatingConstraints(event.target.value)}
-            />
-          </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label htmlFor="contact-site-name" className={labelClassName}>
+                  Facility name
+                  <RequiredMark />
+                </label>
+                <input
+                  id="contact-site-name"
+                  className={inputClassName}
+                  placeholder="Facility name*"
+                  aria-required="true"
+                  value={siteName}
+                  onChange={(event) => setSiteName(event.target.value)}
+                />
+              </div>
+              <PlaceAutocompleteInput
+                id="contact-site-location"
+                label="Site location"
+                placeholder="City, state, or facility address*"
+                value={siteLocation}
+                onChange={setSiteLocation}
+                onPlaceSelect={setSiteLocationMetadata}
+                required
+                labelClassName={labelClassName}
+                inputClassName={inputClassName}
+              />
+            </div>
+            <div>
+              <label htmlFor="contact-access-rules" className={labelClassName}>
+                Access rules
+                <RequiredMark />
+              </label>
+              <textarea
+                id="contact-access-rules"
+                className={textareaClassName}
+                placeholder="Hours, escort requirements, restricted areas, or other operating rules.*"
+                aria-required="true"
+                value={operatingConstraints}
+                onChange={(event) => setOperatingConstraints(event.target.value)}
+              />
+            </div>
           </FormSection>
           <FormSection eyebrow="03 Governance" title="Set the boundaries before a call.">
-          <div>
-            <label htmlFor="contact-privacy-notes" className={labelClassName}>
-              Privacy and security notes
-            </label>
-            <textarea
-              id="contact-privacy-notes"
-              className={textareaClassName}
-              placeholder="Camera limits, redaction needs, safety or security restrictions."
-              value={privacySecurityConstraints}
-              onChange={(event) => setPrivacySecurityConstraints(event.target.value)}
-            />
-          </div>
-          <div>
-            <label htmlFor="contact-commercialization" className={labelClassName}>
-              Commercialization preference
-            </label>
-            <textarea
-              id="contact-commercialization"
-              className={textareaClassName}
-              placeholder="Whether the site can be listed for robot-team review, kept private, or discussed only after approval."
-              value={commercializationPreference}
-              onChange={(event) => setCommercializationPreference(event.target.value)}
-            />
-          </div>
+            <div>
+              <label htmlFor="contact-rights-notes" className={labelClassName}>
+                Rights and ownership notes
+              </label>
+              <textarea
+                id="contact-rights-notes"
+                className={textareaClassName}
+                placeholder="Who controls site approval, capture permission, owner review, or release terms."
+                value={captureRights}
+                onChange={(event) => setCaptureRights(event.target.value)}
+              />
+            </div>
+            <div>
+              <label htmlFor="contact-privacy-notes" className={labelClassName}>
+                Privacy and security notes
+              </label>
+              <textarea
+                id="contact-privacy-notes"
+                className={textareaClassName}
+                placeholder="Camera limits, redaction needs, safety or security restrictions."
+                value={privacySecurityConstraints}
+                onChange={(event) => setPrivacySecurityConstraints(event.target.value)}
+              />
+            </div>
+            <div>
+              <label htmlFor="contact-commercialization" className={labelClassName}>
+                Commercialization preference
+              </label>
+              <textarea
+                id="contact-commercialization"
+                className={textareaClassName}
+                placeholder="Whether the site can be listed for robot-team review, kept private, or discussed only after approval."
+                value={commercializationPreference}
+                onChange={(event) => setCommercializationPreference(event.target.value)}
+              />
+            </div>
           </FormSection>
         </>
       )}
