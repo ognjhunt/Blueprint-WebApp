@@ -6,7 +6,7 @@ test("exact-site hosted review route keeps the sample-review selector path stabl
   await expect(page).toHaveURL(/\/product$/);
   await expect(
     page.getByRole("heading", {
-      name: /One exact-site product path\./i,
+      name: /One real place, packaged for robot evaluation\./i,
     }),
   ).toBeVisible();
   await expect(

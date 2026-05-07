@@ -81,13 +81,13 @@ describe("Contact page", () => {
     expect(screen.queryByText(/Requested lanes/i)).not.toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /Request site review/i }).length).toBeGreaterThan(0);
     expect(screen.getByText(/Short form first\. Call only when useful\./i)).toBeInTheDocument();
-    expect(screen.getByText(/Useful to include/i)).toBeInTheDocument();
+    expect(screen.getByText(/Required first pass/i)).toBeInTheDocument();
     expect(screen.getByText(/Fastest paths/i)).toBeInTheDocument();
-    expect(screen.getByText(/See product/i)).toBeInTheDocument();
+    expect(screen.getByText(/How Blueprint works/i)).toBeInTheDocument();
     expect(
-      screen.getByText(/Best when your team wants to understand world models, site packages, and hosted review before sharing site details\./i),
+      screen.getByText(/Best when your team is new to Blueprint and wants the product shape before sharing site details\./i),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Inspect the sample listing/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Browse sites/i).length).toBeGreaterThan(0);
     expect(screen.getByRole("textbox", { name: /What should Blueprint help your team answer first\?/i })).toBeInTheDocument();
     expect(screen.queryByText(/Learn More/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Prefer a lighter first step\?/i)).not.toBeInTheDocument();
@@ -153,7 +153,7 @@ describe("Contact page", () => {
       screen.getByText(/This city leans on high-trust introductions/i),
     ).toBeInTheDocument();
     expect(screen.getByText(/Fastest paths/i)).toBeInTheDocument();
-    expect(screen.getByText(/Inspect the sample listing/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Browse sites/i).length).toBeGreaterThan(0);
   });
 
   it("renders San Francisco-specific buyer guidance when the city param is present", () => {
@@ -199,10 +199,6 @@ describe("Contact page", () => {
     fireEvent.change(screen.getByRole("textbox", { name: /Site or facility/i }), {
       target: { value: "Warehouse in Chicago" },
     });
-    fireEvent.change(screen.getByRole("textbox", { name: /Robot or stack/i }), {
-      target: { value: "Unitree G1" },
-    });
-
     fireEvent.click(screen.getByRole("button", { name: /Request site review/i }));
 
     await waitFor(() => {
@@ -321,6 +317,7 @@ describe("Contact page", () => {
     fireEvent.change(screen.getByRole("textbox", { name: /Access rules/i }), {
       target: { value: "Escorted weekdays, no capture near the cash office." },
     });
+    fireEvent.click(screen.getByRole("button", { name: /Add privacy, rights, or commercialization details/i }));
     fireEvent.change(screen.getByRole("textbox", { name: /Rights and ownership notes/i }), {
       target: { value: "Owner approval required before release." },
     });

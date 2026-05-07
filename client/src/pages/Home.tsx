@@ -4,7 +4,6 @@ import {
   EditorialFaq,
   EditorialMetricStrip,
   EditorialSectionIntro,
-  EditorialSectionLabel,
   MonochromeMedia,
   MonochromeVideo,
   RouteTraceOverlay,
@@ -48,6 +47,43 @@ const productPaths = [
   },
 ];
 
+const personaEntryPoints = [
+  {
+    audience: "Robot team",
+    question: "I need a real place my robot may operate in.",
+    title: "Inspect or request a site.",
+    body:
+      "Start with a current listing, or send the place, workflow, and robot setup your team needs to evaluate.",
+    primaryHref:
+      "/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=request-capture&source=home-persona-robot-team",
+    primaryLabel: "Request site review",
+    secondaryHref: "/world-models",
+    secondaryLabel: "Browse sites",
+  },
+  {
+    audience: "Site operator",
+    question: "I control or influence a facility.",
+    title: "Submit or claim a site.",
+    body:
+      "Name the facility, access rules, privacy boundaries, and how commercialization should be handled.",
+    primaryHref: "/contact/site-operator",
+    primaryLabel: "Submit or claim a site",
+    secondaryHref: "/governance",
+    secondaryLabel: "Review boundaries",
+  },
+  {
+    audience: "Capturer",
+    question: "I can record real public-facing places.",
+    title: "Check where capture is open.",
+    body:
+      "Capture access is city- and approval-gated. Check the current launch path before recording or applying.",
+    primaryHref: "/capture-app/launch-access?role=capturer&source=home-persona-capturer",
+    primaryLabel: "Check capture access",
+    secondaryHref: "/capture",
+    secondaryLabel: "How capture works",
+  },
+];
+
 const proofItems = [
   "Capture provenance stays attached to the site record.",
   "Package and hosted paths stay tied to the same site.",
@@ -62,22 +98,22 @@ const captureExamples = [
 
 const homeDirectAnswers = [
   {
-    question: "What is Blueprint?",
+    question: "What does Blueprint do?",
     answer:
-      "Blueprint turns real-site capture into site-specific world-model products, hosted review, and package access for robot teams.",
+      "Blueprint records real places and turns approved capture into site-specific products robot teams can inspect before committing people, budget, or deployment work.",
   },
   {
-    question: "What is a site-specific world model?",
+    question: "Who is it for?",
     answer:
-      "A site-specific world model is a digital environment tied to one real facility or public-facing place, with capture provenance, rights, privacy, and package limits kept attached.",
+      "Robot teams use Blueprint to inspect or request sites. Site operators use it to set access, privacy, and commercialization boundaries. Capturers use it to apply for approved public-facing capture work.",
   },
   {
-    question: "What does a robot team get?",
+    question: "What does a robot team get first?",
     answer:
-      "A robot team can inspect a site package, request hosted evaluation, review sample exports, and move toward package access only when the exact site and proof path are clear.",
+      "A robot team starts with a site listing, sample proof, or a structured request. Package access and hosted review only come after the exact site and proof path are clear.",
   },
   {
-    question: "What is sample versus proof?",
+    question: "What is sample versus real approved output?",
     answer:
       "Public examples are labeled as samples unless they are tied to an approved listing, capture record, rights posture, and hosted-review result.",
   },
@@ -103,28 +139,28 @@ const homeVariantContent: Record<
   }
 > = {
   hosted_review: {
-    title: "Site-specific world models for real places.",
+    title: "Blueprint turns real places into sites your robot team can inspect.",
     description:
-      "Inspect real captured places, then send the site, workflow, and robot setup your team needs to evaluate next.",
-    primaryLabel: "Request hosted review",
-    primaryPath: "hosted-evaluation",
-    secondaryLabel: "Capture / earn",
-    secondaryHref: "/capture",
-    panelTitle: "Start with one site",
-    panelBody:
-      "Tell us the place, the robot, and the decision your team needs to make. We will point you to the right listing, hosted evaluation, or capture path.",
-  },
-  proof_pack: {
-    title: "Site-specific world models for real places.",
-    description:
-      "Start with the deployment question, not a generic demo. Blueprint keeps capture provenance, package scope, hosted review, and rights boundaries attached to one site.",
+      "Send the site, route, or facility type you care about. Blueprint uses real capture to build a site-specific product with proof, limits, and next steps attached.",
     primaryLabel: "Request site review",
     primaryPath: "request-capture",
-    secondaryLabel: "Capture / earn",
-    secondaryHref: "/capture",
-    panelTitle: "Exact-site proof path",
+    secondaryLabel: "Browse sample sites",
+    secondaryHref: "/world-models",
+    panelTitle: "New here?",
     panelBody:
-      "See what is already inspectable, then request the site or workflow your team actually needs.",
+      "A robot team asks for a site. A site operator sets the rules. A capturer applies where capture is open.",
+  },
+  proof_pack: {
+    title: "Blueprint turns real places into sites your robot team can inspect.",
+    description:
+      "Start with one real place and the robot question you need answered. Blueprint keeps the capture source, rights, package scope, and hosted review path tied to that site.",
+    primaryLabel: "Request site review",
+    primaryPath: "request-capture",
+    secondaryLabel: "Browse sample sites",
+    secondaryHref: "/world-models",
+    panelTitle: "New here?",
+    panelBody:
+      "Use the path that matches your role: request a site, claim a facility, or apply to capture approved places.",
   },
 };
 
@@ -230,20 +266,20 @@ export default function Home() {
   const metrics = useMemo(
     () => [
       {
-        label: "World model",
-        detail: "A site-specific digital environment built from real capture of one place and workflow.",
+        label: "Real capture",
+        detail: "A walkthrough or site record starts the product. Provenance and limits stay attached.",
       },
       {
-        label: "Site package",
-        detail: "Walkthrough media, poses, metadata, geometry when available, rights, and export scope.",
+        label: "Site product",
+        detail: "Blueprint packages the capture into a site-specific world model, listing, and export scope.",
       },
       {
         label: "Hosted review",
-        detail: "Managed reruns, observations, evidence exports, and next-step recommendation on the same site.",
+        detail: "A managed browser session can help a robot team inspect the same site before file handoff.",
       },
       {
         label: "Decision",
-        detail: "Use it before the team commits travel, rollout spend, custom sim work, or deeper integration.",
+        detail: "Use the proof before committing travel, rollout spend, custom sim work, or deeper integration.",
       },
     ],
     [],
@@ -329,8 +365,8 @@ export default function Home() {
   return (
     <>
       <SEO
-        title="Blueprint | Site-Specific World Models For Real Places"
-        description="Blueprint helps robot teams inspect exact-site world models, hosted robot evaluation, and site packages built from real capture."
+        title="Blueprint | Real Sites For Robot Teams To Inspect"
+        description="Blueprint turns real-site capture into site-specific products robot teams can inspect, request, and review before deployment work."
         canonical="/"
         jsonLd={[
           organizationJsonLd(),
@@ -339,7 +375,7 @@ export default function Home() {
             path: "/",
             name: "Blueprint",
             description:
-              "Site-specific world models, hosted robot evaluation, and capture-backed site packages for robot teams.",
+              "Real-site capture, site-specific products, hosted review, and clear paths for robot teams, site operators, and capturers.",
           }),
           breadcrumbJsonLd([{ name: "Home", path: "/" }]),
           faqJsonLd(homeDirectAnswers),
@@ -362,8 +398,7 @@ export default function Home() {
             <div className="absolute inset-0">
               <div className="mx-auto grid h-full max-w-[88rem] gap-10 px-5 py-12 sm:px-8 lg:grid-cols-[0.62fr_0.38fr] lg:px-10 lg:py-16">
                 <div className="flex min-h-[34rem] flex-col justify-end">
-                <EditorialSectionLabel light>Blueprint</EditorialSectionLabel>
-	                <h1 className="font-editorial mt-6 max-w-[38rem] text-[3.45rem] leading-[0.9] tracking-[-0.06em] text-white sm:text-[4.9rem]">
+	                <h1 className="font-editorial max-w-[42rem] text-[3.15rem] leading-[0.9] tracking-[-0.06em] text-white sm:text-[4.6rem]">
 	                  {heroContent.title}
 	                </h1>
 	                <p className="mt-6 max-w-[32rem] text-base leading-8 text-white opacity-90 sm:text-[1.03rem]">
@@ -413,13 +448,74 @@ export default function Home() {
                     {heroContent.panelBody}
                   </p>
                   <div className="mt-5 border-t border-white/10 pt-4 text-sm text-white/70">
-                    One exact site. One workflow. Proof stays attached.
+                    One real site. One robot question. Proof stays attached.
                   </div>
                   </div>
                 </div>
               </div>
             </div>
           </MonochromeMedia>
+        </section>
+
+        <section className="border-b border-black/10 bg-white" data-home-section="persona-paths">
+          <div className="mx-auto max-w-[88rem] px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
+            <div className="grid gap-px bg-black/10 lg:grid-cols-3">
+              {personaEntryPoints.map((entry, index) => (
+                <article
+                  key={entry.audience}
+                  className={index === 0 ? "bg-slate-950 p-6 text-white" : "bg-[#f5f3ef] p-6 text-slate-950"}
+                >
+                  <p className={`text-[11px] uppercase tracking-[0.18em] ${index === 0 ? "text-white/45" : "text-slate-500"}`}>
+                    {entry.audience}
+                  </p>
+                  <p className={`mt-3 text-sm leading-6 ${index === 0 ? "text-white/65" : "text-slate-600"}`}>
+                    {entry.question}
+                  </p>
+                  <h2 className="font-editorial mt-5 text-[2.25rem] leading-[0.94] tracking-[-0.05em]">
+                    {entry.title}
+                  </h2>
+                  <p className={`mt-4 text-sm leading-7 ${index === 0 ? "text-white/72" : "text-slate-700"}`}>
+                    {entry.body}
+                  </p>
+                  <div className="mt-7 flex flex-wrap gap-3">
+                    <a
+                      href={entry.primaryHref}
+                      onClick={() =>
+                        trackHomeCtaClick(
+                          `home_persona_${entry.audience.toLowerCase().replace(/[^a-z0-9]+/g, "_")}_primary`,
+                          entry.primaryLabel,
+                          entry.primaryHref,
+                          "home-persona-paths",
+                        )
+                      }
+                      className={index === 0
+                        ? "inline-flex items-center justify-center bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
+                        : "inline-flex items-center justify-center bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"}
+                    >
+                      {entry.primaryLabel}
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </a>
+                    <a
+                      href={entry.secondaryHref}
+                      onClick={() =>
+                        trackHomeCtaClick(
+                          `home_persona_${entry.audience.toLowerCase().replace(/[^a-z0-9]+/g, "_")}_secondary`,
+                          entry.secondaryLabel,
+                          entry.secondaryHref,
+                          "home-persona-paths",
+                        )
+                      }
+                      className={index === 0
+                        ? "inline-flex items-center justify-center border border-white/15 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+                        : "inline-flex items-center justify-center border border-black/10 bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"}
+                    >
+                      {entry.secondaryLabel}
+                    </a>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
         </section>
 
         <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10" data-home-section="metrics">

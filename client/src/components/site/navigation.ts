@@ -1,9 +1,8 @@
 export const primaryNavLinks = [
-  { href: "/product", label: "Product" },
-  { href: "/world-models", label: "Catalog" },
-  { href: "/capture", label: "Earn" },
-  { href: "/proof", label: "Proof" },
-  { href: "/pricing", label: "Pricing" },
+  { href: "/product", label: "For robot teams" },
+  { href: "/contact/site-operator", label: "For site operators" },
+  { href: "/capture", label: "For capturers" },
+  { href: "/world-models", label: "Sites to inspect" },
 ];
 
 export const headerUtilityLinks = [
@@ -12,19 +11,19 @@ export const headerUtilityLinks = [
 ];
 
 export const footerProductLinks = [
-  { href: "/product", label: "Product" },
-  { href: "/world-models", label: "Catalog" },
-  { href: "/world-models/siteworld-f5fd54898cfb", label: "Sample Site" },
-  { href: "/proof", label: "Proof Stories" },
-  { href: "/capture", label: "Capture App / Earn" },
+  { href: "/product", label: "For robot teams" },
+  { href: "/contact/site-operator", label: "For site operators" },
+  { href: "/capture", label: "For capturers" },
+  { href: "/world-models", label: "Sites to inspect" },
+  { href: "/proof", label: "Sample proof" },
   { href: "/pricing", label: "Pricing" },
 ];
 
 export const footerCompanyLinks = [
-  { href: "/updates", label: "Updates" },
   { href: "/about", label: "About" },
   { href: "/governance", label: "Trust" },
   { href: "/contact?persona=robot-team", label: "Contact" },
+  { href: "/updates", label: "Updates" },
   { href: "/careers", label: "Careers" },
 ];
 

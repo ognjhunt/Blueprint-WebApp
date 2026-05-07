@@ -119,6 +119,13 @@ export function ContactForm() {
   const analyticsDemandAttribution = hasDemandAttribution(searchDemandAttribution)
     ? searchDemandAttribution
     : undefined;
+  const hasPrefilledOptionalContext = Boolean(
+    searchParams.get("siteLocation")?.trim()
+      || searchParams.get("targetRobotTeam")?.trim(),
+  );
+  const [showOptionalDetails, setShowOptionalDetails] = useState(
+    hostedMode || hasPrefilledOptionalContext,
+  );
 
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
@@ -465,10 +472,10 @@ export function ContactForm() {
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-              Useful to include
+              Required first pass
             </p>
             <p className="mt-2 text-sm leading-6 text-slate-700">
-              Keep the first pass short. Blueprint can ask for detail after we understand the site and workflow.
+              Keep the first pass short. Blueprint can ask for more detail after the site and workflow are clear.
             </p>
           </div>
           <div className="flex flex-wrap gap-2 md:max-w-[20rem] md:justify-end">
@@ -613,23 +620,6 @@ export function ContactForm() {
               <p className={helperClassName}>Use a real place when known. Otherwise use the closest site class.</p>
             </div>
             <div>
-              <label
-                htmlFor="contact-embodiment"
-                className={labelClassName}
-              >
-                Robot or stack
-              </label>
-              <input
-                id="contact-embodiment"
-                className={inputClassName}
-                placeholder="Robot platform, stack, or policy/checkpoint name"
-                value={targetRobotTeam}
-                onChange={(event) => setTargetRobotTeam(event.target.value)}
-              />
-            </div>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
               <label htmlFor="contact-site-type" className={labelClassName}>
                 Target site class
               </label>
@@ -640,54 +630,91 @@ export function ContactForm() {
                 value={targetSiteType}
                 onChange={(event) => setTargetSiteType(event.target.value)}
               />
-            </div>
-            <div>
-              <label htmlFor="contact-budget" className={labelClassName}>
-                Budget or procurement range
-              </label>
-              <select
-                id="contact-budget"
-                className={inputClassName}
-                value={budgetBucket}
-                onChange={(event) => setBudgetBucket(event.target.value as BudgetBucket)}
-              >
-                <option value="Undecided/Unsure">Undecided/Unsure</option>
-                <option value="<$50K">&lt;$50K</option>
-                <option value="$50K-$300K">$50K-$300K</option>
-                <option value="$300K-$1M">$300K-$1M</option>
-                <option value=">$1M">&gt;$1M</option>
-              </select>
+              <p className={helperClassName}>Required only when you cannot name the exact site yet.</p>
             </div>
           </div>
-          <PlaceAutocompleteInput
-            id="contact-site-location"
-            label="Site location"
-            placeholder="City, state, facility address, or region"
-            value={siteLocation}
-            onChange={setSiteLocation}
-            onPlaceSelect={setSiteLocationMetadata}
-            labelClassName={labelClassName}
-            inputClassName={inputClassName}
-          />
           </FormSection>
-          <FormSection eyebrow="03 Routing" title="What should not be missed?">
-          {!hostedMode ? (
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <label htmlFor="contact-proof-path" className={labelClassName}>
-                  Proof path
-                </label>
-                <select
-                  id="contact-proof-path"
-                  className={inputClassName}
-                  value={proofPathPreference}
-                  onChange={(event) => setProofPathPreference(event.target.value as ProofPathPreference)}
-                >
-                  <option value="need_guidance">Need guidance</option>
-                  <option value="exact_site_required">Exact site required</option>
-                  <option value="adjacent_site_acceptable">Adjacent site acceptable</option>
-                </select>
+
+          <div className="border-t border-black/10 pt-6">
+            <button
+              type="button"
+              className="inline-flex w-full items-center justify-between border border-black/10 bg-[#f8f6f1] px-4 py-3 text-left text-sm font-semibold text-slate-900 transition hover:bg-white"
+              aria-expanded={showOptionalDetails}
+              onClick={() => setShowOptionalDetails((current) => !current)}
+            >
+              <span>{showOptionalDetails ? "Hide optional details" : "Add robot, location, budget, or routing details"}</span>
+              <span className="text-xs uppercase tracking-[0.16em] text-slate-500">
+                Optional
+              </span>
+            </button>
+          </div>
+
+          {showOptionalDetails ? (
+            <FormSection eyebrow="03 Optional" title="Add detail only when it helps the first reply.">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label
+                    htmlFor="contact-embodiment"
+                    className={labelClassName}
+                  >
+                    Robot or stack
+                  </label>
+                  <input
+                    id="contact-embodiment"
+                    className={inputClassName}
+                    placeholder="Robot platform, stack, or policy/checkpoint name"
+                    value={targetRobotTeam}
+                    onChange={(event) => setTargetRobotTeam(event.target.value)}
+                  />
+                </div>
+                <PlaceAutocompleteInput
+                  id="contact-site-location"
+                  label="Site location"
+                  placeholder="City, state, facility address, or region"
+                  value={siteLocation}
+                  onChange={setSiteLocation}
+                  onPlaceSelect={setSiteLocationMetadata}
+                  labelClassName={labelClassName}
+                  inputClassName={inputClassName}
+                />
               </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label htmlFor="contact-budget" className={labelClassName}>
+                    Budget or procurement range
+                  </label>
+                  <select
+                    id="contact-budget"
+                    className={inputClassName}
+                    value={budgetBucket}
+                    onChange={(event) => setBudgetBucket(event.target.value as BudgetBucket)}
+                  >
+                    <option value="Undecided/Unsure">Undecided/Unsure</option>
+                    <option value="<$50K">&lt;$50K</option>
+                    <option value="$50K-$300K">$50K-$300K</option>
+                    <option value="$300K-$1M">$300K-$1M</option>
+                    <option value=">$1M">&gt;$1M</option>
+                  </select>
+                </div>
+                {!hostedMode ? (
+                  <div>
+                    <label htmlFor="contact-proof-path" className={labelClassName}>
+                      Proof path
+                    </label>
+                    <select
+                      id="contact-proof-path"
+                      className={inputClassName}
+                      value={proofPathPreference}
+                      onChange={(event) => setProofPathPreference(event.target.value as ProofPathPreference)}
+                    >
+                      <option value="need_guidance">Need guidance</option>
+                      <option value="exact_site_required">Exact site required</option>
+                      <option value="adjacent_site_acceptable">Adjacent site acceptable</option>
+                    </select>
+                  </div>
+                ) : null}
+              </div>
+              {!hostedMode ? (
               <div>
                 <label htmlFor="contact-human-gates" className={labelClassName}>
                   Human-gated topics
@@ -700,19 +727,19 @@ export function ContactForm() {
                   onChange={(event) => setHumanGateTopics(event.target.value)}
                 />
               </div>
-            </div>
+              ) : null}
+              <div>
+                <label htmlFor="contact-notes" className={labelClassName}>Optional notes</label>
+                <textarea
+                  id="contact-notes"
+                  className={textareaClassName}
+                  placeholder="Anything useful about timing, constraints, integrations, rights questions, or why this site matters now."
+                  value={detailsMessage}
+                  onChange={(event) => setDetailsMessage(event.target.value)}
+                />
+              </div>
+            </FormSection>
           ) : null}
-          <div>
-            <label htmlFor="contact-notes" className={labelClassName}>Optional notes</label>
-            <textarea
-              id="contact-notes"
-              className={textareaClassName}
-              placeholder="Anything useful about timing, constraints, integrations, rights questions, or why this site matters now."
-              value={detailsMessage}
-              onChange={(event) => setDetailsMessage(event.target.value)}
-            />
-          </div>
-          </FormSection>
         </>
       ) : (
         <>
@@ -770,59 +797,73 @@ export function ContactForm() {
               />
             </div>
           </FormSection>
-          <FormSection eyebrow="03 Governance" title="Set the boundaries before a call.">
-            <div>
-              <label htmlFor="contact-rights-notes" className={labelClassName}>
-                Rights and ownership notes
-              </label>
-              <textarea
-                id="contact-rights-notes"
-                className={textareaClassName}
-                placeholder="Who controls site approval, capture permission, owner review, or release terms."
-                value={captureRights}
-                onChange={(event) => setCaptureRights(event.target.value)}
-              />
-            </div>
-            <div>
-              <label htmlFor="contact-privacy-notes" className={labelClassName}>
-                Privacy and security notes
-              </label>
-              <textarea
-                id="contact-privacy-notes"
-                className={textareaClassName}
-                placeholder="Camera limits, redaction needs, safety or security restrictions."
-                value={privacySecurityConstraints}
-                onChange={(event) => setPrivacySecurityConstraints(event.target.value)}
-              />
-            </div>
-            <div>
-              <label htmlFor="contact-commercialization" className={labelClassName}>
-                Commercialization preference
-              </label>
-              <textarea
-                id="contact-commercialization"
-                className={textareaClassName}
-                placeholder="Whether the site can be listed for robot-team review, kept private, or discussed only after approval."
-                value={commercializationPreference}
-                onChange={(event) => setCommercializationPreference(event.target.value)}
-              />
-            </div>
-          </FormSection>
+
+          <div className="border-t border-black/10 pt-6">
+            <button
+              type="button"
+              className="inline-flex w-full items-center justify-between border border-black/10 bg-[#f8f6f1] px-4 py-3 text-left text-sm font-semibold text-slate-900 transition hover:bg-white"
+              aria-expanded={showOptionalDetails}
+              onClick={() => setShowOptionalDetails((current) => !current)}
+            >
+              <span>{showOptionalDetails ? "Hide optional boundary details" : "Add privacy, rights, or commercialization details"}</span>
+              <span className="text-xs uppercase tracking-[0.16em] text-slate-500">
+                Optional
+              </span>
+            </button>
+          </div>
+
+          {showOptionalDetails ? (
+            <FormSection eyebrow="03 Optional" title="Set extra boundaries before a call.">
+              <div>
+                <label htmlFor="contact-rights-notes" className={labelClassName}>
+                  Rights and ownership notes
+                </label>
+                <textarea
+                  id="contact-rights-notes"
+                  className={textareaClassName}
+                  placeholder="Who controls site approval, capture permission, owner review, or release terms."
+                  value={captureRights}
+                  onChange={(event) => setCaptureRights(event.target.value)}
+                />
+              </div>
+              <div>
+                <label htmlFor="contact-privacy-notes" className={labelClassName}>
+                  Privacy and security notes
+                </label>
+                <textarea
+                  id="contact-privacy-notes"
+                  className={textareaClassName}
+                  placeholder="Camera limits, redaction needs, safety or security restrictions."
+                  value={privacySecurityConstraints}
+                  onChange={(event) => setPrivacySecurityConstraints(event.target.value)}
+                />
+              </div>
+              <div>
+                <label htmlFor="contact-commercialization" className={labelClassName}>
+                  Commercialization preference
+                </label>
+                <textarea
+                  id="contact-commercialization"
+                  className={textareaClassName}
+                  placeholder="Whether the site can be listed for robot-team review, kept private, or discussed only after approval."
+                  value={commercializationPreference}
+                  onChange={(event) => setCommercializationPreference(event.target.value)}
+                />
+              </div>
+              <div>
+                <label htmlFor="contact-notes" className={labelClassName}>Notes</label>
+                <textarea
+                  id="contact-notes"
+                  className={textareaClassName}
+                  placeholder="Anything else Blueprint should know about the facility or approval path."
+                  value={detailsMessage}
+                  onChange={(event) => setDetailsMessage(event.target.value)}
+                />
+              </div>
+            </FormSection>
+          ) : null}
         </>
       )}
-
-      {persona === "site_operator" ? (
-        <div className="border-t border-black/10 pt-6">
-          <label htmlFor="contact-notes" className={labelClassName}>Notes</label>
-          <textarea
-            id="contact-notes"
-            className={textareaClassName}
-            placeholder="Anything else Blueprint should know about the facility or approval path."
-            value={detailsMessage}
-            onChange={(event) => setDetailsMessage(event.target.value)}
-          />
-        </div>
-      ) : null}
 
       <div className="hidden">
         <label htmlFor="website">Website</label>

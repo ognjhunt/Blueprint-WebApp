@@ -6,11 +6,11 @@ test('contact page leads with capture and world-model requests', async ({ page }
   await expect(
     page.getByRole('heading', { name: /Tell us the site, task, and robot in a few lines\./i }),
   ).toBeVisible();
-  await expect(page.getByRole('link', { name: /Request site review/i })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Request site review', exact: true })).toBeVisible();
   await expect(page.getByText('For Robot Teams', { exact: true }).first()).toBeVisible();
   await expect(
-    page.getByText(/one exact site for evaluation, site-specific data, release comparison, or package access/i),
+    page.getByText(/a real place to inspect, compare, or request before deployment work moves forward/i),
   ).toBeVisible();
   await expect(page.getByText(/Short form first\. Call only when useful\./i)).toBeVisible();
-  await expect(page.getByText(/Useful to include/i)).toBeVisible();
+  await expect(page.getByText(/Required first pass/i)).toBeVisible();
 });

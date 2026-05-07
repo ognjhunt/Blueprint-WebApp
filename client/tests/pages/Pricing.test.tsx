@@ -8,7 +8,7 @@ describe("Pricing", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Pricing for package access and hosted review\./i,
+        name: /Choose the first step for one real site\./i,
       }),
     ).toBeInTheDocument();
 

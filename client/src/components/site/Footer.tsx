@@ -13,10 +13,10 @@ export function Footer() {
             Blueprint
           </a>
           <p className="text-sm leading-6 text-slate-600">
-            Exact-site packages, hosted evaluation, and trust details grounded in real capture.
+            Blueprint turns real-site capture into site-specific products that robot teams can inspect before deployment work gets expensive.
           </p>
           <p className="text-sm leading-6 text-slate-600">
-            Built for teams that need the actual site to be visible before deployment, travel, and rollout spend.
+            Robot teams request or review sites. Site operators set access and privacy boundaries. Capturers apply where capture is open.
           </p>
           <div className="flex flex-col gap-2">
             <a

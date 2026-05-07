@@ -44,15 +44,15 @@ export default function Capture() {
   return (
     <>
       <SEO
-        title="Capture App / Earn | Blueprint"
-        description="Apply for capturer access and see how lawful public-facing walkthroughs become reviewed provenance for site-specific world-model products."
+        title="For Capturers | Blueprint"
+        description="Check where Blueprint capture is open, apply for capturer access, and learn how lawful public-facing walkthroughs support site-specific products."
         canonical="/capture"
         jsonLd={[
           webPageJsonLd({
             path: "/capture",
-            name: "Blueprint Capture",
+            name: "Blueprint For Capturers",
             description:
-              "How lawful public-facing capture, review gates, provenance, privacy, and rights handling support site-specific world-model products.",
+              "How lawful public-facing capture, review gates, provenance, privacy, and rights handling support site-specific products for robot teams.",
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },
@@ -67,19 +67,19 @@ export default function Capture() {
             <div className="px-8 py-10 lg:px-12 lg:py-14">
               <EditorialSectionLabel>Capture</EditorialSectionLabel>
               <h1 className="font-editorial mt-8 max-w-[24rem] text-[4rem] leading-[0.88] tracking-[-0.07em] text-slate-950 sm:text-[5.2rem]">
-                Capture starts in the app.
+                Capture real places only where Blueprint has opened access.
               </h1>
               <p className="mt-8 max-w-[30rem] text-base leading-8 text-slate-700">
-                Blueprint&apos;s main site is for buyers inspecting exact-site world models. If
-                you are the person recording an everyday public-facing place, this page is the
-                route into the capture app and access request.
+                If you can record public-facing places, start here. Capture access is city-,
+                invite-, and code-gated so reviewed walkthroughs can support real site products
+                without pretending every location is open.
               </p>
               <div className="mt-10 flex flex-wrap gap-3">
                 <a
-                  href="/capture-app"
+                  href="/capture-app/launch-access?role=capturer&source=capture-hero"
                   className="inline-flex items-center justify-center bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                 >
-                  Open capture app
+                  Check capture access
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </a>
                 <a
@@ -273,8 +273,8 @@ export default function Capture() {
         <section className="mx-auto max-w-[96rem] px-5 py-10 sm:px-8 lg:px-10">
           <EditorialCtaBand
 	            eyebrow="Buyer side"
-	            title="Looking for the buyer side instead?"
-	            description="Robot teams start in the world-model catalog and hosted-review path, not in capture access."
+	            title="Looking for a site your robot team can inspect?"
+	            description="Robot teams start with sites to inspect and structured site requests, not capturer access."
 	            imageSrc={publicCaptureGeneratedAssets.everydayPlacesCollage}
             imageAlt="Blueprint capture route"
             primaryHref="/world-models"

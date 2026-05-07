@@ -69,10 +69,10 @@ describe("Capturer access copy", () => {
     render(<Capture />);
 
     expect(
-      screen.getByRole("heading", { name: /Capture starts in the app/i }),
+      screen.getByRole("heading", { name: /Capture real places only where Blueprint has opened access/i }),
     ).toBeInTheDocument();
     expect(screen.getByText(/invite- and code-gated/i)).toBeInTheDocument();
-    expect(screen.getByText(/recording an everyday public-facing place/i)).toBeInTheDocument();
+    expect(screen.getByText(/If you can record public-facing places, start here/i)).toBeInTheDocument();
     expect(screen.getByText(/Currently supported:/i)).toBeInTheDocument();
   });
 

@@ -55,9 +55,9 @@ export default function Contact() {
     ? "Request Hosted Evaluation | Blueprint"
     : robotTeamCityMessaging
       ? `For ${robotTeamCityMessaging.shortLabel} Robot Teams | Blueprint`
-      : persona === "site_operator"
-        ? "For Site Operators | Blueprint"
-        : "For Robot Teams | Blueprint";
+        : persona === "site_operator"
+          ? "For Site Operators | Blueprint"
+          : "For Robot Teams | Blueprint";
   const seoDescription = captureRequestMode
     ? "Ask Blueprint to capture the exact site or workflow your robot team needs to evaluate."
     : hostedMode
@@ -66,7 +66,7 @@ export default function Contact() {
       ? robotTeamCityMessaging.requestHeroBody
       : persona === "site_operator"
         ? "Talk to Blueprint about facility participation, access rules, and governance."
-        : "Tell Blueprint which site, workflow, and robot setup your team wants to evaluate.";
+        : "Tell Blueprint which real site, workflow, and robot setup your team wants to evaluate.";
 
   const badgeLabel = captureRequestMode
     ? "Request Capture"
@@ -94,7 +94,7 @@ export default function Contact() {
       ? robotTeamCityMessaging.requestHeroBody
       : persona === "site_operator"
         ? "Start with the facility, access rules, and privacy boundaries. A call comes later only when private areas, rights, or commercialization need a human pass."
-        : "Use this form if your team needs one exact site for evaluation, site-specific data, release comparison, or package access.";
+        : "Use this form when your team needs a real place to inspect, compare, or request before deployment work moves forward.";
 
   const responseBody = captureRequestMode
     ? "Fill out the short form and Blueprint will reply with the capture option, hosted evaluation path, or the one missing detail we need first."
@@ -164,13 +164,13 @@ export default function Contact() {
       : [
           {
             href: "/product",
-            label: "See product",
-            detail: "Best when your team wants to understand world models, site packages, and hosted review before sharing site details.",
+            label: "How Blueprint works",
+            detail: "Best when your team is new to Blueprint and wants the product shape before sharing site details.",
           },
           {
             href: "/world-models",
-            label: "Inspect the sample listing",
-            detail: "Best when your team wants to validate the proof style before any outreach.",
+            label: "Browse sites",
+            detail: "Best when your team wants to see sample proof, access state, and package paths before outreach.",
           },
           {
             href: "/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=contact-fast-path",
@@ -261,14 +261,14 @@ export default function Contact() {
                     onClick={() =>
                       trackContactCta(
                         "contact_hero_proof",
-                        persona === "site_operator" ? "Review governance" : "Inspect sample listing",
+                        persona === "site_operator" ? "Review governance" : "Browse sites",
                         persona === "site_operator" ? "/governance" : "/world-models",
                         "contact-hero",
                       )
                     }
                     className="inline-flex items-center justify-center border border-black/10 bg-white/70 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-white"
                   >
-                    {persona === "site_operator" ? "Review governance" : "Inspect sample listing"}
+                    {persona === "site_operator" ? "Review governance" : "Browse sites"}
                   </a>
                 </div>
                 <div className="mt-6 grid max-w-[31rem] gap-2 sm:grid-cols-3">

@@ -38,7 +38,7 @@ const trustCards = [
 const reviewSteps = [
   {
     title: "Scope",
-    body: "Pick one listing or facility, one workflow, and the robot setup or policy question that matters.",
+    body: "Name one listing or facility, one workflow, and the robot setup or policy question that matters.",
   },
   {
     title: "Run",
@@ -66,7 +66,7 @@ export default function ExactSiteHostedReview() {
     <>
       <SEO
         title="Product | Blueprint"
-        description="Blueprint turns real-site capture into site-specific world models, site packages, and hosted review for robot teams."
+        description="See how Blueprint turns real-site capture into inspectable site products, package access, and hosted review for robot teams."
         canonical="/product"
         type="product"
         jsonLd={[
@@ -74,7 +74,7 @@ export default function ExactSiteHostedReview() {
             path: "/product",
             name: "Blueprint Product",
             description:
-              "Site-specific world models, site packages, hosted review, and provenance boundaries for robot teams.",
+              "Real-site capture, inspectable site products, package access, hosted review, and provenance boundaries for robot teams.",
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },
@@ -111,10 +111,10 @@ export default function ExactSiteHostedReview() {
                 <div className="flex min-h-[34rem] flex-col justify-end selection:bg-white/20 selection:text-white">
                 <EditorialSectionLabel light>Product</EditorialSectionLabel>
                 <h1 className="font-editorial mt-6 max-w-[36rem] text-[3.7rem] leading-[0.9] tracking-[-0.06em] text-white sm:text-[5rem]">
-                  One exact-site product path.
+                  One real place, packaged for robot evaluation.
                 </h1>
                 <p className="mt-6 max-w-[30rem] text-base leading-8 text-white/[0.86]">
-                  Blueprint packages real-site capture into site-specific world models, buyer-readable site packages, and hosted review when your team needs managed evidence first.
+                  Blueprint starts with real capture of a facility or public-facing place, then turns it into an inspectable site product with package files, hosted review, and proof boundaries attached.
                 </p>
                 <div className="mt-8 flex flex-wrap gap-2">
                   <ProofChip light>Site package</ProofChip>
@@ -126,14 +126,14 @@ export default function ExactSiteHostedReview() {
 	                    href="/world-models"
                     className="inline-flex items-center justify-center bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
                   >
-	                    Browse catalog
+	                    Browse sites
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </a>
                   <a
 	                    href="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=product"
                     className="inline-flex items-center justify-center border border-white/[0.16] px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/[0.08]"
                   >
-	                    Contact enterprise
+	                    Request site review
                   </a>
                 </div>
               </div>
@@ -145,13 +145,13 @@ export default function ExactSiteHostedReview() {
                   </div>
                   <div className="grid gap-3 p-5">
                     <div className="rounded-[1rem] border border-white/10 bg-white/[0.08] p-4 text-sm text-white/[0.72]">
-                      Site: one exact place
+                    Site: one real place
                     </div>
                     <div className="rounded-[1rem] border border-white/10 bg-white/[0.08] p-4 text-sm text-white/[0.72]">
-                      Review: reruns, observations, exports
+                    Review: routes, observations, exports
                     </div>
                     <div className="rounded-[1rem] border border-white/10 bg-white/[0.08] p-4 text-sm text-white/[0.72]">
-                      Output: next step stays explicit
+                    Output: next step stays explicit
                     </div>
                   </div>
                   </div>
@@ -165,8 +165,8 @@ export default function ExactSiteHostedReview() {
 	          <div className="grid gap-6 lg:grid-cols-[0.38fr_0.62fr]">
 	            <EditorialSectionIntro
 	              eyebrow="Preview"
-	              title="Setup, run evidence, and export scope are visible."
-	              description="A hosted review is a managed session on one exact site. It starts with the scoped task, records the run evidence, then ends with the next commercial decision."
+	              title="A cold visitor can see the product shape quickly."
+	              description="Start with a real site. Then choose whether your team needs package files, a managed hosted review, or a narrower capture request."
 	            />
             <div className="overflow-hidden border border-black/10 bg-slate-950 p-4 text-white">
               <EditorialFilmstrip frames={hostedFilmstripFrames.map((frame, index) => ({
@@ -183,8 +183,8 @@ export default function ExactSiteHostedReview() {
               <div className="bg-[#f5f3ef] p-6 lg:p-8">
                 <EditorialSectionIntro
                   eyebrow="Sample review packet"
-                  title="A hosted review can start from a public-facing place."
-                  description="The sample uses a grocery route to show the real motion: a capturer records an everyday place, Blueprint reviews privacy and restrictions, and a robot team gets evidence it can inspect."
+                  title="A sample shows the path without pretending to be customer proof."
+                  description="The grocery route is a sample. It shows the motion: a capturer records an everyday place, Blueprint reviews privacy and restrictions, and a robot team gets evidence it can inspect."
                 />
                 <div className="mt-7 space-y-3">
                   {[
@@ -256,8 +256,8 @@ export default function ExactSiteHostedReview() {
             <div className="bg-[#f5f3ef] px-6 py-8 lg:px-8 lg:py-10">
               <EditorialSectionIntro
                 eyebrow="Session"
-                title="What happens in a hosted review."
-                description="The setup stays narrow so the result can answer a real buyer question instead of becoming a generic demo."
+                  title="What happens in a hosted review."
+                  description="The setup stays narrow so the result can answer a robot-team question instead of becoming a generic demo."
               />
               <a
                 href="/samples/sample-hosted-review-report.md"
@@ -279,28 +279,28 @@ export default function ExactSiteHostedReview() {
         </section>
 
         <section className="border-b border-black/10 bg-white">
-          <div className="mx-auto grid max-w-[88rem] gap-4 px-5 py-10 sm:px-8 lg:grid-cols-[0.58fr_0.42fr] lg:px-10 lg:py-12">
-            <div className="border border-black/10 bg-[#f5f3ef] p-6 lg:p-8">
+          <div className="mx-auto grid max-w-[88rem] min-w-0 gap-4 px-5 py-10 sm:px-8 lg:grid-cols-[0.58fr_0.42fr] lg:px-10 lg:py-12">
+            <div className="min-w-0 border border-black/10 bg-[#f5f3ef] p-6 lg:p-8">
               <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Run evidence example</p>
               <div className="mt-5 divide-y divide-black/10 border border-black/10 bg-white">
                 {sampleHostedRunRows.map((row) => (
-                  <div key={row.run} className="grid gap-3 p-4 text-sm leading-6 text-slate-700 md:grid-cols-[0.16fr_0.3fr_0.34fr_0.2fr]">
-                    <span className="font-semibold text-slate-950">{row.run}</span>
-                    <span>{row.scenario}</span>
-                    <span>{row.observation}</span>
-                    <span className="text-slate-950">{row.output}</span>
+                  <div key={row.run} className="grid min-w-0 gap-3 p-4 text-sm leading-6 text-slate-700 md:grid-cols-[0.16fr_0.3fr_0.34fr_0.2fr]">
+                    <span className="min-w-0 font-semibold text-slate-950">{row.run}</span>
+                    <span className="min-w-0 break-words">{row.scenario}</span>
+                    <span className="min-w-0 break-words">{row.observation}</span>
+                    <span className="min-w-0 break-words text-slate-950">{row.output}</span>
                   </div>
                 ))}
               </div>
             </div>
-            <div className="border border-black/10 bg-slate-950 p-6 text-white lg:p-8">
+            <div className="min-w-0 border border-black/10 bg-slate-950 p-6 text-white lg:p-8">
               <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Export evidence</p>
               <h2 className="font-editorial mt-4 text-[2.4rem] leading-[0.94] tracking-[-0.05em]">
                 What leaves the session.
               </h2>
               <div className="mt-5 space-y-2 font-mono text-[12px] leading-6 text-white/70">
                 {sampleExportTree.slice(0, 6).map((item) => (
-                  <div key={item} className="border border-white/10 bg-white/5 px-3 py-2">
+                  <div key={item} className="min-w-0 break-all border border-white/10 bg-white/5 px-3 py-2">
                     {item}
                   </div>
                 ))}
@@ -322,7 +322,7 @@ export default function ExactSiteHostedReview() {
                 <EditorialSectionIntro
                   eyebrow="Commercial shape"
                   title="Hosted review sits between listing and commitment."
-                  description="It is the managed review path for one site, not a generic benchmark console."
+                  description="It is the managed review path for one site, not a generic benchmark console or deployment guarantee."
                 />
                   <div className="mt-8 space-y-3 text-sm leading-7 text-slate-700">
                     <div>1. Pick the site and workflow.</div>

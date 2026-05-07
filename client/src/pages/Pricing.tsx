@@ -138,7 +138,7 @@ function PricePanel({
           ))}
         </ul>
       </div>
-      <div className="relative min-h-[25rem] border-t border-black/10 lg:border-l lg:border-t-0">
+      <div className="relative min-h-[42rem] border-t border-black/10 sm:min-h-[34rem] md:min-h-[25rem] lg:border-l lg:border-t-0">
         <MonochromeMedia
           src={image}
           alt={imageAlt}
@@ -158,7 +158,7 @@ export default function Pricing() {
     <>
       <SEO
         title="Pricing | Blueprint"
-        description="Public pricing for site-package access, hosted review, and custom exact-site scope."
+        description="Choose package access, hosted review, or custom private-site scope for a real site your robot team needs to inspect."
         canonical="/pricing"
       />
 
@@ -176,10 +176,10 @@ export default function Pricing() {
               <div className="max-w-[34rem]">
                 <EditorialSectionLabel>Pricing</EditorialSectionLabel>
                 <h1 className="font-editorial mt-6 text-[3.7rem] leading-[0.9] tracking-[-0.06em] text-slate-950 sm:text-[5.1rem]">
-                  Pricing for package access and hosted review.
+                  Choose the first step for one real site.
                 </h1>
                 <p className="mt-6 text-lg leading-8 text-slate-700">
-                  Buy the site package when your team wants files and export scope. Start hosted review when it wants Blueprint to run one exact-site session first.
+                  Pick package access when your team needs files. Pick hosted review when it wants Blueprint to run the site first. Use custom scope for private, multi-site, or unusual rights work.
                 </p>
               </div>
             </div>

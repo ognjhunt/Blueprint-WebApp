@@ -32,7 +32,7 @@ const proofSummary = [
     icon: Route,
     label: "Capture route",
     value: "Public-aisle route sample",
-    action: "View route map",
+    action: "Open sample hosted setup",
   },
   {
     icon: ShieldCheck,
@@ -170,18 +170,18 @@ export default function Proof() {
                 <span className="font-medium text-white/80">Not live proof</span>
               </div>
               <div className="absolute bottom-4 left-4 inline-flex items-center gap-2 rounded-md bg-black/76 px-4 py-2.5 text-sm font-semibold text-white backdrop-blur">
-                <ArrowUpRight className="h-4 w-4" />
-                View capture details
+                <FileText className="h-4 w-4" />
+                Sample capture details
               </div>
               <div className="absolute bottom-4 right-4 flex items-center gap-2">
-                <button className="inline-flex min-h-10 items-center gap-2 rounded-md bg-black/78 px-4 text-sm font-semibold text-white backdrop-blur transition hover:bg-black">
+                <span className="inline-flex min-h-10 items-center gap-2 rounded-md bg-black/78 px-4 text-sm font-semibold text-white backdrop-blur">
                   <Play className="h-4 w-4" />
-                  Play path
-                </button>
-                <button className="inline-flex min-h-10 items-center gap-2 rounded-md bg-black/78 px-4 text-sm font-semibold text-white backdrop-blur transition hover:bg-black">
+                  Sample still
+                </span>
+                <span className="inline-flex min-h-10 items-center gap-2 rounded-md bg-black/78 px-4 text-sm font-semibold text-white backdrop-blur">
                   <Map className="h-4 w-4" />
-                  3D map
-                </button>
+                  Map preview below
+                </span>
               </div>
             </div>
 

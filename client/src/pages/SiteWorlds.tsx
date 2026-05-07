@@ -199,19 +199,19 @@ export default function SiteWorlds() {
   return (
     <>
       <SEO
-        title="Catalog | Blueprint"
-        description="Browse capture-backed exact-site world models for robotics teams, with clear paths into site packages, hosted evaluation, and provenance review."
+        title="Sites To Inspect | Blueprint"
+        description="Browse real captured sites robot teams can inspect, request, or use to understand Blueprint's package and hosted-review paths."
         canonical="/world-models"
         jsonLd={[
           webPageJsonLd({
             path: "/world-models",
-            name: "Blueprint Catalog",
+            name: "Blueprint Sites To Inspect",
             description:
-              "A catalog of capture-backed exact-site world models for robotics teams, site packages, hosted evaluation, and provenance review.",
+              "Real captured sites, site-specific world models, package paths, hosted review, and provenance review for robot teams.",
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },
-            { name: "Catalog", path: "/world-models" },
+            { name: "Sites to inspect", path: "/world-models" },
           ]),
         ]}
       />
@@ -230,10 +230,10 @@ export default function SiteWorlds() {
             <div className="absolute inset-x-0 bottom-0 mx-auto max-w-[88rem] px-5 pb-12 sm:px-8 lg:px-10 lg:pb-14">
               <div className="max-w-[34rem]">
                 <h1 className="font-editorial text-[3.4rem] leading-[0.94] tracking-[-0.05em] text-white sm:text-[4.7rem]">
-                  Exact-site catalog.
+                  Sites your robot team can inspect.
                 </h1>
                 <p className="mt-3 text-lg text-white/90">
-                  Browse real facilities.
+                  Browse current samples and request the place you need.
                 </p>
                 <div className="mt-6 flex flex-wrap gap-2">
                   <ProofChip light>Exact site</ProofChip>
@@ -248,15 +248,15 @@ export default function SiteWorlds() {
           <div className="mb-5 flex items-center justify-between gap-4">
             <EditorialSectionIntro
               eyebrow="Featured sites"
-              title="Real facilities, presented as worlds."
-              description="The listings with the clearest current proof come first, followed by the broader exact-site catalog."
+              title="Start with a place, not an abstract demo."
+              description="The clearest listings come first. Each card keeps proof, access, freshness, and hosted-review state separate."
               className="max-w-3xl"
             />
             <a
               href="#catalog"
               className="hidden items-center text-sm font-semibold text-slate-700 transition hover:text-slate-950 lg:inline-flex"
             >
-              Explore all sites
+                Explore all sites
               <ArrowRight className="ml-2 h-4 w-4" />
             </a>
           </div>
@@ -291,8 +291,8 @@ export default function SiteWorlds() {
             <div className="bg-[#f5f3ef] p-6 lg:p-8">
               <EditorialSectionIntro
                 eyebrow="Capture app"
-                title="More sites can start with public-facing capture."
-                description="The catalog is not warehouse-only. Blueprint can source proof from grocery stores, retail floors, lobbies, malls, museums, and other everyday locations when the capturer stays inside public-facing areas and review rules."
+                title="Blueprint is not warehouse-only."
+                description="Grocery stores, retail floors, lobbies, malls, museums, and other everyday places can become useful robot-team evidence when capture is lawful, privacy-safe, and reviewed."
               />
               <a
                 href="/capture"
@@ -320,7 +320,7 @@ export default function SiteWorlds() {
               <EditorialSectionIntro
                 eyebrow="Inside the world"
                 title="Built from real capture."
-                description="Every world model stays grounded to one facility, one proof chain, and trust details your team can inspect."
+                description="Every site-specific world model stays grounded to one place, one proof chain, and trust details your team can inspect."
                 light
               />
               <div className="mt-8 space-y-5">
@@ -403,8 +403,8 @@ export default function SiteWorlds() {
         <section className="mx-auto max-w-[88rem] px-5 pb-16 pt-8 sm:px-8 lg:px-10 lg:pb-20">
           <EditorialCtaBand
             eyebrow="See a site for yourself"
-            title="Start with the exact site that matters."
-            description="Inspect the strongest current public sample, then move into package access or hosted evaluation only after the site is legible."
+            title="Start with the site that matters."
+            description="Inspect the strongest current public sample, then request package access, hosted review, or capture only after the site is legible."
             imageSrc="/generated/editorial/cross-dock.png"
             imageAlt={heroSite.siteName}
             primaryHref={publicDemoHref}

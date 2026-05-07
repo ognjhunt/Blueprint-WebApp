@@ -56,7 +56,7 @@ export function SEO({
       <meta property="og:title" content={fullTitle} />
       <meta property="og:description" content={description} />
       <meta property="og:image" content={image} />
-      <meta property="og:image:alt" content="Blueprint exact-site world model preview" />
+      <meta property="og:image:alt" content="Blueprint real-site capture and robot-site review preview" />
       <meta property="og:site_name" content={SITE_NAME} />
       {canonicalUrl && <meta property="og:url" content={canonicalUrl} />}
 

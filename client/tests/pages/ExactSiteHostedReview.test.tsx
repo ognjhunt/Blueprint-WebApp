@@ -9,18 +9,18 @@ describe("ExactSiteHostedReview", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /One exact-site product path\./i,
+        name: /One real place, packaged for robot evaluation\./i,
       }),
     ).toBeInTheDocument();
 
     expect(
       screen.getByText(
-        /Blueprint packages real-site capture into site-specific world models, buyer-readable site packages, and hosted review/i,
+        /Blueprint starts with real capture of a facility or public-facing place/i,
       ),
     ).toBeInTheDocument();
 
     expect(screen.getAllByText(/^Site package$/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Review: reruns, observations, exports/i)).toBeInTheDocument();
+    expect(screen.getByText(/Review: routes, observations, exports/i)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Hosted review sits between listing and commitment\./i })).toBeInTheDocument();
     expect(screen.getByText(/Example sample, not a customer result/i)).toBeInTheDocument();
     expect(screen.getByText(/Run evidence example/i)).toBeInTheDocument();

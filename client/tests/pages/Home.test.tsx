@@ -39,28 +39,25 @@ describe("Home", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Site-specific world models for real places\./i,
+        name: /Blueprint turns real places into sites your robot team can inspect\./i,
       }),
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        /Inspect real captured places, then send the site, workflow, and robot setup/i,
+        /Send the site, route, or facility type you care about/i,
       ),
     ).toBeInTheDocument();
     expect(
-      screen.getAllByRole("link", { name: /Request hosted review/i })[0],
+      screen.getAllByRole("link", { name: /Request site review/i })[0],
     ).toHaveAttribute(
       "href",
       expect.stringContaining("/contact?persona=robot-team"),
     );
-    expect(
-      screen.getAllByRole("link", { name: /Capture \/ earn/i })[0],
-    ).toHaveAttribute("href", "/capture");
-    expect(
-      screen.getByText(/A site-specific digital environment built from real capture/i),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/Walkthrough media, poses, metadata, geometry when available/i)).toBeInTheDocument();
-    expect(screen.getByText(/Managed reruns, observations, evidence exports/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Submit or claim a site\./i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Check where capture is open\./i })).toBeInTheDocument();
+    expect(screen.getByText(/A walkthrough or site record starts the product/i)).toBeInTheDocument();
+    expect(screen.getByText(/Blueprint packages the capture into a site-specific world model/i)).toBeInTheDocument();
+    expect(screen.getByText(/A managed browser session can help a robot team inspect/i)).toBeInTheDocument();
   });
 
   it("surfaces concise sections for sites, products, proof, and closing action", {

@@ -12,10 +12,10 @@ test('legacy environments route redirects to the world models catalog', async ({
 
   await expect(page).toHaveURL(/\/world-models$/);
   await expect(
-    page.getByRole('heading', { name: /Exact-site catalog\./i }),
+    page.getByRole('heading', { name: /Sites your robot team can inspect\./i }),
   ).toBeVisible();
   await expect(
-    page.getByText(/Browse real facilities\./i),
+    page.getByText(/Browse current samples and request the place you need\./i),
   ).toBeVisible();
 });
 

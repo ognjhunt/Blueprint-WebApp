@@ -3,7 +3,6 @@ import { useMemo, useState } from "react";
 import { Menu, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { publicDemoHref } from "@/lib/marketingProof";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -85,10 +84,10 @@ export function Header() {
 
         <div className="hidden items-center gap-4 xl:flex">
           <a
-            href={publicDemoHref}
+            href="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=request-capture&source=header"
             className="inline-flex items-center justify-center whitespace-nowrap rounded-none border border-white/20 px-4.5 py-2.5 text-[13px] font-semibold leading-none text-white transition hover:bg-white/10"
           >
-            Inspect a real site
+            Request a site
           </a>
           {currentUser ? (
             <DropdownMenu>
@@ -140,16 +139,16 @@ export function Header() {
 
       {open ? (
         <div className="border-t border-white/10 bg-black xl:hidden">
-          <nav className="mx-auto flex max-w-6xl flex-col gap-5 px-4 py-5 text-sm font-medium text-white/70">
+          <nav className="mx-auto flex max-w-6xl flex-col gap-5 px-4 py-5 text-sm font-medium text-white">
             <div className="space-y-2">
-              <p className="px-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/40">
+              <p className="px-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/60">
                 Explore
               </p>
               {primaryNavLinks.map((link) => (
                 <a
                   key={link.href}
                   href={link.href}
-                  className="flex min-h-11 items-center rounded-none border-b border-white/10 px-1 py-3 transition hover:text-white"
+                  className="flex min-h-11 items-center rounded-none border-b border-white/15 px-1 py-3 text-white/85 transition hover:text-white"
                   onClick={() => setOpen(false)}
                 >
                   {link.label}
@@ -158,11 +157,11 @@ export function Header() {
             </div>
 
             <a
-              href={publicDemoHref}
+              href="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=request-capture&source=mobile-header"
               className="inline-flex min-h-11 items-center justify-center rounded-none border border-white/20 bg-white/5 px-4 py-2.5 text-center font-semibold text-white"
               onClick={() => setOpen(false)}
             >
-              Inspect a real site
+              Request a site
             </a>
 
             {currentUser ? (

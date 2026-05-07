@@ -9,11 +9,11 @@ describe("SiteWorlds", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Exact-site catalog\./i,
+        name: /Sites your robot team can inspect\./i,
       }),
     ).toBeInTheDocument();
 
-    expect(screen.getByText(/Browse real facilities\./i)).toBeInTheDocument();
+    expect(screen.getByText(/Browse current samples and request the place you need\./i)).toBeInTheDocument();
 
     expect(
       screen.getByRole("link", { name: /Inspect a real site/i }),
@@ -32,7 +32,7 @@ describe("SiteWorlds", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Real facilities, presented as worlds\./i,
+        name: /Start with a place, not an abstract demo\./i,
       }),
     ).toBeInTheDocument();
 
@@ -62,7 +62,7 @@ describe("SiteWorlds", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Start with the exact site that matters\./i,
+        name: /Start with the site that matters\./i,
       }),
     ).toBeInTheDocument();
 
