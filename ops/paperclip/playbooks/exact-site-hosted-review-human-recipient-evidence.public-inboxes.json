@@ -1,6 +1,6 @@
 {
   "schema": "blueprint/gtm-human-recipient-evidence/v1",
-  "generatedAt": "2026-05-07T16:00:00.000Z",
+  "generatedAt": "2026-05-07T16:50:04.569Z",
   "ledgerPath": "ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json",
   "sourcePolicy": "Only explicit public-source emails recorded. Do not infer addresses from domains, names, or address patterns.",
   "recipients": [
@@ -135,6 +135,204 @@
       "sourceUrl": "https://www.outrider.ai/press/",
       "selectedForFirstSend": true,
       "notes": "Public inbox evidence only; founder approval and reply durability are still required before any send."
+    },
+    {
+      "targetId": "gtm-covariant-identify-a-bin-picking-induction-or-item-handling-workflow-worth-capturi",
+      "organizationName": "Covariant",
+      "email": "info@covariant.ai",
+      "name": null,
+      "role": "General inquiries public inbox",
+      "evidenceSource": "Fetched Covariant contact page lists general inquiries at info@covariant.ai.",
+      "sourceUrl": "https://covariant.ai/contact",
+      "selectedForFirstSend": true,
+      "notes": "Public inbox evidence only; founder approval and reply durability are still required before any send."
+    },
+    {
+      "targetId": "gtm-autostore-identify-a-goods-to-person-port-or-tote-flow-workflow-worth-capturing-fo",
+      "organizationName": "AutoStore",
+      "email": "goro.shiraishi@autostoresystem.com",
+      "name": "Goro Shiraishi",
+      "role": "Business Development Director public directory contact",
+      "evidenceSource": "Fetched AutoStore contact directory lists Goro Shiraishi, Business Development Director, with goro.shiraishi@autostoresystem.com.",
+      "sourceUrl": "https://www.autostoresystem.com/contact",
+      "selectedForFirstSend": true,
+      "notes": "Named public directory contact; founder approval and reply durability are still required before any send."
+    },
+    {
+      "targetId": "gtm-exotec-identify-a-goods-to-person-picking-or-storage-workflow-worth-capturing-f",
+      "organizationName": "Exotec",
+      "email": "contact@exotec.com",
+      "name": null,
+      "role": "Company public contact inbox",
+      "evidenceSource": "Fetched Exotec Impressum lists E-Mail: contact@exotec.com.",
+      "sourceUrl": "https://www.exotec.com/de/impressum/",
+      "selectedForFirstSend": true,
+      "notes": "Public inbox evidence only; founder approval and reply durability are still required before any send."
+    },
+    {
+      "targetId": "gtm-ocado-technology-identify-an-online-grocery-fulfillment-or-robotic-picking-workflow-worth",
+      "organizationName": "Ocado Technology",
+      "email": "ocadosolutionscomms@ocado.com",
+      "name": null,
+      "role": "Ocado Smart Platform contact inbox",
+      "evidenceSource": "Fetched Ocado Group media contact page lists Ocado Smart Platform contacts as ocadosolutionscomms@ocado.com.",
+      "sourceUrl": "https://www.ocadogroup.com/media/contact",
+      "selectedForFirstSend": true,
+      "notes": "Official platform contact evidence only; founder approval and reply durability are still required before any send."
+    },
+    {
+      "targetId": "gtm-berkshire-grey-identify-a-package-handling-sortation-or-fulfillment-workflow-worth-capt",
+      "organizationName": "Berkshire Grey",
+      "email": "sales_inquiry@berkshiregrey.com",
+      "name": null,
+      "role": "Sales inquiry public inbox",
+      "evidenceSource": "Fetched Berkshire Grey company fact sheet lists CONTACT sales_inquiry@berkshiregrey.com.",
+      "sourceUrl": "https://www.berkshiregrey.com/wp-content/uploads/2021/12/BerkshireGrey-Company-Fact-Sheet-P20211112.pdf",
+      "selectedForFirstSend": true,
+      "notes": "Sales-inquiry evidence only; founder approval and reply durability are still required before any send."
+    },
+    {
+      "targetId": "gtm-righthand-robotics-identify-a-piece-picking-or-order-fulfillment-cell-worth-capturing-for-e",
+      "organizationName": "RightHand Robotics",
+      "email": "info@righthandrobotics.com",
+      "name": null,
+      "role": "North America public inbox",
+      "evidenceSource": "Fetched RightHand Robotics contact page lists North America contact info@righthandrobotics.com.",
+      "sourceUrl": "https://righthandrobotics.com/contact-us",
+      "selectedForFirstSend": true,
+      "notes": "Public inbox evidence only; founder approval and reply durability are still required before any send."
+    },
+    {
+      "targetId": "gtm-mujin-identify-a-depalletizing-truck-unloading-or-material-handling-workflow-w",
+      "organizationName": "Mujin",
+      "email": "info@mujin-corp.com",
+      "name": null,
+      "role": "Americas public inbox",
+      "evidenceSource": "Fetched Mujin contact page lists Email: info@mujin-corp.com for the Americas/U.S. headquarters contact block.",
+      "sourceUrl": "https://mujin-corp.com/contact/",
+      "selectedForFirstSend": true,
+      "notes": "Public inbox evidence only; founder approval and reply durability are still required before any send."
+    },
+    {
+      "targetId": "gtm-dexterity-identify-a-truck-loading-palletizing-or-warehouse-manipulation-workflow-",
+      "organizationName": "Dexterity",
+      "email": "contact@dexterity.ai",
+      "name": null,
+      "role": "Company public contact inbox",
+      "evidenceSource": "Fetched Dexterity contact page lists Email contact@dexterity.ai.",
+      "sourceUrl": "https://dexterity.ai/contact",
+      "selectedForFirstSend": true,
+      "notes": "Public inbox evidence only; founder approval and reply durability are still required before any send."
+    },
+    {
+      "targetId": "gtm-robust-ai-identify-a-warehouse-cart-tote-or-collaborative-material-movement-workfl",
+      "organizationName": "Robust.AI",
+      "email": "contact@robust.ai",
+      "name": null,
+      "role": "Company public contact inbox",
+      "evidenceSource": "Fetched Robust.AI terms page lists contact@robust.ai for company questions about the service.",
+      "sourceUrl": "https://www.robust.ai/terms-of-service",
+      "selectedForFirstSend": true,
+      "notes": "Official public contact evidence only; founder approval and reply durability are still required before any send."
+    },
+    {
+      "targetId": "gtm-zebra-robotics-automation-identify-a-picking-replenishment-or-fulfillment-amr-workflow-worth-captu",
+      "organizationName": "Zebra Robotics Automation",
+      "email": "contact.emea@zebra.com",
+      "name": null,
+      "role": "Robotics and automation specialists public inbox",
+      "evidenceSource": "Fetched Zebra OEM Robotics and Automation application brief says to contact the specialist team at contact.emea@zebra.com.",
+      "sourceUrl": "https://medialibrary.zebra.com/content/dam/zebra_new_ia/en-us/solutions-verticals/product/OEM%20Products/OEM%20Scan%20Engines/brief-application/oem-brief-application-robotics-automation-en-gb.pdf",
+      "selectedForFirstSend": true,
+      "notes": "Specialist-team evidence only; founder approval and reply durability are still required before any send."
+    },
+    {
+      "targetId": "gtm-skydio-identify-an-industrial-inspection-route-or-facility-workflow-worth-captu",
+      "organizationName": "Skydio",
+      "email": "sales@skydio.com",
+      "name": null,
+      "role": "Enterprise sales public inbox",
+      "evidenceSource": "Fetched Skydio 2/2+ FAQ says enterprise customers should contact sales@skydio.com to learn more.",
+      "sourceUrl": "https://support.skydio.com/hc/en-us/articles/360000597753-Skydio-2-2-Frequently-Asked-Questions",
+      "selectedForFirstSend": true,
+      "notes": "Enterprise-sales evidence only; founder approval and reply durability are still required before any send."
+    },
+    {
+      "targetId": "gtm-greyorange-identify-a-fulfillment-picking-or-sortation-workflow-worth-capturing-for",
+      "organizationName": "GreyOrange",
+      "email": "sales.usa@greyorange.com",
+      "name": null,
+      "role": "U.S. sales public inbox",
+      "evidenceSource": "Fetched GreyOrange Next-Generation Warehouse whitepaper lists E: sales.usa@greyorange.com for contacting a GreyOrange representative.",
+      "sourceUrl": "https://www.greyorange.com/wp-content/uploads/2023/02/Next-Gen-Warehouse-WP.pdf",
+      "selectedForFirstSend": true,
+      "notes": "Sales-inbox evidence only; founder approval and reply durability are still required before any send."
+    },
+    {
+      "targetId": "gtm-zipline-identify-a-loading-dispatch-or-delivery-operations-workflow-worth-captur",
+      "organizationName": "Zipline",
+      "email": "community@flyzipline.com",
+      "name": null,
+      "role": "Community and stakeholder public inbox",
+      "evidenceSource": "Fetched Zipline cities information page asks residents and stakeholders to reach out at community@flyzipline.com.",
+      "sourceUrl": "https://www.zipline.com/for-cities",
+      "selectedForFirstSend": true,
+      "notes": "Community/stakeholder inbox evidence only; founder approval should decide whether this is appropriate for first-send outreach."
+    },
+    {
+      "targetId": "gtm-knightscope-identify-a-patrol-route-lobby-parking-or-facility-security-workflow-wort",
+      "organizationName": "Knightscope",
+      "email": "contact@knightscope.com",
+      "name": null,
+      "role": "Authorized partner program public inbox",
+      "evidenceSource": "Fetched Knightscope partner-program press release says those interested in becoming a KAP are encouraged to email contact@knightscope.com.",
+      "sourceUrl": "https://ir.knightscope.com/press-releases/37505454-port-authority-ny-nj-expands-use-of-kems-after-life-saving-event",
+      "selectedForFirstSend": true,
+      "notes": "Partner-program evidence only; founder approval and reply durability are still required before any send."
+    },
+    {
+      "targetId": "gtm-symbotic-identify-a-case-handling-palletizing-or-distribution-center-workflow-wor",
+      "organizationName": "Symbotic",
+      "email": "info@symbotic.com",
+      "name": null,
+      "role": "Published company-profile contact inbox",
+      "evidenceSource": "Fetched Crunchbase company profile lists Contact Email info@symbotic.com for Symbotic.",
+      "sourceUrl": "https://www.crunchbase.com/organization/symbotic",
+      "selectedForFirstSend": true,
+      "notes": "Third-party company-profile evidence, not inferred from a domain pattern; founder approval should decide whether this is appropriate for first-send outreach."
+    },
+    {
+      "targetId": "gtm-starship-technologies-identify-a-campus-retail-or-sidewalk-delivery-workflow-worth-capturing-f",
+      "organizationName": "Starship Technologies",
+      "email": "business@starship.co",
+      "name": null,
+      "role": "Delivery by Starship business integration public inbox",
+      "evidenceSource": "Fetched Starship FAQ says businesses interested in Delivery by Starship can contact business@starship.co for more information.",
+      "sourceUrl": "https://www.starship.xyz/faq/",
+      "selectedForFirstSend": true,
+      "notes": "Business-integration evidence only; founder approval and reply durability are still required before any send."
+    },
+    {
+      "targetId": "gtm-serve-robotics-identify-a-restaurant-handoff-sidewalk-route-or-curbside-delivery-workfl",
+      "organizationName": "Serve Robotics",
+      "email": "contact@serverobotics.com",
+      "name": null,
+      "role": "Serve Advertising public contact inbox",
+      "evidenceSource": "Fetched Serve Advertising page lists contact@serverobotics.com in the contact form for Serve robot advertising inquiries.",
+      "sourceUrl": "https://advertising.serverobotics.com/",
+      "selectedForFirstSend": true,
+      "notes": "Official advertising contact evidence; founder approval should decide whether this inbox is appropriate for first-send exact-site outreach."
+    },
+    {
+      "targetId": "gtm-nuro-identify-a-curbside-pickup-delivery-staging-or-goods-handoff-workflow-wo",
+      "organizationName": "Nuro",
+      "email": "feedback@nuro.ai",
+      "name": null,
+      "role": "Community feedback public inbox",
+      "evidenceSource": "Fetched Nuro legal page says members of the community can contact Nuro directly with feedback by emailing feedback@nuro.ai.",
+      "sourceUrl": "https://www.nuro.ai/legal",
+      "selectedForFirstSend": true,
+      "notes": "Community-feedback evidence only; founder approval should decide whether this inbox is appropriate for first-send exact-site outreach."
     }
   ]
 }

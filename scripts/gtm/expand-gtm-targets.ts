@@ -125,6 +125,7 @@ function targetFromSeed(seed: TargetSeed, index: number): ExactSiteGtmTarget {
     outbound: {
       status: "draft_ready",
       approvalState: "blocked",
+      messagePath: "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
     },
     sales: {
       nextAction: "Run the GTM enrichment waterfall to find explicit recipient-backed contact evidence.",
