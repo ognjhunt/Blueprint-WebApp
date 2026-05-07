@@ -16,6 +16,50 @@
       "notes": "Public inbox evidence only; founder approval and reply durability are still required before any send."
     },
     {
+      "targetId": "gtm-002-braincorp-retail-service-review",
+      "organizationName": "Brain Corp",
+      "email": "support@braincorporation.com",
+      "name": null,
+      "role": "Support services public inbox",
+      "evidenceSource": "Fetched Brain Corp legal/contact page lists support@braincorporation.com for questions about terms or services.",
+      "sourceUrl": "https://www.braincorp.com/es/legal-page/main",
+      "selectedForFirstSend": true,
+      "notes": "Public inbox evidence only; founder approval and reply durability are still required before any send."
+    },
+    {
+      "targetId": "gtm-003-agility-warehouse-humanoid",
+      "organizationName": "Agility Robotics",
+      "email": "sales@agilityrobotics.com",
+      "name": null,
+      "role": "Enterprise customer sales public inbox",
+      "evidenceSource": "Fetched Agility Robotics funding announcement says interested enterprise customers can reach out to sales@agilityrobotics.com.",
+      "sourceUrl": "https://www.agilityrobotics.com/content/agility-robotics-raises-150m-series-b-led-by-dcvc-and-playground-global",
+      "selectedForFirstSend": true,
+      "notes": "Public inbox evidence only; founder approval and reply durability are still required before any send."
+    },
+    {
+      "targetId": "gtm-004-boston-dynamics-stretch-warehouse",
+      "organizationName": "Boston Dynamics",
+      "email": "sales@bostondynamics.com",
+      "name": null,
+      "role": "Stretch sales public inbox",
+      "evidenceSource": "Fetched Boston Dynamics Stretch security PDF lists Contact: sales@bostondynamics.com.",
+      "sourceUrl": "https://bostondynamics.com/wp-content/uploads/2025/03/Stretch-Security.pdf",
+      "selectedForFirstSend": true,
+      "notes": "Public inbox evidence only; founder approval and reply durability are still required before any send."
+    },
+    {
+      "targetId": "gtm-005-locus-fulfillment-amr",
+      "organizationName": "Locus Robotics",
+      "email": "info@locusrobotics.com",
+      "name": null,
+      "role": "General public inbox",
+      "evidenceSource": "Fetched Locus Robotics Origin product sheet lists info@LocusRobotics.com.",
+      "sourceUrl": "https://files.even-logistics.com/production/users/uploads/LocusRobotics/solution/locusorigin/Origin-Product-Sheet.pdf?dm=1733235782",
+      "selectedForFirstSend": true,
+      "notes": "Public inbox evidence only; founder approval and reply durability are still required before any send."
+    },
+    {
       "targetId": "gtm-006-seegrid-warehouse-amr",
       "organizationName": "Seegrid",
       "email": "sales@seegrid.com",
@@ -23,6 +67,17 @@
       "role": "Sales public inbox",
       "evidenceSource": "Fetched Seegrid corporate sales asset lists Email Sales as sales@seegrid.com.",
       "sourceUrl": "https://hubspot.seegrid.com/hubfs/2021/Resources/Corporate%20Two%20Pager/Seegrid_CorporateTwoPager.pdf",
+      "selectedForFirstSend": true,
+      "notes": "Public inbox evidence only; founder approval and reply durability are still required before any send."
+    },
+    {
+      "targetId": "gtm-007-vecna-robotics-warehouse-orchestration",
+      "organizationName": "Vecna Robotics",
+      "email": "team@vecnarobotics.com",
+      "name": null,
+      "role": "Team public inbox",
+      "evidenceSource": "Fetched Vecna Robotics autonomous forklift resource says interested teams can reach Vecna by emailing team@vecnarobotics.com.",
+      "sourceUrl": "https://www.vecnarobotics.com/resources/how-to-solve-your-labor-shortage-problems-right-now-with-autonomous-forklifts/",
       "selectedForFirstSend": true,
       "notes": "Public inbox evidence only; founder approval and reply durability are still required before any send."
     },
@@ -36,6 +91,17 @@
       "sourceUrl": "https://foxrobotics.com/hubfs/fox_robotics_ATL_1-Pager_2024.pdf?hsLang=en",
       "selectedForFirstSend": true,
       "notes": "Public inbox evidence only; founder approval and reply durability are still required before any send."
+    },
+    {
+      "targetId": "gtm-009-diligent-healthcare-service-route",
+      "organizationName": "Diligent Robotics",
+      "email": "info@diligentrobots.com",
+      "name": null,
+      "role": "Company contact inbox from published company profile",
+      "evidenceSource": "Fetched Crunchbase company profile lists Contact Email info@diligentrobots.com for Diligent Robotics.",
+      "sourceUrl": "https://www.crunchbase.com/organization/diligent-robotics",
+      "selectedForFirstSend": true,
+      "notes": "Third-party company-profile evidence, not inferred from a domain pattern; founder approval and reply durability are still required before any send."
     },
     {
       "targetId": "gtm-010-gecko-industrial-inspection",

@@ -106,6 +106,7 @@ function targetFromSeed(seed: TargetSeed, index: number): ExactSiteGtmTarget {
       : {
           type: "city_site_opportunity_brief",
           status: "draft",
+          path: "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
         },
     captureAsk: track === "demand_sourced_capture"
       ? {
@@ -191,6 +192,18 @@ function addTargetsToLedger(ledger: ExactSiteGtmPilotLedger, targets: ExactSiteG
         contentDrafts: 0,
         paidSpendCents: 0,
       });
+    }
+  }
+  const targetFloor = ledger.pilot.targetAccountGoalMin || 30;
+  if (ledger.targets.length >= targetFloor) {
+    const floorBlocker = ledger.blockers?.find((blocker) => blocker.id === "gtm-blocker-target-ledger-floor");
+    if (floorBlocker && floorBlocker.status !== "resolved") {
+      const now = new Date().toISOString();
+      floorBlocker.status = "resolved";
+      floorBlocker.summary = `The active pilot now has ${ledger.targets.length} target rows, meeting the ${targetFloor}-account floor.`;
+      floorBlocker.nextAction = "Keep expanding toward the upper target range only when new rows come from explicit robot-team buying or workflow signals.";
+      floorBlocker.updatedAt = now;
+      floorBlocker.resolvedAt = now;
     }
   }
   return added;

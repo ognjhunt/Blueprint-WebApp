@@ -19,25 +19,27 @@
   "blockers": [
     {
       "id": "gtm-blocker-target-ledger-floor",
-      "status": "open",
-      "summary": "The active pilot has 12 target rows, below the 30-account floor needed before judging the wedge.",
+      "status": "resolved",
+      "summary": "The active pilot now has 30 target rows, meeting the 30-account floor.",
       "owner": "demand-intel-agent",
-      "nextAction": "Add real robot-team target rows from explicit buying signals while keeping recipient fields empty unless evidence-backed.",
+      "nextAction": "Keep expanding toward the upper target range only when new rows come from explicit robot-team buying or workflow signals.",
       "paperclipIssueId": "5c2a9746-72dc-4041-9277-bb71f001be54",
       "paperclipIssueIdentifier": "BLU-5394",
       "createdAt": "2026-05-03T14:13:24.440Z",
-      "updatedAt": "2026-05-03T14:13:24.440Z"
+      "updatedAt": "2026-05-07T16:08:23.430Z",
+      "resolvedAt": "2026-05-07T16:08:23.430Z"
     },
     {
       "id": "gtm-blocker-proof-artifact-scale",
-      "status": "open",
-      "summary": "The active pilot has two proof-ready hosted-review artifacts, below the three-artifact scale checkpoint.",
+      "status": "resolved",
+      "summary": "The active pilot now has three review-ready hosted-review artifacts or samples before scale.",
       "owner": "robot-team-growth-agent",
-      "nextAction": "Create or attach one more buyer-specific hosted-review artifact from real capture provenance, or keep the capture-ask track explicit until a real artifact exists.",
+      "nextAction": "Keep proof artifacts truthful and continue toward 30-50 target accounts before judging the wedge.",
       "paperclipIssueId": "d4e202ad-a106-49bc-afc4-780e458e7557",
       "paperclipIssueIdentifier": "BLU-5395",
       "createdAt": "2026-05-03T14:13:24.440Z",
-      "updatedAt": "2026-05-03T14:13:24.440Z"
+      "updatedAt": "2026-05-07T16:04:49.597Z",
+      "resolvedAt": "2026-05-07T16:04:49.597Z"
     }
   ],
   "paperclipIssues": [
@@ -309,6 +311,90 @@
             "searchedAt": "2026-05-07T15:58:46.234Z",
             "candidateCount": 0,
             "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "contact_found",
+            "searchedAt": "2026-05-07T16:00:45.105Z",
+            "candidateCount": 2,
+            "notes": "Human-supplied recipient evidence mirrored into enrichment candidates."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T16:00:45.194Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:00:45.194Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:00:45.194Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T16:00:45.194Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:00:45.194Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "contact_found",
+            "searchedAt": "2026-05-07T16:01:35.745Z",
+            "candidateCount": 2,
+            "notes": "Human-supplied recipient evidence mirrored into enrichment candidates."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T16:01:35.804Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:01:35.804Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:01:35.804Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T16:01:35.805Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:01:35.805Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
           }
         ],
         "recipientCandidates": [
@@ -319,14 +405,14 @@
             "evidenceType": "human_supplied",
             "providerKey": "manual_human_supplied",
             "confidence": "high",
-            "discoveredAt": "2026-05-07T15:58:46.116Z",
+            "discoveredAt": "2026-05-07T16:01:35.745Z",
             "sourceUrl": "https://archive.simberobotics.com/contact/",
             "selectable": true
           }
         ],
         "selectedRecipientEvidence": {
           "providerKey": "manual_human_supplied",
-          "selectedAt": "2026-05-07T15:58:46.234Z",
+          "selectedAt": "2026-05-07T16:01:35.805Z",
           "evidenceSource": "Fetched Simbe Robotics contact page lists SALES & DEPLOYMENT as sales@simberobotics.com."
         },
         "blockers": [
@@ -414,14 +500,14 @@
       "outbound": {
         "status": "draft_ready",
         "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
-        "approvalState": "blocked"
+        "approvalState": "pending_first_send_approval"
       },
       "sales": {
         "nextAction": "Find explicit recipient-backed contact evidence before founder first-send approval.",
         "nextActionOwner": "growth-lead"
       },
       "enrichment": {
-        "status": "blocked",
+        "status": "contact_found",
         "providerRuns": [
           {
             "providerKey": "manual_human_supplied",
@@ -632,9 +718,110 @@
             "searchedAt": "2026-05-07T15:58:46.299Z",
             "candidateCount": 0,
             "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "contact_found",
+            "searchedAt": "2026-05-07T16:00:45.195Z",
+            "candidateCount": 1,
+            "notes": "Human-supplied recipient evidence mirrored into enrichment candidates."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T16:00:45.226Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:00:45.226Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:00:45.226Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T16:00:45.226Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:00:45.226Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "contact_found",
+            "searchedAt": "2026-05-07T16:01:35.805Z",
+            "candidateCount": 2,
+            "notes": "Human-supplied recipient evidence mirrored into enrichment candidates."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T16:01:35.838Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:01:35.838Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:01:35.838Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T16:01:35.838Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:01:35.838Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
           }
         ],
-        "recipientCandidates": [],
+        "recipientCandidates": [
+          {
+            "email": "support@braincorporation.com",
+            "role": "Support services public inbox",
+            "evidenceSource": "Fetched Brain Corp legal/contact page lists support@braincorporation.com for questions about terms or services.",
+            "evidenceType": "human_supplied",
+            "providerKey": "manual_human_supplied",
+            "confidence": "high",
+            "discoveredAt": "2026-05-07T16:01:35.805Z",
+            "sourceUrl": "https://www.braincorp.com/es/legal-page/main",
+            "selectable": true
+          }
+        ],
+        "selectedRecipientEvidence": {
+          "providerKey": "manual_human_supplied",
+          "selectedAt": "2026-05-07T16:01:35.838Z",
+          "evidenceSource": "Fetched Brain Corp legal/contact page lists support@braincorporation.com for questions about terms or services."
+        },
         "blockers": [
           "Set BLUEPRINT_GTM_CONTACT_DISCOVERY_ALLOWED_HOSTS before governed public contact discovery."
         ]
@@ -642,14 +829,15 @@
       "blockers": [
         {
           "id": "gtm-blocker-contact-discovery-allowlist",
-          "status": "blocked",
-          "summary": "Governed recipient discovery is blocked because BLUEPRINT_GTM_CONTACT_DISCOVERY_ALLOWED_HOSTS is not configured and no selected recipient evidence exists.",
+          "status": "resolved",
+          "summary": "Recipient-backed evidence has been recorded for this target; governed discovery remains required for targets still missing evidence.",
           "owner": "growth-lead",
-          "nextAction": "Configure a governed contact-discovery allowlist or record explicit recipient-backed evidence before founder first-send approval.",
+          "nextAction": "Route this recipient-backed draft to founder first-send approval; do not send until founder approval and reply durability pass.",
           "paperclipIssueId": "036c744b-b0ec-4d74-b119-e2ba5243eb02",
           "paperclipIssueIdentifier": "BLU-5392",
           "createdAt": "2026-05-03T14:13:24.440Z",
-          "updatedAt": "2026-05-03T14:13:24.440Z"
+          "updatedAt": "2026-05-07T16:00:45.226Z",
+          "resolvedAt": "2026-05-07T16:00:45.226Z"
         },
         {
           "id": "gtm-blocker-buyer-reply-durability",
@@ -682,11 +870,17 @@
             "gtm-blocker-buyer-reply-durability"
           ]
         }
-      ]
+      ],
+      "recipient": {
+        "role": "Support services public inbox",
+        "email": "support@braincorporation.com",
+        "evidenceSource": "Fetched Brain Corp legal/contact page lists support@braincorporation.com for questions about terms or services.",
+        "evidenceType": "human_supplied"
+      }
     },
     {
       "id": "gtm-003-agility-warehouse-humanoid",
-      "track": "demand_sourced_capture",
+      "track": "proof_ready_outreach",
       "organizationName": "Agility Robotics",
       "buyerSegment": "Warehouse humanoid deployment team",
       "workflowNeed": "Identify which warehouse aisle, tote movement, or staging workflow would be most useful to capture for a hosted review.",
@@ -699,31 +893,34 @@
           "https://agilityrobotics.com/products/digit"
         ],
         "repoArtifacts": [
-          "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md"
+          "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
+          "client/public/samples/sample-warehouse-amr-hosted-review-report.md"
         ],
-        "notes": "No recipient-backed contact has been recorded yet."
+        "notes": "Sample warehouse AMR hosted-review artifact is attached for first-call scoping only; it is not a customer report or deployment proof."
       },
       "artifact": {
-        "type": "city_site_opportunity_brief",
-        "status": "draft",
-        "path": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md"
+        "type": "exact_site_hosted_review",
+        "status": "review_ready",
+        "path": "client/public/samples/sample-warehouse-amr-hosted-review-report.md",
+        "siteWorldId": "sample-warehouse-tote-pick-lane",
+        "hostedReviewPath": "/sample-evaluation?workflow=warehouse-amr"
       },
       "captureAsk": {
         "requestedSiteType": "warehouse aisle, tote movement, or staging workflow",
         "buyerQuestion": "Which logistics workflow would be useful enough for Blueprint to capture and host first?",
-        "status": "not_started"
+        "status": "requested"
       },
       "outbound": {
         "status": "draft_ready",
         "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
-        "approvalState": "blocked"
+        "approvalState": "pending_first_send_approval"
       },
       "sales": {
         "nextAction": "Find explicit recipient-backed contact evidence before founder first-send approval.",
         "nextActionOwner": "growth-lead"
       },
       "enrichment": {
-        "status": "blocked",
+        "status": "contact_found",
         "providerRuns": [
           {
             "providerKey": "manual_human_supplied",
@@ -934,9 +1131,110 @@
             "searchedAt": "2026-05-07T15:58:46.360Z",
             "candidateCount": 0,
             "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "contact_found",
+            "searchedAt": "2026-05-07T16:00:45.226Z",
+            "candidateCount": 1,
+            "notes": "Human-supplied recipient evidence mirrored into enrichment candidates."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T16:00:45.256Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:00:45.256Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:00:45.256Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T16:00:45.256Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:00:45.256Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "contact_found",
+            "searchedAt": "2026-05-07T16:01:35.838Z",
+            "candidateCount": 2,
+            "notes": "Human-supplied recipient evidence mirrored into enrichment candidates."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T16:01:35.867Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:01:35.867Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:01:35.867Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T16:01:35.867Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:01:35.867Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
           }
         ],
-        "recipientCandidates": [],
+        "recipientCandidates": [
+          {
+            "email": "sales@agilityrobotics.com",
+            "role": "Enterprise customer sales public inbox",
+            "evidenceSource": "Fetched Agility Robotics funding announcement says interested enterprise customers can reach out to sales@agilityrobotics.com.",
+            "evidenceType": "human_supplied",
+            "providerKey": "manual_human_supplied",
+            "confidence": "high",
+            "discoveredAt": "2026-05-07T16:01:35.838Z",
+            "sourceUrl": "https://www.agilityrobotics.com/content/agility-robotics-raises-150m-series-b-led-by-dcvc-and-playground-global",
+            "selectable": true
+          }
+        ],
+        "selectedRecipientEvidence": {
+          "providerKey": "manual_human_supplied",
+          "selectedAt": "2026-05-07T16:01:35.867Z",
+          "evidenceSource": "Fetched Agility Robotics funding announcement says interested enterprise customers can reach out to sales@agilityrobotics.com."
+        },
         "blockers": [
           "Set BLUEPRINT_GTM_CONTACT_DISCOVERY_ALLOWED_HOSTS before governed public contact discovery."
         ]
@@ -944,14 +1242,15 @@
       "blockers": [
         {
           "id": "gtm-blocker-contact-discovery-allowlist",
-          "status": "blocked",
-          "summary": "Governed recipient discovery is blocked because BLUEPRINT_GTM_CONTACT_DISCOVERY_ALLOWED_HOSTS is not configured and no selected recipient evidence exists.",
+          "status": "resolved",
+          "summary": "Recipient-backed evidence has been recorded for this target; governed discovery remains required for targets still missing evidence.",
           "owner": "growth-lead",
-          "nextAction": "Configure a governed contact-discovery allowlist or record explicit recipient-backed evidence before founder first-send approval.",
+          "nextAction": "Route this recipient-backed draft to founder first-send approval; do not send until founder approval and reply durability pass.",
           "paperclipIssueId": "036c744b-b0ec-4d74-b119-e2ba5243eb02",
           "paperclipIssueIdentifier": "BLU-5392",
           "createdAt": "2026-05-03T14:13:24.440Z",
-          "updatedAt": "2026-05-03T14:13:24.440Z"
+          "updatedAt": "2026-05-07T16:00:45.256Z",
+          "resolvedAt": "2026-05-07T16:00:45.256Z"
         },
         {
           "id": "gtm-blocker-buyer-reply-durability",
@@ -984,7 +1283,13 @@
             "gtm-blocker-buyer-reply-durability"
           ]
         }
-      ]
+      ],
+      "recipient": {
+        "role": "Enterprise customer sales public inbox",
+        "email": "sales@agilityrobotics.com",
+        "evidenceSource": "Fetched Agility Robotics funding announcement says interested enterprise customers can reach out to sales@agilityrobotics.com.",
+        "evidenceType": "human_supplied"
+      }
     },
     {
       "id": "gtm-004-boston-dynamics-stretch-warehouse",
@@ -1018,14 +1323,14 @@
       "outbound": {
         "status": "draft_ready",
         "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
-        "approvalState": "blocked"
+        "approvalState": "pending_first_send_approval"
       },
       "sales": {
         "nextAction": "Find explicit recipient-backed contact evidence before founder first-send approval.",
         "nextActionOwner": "growth-lead"
       },
       "enrichment": {
-        "status": "blocked",
+        "status": "contact_found",
         "providerRuns": [
           {
             "providerKey": "manual_human_supplied",
@@ -1236,9 +1541,110 @@
             "searchedAt": "2026-05-07T15:58:46.405Z",
             "candidateCount": 0,
             "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "contact_found",
+            "searchedAt": "2026-05-07T16:00:45.256Z",
+            "candidateCount": 1,
+            "notes": "Human-supplied recipient evidence mirrored into enrichment candidates."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T16:00:45.284Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:00:45.284Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:00:45.284Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T16:00:45.284Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:00:45.284Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "contact_found",
+            "searchedAt": "2026-05-07T16:01:35.868Z",
+            "candidateCount": 2,
+            "notes": "Human-supplied recipient evidence mirrored into enrichment candidates."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T16:01:35.898Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:01:35.898Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:01:35.898Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T16:01:35.898Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:01:35.898Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
           }
         ],
-        "recipientCandidates": [],
+        "recipientCandidates": [
+          {
+            "email": "sales@bostondynamics.com",
+            "role": "Stretch sales public inbox",
+            "evidenceSource": "Fetched Boston Dynamics Stretch security PDF lists Contact: sales@bostondynamics.com.",
+            "evidenceType": "human_supplied",
+            "providerKey": "manual_human_supplied",
+            "confidence": "high",
+            "discoveredAt": "2026-05-07T16:01:35.868Z",
+            "sourceUrl": "https://bostondynamics.com/wp-content/uploads/2025/03/Stretch-Security.pdf",
+            "selectable": true
+          }
+        ],
+        "selectedRecipientEvidence": {
+          "providerKey": "manual_human_supplied",
+          "selectedAt": "2026-05-07T16:01:35.898Z",
+          "evidenceSource": "Fetched Boston Dynamics Stretch security PDF lists Contact: sales@bostondynamics.com."
+        },
         "blockers": [
           "Set BLUEPRINT_GTM_CONTACT_DISCOVERY_ALLOWED_HOSTS before governed public contact discovery."
         ]
@@ -1246,14 +1652,15 @@
       "blockers": [
         {
           "id": "gtm-blocker-contact-discovery-allowlist",
-          "status": "blocked",
-          "summary": "Governed recipient discovery is blocked because BLUEPRINT_GTM_CONTACT_DISCOVERY_ALLOWED_HOSTS is not configured and no selected recipient evidence exists.",
+          "status": "resolved",
+          "summary": "Recipient-backed evidence has been recorded for this target; governed discovery remains required for targets still missing evidence.",
           "owner": "growth-lead",
-          "nextAction": "Configure a governed contact-discovery allowlist or record explicit recipient-backed evidence before founder first-send approval.",
+          "nextAction": "Route this recipient-backed draft to founder first-send approval; do not send until founder approval and reply durability pass.",
           "paperclipIssueId": "036c744b-b0ec-4d74-b119-e2ba5243eb02",
           "paperclipIssueIdentifier": "BLU-5392",
           "createdAt": "2026-05-03T14:13:24.440Z",
-          "updatedAt": "2026-05-03T14:13:24.440Z"
+          "updatedAt": "2026-05-07T16:00:45.284Z",
+          "resolvedAt": "2026-05-07T16:00:45.284Z"
         },
         {
           "id": "gtm-blocker-buyer-reply-durability",
@@ -1286,7 +1693,13 @@
             "gtm-blocker-buyer-reply-durability"
           ]
         }
-      ]
+      ],
+      "recipient": {
+        "role": "Stretch sales public inbox",
+        "email": "sales@bostondynamics.com",
+        "evidenceSource": "Fetched Boston Dynamics Stretch security PDF lists Contact: sales@bostondynamics.com.",
+        "evidenceType": "human_supplied"
+      }
     },
     {
       "id": "gtm-005-locus-fulfillment-amr",
@@ -1320,14 +1733,14 @@
       "outbound": {
         "status": "draft_ready",
         "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
-        "approvalState": "blocked"
+        "approvalState": "pending_first_send_approval"
       },
       "sales": {
         "nextAction": "Find explicit recipient-backed contact evidence before founder first-send approval.",
         "nextActionOwner": "growth-lead"
       },
       "enrichment": {
-        "status": "blocked",
+        "status": "contact_found",
         "providerRuns": [
           {
             "providerKey": "manual_human_supplied",
@@ -1538,9 +1951,110 @@
             "searchedAt": "2026-05-07T15:58:46.450Z",
             "candidateCount": 0,
             "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "contact_found",
+            "searchedAt": "2026-05-07T16:00:45.284Z",
+            "candidateCount": 1,
+            "notes": "Human-supplied recipient evidence mirrored into enrichment candidates."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T16:00:45.313Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:00:45.313Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:00:45.313Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T16:00:45.313Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:00:45.313Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "contact_found",
+            "searchedAt": "2026-05-07T16:01:35.898Z",
+            "candidateCount": 2,
+            "notes": "Human-supplied recipient evidence mirrored into enrichment candidates."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T16:01:35.926Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:01:35.926Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:01:35.926Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T16:01:35.926Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:01:35.926Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
           }
         ],
-        "recipientCandidates": [],
+        "recipientCandidates": [
+          {
+            "email": "info@locusrobotics.com",
+            "role": "General public inbox",
+            "evidenceSource": "Fetched Locus Robotics Origin product sheet lists info@LocusRobotics.com.",
+            "evidenceType": "human_supplied",
+            "providerKey": "manual_human_supplied",
+            "confidence": "high",
+            "discoveredAt": "2026-05-07T16:01:35.898Z",
+            "sourceUrl": "https://files.even-logistics.com/production/users/uploads/LocusRobotics/solution/locusorigin/Origin-Product-Sheet.pdf?dm=1733235782",
+            "selectable": true
+          }
+        ],
+        "selectedRecipientEvidence": {
+          "providerKey": "manual_human_supplied",
+          "selectedAt": "2026-05-07T16:01:35.926Z",
+          "evidenceSource": "Fetched Locus Robotics Origin product sheet lists info@LocusRobotics.com."
+        },
         "blockers": [
           "Set BLUEPRINT_GTM_CONTACT_DISCOVERY_ALLOWED_HOSTS before governed public contact discovery."
         ]
@@ -1548,14 +2062,15 @@
       "blockers": [
         {
           "id": "gtm-blocker-contact-discovery-allowlist",
-          "status": "blocked",
-          "summary": "Governed recipient discovery is blocked because BLUEPRINT_GTM_CONTACT_DISCOVERY_ALLOWED_HOSTS is not configured and no selected recipient evidence exists.",
+          "status": "resolved",
+          "summary": "Recipient-backed evidence has been recorded for this target; governed discovery remains required for targets still missing evidence.",
           "owner": "growth-lead",
-          "nextAction": "Configure a governed contact-discovery allowlist or record explicit recipient-backed evidence before founder first-send approval.",
+          "nextAction": "Route this recipient-backed draft to founder first-send approval; do not send until founder approval and reply durability pass.",
           "paperclipIssueId": "036c744b-b0ec-4d74-b119-e2ba5243eb02",
           "paperclipIssueIdentifier": "BLU-5392",
           "createdAt": "2026-05-03T14:13:24.440Z",
-          "updatedAt": "2026-05-03T14:13:24.440Z"
+          "updatedAt": "2026-05-07T16:00:45.313Z",
+          "resolvedAt": "2026-05-07T16:00:45.313Z"
         },
         {
           "id": "gtm-blocker-buyer-reply-durability",
@@ -1588,7 +2103,13 @@
             "gtm-blocker-buyer-reply-durability"
           ]
         }
-      ]
+      ],
+      "recipient": {
+        "role": "General public inbox",
+        "email": "info@locusrobotics.com",
+        "evidenceSource": "Fetched Locus Robotics Origin product sheet lists info@LocusRobotics.com.",
+        "evidenceType": "human_supplied"
+      }
     },
     {
       "id": "gtm-006-seegrid-warehouse-amr",
@@ -1840,6 +2361,90 @@
             "searchedAt": "2026-05-07T15:58:46.491Z",
             "candidateCount": 0,
             "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "contact_found",
+            "searchedAt": "2026-05-07T16:00:45.313Z",
+            "candidateCount": 2,
+            "notes": "Human-supplied recipient evidence mirrored into enrichment candidates."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T16:00:45.341Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:00:45.341Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:00:45.341Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T16:00:45.341Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:00:45.341Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "contact_found",
+            "searchedAt": "2026-05-07T16:01:35.926Z",
+            "candidateCount": 2,
+            "notes": "Human-supplied recipient evidence mirrored into enrichment candidates."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T16:01:35.955Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:01:35.955Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:01:35.955Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T16:01:35.955Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:01:35.955Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
           }
         ],
         "recipientCandidates": [
@@ -1850,14 +2455,14 @@
             "evidenceType": "human_supplied",
             "providerKey": "manual_human_supplied",
             "confidence": "high",
-            "discoveredAt": "2026-05-07T15:58:46.450Z",
+            "discoveredAt": "2026-05-07T16:01:35.926Z",
             "sourceUrl": "https://hubspot.seegrid.com/hubfs/2021/Resources/Corporate%20Two%20Pager/Seegrid_CorporateTwoPager.pdf",
             "selectable": true
           }
         ],
         "selectedRecipientEvidence": {
           "providerKey": "manual_human_supplied",
-          "selectedAt": "2026-05-07T15:58:46.491Z",
+          "selectedAt": "2026-05-07T16:01:35.955Z",
           "evidenceSource": "Fetched Seegrid corporate sales asset lists Email Sales as sales@seegrid.com."
         },
         "blockers": [
@@ -1948,14 +2553,14 @@
       "outbound": {
         "status": "draft_ready",
         "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
-        "approvalState": "blocked"
+        "approvalState": "pending_first_send_approval"
       },
       "sales": {
         "nextAction": "Find explicit recipient-backed contact evidence before founder first-send approval.",
         "nextActionOwner": "growth-lead"
       },
       "enrichment": {
-        "status": "blocked",
+        "status": "contact_found",
         "providerRuns": [
           {
             "providerKey": "manual_human_supplied",
@@ -2166,9 +2771,110 @@
             "searchedAt": "2026-05-07T15:58:46.536Z",
             "candidateCount": 0,
             "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "contact_found",
+            "searchedAt": "2026-05-07T16:00:45.341Z",
+            "candidateCount": 1,
+            "notes": "Human-supplied recipient evidence mirrored into enrichment candidates."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T16:00:45.369Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:00:45.369Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:00:45.369Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T16:00:45.370Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:00:45.370Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "contact_found",
+            "searchedAt": "2026-05-07T16:01:35.955Z",
+            "candidateCount": 2,
+            "notes": "Human-supplied recipient evidence mirrored into enrichment candidates."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T16:01:35.988Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:01:35.988Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:01:35.988Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T16:01:35.988Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:01:35.988Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
           }
         ],
-        "recipientCandidates": [],
+        "recipientCandidates": [
+          {
+            "email": "team@vecnarobotics.com",
+            "role": "Team public inbox",
+            "evidenceSource": "Fetched Vecna Robotics autonomous forklift resource says interested teams can reach Vecna by emailing team@vecnarobotics.com.",
+            "evidenceType": "human_supplied",
+            "providerKey": "manual_human_supplied",
+            "confidence": "high",
+            "discoveredAt": "2026-05-07T16:01:35.955Z",
+            "sourceUrl": "https://www.vecnarobotics.com/resources/how-to-solve-your-labor-shortage-problems-right-now-with-autonomous-forklifts/",
+            "selectable": true
+          }
+        ],
+        "selectedRecipientEvidence": {
+          "providerKey": "manual_human_supplied",
+          "selectedAt": "2026-05-07T16:01:35.988Z",
+          "evidenceSource": "Fetched Vecna Robotics autonomous forklift resource says interested teams can reach Vecna by emailing team@vecnarobotics.com."
+        },
         "blockers": [
           "Set BLUEPRINT_GTM_CONTACT_DISCOVERY_ALLOWED_HOSTS before governed public contact discovery."
         ]
@@ -2176,14 +2882,15 @@
       "blockers": [
         {
           "id": "gtm-blocker-contact-discovery-allowlist",
-          "status": "blocked",
-          "summary": "Governed recipient discovery is blocked because BLUEPRINT_GTM_CONTACT_DISCOVERY_ALLOWED_HOSTS is not configured and no selected recipient evidence exists.",
+          "status": "resolved",
+          "summary": "Recipient-backed evidence has been recorded for this target; governed discovery remains required for targets still missing evidence.",
           "owner": "growth-lead",
-          "nextAction": "Configure a governed contact-discovery allowlist or record explicit recipient-backed evidence before founder first-send approval.",
+          "nextAction": "Route this recipient-backed draft to founder first-send approval; do not send until founder approval and reply durability pass.",
           "paperclipIssueId": "036c744b-b0ec-4d74-b119-e2ba5243eb02",
           "paperclipIssueIdentifier": "BLU-5392",
           "createdAt": "2026-05-03T14:13:24.440Z",
-          "updatedAt": "2026-05-03T14:13:24.440Z"
+          "updatedAt": "2026-05-07T16:00:45.370Z",
+          "resolvedAt": "2026-05-07T16:00:45.370Z"
         },
         {
           "id": "gtm-blocker-buyer-reply-durability",
@@ -2216,7 +2923,13 @@
             "gtm-blocker-buyer-reply-durability"
           ]
         }
-      ]
+      ],
+      "recipient": {
+        "role": "Team public inbox",
+        "email": "team@vecnarobotics.com",
+        "evidenceSource": "Fetched Vecna Robotics autonomous forklift resource says interested teams can reach Vecna by emailing team@vecnarobotics.com.",
+        "evidenceType": "human_supplied"
+      }
     },
     {
       "id": "gtm-008-fox-robotics-forklift-dock",
@@ -2468,6 +3181,90 @@
             "searchedAt": "2026-05-07T15:58:46.581Z",
             "candidateCount": 0,
             "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "contact_found",
+            "searchedAt": "2026-05-07T16:00:45.370Z",
+            "candidateCount": 2,
+            "notes": "Human-supplied recipient evidence mirrored into enrichment candidates."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T16:00:45.398Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:00:45.398Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:00:45.398Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T16:00:45.398Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:00:45.398Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "contact_found",
+            "searchedAt": "2026-05-07T16:01:35.988Z",
+            "candidateCount": 2,
+            "notes": "Human-supplied recipient evidence mirrored into enrichment candidates."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T16:01:36.017Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:01:36.017Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:01:36.017Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T16:01:36.017Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:01:36.017Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
           }
         ],
         "recipientCandidates": [
@@ -2478,14 +3275,14 @@
             "evidenceType": "human_supplied",
             "providerKey": "manual_human_supplied",
             "confidence": "high",
-            "discoveredAt": "2026-05-07T15:58:46.537Z",
+            "discoveredAt": "2026-05-07T16:01:35.988Z",
             "sourceUrl": "https://foxrobotics.com/hubfs/fox_robotics_ATL_1-Pager_2024.pdf?hsLang=en",
             "selectable": true
           }
         ],
         "selectedRecipientEvidence": {
           "providerKey": "manual_human_supplied",
-          "selectedAt": "2026-05-07T15:58:46.581Z",
+          "selectedAt": "2026-05-07T16:01:36.017Z",
           "evidenceSource": "Fetched Fox Robotics ATL one-pager lists CONTACT SALES: sales@foxrobotics.com."
         },
         "blockers": [
@@ -2576,14 +3373,14 @@
       "outbound": {
         "status": "draft_ready",
         "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
-        "approvalState": "blocked"
+        "approvalState": "pending_first_send_approval"
       },
       "sales": {
         "nextAction": "Find explicit recipient-backed contact evidence before founder first-send approval.",
         "nextActionOwner": "growth-lead"
       },
       "enrichment": {
-        "status": "blocked",
+        "status": "contact_found",
         "providerRuns": [
           {
             "providerKey": "manual_human_supplied",
@@ -2794,9 +3591,110 @@
             "searchedAt": "2026-05-07T15:58:46.634Z",
             "candidateCount": 0,
             "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:00:45.399Z",
+            "candidateCount": 0,
+            "notes": "No matching human-supplied recipient evidence for target."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T16:00:45.426Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:00:45.426Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:00:45.426Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T16:00:45.426Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:00:45.426Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "contact_found",
+            "searchedAt": "2026-05-07T16:01:36.017Z",
+            "candidateCount": 1,
+            "notes": "Human-supplied recipient evidence mirrored into enrichment candidates."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T16:01:36.046Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:01:36.046Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:01:36.046Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T16:01:36.046Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:01:36.046Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
           }
         ],
-        "recipientCandidates": [],
+        "recipientCandidates": [
+          {
+            "email": "info@diligentrobots.com",
+            "role": "Company contact inbox from published company profile",
+            "evidenceSource": "Fetched Crunchbase company profile lists Contact Email info@diligentrobots.com for Diligent Robotics.",
+            "evidenceType": "human_supplied",
+            "providerKey": "manual_human_supplied",
+            "confidence": "high",
+            "discoveredAt": "2026-05-07T16:01:36.017Z",
+            "sourceUrl": "https://www.crunchbase.com/organization/diligent-robotics",
+            "selectable": true
+          }
+        ],
+        "selectedRecipientEvidence": {
+          "providerKey": "manual_human_supplied",
+          "selectedAt": "2026-05-07T16:01:36.046Z",
+          "evidenceSource": "Fetched Crunchbase company profile lists Contact Email info@diligentrobots.com for Diligent Robotics."
+        },
         "blockers": [
           "Set BLUEPRINT_GTM_CONTACT_DISCOVERY_ALLOWED_HOSTS before governed public contact discovery."
         ]
@@ -2804,14 +3702,15 @@
       "blockers": [
         {
           "id": "gtm-blocker-contact-discovery-allowlist",
-          "status": "blocked",
-          "summary": "Governed recipient discovery is blocked because BLUEPRINT_GTM_CONTACT_DISCOVERY_ALLOWED_HOSTS is not configured and no selected recipient evidence exists.",
+          "status": "resolved",
+          "summary": "Recipient-backed evidence has been recorded for this target; governed discovery remains required for targets still missing evidence.",
           "owner": "growth-lead",
-          "nextAction": "Configure a governed contact-discovery allowlist or record explicit recipient-backed evidence before founder first-send approval.",
+          "nextAction": "Route this recipient-backed draft to founder first-send approval; do not send until founder approval and reply durability pass.",
           "paperclipIssueId": "036c744b-b0ec-4d74-b119-e2ba5243eb02",
           "paperclipIssueIdentifier": "BLU-5392",
           "createdAt": "2026-05-03T14:13:24.440Z",
-          "updatedAt": "2026-05-03T14:13:24.440Z"
+          "updatedAt": "2026-05-07T16:01:36.046Z",
+          "resolvedAt": "2026-05-07T16:01:36.046Z"
         },
         {
           "id": "gtm-blocker-buyer-reply-durability",
@@ -2844,7 +3743,13 @@
             "gtm-blocker-buyer-reply-durability"
           ]
         }
-      ]
+      ],
+      "recipient": {
+        "role": "Company contact inbox from published company profile",
+        "email": "info@diligentrobots.com",
+        "evidenceSource": "Fetched Crunchbase company profile lists Contact Email info@diligentrobots.com for Diligent Robotics.",
+        "evidenceType": "human_supplied"
+      }
     },
     {
       "id": "gtm-010-gecko-industrial-inspection",
@@ -3096,6 +4001,90 @@
             "searchedAt": "2026-05-07T15:58:46.683Z",
             "candidateCount": 0,
             "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "contact_found",
+            "searchedAt": "2026-05-07T16:00:45.477Z",
+            "candidateCount": 2,
+            "notes": "Human-supplied recipient evidence mirrored into enrichment candidates."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T16:00:45.519Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:00:45.519Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:00:45.519Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T16:00:45.519Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:00:45.519Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "contact_found",
+            "searchedAt": "2026-05-07T16:01:36.046Z",
+            "candidateCount": 2,
+            "notes": "Human-supplied recipient evidence mirrored into enrichment candidates."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T16:01:36.074Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:01:36.074Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:01:36.074Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T16:01:36.074Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:01:36.074Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
           }
         ],
         "recipientCandidates": [
@@ -3106,14 +4095,14 @@
             "evidenceType": "human_supplied",
             "providerKey": "manual_human_supplied",
             "confidence": "high",
-            "discoveredAt": "2026-05-07T15:58:46.634Z",
+            "discoveredAt": "2026-05-07T16:01:36.046Z",
             "sourceUrl": "https://www.geckorobotics.com/contact/",
             "selectable": true
           }
         ],
         "selectedRecipientEvidence": {
           "providerKey": "manual_human_supplied",
-          "selectedAt": "2026-05-07T15:58:46.683Z",
+          "selectedAt": "2026-05-07T16:01:36.074Z",
           "evidenceSource": "Fetched Gecko Robotics contact page lists info@geckorobotics.com."
         },
         "blockers": [
@@ -3422,6 +4411,90 @@
             "searchedAt": "2026-05-07T15:58:46.746Z",
             "candidateCount": 0,
             "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "contact_found",
+            "searchedAt": "2026-05-07T16:00:45.520Z",
+            "candidateCount": 2,
+            "notes": "Human-supplied recipient evidence mirrored into enrichment candidates."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T16:00:45.550Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:00:45.550Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:00:45.550Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T16:00:45.550Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:00:45.550Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "contact_found",
+            "searchedAt": "2026-05-07T16:01:36.074Z",
+            "candidateCount": 2,
+            "notes": "Human-supplied recipient evidence mirrored into enrichment candidates."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T16:01:36.103Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:01:36.103Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:01:36.103Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T16:01:36.103Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:01:36.103Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
           }
         ],
         "recipientCandidates": [
@@ -3432,14 +4505,14 @@
             "evidenceType": "human_supplied",
             "providerKey": "manual_human_supplied",
             "confidence": "high",
-            "discoveredAt": "2026-05-07T15:58:46.684Z",
+            "discoveredAt": "2026-05-07T16:01:36.074Z",
             "sourceUrl": "https://www.anybotics.com/wp-content/uploads/2022/07/ANYmal-Specifications-Sheet-22062022.pdf",
             "selectable": true
           }
         ],
         "selectedRecipientEvidence": {
           "providerKey": "manual_human_supplied",
-          "selectedAt": "2026-05-07T15:58:46.746Z",
+          "selectedAt": "2026-05-07T16:01:36.103Z",
           "evidenceSource": "Fetched ANYbotics specifications sheet says contact ANYbotics via info@anybotics.com."
         },
         "blockers": [
@@ -3748,6 +4821,90 @@
             "searchedAt": "2026-05-07T15:58:46.825Z",
             "candidateCount": 0,
             "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "contact_found",
+            "searchedAt": "2026-05-07T16:00:45.551Z",
+            "candidateCount": 2,
+            "notes": "Human-supplied recipient evidence mirrored into enrichment candidates."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T16:00:45.581Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:00:45.581Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:00:45.581Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T16:00:45.581Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:00:45.581Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "contact_found",
+            "searchedAt": "2026-05-07T16:01:36.103Z",
+            "candidateCount": 2,
+            "notes": "Human-supplied recipient evidence mirrored into enrichment candidates."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T16:01:36.135Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:01:36.135Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:01:36.135Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T16:01:36.135Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T16:01:36.135Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
           }
         ],
         "recipientCandidates": [
@@ -3758,14 +4915,14 @@
             "evidenceType": "human_supplied",
             "providerKey": "manual_human_supplied",
             "confidence": "high",
-            "discoveredAt": "2026-05-07T15:58:46.747Z",
+            "discoveredAt": "2026-05-07T16:01:36.103Z",
             "sourceUrl": "https://www.outrider.ai/press/",
             "selectable": true
           }
         ],
         "selectedRecipientEvidence": {
           "providerKey": "manual_human_supplied",
-          "selectedAt": "2026-05-07T15:58:46.825Z",
+          "selectedAt": "2026-05-07T16:01:36.135Z",
           "evidenceSource": "Fetched Outrider press page lists info@outrider.ai for media, analyst, speaking inquiries and commercial use."
         },
         "blockers": [
@@ -3823,6 +4980,726 @@
         "evidenceSource": "Fetched Outrider press page lists info@outrider.ai for media, analyst, speaking inquiries and commercial use.",
         "evidenceType": "human_supplied"
       }
+    },
+    {
+      "id": "gtm-covariant-identify-a-bin-picking-induction-or-item-handling-workflow-worth-capturi",
+      "track": "demand_sourced_capture",
+      "organizationName": "Covariant",
+      "buyerSegment": "Warehouse AI robotics team",
+      "workflowNeed": "Identify a bin-picking, induction, or item-handling workflow worth capturing for hosted review.",
+      "intentSignals": [
+        "Company publicly positions AI robotics for warehouse item handling and picking workflows."
+      ],
+      "evidence": {
+        "summary": "Target created from reusable GTM target expansion seed for Covariant.",
+        "sourceUrls": [
+          "https://covariant.ai/"
+        ]
+      },
+      "artifact": {
+        "type": "city_site_opportunity_brief",
+        "status": "draft",
+        "path": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md"
+      },
+      "captureAsk": {
+        "requestedSiteType": "warehouse item-picking cell",
+        "buyerQuestion": "Which bin-picking or item-handling workflow would be useful enough for Blueprint to capture and host first?",
+        "status": "not_started"
+      },
+      "enrichment": {
+        "status": "not_started",
+        "providerRuns": [],
+        "recipientCandidates": [],
+        "blockers": []
+      },
+      "outbound": {
+        "status": "draft_ready",
+        "approvalState": "blocked"
+      },
+      "sales": {
+        "nextAction": "Run the GTM enrichment waterfall to find explicit recipient-backed contact evidence.",
+        "nextActionOwner": "growth-lead"
+      }
+    },
+    {
+      "id": "gtm-autostore-identify-a-goods-to-person-port-or-tote-flow-workflow-worth-capturing-fo",
+      "track": "demand_sourced_capture",
+      "organizationName": "AutoStore",
+      "buyerSegment": "Cube storage and fulfillment automation team",
+      "workflowNeed": "Identify a goods-to-person, port, or tote-flow workflow worth capturing for hosted review.",
+      "intentSignals": [
+        "Company publicly sells cube storage and goods-to-person automation for fulfillment workflows."
+      ],
+      "evidence": {
+        "summary": "Target created from reusable GTM target expansion seed for AutoStore.",
+        "sourceUrls": [
+          "https://www.autostoresystem.com/"
+        ]
+      },
+      "artifact": {
+        "type": "city_site_opportunity_brief",
+        "status": "draft",
+        "path": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md"
+      },
+      "captureAsk": {
+        "requestedSiteType": "goods-to-person fulfillment port",
+        "buyerQuestion": "Which port, tote, or replenishment workflow should Blueprint capture and host first?",
+        "status": "not_started"
+      },
+      "enrichment": {
+        "status": "not_started",
+        "providerRuns": [],
+        "recipientCandidates": [],
+        "blockers": []
+      },
+      "outbound": {
+        "status": "draft_ready",
+        "approvalState": "blocked"
+      },
+      "sales": {
+        "nextAction": "Run the GTM enrichment waterfall to find explicit recipient-backed contact evidence.",
+        "nextActionOwner": "growth-lead"
+      }
+    },
+    {
+      "id": "gtm-greyorange-identify-a-fulfillment-picking-or-sortation-workflow-worth-capturing-for",
+      "track": "demand_sourced_capture",
+      "organizationName": "GreyOrange",
+      "buyerSegment": "Fulfillment orchestration robotics team",
+      "workflowNeed": "Identify a fulfillment, picking, or sortation workflow worth capturing for exact-site review.",
+      "intentSignals": [
+        "Company publicly positions fulfillment orchestration and warehouse automation workflows."
+      ],
+      "evidence": {
+        "summary": "Target created from reusable GTM target expansion seed for GreyOrange.",
+        "sourceUrls": [
+          "https://www.greyorange.com/"
+        ]
+      },
+      "artifact": {
+        "type": "city_site_opportunity_brief",
+        "status": "draft",
+        "path": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md"
+      },
+      "captureAsk": {
+        "requestedSiteType": "warehouse fulfillment orchestration lane",
+        "buyerQuestion": "Which exact site or workflow would be useful enough for Blueprint to capture and host next?",
+        "status": "not_started"
+      },
+      "enrichment": {
+        "status": "not_started",
+        "providerRuns": [],
+        "recipientCandidates": [],
+        "blockers": []
+      },
+      "outbound": {
+        "status": "draft_ready",
+        "approvalState": "blocked"
+      },
+      "sales": {
+        "nextAction": "Run the GTM enrichment waterfall to find explicit recipient-backed contact evidence.",
+        "nextActionOwner": "growth-lead"
+      }
+    },
+    {
+      "id": "gtm-exotec-identify-a-goods-to-person-picking-or-storage-workflow-worth-capturing-f",
+      "track": "demand_sourced_capture",
+      "organizationName": "Exotec",
+      "buyerSegment": "Skypod warehouse robotics team",
+      "workflowNeed": "Identify a goods-to-person picking or storage workflow worth capturing for hosted review.",
+      "intentSignals": [
+        "Company publicly sells Skypod warehouse robotics for order preparation and fulfillment."
+      ],
+      "evidence": {
+        "summary": "Target created from reusable GTM target expansion seed for Exotec.",
+        "sourceUrls": [
+          "https://www.exotec.com/"
+        ]
+      },
+      "artifact": {
+        "type": "city_site_opportunity_brief",
+        "status": "draft",
+        "path": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md"
+      },
+      "captureAsk": {
+        "requestedSiteType": "goods-to-person picking station",
+        "buyerQuestion": "Which exact site or workflow would be useful enough for Blueprint to capture and host next?",
+        "status": "not_started"
+      },
+      "enrichment": {
+        "status": "not_started",
+        "providerRuns": [],
+        "recipientCandidates": [],
+        "blockers": []
+      },
+      "outbound": {
+        "status": "draft_ready",
+        "approvalState": "blocked"
+      },
+      "sales": {
+        "nextAction": "Run the GTM enrichment waterfall to find explicit recipient-backed contact evidence.",
+        "nextActionOwner": "growth-lead"
+      }
+    },
+    {
+      "id": "gtm-symbotic-identify-a-case-handling-palletizing-or-distribution-center-workflow-wor",
+      "track": "demand_sourced_capture",
+      "organizationName": "Symbotic",
+      "buyerSegment": "Warehouse automation systems team",
+      "workflowNeed": "Identify a case-handling, palletizing, or distribution-center workflow worth capturing for hosted review.",
+      "intentSignals": [
+        "Company publicly describes AI-powered warehouse automation for supply-chain operations."
+      ],
+      "evidence": {
+        "summary": "Target created from reusable GTM target expansion seed for Symbotic.",
+        "sourceUrls": [
+          "https://www.symbotic.com/"
+        ]
+      },
+      "artifact": {
+        "type": "city_site_opportunity_brief",
+        "status": "draft",
+        "path": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md"
+      },
+      "captureAsk": {
+        "requestedSiteType": "distribution-center case-handling lane",
+        "buyerQuestion": "Which exact site or workflow would be useful enough for Blueprint to capture and host next?",
+        "status": "not_started"
+      },
+      "enrichment": {
+        "status": "not_started",
+        "providerRuns": [],
+        "recipientCandidates": [],
+        "blockers": []
+      },
+      "outbound": {
+        "status": "draft_ready",
+        "approvalState": "blocked"
+      },
+      "sales": {
+        "nextAction": "Run the GTM enrichment waterfall to find explicit recipient-backed contact evidence.",
+        "nextActionOwner": "growth-lead"
+      }
+    },
+    {
+      "id": "gtm-ocado-technology-identify-an-online-grocery-fulfillment-or-robotic-picking-workflow-worth",
+      "track": "demand_sourced_capture",
+      "organizationName": "Ocado Technology",
+      "buyerSegment": "Grocery fulfillment robotics team",
+      "workflowNeed": "Identify an online grocery fulfillment or robotic picking workflow worth capturing for hosted review.",
+      "intentSignals": [
+        "Company publicly presents robotics and automation for online grocery fulfillment."
+      ],
+      "evidence": {
+        "summary": "Target created from reusable GTM target expansion seed for Ocado Technology.",
+        "sourceUrls": [
+          "https://www.ocadogroup.com/technology/"
+        ]
+      },
+      "artifact": {
+        "type": "city_site_opportunity_brief",
+        "status": "draft",
+        "path": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md"
+      },
+      "captureAsk": {
+        "requestedSiteType": "grocery fulfillment pick workflow",
+        "buyerQuestion": "Which exact site or workflow would be useful enough for Blueprint to capture and host next?",
+        "status": "not_started"
+      },
+      "enrichment": {
+        "status": "not_started",
+        "providerRuns": [],
+        "recipientCandidates": [],
+        "blockers": []
+      },
+      "outbound": {
+        "status": "draft_ready",
+        "approvalState": "blocked"
+      },
+      "sales": {
+        "nextAction": "Run the GTM enrichment waterfall to find explicit recipient-backed contact evidence.",
+        "nextActionOwner": "growth-lead"
+      }
+    },
+    {
+      "id": "gtm-berkshire-grey-identify-a-package-handling-sortation-or-fulfillment-workflow-worth-capt",
+      "track": "demand_sourced_capture",
+      "organizationName": "Berkshire Grey",
+      "buyerSegment": "Robotic package handling team",
+      "workflowNeed": "Identify a package handling, sortation, or fulfillment workflow worth capturing for hosted review.",
+      "intentSignals": [
+        "Company publicly positions robotic automation for package handling and fulfillment operations."
+      ],
+      "evidence": {
+        "summary": "Target created from reusable GTM target expansion seed for Berkshire Grey.",
+        "sourceUrls": [
+          "https://www.berkshiregrey.com/"
+        ]
+      },
+      "artifact": {
+        "type": "city_site_opportunity_brief",
+        "status": "draft",
+        "path": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md"
+      },
+      "captureAsk": {
+        "requestedSiteType": "package sortation or fulfillment cell",
+        "buyerQuestion": "Which exact site or workflow would be useful enough for Blueprint to capture and host next?",
+        "status": "not_started"
+      },
+      "enrichment": {
+        "status": "not_started",
+        "providerRuns": [],
+        "recipientCandidates": [],
+        "blockers": []
+      },
+      "outbound": {
+        "status": "draft_ready",
+        "approvalState": "blocked"
+      },
+      "sales": {
+        "nextAction": "Run the GTM enrichment waterfall to find explicit recipient-backed contact evidence.",
+        "nextActionOwner": "growth-lead"
+      }
+    },
+    {
+      "id": "gtm-righthand-robotics-identify-a-piece-picking-or-order-fulfillment-cell-worth-capturing-for-e",
+      "track": "demand_sourced_capture",
+      "organizationName": "RightHand Robotics",
+      "buyerSegment": "Piece-picking robotics team",
+      "workflowNeed": "Identify a piece-picking or order-fulfillment cell worth capturing for exact-site review.",
+      "intentSignals": [
+        "Company publicly sells robotic piece-picking systems for order fulfillment."
+      ],
+      "evidence": {
+        "summary": "Target created from reusable GTM target expansion seed for RightHand Robotics.",
+        "sourceUrls": [
+          "https://righthandrobotics.com/"
+        ]
+      },
+      "artifact": {
+        "type": "city_site_opportunity_brief",
+        "status": "draft",
+        "path": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md"
+      },
+      "captureAsk": {
+        "requestedSiteType": "piece-picking workcell",
+        "buyerQuestion": "Which exact site or workflow would be useful enough for Blueprint to capture and host next?",
+        "status": "not_started"
+      },
+      "enrichment": {
+        "status": "not_started",
+        "providerRuns": [],
+        "recipientCandidates": [],
+        "blockers": []
+      },
+      "outbound": {
+        "status": "draft_ready",
+        "approvalState": "blocked"
+      },
+      "sales": {
+        "nextAction": "Run the GTM enrichment waterfall to find explicit recipient-backed contact evidence.",
+        "nextActionOwner": "growth-lead"
+      }
+    },
+    {
+      "id": "gtm-mujin-identify-a-depalletizing-truck-unloading-or-material-handling-workflow-w",
+      "track": "demand_sourced_capture",
+      "organizationName": "Mujin",
+      "buyerSegment": "Industrial robotics and truck unloading team",
+      "workflowNeed": "Identify a depalletizing, truck-unloading, or material-handling workflow worth capturing for hosted review.",
+      "intentSignals": [
+        "Company publicly presents intelligent robot controllers and logistics automation workflows."
+      ],
+      "evidence": {
+        "summary": "Target created from reusable GTM target expansion seed for Mujin.",
+        "sourceUrls": [
+          "https://www.mujin-corp.com/"
+        ]
+      },
+      "artifact": {
+        "type": "city_site_opportunity_brief",
+        "status": "draft",
+        "path": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md"
+      },
+      "captureAsk": {
+        "requestedSiteType": "truck unloading or depalletizing workflow",
+        "buyerQuestion": "Which exact site or workflow would be useful enough for Blueprint to capture and host next?",
+        "status": "not_started"
+      },
+      "enrichment": {
+        "status": "not_started",
+        "providerRuns": [],
+        "recipientCandidates": [],
+        "blockers": []
+      },
+      "outbound": {
+        "status": "draft_ready",
+        "approvalState": "blocked"
+      },
+      "sales": {
+        "nextAction": "Run the GTM enrichment waterfall to find explicit recipient-backed contact evidence.",
+        "nextActionOwner": "growth-lead"
+      }
+    },
+    {
+      "id": "gtm-dexterity-identify-a-truck-loading-palletizing-or-warehouse-manipulation-workflow-",
+      "track": "demand_sourced_capture",
+      "organizationName": "Dexterity",
+      "buyerSegment": "Warehouse manipulation robotics team",
+      "workflowNeed": "Identify a truck-loading, palletizing, or warehouse manipulation workflow worth capturing for hosted review.",
+      "intentSignals": [
+        "Company publicly positions robots for warehouse loading and manipulation tasks."
+      ],
+      "evidence": {
+        "summary": "Target created from reusable GTM target expansion seed for Dexterity.",
+        "sourceUrls": [
+          "https://www.dexterity.ai/"
+        ]
+      },
+      "artifact": {
+        "type": "city_site_opportunity_brief",
+        "status": "draft",
+        "path": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md"
+      },
+      "captureAsk": {
+        "requestedSiteType": "warehouse manipulation workflow",
+        "buyerQuestion": "Which exact site or workflow would be useful enough for Blueprint to capture and host next?",
+        "status": "not_started"
+      },
+      "enrichment": {
+        "status": "not_started",
+        "providerRuns": [],
+        "recipientCandidates": [],
+        "blockers": []
+      },
+      "outbound": {
+        "status": "draft_ready",
+        "approvalState": "blocked"
+      },
+      "sales": {
+        "nextAction": "Run the GTM enrichment waterfall to find explicit recipient-backed contact evidence.",
+        "nextActionOwner": "growth-lead"
+      }
+    },
+    {
+      "id": "gtm-robust-ai-identify-a-warehouse-cart-tote-or-collaborative-material-movement-workfl",
+      "track": "demand_sourced_capture",
+      "organizationName": "Robust.AI",
+      "buyerSegment": "Collaborative mobile robotics team",
+      "workflowNeed": "Identify a warehouse cart, tote, or collaborative material-movement workflow worth capturing for hosted review.",
+      "intentSignals": [
+        "Company publicly positions Carter and collaborative mobile robots for warehouse operations."
+      ],
+      "evidence": {
+        "summary": "Target created from reusable GTM target expansion seed for Robust.AI.",
+        "sourceUrls": [
+          "https://www.robust.ai/"
+        ]
+      },
+      "artifact": {
+        "type": "city_site_opportunity_brief",
+        "status": "draft",
+        "path": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md"
+      },
+      "captureAsk": {
+        "requestedSiteType": "collaborative warehouse cart workflow",
+        "buyerQuestion": "Which exact site or workflow would be useful enough for Blueprint to capture and host next?",
+        "status": "not_started"
+      },
+      "enrichment": {
+        "status": "not_started",
+        "providerRuns": [],
+        "recipientCandidates": [],
+        "blockers": []
+      },
+      "outbound": {
+        "status": "draft_ready",
+        "approvalState": "blocked"
+      },
+      "sales": {
+        "nextAction": "Run the GTM enrichment waterfall to find explicit recipient-backed contact evidence.",
+        "nextActionOwner": "growth-lead"
+      }
+    },
+    {
+      "id": "gtm-zebra-robotics-automation-identify-a-picking-replenishment-or-fulfillment-amr-workflow-worth-captu",
+      "track": "demand_sourced_capture",
+      "organizationName": "Zebra Robotics Automation",
+      "buyerSegment": "Warehouse AMR automation team",
+      "workflowNeed": "Identify a picking, replenishment, or fulfillment AMR workflow worth capturing for hosted review.",
+      "intentSignals": [
+        "Zebra publicly offers robotics automation for warehouse and fulfillment operations."
+      ],
+      "evidence": {
+        "summary": "Target created from reusable GTM target expansion seed for Zebra Robotics Automation.",
+        "sourceUrls": [
+          "https://www.zebra.com/us/en/solutions/robotics-automation.html"
+        ]
+      },
+      "artifact": {
+        "type": "city_site_opportunity_brief",
+        "status": "draft",
+        "path": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md"
+      },
+      "captureAsk": {
+        "requestedSiteType": "warehouse AMR workflow",
+        "buyerQuestion": "Which exact site or workflow would be useful enough for Blueprint to capture and host next?",
+        "status": "not_started"
+      },
+      "enrichment": {
+        "status": "not_started",
+        "providerRuns": [],
+        "recipientCandidates": [],
+        "blockers": []
+      },
+      "outbound": {
+        "status": "draft_ready",
+        "approvalState": "blocked"
+      },
+      "sales": {
+        "nextAction": "Run the GTM enrichment waterfall to find explicit recipient-backed contact evidence.",
+        "nextActionOwner": "growth-lead"
+      }
+    },
+    {
+      "id": "gtm-skydio-identify-an-industrial-inspection-route-or-facility-workflow-worth-captu",
+      "track": "demand_sourced_capture",
+      "organizationName": "Skydio",
+      "buyerSegment": "Autonomous inspection drone team",
+      "workflowNeed": "Identify an industrial inspection route or facility workflow worth capturing for hosted review.",
+      "intentSignals": [
+        "Company publicly presents autonomous drones for inspection and enterprise operations."
+      ],
+      "evidence": {
+        "summary": "Target created from reusable GTM target expansion seed for Skydio.",
+        "sourceUrls": [
+          "https://www.skydio.com/"
+        ]
+      },
+      "artifact": {
+        "type": "city_site_opportunity_brief",
+        "status": "draft",
+        "path": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md"
+      },
+      "captureAsk": {
+        "requestedSiteType": "industrial inspection route",
+        "buyerQuestion": "Which exact site or workflow would be useful enough for Blueprint to capture and host next?",
+        "status": "not_started"
+      },
+      "enrichment": {
+        "status": "not_started",
+        "providerRuns": [],
+        "recipientCandidates": [],
+        "blockers": []
+      },
+      "outbound": {
+        "status": "draft_ready",
+        "approvalState": "blocked"
+      },
+      "sales": {
+        "nextAction": "Run the GTM enrichment waterfall to find explicit recipient-backed contact evidence.",
+        "nextActionOwner": "growth-lead"
+      }
+    },
+    {
+      "id": "gtm-zipline-identify-a-loading-dispatch-or-delivery-operations-workflow-worth-captur",
+      "track": "demand_sourced_capture",
+      "organizationName": "Zipline",
+      "buyerSegment": "Autonomous delivery operations team",
+      "workflowNeed": "Identify a loading, dispatch, or delivery operations workflow worth capturing for hosted review.",
+      "intentSignals": [
+        "Company publicly operates autonomous delivery systems with logistics and dispatch workflows."
+      ],
+      "evidence": {
+        "summary": "Target created from reusable GTM target expansion seed for Zipline.",
+        "sourceUrls": [
+          "https://www.flyzipline.com/"
+        ]
+      },
+      "artifact": {
+        "type": "city_site_opportunity_brief",
+        "status": "draft",
+        "path": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md"
+      },
+      "captureAsk": {
+        "requestedSiteType": "autonomous delivery dispatch workflow",
+        "buyerQuestion": "Which exact site or workflow would be useful enough for Blueprint to capture and host next?",
+        "status": "not_started"
+      },
+      "enrichment": {
+        "status": "not_started",
+        "providerRuns": [],
+        "recipientCandidates": [],
+        "blockers": []
+      },
+      "outbound": {
+        "status": "draft_ready",
+        "approvalState": "blocked"
+      },
+      "sales": {
+        "nextAction": "Run the GTM enrichment waterfall to find explicit recipient-backed contact evidence.",
+        "nextActionOwner": "growth-lead"
+      }
+    },
+    {
+      "id": "gtm-serve-robotics-identify-a-restaurant-handoff-sidewalk-route-or-curbside-delivery-workfl",
+      "track": "demand_sourced_capture",
+      "organizationName": "Serve Robotics",
+      "buyerSegment": "Sidewalk delivery robotics team",
+      "workflowNeed": "Identify a restaurant handoff, sidewalk route, or curbside delivery workflow worth capturing for hosted review.",
+      "intentSignals": [
+        "Company publicly presents autonomous sidewalk delivery robots for last-mile delivery."
+      ],
+      "evidence": {
+        "summary": "Target created from reusable GTM target expansion seed for Serve Robotics.",
+        "sourceUrls": [
+          "https://www.serverobotics.com/"
+        ]
+      },
+      "artifact": {
+        "type": "city_site_opportunity_brief",
+        "status": "draft",
+        "path": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md"
+      },
+      "captureAsk": {
+        "requestedSiteType": "restaurant-to-sidewalk delivery handoff",
+        "buyerQuestion": "Which exact site or workflow would be useful enough for Blueprint to capture and host next?",
+        "status": "not_started"
+      },
+      "enrichment": {
+        "status": "not_started",
+        "providerRuns": [],
+        "recipientCandidates": [],
+        "blockers": []
+      },
+      "outbound": {
+        "status": "draft_ready",
+        "approvalState": "blocked"
+      },
+      "sales": {
+        "nextAction": "Run the GTM enrichment waterfall to find explicit recipient-backed contact evidence.",
+        "nextActionOwner": "growth-lead"
+      }
+    },
+    {
+      "id": "gtm-nuro-identify-a-curbside-pickup-delivery-staging-or-goods-handoff-workflow-wo",
+      "track": "demand_sourced_capture",
+      "organizationName": "Nuro",
+      "buyerSegment": "Autonomous goods delivery team",
+      "workflowNeed": "Identify a curbside pickup, delivery staging, or goods handoff workflow worth capturing for hosted review.",
+      "intentSignals": [
+        "Company publicly develops autonomous delivery vehicles for goods movement."
+      ],
+      "evidence": {
+        "summary": "Target created from reusable GTM target expansion seed for Nuro.",
+        "sourceUrls": [
+          "https://www.nuro.ai/"
+        ]
+      },
+      "artifact": {
+        "type": "city_site_opportunity_brief",
+        "status": "draft",
+        "path": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md"
+      },
+      "captureAsk": {
+        "requestedSiteType": "curbside goods handoff workflow",
+        "buyerQuestion": "Which exact site or workflow would be useful enough for Blueprint to capture and host next?",
+        "status": "not_started"
+      },
+      "enrichment": {
+        "status": "not_started",
+        "providerRuns": [],
+        "recipientCandidates": [],
+        "blockers": []
+      },
+      "outbound": {
+        "status": "draft_ready",
+        "approvalState": "blocked"
+      },
+      "sales": {
+        "nextAction": "Run the GTM enrichment waterfall to find explicit recipient-backed contact evidence.",
+        "nextActionOwner": "growth-lead"
+      }
+    },
+    {
+      "id": "gtm-starship-technologies-identify-a-campus-retail-or-sidewalk-delivery-workflow-worth-capturing-f",
+      "track": "demand_sourced_capture",
+      "organizationName": "Starship Technologies",
+      "buyerSegment": "Autonomous sidewalk delivery team",
+      "workflowNeed": "Identify a campus, retail, or sidewalk-delivery workflow worth capturing for hosted review.",
+      "intentSignals": [
+        "Company publicly operates autonomous delivery robots on campuses and local delivery routes."
+      ],
+      "evidence": {
+        "summary": "Target created from reusable GTM target expansion seed for Starship Technologies.",
+        "sourceUrls": [
+          "https://www.starship.xyz/"
+        ]
+      },
+      "artifact": {
+        "type": "city_site_opportunity_brief",
+        "status": "draft",
+        "path": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md"
+      },
+      "captureAsk": {
+        "requestedSiteType": "campus or retail delivery route",
+        "buyerQuestion": "Which exact site or workflow would be useful enough for Blueprint to capture and host next?",
+        "status": "not_started"
+      },
+      "enrichment": {
+        "status": "not_started",
+        "providerRuns": [],
+        "recipientCandidates": [],
+        "blockers": []
+      },
+      "outbound": {
+        "status": "draft_ready",
+        "approvalState": "blocked"
+      },
+      "sales": {
+        "nextAction": "Run the GTM enrichment waterfall to find explicit recipient-backed contact evidence.",
+        "nextActionOwner": "growth-lead"
+      }
+    },
+    {
+      "id": "gtm-knightscope-identify-a-patrol-route-lobby-parking-or-facility-security-workflow-wort",
+      "track": "demand_sourced_capture",
+      "organizationName": "Knightscope",
+      "buyerSegment": "Autonomous security robot team",
+      "workflowNeed": "Identify a patrol route, lobby, parking, or facility security workflow worth capturing for hosted review.",
+      "intentSignals": [
+        "Company publicly sells autonomous security robots for patrol and facility monitoring workflows."
+      ],
+      "evidence": {
+        "summary": "Target created from reusable GTM target expansion seed for Knightscope.",
+        "sourceUrls": [
+          "https://www.knightscope.com/"
+        ]
+      },
+      "artifact": {
+        "type": "city_site_opportunity_brief",
+        "status": "draft",
+        "path": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md"
+      },
+      "captureAsk": {
+        "requestedSiteType": "security patrol route",
+        "buyerQuestion": "Which exact site or workflow would be useful enough for Blueprint to capture and host next?",
+        "status": "not_started"
+      },
+      "enrichment": {
+        "status": "not_started",
+        "providerRuns": [],
+        "recipientCandidates": [],
+        "blockers": []
+      },
+      "outbound": {
+        "status": "draft_ready",
+        "approvalState": "blocked"
+      },
+      "sales": {
+        "nextAction": "Run the GTM enrichment waterfall to find explicit recipient-backed contact evidence.",
+        "nextActionOwner": "growth-lead"
+      }
     }
   ],
   "dailyActivity": [
@@ -3830,6 +5707,18 @@
       "date": "2026-04-26",
       "targetsAdded": 12,
       "draftedTouches": 12,
+      "approvedTouches": 0,
+      "sentTouches": 0,
+      "replies": 0,
+      "hostedReviewStarts": 0,
+      "qualifiedCalls": 0,
+      "contentDrafts": 0,
+      "paidSpendCents": 0
+    },
+    {
+      "date": "2026-05-07",
+      "targetsAdded": 18,
+      "draftedTouches": 0,
       "approvedTouches": 0,
       "sentTouches": 0,
       "replies": 0,

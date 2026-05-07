@@ -1,0 +1,166 @@
+[
+  {
+    "organizationName": "Covariant",
+    "buyerSegment": "Warehouse AI robotics team",
+    "workflowNeed": "Identify a bin-picking, induction, or item-handling workflow worth capturing for hosted review.",
+    "intentSignals": ["Company publicly positions AI robotics for warehouse item handling and picking workflows."],
+    "sourceUrls": ["https://covariant.ai/"],
+    "track": "demand_sourced_capture",
+    "requestedSiteType": "warehouse item-picking cell",
+    "buyerQuestion": "Which bin-picking or item-handling workflow would be useful enough for Blueprint to capture and host first?"
+  },
+  {
+    "organizationName": "AutoStore",
+    "buyerSegment": "Cube storage and fulfillment automation team",
+    "workflowNeed": "Identify a goods-to-person, port, or tote-flow workflow worth capturing for hosted review.",
+    "intentSignals": ["Company publicly sells cube storage and goods-to-person automation for fulfillment workflows."],
+    "sourceUrls": ["https://www.autostoresystem.com/"],
+    "track": "demand_sourced_capture",
+    "requestedSiteType": "goods-to-person fulfillment port",
+    "buyerQuestion": "Which port, tote, or replenishment workflow should Blueprint capture and host first?"
+  },
+  {
+    "organizationName": "GreyOrange",
+    "buyerSegment": "Fulfillment orchestration robotics team",
+    "workflowNeed": "Identify a fulfillment, picking, or sortation workflow worth capturing for exact-site review.",
+    "intentSignals": ["Company publicly positions fulfillment orchestration and warehouse automation workflows."],
+    "sourceUrls": ["https://www.greyorange.com/"],
+    "track": "demand_sourced_capture",
+    "requestedSiteType": "warehouse fulfillment orchestration lane"
+  },
+  {
+    "organizationName": "Exotec",
+    "buyerSegment": "Skypod warehouse robotics team",
+    "workflowNeed": "Identify a goods-to-person picking or storage workflow worth capturing for hosted review.",
+    "intentSignals": ["Company publicly sells Skypod warehouse robotics for order preparation and fulfillment."],
+    "sourceUrls": ["https://www.exotec.com/"],
+    "track": "demand_sourced_capture",
+    "requestedSiteType": "goods-to-person picking station"
+  },
+  {
+    "organizationName": "Symbotic",
+    "buyerSegment": "Warehouse automation systems team",
+    "workflowNeed": "Identify a case-handling, palletizing, or distribution-center workflow worth capturing for hosted review.",
+    "intentSignals": ["Company publicly describes AI-powered warehouse automation for supply-chain operations."],
+    "sourceUrls": ["https://www.symbotic.com/"],
+    "track": "demand_sourced_capture",
+    "requestedSiteType": "distribution-center case-handling lane"
+  },
+  {
+    "organizationName": "Ocado Technology",
+    "buyerSegment": "Grocery fulfillment robotics team",
+    "workflowNeed": "Identify an online grocery fulfillment or robotic picking workflow worth capturing for hosted review.",
+    "intentSignals": ["Company publicly presents robotics and automation for online grocery fulfillment."],
+    "sourceUrls": ["https://www.ocadogroup.com/technology/"],
+    "track": "demand_sourced_capture",
+    "requestedSiteType": "grocery fulfillment pick workflow"
+  },
+  {
+    "organizationName": "Berkshire Grey",
+    "buyerSegment": "Robotic package handling team",
+    "workflowNeed": "Identify a package handling, sortation, or fulfillment workflow worth capturing for hosted review.",
+    "intentSignals": ["Company publicly positions robotic automation for package handling and fulfillment operations."],
+    "sourceUrls": ["https://www.berkshiregrey.com/"],
+    "track": "demand_sourced_capture",
+    "requestedSiteType": "package sortation or fulfillment cell"
+  },
+  {
+    "organizationName": "RightHand Robotics",
+    "buyerSegment": "Piece-picking robotics team",
+    "workflowNeed": "Identify a piece-picking or order-fulfillment cell worth capturing for exact-site review.",
+    "intentSignals": ["Company publicly sells robotic piece-picking systems for order fulfillment."],
+    "sourceUrls": ["https://righthandrobotics.com/"],
+    "track": "demand_sourced_capture",
+    "requestedSiteType": "piece-picking workcell"
+  },
+  {
+    "organizationName": "Mujin",
+    "buyerSegment": "Industrial robotics and truck unloading team",
+    "workflowNeed": "Identify a depalletizing, truck-unloading, or material-handling workflow worth capturing for hosted review.",
+    "intentSignals": ["Company publicly presents intelligent robot controllers and logistics automation workflows."],
+    "sourceUrls": ["https://www.mujin-corp.com/"],
+    "track": "demand_sourced_capture",
+    "requestedSiteType": "truck unloading or depalletizing workflow"
+  },
+  {
+    "organizationName": "Dexterity",
+    "buyerSegment": "Warehouse manipulation robotics team",
+    "workflowNeed": "Identify a truck-loading, palletizing, or warehouse manipulation workflow worth capturing for hosted review.",
+    "intentSignals": ["Company publicly positions robots for warehouse loading and manipulation tasks."],
+    "sourceUrls": ["https://www.dexterity.ai/"],
+    "track": "demand_sourced_capture",
+    "requestedSiteType": "warehouse manipulation workflow"
+  },
+  {
+    "organizationName": "Robust.AI",
+    "buyerSegment": "Collaborative mobile robotics team",
+    "workflowNeed": "Identify a warehouse cart, tote, or collaborative material-movement workflow worth capturing for hosted review.",
+    "intentSignals": ["Company publicly positions Carter and collaborative mobile robots for warehouse operations."],
+    "sourceUrls": ["https://www.robust.ai/"],
+    "track": "demand_sourced_capture",
+    "requestedSiteType": "collaborative warehouse cart workflow"
+  },
+  {
+    "organizationName": "Zebra Robotics Automation",
+    "buyerSegment": "Warehouse AMR automation team",
+    "workflowNeed": "Identify a picking, replenishment, or fulfillment AMR workflow worth capturing for hosted review.",
+    "intentSignals": ["Zebra publicly offers robotics automation for warehouse and fulfillment operations."],
+    "sourceUrls": ["https://www.zebra.com/us/en/solutions/robotics-automation.html"],
+    "track": "demand_sourced_capture",
+    "requestedSiteType": "warehouse AMR workflow"
+  },
+  {
+    "organizationName": "Skydio",
+    "buyerSegment": "Autonomous inspection drone team",
+    "workflowNeed": "Identify an industrial inspection route or facility workflow worth capturing for hosted review.",
+    "intentSignals": ["Company publicly presents autonomous drones for inspection and enterprise operations."],
+    "sourceUrls": ["https://www.skydio.com/"],
+    "track": "demand_sourced_capture",
+    "requestedSiteType": "industrial inspection route"
+  },
+  {
+    "organizationName": "Zipline",
+    "buyerSegment": "Autonomous delivery operations team",
+    "workflowNeed": "Identify a loading, dispatch, or delivery operations workflow worth capturing for hosted review.",
+    "intentSignals": ["Company publicly operates autonomous delivery systems with logistics and dispatch workflows."],
+    "sourceUrls": ["https://www.flyzipline.com/"],
+    "track": "demand_sourced_capture",
+    "requestedSiteType": "autonomous delivery dispatch workflow"
+  },
+  {
+    "organizationName": "Serve Robotics",
+    "buyerSegment": "Sidewalk delivery robotics team",
+    "workflowNeed": "Identify a restaurant handoff, sidewalk route, or curbside delivery workflow worth capturing for hosted review.",
+    "intentSignals": ["Company publicly presents autonomous sidewalk delivery robots for last-mile delivery."],
+    "sourceUrls": ["https://www.serverobotics.com/"],
+    "track": "demand_sourced_capture",
+    "requestedSiteType": "restaurant-to-sidewalk delivery handoff"
+  },
+  {
+    "organizationName": "Nuro",
+    "buyerSegment": "Autonomous goods delivery team",
+    "workflowNeed": "Identify a curbside pickup, delivery staging, or goods handoff workflow worth capturing for hosted review.",
+    "intentSignals": ["Company publicly develops autonomous delivery vehicles for goods movement."],
+    "sourceUrls": ["https://www.nuro.ai/"],
+    "track": "demand_sourced_capture",
+    "requestedSiteType": "curbside goods handoff workflow"
+  },
+  {
+    "organizationName": "Starship Technologies",
+    "buyerSegment": "Autonomous sidewalk delivery team",
+    "workflowNeed": "Identify a campus, retail, or sidewalk-delivery workflow worth capturing for hosted review.",
+    "intentSignals": ["Company publicly operates autonomous delivery robots on campuses and local delivery routes."],
+    "sourceUrls": ["https://www.starship.xyz/"],
+    "track": "demand_sourced_capture",
+    "requestedSiteType": "campus or retail delivery route"
+  },
+  {
+    "organizationName": "Knightscope",
+    "buyerSegment": "Autonomous security robot team",
+    "workflowNeed": "Identify a patrol route, lobby, parking, or facility security workflow worth capturing for hosted review.",
+    "intentSignals": ["Company publicly sells autonomous security robots for patrol and facility monitoring workflows."],
+    "sourceUrls": ["https://www.knightscope.com/"],
+    "track": "demand_sourced_capture",
+    "requestedSiteType": "security patrol route"
+  }
+]
