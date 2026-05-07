@@ -32,7 +32,10 @@ export const footerCompanyLinks = [
 ];
 
 export const footerSupportLinks = [
-  { href: "/help", label: "Support" },
+  { href: "/help", label: "Help Center" },
+  { href: "/help/contact", label: "Contact Support" },
+  { href: "/help/category/hosted-evaluation", label: "Hosted Evaluation Help" },
+  { href: "/help/category/capture-provenance", label: "Capture Provenance" },
   { href: "/faq", label: "FAQ" },
   { href: "/privacy", label: "Privacy" },
   { href: "/terms", label: "Terms" },

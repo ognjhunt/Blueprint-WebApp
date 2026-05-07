@@ -3,7 +3,7 @@
 - report_date: 2026-05-07
 - city: Austin, TX
 - ledger: ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json
-- loop_status: blocked
+- loop_status: warming
 - durability_status: blocked
 - note: Filtered to Austin, TX.
 
@@ -12,11 +12,11 @@
 | Metric | Value |
 | --- | ---: |
 | Target rows | 1 |
-| Recipient-backed targets | 0 |
+| Recipient-backed targets | 1 |
 | Enrichment attempted targets | 1 |
-| Enrichment candidate targets | 0 |
-| Enrichment contact-found targets | 0 |
-| Founder approval needed | 0 |
+| Enrichment candidate targets | 1 |
+| Enrichment contact-found targets | 1 |
+| Founder approval needed | 1 |
 | Sent touches | 0 |
 | Replies | 0 |
 | Hosted-review starts | 0 |
@@ -24,8 +24,8 @@
 | Proof-ready artifacts | 1 |
 | Capture asks | 0 |
 | Explicit next-action rows | 1 |
-| Open blockers | 4 |
-| Paperclip-linked blockers | 4 |
+| Open blockers | 1 |
+| Paperclip-linked blockers | 1 |
 | 100-touch decision gap | 100 |
 | Days remaining | 3 |
 
@@ -33,18 +33,19 @@
 
 | Target | Track | Recipient | Status | Approval | Next action |
 | --- | --- | --- | --- | --- | --- |
-| Simbe Robotics | proof_ready_outreach | missing | draft_ready | blocked | Find explicit recipient-backed contact evidence before founder first-send approval. |
+| Simbe Robotics | proof_ready_outreach | sales@simberobotics.com | draft_ready | pending_first_send_approval | Founder approves, edits, or rejects this recipient-backed draft before any live send. |
 
 ## Recipient-Backed Contact Engine
 
 - Run `npm run gtm:enrichment:run -- --write` to refresh provider-backed recipient evidence before founder approval.
 - Clay or another enrichment tool may feed this lane only as a provider-normalized candidate source; the GTM ledger remains the system of record.
 
-- gtm-001-simbe-retail-aisle-review: Simbe Robotics / Retail shelf-scanning robotics team / Find explicit recipient-backed contact evidence before founder first-send approval.
+- no missing recipient-backed target rows in this view
 
 ## Founder First Send Batch
 
-- no recipient-backed drafts are ready for founder approval yet
+- Founder action: approve, edit, or reject these recipient-backed drafts. Do not authorize pricing, rights, privacy, legal, or permission commitments here.
+- gtm-001-simbe-retail-aisle-review: Simbe Robotics / Retail shelf-scanning robotics team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
 
 ## Proof Artifact Queue
 
@@ -54,9 +55,6 @@
 
 | Target | Blocker | Owner | Status | Paperclip issue | Next action |
 | --- | --- | --- | --- | --- | --- |
-| pilot | The active pilot has 12 target rows, below the 30-account floor needed before judging the wedge. | demand-intel-agent | open | BLU-5394 | Add real robot-team target rows from explicit buying signals while keeping recipient fields empty unless evidence-backed. |
-| pilot | The active pilot has two proof-ready hosted-review artifacts, below the three-artifact scale checkpoint. | robot-team-growth-agent | open | BLU-5395 | Create or attach one more buyer-specific hosted-review artifact from real capture provenance, or keep the capture-ask track explicit until a real artifact exists. |
-| gtm-001-simbe-retail-aisle-review: Simbe Robotics | Governed recipient discovery is blocked because BLUEPRINT_GTM_CONTACT_DISCOVERY_ALLOWED_HOSTS is not configured and no selected recipient evidence exists. | growth-lead | blocked | BLU-5392 | Configure a governed contact-discovery allowlist or record explicit recipient-backed evidence before founder first-send approval. |
 | gtm-001-simbe-retail-aisle-review: Simbe Robotics | Buyer sends and replies cannot be treated as production-durable until sender verification and Gmail human-reply watcher credentials are configured. | growth-lead | blocked | BLU-5393 | Set sender verification, human-reply ingest token, approved identity, enable Gmail watcher, and provide Gmail OAuth credentials before counting live replies as durable. |
 
 ## Durable Reply Plumbing

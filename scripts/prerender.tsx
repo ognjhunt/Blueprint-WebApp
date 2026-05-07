@@ -38,6 +38,7 @@ import Terms from "../client/src/pages/Terms";
 import Login from "../client/src/pages/Login";
 import Blog from "../client/src/pages/Blog";
 import LaunchMap from "../client/src/pages/LaunchMap";
+import { helpArticles, helpCategories } from "../client/src/data/helpCenter";
 import { siteWorldCards } from "../client/src/data/siteWorlds";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -232,6 +233,17 @@ const staticRoutes: StaticRoute[] = [
   { path: "/contact", component: Contact },
   { path: "/contact/site-operator", component: Contact },
   { path: "/help", component: Support },
+  { path: "/help/contact", component: Support },
+  ...helpCategories.map((category) => ({
+    path: `/help/category/${category.slug}`,
+    component: Support,
+    props: { params: { categorySlug: category.slug } },
+  })),
+  ...helpArticles.map((article) => ({
+    path: `/help/article/${article.slug}`,
+    component: Support,
+    props: { params: { articleSlug: article.slug } },
+  })),
   { path: "/exact-site-hosted-review", component: ExactSiteHostedReview },
   { path: "/book-exact-site-review", component: BookExactSiteReview },
   { path: "/how-it-works", component: HowItWorks },

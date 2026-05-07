@@ -1,4 +1,5 @@
 import path from "node:path";
+import { helpArticles, helpCategories } from "../../client/src/data/helpCenter";
 import { siteWorldCards } from "../../client/src/data/siteWorlds";
 
 export type SitemapRoute = {
@@ -27,6 +28,7 @@ const staticSitemapRoutes: SitemapRoute[] = [
   { path: "/contact", changefreq: "monthly", priority: 0.6 },
   { path: "/capture-app/launch-access", changefreq: "monthly", priority: 0.6 },
   { path: "/help", changefreq: "monthly", priority: 0.6 },
+  { path: "/help/contact", changefreq: "monthly", priority: 0.6 },
   { path: "/faq", changefreq: "monthly", priority: 0.6 },
   { path: "/blog", changefreq: "monthly", priority: 0.5 },
   { path: "/governance", changefreq: "monthly", priority: 0.5 },
@@ -43,6 +45,20 @@ export const sitemapRoutes: SitemapRoute[] = [
       path: `/world-models/${site.id}`,
       changefreq: "weekly",
       priority: 0.8,
+    }),
+  ),
+  ...helpCategories.map(
+    (category): SitemapRoute => ({
+      path: `/help/category/${category.slug}`,
+      changefreq: "monthly",
+      priority: 0.5,
+    }),
+  ),
+  ...helpArticles.map(
+    (article): SitemapRoute => ({
+      path: `/help/article/${article.slug}`,
+      changefreq: "monthly",
+      priority: 0.4,
     }),
   ),
 ];

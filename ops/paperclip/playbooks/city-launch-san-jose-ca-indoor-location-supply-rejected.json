@@ -2,7 +2,7 @@
   "schema_version": "2026-04-25.indoor-location-supply-rejected.v1",
   "city": "San Jose, CA",
   "city_slug": "san-jose-ca",
-  "generated_at": "2026-05-07T15:44:03.424Z",
+  "generated_at": "2026-05-07T17:46:43.034Z",
   "status": "awaiting_capturer_growth_agent_location_supply",
   "source_activation_payload": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-san-jose-ca-activation-payload.json",
   "delegation_task_key": "public-commercial-community-sourcing",

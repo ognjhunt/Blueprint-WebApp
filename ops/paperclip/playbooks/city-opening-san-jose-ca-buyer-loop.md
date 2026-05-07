@@ -3,7 +3,7 @@
 - report_date: 2026-05-07
 - city: San Jose, CA
 - ledger: ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json
-- loop_status: blocked
+- loop_status: warming
 - durability_status: blocked
 - note: No city-specific rows matched San Jose, CA; using the global target queue until this city adds its own rows.
 
@@ -11,21 +11,21 @@
 
 | Metric | Value |
 | --- | ---: |
-| Target rows | 12 |
-| Recipient-backed targets | 0 |
-| Enrichment attempted targets | 12 |
-| Enrichment candidate targets | 0 |
-| Enrichment contact-found targets | 0 |
-| Founder approval needed | 0 |
+| Target rows | 30 |
+| Recipient-backed targets | 30 |
+| Enrichment attempted targets | 30 |
+| Enrichment candidate targets | 30 |
+| Enrichment contact-found targets | 30 |
+| Founder approval needed | 30 |
 | Sent touches | 0 |
 | Replies | 0 |
 | Hosted-review starts | 0 |
 | Qualified calls | 0 |
-| Proof-ready artifacts | 2 |
-| Capture asks | 10 |
-| Explicit next-action rows | 12 |
-| Open blockers | 26 |
-| Paperclip-linked blockers | 26 |
+| Proof-ready artifacts | 3 |
+| Capture asks | 28 |
+| Explicit next-action rows | 30 |
+| Open blockers | 12 |
+| Paperclip-linked blockers | 12 |
 | 100-touch decision gap | 100 |
 | Days remaining | 3 |
 
@@ -33,83 +33,123 @@
 
 | Target | Track | Recipient | Status | Approval | Next action |
 | --- | --- | --- | --- | --- | --- |
-| Simbe Robotics | proof_ready_outreach | missing | draft_ready | blocked | Find explicit recipient-backed contact evidence before founder first-send approval. |
-| Brain Corp | proof_ready_outreach | missing | draft_ready | blocked | Find explicit recipient-backed contact evidence before founder first-send approval. |
-| Agility Robotics | demand_sourced_capture | missing | draft_ready | blocked | Find explicit recipient-backed contact evidence before founder first-send approval. |
-| Boston Dynamics | demand_sourced_capture | missing | draft_ready | blocked | Find explicit recipient-backed contact evidence before founder first-send approval. |
-| Locus Robotics | demand_sourced_capture | missing | draft_ready | blocked | Find explicit recipient-backed contact evidence before founder first-send approval. |
-| Seegrid | demand_sourced_capture | missing | draft_ready | blocked | Find explicit recipient-backed contact evidence before founder first-send approval. |
-| Vecna Robotics | demand_sourced_capture | missing | draft_ready | blocked | Find explicit recipient-backed contact evidence before founder first-send approval. |
-| Fox Robotics | demand_sourced_capture | missing | draft_ready | blocked | Find explicit recipient-backed contact evidence before founder first-send approval. |
-| Diligent Robotics | demand_sourced_capture | missing | draft_ready | blocked | Find explicit recipient-backed contact evidence before founder first-send approval. |
-| Gecko Robotics | demand_sourced_capture | missing | draft_ready | blocked | Find explicit recipient-backed contact evidence before founder first-send approval. |
-| ANYbotics | demand_sourced_capture | missing | draft_ready | blocked | Find explicit recipient-backed contact evidence before founder first-send approval. |
-| Outrider | demand_sourced_capture | missing | draft_ready | blocked | Find explicit recipient-backed contact evidence before founder first-send approval. |
+| Simbe Robotics | proof_ready_outreach | sales@simberobotics.com | draft_ready | pending_first_send_approval | Founder approves, edits, or rejects this recipient-backed draft before any live send. |
+| Brain Corp | proof_ready_outreach | support@braincorporation.com | draft_ready | pending_first_send_approval | Founder approves, edits, or rejects this recipient-backed draft before any live send. |
+| Agility Robotics | proof_ready_outreach | sales@agilityrobotics.com | draft_ready | pending_first_send_approval | Founder approves, edits, or rejects this recipient-backed draft before any live send. |
+| Boston Dynamics | demand_sourced_capture | sales@bostondynamics.com | draft_ready | pending_first_send_approval | Founder approves, edits, or rejects this recipient-backed draft before any live send. |
+| Locus Robotics | demand_sourced_capture | info@locusrobotics.com | draft_ready | pending_first_send_approval | Founder approves, edits, or rejects this recipient-backed draft before any live send. |
+| Seegrid | demand_sourced_capture | sales@seegrid.com | draft_ready | pending_first_send_approval | Founder approves, edits, or rejects this recipient-backed draft before any live send. |
+| Vecna Robotics | demand_sourced_capture | team@vecnarobotics.com | draft_ready | pending_first_send_approval | Founder approves, edits, or rejects this recipient-backed draft before any live send. |
+| Fox Robotics | demand_sourced_capture | sales@foxrobotics.com | draft_ready | pending_first_send_approval | Founder approves, edits, or rejects this recipient-backed draft before any live send. |
+| Diligent Robotics | demand_sourced_capture | info@diligentrobots.com | draft_ready | pending_first_send_approval | Founder approves, edits, or rejects this recipient-backed draft before any live send. |
+| Gecko Robotics | demand_sourced_capture | info@geckorobotics.com | draft_ready | pending_first_send_approval | Founder approves, edits, or rejects this recipient-backed draft before any live send. |
+| ANYbotics | demand_sourced_capture | info@anybotics.com | draft_ready | pending_first_send_approval | Founder approves, edits, or rejects this recipient-backed draft before any live send. |
+| Outrider | demand_sourced_capture | info@outrider.ai | draft_ready | pending_first_send_approval | Founder approves, edits, or rejects this recipient-backed draft before any live send. |
+| Covariant | demand_sourced_capture | info@covariant.ai | draft_ready | pending_first_send_approval | Founder approves, edits, or rejects this recipient-backed draft before any live send. |
+| AutoStore | demand_sourced_capture | goro.shiraishi@autostoresystem.com | draft_ready | pending_first_send_approval | Founder approves, edits, or rejects this recipient-backed draft before any live send. |
+| GreyOrange | demand_sourced_capture | sales.usa@greyorange.com | draft_ready | pending_first_send_approval | Founder approves, edits, or rejects this recipient-backed draft before any live send. |
+| Exotec | demand_sourced_capture | contact@exotec.com | draft_ready | pending_first_send_approval | Founder approves, edits, or rejects this recipient-backed draft before any live send. |
+| Symbotic | demand_sourced_capture | info@symbotic.com | draft_ready | pending_first_send_approval | Founder approves, edits, or rejects this recipient-backed draft before any live send. |
+| Ocado Technology | demand_sourced_capture | ocadosolutionscomms@ocado.com | draft_ready | pending_first_send_approval | Founder approves, edits, or rejects this recipient-backed draft before any live send. |
+| Berkshire Grey | demand_sourced_capture | sales_inquiry@berkshiregrey.com | draft_ready | pending_first_send_approval | Founder approves, edits, or rejects this recipient-backed draft before any live send. |
+| RightHand Robotics | demand_sourced_capture | info@righthandrobotics.com | draft_ready | pending_first_send_approval | Founder approves, edits, or rejects this recipient-backed draft before any live send. |
+| Mujin | demand_sourced_capture | info@mujin-corp.com | draft_ready | pending_first_send_approval | Founder approves, edits, or rejects this recipient-backed draft before any live send. |
+| Dexterity | demand_sourced_capture | contact@dexterity.ai | draft_ready | pending_first_send_approval | Founder approves, edits, or rejects this recipient-backed draft before any live send. |
+| Robust.AI | demand_sourced_capture | contact@robust.ai | draft_ready | pending_first_send_approval | Founder approves, edits, or rejects this recipient-backed draft before any live send. |
+| Zebra Robotics Automation | demand_sourced_capture | contact.emea@zebra.com | draft_ready | pending_first_send_approval | Founder approves, edits, or rejects this recipient-backed draft before any live send. |
+| Skydio | demand_sourced_capture | sales@skydio.com | draft_ready | pending_first_send_approval | Founder approves, edits, or rejects this recipient-backed draft before any live send. |
+| Zipline | demand_sourced_capture | community@flyzipline.com | draft_ready | pending_first_send_approval | Founder approves, edits, or rejects this recipient-backed draft before any live send. |
+| Serve Robotics | demand_sourced_capture | contact@serverobotics.com | draft_ready | pending_first_send_approval | Founder approves, edits, or rejects this recipient-backed draft before any live send. |
+| Nuro | demand_sourced_capture | feedback@nuro.ai | draft_ready | pending_first_send_approval | Founder approves, edits, or rejects this recipient-backed draft before any live send. |
+| Starship Technologies | demand_sourced_capture | business@starship.co | draft_ready | pending_first_send_approval | Founder approves, edits, or rejects this recipient-backed draft before any live send. |
+| Knightscope | demand_sourced_capture | contact@knightscope.com | draft_ready | pending_first_send_approval | Founder approves, edits, or rejects this recipient-backed draft before any live send. |
 
 ## Recipient-Backed Contact Engine
 
 - Run `npm run gtm:enrichment:run -- --write` to refresh provider-backed recipient evidence before founder approval.
 - Clay or another enrichment tool may feed this lane only as a provider-normalized candidate source; the GTM ledger remains the system of record.
 
-- gtm-001-simbe-retail-aisle-review: Simbe Robotics / Retail shelf-scanning robotics team / Find explicit recipient-backed contact evidence before founder first-send approval.
-- gtm-002-braincorp-retail-service-review: Brain Corp / Retail and commercial service robotics team / Find explicit recipient-backed contact evidence before founder first-send approval.
-- gtm-003-agility-warehouse-humanoid: Agility Robotics / Warehouse humanoid deployment team / Find explicit recipient-backed contact evidence before founder first-send approval.
-- gtm-004-boston-dynamics-stretch-warehouse: Boston Dynamics / Warehouse case-handling robotics team / Find explicit recipient-backed contact evidence before founder first-send approval.
-- gtm-005-locus-fulfillment-amr: Locus Robotics / Fulfillment AMR deployment team / Find explicit recipient-backed contact evidence before founder first-send approval.
-- gtm-006-seegrid-warehouse-amr: Seegrid / Autonomous industrial vehicle team / Find explicit recipient-backed contact evidence before founder first-send approval.
-- gtm-007-vecna-robotics-warehouse-orchestration: Vecna Robotics / Warehouse automation and orchestration team / Find explicit recipient-backed contact evidence before founder first-send approval.
-- gtm-008-fox-robotics-forklift-dock: Fox Robotics / Autonomous forklift deployment team / Find explicit recipient-backed contact evidence before founder first-send approval.
-- gtm-009-diligent-healthcare-service-route: Diligent Robotics / Healthcare service robot deployment team / Find explicit recipient-backed contact evidence before founder first-send approval.
-- gtm-010-gecko-industrial-inspection: Gecko Robotics / Industrial inspection robotics team / Find explicit recipient-backed contact evidence before founder first-send approval.
-- gtm-011-anybotics-industrial-inspection: ANYbotics / Autonomous industrial inspection team / Find explicit recipient-backed contact evidence before founder first-send approval.
-- gtm-012-outrider-yard-automation: Outrider / Autonomous yard operations team / Find explicit recipient-backed contact evidence before founder first-send approval.
+- no missing recipient-backed target rows in this view
 
 ## Founder First Send Batch
 
-- no recipient-backed drafts are ready for founder approval yet
+- Founder action: approve, edit, or reject these recipient-backed drafts. Do not authorize pricing, rights, privacy, legal, or permission commitments here.
+- gtm-001-simbe-retail-aisle-review: Simbe Robotics / Retail shelf-scanning robotics team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- gtm-002-braincorp-retail-service-review: Brain Corp / Retail and commercial service robotics team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- gtm-003-agility-warehouse-humanoid: Agility Robotics / Warehouse humanoid deployment team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- gtm-004-boston-dynamics-stretch-warehouse: Boston Dynamics / Warehouse case-handling robotics team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- gtm-005-locus-fulfillment-amr: Locus Robotics / Fulfillment AMR deployment team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- gtm-006-seegrid-warehouse-amr: Seegrid / Autonomous industrial vehicle team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- gtm-007-vecna-robotics-warehouse-orchestration: Vecna Robotics / Warehouse automation and orchestration team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- gtm-008-fox-robotics-forklift-dock: Fox Robotics / Autonomous forklift deployment team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- gtm-009-diligent-healthcare-service-route: Diligent Robotics / Healthcare service robot deployment team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- gtm-010-gecko-industrial-inspection: Gecko Robotics / Industrial inspection robotics team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- gtm-011-anybotics-industrial-inspection: ANYbotics / Autonomous industrial inspection team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- gtm-012-outrider-yard-automation: Outrider / Autonomous yard operations team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- gtm-covariant-identify-a-bin-picking-induction-or-item-handling-workflow-worth-capturi: Covariant / Warehouse AI robotics team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- gtm-autostore-identify-a-goods-to-person-port-or-tote-flow-workflow-worth-capturing-fo: AutoStore / Cube storage and fulfillment automation team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- gtm-greyorange-identify-a-fulfillment-picking-or-sortation-workflow-worth-capturing-for: GreyOrange / Fulfillment orchestration robotics team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- gtm-exotec-identify-a-goods-to-person-picking-or-storage-workflow-worth-capturing-f: Exotec / Skypod warehouse robotics team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- gtm-symbotic-identify-a-case-handling-palletizing-or-distribution-center-workflow-wor: Symbotic / Warehouse automation systems team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- gtm-ocado-technology-identify-an-online-grocery-fulfillment-or-robotic-picking-workflow-worth: Ocado Technology / Grocery fulfillment robotics team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- gtm-berkshire-grey-identify-a-package-handling-sortation-or-fulfillment-workflow-worth-capt: Berkshire Grey / Robotic package handling team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- gtm-righthand-robotics-identify-a-piece-picking-or-order-fulfillment-cell-worth-capturing-for-e: RightHand Robotics / Piece-picking robotics team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- gtm-mujin-identify-a-depalletizing-truck-unloading-or-material-handling-workflow-w: Mujin / Industrial robotics and truck unloading team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- gtm-dexterity-identify-a-truck-loading-palletizing-or-warehouse-manipulation-workflow-: Dexterity / Warehouse manipulation robotics team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- gtm-robust-ai-identify-a-warehouse-cart-tote-or-collaborative-material-movement-workfl: Robust.AI / Collaborative mobile robotics team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- gtm-zebra-robotics-automation-identify-a-picking-replenishment-or-fulfillment-amr-workflow-worth-captu: Zebra Robotics Automation / Warehouse AMR automation team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- gtm-skydio-identify-an-industrial-inspection-route-or-facility-workflow-worth-captu: Skydio / Autonomous inspection drone team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- gtm-zipline-identify-a-loading-dispatch-or-delivery-operations-workflow-worth-captur: Zipline / Autonomous delivery operations team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- gtm-serve-robotics-identify-a-restaurant-handoff-sidewalk-route-or-curbside-delivery-workfl: Serve Robotics / Sidewalk delivery robotics team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- gtm-nuro-identify-a-curbside-pickup-delivery-staging-or-goods-handoff-workflow-wo: Nuro / Autonomous goods delivery team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- gtm-starship-technologies-identify-a-campus-retail-or-sidewalk-delivery-workflow-worth-capturing-f: Starship Technologies / Autonomous sidewalk delivery team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- gtm-knightscope-identify-a-patrol-route-lobby-parking-or-facility-security-workflow-wort: Knightscope / Autonomous security robot team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
 
 ## Proof Artifact Queue
 
-- gtm-003-agility-warehouse-humanoid: Agility Robotics / Warehouse humanoid deployment team / Find explicit recipient-backed contact evidence before founder first-send approval.
-- gtm-004-boston-dynamics-stretch-warehouse: Boston Dynamics / Warehouse case-handling robotics team / Find explicit recipient-backed contact evidence before founder first-send approval.
-- gtm-005-locus-fulfillment-amr: Locus Robotics / Fulfillment AMR deployment team / Find explicit recipient-backed contact evidence before founder first-send approval.
-- gtm-006-seegrid-warehouse-amr: Seegrid / Autonomous industrial vehicle team / Find explicit recipient-backed contact evidence before founder first-send approval.
-- gtm-007-vecna-robotics-warehouse-orchestration: Vecna Robotics / Warehouse automation and orchestration team / Find explicit recipient-backed contact evidence before founder first-send approval.
-- gtm-008-fox-robotics-forklift-dock: Fox Robotics / Autonomous forklift deployment team / Find explicit recipient-backed contact evidence before founder first-send approval.
-- gtm-009-diligent-healthcare-service-route: Diligent Robotics / Healthcare service robot deployment team / Find explicit recipient-backed contact evidence before founder first-send approval.
-- gtm-010-gecko-industrial-inspection: Gecko Robotics / Industrial inspection robotics team / Find explicit recipient-backed contact evidence before founder first-send approval.
-- gtm-011-anybotics-industrial-inspection: ANYbotics / Autonomous industrial inspection team / Find explicit recipient-backed contact evidence before founder first-send approval.
-- gtm-012-outrider-yard-automation: Outrider / Autonomous yard operations team / Find explicit recipient-backed contact evidence before founder first-send approval.
+- gtm-004-boston-dynamics-stretch-warehouse: Boston Dynamics / Warehouse case-handling robotics team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- gtm-005-locus-fulfillment-amr: Locus Robotics / Fulfillment AMR deployment team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- gtm-006-seegrid-warehouse-amr: Seegrid / Autonomous industrial vehicle team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- gtm-007-vecna-robotics-warehouse-orchestration: Vecna Robotics / Warehouse automation and orchestration team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- gtm-008-fox-robotics-forklift-dock: Fox Robotics / Autonomous forklift deployment team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- gtm-009-diligent-healthcare-service-route: Diligent Robotics / Healthcare service robot deployment team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- gtm-010-gecko-industrial-inspection: Gecko Robotics / Industrial inspection robotics team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- gtm-011-anybotics-industrial-inspection: ANYbotics / Autonomous industrial inspection team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- gtm-012-outrider-yard-automation: Outrider / Autonomous yard operations team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- gtm-covariant-identify-a-bin-picking-induction-or-item-handling-workflow-worth-capturi: Covariant / Warehouse AI robotics team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- gtm-autostore-identify-a-goods-to-person-port-or-tote-flow-workflow-worth-capturing-fo: AutoStore / Cube storage and fulfillment automation team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- gtm-greyorange-identify-a-fulfillment-picking-or-sortation-workflow-worth-capturing-for: GreyOrange / Fulfillment orchestration robotics team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- gtm-exotec-identify-a-goods-to-person-picking-or-storage-workflow-worth-capturing-f: Exotec / Skypod warehouse robotics team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- gtm-symbotic-identify-a-case-handling-palletizing-or-distribution-center-workflow-wor: Symbotic / Warehouse automation systems team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- gtm-ocado-technology-identify-an-online-grocery-fulfillment-or-robotic-picking-workflow-worth: Ocado Technology / Grocery fulfillment robotics team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- gtm-berkshire-grey-identify-a-package-handling-sortation-or-fulfillment-workflow-worth-capt: Berkshire Grey / Robotic package handling team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- gtm-righthand-robotics-identify-a-piece-picking-or-order-fulfillment-cell-worth-capturing-for-e: RightHand Robotics / Piece-picking robotics team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- gtm-mujin-identify-a-depalletizing-truck-unloading-or-material-handling-workflow-w: Mujin / Industrial robotics and truck unloading team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- gtm-dexterity-identify-a-truck-loading-palletizing-or-warehouse-manipulation-workflow-: Dexterity / Warehouse manipulation robotics team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- gtm-robust-ai-identify-a-warehouse-cart-tote-or-collaborative-material-movement-workfl: Robust.AI / Collaborative mobile robotics team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- gtm-zebra-robotics-automation-identify-a-picking-replenishment-or-fulfillment-amr-workflow-worth-captu: Zebra Robotics Automation / Warehouse AMR automation team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- gtm-skydio-identify-an-industrial-inspection-route-or-facility-workflow-worth-captu: Skydio / Autonomous inspection drone team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- gtm-zipline-identify-a-loading-dispatch-or-delivery-operations-workflow-worth-captur: Zipline / Autonomous delivery operations team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- gtm-serve-robotics-identify-a-restaurant-handoff-sidewalk-route-or-curbside-delivery-workfl: Serve Robotics / Sidewalk delivery robotics team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- gtm-nuro-identify-a-curbside-pickup-delivery-staging-or-goods-handoff-workflow-wo: Nuro / Autonomous goods delivery team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- gtm-starship-technologies-identify-a-campus-retail-or-sidewalk-delivery-workflow-worth-capturing-f: Starship Technologies / Autonomous sidewalk delivery team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- gtm-knightscope-identify-a-patrol-route-lobby-parking-or-facility-security-workflow-wort: Knightscope / Autonomous security robot team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
 
 ## Blocker Ledger
 
 | Target | Blocker | Owner | Status | Paperclip issue | Next action |
 | --- | --- | --- | --- | --- | --- |
-| pilot | The active pilot has 12 target rows, below the 30-account floor needed before judging the wedge. | demand-intel-agent | open | BLU-5394 | Add real robot-team target rows from explicit buying signals while keeping recipient fields empty unless evidence-backed. |
-| pilot | The active pilot has two proof-ready hosted-review artifacts, below the three-artifact scale checkpoint. | robot-team-growth-agent | open | BLU-5395 | Create or attach one more buyer-specific hosted-review artifact from real capture provenance, or keep the capture-ask track explicit until a real artifact exists. |
-| gtm-001-simbe-retail-aisle-review: Simbe Robotics | Governed recipient discovery is blocked because BLUEPRINT_GTM_CONTACT_DISCOVERY_ALLOWED_HOSTS is not configured and no selected recipient evidence exists. | growth-lead | blocked | BLU-5392 | Configure a governed contact-discovery allowlist or record explicit recipient-backed evidence before founder first-send approval. |
 | gtm-001-simbe-retail-aisle-review: Simbe Robotics | Buyer sends and replies cannot be treated as production-durable until sender verification and Gmail human-reply watcher credentials are configured. | growth-lead | blocked | BLU-5393 | Set sender verification, human-reply ingest token, approved identity, enable Gmail watcher, and provide Gmail OAuth credentials before counting live replies as durable. |
-| gtm-002-braincorp-retail-service-review: Brain Corp | Governed recipient discovery is blocked because BLUEPRINT_GTM_CONTACT_DISCOVERY_ALLOWED_HOSTS is not configured and no selected recipient evidence exists. | growth-lead | blocked | BLU-5392 | Configure a governed contact-discovery allowlist or record explicit recipient-backed evidence before founder first-send approval. |
 | gtm-002-braincorp-retail-service-review: Brain Corp | Buyer sends and replies cannot be treated as production-durable until sender verification and Gmail human-reply watcher credentials are configured. | growth-lead | blocked | BLU-5393 | Set sender verification, human-reply ingest token, approved identity, enable Gmail watcher, and provide Gmail OAuth credentials before counting live replies as durable. |
-| gtm-003-agility-warehouse-humanoid: Agility Robotics | Governed recipient discovery is blocked because BLUEPRINT_GTM_CONTACT_DISCOVERY_ALLOWED_HOSTS is not configured and no selected recipient evidence exists. | growth-lead | blocked | BLU-5392 | Configure a governed contact-discovery allowlist or record explicit recipient-backed evidence before founder first-send approval. |
 | gtm-003-agility-warehouse-humanoid: Agility Robotics | Buyer sends and replies cannot be treated as production-durable until sender verification and Gmail human-reply watcher credentials are configured. | growth-lead | blocked | BLU-5393 | Set sender verification, human-reply ingest token, approved identity, enable Gmail watcher, and provide Gmail OAuth credentials before counting live replies as durable. |
-| gtm-004-boston-dynamics-stretch-warehouse: Boston Dynamics | Governed recipient discovery is blocked because BLUEPRINT_GTM_CONTACT_DISCOVERY_ALLOWED_HOSTS is not configured and no selected recipient evidence exists. | growth-lead | blocked | BLU-5392 | Configure a governed contact-discovery allowlist or record explicit recipient-backed evidence before founder first-send approval. |
 | gtm-004-boston-dynamics-stretch-warehouse: Boston Dynamics | Buyer sends and replies cannot be treated as production-durable until sender verification and Gmail human-reply watcher credentials are configured. | growth-lead | blocked | BLU-5393 | Set sender verification, human-reply ingest token, approved identity, enable Gmail watcher, and provide Gmail OAuth credentials before counting live replies as durable. |
-| gtm-005-locus-fulfillment-amr: Locus Robotics | Governed recipient discovery is blocked because BLUEPRINT_GTM_CONTACT_DISCOVERY_ALLOWED_HOSTS is not configured and no selected recipient evidence exists. | growth-lead | blocked | BLU-5392 | Configure a governed contact-discovery allowlist or record explicit recipient-backed evidence before founder first-send approval. |
 | gtm-005-locus-fulfillment-amr: Locus Robotics | Buyer sends and replies cannot be treated as production-durable until sender verification and Gmail human-reply watcher credentials are configured. | growth-lead | blocked | BLU-5393 | Set sender verification, human-reply ingest token, approved identity, enable Gmail watcher, and provide Gmail OAuth credentials before counting live replies as durable. |
-| gtm-006-seegrid-warehouse-amr: Seegrid | Governed recipient discovery is blocked because BLUEPRINT_GTM_CONTACT_DISCOVERY_ALLOWED_HOSTS is not configured and no selected recipient evidence exists. | growth-lead | blocked | BLU-5392 | Configure a governed contact-discovery allowlist or record explicit recipient-backed evidence before founder first-send approval. |
 | gtm-006-seegrid-warehouse-amr: Seegrid | Buyer sends and replies cannot be treated as production-durable until sender verification and Gmail human-reply watcher credentials are configured. | growth-lead | blocked | BLU-5393 | Set sender verification, human-reply ingest token, approved identity, enable Gmail watcher, and provide Gmail OAuth credentials before counting live replies as durable. |
-| gtm-007-vecna-robotics-warehouse-orchestration: Vecna Robotics | Governed recipient discovery is blocked because BLUEPRINT_GTM_CONTACT_DISCOVERY_ALLOWED_HOSTS is not configured and no selected recipient evidence exists. | growth-lead | blocked | BLU-5392 | Configure a governed contact-discovery allowlist or record explicit recipient-backed evidence before founder first-send approval. |
 | gtm-007-vecna-robotics-warehouse-orchestration: Vecna Robotics | Buyer sends and replies cannot be treated as production-durable until sender verification and Gmail human-reply watcher credentials are configured. | growth-lead | blocked | BLU-5393 | Set sender verification, human-reply ingest token, approved identity, enable Gmail watcher, and provide Gmail OAuth credentials before counting live replies as durable. |
-| gtm-008-fox-robotics-forklift-dock: Fox Robotics | Governed recipient discovery is blocked because BLUEPRINT_GTM_CONTACT_DISCOVERY_ALLOWED_HOSTS is not configured and no selected recipient evidence exists. | growth-lead | blocked | BLU-5392 | Configure a governed contact-discovery allowlist or record explicit recipient-backed evidence before founder first-send approval. |
 | gtm-008-fox-robotics-forklift-dock: Fox Robotics | Buyer sends and replies cannot be treated as production-durable until sender verification and Gmail human-reply watcher credentials are configured. | growth-lead | blocked | BLU-5393 | Set sender verification, human-reply ingest token, approved identity, enable Gmail watcher, and provide Gmail OAuth credentials before counting live replies as durable. |
-| gtm-009-diligent-healthcare-service-route: Diligent Robotics | Governed recipient discovery is blocked because BLUEPRINT_GTM_CONTACT_DISCOVERY_ALLOWED_HOSTS is not configured and no selected recipient evidence exists. | growth-lead | blocked | BLU-5392 | Configure a governed contact-discovery allowlist or record explicit recipient-backed evidence before founder first-send approval. |
 | gtm-009-diligent-healthcare-service-route: Diligent Robotics | Buyer sends and replies cannot be treated as production-durable until sender verification and Gmail human-reply watcher credentials are configured. | growth-lead | blocked | BLU-5393 | Set sender verification, human-reply ingest token, approved identity, enable Gmail watcher, and provide Gmail OAuth credentials before counting live replies as durable. |
-| gtm-010-gecko-industrial-inspection: Gecko Robotics | Governed recipient discovery is blocked because BLUEPRINT_GTM_CONTACT_DISCOVERY_ALLOWED_HOSTS is not configured and no selected recipient evidence exists. | growth-lead | blocked | BLU-5392 | Configure a governed contact-discovery allowlist or record explicit recipient-backed evidence before founder first-send approval. |
 | gtm-010-gecko-industrial-inspection: Gecko Robotics | Buyer sends and replies cannot be treated as production-durable until sender verification and Gmail human-reply watcher credentials are configured. | growth-lead | blocked | BLU-5393 | Set sender verification, human-reply ingest token, approved identity, enable Gmail watcher, and provide Gmail OAuth credentials before counting live replies as durable. |
-| gtm-011-anybotics-industrial-inspection: ANYbotics | Governed recipient discovery is blocked because BLUEPRINT_GTM_CONTACT_DISCOVERY_ALLOWED_HOSTS is not configured and no selected recipient evidence exists. | growth-lead | blocked | BLU-5392 | Configure a governed contact-discovery allowlist or record explicit recipient-backed evidence before founder first-send approval. |
 | gtm-011-anybotics-industrial-inspection: ANYbotics | Buyer sends and replies cannot be treated as production-durable until sender verification and Gmail human-reply watcher credentials are configured. | growth-lead | blocked | BLU-5393 | Set sender verification, human-reply ingest token, approved identity, enable Gmail watcher, and provide Gmail OAuth credentials before counting live replies as durable. |
-| gtm-012-outrider-yard-automation: Outrider | Governed recipient discovery is blocked because BLUEPRINT_GTM_CONTACT_DISCOVERY_ALLOWED_HOSTS is not configured and no selected recipient evidence exists. | growth-lead | blocked | BLU-5392 | Configure a governed contact-discovery allowlist or record explicit recipient-backed evidence before founder first-send approval. |
 | gtm-012-outrider-yard-automation: Outrider | Buyer sends and replies cannot be treated as production-durable until sender verification and Gmail human-reply watcher credentials are configured. | growth-lead | blocked | BLU-5393 | Set sender verification, human-reply ingest token, approved identity, enable Gmail watcher, and provide Gmail OAuth credentials before counting live replies as durable. |
 
 ## Durable Reply Plumbing

@@ -2,7 +2,7 @@
   "schema_version": "2026-04-25.indoor-location-supply-evidence-log.v1",
   "city": "Chicago, IL",
   "city_slug": "chicago-il",
-  "generated_at": "2026-05-07T15:44:33.528Z",
+  "generated_at": "2026-05-07T17:53:38.239Z",
   "status": "awaiting_capturer_growth_agent_location_supply",
   "source_activation_payload": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-chicago-il-activation-payload.json",
   "delegation_task_key": "public-commercial-community-sourcing",
