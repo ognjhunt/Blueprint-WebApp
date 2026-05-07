@@ -65,31 +65,31 @@ export default function ExactSiteHostedReview() {
   return (
     <>
       <SEO
-        title="Exact-Site Hosted Review | Blueprint"
-        description="Hosted robot evaluation for one exact-site world model: a capture-backed managed run with review evidence, export scope, and a clear next step."
-        canonical="/exact-site-hosted-review"
+        title="Product | Blueprint"
+        description="Blueprint turns real-site capture into site-specific world models, site packages, and hosted review for robot teams."
+        canonical="/product"
         type="product"
         jsonLd={[
           webPageJsonLd({
-            path: "/exact-site-hosted-review",
-            name: "Exact-Site Hosted Review",
+            path: "/product",
+            name: "Blueprint Product",
             description:
-              "Hosted robot evaluation for one exact-site world model, with capture-backed review evidence, export scope, and explicit limits.",
+              "Site-specific world models, site packages, hosted review, and provenance boundaries for robot teams.",
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },
-            { name: "Exact-Site Hosted Review", path: "/exact-site-hosted-review" },
+            { name: "Product", path: "/product" },
           ]),
           productJsonLd({
-            path: "/exact-site-hosted-review",
-            name: "Exact-Site Hosted Review",
+            path: "/product",
+            name: "Blueprint Site-Specific World Models",
             description:
-              "A Blueprint-managed hosted evaluation path for one real site, one workflow, and one robot-team decision.",
+              "A capture-backed product path for one real site, one workflow, package access, hosted review, and clear export boundaries.",
             image: publicCaptureGeneratedAssets.hostedReviewPublicRoute,
-            category: "Hosted robot evaluation",
+            category: "Site-specific world-model product",
             properties: [
               { name: "Capture basis", value: "Real-site capture with provenance metadata" },
-              { name: "Output", value: "Review summary, run evidence, export scope, and next-step recommendation" },
+              { name: "Output", value: "World model, site package, hosted review, export scope, and next-step recommendation" },
               { name: "Boundary", value: "Not a deployment guarantee" },
             ],
           }),
@@ -109,31 +109,31 @@ export default function ExactSiteHostedReview() {
             <div className="absolute inset-0">
               <div className="mx-auto grid h-full max-w-[88rem] gap-10 px-5 py-12 sm:px-8 lg:grid-cols-[0.6fr_0.4fr] lg:px-10 lg:py-16">
                 <div className="flex min-h-[34rem] flex-col justify-end selection:bg-white/20 selection:text-white">
-                <EditorialSectionLabel light>Hosted Review</EditorialSectionLabel>
+                <EditorialSectionLabel light>Product</EditorialSectionLabel>
                 <h1 className="font-editorial mt-6 max-w-[36rem] text-[3.7rem] leading-[0.9] tracking-[-0.06em] text-white sm:text-[5rem]">
-                  Review before you buy.
+                  One exact-site product path.
                 </h1>
                 <p className="mt-6 max-w-[30rem] text-base leading-8 text-white/[0.86]">
-                  Hosted evaluation of one exact-site world model. See how the robot perceives, plans, and acts inside the selected place before your team commits.
+                  Blueprint packages real-site capture into site-specific world models, buyer-readable site packages, and hosted review when your team needs managed evidence first.
                 </p>
                 <div className="mt-8 flex flex-wrap gap-2">
+                  <ProofChip light>Site package</ProofChip>
                   <ProofChip light>Request-gated access</ProofChip>
-                  <ProofChip light>Review runs</ProofChip>
-                  <ProofChip light>Export scope</ProofChip>
+                  <ProofChip light>Hosted review</ProofChip>
                 </div>
                 <div className="mt-8 flex flex-wrap gap-3">
                   <a
-	                    href="/sample-evaluation"
+	                    href="/world-models"
                     className="inline-flex items-center justify-center bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
                   >
-	                    Inspect sample review
+	                    Browse catalog
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </a>
                   <a
-	                    href="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=hosted-review"
+	                    href="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=product"
                     className="inline-flex items-center justify-center border border-white/[0.16] px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/[0.08]"
                   >
-	                    Request hosted review
+	                    Contact enterprise
                   </a>
                 </div>
               </div>
@@ -369,14 +369,14 @@ export default function ExactSiteHostedReview() {
         <section className="mx-auto max-w-[88rem] px-5 pb-12 sm:px-8 lg:px-10 lg:pb-14">
           <EditorialCtaBand
             eyebrow="Next step"
-            title="Open hosted review when the site is clear."
-            description="Hosted evaluation is the clearest way to choose the right world model before package access or a broader program."
+            title="Start with one site and one workflow."
+            description="Browse the catalog, inspect truthful sample proof, or send the site your team needs when it is not listed yet."
             imageSrc={publicCaptureGeneratedAssets.hostedReviewPublicRoute}
             imageAlt="Hosted review hero"
-            primaryHref="/sample-evaluation"
-            primaryLabel="Inspect sample review"
-            secondaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=hosted-review-bottom"
-            secondaryLabel="Request hosted review"
+            primaryHref="/proof"
+            primaryLabel="Inspect proof"
+            secondaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=product-bottom"
+            secondaryLabel="Request site review"
           />
         </section>
       </div>

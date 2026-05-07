@@ -428,7 +428,7 @@ export default function SampleDeliverables() {
             description="Move into the sample listing, then continue into package or hosted review only when the site and proof already make sense."
             imageSrc={publicCaptureGeneratedAssets.cedarMarketProofBoard}
             imageAlt="Deliverables proof board"
-            primaryHref="/sample-evaluation"
+            primaryHref="/proof"
             primaryLabel="Inspect sample evaluation"
             secondaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=data-licensing&path=package-access&source=sample-deliverables"
             secondaryLabel="Request package access"

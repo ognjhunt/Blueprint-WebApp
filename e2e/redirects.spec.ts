@@ -12,7 +12,7 @@ test('legacy environments route redirects to the world models catalog', async ({
 
   await expect(page).toHaveURL(/\/world-models$/);
   await expect(
-    page.getByRole('heading', { name: /Exact-site worlds\./i }),
+    page.getByRole('heading', { name: /Exact-site catalog\./i }),
   ).toBeVisible();
   await expect(
     page.getByText(/Browse real facilities\./i),
@@ -22,10 +22,10 @@ test('legacy environments route redirects to the world models catalog', async ({
 test('public routes work with trailing slashes', async ({ page }) => {
   await page.goto('/docs/');
 
-  await expect(page).toHaveURL(/\/sample-deliverables\/?$/);
+  await expect(page).toHaveURL(/\/proof\/?$/);
   await expect(
     page.getByRole('heading', {
-      name: /Sample deliverables from one real site\./i,
+      name: /Sample grocery aisle proof packet/i,
     }),
   ).toBeVisible();
 });

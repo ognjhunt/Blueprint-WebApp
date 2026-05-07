@@ -362,11 +362,23 @@ app.use((req, res, next) => {
     { from: "/pilot-exchange-guide", to: "/world-models" },
     { from: "/qualified-opportunities", to: "/world-models" },
     { from: "/qualified-opportunities-guide", to: "/world-models" },
-    { from: "/readiness-pack", to: "/how-it-works" },
-    { from: "/quality-standard", to: "/how-it-works" },
-    { from: "/for-robot-integrators", to: "/for-robot-teams" },
-    { from: "/solutions", to: "/for-robot-teams" },
-    { from: "/docs", to: "/sample-deliverables" },
+    { from: "/readiness-pack", to: "/product" },
+    { from: "/quality-standard", to: "/product" },
+    { from: "/for-robot-integrators", to: "/product" },
+    { from: "/for-robot-teams", to: "/product" },
+    { from: "/for-site-operators", to: "/contact?persona=site-operator" },
+    { from: "/solutions", to: "/product" },
+    { from: "/docs", to: "/proof" },
+    { from: "/exact-site-hosted-review", to: "/product" },
+    { from: "/how-it-works", to: "/product" },
+    { from: "/sample-evaluation", to: "/proof" },
+    { from: "/sample-deliverables", to: "/proof" },
+    { from: "/case-studies", to: "/proof" },
+    {
+      from: "/book-exact-site-review",
+      to: "/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=book-exact-site-review",
+    },
+    { from: "/blog", to: "/updates" },
     { from: "/partners", to: "/contact" },
     { from: "/environments", to: "/world-models" },
     { from: "/site-worlds", to: "/world-models" },
@@ -378,9 +390,10 @@ app.use((req, res, next) => {
   legacyPublicRedirects.forEach(({ from, to }) => {
     app.get([from, `${from}/`], (req, res) => {
       const queryStart = req.originalUrl.indexOf("?");
-      const query = queryStart >= 0 ? req.originalUrl.slice(queryStart) : "";
+      const query = queryStart >= 0 ? req.originalUrl.slice(queryStart + 1) : "";
       const target = typeof to === "function" ? to(req) : to;
-      return res.redirect(301, `${target}${query}`);
+      const separator = query ? (target.includes("?") ? "&" : "?") : "";
+      return res.redirect(301, `${target}${separator}${query}`);
     });
   });
 

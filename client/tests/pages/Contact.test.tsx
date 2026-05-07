@@ -79,13 +79,13 @@ describe("Contact page", () => {
     expect(screen.getByText(/Rights, privacy, and proof boundaries stay explicit/i)).toBeInTheDocument();
     expect(screen.queryByText(/Buyer type/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Requested lanes/i)).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Request site review/i })).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: /Request site review/i }).length).toBeGreaterThan(0);
     expect(screen.getByText(/Short form first\. Call only when useful\./i)).toBeInTheDocument();
     expect(screen.getByText(/Useful to include/i)).toBeInTheDocument();
     expect(screen.getByText(/Fastest paths/i)).toBeInTheDocument();
-    expect(screen.getByText(/Book a scoping call/i)).toBeInTheDocument();
+    expect(screen.getByText(/See product/i)).toBeInTheDocument();
     expect(
-      screen.getByText(/Best when your team wants to understand hosted evaluation before sharing site details\./i),
+      screen.getByText(/Best when your team wants to understand world models, site packages, and hosted review before sharing site details\./i),
     ).toBeInTheDocument();
     expect(screen.getByText(/Inspect the sample listing/i)).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: /What should Blueprint help your team answer first\?/i })).toBeInTheDocument();
@@ -103,7 +103,7 @@ describe("Contact page", () => {
   it("tracks the hero start CTA without adding personal data", () => {
     render(<Contact />);
 
-    fireEvent.click(screen.getByRole("link", { name: /Request site review/i }));
+    fireEvent.click(screen.getAllByRole("link", { name: /Request site review/i })[0]);
 
     expect(analyticsEventsMock.contactPageCtaClicked).toHaveBeenCalledWith({
       persona: "robot_team",

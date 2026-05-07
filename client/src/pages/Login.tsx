@@ -240,7 +240,7 @@ export default function Login() {
                   <div className="space-y-4">
                     <SurfaceMiniLabel>New to Blueprint?</SurfaceMiniLabel>
                     <div className="space-y-3 text-sm">
-                      <a href="/book-exact-site-review" className="flex items-center justify-between text-black/70 transition hover:text-black">
+                      <a href="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=login" className="flex items-center justify-between text-black/70 transition hover:text-black">
                         <span>Buyer: Scope your project</span>
                         <ArrowRight className="h-4 w-4" />
                       </a>

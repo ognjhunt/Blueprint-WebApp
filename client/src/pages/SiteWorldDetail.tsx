@@ -858,10 +858,10 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                     rights, export, and hosted-report details a buyer reviews.
                   </p>
                   <a
-                    href="/sample-evaluation"
+                    href="/proof"
                     className="mt-6 inline-flex items-center justify-center bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                   >
-                    Open end-to-end sample
+                    Open proof packet
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </a>
                 </div>

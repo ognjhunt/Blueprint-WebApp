@@ -17,17 +17,10 @@ import CaptureLaunchAccess from "../client/src/pages/CaptureLaunchAccess";
 import SiteWorlds from "../client/src/pages/SiteWorlds";
 import SiteWorldDetail from "../client/src/pages/SiteWorldDetail";
 import HostedSessionSetup from "../client/src/pages/HostedSessionSetup";
-import ForSiteOperators from "../client/src/pages/ForSiteOperators";
-import ForRobotIntegrators from "../client/src/pages/ForRobotIntegrators";
 import Pricing from "../client/src/pages/Pricing";
-import SampleDeliverables from "../client/src/pages/SampleDeliverables";
-import SampleEvaluation from "../client/src/pages/SampleEvaluation";
-import CaseStudies from "../client/src/pages/CaseStudies";
 import Contact from "../client/src/pages/Contact";
 import Support from "../client/src/pages/Support";
 import ExactSiteHostedReview from "../client/src/pages/ExactSiteHostedReview";
-import BookExactSiteReview from "../client/src/pages/BookExactSiteReview";
-import HowItWorks from "../client/src/pages/HowItWorks";
 import FAQ from "../client/src/pages/FAQ";
 import Governance from "../client/src/pages/Governance";
 import Proof from "../client/src/pages/Proof";
@@ -38,7 +31,6 @@ import Terms from "../client/src/pages/Terms";
 import Login from "../client/src/pages/Login";
 import Blog from "../client/src/pages/Blog";
 import LaunchMap from "../client/src/pages/LaunchMap";
-import { helpArticles, helpCategories } from "../client/src/data/helpCenter";
 import { siteWorldCards } from "../client/src/data/siteWorlds";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -163,8 +155,8 @@ const PrerenderBusinessSignup = () => (
     body="Use this path when your team needs a site-specific world-model package, hosted review, or private buyer workflow grounded in one real facility."
     primaryHref="/signup/business"
     primaryLabel="Open buyer request"
-    secondaryHref="/book-exact-site-review"
-    secondaryLabel="Book a scoping call"
+    secondaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=signup-prerender"
+    secondaryLabel="Request site review"
     rows={[
       "Blueprint reviews organization, site, robot, workflow, and requested lane before opening access.",
       "Package and hosted-review requests stay tied to capture provenance, rights, privacy, and export scope.",
@@ -220,38 +212,21 @@ const PrerenderForgotPassword = () => (
 const staticRoutes: StaticRoute[] = [
   { path: "/", component: Home },
   { path: "/capture", component: Capture },
+  { path: "/product", component: ExactSiteHostedReview },
   { path: "/world-models", component: SiteWorlds },
   { path: "/capture-app", component: CaptureAppPlaceholder },
   { path: "/capture-app/launch-access", component: CaptureLaunchAccess },
-  { path: "/for-site-operators", component: ForSiteOperators },
-  { path: "/for-robot-teams", component: ForRobotIntegrators },
   { path: "/pricing", component: Pricing },
   { path: "/proof", component: Proof, shell: "bare" },
-  { path: "/sample-evaluation", component: SampleEvaluation },
-  { path: "/sample-deliverables", component: SampleDeliverables },
-  { path: "/case-studies", component: CaseStudies },
   { path: "/contact", component: Contact },
   { path: "/contact/site-operator", component: Contact },
   { path: "/help", component: Support },
   { path: "/help/contact", component: Support },
-  ...helpCategories.map((category) => ({
-    path: `/help/category/${category.slug}`,
-    component: Support,
-    props: { params: { categorySlug: category.slug } },
-  })),
-  ...helpArticles.map((article) => ({
-    path: `/help/article/${article.slug}`,
-    component: Support,
-    props: { params: { articleSlug: article.slug } },
-  })),
-  { path: "/exact-site-hosted-review", component: ExactSiteHostedReview },
-  { path: "/book-exact-site-review", component: BookExactSiteReview },
-  { path: "/how-it-works", component: HowItWorks },
   { path: "/launch-map", component: LaunchMap },
   { path: "/faq", component: FAQ },
   { path: "/governance", component: Governance },
   { path: "/about", component: About },
-  { path: "/blog", component: Blog },
+  { path: "/updates", component: Blog },
   { path: "/careers", component: Careers },
   { path: "/sign-in", component: Login },
   { path: "/portal", component: PrerenderPortal, shell: "bare" },

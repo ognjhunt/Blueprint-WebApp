@@ -11,7 +11,9 @@ export function MarketingRedirect({ to }: MarketingRedirectProps) {
   useEffect(() => {
     const search = typeof window !== "undefined" ? window.location.search : "";
     const hash = typeof window !== "undefined" ? window.location.hash : "";
-    setLocation(`${to}${search}${hash}`, { replace: true });
+    const query = search.replace(/^\?/, "");
+    const separator = query ? (to.includes("?") ? "&" : "?") : "";
+    setLocation(`${to}${separator}${query}${hash}`, { replace: true });
   }, [setLocation, to]);
 
   return null;

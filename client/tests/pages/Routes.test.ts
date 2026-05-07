@@ -9,16 +9,15 @@ describe("Route registration", () => {
 
     expect(source).toContain('path: "/"');
     expect(source).toContain('path: "/launch-map"');
+    expect(source).toContain('path: "/product"');
     expect(source).toContain('path: "/world-models"');
     expect(source).toContain('path: "/world-models/:slug"');
     expect(source).toContain('path: "/capture-app"');
-    expect(source).toContain('path: "/for-robot-teams"');
-    expect(source).toContain('path: "/for-site-operators"');
+    expect(source).toContain('path: "/capture"');
     expect(source).toContain('path: "/proof"');
-    expect(source).toContain('path: "/case-studies"');
     expect(source).toContain('path: "/faq"');
     expect(source).toContain('path: "/docs"');
-    expect(source).toContain('path: "/blog"');
+    expect(source).toContain('path: "/updates"');
     expect(source).toContain('path: "/governance"');
     expect(source).toContain('path: "/about"');
     expect(source).toContain('path: "/careers"');
@@ -74,12 +73,15 @@ describe("Route registration", () => {
     expect(source).toContain("LegacyLoginRedirect");
   });
 
-  it("keeps public persona and readiness pages canonical instead of redirecting after hydration", () => {
+  it("keeps consolidated public marketing routes as redirect aliases", () => {
     const routesPath = path.resolve(process.cwd(), "client/src/app/routes.tsx");
     const source = fs.readFileSync(routesPath, "utf-8");
 
-    expect(source).toContain('{ path: "/for-site-operators", layout: "public", component: ForSiteOperators }');
-    expect(source).toContain('{ path: "/for-robot-teams", layout: "public", component: ForRobotIntegrators }');
+    expect(source).toContain('{ path: "/for-site-operators", layout: "public", component: LegacyForSiteOperatorsRedirect }');
+    expect(source).toContain('{ path: "/for-robot-teams", layout: "public", component: LegacyForRobotTeamsRedirect }');
+    expect(source).toContain('{ path: "/exact-site-hosted-review", layout: "public", component: LegacyHostedReviewRedirect }');
+    expect(source).toContain('{ path: "/sample-evaluation", layout: "public", component: LegacyProofStoryRedirect }');
+    expect(source).toContain('{ path: "/blog", layout: "public", component: LegacyBlogRedirect }');
     expect(source).toContain('{ path: "/readiness-pack", layout: "public", component: LegacyReadinessPackRedirect }');
   });
 });

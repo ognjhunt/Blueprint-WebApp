@@ -823,16 +823,16 @@ export default function BusinessSignUpFlow() {
                   <div className="mt-6 rounded-[1.5rem] border border-black/10 bg-white px-5 py-4 text-sm leading-7 text-black/60">
                     Existing portal users should use sign in instead of creating a second path. If
                     the exact facility and workflow are already known, you can also{" "}
-                    <a href="/book-exact-site-review" className="font-semibold text-[#111110] underline-offset-4 hover:underline">
-                      book a scoping call
+                    <a href="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=signup-business" className="font-semibold text-[#111110] underline-offset-4 hover:underline">
+                      request site review
                     </a>
                     .
                     <div className="mt-3 flex flex-wrap gap-3 text-sm">
-                      <a href="/sample-evaluation" className="font-semibold text-[#111110] underline-offset-4 hover:underline">
-                        Inspect sample review
+                      <a href="/proof" className="font-semibold text-[#111110] underline-offset-4 hover:underline">
+                        Inspect proof
                       </a>
-                      <a href="/sample-deliverables" className="font-semibold text-[#111110] underline-offset-4 hover:underline">
-                        See sample files
+                      <a href="/world-models" className="font-semibold text-[#111110] underline-offset-4 hover:underline">
+                        Browse catalog
                       </a>
                     </div>
                   </div>

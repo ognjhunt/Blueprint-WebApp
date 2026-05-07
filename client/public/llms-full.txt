@@ -37,24 +37,18 @@ Public examples are samples unless the page explicitly ties them to an approved 
 ## Important Public Pages
 
 - `/` - Homepage. Defines Blueprint as a capture-backed, site-specific world-model and hosted-evaluation platform for robot teams.
+- `/product` - Product page. Explains site-specific world models, site packages, and hosted review as one capture-backed, request-gated offer.
 - `/world-models` - Catalog of exact-site world models. Keeps public proof, package access, hosted access, and commercial status separate.
 - `/world-models/siteworld-f5fd54898cfb` - Public sample listing. Useful for seeing how a site-specific world model page presents evidence, restrictions, package paths, and hosted access.
-- `/exact-site-hosted-review` - Hosted evaluation path for one exact site. Explains setup, run evidence, export scope, and non-guarantee boundaries.
-- `/sample-evaluation` - Sample evaluation journey for one exact site, including capture basis, manifest, rights, hosted setup, run evidence, export bundle, and limits.
-- `/sample-deliverables` - Sample public files: manifest, rights sheet, export bundle, and hosted-review report.
-- `/for-robot-teams` - Buyer-language page for robot teams that need site-specific world models for deployment-site evaluation, policy comparison, tuning, or release review.
-- `/for-site-operators` - Site-operator page for access control, privacy, permissions, restrictions, and commercialization posture.
 - `/capture` - Capture rules and handoff page. Explains lawful public-facing capture, app access, review gates, and how capture supports downstream world-model products.
 - `/capture-app/launch-access` - Future-city signal path for capturers, site operators, and local leads.
-- `/proof` - Public proof packet example with route capture, provenance, privacy posture, and hosted-review outputs.
+- `/proof` - Stories and proof page. Consolidates sample evaluation, sample deliverables, and proof-story framing into one truthful proof packet surface.
 - `/governance` - Trust and governance page for rights, privacy, provenance, restrictions, and hosted-access boundaries.
 - `/faq` - Direct Q&A about Blueprint's product, buyer outputs, hosted evaluation, proof boundaries, and starting path.
 - `/pricing` - Commercial paths for site package, hosted evaluation, and enterprise scope.
 - `/contact` - Structured buyer/operator intake. The request should name the site, workflow, robot question, rights context, and desired next step.
-- `/how-it-works` - Product lifecycle from capture to package, hosted access, and optional trust outputs.
-- `/case-studies` - Composite proof stories. Treat them as illustrative unless a page explicitly says a result is a real approved customer outcome.
 - `/about` - Company overview.
-- `/blog` - Short product notes.
+- `/updates` - Short product notes and public updates.
 - `/careers` - Hiring page.
 - `/privacy` and `/terms` - Formal policy pages.
 

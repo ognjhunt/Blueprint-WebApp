@@ -31,7 +31,7 @@ describe("ForRobotIntegrators", () => {
     ).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /Inspect sample review/i })[0]).toHaveAttribute(
       "href",
-      "/sample-evaluation",
+      "/proof",
     );
     expect(screen.queryByText(/Shrink the demo-to-deployment gap\./i)).not.toBeInTheDocument();
   });

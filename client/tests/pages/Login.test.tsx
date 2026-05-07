@@ -42,7 +42,7 @@ describe("Login", () => {
     );
     expect(screen.getByRole("link", { name: /Buyer: Scope your project/i })).toHaveAttribute(
       "href",
-      "/book-exact-site-review",
+      "/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=login",
     );
     expect(screen.getByRole("link", { name: /Buyer: Request access/i })).toHaveAttribute(
       "href",

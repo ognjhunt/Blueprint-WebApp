@@ -50,16 +50,16 @@ export default function Blog() {
   return (
     <>
       <SEO
-        title="Blog | Blueprint"
+        title="Updates | Blueprint"
         description="Short product notes from Blueprint on capture supply, world-model packages, hosted access, and buyer workflow."
-        canonical="/blog"
+        canonical="/updates"
       />
 
       <div className="bg-[#f5f3ef] text-slate-950">
         <section className="border-b border-black/10 bg-white">
           <div className="mx-auto grid max-w-[96rem] gap-px lg:grid-cols-[0.42fr_0.58fr]">
             <div className="px-8 py-10 lg:px-12 lg:py-14">
-              <EditorialSectionLabel>Blog</EditorialSectionLabel>
+              <EditorialSectionLabel>Updates</EditorialSectionLabel>
               <h1 className="font-editorial mt-6 max-w-[26rem] text-[4rem] leading-[0.88] tracking-[-0.07em] text-slate-950 sm:text-[5.2rem]">
                 Notes on exact-site world models.
               </h1>
@@ -147,13 +147,13 @@ export default function Blog() {
           <EditorialCtaBand
             eyebrow="Next step"
             title="Ready to go deeper?"
-            description="Move from the notes into the world-model catalog or the sample deliverables page."
+            description="Move from the notes into the world-model catalog or the proof surface."
             imageSrc={editorialRefreshAssets.blogHeroTripod}
             imageAlt="Blueprint blog hero"
             primaryHref="/world-models"
             primaryLabel="Explore world models"
-            secondaryHref="/sample-deliverables"
-            secondaryLabel="See deliverables"
+            secondaryHref="/proof"
+            secondaryLabel="See proof"
           />
         </section>
       </div>

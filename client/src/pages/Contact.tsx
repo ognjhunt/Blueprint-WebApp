@@ -163,9 +163,9 @@ export default function Contact() {
         ]
       : [
           {
-            href: "/exact-site-hosted-review",
-            label: "See hosted evaluation",
-            detail: "Best when your team wants to understand hosted evaluation before sharing site details.",
+            href: "/product",
+            label: "See product",
+            detail: "Best when your team wants to understand world models, site packages, and hosted review before sharing site details.",
           },
           {
             href: "/world-models",
@@ -173,9 +173,9 @@ export default function Contact() {
             detail: "Best when your team wants to validate the proof style before any outreach.",
           },
           {
-            href: "/book-exact-site-review",
-            label: "Book a scoping call",
-            detail: "Best when the site is already known and a short call would save time.",
+            href: "/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=contact-fast-path",
+            label: "Request site review",
+            detail: "Best when the site is already known and a structured first reply would save time.",
           },
         ];
   const primaryActionLabel =

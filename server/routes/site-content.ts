@@ -38,8 +38,14 @@ const pages = [
       "Overview of Blueprint's capture-backed site-specific world models, hosted robot evaluation, and site packages.",
   },
   {
+    path: "/product",
+    title: "Product",
+    description:
+      "Blueprint's product path for site-specific world models, site packages, hosted review, and provenance boundaries.",
+  },
+  {
     path: "/world-models",
-    title: "World Models",
+    title: "Catalog",
     description:
       "Exact-site world-model catalog with proof posture, package paths, hosted-evaluation entry points, and provenance boundaries.",
   },
@@ -50,38 +56,8 @@ const pages = [
       "Public sample listing showing how proof, package access, hosted access, and restrictions stay separate.",
   },
   {
-    path: "/exact-site-hosted-review",
-    title: "Exact-Site Hosted Review",
-    description:
-      "Hosted robot evaluation for one exact-site world model, with capture-backed review evidence, export framing, and explicit limits.",
-  },
-  {
-    path: "/sample-evaluation",
-    title: "Sample Evaluation",
-    description:
-      "Example exact-site evaluation journey: capture basis, manifest, rights, hosted setup, run evidence, export bundle, and limits.",
-  },
-  {
-    path: "/sample-deliverables",
-    title: "Sample Deliverables",
-    description:
-      "Sample manifest, rights sheet, export bundle, and hosted-review report. These are examples, not customer results.",
-  },
-  {
-    path: "/for-robot-teams",
-    title: "For Robot Teams",
-    description:
-      "How robotics teams use Blueprint for deployment-site evaluation, policy comparison, tuning, release review, and hosted evaluation.",
-  },
-  {
-    path: "/for-site-operators",
-    title: "For Site Operators",
-    description:
-      "Access, privacy, permissions, restriction, and commercialization controls for operators of real sites.",
-  },
-  {
     path: "/capture",
-    title: "Capture",
+    title: "Capture App / Earn",
     description:
       "Public capture rules and capturer handoff boundaries for lawful public-facing walkthroughs.",
   },
@@ -111,15 +87,15 @@ const pages = [
   },
   {
     path: "/contact",
-    title: "Contact",
+    title: "Enterprise Contact",
     description:
       "Structured intake for a site, workflow, robot question, rights context, and desired next step.",
   },
   {
-    path: "/how-it-works",
-    title: "How It Works",
+    path: "/updates",
+    title: "Updates",
     description:
-      "How Blueprint moves from real capture to site package, hosted access, and optional trust outputs.",
+      "Short Blueprint product notes about capture supply, world-model packages, hosted access, and buyer workflow.",
   },
   {
     path: "/capture-app/launch-access",

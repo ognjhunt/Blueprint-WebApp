@@ -86,8 +86,8 @@ export const helpCategories: HelpCategory[] = [
     description: "Start, inspect, share, and troubleshoot hosted sessions without separating runtime behavior from capture evidence.",
     audience: "Deployment, autonomy, and QA leads",
     iconKey: "play",
-    primaryActionHref: "/exact-site-hosted-review",
-    primaryActionLabel: "Review hosted evaluation",
+    primaryActionHref: "/product",
+    primaryActionLabel: "Review product path",
     articles: [
       "start-a-hosted-evaluation",
       "session-access-and-permissions",
@@ -861,4 +861,3 @@ export function getFeaturedArticles() {
     .map((slug) => getHelpArticle(slug))
     .filter((articleItem): articleItem is HelpArticle => Boolean(articleItem));
 }
-

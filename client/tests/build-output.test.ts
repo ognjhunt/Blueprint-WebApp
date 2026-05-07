@@ -36,16 +36,12 @@ describe("build output", () => {
     ).toBe(true);
   });
 
-  it("ships prerendered public route pages for hosted evaluation and support flows", () => {
+  it("ships prerendered public route pages for the simplified public IA and support flows", () => {
     expect(
-      fs.existsSync(
-        path.resolve(process.cwd(), "dist/public/exact-site-hosted-review/index.html"),
-      ),
+      fs.existsSync(path.resolve(process.cwd(), "dist/public/product/index.html")),
     ).toBe(true);
     expect(
-      fs.existsSync(
-        path.resolve(process.cwd(), "dist/public/book-exact-site-review/index.html"),
-      ),
+      fs.existsSync(path.resolve(process.cwd(), "dist/public/proof/index.html")),
     ).toBe(true);
     expect(
       fs.existsSync(path.resolve(process.cwd(), "dist/public/help/index.html")),
@@ -60,19 +56,15 @@ describe("build output", () => {
       path.resolve(process.cwd(), "dist/public/capture/index.html"),
       "utf8",
     );
-    const siteOperatorHtml = fs.readFileSync(
-      path.resolve(process.cwd(), "dist/public/for-site-operators/index.html"),
-      "utf8",
-    );
-    const howItWorksHtml = fs.readFileSync(
-      path.resolve(process.cwd(), "dist/public/how-it-works/index.html"),
+    const productHtml = fs.readFileSync(
+      path.resolve(process.cwd(), "dist/public/product/index.html"),
       "utf8",
     );
 
     expect(captureHtml).not.toContain("$<span>0</span>-$<span>0</span>");
     expect(captureHtml).not.toContain("<span>0%</span>");
-    expect(siteOperatorHtml).not.toContain("$<span>0</span>-$<span>0</span>");
-    expect(howItWorksHtml).not.toContain('>0</span></p><p class="text-xs text-zinc-500">core lanes');
+    expect(productHtml).not.toContain("$<span>0</span>-$<span>0</span>");
+    expect(productHtml).not.toContain('>0</span></p><p class="text-xs text-zinc-500">core lanes');
   });
 
   it("includes canonical pages in the sitemap and excludes legacy aliases", () => {
@@ -82,14 +74,15 @@ describe("build output", () => {
     );
 
     expect(sitemap).toContain("https://tryblueprint.io/world-models/sw-chi-01");
-    expect(sitemap).toContain("https://tryblueprint.io/sample-evaluation");
+    expect(sitemap).toContain("https://tryblueprint.io/product");
     expect(sitemap).toContain("https://tryblueprint.io/proof");
     expect(sitemap).toContain("https://tryblueprint.io/capture");
-    expect(sitemap).toContain("https://tryblueprint.io/blog");
-    expect(sitemap).toContain("https://tryblueprint.io/exact-site-hosted-review");
-    expect(sitemap).toContain("https://tryblueprint.io/book-exact-site-review");
+    expect(sitemap).toContain("https://tryblueprint.io/updates");
     expect(sitemap).toContain("https://tryblueprint.io/help");
-    expect(sitemap).toContain("https://tryblueprint.io/launch-map");
+    expect(sitemap).not.toContain("https://tryblueprint.io/sample-evaluation");
+    expect(sitemap).not.toContain("https://tryblueprint.io/exact-site-hosted-review");
+    expect(sitemap).not.toContain("https://tryblueprint.io/book-exact-site-review");
+    expect(sitemap).not.toContain("https://tryblueprint.io/blog");
     expect(sitemap).not.toContain("https://tryblueprint.io/site-worlds");
     expect(sitemap).not.toContain("https://tryblueprint.io/docs");
     expect(sitemap).not.toContain("https://tryblueprint.io/solutions");
@@ -126,15 +119,17 @@ describe("build output", () => {
     );
 
     expect(llms).toContain("site-specific world-model products");
-    expect(llms).toContain("https://tryblueprint.io/exact-site-hosted-review");
+    expect(llms).toContain("https://tryblueprint.io/product");
+    expect(llms).toContain("https://tryblueprint.io/updates");
+    expect(llms).not.toContain("https://tryblueprint.io/exact-site-hosted-review");
     expect(llms).not.toContain("https://tryblueprint.io/solutions");
     expect(llmsFull).toContain("hosted robot evaluation");
     expect(llmsFull).toContain("Do not invent customer results");
   });
 
   it("ships honest proof pages without unsplash references on the examples page", () => {
-    const examplesHtml = fs.readFileSync(
-      path.resolve(process.cwd(), "dist/public/sample-deliverables/index.html"),
+    const proofHtml = fs.readFileSync(
+      path.resolve(process.cwd(), "dist/public/proof/index.html"),
       "utf8",
     );
     const homeHtml = fs.readFileSync(
@@ -142,8 +137,8 @@ describe("build output", () => {
       "utf8",
     );
 
-    expect(examplesHtml).not.toContain("images.unsplash.com");
-    expect(examplesHtml).toContain("Sample file");
+    expect(proofHtml).not.toContain("images.unsplash.com");
+    expect(proofHtml).toContain("Sample packet");
     expect(homeHtml).toContain('rel="canonical" href="https://tryblueprint.io/"');
     expect(homeHtml).toContain('property="og:image" content="https://tryblueprint.io/generated/editorial/world-models-hero.png"');
     expect(homeHtml).toContain('type="application/ld+json"');

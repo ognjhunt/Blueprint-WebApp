@@ -199,19 +199,19 @@ export default function SiteWorlds() {
   return (
     <>
       <SEO
-        title="World Models | Blueprint"
+        title="Catalog | Blueprint"
         description="Browse capture-backed exact-site world models for robotics teams, with clear paths into site packages, hosted evaluation, and provenance review."
         canonical="/world-models"
         jsonLd={[
           webPageJsonLd({
             path: "/world-models",
-            name: "Blueprint World Models",
+            name: "Blueprint Catalog",
             description:
               "A catalog of capture-backed exact-site world models for robotics teams, site packages, hosted evaluation, and provenance review.",
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },
-            { name: "World Models", path: "/world-models" },
+            { name: "Catalog", path: "/world-models" },
           ]),
         ]}
       />
@@ -230,7 +230,7 @@ export default function SiteWorlds() {
             <div className="absolute inset-x-0 bottom-0 mx-auto max-w-[88rem] px-5 pb-12 sm:px-8 lg:px-10 lg:pb-14">
               <div className="max-w-[34rem]">
                 <h1 className="font-editorial text-[3.4rem] leading-[0.94] tracking-[-0.05em] text-white sm:text-[4.7rem]">
-                  Exact-site worlds.
+                  Exact-site catalog.
                 </h1>
                 <p className="mt-3 text-lg text-white/90">
                   Browse real facilities.

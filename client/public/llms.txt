@@ -13,19 +13,16 @@ Blueprint turns real-site capture into site-specific world-model products, hoste
 ## High-Priority Public Pages
 
 - [Home](https://tryblueprint.io/): concise overview of Blueprint for site-specific world models, hosted evaluation, and capture-backed site packages.
-- [World Models](https://tryblueprint.io/world-models): exact-site world-model catalog with proof posture, package paths, and hosted-evaluation entry points.
+- [Product](https://tryblueprint.io/product): site-specific world models, site packages, and hosted review as one request-gated offer.
+- [Catalog](https://tryblueprint.io/world-models): exact-site world-model catalog with proof posture, package paths, and hosted-evaluation entry points.
 - [Sample Site](https://tryblueprint.io/world-models/siteworld-f5fd54898cfb): public sample listing showing how proof, package access, hosted access, and restrictions stay separate.
-- [Exact-Site Hosted Review](https://tryblueprint.io/exact-site-hosted-review): hosted robot evaluation for one exact-site world model.
-- [Sample Evaluation](https://tryblueprint.io/sample-evaluation): sample evaluation journey with capture basis, manifest, rights, hosted setup, run evidence, exports, and limits.
-- [Sample Deliverables](https://tryblueprint.io/sample-deliverables): sample manifest, rights sheet, export bundle, and hosted-review report.
-- [For Robot Teams](https://tryblueprint.io/for-robot-teams): buyer-language explanation for robotics teams evaluating one real deployment site.
-- [For Site Operators](https://tryblueprint.io/for-site-operators): access, privacy, permissions, and commercialization controls for site operators.
-- [Capture](https://tryblueprint.io/capture): public capture rules and capturer access boundaries.
-- [Proof](https://tryblueprint.io/proof): public proof packet example with sample-vs-real boundaries.
+- [Capture App / Earn](https://tryblueprint.io/capture): public capture rules, capturer access boundaries, review gates, and lawful earning path.
+- [Stories / Proof](https://tryblueprint.io/proof): public sample proof packet with sample-vs-real boundaries, provenance, and hosted-review output examples.
 - [Governance](https://tryblueprint.io/governance): rights, privacy, provenance, restrictions, and hosted-access boundaries.
 - [FAQ](https://tryblueprint.io/faq): direct answers about world models, hosted evaluation, sample proof, and buyer next steps.
 - [Pricing](https://tryblueprint.io/pricing): site package, hosted evaluation, and enterprise scope options.
 - [Contact](https://tryblueprint.io/contact): structured intake for a site, workflow, robot question, rights context, and next step.
+- [Updates](https://tryblueprint.io/updates): short product notes and public updates.
 
 ## Full Machine-Readable Overview
 

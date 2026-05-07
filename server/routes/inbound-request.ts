@@ -362,6 +362,7 @@ function determineInboundRouting(params: {
     params.buyerType === "robot_team",
     params.requestedLanes.includes("deeper_evaluation"),
     params.proofPathPreference === "exact_site_required"
+      || sourcePageUrl.includes("/product")
       || sourcePageUrl.includes("/exact-site-hosted-review")
       || normalizedCampaign.includes("hosted_review")
       || normalizedSource === "exact_site_review",
@@ -511,8 +512,8 @@ function generateConfirmationEmailHtml(firstName: string): string {
                   <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
                     <tr>
                       <td style="padding:8px 0;">
-                        <a href="https://tryblueprint.io/how-it-works" style="color:#4f46e5;text-decoration:none;font-size:14px;">How it works</a>
-                        <span style="color:#9ca3af;font-size:14px;"> - From site intake to review, routing, and downstream evaluation</span>
+                        <a href="https://tryblueprint.io/product" style="color:#4f46e5;text-decoration:none;font-size:14px;">Product</a>
+                        <span style="color:#9ca3af;font-size:14px;"> - Site-specific world models, packages, hosted review, and proof boundaries</span>
                       </td>
                     </tr>
                     <tr>
@@ -523,8 +524,8 @@ function generateConfirmationEmailHtml(firstName: string): string {
                     </tr>
                     <tr>
                       <td style="padding:8px 0;">
-                        <a href="https://tryblueprint.io/for-robot-teams" style="color:#4f46e5;text-decoration:none;font-size:14px;">For robot teams</a>
-                        <span style="color:#9ca3af;font-size:14px;"> - How teams review site-specific world models</span>
+                        <a href="https://tryblueprint.io/proof" style="color:#4f46e5;text-decoration:none;font-size:14px;">Proof</a>
+                        <span style="color:#9ca3af;font-size:14px;"> - Truth-labeled sample proof and story packets</span>
                       </td>
                     </tr>
                   </table>
@@ -1226,6 +1227,7 @@ router.post("/", async (req: Request, res: Response) => {
 
     if (
       routing.queueKey === "exact_site_hosted_review_queue" ||
+      (payload.context?.sourcePageUrl || "").includes("/product") ||
       (payload.context?.sourcePageUrl || "").includes("/exact-site-hosted-review")
     ) {
       automationPromises.push(
@@ -1307,9 +1309,9 @@ What happens next?
 Want to get started faster? Book a call now: https://calendly.com/blueprintar/30min
 
 In the meantime, explore our resources:
-- How it works: https://tryblueprint.io/how-it-works
+- Product: https://tryblueprint.io/product
 - World models: https://tryblueprint.io/world-models
-- For robot teams: https://tryblueprint.io/for-robot-teams
+- Proof: https://tryblueprint.io/proof
 
 Best,
 The Blueprint Team

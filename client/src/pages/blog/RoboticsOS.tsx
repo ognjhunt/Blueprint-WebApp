@@ -229,7 +229,7 @@ export default function RoboticsOS() {
 
               <p>
                 <Link
-                  href="/blog"
+                  href="/updates"
                   className="inline-flex items-center gap-2 text-emerald-300 hover:text-cyan-300"
                 >
                   &larr; Back to all posts

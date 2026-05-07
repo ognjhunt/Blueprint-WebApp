@@ -44,8 +44,8 @@ export default function Capture() {
   return (
     <>
       <SEO
-        title="Capture-Backed World Models | Blueprint"
-        description="See how lawful public-facing walkthroughs become reviewed provenance for site-specific world-model products."
+        title="Capture App / Earn | Blueprint"
+        description="Apply for capturer access and see how lawful public-facing walkthroughs become reviewed provenance for site-specific world-model products."
         canonical="/capture"
         jsonLd={[
           webPageJsonLd({

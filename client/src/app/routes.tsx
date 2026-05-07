@@ -18,21 +18,14 @@ const CaptureLaunchAccess = lazy(() => import("../pages/CaptureLaunchAccess"));
 const BusinessSignUpFlow = lazy(() => import("../pages/BusinessSignUpFlow"));
 const CapturerSignUpFlow = lazy(() => import("../pages/CapturerSignUpFlow"));
 const OnboardingChecklist = lazy(() => import("../pages/OnboardingChecklist"));
-const ForSiteOperators = lazy(() => import("../pages/ForSiteOperators"));
-const ForRobotIntegrators = lazy(() => import("../pages/ForRobotIntegrators"));
 const SiteWorlds = lazy(() => import("../pages/SiteWorlds"));
 const SiteWorldDetail = lazy(() => import("../pages/SiteWorldDetail"));
 const HostedSessionSetup = lazy(() => import("../pages/HostedSessionSetup"));
 const HostedSessionWorkspace = lazy(() => import("../pages/HostedSessionWorkspace"));
 const Pricing = lazy(() => import("../pages/Pricing"));
-const CaseStudies = lazy(() => import("../pages/CaseStudies"));
-const SampleDeliverables = lazy(() => import("../pages/SampleDeliverables"));
-const SampleEvaluation = lazy(() => import("../pages/SampleEvaluation"));
 const Contact = lazy(() => import("../pages/Contact"));
 const Support = lazy(() => import("../pages/Support"));
 const ExactSiteHostedReview = lazy(() => import("../pages/ExactSiteHostedReview"));
-const BookExactSiteReview = lazy(() => import("../pages/BookExactSiteReview"));
-const HowItWorks = lazy(() => import("../pages/HowItWorks"));
 const Proof = lazy(() => import("../pages/Proof"));
 const Portal = lazy(() => import("../pages/Portal"));
 const Login = lazy(() => import("../pages/Login"));
@@ -41,7 +34,6 @@ const Careers = lazy(() => import("../pages/Careers"));
 const FAQ = lazy(() => import("../pages/FAQ"));
 const Governance = lazy(() => import("../pages/Governance"));
 const About = lazy(() => import("../pages/About"));
-const Docs = lazy(() => import("../pages/Docs"));
 const Blog = lazy(() => import("../pages/Blog"));
 const Privacy = lazy(() => import("../pages/Privacy"));
 const Terms = lazy(() => import("../pages/Terms"));
@@ -80,11 +72,11 @@ const LegacySiteWorldsRedirect = () => (
 );
 
 const LegacyReadinessPackRedirect = () => (
-  <MarketingRedirect to="/how-it-works" />
+  <MarketingRedirect to="/product" />
 );
 
 const LegacySolutionsRedirect = () => (
-  <MarketingRedirect to="/for-robot-teams" />
+  <MarketingRedirect to="/product" />
 );
 
 const LegacyQualifiedOpportunitiesRedirect = () => (
@@ -92,7 +84,35 @@ const LegacyQualifiedOpportunitiesRedirect = () => (
 );
 
 const LegacyForRobotIntegratorsRedirect = () => (
-  <MarketingRedirect to="/for-robot-teams" />
+  <MarketingRedirect to="/product" />
+);
+
+const LegacyForRobotTeamsRedirect = () => (
+  <MarketingRedirect to="/product" />
+);
+
+const LegacyForSiteOperatorsRedirect = () => (
+  <MarketingRedirect to="/contact?persona=site-operator" />
+);
+
+const LegacyHostedReviewRedirect = () => (
+  <MarketingRedirect to="/product" />
+);
+
+const LegacyProofStoryRedirect = () => (
+  <MarketingRedirect to="/proof" />
+);
+
+const LegacyHowItWorksRedirect = () => (
+  <MarketingRedirect to="/product" />
+);
+
+const LegacyBookExactSiteReviewRedirect = () => (
+  <MarketingRedirect to="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=book-exact-site-review" />
+);
+
+const LegacyBlogRedirect = () => (
+  <MarketingRedirect to="/updates" />
 );
 
 const LegacyLoginRedirect = () => (
@@ -100,7 +120,7 @@ const LegacyLoginRedirect = () => (
 );
 
 const LegacyDocsRedirect = () => (
-  <MarketingRedirect to="/sample-deliverables" />
+  <MarketingRedirect to="/proof" />
 );
 
 export const appRoutes: AppRoute[] = [
@@ -128,30 +148,32 @@ export const appRoutes: AppRoute[] = [
   { path: "/site-worlds/:slug/workspace", layout: "public", component: LegacySiteWorldsRedirect },
 
   // Persona pages
-  { path: "/for-site-operators", layout: "public", component: ForSiteOperators },
-  { path: "/for-robot-teams", layout: "public", component: ForRobotIntegrators },
+  { path: "/for-site-operators", layout: "public", component: LegacyForSiteOperatorsRedirect },
+  { path: "/for-robot-teams", layout: "public", component: LegacyForRobotTeamsRedirect },
   { path: "/for-robot-integrators", layout: "public", component: LegacyForRobotIntegratorsRedirect },
 
   // Core pages
+  { path: "/product", layout: "public", component: ExactSiteHostedReview },
   { path: "/pricing", layout: "public", component: Pricing },
-  { path: "/sample-evaluation", layout: "public", component: SampleEvaluation },
-  { path: "/sample-deliverables", layout: "public", component: SampleDeliverables },
-  { path: "/case-studies", layout: "public", component: CaseStudies },
+  { path: "/sample-evaluation", layout: "public", component: LegacyProofStoryRedirect },
+  { path: "/sample-deliverables", layout: "public", component: LegacyProofStoryRedirect },
+  { path: "/case-studies", layout: "public", component: LegacyProofStoryRedirect },
   { path: "/contact", layout: "public", component: Contact },
   { path: "/contact/site-operator", layout: "public", component: Contact },
   { path: "/help", layout: "public", component: Support },
   { path: "/help/contact", layout: "public", component: Support },
   { path: "/help/category/:categorySlug", layout: "public", component: Support },
   { path: "/help/article/:articleSlug", layout: "public", component: Support },
-  { path: "/exact-site-hosted-review", layout: "public", component: ExactSiteHostedReview },
-  { path: "/book-exact-site-review", layout: "public", component: BookExactSiteReview },
-  { path: "/how-it-works", layout: "public", component: HowItWorks },
+  { path: "/exact-site-hosted-review", layout: "public", component: LegacyHostedReviewRedirect },
+  { path: "/book-exact-site-review", layout: "public", component: LegacyBookExactSiteReviewRedirect },
+  { path: "/how-it-works", layout: "public", component: LegacyHowItWorksRedirect },
   { path: "/proof", layout: "public", component: Proof },
   { path: "/faq", layout: "public", component: FAQ },
   { path: "/governance", layout: "public", component: Governance },
   { path: "/about", layout: "public", component: About },
   { path: "/docs", layout: "public", component: LegacyDocsRedirect },
-  { path: "/blog", layout: "public", component: Blog },
+  { path: "/updates", layout: "public", component: Blog },
+  { path: "/blog", layout: "public", component: LegacyBlogRedirect },
   { path: "/careers", layout: "public", component: Careers },
 
   // Legacy redirects for removed pages

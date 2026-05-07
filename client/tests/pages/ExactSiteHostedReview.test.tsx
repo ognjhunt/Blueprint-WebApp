@@ -9,23 +9,23 @@ describe("ExactSiteHostedReview", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Review before you buy\./i,
+        name: /One exact-site product path\./i,
       }),
     ).toBeInTheDocument();
 
     expect(
       screen.getByText(
-        /Hosted evaluation of one exact-site world model\. See how the robot perceives, plans, and acts inside the selected place before your team commits\./i,
+        /Blueprint packages real-site capture into site-specific world models, buyer-readable site packages, and hosted review/i,
       ),
     ).toBeInTheDocument();
 
-    expect(screen.getAllByText(/^Hosted evaluation workspace$/i).length).toBeGreaterThan(0);
-    expect(screen.getByRole("heading", { name: /Setup, run evidence, and export scope are visible\./i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /A hosted review can start from a public-facing place\./i })).toBeInTheDocument();
+    expect(screen.getAllByText(/^Site package$/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Review: reruns, observations, exports/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Hosted review sits between listing and commitment\./i })).toBeInTheDocument();
     expect(screen.getByText(/Example sample, not a customer result/i)).toBeInTheDocument();
     expect(screen.getByText(/Run evidence example/i)).toBeInTheDocument();
     expect(screen.getByText(/Export evidence/i)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /What happens in a hosted review\./i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /What leaves the session\./i })).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
         name: /What this path is good for and what it does not claim\./i,
@@ -34,8 +34,8 @@ describe("ExactSiteHostedReview", () => {
 
     expect(
       screen
-	        .getAllByRole("link", { name: /Inspect sample review/i })
-	        .some((link) => link.getAttribute("href") === "/sample-evaluation"),
+        .getAllByRole("link", { name: /Inspect proof/i })
+        .some((link) => link.getAttribute("href") === "/proof"),
     ).toBe(true);
     expect(screen.getByRole("link", { name: /Open sample report/i })).toHaveAttribute(
       "href",
@@ -43,11 +43,11 @@ describe("ExactSiteHostedReview", () => {
     );
     expect(
       screen
-	        .getAllByRole("link", { name: /Request hosted review/i })
+	        .getAllByRole("link", { name: /Request site review/i })
 	        .some(
 	          (link) =>
 	            link.getAttribute("href")
-	            === "/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=hosted-review",
+	            === "/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=product-bottom",
 	        ),
     ).toBe(true);
 

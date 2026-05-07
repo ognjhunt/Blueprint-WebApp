@@ -1,5 +1,4 @@
 import path from "node:path";
-import { helpArticles, helpCategories } from "../../client/src/data/helpCenter";
 import { siteWorldCards } from "../../client/src/data/siteWorlds";
 
 export type SitemapRoute = {
@@ -12,26 +11,17 @@ export const sitemapBaseUrl = "https://tryblueprint.io";
 
 const staticSitemapRoutes: SitemapRoute[] = [
   { path: "/", changefreq: "weekly", priority: 1.0 },
-  { path: "/how-it-works", changefreq: "weekly", priority: 0.9 },
+  { path: "/product", changefreq: "weekly", priority: 0.9 },
   { path: "/world-models", changefreq: "weekly", priority: 0.9 },
-  { path: "/exact-site-hosted-review", changefreq: "weekly", priority: 0.9 },
-  { path: "/sample-evaluation", changefreq: "weekly", priority: 0.8 },
-  { path: "/sample-deliverables", changefreq: "weekly", priority: 0.8 },
-  { path: "/book-exact-site-review", changefreq: "monthly", priority: 0.8 },
-  { path: "/case-studies", changefreq: "weekly", priority: 0.8 },
-  { path: "/for-robot-teams", changefreq: "weekly", priority: 0.8 },
+  { path: "/proof", changefreq: "weekly", priority: 0.8 },
   { path: "/capture", changefreq: "monthly", priority: 0.7 },
-  { path: "/proof", changefreq: "weekly", priority: 0.7 },
-  { path: "/for-site-operators", changefreq: "monthly", priority: 0.7 },
-  { path: "/launch-map", changefreq: "weekly", priority: 0.7 },
   { path: "/pricing", changefreq: "monthly", priority: 0.7 },
-  { path: "/contact", changefreq: "monthly", priority: 0.6 },
+  { path: "/contact", changefreq: "monthly", priority: 0.7 },
+  { path: "/updates", changefreq: "monthly", priority: 0.6 },
   { path: "/capture-app/launch-access", changefreq: "monthly", priority: 0.6 },
-  { path: "/help", changefreq: "monthly", priority: 0.6 },
-  { path: "/help/contact", changefreq: "monthly", priority: 0.6 },
-  { path: "/faq", changefreq: "monthly", priority: 0.6 },
-  { path: "/blog", changefreq: "monthly", priority: 0.5 },
   { path: "/governance", changefreq: "monthly", priority: 0.5 },
+  { path: "/help", changefreq: "monthly", priority: 0.5 },
+  { path: "/faq", changefreq: "monthly", priority: 0.5 },
   { path: "/about", changefreq: "monthly", priority: 0.5 },
   { path: "/careers", changefreq: "weekly", priority: 0.5 },
   { path: "/privacy", changefreq: "yearly", priority: 0.3 },
@@ -45,20 +35,6 @@ export const sitemapRoutes: SitemapRoute[] = [
       path: `/world-models/${site.id}`,
       changefreq: "weekly",
       priority: 0.8,
-    }),
-  ),
-  ...helpCategories.map(
-    (category): SitemapRoute => ({
-      path: `/help/category/${category.slug}`,
-      changefreq: "monthly",
-      priority: 0.5,
-    }),
-  ),
-  ...helpArticles.map(
-    (article): SitemapRoute => ({
-      path: `/help/article/${article.slug}`,
-      changefreq: "monthly",
-      priority: 0.4,
     }),
   ),
 ];
@@ -84,7 +60,7 @@ export function getSitemapBuildDate() {
       .slice(0, 10);
   }
 
-  return "2026-05-05";
+  return "2026-05-07";
 }
 
 export function buildSitemapXml(buildDate = getSitemapBuildDate()) {

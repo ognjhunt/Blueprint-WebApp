@@ -23,14 +23,14 @@ export const publicProofAssets = [
   },
   {
     title: "Sample manifest and rights sheet",
-    label: "Example files",
-    href: "/sample-deliverables",
-    detail: "Open the manifest, rights sheet, hosted report, and export bundle before a sales call.",
+    label: "Proof packet",
+    href: "/proof",
+    detail: "Open the proof packet, manifest notes, rights framing, hosted report, and export boundaries before a sales call.",
   },
   {
     title: "Everyday capture examples",
     label: "Capturer examples",
-    href: "/case-studies",
+    href: "/proof",
     detail: "See grocery, retail, lobby, and common-area routes a capturer could submit for review.",
   },
 ];

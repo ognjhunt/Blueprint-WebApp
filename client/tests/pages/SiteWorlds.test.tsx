@@ -9,7 +9,7 @@ describe("SiteWorlds", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Exact-site worlds\./i,
+        name: /Exact-site catalog\./i,
       }),
     ).toBeInTheDocument();
 

@@ -42,8 +42,8 @@ const productPaths = [
     title: "Hosted Evaluation",
     body:
       "Start with hosted review when your team needs reruns, observations, and a clear next step before moving files or sending people on-site.",
-    href: "/exact-site-hosted-review",
-    label: "See hosted path",
+    href: "/product",
+    label: "See product path",
     dark: true,
   },
 ];
@@ -108,8 +108,8 @@ const homeVariantContent: Record<
       "Inspect real captured places, then send the site, workflow, and robot setup your team needs to evaluate next.",
     primaryLabel: "Request hosted review",
     primaryPath: "hosted-evaluation",
-    secondaryLabel: "Inspect sample review",
-    secondaryHref: "/sample-evaluation",
+    secondaryLabel: "Capture / earn",
+    secondaryHref: "/capture",
     panelTitle: "Start with one site",
     panelBody:
       "Tell us the place, the robot, and the decision your team needs to make. We will point you to the right listing, hosted evaluation, or capture path.",
@@ -120,8 +120,8 @@ const homeVariantContent: Record<
       "Start with the deployment question, not a generic demo. Blueprint keeps capture provenance, package scope, hosted review, and rights boundaries attached to one site.",
     primaryLabel: "Request site review",
     primaryPath: "request-capture",
-    secondaryLabel: "Inspect sample site",
-    secondaryHref: publicDemoHref,
+    secondaryLabel: "Capture / earn",
+    secondaryHref: "/capture",
     panelTitle: "Exact-site proof path",
     panelBody:
       "See what is already inspectable, then request the site or workflow your team actually needs.",
@@ -471,28 +471,28 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="border-y border-black/10 bg-white" data-home-section="sample-evaluation">
+        <section className="border-y border-black/10 bg-white" data-home-section="proof-story">
           <div className="mx-auto grid max-w-[88rem] gap-px px-5 py-10 sm:px-8 lg:grid-cols-[0.38fr_0.62fr] lg:px-10">
             <div className="bg-[#f5f3ef] px-6 py-8 lg:px-8 lg:py-10">
 	              <EditorialSectionIntro
-	                eyebrow="Sample evaluation"
+	                eyebrow="Stories / Proof"
 	                title="Start with one complete proof journey."
 	                description="Before you request a new site, inspect the sample path: one exact site, one package, one hosted-review request, and limits that stay visible."
 	              />
 	              <div className="mt-7 flex flex-wrap gap-3">
 	                <a
-	                  href="/sample-evaluation"
+	                  href="/proof"
                     onClick={() =>
                       trackHomeCtaClick(
-                        "home_sample_evaluation_primary",
-                        "Open sample evaluation",
-                        "/sample-evaluation",
-                        "home-sample-evaluation",
+                        "home_proof_primary",
+                        "Open proof",
+                        "/proof",
+                        "home-proof-story",
                       )
                     }
 	                  className="inline-flex items-center justify-center bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
 	                >
-	                  Open sample evaluation
+	                  Open proof
 	                  <ArrowRight className="ml-2 h-4 w-4" />
 	                </a>
 	                <a
@@ -502,7 +502,7 @@ export default function Home() {
                         "home_sample_site_secondary",
                         "Inspect sample site",
                         publicDemoHref,
-                        "home-sample-evaluation",
+                        "home-proof-story",
                       )
                     }
 	                  className="inline-flex items-center justify-center border border-black/10 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
@@ -640,32 +640,32 @@ export default function Home() {
               </div>
               <div className="mt-8 flex flex-wrap gap-3">
                 <a
-                  href="/sample-deliverables"
+                  href="/proof"
                   onClick={() =>
                     trackHomeCtaClick(
-                      "home_sample_deliverables",
-                      "View sample deliverables",
-                      "/sample-deliverables",
+                      "home_proof",
+                      "View proof",
+                      "/proof",
                       "home-proof",
                     )
                   }
                   className="inline-flex items-center justify-center bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                 >
-                  View sample deliverables
+                  View proof
                 </a>
                 <a
-                  href="/exact-site-hosted-review"
+                  href="/product"
                   onClick={() =>
                     trackHomeCtaClick(
-                      "home_hosted_review",
-                      "See hosted review",
-                      "/exact-site-hosted-review",
+                      "home_product",
+                      "See product",
+                      "/product",
                       "home-proof",
                     )
                   }
                   className="inline-flex items-center justify-center border border-black/10 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
                 >
-                  See hosted review
+                  See product
                 </a>
               </div>
             </div>

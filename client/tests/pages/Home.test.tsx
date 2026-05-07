@@ -54,8 +54,8 @@ describe("Home", () => {
       expect.stringContaining("/contact?persona=robot-team"),
     );
     expect(
-      screen.getAllByRole("link", { name: /Inspect sample review/i })[0],
-    ).toHaveAttribute("href", "/sample-evaluation");
+      screen.getAllByRole("link", { name: /Capture \/ earn/i })[0],
+    ).toHaveAttribute("href", "/capture");
     expect(
       screen.getByText(/A site-specific digital environment built from real capture/i),
     ).toBeInTheDocument();
@@ -74,9 +74,9 @@ describe("Home", () => {
         name: /Start with one complete proof journey\./i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Open sample evaluation/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Open proof/i })).toHaveAttribute(
       "href",
-      "/sample-evaluation",
+      "/proof",
     );
     expect(
       screen.getByRole("heading", {
@@ -99,8 +99,6 @@ describe("Home", () => {
     expect(
       screen.getByRole("heading", { name: /Start with the site, task, and robot question\./i }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: /View sample deliverables/i }),
-    ).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: /See product/i })[0]).toHaveAttribute("href", "/product");
   });
 });

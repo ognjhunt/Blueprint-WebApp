@@ -40,13 +40,13 @@ describe("Proof page", () => {
       "href",
       "/contact?persona=robot-team",
     );
-    expect(screen.getByRole("link", { name: /View full provenance/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /View full proof packet/i })).toHaveAttribute(
       "href",
-      "/sample-deliverables",
+      "/proof",
     );
     expect(screen.getByRole("link", { name: /See inspection checklist/i })).toHaveAttribute(
       "href",
-      "/sample-evaluation",
+      "/proof",
     );
     expect(screen.getByRole("link", { name: /Discuss a similar site/i })).toHaveAttribute(
       "href",

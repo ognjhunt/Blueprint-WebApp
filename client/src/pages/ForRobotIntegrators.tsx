@@ -87,7 +87,7 @@ export default function ForRobotIntegrators() {
                 </div>
                 <div className="mt-8 flex flex-wrap gap-3">
                   <a
-                    href="/sample-evaluation"
+                    href="/proof"
                     className="inline-flex items-center justify-center bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
                   >
                     Inspect sample review
@@ -183,7 +183,7 @@ export default function ForRobotIntegrators() {
             description="Start in the world-model catalog when you want to inspect current proof, or open the hosted-review path when a facility is already in scope."
             imageSrc={editorialGeneratedAssets.homeHero}
             imageAlt="Hosted review still"
-            primaryHref="/sample-evaluation"
+            primaryHref="/proof"
             primaryLabel="Inspect sample review"
             secondaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=request-capture&source=robot-teams-bottom"
             secondaryLabel="Request capture"

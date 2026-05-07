@@ -139,9 +139,9 @@ export default function Proof() {
       <div className="bg-white text-slate-950">
         <div className="mx-auto max-w-[96rem] px-5 py-7 sm:px-8">
           <div className="flex flex-wrap items-center gap-3 text-sm">
-            <a href="/case-studies" className="inline-flex items-center gap-2 font-medium text-blue-700">
+            <a href="/proof" className="inline-flex items-center gap-2 font-medium text-blue-700">
               <ArrowLeft className="h-4 w-4" />
-              Capture examples
+              Stories / proof
             </a>
             <span className="text-slate-300">/</span>
             <span className="text-slate-600">Sample grocery aisle robot inspection</span>
@@ -209,8 +209,8 @@ export default function Proof() {
                   );
                 })}
               </div>
-              <a href="/sample-deliverables" className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-blue-700">
-                View full provenance
+              <a href="/proof" className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-blue-700">
+                View full proof packet
                 <ArrowUpRight className="h-3.5 w-3.5" />
               </a>
             </aside>
@@ -236,7 +236,7 @@ export default function Proof() {
                   );
                 })}
               </div>
-              <a href="/sample-evaluation" className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-blue-700">
+              <a href="/proof" className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-blue-700">
                 See inspection checklist
                 <ArrowUpRight className="h-3.5 w-3.5" />
               </a>
@@ -258,7 +258,7 @@ export default function Proof() {
                   </div>
                 ))}
               </dl>
-              <a href="/sample-deliverables" className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-blue-700">
+              <a href="/proof" className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-blue-700">
                 View capture log
                 <ArrowUpRight className="h-3.5 w-3.5" />
               </a>
@@ -283,7 +283,7 @@ export default function Proof() {
                 </div>
                 <MiniMap />
               </div>
-              <a href="/sample-deliverables" className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-blue-700">
+              <a href="/proof" className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-blue-700">
                 See sample output
                 <ArrowUpRight className="h-3.5 w-3.5" />
               </a>

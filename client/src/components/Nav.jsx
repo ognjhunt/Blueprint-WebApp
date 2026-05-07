@@ -74,9 +74,10 @@ export default function Nav({
   );
 
   const navLinks = [
-    { href: "/world-models", label: "World Models" },
+    { href: "/product", label: "Product" },
+    { href: "/world-models", label: "Catalog" },
     { href: "/capture", label: "Earn" },
-    { href: "/for-robot-teams", label: "For Robot Teams" },
+    { href: "/proof", label: "Proof" },
     { href: "/pricing", label: "Pricing" },
     ...(currentUser && !hideAuthenticatedFeatures
       ? [{ href: "/scanner-portal", label: "Scanner Portal" }]

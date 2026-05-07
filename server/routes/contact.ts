@@ -378,14 +378,13 @@ export default async function contactHandler(req: Request, res: Response) {
       "Thank you for your interest in Blueprint. The team has received your request and will contact you if we determine our products are well-suited to meet your needs.",
       "",
       "In the meantime, please check out the following resources:",
-      "- Blog: https://tryblueprint.io/blog",
-      "- Technical Guides: https://tryblueprint.io/technical-guides",
-      "- Upcoming Events: https://tryblueprint.io/events",
+      "- Product: https://tryblueprint.io/product",
+      "- Catalog: https://tryblueprint.io/world-models",
+      "- Updates: https://tryblueprint.io/updates",
       "",
       "Best,",
       "The Blueprint Team",
       "",
-      "Download the 2024 AI Readiness Report: https://tryblueprint.io/resources/reports/ai-readiness-report",
       "LinkedIn: https://www.linkedin.com/company/blueprintsim/",
       "X: https://twitter.com/try_blueprint",
       "YouTube: https://www.youtube.com/c/BlueprintAI",
@@ -419,21 +418,15 @@ export default async function contactHandler(req: Request, res: Response) {
                 </p>
                 <p style="margin:0 0 16px;font-size:16px;color:#d8d8d8;">In the meantime, please check out the following resources:</p>
                 <ul style="margin:0 0 24px;padding-left:20px;color:#78a0ff;">
-                  <li style="margin-bottom:8px;"><a href="https://tryblueprint.io/blog" style="color:#78a0ff;text-decoration:none;">Blog</a></li>
-                  <li style="margin-bottom:8px;"><a href="https://tryblueprint.io/technical-guides" style="color:#78a0ff;text-decoration:none;">Technical Guides</a></li>
-                  <li><a href="https://tryblueprint.io/events" style="color:#78a0ff;text-decoration:none;">Upcoming Events</a></li>
+                  <li style="margin-bottom:8px;"><a href="https://tryblueprint.io/product" style="color:#78a0ff;text-decoration:none;">Product</a></li>
+                  <li style="margin-bottom:8px;"><a href="https://tryblueprint.io/world-models" style="color:#78a0ff;text-decoration:none;">Catalog</a></li>
+                  <li><a href="https://tryblueprint.io/updates" style="color:#78a0ff;text-decoration:none;">Updates</a></li>
                 </ul>
                 <p style="margin:0 0 16px;font-size:16px;color:#d8d8d8;">Best,</p>
                 <p style="margin:0 0 24px;font-size:16px;color:#d8d8d8;">The Blueprint Team</p>
-                <div style="margin-bottom:32px;">
-                  <a
-                    href="https://tryblueprint.io/resources/reports/ai-readiness-report"
-                    style="display:inline-block;padding:12px 24px;background-color:#34d399;color:#0b0b0b;font-weight:600;text-decoration:none;border-radius:4px;"
-                  >Download the 2024 AI Readiness Report</a>
-                </div>
                 <table role="presentation" cellspacing="0" cellpadding="0" style="margin:0 auto 24px;">
                   <tr>
-                    <td style="padding:0 12px;"><a href="https://www.linkedin.com/company/blueprint/" style="color:#78a0ff;text-decoration:none;">LinkedIn</a></td>
+                    <td style="padding:0 12px;"><a href="https://www.linkedin.com/company/blueprintsim/" style="color:#78a0ff;text-decoration:none;">LinkedIn</a></td>
                     <td style="padding:0 12px;"><a href="https://twitter.com/try_blueprint" style="color:#78a0ff;text-decoration:none;">X</a></td>
                     <td style="padding:0 12px;"><a href="https://www.youtube.com/c/BlueprintAI" style="color:#78a0ff;text-decoration:none;">YouTube</a></td>
                   </tr>

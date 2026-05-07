@@ -24,7 +24,7 @@ describe("HowItWorks", () => {
     ).toBe(true);
     expect(screen.getByRole("link", { name: /View sample deliverables/i })).toHaveAttribute(
       "href",
-      "/sample-deliverables",
+      "/proof",
     );
     expect(screen.queryByText(/What teams train and ship with this/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Proof stories/i)).not.toBeInTheDocument();
