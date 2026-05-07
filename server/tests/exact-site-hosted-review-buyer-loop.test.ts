@@ -116,6 +116,7 @@ describe("Exact-Site Hosted Review buyer loop report", () => {
     expect(report.markdown).toContain("## Blocker Ledger");
     expect(report.markdown).toContain("BLU-5400");
     expect(report.markdown).toContain("Governed recipient discovery is not configured.");
+    expect(report.markdown).toContain("Founder approves, edits, or rejects this recipient-backed draft before any live send.");
     expect(report.markdown).toContain("Robot-team pages should drive exactly two buyer actions");
     expect(report.markdown).toContain("After 100 touches or at day 14");
   });

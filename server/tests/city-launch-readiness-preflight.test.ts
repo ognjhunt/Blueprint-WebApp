@@ -727,9 +727,8 @@ describe("city launch readiness preflight", () => {
       collectionNames: expect.arrayContaining(["humanBlockerThreads", "humanBlockerDispatches"]),
       queryNames: expect.arrayContaining(["human_blocker_thread", "human_blocker_dispatch"]),
     });
-    expect(checklist.target_ledger_distribution_pack.evidencePaths).toContain(
-      "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-capture-target-ledger-austin-tx.md",
-    );
+    const targetLedgerPath = `${process.cwd()}/ops/paperclip/playbooks/city-capture-target-ledger-austin-tx.md`;
+    expect(checklist.target_ledger_distribution_pack.evidencePaths).toContain(targetLedgerPath);
     expect(checklist.reply_durability_resume).toMatchObject({
       status: "ready",
       collectionNames: expect.arrayContaining(["humanBlockerThreads", "humanReplyEvents"]),

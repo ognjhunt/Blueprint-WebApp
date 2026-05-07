@@ -75,6 +75,13 @@ function daysBetween(start: string, end: string) {
 }
 
 function targetNextAction(target: ExactSiteGtmTarget) {
+  if (
+    hasExactSiteRecipientBackedEvidence(target)
+    && target.outbound.status === "draft_ready"
+    && target.outbound.approvalState === "pending_first_send_approval"
+  ) {
+    return "Founder approves, edits, or rejects this recipient-backed draft before any live send.";
+  }
   if (hasText(target.sales?.nextAction)) {
     return target.sales?.nextAction || "";
   }

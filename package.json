@@ -64,7 +64,9 @@
     "alpha:check": "node scripts/alpha-check.mjs",
     "alpha:preflight": "node scripts/launch-preflight.mjs",
     "alpha:env": "node scripts/launch-env-audit.mjs",
-    "render:import-env": "node scripts/render/import-render-env.mjs"
+    "render:import-env": "node scripts/render/import-render-env.mjs",
+    "gtm:first-send-approval:template": "tsx scripts/gtm/write-first-send-approval-template.ts",
+    "gtm:first-send-approval:apply": "tsx scripts/gtm/apply-first-send-approvals.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.52.0",
