@@ -37,6 +37,24 @@ export type OperatingGraphProjectorResult = {
   skippedSummary: Record<string, number>;
 };
 
+export type OperatingGraphProjectionBlocker = {
+  key: string;
+  summary: string;
+  owner: string;
+  retryCondition: string;
+  requiredInput: string[];
+};
+
+export type OperatingGraphProjectionLoopResult = {
+  processedCount: number;
+  failedCount: number;
+  status: "projected" | "blocked";
+  capture?: OperatingGraphProjectorResult;
+  supply?: OperatingGraphProjectorResult;
+  blockers?: OperatingGraphProjectionBlocker[];
+  warnings?: string[];
+};
+
 function asRecord(value: unknown) {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -133,6 +151,47 @@ function summarizeSkipped(skipped: ProjectorIssue[]) {
     summary[entry.reason] = (summary[entry.reason] || 0) + 1;
     return summary;
   }, {});
+}
+
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
+}
+
+export function isFirestoreResourceExhausted(error: unknown) {
+  const code = typeof error === "object" && error && "code" in error
+    ? String((error as { code?: unknown }).code)
+    : "";
+  const message = errorMessage(error);
+  return code === "8" || /\bRESOURCE_EXHAUSTED\b/i.test(message);
+}
+
+export function buildOperatingGraphProjectionBlockedResult(error: unknown): OperatingGraphProjectionLoopResult {
+  const message = errorMessage(error);
+  const quotaBlocked = isFirestoreResourceExhausted(error);
+  return {
+    processedCount: 0,
+    failedCount: 1,
+    status: "blocked",
+    blockers: [
+      {
+        key: quotaBlocked ? "firestore_resource_exhausted" : "operating_graph_projection_failed",
+        summary: quotaBlocked
+          ? "Firestore quota was exhausted before the operating graph projection could be verified."
+          : "Operating graph projection failed before a verified projection result was available.",
+        owner: "reliability-agent",
+        retryCondition: quotaBlocked
+          ? "Retry after Firestore quota recovers or run with a smaller scoped city/limit once provider capacity is available."
+          : "Inspect the projection error, fix the failing source or writer, then rerun npm run operating-graph:project.",
+        requiredInput: quotaBlocked
+          ? ["Firestore read/write quota capacity for capture_submissions, city launch ledgers, and operating graph event writes."]
+          : [message],
+      },
+    ],
+    warnings: [
+      `projection_error: ${message}`,
+      "No successful operating graph projection should be claimed from this blocked result.",
+    ],
+  };
 }
 
 function skippedCaptureIssue(input: {
@@ -495,19 +554,26 @@ export async function projectCityLaunchSupplyTargetsIntoOperatingGraph(options?:
 export async function runOperatingGraphProjectionLoop(params?: {
   city?: string;
   limit?: number;
-}) {
-  const [capture, supply] = await Promise.all([
-    projectCaptureSubmissionsIntoOperatingGraph({ limit: params?.limit }),
-    projectCityLaunchSupplyTargetsIntoOperatingGraph({
+  allowBlocked?: boolean;
+}): Promise<OperatingGraphProjectionLoopResult> {
+  try {
+    const capture = await projectCaptureSubmissionsIntoOperatingGraph({ limit: params?.limit });
+    const supply = await projectCityLaunchSupplyTargetsIntoOperatingGraph({
       city: params?.city,
       limit: params?.limit,
-    }),
-  ]);
+    });
 
-  return {
-    processedCount: capture.projectedEventCount + supply.projectedEventCount,
-    failedCount: 0,
-    capture,
-    supply,
-  };
+    return {
+      processedCount: capture.projectedEventCount + supply.projectedEventCount,
+      failedCount: 0,
+      status: "projected",
+      capture,
+      supply,
+    };
+  } catch (error) {
+    if (params?.allowBlocked) {
+      return buildOperatingGraphProjectionBlockedResult(error);
+    }
+    throw error;
+  }
 }

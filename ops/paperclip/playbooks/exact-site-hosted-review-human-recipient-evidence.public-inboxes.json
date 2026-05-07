@@ -1,0 +1,74 @@
+{
+  "schema": "blueprint/gtm-human-recipient-evidence/v1",
+  "generatedAt": "2026-05-07T16:00:00.000Z",
+  "ledgerPath": "ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json",
+  "sourcePolicy": "Only explicit public-source emails recorded. Do not infer addresses from domains, names, or address patterns.",
+  "recipients": [
+    {
+      "targetId": "gtm-001-simbe-retail-aisle-review",
+      "organizationName": "Simbe Robotics",
+      "email": "sales@simberobotics.com",
+      "name": null,
+      "role": "Sales and deployment public inbox",
+      "evidenceSource": "Fetched Simbe Robotics contact page lists SALES & DEPLOYMENT as sales@simberobotics.com.",
+      "sourceUrl": "https://archive.simberobotics.com/contact/",
+      "selectedForFirstSend": true,
+      "notes": "Public inbox evidence only; founder approval and reply durability are still required before any send."
+    },
+    {
+      "targetId": "gtm-006-seegrid-warehouse-amr",
+      "organizationName": "Seegrid",
+      "email": "sales@seegrid.com",
+      "name": null,
+      "role": "Sales public inbox",
+      "evidenceSource": "Fetched Seegrid corporate sales asset lists Email Sales as sales@seegrid.com.",
+      "sourceUrl": "https://hubspot.seegrid.com/hubfs/2021/Resources/Corporate%20Two%20Pager/Seegrid_CorporateTwoPager.pdf",
+      "selectedForFirstSend": true,
+      "notes": "Public inbox evidence only; founder approval and reply durability are still required before any send."
+    },
+    {
+      "targetId": "gtm-008-fox-robotics-forklift-dock",
+      "organizationName": "Fox Robotics",
+      "email": "sales@foxrobotics.com",
+      "name": null,
+      "role": "Sales public inbox",
+      "evidenceSource": "Fetched Fox Robotics ATL one-pager lists CONTACT SALES: sales@foxrobotics.com.",
+      "sourceUrl": "https://foxrobotics.com/hubfs/fox_robotics_ATL_1-Pager_2024.pdf?hsLang=en",
+      "selectedForFirstSend": true,
+      "notes": "Public inbox evidence only; founder approval and reply durability are still required before any send."
+    },
+    {
+      "targetId": "gtm-010-gecko-industrial-inspection",
+      "organizationName": "Gecko Robotics",
+      "email": "info@geckorobotics.com",
+      "name": null,
+      "role": "General public inbox",
+      "evidenceSource": "Fetched Gecko Robotics contact page lists info@geckorobotics.com.",
+      "sourceUrl": "https://www.geckorobotics.com/contact/",
+      "selectedForFirstSend": true,
+      "notes": "Public inbox evidence only; founder approval and reply durability are still required before any send."
+    },
+    {
+      "targetId": "gtm-011-anybotics-industrial-inspection",
+      "organizationName": "ANYbotics",
+      "email": "info@anybotics.com",
+      "name": null,
+      "role": "General public inbox",
+      "evidenceSource": "Fetched ANYbotics specifications sheet says contact ANYbotics via info@anybotics.com.",
+      "sourceUrl": "https://www.anybotics.com/wp-content/uploads/2022/07/ANYmal-Specifications-Sheet-22062022.pdf",
+      "selectedForFirstSend": true,
+      "notes": "Public inbox evidence only; founder approval and reply durability are still required before any send."
+    },
+    {
+      "targetId": "gtm-012-outrider-yard-automation",
+      "organizationName": "Outrider",
+      "email": "info@outrider.ai",
+      "name": null,
+      "role": "Media, analyst, speaking, and commercial-use public inbox",
+      "evidenceSource": "Fetched Outrider press page lists info@outrider.ai for media, analyst, speaking inquiries and commercial use.",
+      "sourceUrl": "https://www.outrider.ai/press/",
+      "selectedForFirstSend": true,
+      "notes": "Public inbox evidence only; founder approval and reply durability are still required before any send."
+    }
+  ]
+}

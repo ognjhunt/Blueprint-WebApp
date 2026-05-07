@@ -18,5 +18,5 @@ Generated creative is marketing material, not ground truth.
 Generated images and videos cannot substitute for capture provenance, rights clearance, proof-pack delivery, hosted-review evidence, recipient-backed sends, or ad performance.
 
 ## Scorecard Linkage
-- gtm_contract: /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/proof-gated-buyer-launch-harness-Tyxtqv/san-jose-ca/2026-05-07T15-37-05.889Z/city-launch-san-jose-ca-gtm-72h-contract.md
-- checkpoint_manifest: /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/proof-gated-buyer-launch-harness-Tyxtqv/san-jose-ca/2026-05-07T15-37-05.889Z/city-launch-san-jose-ca-scorecard-windows.json
+- gtm_contract: /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/proof-gated-buyer-launch-harness-CugiIK/san-jose-ca/2026-05-07T15-44-03.424Z/city-launch-san-jose-ca-gtm-72h-contract.md
+- checkpoint_manifest: /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/proof-gated-buyer-launch-harness-CugiIK/san-jose-ca/2026-05-07T15-44-03.424Z/city-launch-san-jose-ca-scorecard-windows.json

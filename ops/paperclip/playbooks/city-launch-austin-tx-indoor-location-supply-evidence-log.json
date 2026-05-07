@@ -2,7 +2,7 @@
   "schema_version": "2026-04-25.indoor-location-supply-evidence-log.v1",
   "city": "Austin, TX",
   "city_slug": "austin-tx",
-  "generated_at": "2026-05-07T15:37:04.117Z",
+  "generated_at": "2026-05-07T15:44:03.077Z",
   "status": "awaiting_capturer_growth_agent_location_supply",
   "source_activation_payload": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-austin-tx-activation-payload.json",
   "delegation_task_key": "public-commercial-community-sourcing",

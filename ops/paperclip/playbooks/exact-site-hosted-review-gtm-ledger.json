@@ -91,14 +91,14 @@
       "outbound": {
         "status": "draft_ready",
         "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
-        "approvalState": "blocked"
+        "approvalState": "pending_first_send_approval"
       },
       "sales": {
         "nextAction": "Find explicit recipient-backed contact evidence before founder first-send approval.",
         "nextActionOwner": "growth-lead"
       },
       "enrichment": {
-        "status": "blocked",
+        "status": "contact_found",
         "providerRuns": [
           {
             "providerKey": "manual_human_supplied",
@@ -183,9 +183,152 @@
             "searchedAt": "2026-04-29T17:13:04.094Z",
             "candidateCount": 0,
             "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "contact_found",
+            "searchedAt": "2026-05-07T15:55:06.090Z",
+            "candidateCount": 1,
+            "notes": "Human-supplied recipient evidence mirrored into enrichment candidates."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T15:55:06.174Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:55:06.175Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:55:06.175Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T15:55:06.175Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:55:06.175Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "contact_found",
+            "searchedAt": "2026-05-07T15:57:17.591Z",
+            "candidateCount": 2,
+            "notes": "Human-supplied recipient evidence mirrored into enrichment candidates."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T15:57:17.766Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:57:17.767Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:57:17.767Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T15:57:17.767Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:57:17.767Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "contact_found",
+            "searchedAt": "2026-05-07T15:58:46.116Z",
+            "candidateCount": 2,
+            "notes": "Human-supplied recipient evidence mirrored into enrichment candidates."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T15:58:46.233Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:58:46.233Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:58:46.234Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T15:58:46.234Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:58:46.234Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
           }
         ],
-        "recipientCandidates": [],
+        "recipientCandidates": [
+          {
+            "email": "sales@simberobotics.com",
+            "role": "Sales and deployment public inbox",
+            "evidenceSource": "Fetched Simbe Robotics contact page lists SALES & DEPLOYMENT as sales@simberobotics.com.",
+            "evidenceType": "human_supplied",
+            "providerKey": "manual_human_supplied",
+            "confidence": "high",
+            "discoveredAt": "2026-05-07T15:58:46.116Z",
+            "sourceUrl": "https://archive.simberobotics.com/contact/",
+            "selectable": true
+          }
+        ],
+        "selectedRecipientEvidence": {
+          "providerKey": "manual_human_supplied",
+          "selectedAt": "2026-05-07T15:58:46.234Z",
+          "evidenceSource": "Fetched Simbe Robotics contact page lists SALES & DEPLOYMENT as sales@simberobotics.com."
+        },
         "blockers": [
           "Set BLUEPRINT_GTM_CONTACT_DISCOVERY_ALLOWED_HOSTS before governed public contact discovery."
         ]
@@ -193,14 +336,15 @@
       "blockers": [
         {
           "id": "gtm-blocker-contact-discovery-allowlist",
-          "status": "blocked",
-          "summary": "Governed recipient discovery is blocked because BLUEPRINT_GTM_CONTACT_DISCOVERY_ALLOWED_HOSTS is not configured and no selected recipient evidence exists.",
+          "status": "resolved",
+          "summary": "Recipient-backed evidence has been recorded for this target; governed discovery remains required for targets still missing evidence.",
           "owner": "growth-lead",
-          "nextAction": "Configure a governed contact-discovery allowlist or record explicit recipient-backed evidence before founder first-send approval.",
+          "nextAction": "Route this recipient-backed draft to founder first-send approval; do not send until founder approval and reply durability pass.",
           "paperclipIssueId": "036c744b-b0ec-4d74-b119-e2ba5243eb02",
           "paperclipIssueIdentifier": "BLU-5392",
           "createdAt": "2026-05-03T14:13:24.440Z",
-          "updatedAt": "2026-05-03T14:13:24.440Z"
+          "updatedAt": "2026-05-07T15:57:17.767Z",
+          "resolvedAt": "2026-05-07T15:57:17.767Z"
         },
         {
           "id": "gtm-blocker-buyer-reply-durability",
@@ -233,7 +377,13 @@
             "gtm-blocker-buyer-reply-durability"
           ]
         }
-      ]
+      ],
+      "recipient": {
+        "role": "Sales and deployment public inbox",
+        "email": "sales@simberobotics.com",
+        "evidenceSource": "Fetched Simbe Robotics contact page lists SALES & DEPLOYMENT as sales@simberobotics.com.",
+        "evidenceType": "human_supplied"
+      }
     },
     {
       "id": "gtm-002-braincorp-retail-service-review",
@@ -354,6 +504,132 @@
             "providerKey": "clay_export",
             "status": "skipped",
             "searchedAt": "2026-04-29T17:13:04.161Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:55:06.175Z",
+            "candidateCount": 0,
+            "notes": "No matching human-supplied recipient evidence for target."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T15:55:06.205Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:55:06.206Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:55:06.206Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T15:55:06.206Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:55:06.206Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:57:17.768Z",
+            "candidateCount": 0,
+            "notes": "No matching human-supplied recipient evidence for target."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T15:57:17.803Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:57:17.803Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:57:17.803Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T15:57:17.803Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:57:17.804Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:58:46.235Z",
+            "candidateCount": 0,
+            "notes": "No matching human-supplied recipient evidence for target."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T15:58:46.298Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:58:46.298Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:58:46.298Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T15:58:46.298Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:58:46.299Z",
             "candidateCount": 0,
             "notes": "No Clay export path configured."
           }
@@ -532,6 +808,132 @@
             "searchedAt": "2026-04-29T17:13:04.262Z",
             "candidateCount": 0,
             "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:55:06.206Z",
+            "candidateCount": 0,
+            "notes": "No matching human-supplied recipient evidence for target."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T15:55:06.234Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:55:06.234Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:55:06.234Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T15:55:06.234Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:55:06.234Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:57:17.804Z",
+            "candidateCount": 0,
+            "notes": "No matching human-supplied recipient evidence for target."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T15:57:17.839Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:57:17.839Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:57:17.839Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T15:57:17.839Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:57:17.839Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:58:46.299Z",
+            "candidateCount": 0,
+            "notes": "No matching human-supplied recipient evidence for target."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T15:58:46.360Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:58:46.360Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:58:46.360Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T15:58:46.360Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:58:46.360Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
           }
         ],
         "recipientCandidates": [],
@@ -706,6 +1108,132 @@
             "providerKey": "clay_export",
             "status": "skipped",
             "searchedAt": "2026-04-29T17:13:04.346Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:55:06.234Z",
+            "candidateCount": 0,
+            "notes": "No matching human-supplied recipient evidence for target."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T15:55:06.263Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:55:06.263Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:55:06.263Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T15:55:06.263Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:55:06.263Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:57:17.839Z",
+            "candidateCount": 0,
+            "notes": "No matching human-supplied recipient evidence for target."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T15:57:17.869Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:57:17.869Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:57:17.869Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T15:57:17.869Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:57:17.869Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:58:46.360Z",
+            "candidateCount": 0,
+            "notes": "No matching human-supplied recipient evidence for target."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T15:58:46.404Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:58:46.404Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:58:46.404Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T15:58:46.404Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:58:46.405Z",
             "candidateCount": 0,
             "notes": "No Clay export path configured."
           }
@@ -884,6 +1412,132 @@
             "searchedAt": "2026-04-29T17:13:04.421Z",
             "candidateCount": 0,
             "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:55:06.263Z",
+            "candidateCount": 0,
+            "notes": "No matching human-supplied recipient evidence for target."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T15:55:06.294Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:55:06.294Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:55:06.294Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T15:55:06.294Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:55:06.294Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:57:17.870Z",
+            "candidateCount": 0,
+            "notes": "No matching human-supplied recipient evidence for target."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T15:57:17.978Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:57:17.978Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:57:17.978Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T15:57:17.978Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:57:17.978Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:58:46.406Z",
+            "candidateCount": 0,
+            "notes": "No matching human-supplied recipient evidence for target."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T15:58:46.450Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:58:46.450Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:58:46.450Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T15:58:46.450Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:58:46.450Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
           }
         ],
         "recipientCandidates": [],
@@ -968,14 +1622,14 @@
       "outbound": {
         "status": "draft_ready",
         "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
-        "approvalState": "blocked"
+        "approvalState": "pending_first_send_approval"
       },
       "sales": {
         "nextAction": "Find explicit recipient-backed contact evidence before founder first-send approval.",
         "nextActionOwner": "growth-lead"
       },
       "enrichment": {
-        "status": "blocked",
+        "status": "contact_found",
         "providerRuns": [
           {
             "providerKey": "manual_human_supplied",
@@ -1060,9 +1714,152 @@
             "searchedAt": "2026-04-29T17:13:04.470Z",
             "candidateCount": 0,
             "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "contact_found",
+            "searchedAt": "2026-05-07T15:55:06.294Z",
+            "candidateCount": 1,
+            "notes": "Human-supplied recipient evidence mirrored into enrichment candidates."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T15:55:06.322Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:55:06.322Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:55:06.322Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T15:55:06.322Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:55:06.322Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "contact_found",
+            "searchedAt": "2026-05-07T15:57:17.978Z",
+            "candidateCount": 2,
+            "notes": "Human-supplied recipient evidence mirrored into enrichment candidates."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T15:57:18.011Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:57:18.011Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:57:18.011Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T15:57:18.011Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:57:18.011Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "contact_found",
+            "searchedAt": "2026-05-07T15:58:46.450Z",
+            "candidateCount": 2,
+            "notes": "Human-supplied recipient evidence mirrored into enrichment candidates."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T15:58:46.491Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:58:46.491Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:58:46.491Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T15:58:46.491Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:58:46.491Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
           }
         ],
-        "recipientCandidates": [],
+        "recipientCandidates": [
+          {
+            "email": "sales@seegrid.com",
+            "role": "Sales public inbox",
+            "evidenceSource": "Fetched Seegrid corporate sales asset lists Email Sales as sales@seegrid.com.",
+            "evidenceType": "human_supplied",
+            "providerKey": "manual_human_supplied",
+            "confidence": "high",
+            "discoveredAt": "2026-05-07T15:58:46.450Z",
+            "sourceUrl": "https://hubspot.seegrid.com/hubfs/2021/Resources/Corporate%20Two%20Pager/Seegrid_CorporateTwoPager.pdf",
+            "selectable": true
+          }
+        ],
+        "selectedRecipientEvidence": {
+          "providerKey": "manual_human_supplied",
+          "selectedAt": "2026-05-07T15:58:46.491Z",
+          "evidenceSource": "Fetched Seegrid corporate sales asset lists Email Sales as sales@seegrid.com."
+        },
         "blockers": [
           "Set BLUEPRINT_GTM_CONTACT_DISCOVERY_ALLOWED_HOSTS before governed public contact discovery."
         ]
@@ -1070,14 +1867,15 @@
       "blockers": [
         {
           "id": "gtm-blocker-contact-discovery-allowlist",
-          "status": "blocked",
-          "summary": "Governed recipient discovery is blocked because BLUEPRINT_GTM_CONTACT_DISCOVERY_ALLOWED_HOSTS is not configured and no selected recipient evidence exists.",
+          "status": "resolved",
+          "summary": "Recipient-backed evidence has been recorded for this target; governed discovery remains required for targets still missing evidence.",
           "owner": "growth-lead",
-          "nextAction": "Configure a governed contact-discovery allowlist or record explicit recipient-backed evidence before founder first-send approval.",
+          "nextAction": "Route this recipient-backed draft to founder first-send approval; do not send until founder approval and reply durability pass.",
           "paperclipIssueId": "036c744b-b0ec-4d74-b119-e2ba5243eb02",
           "paperclipIssueIdentifier": "BLU-5392",
           "createdAt": "2026-05-03T14:13:24.440Z",
-          "updatedAt": "2026-05-03T14:13:24.440Z"
+          "updatedAt": "2026-05-07T15:57:18.011Z",
+          "resolvedAt": "2026-05-07T15:57:18.011Z"
         },
         {
           "id": "gtm-blocker-buyer-reply-durability",
@@ -1110,7 +1908,13 @@
             "gtm-blocker-buyer-reply-durability"
           ]
         }
-      ]
+      ],
+      "recipient": {
+        "role": "Sales public inbox",
+        "email": "sales@seegrid.com",
+        "evidenceSource": "Fetched Seegrid corporate sales asset lists Email Sales as sales@seegrid.com.",
+        "evidenceType": "human_supplied"
+      }
     },
     {
       "id": "gtm-007-vecna-robotics-warehouse-orchestration",
@@ -1236,6 +2040,132 @@
             "searchedAt": "2026-04-29T17:13:04.516Z",
             "candidateCount": 0,
             "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:55:06.323Z",
+            "candidateCount": 0,
+            "notes": "No matching human-supplied recipient evidence for target."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T15:55:06.351Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:55:06.351Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:55:06.351Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T15:55:06.351Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:55:06.351Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:57:18.011Z",
+            "candidateCount": 0,
+            "notes": "No matching human-supplied recipient evidence for target."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T15:57:18.044Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:57:18.044Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:57:18.044Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T15:57:18.044Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:57:18.044Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:58:46.491Z",
+            "candidateCount": 0,
+            "notes": "No matching human-supplied recipient evidence for target."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T15:58:46.536Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:58:46.536Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:58:46.536Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T15:58:46.536Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:58:46.536Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
           }
         ],
         "recipientCandidates": [],
@@ -1320,14 +2250,14 @@
       "outbound": {
         "status": "draft_ready",
         "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
-        "approvalState": "blocked"
+        "approvalState": "pending_first_send_approval"
       },
       "sales": {
         "nextAction": "Find explicit recipient-backed contact evidence before founder first-send approval.",
         "nextActionOwner": "growth-lead"
       },
       "enrichment": {
-        "status": "blocked",
+        "status": "contact_found",
         "providerRuns": [
           {
             "providerKey": "manual_human_supplied",
@@ -1412,9 +2342,152 @@
             "searchedAt": "2026-04-29T17:13:04.556Z",
             "candidateCount": 0,
             "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "contact_found",
+            "searchedAt": "2026-05-07T15:55:06.351Z",
+            "candidateCount": 1,
+            "notes": "Human-supplied recipient evidence mirrored into enrichment candidates."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T15:55:06.379Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:55:06.379Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:55:06.379Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T15:55:06.379Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:55:06.379Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "contact_found",
+            "searchedAt": "2026-05-07T15:57:18.044Z",
+            "candidateCount": 2,
+            "notes": "Human-supplied recipient evidence mirrored into enrichment candidates."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T15:57:18.078Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:57:18.078Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:57:18.078Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T15:57:18.078Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:57:18.078Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "contact_found",
+            "searchedAt": "2026-05-07T15:58:46.537Z",
+            "candidateCount": 2,
+            "notes": "Human-supplied recipient evidence mirrored into enrichment candidates."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T15:58:46.581Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:58:46.581Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:58:46.581Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T15:58:46.581Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:58:46.581Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
           }
         ],
-        "recipientCandidates": [],
+        "recipientCandidates": [
+          {
+            "email": "sales@foxrobotics.com",
+            "role": "Sales public inbox",
+            "evidenceSource": "Fetched Fox Robotics ATL one-pager lists CONTACT SALES: sales@foxrobotics.com.",
+            "evidenceType": "human_supplied",
+            "providerKey": "manual_human_supplied",
+            "confidence": "high",
+            "discoveredAt": "2026-05-07T15:58:46.537Z",
+            "sourceUrl": "https://foxrobotics.com/hubfs/fox_robotics_ATL_1-Pager_2024.pdf?hsLang=en",
+            "selectable": true
+          }
+        ],
+        "selectedRecipientEvidence": {
+          "providerKey": "manual_human_supplied",
+          "selectedAt": "2026-05-07T15:58:46.581Z",
+          "evidenceSource": "Fetched Fox Robotics ATL one-pager lists CONTACT SALES: sales@foxrobotics.com."
+        },
         "blockers": [
           "Set BLUEPRINT_GTM_CONTACT_DISCOVERY_ALLOWED_HOSTS before governed public contact discovery."
         ]
@@ -1422,14 +2495,15 @@
       "blockers": [
         {
           "id": "gtm-blocker-contact-discovery-allowlist",
-          "status": "blocked",
-          "summary": "Governed recipient discovery is blocked because BLUEPRINT_GTM_CONTACT_DISCOVERY_ALLOWED_HOSTS is not configured and no selected recipient evidence exists.",
+          "status": "resolved",
+          "summary": "Recipient-backed evidence has been recorded for this target; governed discovery remains required for targets still missing evidence.",
           "owner": "growth-lead",
-          "nextAction": "Configure a governed contact-discovery allowlist or record explicit recipient-backed evidence before founder first-send approval.",
+          "nextAction": "Route this recipient-backed draft to founder first-send approval; do not send until founder approval and reply durability pass.",
           "paperclipIssueId": "036c744b-b0ec-4d74-b119-e2ba5243eb02",
           "paperclipIssueIdentifier": "BLU-5392",
           "createdAt": "2026-05-03T14:13:24.440Z",
-          "updatedAt": "2026-05-03T14:13:24.440Z"
+          "updatedAt": "2026-05-07T15:57:18.078Z",
+          "resolvedAt": "2026-05-07T15:57:18.078Z"
         },
         {
           "id": "gtm-blocker-buyer-reply-durability",
@@ -1462,7 +2536,13 @@
             "gtm-blocker-buyer-reply-durability"
           ]
         }
-      ]
+      ],
+      "recipient": {
+        "role": "Sales public inbox",
+        "email": "sales@foxrobotics.com",
+        "evidenceSource": "Fetched Fox Robotics ATL one-pager lists CONTACT SALES: sales@foxrobotics.com.",
+        "evidenceType": "human_supplied"
+      }
     },
     {
       "id": "gtm-009-diligent-healthcare-service-route",
@@ -1588,6 +2668,132 @@
             "searchedAt": "2026-04-29T17:13:04.593Z",
             "candidateCount": 0,
             "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:55:06.380Z",
+            "candidateCount": 0,
+            "notes": "No matching human-supplied recipient evidence for target."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T15:55:06.407Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:55:06.407Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:55:06.407Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T15:55:06.407Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:55:06.407Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:57:18.078Z",
+            "candidateCount": 0,
+            "notes": "No matching human-supplied recipient evidence for target."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T15:57:18.111Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:57:18.111Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:57:18.111Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T15:57:18.111Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:57:18.112Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:58:46.581Z",
+            "candidateCount": 0,
+            "notes": "No matching human-supplied recipient evidence for target."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T15:58:46.634Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:58:46.634Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:58:46.634Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T15:58:46.634Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:58:46.634Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
           }
         ],
         "recipientCandidates": [],
@@ -1672,14 +2878,14 @@
       "outbound": {
         "status": "draft_ready",
         "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
-        "approvalState": "blocked"
+        "approvalState": "pending_first_send_approval"
       },
       "sales": {
         "nextAction": "Find explicit recipient-backed contact evidence before founder first-send approval.",
         "nextActionOwner": "growth-lead"
       },
       "enrichment": {
-        "status": "blocked",
+        "status": "contact_found",
         "providerRuns": [
           {
             "providerKey": "manual_human_supplied",
@@ -1764,9 +2970,152 @@
             "searchedAt": "2026-04-29T17:13:04.626Z",
             "candidateCount": 0,
             "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:55:06.407Z",
+            "candidateCount": 0,
+            "notes": "No matching human-supplied recipient evidence for target."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T15:55:06.436Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:55:06.436Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:55:06.436Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T15:55:06.436Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:55:06.436Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:57:18.112Z",
+            "candidateCount": 0,
+            "notes": "No matching human-supplied recipient evidence for target."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T15:57:18.145Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:57:18.145Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:57:18.145Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T15:57:18.145Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:57:18.145Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "contact_found",
+            "searchedAt": "2026-05-07T15:58:46.634Z",
+            "candidateCount": 1,
+            "notes": "Human-supplied recipient evidence mirrored into enrichment candidates."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T15:58:46.683Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:58:46.683Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:58:46.683Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T15:58:46.683Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:58:46.683Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
           }
         ],
-        "recipientCandidates": [],
+        "recipientCandidates": [
+          {
+            "email": "info@geckorobotics.com",
+            "role": "General public inbox",
+            "evidenceSource": "Fetched Gecko Robotics contact page lists info@geckorobotics.com.",
+            "evidenceType": "human_supplied",
+            "providerKey": "manual_human_supplied",
+            "confidence": "high",
+            "discoveredAt": "2026-05-07T15:58:46.634Z",
+            "sourceUrl": "https://www.geckorobotics.com/contact/",
+            "selectable": true
+          }
+        ],
+        "selectedRecipientEvidence": {
+          "providerKey": "manual_human_supplied",
+          "selectedAt": "2026-05-07T15:58:46.683Z",
+          "evidenceSource": "Fetched Gecko Robotics contact page lists info@geckorobotics.com."
+        },
         "blockers": [
           "Set BLUEPRINT_GTM_CONTACT_DISCOVERY_ALLOWED_HOSTS before governed public contact discovery."
         ]
@@ -1774,14 +3123,15 @@
       "blockers": [
         {
           "id": "gtm-blocker-contact-discovery-allowlist",
-          "status": "blocked",
-          "summary": "Governed recipient discovery is blocked because BLUEPRINT_GTM_CONTACT_DISCOVERY_ALLOWED_HOSTS is not configured and no selected recipient evidence exists.",
+          "status": "resolved",
+          "summary": "Recipient-backed evidence has been recorded for this target; governed discovery remains required for targets still missing evidence.",
           "owner": "growth-lead",
-          "nextAction": "Configure a governed contact-discovery allowlist or record explicit recipient-backed evidence before founder first-send approval.",
+          "nextAction": "Route this recipient-backed draft to founder first-send approval; do not send until founder approval and reply durability pass.",
           "paperclipIssueId": "036c744b-b0ec-4d74-b119-e2ba5243eb02",
           "paperclipIssueIdentifier": "BLU-5392",
           "createdAt": "2026-05-03T14:13:24.440Z",
-          "updatedAt": "2026-05-03T14:13:24.440Z"
+          "updatedAt": "2026-05-07T15:58:46.683Z",
+          "resolvedAt": "2026-05-07T15:58:46.683Z"
         },
         {
           "id": "gtm-blocker-buyer-reply-durability",
@@ -1814,7 +3164,13 @@
             "gtm-blocker-buyer-reply-durability"
           ]
         }
-      ]
+      ],
+      "recipient": {
+        "role": "General public inbox",
+        "email": "info@geckorobotics.com",
+        "evidenceSource": "Fetched Gecko Robotics contact page lists info@geckorobotics.com.",
+        "evidenceType": "human_supplied"
+      }
     },
     {
       "id": "gtm-011-anybotics-industrial-inspection",
@@ -1848,14 +3204,14 @@
       "outbound": {
         "status": "draft_ready",
         "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
-        "approvalState": "blocked"
+        "approvalState": "pending_first_send_approval"
       },
       "sales": {
         "nextAction": "Find explicit recipient-backed contact evidence before founder first-send approval.",
         "nextActionOwner": "growth-lead"
       },
       "enrichment": {
-        "status": "blocked",
+        "status": "contact_found",
         "providerRuns": [
           {
             "providerKey": "manual_human_supplied",
@@ -1940,9 +3296,152 @@
             "searchedAt": "2026-04-29T17:13:04.658Z",
             "candidateCount": 0,
             "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:55:06.436Z",
+            "candidateCount": 0,
+            "notes": "No matching human-supplied recipient evidence for target."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T15:55:06.469Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:55:06.469Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:55:06.469Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T15:55:06.469Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:55:06.469Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:57:18.146Z",
+            "candidateCount": 0,
+            "notes": "No matching human-supplied recipient evidence for target."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T15:57:18.184Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:57:18.184Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:57:18.184Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T15:57:18.184Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:57:18.184Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "contact_found",
+            "searchedAt": "2026-05-07T15:58:46.684Z",
+            "candidateCount": 1,
+            "notes": "Human-supplied recipient evidence mirrored into enrichment candidates."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T15:58:46.746Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:58:46.746Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:58:46.746Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T15:58:46.746Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:58:46.746Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
           }
         ],
-        "recipientCandidates": [],
+        "recipientCandidates": [
+          {
+            "email": "info@anybotics.com",
+            "role": "General public inbox",
+            "evidenceSource": "Fetched ANYbotics specifications sheet says contact ANYbotics via info@anybotics.com.",
+            "evidenceType": "human_supplied",
+            "providerKey": "manual_human_supplied",
+            "confidence": "high",
+            "discoveredAt": "2026-05-07T15:58:46.684Z",
+            "sourceUrl": "https://www.anybotics.com/wp-content/uploads/2022/07/ANYmal-Specifications-Sheet-22062022.pdf",
+            "selectable": true
+          }
+        ],
+        "selectedRecipientEvidence": {
+          "providerKey": "manual_human_supplied",
+          "selectedAt": "2026-05-07T15:58:46.746Z",
+          "evidenceSource": "Fetched ANYbotics specifications sheet says contact ANYbotics via info@anybotics.com."
+        },
         "blockers": [
           "Set BLUEPRINT_GTM_CONTACT_DISCOVERY_ALLOWED_HOSTS before governed public contact discovery."
         ]
@@ -1950,14 +3449,15 @@
       "blockers": [
         {
           "id": "gtm-blocker-contact-discovery-allowlist",
-          "status": "blocked",
-          "summary": "Governed recipient discovery is blocked because BLUEPRINT_GTM_CONTACT_DISCOVERY_ALLOWED_HOSTS is not configured and no selected recipient evidence exists.",
+          "status": "resolved",
+          "summary": "Recipient-backed evidence has been recorded for this target; governed discovery remains required for targets still missing evidence.",
           "owner": "growth-lead",
-          "nextAction": "Configure a governed contact-discovery allowlist or record explicit recipient-backed evidence before founder first-send approval.",
+          "nextAction": "Route this recipient-backed draft to founder first-send approval; do not send until founder approval and reply durability pass.",
           "paperclipIssueId": "036c744b-b0ec-4d74-b119-e2ba5243eb02",
           "paperclipIssueIdentifier": "BLU-5392",
           "createdAt": "2026-05-03T14:13:24.440Z",
-          "updatedAt": "2026-05-03T14:13:24.440Z"
+          "updatedAt": "2026-05-07T15:58:46.746Z",
+          "resolvedAt": "2026-05-07T15:58:46.746Z"
         },
         {
           "id": "gtm-blocker-buyer-reply-durability",
@@ -1990,7 +3490,13 @@
             "gtm-blocker-buyer-reply-durability"
           ]
         }
-      ]
+      ],
+      "recipient": {
+        "role": "General public inbox",
+        "email": "info@anybotics.com",
+        "evidenceSource": "Fetched ANYbotics specifications sheet says contact ANYbotics via info@anybotics.com.",
+        "evidenceType": "human_supplied"
+      }
     },
     {
       "id": "gtm-012-outrider-yard-automation",
@@ -2024,14 +3530,14 @@
       "outbound": {
         "status": "draft_ready",
         "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
-        "approvalState": "blocked"
+        "approvalState": "pending_first_send_approval"
       },
       "sales": {
         "nextAction": "Find explicit recipient-backed contact evidence before founder first-send approval.",
         "nextActionOwner": "growth-lead"
       },
       "enrichment": {
-        "status": "blocked",
+        "status": "contact_found",
         "providerRuns": [
           {
             "providerKey": "manual_human_supplied",
@@ -2116,9 +3622,152 @@
             "searchedAt": "2026-04-29T17:13:04.695Z",
             "candidateCount": 0,
             "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:55:06.469Z",
+            "candidateCount": 0,
+            "notes": "No matching human-supplied recipient evidence for target."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T15:55:06.497Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:55:06.497Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:55:06.497Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T15:55:06.497Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:55:06.497Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:57:18.185Z",
+            "candidateCount": 0,
+            "notes": "No matching human-supplied recipient evidence for target."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T15:57:18.216Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:57:18.216Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:57:18.216Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T15:57:18.216Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:57:18.216Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
+          },
+          {
+            "providerKey": "manual_human_supplied",
+            "status": "contact_found",
+            "searchedAt": "2026-05-07T15:58:46.747Z",
+            "candidateCount": 1,
+            "notes": "Human-supplied recipient evidence mirrored into enrichment candidates."
+          },
+          {
+            "providerKey": "repo_artifact",
+            "status": "searched",
+            "searchedAt": "2026-05-07T15:58:46.825Z",
+            "candidateCount": 0,
+            "notes": "Searched repo issue updates and generated playbook contact-list artifacts."
+          },
+          {
+            "providerKey": "historical_campaign",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:58:46.825Z",
+            "candidateCount": 0,
+            "notes": "Historical campaign enrichment is disabled. Set BLUEPRINT_GTM_HISTORICAL_CAMPAIGN_ENRICHMENT=1 to query live campaign ledgers."
+          },
+          {
+            "providerKey": "inbound_dossier",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:58:46.825Z",
+            "candidateCount": 0,
+            "notes": "Inbound dossier enrichment is disabled or Firestore is unavailable. Set BLUEPRINT_GTM_INBOUND_DOSSIER_ENRICHMENT=1 to query live lead dossiers."
+          },
+          {
+            "providerKey": "governed_public_contact",
+            "status": "blocked",
+            "searchedAt": "2026-05-07T15:58:46.825Z",
+            "candidateCount": 0,
+            "notes": "No allowlisted GTM contact discovery hosts are configured."
+          },
+          {
+            "providerKey": "clay_export",
+            "status": "skipped",
+            "searchedAt": "2026-05-07T15:58:46.825Z",
+            "candidateCount": 0,
+            "notes": "No Clay export path configured."
           }
         ],
-        "recipientCandidates": [],
+        "recipientCandidates": [
+          {
+            "email": "info@outrider.ai",
+            "role": "Media, analyst, speaking, and commercial-use public inbox",
+            "evidenceSource": "Fetched Outrider press page lists info@outrider.ai for media, analyst, speaking inquiries and commercial use.",
+            "evidenceType": "human_supplied",
+            "providerKey": "manual_human_supplied",
+            "confidence": "high",
+            "discoveredAt": "2026-05-07T15:58:46.747Z",
+            "sourceUrl": "https://www.outrider.ai/press/",
+            "selectable": true
+          }
+        ],
+        "selectedRecipientEvidence": {
+          "providerKey": "manual_human_supplied",
+          "selectedAt": "2026-05-07T15:58:46.825Z",
+          "evidenceSource": "Fetched Outrider press page lists info@outrider.ai for media, analyst, speaking inquiries and commercial use."
+        },
         "blockers": [
           "Set BLUEPRINT_GTM_CONTACT_DISCOVERY_ALLOWED_HOSTS before governed public contact discovery."
         ]
@@ -2126,14 +3775,15 @@
       "blockers": [
         {
           "id": "gtm-blocker-contact-discovery-allowlist",
-          "status": "blocked",
-          "summary": "Governed recipient discovery is blocked because BLUEPRINT_GTM_CONTACT_DISCOVERY_ALLOWED_HOSTS is not configured and no selected recipient evidence exists.",
+          "status": "resolved",
+          "summary": "Recipient-backed evidence has been recorded for this target; governed discovery remains required for targets still missing evidence.",
           "owner": "growth-lead",
-          "nextAction": "Configure a governed contact-discovery allowlist or record explicit recipient-backed evidence before founder first-send approval.",
+          "nextAction": "Route this recipient-backed draft to founder first-send approval; do not send until founder approval and reply durability pass.",
           "paperclipIssueId": "036c744b-b0ec-4d74-b119-e2ba5243eb02",
           "paperclipIssueIdentifier": "BLU-5392",
           "createdAt": "2026-05-03T14:13:24.440Z",
-          "updatedAt": "2026-05-03T14:13:24.440Z"
+          "updatedAt": "2026-05-07T15:58:46.825Z",
+          "resolvedAt": "2026-05-07T15:58:46.825Z"
         },
         {
           "id": "gtm-blocker-buyer-reply-durability",
@@ -2166,7 +3816,13 @@
             "gtm-blocker-buyer-reply-durability"
           ]
         }
-      ]
+      ],
+      "recipient": {
+        "role": "Media, analyst, speaking, and commercial-use public inbox",
+        "email": "info@outrider.ai",
+        "evidenceSource": "Fetched Outrider press page lists info@outrider.ai for media, analyst, speaking inquiries and commercial use.",
+        "evidenceType": "human_supplied"
+      }
     }
   ],
   "dailyActivity": [

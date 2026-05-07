@@ -485,6 +485,26 @@ function sourceUrlsForTarget(target: ExactSiteGtmTarget) {
   ].filter((entry): entry is string => Boolean(entry)))];
 }
 
+function resolveRecipientDiscoveryBlockers(target: ExactSiteGtmTarget) {
+  if (!target.recipient?.email || !target.blockers?.length) return;
+  const resolvedAt = nowIso();
+  target.blockers = target.blockers.map((blocker) => {
+    if (blocker.id !== "gtm-blocker-contact-discovery-allowlist" || blocker.status === "resolved") {
+      return blocker;
+    }
+    return {
+      ...blocker,
+      status: "resolved",
+      summary:
+        "Recipient-backed evidence has been recorded for this target; governed discovery remains required for targets still missing evidence.",
+      nextAction:
+        "Route this recipient-backed draft to founder first-send approval; do not send until founder approval and reply durability pass.",
+      updatedAt: resolvedAt,
+      resolvedAt,
+    };
+  });
+}
+
 function extractCandidateUrlsFromSearchHtml(input: {
   html: string;
   allowedHosts: string[];
@@ -1018,6 +1038,7 @@ export async function runGtmEnrichmentWaterfall(input: {
         : target.enrichment?.selectedRecipientEvidence,
       blockers: [...new Set(targetBlockers)],
     };
+    resolveRecipientDiscoveryBlockers(target);
 
     targetsUpdated++;
     targetResults.push({

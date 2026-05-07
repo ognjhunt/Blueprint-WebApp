@@ -1,7 +1,7 @@
 # Durham, NC City-Opening No-Signal Scorecard
 
 - status: triggered
-- evaluated_at: 2026-05-07T15:37:06.333Z
+- evaluated_at: 2026-05-07T15:44:03.494Z
 - trigger_rule: no positive applicant/capturer/reply/operator signal after 3 days or 2 sent direct-outreach actions
 
 ## Outcome Counters
@@ -11,7 +11,7 @@
 | sent direct outreach | 2 |
 | sent direct outreach with recipient evidence | 2 |
 | first sent at | 2026-04-20T00:00:00.000Z |
-| days since first send | 17.65 |
+| days since first send | 17.66 |
 | recorded responses | 0 |
 | routed responses | 0 |
 | reply conversions | 0 |

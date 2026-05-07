@@ -4,10 +4,10 @@
 - evidence_boundary: checkpoint placeholder only until the window closes and the first-party collections below are queried
 - city: Chicago, IL
 - city_slug: chicago-il
-- launch_run_id: 2026-05-07T15-37-50.830Z
+- launch_run_id: 2026-05-07T15-44-33.528Z
 - checkpoint_hour: 24
-- window_start_iso: 2026-05-07T15:37:50.830Z
-- window_end_iso: 2026-05-08T15:37:50.830Z
+- window_start_iso: 2026-05-07T15:44:33.528Z
+- window_end_iso: 2026-05-08T15:44:33.528Z
 
 ## Prompt-To-Artifact Contract
 - canonical city launch plan and activation payload must be linked from the launch manifest.

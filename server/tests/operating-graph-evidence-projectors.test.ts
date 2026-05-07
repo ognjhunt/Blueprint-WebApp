@@ -228,4 +228,31 @@ describe("operating graph evidence projectors", () => {
       }),
     );
   });
+
+  it("classifies Firestore quota failures as blocked projection results", async () => {
+    const {
+      buildOperatingGraphProjectionBlockedResult,
+      isFirestoreResourceExhausted,
+    } = await import("../utils/operatingGraphEvidenceProjectors");
+    const error = Object.assign(new Error("8 RESOURCE_EXHAUSTED: Quota exceeded."), {
+      code: 8,
+    });
+
+    expect(isFirestoreResourceExhausted(error)).toBe(true);
+    expect(buildOperatingGraphProjectionBlockedResult(error)).toEqual(
+      expect.objectContaining({
+        failedCount: 1,
+        status: "blocked",
+        blockers: [
+          expect.objectContaining({
+            key: "firestore_resource_exhausted",
+            retryCondition: expect.stringContaining("Firestore quota recovers"),
+          }),
+        ],
+        warnings: expect.arrayContaining([
+          expect.stringContaining("No successful operating graph projection should be claimed"),
+        ]),
+      }),
+    );
+  });
 });

@@ -84,6 +84,16 @@ describe("GTM enrichment waterfall", () => {
   });
 
   it("records provider runs and selects a recipient only from normalized evidence", async () => {
+    const input = ledger();
+    input.targets[0].blockers = [
+      {
+        id: "gtm-blocker-contact-discovery-allowlist",
+        status: "blocked",
+        summary: "Governed recipient discovery is blocked because no selected recipient evidence exists.",
+        owner: "growth-lead",
+        nextAction: "Configure discovery or record explicit recipient-backed evidence.",
+      },
+    ];
     const provider: GtmEnrichmentProvider = {
       key: "repo_artifact",
       async enrich() {
@@ -109,7 +119,7 @@ describe("GTM enrichment waterfall", () => {
     };
 
     const result = await runGtmEnrichmentWaterfall({
-      ledger: ledger(),
+      ledger: input,
       providers: [provider],
       selectRecipients: true,
     });
@@ -122,6 +132,11 @@ describe("GTM enrichment waterfall", () => {
     expect(target.enrichment?.status).toBe("contact_found");
     expect(target.enrichment?.providerRuns).toHaveLength(1);
     expect(target.enrichment?.recipientCandidates).toHaveLength(1);
+    expect(target.blockers?.[0]).toMatchObject({
+      id: "gtm-blocker-contact-discovery-allowlist",
+      status: "resolved",
+      nextAction: expect.stringContaining("founder first-send approval"),
+    });
   });
 
   it("keeps placeholder candidates out of the ledger", async () => {

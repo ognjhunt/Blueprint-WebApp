@@ -2,9 +2,9 @@
   "schema_version": "2026-05-06.city-launch-gtm-72h-contract.v1",
   "city": "Austin, TX",
   "city_slug": "austin-tx",
-  "launch_run_id": "2026-05-07T15-37-04.117Z",
+  "launch_run_id": "2026-05-07T15-44-03.077Z",
   "status": "founder_approved_activation_ready",
-  "generated_at": "2026-05-07T15:37:04.154Z",
+  "generated_at": "2026-05-07T15:44:03.084Z",
   "budget": {
     "tier": "zero_budget",
     "label": "Zero Budget",
@@ -44,9 +44,9 @@
       "checkpoint_hour": 24,
       "checkpoint_key": "24h",
       "status": "scheduled_not_due",
-      "window_start_iso": "2026-05-07T15:37:04.117Z",
-      "window_end_iso": "2026-05-08T15:37:04.117Z",
-      "run_artifact_path": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/approval-packet-city-launch-harness-RQlJY6/austin-tx/2026-05-07T15-37-04.117Z/city-launch-austin-tx-scorecard-24h.md",
+      "window_start_iso": "2026-05-07T15:44:03.077Z",
+      "window_end_iso": "2026-05-08T15:44:03.077Z",
+      "run_artifact_path": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/approval-packet-city-launch-harness-lHkj50/austin-tx/2026-05-07T15-44-03.077Z/city-launch-austin-tx-scorecard-24h.md",
       "canonical_artifact_path": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-austin-tx-scorecard-24h.md",
       "query_names": [
         "city_launch_growth_events_recent",
@@ -87,9 +87,9 @@
       "checkpoint_hour": 48,
       "checkpoint_key": "48h",
       "status": "scheduled_not_due",
-      "window_start_iso": "2026-05-07T15:37:04.117Z",
-      "window_end_iso": "2026-05-09T15:37:04.117Z",
-      "run_artifact_path": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/approval-packet-city-launch-harness-RQlJY6/austin-tx/2026-05-07T15-37-04.117Z/city-launch-austin-tx-scorecard-48h.md",
+      "window_start_iso": "2026-05-07T15:44:03.077Z",
+      "window_end_iso": "2026-05-09T15:44:03.077Z",
+      "run_artifact_path": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/approval-packet-city-launch-harness-lHkj50/austin-tx/2026-05-07T15-44-03.077Z/city-launch-austin-tx-scorecard-48h.md",
       "canonical_artifact_path": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-austin-tx-scorecard-48h.md",
       "query_names": [
         "city_launch_growth_events_recent",
@@ -130,9 +130,9 @@
       "checkpoint_hour": 72,
       "checkpoint_key": "72h",
       "status": "scheduled_not_due",
-      "window_start_iso": "2026-05-07T15:37:04.117Z",
-      "window_end_iso": "2026-05-10T15:37:04.117Z",
-      "run_artifact_path": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/approval-packet-city-launch-harness-RQlJY6/austin-tx/2026-05-07T15-37-04.117Z/city-launch-austin-tx-scorecard-72h.md",
+      "window_start_iso": "2026-05-07T15:44:03.077Z",
+      "window_end_iso": "2026-05-10T15:44:03.077Z",
+      "run_artifact_path": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/approval-packet-city-launch-harness-lHkj50/austin-tx/2026-05-07T15-44-03.077Z/city-launch-austin-tx-scorecard-72h.md",
       "canonical_artifact_path": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-austin-tx-scorecard-72h.md",
       "query_names": [
         "city_launch_growth_events_recent",
@@ -264,15 +264,15 @@
   ],
   "artifact_paths": {
     "run": {
-      "contractJsonPath": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/approval-packet-city-launch-harness-RQlJY6/austin-tx/2026-05-07T15-37-04.117Z/city-launch-austin-tx-gtm-72h-contract.json",
-      "contractMarkdownPath": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/approval-packet-city-launch-harness-RQlJY6/austin-tx/2026-05-07T15-37-04.117Z/city-launch-austin-tx-gtm-72h-contract.md",
-      "adStudioCreativeHandoffPath": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/approval-packet-city-launch-harness-RQlJY6/austin-tx/2026-05-07T15-37-04.117Z/city-launch-austin-tx-ad-studio-creative-handoff.md",
-      "metaAdsReadinessPath": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/approval-packet-city-launch-harness-RQlJY6/austin-tx/2026-05-07T15-37-04.117Z/city-launch-austin-tx-meta-ads-readiness.md",
-      "scorecardManifestPath": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/approval-packet-city-launch-harness-RQlJY6/austin-tx/2026-05-07T15-37-04.117Z/city-launch-austin-tx-scorecard-windows.json",
+      "contractJsonPath": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/approval-packet-city-launch-harness-lHkj50/austin-tx/2026-05-07T15-44-03.077Z/city-launch-austin-tx-gtm-72h-contract.json",
+      "contractMarkdownPath": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/approval-packet-city-launch-harness-lHkj50/austin-tx/2026-05-07T15-44-03.077Z/city-launch-austin-tx-gtm-72h-contract.md",
+      "adStudioCreativeHandoffPath": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/approval-packet-city-launch-harness-lHkj50/austin-tx/2026-05-07T15-44-03.077Z/city-launch-austin-tx-ad-studio-creative-handoff.md",
+      "metaAdsReadinessPath": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/approval-packet-city-launch-harness-lHkj50/austin-tx/2026-05-07T15-44-03.077Z/city-launch-austin-tx-meta-ads-readiness.md",
+      "scorecardManifestPath": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/approval-packet-city-launch-harness-lHkj50/austin-tx/2026-05-07T15-44-03.077Z/city-launch-austin-tx-scorecard-windows.json",
       "scorecardPaths": {
-        "24h": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/approval-packet-city-launch-harness-RQlJY6/austin-tx/2026-05-07T15-37-04.117Z/city-launch-austin-tx-scorecard-24h.md",
-        "48h": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/approval-packet-city-launch-harness-RQlJY6/austin-tx/2026-05-07T15-37-04.117Z/city-launch-austin-tx-scorecard-48h.md",
-        "72h": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/approval-packet-city-launch-harness-RQlJY6/austin-tx/2026-05-07T15-37-04.117Z/city-launch-austin-tx-scorecard-72h.md"
+        "24h": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/approval-packet-city-launch-harness-lHkj50/austin-tx/2026-05-07T15-44-03.077Z/city-launch-austin-tx-scorecard-24h.md",
+        "48h": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/approval-packet-city-launch-harness-lHkj50/austin-tx/2026-05-07T15-44-03.077Z/city-launch-austin-tx-scorecard-48h.md",
+        "72h": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/approval-packet-city-launch-harness-lHkj50/austin-tx/2026-05-07T15-44-03.077Z/city-launch-austin-tx-scorecard-72h.md"
       }
     },
     "canonical": {

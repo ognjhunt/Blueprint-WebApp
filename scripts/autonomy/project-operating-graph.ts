@@ -13,10 +13,15 @@ function argValue(name: string) {
   return "";
 }
 
+function hasFlag(name: string) {
+  return process.argv.includes(name);
+}
+
 async function main() {
   const result = await runOperatingGraphProjectionLoop({
     city: argValue("--city") || undefined,
     limit: Number(argValue("--limit") || 500),
+    allowBlocked: hasFlag("--allow-blocked"),
   });
 
   console.log(
@@ -30,7 +35,7 @@ async function main() {
     ),
   );
 
-  if (result.failedCount > 0) {
+  if (result.failedCount > 0 && !hasFlag("--allow-blocked")) {
     process.exitCode = 1;
   }
 }
