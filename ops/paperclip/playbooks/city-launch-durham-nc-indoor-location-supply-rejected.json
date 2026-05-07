@@ -2,63 +2,10 @@
   "schema_version": "2026-04-25.indoor-location-supply-rejected.v1",
   "city": "Durham, NC",
   "city_slug": "durham-nc",
-  "generated_at": "2026-04-25T23:20:00.000Z",
-  "source_ledger": "ops/paperclip/playbooks/city-launch-durham-nc-indoor-location-supply.json",
-  "rejected_count": 9,
-  "rejected_candidates": [
-    {
-      "candidate_id": "durham-nc-durham-farmers-market-central-park-pavilion",
-      "place_name": "Durham Farmers Market / Durham Central Park Pavilion",
-      "reason_code": "outdoor_primary",
-      "rejection_reason": "Market/pavilion use is primarily outdoor or open-air. No separable indoor public capture zone was source-backed for this lane."
-    },
-    {
-      "candidate_id": "durham-nc-boxyard-rtp-campus",
-      "place_name": "Boxyard RTP",
-      "reason_code": "outdoor_primary",
-      "rejection_reason": "Source evidence frames Boxyard as repurposed shipping containers around an outdoor entertainment/market setting. Individual tenant interiors may be separate future candidates, but the campus-wide record is not indoor-primary."
-    },
-    {
-      "candidate_id": "durham-nc-american-tobacco-campus-wide",
-      "place_name": "American Tobacco Campus",
-      "reason_code": "mixed_site_not_zone_scoped",
-      "rejection_reason": "Campus-wide record is a mixed outdoor/office/restaurant district. It can only survive as a specific indoor tenant/lobby/retail corridor candidate with source-backed public access."
-    },
-    {
-      "candidate_id": "durham-nc-brightleaf-square-campus-wide",
-      "place_name": "Brightleaf Square",
-      "reason_code": "insufficient_indoor_evidence",
-      "rejection_reason": "Fetched public evidence did not establish a zone-specific indoor public/common-access capture area separate from shops/restaurants and outdoor district circulation."
-    },
-    {
-      "candidate_id": "durham-nc-golden-belt-campus-wide",
-      "place_name": "Golden Belt Campus",
-      "reason_code": "mixed_site_not_zone_scoped",
-      "rejection_reason": "Campus-wide candidate is mixed and not indoor-zone-specific. A specific gallery or tenant interior can be researched as a separate candidate if source-backed."
-    },
-    {
-      "candidate_id": "durham-nc-ccb-plaza",
-      "place_name": "CCB Plaza",
-      "reason_code": "outdoor_primary",
-      "rejection_reason": "Outdoor plaza/streetscape; no indoor allowed capture zone."
-    },
-    {
-      "candidate_id": "durham-nc-northgate-mall",
-      "place_name": "Northgate Mall",
-      "reason_code": "stale_or_closed",
-      "rejection_reason": "Historic indoor mall evidence is stale and current public indoor mall operations were not verified. Do not seed as live supply."
-    },
-    {
-      "candidate_id": "durham-nc-dpac-lobby",
-      "place_name": "Durham Performing Arts Center lobby",
-      "reason_code": "camera_policy_hostile",
-      "rejection_reason": "Venue rules prohibit video/audio recording devices. Do not promote through autonomous public-space lane."
-    },
-    {
-      "candidate_id": "durham-nc-main-library",
-      "place_name": "Durham County Main Library",
-      "reason_code": "camera_policy_permission_sensitive",
-      "rejection_reason": "Indoor public building, but the library filming/photography policy requires written permission for commercial/professional filming and restricts capturing the public/staff in backgrounds. Keep out of auto-promotion."
-    }
-  ]
+  "generated_at": "2026-05-07T15:37:06.208Z",
+  "status": "awaiting_capturer_growth_agent_location_supply",
+  "source_activation_payload": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-activation-payload.json",
+  "delegation_task_key": "public-commercial-community-sourcing",
+  "evidence_boundary": "Placeholder blocker artifact only; no location is approved, rights-cleared, payable, or derived-world-model-ready until evidence review passes.",
+  "rejected_candidates": []
 }

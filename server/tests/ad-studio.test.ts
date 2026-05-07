@@ -203,7 +203,7 @@ describe("ad studio service", () => {
 
     expect(brief.visualDirection).toContain("public-facing indoor");
     expect(brief.copyHooks.length).toBeGreaterThan(0);
-    expect(brief.copyHooks[0]).toContain("capture");
+    expect(brief.copyHooks[0].toLowerCase()).toContain("capture");
   });
 
   it("fails review when synthetic proof is presented as real", () => {

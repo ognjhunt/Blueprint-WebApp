@@ -2,6 +2,9 @@ import {
   executeCityLaunchSends,
   approveCityLaunchSendAction,
 } from "../../server/utils/cityLaunchSendExecutor";
+import {
+  resolveCityLaunchCityInput,
+} from "../../server/utils/cityLaunchRunControl";
 
 function getFlagValue(args: string[], flag: string) {
   const index = args.indexOf(flag);
@@ -17,10 +20,9 @@ function hasFlag(args: string[], flag: string) {
 
 async function main() {
   const args = process.argv.slice(2);
-  const city = getFlagValue(args, "--city");
-  if (!city) {
-    throw new Error("Required: --city \"City, ST\"");
-  }
+  const city = resolveCityLaunchCityInput(
+    getFlagValue(args, "--city") ?? process.env.CITY,
+  );
 
   const mode = getFlagValue(args, "--mode") || "execute";
 
@@ -35,7 +37,12 @@ async function main() {
     return;
   }
 
-  const dryRun = hasFlag(args, "--dry-run");
+  const live = hasFlag(args, "--live");
+  const founderApproved = hasFlag(args, "--founder-approved");
+  if (live && !founderApproved) {
+    throw new Error("Live city-launch sends require --founder-approved. Omit --live for the default dry-run.");
+  }
+  const dryRun = !live || hasFlag(args, "--dry-run");
   const maxSends = getFlagValue(args, "--max-sends")
     ? Number(getFlagValue(args, "--max-sends"))
     : undefined;

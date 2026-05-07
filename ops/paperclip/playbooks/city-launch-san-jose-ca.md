@@ -3,7 +3,7 @@
 ## Status
 - phase: activation_ready
 - owner: city-launch-agent
-- last-reviewed: 2026-05-05
+- last-reviewed: 2026-05-07
 - recommended-posture: gated cohort pilot
 - launch_policy_state: autonomous_execution_ready
 - planning-state: completed
@@ -98,9 +98,9 @@ Private controlled interiors require authorization.
 
 ## Launch Surface Coverage
 
-| Surface | Owner | Artifact | Gate |
-|---|---|---|---|
-| validation_required | city-launch-agent | activation payload missing launch_surface_coverage | refresh the city deep-research playbook with the current harness |
+| Surface | Owner | Human lane | Artifact | Gate | Blocker behavior |
+|---|---|---|---|---|---|
+| validation_required | city-launch-agent | growth-lead | activation payload missing launch_surface_coverage | refresh the city deep-research playbook with the current harness | blocked |
 
 ## Readiness Scorecard
 | Dimension | Score | Rationale |

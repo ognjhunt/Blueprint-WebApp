@@ -31,7 +31,13 @@ import {
   type HumanBlockerThreadRecord,
 } from "./human-reply-store";
 import { runCityLaunchExecutionHarness } from "./cityLaunchExecutionHarness";
-import type { CityLaunchBudgetTier } from "./cityLaunchPolicy";
+import { writeCityLaunchCreativeAdsEvidence } from "./cityLaunchCreativeAdsEvidence";
+import { runCityLaunchPlanningHarness } from "./cityLaunchPlanningHarness";
+import {
+  normalizeCityLaunchBudgetTier,
+  type CityLaunchBudgetTier,
+} from "./cityLaunchPolicy";
+import { resolveCityLaunchWindowHours } from "./cityLaunchRunControl";
 
 function truncate(value: string, max = 280) {
   const normalized = String(value || "").replace(/\s+/g, " ").trim();
@@ -65,9 +71,7 @@ function asOptionalNumber(value: unknown) {
 }
 
 function asBudgetTier(value: unknown): CityLaunchBudgetTier | undefined {
-  return value === "zero_budget" || value === "low_budget" || value === "funded"
-    ? value
-    : undefined;
+  return normalizeCityLaunchBudgetTier(value) || undefined;
 }
 
 function findMatchingThread(
@@ -214,6 +218,29 @@ async function ingestHumanReplyMessage(params: {
       const operatorEmail = params.thread.approved_identity || "ohstnhunt@gmail.com";
       const replySummary = bodyExcerpt || "(empty reply)";
       if (
+        params.thread.resume_action.kind === "city_launch_plan"
+      ) {
+        const planningMetadata = params.thread.resume_action.metadata || {};
+        const city = asTrimmedString(planningMetadata.city);
+        if (!city) {
+          throw new Error("City launch planning reply is missing a city in resume metadata.");
+        }
+        const budgetTier = asBudgetTier(planningMetadata.budgetTier);
+        const budgetMaxUsd = asOptionalNumber(planningMetadata.budgetMaxUsd);
+        const operatorAutoApproveUsd = asOptionalNumber(planningMetadata.operatorAutoApproveUsd);
+        const windowHours = resolveCityLaunchWindowHours(planningMetadata.windowHours);
+        if (!budgetTier || budgetMaxUsd === null) {
+          throw new Error("City launch planning reply is missing budget tier/max in resume metadata.");
+        }
+
+        await runCityLaunchPlanningHarness({
+          city,
+          budgetTier,
+          budgetMaxUsd,
+          operatorAutoApproveUsd,
+          windowHours,
+        });
+      } else if (
         decision.classification === "approval"
         && params.thread.resume_action.kind === "city_launch_activate"
       ) {
@@ -223,13 +250,37 @@ async function ingestHumanReplyMessage(params: {
           throw new Error("City launch activation reply is missing a city in resume metadata.");
         }
 
-        await runCityLaunchExecutionHarness({
+        const budgetTier = asBudgetTier(activationMetadata.budgetTier);
+        const budgetMaxUsd = asOptionalNumber(activationMetadata.budgetMaxUsd);
+        const operatorAutoApproveUsd = asOptionalNumber(activationMetadata.operatorAutoApproveUsd);
+        const windowHours = resolveCityLaunchWindowHours(activationMetadata.windowHours);
+        const activationResult = await runCityLaunchExecutionHarness({
           city,
           founderApproved: true,
-          budgetTier: asBudgetTier(activationMetadata.budgetTier),
-          budgetMaxUsd: asOptionalNumber(activationMetadata.budgetMaxUsd),
-          operatorAutoApproveUsd: asOptionalNumber(activationMetadata.operatorAutoApproveUsd),
+          budgetTier,
+          budgetMaxUsd,
+          operatorAutoApproveUsd,
+          windowHours,
         });
+        const creativeAdsEvidence = await writeCityLaunchCreativeAdsEvidence({
+          city,
+          budgetTier,
+          budgetMaxUsd,
+          windowHours,
+          runMetaReadOnly: true,
+          founderApprovedPausedDraft: false,
+          launchId: activationResult.paperclip?.rootIssueId || undefined,
+        });
+        if (creativeAdsEvidence.status === "blocked") {
+          throw new Error(
+            [
+              "City launch creative/ad evidence blocked after founder approval resume.",
+              `JSON: ${creativeAdsEvidence.artifacts.jsonPath}`,
+              `Markdown: ${creativeAdsEvidence.artifacts.markdownPath}`,
+              `Blockers: ${creativeAdsEvidence.blockers.join("; ")}`,
+            ].join(" "),
+          );
+        }
       } else if (
         decision.classification === "approval"
         && params.thread.record_of_truth.ops_work_item_id

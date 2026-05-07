@@ -40,11 +40,14 @@ Those constraints mean the correct Blueprint pattern is:
 Run a full city playbook pass:
 
 ```bash
-npm run city-launch:plan -- --city "Austin, TX"
+npm run city-launch:plan -- --city "Austin, TX" --budget-tier lean --budget-max-usd 2500 --window-hours 72
 ```
 
 Useful flags:
 
+- `--budget-tier lean|standard|aggressive` is required for new run-mode playbooks.
+- `--budget-max-usd 2500` is required and becomes the hard structured-budget envelope for the generated playbook.
+- `--window-hours 72` is required by the current CITY+BUDGET launch contract.
 - `--critique-rounds 2`
 - `--region "Texas"`
 - `--similar-companies "Uber,DoorDash,Instacart,Airbnb,Lime"`

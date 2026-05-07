@@ -22,6 +22,9 @@ const CAPTURE_SUBMISSIONS_COLLECTION = "capture_submissions";
 type ProjectorIssue = {
   id: string;
   reason: string;
+  sourceRef?: string;
+  requiredFields?: string[];
+  nextAction?: string;
 };
 
 type SourceDocument = Record<string, unknown> & { id: string };
@@ -31,6 +34,7 @@ export type OperatingGraphProjectorResult = {
   projectedEventCount: number;
   projectedEntityCount: number;
   skipped: ProjectorIssue[];
+  skippedSummary: Record<string, number>;
 };
 
 function asRecord(value: unknown) {
@@ -124,6 +128,28 @@ async function readCollectionBatch(collectionName: string, limit: number): Promi
   }));
 }
 
+function summarizeSkipped(skipped: ProjectorIssue[]) {
+  return skipped.reduce<Record<string, number>>((summary, entry) => {
+    summary[entry.reason] = (summary[entry.reason] || 0) + 1;
+    return summary;
+  }, {});
+}
+
+function skippedCaptureIssue(input: {
+  captureId: string;
+  reason: string;
+  requiredFields?: string[];
+  nextAction?: string;
+}): ProjectorIssue {
+  return {
+    id: input.captureId,
+    reason: input.reason,
+    sourceRef: `${CAPTURE_SUBMISSIONS_COLLECTION}/${input.captureId}`,
+    ...(input.requiredFields ? { requiredFields: input.requiredFields } : {}),
+    ...(input.nextAction ? { nextAction: input.nextAction } : {}),
+  };
+}
+
 export async function projectCaptureSubmissionsIntoOperatingGraph(options?: {
   limit?: number;
 }) {
@@ -134,6 +160,7 @@ export async function projectCaptureSubmissionsIntoOperatingGraph(options?: {
     projectedEventCount: 0,
     projectedEntityCount: 0,
     skipped: [],
+    skippedSummary: {},
   };
 
   const projectedEntityIds = new Set<string>();
@@ -141,13 +168,31 @@ export async function projectCaptureSubmissionsIntoOperatingGraph(options?: {
   for (const doc of docs) {
     const captureId = asString(doc.capture_id) || asString(doc.id);
     if (!captureId) {
-      result.skipped.push({ id: asString(doc.id) || "unknown", reason: "missing_capture_id" });
+      result.skipped.push({
+        id: asString(doc.id) || "unknown",
+        reason: "missing_capture_id",
+        sourceRef: `${CAPTURE_SUBMISSIONS_COLLECTION}/${asString(doc.id) || "unknown"}`,
+        requiredFields: ["capture_id"],
+        nextAction: "Write an explicit capture_id before projecting this capture submission into the operating graph.",
+      });
       continue;
     }
 
     const cityContext = readCityContext(doc);
     if (!cityContext.city || !cityContext.citySlug) {
-      result.skipped.push({ id: captureId, reason: "missing_city_context" });
+      result.skipped.push(skippedCaptureIssue({
+        captureId,
+        reason: "missing_city_context",
+        requiredFields: [
+          "city_context.city",
+          "city_context.city_slug",
+          "city",
+          "city_slug",
+          "region_id",
+        ],
+        nextAction:
+          "Record explicit city_context.city plus city_context.city_slug, or another explicit city/city_slug/region_id field from Capture before projection; do not infer city from capture id or filename.",
+      }));
       continue;
     }
 
@@ -247,11 +292,24 @@ export async function projectCaptureSubmissionsIntoOperatingGraph(options?: {
     }
 
     if (!inProgressAtIso && !captureUploadedAtIso) {
-      result.skipped.push({ id: captureId, reason: "missing_lifecycle_timestamps" });
+      result.skipped.push(skippedCaptureIssue({
+        captureId,
+        reason: "missing_lifecycle_timestamps",
+        requiredFields: [
+          "lifecycle.capture_started_at",
+          "lifecycle.upload_started_at",
+          "lifecycle.capture_uploaded_at",
+          "submitted_at",
+          "created_at",
+        ],
+        nextAction:
+          "Record an explicit capture lifecycle timestamp before projecting this capture submission into the operating graph.",
+      }));
     }
   }
 
   result.projectedEntityCount = projectedEntityIds.size;
+  result.skippedSummary = summarizeSkipped(result.skipped);
   return result;
 }
 
@@ -365,6 +423,7 @@ export async function projectCityLaunchSupplyTargetsIntoOperatingGraph(options?:
     projectedEventCount: 0,
     projectedEntityCount: 0,
     skipped: [],
+    skippedSummary: {},
   };
   const projectedEntityIds = new Set<string>();
 
@@ -374,7 +433,14 @@ export async function projectCityLaunchSupplyTargetsIntoOperatingGraph(options?:
       result.scannedCount += 1;
       const citySlug = prospect.citySlug || slugifyCityName(prospect.city);
       if (!prospect.id || !prospect.city || !citySlug) {
-        result.skipped.push({ id: prospect.id || "unknown", reason: "missing_supply_target_identity" });
+        result.skipped.push({
+          id: prospect.id || "unknown",
+          reason: "missing_supply_target_identity",
+          sourceRef: `cityLaunchProspects/${prospect.id || "unknown"}`,
+          requiredFields: ["id", "city", "citySlug"],
+          nextAction:
+            "Record explicit city-launch prospect identity and city fields before projecting this supply target.",
+        });
         continue;
       }
 
@@ -422,6 +488,7 @@ export async function projectCityLaunchSupplyTargetsIntoOperatingGraph(options?:
   }
 
   result.projectedEntityCount = projectedEntityIds.size;
+  result.skippedSummary = summarizeSkipped(result.skipped);
   return result;
 }
 

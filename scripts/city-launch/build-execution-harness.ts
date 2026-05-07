@@ -1,7 +1,15 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { runCityLaunchExecutionHarness } from "../../server/utils/cityLaunchExecutionHarness";
-import { buildCityLaunchBudgetPolicy } from "../../server/utils/cityLaunchPolicy";
+import {
+  buildCityLaunchBudgetPolicy,
+} from "../../server/utils/cityLaunchPolicy";
+import {
+  resolveCityLaunchCityInput,
+  resolveCityLaunchFounderBudgetMaxUsdInput,
+  resolveCityLaunchFounderBudgetTierInput,
+  resolveCityLaunchWindowHours,
+} from "../../server/utils/cityLaunchRunControl";
 import { summarizeCityLaunchAutonomyCertification } from "../../server/utils/cityLaunchAutonomyCertification";
 import { renderCityLaunchFounderApprovalArtifact } from "../../server/utils/cityLaunchFounderApproval";
 import { slugifyCityName } from "../../server/utils/cityLaunchProfiles";
@@ -35,19 +43,24 @@ function timestampForFile(date = new Date()) {
 
 async function main() {
   const args = process.argv.slice(2);
-  const city = getFlagValue(args, "--city") || "Austin, TX";
-  const budgetTier =
-    getFlagValue(args, "--budget-tier") || undefined;
-  const budgetMaxUsdValue = getFlagValue(args, "--budget-max-usd");
+  const city = resolveCityLaunchCityInput(
+    getFlagValue(args, "--city") ?? process.env.CITY,
+  );
+  const windowHours = resolveCityLaunchWindowHours(
+    getFlagValue(args, "--window-hours") ?? process.env.WINDOW_HOURS,
+  );
+  const budgetTier = resolveCityLaunchFounderBudgetTierInput(
+    getFlagValue(args, "--budget-tier") ?? process.env.BUDGET_TIER,
+  );
+  const budgetMaxUsd = resolveCityLaunchFounderBudgetMaxUsdInput(
+    getFlagValue(args, "--budget-max-usd") ?? process.env.BUDGET_MAX_USD,
+  );
   const operatorAutoApproveUsdValue = getFlagValue(args, "--operator-auto-approve-usd");
   const rewakeTaskKeys = getCommaSeparatedFlagValues(args, "--rewake-task-keys");
   const rewakeOwnerLanes = getCommaSeparatedFlagValues(args, "--rewake-owner-lanes");
   const budgetPolicy = buildCityLaunchBudgetPolicy({
-    tier:
-      budgetTier === "zero_budget" || budgetTier === "low_budget" || budgetTier === "funded"
-        ? budgetTier
-        : undefined,
-    maxTotalApprovedUsd: budgetMaxUsdValue ? Number(budgetMaxUsdValue) : undefined,
+    tier: budgetTier,
+    maxTotalApprovedUsd: budgetMaxUsd,
     operatorAutoApproveUsd: operatorAutoApproveUsdValue
       ? Number(operatorAutoApproveUsdValue)
       : undefined,
@@ -82,6 +95,7 @@ async function main() {
           state: "awaiting_human_decision",
           city,
           budgetTier: budgetPolicy.tier,
+          windowHours,
           stageReached: "founder_decision_packet_generated",
           founderApproved: false,
           founderDecisionPacketPath,
@@ -98,6 +112,7 @@ async function main() {
   const result = await runCityLaunchExecutionHarness({
     city,
     founderApproved,
+    windowHours,
     reportsRoot,
     budgetTier: budgetPolicy.tier,
     budgetMaxUsd: budgetPolicy.maxTotalApprovedUsd,
@@ -113,6 +128,7 @@ async function main() {
         city: result.city,
         status: result.status,
         budgetTier: result.budgetTier,
+        windowHours,
         planningStatus: result.planning.status,
         canonicalSystemDocPath: result.artifacts.canonicalSystemDocPath,
         canonicalIssueBundlePath: result.artifacts.canonicalIssueBundlePath,

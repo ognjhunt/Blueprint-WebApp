@@ -44,8 +44,11 @@ describe("Pricing", () => {
     ).toBe(true);
     expect(
       screen
-        .getAllByRole("link", { name: /Request custom quote/i })
-        .some((link) => link.getAttribute("href") === "/contact?persona=robot-team&interest=enterprise"),
+        .getAllByRole("link", { name: /Request capture\/site review/i })
+        .some((link) =>
+          link.getAttribute("href") ===
+          "/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=request-capture&source=pricing",
+        ),
     ).toBe(true);
 
     expect(screen.queryByText(/What happens after inquiry/i)).not.toBeInTheDocument();

@@ -106,7 +106,7 @@ const homeVariantContent: Record<
     title: "Site-specific world models for real places.",
     description:
       "Inspect real captured places, then send the site, workflow, and robot setup your team needs to evaluate next.",
-    primaryLabel: "Scope hosted review",
+    primaryLabel: "Request hosted review",
     primaryPath: "hosted-evaluation",
     secondaryLabel: "Inspect sample review",
     secondaryHref: "/sample-evaluation",

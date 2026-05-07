@@ -60,6 +60,7 @@ import {
   type CityLaunchBudgetPolicy,
   type CityLaunchBudgetTier,
 } from "./cityLaunchPolicy";
+import { resolveCityLaunchWindowHours } from "./cityLaunchRunControl";
 import {
   resolveCityLaunchProfile,
   resolveFocusCityProfile,
@@ -116,6 +117,113 @@ const DEFAULT_REPORTS_ROOT = path.join(
 );
 
 const CITY_LAUNCH_PROJECT_NAME = "blueprint-webapp";
+
+export const CITY_LAUNCH_GTM_CHECKPOINT_HOURS = [24, 48, 72] as const;
+
+type CityLaunchGtmCheckpointHour = (typeof CITY_LAUNCH_GTM_CHECKPOINT_HOURS)[number];
+type CityLaunchGtmScorecardPathKey = `${CityLaunchGtmCheckpointHour}h`;
+
+type CityLaunchGtm72hArtifactPaths = {
+  contractJsonPath: string;
+  contractMarkdownPath: string;
+  adStudioCreativeHandoffPath: string;
+  metaAdsReadinessPath: string;
+  scorecardManifestPath: string;
+  scorecardPaths: Record<CityLaunchGtmScorecardPathKey, string>;
+};
+
+export const CITY_LAUNCH_GTM_EVIDENCE_SOURCES = [
+  {
+    collection: "growth_events",
+    query_name: "city_launch_growth_events_recent",
+    query: "collection(\"growth_events\").orderBy(\"created_at\", \"desc\").limit(4000)",
+    purpose: "CTA, hosted-review, proof-motion, follow-up, stall, and demand response events filtered to the city.",
+  },
+  {
+    collection: "waitlistSubmissions",
+    query_name: "city_capturer_waitlist_recent",
+    query: "collection(\"waitlistSubmissions\").limit(1500)",
+    purpose: "Capturer signups and market/source tags for the city supply lane.",
+  },
+  {
+    collection: "users",
+    query_name: "city_capturer_users_recent",
+    query: "collection(\"users\").limit(2000)",
+    purpose: "Approved capturer, first-capture, and QA-passed capture evidence for the city.",
+  },
+  {
+    collection: "inboundRequests",
+    query_name: "city_inbound_requests_recent",
+    query: "collection(\"inboundRequests\").limit(1500) + decryptInboundRequestForAdmin",
+    purpose: "Waitlist, CTA response, exact-site request, proof-pack, hosted-review, and buyer reply evidence.",
+  },
+  {
+    collection: "cityLaunchActivations",
+    query_name: "city_launch_activation_doc",
+    query: "collection(\"cityLaunchActivations\").doc(citySlug)",
+    purpose: "Founder approval, root issue id, budget tier, task issue ids, and activation status.",
+  },
+  {
+    collection: "cityLaunchProspects",
+    query_name: "city_launch_prospects_by_city",
+    query: "collection(\"cityLaunchProspects\").where(\"citySlug\", \"==\", citySlug).limit(1000)",
+    purpose: "Target discovery, capturer/operator prospect status, and supply follow-through.",
+  },
+  {
+    collection: "cityLaunchBuyerTargets",
+    query_name: "city_launch_buyer_targets_by_city",
+    query: "collection(\"cityLaunchBuyerTargets\").where(\"citySlug\", \"==\", citySlug).limit(1000)",
+    purpose: "Buyer/site-operator target research and proof-path status.",
+  },
+  {
+    collection: "cityLaunchTouches",
+    query_name: "city_launch_touches_by_city",
+    query: "collection(\"cityLaunchTouches\").where(\"citySlug\", \"==\", citySlug).limit(1000)",
+    purpose: "Recipient-backed first touches, Meta draft touches, and proof-led outreach evidence.",
+  },
+  {
+    collection: "cityLaunchChannelAccounts",
+    query_name: "city_launch_channel_accounts_by_city",
+    query: "collection(\"cityLaunchChannelAccounts\").where(\"citySlug\", \"==\", citySlug).limit(1000)",
+    purpose: "Channel registry state for direct outreach and artifact-only community/social publication lanes.",
+  },
+  {
+    collection: "cityLaunchSendActions",
+    query_name: "city_launch_send_actions_by_city",
+    query: "collection(\"cityLaunchSendActions\").where(\"citySlug\", \"==\", citySlug).limit(1000)",
+    purpose: "Recipient-backed direct outreach ledger, no-fake-email checks, approval state, sent state, and response ingest state.",
+  },
+  {
+    collection: "cityLaunchReplyConversions",
+    query_name: "city_launch_reply_conversions_by_city",
+    query: "collection(\"cityLaunchReplyConversions\").where(\"citySlug\", \"==\", citySlug).limit(1000)",
+    purpose: "Reply ownership, routing, next follow-up due state, and conversion blockers.",
+  },
+  {
+    collection: "cityLaunchBudgetEvents",
+    query_name: "city_launch_budget_events_by_city",
+    query: "collection(\"cityLaunchBudgetEvents\").where(\"citySlug\", \"==\", citySlug).limit(1000)",
+    purpose: "Actual/recommended spend ledger and policy compliance.",
+  },
+  {
+    collection: "agentSpendRequests",
+    query_name: "city_launch_agent_spend_requests",
+    query: "collection(\"agentSpendRequests\").where(\"citySlug\", \"==\", citySlug).limit(1000)",
+    purpose: "Founder/provider approval state for budget, creative, paid acquisition, and other agent spend requests.",
+  },
+  {
+    collection: "ad_studio_runs",
+    query_name: "city_launch_ad_studio_runs",
+    query: "collection(\"ad_studio_runs\").where(\"city\", \"==\", city).orderBy(\"updated_at_iso\", \"desc\").limit(100)",
+    purpose: "Claims ledger, claims review, prompt pack, image handoff, video task, and Meta draft linkage.",
+  },
+  {
+    collection: "meta_ads_cli_runs",
+    query_name: "city_launch_meta_ads_cli_runs",
+    query: "collection(\"meta_ads_cli_runs\").where(\"city\", \"==\", city).orderBy(\"createdAtIso\", \"desc\").limit(100)",
+    purpose: "Meta Ads CLI read-only proof, paused-draft command provenance, and policy-blocked errors.",
+  },
+] as const;
 
 const STATIC_SOURCE_PATHS = [
   "docs/city-launch-deep-research-harness-2026-04-11.md",
@@ -179,6 +287,7 @@ export type CityLaunchExecutionResult = {
   status: CityLaunchExecutionStatus;
   budgetTier: CityLaunchBudgetTier;
   budgetPolicy: CityLaunchBudgetPolicy;
+  windowHours: 72;
   startedAt: string;
   completedAt: string;
   activationStatus: CityLaunchActivationStatus;
@@ -242,6 +351,10 @@ export type CityLaunchExecutionResult = {
         noSignalScorecardPath: string;
         buyerLoopPath: string;
       };
+    };
+    gtm72hArtifactPack: {
+      run: CityLaunchGtm72hArtifactPaths;
+      canonical: CityLaunchGtm72hArtifactPaths;
     };
     indoorLocationSupplyArtifacts: {
       run: {
@@ -355,6 +468,45 @@ function buildCanonicalCityOpeningArtifactPath(
   );
 }
 
+export function buildCityLaunchGtm72hArtifactPaths(
+  profile: CityLaunchProfile,
+  runDirectory: string,
+) {
+  const filePrefix = `city-launch-${profile.key}`;
+  const canonicalDirectory = path.join(REPO_ROOT, "ops/paperclip/playbooks");
+  const buildBase = (directory: string, suffix: string, extension = "md") =>
+    path.join(directory, `${filePrefix}-${suffix}.${extension}`);
+  const buildScorecards = (directory: string) =>
+    Object.fromEntries(
+      CITY_LAUNCH_GTM_CHECKPOINT_HOURS.map((hour) => [
+        `${hour}h`,
+        buildBase(directory, `scorecard-${hour}h`),
+      ]),
+    ) as Record<CityLaunchGtmScorecardPathKey, string>;
+
+  return {
+    run: {
+      contractJsonPath: buildBase(runDirectory, "gtm-72h-contract", "json"),
+      contractMarkdownPath: buildBase(runDirectory, "gtm-72h-contract"),
+      adStudioCreativeHandoffPath: buildBase(runDirectory, "ad-studio-creative-handoff"),
+      metaAdsReadinessPath: buildBase(runDirectory, "meta-ads-readiness"),
+      scorecardManifestPath: buildBase(runDirectory, "scorecard-windows", "json"),
+      scorecardPaths: buildScorecards(runDirectory),
+    },
+    canonical: {
+      contractJsonPath: buildBase(canonicalDirectory, "gtm-72h-contract", "json"),
+      contractMarkdownPath: buildBase(canonicalDirectory, "gtm-72h-contract"),
+      adStudioCreativeHandoffPath: buildBase(canonicalDirectory, "ad-studio-creative-handoff"),
+      metaAdsReadinessPath: buildBase(canonicalDirectory, "meta-ads-readiness"),
+      scorecardManifestPath: buildBase(canonicalDirectory, "scorecard-windows", "json"),
+      scorecardPaths: buildScorecards(canonicalDirectory),
+    },
+  } satisfies {
+    run: CityLaunchGtm72hArtifactPaths;
+    canonical: CityLaunchGtm72hArtifactPaths;
+  };
+}
+
 function normalizeComparableText(value: string | null | undefined) {
   return String(value || "")
     .trim()
@@ -388,6 +540,244 @@ type SeededCityOpeningExecution = {
 async function writeTextArtifact(filePath: string, content: string) {
   await fs.mkdir(path.dirname(filePath), { recursive: true });
   await fs.writeFile(filePath, content, "utf8");
+}
+
+function isoAfterHours(startedAtIso: string, hours: number) {
+  return new Date(new Date(startedAtIso).getTime() + hours * 60 * 60 * 1000).toISOString();
+}
+
+function renderEvidenceSourceRows() {
+  return CITY_LAUNCH_GTM_EVIDENCE_SOURCES.map((source) =>
+    `| ${source.collection} | ${source.query_name} | \`${source.query}\` | ${source.purpose} |`,
+  );
+}
+
+function buildCityLaunchGtm72hContract(input: {
+  profile: CityLaunchProfile;
+  startedAtIso: string;
+  launchRunId: string;
+  status: CityLaunchExecutionStatus;
+  budgetPolicy: CityLaunchBudgetPolicy;
+  founderApproved: boolean;
+  artifactPaths: {
+    run: CityLaunchGtm72hArtifactPaths;
+    canonical: CityLaunchGtm72hArtifactPaths;
+  };
+}) {
+  const scorecardWindows = CITY_LAUNCH_GTM_CHECKPOINT_HOURS.map((hour) => {
+    const key = `${hour}h` as CityLaunchGtmScorecardPathKey;
+    return {
+      checkpoint_hour: hour,
+      checkpoint_key: key,
+      status: "scheduled_not_due",
+      window_start_iso: input.startedAtIso,
+      window_end_iso: isoAfterHours(input.startedAtIso, hour),
+      run_artifact_path: input.artifactPaths.run.scorecardPaths[key],
+      canonical_artifact_path: input.artifactPaths.canonical.scorecardPaths[key],
+      query_names: CITY_LAUNCH_GTM_EVIDENCE_SOURCES.map((source) => source.query_name),
+      collection_names: CITY_LAUNCH_GTM_EVIDENCE_SOURCES.map((source) => source.collection),
+    };
+  });
+
+  return {
+    schema_version: "2026-05-06.city-launch-gtm-72h-contract.v1",
+    city: input.profile.city,
+    city_slug: input.profile.key,
+    launch_run_id: input.launchRunId,
+    status: input.status,
+    generated_at: new Date().toISOString(),
+    budget: {
+      tier: input.budgetPolicy.tier,
+      label: input.budgetPolicy.label,
+      max_total_approved_usd: input.budgetPolicy.maxTotalApprovedUsd,
+      operator_auto_approve_usd: input.budgetPolicy.operatorAutoApproveUsd,
+      allow_paid_acquisition: input.budgetPolicy.allowPaidAcquisition,
+      allow_referral_rewards: input.budgetPolicy.allowReferralRewards,
+      allow_travel_reimbursement: input.budgetPolicy.allowTravelReimbursement,
+      founder_approval_required_above_usd: input.budgetPolicy.founderApprovalRequiredAboveUsd,
+    },
+    founder_approved: input.founderApproved,
+    human_gates: [
+      "Founder approval is required for city posture.",
+      "Founder approval is required for the budget envelope.",
+      "Founder approval is required before any live buyer/operator/capturer send.",
+      "Founder approval is required before live paid spend.",
+      "Founder or designated rights/privacy approval is required for rights/privacy exceptions.",
+    ],
+    creative_ad_contract: {
+      ad_studio_collection: "ad_studio_runs",
+      meta_ads_cli_collection: "meta_ads_cli_runs",
+      generated_creative_boundary:
+        "Generated creative is marketing material, not ground truth, proof, rights clearance, supply readiness, or ad performance evidence.",
+      required_ad_studio_fields: [
+        "claims_ledger",
+        "review",
+        "prompt_pack",
+        "image_execution_handoff",
+        "video_task",
+        "meta_draft",
+      ],
+      image_handoff:
+        "Image work routes through Ad Studio/Paperclip/Codex handoff; no generated image may be treated as captured site evidence.",
+      video_handoff:
+        "Video/Higgsfield/OpenRouter handoff is optional and only valid when a proof-led first frame, provider auth, and claims review exist.",
+      meta_allowed_actions:
+        "Meta Ads CLI read-only proof and paused draft creation only; active campaigns, active ad sets, active ads, and live spend remain prohibited in this loop.",
+    },
+    scorecard_windows: scorecardWindows,
+    evidence_sources: CITY_LAUNCH_GTM_EVIDENCE_SOURCES,
+    artifact_paths: input.artifactPaths,
+  };
+}
+
+type CityLaunchGtm72hContract = ReturnType<typeof buildCityLaunchGtm72hContract>;
+
+function renderCityLaunchGtm72hContractMarkdown(contract: CityLaunchGtm72hContract) {
+  return [
+    `# ${contract.city} CITY+BUDGET 72h GTM Contract`,
+    "",
+    "- status: deterministic launch contract",
+    "- doctrine: capture-first, world-model-product-first, proof-led GTM only",
+    `- city: ${contract.city}`,
+    `- launch_run_id: ${contract.launch_run_id}`,
+    `- budget_tier: ${contract.budget.tier}`,
+    `- budget_max_usd: ${contract.budget.max_total_approved_usd}`,
+    `- founder_approved: ${contract.founder_approved}`,
+    "",
+    "## Human Gates",
+    ...contract.human_gates.map((gate) => `- ${gate}`),
+    "",
+    "## Creative And Paid Acquisition Boundary",
+    `- Ad Studio Firestore collection: \`${contract.creative_ad_contract.ad_studio_collection}\``,
+    `- Meta Ads CLI provenance collection: \`${contract.creative_ad_contract.meta_ads_cli_collection}\``,
+    `- ${contract.creative_ad_contract.generated_creative_boundary}`,
+    `- ${contract.creative_ad_contract.image_handoff}`,
+    `- ${contract.creative_ad_contract.video_handoff}`,
+    `- ${contract.creative_ad_contract.meta_allowed_actions}`,
+    "",
+    "## 24/48/72h Scorecard Windows",
+    "| Checkpoint | Status | Window end | Run artifact | Canonical artifact |",
+    "| --- | --- | --- | --- | --- |",
+    ...contract.scorecard_windows.map((window) =>
+      `| ${window.checkpoint_key} | ${window.status} | ${window.window_end_iso} | ${window.run_artifact_path} | ${window.canonical_artifact_path} |`,
+    ),
+    "",
+    "## Firestore/Admin Evidence Sources",
+    "| Collection | Query name | Query | Purpose |",
+    "| --- | --- | --- | --- |",
+    ...renderEvidenceSourceRows(),
+  ].join("\n");
+}
+
+function renderCityLaunchAdStudioCreativeHandoffMarkdown(input: {
+  profile: CityLaunchProfile;
+  contract: CityLaunchGtm72hContract;
+}) {
+  return [
+    `# ${input.profile.city} Ad Studio Claims And Creative Handoff`,
+    "",
+    "- status: task-seeded, not proof of generated assets or ad performance",
+    "- collection: `ad_studio_runs`",
+    "- owner_lane: `robot-team-growth-agent`",
+    "- human_gate: founder approval is required before live send or live spend; claims/rights/privacy exceptions stay human-gated.",
+    "",
+    "## Required Run Evidence",
+    "- `claims_ledger.allowedClaims` and `claims_ledger.blockedClaims` must be present.",
+    "- `review.status` must be `draft_safe` before any Meta draft work.",
+    "- `prompt_pack` must exist before image/video handoff.",
+    "- `image_execution_handoff` must name the Paperclip/Codex execution surface and model intent.",
+    "- `video_task` or Higgsfield handoff is optional and must name provider auth status and first-frame provenance when used.",
+    "- `meta_draft.provider=ads_cli` is preferred because `meta_ads_cli_runs` stores command provenance.",
+    "",
+    "## Evidence Boundary",
+    "Generated creative is marketing material, not ground truth.",
+    "Generated images and videos cannot substitute for capture provenance, rights clearance, proof-pack delivery, hosted-review evidence, recipient-backed sends, or ad performance.",
+    "",
+    "## Scorecard Linkage",
+    `- gtm_contract: ${input.contract.artifact_paths.run.contractMarkdownPath}`,
+    `- checkpoint_manifest: ${input.contract.artifact_paths.run.scorecardManifestPath}`,
+  ].join("\n");
+}
+
+function renderCityLaunchMetaAdsReadinessMarkdown(input: {
+  profile: CityLaunchProfile;
+  contract: CityLaunchGtm72hContract;
+}) {
+  return [
+    `# ${input.profile.city} Meta Ads Read-Only Proof And Paused Draft Gate`,
+    "",
+    "- status: provider-gated",
+    "- provenance_collection: `meta_ads_cli_runs`",
+    "- owner_lane: `robot-team-growth-agent`",
+    "- human_gate: founder approval is required before live paid spend.",
+    "",
+    "## Allowed",
+    "- Read-only account/page/campaign/insights proof through the Meta Ads CLI when `META_ADS_CLI_ENABLED=1` and account env is configured.",
+    "- Paused campaign/ad set/creative/ad draft creation only after Ad Studio claims review is `draft_safe`, destination/media/page/account/budget env is valid, and founder budget/live-spend approval is recorded.",
+    "",
+    "## Disallowed",
+    "- Do not create active campaigns, active ad sets, active ads, or live spend.",
+    "- Do not treat a paused draft, generated asset, or CLI proof as real ad performance.",
+    "- Do not bypass `meta_ads_cli_runs` provenance for the 72h city launch loop.",
+    "",
+    "## Required Scorecard Evidence",
+    `- ad_studio_runs query: ${CITY_LAUNCH_GTM_EVIDENCE_SOURCES.find((source) => source.collection === "ad_studio_runs")?.query || "missing"}`,
+    `- meta_ads_cli_runs query: ${CITY_LAUNCH_GTM_EVIDENCE_SOURCES.find((source) => source.collection === "meta_ads_cli_runs")?.query || "missing"}`,
+    `- gtm_contract: ${input.contract.artifact_paths.run.contractMarkdownPath}`,
+  ].join("\n");
+}
+
+function renderCityLaunchScorecardWindowMarkdown(input: {
+  profile: CityLaunchProfile;
+  contract: CityLaunchGtm72hContract;
+  checkpointHour: CityLaunchGtmCheckpointHour;
+}) {
+  const checkpoint = input.contract.scorecard_windows.find(
+    (window) => window.checkpoint_hour === input.checkpointHour,
+  );
+  return [
+    `# ${input.profile.city} ${input.checkpointHour}h City Launch Scorecard`,
+    "",
+    "- status: scheduled_not_due",
+    "- evidence_boundary: checkpoint placeholder only until the window closes and the first-party collections below are queried",
+    `- city: ${input.profile.city}`,
+    `- city_slug: ${input.profile.key}`,
+    `- launch_run_id: ${input.contract.launch_run_id}`,
+    `- checkpoint_hour: ${input.checkpointHour}`,
+    `- window_start_iso: ${checkpoint?.window_start_iso || "unknown"}`,
+    `- window_end_iso: ${checkpoint?.window_end_iso || "unknown"}`,
+    "",
+    "## Prompt-To-Artifact Contract",
+    "- canonical city launch plan and activation payload must be linked from the launch manifest.",
+    "- Paperclip root/child issue ids must be linked from `cityLaunchActivations` and the run manifest.",
+    "- Target ledger, distribution pack, recipient-backed send ledger, creative/ad handoff, founder decision packet, and reply-conversion queue must have exact artifact paths.",
+    "- Community/social publication tasks stay artifact-only unless a real connector and proof record exist.",
+    "- Meta Ads evidence is read-only proof and paused draft provenance only; no live spend is implied.",
+    "",
+    "## Firestore/Admin Collection And Query Names",
+    "| Collection | Query name | Query | Purpose |",
+    "| --- | --- | --- | --- |",
+    ...renderEvidenceSourceRows(),
+  ].join("\n");
+}
+
+function buildCityLaunchScorecardWindowManifest(contract: CityLaunchGtm72hContract) {
+  return {
+    schema_version: "2026-05-06.city-launch-scorecard-windows.v1",
+    city: contract.city,
+    city_slug: contract.city_slug,
+    launch_run_id: contract.launch_run_id,
+    generated_at: new Date().toISOString(),
+    status: "scheduled_not_due",
+    checkpoint_hours: CITY_LAUNCH_GTM_CHECKPOINT_HOURS,
+    scorecard_windows: contract.scorecard_windows,
+    evidence_sources: CITY_LAUNCH_GTM_EVIDENCE_SOURCES,
+    admin_routes: [
+      `/api/admin/leads/city-launch-scorecard?city=${encodeURIComponent(contract.city)}`,
+      "/api/admin/growth/meta-ads-cli/status",
+      "/api/admin/growth/ad-studio/runs",
+    ],
+  };
 }
 
 async function listSourceArtifacts(profile: CityLaunchProfile) {
@@ -953,7 +1343,7 @@ async function buildCityOpeningExecutionSeed(input: {
     ],
   });
   const buyerFirstSendApprovalState = "pending_first_send_approval";
-  const approvedApprovalState = "approved";
+  const directFirstSendApprovalState = "pending_first_send_approval";
   const directLaneStatus = "created";
   const directWarehouseSubject = `Blueprint ${input.profile.shortLabel} exact-site warehouse opening`;
   const directWarehouseBody = [
@@ -1051,7 +1441,7 @@ async function buildCityOpeningExecutionSeed(input: {
       accountLabel: `${input.profile.shortLabel} professional capturer outreach lane`,
       ownerAgent: "capturer-growth-agent",
       status: directLaneStatus,
-      approvalState: approvedApprovalState,
+      approvalState: directFirstSendApprovalState,
       notes: "Private controlled interiors stay on curated lawful-access posture.",
     },
     {
@@ -1147,7 +1537,7 @@ async function buildCityOpeningExecutionSeed(input: {
       emailSubject: professionalCapturerSubject,
       emailBody: professionalCapturerBody,
       status: "ready_to_send",
-      approvalState: approvedApprovalState,
+      approvalState: directFirstSendApprovalState,
       responseIngestState: "awaiting_response",
       issueId: input.taskIssueIds["supply-prospects"] || null,
       notes:
@@ -2029,6 +2419,56 @@ export function buildCityExecutionTasks(profile: CityLaunchProfile): CityLaunchT
       source: "default_task_bundle",
     },
     {
+      key: "ad-studio-creative-handoff",
+      phase: "demand",
+      title: `Prepare the ${profile.shortLabel} Ad Studio claims review and creative handoff`,
+      ownerLane: "robot-team-growth-agent",
+      humanLane: "growth-lead",
+      purpose: `Turn ${profile.shortLabel} proof-led positioning into draft-safe marketing assets without treating generated creative as captured site truth.`,
+      inputs: [
+        `${profile.shortLabel} city-opening brief`,
+        `${profile.shortLabel} exact-site buyer loop`,
+        "ad_studio_runs",
+        `${profile.shortLabel} 72h GTM contract`,
+      ],
+      dependencies: ["outbound-package", "city-opening-distribution"],
+      doneWhen: [
+        `${profile.shortLabel} Ad Studio run exists with a claims ledger, claims review, prompt pack, and image execution handoff.`,
+        "Generated images or videos are labeled as marketing creative and are never counted as capture provenance, rights clearance, supply readiness, or ad performance.",
+        "Video/Higgsfield/OpenRouter handoff is present only when provider auth, a proof-led first frame, and claims review support it.",
+      ],
+      humanGate:
+        "Founder approval is required before public posture changes, live send, live spend, or any rights/privacy exception; generated creative is draft-only until reviewed.",
+      metricsDependencies: [],
+      validationRequired: true,
+      source: "default_task_bundle",
+    },
+    {
+      key: "meta-paused-draft-readiness",
+      phase: "demand",
+      title: `Record ${profile.shortLabel} Meta Ads read-only proof and paused-draft readiness`,
+      ownerLane: "robot-team-growth-agent",
+      humanLane: "founder",
+      purpose: `Keep ${profile.shortLabel} paid-acquisition prep auditable without allowing active ads or live spend to happen by implication.`,
+      inputs: [
+        `${profile.shortLabel} Ad Studio run`,
+        "meta_ads_cli_runs",
+        `${profile.shortLabel} budget policy`,
+        `${profile.shortLabel} 72h GTM contract`,
+      ],
+      dependencies: ["ad-studio-creative-handoff"],
+      doneWhen: [
+        `${profile.shortLabel} Meta Ads CLI status/read-only proof is recorded or blocked with exact missing env/account fields.`,
+        "Paused campaign/ad set/creative/ad draft ids are recorded only when Ad Studio review is draft-safe and Meta policy/env allow paused draft creation.",
+        "No active campaign, active ad set, active ad, or live spend is created by the autonomous launch loop.",
+      ],
+      humanGate:
+        "Founder approval is required before live paid spend; missing Meta account/env/policy state must produce a blocker packet, not narrative completion.",
+      metricsDependencies: [],
+      validationRequired: true,
+      source: "default_task_bundle",
+    },
+    {
       key: "city-scorecard",
       phase: "measurement",
       title: `Publish the ${profile.shortLabel} launch scorecard and blocker view`,
@@ -2051,6 +2491,44 @@ export function buildCityExecutionTasks(profile: CityLaunchProfile): CityLaunchT
       doneWhen: [
         `${profile.shortLabel} scorecard reports supply and demand progress against the launch thresholds.`,
         "Missing instrumentation is surfaced as blocked instead of smoothed over.",
+      ],
+      humanGate: null,
+      metricsDependencies: [
+        "robot_team_inbound_captured",
+        "proof_path_assigned",
+        "proof_pack_delivered",
+        "hosted_review_ready",
+        "hosted_review_started",
+        "hosted_review_follow_up_sent",
+        "human_commercial_handoff_started",
+        "proof_motion_stalled",
+      ],
+      validationRequired: true,
+      source: "default_task_bundle",
+    },
+    {
+      key: "scorecard-window-24-48-72",
+      phase: "measurement",
+      title: `Persist the ${profile.shortLabel} 24/48/72h launch scorecard windows`,
+      ownerLane: "analytics-agent",
+      humanLane: "growth-lead",
+      purpose: `Make the ${profile.shortLabel} launch measurable at fixed 24h, 48h, and 72h checkpoints from first-party collections instead of relying on a current-only admin snapshot.`,
+      inputs: [
+        "growth_events",
+        "waitlistSubmissions",
+        "users",
+        "inboundRequests",
+        "cityLaunchSendActions",
+        "cityLaunchReplyConversions",
+        "ad_studio_runs",
+        "meta_ads_cli_runs",
+        `${profile.shortLabel} 72h GTM contract`,
+      ],
+      dependencies: ["city-scorecard", "ad-studio-creative-handoff", "meta-paused-draft-readiness"],
+      doneWhen: [
+        `${profile.shortLabel} 24h, 48h, and 72h scorecard artifact paths exist and name the exact Firestore/admin collection and query names used for each lane.`,
+        "Each checkpoint says whether it is scheduled, complete, or blocked; scheduled placeholders cannot be used as performance proof before the window closes.",
+        "Scorecards tie CITY+BUDGET, Paperclip issue ids, recipient-backed sends, creative/ad provenance, CTA/reply evidence, and blockers into one audit trail.",
       ],
       humanGate: null,
       metricsDependencies: [
@@ -2287,8 +2765,10 @@ function buildSystemDocMarkdown(input: {
     `3. Make city-opening distribution explicit through a city-opening brief, channel map, first-wave outreach/posting pack, exact CTA/intake routing, response tracking, reply-conversion cadence, channel registry, send ledger, exact-site buyer loop, and city-opening execution report so the city does not wait for replies from people who were never reached or lose the first replies once they arrive.`,
     `4. Materialize the live Paperclip issue tree for the city launch so work is routable instead of staying trapped in artifacts.`,
     `5. Measure the city through ${profile.shortLabel}-specific distribution, supply, demand, spend, and proof-motion metrics so operators can see whether the city is actually becoming operationally real.`,
-    `6. Treat the machine-readable activation payload as the control-plane artifact for validation blockers, lane mapping, and metrics readiness.`,
-    `7. After activation, every lane should execute all reversible work immediately and stop only at automatic policy blocks, external counterparty confirmations, or the lack of a real live signal needed to mark completion.`,
+    `6. Prepare proof-led Ad Studio creative, image/video handoff, and Meta Ads read-only/paused-draft evidence as marketing artifacts only, with no live spend or active ad mutation without founder approval.`,
+    `7. Persist 24h, 48h, and 72h scorecard windows that name exact Firestore/admin evidence sources instead of relying on narrative launch status.`,
+    `8. Treat the machine-readable activation payload as the control-plane artifact for validation blockers, lane mapping, and metrics readiness.`,
+    `9. After activation, every lane should execute all reversible work immediately and stop only at automatic policy blocks, external counterparty confirmations, or the lack of a real live signal needed to mark completion.`,
     "",
     "## Planning State",
     "",
@@ -2321,7 +2801,9 @@ function buildSystemDocMarkdown(input: {
     `- ${profile.shortLabel} ops packet: intake rubric, trust kit, first-capture thresholds, and launch-readiness checklist is a completion dependency, not a reason to leave execution lanes idle.`,
     `- At least one clean ${profile.shortLabel} proof pack with hosted-review path and rights/provenance clearance is required before claiming the city is live.`,
     `- ${profile.shortLabel} buyer target list and proof-led outbound package are completion requirements for launch quality, not start gates for agent work.`,
+    `- ${profile.shortLabel} Ad Studio claims review, generated-creative boundary, image/video handoff, Meta Ads read-only proof, and paused-draft gate must be recorded before any paid-acquisition readiness claim.`,
     `- ${profile.shortLabel} scorecard working from live repo truth sources is required before widening or health claims.`,
+    `- ${profile.shortLabel} 24h, 48h, and 72h scorecard window artifacts are required to claim the CITY+BUDGET loop is measurable.`,
     `- Machine-readable activation payload with validation blockers, issue seeds, named claims, and metrics dependencies remains the control-plane source of truth.`,
     "",
     "## Activation Payload Highlights",
@@ -2557,7 +3039,10 @@ function assessCityLaunchTaskExecution(task: CityLaunchTask): {
     case "no-signal-city-opening-coherence":
     case "no-signal-capturer-source-recovery":
     case "no-signal-marketing-campaign-mock-pack":
+    case "ad-studio-creative-handoff":
+    case "meta-paused-draft-readiness":
     case "city-scorecard":
+    case "scorecard-window-24-48-72":
     case "notion-breadcrumbs":
     case "switch-on-review":
       return {
@@ -3047,6 +3532,7 @@ export async function runCityLaunchExecutionHarness(input: {
   budgetTier?: CityLaunchBudgetTier;
   budgetMaxUsd?: number;
   operatorAutoApproveUsd?: number;
+  windowHours?: string | number | null;
   dispatchIssues?: boolean;
   rewakeTaskKeys?: string[];
   rewakeOwnerLanes?: string[];
@@ -3056,6 +3542,7 @@ export async function runCityLaunchExecutionHarness(input: {
     maxTotalApprovedUsd: input.budgetMaxUsd,
     operatorAutoApproveUsd: input.operatorAutoApproveUsd,
   });
+  const windowHours = resolveCityLaunchWindowHours(input.windowHours);
   const profile = resolveCityLaunchProfile(input.city, budgetPolicy.tier);
   const autonomousActivation = input.founderApproved === true;
   const status: CityLaunchExecutionStatus = autonomousActivation
@@ -3093,6 +3580,7 @@ export async function runCityLaunchExecutionHarness(input: {
   const indoorLocationSupplyRejectedPath = path.join(runDirectory, `city-launch-${profile.key}-indoor-location-supply-rejected.json`);
   const indoorLocationSupplyEvidenceLogPath = path.join(runDirectory, `city-launch-${profile.key}-indoor-location-supply-evidence-log.json`);
   const indoorLocationSupplyReportPath = path.join(runDirectory, `city-launch-${profile.key}-indoor-location-supply-report.md`);
+  const gtm72hArtifactPaths = buildCityLaunchGtm72hArtifactPaths(profile, runDirectory);
   const researchMaterializationPath = path.join(
     runDirectory,
     `city-launch-research-materialization-${profile.key}.json`,
@@ -3191,6 +3679,7 @@ export async function runCityLaunchExecutionHarness(input: {
           citySlug: profile.key,
           status,
           founderApproved: autonomousActivation,
+          windowHours,
           startedAt: startedAt.toISOString(),
           reportsRoot,
           runDirectory,
@@ -3231,6 +3720,7 @@ export async function runCityLaunchExecutionHarness(input: {
     metadata: {
       budgetTier: budgetPolicy.tier,
       founderApproved: autonomousActivation,
+      windowHours,
     },
   }).catch(() => null);
 
@@ -3453,6 +3943,61 @@ export async function runCityLaunchExecutionHarness(input: {
     );
     await writeTextArtifact(canonicalIndoorLocationSupplyReportPath, indoorLocationSupplyArtifacts.report);
 
+    const gtm72hContract = buildCityLaunchGtm72hContract({
+      profile,
+      startedAtIso: startedAt.toISOString(),
+      launchRunId: runTimestamp,
+      status,
+      budgetPolicy,
+      founderApproved: autonomousActivation,
+      artifactPaths: gtm72hArtifactPaths,
+    });
+    const gtm72hContractMarkdown = renderCityLaunchGtm72hContractMarkdown(gtm72hContract);
+    const adStudioCreativeHandoff = renderCityLaunchAdStudioCreativeHandoffMarkdown({
+      profile,
+      contract: gtm72hContract,
+    });
+    const metaAdsReadiness = renderCityLaunchMetaAdsReadinessMarkdown({
+      profile,
+      contract: gtm72hContract,
+    });
+    const scorecardWindowManifest = buildCityLaunchScorecardWindowManifest(gtm72hContract);
+    await writeTextArtifact(
+      gtm72hArtifactPaths.run.contractJsonPath,
+      JSON.stringify(gtm72hContract, null, 2),
+    );
+    await writeTextArtifact(gtm72hArtifactPaths.run.contractMarkdownPath, gtm72hContractMarkdown);
+    await writeTextArtifact(gtm72hArtifactPaths.run.adStudioCreativeHandoffPath, adStudioCreativeHandoff);
+    await writeTextArtifact(gtm72hArtifactPaths.run.metaAdsReadinessPath, metaAdsReadiness);
+    await writeTextArtifact(
+      gtm72hArtifactPaths.run.scorecardManifestPath,
+      JSON.stringify(scorecardWindowManifest, null, 2),
+    );
+    await writeTextArtifact(
+      gtm72hArtifactPaths.canonical.contractJsonPath,
+      JSON.stringify(gtm72hContract, null, 2),
+    );
+    await writeTextArtifact(gtm72hArtifactPaths.canonical.contractMarkdownPath, gtm72hContractMarkdown);
+    await writeTextArtifact(
+      gtm72hArtifactPaths.canonical.adStudioCreativeHandoffPath,
+      adStudioCreativeHandoff,
+    );
+    await writeTextArtifact(gtm72hArtifactPaths.canonical.metaAdsReadinessPath, metaAdsReadiness);
+    await writeTextArtifact(
+      gtm72hArtifactPaths.canonical.scorecardManifestPath,
+      JSON.stringify(scorecardWindowManifest, null, 2),
+    );
+    for (const checkpointHour of CITY_LAUNCH_GTM_CHECKPOINT_HOURS) {
+      const key = `${checkpointHour}h` as CityLaunchGtmScorecardPathKey;
+      const checkpointMarkdown = renderCityLaunchScorecardWindowMarkdown({
+        profile,
+        contract: gtm72hContract,
+        checkpointHour,
+      });
+      await writeTextArtifact(gtm72hArtifactPaths.run.scorecardPaths[key], checkpointMarkdown);
+      await writeTextArtifact(gtm72hArtifactPaths.canonical.scorecardPaths[key], checkpointMarkdown);
+    }
+
     const sourceArtifacts = await listSourceArtifacts(profile);
     if (completedResearch?.activationPayload) {
       sourceArtifacts.push({
@@ -3480,6 +4025,12 @@ export async function runCityLaunchExecutionHarness(input: {
       canonicalIndoorLocationSupplyRejectedPath,
       canonicalIndoorLocationSupplyEvidenceLogPath,
       canonicalIndoorLocationSupplyReportPath,
+      gtm72hArtifactPaths.canonical.contractJsonPath,
+      gtm72hArtifactPaths.canonical.contractMarkdownPath,
+      gtm72hArtifactPaths.canonical.adStudioCreativeHandoffPath,
+      gtm72hArtifactPaths.canonical.metaAdsReadinessPath,
+      gtm72hArtifactPaths.canonical.scorecardManifestPath,
+      ...Object.values(gtm72hArtifactPaths.canonical.scorecardPaths),
     ]) {
       sourceArtifacts.push({
         relativePath: path.relative(REPO_ROOT, artifactPath).replaceAll(path.sep, "/"),
@@ -3508,6 +4059,15 @@ export async function runCityLaunchExecutionHarness(input: {
       city_slug: profile.key,
       source_activation_payload_path:
         completedResearch?.activationPayload ? canonicalActivationPayloadPath : null,
+      gtm_72h_contract: {
+        contract_path: gtm72hArtifactPaths.canonical.contractMarkdownPath,
+        contract_json_path: gtm72hArtifactPaths.canonical.contractJsonPath,
+        ad_studio_creative_handoff_path:
+          gtm72hArtifactPaths.canonical.adStudioCreativeHandoffPath,
+        meta_ads_readiness_path: gtm72hArtifactPaths.canonical.metaAdsReadinessPath,
+        scorecard_manifest_path: gtm72hArtifactPaths.canonical.scorecardManifestPath,
+        scorecard_paths: gtm72hArtifactPaths.canonical.scorecardPaths,
+      },
       launch_surface_coverage:
         completedResearch?.activationPayload?.launchSurfaceCoverage?.map((entry) => ({
           surface_key: entry.surfaceKey,
@@ -3580,6 +4140,7 @@ export async function runCityLaunchExecutionHarness(input: {
       status,
       budgetTier: budgetPolicy.tier,
       budgetPolicy,
+      windowHours,
       startedAt: startedAt.toISOString(),
       completedAt: new Date().toISOString(),
       activationStatus: autonomousActivation ? "activation_ready" : "planning",
@@ -3642,6 +4203,7 @@ export async function runCityLaunchExecutionHarness(input: {
             buyerLoopPath: canonicalCityOpeningBuyerLoopPath,
           },
         },
+        gtm72hArtifactPack: gtm72hArtifactPaths,
         indoorLocationSupplyArtifacts: {
           run: {
             supplyPath: indoorLocationSupplyPath,
@@ -3777,7 +4339,11 @@ export async function runCityLaunchExecutionHarness(input: {
     });
     result.outboundReadiness = seededOutboundReadiness;
 
-    if (autonomousActivation && seededOutboundReadiness.status !== "blocked") {
+    if (
+      autonomousActivation
+      && seededOutboundReadiness.status !== "blocked"
+      && seededOutboundReadiness.directOutreachActions.readyToSend > 0
+    ) {
       result.sendExecution = await executeCityLaunchSends({
         city: profile.city,
       }).catch((error) => ({
@@ -3795,11 +4361,18 @@ export async function runCityLaunchExecutionHarness(input: {
         city: profile.city,
         totalEligible: seededOutboundReadiness.directOutreachActions.readyToSend,
         sent: 0,
-        skippedApproval: 0,
+        skippedApproval: seededOutboundReadiness.directOutreachActions.approvalNeeded,
         skippedNoRecipient: 0,
         skippedAlreadySent: 0,
         failed: 0,
-        errors: [...seededOutboundReadiness.blockers],
+        errors: [
+          ...seededOutboundReadiness.blockers,
+          ...seededOutboundReadiness.warnings,
+          ...(seededOutboundReadiness.directOutreachActions.readyToSend === 0
+            && seededOutboundReadiness.directOutreachActions.approvalNeeded > 0
+            ? ["No live city-launch direct outreach was sent; all recipient-backed first sends are waiting for founder approval."]
+            : []),
+        ],
       };
     }
 

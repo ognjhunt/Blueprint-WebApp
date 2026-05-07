@@ -6,6 +6,7 @@ import type { Server } from "node:http";
 
 const state = vi.hoisted(() => ({
   stripeAccount: {
+    livemode: false,
     details_submitted: true,
     payouts_enabled: true,
     settings: { payouts: { schedule: { interval: "manual" } } },
@@ -31,9 +32,12 @@ const state = vi.hoisted(() => ({
 }));
 
 vi.mock("../constants/stripe", () => ({
+  STRIPE_CURRENT_PROVIDER: "stripe",
+  STRIPE_LIVE_PAYOUT_EXECUTION_ENABLED: false,
+  isStripeLivePayoutExecutionEnabled: () => false,
   STRIPE_ONBOARDING_REFRESH_URL: "https://tryblueprint.io/refresh",
   STRIPE_ONBOARDING_RETURN_URL: "https://tryblueprint.io/return",
-  getStripeConnectAccountId: () => "acct_live_blueprint",
+  getStripeConnectAccountId: () => "acct_mock_contract",
   stripeConnectAccountConfigured: true,
   stripeClient: {
     accounts: {
@@ -86,6 +90,7 @@ async function stopServer(server: Server) {
 
 afterEach(() => {
   state.stripeAccount = {
+    livemode: false,
     details_submitted: true,
     payouts_enabled: true,
     settings: { payouts: { schedule: { interval: "manual" } } },
@@ -114,6 +119,7 @@ afterEach(() => {
 describe("stripe native parity routes", () => {
   it("returns Stripe verification requirements for native payout readiness", async () => {
     state.stripeAccount = {
+      livemode: false,
       details_submitted: true,
       payouts_enabled: false,
       settings: { payouts: { schedule: { interval: "manual" } } },
@@ -142,6 +148,11 @@ describe("stripe native parity routes", () => {
       await expect(response.json()).resolves.toMatchObject({
         onboarding_complete: true,
         payouts_enabled: false,
+        provider_state_checked: true,
+        provider_mode: "test",
+        contract_provider_ready: false,
+        live_provider_ready: false,
+        live_payout_execution_enabled: false,
         requirements_due: [
           "individual.verification.document",
           "individual.ssn_last_4",
@@ -176,7 +187,7 @@ describe("stripe native parity routes", () => {
       const { stripeClient } = await import("../constants/stripe");
       expect(stripeClient?.accountLinks.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          account: "acct_live_blueprint",
+          account: "acct_mock_contract",
           type: "account_onboarding",
           collection_options: {
             fields: "eventually_due",
@@ -203,7 +214,7 @@ describe("stripe native parity routes", () => {
         bank_name: "Mercury",
         last4: "6789",
         account_holder_name: "Blueprint Capture",
-        stripe_account_id: "acct_live_blueprint",
+        stripe_account_id: "acct_mock_contract",
       });
     } finally {
       await stopServer(server);
@@ -214,7 +225,7 @@ describe("stripe native parity routes", () => {
     const { server, baseUrl } = await startServer();
     try {
       const response = await fetch(
-        `${baseUrl}/v1/stripe/accounts/acct_live_blueprint`,
+        `${baseUrl}/v1/stripe/accounts/acct_mock_contract`,
         {
           method: "DELETE",
           headers: {
@@ -225,7 +236,7 @@ describe("stripe native parity routes", () => {
 
       expect(response.status).toBe(200);
       expect(state.deleteExternalAccount).toHaveBeenCalledWith(
-        "acct_live_blueprint",
+        "acct_mock_contract",
         "ba_123",
       );
     } finally {

@@ -17,6 +17,8 @@ const createPaperclipIssueComment = vi.hoisted(() => vi.fn());
 const resetPaperclipAgentSession = vi.hoisted(() => vi.fn());
 const wakePaperclipAgent = vi.hoisted(() => vi.fn());
 const runCityLaunchExecutionHarness = vi.hoisted(() => vi.fn());
+const writeCityLaunchCreativeAdsEvidence = vi.hoisted(() => vi.fn());
+const runCityLaunchPlanningHarness = vi.hoisted(() => vi.fn());
 const getHumanReplyGmailDurabilityStatus = vi.hoisted(() => vi.fn());
 const listHumanReplyGmailMessages = vi.hoisted(() => vi.fn());
 
@@ -54,6 +56,14 @@ vi.mock("../utils/cityLaunchExecutionHarness", () => ({
   runCityLaunchExecutionHarness,
 }));
 
+vi.mock("../utils/cityLaunchCreativeAdsEvidence", () => ({
+  writeCityLaunchCreativeAdsEvidence,
+}));
+
+vi.mock("../utils/cityLaunchPlanningHarness", () => ({
+  runCityLaunchPlanningHarness,
+}));
+
 vi.mock("../utils/human-reply-gmail", () => ({
   getHumanReplyGmailDurabilityStatus,
   listHumanReplyGmailMessages,
@@ -76,6 +86,8 @@ afterEach(() => {
   resetPaperclipAgentSession.mockReset();
   wakePaperclipAgent.mockReset();
   runCityLaunchExecutionHarness.mockReset();
+  writeCityLaunchCreativeAdsEvidence.mockReset();
+  runCityLaunchPlanningHarness.mockReset();
   getHumanReplyGmailDurabilityStatus.mockReset();
   listHumanReplyGmailMessages.mockReset();
   vi.resetModules();
@@ -320,6 +332,7 @@ describe("human reply worker", () => {
             budgetTier: "low_budget",
             budgetMaxUsd: 2500,
             operatorAutoApproveUsd: 500,
+            windowHours: 72,
           },
         },
       },
@@ -336,6 +349,14 @@ describe("human reply worker", () => {
       paperclip: {
         rootIssueId: "root-1",
         dispatched: [],
+      },
+    });
+    writeCityLaunchCreativeAdsEvidence.mockResolvedValue({
+      status: "ready",
+      blockers: [],
+      artifacts: {
+        jsonPath: "/tmp/chicago-creative-ads.json",
+        markdownPath: "/tmp/chicago-creative-ads.md",
       },
     });
 
@@ -355,6 +376,16 @@ describe("human reply worker", () => {
       budgetTier: "low_budget",
       budgetMaxUsd: 2500,
       operatorAutoApproveUsd: 500,
+      windowHours: 72,
+    });
+    expect(writeCityLaunchCreativeAdsEvidence).toHaveBeenCalledWith({
+      city: "Chicago, IL",
+      budgetTier: "low_budget",
+      budgetMaxUsd: 2500,
+      windowHours: 72,
+      runMetaReadOnly: true,
+      founderApprovedPausedDraft: false,
+      launchId: "root-1",
     });
     expect(approveAction).not.toHaveBeenCalled();
     expect(wakePaperclipAgent).not.toHaveBeenCalled();
@@ -364,6 +395,169 @@ describe("human reply worker", () => {
     expect(result).toMatchObject({
       processed: true,
       blocker_id: "city-launch-approval-chicago-il-123",
+      resolution: "resolved_input",
+    });
+  });
+
+  it("keeps city-launch approval resume blocked when creative/ad evidence cannot close", async () => {
+    resolveHumanBlockerAwaitingReply.mockResolvedValue(true);
+    listOpenHumanBlockerThreads.mockResolvedValue([
+      {
+        blocker_id: "city-launch-approval-durham-nc",
+        title: "Durham, NC City Launch Approval",
+        blocker_kind: "ops_commercial",
+        routing_owner: "blueprint-chief-of-staff",
+        execution_owner: "city-launch-agent",
+        escalation_owner: null,
+        approved_identity: "ohstnhunt@gmail.com",
+        record_of_truth: {
+          report_paths: [],
+          paperclip_issue_id: null,
+          ops_work_item_id: null,
+        },
+        correlation: {
+          blocker_id: "city-launch-approval-durham-nc",
+          outbound_subject:
+            "[Blueprint Blocker] [Blueprint Blocker ID: city-launch-approval-durham-nc] Durham, NC City Launch Approval",
+        },
+        resume_action: {
+          kind: "city_launch_activate",
+          description: "Activate Durham after approval.",
+          metadata: {
+            city: "Durham, NC",
+            budgetTier: "lean",
+            budgetMaxUsd: 2500,
+            operatorAutoApproveUsd: 500,
+            windowHours: 72,
+          },
+        },
+      },
+    ]);
+    getHumanReplyEvent.mockResolvedValue(null);
+    recordHumanReplyEvent.mockResolvedValue({
+      id: "email:msg-creative-blocked",
+    });
+    recordExternalGapReport.mockResolvedValue({
+      stable_id: "human_reply:city-launch-approval-durham-nc",
+    });
+    runCityLaunchExecutionHarness.mockResolvedValue({
+      city: "Durham, NC",
+      paperclip: {
+        rootIssueId: "root-durham",
+        dispatched: [],
+      },
+    });
+    writeCityLaunchCreativeAdsEvidence.mockResolvedValue({
+      status: "blocked",
+      blockers: ["Meta Ads CLI env missing"],
+      artifacts: {
+        jsonPath: "/tmp/durham-creative-ads.json",
+        markdownPath: "/tmp/durham-creative-ads.md",
+      },
+    });
+
+    const { ingestHumanReplyPayload } = await import("../utils/human-reply-worker");
+    const result = await ingestHumanReplyPayload({
+      channel: "email",
+      external_message_id: "msg-creative-blocked",
+      subject:
+        "[Blueprint Blocker] [Blueprint Blocker ID: city-launch-approval-durham-nc] Durham, NC City Launch Approval",
+      body: "APPROVE",
+      received_at: "2026-05-06T18:45:00.000Z",
+    });
+
+    expect(runCityLaunchExecutionHarness).toHaveBeenCalledWith({
+      city: "Durham, NC",
+      founderApproved: true,
+      budgetTier: "lean",
+      budgetMaxUsd: 2500,
+      operatorAutoApproveUsd: 500,
+      windowHours: 72,
+    });
+    expect(noteHumanReplyThreadBlocker).toHaveBeenCalledWith({
+      blocker_id: "city-launch-approval-durham-nc",
+      reason: expect.stringContaining("City launch creative/ad evidence blocked"),
+    });
+    expect(resolveHumanBlockerAwaitingReply).not.toHaveBeenCalledWith(
+      "city-launch-approval-durham-nc",
+    );
+    expect(result).toMatchObject({
+      processed: true,
+      blocker_id: "city-launch-approval-durham-nc",
+      auto_resume_error: expect.stringContaining("Meta Ads CLI env missing"),
+    });
+  });
+
+  it("reruns city-launch planning when a Deep Research blocker reply confirms access", async () => {
+    resolveHumanBlockerAwaitingReply.mockResolvedValue(true);
+    listOpenHumanBlockerThreads.mockResolvedValue([
+      {
+        blocker_id: "city-launch-deep-research-boise-id",
+        title: "Boise, ID City Launch Deep Research Access",
+        blocker_kind: "ops_commercial",
+        routing_owner: "blueprint-chief-of-staff",
+        execution_owner: "city-launch-agent",
+        escalation_owner: null,
+        approved_identity: "ohstnhunt@gmail.com",
+        record_of_truth: {
+          report_paths: [
+            "/tmp/city-launch-execution/boise-id/deep-research-blocker-packet.md",
+          ],
+          paperclip_issue_id: null,
+          ops_work_item_id: null,
+        },
+        correlation: {
+          blocker_id: "city-launch-deep-research-boise-id",
+          outbound_subject:
+            "[Blueprint Blocker] [Blueprint Blocker ID: city-launch-deep-research-boise-id] Boise, ID City Launch Deep Research Access",
+        },
+        resume_action: {
+          kind: "city_launch_plan",
+          description: "Run the Deep Research planning phase for Boise, ID.",
+          metadata: {
+            city: "Boise, ID",
+            budgetTier: "lean",
+            budgetMaxUsd: 2500,
+            operatorAutoApproveUsd: 500,
+          },
+        },
+      },
+    ]);
+    getHumanReplyEvent.mockResolvedValue(null);
+    recordHumanReplyEvent.mockResolvedValue({
+      id: "email:msg-4",
+    });
+    recordExternalGapReport.mockResolvedValue({
+      stable_id: "human_reply:city-launch-deep-research-boise-id",
+    });
+    runCityLaunchPlanningHarness.mockResolvedValue({
+      city: "Boise, ID",
+    });
+
+    const { ingestHumanReplyPayload } = await import("../utils/human-reply-worker");
+    const result = await ingestHumanReplyPayload({
+      channel: "email",
+      external_message_id: "msg-4",
+      subject:
+        "[Blueprint Blocker] [Blueprint Blocker ID: city-launch-deep-research-boise-id] Boise, ID City Launch Deep Research Access",
+      body: "I configured the Gemini key and redeployed.",
+      received_at: "2026-05-06T16:30:00.000Z",
+    });
+
+    expect(runCityLaunchPlanningHarness).toHaveBeenCalledWith({
+      city: "Boise, ID",
+      budgetTier: "lean",
+      budgetMaxUsd: 2500,
+      operatorAutoApproveUsd: 500,
+      windowHours: 72,
+    });
+    expect(runCityLaunchExecutionHarness).not.toHaveBeenCalled();
+    expect(resolveHumanBlockerAwaitingReply).toHaveBeenCalledWith(
+      "city-launch-deep-research-boise-id",
+    );
+    expect(result).toMatchObject({
+      processed: true,
+      blocker_id: "city-launch-deep-research-boise-id",
       resolution: "resolved_input",
     });
   });

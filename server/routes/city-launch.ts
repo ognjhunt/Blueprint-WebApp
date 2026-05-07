@@ -16,7 +16,10 @@ import {
   readCityLaunchActivation,
   summarizeCityLaunchLedgers,
 } from "../utils/cityLaunchLedgers";
-import { buildCityLaunchBudgetPolicy, type CityLaunchBudgetTier } from "../utils/cityLaunchPolicy";
+import {
+  buildCityLaunchBudgetPolicy,
+  CITY_LAUNCH_BUDGET_TIER_VALUES,
+} from "../utils/cityLaunchPolicy";
 import verifyFirebaseToken from "../middleware/verifyFirebaseToken";
 import { requireAdminRole } from "../middleware/requireAdminRole";
 
@@ -36,7 +39,7 @@ const approveSendSchema = z.object({
 
 const dispatchApprovalSchema = z.object({
   city: z.string().trim().min(1),
-  budgetTier: z.enum(["zero_budget", "low_budget", "funded"]).optional(),
+  budgetTier: z.enum(CITY_LAUNCH_BUDGET_TIER_VALUES).optional(),
   budgetMaxUsd: z.number().min(0).optional(),
   operatorAutoApproveUsd: z.number().min(0).optional(),
 });

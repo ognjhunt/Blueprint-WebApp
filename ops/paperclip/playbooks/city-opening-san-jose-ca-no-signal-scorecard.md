@@ -1,7 +1,7 @@
 # San Jose, CA City-Opening No-Signal Scorecard
 
 - status: not_triggered
-- evaluated_at: 2026-05-05T00:20:13.017Z
+- evaluated_at: 2026-05-07T15:37:06.029Z
 - trigger_rule: no positive applicant/capturer/reply/operator signal after 3 days or 2 sent direct-outreach actions
 
 ## Outcome Counters

@@ -2,19 +2,30 @@
 import { describe, expect, it, vi } from "vitest";
 
 const getHumanBlockerThread = vi.hoisted(() => vi.fn());
+const dispatchHumanBlocker = vi.hoisted(() => vi.fn());
 
 vi.mock("../utils/human-reply-store", () => ({
   getHumanBlockerThread,
 }));
 
+vi.mock("../utils/human-blocker-dispatch", () => ({
+  dispatchHumanBlocker,
+}));
+
 import {
   buildCityLaunchFounderApprovalPacket,
+  dispatchCityLaunchFounderApprovalBlocker,
   getCityLaunchFounderApprovalBlockerId,
   isCityLaunchFounderApprovalResolved,
   resolveCityLaunchFounderApprovalFromDurableState,
 } from "../utils/cityLaunchFounderApproval";
 
 describe("city launch founder approval helpers", () => {
+  afterEach(() => {
+    dispatchHumanBlocker.mockReset();
+    getHumanBlockerThread.mockReset();
+  });
+
   it("uses a stable blocker id per city", () => {
     expect(getCityLaunchFounderApprovalBlockerId("San Jose, CA", "zero_budget")).toBe(
       "city-launch-approval-san-jose-ca",
@@ -72,6 +83,7 @@ describe("city launch founder approval helpers", () => {
 
     expect(packet.blockerId).toBe("city-launch-approval-san-jose-ca");
     expect(packet.resumeAction?.kind).toBe("city_launch_activate");
+    expect(packet.resumeAction?.metadata?.windowHours).toBe(72);
     expect(packet.executionOwner).toBe("city-launch-agent");
     expect(packet.evidence.length).toBeGreaterThan(0);
     expect(packet.exactResponseNeeded).toContain("Reply APPROVE");
@@ -98,5 +110,69 @@ describe("city launch founder approval helpers", () => {
     });
 
     expect(result.founderApproved).toBe(false);
+  });
+
+  it("queues a review-required founder approval blocker for durable reply correlation", async () => {
+    dispatchHumanBlocker.mockResolvedValue({
+      blocker_id: "city-launch-approval-san-jose-ca",
+      dispatch_id: "dispatch-approval-1",
+      delivery_mode: "review_required",
+      delivery_status: "awaiting_review",
+      email_sent: false,
+      slack_sent: false,
+      thread: {
+        id: "city-launch-approval-san-jose-ca",
+      },
+    });
+    const packet = buildCityLaunchFounderApprovalPacket({
+      city: "San Jose, CA",
+      budgetPolicy: {
+        tier: "lean",
+        label: "Lean",
+        maxTotalApprovedUsd: 2500,
+        operatorAutoApproveUsd: 500,
+        allowPaidAcquisition: true,
+        allowReferralRewards: false,
+        allowTravelReimbursement: true,
+        founderApprovalRequiredAboveUsd: 2500,
+        founderApprovalTriggers: [],
+        operatorLane: "growth-lead",
+      },
+    });
+
+    const result = await dispatchCityLaunchFounderApprovalBlocker({
+      packet,
+      packetPath: "/tmp/founder-decision-packet.md",
+      deliveryMode: "review_required",
+    });
+
+    expect(result).toMatchObject({
+      queued: true,
+      blockerId: "city-launch-approval-san-jose-ca",
+      dispatchId: "dispatch-approval-1",
+      deliveryMode: "review_required",
+      deliveryStatus: "awaiting_review",
+      emailSent: false,
+      slackSent: false,
+      threadId: "city-launch-approval-san-jose-ca",
+      error: null,
+    });
+    expect(dispatchHumanBlocker).toHaveBeenCalledWith(
+      expect.objectContaining({
+        delivery_mode: "review_required",
+        blocker_kind: "ops_commercial",
+        routing_owner: "blueprint-chief-of-staff",
+        execution_owner: "city-launch-agent",
+        sender_owner: "city-launch-agent",
+        mirror_to_slack: false,
+        packet: expect.objectContaining({
+          blockerId: "city-launch-approval-san-jose-ca",
+          resumeAction: expect.objectContaining({
+            kind: "city_launch_activate",
+          }),
+        }),
+        report_paths: ["/tmp/founder-decision-packet.md"],
+      }),
+    );
   });
 });

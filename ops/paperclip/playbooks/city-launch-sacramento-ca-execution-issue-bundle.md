@@ -484,6 +484,50 @@ This issue bundle turns the Sacramento playbook into executable lanes using the 
   - At least one live Sacramento city-opening response is moved through the queue into qualification, operator/buyer handoff, blocked-with-reason, or explicit no-fit / closed-lost outcome.
   - Live responses do not sit unowned after landing; each one has an explicit next step and cadence state.
 
+## Prepare the Sacramento Ad Studio claims review and creative handoff
+
+- key: ad-studio-creative-handoff
+- phase: demand
+- agent owner: robot-team-growth-agent
+- human owner: growth-lead
+- purpose: Turn Sacramento proof-led positioning into draft-safe marketing assets without treating generated creative as captured site truth.
+- policy_guardrail: Founder approval is required before public posture changes, live send, live spend, or any rights/privacy exception; generated creative is draft-only until reviewed.
+- dependencies: outbound-package, city-opening-distribution
+- metrics dependencies: none
+- validation required: true
+- source: default_task_bundle
+- inputs:
+  - Sacramento city-opening brief
+  - Sacramento exact-site buyer loop
+  - ad_studio_runs
+  - Sacramento 72h GTM contract
+- done when:
+  - Sacramento Ad Studio run exists with a claims ledger, claims review, prompt pack, and image execution handoff.
+  - Generated images or videos are labeled as marketing creative and are never counted as capture provenance, rights clearance, supply readiness, or ad performance.
+  - Video/Higgsfield/OpenRouter handoff is present only when provider auth, a proof-led first frame, and claims review support it.
+
+## Record Sacramento Meta Ads read-only proof and paused-draft readiness
+
+- key: meta-paused-draft-readiness
+- phase: demand
+- agent owner: robot-team-growth-agent
+- human owner: founder
+- purpose: Keep Sacramento paid-acquisition prep auditable without allowing active ads or live spend to happen by implication.
+- policy_guardrail: Founder approval is required before live paid spend; missing Meta account/env/policy state must produce a blocker packet, not narrative completion.
+- dependencies: ad-studio-creative-handoff
+- metrics dependencies: none
+- validation required: true
+- source: default_task_bundle
+- inputs:
+  - Sacramento Ad Studio run
+  - meta_ads_cli_runs
+  - Sacramento budget policy
+  - Sacramento 72h GTM contract
+- done when:
+  - Sacramento Meta Ads CLI status/read-only proof is recorded or blocked with exact missing env/account fields.
+  - Paused campaign/ad set/creative/ad draft ids are recorded only when Ad Studio review is draft-safe and Meta policy/env allow paused draft creation.
+  - No active campaign, active ad set, active ad, or live spend is created by the autonomous launch loop.
+
 ## Publish the Sacramento launch scorecard and blocker view
 
 - key: city-scorecard
@@ -504,6 +548,33 @@ This issue bundle turns the Sacramento playbook into executable lanes using the 
 - done when:
   - Sacramento scorecard reports supply and demand progress against the launch thresholds.
   - Missing instrumentation is surfaced as blocked instead of smoothed over.
+
+## Persist the Sacramento 24/48/72h launch scorecard windows
+
+- key: scorecard-window-24-48-72
+- phase: measurement
+- agent owner: analytics-agent
+- human owner: growth-lead
+- purpose: Make the Sacramento launch measurable at fixed 24h, 48h, and 72h checkpoints from first-party collections instead of relying on a current-only admin snapshot.
+- policy_guardrail: none
+- dependencies: city-scorecard, ad-studio-creative-handoff, meta-paused-draft-readiness
+- metrics dependencies: robot_team_inbound_captured, proof_path_assigned, proof_pack_delivered, hosted_review_ready, hosted_review_started, hosted_review_follow_up_sent, human_commercial_handoff_started, proof_motion_stalled
+- validation required: true
+- source: default_task_bundle
+- inputs:
+  - growth_events
+  - waitlistSubmissions
+  - users
+  - inboundRequests
+  - cityLaunchSendActions
+  - cityLaunchReplyConversions
+  - ad_studio_runs
+  - meta_ads_cli_runs
+  - Sacramento 72h GTM contract
+- done when:
+  - Sacramento 24h, 48h, and 72h scorecard artifact paths exist and name the exact Firestore/admin collection and query names used for each lane.
+  - Each checkpoint says whether it is scheduled, complete, or blocked; scheduled placeholders cannot be used as performance proof before the window closes.
+  - Scorecards tie CITY+BUDGET, Paperclip issue ids, recipient-backed sends, creative/ad provenance, CTA/reply evidence, and blockers into one audit trail.
 
 ## Mirror Sacramento execution artifacts into Notion Knowledge and Work Queue
 

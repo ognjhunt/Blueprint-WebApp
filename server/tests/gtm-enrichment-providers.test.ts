@@ -5,6 +5,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ExactSiteGtmPilotLedger } from "../utils/exactSiteHostedReviewGtmPilot";
 import {
+  buildHumanRecipientEvidenceTemplate,
   createGovernedPublicContactProvider,
   runGtmEnrichmentWaterfall,
   validateHumanRecipientEvidenceFile,
@@ -64,6 +65,24 @@ afterEach(async () => {
 });
 
 describe("GTM enrichment waterfall", () => {
+  it("builds an unselected recipient-evidence template without inventing contact data", () => {
+    const result = buildHumanRecipientEvidenceTemplate({
+      ledger: ledger(),
+      ledgerPath: "ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json",
+    });
+
+    expect(result.schema).toBe("blueprint/gtm-human-recipient-evidence-template/v1");
+    expect(result.recipients).toHaveLength(1);
+    expect(result.recipients[0]).toMatchObject({
+      targetId: "target-1",
+      organizationName: "Robot Team",
+      email: null,
+      evidenceSource: null,
+      selectedForFirstSend: false,
+    });
+    expect(result.instructions.join("\n")).toContain("Do not infer or guess email addresses");
+  });
+
   it("records provider runs and selects a recipient only from normalized evidence", async () => {
     const provider: GtmEnrichmentProvider = {
       key: "repo_artifact",

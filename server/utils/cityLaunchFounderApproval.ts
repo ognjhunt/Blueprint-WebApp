@@ -1,7 +1,9 @@
 import { renderHumanBlockerPacketText, type HumanBlockerPacket } from "./human-blocker-packet";
+import type { HumanBlockerDeliveryMode } from "./human-blocker-dispatch";
 import { getHumanBlockerThread, type HumanBlockerThreadRecord } from "./human-reply-store";
 import type { CityLaunchBudgetPolicy, CityLaunchBudgetTier } from "./cityLaunchPolicy";
 import { resolveCityLaunchProfile, type CityLaunchProfile } from "./cityLaunchProfiles";
+import { CITY_LAUNCH_WINDOW_HOURS } from "./cityLaunchRunControl";
 
 function buildFounderSpendApproval(
   profile: CityLaunchProfile,
@@ -86,6 +88,7 @@ export function buildCityLaunchFounderApprovalPacket(input: {
         budgetTier: input.budgetPolicy.tier,
         budgetMaxUsd: input.budgetPolicy.maxTotalApprovedUsd,
         operatorAutoApproveUsd: input.budgetPolicy.operatorAutoApproveUsd,
+        windowHours: CITY_LAUNCH_WINDOW_HOURS,
       },
     },
   };
@@ -96,6 +99,72 @@ export function renderCityLaunchFounderApprovalArtifact(input: {
   budgetPolicy: CityLaunchBudgetPolicy;
 }) {
   return renderHumanBlockerPacketText(buildCityLaunchFounderApprovalPacket(input));
+}
+
+export type CityLaunchFounderApprovalHumanBlockerDeliveryMode =
+  | Extract<HumanBlockerDeliveryMode, "review_required" | "send_now">
+  | "none";
+
+export type CityLaunchFounderApprovalHumanBlockerDispatch = {
+  queued: boolean;
+  blockerId: string;
+  dispatchId: string | null;
+  deliveryMode: HumanBlockerDeliveryMode | null;
+  deliveryStatus: string | null;
+  emailSent: boolean;
+  slackSent: boolean;
+  threadId: string | null;
+  error: string | null;
+};
+
+export async function dispatchCityLaunchFounderApprovalBlocker(input: {
+  packet: HumanBlockerPacket;
+  packetPath: string;
+  deliveryMode?: CityLaunchFounderApprovalHumanBlockerDeliveryMode | null;
+}): Promise<CityLaunchFounderApprovalHumanBlockerDispatch | null> {
+  const deliveryMode = input.deliveryMode || "review_required";
+  if (deliveryMode === "none") {
+    return null;
+  }
+
+  const blockerId = input.packet.blockerId || "";
+  try {
+    const { dispatchHumanBlocker } = await import("./human-blocker-dispatch");
+    const dispatch = await dispatchHumanBlocker({
+      delivery_mode: deliveryMode,
+      blocker_kind: "ops_commercial",
+      routing_owner: "blueprint-chief-of-staff",
+      execution_owner: "city-launch-agent",
+      sender_owner: "city-launch-agent",
+      mirror_to_slack: deliveryMode === "send_now",
+      packet: input.packet,
+      report_paths: [input.packetPath],
+    });
+
+    return {
+      queued: true,
+      blockerId: dispatch.blocker_id || blockerId,
+      dispatchId: dispatch.dispatch_id || null,
+      deliveryMode: dispatch.delivery_mode || deliveryMode,
+      deliveryStatus: dispatch.delivery_status || null,
+      emailSent: dispatch.email_sent === true,
+      slackSent: dispatch.slack_sent === true,
+      threadId: dispatch.thread?.id || dispatch.blocker_id || blockerId || null,
+      error: null,
+    };
+  } catch (error) {
+    return {
+      queued: false,
+      blockerId,
+      dispatchId: null,
+      deliveryMode,
+      deliveryStatus: "failed",
+      emailSent: false,
+      slackSent: false,
+      threadId: null,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
 }
 
 export function isCityLaunchFounderApprovalResolved(

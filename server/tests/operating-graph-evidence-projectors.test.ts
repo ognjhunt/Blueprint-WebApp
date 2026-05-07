@@ -99,8 +99,15 @@ describe("operating graph evidence projectors", () => {
     expect(result.projectedEventCount).toBe(2);
     expect(result.projectedEntityCount).toBe(1);
     expect(result.skipped).toEqual([
-      { id: "capture-missing-city", reason: "missing_city_context" },
+      expect.objectContaining({
+        id: "capture-missing-city",
+        reason: "missing_city_context",
+        sourceRef: "capture_submissions/capture-missing-city",
+        requiredFields: expect.arrayContaining(["city_context.city", "city_context.city_slug"]),
+        nextAction: expect.stringContaining("do not infer city"),
+      }),
     ]);
+    expect(result.skippedSummary).toEqual({ missing_city_context: 1 });
     expect(appendOperatingGraphEvent).toHaveBeenCalledWith(
       expect.objectContaining({
         entityType: "capture_run",

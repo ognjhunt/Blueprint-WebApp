@@ -10,8 +10,8 @@ import { editorialGeneratedAssets } from "@/lib/editorialGeneratedAssets";
 
 const reviewCards = [
   {
-    title: "Book the call",
-    body: "A narrow scoping pass on one real site, one workflow, and one deployment question.",
+    title: "Submit the site first",
+    body: "Structured intake records the site, workflow, robot setup, and first question before a calendar link becomes useful.",
   },
   {
     title: "What to bring",
@@ -47,10 +47,10 @@ export default function BookExactSiteReview() {
                 <div className="flex h-full max-w-[34rem] flex-col justify-end">
                 <EditorialSectionLabel>Book the call</EditorialSectionLabel>
                 <h1 className="font-editorial mt-6 text-[3.7rem] leading-[0.9] tracking-[-0.06em] sm:text-[5rem]">
-                  Book an exact-site scoping call.
+                  Start with exact-site intake.
                 </h1>
                 <p className="mt-6 text-base leading-8 text-slate-700">
-                  Use this page when one real site, one workflow, and one deployment question are ready for a focused scoping pass.
+                  Use this page when one real site, one workflow, and one deployment question are ready. Submit the site context first; book only when the scope is concrete enough for a focused call.
                 </p>
                 </div>
               </div>
@@ -99,10 +99,16 @@ export default function BookExactSiteReview() {
                 Open the scheduler when the site and first review question are already clear. Use contact instead when rights, privacy, or scope still need sorting first.
               </p>
               <a
+                href="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=book-exact-site-review"
+                className="mt-8 inline-flex items-center justify-center bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
+              >
+                Submit site review intake
+              </a>
+              <a
                 href={exactSiteScopingCallUrl}
                 target="_blank"
                 rel="noreferrer noopener"
-                className="mt-8 inline-flex items-center justify-center bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
+                className="mt-3 inline-flex items-center justify-center border border-white/15 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
               >
                 Open scheduling
               </a>
@@ -117,10 +123,10 @@ export default function BookExactSiteReview() {
             description="If you still need public proof first, inspect the listing or the hosted-review page before opening a time slot."
             imageSrc={editorialGeneratedAssets.scopingRoom}
             imageAlt="Scoping room"
-            primaryHref={exactSiteScopingCallUrl}
-            primaryLabel="Book the call"
-            secondaryHref="/exact-site-hosted-review"
-            secondaryLabel="What a good scoping call resolves"
+            primaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=book-exact-site-review-bottom"
+            primaryLabel="Submit site review intake"
+            secondaryHref={exactSiteScopingCallUrl}
+            secondaryLabel="Book only if scope is concrete"
             dark={false}
           />
         </section>

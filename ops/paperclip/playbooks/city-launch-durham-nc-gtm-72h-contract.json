@@ -1,0 +1,291 @@
+{
+  "schema_version": "2026-05-06.city-launch-gtm-72h-contract.v1",
+  "city": "Durham, NC",
+  "city_slug": "durham-nc",
+  "launch_run_id": "2026-05-07T15-37-06.208Z",
+  "status": "founder_approved_activation_ready",
+  "generated_at": "2026-05-07T15:37:06.257Z",
+  "budget": {
+    "tier": "zero_budget",
+    "label": "Zero Budget",
+    "max_total_approved_usd": 0,
+    "operator_auto_approve_usd": 0,
+    "allow_paid_acquisition": false,
+    "allow_referral_rewards": false,
+    "allow_travel_reimbursement": false,
+    "founder_approval_required_above_usd": 0
+  },
+  "founder_approved": true,
+  "human_gates": [
+    "Founder approval is required for city posture.",
+    "Founder approval is required for the budget envelope.",
+    "Founder approval is required before any live buyer/operator/capturer send.",
+    "Founder approval is required before live paid spend.",
+    "Founder or designated rights/privacy approval is required for rights/privacy exceptions."
+  ],
+  "creative_ad_contract": {
+    "ad_studio_collection": "ad_studio_runs",
+    "meta_ads_cli_collection": "meta_ads_cli_runs",
+    "generated_creative_boundary": "Generated creative is marketing material, not ground truth, proof, rights clearance, supply readiness, or ad performance evidence.",
+    "required_ad_studio_fields": [
+      "claims_ledger",
+      "review",
+      "prompt_pack",
+      "image_execution_handoff",
+      "video_task",
+      "meta_draft"
+    ],
+    "image_handoff": "Image work routes through Ad Studio/Paperclip/Codex handoff; no generated image may be treated as captured site evidence.",
+    "video_handoff": "Video/Higgsfield/OpenRouter handoff is optional and only valid when a proof-led first frame, provider auth, and claims review exist.",
+    "meta_allowed_actions": "Meta Ads CLI read-only proof and paused draft creation only; active campaigns, active ad sets, active ads, and live spend remain prohibited in this loop."
+  },
+  "scorecard_windows": [
+    {
+      "checkpoint_hour": 24,
+      "checkpoint_key": "24h",
+      "status": "scheduled_not_due",
+      "window_start_iso": "2026-05-07T15:37:06.208Z",
+      "window_end_iso": "2026-05-08T15:37:06.208Z",
+      "run_artifact_path": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/no-signal-city-launch-harness-ZU5Cg4/durham-nc/2026-05-07T15-37-06.208Z/city-launch-durham-nc-scorecard-24h.md",
+      "canonical_artifact_path": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-scorecard-24h.md",
+      "query_names": [
+        "city_launch_growth_events_recent",
+        "city_capturer_waitlist_recent",
+        "city_capturer_users_recent",
+        "city_inbound_requests_recent",
+        "city_launch_activation_doc",
+        "city_launch_prospects_by_city",
+        "city_launch_buyer_targets_by_city",
+        "city_launch_touches_by_city",
+        "city_launch_channel_accounts_by_city",
+        "city_launch_send_actions_by_city",
+        "city_launch_reply_conversions_by_city",
+        "city_launch_budget_events_by_city",
+        "city_launch_agent_spend_requests",
+        "city_launch_ad_studio_runs",
+        "city_launch_meta_ads_cli_runs"
+      ],
+      "collection_names": [
+        "growth_events",
+        "waitlistSubmissions",
+        "users",
+        "inboundRequests",
+        "cityLaunchActivations",
+        "cityLaunchProspects",
+        "cityLaunchBuyerTargets",
+        "cityLaunchTouches",
+        "cityLaunchChannelAccounts",
+        "cityLaunchSendActions",
+        "cityLaunchReplyConversions",
+        "cityLaunchBudgetEvents",
+        "agentSpendRequests",
+        "ad_studio_runs",
+        "meta_ads_cli_runs"
+      ]
+    },
+    {
+      "checkpoint_hour": 48,
+      "checkpoint_key": "48h",
+      "status": "scheduled_not_due",
+      "window_start_iso": "2026-05-07T15:37:06.208Z",
+      "window_end_iso": "2026-05-09T15:37:06.208Z",
+      "run_artifact_path": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/no-signal-city-launch-harness-ZU5Cg4/durham-nc/2026-05-07T15-37-06.208Z/city-launch-durham-nc-scorecard-48h.md",
+      "canonical_artifact_path": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-scorecard-48h.md",
+      "query_names": [
+        "city_launch_growth_events_recent",
+        "city_capturer_waitlist_recent",
+        "city_capturer_users_recent",
+        "city_inbound_requests_recent",
+        "city_launch_activation_doc",
+        "city_launch_prospects_by_city",
+        "city_launch_buyer_targets_by_city",
+        "city_launch_touches_by_city",
+        "city_launch_channel_accounts_by_city",
+        "city_launch_send_actions_by_city",
+        "city_launch_reply_conversions_by_city",
+        "city_launch_budget_events_by_city",
+        "city_launch_agent_spend_requests",
+        "city_launch_ad_studio_runs",
+        "city_launch_meta_ads_cli_runs"
+      ],
+      "collection_names": [
+        "growth_events",
+        "waitlistSubmissions",
+        "users",
+        "inboundRequests",
+        "cityLaunchActivations",
+        "cityLaunchProspects",
+        "cityLaunchBuyerTargets",
+        "cityLaunchTouches",
+        "cityLaunchChannelAccounts",
+        "cityLaunchSendActions",
+        "cityLaunchReplyConversions",
+        "cityLaunchBudgetEvents",
+        "agentSpendRequests",
+        "ad_studio_runs",
+        "meta_ads_cli_runs"
+      ]
+    },
+    {
+      "checkpoint_hour": 72,
+      "checkpoint_key": "72h",
+      "status": "scheduled_not_due",
+      "window_start_iso": "2026-05-07T15:37:06.208Z",
+      "window_end_iso": "2026-05-10T15:37:06.208Z",
+      "run_artifact_path": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/no-signal-city-launch-harness-ZU5Cg4/durham-nc/2026-05-07T15-37-06.208Z/city-launch-durham-nc-scorecard-72h.md",
+      "canonical_artifact_path": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-scorecard-72h.md",
+      "query_names": [
+        "city_launch_growth_events_recent",
+        "city_capturer_waitlist_recent",
+        "city_capturer_users_recent",
+        "city_inbound_requests_recent",
+        "city_launch_activation_doc",
+        "city_launch_prospects_by_city",
+        "city_launch_buyer_targets_by_city",
+        "city_launch_touches_by_city",
+        "city_launch_channel_accounts_by_city",
+        "city_launch_send_actions_by_city",
+        "city_launch_reply_conversions_by_city",
+        "city_launch_budget_events_by_city",
+        "city_launch_agent_spend_requests",
+        "city_launch_ad_studio_runs",
+        "city_launch_meta_ads_cli_runs"
+      ],
+      "collection_names": [
+        "growth_events",
+        "waitlistSubmissions",
+        "users",
+        "inboundRequests",
+        "cityLaunchActivations",
+        "cityLaunchProspects",
+        "cityLaunchBuyerTargets",
+        "cityLaunchTouches",
+        "cityLaunchChannelAccounts",
+        "cityLaunchSendActions",
+        "cityLaunchReplyConversions",
+        "cityLaunchBudgetEvents",
+        "agentSpendRequests",
+        "ad_studio_runs",
+        "meta_ads_cli_runs"
+      ]
+    }
+  ],
+  "evidence_sources": [
+    {
+      "collection": "growth_events",
+      "query_name": "city_launch_growth_events_recent",
+      "query": "collection(\"growth_events\").orderBy(\"created_at\", \"desc\").limit(4000)",
+      "purpose": "CTA, hosted-review, proof-motion, follow-up, stall, and demand response events filtered to the city."
+    },
+    {
+      "collection": "waitlistSubmissions",
+      "query_name": "city_capturer_waitlist_recent",
+      "query": "collection(\"waitlistSubmissions\").limit(1500)",
+      "purpose": "Capturer signups and market/source tags for the city supply lane."
+    },
+    {
+      "collection": "users",
+      "query_name": "city_capturer_users_recent",
+      "query": "collection(\"users\").limit(2000)",
+      "purpose": "Approved capturer, first-capture, and QA-passed capture evidence for the city."
+    },
+    {
+      "collection": "inboundRequests",
+      "query_name": "city_inbound_requests_recent",
+      "query": "collection(\"inboundRequests\").limit(1500) + decryptInboundRequestForAdmin",
+      "purpose": "Waitlist, CTA response, exact-site request, proof-pack, hosted-review, and buyer reply evidence."
+    },
+    {
+      "collection": "cityLaunchActivations",
+      "query_name": "city_launch_activation_doc",
+      "query": "collection(\"cityLaunchActivations\").doc(citySlug)",
+      "purpose": "Founder approval, root issue id, budget tier, task issue ids, and activation status."
+    },
+    {
+      "collection": "cityLaunchProspects",
+      "query_name": "city_launch_prospects_by_city",
+      "query": "collection(\"cityLaunchProspects\").where(\"citySlug\", \"==\", citySlug).limit(1000)",
+      "purpose": "Target discovery, capturer/operator prospect status, and supply follow-through."
+    },
+    {
+      "collection": "cityLaunchBuyerTargets",
+      "query_name": "city_launch_buyer_targets_by_city",
+      "query": "collection(\"cityLaunchBuyerTargets\").where(\"citySlug\", \"==\", citySlug).limit(1000)",
+      "purpose": "Buyer/site-operator target research and proof-path status."
+    },
+    {
+      "collection": "cityLaunchTouches",
+      "query_name": "city_launch_touches_by_city",
+      "query": "collection(\"cityLaunchTouches\").where(\"citySlug\", \"==\", citySlug).limit(1000)",
+      "purpose": "Recipient-backed first touches, Meta draft touches, and proof-led outreach evidence."
+    },
+    {
+      "collection": "cityLaunchChannelAccounts",
+      "query_name": "city_launch_channel_accounts_by_city",
+      "query": "collection(\"cityLaunchChannelAccounts\").where(\"citySlug\", \"==\", citySlug).limit(1000)",
+      "purpose": "Channel registry state for direct outreach and artifact-only community/social publication lanes."
+    },
+    {
+      "collection": "cityLaunchSendActions",
+      "query_name": "city_launch_send_actions_by_city",
+      "query": "collection(\"cityLaunchSendActions\").where(\"citySlug\", \"==\", citySlug).limit(1000)",
+      "purpose": "Recipient-backed direct outreach ledger, no-fake-email checks, approval state, sent state, and response ingest state."
+    },
+    {
+      "collection": "cityLaunchReplyConversions",
+      "query_name": "city_launch_reply_conversions_by_city",
+      "query": "collection(\"cityLaunchReplyConversions\").where(\"citySlug\", \"==\", citySlug).limit(1000)",
+      "purpose": "Reply ownership, routing, next follow-up due state, and conversion blockers."
+    },
+    {
+      "collection": "cityLaunchBudgetEvents",
+      "query_name": "city_launch_budget_events_by_city",
+      "query": "collection(\"cityLaunchBudgetEvents\").where(\"citySlug\", \"==\", citySlug).limit(1000)",
+      "purpose": "Actual/recommended spend ledger and policy compliance."
+    },
+    {
+      "collection": "agentSpendRequests",
+      "query_name": "city_launch_agent_spend_requests",
+      "query": "collection(\"agentSpendRequests\").where(\"citySlug\", \"==\", citySlug).limit(1000)",
+      "purpose": "Founder/provider approval state for budget, creative, paid acquisition, and other agent spend requests."
+    },
+    {
+      "collection": "ad_studio_runs",
+      "query_name": "city_launch_ad_studio_runs",
+      "query": "collection(\"ad_studio_runs\").where(\"city\", \"==\", city).orderBy(\"updated_at_iso\", \"desc\").limit(100)",
+      "purpose": "Claims ledger, claims review, prompt pack, image handoff, video task, and Meta draft linkage."
+    },
+    {
+      "collection": "meta_ads_cli_runs",
+      "query_name": "city_launch_meta_ads_cli_runs",
+      "query": "collection(\"meta_ads_cli_runs\").where(\"city\", \"==\", city).orderBy(\"createdAtIso\", \"desc\").limit(100)",
+      "purpose": "Meta Ads CLI read-only proof, paused-draft command provenance, and policy-blocked errors."
+    }
+  ],
+  "artifact_paths": {
+    "run": {
+      "contractJsonPath": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/no-signal-city-launch-harness-ZU5Cg4/durham-nc/2026-05-07T15-37-06.208Z/city-launch-durham-nc-gtm-72h-contract.json",
+      "contractMarkdownPath": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/no-signal-city-launch-harness-ZU5Cg4/durham-nc/2026-05-07T15-37-06.208Z/city-launch-durham-nc-gtm-72h-contract.md",
+      "adStudioCreativeHandoffPath": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/no-signal-city-launch-harness-ZU5Cg4/durham-nc/2026-05-07T15-37-06.208Z/city-launch-durham-nc-ad-studio-creative-handoff.md",
+      "metaAdsReadinessPath": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/no-signal-city-launch-harness-ZU5Cg4/durham-nc/2026-05-07T15-37-06.208Z/city-launch-durham-nc-meta-ads-readiness.md",
+      "scorecardManifestPath": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/no-signal-city-launch-harness-ZU5Cg4/durham-nc/2026-05-07T15-37-06.208Z/city-launch-durham-nc-scorecard-windows.json",
+      "scorecardPaths": {
+        "24h": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/no-signal-city-launch-harness-ZU5Cg4/durham-nc/2026-05-07T15-37-06.208Z/city-launch-durham-nc-scorecard-24h.md",
+        "48h": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/no-signal-city-launch-harness-ZU5Cg4/durham-nc/2026-05-07T15-37-06.208Z/city-launch-durham-nc-scorecard-48h.md",
+        "72h": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/no-signal-city-launch-harness-ZU5Cg4/durham-nc/2026-05-07T15-37-06.208Z/city-launch-durham-nc-scorecard-72h.md"
+      }
+    },
+    "canonical": {
+      "contractJsonPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-gtm-72h-contract.json",
+      "contractMarkdownPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-gtm-72h-contract.md",
+      "adStudioCreativeHandoffPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-ad-studio-creative-handoff.md",
+      "metaAdsReadinessPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-meta-ads-readiness.md",
+      "scorecardManifestPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-scorecard-windows.json",
+      "scorecardPaths": {
+        "24h": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-scorecard-24h.md",
+        "48h": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-scorecard-48h.md",
+        "72h": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-scorecard-72h.md"
+      }
+    }
+  }
+}

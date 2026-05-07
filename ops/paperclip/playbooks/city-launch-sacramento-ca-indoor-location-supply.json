@@ -1,0 +1,12 @@
+{
+  "schema_version": "2026-04-25.indoor-location-supply.v1",
+  "city": "Sacramento, CA",
+  "city_slug": "sacramento-ca",
+  "generated_at": "2026-05-07T15:38:08.650Z",
+  "status": "awaiting_capturer_growth_agent_location_supply",
+  "source_activation_payload": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-sacramento-ca-activation-payload.json",
+  "delegation_task_key": "public-commercial-community-sourcing",
+  "evidence_boundary": "Placeholder blocker artifact only; no location is approved, rights-cleared, payable, or derived-world-model-ready until evidence review passes.",
+  "accepted_candidates": [],
+  "blocker_behavior": "capturer-growth-agent must run indoor public-location supply sourcing and seed review-only candidates with evidence before this lane can close."
+}

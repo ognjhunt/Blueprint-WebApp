@@ -26,8 +26,10 @@ Turn the San Jose planning artifacts into an executable company harness that run
 3. Make city-opening distribution explicit through a city-opening brief, channel map, first-wave outreach/posting pack, exact CTA/intake routing, response tracking, reply-conversion cadence, channel registry, send ledger, exact-site buyer loop, and city-opening execution report so the city does not wait for replies from people who were never reached or lose the first replies once they arrive.
 4. Materialize the live Paperclip issue tree for the city launch so work is routable instead of staying trapped in artifacts.
 5. Measure the city through San Jose-specific distribution, supply, demand, spend, and proof-motion metrics so operators can see whether the city is actually becoming operationally real.
-6. Treat the machine-readable activation payload as the control-plane artifact for validation blockers, lane mapping, and metrics readiness.
-7. After activation, every lane should execute all reversible work immediately and stop only at automatic policy blocks, external counterparty confirmations, or the lack of a real live signal needed to mark completion.
+6. Prepare proof-led Ad Studio creative, image/video handoff, and Meta Ads read-only/paused-draft evidence as marketing artifacts only, with no live spend or active ad mutation without founder approval.
+7. Persist 24h, 48h, and 72h scorecard windows that name exact Firestore/admin evidence sources instead of relying on narrative launch status.
+8. Treat the machine-readable activation payload as the control-plane artifact for validation blockers, lane mapping, and metrics readiness.
+9. After activation, every lane should execute all reversible work immediately and stop only at automatic policy blocks, external counterparty confirmations, or the lack of a real live signal needed to mark completion.
 
 ## Planning State
 
@@ -76,7 +78,9 @@ Turn the San Jose planning artifacts into an executable company harness that run
 - San Jose ops packet: intake rubric, trust kit, first-capture thresholds, and launch-readiness checklist is a completion dependency, not a reason to leave execution lanes idle.
 - At least one clean San Jose proof pack with hosted-review path and rights/provenance clearance is required before claiming the city is live.
 - San Jose buyer target list and proof-led outbound package are completion requirements for launch quality, not start gates for agent work.
+- San Jose Ad Studio claims review, generated-creative boundary, image/video handoff, Meta Ads read-only proof, and paused-draft gate must be recorded before any paid-acquisition readiness claim.
 - San Jose scorecard working from live repo truth sources is required before widening or health claims.
+- San Jose 24h, 48h, and 72h scorecard window artifacts are required to claim the CITY+BUDGET loop is measurable.
 - Machine-readable activation payload with validation blockers, issue seeds, named claims, and metrics dependencies remains the control-plane source of truth.
 
 ## Activation Payload Highlights
@@ -89,9 +93,9 @@ Turn the San Jose planning artifacts into an executable company harness that run
 
 ## Launch Surface Coverage
 
-| Surface | Owner | Artifact | Gate |
-|---|---|---|---|
-| validation_required | city-launch-agent | activation payload missing launch_surface_coverage | refresh the city deep-research playbook with the current harness |
+| Surface | Owner | Human lane | Artifact | Gate | Blocker behavior |
+|---|---|---|---|---|---|
+| validation_required | city-launch-agent | growth-lead | activation payload missing launch_surface_coverage | refresh the city deep-research playbook with the current harness | blocked |
 
 ## Metrics Blockers
 
@@ -144,7 +148,10 @@ Turn the San Jose planning artifacts into an executable company harness that run
 - Keep San Jose buyer threads inside standard commercial handling: revenue-ops-pricing-agent owns execution, Designated human commercial owner is the human lane, and the task closes only when Standard San Jose quote bands, discount guardrails, and handoff thresholds are documented and used..
 - Publish San Jose city-opening response tracking: analytics-agent owns execution, Growth Lead is the human lane, and the task closes only when San Jose response-tracking view shows which warehouse/facility channels and which public-commercial community channels were activated, with asset or message attribution where available..
 - Run the San Jose city-opening reply-conversion and follow-up cadence lane: city-launch-agent owns execution, Growth Lead is the human lane, and the task closes only when San Jose reply-conversion queue exists with each live response tagged by responder type, channel, current status, next owner, next follow-up due, and downstream handoff target..
+- Prepare the San Jose Ad Studio claims review and creative handoff: robot-team-growth-agent owns execution, Growth Lead is the human lane, and the task closes only when San Jose Ad Studio run exists with a claims ledger, claims review, prompt pack, and image execution handoff..
+- Record San Jose Meta Ads read-only proof and paused-draft readiness: robot-team-growth-agent owns execution, Founder is the human lane, and the task closes only when San Jose Meta Ads CLI status/read-only proof is recorded or blocked with exact missing env/account fields..
 - Publish the San Jose launch scorecard and blocker view: analytics-agent owns execution, Growth Lead is the human lane, and the task closes only when San Jose scorecard reports supply and demand progress against the launch thresholds..
+- Persist the San Jose 24/48/72h launch scorecard windows: analytics-agent owns execution, Growth Lead is the human lane, and the task closes only when San Jose 24h, 48h, and 72h scorecard artifact paths exist and name the exact Firestore/admin collection and query names used for each lane..
 - Mirror San Jose execution artifacts into Notion Knowledge and Work Queue: notion-manager-agent owns execution, Chief of Staff is the human lane, and the task closes only when San Jose execution system doc is mirrored into Notion Knowledge..
 - Run the San Jose switch-on review before activation: beta-launch-commander owns execution, CTO is the human lane, and the task closes only when San Jose switch-on review returns GO, CONDITIONAL GO, or HOLD with evidence..
 
@@ -203,6 +210,18 @@ Turn the San Jose planning artifacts into an executable company harness that run
 - ops/paperclip/playbooks/city-opening-san-jose-ca-no-signal-scorecard.md
 - ops/paperclip/playbooks/city-opening-san-jose-ca-robot-team-contact-list.md
 - ops/paperclip/playbooks/city-opening-san-jose-ca-site-operator-contact-list.md
+- ops/paperclip/playbooks/city-launch-san-jose-ca-indoor-location-supply.json
+- ops/paperclip/playbooks/city-launch-san-jose-ca-indoor-location-supply-rejected.json
+- ops/paperclip/playbooks/city-launch-san-jose-ca-indoor-location-supply-evidence-log.json
+- ops/paperclip/playbooks/city-launch-san-jose-ca-indoor-location-supply-report.md
+- ops/paperclip/playbooks/city-launch-san-jose-ca-gtm-72h-contract.json
+- ops/paperclip/playbooks/city-launch-san-jose-ca-gtm-72h-contract.md
+- ops/paperclip/playbooks/city-launch-san-jose-ca-ad-studio-creative-handoff.md
+- ops/paperclip/playbooks/city-launch-san-jose-ca-meta-ads-readiness.md
+- ops/paperclip/playbooks/city-launch-san-jose-ca-scorecard-windows.json
+- ops/paperclip/playbooks/city-launch-san-jose-ca-scorecard-24h.md
+- ops/paperclip/playbooks/city-launch-san-jose-ca-scorecard-48h.md
+- ops/paperclip/playbooks/city-launch-san-jose-ca-scorecard-72h.md
 
 ## Determination
 

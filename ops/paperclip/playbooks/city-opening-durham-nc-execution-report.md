@@ -22,4 +22,4 @@
 - direct_outreach_ready_to_send: 0
 - direct_outreach_founder_approval_needed: 0
 - email_transport_configured: true
-- city_launch_sender: launches@tryblueprint.io
+- city_launch_sender: missing

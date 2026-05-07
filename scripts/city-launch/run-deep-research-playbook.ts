@@ -4,6 +4,12 @@ import {
   runCityLaunchPlanningHarness,
   slugifyCityName,
 } from "../../server/utils/cityLaunchPlanningHarness";
+import {
+  resolveCityLaunchCityInput,
+  resolveCityLaunchFounderBudgetMaxUsdInput,
+  resolveCityLaunchFounderBudgetTierInput,
+  resolveCityLaunchWindowHours,
+} from "../../server/utils/cityLaunchRunControl";
 
 function getFlagValue(args: string[], flag: string) {
   const index = args.indexOf(flag);
@@ -42,7 +48,9 @@ async function main() {
       );
     }
 
-    const city = getFlagValue(args, "--city") || "city-launch";
+    const city = resolveCityLaunchCityInput(
+      getFlagValue(args, "--city") ?? process.env.CITY,
+    );
     const reportsRoot =
       getFlagValue(args, "--reports-root")
       || path.resolve(
@@ -84,10 +92,18 @@ async function main() {
     return;
   }
 
-  const city = getFlagValue(args, "--city");
-  if (!city) {
-    throw new Error("Run mode requires --city \"City, ST\".");
-  }
+  const city = resolveCityLaunchCityInput(
+    getFlagValue(args, "--city") ?? process.env.CITY,
+  );
+  const budgetTier = resolveCityLaunchFounderBudgetTierInput(
+    getFlagValue(args, "--budget-tier") ?? process.env.BUDGET_TIER,
+  );
+  const budgetMaxUsd = resolveCityLaunchFounderBudgetMaxUsdInput(
+    getFlagValue(args, "--budget-max-usd") ?? process.env.BUDGET_MAX_USD,
+  );
+  const windowHours = resolveCityLaunchWindowHours(
+    getFlagValue(args, "--window-hours") ?? process.env.WINDOW_HOURS,
+  );
 
   const region = getFlagValue(args, "--region");
   const critiqueRounds = Number(getFlagValue(args, "--critique-rounds") || "1");
@@ -109,6 +125,9 @@ async function main() {
   const result = await runCityLaunchPlanningHarness({
     city,
     region,
+    budgetTier,
+    budgetMaxUsd,
+    windowHours,
     fileSearchStoreNames,
     deepResearchAgent: deepResearchAgent || undefined,
     critiqueRounds: Number.isFinite(critiqueRounds) ? critiqueRounds : 1,
@@ -130,6 +149,7 @@ async function main() {
         activationPayloadPath: result.artifacts.activationPayloadPath,
         initialResearchPath: result.artifacts.initialResearchPath,
         runDirectory: result.artifacts.runDirectory,
+        runContract: result.runContract,
         notionKnowledgePageUrl: result.notion?.knowledgePageUrl || null,
         notionWorkQueuePageUrl: result.notion?.workQueuePageUrl || null,
         stageCount: result.stages.length,

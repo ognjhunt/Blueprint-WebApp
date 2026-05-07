@@ -10,7 +10,8 @@ Run the selected city launch activation handoff after founder approval.
 Each run must:
 
 - verify the founder-approved city posture exists and is still bounded to the selected city
-- refresh the execution harness artifacts with `npm run city-launch:activate -- --city "<City, ST>" --founder-approved`
+- refresh the execution harness artifacts with `npm run city-launch:activate -- --city "<City, ST>" --budget-tier lean|standard|aggressive --budget-max-usd <number> --window-hours 72 --founder-approved`
+- if Paperclip supplies founder inputs through environment, require `CITY`, `BUDGET_TIER`, `BUDGET_MAX_USD`, and `WINDOW_HOURS=72`; do not run against placeholders such as `[CITY]` or `[NUMBER]`
 - route the issue bundle into the named city lanes without creating duplicate ownership or dragging routine work back to the founder
 - wake all named city lanes in autonomy-first mode so they execute reversible work immediately instead of waiting for other packets to be manually completed first
 - leave one Work Queue breadcrumb and one Notion Knowledge mirror tied to the current city activation state

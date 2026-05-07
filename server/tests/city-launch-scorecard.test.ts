@@ -63,6 +63,74 @@ afterEach(() => {
 });
 
 describe("city launch scorecard", () => {
+  it("uses bounded query limits when supplied by a scorecard closeout", async () => {
+    const limitsByCollection: Record<string, number[]> = {};
+    const recordLimit = (collectionName: string, limitValue: number) => {
+      limitsByCollection[collectionName] = limitsByCollection[collectionName] || [];
+      limitsByCollection[collectionName].push(limitValue);
+    };
+    summarizeCityLaunchLedgers.mockResolvedValue({
+      trackedSupplyProspectsContacted: 0,
+      trackedBuyerTargetsResearched: 0,
+      trackedFirstTouchesSent: 0,
+      onboardedCapturers: 0,
+      totalRecordedSpendUsd: 0,
+      withinPolicySpendUsd: 0,
+      outsidePolicySpendUsd: 0,
+      recommendedSpendUsd: 0,
+      wideningGuard: { mode: "single_city_until_proven", wideningAllowed: false, reasons: [] },
+      dataSources: ["cityLaunchProspects"],
+    });
+    readCityLaunchActivation.mockResolvedValue(null);
+    resolveCityLaunchPlanningState.mockResolvedValue({
+      city: "Austin, TX",
+      citySlug: "austin-tx",
+      status: "not_started",
+      reportsRoot: "/tmp",
+      cityReportsRoot: "/tmp/austin-tx",
+      canonicalPlaybookPath: "/tmp/playbook.md",
+      runDirectory: null,
+      manifestPath: null,
+      latestArtifactPath: null,
+      completedArtifactPath: null,
+      latestRunTimestamp: null,
+      warnings: [],
+    });
+    dbCollection.mockImplementation((name: string) => ({
+      limit: (limitValue: number) => {
+        recordLimit(name, limitValue);
+        return { get: async () => ({ docs: [] }) };
+      },
+      orderBy: () => ({
+        limit: (limitValue: number) => {
+          recordLimit(name, limitValue);
+          return { get: async () => ({ docs: [] }) };
+        },
+      }),
+    }));
+
+    const { collectCityLaunchScorecard } = await import("../utils/cityLaunchScorecard");
+    const scorecard = await collectCityLaunchScorecard("Austin, TX", {
+      queryLimits: {
+        waitlistSubmissions: 11,
+        users: 12,
+        inboundRequests: 13,
+        growthEvents: 14,
+      },
+    });
+
+    expect(limitsByCollection.waitlistSubmissions).toEqual([11]);
+    expect(limitsByCollection.users).toEqual([12]);
+    expect(limitsByCollection.inboundRequests).toEqual([13]);
+    expect(limitsByCollection.growth_events).toEqual([14]);
+    expect(scorecard.queryLimits).toEqual({
+      waitlistSubmissions: 11,
+      users: 12,
+      inboundRequests: 13,
+      growthEvents: 14,
+    });
+  });
+
   it("surfaces activation payload blockers and verifies metrics from growth events", async () => {
     summarizeCityLaunchLedgers.mockResolvedValue({
       trackedSupplyProspectsContacted: 2,

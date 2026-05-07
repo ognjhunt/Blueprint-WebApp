@@ -2,8 +2,10 @@ import { Router, type Request, type Response } from "express";
 import type Stripe from "stripe";
 import { HTTP_STATUS } from "../constants/http-status";
 import {
+  STRIPE_CURRENT_PROVIDER,
   STRIPE_ONBOARDING_REFRESH_URL,
   STRIPE_ONBOARDING_RETURN_URL,
+  isStripeLivePayoutExecutionEnabled,
   stripeClient,
 } from "../constants/stripe";
 import {
@@ -41,6 +43,92 @@ function stripeRequirementPayload(account: Stripe.Account) {
   };
 }
 
+function hasBlockingStripeRequirements(account: Stripe.Account) {
+  const requirements = stripeRequirementPayload(account);
+  return Boolean(
+    requirements.requirements_due ||
+      requirements.requirements_past_due ||
+      requirements.disabled_reason,
+  );
+}
+
+function isStripeAccountLiveMode(account: Stripe.Account | null) {
+  return (
+    (account as (Stripe.Account & { livemode?: boolean }) | null)?.livemode === true
+  );
+}
+
+function stripeReadinessPayload(
+  account: Stripe.Account | null,
+  options: {
+    providerStateChecked: boolean;
+    instantPayoutEligible?: boolean;
+  },
+) {
+  const requirements = account ? stripeRequirementPayload(account) : null;
+  const contractProviderReady = Boolean(
+    account &&
+      account.details_submitted &&
+      account.payouts_enabled &&
+      !hasBlockingStripeRequirements(account),
+  );
+  const providerLiveMode = isStripeAccountLiveMode(account);
+  const providerMode = providerLiveMode ? "live" : account ? "test" : "unknown";
+  const liveProviderReady = Boolean(providerLiveMode && contractProviderReady);
+  const livePayoutExecutionEnabled = isStripeLivePayoutExecutionEnabled();
+  const missingEvidence: string[] = [];
+
+  if (!options.providerStateChecked) {
+    missingEvidence.push("Retrieve the Stripe connected account state from the live backend route.");
+  }
+  if (providerMode !== "live") {
+    missingEvidence.push("Use live Stripe mode before claiming live payout provider readiness.");
+  }
+  if (!contractProviderReady) {
+    missingEvidence.push("Stripe account must have details submitted, payouts enabled, and no blocking requirements.");
+  }
+  if (!livePayoutExecutionEnabled) {
+    missingEvidence.push("Human finance owner must explicitly enable BLUEPRINT_LIVE_PAYOUT_EXECUTION_ENABLED before payout execution.");
+  }
+
+  return {
+    payout_provider: STRIPE_CURRENT_PROVIDER,
+    provider_state_checked: options.providerStateChecked,
+    provider_mode: providerMode,
+    contract_provider_ready: contractProviderReady,
+    live_provider_ready: liveProviderReady,
+    live_payout_execution_enabled: livePayoutExecutionEnabled,
+    payout_execution_human_gate_required: !livePayoutExecutionEnabled,
+    instant_payout_eligible: Boolean(options.instantPayoutEligible),
+    provider_evidence_required: liveProviderReady && livePayoutExecutionEnabled
+      ? []
+      : missingEvidence,
+    ...(requirements || {
+      requirements_due: null,
+      requirements_past_due: null,
+      requirements_pending_verification: null,
+      disabled_reason: null,
+    }),
+  };
+}
+
+function ensurePayoutExecutionApproved(res: Response): boolean {
+  if (isStripeLivePayoutExecutionEnabled()) {
+    return true;
+  }
+  res.status(409).json({
+    error:
+      "Payout execution is disabled until a human finance owner explicitly enables it.",
+    payout_provider: STRIPE_CURRENT_PROVIDER,
+    live_payout_execution_enabled: false,
+    payout_execution_human_gate_required: true,
+    human_required: true,
+    required_evidence:
+      "Set BLUEPRINT_LIVE_PAYOUT_EXECUTION_ENABLED only after live Stripe/account, treasury balance, webhook reconciliation, and finance review ownership are verified.",
+  });
+  return false;
+}
+
 async function ensureAccountReadyForInstantPayout(
   stripe: Stripe,
   accountId: string,
@@ -48,15 +136,12 @@ async function ensureAccountReadyForInstantPayout(
 ): Promise<boolean> {
   const account = await stripe.accounts.retrieve(accountId);
   const requirements = stripeRequirementPayload(account);
-  const hasBlockingRequirements = Boolean(
-    requirements.requirements_due ||
-      requirements.requirements_past_due ||
-      requirements.disabled_reason,
-  );
+  const hasBlockingRequirements = hasBlockingStripeRequirements(account);
 
   if (!account.details_submitted) {
     res.status(409).json({
       error: "Stripe onboarding is incomplete.",
+      ...stripeReadinessPayload(account, { providerStateChecked: true }),
       ...requirements,
     });
     return false;
@@ -65,6 +150,7 @@ async function ensureAccountReadyForInstantPayout(
   if (!account.payouts_enabled || hasBlockingRequirements) {
     res.status(409).json({
       error: "Stripe payouts are not enabled for this account.",
+      ...stripeReadinessPayload(account, { providerStateChecked: true }),
       ...requirements,
     });
     return false;
@@ -179,8 +265,8 @@ router.get("/account", async (req, res) => {
           onboarding_complete: false,
           payouts_enabled: false,
           payout_schedule: "manual",
-          instant_payout_eligible: false,
           next_payout: null,
+          ...stripeReadinessPayload(null, { providerStateChecked: false }),
           requirements_due: null,
           requirements_past_due: null,
           requirements_eventually_due: null,
@@ -213,7 +299,6 @@ router.get("/account", async (req, res) => {
       onboarding_complete: Boolean(account.details_submitted),
       payouts_enabled: Boolean(account.payouts_enabled),
       payout_schedule: account.settings?.payouts?.schedule?.interval || "manual",
-      instant_payout_eligible: instantAvailable.some((entry) => entry.amount > 0),
       next_payout: pendingPayout
         ? {
             estimated_arrival: new Date(
@@ -222,7 +307,10 @@ router.get("/account", async (req, res) => {
             amount_cents: pendingPayout.amount,
           }
         : null,
-      ...stripeRequirementPayload(account),
+      ...stripeReadinessPayload(account, {
+        providerStateChecked: true,
+        instantPayoutEligible: instantAvailable.some((entry) => entry.amount > 0),
+      }),
       requirements_eventually_due: populatedRequirements(
         account.requirements?.eventually_due,
       ),
@@ -376,6 +464,10 @@ router.post("/account/instant_payout", async (req, res) => {
       res,
     );
     if (!stripeAccountReady) {
+      return;
+    }
+
+    if (!ensurePayoutExecutionApproved(res)) {
       return;
     }
 

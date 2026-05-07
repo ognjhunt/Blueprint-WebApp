@@ -23,6 +23,62 @@ const resolveCityLaunchPlanningState = vi.hoisted(() => vi.fn());
 const loadAndParseCityLaunchResearchArtifact = vi.hoisted(() => vi.fn());
 const executeCityLaunchSends = vi.hoisted(() => vi.fn());
 const resolveHistoricalRecipientEvidence = vi.hoisted(() => vi.fn());
+const appendOperatingGraphEvent = vi.hoisted(() => vi.fn());
+const materializeCityLaunchResearch = vi.hoisted(() => vi.fn());
+
+vi.mock("../../client/src/lib/firebaseAdmin", () => {
+  const emptySnapshot = { empty: true, docs: [] };
+  const missingDocument = {
+    exists: false,
+    id: "missing",
+    data: () => null,
+  };
+  const query = {
+    where: () => query,
+    orderBy: () => query,
+    limit: () => query,
+    get: vi.fn(async () => emptySnapshot),
+  };
+  const doc = {
+    get: vi.fn(async () => missingDocument),
+    set: vi.fn(async () => undefined),
+    update: vi.fn(async () => undefined),
+    delete: vi.fn(async () => undefined),
+    collection: () => query,
+  };
+  const collection = {
+    ...query,
+    doc: () => doc,
+    add: vi.fn(async () => doc),
+  };
+  const dbAdmin = {
+    collection: () => collection,
+    batch: () => ({
+      set: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+      commit: vi.fn(async () => undefined),
+    }),
+    runTransaction: vi.fn(async (callback: (transaction: unknown) => unknown) =>
+      callback({
+        get: vi.fn(async () => missingDocument),
+        set: vi.fn(),
+        update: vi.fn(),
+        delete: vi.fn(),
+      }),
+    ),
+  };
+  return {
+    default: {
+      firestore: {
+        FieldValue: {
+          serverTimestamp: () => "serverTimestamp",
+        },
+      },
+    },
+    dbAdmin,
+  };
+});
 
 vi.mock("../utils/paperclip", () => ({
   upsertPaperclipIssue,
@@ -61,11 +117,80 @@ vi.mock("../utils/cityLaunchRecipientEvidence", () => ({
   resolveHistoricalRecipientEvidence,
 }));
 
-vi.mock("../utils/cityLaunchSendExecutor", async () => {
-  const actual = await vi.importActual("../utils/cityLaunchSendExecutor");
+vi.mock("../utils/operatingGraph", () => ({
+  appendOperatingGraphEvent,
+  buildCityProgramId: ({ citySlug, budgetTier }: { citySlug: string; budgetTier: string }) =>
+    `city_launch:${citySlug}:${budgetTier}`,
+}));
+
+vi.mock("../utils/cityLaunchResearchMaterializer", () => ({
+  materializeCityLaunchResearch,
+}));
+
+vi.mock("../utils/cityLaunchSendExecutor", () => {
+  const hasCityLaunchRecipientBackedEmail = (entry: { recipientEmail?: string | null }) =>
+    Boolean(entry.recipientEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(entry.recipientEmail));
+  const assessCityLaunchOutboundReadiness = (input: {
+    city: string;
+    sendActions: Array<{
+      actionType?: string;
+      recipientEmail?: string | null;
+      status?: string;
+      approvalState?: string;
+    }>;
+  }) => {
+    const directOutreachActions = input.sendActions.filter(
+      (entry) => entry.actionType === "direct_outreach",
+    );
+    const recipientBacked = directOutreachActions.filter(hasCityLaunchRecipientBackedEmail);
+    const approvalNeeded = recipientBacked.filter(
+      (entry) =>
+        entry.status === "ready_to_send"
+        && entry.approvalState === "pending_first_send_approval",
+    );
+    const readyToSend = recipientBacked.filter(
+      (entry) =>
+        entry.status === "ready_to_send"
+        && entry.approvalState !== "pending_first_send_approval"
+        && entry.approvalState !== "blocked",
+    );
+    const sent = recipientBacked.filter((entry) => entry.status === "sent");
+    const blocked = recipientBacked.filter(
+      (entry) => entry.status === "blocked" || entry.approvalState === "blocked",
+    );
+    const blockers: string[] = [];
+    const warnings: string[] = [];
+    if (directOutreachActions.length === 0 || recipientBacked.length === 0) {
+      blockers.push(`No recipient-backed direct-outreach send actions were seeded for ${input.city}.`);
+    }
+    if (approvalNeeded.length > 0) {
+      warnings.push(
+        `${approvalNeeded.length} recipient-backed first-send action(s) are waiting for founder approval before dispatch.`,
+      );
+    }
+    if (blocked.length > 0) {
+      warnings.push(`${blocked.length} recipient-backed direct-outreach action(s) are blocked before dispatch.`);
+    }
+    return {
+      city: input.city,
+      status: blockers.length ? "blocked" : warnings.length ? "warning" : "ready",
+      directOutreachActions: {
+        total: directOutreachActions.length,
+        recipientBacked: recipientBacked.length,
+        readyToSend: readyToSend.length,
+        approvalNeeded: approvalNeeded.length,
+        sent: sent.length,
+      },
+      emailTransport: { configured: true, provider: "sendgrid" },
+      sender: { verificationStatus: "verified" },
+      blockers,
+      warnings,
+    };
+  };
   return {
-    ...actual,
+    assessCityLaunchOutboundReadiness,
     executeCityLaunchSends,
+    hasCityLaunchRecipientBackedEmail,
   };
 });
 
@@ -154,9 +279,25 @@ beforeEach(() => {
   loadAndParseCityLaunchResearchArtifact.mockReset();
   executeCityLaunchSends.mockReset();
   resolveHistoricalRecipientEvidence.mockReset();
+  appendOperatingGraphEvent.mockReset();
+  materializeCityLaunchResearch.mockReset();
   vi.stubEnv("SENDGRID_API_KEY", "sg-key");
   vi.stubEnv("SENDGRID_FROM_EMAIL", "launches@tryblueprint.io");
   vi.stubEnv("BLUEPRINT_CITY_LAUNCH_SENDER_VERIFICATION", "verified");
+  vi.stubEnv("NOTION_API_TOKEN", "");
+  vi.stubEnv("NOTION_API_KEY", "");
+  appendOperatingGraphEvent.mockResolvedValue(undefined);
+  materializeCityLaunchResearch.mockResolvedValue({
+    status: "materialized",
+    sourceArtifactPath: "/tmp/city-launch/mock-playbook.md",
+    prospectsUpserted: 0,
+    buyerTargetsUpserted: 0,
+    touchesRecorded: 0,
+    budgetRecommendationsRecorded: 0,
+    contactEnrichmentStatus: "not_run",
+    contactEnrichmentArtifactPath: null,
+    warnings: [],
+  });
   writeCityLaunchActivation.mockResolvedValue(null);
   readCityLaunchActivation.mockResolvedValue(null);
   createPaperclipIssueComment.mockResolvedValue({ ok: true });
@@ -497,6 +638,31 @@ describe("city launch execution harness", () => {
       result.artifacts.cityOpeningArtifactPack.run.buyerLoopPath,
       "utf8",
     );
+    const gtmContract = await fs.readFile(
+      result.artifacts.gtm72hArtifactPack.run.contractMarkdownPath,
+      "utf8",
+    );
+    const adStudioHandoff = await fs.readFile(
+      result.artifacts.gtm72hArtifactPack.run.adStudioCreativeHandoffPath,
+      "utf8",
+    );
+    const metaAdsReadiness = await fs.readFile(
+      result.artifacts.gtm72hArtifactPack.run.metaAdsReadinessPath,
+      "utf8",
+    );
+    const scorecardManifest = JSON.parse(
+      await fs.readFile(
+        result.artifacts.gtm72hArtifactPack.run.scorecardManifestPath,
+        "utf8",
+      ),
+    ) as {
+      checkpoint_hours: number[];
+      evidence_sources: Array<{ collection: string; query_name: string }>;
+    };
+    const scorecard24h = await fs.readFile(
+      result.artifacts.gtm72hArtifactPack.run.scorecardPaths["24h"],
+      "utf8",
+    );
 
     expect(systemDoc).toContain("Austin, TX Launch System");
     expect(systemDoc).toContain("Machine-Readable Budget Policy");
@@ -523,6 +689,28 @@ describe("city launch execution harness", () => {
     expect(cityOpeningExecutionReport).toContain("Austin, TX City-Opening Execution Report");
     expect(cityOpeningBuyerLoop).toContain("Exact-Site Hosted Review Buyer Loop");
     expect(cityOpeningBuyerLoop).toContain("## Founder First Send Batch");
+    expect(gtmContract).toContain("Austin, TX CITY+BUDGET 72h GTM Contract");
+    expect(gtmContract).toContain("ad_studio_runs");
+    expect(gtmContract).toContain("meta_ads_cli_runs");
+    expect(adStudioHandoff).toContain("Ad Studio Claims And Creative Handoff");
+    expect(adStudioHandoff).toContain("Generated creative is marketing material, not ground truth.");
+    expect(metaAdsReadiness).toContain("Meta Ads Read-Only Proof And Paused Draft Gate");
+    expect(metaAdsReadiness).toContain("Do not create active campaigns, active ad sets, active ads, or live spend.");
+    expect(scorecardManifest.checkpoint_hours).toEqual([24, 48, 72]);
+    expect(scorecardManifest.evidence_sources.map((entry) => entry.collection)).toEqual(
+      expect.arrayContaining([
+        "growth_events",
+        "waitlistSubmissions",
+        "inboundRequests",
+        "cityLaunchSendActions",
+        "ad_studio_runs",
+        "meta_ads_cli_runs",
+      ]),
+    );
+    expect(scorecard24h).toContain("Austin, TX 24h City Launch Scorecard");
+    expect(scorecard24h).toContain("status: scheduled_not_due");
+    expect(scorecard24h).toContain("growth_events");
+    expect(scorecard24h).toContain("cityLaunchReplyConversions");
   });
 
   it("re-wakes existing founder-approved city-launch issues on rerun", async () => {
@@ -1022,7 +1210,7 @@ describe("city launch execution harness", () => {
     );
   });
 
-  it("auto-approves and auto-dispatches recipient-backed city-opening sends while excluding manual community posts", async () => {
+  it("holds recipient-backed city-opening sends for founder first-send approval while excluding manual community posts", async () => {
     summarizeCityLaunchLedgers.mockResolvedValue({
       trackedSupplyProspectsContacted: 0,
       trackedBuyerTargetsResearched: 0,
@@ -1170,7 +1358,7 @@ describe("city launch execution harness", () => {
 
     expect(
       upsertCityLaunchSendAction.mock.calls.map((call) => (call[0] as { approvalState?: string }).approvalState),
-    ).toContain("approved");
+    ).toContain("pending_first_send_approval");
     expect(
       upsertCityLaunchSendAction.mock.calls.some(
         (call) => (call[0] as { recipientEmail?: string | null }).recipientEmail === "alex@midwestrobotics.com",
@@ -1191,15 +1379,15 @@ describe("city launch execution harness", () => {
         (call) => (call[0] as { actionType?: string }).actionType === "community_post",
       ),
     ).toBe(false);
-    expect(executeCityLaunchSends).toHaveBeenCalledWith({
-      city: "Chicago, IL",
-    });
+    expect(executeCityLaunchSends).not.toHaveBeenCalled();
 
     expect(result.sendExecution).toMatchObject({
       city: "Chicago, IL",
-      totalEligible: 3,
-      sent: 2,
+      totalEligible: 0,
+      sent: 0,
+      skippedApproval: 1,
     });
+    expect(result.sendExecution?.errors.join("\n")).toContain("waiting for founder approval");
   });
 
   it("auto-enriches raw playbooks with historical recipient evidence before activation sends", async () => {
@@ -1424,7 +1612,10 @@ describe("city launch execution harness", () => {
     });
 
     expect(result.outboundReadiness?.status).toBe("warning");
-    expect(result.outboundReadiness?.directOutreachActions.approvalNeeded).toBe(0);
+    expect(result.outboundReadiness?.directOutreachActions.approvalNeeded).toBe(1);
+    expect(result.outboundReadiness?.warnings).toContain(
+      "1 recipient-backed first-send action(s) are waiting for founder approval before dispatch.",
+    );
     expect(result.outboundReadiness?.warnings).toContain(
       "1 recipient-backed direct-outreach action(s) are blocked before dispatch.",
     );
@@ -1438,9 +1629,8 @@ describe("city launch execution harness", () => {
         (call) => (call[0] as { recipientEmail?: string | null }).recipientEmail === "ops@northgatelogistics.com",
       ),
     ).toBe(true);
-    expect(executeCityLaunchSends).toHaveBeenCalledWith({
-      city: "Sacramento, CA",
-    });
+    expect(executeCityLaunchSends).not.toHaveBeenCalled();
+    expect(result.sendExecution?.skippedApproval).toBe(1);
   });
 
   it("creates the issue tree even when no recipient-backed first-wave contacts can be seeded", async () => {
@@ -1901,9 +2091,7 @@ describe("city launch execution harness", () => {
     expect(buyerFacingActions.length).toBeGreaterThan(0);
     expect(buyerFacingActions.every((entry) => entry.status === "blocked")).toBe(true);
     expect(buyerFacingActions.some((entry) => (entry.notes || "").includes("rights-cleared proof pack"))).toBe(true);
-    expect(executeCityLaunchSends).toHaveBeenCalledWith({
-      city: "San Jose, CA",
-    });
+    expect(executeCityLaunchSends).not.toHaveBeenCalled();
   });
 
   it("dispatches no-signal recovery lanes and draft packs after sent outreach produces no live signal", async () => {

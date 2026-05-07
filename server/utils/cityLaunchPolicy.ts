@@ -1,4 +1,13 @@
-export type CityLaunchBudgetTier = "zero_budget" | "low_budget" | "funded";
+export const CITY_LAUNCH_BUDGET_TIER_VALUES = [
+  "zero_budget",
+  "low_budget",
+  "funded",
+  "lean",
+  "standard",
+  "aggressive",
+] as const;
+
+export type CityLaunchBudgetTier = (typeof CITY_LAUNCH_BUDGET_TIER_VALUES)[number];
 
 export type CityLaunchBudgetPolicy = {
   tier: CityLaunchBudgetTier;
@@ -22,23 +31,66 @@ export type CityLaunchWideningGuard = {
 const DEFAULT_FOUNDER_TRIGGERS = [
 ];
 
+export function normalizeCityLaunchBudgetTier(
+  value: unknown,
+): CityLaunchBudgetTier | null {
+  const normalized = String(value || "").trim().toLowerCase();
+  return CITY_LAUNCH_BUDGET_TIER_VALUES.includes(normalized as CityLaunchBudgetTier)
+    ? (normalized as CityLaunchBudgetTier)
+    : null;
+}
+
+function resolveMaxTotalApprovedUsd(
+  value: number | null | undefined,
+  fallback: number,
+) {
+  if (value === null || value === undefined) {
+    return fallback;
+  }
+  const parsed = Number(value);
+  if (Number.isFinite(parsed)) {
+    return Math.max(0, parsed);
+  }
+  return fallback;
+}
+
+function resolveOperatorAutoApproveUsd(
+  value: number | null | undefined,
+  fallback: number,
+  maxTotalApprovedUsd: number,
+) {
+  if (maxTotalApprovedUsd <= 0) {
+    return 0;
+  }
+  if (value === null || value === undefined) {
+    return Math.max(0, Math.min(fallback, maxTotalApprovedUsd));
+  }
+  const parsed = Number(value);
+  const requested = Number.isFinite(parsed) ? parsed : fallback;
+  return Math.max(0, Math.min(requested, maxTotalApprovedUsd));
+}
+
 export function buildCityLaunchBudgetPolicy(input?: {
   tier?: CityLaunchBudgetTier | null;
   maxTotalApprovedUsd?: number | null;
   operatorAutoApproveUsd?: number | null;
 }) {
-  const tier = input?.tier || "zero_budget";
+  const tier = normalizeCityLaunchBudgetTier(input?.tier) || "zero_budget";
 
-  if (tier === "funded") {
-    const maxTotalApprovedUsd = Math.max(5_000, input?.maxTotalApprovedUsd ?? 25_000);
-    const operatorAutoApproveUsd = Math.max(
-      250,
-      Math.min(input?.operatorAutoApproveUsd ?? 2_500, maxTotalApprovedUsd),
+  if (tier === "aggressive" || tier === "funded") {
+    const maxTotalApprovedUsd = resolveMaxTotalApprovedUsd(
+      input?.maxTotalApprovedUsd,
+      25_000,
+    );
+    const operatorAutoApproveUsd = resolveOperatorAutoApproveUsd(
+      input?.operatorAutoApproveUsd,
+      2_500,
+      maxTotalApprovedUsd,
     );
 
     return {
       tier,
-      label: "Funded",
+      label: tier === "aggressive" ? "Aggressive" : "Funded",
       maxTotalApprovedUsd,
       operatorAutoApproveUsd,
       allowPaidAcquisition: true,
@@ -50,16 +102,45 @@ export function buildCityLaunchBudgetPolicy(input?: {
     } satisfies CityLaunchBudgetPolicy;
   }
 
-  if (tier === "low_budget") {
-    const maxTotalApprovedUsd = Math.max(500, input?.maxTotalApprovedUsd ?? 2_500);
-    const operatorAutoApproveUsd = Math.max(
-      100,
-      Math.min(input?.operatorAutoApproveUsd ?? 500, maxTotalApprovedUsd),
+  if (tier === "standard") {
+    const maxTotalApprovedUsd = resolveMaxTotalApprovedUsd(
+      input?.maxTotalApprovedUsd,
+      10_000,
+    );
+    const operatorAutoApproveUsd = resolveOperatorAutoApproveUsd(
+      input?.operatorAutoApproveUsd,
+      1_000,
+      maxTotalApprovedUsd,
     );
 
     return {
       tier,
-      label: "Low Budget",
+      label: "Standard",
+      maxTotalApprovedUsd,
+      operatorAutoApproveUsd,
+      allowPaidAcquisition: true,
+      allowReferralRewards: true,
+      allowTravelReimbursement: true,
+      founderApprovalRequiredAboveUsd: maxTotalApprovedUsd,
+      founderApprovalTriggers: DEFAULT_FOUNDER_TRIGGERS,
+      operatorLane: "growth-lead",
+    } satisfies CityLaunchBudgetPolicy;
+  }
+
+  if (tier === "lean" || tier === "low_budget") {
+    const maxTotalApprovedUsd = resolveMaxTotalApprovedUsd(
+      input?.maxTotalApprovedUsd,
+      2_500,
+    );
+    const operatorAutoApproveUsd = resolveOperatorAutoApproveUsd(
+      input?.operatorAutoApproveUsd,
+      500,
+      maxTotalApprovedUsd,
+    );
+
+    return {
+      tier,
+      label: tier === "lean" ? "Lean" : "Low Budget",
       maxTotalApprovedUsd,
       operatorAutoApproveUsd,
       allowPaidAcquisition: true,
@@ -74,7 +155,7 @@ export function buildCityLaunchBudgetPolicy(input?: {
   return {
     tier: "zero_budget",
     label: "Zero Budget",
-    maxTotalApprovedUsd: Math.max(0, input?.maxTotalApprovedUsd ?? 0),
+    maxTotalApprovedUsd: resolveMaxTotalApprovedUsd(input?.maxTotalApprovedUsd, 0),
     operatorAutoApproveUsd: 0,
     allowPaidAcquisition: false,
     allowReferralRewards: false,

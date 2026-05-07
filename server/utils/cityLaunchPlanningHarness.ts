@@ -49,6 +49,12 @@ import {
   CITY_LAUNCH_TOUCH_STATUS_VALUES,
   CITY_LAUNCH_TOUCH_TYPE_VALUES,
 } from "./cityLaunchResearchContracts";
+import {
+  buildCityLaunchBudgetPolicy,
+  normalizeCityLaunchBudgetTier,
+  type CityLaunchBudgetPolicy,
+  type CityLaunchBudgetTier,
+} from "./cityLaunchPolicy";
 
 const REPO_ROOT = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -77,6 +83,10 @@ export interface CityLaunchHarnessRunOptions {
   city: string;
   citySlug?: string;
   region?: string | null;
+  budgetTier?: string | CityLaunchBudgetTier | null;
+  budgetMaxUsd?: number | null;
+  operatorAutoApproveUsd?: number | null;
+  windowHours?: number | null;
   similarCompanies?: string[];
   fileSearchStoreNames?: string[];
   deepResearchAgent?: string;
@@ -99,12 +109,20 @@ export interface CityLaunchHarnessArtifacts {
   notionWorkQueuePageUrl?: string;
 }
 
+export type CityLaunchHarnessRunContract = {
+  budgetTier: CityLaunchBudgetTier;
+  budgetMaxUsd: number;
+  operatorAutoApproveUsd: number;
+  windowHours: 72;
+};
+
 export interface CityLaunchHarnessResult {
   city: string;
   citySlug: string;
   status: "in_progress" | "completed";
   startedAt: string;
   completedAt: string;
+  runContract: CityLaunchHarnessRunContract;
   artifacts: CityLaunchHarnessArtifacts;
   stages: Array<{
     key: string;
@@ -189,6 +207,46 @@ function renderRequiredSurfaceKeys() {
   return CITY_LAUNCH_REQUIRED_SURFACE_KEYS.map((value) => `\`${value}\``).join(", ");
 }
 
+function formatUsd(value: number) {
+  return `$${Math.round(value).toLocaleString("en-US")}`;
+}
+
+function resolvePlanningRunContract(options: CityLaunchHarnessRunOptions): {
+  budgetPolicy: CityLaunchBudgetPolicy;
+  runContract: CityLaunchHarnessRunContract;
+} {
+  const budgetTier = normalizeCityLaunchBudgetTier(options.budgetTier);
+  if (!budgetTier) {
+    throw new Error("City launch planning requires --budget-tier lean|standard|aggressive.");
+  }
+  if (!["lean", "standard", "aggressive"].includes(budgetTier)) {
+    throw new Error("City launch planning accepts only founder budget tiers: lean, standard, or aggressive.");
+  }
+  const budgetMaxUsd = Number(options.budgetMaxUsd);
+  if (!Number.isFinite(budgetMaxUsd) || budgetMaxUsd < 0) {
+    throw new Error("City launch planning requires --budget-max-usd with a non-negative number.");
+  }
+  const windowHours = Number(options.windowHours ?? 72);
+  if (windowHours !== 72) {
+    throw new Error("City launch planning currently requires WINDOW_HOURS=72.");
+  }
+  const budgetPolicy = buildCityLaunchBudgetPolicy({
+    tier: budgetTier,
+    maxTotalApprovedUsd: budgetMaxUsd,
+    operatorAutoApproveUsd: options.operatorAutoApproveUsd,
+  });
+
+  return {
+    budgetPolicy,
+    runContract: {
+      budgetTier: budgetPolicy.tier,
+      budgetMaxUsd: budgetPolicy.maxTotalApprovedUsd,
+      operatorAutoApproveUsd: budgetPolicy.operatorAutoApproveUsd,
+      windowHours: 72,
+    },
+  };
+}
+
 function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -208,6 +266,7 @@ function extractSection(markdown: string, heading: string) {
 export function validateCityLaunchPlaybookMarkdown(input: {
   city: string;
   markdown: string;
+  budgetPolicy?: CityLaunchBudgetPolicy | null;
 }) {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -313,6 +372,21 @@ export function validateCityLaunchPlaybookMarkdown(input: {
 
   for (const error of parsed.errors) {
     errors.push(error);
+  }
+  if (input.budgetPolicy) {
+    const totalRecommendedUsd = parsed.budgetRecommendations.reduce(
+      (total, entry) => total + entry.amountUsd,
+      0,
+    );
+    if (totalRecommendedUsd > input.budgetPolicy.maxTotalApprovedUsd) {
+      errors.push(
+        `Structured budget_recommendations total ${formatUsd(totalRecommendedUsd)} exceeds ${input.budgetPolicy.label} budget max ${formatUsd(input.budgetPolicy.maxTotalApprovedUsd)}.`,
+      );
+    } else if (parsed.budgetRecommendations.length === 0) {
+      warnings.push(
+        `Structured budget_recommendations are empty; ${input.budgetPolicy.label} max ${formatUsd(input.budgetPolicy.maxTotalApprovedUsd)} remains the authoritative cap.`,
+      );
+    }
   }
 
   if (!parsed.activationPayload) {
@@ -424,6 +498,8 @@ async function loadPlanningContext(citySlug: string) {
 export function buildResearchPrompt(input: {
   city: string;
   region?: string | null;
+  budgetPolicy: CityLaunchBudgetPolicy;
+  windowHours: 72;
   similarCompanies: string[];
   context: string;
 }) {
@@ -433,6 +509,13 @@ export function buildResearchPrompt(input: {
     ``,
     `Objective: produce the most expansive, detailed, operator-safe Blueprint city proof-motion architecture possible for ${input.city}${input.region ? `, ${input.region}` : ""}.`,
     `This is not a generic startup memo or city marketplace launcher. Build one city-specific, truthful proof-motion system that humans and agents can execute without drifting from repo contracts or product truth.`,
+    ``,
+    `Founder run contract:`,
+    `- budget_tier: ${input.budgetPolicy.tier}`,
+    `- budget_max_usd: ${input.budgetPolicy.maxTotalApprovedUsd}`,
+    `- operator_auto_approve_usd: ${input.budgetPolicy.operatorAutoApproveUsd}`,
+    `- window_hours: ${input.windowHours}`,
+    `The plan must fit this exact budget envelope. Structured budget_recommendations must total no more than ${formatUsd(input.budgetPolicy.maxTotalApprovedUsd)} unless the plan explicitly stops for founder approval to raise the budget.`,
     ``,
     `Blueprint doctrine and operating context:`,
     `- capture-first and world-model-product-first`,
@@ -494,7 +577,7 @@ export function buildResearchPrompt(input: {
     `- Outreach playbooks and city-specific channel strategy tied to the Exact-Site Hosted Review wedge`,
     `- First-wave direct outreach set with 1-3 recipient-backed first-wave direct outreach contacts and explicit contact_email fields for every launch-ready direct lane`,
     `- Ops readiness checklist and failure modes`,
-    `- Budget-aware bounded activation options: zero-budget, low-budget, and funded`,
+    `- Budget-aware bounded activation plan for the active ${input.budgetPolicy.tier} tier and ${formatUsd(input.budgetPolicy.maxTotalApprovedUsd)} max; lean, standard, and aggressive may be compared, but this run must be executable within the active budget`,
     `- What Must Be Validated Before Live Outreach`,
     `- Research gaps and what must be validated locally before any public-beta claim`,
     `- Machine-readable activation payload`,
@@ -515,6 +598,7 @@ export function buildResearchPrompt(input: {
     `- activation-ready does not mean "good strategy, no recipients"; if truthful recipients cannot be found, downgrade readiness and say the city is not outwardly addressable yet`,
     `- distinguish direct-outreach lanes from artifact-only/community lanes; community lanes may stay artifact-only until a real publication connector exists`,
     `- every direct-outreach-ready buyer_target_candidates or capture_location_candidates entry must include explicit \`contact_email\` fields; do not invent or infer emails`,
+    `- budget_recommendations in the structured launch data appendix must total no more than ${formatUsd(input.budgetPolicy.maxTotalApprovedUsd)} for this run`,
     `- if you mention telemetry, use only approved repo vocabulary: ${renderAllowedValues(CITY_LAUNCH_APPROVED_ANALYTICS_EVENTS)} plus \`inboundRequests.ops.proof_path\` milestones`,
     `- do not universalize site-operator intake as the only lawful path; choose between ${renderAllowedValues(CITY_LAUNCH_LAWFUL_ACCESS_MODE_VALUES)} and explain when private controlled interiors require explicit authorization`,
     `- include a machine-readable activation payload fence using \`\`\`city-launch-activation-payload with schema "${CITY_LAUNCH_ACTIVATION_PAYLOAD_SCHEMA_VERSION}" and machine_policy_version "${CITY_LAUNCH_MACHINE_POLICY_VERSION}"`,
@@ -607,6 +691,8 @@ export function buildFollowUpResearchPrompt(input: {
 
 export function buildSynthesisPrompt(input: {
   city: string;
+  budgetPolicy: CityLaunchBudgetPolicy;
+  windowHours: 72;
   research: string;
   critiqueOutputs: string[];
 }) {
@@ -616,6 +702,9 @@ export function buildSynthesisPrompt(input: {
     ``,
     `The playbook must be usable by both humans and agents.`,
     `It must be more specific and more operational than a strategy memo, safe to delegate against after normal human review, compact enough to route from, and expansive enough to support city activation.`,
+    ``,
+    `Founder run contract to preserve in the final playbook: budget_tier=${input.budgetPolicy.tier}, budget_max_usd=${input.budgetPolicy.maxTotalApprovedUsd}, operator_auto_approve_usd=${input.budgetPolicy.operatorAutoApproveUsd}, window_hours=${input.windowHours}.`,
+    `Any structured budget_recommendations must fit within ${formatUsd(input.budgetPolicy.maxTotalApprovedUsd)} total, or the playbook must stop with a founder approval blocker instead of implying the run is executable.`,
     ``,
     `Required sections:`,
     `- Executive summary`,
@@ -686,6 +775,7 @@ export function buildSynthesisPrompt(input: {
     `- Every direct-outreach-ready buyer_target_candidates or capture_location_candidates entry must include contact_email`,
     `- If truthful recipients cannot be found, downgrade readiness and state that direct outreach is not outwardly addressable yet`,
     `- treat community-posting lanes as artifact-only until a real publication connector exists; do not use them to mask missing direct recipients`,
+    `- budget_recommendations must be for the active ${input.budgetPolicy.tier} tier and must total no more than ${formatUsd(input.budgetPolicy.maxTotalApprovedUsd)} unless explicitly blocked for founder approval`,
     `- activation payload schema_version must be "${CITY_LAUNCH_ACTIVATION_PAYLOAD_SCHEMA_VERSION}"`,
     `- activation payload machine_policy_version must be "${CITY_LAUNCH_MACHINE_POLICY_VERSION}"`,
     `- activation payload lawful_access_modes must use only: ${renderAllowedValues(CITY_LAUNCH_LAWFUL_ACCESS_MODE_VALUES)}`,
@@ -983,6 +1073,7 @@ async function writePlanningManifest(input: {
   status: "in_progress" | "completed";
   startedAt: string;
   completedAt: string;
+  runContract: CityLaunchHarnessRunContract;
   manifestPath: string;
   artifacts: CityLaunchHarnessArtifacts;
   stages: CityLaunchHarnessResult["stages"];
@@ -994,6 +1085,7 @@ async function writePlanningManifest(input: {
     status: input.status,
     startedAt: input.startedAt,
     completedAt: input.completedAt,
+    runContract: input.runContract,
     artifacts: input.artifacts,
     stages: input.stages,
     ...(input.notion ? { notion: input.notion } : {}),
@@ -1114,10 +1206,12 @@ function validateAndParsePlaybook(input: {
   city: string;
   artifactPath: string;
   markdown: string;
+  budgetPolicy?: CityLaunchBudgetPolicy | null;
 }) {
   const validation = validateCityLaunchPlaybookMarkdown({
     city: input.city,
     markdown: input.markdown,
+    budgetPolicy: input.budgetPolicy,
   });
   const parsedPlaybook = parseCityLaunchResearchArtifact({
     city: input.city,
@@ -1139,6 +1233,7 @@ export async function runCityLaunchPlanningHarness(
     throw new Error("City is required.");
   }
 
+  const { budgetPolicy, runContract } = resolvePlanningRunContract(options);
   const citySlug = options.citySlug?.trim() || slugifyCityName(city);
   const startedAt = new Date();
   const runTimestamp = timestampForFile(startedAt);
@@ -1200,6 +1295,7 @@ export async function runCityLaunchPlanningHarness(
     status: "in_progress",
     startedAt: startedAtIso,
     completedAt: startedAtIso,
+    runContract,
     manifestPath,
     artifacts: baseArtifacts,
     stages,
@@ -1208,12 +1304,14 @@ export async function runCityLaunchPlanningHarness(
   const initialResearchPrompt = buildResearchPrompt({
     city,
     region: options.region || null,
+    budgetPolicy,
+    windowHours: runContract.windowHours,
     similarCompanies,
     context,
   });
 
   logger.info(
-    { city, citySlug, deepResearchAgent },
+    { city, citySlug, deepResearchAgent, runContract },
     "Starting city launch Deep Research harness",
   );
 
@@ -1249,6 +1347,7 @@ export async function runCityLaunchPlanningHarness(
     status: "in_progress",
     startedAt: startedAtIso,
     completedAt: new Date().toISOString(),
+    runContract,
     manifestPath,
     artifacts: baseArtifacts,
     stages,
@@ -1286,6 +1385,7 @@ export async function runCityLaunchPlanningHarness(
       status: "in_progress",
       startedAt: startedAtIso,
       completedAt: new Date().toISOString(),
+      runContract,
       manifestPath,
       artifacts: baseArtifacts,
       stages,
@@ -1333,6 +1433,7 @@ export async function runCityLaunchPlanningHarness(
       status: "in_progress",
       startedAt: startedAtIso,
       completedAt: new Date().toISOString(),
+      runContract,
       manifestPath,
       artifacts: baseArtifacts,
       stages,
@@ -1341,6 +1442,8 @@ export async function runCityLaunchPlanningHarness(
 
   const synthesisPrompt = buildSynthesisPrompt({
     city,
+    budgetPolicy,
+    windowHours: runContract.windowHours,
     research: latestResearchText,
     critiqueOutputs,
   });
@@ -1366,6 +1469,7 @@ export async function runCityLaunchPlanningHarness(
     city,
     artifactPath: finalPlaybookPath,
     markdown: validatedPlaybookText,
+    budgetPolicy,
   });
 
   for (let repairRound = 1; !validation.ok && repairRound <= 2; repairRound += 1) {
@@ -1406,6 +1510,7 @@ export async function runCityLaunchPlanningHarness(
       status: "in_progress",
       startedAt: startedAtIso,
       completedAt: new Date().toISOString(),
+      runContract,
       manifestPath,
       artifacts: baseArtifacts,
       stages,
@@ -1418,6 +1523,7 @@ export async function runCityLaunchPlanningHarness(
       city,
       artifactPath: repairArtifactPath,
       markdown: validatedPlaybookText,
+      budgetPolicy,
     }));
   }
 
@@ -1460,6 +1566,7 @@ export async function runCityLaunchPlanningHarness(
     status: "completed",
     startedAt: startedAtIso,
     completedAt: new Date().toISOString(),
+    runContract,
     artifacts: baseArtifacts,
     stages,
   };
@@ -1492,6 +1599,7 @@ export async function runCityLaunchPlanningHarness(
     status: "completed",
     startedAt: result.startedAt,
     completedAt: result.completedAt,
+    runContract,
     manifestPath,
     artifacts: result.artifacts,
     stages,

@@ -6,6 +6,7 @@ import type { Server } from "node:http";
 
 const state = vi.hoisted(() => ({
   stripeAccount: {
+    livemode: false,
     details_submitted: true,
     payouts_enabled: true,
     settings: { payouts: { schedule: { interval: "manual" } } },
@@ -17,9 +18,15 @@ const state = vi.hoisted(() => ({
   markFunded: vi.fn().mockResolvedValue(undefined),
   markFundingFailure: vi.fn().mockResolvedValue(undefined),
   finalize: vi.fn().mockResolvedValue(undefined),
+  livePayoutExecutionEnabled: false,
 }));
 
 vi.mock("../constants/stripe", () => ({
+  STRIPE_CURRENT_PROVIDER: "stripe",
+  get STRIPE_LIVE_PAYOUT_EXECUTION_ENABLED() {
+    return state.livePayoutExecutionEnabled;
+  },
+  isStripeLivePayoutExecutionEnabled: () => state.livePayoutExecutionEnabled,
   STRIPE_ONBOARDING_REFRESH_URL: "https://tryblueprint.io/refresh",
   STRIPE_ONBOARDING_RETURN_URL: "https://tryblueprint.io/return",
   stripeClient: {
@@ -102,6 +109,7 @@ async function stopServer(server: Server) {
 
 afterEach(() => {
   state.stripeAccount = {
+    livemode: false,
     details_submitted: true,
     payouts_enabled: true,
     settings: { payouts: { schedule: { interval: "manual" } } },
@@ -113,11 +121,13 @@ afterEach(() => {
   state.markFunded.mockClear();
   state.markFundingFailure.mockClear();
   state.finalize.mockClear();
+  state.livePayoutExecutionEnabled = false;
 });
 
 describe("stripe treasury funding", () => {
   it("blocks instant payouts when Stripe still has verification requirements", async () => {
     state.stripeAccount = {
+      livemode: false,
       details_submitted: true,
       payouts_enabled: false,
       settings: { payouts: { schedule: { interval: "manual" } } },
@@ -152,7 +162,35 @@ describe("stripe treasury funding", () => {
     }
   });
 
+  it("keeps payout execution human-gated even when mocked Stripe account readiness passes", async () => {
+    const { server, baseUrl } = await startServer();
+    try {
+      const response = await fetch(`${baseUrl}/v1/stripe/account/instant_payout`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ amount_cents: 4500 }),
+      });
+
+      expect(response.status).toBe(409);
+      await expect(response.json()).resolves.toMatchObject({
+        error: "Payout execution is disabled until a human finance owner explicitly enables it.",
+        payout_provider: "stripe",
+        live_payout_execution_enabled: false,
+        payout_execution_human_gate_required: true,
+        human_required: true,
+      });
+      expect(state.transferCreate).not.toHaveBeenCalled();
+      expect(state.payoutCreate).not.toHaveBeenCalled();
+    } finally {
+      await stopServer(server);
+    }
+  });
+
   it("funds the creator connected account before creating the payout", async () => {
+    state.livePayoutExecutionEnabled = true;
+
     const { server, baseUrl } = await startServer();
     try {
       const response = await fetch(`${baseUrl}/v1/stripe/account/instant_payout`, {
@@ -188,6 +226,7 @@ describe("stripe treasury funding", () => {
 
   it("blocks payout creation when platform treasury balance is insufficient", async () => {
     state.availableAmount = 1000;
+    state.livePayoutExecutionEnabled = true;
 
     const { server, baseUrl } = await startServer();
     try {

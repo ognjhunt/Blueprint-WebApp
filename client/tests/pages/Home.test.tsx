@@ -48,7 +48,7 @@ describe("Home", () => {
       ),
     ).toBeInTheDocument();
     expect(
-      screen.getAllByRole("link", { name: /Scope hosted review/i })[0],
+      screen.getAllByRole("link", { name: /Request hosted review/i })[0],
     ).toHaveAttribute(
       "href",
       expect.stringContaining("/contact?persona=robot-team"),

@@ -10,7 +10,7 @@ import {
   upsertPaperclipIssue,
   wakePaperclipAgent,
 } from "./paperclip";
-import { startRunwayImageToVideoTask } from "./runway";
+import { getRunwayStatus, startRunwayImageToVideoTask } from "./runway";
 
 export type AdStudioLane = "capturer" | "buyer";
 
@@ -128,9 +128,15 @@ export interface AdStudioExecutionHandoff {
 export interface AdStudioVideoTaskRecord {
   taskId: string | null;
   status: string;
+  provider?: string | null;
+  model?: string | null;
   firstFrameUrl: string | null;
+  firstFrameProvenance?: string | null;
   ratio: string | null;
   promptText: string | null;
+  outputUris?: string[];
+  providerAuthStatus?: string | null;
+  humanReviewStatus?: string | null;
 }
 
 export interface AdStudioReviewRecord {
@@ -180,6 +186,23 @@ function normalizeStringArray(value: unknown) {
     .filter((entry): entry is string => typeof entry === "string")
     .map((entry) => entry.trim())
     .filter((entry, index, items) => entry.length > 0 && items.indexOf(entry) === index);
+}
+
+function normalizeOutputUris(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .map((entry) => {
+      if (typeof entry === "string") {
+        return entry.trim();
+      }
+      if (entry && typeof entry === "object") {
+        return normalizeString((entry as Record<string, unknown>).url);
+      }
+      return "";
+    })
+    .filter((entry) => entry.length > 0);
 }
 
 function assertCreateContract(input: CreateAdStudioRunInput) {
@@ -461,8 +484,8 @@ export async function buildAdStudioBrief(input: CreateAdStudioRunInput) {
   const copyHooks =
     input.lane === "capturer"
       ? [
-        "Get paid to capture public indoor spaces near you.",
-        "Capture once, build repeatable local work.",
+        "Capture review-ready public indoor spaces near you.",
+        "Capture once, build repeatable local proof work.",
         "POV: your phone turns a public space into a Blueprint-ready capture run.",
       ]
       : [
@@ -702,11 +725,15 @@ export async function queueAdStudioVideo(
     promptImage: firstFrameUrl,
     ratio,
   });
+  const videoStatus = getRunwayStatus();
 
   return {
     runId: normalizeString(input.runId),
     videoTaskId: task.id,
     status: task.status,
+    provider: videoStatus.provider,
+    model: task.model || videoStatus.defaultModel,
+    outputUris: normalizeOutputUris(task.output),
   };
 }
 
@@ -742,9 +769,15 @@ export async function queuePersistedAdStudioVideo(
     video_task: {
       taskId: task.videoTaskId,
       status: task.status,
+      provider: task.provider,
+      model: task.model,
       firstFrameUrl,
+      firstFrameProvenance: firstFrameUrl,
       ratio,
       promptText,
+      outputUris: task.outputUris,
+      providerAuthStatus: "configured",
+      humanReviewStatus: "pending",
     } satisfies AdStudioVideoTaskRecord,
     status: "video_pending",
   });

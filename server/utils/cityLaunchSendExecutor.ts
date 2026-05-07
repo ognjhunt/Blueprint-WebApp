@@ -17,6 +17,7 @@ import {
 import { logger } from "../logger";
 import { recordCityLaunchTouch } from "./cityLaunchLedgers";
 import { validateRecipientEmailAddress } from "../agents/action-policies";
+import { buildOutboundReplyDurabilityStatus } from "./outbound-reply-durability";
 
 export type CityLaunchSendExecutionResult = {
   city: string;
@@ -77,6 +78,12 @@ export function assessCityLaunchOutboundReadiness(input: {
   const sender = senderOperationalState.sender;
   const blockers: string[] = [...senderOperationalState.blockers];
   const warnings: string[] = [...senderOperationalState.warnings];
+
+  if (sender.verificationStatus !== "verified") {
+    blockers.push(
+      "City-launch sender/domain verification is not production-proven. Confirm the active mail provider and set BLUEPRINT_CITY_LAUNCH_SENDER_VERIFICATION=verified before any live city-launch send.",
+    );
+  }
 
   if (recipientBacked.length === 0) {
     blockers.push(
@@ -162,6 +169,31 @@ export async function executeCityLaunchSends(input: {
   });
 
   const toSend = maxSends ? eligible.slice(0, maxSends) : eligible;
+  const liveDirectOutreach = !dryRun && toSend.some((action) => action.actionType === "direct_outreach");
+  if (liveDirectOutreach) {
+    const durability = await buildOutboundReplyDurabilityStatus();
+    if (!durability.ok) {
+      return {
+        city,
+        totalEligible: eligible.length,
+        sent: 0,
+        skippedApproval,
+        skippedNoRecipient,
+        skippedAlreadySent,
+        failed: 0,
+        errors: [
+          [
+            "Outbound reply durability is blocked; no live city-launch direct outreach was sent.",
+            ...durability.blockers,
+            ...(durability.missingEnv.length > 0
+              ? [`Missing env/account inputs: ${durability.missingEnv.join(", ")}`]
+              : []),
+            `Proof command: ${durability.proofCommands[0] || "npm run human-replies:audit-durability"}`,
+          ].join(" "),
+        ],
+      };
+    }
+  }
 
   for (const action of toSend) {
     // Direct outreach requires a recipient email

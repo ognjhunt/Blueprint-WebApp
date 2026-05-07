@@ -397,10 +397,10 @@ export default function Pricing() {
               Request hosted review
             </a>
             <a
-              href="/contact?persona=robot-team&interest=enterprise"
+              href="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=request-capture&source=pricing"
               className="inline-flex items-center justify-center rounded-full border border-black/10 px-6 py-3 text-sm font-semibold text-slate-700 transition hover:bg-white"
             >
-              Request custom quote
+              Request capture/site review
             </a>
           </div>
         </section>

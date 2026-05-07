@@ -8,6 +8,7 @@ const upsertCityLaunchChannelAccount = vi.hoisted(() => vi.fn());
 const upsertCityLaunchSendAction = vi.hoisted(() => vi.fn());
 const recordCityLaunchTouch = vi.hoisted(() => vi.fn());
 const sendEmail = vi.hoisted(() => vi.fn());
+const buildOutboundReplyDurabilityStatus = vi.hoisted(() => vi.fn());
 
 vi.mock("../utils/cityLaunchLedgers", () => ({
   listCityLaunchSendActions,
@@ -26,6 +27,10 @@ vi.mock("../utils/email", async () => {
   };
 });
 
+vi.mock("../utils/outbound-reply-durability", () => ({
+  buildOutboundReplyDurabilityStatus,
+}));
+
 beforeEach(() => {
   listCityLaunchSendActions.mockReset();
   readCityLaunchSendAction.mockReset();
@@ -34,6 +39,15 @@ beforeEach(() => {
   upsertCityLaunchSendAction.mockReset();
   recordCityLaunchTouch.mockReset();
   sendEmail.mockReset();
+  buildOutboundReplyDurabilityStatus.mockReset();
+  buildOutboundReplyDurabilityStatus.mockResolvedValue({
+    ok: true,
+    status: "ready",
+    blockers: [],
+    warnings: [],
+    missingEnv: [],
+    proofCommands: [],
+  });
 
   vi.stubEnv("SENDGRID_API_KEY", "sg-key");
   vi.stubEnv("SENDGRID_FROM_EMAIL", "launches@tryblueprint.io");
@@ -106,6 +120,56 @@ describe("city launch send executor community publication", () => {
     );
     expect(recordCityLaunchTouch).not.toHaveBeenCalled();
     expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it("blocks live direct outreach when reply durability is not production-ready", async () => {
+    listCityLaunchChannelAccounts.mockResolvedValue([]);
+    listCityLaunchSendActions.mockResolvedValue([
+      {
+        id: "durham-nc-send-buyer-linked-1",
+        city: "Durham, NC",
+        citySlug: "durham-nc",
+        launchId: "launch-1",
+        lane: "buyer-linked-site",
+        actionType: "direct_outreach",
+        channelAccountId: null,
+        channelLabel: "buyer linked site",
+        targetLabel: "BotBuilt",
+        assetKey: "city-opening-first-wave-pack",
+        ownerAgent: "city-launch-agent",
+        recipientEmail: "ops@botbuilt.com",
+        emailSubject: "Subject",
+        emailBody: "Body long enough for a proof-led outreach draft.",
+        status: "ready_to_send",
+        approvalState: "approved",
+        responseIngestState: "awaiting_response",
+        issueId: null,
+        notes: null,
+        sentAtIso: null,
+        firstResponseAtIso: null,
+        createdAtIso: new Date().toISOString(),
+        updatedAtIso: new Date().toISOString(),
+      },
+    ]);
+    buildOutboundReplyDurabilityStatus.mockResolvedValue({
+      ok: false,
+      status: "blocked",
+      blockers: ["Gmail human-reply watcher is not enabled for the production scheduler."],
+      warnings: [],
+      missingEnv: ["BLUEPRINT_HUMAN_REPLY_GMAIL_WATCHER_ENABLED=1"],
+      proofCommands: ["npm run human-replies:audit-durability"],
+    });
+    sendEmail.mockResolvedValue({ sent: true });
+
+    const { executeCityLaunchSends } = await import("../utils/cityLaunchSendExecutor");
+    const result = await executeCityLaunchSends({ city: "Durham, NC" });
+
+    expect(result.sent).toBe(0);
+    expect(result.totalEligible).toBe(1);
+    expect(result.errors.join("\n")).toContain("Outbound reply durability is blocked");
+    expect(result.errors.join("\n")).toContain("BLUEPRINT_HUMAN_REPLY_GMAIL_WATCHER_ENABLED=1");
+    expect(sendEmail).not.toHaveBeenCalled();
+    expect(recordCityLaunchTouch).not.toHaveBeenCalled();
   });
 
   it("does not dry-run send direct outreach with a reserved recipient email", async () => {

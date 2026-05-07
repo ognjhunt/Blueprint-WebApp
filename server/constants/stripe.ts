@@ -2,6 +2,7 @@ import Stripe from "stripe";
 import { logger } from "../logger";
 
 const PLACEHOLDER_VALUES = new Set(["PLACEHOLDER", "DUMMY"]);
+const TRUE_VALUES = new Set(["1", "true", "yes", "y", "on"]);
 
 declare global {
   // Used for runtime diagnostics when critical third-party services are unavailable.
@@ -37,6 +38,17 @@ export const stripeClient =
   stripeAvailable
     ? new Stripe(STRIPE_SECRET_KEY as string, { apiVersion: "2024-12-18.acacia" })
     : null;
+
+export const STRIPE_CURRENT_PROVIDER = "stripe" as const;
+export const STRIPE_API_VERSION = "2024-12-18.acacia" as const;
+
+export function isStripeLivePayoutExecutionEnabled() {
+  return TRUE_VALUES.has(
+    (process.env.BLUEPRINT_LIVE_PAYOUT_EXECUTION_ENABLED || "").trim().toLowerCase(),
+  );
+}
+
+export const STRIPE_LIVE_PAYOUT_EXECUTION_ENABLED = isStripeLivePayoutExecutionEnabled();
 
 export const STRIPE_CONNECT_ACCOUNT_ID = process.env.STRIPE_CONNECT_ACCOUNT_ID?.trim();
 export const stripeConnectAccountConfigured =

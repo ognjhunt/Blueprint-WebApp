@@ -33,6 +33,7 @@ export type HumanResumeActionKind =
   | "inspect_logs"
   | "manual_followup"
   | "ops_followup"
+  | "city_launch_plan"
   | "city_launch_activate";
 
 export type HumanReplyRouteDecision = {

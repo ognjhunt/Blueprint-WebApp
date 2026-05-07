@@ -70,7 +70,7 @@ describe("city launch outbound readiness", () => {
     );
   });
 
-  it("warns when sender verification cannot be proven programmatically", async () => {
+  it("blocks live readiness when sender verification cannot be proven programmatically", async () => {
     vi.stubEnv("SENDGRID_API_KEY", "sg-key");
     vi.stubEnv("SENDGRID_FROM_EMAIL", "launches@tryblueprint.io");
 
@@ -106,9 +106,9 @@ describe("city launch outbound readiness", () => {
       ],
     });
 
-    expect(result.status).toBe("warning");
-    expect(result.warnings.join("\n")).toContain(
-      "Sender verification cannot be proven programmatically from env state.",
+    expect(result.status).toBe("blocked");
+    expect(result.blockers.join("\n")).toContain(
+      "City-launch sender/domain verification is not production-proven.",
     );
   });
 

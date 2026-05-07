@@ -148,7 +148,7 @@ function MetricCard({ metric }: { metric: ScoreMetric }) {
 export default function AdminAustinLaunchScorecard({ params }: Props) {
   const queryClient = useQueryClient();
   const [cityInput, setCityInput] = useState(cityFromSlug(params?.citySlug));
-  const [budgetTier, setBudgetTier] = useState("zero_budget");
+  const [budgetTier, setBudgetTier] = useState("lean");
   const [founderApproved, setFounderApproved] = useState(false);
   const [activationNotice, setActivationNotice] = useState("");
   const [activationError, setActivationError] = useState("");
@@ -264,9 +264,9 @@ export default function AdminAustinLaunchScorecard({ params }: Props) {
                 onChange={(event) => setBudgetTier(event.target.value)}
                 className="w-full rounded-xl border border-zinc-300 px-3 py-2"
               >
-                <option value="zero_budget">Zero budget</option>
-                <option value="low_budget">Low budget</option>
-                <option value="funded">Funded</option>
+                <option value="lean">Lean</option>
+                <option value="standard">Standard</option>
+                <option value="aggressive">Aggressive</option>
               </select>
             </label>
             <label className="flex items-center gap-3 rounded-xl border border-zinc-200 px-4 py-2 text-sm text-zinc-700">

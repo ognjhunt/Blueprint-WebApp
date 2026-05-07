@@ -20,10 +20,10 @@ describe("SiteWorlds", () => {
     ).toHaveAttribute("href", "/world-models/siteworld-f5fd54898cfb");
 
     expect(
-      screen.getAllByRole("link", { name: /Request access/i })[0],
+      screen.getAllByRole("link", { name: /Request site review/i })[0],
     ).toHaveAttribute(
       "href",
-      "/contact?persona=robot-team&interest=evaluation-package",
+      "/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=request-capture&source=site-worlds",
     );
 
     expect(screen.getAllByText(/Exact site/i).length).toBeGreaterThan(0);

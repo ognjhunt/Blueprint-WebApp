@@ -80,7 +80,7 @@ describe("HostedSessionSetup", () => {
     expect(screen.getAllByText(/World Model/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Robot profile/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Launch check/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Presentation demo/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Presentation demo/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Observation frames/i).length).toBeGreaterThan(0);
   });
 

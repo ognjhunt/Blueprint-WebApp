@@ -1,6 +1,6 @@
 # Exact-Site Hosted Review Buyer Loop
 
-- report_date: 2026-05-05
+- report_date: 2026-05-07
 - city: San Jose, CA
 - ledger: ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json
 - loop_status: blocked
@@ -27,7 +27,7 @@
 | Open blockers | 26 |
 | Paperclip-linked blockers | 26 |
 | 100-touch decision gap | 100 |
-| Days remaining | 5 |
+| Days remaining | 3 |
 
 ## One Sales Ledger
 

@@ -4,8 +4,8 @@
 - purpose: first-wave asset pack for operator review; not evidence of a live send, post, or account setup
 
 ## Warehouse / Facility Direct Awareness
-- target 1: Midwest Robotics — use a proof-led intro anchored to one workflow lane and one truthful CTA.
-- target site anchors currently available: Chicago Survey Ops.
+- target 1: Chicago Robotics — use a proof-led intro anchored to one workflow lane and one truthful CTA.
+- no named site anchors are materialized yet; avoid pretending a target list is complete.
 
 ## Public-Commercial Bounded Placements
 - placement class 1: local city/community groups where public commercial walkthroughs can be discussed without implying private access.

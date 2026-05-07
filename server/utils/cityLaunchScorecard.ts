@@ -24,6 +24,24 @@ type TrackedMetric = {
   note: string | null;
 };
 
+export type CityLaunchScorecardQueryLimits = {
+  waitlistSubmissions: number;
+  users: number;
+  inboundRequests: number;
+  growthEvents: number;
+};
+
+export type CityLaunchScorecardOptions = {
+  queryLimits?: Partial<CityLaunchScorecardQueryLimits> | null;
+};
+
+const DEFAULT_CITY_LAUNCH_SCORECARD_QUERY_LIMITS: CityLaunchScorecardQueryLimits = {
+  waitlistSubmissions: 1500,
+  users: 2000,
+  inboundRequests: 1500,
+  growthEvents: 4000,
+};
+
 export type CityLaunchScorecard = {
   city: {
     key: string;
@@ -76,6 +94,7 @@ export type CityLaunchScorecard = {
   };
   warnings: string[];
   dataSources: string[];
+  queryLimits: CityLaunchScorecardQueryLimits;
 };
 
 type DecryptedInbound = InboundRequest & {
@@ -89,6 +108,36 @@ function normalizeToken(value: string | null | undefined) {
     .replace(/[^a-z0-9]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function normalizeQueryLimit(value: number | null | undefined, fallback: number) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed)
+    ? Math.max(1, Math.min(Math.floor(parsed), fallback))
+    : fallback;
+}
+
+export function resolveCityLaunchScorecardQueryLimits(
+  input?: Partial<CityLaunchScorecardQueryLimits> | null,
+): CityLaunchScorecardQueryLimits {
+  return {
+    waitlistSubmissions: normalizeQueryLimit(
+      input?.waitlistSubmissions,
+      DEFAULT_CITY_LAUNCH_SCORECARD_QUERY_LIMITS.waitlistSubmissions,
+    ),
+    users: normalizeQueryLimit(
+      input?.users,
+      DEFAULT_CITY_LAUNCH_SCORECARD_QUERY_LIMITS.users,
+    ),
+    inboundRequests: normalizeQueryLimit(
+      input?.inboundRequests,
+      DEFAULT_CITY_LAUNCH_SCORECARD_QUERY_LIMITS.inboundRequests,
+    ),
+    growthEvents: normalizeQueryLimit(
+      input?.growthEvents,
+      DEFAULT_CITY_LAUNCH_SCORECARD_QUERY_LIMITS.growthEvents,
+    ),
+  };
 }
 
 function buildMetric(input: {
@@ -163,12 +212,12 @@ function hasAnyProofPathSignal(proofPath: Record<string, unknown> | undefined) {
   );
 }
 
-async function decryptInboundRequests() {
+async function decryptInboundRequests(limits: CityLaunchScorecardQueryLimits) {
   if (!db) {
     return [] as DecryptedInbound[];
   }
 
-  const snapshot = await db.collection("inboundRequests").limit(1500).get();
+  const snapshot = await db.collection("inboundRequests").limit(limits.inboundRequests).get();
   const records = await Promise.all(
     snapshot.docs.map(async (doc) => {
       try {
@@ -203,7 +252,7 @@ async function loadCompletedResearch(city: string) {
   }
 }
 
-async function loadGrowthEvents() {
+async function loadGrowthEvents(limits: CityLaunchScorecardQueryLimits) {
   if (!db) {
     return [] as Array<Record<string, unknown>>;
   }
@@ -211,7 +260,7 @@ async function loadGrowthEvents() {
   const snapshot = await db
     .collection("growth_events")
     .orderBy("created_at", "desc")
-    .limit(4000)
+    .limit(limits.growthEvents)
     .get();
 
   return snapshot.docs.map((doc) => doc.data() as Record<string, unknown>);
@@ -270,21 +319,25 @@ function requestMatchesCity(citySlug: string, request: DecryptedInbound) {
   return textMatchesCity(citySlug, request.request?.siteLocation || null);
 }
 
-export async function collectCityLaunchScorecard(city: string): Promise<CityLaunchScorecard> {
+export async function collectCityLaunchScorecard(
+  city: string,
+  options?: CityLaunchScorecardOptions,
+): Promise<CityLaunchScorecard> {
   if (!db) {
     throw new Error("Database not available");
   }
   const profile = resolveCityLaunchProfile(city);
   const citySlug = slugifyCityName(profile.city);
+  const queryLimits = resolveCityLaunchScorecardQueryLimits(options?.queryLimits);
 
   const [waitlistSnapshot, usersSnapshot, inboundRequests, ledgerSummary, activation, research, growthEvents] = await Promise.all([
-    db.collection("waitlistSubmissions").limit(1500).get(),
-    db.collection("users").limit(2000).get(),
-    decryptInboundRequests(),
+    db.collection("waitlistSubmissions").limit(queryLimits.waitlistSubmissions).get(),
+    db.collection("users").limit(queryLimits.users).get(),
+    decryptInboundRequests(queryLimits),
     summarizeCityLaunchLedgers(profile.city),
     readCityLaunchActivation(profile.city),
     loadCompletedResearch(profile.city),
-    loadGrowthEvents(),
+    loadGrowthEvents(queryLimits),
   ]);
 
   const supplySignalEmails = new Set<string>();
@@ -734,6 +787,7 @@ export async function collectCityLaunchScorecard(city: string): Promise<CityLaun
       "inboundRequests.ops.proof_path",
       ...ledgerSummary.dataSources,
     ],
+    queryLimits,
   };
 }
 

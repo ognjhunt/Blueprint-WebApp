@@ -11,13 +11,13 @@ Turn the Chicago planning artifacts into an executable company harness that runs
 
 ## Machine-Readable Budget Policy
 
-- budget_tier: low_budget
-- total_envelope_usd: 2500
-- operator_auto_approve_usd: 500
-- allow_paid_acquisition: true
+- budget_tier: zero_budget
+- total_envelope_usd: 0
+- operator_auto_approve_usd: 0
+- allow_paid_acquisition: false
 - allow_referral_rewards: false
-- allow_travel_reimbursement: true
-- founder_approval_required_above_usd: 2500
+- allow_travel_reimbursement: false
+- founder_approval_required_above_usd: 0
 
 ## What The Org Will Do
 
@@ -26,8 +26,10 @@ Turn the Chicago planning artifacts into an executable company harness that runs
 3. Make city-opening distribution explicit through a city-opening brief, channel map, first-wave outreach/posting pack, exact CTA/intake routing, response tracking, reply-conversion cadence, channel registry, send ledger, exact-site buyer loop, and city-opening execution report so the city does not wait for replies from people who were never reached or lose the first replies once they arrive.
 4. Materialize the live Paperclip issue tree for the city launch so work is routable instead of staying trapped in artifacts.
 5. Measure the city through Chicago-specific distribution, supply, demand, spend, and proof-motion metrics so operators can see whether the city is actually becoming operationally real.
-6. Treat the machine-readable activation payload as the control-plane artifact for validation blockers, lane mapping, and metrics readiness.
-7. After activation, every lane should execute all reversible work immediately and stop only at automatic policy blocks, external counterparty confirmations, or the lack of a real live signal needed to mark completion.
+6. Prepare proof-led Ad Studio creative, image/video handoff, and Meta Ads read-only/paused-draft evidence as marketing artifacts only, with no live spend or active ad mutation without founder approval.
+7. Persist 24h, 48h, and 72h scorecard windows that name exact Firestore/admin evidence sources instead of relying on narrative launch status.
+8. Treat the machine-readable activation payload as the control-plane artifact for validation blockers, lane mapping, and metrics readiness.
+9. After activation, every lane should execute all reversible work immediately and stop only at automatic policy blocks, external counterparty confirmations, or the lack of a real live signal needed to mark completion.
 
 ## Planning State
 
@@ -38,7 +40,7 @@ Turn the Chicago planning artifacts into an executable company harness that runs
 ## Founder-Only Decisions
 
 - Chicago city expansion stays gated by proof and hosted-review milestones, not approval packets.
-- Any spend request beyond the written Chicago low budget policy is out of policy until the repo policy changes.
+- Any spend request beyond the written Chicago zero budget policy is out of policy until the repo policy changes.
 - Any public statement that changes company posture or overstates Chicago readiness is auto-blocked until supported in repo truth.
 - Any rights/privacy exception or non-standard commercial commitment is blocked until the written policy and evidence path are updated.
 
@@ -63,7 +65,7 @@ Turn the Chicago planning artifacts into an executable company harness that runs
 
 - Autonomously activate Chicago, IL as an active city-launch program and keep execution bounded to the selected city.
 - Run the Chicago launch posture autonomously: gated cohort pilot, Exact-Site Hosted Review wedge, and truthful public claims only.
-- Autonomous spend posture for Chicago: Low Budget with a total envelope up to $2,500.
+- Autonomous spend posture for Chicago: Zero Budget with no paid acquisition, referral, or discretionary travel spend.
 - Automatically block any Chicago source-policy change that exceeds the current bounded channel stack until the written policy is updated in repo truth.
 - Automatically block any rights/privacy/commercialization exception that lacks repo-backed policy and evidence.
 - Automatically block any non-standard commercial term outside the standard Chicago quote bands until the quote policy is updated in repo truth.
@@ -76,12 +78,14 @@ Turn the Chicago planning artifacts into an executable company harness that runs
 - Chicago ops packet: intake rubric, trust kit, first-capture thresholds, and launch-readiness checklist is a completion dependency, not a reason to leave execution lanes idle.
 - At least one clean Chicago proof pack with hosted-review path and rights/provenance clearance is required before claiming the city is live.
 - Chicago buyer target list and proof-led outbound package are completion requirements for launch quality, not start gates for agent work.
+- Chicago Ad Studio claims review, generated-creative boundary, image/video handoff, Meta Ads read-only proof, and paused-draft gate must be recorded before any paid-acquisition readiness claim.
 - Chicago scorecard working from live repo truth sources is required before widening or health claims.
+- Chicago 24h, 48h, and 72h scorecard window artifacts are required to claim the CITY+BUDGET loop is measurable.
 - Machine-readable activation payload with validation blockers, issue seeds, named claims, and metrics dependencies remains the control-plane source of truth.
 
 ## Activation Payload Highlights
 
-- city_thesis: Run one proof-led warehouse wedge.
+- city_thesis: One site, one workflow, one hosted review wedge.
 - primary_site_lane: industrial_warehouse
 - primary_workflow_lane: dock handoff
 - primary_buyer_proof_path: exact_site
@@ -89,28 +93,12 @@ Turn the Chicago planning artifacts into an executable company harness that runs
 
 ## Launch Surface Coverage
 
-| Surface | Owner | Artifact | Gate |
-|---|---|---|---|
-| validation_required | city-launch-agent | activation payload missing launch_surface_coverage | refresh the city deep-research playbook with the current harness |
+| Surface | Owner | Human lane | Artifact | Gate | Blocker behavior |
+|---|---|---|---|---|---|
+| validation_required | city-launch-agent | growth-lead | activation payload missing launch_surface_coverage | refresh the city deep-research playbook with the current harness | blocked |
 
 ## Metrics Blockers
 
-- robot_team_inbound_captured: required_tracked
-- proof_path_assigned: required_tracked
-- proof_pack_delivered: required_tracked
-- hosted_review_ready: required_tracked
-- hosted_review_started: required_tracked
-- hosted_review_follow_up_sent: required_tracked
-- human_commercial_handoff_started: required_tracked
-- proof_motion_stalled: required_tracked
-- city_launch_lawful_access_established: required_tracked
-- city_launch_capturer_approved: required_tracked
-- city_launch_capture_completed: required_tracked
-- city_launch_capture_qa_passed: required_tracked
-- city_launch_proof_asset_rights_cleared: required_tracked
-- city_launch_proof_pack_delivered: required_tracked
-- city_launch_hosted_review_ready: required_tracked
-- city_launch_commercial_handoff: required_tracked
 
 ## Expansion Guard
 
@@ -119,22 +107,6 @@ Turn the Chicago planning artifacts into an executable company harness that runs
 - At least one hosted review must run end to end before widening.
 - At least three approved capturers are required before widening.
 - At least two capturers must reach onboarded status before widening.
-- robot_team_inbound_captured is required_tracked.
-- proof_path_assigned is required_tracked.
-- proof_pack_delivered is required_tracked.
-- hosted_review_ready is required_tracked.
-- hosted_review_started is required_tracked.
-- hosted_review_follow_up_sent is required_tracked.
-- human_commercial_handoff_started is required_tracked.
-- proof_motion_stalled is required_tracked.
-- city_launch_lawful_access_established is required_tracked.
-- city_launch_capturer_approved is required_tracked.
-- city_launch_capture_completed is required_tracked.
-- city_launch_capture_qa_passed is required_tracked.
-- city_launch_proof_asset_rights_cleared is required_tracked.
-- city_launch_proof_pack_delivered is required_tracked.
-- city_launch_hosted_review_ready is required_tracked.
-- city_launch_commercial_handoff is required_tracked.
 
 ## Execution Bundle
 
@@ -160,7 +132,10 @@ Turn the Chicago planning artifacts into an executable company harness that runs
 - Keep Chicago buyer threads inside standard commercial handling: revenue-ops-pricing-agent owns execution, Designated human commercial owner is the human lane, and the task closes only when Standard Chicago quote bands, discount guardrails, and handoff thresholds are documented and used..
 - Publish Chicago city-opening response tracking: analytics-agent owns execution, Growth Lead is the human lane, and the task closes only when Chicago response-tracking view shows which warehouse/facility channels and which public-commercial community channels were activated, with asset or message attribution where available..
 - Run the Chicago city-opening reply-conversion and follow-up cadence lane: city-launch-agent owns execution, Growth Lead is the human lane, and the task closes only when Chicago reply-conversion queue exists with each live response tagged by responder type, channel, current status, next owner, next follow-up due, and downstream handoff target..
+- Prepare the Chicago Ad Studio claims review and creative handoff: robot-team-growth-agent owns execution, Growth Lead is the human lane, and the task closes only when Chicago Ad Studio run exists with a claims ledger, claims review, prompt pack, and image execution handoff..
+- Record Chicago Meta Ads read-only proof and paused-draft readiness: robot-team-growth-agent owns execution, Founder is the human lane, and the task closes only when Chicago Meta Ads CLI status/read-only proof is recorded or blocked with exact missing env/account fields..
 - Publish the Chicago launch scorecard and blocker view: analytics-agent owns execution, Growth Lead is the human lane, and the task closes only when Chicago scorecard reports supply and demand progress against the launch thresholds..
+- Persist the Chicago 24/48/72h launch scorecard windows: analytics-agent owns execution, Growth Lead is the human lane, and the task closes only when Chicago 24h, 48h, and 72h scorecard artifact paths exist and name the exact Firestore/admin collection and query names used for each lane..
 - Mirror Chicago execution artifacts into Notion Knowledge and Work Queue: notion-manager-agent owns execution, Chief of Staff is the human lane, and the task closes only when Chicago execution system doc is mirrored into Notion Knowledge..
 - Run the Chicago switch-on review before activation: beta-launch-commander owns execution, CTO is the human lane, and the task closes only when Chicago switch-on review returns GO, CONDITIONAL GO, or HOLD with evidence..
 
@@ -219,6 +194,18 @@ Turn the Chicago planning artifacts into an executable company harness that runs
 - ops/paperclip/playbooks/city-opening-chicago-il-no-signal-scorecard.md
 - ops/paperclip/playbooks/city-opening-chicago-il-robot-team-contact-list.md
 - ops/paperclip/playbooks/city-opening-chicago-il-site-operator-contact-list.md
+- ops/paperclip/playbooks/city-launch-chicago-il-indoor-location-supply.json
+- ops/paperclip/playbooks/city-launch-chicago-il-indoor-location-supply-rejected.json
+- ops/paperclip/playbooks/city-launch-chicago-il-indoor-location-supply-evidence-log.json
+- ops/paperclip/playbooks/city-launch-chicago-il-indoor-location-supply-report.md
+- ops/paperclip/playbooks/city-launch-chicago-il-gtm-72h-contract.json
+- ops/paperclip/playbooks/city-launch-chicago-il-gtm-72h-contract.md
+- ops/paperclip/playbooks/city-launch-chicago-il-ad-studio-creative-handoff.md
+- ops/paperclip/playbooks/city-launch-chicago-il-meta-ads-readiness.md
+- ops/paperclip/playbooks/city-launch-chicago-il-scorecard-windows.json
+- ops/paperclip/playbooks/city-launch-chicago-il-scorecard-24h.md
+- ops/paperclip/playbooks/city-launch-chicago-il-scorecard-48h.md
+- ops/paperclip/playbooks/city-launch-chicago-il-scorecard-72h.md
 
 ## Determination
 

@@ -21,8 +21,14 @@ import {
   buildDeepResearchTools,
   resolveDeepResearchFileSearchStoreNames,
 } from "../utils/deepResearchFileSearch";
+import { buildCityLaunchBudgetPolicy } from "../utils/cityLaunchPolicy";
 
 describe("city launch planning harness", () => {
+  const budgetPolicy = buildCityLaunchBudgetPolicy({
+    tier: "lean",
+    maxTotalApprovedUsd: 2_500,
+  });
+
   it("slugifies city names for artifact paths", () => {
     expect(slugifyCityName("Austin, TX")).toBe("austin-tx");
     expect(slugifyCityName("San Francisco, CA")).toBe("san-francisco-ca");
@@ -45,12 +51,17 @@ describe("city launch planning harness", () => {
     const prompt = buildResearchPrompt({
       city: "San Diego, CA",
       region: "California",
+      budgetPolicy,
+      windowHours: 72,
       similarCompanies: ["Uber", "DoorDash"],
       context: "Context body",
     });
     expect(prompt).toContain("Blueprint's city proof-motion research director");
     expect(prompt).toContain("Blueprint city proof-motion architecture");
     expect(prompt).toContain("not a generic startup memo or city marketplace launcher");
+    expect(prompt).toContain("budget_tier: lean");
+    expect(prompt).toContain("budget_max_usd: 2500");
+    expect(prompt).toContain("budget_recommendations in the structured launch data appendix must total no more than $2,500");
     expect(prompt).toContain("one site lane, one workflow lane, one buyer proof path");
     expect(prompt).toContain("private industrial or controlled-access interior capture requires explicit operator authorization");
     expect(prompt).toContain("use only repo-approved analytics vocabulary with city/source tags");
@@ -196,10 +207,14 @@ describe("city launch planning harness", () => {
   it("builds a synthesis prompt that requires an operator-ready proof-motion playbook", () => {
     const prompt = buildSynthesisPrompt({
       city: "Austin, TX",
+      budgetPolicy,
+      windowHours: 72,
       research: "Research body",
       critiqueOutputs: ["Critique 1", "Critique 2"],
     });
     expect(prompt).toContain("single operator-ready Blueprint city proof-motion playbook");
+    expect(prompt).toContain("budget_tier=lean");
+    expect(prompt).toContain("budget_max_usd=2500");
     expect(prompt).toContain("City proof-motion thesis");
     expect(prompt).toContain("Narrow wedge definition");
     expect(prompt).toContain("Analog sanity check");
@@ -482,6 +497,16 @@ describe("city launch planning harness", () => {
               inferred_fields: [],
             },
           ],
+          budget_recommendations: [
+            {
+              category: "outbound",
+              amount_usd: 3000,
+              note: "Over the active lean budget cap.",
+              source_urls: [],
+              explicit_fields: ["category", "amount_usd"],
+              inferred_fields: [],
+            },
+          ],
         },
         null,
         2,
@@ -497,6 +522,15 @@ describe("city launch planning harness", () => {
     expect(result.ok).toBe(false);
     expect(result.errors.join("\n")).toContain(
       'uses unknown delegation_task_key "not-a-real-task"',
+    );
+
+    const budgetResult = validateCityLaunchPlaybookMarkdown({
+      city: "Austin, TX",
+      markdown,
+      budgetPolicy,
+    });
+    expect(budgetResult.errors.join("\n")).toContain(
+      "Structured budget_recommendations total $3,000 exceeds Lean budget max $2,500.",
     );
   });
 });

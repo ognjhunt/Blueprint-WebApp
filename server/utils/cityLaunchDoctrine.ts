@@ -201,8 +201,11 @@ export const CITY_LAUNCH_REQUIRED_SURFACE_KEYS = [
   "cta_intake_and_response_tracking",
   "reply_conversion_and_follow_up",
   "channel_registry_and_send_ledger",
+  "proof_led_creative_and_video_handoff",
+  "meta_ads_readiness_and_paused_draft",
   "budget_and_spend_policy",
   "analytics_scorecard",
+  "scorecard_window_24_48_72",
   "paperclip_notion_and_issue_tree",
   "public_claims_and_widening_gate",
 ] as const;
@@ -243,7 +246,10 @@ export const CITY_LAUNCH_DEFAULT_ACTIVATION_TASK_KEYS = [
   "buyer-thread-commercial",
   "city-opening-response-tracking",
   "city-opening-reply-conversion",
+  "ad-studio-creative-handoff",
+  "meta-paused-draft-readiness",
   "city-scorecard",
+  "scorecard-window-24-48-72",
   "notion-breadcrumbs",
   "switch-on-review",
 ] as const;
@@ -301,6 +307,21 @@ export const CITY_LAUNCH_REQUIRED_FINAL_PLAYBOOK_ARTIFACTS = [
     key: "exact_site_buyer_loop_artifact",
     label: "exact-site buyer-loop artifact",
     surfaceKey: "hosted_review_buyer_surface",
+  },
+  {
+    key: "ad_studio_creative_handoff",
+    label: "Ad Studio claims and creative handoff",
+    surfaceKey: "proof_led_creative_and_video_handoff",
+  },
+  {
+    key: "meta_ads_readiness_and_paused_draft_gate",
+    label: "Meta Ads read-only proof and paused-draft gate",
+    surfaceKey: "meta_ads_readiness_and_paused_draft",
+  },
+  {
+    key: "scorecard_24_48_72_manifest",
+    label: "24/48/72h scorecard window manifest",
+    surfaceKey: "scorecard_window_24_48_72",
   },
 ] as const satisfies ReadonlyArray<{
   key: string;

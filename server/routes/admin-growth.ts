@@ -33,6 +33,7 @@ import {
 } from "../utils/cityLaunchCoverageExpansion";
 import { reviewCityLaunchCandidateBatch } from "../utils/cityLaunchCandidateReview";
 import { resolveCityLaunchActivationFounderApproval } from "../utils/cityLaunchApprovalMode";
+import { normalizeCityLaunchBudgetTier } from "../utils/cityLaunchPolicy";
 import {
   listCityLaunchBudgetEvents,
   listCityLaunchBuyerTargets,
@@ -775,11 +776,7 @@ router.post("/city-launch/activate", requireOps, async (req, res) => {
       return res.status(400).json({ error: "city is required" });
     }
 
-    const rawBudgetTier = normalizeString(req.body?.budgetTier);
-    const budgetTier =
-      rawBudgetTier === "zero_budget" || rawBudgetTier === "low_budget" || rawBudgetTier === "funded"
-        ? rawBudgetTier
-        : undefined;
+    const budgetTier = normalizeCityLaunchBudgetTier(req.body?.budgetTier) || undefined;
 
     const result = await runCityLaunchExecutionHarness({
       city,
@@ -1102,12 +1099,7 @@ router.post("/city-launch/spend-requests", requireOps, async (req, res) => {
       expectedOutcome: normalizeString(req.body?.expectedOutcome) || null,
       evidenceRefs: normalizeStringArray(req.body?.evidenceRefs),
       provider: normalizeString(req.body?.provider) || "manual",
-      budgetTier:
-        normalizeString(req.body?.budgetTier) === "zero_budget" ||
-        normalizeString(req.body?.budgetTier) === "low_budget" ||
-        normalizeString(req.body?.budgetTier) === "funded"
-          ? (normalizeString(req.body?.budgetTier) as "zero_budget" | "low_budget" | "funded")
-          : null,
+      budgetTier: normalizeCityLaunchBudgetTier(req.body?.budgetTier),
       maxTotalApprovedUsd: normalizeNumber(req.body?.maxTotalApprovedUsd),
       operatorAutoApproveUsd: normalizeNumber(req.body?.operatorAutoApproveUsd),
       founderApprovedBudgetEnvelope:

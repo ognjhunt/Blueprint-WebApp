@@ -3,24 +3,28 @@ import { render, screen } from "@testing-library/react";
 import BookExactSiteReview from "@/pages/BookExactSiteReview";
 
 describe("BookExactSiteReview", () => {
-  it("renders a dedicated scoping-call path with external scheduling and fallback contact options", () => {
+  it("renders structured intake as the primary path with scheduling secondary", () => {
     render(<BookExactSiteReview />);
 
     expect(
-      screen.getByRole("heading", { name: /Book an exact-site scoping call\./i }),
+      screen.getByRole("heading", { name: /Start with exact-site intake\./i }),
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        /Use this page when one real site, one workflow, and one deployment question are ready for a focused scoping pass\./i,
+        /Submit the site context first; book only when the scope is concrete enough for a focused call\./i,
       ),
     ).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: /Submit site review intake/i })[0]).toHaveAttribute(
+      "href",
+      expect.stringContaining("/contact?persona=robot-team"),
+    );
     expect(screen.getByRole("link", { name: /Open scheduling/i })).toHaveAttribute(
       "href",
       "https://calendly.com/blueprintar/30min",
     );
-    expect(screen.getByRole("link", { name: /What a good scoping call resolves/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Book only if scope is concrete/i })).toHaveAttribute(
       "href",
-      "/exact-site-hosted-review",
+      "https://calendly.com/blueprintar/30min",
     );
   });
 });

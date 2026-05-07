@@ -3,20 +3,19 @@
 ## Status
 - phase: activation_ready
 - owner: city-launch-agent
-- last-reviewed: 2026-05-05
+- last-reviewed: 2026-05-07
 - recommended-posture: gated cohort pilot
 - launch_policy_state: autonomous_execution_ready
 - planning-state: completed
 
 ## Launch Thesis
-Run one proof-led warehouse wedge.
+One site, one workflow, one hosted review wedge.
 
 ## What Changed This Pass
 - evidence-backed: the generic city-launch activation harness generated the Sacramento system doc, execution issue bundle, target ledger, and compact city playbooks in one run.
 - evidence-backed: the launch harness now tracks planning state explicitly so activation can distinguish "not started" from "research still running".
 - evidence-backed: the compact launch packet uses the standard platform analytics event model rather than inventing city-specific telemetry.
 - evidence-backed: the target ledger mode for this city is `deep_research_records`. Research-backed named targets already available include Northgate Logistics.
-- warning: Activation-ready buyer direct-outreach lanes for Sacramento, CA have named targets but no explicit contact_email evidence.
 - warning: Activation-ready capturer direct-outreach lanes for Sacramento, CA have named targets but no explicit contact_email evidence.
 - warning: Activation-ready direct outreach requires 1-3 recipient-backed first-wave contacts with explicit contact_email evidence.
 
@@ -87,7 +86,7 @@ Run one proof-led warehouse wedge.
 
 ## Rights Path
 
-Private controlled interiors require authorization.
+Rights summary
 
 ## Trust Infrastructure Required Before Expansion
 - written site-operator acquisition path and authority verification checklist
@@ -101,9 +100,9 @@ Private controlled interiors require authorization.
 
 ## Launch Surface Coverage
 
-| Surface | Owner | Artifact | Gate |
-|---|---|---|---|
-| validation_required | city-launch-agent | activation payload missing launch_surface_coverage | refresh the city deep-research playbook with the current harness |
+| Surface | Owner | Human lane | Artifact | Gate | Blocker behavior |
+|---|---|---|---|---|---|
+| validation_required | city-launch-agent | growth-lead | activation payload missing launch_surface_coverage | refresh the city deep-research playbook with the current harness | blocked |
 
 ## Readiness Scorecard
 | Dimension | Score | Rationale |

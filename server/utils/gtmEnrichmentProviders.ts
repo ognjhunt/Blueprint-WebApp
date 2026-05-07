@@ -105,6 +105,27 @@ export type GtmHumanRecipientEvidenceValidationResult = {
   }>;
 };
 
+export type GtmHumanRecipientEvidenceTemplate = {
+  schema: "blueprint/gtm-human-recipient-evidence-template/v1";
+  generatedAt: string;
+  ledgerPath: string | null;
+  instructions: string[];
+  recipients: Array<{
+    targetId: string;
+    organizationName: string;
+    track: ExactSiteGtmTarget["track"];
+    buyerSegment: string;
+    workflowNeed: string;
+    email: null;
+    name: null;
+    role: null;
+    evidenceSource: null;
+    sourceUrl: null;
+    selectedForFirstSend: false;
+    notes: string;
+  }>;
+};
+
 function nowIso() {
   return new Date().toISOString();
 }
@@ -240,6 +261,41 @@ function humanRecipientEvidencePath() {
   return process.env.BLUEPRINT_GTM_HUMAN_RECIPIENT_EVIDENCE_PATH
     || process.env.BLUEPRINT_GTM_MANUAL_RECIPIENT_EVIDENCE_PATH
     || "";
+}
+
+export function buildHumanRecipientEvidenceTemplate(input: {
+  ledger: ExactSiteGtmPilotLedger;
+  ledgerPath?: string | null;
+}): GtmHumanRecipientEvidenceTemplate {
+  return {
+    schema: "blueprint/gtm-human-recipient-evidence-template/v1",
+    generatedAt: nowIso(),
+    ledgerPath: input.ledgerPath || null,
+    instructions: [
+      "Fill only explicit recipient evidence from a fetched public source, CRM/history record, or human-provided source note.",
+      "Do not infer or guess email addresses from names, companies, domains, or patterns.",
+      "Keep selectedForFirstSend=false until the exact recipient row should enter founder first-send approval.",
+      "Run npm run gtm:recipient-evidence:validate -- --human-recipient-evidence-path <path> before enrichment or sends.",
+      "Run npm run gtm:enrichment:run -- --write --select-recipients --human-recipient-evidence-path <path> only after validation passes.",
+    ],
+    recipients: input.ledger.targets
+      .filter((target) => !target.recipient?.email)
+      .map((target) => ({
+        targetId: target.id,
+        organizationName: target.organizationName,
+        track: target.track,
+        buyerSegment: target.buyerSegment,
+        workflowNeed: target.workflowNeed,
+        email: null,
+        name: null,
+        role: null,
+        evidenceSource: null,
+        sourceUrl: null,
+        selectedForFirstSend: false,
+        notes:
+          "Replace null fields only with explicit source-backed recipient evidence; leave this row unselected if evidence is not ready.",
+      })),
+  };
 }
 
 function matchHumanEvidenceRow(target: ExactSiteGtmTarget, row: Record<string, unknown>) {

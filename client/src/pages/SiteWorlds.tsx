@@ -409,8 +409,8 @@ export default function SiteWorlds() {
             imageAlt={heroSite.siteName}
             primaryHref={publicDemoHref}
             primaryLabel="Inspect a real site"
-            secondaryHref="/contact?persona=robot-team&interest=evaluation-package"
-            secondaryLabel="Request access"
+            secondaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=request-capture&source=site-worlds"
+            secondaryLabel="Request site review"
           />
         </section>
       </div>
