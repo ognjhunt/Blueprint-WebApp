@@ -60,6 +60,7 @@ function executionOwnerForLane(lane: string) {
   switch (lane) {
     case "growth_campaign":
     case "buyer_lifecycle":
+    case "lifecycle_cadence":
       return "growth-lead";
     default:
       return "ops-lead";

@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 const runAgentTask = vi.hoisted(() => vi.fn());
 const inboundSet = vi.hoisted(() => vi.fn());
 const executePhase2WorkflowActions = vi.hoisted(() => vi.fn());
+const phase2Enabled = vi.hoisted(() => ({ value: true }));
 
 const fakeDb = {
   collection: vi.fn((name: string) => {
@@ -37,7 +38,7 @@ vi.mock("../config/env", async (importOriginal) => {
 
   return {
     ...actual,
-    isPhase2LaneEnabled: () => true,
+    isPhase2LaneEnabled: () => phase2Enabled.value,
   };
 });
 
@@ -74,6 +75,7 @@ afterEach(() => {
   runAgentTask.mockReset();
   inboundSet.mockReset();
   executePhase2WorkflowActions.mockReset();
+  phase2Enabled.value = true;
   vi.resetModules();
 });
 
@@ -221,5 +223,78 @@ describe("inbound qualification worker", () => {
     );
 
     expect(inboundSet).toHaveBeenCalled();
+  });
+
+  it("routes tailored buyer follow-up through the action ledger even when phase 2 inbound is disabled", async () => {
+    phase2Enabled.value = false;
+    runAgentTask.mockResolvedValue({
+      status: "completed",
+      provider: "openclaw",
+      runtime: "openclaw",
+      model: "openai/gpt-5.4",
+      tool_mode: "api",
+      requires_human_review: false,
+      requires_approval: false,
+      output: {
+        automation_status: "completed",
+        block_reason_code: null,
+        retryable: false,
+        qualification_state_recommendation: "needs_more_evidence",
+        opportunity_state_recommendation: "not_applicable",
+        confidence: 0.86,
+        requires_human_review: false,
+        next_action: "Ask for the operating boundary and hosted-review decision.",
+        rationale: "The site is named but the access boundary needs one concrete follow-up.",
+        internal_summary: "Send one short follow-up before a call.",
+        missing_information: ["Operating boundary"],
+        buyer_follow_up: {
+          subject: "One detail for the Blueprint site review",
+          body: "Thanks for sending the site. Please reply with the operating boundary you want Blueprint to respect first, then we can point you toward the right hosted-review or capture path.",
+        },
+      },
+    });
+    executePhase2WorkflowActions.mockResolvedValue({
+      records: [
+        {
+          action_key: "inbound_follow_up_email",
+          action_type: "send_email",
+          action_state: "sent",
+          action_tier: 1,
+          idempotency_key: "idem-follow-up",
+          ledger_doc_id: "ledger-follow-up",
+          auto_approve_reason: "policy_auto_approved",
+          error: null,
+          executed_at: "2026-05-07T12:00:00.000Z",
+        },
+      ],
+      lastResult: {
+        state: "sent",
+        tier: 1,
+        ledgerDocId: "ledger-follow-up",
+        autoApproveReason: "policy_auto_approved",
+      },
+      lastState: "sent",
+    });
+
+    const { runInboundQualificationForRequest } = await import("../agents/workflows");
+    await runInboundQualificationForRequest(inboundRequest);
+
+    expect(executePhase2WorkflowActions).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lane: "inbound",
+        sourceCollection: "inboundRequests",
+        sourceDocId: "request-1",
+        actions: expect.arrayContaining([
+          expect.objectContaining({
+            actionKey: "inbound_follow_up_email",
+            actionType: "send_email",
+            actionPayload: expect.objectContaining({
+              to: "ada@example.com",
+              subject: "One detail for the Blueprint site review",
+            }),
+          }),
+        ]),
+      }),
+    );
   });
 });

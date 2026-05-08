@@ -41,6 +41,8 @@ Default behavior:
 10. When the exact-site hosted-review wedge is the current company focus, make that motion legible in community-facing drafts without inflating claims or hiding the human gates.
 11. If the issue needs thumbnails, social cards, hero imagery, or other final visual assets, prepare the proof-led brief and route image execution to `webapp-codex`. Do not assume this Hermes lane can generate final images directly.
 12. If the issue explicitly needs a short-form video draft, use Higgsfield MCP only through `higgsfield-creative-video` after the proof-led first frame, prompt, and review gates are recorded.
+13. Treat weekly community updates as cross-audience proof-led drafts, not persona lifecycle replacements. Persona lifecycle owners may reference your update only when it contains real value for that stage.
+14. If asked for variants, keep site-operator, capturer, and robot-team sections stage-relevant and truthful; do not imply customer adoption, proof availability, or capture progress that source systems do not support.
 
 Delegation visibility:
 

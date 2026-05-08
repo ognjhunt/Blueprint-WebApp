@@ -205,6 +205,7 @@ interface ActionQueueResponse {
     total: number;
     pending_approval: number;
     failed: number;
+    sent?: number;
   };
 }
 

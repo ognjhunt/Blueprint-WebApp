@@ -285,6 +285,33 @@ describe("executeAction", () => {
     );
   });
 
+  it("mirrors pending review state for direct intake follow-ups onto the source intake document", async () => {
+    mockQueryGet.mockResolvedValueOnce({ empty: true, docs: [] });
+
+    const result = await executeAction(
+      makeParams({
+        sourceCollection: "contactRequests",
+        sourceDocId: "contact-123",
+        safetyPolicy: ALWAYS_HUMAN_POLICY,
+      }),
+    );
+
+    expect(result.state).toBe("pending_approval");
+    expect(mockDocSet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        intake_follow_up: expect.objectContaining({
+          last_status: "pending_approval",
+          last_ledger_doc_id: result.ledgerDocId,
+          last_approval_reason: "requires_human_review",
+          last_subject: "Welcome to Blueprint",
+          last_recipient: "buyer@warehouse-robotics.co",
+          last_error: null,
+        }),
+      }),
+      { merge: true },
+    );
+  });
+
   it("auto-approves and executes tier 1 draft", async () => {
     mockQueryGet
       .mockResolvedValueOnce({ empty: true, docs: [] }) // idempotency check
@@ -302,8 +329,46 @@ describe("executeAction", () => {
         subject: "Welcome to Blueprint",
       }),
     );
+    expect(mockDocUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "sent",
+        sent_at: expect.any(Date),
+        last_execution_at: expect.any(Date),
+      }),
+    );
     // Tier 1 should NOT send a Slack notification
     expect(mockSendSlackMessage).not.toHaveBeenCalled();
+  });
+
+  it("mirrors sent state for direct intake follow-ups onto the source intake document", async () => {
+    mockQueryGet
+      .mockResolvedValueOnce({ empty: true, docs: [] }) // idempotency check
+      .mockResolvedValueOnce({ size: 0 }); // daily count check
+
+    const result = await executeAction(
+      makeParams({
+        sourceCollection: "inboundRequests",
+        sourceDocId: "request-123",
+        safetyPolicy: ALWAYS_AUTO_POLICY,
+      }),
+    );
+
+    expect(result.state).toBe("sent");
+    expect(mockDocSet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        intake_follow_up: expect.objectContaining({
+          last_status: "sent",
+          last_ledger_doc_id: result.ledgerDocId,
+          last_action_type: "send_email",
+          last_subject: "Welcome to Blueprint",
+          last_recipient: "buyer@warehouse-robotics.co",
+          last_error: null,
+          last_sent_at: expect.any(String),
+          updated_at: expect.any(String),
+        }),
+      }),
+      { merge: true },
+    );
   });
 
   it("auto-executes tier 2 draft with Slack notification", async () => {
@@ -469,6 +534,41 @@ describe("executeAction", () => {
         last_execution_error: "SMTP timeout",
         execution_attempts: 1,
       }),
+    );
+  });
+
+  it("marks email action failed when the transport returns sent false", async () => {
+    mockQueryGet
+      .mockResolvedValueOnce({ empty: true, docs: [] }) // idempotency check
+      .mockResolvedValueOnce({ size: 0 }); // daily count check
+    mockSendEmail.mockResolvedValueOnce({ sent: false, error: "Email transport not configured" });
+
+    const result = await executeAction(
+      makeParams({
+        sourceCollection: "inboundRequests",
+        sourceDocId: "request-transport-missing",
+      }),
+    );
+
+    expect(result.state).toBe("failed");
+    expect(result.error).toMatch(/Email transport not configured/i);
+    expect(mockDocUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "failed",
+        last_execution_error: expect.stringMatching(/Email transport not configured/i),
+        execution_attempts: 1,
+      }),
+    );
+    expect(mockDocSet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        intake_follow_up: expect.objectContaining({
+          last_status: "failed",
+          last_error: expect.stringMatching(/Email transport not configured/i),
+          last_subject: "Welcome to Blueprint",
+          last_recipient: "buyer@warehouse-robotics.co",
+        }),
+      }),
+      { merge: true },
     );
   });
 });

@@ -36,6 +36,9 @@ Default behavior:
 7. For the 14-day Exact-Site Hosted Review GTM pilot, participate only when a specific ledger target has an operator/access/commercialization question; return human-gated blockers for live outreach, rights/privacy, permission, or commercialization decisions.
 8. Keep operator CTAs structured-intake-first: "Submit or claim a site" is primary, "List a site for robot evaluation" is a structured secondary path, and "Talk to Blueprint" is only the human checkpoint after private access, rights, privacy, or commercialization details justify it.
 9. For new-city user-base growth, participate only when the city loop names a specific site/operator/access or commercialization question. Return an operator-side next step, structured-intake route, or human-gated blocker; do not make operator approval a universal prerequisite for city growth.
+10. Own site-operator lifecycle cadence drafts from `lifecycle_email_cadences`: operator welcome, access boundary, privacy/commercialization boundary, one-week path choice, relevant update preference, and re-engagement.
+11. Keep each lifecycle draft explicit that operator engagement is an optional lane for access, privacy, and commercialization clarity; do not imply operator approval is universally required.
+12. Treat live operator lifecycle sends, partner outreach, rights/privacy decisions, and commercialization commitments as human-gated.
 
 Delegation visibility:
 

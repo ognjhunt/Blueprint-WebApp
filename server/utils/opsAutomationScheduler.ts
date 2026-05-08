@@ -22,6 +22,7 @@ import { runSlaWatchdog } from "./sla-enforcement";
 import { runNotionBidirectionalSync } from "./notion-sync";
 import { runGraduationEvaluation } from "./agent-graduation";
 import { runOnboardingWorker } from "./buyer-onboarding";
+import { runLifecycleCadenceWorker } from "./lifecycle-cadence";
 import { runGapClosureLoop } from "./gap-closure";
 import { runHumanReplyEmailWatcher } from "./human-reply-worker";
 import { runOperatingGraphProjectionLoop } from "./operatingGraphEvidenceProjectors";
@@ -144,6 +145,18 @@ const workers: WorkerDefinition[] = [
         processedCount: result.count,
         failedCount: 0,
       })),
+  },
+  {
+    key: "lifecycle_cadence",
+    enabledEnv: "BLUEPRINT_LIFECYCLE_CADENCE_ENABLED",
+    intervalEnv: "BLUEPRINT_LIFECYCLE_CADENCE_INTERVAL_MS",
+    batchEnv: "BLUEPRINT_LIFECYCLE_CADENCE_BATCH_SIZE",
+    startupDelayEnv: "BLUEPRINT_LIFECYCLE_CADENCE_STARTUP_DELAY_MS",
+    defaultIntervalMs: 60 * 60 * 1000,
+    defaultBatchSize: 25,
+    maxBatchSize: 100,
+    defaultStartupDelayMs: 58 * 1000,
+    run: ({ limit }) => runLifecycleCadenceWorker({ limit }),
   },
   {
     key: "experiment_rollout",

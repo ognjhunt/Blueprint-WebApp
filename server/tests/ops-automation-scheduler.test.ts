@@ -10,6 +10,7 @@ const runCapturerReminderLoop = vi.hoisted(() => vi.fn());
 const flagOverdueSiteAccessReviews = vi.hoisted(() => vi.fn());
 const flagOverdueFinanceReviews = vi.hoisted(() => vi.fn());
 const runBuyerLifecycleCheck = vi.hoisted(() => vi.fn());
+const runLifecycleCadenceWorker = vi.hoisted(() => vi.fn());
 const runExperimentAutorollout = vi.hoisted(() => vi.fn());
 const runAutonomousResearchOutboundLoop = vi.hoisted(() => vi.fn());
 const runCreativeAssetFactoryLoop = vi.hoisted(() => vi.fn());
@@ -119,6 +120,10 @@ vi.mock("../utils/growth-ops", () => ({
   runBuyerLifecycleCheck,
 }));
 
+vi.mock("../utils/lifecycle-cadence", () => ({
+  runLifecycleCadenceWorker,
+}));
+
 vi.mock("../utils/experiment-ops", () => ({
   runExperimentAutorollout,
 }));
@@ -158,6 +163,7 @@ beforeEach(() => {
   flagOverdueSiteAccessReviews.mockResolvedValue({ processedCount: 1, failedCount: 0 });
   flagOverdueFinanceReviews.mockResolvedValue({ processedCount: 1, failedCount: 0 });
   runBuyerLifecycleCheck.mockResolvedValue({ count: 2, results: [] });
+  runLifecycleCadenceWorker.mockResolvedValue({ processedCount: 2, failedCount: 0, skippedCount: 0, suppressedCount: 0 });
   runExperimentAutorollout.mockResolvedValue({ count: 1, evaluations: [] });
   runAutonomousResearchOutboundLoop.mockResolvedValue({ count: 1, results: [] });
   runCreativeAssetFactoryLoop.mockResolvedValue({ status: "assets_generated" });
@@ -198,6 +204,8 @@ describe("ops automation scheduler", () => {
     vi.stubEnv("BLUEPRINT_CREATIVE_FACTORY_STARTUP_DELAY_MS", "0");
     vi.stubEnv("BLUEPRINT_BUYER_LIFECYCLE_ENABLED", "1");
     vi.stubEnv("BLUEPRINT_BUYER_LIFECYCLE_STARTUP_DELAY_MS", "0");
+    vi.stubEnv("BLUEPRINT_LIFECYCLE_CADENCE_ENABLED", "1");
+    vi.stubEnv("BLUEPRINT_LIFECYCLE_CADENCE_STARTUP_DELAY_MS", "0");
     vi.stubEnv("BLUEPRINT_SITE_ACCESS_OVERDUE_WATCHDOG_ENABLED", "1");
     vi.stubEnv("BLUEPRINT_FINANCE_REVIEW_OVERDUE_WATCHDOG_ENABLED", "1");
     vi.stubEnv("BLUEPRINT_PAYOUT_TRIAGE_ENABLED", "0");
@@ -222,6 +230,7 @@ describe("ops automation scheduler", () => {
       daysSinceGrant: 30,
       limit: 25,
     });
+    expect(runLifecycleCadenceWorker).toHaveBeenCalledWith({ limit: 25 });
     expect(flagOverdueSiteAccessReviews).toHaveBeenCalledWith({ limit: 50 });
     expect(flagOverdueFinanceReviews).toHaveBeenCalledWith({ limit: 50 });
     expect(runPayoutExceptionTriageLoop).not.toHaveBeenCalled();

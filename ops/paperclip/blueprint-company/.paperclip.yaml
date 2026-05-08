@@ -507,7 +507,8 @@ agents:
     capabilities: >-
       Coordinates a reduced growth core: analytics, conversion, market intelligence, demand intelligence, and one
       city-demand loop. Keeps all other growth lanes paused or event-driven until evidence justifies restart. Read
-      skill file at ops/paperclip/skills/growth-lead.md before every routine.
+      skill file at ops/paperclip/skills/growth-lead.md before every routine. Owns lifecycle cadence policy, human
+      review routing, and suppression posture for persona email cadences.
     adapter:
       type: hermes_local
       config:
@@ -627,8 +628,8 @@ agents:
     capabilities: >-
       Produces Blueprint's weekly community update for users, capturers, robot teams, and partners. Turns real shipped
       work, capture progress, partner activity, and open asks into a concise blog-plus-email draft without making live
-      claims or publishing automatically. Read the community program file and humanizer skill before every substantial
-      run.
+      claims or publishing automatically. Persona cadence owners may reference the weekly update only when it contains
+      stage-relevant proof. Read the community program file and humanizer skill before every substantial run.
     adapter:
       type: hermes_local
       config:
@@ -859,7 +860,7 @@ agents:
     icon: bot
     capabilities: >-
       Converts demand-intel findings into Blueprint's reusable robot-team demand playbook, proof-pack structure,
-      hosted-session demo motion, and internal execution queue. Read skill file at
+      hosted-session demo motion, lifecycle cadence drafts, and internal execution queue. Read skill file at
       ops/paperclip/skills/robot-team-growth-agent.md and steering file at
       ops/paperclip/programs/robot-team-growth-agent-program.md before every routine.
     adapter:
@@ -891,7 +892,7 @@ agents:
     icon: handshake
     capabilities: >-
       Maintains Blueprint's optional site-operator lane for access, rights/privacy boundaries, and commercialization
-      planning without making it universal. Read skill file at ops/paperclip/skills/site-operator-partnership-agent.md
+      planning plus operator lifecycle cadence drafts without making approval universal. Read skill file at ops/paperclip/skills/site-operator-partnership-agent.md
       and steering file at ops/paperclip/programs/site-operator-partnership-agent-program.md before every routine.
     adapter:
       type: hermes_local
@@ -1048,7 +1049,8 @@ agents:
     capabilities: >-
       Owns capturer activation and retention. Guides approved capturers through first capture, translates QA feedback
       into actionable recapture instructions, monitors activity patterns, and identifies systemic platform issues from
-      individual capturer struggles.
+      individual capturer struggles. Owns capturer lifecycle cadence drafts and skips stale basics when capture evidence
+      already exists.
     adapter:
       type: hermes_local
       config:

@@ -4,11 +4,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const executeAction = vi.hoisted(() => vi.fn());
 
 const growthCampaigns = new Map<string, Record<string, unknown>>();
+const growthCampaignEvents: Record<string, unknown>[] = [];
+const emailSuppressions = new Map<string, Record<string, unknown>>();
 const creativeRuns: Array<{ id: string; data: Record<string, unknown> }> = [];
 let campaignCounter = 0;
 
 function resetState() {
   growthCampaigns.clear();
+  growthCampaignEvents.length = 0;
+  emailSuppressions.clear();
   creativeRuns.length = 0;
   campaignCounter = 0;
 }
@@ -18,6 +22,7 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
     firestore: {
       FieldValue: {
         serverTimestamp: () => "timestamp",
+        increment: (value: number) => ({ increment: value }),
       },
     },
   },
@@ -62,6 +67,36 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
               async set(payload: Record<string, unknown>) {
                 growthCampaigns.set(id, {
                   ...(growthCampaigns.get(id) || {}),
+                  ...payload,
+                });
+              },
+            };
+          },
+        };
+      }
+
+      if (name === "growth_campaign_events") {
+        return {
+          async add(payload: Record<string, unknown>) {
+            growthCampaignEvents.push(payload);
+            return { id: `event-${growthCampaignEvents.length}` };
+          },
+        };
+      }
+
+      if (name === "email_suppressions") {
+        return {
+          doc(id: string) {
+            return {
+              async get() {
+                return {
+                  exists: emailSuppressions.has(id),
+                  data: () => emailSuppressions.get(id),
+                };
+              },
+              async set(payload: Record<string, unknown>, options?: { merge?: boolean }) {
+                emailSuppressions.set(id, {
+                  ...(options?.merge ? emailSuppressions.get(id) || {} : {}),
                   ...payload,
                 });
               },
@@ -154,5 +189,29 @@ describe("growth ops creative context", () => {
         }),
       }),
     );
+  });
+
+  it("records SendGrid unsubscribe events into the local suppression ledger", async () => {
+    growthCampaigns.set("campaign-1", {
+      event_counts: { unsubscribed: 0 },
+      response_tracking: {},
+    });
+
+    const { ingestSendGridWebhook } = await import("../utils/growth-ops");
+    await ingestSendGridWebhook([
+      {
+        event: "unsubscribe",
+        email: "buyer@robotics.co",
+        bp_campaign_id: "campaign-1",
+        sg_message_id: "message-1",
+      },
+    ]);
+
+    expect(emailSuppressions.get("buyer@robotics.co")).toMatchObject({
+      email: "buyer@robotics.co",
+      suppressed_scopes: ["lifecycle", "growth_campaign"],
+      reason: "unsubscribe",
+      source: "sendgrid:webhook",
+    });
   });
 });

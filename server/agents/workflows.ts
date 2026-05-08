@@ -473,9 +473,7 @@ function buildInboundActionSpecs(
 
   if (
     request.contact.email &&
-    result.buyer_follow_up &&
-    (result.qualification_state_recommendation === "submitted" ||
-      result.qualification_state_recommendation === "needs_more_evidence")
+    result.buyer_follow_up
   ) {
     specs.push({
       actionKey: "inbound_follow_up_email",
@@ -1031,51 +1029,35 @@ export async function runInboundQualificationForRequest(
     { merge: true },
   );
 
-  if (isPhase2LaneEnabled("inbound")) {
-    await executePhase2WorkflowActions({
-      docRef,
-      sourceCollection: "inboundRequests",
-      sourceDocId: request.requestId,
-      lane: "inbound",
-      draftOutput: output,
-      existingOpsAutomation: {
-        ...(request.ops_automation || {}),
-        ...phase2DraftPatch,
-        status: automationStatus,
-        recommended_path: output.qualification_state_recommendation,
-        provider: result.provider,
-        runtime: result.runtime,
-        model: result.model,
-        tool_mode: result.tool_mode,
-        execution_id: `${request.requestId}:${Date.now()}`,
-        session_key: `inbound:${request.requestId}`,
-        qualification_state_recommendation: output.qualification_state_recommendation,
-        opportunity_state_recommendation: output.opportunity_state_recommendation,
-        missing_information: output.missing_information,
-        internal_summary: output.internal_summary,
-        buyer_follow_up: output.buyer_follow_up,
-        rationale: output.rationale,
-        last_error: null,
-        last_attempt_at: admin.firestore.FieldValue.serverTimestamp(),
-        processed_at: admin.firestore.FieldValue.serverTimestamp(),
-      },
-      actions: specs,
-    });
-  } else if (output.requires_human_review) {
-    await safelyDispatchHumanBlocker("workflow.inbound.requires_human_review", () =>
-      dispatchWorkflowHumanReviewBlocker({
-        lane: "inbound",
-        sourceCollection: "inboundRequests",
-        sourceDocId: request.requestId,
-        recommendedPath: output.qualification_state_recommendation,
-        nextAction: output.internal_summary || "Review the inbound qualification result and choose the next operator path.",
-        confidence: output.confidence,
-        blockReasonCode: output.automation_status === "blocked" ? "automation_blocked" : null,
-        rationale: output.rationale,
-        summary: output.internal_summary,
-      }),
-    );
-  }
+  await executePhase2WorkflowActions({
+    docRef,
+    sourceCollection: "inboundRequests",
+    sourceDocId: request.requestId,
+    lane: "inbound",
+    draftOutput: output,
+    existingOpsAutomation: {
+      ...(request.ops_automation || {}),
+      ...phase2DraftPatch,
+      status: automationStatus,
+      recommended_path: output.qualification_state_recommendation,
+      provider: result.provider,
+      runtime: result.runtime,
+      model: result.model,
+      tool_mode: result.tool_mode,
+      execution_id: `${request.requestId}:${Date.now()}`,
+      session_key: `inbound:${request.requestId}`,
+      qualification_state_recommendation: output.qualification_state_recommendation,
+      opportunity_state_recommendation: output.opportunity_state_recommendation,
+      missing_information: output.missing_information,
+      internal_summary: output.internal_summary,
+      buyer_follow_up: output.buyer_follow_up,
+      rationale: output.rationale,
+      last_error: null,
+      last_attempt_at: admin.firestore.FieldValue.serverTimestamp(),
+      processed_at: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    actions: specs,
+  });
 
   return result.output;
 }

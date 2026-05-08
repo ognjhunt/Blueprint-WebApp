@@ -810,7 +810,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 | **Model** | Hermes (OpenRouter DeepSeek V4 Flash primary, OpenRouter DeepSeek V4 Pro fallback before Codex fallback) |
 | **Status** | New |
 
-**Purpose:** Owns capturer activation and retention. Guides approved capturers through first capture success, translates QA feedback into actionable recapture instructions, monitors activity patterns, and identifies systemic platform issues from individual capturer struggles.
+**Purpose:** Owns capturer activation and retention. Guides approved capturers through first capture success, translates QA feedback into actionable recapture instructions, monitors activity patterns, identifies systemic platform issues from individual capturer struggles, and owns capturer lifecycle cadence drafts from signup through repeat-ready.
 
 **Why this is an agent (not just onboarding automation):** Capturers fail in diverse ways — device issues, technique gaps, site access confusion, motivation drops. Pattern recognition across failure modes + personalized next steps = judgment work. And supply-side churn kills the entire business.
 
@@ -821,6 +821,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - First capture uploaded (monitor QA closely)
 - Capture QA result (FAIL/BORDERLINE) for any capturer
 - Capturer inactive >7 days
+- `lifecycle_email_cadences` capturer step due
 - `0 9 * * 1-5` — Morning capturer health check
 - `0 14 * * 1-5` — Afternoon follow-up
 
@@ -835,12 +836,14 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - Device-specific onboarding guidance
 - Recapture instructions translated from QA feedback
 - Activity pattern reports and intervention recommendations
+- Human-gated capturer lifecycle email drafts with one concrete capture CTA/question
 - Systemic issue escalations (when multiple capturers hit the same wall)
 
 **Policy guardrails:**
 - Capturer deactivation
 - Payout adjustments
 - Platform-level UX/process changes based on pattern analysis
+- Live lifecycle sends and any claim that capture evidence exists, passed QA, or is buyer-proof before the source record says so
 
 **Graduation path:**
 | Phase | Behavior | Criteria to advance |
@@ -904,7 +907,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 | **Model** | Hermes (OpenRouter DeepSeek V4 Flash primary, OpenRouter DeepSeek V4 Pro fallback before Codex fallback) |
 | **Status** | New |
 
-**Purpose:** Coordinates a smaller active growth core: analytics, conversion, market intelligence, demand intelligence, and one city-demand loop. Sets experiment priorities using ICE scoring. Owns routine channel posture, referral mechanics, source policy, and city invite posture inside approved guardrails. Everything else in growth stays paused or event-driven unless evidence justifies restart.
+**Purpose:** Coordinates a smaller active growth core: analytics, conversion, market intelligence, demand intelligence, and one city-demand loop. Sets experiment priorities using ICE scoring. Owns routine channel posture, referral mechanics, source policy, lifecycle cadence policy/review routing, and city invite posture inside approved guardrails. Everything else in growth stays paused or event-driven unless evidence justifies restart.
 
 **Triggers:**
 - `0 9 * * 1-5` — Daily review of overnight analytics + agent reports
@@ -926,10 +929,11 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - Buyer-city sequencing priorities → City Demand agent
 - Exact-Site Hosted Review GTM pilot ledger and audit closeout when the bounded 14-day pilot is active
 - Exact-Site Hosted Review buyer-loop report with target count, recipient-backed contacts, founder approval queue, sends, replies, hosted-review starts, qualified calls, next actions, and the 100-touch decision gap
+- Lifecycle cadence policy decisions for `lifecycle_email_cadences`, including pause/skip rules, suppression posture, and human-review routing
 - Explicit pause or restart decisions for non-core growth lanes
 - Funnel health dashboard updates → Notion
 
-**Policy guardrails:** Growth Lead is itself the routine human operator lane for channel/referral/source policy. Founder escalation is only for spend envelopes, posture-changing public claims, or policy changes with irreversible external effect.
+**Policy guardrails:** Growth Lead is itself the routine human operator lane for channel/referral/source policy. Founder escalation is only for spend envelopes, posture-changing public claims, policy changes with irreversible external effect, broad outbound, or lifecycle sends that carry unsupported proof/rights/commercial claims.
 
 **External needs:** Notion API, Slack webhook, analytics platform read.
 
@@ -1089,12 +1093,13 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 | **Model** | Hermes (OpenRouter DeepSeek V4 Flash primary, OpenRouter DeepSeek V4 Pro fallback before Codex fallback) |
 | **Status** | New |
 
-**Purpose:** Converts demand-intel research into Blueprint's reusable robot-team demand playbook. Maintains the generic ICP, messaging, proof-pack, hosted-session demo motion, and buyer funnel that later city-demand work should inherit.
+**Purpose:** Converts demand-intel research into Blueprint's reusable robot-team demand playbook. Maintains the generic ICP, messaging, proof-pack, hosted-session demo motion, buyer funnel, and pre-entitlement robot-team lifecycle cadence drafts that later city-demand work should inherit.
 
 **Triggers:**
 - `30 9 * * 1` — Weekly playbook update (Monday 9:30am ET)
 - `30 9 * * 4` — Midweek refresh (Thursday 9:30am ET)
 - Event: Demand Intel or Growth Lead request
+- `lifecycle_email_cadences` robot-team step due
 
 **Inputs:**
 - Demand Intelligence briefs
@@ -1106,9 +1111,10 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 **Outputs:**
 - Generic robot-team demand playbook
 - Proof-pack and hosted-session guidance
+- Human-gated robot-team lifecycle email drafts for exact-site proof-path education and re-engagement
 - Execution queue for Conversion, Analytics, Intake, Ops, standard commercial handling, and City Demand
 
-**Policy guardrails:** Spend, discounts, pricing, contracts, outreach sends, and claims beyond current product truth.
+**Policy guardrails:** Spend, discounts, pricing, contracts, outreach sends, lifecycle sends, and claims beyond current product truth.
 Calendar booking must stay secondary to structured intake unless the record is high-intent enough for scoped buyer-solutions follow-up.
 
 **Skill file:** `ops/paperclip/skills/robot-team-growth-agent.md`
@@ -1125,12 +1131,13 @@ Calendar booking must stay secondary to structured intake unless the record is h
 | **Model** | Hermes (OpenRouter DeepSeek V4 Flash primary, OpenRouter DeepSeek V4 Pro fallback before Codex fallback) |
 | **Status** | New |
 
-**Purpose:** Maintains Blueprint's optional third lane for site operators. Defines when site-operator demand matters, what access/privacy/rights/commercialization conversations are legitimate, and how this lane stays separate from the core robot-team buyer motion.
+**Purpose:** Maintains Blueprint's optional third lane for site operators. Defines when site-operator demand matters, what access/privacy/rights/commercialization conversations are legitimate, owns operator lifecycle cadence drafts, and keeps this lane separate from the core robot-team buyer motion.
 
 **Triggers:**
 - `15 12 * * 1` — Weekly operator-lane review (Monday 12:15pm ET)
 - `15 12 * * 4` — Midweek refresh (Thursday 12:15pm ET)
 - Event: Growth Lead / Ops Lead / City Demand request
+- `lifecycle_email_cadences` site-operator step due
 
 **Inputs:**
 - Demand Intelligence output
@@ -1142,9 +1149,10 @@ Calendar booking must stay secondary to structured intake unless the record is h
 **Outputs:**
 - Optional site-operator playbook
 - Internal conversation frameworks for access and commercialization
+- Human-gated site-operator lifecycle email drafts for access boundaries, privacy/commercialization boundaries, and re-engagement
 - Execution queue for Ops, Intake, standard commercial handling, and City Demand
 
-**Policy guardrails:** Permission judgments, legal/privacy/rights interpretation, pricing, contracts, revenue-share commitments, and external outreach.
+**Policy guardrails:** Permission judgments, legal/privacy/rights interpretation, pricing, contracts, revenue-share commitments, lifecycle sends, and external outreach.
 Operator submission does not require a meeting, but private access, rights, privacy, or commercialization ambiguity requires a human checkpoint before the next operational step.
 
 **Skill file:** `ops/paperclip/skills/site-operator-partnership-agent.md`
@@ -1346,7 +1354,7 @@ Operator submission does not require a meeting, but private access, rights, priv
 | **Model** | Hermes (OpenRouter DeepSeek V4 Flash primary, OpenRouter DeepSeek V4 Pro fallback before Codex fallback) |
 | **Status** | New |
 
-**Purpose:** Produces the weekly Blueprint community update for users, capturers, robot teams, partners, and interested operators. Turns real shipped work and community-relevant signals into a concise blog-plus-email draft.
+**Purpose:** Produces the weekly Blueprint community update for users, capturers, robot teams, partners, and interested operators. Turns real shipped work and community-relevant signals into a concise blog-plus-email draft, and provides proof-led update material that persona lifecycle owners may reference only when it is stage-relevant.
 
 **Triggers:**
 - `0 9 * * 5` — Weekly Friday draft run (9am ET)
@@ -1363,7 +1371,7 @@ Operator submission does not require a meeting, but private access, rights, priv
 - Draft community campaign → SendGrid-backed draft path (when configured)
 - Internal review note → Slack `#growth` (when configured)
 
-**Policy guardrails:** Any live send/publish, unsupported traction claims, or sensitive rights/commercial disclosures.
+**Policy guardrails:** Any live send/publish, unsupported traction claims, sensitive rights/commercial disclosures, or persona variant that implies proof or adoption the source systems do not support.
 
 **Instructions:** `ops/paperclip/blueprint-company/agents/community-updates-agent/AGENTS.md`
 **Program:** `ops/paperclip/programs/community-updates-agent-program.md`
@@ -1587,6 +1595,7 @@ Operator submission does not require a meeting, but private access, rights, priv
 **Outputs:**
 - Buyer health status and lifecycle stage in Paperclip
 - Onboarding check-in communications (human-approved Phase 1)
+- Post-entitlement lifecycle follow-up after robot-team growth cadence hands off a real entitlement, hosted review, or support record
 - Support issue tracking and resolution
 - Product feedback routed to appropriate teams
 - Expansion handoffs to buyer-solutions-agent
@@ -1594,6 +1603,7 @@ Operator submission does not require a meeting, but private access, rights, priv
 
 **Policy guardrails:**
 - Routine buyer communication follows the active buyer-success policy
+- Pre-entitlement robot-team lifecycle education remains with `robot-team-growth-agent`; do not duplicate it after buyer-success handoff
 - Contract or pricing discussions route to the revenue-ops-pricing-agent for standard cases and founder only for non-standard exceptions
 - Rights/privacy concerns from buyers escalate to `rights-provenance-agent` plus the rights-provenance-agent; founder only for precedent-setting exceptions
 

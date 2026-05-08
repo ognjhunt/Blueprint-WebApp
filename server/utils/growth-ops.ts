@@ -9,6 +9,7 @@ import {
 } from "../agents/action-policies.js";
 import { getConfiguredEnvValue } from "../config/env.js";
 import { getEmailTransportStatus } from "./email.js";
+import { recordEmailSuppression } from "./email-suppression.js";
 import { logGrowthEvent } from "./growth-events.js";
 import { summarizeRecentContentOutcomeReviews } from "./content-ops.js";
 import { buildGrowthIntegrationSummary } from "./provider-status.js";
@@ -352,6 +353,8 @@ export async function queueGrowthCampaignSend(params: {
       body: normalizeString(campaign.body),
       campaignId: params.campaignId,
       approvedBy: params.operatorEmail,
+      commercialEmail: true,
+      emailSuppressionScope: "growth_campaign",
       collection: "growthCampaigns",
       docId: params.campaignId,
       creativeContext,
@@ -749,6 +752,16 @@ export async function ingestSendGridWebhook(payload: unknown) {
         },
         { merge: true },
       );
+    }
+
+    if (recipient && (eventType === "unsubscribed" || eventType === "complained")) {
+      await recordEmailSuppression({
+        email: recipient,
+        scope: ["lifecycle", "growth_campaign"],
+        reason: eventType === "complained" ? "complaint" : "unsubscribe",
+        source: "sendgrid:webhook",
+        campaignId: localCampaignId,
+      });
     }
 
     results.push({

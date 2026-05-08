@@ -73,6 +73,39 @@ const ledgerRows = vi.hoisted(() => [
       },
     },
   },
+  {
+    id: "ledger-3",
+    data: {
+      status: "sent",
+      lane: "inbound",
+      action_type: "send_email",
+      source_collection: "inboundRequests",
+      source_doc_id: "request-1",
+      action_tier: 1,
+      idempotency_key: "inbound:request-1",
+      auto_approve_reason: "policy_auto_approved",
+      approval_reason: null,
+      approved_by: null,
+      approved_at: null,
+      rejected_by: null,
+      rejected_reason: null,
+      execution_attempts: 1,
+      last_execution_error: null,
+      created_at: "2026-03-29T12:07:00.000Z",
+      updated_at: "2026-03-29T12:08:00.000Z",
+      sent_at: "2026-03-29T12:08:00.000Z",
+      last_execution_at: "2026-03-29T12:08:00.000Z",
+      action_payload: {
+        to: "buyer@robotics.co",
+        subject: "Next step for your Blueprint request",
+        body: "Blueprint can route this into a package path after one missing detail.",
+      },
+      draft_output: {
+        recommendation: "needs_more_evidence",
+        confidence: 0.91,
+      },
+    },
+  },
 ]);
 
 function makeLedgerDoc(row: (typeof ledgerRows)[number]) {
@@ -212,7 +245,7 @@ describe("admin action queue", () => {
 
       const payload = (await response.json()) as {
         items: Array<{ id: string; status: string; lane: string }>;
-        summary: { total: number; pending_approval: number; failed: number };
+        summary: { total: number; pending_approval: number; failed: number; sent: number };
       };
 
       expect(payload.items.map((item) => item.id)).toEqual(["ledger-2", "ledger-1"]);
@@ -220,6 +253,7 @@ describe("admin action queue", () => {
         total: 2,
         pending_approval: 1,
         failed: 1,
+        sent: 0,
       });
     } finally {
       await stopServer(server);
@@ -257,6 +291,31 @@ describe("admin action queue", () => {
       });
       expect(retryResponse.status).toBe(200);
       expect(retryFailedActionMock).toHaveBeenCalledWith("ledger-2");
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("can list sent intake actions for delivery telemetry", async () => {
+    const { server, baseUrl } = await startServer();
+    try {
+      const response = await fetch(`${baseUrl}/action-queue?status=sent&lane=inbound&limit=25`);
+      expect(response.status).toBe(200);
+
+      const payload = (await response.json()) as {
+        items: Array<{ id: string; status: string; lane: string; sent_at: string | null }>;
+        summary: { total: number; sent: number };
+      };
+
+      expect(payload.items).toEqual([
+        expect.objectContaining({
+          id: "ledger-3",
+          status: "sent",
+          lane: "inbound",
+          sent_at: "2026-03-29T12:08:00.000Z",
+        }),
+      ]);
+      expect(payload.summary.sent).toBe(1);
     } finally {
       await stopServer(server);
     }

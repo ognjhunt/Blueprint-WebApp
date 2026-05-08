@@ -10,6 +10,10 @@
 import { dbAdmin } from "../../client/src/lib/firebaseAdmin";
 import { sendEmail } from "../utils/email";
 import {
+  appendCommercialEmailFooter,
+  isEmailSuppressed,
+} from "../utils/email-suppression";
+import {
   createGoogleCalendarEvent,
   updateGoogleCalendarEvent,
 } from "../utils/google-calendar";
@@ -68,6 +72,13 @@ export interface ExecuteActionParams {
   idempotencyKey: string;
 }
 
+const INTAKE_FOLLOW_UP_COLLECTIONS = new Set([
+  "inboundRequests",
+  "waitlistSubmissions",
+  "contactRequests",
+  "jobApplications",
+]);
+
 function validateCampaignEmailPayload(
   payload: ActionPayload,
 ): { valid: boolean; reason?: string } {
@@ -102,6 +113,31 @@ function validateCampaignEmailPayload(
 
 function normalizeEmail(value: unknown) {
   return typeof value === "string" ? value.trim().toLowerCase() : "";
+}
+
+function normalizeStringList(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value
+        .filter((entry): entry is string => typeof entry === "string")
+        .map((entry) => entry.trim())
+        .filter(Boolean)
+    : [];
+}
+
+function normalizeStringRecord(value: unknown): Record<string, string> | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
+  const entries = Object.entries(value as Record<string, unknown>)
+    .filter(([, entry]) => typeof entry === "string")
+    .map(([key, entry]) => [key, entry as string]);
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+}
+
+function emailSuppressionScope(payload: ActionPayload, fallback: "lifecycle" | "growth_campaign") {
+  return typeof payload.emailSuppressionScope === "string"
+    ? payload.emailSuppressionScope
+    : fallback;
 }
 
 function hasEvidenceSource(value: unknown): boolean {
@@ -458,7 +494,11 @@ export async function executeAction(
       state: "executing",
     });
     await performAction(actionType, actionPayload);
-    await updateLedgerStatus(ledgerDocId, "sent", { sent_at: new Date() });
+    const sentAt = new Date();
+    await updateLedgerStatus(ledgerDocId, "sent", {
+      sent_at: sentAt,
+      last_execution_at: sentAt,
+    });
     await syncSourceDocumentState({
       sourceCollection,
       sourceDocId,
@@ -587,10 +627,12 @@ export async function approveAction(
       approvedBy: operatorEmail,
     });
     await performAction(data.action_type, data.action_payload);
+    const sentAt = new Date();
     await ledgerRef.update({
       status: "sent",
-      sent_at: new Date(),
-      updated_at: new Date(),
+      sent_at: sentAt,
+      last_execution_at: sentAt,
+      updated_at: sentAt,
     });
     await syncSourceDocumentState({
       sourceCollection: data.source_collection,
@@ -733,11 +775,13 @@ export async function retryFailedAction(
       state: "executing",
     });
     await performAction(data.action_type, data.action_payload);
+    const sentAt = new Date();
     await ledgerRef.update({
       status: "sent",
-      sent_at: new Date(),
+      sent_at: sentAt,
+      last_execution_at: sentAt,
       execution_attempts: (data.execution_attempts ?? 0) + 1,
-      updated_at: new Date(),
+      updated_at: sentAt,
     });
     await syncSourceDocumentState({
       sourceCollection: data.source_collection,
@@ -869,6 +913,44 @@ async function syncSourceDocumentState(params: {
   const now = new Date();
   const nowIso = now.toISOString();
 
+  if (
+    INTAKE_FOLLOW_UP_COLLECTIONS.has(sourceCollection) &&
+    (params.actionType === "send_email" || params.actionType === "send_campaign_emails")
+  ) {
+    const recipient =
+      typeof params.actionPayload.to === "string"
+        ? params.actionPayload.to
+        : Array.isArray(params.actionPayload.recipients)
+          ? params.actionPayload.recipients
+              .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+              .join(", ")
+          : null;
+    const subject =
+      typeof params.actionPayload.subject === "string"
+        ? params.actionPayload.subject
+        : null;
+
+    await ref.set(
+      {
+        intake_follow_up: {
+          last_status: params.state,
+          last_action_type: params.actionType,
+          last_ledger_doc_id: params.ledgerDocId,
+          last_subject: subject,
+          last_recipient: recipient,
+          last_approval_reason: params.approvalReason ?? null,
+          last_rejected_reason: params.rejectedReason ?? null,
+          last_error: params.error ?? null,
+          approved_by: params.approvedBy ?? null,
+          approved_at: params.approvedBy ? nowIso : null,
+          last_sent_at: params.state === "sent" ? nowIso : null,
+          updated_at: nowIso,
+        },
+      },
+      { merge: true },
+    );
+  }
+
   if (sourceCollection === "growthCampaigns") {
     await ref.set(
       {
@@ -949,11 +1031,45 @@ async function performAction(
       if (!validation.valid) {
         throw new Error(`Email content validation failed: ${validation.reason}`);
       }
-      await sendEmail({
+      const scope = emailSuppressionScope(payload, "lifecycle");
+      if (payload.commercialEmail === true) {
+        const suppressed = await isEmailSuppressed(payload.to!, scope);
+        if (suppressed) {
+          throw new Error(`Recipient is suppressed for ${scope} emails`);
+        }
+      }
+      const text =
+        payload.commercialEmail === true
+          ? appendCommercialEmailFooter({
+              text: payload.body!,
+              email: payload.to!,
+              scope,
+              campaignId: typeof payload.campaignId === "string" ? payload.campaignId : null,
+              cadenceId: typeof payload.lifecycleCadenceId === "string"
+                ? payload.lifecycleCadenceId
+                : typeof payload.cadenceId === "string"
+                  ? payload.cadenceId
+                  : null,
+            })
+          : payload.body!;
+      const result = await sendEmail({
         to: payload.to!,
         subject: payload.subject!,
-        text: payload.body!,
+        text,
+        replyTo:
+          typeof payload.replyTo === "string" ? payload.replyTo : undefined,
+        sendGridCategories: normalizeStringList(payload.sendGridCategories),
+        sendGridCustomArgs: normalizeStringRecord(payload.sendGridCustomArgs),
       });
+      if (!result.sent) {
+        const errorMessage =
+          result.error instanceof Error
+            ? result.error.message
+            : typeof result.error === "string"
+              ? result.error
+              : "Email transport returned sent=false";
+        throw new Error(errorMessage);
+      }
       break;
     }
     case "send_campaign_emails": {
@@ -984,20 +1100,42 @@ async function performAction(
       }
 
       const failures: string[] = [];
+      const suppressedRecipients: string[] = [];
       for (const recipient of recipients) {
+        const scope = emailSuppressionScope(payload, "growth_campaign");
+        if (payload.commercialEmail === true && await isEmailSuppressed(recipient, scope)) {
+          suppressedRecipients.push(recipient);
+          continue;
+        }
+        const text =
+          payload.commercialEmail === true
+            ? appendCommercialEmailFooter({
+                text: payload.body!,
+                email: recipient,
+                scope,
+                campaignId:
+                  typeof payload.campaignId === "string" ? payload.campaignId : undefined,
+              })
+            : payload.body!;
+        const categories = [
+          "blueprint_growth_campaign",
+          ...normalizeStringList(payload.sendGridCategories),
+        ];
+        const customArgs = {
+          ...(normalizeStringRecord(payload.sendGridCustomArgs) || {}),
+          ...(typeof payload.campaignId === "string" && payload.campaignId.trim()
+            ? { bp_campaign_id: payload.campaignId }
+            : {}),
+        };
         const result = await sendEmail({
           to: recipient,
           subject: payload.subject!,
-          text: payload.body!,
+          text,
           replyTo:
             typeof payload.replyTo === "string" ? payload.replyTo : undefined,
-          sendGridCategories: ["blueprint_growth_campaign"],
+          sendGridCategories: [...new Set(categories)],
           sendGridCustomArgs:
-            typeof payload.campaignId === "string" && payload.campaignId.trim()
-              ? {
-                  bp_campaign_id: payload.campaignId,
-                }
-              : undefined,
+            Object.keys(customArgs).length > 0 ? customArgs : undefined,
         });
 
         if (!result.sent) {
@@ -1012,9 +1150,10 @@ async function performAction(
           .set(
             {
               event_counts: {
-                sent: recipients.length - failures.length,
+                sent: recipients.length - failures.length - suppressedRecipients.length,
               },
               recipient_count: recipients.length,
+              suppressed_recipient_count: suppressedRecipients.length,
               updated_at: new Date().toISOString(),
             },
             { merge: true },

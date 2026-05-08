@@ -16,6 +16,7 @@ import { createSlaTracker } from "../utils/sla-enforcement";
 import { runInboundQualificationForRequest } from "../agents";
 import { logGrowthEvent } from "../utils/growth-events";
 import { runHighIntentLeadEnrichmentForRequest } from "../utils/highIntentLeadEnrichment";
+import { createLifecycleCadenceForInboundRequest } from "../utils/lifecycle-cadence";
 import {
   HELP_WITH_OPTIONS,
   LEGACY_HELP_WITH_TO_LANE,
@@ -1112,6 +1113,22 @@ router.post("/", async (req: Request, res: Response) => {
       .collection("inboundRequests")
       .doc(payload.requestId)
       .set(encryptedInboundRequest);
+
+    createLifecycleCadenceForInboundRequest({
+      requestId: payload.requestId,
+      buyerType,
+      email: emailLower,
+      firstName: payload.firstName.trim(),
+      lastName: payload.lastName.trim(),
+      company: payload.company.trim(),
+      siteName: siteName || targetSiteType || null,
+      proofPathPreference,
+    }).catch((error) => {
+      logger.warn(
+        { error, requestId: payload.requestId },
+        "Failed to create lifecycle cadence enrollment for inbound request",
+      );
+    });
 
     await db
       .collection("stats")

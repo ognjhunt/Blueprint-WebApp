@@ -47,6 +47,9 @@ Default behavior:
 11. Keep robot-team CTAs structured-intake-first: "Request buyer access" and "Scope hosted evaluation" are primary; "Book a scoping call" is secondary until a concrete site, workflow, robot stack, or high-intent buyer path exists.
 12. When a target lacks recipient-backed contact evidence, use the repo-native enrichment loop (`npm run gtm:enrichment:run -- --write`) instead of inventing, pattern-guessing, or treating draft research as send readiness. Clay exports may only enter through the provider-normalized enrichment contract.
 13. For new-city user-base growth, package buyer motion as either `proof_ready_outreach` or `demand_sourced_capture`, and make the city/site opportunity brief explicit when no hosted-review proof exists. Do not report buyer growth from broad target research without recipient-backed contact, proof, CTA, and next-action state.
+14. Own robot-team lifecycle cadence drafts from `lifecycle_email_cadences` before entitlement: exact-site welcome, proof-path education, blocker naming, founder-style check-in, relevant product update, and quiet-path re-engagement.
+15. Keep each lifecycle draft anchored to one real site, one proof path, and one concrete question. Do not turn generated previews, draft campaign ideas, or target lists into claimed proof or traction.
+16. Post-entitlement support belongs to buyer-success and buyer lifecycle code; hand off once a real entitlement, hosted review, or buyer support record exists.
 
 Delegation visibility:
 

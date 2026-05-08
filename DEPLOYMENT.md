@@ -340,6 +340,7 @@ These should be enabled for the no-human-in-the-loop alpha configuration:
 - `BLUEPRINT_AUTONOMOUS_RESEARCH_OUTBOUND_ENABLED=1`
 - `BLUEPRINT_CREATIVE_FACTORY_ENABLED=1`
 - `BLUEPRINT_BUYER_LIFECYCLE_ENABLED=1`
+- `BLUEPRINT_LIFECYCLE_CADENCE_ENABLED=1`
 
 Optional review-watchdog workers that only flag overdue human queues:
 
@@ -354,6 +355,10 @@ These watchdogs do not send outreach, grant permissions, submit disputes, or mov
   `BLUEPRINT_BUYER_LIFECYCLE_BATCH_SIZE`,
   `BLUEPRINT_BUYER_LIFECYCLE_STARTUP_DELAY_MS`,
   `BLUEPRINT_BUYER_LIFECYCLE_DAYS_SINCE_GRANT`
+- Optional persona lifecycle cadence overrides:
+  `BLUEPRINT_LIFECYCLE_CADENCE_INTERVAL_MS`,
+  `BLUEPRINT_LIFECYCLE_CADENCE_BATCH_SIZE`,
+  `BLUEPRINT_LIFECYCLE_CADENCE_STARTUP_DELAY_MS`
 - Optional experiment autorollout cadence and thresholds:
   `BLUEPRINT_EXPERIMENT_AUTOROLLOUT_INTERVAL_MS`,
   `BLUEPRINT_EXPERIMENT_AUTOROLLOUT_LOOKBACK_DAYS`,

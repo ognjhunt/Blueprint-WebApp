@@ -34,6 +34,14 @@ Produce Blueprint's weekly community update as a concise, human-sounding draft f
 - one clear ask, invitation, or preview
 - examples: feedback request, pilot interest, capturer onboarding interest, partner intro
 
+## Relationship To Persona Lifecycle Cadences
+
+- The weekly community update is a cross-audience, proof-led draft owned by `community-updates-agent`.
+- It does not replace persona-specific lifecycle cadences in `lifecycle_email_cadences`.
+- Persona owners may reference a weekly update only when it contains real value for that recipient's current stage.
+- Keep variants truthful: site operators get operator-boundary relevance, capturers get capture/QA/repeat-ready relevance, and robot teams get exact-site proof/hosted-review relevance.
+- Live sends and public publishes remain human-gated.
+
 ## Editorial Rules
 - sound like a real weekly note, not a polished launch post
 - favor specifics over adjectives

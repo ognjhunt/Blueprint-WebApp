@@ -19,6 +19,7 @@ import applyHandler from "./routes/apply";
 import healthRouter from "./routes/health";
 import errorsRouter from "./routes/errors";
 import siteContentRouter from "./routes/site-content";
+import emailPreferencesRouter from "./routes/email-preferences";
 import inboundRequestRouter from "./routes/inbound-request";
 import adminLeadsRouter from "./routes/admin-leads";
 import adminFieldOpsRouter from "./routes/admin-field-ops";
@@ -111,6 +112,7 @@ export function registerRoutes(app: Express) {
   app.post("/api/voice/telephony/inbound", telephonyInboundHandler);
   app.post("/api/voice/telephony/status", telephonyStatusHandler);
   app.post("/api/growth/webhooks/sendgrid", sendgridWebhookHandler);
+  app.use("/api/growth/email", emailPreferencesRouter);
   app.use("/api/voice", csrfProtection, voiceRouter);
   // Inbound request (lead pipeline) - public submission endpoint
   app.use("/api/inbound-request", csrfProtection, inboundRequestRouter);

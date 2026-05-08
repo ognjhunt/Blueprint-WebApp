@@ -179,6 +179,14 @@ export const LIFECYCLE_POLICY: LaneSafetyPolicy = {
   contentChecks: true,
 };
 
+export const PERSONA_LIFECYCLE_POLICY: LaneSafetyPolicy = {
+  lane: "lifecycle_cadence",
+  autoApproveCriteria: () => false,
+  alwaysHumanReview: () => true,
+  maxDailyAutoSends: 0,
+  contentChecks: true,
+};
+
 export const SITE_ACCESS_POLICY: LaneSafetyPolicy = {
   lane: "site_access",
   autoApproveCriteria: (draft) =>
@@ -260,7 +268,11 @@ export function classifyActionExecution(params: {
     };
   }
 
-  if (params.lane === "growth_campaign" || params.lane === "buyer_lifecycle") {
+  if (
+    params.lane === "growth_campaign" ||
+    params.lane === "buyer_lifecycle" ||
+    params.lane === "lifecycle_cadence"
+  ) {
     return {
       tier: 3,
       executionMode: "universal_founder_inbox",

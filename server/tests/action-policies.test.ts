@@ -6,6 +6,7 @@ import {
   GROWTH_CAMPAIGN_POLICY,
   INBOUND_POLICY,
   PAYOUT_POLICY,
+  PERSONA_LIFECYCLE_POLICY,
   RESCHEDULE_POLICY,
   SITE_ACCESS_POLICY,
   SUPPORT_POLICY,
@@ -130,6 +131,21 @@ describe("classifyActionExecution", () => {
     });
     expect(decision.executionMode).toBe("universal_founder_inbox");
     expect(decision.irreversibleActionClass).toBe("external_send");
+  });
+
+  it("routes persona lifecycle sends to the universal founder inbox", () => {
+    const decision = classifyActionExecution({
+      lane: "lifecycle_cadence",
+      actionType: "send_email",
+      draft: {
+        recommendation: "persona_lifecycle_touch",
+        requires_human_review: true,
+      },
+      policy: PERSONA_LIFECYCLE_POLICY,
+    });
+    expect(decision.executionMode).toBe("universal_founder_inbox");
+    expect(decision.irreversibleActionClass).toBe("external_send");
+    expect(decision.reasonCategory).toBe("campaign_or_lifecycle_send_requires_review");
   });
 
   it("keeps safe waitlist work auto-executable", () => {

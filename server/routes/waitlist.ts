@@ -11,6 +11,7 @@ import { isValidEmailAddress, isValidPhoneNumber } from "../utils/validation";
 import { listCityLaunchActivations, upsertCityLaunchProspect } from "../utils/cityLaunchLedgers";
 import { slugifyCityName } from "../utils/cityLaunchProfiles";
 import { runWaitlistLeadSignalRouting } from "../utils/highIntentLeadEnrichment";
+import { createLifecycleCadenceForWaitlistSubmission } from "../utils/lifecycle-cadence";
 
 function toFilterToken(value: string) {
   return value
@@ -239,6 +240,15 @@ export default async function waitlistHandler(req: Request, res: Response) {
       updated_at: admin.firestore.FieldValue.serverTimestamp(),
     });
     persisted = true;
+
+    createLifecycleCadenceForWaitlistSubmission({
+      submissionId,
+      email: emailValue,
+      role: roleValue,
+      company: companyValue,
+      market: marketValue,
+      source: sourceValue || (roleIncludesCapturer ? "capture_app_private_beta" : "website_waitlist"),
+    }).catch(() => undefined);
   }
 
   const { sent } = await sendEmail({ to, subject, text });

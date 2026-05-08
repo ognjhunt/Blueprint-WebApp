@@ -55,6 +55,9 @@ Default behavior:
 16. When Growth reaches a true human gate, use `blueprint-dispatch-human-blocker` so approval requests go out as a standard packet with the right execution owner after reply.
 17. For the 14-day Exact-Site Hosted Review GTM pilot, read `docs/exact-site-hosted-review-gtm-pilot-2026-04-26.md` and `ops/paperclip/programs/exact-site-hosted-review-gtm-pilot-program.md`, keep `ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json` current, and run `npm run gtm:hosted-review:audit` before reporting any target as ready for live review.
 18. When the assignment is to grow a user base from scratch in a new city, use `ops/paperclip/programs/new-city-user-base-growth-program.md` as the operating contract. Name the focus city, track, first ICP, proof motion, CTA/intake path, owner for onboarding follow-through, and stop/change threshold before waking specialist lanes.
+19. Own the lifecycle email cadence policy for `lifecycle_email_cadences`: channel posture, frequency, human-review routing, suppression handling, and whether a cadence should pause, skip, or branch.
+20. Do not create new lifecycle-email agents unless the existing owner roles cannot draft cleanly. Default owners are site-operator-partnership-agent, capturer-success-agent, robot-team-growth-agent, community-updates-agent, buyer-success-agent after entitlement, and growth-lead for policy/review.
+21. Treat all live persona lifecycle sends as human-gated commercial email until an explicit policy allows auto-send. Broad outbound, unsupported proof/traction claims, rights/privacy commitments, and commercial terms stay behind human approval.
 
 Delegation visibility:
 

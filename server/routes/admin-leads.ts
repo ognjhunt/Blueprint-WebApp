@@ -291,6 +291,14 @@ const CAPTURE_JOB_MARKETPLACE_STATES = [
 ] as const;
 type CaptureJobMarketplaceState = (typeof CAPTURE_JOB_MARKETPLACE_STATES)[number];
 
+const ACTION_LEDGER_QUERY_STATUSES = [
+  "pending_approval",
+  "failed",
+  "sent",
+  "operator_rejected",
+  "rejected",
+] as const;
+
 type ActionLedgerRecord = Record<string, unknown> & {
   status?: string;
   lane?: string;
@@ -1037,8 +1045,11 @@ router.get("/action-queue", requireAdmin, async (req: Request, res: Response) =>
       100,
     );
 
-    const statuses =
-      status === "pending_approval" || status === "failed" ? [status] : ["pending_approval", "failed"];
+    const statuses = ACTION_LEDGER_QUERY_STATUSES.includes(
+      status as (typeof ACTION_LEDGER_QUERY_STATUSES)[number],
+    )
+      ? [status]
+      : ["pending_approval", "failed"];
 
     const fetchLimit = Math.max(limitNum * 2, 50);
     const snapshots = await Promise.all(
@@ -1066,6 +1077,7 @@ router.get("/action-queue", requireAdmin, async (req: Request, res: Response) =>
         total: items.length,
         pending_approval: items.filter((item) => item.status === "pending_approval").length,
         failed: items.filter((item) => item.status === "failed").length,
+        sent: items.filter((item) => item.status === "sent").length,
       },
     });
   } catch (error) {
@@ -2491,6 +2503,7 @@ router.get("/growth-scorecard", requireAdmin, async (req: Request, res: Response
       { key: "payout_exception", enabled: isAutomationLaneEnabled("BLUEPRINT_PAYOUT_TRIAGE_ENABLED") },
       { key: "capturer_reminders", enabled: isAutomationLaneEnabled("BLUEPRINT_CAPTURER_REMINDER_ENABLED") },
       { key: "buyer_lifecycle", enabled: isAutomationLaneEnabled("BLUEPRINT_BUYER_LIFECYCLE_ENABLED") },
+      { key: "lifecycle_cadence", enabled: isAutomationLaneEnabled("BLUEPRINT_LIFECYCLE_CADENCE_ENABLED") },
       { key: "experiment_rollout", enabled: isAutomationLaneEnabled("BLUEPRINT_EXPERIMENT_AUTOROLLOUT_ENABLED") },
       { key: "autonomous_research_outbound", enabled: isAutomationLaneEnabled("BLUEPRINT_AUTONOMOUS_RESEARCH_OUTBOUND_ENABLED") },
       { key: "creative_asset_factory", enabled: isAutomationLaneEnabled("BLUEPRINT_CREATIVE_FACTORY_ENABLED") },
