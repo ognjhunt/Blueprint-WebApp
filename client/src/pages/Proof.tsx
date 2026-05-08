@@ -49,7 +49,7 @@ const proofSummary = [
   {
     icon: Sparkles,
     label: "Robot question",
-    value: "Can our robot navigate this aisle, detect obstructions, and inspect shelf fronts?",
+    value: "Can our robot navigate this aisle, handle obstructions, and keep shelf-front perception stable?",
   },
   {
     icon: CheckCircle2,
@@ -59,7 +59,7 @@ const proofSummary = [
   },
 ];
 
-const inspectionItems = [
+const evaluationItems = [
   {
     icon: Eye,
     title: "Aisle geometry",
@@ -99,9 +99,9 @@ const provenanceRows = [
 
 const hostedOutputs = [
   ["Navigability assessment", "Clearance map, bottlenecks, turn feasibility"],
-  ["Shelf inspection summary", "Shelf visibility, occlusions, low-edge gaps"],
+  ["Perception stability summary", "Shelf visibility, occlusions, low-edge gaps"],
   ["Obstruction events", "Locations, sizes, and frequency"],
-  ["Recommendations", "Route adjustments and inspection strategy"],
+  ["Recommendations", "Route adjustments and evaluation strategy"],
 ];
 
 function MiniMap() {
@@ -132,7 +132,7 @@ export default function Proof() {
     <>
       <SEO
         title="Sample Grocery Aisle Proof Packet | Blueprint"
-        description="A Blueprint sample proof packet for a grocery aisle robot inspection, including route capture, provenance, privacy posture, and hosted-review outputs without claiming live customer proof."
+        description="A Blueprint sample proof packet for grocery aisle robot evaluation, including route capture, provenance, privacy posture, and hosted-evaluation outputs without claiming live customer proof."
         canonical="/proof"
       />
 
@@ -144,7 +144,7 @@ export default function Proof() {
               Stories / proof
             </a>
             <span className="text-slate-300">/</span>
-            <span className="text-slate-600">Sample grocery aisle robot inspection</span>
+            <span className="text-slate-600">Sample grocery aisle robot evaluation</span>
           </div>
 
           <section className="mt-7">
@@ -152,7 +152,7 @@ export default function Proof() {
               Sample grocery aisle proof packet
             </h1>
             <p className="mt-3 max-w-4xl text-base leading-7 text-slate-600">
-              A composite sample showing how shelf navigation, aisle obstruction checks, provenance, and hosted-review outputs stay readable for a robot team.
+              A composite sample showing how route navigation, aisle obstruction checks, provenance, and hosted-evaluation outputs stay readable for a robot team.
             </p>
           </section>
 
@@ -160,7 +160,7 @@ export default function Proof() {
             <div className="relative overflow-hidden rounded-md border border-slate-200 bg-slate-950 shadow-[0_26px_80px_-58px_rgba(15,23,42,0.72)]">
               <img
                 src={captureImage}
-                alt="Annotated grocery aisle capture for robot inspection"
+                alt="Annotated grocery aisle capture for robot evaluation"
                 className="aspect-[16/9] h-full w-full object-cover"
               />
               <div className="absolute left-4 top-4 inline-flex items-center gap-3 rounded-md bg-black/72 px-3 py-2 text-xs font-semibold text-white backdrop-blur">
@@ -220,10 +220,10 @@ export default function Proof() {
             <div className="rounded-md border border-slate-200 bg-white p-5">
               <div className="flex items-center gap-3">
                 <Eye className="h-5 w-5 text-slate-700" />
-                <h2 className="text-lg font-semibold tracking-[-0.025em]">What the robot team inspects</h2>
+                <h2 className="text-lg font-semibold tracking-[-0.025em]">What the robot team evaluates</h2>
               </div>
               <div className="mt-4 grid gap-px border-t border-slate-200 pt-4 sm:grid-cols-2">
-                {inspectionItems.map((item) => {
+                {evaluationItems.map((item) => {
                   const Icon = item.icon;
                   return (
                     <div key={item.title} className="flex gap-3 py-3 pr-4">
@@ -237,7 +237,7 @@ export default function Proof() {
                 })}
               </div>
               <a href="/proof" className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-blue-700">
-                See inspection checklist
+                See evaluation checklist
                 <ArrowUpRight className="h-3.5 w-3.5" />
               </a>
             </div>
@@ -267,7 +267,7 @@ export default function Proof() {
             <div className="rounded-md border border-slate-200 bg-white p-5">
               <div className="flex items-center gap-3">
                 <FileText className="h-5 w-5 text-slate-700" />
-                <h2 className="text-lg font-semibold tracking-[-0.025em]">Hosted review output (sample)</h2>
+                <h2 className="text-lg font-semibold tracking-[-0.025em]">Hosted evaluation output (sample)</h2>
               </div>
               <div className="mt-4 grid gap-4 border-t border-slate-200 pt-4 sm:grid-cols-[1fr_0.82fr]">
                 <div className="space-y-3">
@@ -310,7 +310,7 @@ export default function Proof() {
                 href="/world-models/siteworld-f5fd54898cfb/start"
                 className="inline-flex min-h-14 items-center justify-center gap-3 rounded-md bg-slate-950 px-6 text-base font-semibold text-white transition hover:bg-slate-800"
               >
-                Open hosted review
+                Open hosted evaluation
                 <ArrowUpRight className="h-5 w-5" />
               </a>
             </div>

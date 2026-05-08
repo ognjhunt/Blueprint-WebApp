@@ -35,7 +35,7 @@ const readableCards = [
 
 const publishedToday = [
   "Proof depth, freshness, and commercial status on listings",
-  "Readable manifest, export bundle, and rights-sheet layouts for buyer inspection",
+  "Readable manifest, export bundle, and rights-sheet layouts for buyer evaluation",
   "Hosted-access language that separates public proof from example UI",
   "Privacy, retention, redaction, and restriction framing in the buyer path",
   "Public-capture examples for everyday locations without claiming customer results",
@@ -56,7 +56,7 @@ const publicCaptureBoundarySteps = [
 ];
 
 const operatorMatrix = [
-  ["Site authority", "Who can approve capture, listing visibility, hosted review, and buyer access."],
+  ["Site authority", "Who can approve capture, listing visibility, hosted evaluation, and buyer access."],
   ["Capture window", "Dates, hours, routes, escort needs, and recapture constraints."],
   ["Restricted zones", "Private, employee-only, payment, screen, sensitive, or no-record areas."],
   ["Commercial posture", "Whether buyer review, licensing, export, or revenue sharing is allowed."],
@@ -109,7 +109,7 @@ export default function Governance() {
                   Proof stays attached.
                 </h1>
                 <p className="mt-6 text-base leading-8 text-slate-700">
-                  Every Blueprint world model is built from a real place, with inspectable proof of where, when, how, and under what rights it was captured.
+                  Every Blueprint world model is built from a real place, with readable proof of where, when, how, and under what rights it was captured.
                 </p>
               </div>
                 <div className="hidden flex-wrap content-end gap-2 lg:flex lg:justify-end">
@@ -153,7 +153,7 @@ export default function Governance() {
               <EditorialSectionIntro
 	                eyebrow="Public-capture boundary"
 	                title="The rules are practical, not just legal copy."
-                description="Everyday public-facing places only work when the listing shows what was allowed, what was restricted, what was redacted, and what the buyer may inspect."
+                description="Everyday public-facing places only work when the listing shows what was allowed, what was restricted, what was redacted, and what the buyer may evaluate."
               />
               <div className="mt-7 space-y-3">
                 {publicCaptureBoundarySteps.map((item) => (
@@ -244,12 +244,12 @@ export default function Governance() {
         <section className="mx-auto max-w-[88rem] px-5 pb-12 sm:px-8 lg:px-10 lg:pb-14">
           <EditorialCtaBand
             eyebrow="Next step"
-            title="Inspect trust details on a real listing."
+            title="Evaluate trust details on a real listing."
             description="Use a public listing to see how rights, provenance, privacy, and hosted-access boundaries show up in the product itself."
             imageSrc={publicCaptureGeneratedAssets.governancePublicCaptureExplainer}
             imageAlt="Governance proof board"
             primaryHref="/world-models"
-            primaryLabel="Inspect sample listing"
+            primaryLabel="Open sample listing"
             secondaryHref="/contact?persona=robot-team"
             secondaryLabel="Contact for scoped review"
             dark={false}

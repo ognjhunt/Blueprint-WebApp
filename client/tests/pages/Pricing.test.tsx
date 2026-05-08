@@ -13,7 +13,7 @@ describe("Pricing", () => {
     ).toBeInTheDocument();
 
     expect(screen.getAllByRole("heading", { name: /^Site Package Access$/i }).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole("heading", { name: /^Hosted Review$/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("heading", { name: /^Hosted Evaluation$/i }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("heading", { name: /^Custom Scope$/i }).length).toBeGreaterThan(0);
 
     expect(screen.getAllByText(/\$2,100 – \$3,400/i).length).toBeGreaterThan(0);
@@ -24,7 +24,7 @@ describe("Pricing", () => {
       screen.getByRole("heading", { name: /Choose by what your team needs first\./i }),
     ).toBeInTheDocument();
     expect(screen.getByText(/Package access first/i)).toBeInTheDocument();
-    expect(screen.getByText(/Hosted review first/i)).toBeInTheDocument();
+    expect(screen.getByText(/Hosted evaluation first/i)).toBeInTheDocument();
     expect(screen.getByText(/Custom scope first/i)).toBeInTheDocument();
     expect(screen.getByText(/Package access means files and approved exports/i)).toBeInTheDocument();
     expect(screen.getByText(/managed browser sessions and run evidence/i)).toBeInTheDocument();
@@ -36,7 +36,7 @@ describe("Pricing", () => {
 
     expect(
       screen
-        .getAllByRole("link", { name: /Request hosted review/i })
+        .getAllByRole("link", { name: /Request hosted evaluation/i })
         .some((link) =>
           link.getAttribute("href") ===
           "/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=pricing",
@@ -44,7 +44,7 @@ describe("Pricing", () => {
     ).toBe(true);
     expect(
       screen
-        .getAllByRole("link", { name: /Request capture\/site review/i })
+        .getAllByRole("link", { name: /Request capture\/world model/i })
         .some((link) =>
           link.getAttribute("href") ===
           "/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=request-capture&source=pricing",

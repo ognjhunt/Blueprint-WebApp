@@ -902,7 +902,7 @@ export function ContactForm() {
               ? "Request hosted evaluation"
               : persona === "site_operator"
                 ? "Submit site claim"
-                : "Request site review"}
+                : "Request world model"}
           <ArrowRight className="ml-2 h-4 w-4" />
         </button>
       </div>

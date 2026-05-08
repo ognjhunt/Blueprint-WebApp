@@ -19,23 +19,22 @@ describe("Header", () => {
   it("keeps the buyer-facing nav focused", () => {
     render(<Header />);
 
-    expect(screen.getByRole("link", { name: /^Product$/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /^For robot teams$/i })).toHaveAttribute(
       "href",
       "/product",
     );
-    expect(screen.getByRole("link", { name: /^Catalog$/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /^For site operators$/i })).toHaveAttribute(
       "href",
-      "/world-models",
+      "/contact/site-operator",
     );
-    expect(screen.getByRole("link", { name: /^Earn$/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /^For capturers$/i })).toHaveAttribute(
       "href",
       "/capture",
     );
-    expect(screen.getByRole("link", { name: /^Pricing$/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /^World models$/i })).toHaveAttribute(
       "href",
-      "/pricing",
+      "/world-models",
     );
-    expect(screen.getByRole("link", { name: /^Proof$/i })).toHaveAttribute("href", "/proof");
     expect(screen.queryByRole("link", { name: /^Sample Listing$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /^Deliverables$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /^About$/i })).not.toBeInTheDocument();
@@ -45,8 +44,11 @@ describe("Header", () => {
   it("uses a reduced proof-first action rail in the header", () => {
     render(<Header />);
 
-    const sampleLink = screen.getByRole("link", { name: /Inspect a real site/i });
-    expect(sampleLink).toHaveAttribute("href", "/world-models/siteworld-f5fd54898cfb");
+    const requestLink = screen.getAllByRole("link", { name: /Request world model/i })[0];
+    expect(requestLink).toHaveAttribute(
+      "href",
+      "/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=request-capture&source=header",
+    );
     expect(screen.queryByRole("link", { name: /See hosted evaluation/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /^Book call$/i })).not.toBeInTheDocument();
   });

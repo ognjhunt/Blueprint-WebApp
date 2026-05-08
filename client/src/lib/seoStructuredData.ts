@@ -32,7 +32,7 @@ export function organizationJsonLd(): JsonLdValue {
     logo: `${BASE_URL}/gradientBPLogo.png`,
     sameAs: ["https://www.linkedin.com/company/blueprintsim/"],
     description:
-      "Blueprint turns lawful real-site capture into site-specific products robot teams can inspect, request, and review before deployment work.",
+      "Blueprint turns lawful real-site capture into site-specific world models robot teams can train on, evaluate, request, and review before deployment work.",
   };
 }
 

@@ -30,12 +30,12 @@ export const mediaRoomSampleEvaluation = {
   siteName: "Media Room Demo Walkthrough",
   siteCode: "SW-DEMO-01",
   siteType: "Captured indoor media and mechanical-room route",
-  location: "Blueprint hosted review demo",
+  location: "Blueprint hosted evaluation demo",
   captureBasis: "Blueprint demo capture with example buyer deliverables",
   robotSetup: "Mobile manipulator with head and wrist cameras",
-  workflowLane: "Media room entry, rack approach, cabinet inspection, and exit route",
+  workflowLane: "Media room entry, rack approach, cabinet evaluation, and exit route",
   buyerQuestion:
-    "Can the team inspect one exact indoor route, its constraints, and its hosted-review output shape before committing field time or custom simulation work?",
+    "Can the team evaluate one exact indoor route, its constraints, and its hosted-evaluation output shape before committing field time or custom simulation work?",
   disclosure:
     "Example evaluation. The site, route, and interface are Blueprint demo material; real customer exports use approved site-specific proof and rights review.",
   artifacts: [
@@ -72,7 +72,7 @@ export const publicCaptureProofStories: PublicProofStory[] = [
       "Hosted report with route notes, occlusion risks, and export scope",
     ],
     decisionNote:
-      "A robotics team can use this to decide whether a grocery-specific hosted review is worth scoping before field work.",
+      "A robotics team can use this to decide whether a grocery-specific hosted evaluation is worth scoping before field work.",
     guardrails: [
       "Avoid checkout lanes, pharmacy counters, screens, receipts, and identifiable shoppers",
       "Stop capture if staff objects or signage restricts photography",
@@ -121,7 +121,7 @@ export const publicCaptureProofStories: PublicProofStory[] = [
     evidenceOpened: [
       "Lobby filmstrip with entrance, seating, elevator approach, and front-desk avoidance notes",
       "Redaction summary for people, screens, and guest-facing paperwork",
-      "Hosted review report with next-step recommendation and not-a-deployment-guarantee boundary",
+      "Hosted evaluation report with next-step recommendation and not-a-deployment-guarantee boundary",
     ],
     decisionNote:
       "The route gives the robot team enough context to ask the hotel operator for scoped access before any private-floor capture.",
@@ -150,7 +150,7 @@ export const publicCaptureProofStories: PublicProofStory[] = [
       "Sample export tree with run summary, observation frames, and route replay placeholders",
     ],
     decisionNote:
-      "The robot team can start with hosted review while export rights stay gated until the listing-specific review is done.",
+      "The robot team can start with hosted evaluation while export rights stay gated until the listing-specific review is done.",
     guardrails: [
       "Do not capture payment terminals, service-desk screens, or employee-only spaces",
       "Avoid identifiable shoppers and staff",
@@ -175,7 +175,7 @@ export const sampleHostedRunRows: HostedRunRow[] = [
     run: "Run 01",
     scenario: "Baseline aisle navigation",
     observation: "Route is readable through endcap and mid-aisle transitions.",
-    output: "Keep in hosted review",
+    output: "Keep in hosted evaluation",
   },
   {
     run: "Run 02",

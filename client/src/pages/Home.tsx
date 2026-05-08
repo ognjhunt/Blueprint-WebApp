@@ -31,18 +31,18 @@ import { useEffect, useMemo, useState } from "react";
 
 const productPaths = [
   {
-    title: "Site Package",
+    title: "World Model Package",
     body:
-      "License the exact-site package when your team wants capture notes, routes, geometry when available, metadata, rights, and exports inside its own stack.",
+      "License the exact-site world model when your team wants capture notes, routes, geometry when available, metadata, rights, and exports inside its own stack.",
     href: "/pricing",
-    label: "View package path",
+    label: "View package access",
   },
   {
     title: "Hosted Evaluation",
     body:
-      "Start with hosted review when your team needs reruns, observations, and a clear next step before moving files or sending people on-site.",
+      "Start with hosted evaluation when your team needs repeatable task runs, checkpoint comparisons, and a clear next step before sending people on-site.",
     href: "/product",
-    label: "See product path",
+    label: "See evaluation path",
     dark: true,
   },
 ];
@@ -50,15 +50,15 @@ const productPaths = [
 const personaEntryPoints = [
   {
     audience: "Robot team",
-    question: "I need a real place my robot may operate in.",
-    title: "Inspect or request a site.",
+    question: "I need a world model of a real place my robot may operate in.",
+    title: "Train or evaluate on a world model.",
     body:
-      "Start with a current listing, or send the place, workflow, and robot setup your team needs to evaluate.",
+      "Start with a current world model, or send the place, workflow, and robot setup your team needs to train against or evaluate.",
     primaryHref:
       "/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=request-capture&source=home-persona-robot-team",
-    primaryLabel: "Request site review",
+    primaryLabel: "Request world model",
     secondaryHref: "/world-models",
-    secondaryLabel: "Browse sites",
+    secondaryLabel: "Browse world models",
   },
   {
     audience: "Site operator",
@@ -100,22 +100,22 @@ const homeDirectAnswers = [
   {
     question: "What does Blueprint do?",
     answer:
-      "Blueprint records real places and turns approved capture into site-specific products robot teams can inspect before committing people, budget, or deployment work.",
+      "Blueprint records real places and turns approved capture into site-specific world models robot teams can use for training runs, hosted evaluation, and deployment evidence.",
   },
   {
     question: "Who is it for?",
     answer:
-      "Robot teams use Blueprint to inspect or request sites. Site operators use it to set access, privacy, and commercialization boundaries. Capturers use it to apply for approved public-facing capture work.",
+      "Robot teams use Blueprint to evaluate or request world models. Site operators use it to set access, privacy, and commercialization boundaries. Capturers use it to apply for approved public-facing capture work.",
   },
   {
     question: "What does a robot team get first?",
     answer:
-      "A robot team starts with a site listing, sample proof, or a structured request. Package access and hosted review only come after the exact site and proof path are clear.",
+      "A robot team starts with a world-model listing, sample proof, or a structured request. Package access and hosted evaluation only come after the exact site and proof path are clear.",
   },
   {
     question: "What is sample versus real approved output?",
     answer:
-      "Public examples are labeled as samples unless they are tied to an approved listing, capture record, rights posture, and hosted-review result.",
+      "Public examples are labeled as samples unless they are tied to an approved listing, capture record, rights posture, and hosted-evaluation result.",
   },
 ];
 
@@ -139,43 +139,43 @@ const homeVariantContent: Record<
   }
 > = {
   hosted_review: {
-    title: "Blueprint turns real places into sites your robot team can inspect.",
+    title: "Blueprint turns real places into world models your robot team can train and evaluate on.",
     description:
-      "Send the site, route, or facility type you care about. Blueprint uses real capture to build a site-specific product with proof, limits, and next steps attached.",
-    primaryLabel: "Request site review",
+      "Send the place, route, or facility type you care about. Blueprint uses real capture to build a site-specific world model with task runs, proof, limits, and next steps attached.",
+    primaryLabel: "Request world model",
     primaryPath: "request-capture",
-    secondaryLabel: "Browse sample sites",
+    secondaryLabel: "Browse world models",
     secondaryHref: "/world-models",
     panelTitle: "New here?",
     panelBody:
-      "A robot team asks for a site. A site operator sets the rules. A capturer applies where capture is open.",
+      "A robot team asks for a world model. A site operator sets the rules. A capturer applies where capture is open.",
   },
   proof_pack: {
-    title: "Blueprint turns real places into sites your robot team can inspect.",
+    title: "Blueprint turns real places into world models your robot team can train and evaluate on.",
     description:
-      "Start with one real place and the robot question you need answered. Blueprint keeps the capture source, rights, package scope, and hosted review path tied to that site.",
-    primaryLabel: "Request site review",
+      "Start with one real place and the robot task you need to prove. Blueprint keeps the capture source, rights, package scope, and hosted evaluation path tied to that world model.",
+    primaryLabel: "Request world model",
     primaryPath: "request-capture",
-    secondaryLabel: "Browse sample sites",
+    secondaryLabel: "Browse world models",
     secondaryHref: "/world-models",
     panelTitle: "New here?",
     panelBody:
-      "Use the path that matches your role: request a site, claim a facility, or apply to capture approved places.",
+      "Use the path that matches your role: request a world model, claim a facility, or apply to capture approved places.",
   },
 };
 
 const robotTeamDecisionSteps = [
   {
-    title: "Pick the place",
-    body: "Start with one facility, site class, or route your team needs to understand before spending more time.",
+    title: "Pick the world",
+    body: "Start with one facility, site class, or route your team needs to train against before spending more time.",
   },
   {
-    title: "Check the evidence",
-    body: "Look at the sample listing, capture notes, rights limits, freshness, hosted review report, and export shape.",
+    title: "Run the task",
+    body: "Use the listing, capture notes, rights limits, freshness, hosted eval report, and export shape to scope the run.",
   },
   {
-    title: "Request the next step",
-    body: "Ask for package access, hosted evaluation, or a new capture when the exact place is not available yet.",
+    title: "Compare the result",
+    body: "Ask for package access, hosted evaluation, checkpoint comparison, or new capture when the exact world is not available yet.",
   },
 ];
 
@@ -274,11 +274,11 @@ export default function Home() {
         detail: "Blueprint packages the capture into a site-specific world model, listing, and export scope.",
       },
       {
-        label: "Hosted review",
-        detail: "A managed browser session can help a robot team inspect the same site before file handoff.",
+        label: "Hosted eval",
+        detail: "A managed browser session can help a robot team run task scenarios on the same world model before file handoff.",
       },
       {
-        label: "Decision",
+        label: "Evidence",
         detail: "Use the proof before committing travel, rollout spend, custom sim work, or deeper integration.",
       },
     ],
@@ -365,8 +365,8 @@ export default function Home() {
   return (
     <>
       <SEO
-        title="Blueprint | Real Sites For Robot Teams To Inspect"
-        description="Blueprint turns real-site capture into site-specific products robot teams can inspect, request, and review before deployment work."
+        title="Blueprint | Site-Specific World Models For Robot Training And Evaluation"
+        description="Blueprint turns real-site capture into site-specific world models robot teams can train on, evaluate against, license, and review before deployment work."
         canonical="/"
         jsonLd={[
           organizationJsonLd(),
@@ -375,7 +375,7 @@ export default function Home() {
             path: "/",
             name: "Blueprint",
             description:
-              "Real-site capture, site-specific products, hosted review, and clear paths for robot teams, site operators, and capturers.",
+              "Real-site capture, site-specific world models, hosted evaluation, and clear paths for robot teams, site operators, and capturers.",
           }),
           breadcrumbJsonLd([{ name: "Home", path: "/" }]),
           faqJsonLd(homeDirectAnswers),
@@ -448,7 +448,7 @@ export default function Home() {
                     {heroContent.panelBody}
                   </p>
                   <div className="mt-5 border-t border-white/10 pt-4 text-sm text-white/70">
-                    One real site. One robot question. Proof stays attached.
+                    One real world model. One robot task. Proof stays attached.
                   </div>
                   </div>
                 </div>
@@ -527,22 +527,22 @@ export default function Home() {
             <div className="bg-[#f5f3ef] px-6 py-8 lg:px-8 lg:py-10">
               <EditorialSectionIntro
                 eyebrow="For robot teams"
-                title="Start with the site your robot needs to understand."
-                description="Blueprint helps your team inspect what exists, request what is missing, and move toward hosted evaluation without a long discovery loop."
+                title="Start with the world model your robot needs to learn from."
+                description="Blueprint helps your team evaluate what exists, request what is missing, and move toward hosted evaluation without a long discovery loop."
               />
               <a
                 href={decisionPathHref}
                 onClick={() =>
                   trackHomeCtaClick(
-                    "home_decision_path",
-                    "Request site review",
-                    decisionPathHref,
-                    "home-decision-path",
+                          "home_decision_path",
+                          "Request world model",
+                          decisionPathHref,
+                          "home-decision-path",
                   )
                 }
                 className="mt-7 inline-flex items-center justify-center bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
               >
-                Request site review
+                Request world model
                 <ArrowRight className="ml-2 h-4 w-4" />
               </a>
             </div>
@@ -573,7 +573,7 @@ export default function Home() {
 	              <EditorialSectionIntro
 	                eyebrow="Stories / Proof"
 	                title="Start with one complete proof journey."
-	                description="Before you request a new site, inspect the sample path: one exact site, one package, one hosted-review request, and limits that stay visible."
+	                description="Before you request a new world model, open the sample path: one exact site, one package, one hosted-evaluation request, and limits that stay visible."
 	              />
 	              <div className="mt-7 flex flex-wrap gap-3">
 	                <a
@@ -596,14 +596,14 @@ export default function Home() {
                     onClick={() =>
                       trackHomeCtaClick(
                         "home_sample_site_secondary",
-                        "Inspect sample site",
+                        "Open sample world model",
                         publicDemoHref,
                         "home-proof-story",
                       )
                     }
 	                  className="inline-flex items-center justify-center border border-black/10 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
 	                >
-	                  Inspect sample site
+	                  Open sample world model
 	                </a>
 	              </div>
 	            </div>
@@ -621,8 +621,8 @@ export default function Home() {
         <section className="mx-auto max-w-[88rem] px-5 py-8 sm:px-8 lg:px-10 lg:py-10" data-home-section="catalog">
           <EditorialSectionIntro
                 eyebrow="Real places"
-                title="Everyday places can become robot-team evidence."
-                description="Blueprint is not limited to warehouses. Public-facing grocery, retail, service, and common-area locations can become capture-backed site products when the walkthrough is lawful, privacy-safe, and useful."
+                title="Everyday places can become training and eval worlds."
+                description="Blueprint is not limited to warehouses. Public-facing grocery, retail, service, and common-area locations can become capture-backed world-model products when the walkthrough is lawful, privacy-safe, and useful."
                 className="max-w-3xl"
               />
 
@@ -651,7 +651,7 @@ export default function Home() {
               <EditorialSectionIntro
                 eyebrow="Products"
                 title="Two ways to work with one exact site."
-                description="Start with the listing, then choose package access or hosted review."
+                description="Start with the world-model listing, then choose package access or hosted evaluation."
               />
             </div>
             <div className="grid gap-px bg-black/10 md:grid-cols-2">
@@ -693,7 +693,7 @@ export default function Home() {
         <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12" data-home-section="direct-answers">
           <EditorialFaq
             title="Direct answers"
-            description="Short definitions for teams comparing exact-site packages, hosted review, capture provenance, rights, and sample boundaries."
+            description="Short definitions for teams comparing exact-site packages, hosted evaluation, capture provenance, rights, and sample boundaries."
             items={homeDirectAnswers}
           />
         </section>
@@ -772,8 +772,8 @@ export default function Home() {
           <div className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10">
             <EditorialSectionIntro
               eyebrow="Capture examples"
-              title="See what a robot team would inspect."
-              description="Grocery aisles, retail floors, hotel lobbies, and mall corridors can all become useful site evidence when the route is lawful, privacy-safe, and tied to a real robot question."
+              title="See what a robot team can test."
+              description="Grocery aisles, retail floors, hotel lobbies, and mall corridors can all become useful world-model evidence when the route is lawful, privacy-safe, and tied to a real robot task."
               className="max-w-3xl"
             />
             <div className="mt-8 grid gap-4 lg:grid-cols-4">
@@ -825,10 +825,10 @@ export default function Home() {
 	        <section className="mx-auto max-w-[88rem] px-5 pb-12 sm:px-8 lg:px-10 lg:pb-14" data-home-section="bottom-cta">
           <EditorialCtaBand
             eyebrow="Start"
-            title="Start with the site, task, and robot question."
-            description="Blueprint can give a better answer when your request names the place, workflow, and robot setup your team needs to evaluate."
+            title="Start with the world model, task, and robot question."
+            description="Blueprint can give a better answer when your request names the place, workflow, and robot setup your team needs to train or evaluate."
             imageSrc={editorialGeneratedAssets.homeHero}
-            imageAlt="Blueprint hosted review still"
+            imageAlt="Blueprint hosted evaluation still"
             primaryHref={bottomCtaHref}
             primaryLabel={heroContent.primaryLabel}
             primaryOnClick={() =>

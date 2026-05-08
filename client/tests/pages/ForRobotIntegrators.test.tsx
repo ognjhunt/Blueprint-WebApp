@@ -17,7 +17,7 @@ describe("ForRobotIntegrators", () => {
 
     expect(screen.getByText(/^For Robot Teams$/i)).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /Test the exact site before deployment\./i }),
+      screen.getByRole("heading", { name: /Train and evaluate on the exact-site world model before deployment\./i }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: /Use exact-site worlds for the work that usually gets expensive late\./i }),
@@ -29,7 +29,7 @@ describe("ForRobotIntegrators", () => {
     expect(
       screen.getByText(/A site-specific world model of one real facility and workflow/i),
     ).toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: /Inspect sample review/i })[0]).toHaveAttribute(
+    expect(screen.getAllByRole("link", { name: /Open sample evaluation/i })[0]).toHaveAttribute(
       "href",
       "/proof",
     );

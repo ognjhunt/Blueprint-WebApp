@@ -9,18 +9,18 @@ describe("SiteWorlds", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Sites your robot team can inspect\./i,
+        name: /World models for exact-site training and evaluation\./i,
       }),
     ).toBeInTheDocument();
 
-    expect(screen.getByText(/Browse current samples and request the place you need\./i)).toBeInTheDocument();
+    expect(screen.getByText(/Browse current samples or request the place and task you need\./i)).toBeInTheDocument();
 
     expect(
-      screen.getByRole("link", { name: /Inspect a real site/i }),
+      screen.getByRole("link", { name: /Open sample world model/i }),
     ).toHaveAttribute("href", "/world-models/siteworld-f5fd54898cfb");
 
     expect(
-      screen.getAllByRole("link", { name: /Request site review/i })[0],
+      screen.getAllByRole("link", { name: /Request world model/i })[0],
     ).toHaveAttribute(
       "href",
       "/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=request-capture&source=site-worlds",
@@ -32,7 +32,7 @@ describe("SiteWorlds", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Start with a place, not an abstract demo\./i,
+        name: /Start with a world model, not an abstract demo\./i,
       }),
     ).toBeInTheDocument();
 
@@ -62,7 +62,7 @@ describe("SiteWorlds", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Start with the site that matters\./i,
+        name: /Start with the world model that matters\./i,
       }),
     ).toBeInTheDocument();
 

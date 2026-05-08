@@ -40,7 +40,7 @@ export const siteWorldStatusLegend: SiteWorldStatusBadge[] = [
   {
     id: "public_demo",
     label: "Public demo",
-    summary: "A public sample listing you can inspect without treating it as a customer claim.",
+    summary: "A public sample listing you can evaluate without treating it as a customer claim.",
     tone: "border-indigo-200 bg-indigo-50 text-indigo-700",
   },
   {
@@ -116,9 +116,9 @@ export function getSiteWorldCommercialStatus(
       label: "Public demo sample",
       tone: "border-indigo-200 bg-indigo-50 text-indigo-700",
       summary:
-        "This listing shows a real captured sample, example files, and hosted-review request previews.",
+        "This listing shows a real captured sample, example files, and hosted-evaluation request previews.",
       buyerNote:
-        "The public demo lets you inspect the sample listing. It does not grant blanket facility approval or unrestricted commercial use for future requests.",
+        "The public demo lets you evaluate the sample listing. It does not grant blanket facility approval or unrestricted commercial use for future requests.",
     };
   }
 
@@ -128,7 +128,7 @@ export function getSiteWorldCommercialStatus(
       label: "Refresh or evidence review required",
       tone: "border-amber-200 bg-amber-50 text-amber-700",
       summary:
-        "The listing is inspectable, but freshness, missing evidence, or recapture signals need review before the team relies on it for a commercial decision.",
+        "The listing is readable, but freshness, missing evidence, or recapture signals need review before the team relies on it for a commercial decision.",
       buyerNote:
         "Use the public listing to assess fit, then confirm the refresh and evidence path before package access or hosted evaluation moves forward.",
     };
@@ -212,7 +212,7 @@ export function getSiteWorldVisualDisclosure(site: PublicSiteWorldRecord): SiteW
     return {
       label: "Provider preview image",
       summary:
-        "Image comes from a generated preview attachment. It supports inspection but does not replace capture provenance or request review.",
+        "Image comes from a generated preview attachment. It supports evaluation but does not replace capture provenance or request review.",
       proofBacked: true,
     };
   }
@@ -305,7 +305,7 @@ export function getSiteWorldPlainEnglishStatus(site: PublicSiteWorldRecord) {
   }
 
   if (status.id === "restriction_review_required") {
-    return "Public to inspect, but rights, privacy, or export scope still need confirmation.";
+    return "Public to evaluate, but rights, privacy, or export scope still need confirmation.";
   }
 
   return "Commercially legible, but access still follows request-specific review.";
@@ -313,7 +313,7 @@ export function getSiteWorldPlainEnglishStatus(site: PublicSiteWorldRecord) {
 
 export function getSiteWorldPlainEnglishProof(site: PublicSiteWorldRecord) {
   if (isPublicSampleSiteWorld(site)) {
-    return "This listing includes screenshots, sample files, and a hosted-review request path.";
+    return "This listing includes screenshots, sample files, and a hosted-evaluation request path.";
   }
 
   if (isCommercialExemplarSiteWorld(site)) {

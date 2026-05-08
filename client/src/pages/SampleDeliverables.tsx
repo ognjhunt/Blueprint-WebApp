@@ -26,7 +26,7 @@ const contractCards = [
   },
   {
     title: "Sample export bundle",
-    body: "Example hosted and package outputs a robot team can inspect before choosing the next step.",
+    body: "Example hosted and package outputs a robot team can evaluate before choosing the next step.",
   },
 ];
 
@@ -51,12 +51,12 @@ const artifactPreviews = [
     title: "Export bundle",
     label: "JSON sample",
     href: "/samples/sample-export-bundle.json",
-    body: "A compact example of the run summary, file list, and notes a robot team can inspect after hosted review.",
+    body: "A compact example of the run summary, file list, and notes a robot team can evaluate after hosted evaluation.",
     icon: PackageOpen,
     action: "Download sample export bundle",
   },
   {
-    title: "Hosted review report",
+    title: "Hosted evaluation report",
     label: "Markdown sample",
     href: "/samples/sample-hosted-review-report.md",
     body: "An example report showing session scope, run evidence, buyer decision notes, and limits.",
@@ -143,7 +143,7 @@ export default function SampleDeliverables() {
                   Sample deliverables from one real site.
                 </h1>
                 <p className="mt-6 text-base leading-8 text-slate-700">
-                  See the manifest, rights sheet, package files, and hosted-review report before the buyer conversation starts.
+                  See the manifest, rights sheet, package files, and hosted-evaluation report before the buyer conversation starts.
                 </p>
                 </div>
               </div>
@@ -250,7 +250,7 @@ export default function SampleDeliverables() {
           <div className="mx-auto grid max-w-[88rem] gap-px px-5 py-10 sm:px-8 lg:grid-cols-[0.36fr_0.64fr] lg:px-10 lg:py-12">
             <div className="bg-[#f5f3ef] p-6 lg:p-8">
               <EditorialSectionIntro
-                eyebrow="Inspectable samples"
+                eyebrow="Sample files"
                 title="Open the sample files."
                 description="Each file is marked as a sample. Real package access still follows listing-specific proof, rights, and export review."
               />
@@ -377,7 +377,7 @@ export default function SampleDeliverables() {
               <EditorialSectionIntro
                 eyebrow="Paths"
                 title="Package and hosted paths, side by side."
-                description="The product difference is simple: take the package into your stack, or use Blueprint-hosted review before moving files."
+                description="The product difference is simple: take the package into your stack, or use Blueprint-hosted evaluation before moving files."
                 className="max-w-3xl"
               />
             <div className="mt-8 grid gap-4 lg:grid-cols-2">
@@ -424,12 +424,12 @@ export default function SampleDeliverables() {
         <section className="mx-auto max-w-[88rem] px-5 pb-12 sm:px-8 lg:px-10 lg:pb-14">
           <EditorialCtaBand
             eyebrow="Next step"
-            title="Inspect the files before you buy the path."
-            description="Move into the sample listing, then continue into package or hosted review only when the site and proof already make sense."
+            title="Evaluate the files before you buy the path."
+            description="Move into the sample listing, then continue into package or hosted evaluation only when the site and proof already make sense."
             imageSrc={publicCaptureGeneratedAssets.cedarMarketProofBoard}
             imageAlt="Deliverables proof board"
             primaryHref="/proof"
-            primaryLabel="Inspect sample evaluation"
+            primaryLabel="Open sample evaluation"
             secondaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=data-licensing&path=package-access&source=sample-deliverables"
             secondaryLabel="Request package access"
             dark={false}

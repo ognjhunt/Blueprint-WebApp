@@ -14,7 +14,7 @@ describe("CaseStudies", () => {
     expect(screen.getByText(/Sample outcome board/i)).toBeInTheDocument();
     expect(
       screen
-        .getAllByRole("link", { name: /Inspect sample listing/i })
+        .getAllByRole("link", { name: /Open sample listing/i })
         .some((link) => link.getAttribute("href") === "/world-models/siteworld-f5fd54898cfb"),
     ).toBe(true);
     expect(

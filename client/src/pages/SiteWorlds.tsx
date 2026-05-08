@@ -70,7 +70,7 @@ function SiteCard({
       <a
         href={`/world-models/${site.id}`}
         className="block bg-[#f5f3ef] p-3 transition group-hover:bg-[#efebe2]"
-        aria-label={`Inspect ${site.siteName}`}
+        aria-label={`Open ${site.siteName} world model`}
       >
         <SiteWorldGraphic site={site} />
       </a>
@@ -123,7 +123,7 @@ function SiteCard({
             href={`/world-models/${site.id}`}
             className="inline-flex items-center justify-center bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
           >
-            Inspect listing
+            Open world model
             <ArrowRight className="ml-2 h-4 w-4" />
           </a>
           <a
@@ -199,19 +199,19 @@ export default function SiteWorlds() {
   return (
     <>
       <SEO
-        title="Sites To Inspect | Blueprint"
-        description="Browse real captured sites robot teams can inspect, request, or use to understand Blueprint's package and hosted-review paths."
+        title="World Models | Blueprint"
+        description="Browse real-capture world models robot teams can train against, evaluate on, request, or use to understand Blueprint's package and hosted-evaluation paths."
         canonical="/world-models"
         jsonLd={[
           webPageJsonLd({
             path: "/world-models",
-            name: "Blueprint Sites To Inspect",
+            name: "Blueprint World Models",
             description:
-              "Real captured sites, site-specific world models, package paths, hosted review, and provenance review for robot teams.",
+              "Real captured sites, site-specific world models, package paths, hosted evaluation, and provenance review for robot teams.",
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },
-            { name: "Sites to inspect", path: "/world-models" },
+            { name: "World models", path: "/world-models" },
           ]),
         ]}
       />
@@ -230,10 +230,10 @@ export default function SiteWorlds() {
             <div className="absolute inset-x-0 bottom-0 mx-auto max-w-[88rem] px-5 pb-12 sm:px-8 lg:px-10 lg:pb-14">
               <div className="max-w-[34rem]">
                 <h1 className="font-editorial text-[3.4rem] leading-[0.94] tracking-[-0.05em] text-white sm:text-[4.7rem]">
-                  Sites your robot team can inspect.
+                  World models for exact-site training and evaluation.
                 </h1>
                 <p className="mt-3 text-lg text-white/90">
-                  Browse current samples and request the place you need.
+                  Browse current samples or request the place and task you need.
                 </p>
                 <div className="mt-6 flex flex-wrap gap-2">
                   <ProofChip light>Exact site</ProofChip>
@@ -248,15 +248,15 @@ export default function SiteWorlds() {
           <div className="mb-5 flex items-center justify-between gap-4">
             <EditorialSectionIntro
               eyebrow="Featured sites"
-              title="Start with a place, not an abstract demo."
-              description="The clearest listings come first. Each card keeps proof, access, freshness, and hosted-review state separate."
+              title="Start with a world model, not an abstract demo."
+              description="The clearest listings come first. Each card keeps proof, access, freshness, and hosted-evaluation state separate."
               className="max-w-3xl"
             />
             <a
               href="#catalog"
               className="hidden items-center text-sm font-semibold text-slate-700 transition hover:text-slate-950 lg:inline-flex"
             >
-                Explore all sites
+                Explore all world models
               <ArrowRight className="ml-2 h-4 w-4" />
             </a>
           </div>
@@ -273,7 +273,7 @@ export default function SiteWorlds() {
             <EditorialSectionIntro
 	              eyebrow="Status legend"
 	              title="Know what is visible now."
-	              description="Every listing keeps public proof, request gates, package access, and hosted availability separate so broad catalog coverage does not pretend every site has the same proof depth."
+	              description="Every listing keeps public proof, request gates, package access, and hosted availability separate so broad catalog coverage does not pretend every world model has the same proof depth."
             />
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {siteWorldStatusLegend.map((item) => (
@@ -292,7 +292,7 @@ export default function SiteWorlds() {
               <EditorialSectionIntro
                 eyebrow="Capture app"
                 title="Blueprint is not warehouse-only."
-                description="Grocery stores, retail floors, lobbies, malls, museums, and other everyday places can become useful robot-team evidence when capture is lawful, privacy-safe, and reviewed."
+                description="Grocery stores, retail floors, lobbies, malls, museums, and other everyday places can become useful robot-team training and eval evidence when capture is lawful, privacy-safe, and reviewed."
               />
               <a
                 href="/capture"
@@ -320,7 +320,7 @@ export default function SiteWorlds() {
               <EditorialSectionIntro
                 eyebrow="Inside the world"
                 title="Built from real capture."
-                description="Every site-specific world model stays grounded to one place, one proof chain, and trust details your team can inspect."
+                description="Every site-specific world model stays grounded to one place, one proof chain, and trust details your team can use for eval setup."
                 light
               />
               <div className="mt-8 space-y-5">
@@ -333,7 +333,7 @@ export default function SiteWorlds() {
                   {
                     icon: Camera,
                     title: "Photoreal textures",
-                    body: "Capture-backed imagery and hosted-review stills instead of generic synthetic polish.",
+                    body: "Capture-backed imagery and hosted-evaluation stills instead of generic synthetic polish.",
                   },
                   {
                     icon: Route,
@@ -360,7 +360,7 @@ export default function SiteWorlds() {
             <div className="relative min-h-[24rem] border-t border-white/10 lg:border-l lg:border-t-0">
               <MonochromeMedia
                 src={heroImageSrc}
-                alt={`${heroSite.siteName} hosted-review reference`}
+                alt={`${heroSite.siteName} hosted-evaluation reference`}
                 className="h-full rounded-none"
                 imageClassName="h-full"
                 overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.12),rgba(0,0,0,0.35))]"
@@ -402,15 +402,15 @@ export default function SiteWorlds() {
 
         <section className="mx-auto max-w-[88rem] px-5 pb-16 pt-8 sm:px-8 lg:px-10 lg:pb-20">
           <EditorialCtaBand
-            eyebrow="See a site for yourself"
-            title="Start with the site that matters."
-            description="Inspect the strongest current public sample, then request package access, hosted review, or capture only after the site is legible."
+            eyebrow="Evaluate a world"
+            title="Start with the world model that matters."
+            description="Open the strongest current public sample, then request package access, hosted evaluation, or capture only after the world model is legible."
             imageSrc="/generated/editorial/cross-dock.png"
             imageAlt={heroSite.siteName}
             primaryHref={publicDemoHref}
-            primaryLabel="Inspect a real site"
+            primaryLabel="Open sample world model"
             secondaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=request-capture&source=site-worlds"
-            secondaryLabel="Request site review"
+            secondaryLabel="Request world model"
           />
         </section>
       </div>

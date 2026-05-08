@@ -313,14 +313,14 @@ export default function HowItWorks() {
                 See the exact site before you start the sales motion.
               </h2>
               <p className="mt-4 max-w-[28rem] text-sm leading-7 text-white/70">
-                The public sample listing shows how capture, package framing, and hosted review stay attached to one facility.
+                The public sample listing shows how capture, package framing, and hosted evaluation stay attached to one facility.
               </p>
               <div className="mt-7 flex flex-col gap-3 sm:flex-row">
                 <a
                   href={publicDemoHref}
                   className="inline-flex items-center justify-center rounded-full bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
                 >
-                  Inspect a real site
+                  Open sample world model
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </a>
                 <a

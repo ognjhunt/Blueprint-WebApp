@@ -13,11 +13,11 @@ export const publicProofAssets = [
     title: "Public sample listing",
     label: "Start here",
     href: publicDemoHref,
-    detail: "Inspect one captured site, the package path, and the hosted-review path from a single listing.",
+    detail: "Evaluate one captured world model, the package path, and the hosted-evaluation path from a single listing.",
   },
   {
-    title: "Hosted-review reference still",
-    label: "Hosted-review still",
+    title: "Hosted-evaluation reference still",
+    label: "Hosted-evaluation still",
     href: runtimeReferenceHref,
     detail: "A current still from the demo path so the page is anchored in actual capture media.",
   },
@@ -38,7 +38,7 @@ export const publicProofAssets = [
 export const proofHighlights = [
   "Real capture proof: the walkthrough reel and listing are grounded to one specific facility.",
   "Example files: manifests, export bundles, and trust cards are labeled before your team relies on them.",
-  "Hosted-review previews show the buying path without claiming results Blueprint has not approved.",
+  "Hosted-evaluation previews show the buying path without claiming results Blueprint has not approved.",
   "Everyday routes can enter review when public access, privacy, and restricted-zone rules are clear.",
 ];
 
@@ -46,16 +46,16 @@ export const resultHighlights = [
   {
     title: "Real capture proof",
     outcome: "Real listing asset",
-    detail: "Walkthrough media, hosted-review stills, and listing evidence stay tied to the same site.",
+    detail: "Walkthrough media, hosted-evaluation stills, and listing evidence stay tied to the same site.",
   },
   {
     title: "Hosted product preview",
-    outcome: "Hosted review path",
+    outcome: "Hosted evaluation path",
     detail: "See how one site moves from setup to run review to export.",
   },
   {
     title: "Export bundle",
     outcome: "Example outputs",
-    detail: "Review the files a team would inspect after a hosted run: video, metrics, datasets, and raw bundles.",
+    detail: "Review the files a team would evaluate after a hosted run: video, metrics, datasets, and raw bundles.",
   },
 ];

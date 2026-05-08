@@ -2,7 +2,7 @@ export const primaryNavLinks = [
   { href: "/product", label: "For robot teams" },
   { href: "/contact/site-operator", label: "For site operators" },
   { href: "/capture", label: "For capturers" },
-  { href: "/world-models", label: "Sites to inspect" },
+  { href: "/world-models", label: "World models" },
 ];
 
 export const headerUtilityLinks = [
@@ -14,7 +14,7 @@ export const footerProductLinks = [
   { href: "/product", label: "For robot teams" },
   { href: "/contact/site-operator", label: "For site operators" },
   { href: "/capture", label: "For capturers" },
-  { href: "/world-models", label: "Sites to inspect" },
+  { href: "/world-models", label: "World models" },
   { href: "/proof", label: "Sample proof" },
   { href: "/pricing", label: "Pricing" },
 ];

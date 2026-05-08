@@ -94,7 +94,7 @@ export default function Contact() {
       ? robotTeamCityMessaging.requestHeroBody
       : persona === "site_operator"
         ? "Start with the facility, access rules, and privacy boundaries. A call comes later only when private areas, rights, or commercialization need a human pass."
-        : "Use this form when your team needs a real place to inspect, compare, or request before deployment work moves forward.";
+        : "Use this form when your team needs a real place to train against, evaluate, compare, or request before deployment work moves forward.";
 
   const responseBody = captureRequestMode
     ? "Fill out the short form and Blueprint will reply with the capture option, hosted evaluation path, or the one missing detail we need first."
@@ -110,7 +110,7 @@ export default function Contact() {
     sourcePath === "request-capture"
       ? "Blueprint confirms the requested site, workflow, robot setup, and whether a capture path can be opened."
       : sourcePath === "hosted-evaluation"
-      ? "Blueprint confirms the site, robot setup, requested outputs, and hosted-review scope."
+      ? "Blueprint confirms the site, robot setup, requested outputs, and hosted-evaluation scope."
       : sourcePath === "package-access"
         ? "Blueprint confirms rights, export scope, and package access for the requested site."
         : interest
@@ -169,12 +169,12 @@ export default function Contact() {
           },
           {
             href: "/world-models",
-            label: "Browse sites",
+            label: "Browse world models",
             detail: "Best when your team wants to see sample proof, access state, and package paths before outreach.",
           },
           {
             href: "/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=contact-fast-path",
-            label: "Request site review",
+            label: "Request hosted evaluation",
             detail: "Best when the site is already known and a structured first reply would save time.",
           },
         ];
@@ -185,11 +185,11 @@ export default function Contact() {
         ? "Request hosted evaluation"
         : persona === "site_operator"
           ? "Start site claim"
-          : "Request site review";
+          : "Request world model";
   const proofPoints =
     persona === "site_operator"
       ? ["Facility first", "Access rules visible", "Call only when needed"]
-      : ["Site, task, robot first", "Proof boundaries visible", "Call only when useful"];
+      : ["World model, task, robot first", "Proof boundaries visible", "Call only when useful"];
   const formSummary =
     persona === "site_operator"
       ? "Required: contact details, facility, location, and access rules."
@@ -261,14 +261,14 @@ export default function Contact() {
                     onClick={() =>
                       trackContactCta(
                         "contact_hero_proof",
-                        persona === "site_operator" ? "Review governance" : "Browse sites",
+                        persona === "site_operator" ? "Review governance" : "Browse world models",
                         persona === "site_operator" ? "/governance" : "/world-models",
                         "contact-hero",
                       )
                     }
                     className="inline-flex items-center justify-center border border-black/10 bg-white/70 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-white"
                   >
-                    {persona === "site_operator" ? "Review governance" : "Browse sites"}
+                    {persona === "site_operator" ? "Review governance" : "Browse world models"}
                   </a>
                 </div>
                 <div className="mt-6 grid max-w-[31rem] gap-2 sm:grid-cols-3">

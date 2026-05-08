@@ -27,7 +27,7 @@ const compositeOutcomes = [
   {
     title: "Retail patrol review",
     metric: "2 buyer paths separated",
-    body: "Hosted review could proceed with public sales-floor evidence while raw export stayed gated behind listing-specific rights review.",
+    body: "Hosted evaluation could proceed with public sales-floor evidence while raw export stayed gated behind listing-specific rights review.",
   },
 ];
 
@@ -35,7 +35,7 @@ const launchStudyStages = [
   "Capture a lawful public-facing route or operator-approved facility path.",
   "Attach manifest, rights, privacy, restricted-zone, and freshness labels.",
   "Open a hosted report with observations and non-guarantee limits a buyer can read.",
-  "Route the serious buyer into package access, hosted review, or operator permissioning.",
+  "Route the serious buyer into package access, hosted evaluation, or operator permissioning.",
 ];
 
 export default function CaseStudies() {
@@ -43,7 +43,7 @@ export default function CaseStudies() {
     <>
       <SEO
         title="Capture Examples | Blueprint"
-        description="Sample case studies showing how public-facing captures can become site packages and hosted review evidence for robot teams."
+        description="Sample case studies showing how public-facing captures can become site-specific world models and hosted-evaluation evidence for robot teams."
         canonical="/case-studies"
       />
 
@@ -77,7 +77,7 @@ export default function CaseStudies() {
           <EditorialSectionIntro
             eyebrow="Examples"
             title="A case study is useful only when the evidence path is visible."
-            description="Each sample study shows the location type, capture cue, robot question, evidence a buyer would inspect, rules for the capturer, and the next decision."
+            description="Each sample study shows the location type, capture cue, robot question, evidence a buyer would evaluate, rules for the capturer, and the next decision."
             className="max-w-3xl"
           />
           <div className="mt-8 grid gap-4 lg:grid-cols-2">
@@ -125,7 +125,7 @@ export default function CaseStudies() {
                     href="/sample-deliverables"
                     className="inline-flex items-center text-sm font-semibold text-slate-950"
                   >
-                    Inspect sample packet
+                    Open sample packet
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </a>
                 </div>
@@ -206,7 +206,7 @@ export default function CaseStudies() {
             imageSrc={publicCaptureGeneratedAssets.cedarMarketProofBoard}
             imageAlt="Proof packet board"
             primaryHref={publicDemoHref}
-            primaryLabel="Inspect sample listing"
+            primaryLabel="Open sample listing"
             secondaryHref="/capture-app"
             secondaryLabel="Open capture app"
             dark={false}

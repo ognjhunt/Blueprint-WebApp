@@ -9,7 +9,7 @@ describe("ExactSiteHostedReview", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /One real place, packaged for robot evaluation\./i,
+        name: /One real place, packaged as a robot evaluation world model\./i,
       }),
     ).toBeInTheDocument();
 
@@ -20,8 +20,8 @@ describe("ExactSiteHostedReview", () => {
     ).toBeInTheDocument();
 
     expect(screen.getAllByText(/^Site package$/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Review: routes, observations, exports/i)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Hosted review sits between listing and commitment\./i })).toBeInTheDocument();
+    expect(screen.getByText(/Eval: task runs, observations, exports/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Hosted evaluation sits between listing and commitment\./i })).toBeInTheDocument();
     expect(screen.getByText(/Example sample, not a customer result/i)).toBeInTheDocument();
     expect(screen.getByText(/Run evidence example/i)).toBeInTheDocument();
     expect(screen.getByText(/Export evidence/i)).toBeInTheDocument();
@@ -34,7 +34,7 @@ describe("ExactSiteHostedReview", () => {
 
     expect(
       screen
-        .getAllByRole("link", { name: /Inspect proof/i })
+        .getAllByRole("link", { name: /Open proof/i })
         .some((link) => link.getAttribute("href") === "/proof"),
     ).toBe(true);
     expect(screen.getByRole("link", { name: /Open sample report/i })).toHaveAttribute(
@@ -43,7 +43,7 @@ describe("ExactSiteHostedReview", () => {
     );
     expect(
       screen
-	        .getAllByRole("link", { name: /Request site review/i })
+	        .getAllByRole("link", { name: /Request hosted evaluation/i })
 	        .some(
 	          (link) =>
 	            link.getAttribute("href")

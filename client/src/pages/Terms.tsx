@@ -43,14 +43,14 @@ const roleTerms = [
     title: "Buyer schedule",
     items: [
       "Package access, hosted sessions, exports, and license scope are controlled by the listing, checkout, order form, or written agreement.",
-      "Hosted review is decision support, not deployment approval, certification, or safety validation.",
+      "Hosted evaluation is decision support, not deployment approval, certification, or safety validation.",
       "Buyer sharing, internal use, and downstream export rights must match the rights sheet or written terms.",
     ],
   },
   {
     title: "Operator schedule",
     items: [
-      "Operators must have authority to approve capture, listing visibility, hosted review, buyer access, and commercialization.",
+      "Operators must have authority to approve capture, listing visibility, hosted evaluation, buyer access, and commercialization.",
       "Restricted zones, capture windows, privacy instructions, and revocation or refresh requirements remain part of the site record.",
       "Private or employee-only spaces require explicit approval before capture or buyer-facing use.",
     ],
@@ -126,7 +126,7 @@ export default function Terms() {
                     <SurfaceMiniLabel>Disclaimer</SurfaceMiniLabel>
                     <p className="mt-4 text-sm leading-7 text-black/60">
                       Blueprint does not promise that a site package or hosted session is a
-                      deployment guarantee. The product helps teams inspect a real site earlier and
+                      deployment guarantee. The product helps teams evaluate a real site earlier and
                       make better decisions before travel or deployment work.
                     </p>
                   </SurfaceCard>

@@ -39,16 +39,16 @@ describe("Home", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Blueprint turns real places into sites your robot team can inspect\./i,
+        name: /Blueprint turns real places into world models your robot team can train and evaluate on\./i,
       }),
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        /Send the site, route, or facility type you care about/i,
+        /Send the place, route, or facility type you care about/i,
       ),
     ).toBeInTheDocument();
     expect(
-      screen.getAllByRole("link", { name: /Request site review/i })[0],
+      screen.getAllByRole("link", { name: /Request world model/i })[0],
     ).toHaveAttribute(
       "href",
       expect.stringContaining("/contact?persona=robot-team"),
@@ -57,7 +57,7 @@ describe("Home", () => {
     expect(screen.getByRole("heading", { name: /Check where capture is open\./i })).toBeInTheDocument();
     expect(screen.getByText(/A walkthrough or site record starts the product/i)).toBeInTheDocument();
     expect(screen.getByText(/Blueprint packages the capture into a site-specific world model/i)).toBeInTheDocument();
-    expect(screen.getByText(/A managed browser session can help a robot team inspect/i)).toBeInTheDocument();
+    expect(screen.getByText(/A managed browser session can help a robot team run task scenarios/i)).toBeInTheDocument();
   });
 
   it("surfaces concise sections for sites, products, proof, and closing action", {
@@ -77,7 +77,7 @@ describe("Home", () => {
     );
     expect(
       screen.getByRole("heading", {
-        name: /Everyday places can become robot-team evidence\./i,
+        name: /Everyday places can become training and eval worlds\./i,
       }),
     ).toBeInTheDocument();
     expect(
@@ -91,10 +91,10 @@ describe("Home", () => {
       }),
     ).toBeInTheDocument();
     expect(screen.getAllByText(/Capture provenance/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/See what a robot team would inspect/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/See what a robot team can test/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Cedar Market Aisle Loop/i)).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /Start with the site, task, and robot question\./i }),
+      screen.getByRole("heading", { name: /Start with the world model, task, and robot question\./i }),
     ).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /See product/i })[0]).toHaveAttribute("href", "/product");
   });

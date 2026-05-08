@@ -87,7 +87,7 @@ export function Header() {
             href="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=request-capture&source=header"
             className="inline-flex items-center justify-center whitespace-nowrap rounded-none border border-white/20 px-4.5 py-2.5 text-[13px] font-semibold leading-none text-white transition hover:bg-white/10"
           >
-            Request a site
+            Request world model
           </a>
           {currentUser ? (
             <DropdownMenu>
@@ -161,7 +161,7 @@ export function Header() {
               className="inline-flex min-h-11 items-center justify-center rounded-none border border-white/20 bg-white/5 px-4 py-2.5 text-center font-semibold text-white"
               onClick={() => setOpen(false)}
             >
-              Request a site
+              Request world model
             </a>
 
             {currentUser ? (

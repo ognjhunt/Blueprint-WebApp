@@ -19,7 +19,7 @@ describe("HowItWorks", () => {
     expect(screen.getByText(/See the exact site before you start the sales motion\./i)).toBeInTheDocument();
     expect(
       screen
-        .getAllByRole("link", { name: /Inspect a real site/i })
+        .getAllByRole("link", { name: /Open sample world model/i })
         .some((link) => link.getAttribute("href") === "/world-models/siteworld-f5fd54898cfb"),
     ).toBe(true);
     expect(screen.getByRole("link", { name: /View sample deliverables/i })).toHaveAttribute(

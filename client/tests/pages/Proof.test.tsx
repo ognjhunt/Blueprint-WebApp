@@ -24,11 +24,11 @@ describe("Proof page", () => {
       screen.getByRole("heading", { name: /Sample grocery aisle proof packet/i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/A composite sample showing how shelf navigation, aisle obstruction checks, provenance, and hosted-review outputs stay readable for a robot team\./i),
+      screen.getByText(/A composite sample showing how route navigation, aisle obstruction checks, provenance, and hosted-evaluation outputs stay readable for a robot team\./i),
     ).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /What the robot team inspects/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /What the robot team evaluates/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Capture provenance/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Hosted review output \(sample\)/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Hosted evaluation output \(sample\)/i })).toBeInTheDocument();
     expect(screen.getByText(/Aisle geometry/i)).toBeInTheDocument();
     expect(screen.getByText(/Capture basis/i)).toBeInTheDocument();
     expect(screen.getByText(/Composite public-route sample/i)).toBeInTheDocument();
@@ -44,7 +44,7 @@ describe("Proof page", () => {
       "href",
       "/proof",
     );
-    expect(screen.getByRole("link", { name: /See inspection checklist/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /See evaluation checklist/i })).toHaveAttribute(
       "href",
       "/proof",
     );
@@ -52,7 +52,7 @@ describe("Proof page", () => {
       "href",
       "/contact?persona=robot-team",
     );
-    expect(screen.getByRole("link", { name: /Open hosted review/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Open hosted evaluation/i })).toHaveAttribute(
       "href",
       "/world-models/siteworld-f5fd54898cfb/start",
     );
@@ -66,7 +66,7 @@ describe("Proof page", () => {
     expect(screen.queryByText(/Austin, TX/i)).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Sample grocery aisle proof packet/i })).toBeInTheDocument();
     expect(
-      screen.getByText(/A composite sample showing how shelf navigation, aisle obstruction checks, provenance, and hosted-review outputs stay readable for a robot team\./i),
+      screen.getByText(/A composite sample showing how route navigation, aisle obstruction checks, provenance, and hosted-evaluation outputs stay readable for a robot team\./i),
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Discuss a similar site/i })).toHaveAttribute(
       "href",
@@ -82,7 +82,7 @@ describe("Proof page", () => {
     expect(screen.queryByText(/San Francisco, CA/i)).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Sample grocery aisle proof packet/i })).toBeInTheDocument();
     expect(
-      screen.getByText(/A composite sample showing how shelf navigation, aisle obstruction checks, provenance, and hosted-review outputs stay readable for a robot team\./i),
+      screen.getByText(/A composite sample showing how route navigation, aisle obstruction checks, provenance, and hosted-evaluation outputs stay readable for a robot team\./i),
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Discuss a similar site/i })).toHaveAttribute(
       "href",

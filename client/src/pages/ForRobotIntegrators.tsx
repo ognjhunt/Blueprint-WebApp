@@ -43,14 +43,14 @@ export default function ForRobotIntegrators() {
     <>
       <SEO
         title="For Robot Teams | Blueprint"
-        description="Blueprint helps robotics teams test one exact site before deployment with site-specific world-model packages and hosted review built from real capture."
+        description="Blueprint helps robotics teams train and evaluate on one exact-site world model before deployment with capture-backed packages and hosted evaluation."
         canonical="/for-robot-teams"
         jsonLd={[
           webPageJsonLd({
             path: "/for-robot-teams",
             name: "Blueprint for Robot Teams",
             description:
-              "How robotics teams use Blueprint for exact-site world models, capture-backed site packages, hosted evaluation, and deployment-site review.",
+              "How robotics teams use Blueprint for exact-site world models, capture-backed packages, hosted evaluation, and deployment evidence.",
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },
@@ -75,10 +75,10 @@ export default function ForRobotIntegrators() {
                 <div className="flex min-h-[32rem] flex-col justify-end">
                 <EditorialSectionLabel light>For Robot Teams</EditorialSectionLabel>
                 <h1 className="font-editorial mt-6 max-w-[34rem] text-[3.7rem] leading-[0.9] tracking-[-0.06em] text-white sm:text-[5rem]">
-                  Test the exact site before deployment.
+                  Train and evaluate on the exact-site world model before deployment.
                 </h1>
                 <p className="mt-6 max-w-[30rem] text-base leading-8 text-white/70">
-                  Blueprint turns one real facility into a site-specific world model, data package, and hosted review path so the team can answer real deployment questions earlier.
+                  Blueprint turns one real facility into a site-specific world model, data package, and hosted evaluation path so the team can answer real deployment questions earlier.
                 </p>
                 <div className="mt-8 flex flex-wrap gap-2">
                   <ProofChip light>Tune before travel</ProofChip>
@@ -90,7 +90,7 @@ export default function ForRobotIntegrators() {
                     href="/proof"
                     className="inline-flex items-center justify-center bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
                   >
-                    Inspect sample review
+                    Open sample evaluation
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </a>
                   <a
@@ -108,8 +108,8 @@ export default function ForRobotIntegrators() {
                     Exact-site review
                   </p>
                   <p className="mt-4 text-lg font-semibold">One real facility. One real question.</p>
-                  <p className="mt-3 text-sm leading-6 text-white/60">
-                    The product is not generic environment access. The product is earlier certainty on one exact site.
+                <p className="mt-3 text-sm leading-6 text-white/60">
+                    The product is not generic environment access. The product is task evidence from one exact-site world model.
                   </p>
                   </div>
                 </div>
@@ -153,9 +153,9 @@ export default function ForRobotIntegrators() {
           <div className="mx-auto grid max-w-[88rem] gap-px px-5 py-10 sm:px-8 lg:grid-cols-[0.42fr_0.58fr] lg:px-10 lg:py-12">
             <div className="bg-slate-950 px-6 py-8 text-white lg:px-8 lg:py-10">
 	              <EditorialSectionIntro
-	                eyebrow="What this is"
-	                title="A site-specific product, not a generic benchmark."
-	                description="This path makes the package, hosted review, and limits visible before more budget goes in."
+                eyebrow="What this is"
+                title="A site-specific product, not a generic benchmark."
+                description="This path makes the package, hosted evaluation, and limits visible before more budget goes in."
 	                light
 	              />
               <p className="mt-8 text-sm leading-7 text-white/70">
@@ -180,11 +180,11 @@ export default function ForRobotIntegrators() {
           <EditorialCtaBand
             eyebrow="Next step"
             title="Move from curiosity to one real site."
-            description="Start in the world-model catalog when you want to inspect current proof, or open the hosted-review path when a facility is already in scope."
+            description="Start in the world-model catalog when you want to evaluate current proof, or open the hosted-evaluation path when a facility is already in scope."
             imageSrc={editorialGeneratedAssets.homeHero}
-            imageAlt="Hosted review still"
+            imageAlt="Hosted evaluation still"
             primaryHref="/proof"
-            primaryLabel="Inspect sample review"
+            primaryLabel="Open sample evaluation"
             secondaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=request-capture&source=robot-teams-bottom"
             secondaryLabel="Request capture"
             dark={false}

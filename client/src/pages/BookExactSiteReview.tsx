@@ -19,7 +19,7 @@ const reviewCards = [
   },
   {
     title: "What it resolves",
-    body: "Whether the next move is package access, hosted review, more scoping, or a custom request path.",
+    body: "Whether the next move is package access, hosted evaluation, more scoping, or a custom request path.",
   },
 ];
 
@@ -86,7 +86,7 @@ export default function BookExactSiteReview() {
               />
               <div className="mt-8 space-y-3 text-sm leading-7 text-slate-700">
                 <div>Confirm the real facility and workflow.</div>
-                <div>Clarify whether package, hosted review, or a custom path fits.</div>
+                <div>Clarify whether package, hosted evaluation, or a custom path fits.</div>
                 <div>Keep rights, privacy, and export considerations visible from the start.</div>
               </div>
             </div>
@@ -120,7 +120,7 @@ export default function BookExactSiteReview() {
           <EditorialCtaBand
             eyebrow="Next step"
             title="Use the call when one real site is already in view."
-            description="If you still need public proof first, inspect the listing or the hosted-review page before opening a time slot."
+            description="If you still need public proof first, open the listing or hosted-evaluation page before opening a time slot."
             imageSrc={editorialGeneratedAssets.scopingRoom}
             imageAlt="Scoping room"
             primaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=book-exact-site-review-bottom"

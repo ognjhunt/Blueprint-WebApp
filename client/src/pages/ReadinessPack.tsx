@@ -47,7 +47,7 @@ const sampleSections = [
   {
     title: "Robot-team evaluation path",
     body:
-      "A simple review path that lets robot teams inspect the site record before anyone burns field time or pilot budget.",
+      "A simple evaluation path that lets robot teams evaluate the site record before anyone burns field time or pilot budget.",
     icon: <ShieldCheck className="h-5 w-5" />,
   },
 ];

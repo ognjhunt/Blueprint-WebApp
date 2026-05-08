@@ -31,17 +31,17 @@ describe("public capture and world-model copy", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Blueprint turns real places into sites your robot team can inspect\./i,
+        name: /Blueprint turns real places into world models your robot team can train and evaluate on\./i,
       }),
 	    ).toBeInTheDocument();
-	    expect(screen.getAllByRole("link", { name: /Request a site/i }).length).toBeGreaterThan(0);
+	    expect(screen.getAllByRole("link", { name: /Request world model/i }).length).toBeGreaterThan(0);
 	    expect(screen.getAllByRole("link", { name: /Open proof/i }).length).toBeGreaterThan(0);
     expect(container).toHaveTextContent(/world model/i);
     expect(container).toHaveTextContent(/real capture/i);
-    expect(container).toHaveTextContent(/robot-team evidence/i);
+    expect(container).toHaveTextContent(/training and eval worlds/i);
     expect(container).toHaveTextContent(/products/i);
     expect(container).toHaveTextContent(/proof/i);
-    expect(container).toHaveTextContent(/hosted review/i);
+    expect(container).toHaveTextContent(/hosted evaluation/i);
     expect(container).not.toHaveTextContent(/digital twin/i);
     expect(container).not.toHaveTextContent(/SimReady/i);
     expect(container).not.toHaveTextContent(/marketplace/i);

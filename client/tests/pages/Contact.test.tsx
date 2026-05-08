@@ -79,7 +79,7 @@ describe("Contact page", () => {
     expect(screen.getByText(/Rights, privacy, and proof boundaries stay explicit/i)).toBeInTheDocument();
     expect(screen.queryByText(/Buyer type/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Requested lanes/i)).not.toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: /Request site review/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: /Request world model/i }).length).toBeGreaterThan(0);
     expect(screen.getByText(/Short form first\. Call only when useful\./i)).toBeInTheDocument();
     expect(screen.getByText(/Required first pass/i)).toBeInTheDocument();
     expect(screen.getByText(/Fastest paths/i)).toBeInTheDocument();
@@ -87,7 +87,7 @@ describe("Contact page", () => {
     expect(
       screen.getByText(/Best when your team is new to Blueprint and wants the product shape before sharing site details\./i),
     ).toBeInTheDocument();
-    expect(screen.getAllByText(/Browse sites/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Browse world models/i).length).toBeGreaterThan(0);
     expect(screen.getByRole("textbox", { name: /What should Blueprint help your team answer first\?/i })).toBeInTheDocument();
     expect(screen.queryByText(/Learn More/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Prefer a lighter first step\?/i)).not.toBeInTheDocument();
@@ -103,12 +103,12 @@ describe("Contact page", () => {
   it("tracks the hero start CTA without adding personal data", () => {
     render(<Contact />);
 
-    fireEvent.click(screen.getAllByRole("link", { name: /Request site review/i })[0]);
+    fireEvent.click(screen.getAllByRole("link", { name: /Request world model/i })[0]);
 
     expect(analyticsEventsMock.contactPageCtaClicked).toHaveBeenCalledWith({
       persona: "robot_team",
       ctaId: "contact_hero_start",
-      ctaLabel: "Request site review",
+      ctaLabel: "Request world model",
       destination: "#contact-intake",
       source: "contact-hero",
       requestedLane: "deeper_evaluation",
@@ -153,7 +153,7 @@ describe("Contact page", () => {
       screen.getByText(/This city leans on high-trust introductions/i),
     ).toBeInTheDocument();
     expect(screen.getByText(/Fastest paths/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/Browse sites/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Browse world models/i).length).toBeGreaterThan(0);
   });
 
   it("renders San Francisco-specific buyer guidance when the city param is present", () => {
@@ -199,7 +199,7 @@ describe("Contact page", () => {
     fireEvent.change(screen.getByRole("textbox", { name: /Site or facility/i }), {
       target: { value: "Warehouse in Chicago" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /Request site review/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Request world model/i }));
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
@@ -356,7 +356,7 @@ describe("Contact page", () => {
   it("tracks a validation failure when required contact fields are missing", async () => {
     render(<Contact />);
 
-    fireEvent.click(screen.getByRole("button", { name: /Request site review/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Request world model/i }));
 
     expect(analyticsEventsMock.contactRequestFailed).toHaveBeenCalledWith({
       stage: "validation",

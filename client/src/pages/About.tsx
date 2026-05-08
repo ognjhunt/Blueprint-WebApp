@@ -12,7 +12,7 @@ const companyCards = [
   {
     title: "What Blueprint is",
     body:
-      "A product for turning one real facility into site packages, hosted review, and clear trust details tied to the same capture-backed source record.",
+      "A product for turning one real facility into site-specific world models, hosted evaluation, and clear trust details tied to the same capture-backed source record.",
   },
   {
     title: "What Blueprint is not",
@@ -23,7 +23,7 @@ const companyCards = [
 
 const storySteps = [
   "A robot team has one real facility and one workflow question before a field visit starts.",
-  "Blueprint's job is to make that site legible earlier through truthful proof, package framing, and hosted review.",
+  "Blueprint's job is to make that site usable earlier through truthful proof, package framing, and hosted evaluation.",
   "That lets the team decide whether to keep moving on the exact site instead of spending time on vague assumptions.",
 ];
 
@@ -32,7 +32,7 @@ export default function About() {
     <>
       <SEO
         title="About | Blueprint"
-        description="Why Blueprint exists and how it turns real facilities into site packages, hosted review, and trust details a robot team can inspect."
+        description="Why Blueprint exists and how it turns real facilities into site-specific world models, hosted evaluation, and trust details a robot team can evaluate."
         canonical="/about"
       />
 
@@ -54,7 +54,7 @@ export default function About() {
                   Blueprint exists to make one real site legible earlier.
                 </h1>
                 <p className="mt-6 max-w-[30rem] text-base leading-8 text-white/70">
-                  Blueprint helps robot teams inspect one exact facility sooner, choose the right product path, and keep rights, privacy, provenance, and hosted-access boundaries readable along the way.
+                  Blueprint helps robot teams evaluate one exact facility sooner, choose the right product path, and keep rights, privacy, provenance, and hosted-access boundaries readable along the way.
                 </p>
               </div>
                 <div className="hidden flex-wrap content-end gap-2 lg:flex lg:justify-end">
@@ -119,7 +119,7 @@ export default function About() {
           <EditorialCtaBand
             eyebrow="Next step"
             title="Start with the public proof or bring one exact site."
-            description="Browse the public catalog if you want to inspect the proof style first, or contact Blueprint when the facility is already known."
+            description="Browse the public catalog if you want to evaluate the proof style first, or contact Blueprint when the facility is already known."
             imageSrc={editorialGeneratedAssets.scopingRoom}
             imageAlt="Blueprint scoping room"
             primaryHref="/world-models"

@@ -55,13 +55,13 @@ const packetSteps = [
   {
     label: "03",
     title: "Hosted setup",
-    body: "A robot profile, task, scenario, requested outputs, and notes become one scoped hosted-review request.",
+    body: "A robot profile, task, scenario, requested outputs, and notes become one scoped hosted-evaluation request.",
     icon: Play,
   },
   {
     label: "04",
     title: "Evidence and export",
-    body: "Run observations, route notes, report rows, and bundle files leave the review as an inspectable packet.",
+    body: "Run observations, route notes, report rows, and bundle files leave the evaluation as a readable packet.",
     icon: PackageOpen,
   },
 ];
@@ -81,7 +81,7 @@ const sampleFrames = [
   },
   {
     src: "/siteworld-f5fd54898cfb-runtime-reference.png",
-    alt: "Hosted-review reference",
+    alt: "Hosted-evaluation reference",
     time: "02",
     title: "Hosted",
   },
@@ -104,7 +104,7 @@ export default function SampleEvaluation() {
     <>
       <SEO
         title="Sample Evaluation | Blueprint"
-        description="Inspect one example exact-site evaluation: capture basis, manifest, rights, hosted setup, run evidence, export bundle, and limits."
+        description="Open one example exact-site evaluation: capture basis, manifest, rights, hosted setup, run evidence, export bundle, and limits."
         canonical="/sample-evaluation"
       />
 
@@ -133,14 +133,14 @@ export default function SampleEvaluation() {
                   <div className="mt-7 flex flex-wrap gap-2">
                     <ProofChip light>Example sample</ProofChip>
                     <ProofChip light>Capture-backed route</ProofChip>
-                    <ProofChip light>Request-gated hosted review</ProofChip>
+                    <ProofChip light>Request-gated hosted evaluation</ProofChip>
                   </div>
                   <div className="mt-8 flex flex-wrap gap-3">
                     <a
                       href={publicDemoHref}
                       className="inline-flex items-center justify-center bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
                     >
-                      Inspect sample site
+                      Open sample world model
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </a>
                     <a
@@ -231,7 +231,7 @@ export default function SampleEvaluation() {
             <div className="min-w-0 overflow-hidden border border-black/10 bg-[#f5f3ef] p-5 sm:p-6 lg:p-8">
               <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-slate-500">
                 <FileText className="h-4 w-4" />
-                What the buyer inspects
+                What the buyer evaluates
               </div>
               <div className="mt-5 grid gap-3">
                 {mediaRoomSampleEvaluation.artifacts.map((item) => (
@@ -273,11 +273,11 @@ export default function SampleEvaluation() {
           <EditorialCtaBand
             eyebrow="Next step"
             title="Turn the sample into a real request."
-            description="Inspect the public sample site, then ask Blueprint to capture the exact site and robot question your team needs answered."
+            description="Open the public sample world model, then ask Blueprint to capture the exact site and robot question your team needs answered."
             imageSrc={editorialGeneratedAssets.sampleEvaluationProofBoard}
             imageAlt="Sample evaluation proof board"
             primaryHref={publicDemoHref}
-            primaryLabel="Inspect sample site"
+            primaryLabel="Open sample world model"
             secondaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&source=sample-evaluation&path=request-capture&siteName=Media%20Room%20Demo%20Walkthrough"
             secondaryLabel="Request capture"
           />

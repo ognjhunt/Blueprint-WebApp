@@ -13,10 +13,10 @@ export function Footer() {
             Blueprint
           </a>
           <p className="text-sm leading-6 text-slate-600">
-            Blueprint turns real-site capture into site-specific products that robot teams can inspect before deployment work gets expensive.
+            Blueprint turns real-site capture into site-specific world models for robot training runs, hosted evals, and deployment evidence.
           </p>
           <p className="text-sm leading-6 text-slate-600">
-            Robot teams request or review sites. Site operators set access and privacy boundaries. Capturers apply where capture is open.
+            Robot teams request or evaluate world models. Site operators set access and privacy boundaries. Capturers apply where capture is open.
           </p>
           <div className="flex flex-col gap-2">
             <a
@@ -71,7 +71,7 @@ export function Footer() {
       <div className="border-t border-black/10 bg-white py-4">
         <div className="mx-auto flex max-w-[88rem] flex-col items-start gap-2 px-4 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-10">
           <p>© {new Date().getFullYear()} Blueprint, Inc. All rights reserved.</p>
-          <p>Exact sites. Earlier deployment answers.</p>
+          <p>World models. Earlier deployment evidence.</p>
         </div>
       </div>
     </footer>

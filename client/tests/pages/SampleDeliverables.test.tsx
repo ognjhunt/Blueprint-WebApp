@@ -33,7 +33,7 @@ describe("SampleDeliverables", () => {
       "href",
       "/samples/sample-hosted-review-report.md",
     );
-    expect(screen.getByRole("link", { name: /Inspect sample evaluation/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Open sample evaluation/i })).toHaveAttribute(
       "href",
       "/proof",
     );

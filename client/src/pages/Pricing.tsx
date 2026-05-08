@@ -27,7 +27,7 @@ const packageBullets = [
 const hostedBullets = [
   "Browser access to the hosted exact-site environment",
   "Scoped route replay and scenario variation",
-  "Observation frames from hosted review",
+  "Observation frames from hosted evaluation",
   "Sharable session notes and result exports",
   "Run evidence with package and export limits called out",
 ];
@@ -44,7 +44,7 @@ const comparisonArtifacts = [
   { label: "Package manifest", detail: "The file-backed access path starts here.", icon: Boxes },
   { label: "Export bundle", detail: "Files move only when the listing supports that use.", icon: Map },
   { label: "Rights sheet", detail: "Use, sharing, and export limits stay attached.", icon: ShieldCheck },
-  { label: "Hosted review", detail: "The managed session path starts in the browser.", icon: CirclePlay },
+  { label: "Hosted evaluation", detail: "The managed session path starts in the browser.", icon: CirclePlay },
   { label: "Observation frames", detail: "Review what the hosted run saw.", icon: ScanEye },
   { label: "Change state", detail: "Freshness and recapture notes stay visible.", icon: ShieldCheck },
 ];
@@ -57,7 +57,7 @@ const accessModels = [
     items: ["Files and manifest", "Export limits", "Optional hosted add-on"],
   },
   {
-    title: "Hosted review first",
+    title: "Hosted evaluation first",
     price: "$16-$29 / session-hour",
     body: "Use this when your team wants Blueprint to run the exact site before a file handoff, local setup, or deeper package request.",
     items: ["Browser session", "Reruns and notes", "Export scope"],
@@ -83,8 +83,8 @@ const trustNotes = [
     body: "A package license covers the listed capture-backed artifacts and approved export modes. It does not clear unrelated sites or unsupported uses.",
   },
   {
-    title: "Hosted review",
-    body: "A hosted review gives your team managed session access, run evidence, and next-step notes. It is not a package license by itself.",
+    title: "Hosted evaluation",
+    body: "A hosted evaluation gives your team managed session access, run evidence, and next-step notes. It is not a package license by itself.",
   },
   {
     title: "What pricing does not claim",
@@ -158,7 +158,7 @@ export default function Pricing() {
     <>
       <SEO
         title="Pricing | Blueprint"
-        description="Choose package access, hosted review, or custom private-site scope for a real site your robot team needs to inspect."
+        description="Choose package access, hosted evaluation, or custom private-site scope for a real site your robot team needs to evaluate."
         canonical="/pricing"
       />
 
@@ -179,7 +179,7 @@ export default function Pricing() {
                   Choose the first step for one real site.
                 </h1>
                 <p className="mt-6 text-lg leading-8 text-slate-700">
-                  Pick package access when your team needs files. Pick hosted review when it wants Blueprint to run the site first. Use custom scope for private, multi-site, or unusual rights work.
+                  Pick package access when your team needs files. Pick hosted evaluation when it wants Blueprint to run the site first. Use custom scope for private, multi-site, or unusual rights work.
                 </p>
               </div>
             </div>
@@ -222,7 +222,7 @@ export default function Pricing() {
           <PricePanel
             index="02"
             eyebrow="Managed session before file handoff."
-            title="Hosted Review"
+            title="Hosted Evaluation"
             price="$16 – $29 / session-hour"
             body="Blueprint hosts the exact-site world model so your team can review configured routes, reruns, observations, and outputs before deciding whether package access should open next."
             bullets={hostedBullets}
@@ -313,7 +313,7 @@ export default function Pricing() {
               <EditorialSectionIntro
                 eyebrow="Access model"
                 title="Choose by what your team needs first."
-                description="Package access means files and approved exports. Hosted review means managed browser sessions and run evidence. Custom scope is for private or multi-site work."
+                description="Package access means files and approved exports. Hosted evaluation means managed browser sessions and run evidence. Custom scope is for private or multi-site work."
               />
               <div className="mt-6 border-t border-black/10 pt-5">
                 <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Scope changes with</p>
@@ -387,20 +387,20 @@ export default function Pricing() {
               href={publicDemoHref}
               className="inline-flex items-center justify-center rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
             >
-              Inspect a real site
+              Open sample world model
               <ArrowRight className="ml-2 h-4 w-4" />
             </a>
             <a
               href="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=pricing"
               className="inline-flex items-center justify-center rounded-full border border-black/10 bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-50"
             >
-              Request hosted review
+              Request hosted evaluation
             </a>
             <a
               href="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=request-capture&source=pricing"
               className="inline-flex items-center justify-center rounded-full border border-black/10 px-6 py-3 text-sm font-semibold text-slate-700 transition hover:bg-white"
             >
-              Request capture/site review
+              Request capture/world model
             </a>
           </div>
         </section>

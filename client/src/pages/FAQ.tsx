@@ -42,12 +42,12 @@ const faqs = [
   {
     question: "Are the capture examples real customer results?",
     answer:
-      "No. The current public examples use invented names. They show the capture cue, route, manifest, rights sheet, hosted report, and export files a robot team would inspect. Real customer results are shown only after approval.",
+      "No. The current public examples use invented names. They show the capture cue, route, manifest, rights sheet, hosted report, and export files a robot team would evaluate. Real customer results are shown only after approval.",
   },
   {
     question: "Can we book time instead of starting with a form?",
     answer:
-      "Yes. Use the dedicated booking path when your team already has a real site or listing in mind and wants a fast scoping conversation around package access or hosted review.",
+      "Yes. Use the dedicated booking path when your team already has a real site or listing in mind and wants a fast scoping conversation around package access or hosted evaluation.",
   },
 ];
 

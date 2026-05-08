@@ -179,7 +179,7 @@ type MarketSignalsSectionProps = {
 export function MarketSignalsSection({
   eyebrow = "Why We Exist",
   title = "The robot may work. The site is still the hard part.",
-  description = "Robots do not usually fail because the demo was fake. They fail because the live site is different: different layout, traffic, transfer points, safety rules, and pass bar. Blueprint helps teams inspect that gap earlier, before pilot budget gets burned.",
+  description = "Robots do not usually fail because the demo was fake. They fail because the live site is different: different layout, traffic, transfer points, safety rules, and pass bar. Blueprint helps teams evaluate that gap earlier, before pilot budget gets burned.",
 }: MarketSignalsSectionProps) {
   return (
     <section className="border-y border-zinc-100 bg-zinc-50/60 py-12 sm:py-16">

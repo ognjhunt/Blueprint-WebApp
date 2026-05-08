@@ -23,7 +23,7 @@ import { useEffect } from "react";
 const trustCards = [
   {
     title: "What stays explicit",
-    body: "Hosted review is not a deployment guarantee. Rights, privacy, restrictions, and export boundaries stay visible and irreversible commitments remain human-gated.",
+    body: "Hosted evaluation is not a deployment guarantee. Rights, privacy, restrictions, and export boundaries stay visible and irreversible commitments remain human-gated.",
   },
   {
     title: "When this is a fit",
@@ -31,7 +31,7 @@ const trustCards = [
   },
   {
     title: "Typical first reply",
-    body: "Public-listing and hosted-review questions usually get a first reply within 1 business day. Rights or export review usually gets a first scoped answer within 2 business days.",
+    body: "Public-listing and hosted-evaluation questions usually get a first reply within 1 business day. Rights or export review usually gets a first scoped answer within 2 business days.",
   },
 ];
 
@@ -42,7 +42,7 @@ const reviewSteps = [
   },
   {
     title: "Run",
-    body: "Blueprint opens a hosted review session against the exact-site package and records observations, route behavior, and limits.",
+    body: "Blueprint opens a hosted evaluation session against the exact-site world model and records task outcomes, route behavior, observations, and limits.",
   },
   {
     title: "Export",
@@ -66,7 +66,7 @@ export default function ExactSiteHostedReview() {
     <>
       <SEO
         title="Product | Blueprint"
-        description="See how Blueprint turns real-site capture into inspectable site products, package access, and hosted review for robot teams."
+        description="See how Blueprint turns real-site capture into site-specific world models, package access, and hosted evaluation for robot teams."
         canonical="/product"
         type="product"
         jsonLd={[
@@ -74,7 +74,7 @@ export default function ExactSiteHostedReview() {
             path: "/product",
             name: "Blueprint Product",
             description:
-              "Real-site capture, inspectable site products, package access, hosted review, and provenance boundaries for robot teams.",
+              "Real-site capture, site-specific world models, package access, hosted evaluation, and provenance boundaries for robot teams.",
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },
@@ -84,12 +84,12 @@ export default function ExactSiteHostedReview() {
             path: "/product",
             name: "Blueprint Site-Specific World Models",
             description:
-              "A capture-backed product path for one real site, one workflow, package access, hosted review, and clear export boundaries.",
+              "A capture-backed product path for one real site, one workflow, package access, hosted evaluation, and clear export boundaries.",
             image: publicCaptureGeneratedAssets.hostedReviewPublicRoute,
             category: "Site-specific world-model product",
             properties: [
               { name: "Capture basis", value: "Real-site capture with provenance metadata" },
-              { name: "Output", value: "World model, site package, hosted review, export scope, and next-step recommendation" },
+              { name: "Output", value: "World model, site package, hosted evaluation, export scope, and next-step recommendation" },
               { name: "Boundary", value: "Not a deployment guarantee" },
             ],
           }),
@@ -100,7 +100,7 @@ export default function ExactSiteHostedReview() {
         <section className="border-b border-black/10">
           <MonochromeMedia
             src={publicCaptureGeneratedAssets.hostedReviewPublicRoute}
-            alt="Hosted review hero"
+            alt="Hosted evaluation hero"
             className="min-h-[42rem] rounded-none"
             loading="eager"
             imageClassName="min-h-[42rem]"
@@ -111,29 +111,29 @@ export default function ExactSiteHostedReview() {
                 <div className="flex min-h-[34rem] flex-col justify-end selection:bg-white/20 selection:text-white">
                 <EditorialSectionLabel light>Product</EditorialSectionLabel>
                 <h1 className="font-editorial mt-6 max-w-[36rem] text-[3.7rem] leading-[0.9] tracking-[-0.06em] text-white sm:text-[5rem]">
-                  One real place, packaged for robot evaluation.
+                  One real place, packaged as a robot evaluation world model.
                 </h1>
                 <p className="mt-6 max-w-[30rem] text-base leading-8 text-white/[0.86]">
-                  Blueprint starts with real capture of a facility or public-facing place, then turns it into an inspectable site product with package files, hosted review, and proof boundaries attached.
+                  Blueprint starts with real capture of a facility or public-facing place, then turns it into a site-specific world model with package files, hosted evaluation, and proof boundaries attached.
                 </p>
                 <div className="mt-8 flex flex-wrap gap-2">
                   <ProofChip light>Site package</ProofChip>
                   <ProofChip light>Request-gated access</ProofChip>
-                  <ProofChip light>Hosted review</ProofChip>
+                  <ProofChip light>Hosted evaluation</ProofChip>
                 </div>
                 <div className="mt-8 flex flex-wrap gap-3">
                   <a
 	                    href="/world-models"
                     className="inline-flex items-center justify-center bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
                   >
-	                    Browse sites
+	                    Browse world models
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </a>
                   <a
 	                    href="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=product"
                     className="inline-flex items-center justify-center border border-white/[0.16] px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/[0.08]"
                   >
-	                    Request site review
+	                    Request hosted evaluation
                   </a>
                 </div>
               </div>
@@ -148,7 +148,7 @@ export default function ExactSiteHostedReview() {
                     Site: one real place
                     </div>
                     <div className="rounded-[1rem] border border-white/10 bg-white/[0.08] p-4 text-sm text-white/[0.72]">
-                    Review: routes, observations, exports
+                    Eval: task runs, observations, exports
                     </div>
                     <div className="rounded-[1rem] border border-white/10 bg-white/[0.08] p-4 text-sm text-white/[0.72]">
                     Output: next step stays explicit
@@ -166,7 +166,7 @@ export default function ExactSiteHostedReview() {
 	            <EditorialSectionIntro
 	              eyebrow="Preview"
 	              title="A cold visitor can see the product shape quickly."
-	              description="Start with a real site. Then choose whether your team needs package files, a managed hosted review, or a narrower capture request."
+	              description="Start with a real site. Then choose whether your team needs package files, a managed hosted evaluation, or a narrower capture request."
 	            />
             <div className="overflow-hidden border border-black/10 bg-slate-950 p-4 text-white">
               <EditorialFilmstrip frames={hostedFilmstripFrames.map((frame, index) => ({
@@ -184,7 +184,7 @@ export default function ExactSiteHostedReview() {
                 <EditorialSectionIntro
                   eyebrow="Sample review packet"
                   title="A sample shows the path without pretending to be customer proof."
-                  description="The grocery route is a sample. It shows the motion: a capturer records an everyday place, Blueprint reviews privacy and restrictions, and a robot team gets evidence it can inspect."
+                  description="The grocery route is a sample. It shows the motion: a capturer records an everyday place, Blueprint reviews privacy and restrictions, and a robot team gets evidence it can evaluate."
                 />
                 <div className="mt-7 space-y-3">
                   {[
@@ -217,7 +217,7 @@ export default function ExactSiteHostedReview() {
                     {
                       icon: UsersRound,
                       label: "Buyer room",
-                      body: "Robot teams inspect run evidence, limits, and export scope before committing.",
+                      body: "Robot teams compare run evidence, limits, and export scope before committing.",
                     },
                   ].map((item) => {
                     const Icon = item.icon;
@@ -256,7 +256,7 @@ export default function ExactSiteHostedReview() {
             <div className="bg-[#f5f3ef] px-6 py-8 lg:px-8 lg:py-10">
               <EditorialSectionIntro
                 eyebrow="Session"
-                  title="What happens in a hosted review."
+                  title="What happens in a hosted evaluation."
                   description="The setup stays narrow so the result can answer a robot-team question instead of becoming a generic demo."
               />
               <a
@@ -314,20 +314,20 @@ export default function ExactSiteHostedReview() {
             <div className="grid gap-4 lg:grid-cols-[0.5fr_0.5fr]">
               <MonochromeMedia
                 src={publicCaptureGeneratedAssets.hostedReviewPublicRoute}
-                alt="Hosted review interior"
+                alt="Hosted evaluation interior"
                 className="min-h-[28rem]"
                 overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.08),rgba(0,0,0,0.24))]"
               />
               <div className="bg-[#f5f3ef] px-6 py-8 lg:px-8 lg:py-10">
                 <EditorialSectionIntro
                   eyebrow="Commercial shape"
-                  title="Hosted review sits between listing and commitment."
-                  description="It is the managed review path for one site, not a generic benchmark console or deployment guarantee."
+                  title="Hosted evaluation sits between listing and commitment."
+                  description="It is the managed eval path for one site-specific world model, not a generic benchmark console or deployment guarantee."
                 />
                   <div className="mt-8 space-y-3 text-sm leading-7 text-slate-700">
                     <div>1. Pick the site and workflow.</div>
                     <div>2. Confirm the robot setup in scope.</div>
-                    <div>3. Run the hosted review and inspect the evidence.</div>
+                    <div>3. Run the hosted evaluation and compare the evidence.</div>
                     <div>4. Decide what to do next with the proof still attached.</div>
                   </div>
                   <div className="mt-8 border border-black/10 bg-white p-5">
@@ -369,14 +369,14 @@ export default function ExactSiteHostedReview() {
         <section className="mx-auto max-w-[88rem] px-5 pb-12 sm:px-8 lg:px-10 lg:pb-14">
           <EditorialCtaBand
             eyebrow="Next step"
-            title="Start with one site and one workflow."
-            description="Browse the catalog, inspect truthful sample proof, or send the site your team needs when it is not listed yet."
+            title="Start with one world model and one workflow."
+            description="Browse the catalog, open truthful sample proof, or send the world model your team needs when it is not listed yet."
             imageSrc={publicCaptureGeneratedAssets.hostedReviewPublicRoute}
-            imageAlt="Hosted review hero"
+            imageAlt="Hosted evaluation hero"
             primaryHref="/proof"
-            primaryLabel="Inspect proof"
+            primaryLabel="Open proof"
             secondaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=product-bottom"
-            secondaryLabel="Request site review"
+            secondaryLabel="Request hosted evaluation"
           />
         </section>
       </div>
