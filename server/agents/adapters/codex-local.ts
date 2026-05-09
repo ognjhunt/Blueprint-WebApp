@@ -6,6 +6,14 @@ import { promisify } from "node:util";
 import type { ZodType } from "zod";
 
 import type { AgentResult, NormalizedAgentTask } from "../types";
+import {
+  buildPaperclipBudgetTimeoutContext,
+  buildPaperclipGoalCloseoutArtifact,
+  buildPaperclipGoalCloseoutPrompt,
+  buildPaperclipIssueRunContext,
+  readPaperclipGoalCloseoutMetadata,
+  shouldAttachPaperclipGoalCloseoutContract,
+} from "../goal-closeout-contract";
 
 const execFileAsync = promisify(execFile);
 
@@ -54,6 +62,29 @@ export async function runCodexLocalTask<TInput, TOutput>(
   const codexCommand = process.env.CODEX_LOCAL_COMMAND?.trim() || "codex";
   const codexTimeoutMs = Number(process.env.CODEX_TIMEOUT_MS ?? 120_000);
   const codexWorkdir = process.env.CODEX_LOCAL_WORKDIR?.trim() || process.cwd();
+  const basePrompt = task.definition.build_prompt(task.input);
+  const goalCloseoutMetadata = readPaperclipGoalCloseoutMetadata(task.metadata);
+  const paperclipGoalCloseoutEnabled = shouldAttachPaperclipGoalCloseoutContract({
+    prompt: basePrompt,
+    metadata: goalCloseoutMetadata,
+  });
+  const issueRunContext = buildPaperclipIssueRunContext(
+    goalCloseoutMetadata,
+    task.parent_run_id || task.resume_from_run_id || task.session_id || null,
+  );
+  const budgetTimeoutContext = buildPaperclipBudgetTimeoutContext({
+    metadata: goalCloseoutMetadata,
+    timeoutMs: codexTimeoutMs,
+  });
+  const goalCloseoutPrompt = paperclipGoalCloseoutEnabled
+    ? buildPaperclipGoalCloseoutPrompt({
+        objective: task.outcome_contract?.objective,
+        stageReached: String(task.metadata?.workflow_phase || task.kind || ""),
+        issueRunContext: issueRunContext.summary,
+        budgetTimeoutContext,
+      })
+    : "";
+  const prompt = goalCloseoutPrompt ? `${basePrompt}\n\n${goalCloseoutPrompt}` : basePrompt;
   const outputFile = path.join(
     await fs.mkdtemp(path.join(os.tmpdir(), "blueprint-codex-local-")),
     "last-message.txt",
@@ -66,10 +97,20 @@ export async function runCodexLocalTask<TInput, TOutput>(
       command: codexCommand,
       workdir: codexWorkdir,
       model: task.model,
+      timeout_ms: codexTimeoutMs,
     },
   ];
 
   try {
+    if (paperclipGoalCloseoutEnabled) {
+      traceLogs.push({
+        event_type: "provider.goal_closeout_contract.attached",
+        status: "info",
+        summary: "Attached Paperclip goal closeout contract to Codex prompt",
+        issue_run_context: issueRunContext.summary,
+        budget_timeout_context: budgetTimeoutContext,
+      });
+    }
     traceLogs.push({
       event_type: "provider.process.started",
       status: "info",
@@ -90,7 +131,7 @@ export async function runCodexLocalTask<TInput, TOutput>(
         outputFile,
         "--model",
         task.model,
-        task.definition.build_prompt(task.input),
+        prompt,
       ],
       {
         cwd: codexWorkdir,
@@ -133,6 +174,16 @@ export async function runCodexLocalTask<TInput, TOutput>(
       artifacts: {
         codex_command: codexCommand,
         codex_workdir: codexWorkdir,
+        codex_timeout_ms: codexTimeoutMs,
+        ...(paperclipGoalCloseoutEnabled
+          ? {
+              paperclip_goal_closeout_contract: buildPaperclipGoalCloseoutArtifact({
+                enabled: true,
+                issueRunContext: issueRunContext.summary,
+                budgetTimeoutContext,
+              }),
+            }
+          : {}),
       },
       logs: traceLogs,
       requires_human_review: inferRequiresHumanReview(parsed),

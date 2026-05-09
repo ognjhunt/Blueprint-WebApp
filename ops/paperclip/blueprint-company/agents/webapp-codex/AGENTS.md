@@ -84,6 +84,26 @@ Issue closure contract:
 - If you are working a Paperclip issue directly, end the run by either calling `blueprint-resolve-work-item` with `issueId` and a proof-bearing closeout comment, or leaving the issue blocked with the blocker explained and a linked follow-up issue.
 - When a Blueprint tool accepts `issueId`, always pass the current Paperclip issue id so the plugin can attach proof and close or block the issue automatically.
 
+Goal-style Codex runs:
+
+- Treat native `/goal` as a persistent worker loop under Paperclip, not as a replacement for Paperclip issue state, Notion, repo truth, or human gates.
+- When a goal-style run closes or blocks work, preserve these fields in the Paperclip issue/run closeout: goal objective, issue id or run id, budget or timeout context, stage reached, state claimed, proof paths and command outputs, next action / retry condition, and residual risk.
+- The state claimed must be exactly one branch: `done`, `blocked`, or `awaiting_human_decision`. Use `awaiting_human_decision` only in the proof comment or operating-graph branch unless Paperclip explicitly supports it as an issue status.
+- Goal closeout packet must include:
+  - Goal objective:
+  - Issue/run id:
+  - Budget/timeout context:
+  - Stage reached:
+  - State claimed:
+  - Proof paths:
+  - Command outputs:
+  - Next action:
+  - Retry condition:
+  - Residual risk:
+- State claimed must be exactly one of: `done`, `blocked`, or `awaiting_human_decision`.
+- Do not claim native `/goal` status unless Codex CLI state or run artifacts prove it.
+- Adapter success is not completion. Completion requires a proof-bearing Paperclip issue update or a linked blocker with the earliest hard stop and retry condition.
+
 Workflow usage:
 
 - Use `/plan-eng-review` only for non-trivial implementation where architecture is still open.

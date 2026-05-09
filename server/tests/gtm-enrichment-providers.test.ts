@@ -9,6 +9,7 @@ import {
   createGovernedPublicContactProvider,
   runGtmEnrichmentWaterfall,
   validateHumanRecipientEvidenceFile,
+  validateSelectedLedgerRecipientEvidence,
   type GtmEnrichmentProvider,
 } from "../utils/gtmEnrichmentProviders";
 
@@ -313,6 +314,62 @@ describe("GTM enrichment waterfall", () => {
     expect(result.targetsWithSelectedEvidence).toEqual(["target-1"]);
     expect(result.blockers.join("\n")).toContain("row 2 does not exactly match");
     expect(result.blockers.join("\n")).toContain("invalid or placeholder email");
+  });
+
+  it("validates selected recipient evidence already recorded in the ledger", () => {
+    const input = ledger();
+    input.targets[0].recipient = {
+      email: "approved@robotteam.co",
+      evidenceSource: "Human supplied explicit evidence from CRM note 456.",
+      evidenceType: "human_supplied",
+    };
+    input.targets[0].enrichment = {
+      status: "contact_found",
+      providerRuns: [],
+      selectedRecipientEvidence: {
+        providerKey: "manual_human_supplied",
+        selectedAt: "2026-05-07T12:00:00.000Z",
+        evidenceSource: "Human supplied explicit evidence from CRM note 456.",
+      },
+      recipientCandidates: [
+        {
+          email: "approved@robotteam.co",
+          evidenceSource: "Human supplied explicit evidence from CRM note 456.",
+          evidenceType: "human_supplied",
+          providerKey: "manual_human_supplied",
+          confidence: "high",
+          discoveredAt: "2026-05-07T12:00:00.000Z",
+          selectable: true,
+        },
+      ],
+    };
+
+    const result = validateSelectedLedgerRecipientEvidence({
+      ledger: input,
+      ledgerPath: "ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json",
+    });
+
+    expect(result.totalRows).toBe(1);
+    expect(result.validSelectedRows).toBe(1);
+    expect(result.targetsWithSelectedEvidence).toEqual(["target-1"]);
+    expect(result.blockers).toHaveLength(0);
+  });
+
+  it("blocks selected ledger recipients without normalized selected evidence metadata", () => {
+    const input = ledger();
+    input.targets[0].recipient = {
+      email: "approved@robotteam.co",
+      evidenceSource: "Human supplied explicit evidence from CRM note 456.",
+      evidenceType: "human_supplied",
+    };
+
+    const result = validateSelectedLedgerRecipientEvidence({
+      ledger: input,
+    });
+
+    expect(result.validSelectedRows).toBe(0);
+    expect(result.blockers.join("\n")).toContain("selectedRecipientEvidence metadata");
+    expect(result.blockers.join("\n")).toContain("normalized enrichment candidate row");
   });
 
   it("rejects human-supplied recipient rows with placeholder evidence sources", async () => {

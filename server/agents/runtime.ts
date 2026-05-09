@@ -30,6 +30,12 @@ import {
   mergeToolPolicy,
   requiresApproval,
 } from "./policies";
+import {
+  buildPaperclipBudgetTimeoutContext,
+  buildPaperclipGoalCloseoutPrompt,
+  buildPaperclipIssueRunContext,
+  readPaperclipGoalCloseoutMetadata,
+} from "./goal-closeout-contract";
 import { getTaskDefinition } from "./tasks";
 import type {
   AgentResult,
@@ -534,6 +540,15 @@ function buildCompressedHandoff(params: {
   const currentState = inferStateFromRun(sourceRun);
   const contextWindowFailure = isContextWindowFailure(sourceRun?.error || null);
   const references = buildContextReferenceLines(sourceSession);
+  const sourceMetadata = {
+    ...readPaperclipGoalCloseoutMetadata(sourceSession.metadata),
+    ...readPaperclipGoalCloseoutMetadata(sourceRun?.metadata),
+  };
+  const issueRunContext = buildPaperclipIssueRunContext(sourceMetadata, sourceRun?.id || null);
+  const budgetTimeoutContext = buildPaperclipBudgetTimeoutContext({
+    metadata: sourceMetadata,
+    timeoutMs: null,
+  });
   const lines = [
     `Task: continue "${sanitizeInlineText(sourceSession.title, 180) || sourceSession.id}"`,
     `Phase: ${phaseLabel(phase)}`,
@@ -558,6 +573,12 @@ function buildCompressedHandoff(params: {
     "- summarize, do not paste long logs or documents",
     "- reference file paths and document ids before dropping large excerpts",
     `Next step: ${buildNextMoveLine({ phase, retryCount, contextWindowFailure })}`,
+    buildPaperclipGoalCloseoutPrompt({
+      objective: goal,
+      stageReached: phaseLabel(phase),
+      issueRunContext: issueRunContext.summary,
+      budgetTimeoutContext,
+    }),
   );
 
   return lines.join("\n");

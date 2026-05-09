@@ -1,6 +1,6 @@
 {
   "schema": "blueprint/exact-site-hosted-review-first-send-approval-template/v1",
-  "generatedAt": "2026-05-07T16:50:24.050Z",
+  "generatedAt": "2026-05-09T18:33:47.788Z",
   "ledgerPath": "ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json",
   "instructions": [
     "Set decision to approve, edit, or reject for each row the founder has actually reviewed.",

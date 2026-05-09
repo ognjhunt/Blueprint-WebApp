@@ -441,6 +441,84 @@ export async function validateHumanRecipientEvidenceFile(input: {
   };
 }
 
+export function validateSelectedLedgerRecipientEvidence(input: {
+  ledger: ExactSiteGtmPilotLedger;
+  ledgerPath?: string | null;
+}): GtmHumanRecipientEvidenceValidationResult {
+  const blockers: string[] = [];
+  const rowResults: GtmHumanRecipientEvidenceValidationResult["rowResults"] = [];
+
+  for (const [targetIndex, target] of input.ledger.targets.entries()) {
+    if (!target.recipient?.email) continue;
+
+    const rowBlockers: string[] = [];
+    const email = normalizeEmail(target.recipient.email);
+    const evidenceSource = asString(target.recipient.evidenceSource)
+      || asString(target.enrichment?.selectedRecipientEvidence?.evidenceSource);
+    const evidenceType = asString(target.recipient.evidenceType);
+    const selectedCandidate = (target.enrichment?.recipientCandidates ?? [])
+      .find((candidate) => normalizeEmail(candidate.email) === email);
+
+    if (!email || !isValidEmail(email) || isLikelyPlaceholderEmail(email)) {
+      rowBlockers.push(`target ${target.id} has an invalid or placeholder selected recipient email.`);
+    }
+    if (!evidenceSource || isLikelyPlaceholderEvidenceSource(evidenceSource)) {
+      rowBlockers.push(`target ${target.id} is missing a real selected recipient evidence source.`);
+    }
+    if (!["explicit_research", "historical_campaign", "human_supplied"].includes(evidenceType)) {
+      rowBlockers.push(`target ${target.id} has an invalid selected recipient evidence type.`);
+    }
+    if (!target.enrichment?.selectedRecipientEvidence) {
+      rowBlockers.push(`target ${target.id} is missing selectedRecipientEvidence metadata.`);
+    }
+    if (!selectedCandidate) {
+      rowBlockers.push(`target ${target.id} selected recipient is missing a normalized enrichment candidate row.`);
+    } else {
+      if (!selectedCandidate.providerKey) {
+        rowBlockers.push(`target ${target.id} selected recipient candidate is missing providerKey.`);
+      }
+      if (!selectedCandidate.evidenceSource || isLikelyPlaceholderEvidenceSource(selectedCandidate.evidenceSource)) {
+        rowBlockers.push(`target ${target.id} selected recipient candidate is missing a real evidence source.`);
+      }
+      if (!["explicit_research", "historical_campaign", "human_supplied"].includes(selectedCandidate.evidenceType)) {
+        rowBlockers.push(`target ${target.id} selected recipient candidate has an invalid evidence type.`);
+      }
+    }
+
+    blockers.push(...rowBlockers);
+    rowResults.push({
+      index: targetIndex + 1,
+      status: rowBlockers.length > 0 ? "blocked" : "valid_selected",
+      targetIds: [target.id],
+      organizationNames: [target.organizationName],
+      email,
+      selectedForFirstSend: true,
+      blockers: rowBlockers,
+    });
+  }
+
+  const targetsWithSelectedEvidence = rowResults
+    .filter((row) => row.status === "valid_selected")
+    .flatMap((row) => row.targetIds);
+
+  if (rowResults.length === 0) {
+    blockers.push("GTM ledger has no selected recipient-backed target rows.");
+  }
+
+  return {
+    evidencePath: input.ledgerPath
+      ? path.resolve(REPO_ROOT, input.ledgerPath)
+      : "ledger:selected-recipient-evidence",
+    totalRows: rowResults.length,
+    matchedRows: rowResults.length,
+    selectedRows: rowResults.length,
+    validSelectedRows: rowResults.filter((row) => row.status === "valid_selected").length,
+    targetsWithSelectedEvidence,
+    blockers,
+    rowResults,
+  };
+}
+
 function contactAllowedHosts() {
   const configured = process.env.BLUEPRINT_GTM_CONTACT_DISCOVERY_ALLOWED_HOSTS
     || process.env.BLUEPRINT_CITY_LAUNCH_CONTACT_DISCOVERY_ALLOWED_HOSTS

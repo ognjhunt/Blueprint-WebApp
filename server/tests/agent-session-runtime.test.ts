@@ -302,6 +302,9 @@ describe("agent session runtime", () => {
     expect(result.handoffPrompt).toContain("Phase: Implementation");
     expect(result.handoffPrompt).toContain("docs/runbook.md");
     expect(result.handoffPrompt).toContain("Retry once in this fresh thread");
+    expect(result.handoffPrompt).toContain("Paperclip goal closeout contract");
+    expect(result.handoffPrompt).toContain("Goal objective:");
+    expect(result.handoffPrompt).toContain("Retry condition:");
 
     const forkRuns = await listAgentRunsForSession(result.session!.id);
     expect(forkRuns[0]?.metadata).toMatchObject({

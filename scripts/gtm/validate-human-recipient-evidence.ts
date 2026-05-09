@@ -1,7 +1,10 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadExactSiteHostedReviewGtmLedger } from "../../server/utils/exactSiteHostedReviewGtmPilot";
-import { validateHumanRecipientEvidenceFile } from "../../server/utils/gtmEnrichmentProviders";
+import {
+  validateHumanRecipientEvidenceFile,
+  validateSelectedLedgerRecipientEvidence,
+} from "../../server/utils/gtmEnrichmentProviders";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const DEFAULT_LEDGER_PATH = path.join(
@@ -61,16 +64,18 @@ async function main() {
     || process.env.BLUEPRINT_GTM_HUMAN_RECIPIENT_EVIDENCE_PATH
     || process.env.BLUEPRINT_GTM_MANUAL_RECIPIENT_EVIDENCE_PATH
     || "";
-  if (!evidencePath) {
-    throw new Error("Set --human-recipient-evidence-path or BLUEPRINT_GTM_HUMAN_RECIPIENT_EVIDENCE_PATH.");
-  }
 
   const ledgerPath = path.resolve(args.get("ledger") ?? DEFAULT_LEDGER_PATH);
   const ledger = await loadExactSiteHostedReviewGtmLedger(ledgerPath);
-  const result = await validateHumanRecipientEvidenceFile({
-    ledger,
-    evidencePath,
-  });
+  const result = evidencePath
+    ? await validateHumanRecipientEvidenceFile({
+        ledger,
+        evidencePath,
+      })
+    : validateSelectedLedgerRecipientEvidence({
+        ledger,
+        ledgerPath,
+      });
 
   process.stdout.write(renderMarkdown(result));
   if (result.blockers.length > 0 && args.get("allow-blocked") !== "1") {

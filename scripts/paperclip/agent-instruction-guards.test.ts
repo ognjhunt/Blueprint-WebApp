@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import yaml from "js-yaml";
 import { describe, expect, it } from "vitest";
 
 const agentsRoot = path.resolve("ops/paperclip/blueprint-company/agents");
@@ -21,6 +22,18 @@ const noSecretFileAuthDebugLine =
 const noLocalhostProbeBeforePaperclipLine =
   "On issue-bound runs, before probing any localhost web-app port such as `3000`, first use the injected `PAPERCLIP_API_URL` or the safe heartbeat snapshot fallback to resolve the bound issue context.";
 const sharedEvidenceChecklistLine = "docs/autonomous-loop-evidence-checklist-2026-05-03.md";
+const goalCloseoutFields = [
+  "Goal objective:",
+  "Issue/run id:",
+  "Budget/timeout context:",
+  "Stage reached:",
+  "State claimed:",
+  "Proof paths:",
+  "Command outputs:",
+  "Next action:",
+  "Retry condition:",
+  "Residual risk:",
+];
 
 async function collectAgentInstructionFiles(root: string): Promise<string[]> {
   const entries = await fs.readdir(root, { withFileTypes: true });
@@ -95,6 +108,26 @@ describe("Blueprint Paperclip agent instruction guards", () => {
         noLocalhostProbeBeforePaperclipLine,
       );
     }
+  });
+
+  it("keeps WebApp Codex goal-style runs tied to Paperclip evidence closeout", async () => {
+    const configPath = path.resolve("ops/paperclip/blueprint-company/.paperclip.yaml");
+    const instructionsPath = path.resolve("ops/paperclip/blueprint-company/agents/webapp-codex/AGENTS.md");
+    const config = yaml.load(await fs.readFile(configPath, "utf8")) as {
+      agents?: Record<string, { adapter?: { config?: Record<string, unknown> } }>;
+    };
+    const webappCodexConfig = config.agents?.["webapp-codex"]?.adapter?.config ?? {};
+    const instructions = await fs.readFile(instructionsPath, "utf8");
+
+    expect(webappCodexConfig.paperclipGoalPromptEnabled).toBe(true);
+    expect(instructions).toContain("Goal-style Codex runs");
+    for (const field of goalCloseoutFields) {
+      expect(instructions, `webapp-codex instructions must preserve ${field}`).toContain(field);
+    }
+    expect(instructions).toContain(
+      "State claimed must be exactly one of: `done`, `blocked`, or `awaiting_human_decision`.",
+    );
+    expect(instructions).toContain("Do not claim native `/goal` status unless Codex CLI state or run artifacts prove it.");
   });
 
   it("keeps cross-repo autonomy loops pinned to the shared evidence checklist", async () => {

@@ -1,6 +1,6 @@
 {
   "schema": "blueprint/gtm-human-recipient-evidence-template/v1",
-  "generatedAt": "2026-05-07T16:50:23.153Z",
+  "generatedAt": "2026-05-09T16:24:45.302Z",
   "ledgerPath": "ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json",
   "instructions": [
     "Fill only explicit recipient evidence from a fetched public source, CRM/history record, or human-provided source note.",
