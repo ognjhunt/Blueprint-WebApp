@@ -44,6 +44,77 @@ describe("sweep agent run failures", () => {
     expect(signature.category).toBe("auth_or_env");
   });
 
+  it("classifies Codex usage-limit adapter unavailability with a durable blocker id", () => {
+    const signature = classifyFailureSignature({
+      run: {
+        id: "run-codex-usage-limit",
+        agentId: "agent-codex",
+        companyId: "company-1",
+        status: "failed",
+        errorCode: "adapter_unavailable",
+        error: "No execution adapter available: codex_local: Weekly limit exhausted until 2026-05-11T22:34:58.000Z",
+      },
+    });
+
+    expect(signature.key).toBe("codex_usage_limit_adapter_unavailable");
+    expect(signature.category).toBe("runtime_capacity");
+    expect(signature.blockerId).toBe("paperclip-codex-usage-limit");
+  });
+
+  it("classifies OpenRouter provider auth separately from Paperclip API auth", () => {
+    const signature = classifyFailureSignature({
+      run: {
+        id: "run-openrouter-auth",
+        agentId: "agent-hermes",
+        companyId: "company-1",
+        status: "failed",
+      },
+      logText: `
+        [hermes] Starting Hermes Agent (model=deepseek/deepseek-chat-v3.1:free, provider=openrouter [adapterConfig])
+        Error: HTTP 401 Unauthorized: provider auth failed for OpenRouter.
+      `,
+    });
+
+    expect(signature.key).toBe("openrouter_provider_auth_unavailable");
+    expect(signature.category).toBe("auth_or_env");
+    expect(signature.blockerId).toBe("paperclip-provider-auth-openrouter");
+  });
+
+  it("classifies exit-zero provider logical false positives without hiding terminal provider failures", () => {
+    const falsePositive = classifyFailureSignature({
+      run: {
+        id: "run-exit-zero-false-provider",
+        agentId: "agent-codex",
+        companyId: "company-1",
+        status: "failed",
+        errorCode: "provider_logical_failure",
+        exitCode: 0,
+        error:
+          "The issue remains blocked on upstream Gemini/deep-research quota/input capacity, not a WebApp-side code defect.",
+      },
+      logText: `
+        {"type":"item.completed","item":{"type":"command_execution","aggregated_output":"const authError = formState.error;"}}
+        ERROR codex_core::session: failed to record rollout items: thread not found
+      `,
+    });
+
+    const terminalProviderFailure = classifyFailureSignature({
+      run: {
+        id: "run-exit-zero-real-provider",
+        agentId: "agent-hermes",
+        companyId: "company-1",
+        status: "failed",
+        errorCode: "provider_logical_failure",
+        exitCode: 0,
+      },
+      logText: "Final error: HTTP 401: User not found. Provider: openrouter.",
+    });
+
+    expect(falsePositive.key).toBe("exit_zero_provider_logical_failure_false_positive");
+    expect(falsePositive.category).toBe("tooling_gap");
+    expect(terminalProviderFailure.key).toBe("openrouter_provider_auth_unavailable");
+  });
+
   it("clusters matching signatures across different agents", () => {
     const sharedSignature = classifyFailureSignature({
       run: {
@@ -755,5 +826,58 @@ describe("sweep agent run failures", () => {
 
     expect(split.visibleCandidates).toHaveLength(1);
     expect(split.suppressedRecoveredCandidates).toHaveLength(0);
+  });
+
+  it("suppresses known exit-zero logical-failure false positives", () => {
+    const signature = classifyFailureSignature({
+      run: {
+        id: "run-exit-zero-false-provider",
+        agentId: "agent-codex",
+        companyId: "company-1",
+        status: "failed",
+        errorCode: "provider_logical_failure",
+        exitCode: 0,
+        error: "The issue remains blocked on upstream Gemini/deep-research quota/input capacity.",
+      },
+      logText: "ERROR codex_core::session: failed to record rollout items: thread not found",
+    });
+
+    const split = splitRecoveredCandidates(
+      [
+        {
+          run: {
+            id: "run-exit-zero-false-provider",
+            agentId: "agent-codex",
+            companyId: "company-1",
+            status: "failed",
+            createdAt: "2026-05-10T14:00:00.000Z",
+            errorCode: "provider_logical_failure",
+            exitCode: 0,
+          },
+          agent: { id: "agent-codex", name: "WebApp Codex", urlKey: "webapp-codex" },
+          issues: [{ id: "issue-1", identifier: "BLU-113", status: "blocked" }],
+          bestText: "The issue remains blocked on upstream Gemini/deep-research quota/input capacity.",
+          logText: "ERROR codex_core::session: failed to record rollout items: thread not found",
+          signature,
+          stalled: false,
+        },
+      ],
+      [
+        {
+          id: "run-exit-zero-false-provider",
+          agentId: "agent-codex",
+          companyId: "company-1",
+          status: "failed",
+          createdAt: "2026-05-10T14:00:00.000Z",
+          errorCode: "provider_logical_failure",
+          exitCode: 0,
+        },
+      ],
+      20,
+    );
+
+    expect(signature.key).toBe("exit_zero_provider_logical_failure_false_positive");
+    expect(split.visibleCandidates).toHaveLength(0);
+    expect(split.suppressedRecoveredCandidates).toHaveLength(1);
   });
 });

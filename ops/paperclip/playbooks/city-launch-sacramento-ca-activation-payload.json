@@ -3,7 +3,7 @@
   "machinePolicyVersion": "2026-04-13.city-launch-doctrine.v1",
   "city": "Sacramento, CA",
   "citySlug": "sacramento-ca",
-  "cityThesis": "One site, one workflow, one hosted review wedge.",
+  "cityThesis": "Run one proof-led warehouse wedge.",
   "primarySiteLane": "industrial_warehouse",
   "primaryWorkflowLane": "dock handoff",
   "primaryBuyerProofPath": "exact_site",
@@ -12,7 +12,7 @@
   ],
   "preferredLawfulAccessMode": "buyer_requested_site",
   "rightsPath": {
-    "summary": "Rights summary",
+    "summary": "Private controlled interiors require authorization.",
     "privateControlledInteriorsRequireAuthorization": true,
     "validationRequired": false,
     "sourceUrls": [
@@ -27,9 +27,124 @@
     }
   ],
   "ownerLanes": [
-    "city-launch-agent"
+    "city-launch-agent",
+    "capturer-growth-agent",
+    "analytics-agent"
   ],
   "issueSeeds": [],
-  "metricsDependencies": [],
+  "metricsDependencies": [
+    {
+      "key": "robot_team_inbound_captured",
+      "kind": "event",
+      "status": "required_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": null
+    },
+    {
+      "key": "proof_path_assigned",
+      "kind": "event",
+      "status": "required_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": null
+    },
+    {
+      "key": "proof_pack_delivered",
+      "kind": "event",
+      "status": "required_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": null
+    },
+    {
+      "key": "hosted_review_ready",
+      "kind": "event",
+      "status": "required_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": null
+    },
+    {
+      "key": "hosted_review_started",
+      "kind": "event",
+      "status": "required_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": null
+    },
+    {
+      "key": "hosted_review_follow_up_sent",
+      "kind": "event",
+      "status": "required_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": null
+    },
+    {
+      "key": "human_commercial_handoff_started",
+      "kind": "event",
+      "status": "required_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": null
+    },
+    {
+      "key": "proof_motion_stalled",
+      "kind": "event",
+      "status": "required_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": null
+    },
+    {
+      "key": "city_launch_lawful_access_established",
+      "kind": "event",
+      "status": "required_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": null
+    },
+    {
+      "key": "city_launch_capturer_approved",
+      "kind": "event",
+      "status": "required_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": null
+    },
+    {
+      "key": "city_launch_capture_completed",
+      "kind": "event",
+      "status": "required_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": null
+    },
+    {
+      "key": "city_launch_capture_qa_passed",
+      "kind": "event",
+      "status": "required_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": null
+    },
+    {
+      "key": "city_launch_proof_asset_rights_cleared",
+      "kind": "event",
+      "status": "required_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": null
+    },
+    {
+      "key": "city_launch_proof_pack_delivered",
+      "kind": "event",
+      "status": "required_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": null
+    },
+    {
+      "key": "city_launch_hosted_review_ready",
+      "kind": "event",
+      "status": "required_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": null
+    },
+    {
+      "key": "city_launch_commercial_handoff",
+      "kind": "event",
+      "status": "required_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": null
+    }
+  ],
   "namedClaims": []
 }

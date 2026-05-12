@@ -1615,8 +1615,8 @@ tasks:
 routines:
   ceo-daily-review:
     priority: high
-    concurrencyPolicy: always_enqueue
-    catchUpPolicy: enqueue_missed_with_cap
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 35 8 * * 1-5
@@ -1632,8 +1632,8 @@ routines:
         timezone: America/New_York
   cto-cross-repo-triage:
     priority: high
-    concurrencyPolicy: always_enqueue
-    catchUpPolicy: enqueue_missed_with_cap
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 15 15 * * 1-5
@@ -1761,8 +1761,8 @@ routines:
   growth-lead-weekly:
     agent: growth-lead
     priority: high
-    concurrencyPolicy: always_enqueue
-    catchUpPolicy: enqueue_missed_with_cap
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 0 9 * * 1
@@ -1770,8 +1770,8 @@ routines:
   analytics-daily:
     agent: analytics-agent
     priority: high
-    concurrencyPolicy: always_enqueue
-    catchUpPolicy: enqueue_missed_with_cap
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 0 6 * * 1-5
@@ -1779,8 +1779,8 @@ routines:
   analytics-weekly:
     agent: analytics-agent
     priority: medium
-    concurrencyPolicy: always_enqueue
-    catchUpPolicy: enqueue_missed_with_cap
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 30 7 * * 1
@@ -1788,8 +1788,8 @@ routines:
   founder-morning-brief:
     agent: blueprint-chief-of-staff
     priority: high
-    concurrencyPolicy: always_enqueue
-    catchUpPolicy: enqueue_missed_with_cap
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 10 8 * * 1-5
@@ -1797,8 +1797,8 @@ routines:
   founder-daily-accountability-report:
     agent: blueprint-chief-of-staff
     priority: high
-    concurrencyPolicy: always_enqueue
-    catchUpPolicy: enqueue_missed_with_cap
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 5 17 * * 1-5
@@ -1806,8 +1806,8 @@ routines:
   founder-eod-brief:
     agent: blueprint-chief-of-staff
     priority: high
-    concurrencyPolicy: always_enqueue
-    catchUpPolicy: enqueue_missed_with_cap
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 30 17 * * 1-5
@@ -1815,8 +1815,8 @@ routines:
   founder-friday-operating-recap:
     agent: blueprint-chief-of-staff
     priority: high
-    concurrencyPolicy: always_enqueue
-    catchUpPolicy: enqueue_missed_with_cap
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 0 16 * * 5
@@ -1824,8 +1824,8 @@ routines:
   founder-weekly-gaps-report:
     agent: blueprint-chief-of-staff
     priority: high
-    concurrencyPolicy: always_enqueue
-    catchUpPolicy: enqueue_missed_with_cap
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 30 16 * * 5
@@ -1835,7 +1835,7 @@ routines:
     status: paused
     priority: medium
     concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: enqueue_missed_with_cap
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 0 10,14 * * 1-5
@@ -1845,7 +1845,7 @@ routines:
     status: paused
     priority: medium
     concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: enqueue_missed_with_cap
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 30 10 * * 1-5
@@ -1855,7 +1855,7 @@ routines:
     status: paused
     priority: medium
     concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: enqueue_missed_with_cap
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 0 15 * * 5
@@ -1865,7 +1865,7 @@ routines:
     status: paused
     priority: medium
     concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: enqueue_missed_with_cap
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 15 11 * * 1-5
@@ -1875,7 +1875,7 @@ routines:
     status: paused
     priority: medium
     concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: enqueue_missed_with_cap
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 15 15 * * 5
@@ -1884,7 +1884,7 @@ routines:
     agent: investor-relations-agent
     priority: high
     concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: enqueue_missed_with_cap
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 30 9 1 * *
@@ -1894,7 +1894,7 @@ routines:
     status: paused
     priority: high
     concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: enqueue_missed_with_cap
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 0 9 * * 5
@@ -1904,7 +1904,7 @@ routines:
     status: paused
     priority: medium
     concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: enqueue_missed_with_cap
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 15 7 * * 1-5
@@ -1914,7 +1914,7 @@ routines:
     status: paused
     priority: medium
     concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: enqueue_missed_with_cap
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 45 7 * * 1
@@ -1924,7 +1924,7 @@ routines:
     status: paused
     priority: medium
     concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: enqueue_missed_with_cap
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 0 16 * * 5
@@ -1934,7 +1934,7 @@ routines:
     status: paused
     priority: high
     concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: enqueue_missed_with_cap
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 0 11,15 * * 1-5
@@ -1944,7 +1944,7 @@ routines:
     status: paused
     priority: medium
     concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: enqueue_missed_with_cap
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 15 12,16 * * 1-5
@@ -1954,7 +1954,7 @@ routines:
     status: paused
     priority: medium
     concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: enqueue_missed_with_cap
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 30 11 * * 1-5
@@ -1972,8 +1972,8 @@ routines:
     agent: market-intel-agent
     status: paused
     priority: medium
-    concurrencyPolicy: always_enqueue
-    catchUpPolicy: enqueue_missed_with_cap
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 40 7 * * 1-5
@@ -1981,8 +1981,8 @@ routines:
   market-intel-weekly:
     agent: market-intel-agent
     priority: medium
-    concurrencyPolicy: always_enqueue
-    catchUpPolicy: enqueue_missed_with_cap
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 0 15 * * 5
@@ -1992,7 +1992,7 @@ routines:
     status: paused
     priority: medium
     concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: enqueue_missed_with_cap
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 15 7 * * 1-5
@@ -2001,8 +2001,8 @@ routines:
     agent: supply-intel-agent
     status: paused
     priority: high
-    concurrencyPolicy: always_enqueue
-    catchUpPolicy: enqueue_missed_with_cap
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 45 7 * * 1
@@ -2011,8 +2011,8 @@ routines:
     agent: capturer-growth-agent
     status: paused
     priority: high
-    concurrencyPolicy: always_enqueue
-    catchUpPolicy: enqueue_missed_with_cap
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 0 10 * * 1
@@ -2022,7 +2022,7 @@ routines:
     status: paused
     priority: medium
     concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: enqueue_missed_with_cap
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 15 9 * * 4
@@ -2040,8 +2040,8 @@ routines:
     agent: city-launch-agent
     status: paused
     priority: high
-    concurrencyPolicy: always_enqueue
-    catchUpPolicy: enqueue_missed_with_cap
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 0 13 * * 1
@@ -2050,8 +2050,8 @@ routines:
     agent: city-launch-agent
     status: paused
     priority: medium
-    concurrencyPolicy: always_enqueue
-    catchUpPolicy: enqueue_missed_with_cap
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 0 13 * * 4
@@ -2061,7 +2061,7 @@ routines:
     status: paused
     priority: medium
     concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: enqueue_missed_with_cap
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 30 7 * * 1-5
@@ -2069,8 +2069,8 @@ routines:
   demand-intel-weekly:
     agent: demand-intel-agent
     priority: high
-    concurrencyPolicy: always_enqueue
-    catchUpPolicy: enqueue_missed_with_cap
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 20 8 * * 1
@@ -2079,8 +2079,8 @@ routines:
     agent: robot-team-growth-agent
     status: paused
     priority: high
-    concurrencyPolicy: always_enqueue
-    catchUpPolicy: enqueue_missed_with_cap
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 30 10 * * 1
@@ -2090,7 +2090,7 @@ routines:
     status: paused
     priority: medium
     concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: enqueue_missed_with_cap
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 30 9 * * 4
@@ -2100,7 +2100,7 @@ routines:
     status: paused
     priority: medium
     concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: enqueue_missed_with_cap
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 45 13 * * 1
@@ -2110,7 +2110,7 @@ routines:
     status: paused
     priority: medium
     concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: enqueue_missed_with_cap
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 15 12 * * 4
@@ -2129,7 +2129,7 @@ routines:
     status: paused
     priority: medium
     concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: enqueue_missed_with_cap
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 15 13 * * 4
@@ -2166,7 +2166,7 @@ routines:
     status: paused
     priority: high
     concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: enqueue_missed_with_cap
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 30 10 * * 2

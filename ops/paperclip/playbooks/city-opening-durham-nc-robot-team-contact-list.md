@@ -7,7 +7,7 @@
 ## Live recipient evidence already present
 | Target | Recipient email | Lane | Source |
 | --- | --- | --- | --- |
-| BotBuilt | ops@botbuilt.example | buyer-linked-site | live send-action or delivery evidence in the city-launch ledger |
+| BotBuilt | ops@botbuilt.example | buyer-linked-site | recipient-backed city-launch ledger row |
 
 ## Current buyer target set
 | Company | Workflow fit | Proof path | Real recipient email present now | Notes |

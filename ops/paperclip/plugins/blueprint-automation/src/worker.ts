@@ -119,11 +119,16 @@ import {
   buildQuotaFallbackRetryRecord,
   type LocalQuotaFallbackDescriptor,
   FALLBACK_ORIGIN_ADAPTER_CONFIG_KEY,
+  findActiveCodexUsageLimitBlocker,
+  findActiveOpenRouterProviderAuthBlocker,
   getLocalAdapterWorkspaceKey,
   getWorkspaceAdapterCooldownKey,
   hasQuotaFallbackRetryForTask,
   isProviderAuthFailure,
+  isOpenRouterProviderAuthFailure,
   isQuotaOrRateLimitFailure,
+  isCodexUsageLimitFailure,
+  parseCodexUsageLimitResetAt,
   isProviderCreditFailure,
   isProcessLossFailure,
   isProviderTimeoutFailure,
@@ -144,6 +149,7 @@ import {
   upsertWorkspaceAdapterCooldownState,
 } from "./quota-fallback.js";
 import {
+  buildChiefOfStaffIssueEvidenceSignature,
   buildRoutineHealthAlertSignature,
   buildDailyAccountabilitySnapshot,
   buildManagerStateSnapshot,
@@ -207,6 +213,7 @@ import {
 import {
   blockedFollowUpFamilyKey,
   isHumanGatedBlockedIssue,
+  isBlockedFollowUpChainTitle,
   isBlockedFollowUpTitle,
   planBlockedIssueFollowUp,
   sameBlockedFollowUpObjective,
@@ -305,6 +312,10 @@ const CODEX_FALLBACK_REASONING_EFFORT =
   process.env.BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT || "medium";
 const WORKSPACE_QUOTA_COOLDOWN_MS =
   Number(process.env.BLUEPRINT_PAPERCLIP_WORKSPACE_QUOTA_COOLDOWN_MS || "") || 6 * 60 * 60 * 1000;
+const OPENROUTER_PROVIDER_AUTH_BLOCKER_TTL_MS =
+  Number(process.env.BLUEPRINT_OPENROUTER_PROVIDER_AUTH_BLOCKER_TTL_MS || "") || 24 * 60 * 60 * 1000;
+const CODEX_USAGE_LIMIT_BLOCKER_TTL_MS =
+  Number(process.env.BLUEPRINT_CODEX_USAGE_LIMIT_BLOCKER_TTL_MS || "") || 24 * 60 * 60 * 1000;
 const LOGICAL_SUCCEEDED_RUN_RECOVERY_INTERVAL_MS =
   Number(process.env.BLUEPRINT_PAPERCLIP_LOGICAL_SUCCEEDED_RUN_RECOVERY_INTERVAL_MS || "") || 2 * 60 * 1000;
 const LOGICAL_SUCCEEDED_RUN_LOOKBACK_MS =
@@ -322,6 +333,7 @@ const EXECUTION_DISPATCH_COOLDOWN_MS = 15 * 60 * 1000;
 // STATE_KEYS imported from ./constants.js
 
 const PILOT_AGENT_TITLES = {
+  "notion-manager-agent": "Notion Manager Agent",
   "notion-reconciler": "Notion Reconciler",
   "metrics-reporter": "Metrics Reporter",
   "workspace-digest-publisher": "Workspace Digest Publisher",
@@ -361,12 +373,16 @@ function pilotAgentTitle(agentKey: PilotAgentKey) {
   return PILOT_AGENT_TITLES[agentKey];
 }
 
+function isNotionHygienePilotAgent(agentKey: PilotAgentKey) {
+  return agentKey === NOTION_MANAGER_AGENT || agentKey === "notion-reconciler";
+}
+
 function pilotAgentDepartment(agentKey: PilotAgentKey) {
-  return agentKey === "notion-reconciler" ? "Executive" : "Growth";
+  return isNotionHygienePilotAgent(agentKey) ? "Executive" : "Growth";
 }
 
 function pilotAgentRole(agentKey: PilotAgentKey) {
-  return agentKey === "notion-reconciler" ? "Coordinator" : "Specialist";
+  return isNotionHygienePilotAgent(agentKey) ? "Coordinator" : "Specialist";
 }
 
 function pilotAgentRuntime(agentKey: PilotAgentKey): "Paperclip/Hermes" | "Paperclip/Codex" {
@@ -375,7 +391,7 @@ function pilotAgentRuntime(agentKey: PilotAgentKey): "Paperclip/Hermes" | "Paper
 }
 
 function pilotAgentNotionSurfaces(agentKey: PilotAgentKey) {
-  if (agentKey === "notion-reconciler") {
+  if (isNotionHygienePilotAgent(agentKey)) {
     return [
       "Blueprint Agents",
       "Blueprint Agent Runs",
@@ -388,34 +404,33 @@ function pilotAgentNotionSurfaces(agentKey: PilotAgentKey) {
 }
 
 function pilotAgentReadableSurfaces(agentKey: PilotAgentKey) {
-  if (agentKey === "notion-reconciler") {
+  if (isNotionHygienePilotAgent(agentKey)) {
     return ["Blueprint Work Queue", "Blueprint Knowledge", "Blueprint Skills", "Blueprint Agents"];
   }
   return ["Blueprint Knowledge", "Blueprint Work Queue", "Growth Studio mirror"];
 }
 
 function pilotAgentWritableSurfaces(agentKey: PilotAgentKey) {
-  if (agentKey === "notion-reconciler") {
+  if (isNotionHygienePilotAgent(agentKey)) {
     return ["Blueprint Work Queue", "Blueprint Knowledge", "Blueprint Skills", "Blueprint Agents", "Blueprint Agent Runs"];
   }
   return ["Blueprint Knowledge", "Blueprint Work Queue", "Blueprint Agent Runs"];
 }
 
 function pilotAgentToolAccess(agentKey: PilotAgentKey) {
+  if (agentKey === NOTION_MANAGER_AGENT) {
+    return ["Notion", "MCP"];
+  }
   if (agentKey === "notion-reconciler") {
-    return [
-      "notion-search-pages",
-      "notion-fetch-page",
-      "notion-update-page-metadata",
-      "notion-reconcile-relations",
-      "notion-comment-page",
-      "notion-archive-page",
-    ];
+    return ["Notion", "MCP"];
   }
   return ["notion-upsert-knowledge", "notion-upsert-work-queue"];
 }
 
 function pilotAgentHumanGates(agentKey: PilotAgentKey) {
+  if (agentKey === NOTION_MANAGER_AGENT) {
+    return ["Chief of Staff", "Rights/Privacy"];
+  }
   if (agentKey === "notion-reconciler") {
     return ["Ambiguous workspace mutation", "Rights or privacy-sensitive cleanup"];
   }
@@ -1013,6 +1028,16 @@ type ExecutionDispatchState = Record<string, {
   dispatchedAt: string;
   wakeupRunId: string | null;
 }>;
+type ChiefOfStaffIssueEvidenceState = Record<string, {
+  signature: string;
+  observedAt: string;
+}>;
+type ProviderAuthRunLike = HeartbeatRunLike & {
+  error?: string | null;
+  errorCode?: string | null;
+  finishedAt?: string | null;
+  resultJson?: Record<string, unknown> | null;
+};
 type RoutineCatchupState = Record<string, {
   triggerUpdatedAt: string;
   lastManualRunAt: string;
@@ -1482,6 +1507,32 @@ function buildDesiredAdapterDescriptor(agent: Agent): {
   };
 }
 
+function isConfiguredCodexPrimaryAgent(agent: Agent | null | undefined): boolean {
+  const configuredAgent = getConfiguredAgent(agent?.urlKey ?? "");
+  return configuredAgent?.adapter?.type === "codex_local";
+}
+
+function shouldPreserveConfiguredCodexPrimary(
+  agent: Agent | null | undefined,
+  desired: {
+    adapterType: LocalQuotaFallbackAdapterType;
+    adapterConfig: Record<string, unknown>;
+  } | null,
+): boolean {
+  return desired?.adapterType === "codex_local" && isConfiguredCodexPrimaryAgent(agent);
+}
+
+function wouldDemoteConfiguredCodexPrimary(
+  agent: Agent | null | undefined,
+  desired: {
+    adapterType: LocalQuotaFallbackAdapterType;
+    adapterConfig: Record<string, unknown>;
+  } | null,
+  targetAdapterType: LocalQuotaFallbackAdapterType,
+): boolean {
+  return shouldPreserveConfiguredCodexPrimary(agent, desired) && targetAdapterType !== "codex_local";
+}
+
 function resolveAdapterConfigForType(
   agent: Agent,
   desired: {
@@ -1575,6 +1626,170 @@ function getActiveWorkspaceCooldown(
   return Date.parse(record.cooldownUntil) > now ? record : null;
 }
 
+function isHermesOpenRouterAgent(agent: Agent | null | undefined): boolean {
+  if (!agent || agent.adapterType !== "hermes_local") return false;
+  const adapterConfig = asRecord(agent.adapterConfig) ?? {};
+  return typeof adapterConfig.provider === "string" && adapterConfig.provider.trim().toLowerCase() === "openrouter";
+}
+
+async function maybeSuppressAutomationWakeForOpenRouterAuthBlocker(
+  ctx: PluginContext,
+  companyId: string,
+  agent: Agent,
+  input: {
+    title: string;
+    reason: string;
+    issueId?: string | null;
+    detail: string;
+  },
+) {
+  if (!isHermesOpenRouterAgent(agent)) {
+    return false;
+  }
+
+  const retryState =
+    await readState<QuotaFallbackRetryState>(ctx, companyId, STATE_KEYS.quotaFallbackRetries) ?? {};
+  const blocker = findActiveOpenRouterProviderAuthBlocker(retryState, {
+    ttlMs: OPENROUTER_PROVIDER_AUTH_BLOCKER_TTL_MS,
+  });
+  const recentRunBlocker = blocker
+    ? null
+    : await findRecentOpenRouterProviderAuthRunBlocker(companyId).catch(() => null);
+  if (!blocker && !recentRunBlocker) {
+    return false;
+  }
+  const blockerAttemptedAt = blocker?.attemptedAt ?? recentRunBlocker?.attemptedAt ?? nowIso();
+  const blockerIssueId = blocker?.issueId ?? recentRunBlocker?.issueId ?? null;
+  const blockerSource = blocker ? "quota fallback state" : "recent heartbeat run history";
+
+  await appendRecentEvent(ctx, companyId, {
+    kind: "provider-auth-wakeup-skipped",
+    title: `Skipped OpenRouter-auth-blocked wake: ${input.title}`,
+    issueId: input.issueId ?? undefined,
+    detail: [
+      "paperclip-provider-auth-openrouter is still active.",
+      `Suppressed ${agent.urlKey ?? agent.name} wake for ${input.reason} before adapter spend.`,
+      `Blocker observed from ${blockerSource} at ${blockerAttemptedAt}${blockerIssueId ? ` on ${blockerIssueId}` : ""}.`,
+      "Retry condition: repair OpenRouter account/key/provider config, then rerun after the provider check passes.",
+      input.detail,
+    ].join(" "),
+  }).catch(() => undefined);
+  return true;
+}
+
+async function findRecentOpenRouterProviderAuthRunBlocker(companyId: string): Promise<{
+  attemptedAt: string;
+  issueId: string | null;
+  runId: string;
+} | null> {
+  const runs = await fetchPaperclipApiJson<ProviderAuthRunLike[]>(
+    `/api/companies/${companyId}/heartbeat-runs?limit=100`,
+  );
+  const cutoffMs = Date.now() - OPENROUTER_PROVIDER_AUTH_BLOCKER_TTL_MS;
+  for (const run of runs) {
+    const observedAt = asString(run.finishedAt) ?? asString(run.updatedAt) ?? asString(run.startedAt) ?? asString(run.createdAt);
+    const observedAtMs = observedAt ? Date.parse(observedAt) : Number.NaN;
+    const resetAt = parseCodexUsageLimitResetAt(run.error);
+    const resetAtMs = resetAt ? Date.parse(resetAt) : Number.NaN;
+    const resetStillActive = Number.isFinite(resetAtMs) && resetAtMs > Date.now();
+    if (!Number.isFinite(observedAtMs) || (observedAtMs < cutoffMs && !resetStillActive)) {
+      continue;
+    }
+    const status = asString(run.status)?.toLowerCase();
+    if (status !== "failed" && status !== "timed_out") {
+      continue;
+    }
+    if (!isOpenRouterProviderAuthFailure(run.error, asRecord(run.resultJson))) {
+      continue;
+    }
+    const context = asRecord(run.contextSnapshot) ?? {};
+    return {
+      attemptedAt: observedAt,
+      issueId: asString(context.issueId),
+      runId: run.id,
+    };
+  }
+  return null;
+}
+
+async function maybeSuppressAutomationWakeForCodexUsageLimitBlocker(
+  ctx: PluginContext,
+  companyId: string,
+  agent: Agent,
+  input: {
+    title: string;
+    reason: string;
+    issueId?: string | null;
+    detail: string;
+  },
+) {
+  if (agent.adapterType !== "codex_local" || !isConfiguredCodexPrimaryAgent(agent)) {
+    return false;
+  }
+
+  const retryState =
+    await readState<QuotaFallbackRetryState>(ctx, companyId, STATE_KEYS.quotaFallbackRetries) ?? {};
+  const blocker = findActiveCodexUsageLimitBlocker(retryState, {
+    ttlMs: CODEX_USAGE_LIMIT_BLOCKER_TTL_MS,
+  });
+  const recentRunBlocker = blocker
+    ? null
+    : await findRecentCodexUsageLimitRunBlocker(companyId).catch(() => null);
+  if (!blocker && !recentRunBlocker) {
+    return false;
+  }
+
+  const blockerAttemptedAt = blocker?.attemptedAt ?? recentRunBlocker?.attemptedAt ?? nowIso();
+  const blockerIssueId = blocker?.issueId ?? recentRunBlocker?.issueId ?? null;
+  const blockerSource = blocker ? "quota fallback state" : "recent heartbeat run history";
+
+  await appendRecentEvent(ctx, companyId, {
+    kind: "codex-quota-wakeup-skipped",
+    title: `Skipped Codex-quota-blocked wake: ${input.title}`,
+    issueId: input.issueId ?? undefined,
+    detail: [
+      "paperclip-codex-usage-limit is still active.",
+      `Suppressed ${agent.urlKey ?? agent.name} wake for ${input.reason} before adapter spend.`,
+      `Blocker observed from ${blockerSource} at ${blockerAttemptedAt}${blockerIssueId ? ` on ${blockerIssueId}` : ""}.`,
+      "Retry condition: rerun after Codex usage resets or credits are added.",
+      input.detail,
+    ].join(" "),
+  }).catch(() => undefined);
+  return true;
+}
+
+async function findRecentCodexUsageLimitRunBlocker(companyId: string): Promise<{
+  attemptedAt: string;
+  issueId: string | null;
+  runId: string;
+} | null> {
+  const runs = await fetchPaperclipApiJson<ProviderAuthRunLike[]>(
+    `/api/companies/${companyId}/heartbeat-runs?limit=100`,
+  );
+  const cutoffMs = Date.now() - CODEX_USAGE_LIMIT_BLOCKER_TTL_MS;
+  for (const run of runs) {
+    const observedAt = asString(run.finishedAt) ?? asString(run.updatedAt) ?? asString(run.startedAt) ?? asString(run.createdAt);
+    const observedAtMs = observedAt ? Date.parse(observedAt) : Number.NaN;
+    if (!Number.isFinite(observedAtMs) || observedAtMs < cutoffMs) {
+      continue;
+    }
+    const status = asString(run.status)?.toLowerCase();
+    if (status !== "cancelled" && status !== "failed" && status !== "timed_out") {
+      continue;
+    }
+    if (!isCodexUsageLimitFailure(run.error)) {
+      continue;
+    }
+    const context = asRecord(run.contextSnapshot) ?? {};
+    return {
+      attemptedAt: observedAt,
+      issueId: asString(context.issueId),
+      runId: run.id,
+    };
+  }
+  return null;
+}
+
 async function setWorkspaceCooldown(
   ctx: PluginContext,
   companyId: string,
@@ -1641,8 +1856,9 @@ async function enforceWorkspaceAdapterCooldowns(
     const workspaceKey = getLocalAdapterWorkspaceKey(
       asRecord(agent.adapterConfig) ?? desired.adapterConfig,
     );
+    const preserveConfiguredCodexPrimary = shouldPreserveConfiguredCodexPrimary(agent, desired);
     const cooldown =
-      isOrgForcedCodexMode() && desired.adapterType === "codex_local"
+      preserveConfiguredCodexPrimary || (isOrgForcedCodexMode() && desired.adapterType === "codex_local")
         ? null
         : getActiveWorkspaceCooldown(activeState, workspaceKey, desired.adapterType, now);
     const targetAdapterType = cooldown?.fallbackAdapterType ?? desired.adapterType;
@@ -3773,6 +3989,27 @@ async function wakeChiefOfStaff(
     return null;
   }
 
+  if (
+    await maybeSuppressAutomationWakeForCodexUsageLimitBlocker(ctx, companyId, agent, {
+      title: input.title,
+      reason: input.reason,
+      issueId:
+        input.eventIssueId
+        ?? (typeof input.payload.issueId === "string" ? input.payload.issueId : null),
+      detail: input.detail,
+    })
+    || await maybeSuppressAutomationWakeForOpenRouterAuthBlocker(ctx, companyId, agent, {
+      title: input.title,
+      reason: input.reason,
+      issueId:
+        input.eventIssueId
+        ?? (typeof input.payload.issueId === "string" ? input.payload.issueId : null),
+      detail: input.detail,
+    })
+  ) {
+    return null;
+  }
+
   await recoverStaleChiefOfStaffRunIfNeeded(
     ctx,
     companyId,
@@ -3950,6 +4187,30 @@ async function wakeAssignedAgent(
     ).catch(() => undefined);
   }
 
+  const suppressedByKnownBlocker =
+    await maybeSuppressAutomationWakeForCodexUsageLimitBlocker(ctx, companyId, agent, {
+      title: issue.title,
+      reason: input.reason,
+      issueId: issue.id,
+      detail: input.detail,
+    })
+    || await maybeSuppressAutomationWakeForOpenRouterAuthBlocker(ctx, companyId, agent, {
+      title: issue.title,
+      reason: input.reason,
+      issueId: issue.id,
+      detail: input.detail,
+    });
+  if (suppressedByKnownBlocker) {
+    await recordIssueDispatchCooldown(ctx, companyId, dispatchState, {
+      issueId: issue.id,
+      signature,
+      assignee: resolution.selectedKey,
+      dispatchedAt,
+      wakeupRunId: null,
+    });
+    return null;
+  }
+
   const wakeResult = await ctx.agents.wakeup(agent.id, companyId, {
     source: "automation",
     triggerDetail: "system",
@@ -3998,19 +4259,23 @@ async function wakeAssignedAgent(
       issueId: issue.id,
       detail: `${resolution.selectedKey} wakeup lacked execution proof.`,
     });
-    return null;
-  }
-
-  const nextState: ExecutionDispatchState = {
-    ...dispatchState,
-    [issue.id]: {
+    await recordIssueDispatchCooldown(ctx, companyId, dispatchState, {
+      issueId: issue.id,
       signature,
       assignee: resolution.selectedKey,
       dispatchedAt,
       wakeupRunId: asString(wakeResult?.runId) ?? null,
-    },
-  };
-  await writeState(ctx, companyId, STATE_KEYS.executionDispatches, nextState);
+    });
+    return null;
+  }
+
+  await recordIssueDispatchCooldown(ctx, companyId, dispatchState, {
+    issueId: issue.id,
+    signature,
+    assignee: resolution.selectedKey,
+    dispatchedAt,
+    wakeupRunId: asString(wakeResult?.runId) ?? null,
+  });
   await appendRecentEvent(ctx, companyId, {
     kind: "issue-dispatched",
     title: issue.title,
@@ -4018,6 +4283,29 @@ async function wakeAssignedAgent(
     detail: input.detail,
   });
   return wakeResult;
+}
+
+async function recordIssueDispatchCooldown(
+  ctx: PluginContext,
+  companyId: string,
+  dispatchState: ExecutionDispatchState,
+  input: {
+    issueId: string;
+    signature: string;
+    assignee: string;
+    dispatchedAt: string;
+    wakeupRunId: string | null;
+  },
+) {
+  await writeState(ctx, companyId, STATE_KEYS.executionDispatches, {
+    ...dispatchState,
+    [input.issueId]: {
+      signature: input.signature,
+      assignee: input.assignee,
+      dispatchedAt: input.dispatchedAt,
+      wakeupRunId: input.wakeupRunId,
+    },
+  });
 }
 
 async function healAgentExecutionTopology(
@@ -4061,7 +4349,11 @@ async function healAgentExecutionTopology(
       desired.adapterType,
       Date.now(),
     );
-    if (activeCooldown && activeCooldown.fallbackAdapterType !== desired.adapterType) {
+    if (
+      activeCooldown
+      && activeCooldown.fallbackAdapterType !== desired.adapterType
+      && !shouldPreserveConfiguredCodexPrimary(agent, desired)
+    ) {
       continue;
     }
 
@@ -4347,7 +4639,7 @@ async function runExecutionDispatchJob(
   }).catch(() => [] as string[]);
   const collapsedBlockedFollowUps = await collapseRecursiveBlockedFollowUps(ctx, companyId, {
     deadlineMs,
-    maxIssues: 20,
+    maxIssues: 100,
   }).catch(() => [] as string[]);
   if (!hasTimeLeft()) {
     await appendRecentEvent(ctx, companyId, {
@@ -4777,6 +5069,9 @@ async function handleChiefOfStaffIssueSignal(
     chiefOfStaffAgentId: chiefOfStaffAgent?.id ?? null,
   });
   if (!shouldWake) return;
+  if (await maybeSuppressNoChangeBlockedIssueWake(ctx, event.companyId, event.type, issue)) {
+    return;
+  }
 
   const agentById = new Map(agents.map((agent) => [agent.id, agent] as const));
   const agentNameById = new Map(agents.map((agent) => [agent.id, agent.name] as const));
@@ -4831,11 +5126,55 @@ async function handleChiefOfStaffIssueSignal(
   }
 }
 
+async function maybeSuppressNoChangeBlockedIssueWake(
+  ctx: PluginContext,
+  companyId: string,
+  eventType: "issue.created" | "issue.updated",
+  issue: Issue,
+) {
+  if (issue.status !== "blocked") {
+    return false;
+  }
+
+  const comments = await listCommentsForIssue(ctx, companyId, issue.id).catch(() => null);
+  if (!comments) {
+    return false;
+  }
+
+  const signature = buildChiefOfStaffIssueEvidenceSignature({ issue, comments });
+  const state =
+    await readState<ChiefOfStaffIssueEvidenceState>(ctx, companyId, STATE_KEYS.chiefOfStaffIssueEvidence) ?? {};
+  const previous = state[issue.id] ?? null;
+  await writeState(ctx, companyId, STATE_KEYS.chiefOfStaffIssueEvidence, {
+    ...state,
+    [issue.id]: {
+      signature,
+      observedAt: nowIso(),
+    },
+  }).catch(() => undefined);
+
+  if (eventType !== "issue.updated" || previous?.signature !== signature) {
+    return false;
+  }
+
+  await appendRecentEvent(ctx, companyId, {
+    kind: "chief-of-staff-wakeup-skipped",
+    title: `Skipped no-change blocked issue wake: ${issue.title}`,
+    issueId: issue.id,
+    detail: "Suppressed because blocked issue status, priority, assignee, execution run, and latest comment evidence were unchanged.",
+  }).catch(() => undefined);
+  return true;
+}
+
 function latestSubstantiveBlockedComment(comments: IssueComment[]) {
   const ignoredPrefixes = [
     "automation refresh",
     "automation rerouted this issue",
     "automation rerouted this execution issue",
+    "automation merged ",
+    "automation cancelled ",
+    "automation reused existing blocker follow-up",
+    "automation refreshed this canonical blocker",
     "created follow-up blocker issue",
     "repo scan cleared",
   ];
@@ -4863,7 +5202,7 @@ function findNearestBlockedFollowUpAncestor(
     }
     if (
       !["done", "cancelled"].includes(parent.status)
-      && isBlockedFollowUpTitle(parent.title)
+      && isBlockedFollowUpChainTitle(parent.title)
       && blockedFollowUpFamilyKey(parent.title) === familyKey
     ) {
       return parent;
@@ -4871,6 +5210,36 @@ function findNearestBlockedFollowUpAncestor(
     currentParentId = parent.parentId;
   }
   return null;
+}
+
+function findDuplicateBlockedFollowUpCanonical(
+  issue: Issue,
+  issues: Issue[],
+) {
+  const familyKey = blockedFollowUpFamilyKey(issue.title);
+  const sameObjective = issues
+    .filter((candidate) =>
+      !["done", "cancelled"].includes(candidate.status)
+      && isBlockedFollowUpChainTitle(candidate.title)
+      && blockedFollowUpFamilyKey(candidate.title) === familyKey
+      && sameBlockedFollowUpObjective(candidate.title, issue.title),
+    )
+    .sort((left, right) => {
+      const createdDelta =
+        Date.parse(toIsoTimestamp(left.createdAt)) - Date.parse(toIsoTimestamp(right.createdAt));
+      if (createdDelta !== 0) return createdDelta;
+      return (left.identifier ?? left.id).localeCompare(right.identifier ?? right.id);
+    });
+  const canonical = sameObjective[0] ?? null;
+  return canonical && canonical.id !== issue.id ? canonical : null;
+}
+
+function findTerminalBlockedFollowUpParent(
+  issue: Issue,
+  issuesById: Map<string, Issue>,
+) {
+  const parent = issue.parentId ? issuesById.get(issue.parentId) ?? null : null;
+  return parent && ["done", "cancelled"].includes(parent.status) ? parent : null;
 }
 
 async function collapseRecursiveBlockedFollowUps(
@@ -4887,7 +5256,7 @@ async function collapseRecursiveBlockedFollowUps(
   const deadlineMs = options?.deadlineMs ?? Number.POSITIVE_INFINITY;
   const maxIssues = options?.maxIssues ?? Number.POSITIVE_INFINITY;
   const candidates = issues
-    .filter((issue) => !["done", "cancelled"].includes(issue.status) && isBlockedFollowUpTitle(issue.title))
+    .filter((issue) => !["done", "cancelled"].includes(issue.status) && isBlockedFollowUpChainTitle(issue.title))
     .sort((left, right) => Date.parse(toIsoTimestamp(right.updatedAt)) - Date.parse(toIsoTimestamp(left.updatedAt)))
     .slice(0, maxIssues);
 
@@ -4895,23 +5264,37 @@ async function collapseRecursiveBlockedFollowUps(
     if (Date.now() >= deadlineMs) {
       break;
     }
-    const ancestor = findNearestBlockedFollowUpAncestor(issue, issuesById);
-    if (!ancestor) {
+    const terminalParent = findTerminalBlockedFollowUpParent(issue, issuesById);
+    if (terminalParent) {
+      await ctx.issues.update(issue.id, { status: "cancelled" }, companyId).catch(() => undefined);
+      await ctx.issues.createComment(
+        issue.id,
+        `Automation cancelled this stale blocker follow-up because parent ${terminalParent.identifier ?? terminalParent.id} is already ${terminalParent.status}.`,
+        companyId,
+      ).catch(() => undefined);
+      collapsed.push(`${issue.identifier ?? issue.id}->terminal-parent:${terminalParent.identifier ?? terminalParent.id}`);
       continue;
     }
 
+    const ancestor = findNearestBlockedFollowUpAncestor(issue, issuesById);
+    const canonical = ancestor ?? findDuplicateBlockedFollowUpCanonical(issue, issues);
+    if (!canonical) {
+      continue;
+    }
+    const collapseKind = ancestor ? "recursive" : "duplicate";
+
     await ctx.issues.createComment(
-      ancestor.id,
-      `Automation merged recursive blocker follow-up ${issue.id} back into this canonical unblock thread.`,
+      canonical.id,
+      `Automation merged ${collapseKind} blocker follow-up ${issue.id} back into this canonical unblock thread.`,
       companyId,
     ).catch(() => undefined);
     await ctx.issues.update(issue.id, { status: "cancelled" }, companyId).catch(() => undefined);
     await ctx.issues.createComment(
       issue.id,
-      `Automation cancelled this recursive blocker follow-up because ancestor ${ancestor.id} already owns the same unblock path.`,
+      `Automation cancelled this ${collapseKind} blocker follow-up because ${canonical.id} already owns the same unblock path.`,
       companyId,
     ).catch(() => undefined);
-    collapsed.push(`${issue.identifier ?? issue.id}->${ancestor.identifier ?? ancestor.id}`);
+    collapsed.push(`${issue.identifier ?? issue.id}->${canonical.identifier ?? canonical.id}`);
   }
 
   if (collapsed.length > 0) {
@@ -4960,10 +5343,24 @@ async function maybeCreateBlockedIssueFollowUp(
   const existingCanonicalFollowUp = issues.find((candidate) =>
     candidate.id !== issue.id
     && !["done", "cancelled"].includes(candidate.status)
-    && isBlockedFollowUpTitle(candidate.title)
+    && isBlockedFollowUpChainTitle(candidate.title)
     && sameBlockedFollowUpObjective(candidate.title, issue.title),
   );
   if (existingCanonicalFollowUp) {
+    const canonicalReferences = [
+      existingCanonicalFollowUp.identifier,
+      existingCanonicalFollowUp.id,
+    ].filter((value): value is string => typeof value === "string" && value.trim().length > 0);
+    const alreadyRecorded = comments.some((comment) => {
+      const body = comment.body.trim();
+      return canonicalReferences.some((reference) =>
+        body.includes(`Automation reused existing blocker follow-up ${reference} for the same root objective.`),
+      );
+    });
+    if (alreadyRecorded) {
+      return existingCanonicalFollowUp;
+    }
+
     await ctx.issues.createComment(
       existingCanonicalFollowUp.id,
       `Automation refreshed this canonical blocker instead of creating another child for ${issue.identifier ?? issue.id}.`,
@@ -6255,7 +6652,7 @@ async function startPilotAgentRunMirror(
       role: pilotAgentRole(input.agentKey),
       primaryRuntime: pilotAgentRuntime(input.agentKey),
       notionSurfaces: pilotAgentNotionSurfaces(input.agentKey),
-      status: "Pilot",
+      status: input.agentKey === NOTION_MANAGER_AGENT ? "Active" : "Pilot",
       humanGates: pilotAgentHumanGates(input.agentKey),
       readableSurfaces: pilotAgentReadableSurfaces(input.agentKey),
       writableSurfaces: pilotAgentWritableSurfaces(input.agentKey),
@@ -6279,7 +6676,7 @@ async function startPilotAgentRunMirror(
     triggerSource: input.triggerSource,
     startedAt: input.startedAt,
     paperclipUrl: resolvePaperclipIssueUrl(input.issueId),
-    costClass: input.agentKey === "notion-reconciler" ? "Low" : "Medium",
+    costClass: isNotionHygienePilotAgent(input.agentKey) ? "Low" : "Medium",
     notes: input.notes,
   });
 
@@ -6367,7 +6764,7 @@ async function syncPilotAgentRegistryRow(
       role: pilotAgentRole(agentKey),
       primaryRuntime: pilotAgentRuntime(agentKey),
       notionSurfaces: pilotAgentNotionSurfaces(agentKey),
-      status: "Pilot",
+      status: agentKey === NOTION_MANAGER_AGENT ? "Active" : "Pilot",
       humanGates: pilotAgentHumanGates(agentKey),
       readableSurfaces: pilotAgentReadableSurfaces(agentKey),
       writableSurfaces: pilotAgentWritableSurfaces(agentKey),
@@ -7099,6 +7496,9 @@ async function handleAgentRunFailureQuotaFallback(
      || failedAdapter.failedAdapterType === "codex_local"
      || failedAdapter.failedAdapterType === "hermes_local")
     && isProviderAuthFailure(payload.error);
+  const hermesOpenRouterProviderAuthFailure =
+    failedAdapter.failedAdapterType === "hermes_local"
+    && isOpenRouterProviderAuthFailure(payload.error, failedAdapter.failedAdapterConfig);
   if (
     !isQuotaOrRateLimitFailure(payload.error)
     && !isModelNotFoundFailure(payload.error)
@@ -7107,6 +7507,80 @@ async function handleAgentRunFailureQuotaFallback(
   ) {
     return;
   }
+  if (hermesOpenRouterProviderAuthFailure) {
+    const blockerId = "paperclip-provider-auth-openrouter";
+    await markAttempt(
+      buildQuotaFallbackRetryRecord({
+        attemptedAt: nowIso(),
+        status: "skipped",
+        agentId: agent.id,
+        issueId: payload.issueId,
+        taskKey: retryTaskKey,
+        reason: "quota_fallback_skipped",
+        note: `${blockerId}: Hermes/OpenRouter provider auth failed; suppressed automatic retry/fallback because credential or account repair is required.`,
+      }),
+    );
+    await appendRecentEvent(ctx, event.companyId, {
+      kind: "provider-auth-blocked",
+      title: "Hermes/OpenRouter provider auth blocked automatic retry",
+      issueId: payload.issueId ?? undefined,
+      detail: `${blockerId}: run ${payload.runId} failed with OpenRouter auth; no automatic retry was queued.`,
+    }).catch(() => undefined);
+    if (payload.issueId) {
+      await ctx.issues.update(payload.issueId, { status: "blocked" }, event.companyId).catch(() => undefined);
+      await ctx.issues.createComment(
+        payload.issueId,
+        [
+          `Durable blocker id: ${blockerId}.`,
+          `Detected a Hermes/OpenRouter provider auth failure on run ${payload.runId}.`,
+          "Automation suppressed provider fallback/retry because this class requires OpenRouter credential, account, or provider-config repair; another OpenRouter wake would repeat the same failure.",
+          "Retry condition: rerun after the Hermes/OpenRouter provider check passes or the OpenRouter account/key configuration is repaired.",
+        ].join("\n"),
+        event.companyId,
+      ).catch(() => undefined);
+    }
+    return;
+  }
+
+  const codexUsageLimitPreservedPrimary =
+    failedAdapter.failedAdapterType === "codex_local"
+    && isCodexUsageLimitFailure(payload.error)
+    && shouldPreserveConfiguredCodexPrimary(agent, desired);
+  if (codexUsageLimitPreservedPrimary) {
+    const blockerId = "paperclip-codex-usage-limit";
+    await markAttempt(
+      buildQuotaFallbackRetryRecord({
+        attemptedAt: nowIso(),
+        status: "skipped",
+        agentId: agent.id,
+        issueId: payload.issueId,
+        taskKey: retryTaskKey,
+        reason: "quota_fallback_skipped",
+        note: `${blockerId}: Codex usage limit blocked ${agent.urlKey ?? agent.name}; suppressed automatic Hermes fallback because this lane is configured as Codex primary.`,
+      }),
+    );
+    await appendRecentEvent(ctx, event.companyId, {
+      kind: "codex-quota-blocked",
+      title: "Codex usage limit blocked automatic retry",
+      issueId: payload.issueId ?? undefined,
+      detail: `${blockerId}: run ${payload.runId} hit the Codex usage limit for fixed Codex primary lane ${agent.urlKey ?? agent.name}; no automatic provider fallback was queued.`,
+    }).catch(() => undefined);
+    if (payload.issueId) {
+      await ctx.issues.update(payload.issueId, { status: "blocked" }, event.companyId).catch(() => undefined);
+      await ctx.issues.createComment(
+        payload.issueId,
+        [
+          `Durable blocker id: ${blockerId}.`,
+          `Detected a Codex usage-limit failure on run ${payload.runId}.`,
+          "Automation suppressed provider fallback/retry because this issue is assigned to a configured Codex primary lane; falling back to Hermes would violate the lane policy and can churn if Hermes/OpenRouter is separately blocked.",
+          "Retry condition: rerun after Codex usage resets or credits are added.",
+        ].join("\n"),
+        event.companyId,
+      ).catch(() => undefined);
+    }
+    return;
+  }
+
   const providerCreditFailure =
     failedAdapter.failedAdapterType === "hermes_local" && isProviderCreditFailure(payload.error);
   const fallback = (hermesProviderAuthFailure || providerCreditFailure)
@@ -7172,6 +7646,28 @@ async function handleAgentRunFailureQuotaFallback(
         payload.error,
       );
       if (!targetFallback) {
+        continue;
+      }
+      const targetDesired = targetAgent ? buildDesiredAdapterDescriptor(targetAgent) : null;
+      if (wouldDemoteConfiguredCodexPrimary(targetAgent, targetDesired, targetFallback.adapterType)) {
+        const targetLabel = targetAgent?.urlKey ?? target.id;
+        if (target.id === agent.id) {
+          await markAttempt(
+            buildQuotaFallbackRetryRecord({
+              attemptedAt: nowIso(),
+              status: "skipped",
+              agentId: agent.id,
+              issueId: payload.issueId,
+              taskKey: retryTaskKey,
+              reason: "quota_fallback_skipped",
+              note: `Suppressed fallback to ${targetFallback.adapterType} because ${targetLabel} is configured as a Codex primary lane.`,
+            }),
+          );
+          return;
+        }
+        siblingSwitchErrors.push(
+          `${targetLabel}: suppressed fallback to ${targetFallback.adapterType}; configured Codex primary lane`,
+        );
         continue;
       }
 
@@ -7524,6 +8020,25 @@ async function handleAgentRunFailureRuntimeFallback(
     const agentById = new Map(allAgents.map((entry) => [entry.id, entry]));
     for (const target of workspaceTargets) {
       const targetAgent = target.id === agent.id ? agent : agentById.get(target.id) ?? null;
+      const targetDesired = targetAgent ? buildDesiredAdapterDescriptor(targetAgent) : null;
+      if (wouldDemoteConfiguredCodexPrimary(targetAgent, targetDesired, fallback.adapterType)) {
+        const targetLabel = targetAgent?.urlKey ?? target.id;
+        if (target.id === agent.id) {
+          await markAttempt(
+            buildQuotaFallbackRetryRecord({
+              attemptedAt: nowIso(),
+              status: "skipped",
+              agentId: agent.id,
+              issueId: payload.issueId,
+              taskKey: retryTaskKey,
+              reason: "runtime_failure_fallback_skipped",
+              note: `Suppressed fallback to ${fallback.adapterType} because ${targetLabel} is configured as a Codex primary lane.`,
+            }),
+          );
+          return;
+        }
+        continue;
+      }
       const targetRuntimeConfig = syncExecutionPolicyToAdapter(
         asRecord(targetAgent?.runtimeConfig),
         fallback.adapterType,
@@ -10102,7 +10617,7 @@ async function recordNotionReconcilerRun(
   companyId: string,
   params: Record<string, unknown>,
 ): Promise<NotionReconcilerRunProof> {
-  const owningAgentKey: PilotAgentKey = "notion-reconciler";
+  const owningAgentKey: PilotAgentKey = NOTION_MANAGER_AGENT;
   const mode = asString(params.mode) === "weekly"
     ? "weekly"
     : asString(params.mode) === "manual"
@@ -10118,7 +10633,7 @@ async function recordNotionReconcilerRun(
     triggerSource,
     issueId: asString(params.issueId),
     startedAt: generatedAt,
-    notes: `Mode: ${mode}. Legacy notion-reconciler action executed under notion-manager-agent ownership.`,
+    notes: `Mode: ${mode}. Backward-compatible notion-reconciler action path recorded under Notion Manager ownership.`,
   });
 
   const summary = asString(params.summary) ?? "";
@@ -10159,11 +10674,20 @@ async function recordNotionReconcilerRun(
   result.success = result.outcome === "done" && errors.length === 0;
   result.issueComment = formatNotionReconcilerIssueComment(result);
 
+  const routineKey = mode === "weekly"
+    ? "notion-manager-weekly-structure-sweep"
+    : "notion-manager-reconcile-sweep";
+  const routineTitle = mode === "weekly"
+    ? "Notion Manager Weekly Structure Sweep"
+    : mode === "manual"
+      ? "Notion Manager Manual Reconcile"
+      : "Notion Manager Reconcile Sweep";
+
   await updateRoutineHealth(
     ctx,
     companyId,
-    mode === "weekly" ? "notion-reconciler-weekly" : "notion-reconciler-daily",
-    mode === "weekly" ? "Notion Reconciler Weekly" : mode === "manual" ? "Notion Reconciler Manual" : "Notion Reconciler Daily",
+    routineKey,
+    routineTitle,
     owningAgentKey,
     result.outcome,
     result.failureReason,
@@ -10180,7 +10704,7 @@ async function recordNotionReconcilerRun(
     artifactUrl: firstHttpUrl(touchedPages),
     errorSummary: result.outcome === "blocked" ? result.failureReason : undefined,
     requiresHumanReview: escalations.length > 0 || result.outcome === "blocked",
-    notes: `Legacy notion-reconciler shim under notion-manager-agent ownership. metadata=${counts.metadataCleanups}; stale=${counts.staleFlags}; doctrine=${counts.doctrineRepairs}; relations=${counts.relationRepairs}; duplicates=${counts.duplicatesArchived}.`,
+    notes: `Backward-compatible notion-reconciler shim recorded under Notion Manager ownership. metadata=${counts.metadataCleanups}; stale=${counts.staleFlags}; doctrine=${counts.doctrineRepairs}; relations=${counts.relationRepairs}; duplicates=${counts.duplicatesArchived}.`,
   });
 
   return result;
@@ -10980,7 +11504,7 @@ async function createFollowUpIssue(
       if (["done", "cancelled"].includes(candidate.status)) return false;
       const originId = asString((candidate as unknown as Record<string, unknown>).originId);
       return originId === blockerOriginId
-        || (isBlockedFollowUpTitle(candidate.title) && sameBlockedFollowUpObjective(candidate.title, input.title));
+        || (isBlockedFollowUpChainTitle(candidate.title) && sameBlockedFollowUpObjective(candidate.title, input.title));
     });
 
   if (existingFollowUp) {
@@ -11260,6 +11784,7 @@ function formatCityLaunchCompletionRejection(errors: string[]) {
     "Required closeout format:",
     "- Selected city: <City, ST>",
     "- Artifact: <repo path or issue-document:key>",
+    "- Movement: <target/contact/send/reply/proof/hosted-review/capture-ask/intake/call movement; use none only for truthful no_change>",
     "- Evidence: <why this city now> for weekly runs",
     "- Outcome: updated | no_change for refresh runs",
     "- Evidence delta: <what changed or none> for refresh runs",

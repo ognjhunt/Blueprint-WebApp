@@ -101,6 +101,10 @@ export function isBlockedFollowUpTitle(title: string) {
   return kind === "implement" || kind === "review" || kind === "route" || kind === "escalate";
 }
 
+export function isBlockedFollowUpChainTitle(title: string) {
+  return blockedFollowUpKind(title) !== null;
+}
+
 export function blockedFollowUpFamilyKey(title: string) {
   return normalize(baseBlockedTitle(title));
 }

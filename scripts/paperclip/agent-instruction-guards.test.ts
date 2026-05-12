@@ -21,6 +21,8 @@ const noSecretFileAuthDebugLine =
   "Never inspect, print, cat, grep, or find Paperclip secret/env/config files while debugging auth.";
 const noLocalhostProbeBeforePaperclipLine =
   "On issue-bound runs, before probing any localhost web-app port such as `3000`, first use the injected `PAPERCLIP_API_URL` or the safe heartbeat snapshot fallback to resolve the bound issue context.";
+const noPaperclipEnvDumpLine =
+  "Never run `env`, `printenv`, `set`, `export`, or broad `rg`/`grep` commands that print `PAPERCLIP_*`, API key, token, cookie, or secret values.";
 const sharedEvidenceChecklistLine = "docs/autonomous-loop-evidence-checklist-2026-05-03.md";
 const goalCloseoutFields = [
   "Goal objective:",
@@ -87,6 +89,59 @@ describe("Blueprint Paperclip agent instruction guards", () => {
     expect(content).toContain(noSecretFileAuthDebugLine);
   });
 
+  it("keeps Codex-authored lanes from being demoted to Hermes on transient probe failure", async () => {
+    const reconcilePath = path.resolve("scripts/paperclip/reconcile-blueprint-paperclip-company.sh");
+    const content = await fs.readFile(reconcilePath, "utf8");
+    const chooseAdapterStart = content.indexOf("function chooseAdapterForAgent");
+    const codexGuard = content.indexOf("if (desired.adapterType === \"codex_local\")", chooseAdapterStart);
+    const hermesMode = content.indexOf("if (requestedMode === \"hermes\")", chooseAdapterStart);
+
+    expect(codexGuard).toBeGreaterThan(chooseAdapterStart);
+    expect(codexGuard).toBeLessThan(hermesMode);
+    expect(content).toContain("adapter lanes during reconcile. A transient probe timeout is a verifier");
+    expect(content).toContain("blocker, not a reason to demote the live primary adapter to Hermes.");
+  });
+
+  it("does not preserve fixed live adapter policy when repo-authored adapter differs", async () => {
+    const reconcilePath = path.resolve("scripts/paperclip/reconcile-blueprint-paperclip-company.sh");
+    const content = await fs.readFile(reconcilePath, "utf8");
+
+    expect(content).toContain("agent.adapterType === desired.adapterType");
+    expect(content).toContain("&& shouldPreserveFixedLiveAdapter(");
+  });
+
+  it("keeps project reconcile from recreating legacy normalized Capture projects", async () => {
+    const reconcilePath = path.resolve("scripts/paperclip/reconcile-blueprint-paperclip-company.sh");
+    const content = await fs.readFile(reconcilePath, "utf8");
+
+    expect(content).toContain("function pickCanonicalProject");
+    expect(content).toContain("normalizeLookupKey(projectKey)");
+    expect(content).toContain("projectWorkspaceMatches(project, workspaceConfig)");
+    expect(content).toContain("const existing = pickCanonicalProject(projects, projectKey, projectConfig);");
+  });
+
+  it("keeps workspace cooldowns from demoting configured Codex primary lanes", async () => {
+    const workerPath = path.resolve("ops/paperclip/plugins/blueprint-automation/src/worker.ts");
+    const content = await fs.readFile(workerPath, "utf8");
+
+    expect(content).toContain("function shouldPreserveConfiguredCodexPrimary");
+    expect(content).toContain("function wouldDemoteConfiguredCodexPrimary");
+    expect(content).toContain("preserveConfiguredCodexPrimary || (isOrgForcedCodexMode() && desired.adapterType === \"codex_local\")");
+    expect(content).toContain("Suppressed fallback to ${targetFallback.adapterType} because ${targetLabel} is configured as a Codex primary lane.");
+    expect(content).toContain("Suppressed fallback to ${fallback.adapterType} because ${targetLabel} is configured as a Codex primary lane.");
+  });
+
+  it("keeps blocked follow-up cleanup covering same-objective duplicate siblings", async () => {
+    const workerPath = path.resolve("ops/paperclip/plugins/blueprint-automation/src/worker.ts");
+    const content = await fs.readFile(workerPath, "utf8");
+
+    expect(content).toContain("function findDuplicateBlockedFollowUpCanonical");
+    expect(content).toContain("sameBlockedFollowUpObjective(candidate.title, issue.title)");
+    expect(content).toContain("const canonical = ancestor ?? findDuplicateBlockedFollowUpCanonical(issue, issues);");
+    expect(content).toContain("Automation merged ${collapseKind} blocker follow-up");
+    expect(content).toContain("maxIssues: 100");
+  });
+
   it("keeps the chief of staff heartbeat pinned to the assigned issue on issue_assigned wakes", async () => {
     const heartbeatPath = path.resolve(
       "ops/paperclip/blueprint-company/agents/blueprint-chief-of-staff/Heartbeat.md",
@@ -107,6 +162,7 @@ describe("Blueprint Paperclip agent instruction guards", () => {
       expect(content, `${file} is missing the Paperclip-before-localhost guard`).toContain(
         noLocalhostProbeBeforePaperclipLine,
       );
+      expect(content, `${file} is missing the no-secret-env-dump guard`).toContain(noPaperclipEnvDumpLine);
     }
   });
 

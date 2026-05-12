@@ -68,6 +68,8 @@ export async function runCodexLocalTask<TInput, TOutput>(
     prompt: basePrompt,
     metadata: goalCloseoutMetadata,
   });
+  const goalObjective = task.outcome_contract?.objective;
+  const stageReached = String(task.metadata?.workflow_phase || task.kind || "");
   const issueRunContext = buildPaperclipIssueRunContext(
     goalCloseoutMetadata,
     task.parent_run_id || task.resume_from_run_id || task.session_id || null,
@@ -78,8 +80,8 @@ export async function runCodexLocalTask<TInput, TOutput>(
   });
   const goalCloseoutPrompt = paperclipGoalCloseoutEnabled
     ? buildPaperclipGoalCloseoutPrompt({
-        objective: task.outcome_contract?.objective,
-        stageReached: String(task.metadata?.workflow_phase || task.kind || ""),
+        objective: goalObjective,
+        stageReached,
         issueRunContext: issueRunContext.summary,
         budgetTimeoutContext,
       })
@@ -179,6 +181,8 @@ export async function runCodexLocalTask<TInput, TOutput>(
           ? {
               paperclip_goal_closeout_contract: buildPaperclipGoalCloseoutArtifact({
                 enabled: true,
+                objective: goalObjective,
+                stageReached,
                 issueRunContext: issueRunContext.summary,
                 budgetTimeoutContext,
               }),
@@ -218,6 +222,22 @@ export async function runCodexLocalTask<TInput, TOutput>(
       model: task.model,
       tool_mode: task.tool_policy.mode,
       error: errorLines.join("\n") || "Codex local task failed",
+      artifacts: {
+        codex_command: codexCommand,
+        codex_workdir: codexWorkdir,
+        codex_timeout_ms: codexTimeoutMs,
+        ...(paperclipGoalCloseoutEnabled
+          ? {
+              paperclip_goal_closeout_contract: buildPaperclipGoalCloseoutArtifact({
+                enabled: true,
+                objective: goalObjective,
+                stageReached,
+                issueRunContext: issueRunContext.summary,
+                budgetTimeoutContext,
+              }),
+            }
+          : {}),
+      },
       logs: traceLogs,
       requires_human_review: true,
       requires_approval: false,

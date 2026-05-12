@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   blockedFollowUpFamilyKey,
+  isBlockedFollowUpChainTitle,
   isBlockedFollowUpTitle,
   sameBlockedFollowUpObjective,
   planBlockedIssueFollowUp,
@@ -200,6 +201,8 @@ describe("blocked issue follow-up planning", () => {
 
   it("identifies blocker follow-up families by normalized base title", () => {
     expect(isBlockedFollowUpTitle("Review unblock path for Fix analytics verification runtime env audit")).toBe(true);
+    expect(isBlockedFollowUpTitle("Unblock Re-run the Austin report after live verification")).toBe(false);
+    expect(isBlockedFollowUpChainTitle("Unblock Re-run the Austin report after live verification")).toBe(true);
     expect(
       blockedFollowUpFamilyKey("Implement unblock path for [\"Fix analytics live verification webapp check 182140\"]"),
     ).toBe(

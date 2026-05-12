@@ -135,11 +135,17 @@ export function buildPaperclipGoalCloseoutPrompt(params: {
 
 export function buildPaperclipGoalCloseoutArtifact(params: {
   enabled: boolean;
+  objective?: string | null;
+  stageReached?: string | null;
   issueRunContext?: string;
   budgetTimeoutContext?: string;
 }) {
+  const objective = cleanValue(params.objective) || "current goal objective";
+  const stageReached = cleanValue(params.stageReached) || "current lifecycle stage";
   return {
     enabled: params.enabled,
+    goal_objective: objective,
+    stage_reached: stageReached,
     required_fields: [...PAPERCLIP_GOAL_CLOSEOUT_REQUIRED_FIELDS],
     allowed_states: [...PAPERCLIP_GOAL_CLOSEOUT_ALLOWED_STATES],
     ...(params.issueRunContext ? { issue_run_context: params.issueRunContext } : {}),

@@ -11,13 +11,13 @@ Turn the Chicago planning artifacts into an executable company harness that runs
 
 ## Machine-Readable Budget Policy
 
-- budget_tier: zero_budget
-- total_envelope_usd: 0
-- operator_auto_approve_usd: 0
-- allow_paid_acquisition: false
+- budget_tier: low_budget
+- total_envelope_usd: 2500
+- operator_auto_approve_usd: 500
+- allow_paid_acquisition: true
 - allow_referral_rewards: false
-- allow_travel_reimbursement: false
-- founder_approval_required_above_usd: 0
+- allow_travel_reimbursement: true
+- founder_approval_required_above_usd: 2500
 
 ## What The Org Will Do
 
@@ -40,7 +40,7 @@ Turn the Chicago planning artifacts into an executable company harness that runs
 ## Founder-Only Decisions
 
 - Chicago city expansion stays gated by proof and hosted-review milestones, not approval packets.
-- Any spend request beyond the written Chicago zero budget policy is out of policy until the repo policy changes.
+- Any spend request beyond the written Chicago low budget policy is out of policy until the repo policy changes.
 - Any public statement that changes company posture or overstates Chicago readiness is auto-blocked until supported in repo truth.
 - Any rights/privacy exception or non-standard commercial commitment is blocked until the written policy and evidence path are updated.
 
@@ -65,7 +65,7 @@ Turn the Chicago planning artifacts into an executable company harness that runs
 
 - Autonomously activate Chicago, IL as an active city-launch program and keep execution bounded to the selected city.
 - Run the Chicago launch posture autonomously: gated cohort pilot, Exact-Site Hosted Review wedge, and truthful public claims only.
-- Autonomous spend posture for Chicago: Zero Budget with no paid acquisition, referral, or discretionary travel spend.
+- Autonomous spend posture for Chicago: Low Budget with a total envelope up to $2,500.
 - Automatically block any Chicago source-policy change that exceeds the current bounded channel stack until the written policy is updated in repo truth.
 - Automatically block any rights/privacy/commercialization exception that lacks repo-backed policy and evidence.
 - Automatically block any non-standard commercial term outside the standard Chicago quote bands until the quote policy is updated in repo truth.
@@ -85,7 +85,7 @@ Turn the Chicago planning artifacts into an executable company harness that runs
 
 ## Activation Payload Highlights
 
-- city_thesis: One site, one workflow, one hosted review wedge.
+- city_thesis: Run one proof-led warehouse wedge.
 - primary_site_lane: industrial_warehouse
 - primary_workflow_lane: dock handoff
 - primary_buyer_proof_path: exact_site
@@ -99,6 +99,22 @@ Turn the Chicago planning artifacts into an executable company harness that runs
 
 ## Metrics Blockers
 
+- robot_team_inbound_captured: required_tracked
+- proof_path_assigned: required_tracked
+- proof_pack_delivered: required_tracked
+- hosted_review_ready: required_tracked
+- hosted_review_started: required_tracked
+- hosted_review_follow_up_sent: required_tracked
+- human_commercial_handoff_started: required_tracked
+- proof_motion_stalled: required_tracked
+- city_launch_lawful_access_established: required_tracked
+- city_launch_capturer_approved: required_tracked
+- city_launch_capture_completed: required_tracked
+- city_launch_capture_qa_passed: required_tracked
+- city_launch_proof_asset_rights_cleared: required_tracked
+- city_launch_proof_pack_delivered: required_tracked
+- city_launch_hosted_review_ready: required_tracked
+- city_launch_commercial_handoff: required_tracked
 
 ## Expansion Guard
 
@@ -107,6 +123,22 @@ Turn the Chicago planning artifacts into an executable company harness that runs
 - At least one hosted review must run end to end before widening.
 - At least three approved capturers are required before widening.
 - At least two capturers must reach onboarded status before widening.
+- robot_team_inbound_captured is required_tracked.
+- proof_path_assigned is required_tracked.
+- proof_pack_delivered is required_tracked.
+- hosted_review_ready is required_tracked.
+- hosted_review_started is required_tracked.
+- hosted_review_follow_up_sent is required_tracked.
+- human_commercial_handoff_started is required_tracked.
+- proof_motion_stalled is required_tracked.
+- city_launch_lawful_access_established is required_tracked.
+- city_launch_capturer_approved is required_tracked.
+- city_launch_capture_completed is required_tracked.
+- city_launch_capture_qa_passed is required_tracked.
+- city_launch_proof_asset_rights_cleared is required_tracked.
+- city_launch_proof_pack_delivered is required_tracked.
+- city_launch_hosted_review_ready is required_tracked.
+- city_launch_commercial_handoff is required_tracked.
 
 ## Execution Bundle
 

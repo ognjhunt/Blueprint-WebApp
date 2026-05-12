@@ -126,6 +126,7 @@ export const STATE_KEYS = {
   freshSessionRetries: "fresh-session-retries",
   workspaceAdapterCooldowns: "workspace-adapter-cooldowns",
   chiefOfStaffWakeups: "chief-of-staff-wakeups",
+  chiefOfStaffIssueEvidence: "chief-of-staff-issue-evidence",
   firehoseSignalCache: "firehose-signal-cache",
   founderVisibility: "founder-visibility",
   founderRemediation: "founder-remediation",

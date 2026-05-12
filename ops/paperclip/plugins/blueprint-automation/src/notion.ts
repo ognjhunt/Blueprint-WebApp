@@ -62,6 +62,10 @@ export interface WorkQueueItem {
   substage?: string;
   outputLocation?: "Notion" | "Repo" | "External";
   executionSurface?: "Notion" | "Repo" | "Browser";
+  proofState?: "Proof attached" | "Proof missing" | "Source needed" | "Not applicable";
+  metricOutcome?: "Hit" | "Missed" | "Missing source" | "Not measured" | "Not applicable";
+  verificationCommands?: string;
+  blockerId?: string;
   dueDate?: string;
   needsFounder?: boolean;
   lastStatusChange?: string;
@@ -91,6 +95,10 @@ export interface WorkQueueQueryItem {
   businessLane: string;
   lifecycleStage: string;
   workType: string;
+  proofState?: string;
+  metricOutcome?: string;
+  verificationCommands?: string;
+  blockerId?: string;
   url?: string;
   needsFounder: boolean;
   ownerIds: string[];
@@ -651,6 +659,10 @@ export function normalizeWorkQueueItem(input: Partial<WorkQueueItem> & Record<st
     substage: asString(input.substage) ?? asString(input.description),
     outputLocation: asString(input.outputLocation) as WorkQueueItem["outputLocation"] | undefined,
     executionSurface: asString(input.executionSurface) as WorkQueueItem["executionSurface"] | undefined,
+    proofState: (asString(input.proofState) ?? asString(input["Proof State"])) as WorkQueueItem["proofState"] | undefined,
+    metricOutcome: (asString(input.metricOutcome) ?? asString(input["Metric Outcome"])) as WorkQueueItem["metricOutcome"] | undefined,
+    verificationCommands: asString(input.verificationCommands) ?? asString(input["Verification Commands"]),
+    blockerId: asString(input.blockerId) ?? asString(input["Blocker ID"]),
     dueDate: asString(input.dueDate),
     needsFounder: typeof input.needsFounder === "boolean" ? input.needsFounder : undefined,
     lastStatusChange: asString(input.lastStatusChange),
@@ -715,6 +727,10 @@ function buildWorkQueueProperties(item: WorkQueueItem, includeDefaults = true) {
   maybeSet(properties, "Substage", buildRichTextProperty(normalized.substage));
   maybeSet(properties, "Output Location", buildSelectProperty(normalized.outputLocation ?? (includeDefaults ? "Notion" : undefined)));
   maybeSet(properties, "Execution Surface", buildSelectProperty(normalized.executionSurface ?? (includeDefaults ? "Notion" : undefined)));
+  maybeSet(properties, "Proof State", buildSelectProperty(normalized.proofState));
+  maybeSet(properties, "Metric Outcome", buildSelectProperty(normalized.metricOutcome));
+  maybeSet(properties, "Verification Commands", buildRichTextProperty(normalized.verificationCommands));
+  maybeSet(properties, "Blocker ID", buildRichTextProperty(normalized.blockerId));
   maybeSet(properties, "Due Date", buildDateProperty(normalized.dueDate));
   maybeSet(properties, "Needs Founder", buildCheckboxProperty(normalized.needsFounder ?? (includeDefaults ? false : undefined)));
   maybeSet(properties, "Last Status Change", buildDateProperty(normalized.lastStatusChange));
@@ -1082,6 +1098,10 @@ export async function queryWorkQueue(client: Client, filters: WorkQueueQuery): P
     businessLane: page?.properties?.["Business Lane"]?.select?.name ?? "",
     lifecycleStage: page?.properties?.["Lifecycle Stage"]?.select?.name ?? "",
     workType: page?.properties?.["Work Type"]?.select?.name ?? "",
+    proofState: page?.properties?.["Proof State"]?.select?.name,
+    metricOutcome: page?.properties?.["Metric Outcome"]?.select?.name,
+    verificationCommands: asRichTextPlainText(page?.properties?.["Verification Commands"]?.rich_text),
+    blockerId: asRichTextPlainText(page?.properties?.["Blocker ID"]?.rich_text),
     url: asString(page.url),
     needsFounder: page?.properties?.["Needs Founder"]?.checkbox === true,
     ownerIds:

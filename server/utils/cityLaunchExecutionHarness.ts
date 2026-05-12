@@ -44,6 +44,7 @@ import { materializeCityLaunchResearch } from "./cityLaunchResearchMaterializer"
 import {
   assessCityLaunchOutboundReadiness,
   executeCityLaunchSends,
+  hasCityLaunchRecipientBackedEmail,
   type CityLaunchOutboundReadiness,
   type CityLaunchSendExecutionResult,
 } from "./cityLaunchSendExecutor";
@@ -122,6 +123,36 @@ export const CITY_LAUNCH_GTM_CHECKPOINT_HOURS = [24, 48, 72] as const;
 
 type CityLaunchGtmCheckpointHour = (typeof CITY_LAUNCH_GTM_CHECKPOINT_HOURS)[number];
 type CityLaunchGtmScorecardPathKey = `${CityLaunchGtmCheckpointHour}h`;
+
+function hasRenderableRecipientEmail(value: string | null | undefined) {
+  return hasCityLaunchRecipientBackedEmail({ recipientEmail: value || null });
+}
+
+function hasInvalidStoredRecipientEmail(value: string | null | undefined) {
+  return Boolean(value) && !hasRenderableRecipientEmail(value);
+}
+
+function renderSendActionRecipient(entry: CityLaunchSendActionRecord) {
+  if (hasRenderableRecipientEmail(entry.recipientEmail)) return entry.recipientEmail;
+  return entry.recipientEmail ? "invalid_placeholder_ignored" : "missing";
+}
+
+function renderSendActionStatus(entry: CityLaunchSendActionRecord) {
+  return hasInvalidStoredRecipientEmail(entry.recipientEmail) ? "blocked" : entry.status;
+}
+
+function renderSendActionResponseIngest(entry: CityLaunchSendActionRecord) {
+  return hasInvalidStoredRecipientEmail(entry.recipientEmail) ? "not_ready" : entry.responseIngestState;
+}
+
+function renderSendActionNotes(entry: CityLaunchSendActionRecord) {
+  const notes = entry.notes || "";
+  const sanitizedNotes = notes.replace(/\|/g, "/");
+  if (!hasInvalidStoredRecipientEmail(entry.recipientEmail)) return sanitizedNotes;
+  const warning =
+    "Stored recipient email is invalid or placeholder and cannot count as recipient evidence, send proof, or reply readiness.";
+  return sanitizedNotes ? `${warning} ${sanitizedNotes}` : warning;
+}
 
 type CityLaunchGtm72hArtifactPaths = {
   contractJsonPath: string;
@@ -1379,7 +1410,9 @@ async function buildCityOpeningExecutionSeed(input: {
       recipientSource:
         recipientEvidence.get(normalizeComparableText(entry.companyName))?.source || null,
     }))
-    .filter((entry): entry is typeof entry & { recipientEmail: string } => Boolean(entry.recipientEmail));
+    .filter((entry): entry is typeof entry & { recipientEmail: string } =>
+      hasRenderableRecipientEmail(entry.recipientEmail),
+    );
   const recipientBackedCaptureTargets = captureTargets
     .map((entry) => ({
       entry,
@@ -1390,7 +1423,9 @@ async function buildCityOpeningExecutionSeed(input: {
       recipientSource:
         recipientEvidence.get(normalizeComparableText(entry.name))?.source || null,
     }))
-    .filter((entry): entry is typeof entry & { recipientEmail: string } => Boolean(entry.recipientEmail));
+    .filter((entry): entry is typeof entry & { recipientEmail: string } =>
+      hasRenderableRecipientEmail(entry.recipientEmail),
+    );
   const warehouseTarget = recipientBackedBuyerTargets[0] || recipientBackedCaptureTargets[0] || null;
   const buyerLinkedTarget = recipientBackedBuyerTargets[1] || null;
   const professionalTarget = recipientBackedCaptureTargets[0] || null;
@@ -1600,7 +1635,7 @@ function renderCityOpeningSendLedgerMarkdown(input: {
     "| Lane | Action type | Target | Recipient | Status | Approval | Response ingest | Owner | Notes |",
     "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ...input.sendActions.map((entry) =>
-      `| ${entry.lane} | ${entry.actionType} | ${entry.targetLabel} | ${entry.recipientEmail || "missing"} | ${entry.status} | ${entry.approvalState} | ${entry.responseIngestState} | ${entry.ownerAgent || "none"} | ${(entry.notes || "").replace(/\|/g, "/")} |`,
+      `| ${entry.lane} | ${entry.actionType} | ${entry.targetLabel} | ${renderSendActionRecipient(entry)} | ${renderSendActionStatus(entry)} | ${entry.approvalState} | ${renderSendActionResponseIngest(entry)} | ${entry.ownerAgent || "none"} | ${renderSendActionNotes(entry)} |`,
     ),
   ].join("\n");
 }
@@ -1615,15 +1650,17 @@ function renderCityOpeningExecutionReportMarkdown(input: {
     ["ready_to_create", "created"].includes(entry.status),
   ).length;
   const sendsReady = input.sendActions.filter((entry) =>
-    ["ready_to_send", "sent"].includes(entry.status),
+    ["ready_to_send", "sent"].includes(renderSendActionStatus(entry)),
   ).length;
-  const sendsSent = input.sendActions.filter((entry) => entry.status === "sent").length;
-  const sendsBlocked = input.sendActions.filter((entry) => entry.status === "blocked").length;
+  const sendsSent = input.sendActions.filter((entry) => renderSendActionStatus(entry) === "sent").length;
+  const sendsBlocked = input.sendActions.filter((entry) => renderSendActionStatus(entry) === "blocked").length;
   const responsesRouted = input.sendActions.filter((entry) =>
     ["routed", "closed"].includes(entry.responseIngestState),
   ).length;
   const currentBlockers = input.sendActions.filter((entry) =>
-    entry.status === "blocked" || (entry.actionType === "direct_outreach" && !entry.recipientEmail),
+    entry.status === "blocked"
+    || hasInvalidStoredRecipientEmail(entry.recipientEmail)
+    || (entry.actionType === "direct_outreach" && !entry.recipientEmail),
   );
 
   return [
@@ -1677,6 +1714,9 @@ function renderCityOpeningExecutionReportMarkdown(input: {
           "## Current blockers",
           ...currentBlockers.map((entry) => {
             const reasons = [
+              hasInvalidStoredRecipientEmail(entry.recipientEmail)
+                ? "invalid or placeholder recipient email"
+                : null,
               entry.actionType === "direct_outreach" && !entry.recipientEmail
                 ? "missing real recipient email"
                 : null,
@@ -1753,7 +1793,9 @@ function renderRobotTeamContactListMarkdown(input: {
     entry.actionType === "direct_outreach"
     && ["warehouse-facility-direct", "buyer-linked-site"].includes(entry.lane),
   );
-  const evidencedContacts = robotTeamSendActions.filter((entry) => entry.recipientEmail);
+  const evidencedContacts = robotTeamSendActions.filter((entry) =>
+    hasRenderableRecipientEmail(entry.recipientEmail),
+  );
   const buyerRows = input.buyerTargets
     .slice()
     .sort((left, right) => left.companyName.localeCompare(right.companyName))
@@ -1777,7 +1819,7 @@ function renderRobotTeamContactListMarkdown(input: {
           "| Target | Recipient email | Lane | Source |",
           "| --- | --- | --- | --- |",
           ...evidencedContacts.map((entry) =>
-            `| ${entry.targetLabel} | ${entry.recipientEmail} | ${entry.lane} | live send-action or delivery evidence in the city-launch ledger |`,
+            `| ${entry.targetLabel} | ${entry.recipientEmail} | ${entry.lane} | recipient-backed city-launch ledger row |`,
           ),
         ]
       : ["- no live robot-team recipient emails are present yet in the city-launch ledger"]),
@@ -1804,6 +1846,7 @@ function renderSiteOperatorContactListMarkdown(input: {
       || /(operator|owner|tenant|pilot-host|lawful-access)/i.test(entry.notes || "")
       || /(warehouse|property_owner_path)/i.test(entry.siteCategory || ""),
     )
+    .filter((entry) => !hasInvalidStoredRecipientEmail(entry.email))
     .sort((left, right) => left.name.localeCompare(right.name));
 
   return [

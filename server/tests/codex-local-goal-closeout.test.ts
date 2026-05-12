@@ -114,6 +114,10 @@ describe("Codex local goal closeout contract", () => {
       codex_timeout_ms: 45000,
       paperclip_goal_closeout_contract: {
         enabled: true,
+        goal_objective: "Tighten WebApp closeouts.",
+        stage_reached: "operator_thread",
+        issue_run_context: "issue=BLU-123; run=run-456",
+        budget_timeout_context: "45000ms timeout",
         required_fields: [
           "Goal objective:",
           "Issue/run id:",
@@ -135,5 +139,80 @@ describe("Codex local goal closeout contract", () => {
         status: "info",
       }),
     );
+  });
+
+  it("keeps the closeout contract artifact on failed goal-style Codex runs", async () => {
+    process.env.CODEX_LOCAL_COMMAND = "codex-test";
+    process.env.CODEX_LOCAL_WORKDIR = process.cwd();
+    process.env.CODEX_TIMEOUT_MS = "30000";
+
+    execFileMock.mockImplementation(
+      (
+        _command: string,
+        _args: string[],
+        _options: Record<string, unknown>,
+        callback: (error: ExecFileException | null) => void,
+      ) => {
+        const error = new Error("Codex quota unavailable") as ExecFileException;
+        callback(error);
+      },
+    );
+
+    const { runCodexLocalTask } = await import("../agents/adapters/codex-local");
+    const { operatorThreadTask } = await import("../agents/tasks/operator-thread");
+
+    const result = await runCodexLocalTask({
+      kind: "operator_thread",
+      input: {
+        message: "Goal: tighten WebApp closeouts",
+      },
+      provider: "codex_local",
+      runtime: "codex_local",
+      model: "gpt-5.4-mini",
+      metadata: {
+        paperclipGoalPromptEnabled: true,
+        paperclipIssueId: "BLU-124",
+        paperclipRunId: "run-789",
+      },
+      tool_policy: {
+        mode: "mixed",
+        prefer_direct_api: true,
+        browser_fallback_allowed: false,
+        isolated_runtime_required: false,
+        allowed_mcp_servers: [],
+        allowed_domains: [],
+        allowed_actions: [],
+      },
+      approval_policy: {
+        require_human_approval: false,
+        sensitive_actions: [],
+        allow_preapproval: false,
+      },
+      session_policy: {
+        dispatch_mode: "collect",
+        lane: "session",
+        max_concurrent: 1,
+      },
+      outcome_contract: {
+        objective: "Tighten WebApp closeouts.",
+        success_criteria: ["Closeout fields are preserved."],
+        self_checks: ["Check exact field labels."],
+        proof_requirements: ["Adapter failure carries the closeout contract."],
+        pass_threshold: 0.8,
+      },
+      definition: operatorThreadTask,
+    });
+
+    expect(result.status).toBe("failed");
+    expect(result.artifacts).toMatchObject({
+      codex_timeout_ms: 30000,
+      paperclip_goal_closeout_contract: {
+        enabled: true,
+        goal_objective: "Tighten WebApp closeouts.",
+        stage_reached: "operator_thread",
+        issue_run_context: "issue=BLU-124; run=run-789",
+        budget_timeout_context: "30000ms timeout",
+      },
+    });
   });
 });

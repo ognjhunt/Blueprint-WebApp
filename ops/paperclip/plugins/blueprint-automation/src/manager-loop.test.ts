@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildChiefOfStaffIssueEvidenceSignature,
   buildRoutineHealthAlertSignature,
   buildDailyAccountabilitySnapshot,
   buildManagerStateSnapshot,
@@ -358,6 +359,72 @@ describe("manager loop helpers", () => {
         } as any,
       }),
     ).toBe(false);
+  });
+
+  it("builds blocked issue wake evidence from status, owner, run, and comments", () => {
+    const issue = {
+      status: "blocked",
+      priority: "high",
+      assigneeAgentId: "ops-lead",
+      executionRunId: "run-1",
+      updatedAt: "2026-05-10T10:00:00.000Z",
+    } as any;
+    const comments = [
+      {
+        id: "comment-1",
+        body: "Blocked on OpenRouter provider auth.",
+        createdAt: "2026-05-10T09:00:00.000Z",
+      },
+    ] as any;
+
+    const baseline = buildChiefOfStaffIssueEvidenceSignature({ issue, comments });
+    expect(
+      buildChiefOfStaffIssueEvidenceSignature({
+        issue: {
+          ...issue,
+          updatedAt: "2026-05-10T10:05:00.000Z",
+        },
+        comments,
+      }),
+    ).toBe(baseline);
+
+    expect(
+      buildChiefOfStaffIssueEvidenceSignature({
+        issue: {
+          ...issue,
+          executionRunId: "run-2",
+        },
+        comments,
+      }),
+    ).not.toBe(baseline);
+
+    expect(
+      buildChiefOfStaffIssueEvidenceSignature({
+        issue,
+        comments: [
+          ...comments,
+          {
+            id: "comment-2",
+            body: "Human reply recorded; retry is allowed.",
+            createdAt: "2026-05-10T10:06:00.000Z",
+          },
+        ] as any,
+      }),
+    ).not.toBe(baseline);
+
+    expect(
+      buildChiefOfStaffIssueEvidenceSignature({
+        issue,
+        comments: [
+          ...comments,
+          {
+            id: "comment-automation",
+            body: "Automation reused existing blocker follow-up BLU-123 for the same root objective.",
+            createdAt: "2026-05-10T10:07:00.000Z",
+          },
+        ] as any,
+      }),
+    ).toBe(baseline);
   });
 
   it("suppresses generic create wakes for automation-created issues but still wakes on later updates", () => {

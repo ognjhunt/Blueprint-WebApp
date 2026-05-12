@@ -1,9 +1,9 @@
 # Exact-Site Hosted Review Buyer Loop
 
-- report_date: 2026-05-07
+- report_date: 2026-05-12
 - city: Chicago, IL
 - ledger: ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json
-- loop_status: warming
+- loop_status: decision_due
 - durability_status: blocked
 - note: No city-specific rows matched Chicago, IL; using the global target queue until this city adds its own rows.
 
@@ -27,7 +27,7 @@
 | Open blockers | 12 |
 | Paperclip-linked blockers | 12 |
 | 100-touch decision gap | 100 |
-| Days remaining | 3 |
+| Days remaining | 0 |
 
 ## One Sales Ledger
 

@@ -143,6 +143,9 @@ vi.mock("../utils/cityLaunchSendExecutor", () => {
       (entry) => entry.actionType === "direct_outreach",
     );
     const recipientBacked = directOutreachActions.filter(hasCityLaunchRecipientBackedEmail);
+    const invalidRecipientEmails = directOutreachActions.filter(
+      (entry) => Boolean(entry.recipientEmail) && !hasCityLaunchRecipientBackedEmail(entry),
+    );
     const approvalNeeded = recipientBacked.filter(
       (entry) =>
         entry.status === "ready_to_send"
@@ -162,6 +165,11 @@ vi.mock("../utils/cityLaunchSendExecutor", () => {
     const warnings: string[] = [];
     if (directOutreachActions.length === 0 || recipientBacked.length === 0) {
       blockers.push(`No recipient-backed direct-outreach send actions were seeded for ${input.city}.`);
+    }
+    if (invalidRecipientEmails.length > 0) {
+      blockers.push(
+        `${invalidRecipientEmails.length} direct-outreach action(s) have invalid or placeholder recipient emails and cannot count as recipient-backed.`,
+      );
     }
     if (approvalNeeded.length > 0) {
       warnings.push(
@@ -1763,6 +1771,118 @@ describe("city launch execution harness", () => {
     expect(result.outboundReadiness?.status).toBe("blocked");
     expect(result.outboundReadiness?.blockers).toContain(
       "No recipient-backed direct-outreach send actions were seeded for Sacramento, CA.",
+    );
+    expect(executeCityLaunchSends).not.toHaveBeenCalled();
+  });
+
+  it("renders legacy invalid send recipients as blocked non-evidence", async () => {
+    summarizeCityLaunchLedgers.mockResolvedValue({
+      trackedSupplyProspectsContacted: 0,
+      trackedBuyerTargetsResearched: 0,
+      trackedFirstTouchesSent: 0,
+      onboardedCapturers: 0,
+      totalRecordedSpendUsd: 0,
+      withinPolicySpendUsd: 0,
+      outsidePolicySpendUsd: 0,
+      recommendedSpendUsd: 0,
+      wideningGuard: { mode: "single_city_until_proven", wideningAllowed: false, reasons: [] },
+      dataSources: [],
+    });
+    upsertPaperclipIssue
+      .mockResolvedValueOnce({
+        created: true,
+        companyId: "company-1",
+        assigneeAgentId: "agent-growth-lead",
+        issue: { id: "root-1", identifier: "BLU-ROOT", status: "todo" },
+      })
+      .mockImplementation(async (_input: unknown) => ({
+        created: true,
+        companyId: "company-1",
+        assigneeAgentId: `agent-${upsertPaperclipIssue.mock.calls.length}`,
+        issue: {
+          id: `task-${upsertPaperclipIssue.mock.calls.length}`,
+          identifier: `BLU-${upsertPaperclipIssue.mock.calls.length}`,
+          status: "todo",
+        },
+      }));
+    resolveCityLaunchPlanningState.mockResolvedValue(
+      completedPlanningState("Sacramento, CA", "sacramento-ca"),
+    );
+    loadAndParseCityLaunchResearchArtifact.mockResolvedValue({
+      city: "Sacramento, CA",
+      citySlug: "sacramento-ca",
+      artifactPath: "/tmp/sacramento-playbook.md",
+      schemaVersion: "2026-04-12.city-launch-research.v1",
+      generatedAtIso: "2026-04-17T00:00:00.000Z",
+      warnings: [],
+      errors: [],
+      activationPayload: activationPayload("Sacramento, CA", "sacramento-ca"),
+      captureCandidates: [],
+      buyerTargets: [],
+      firstTouches: [],
+      budgetRecommendations: [],
+    });
+    listCityLaunchSendActions.mockResolvedValue([
+      {
+        id: "sacramento-ca-send-legacy-placeholder",
+        city: "Sacramento, CA",
+        citySlug: "sacramento-ca",
+        launchId: null,
+        lane: "warehouse-facility-direct",
+        actionType: "direct_outreach",
+        channelAccountId: "sacramento-ca-channel-warehouse-facility-direct",
+        channelLabel: "warehouse/facility direct outreach lane",
+        targetLabel: "Placeholder Buyer",
+        assetKey: "city-opening-first-wave-pack",
+        ownerAgent: "city-launch-agent",
+        recipientEmail: "not-an-email",
+        emailSubject: "Blueprint Sacramento exact-site warehouse opening",
+        emailBody: "Draft only.",
+        status: "ready_to_send",
+        approvalState: "approved",
+        responseIngestState: "awaiting_response",
+        issueId: null,
+        notes: "Legacy row leaked placeholder recipient.",
+        sentAtIso: null,
+        firstResponseAtIso: null,
+        createdAtIso: "2026-04-17T00:00:00.000Z",
+        updatedAtIso: "2026-04-17T00:00:00.000Z",
+      },
+    ]);
+
+    const reportsRoot = await fs.mkdtemp(
+      path.join(os.tmpdir(), "invalid-recipient-city-launch-harness-"),
+    );
+    tempDirs.push(reportsRoot);
+
+    const { runCityLaunchExecutionHarness } = await import("../utils/cityLaunchExecutionHarness");
+    const result = await runCityLaunchExecutionHarness({
+      city: "Sacramento, CA",
+      reportsRoot,
+      founderApproved: true,
+      budgetTier: "low_budget",
+    });
+
+    const sendLedger = await fs.readFile(
+      result.artifacts.cityOpeningArtifactPack.run.sendLedgerPath,
+      "utf8",
+    );
+    const executionReport = await fs.readFile(
+      result.artifacts.cityOpeningArtifactPack.run.executionReportPath,
+      "utf8",
+    );
+
+    expect(sendLedger).toContain("invalid_placeholder_ignored");
+    expect(sendLedger).toContain("| warehouse-facility-direct | direct_outreach | Placeholder Buyer | invalid_placeholder_ignored | blocked | approved | not_ready | city-launch-agent |");
+    expect(sendLedger).toContain(
+      "Stored recipient email is invalid or placeholder and cannot count as recipient evidence, send proof, or reply readiness.",
+    );
+    expect(sendLedger).not.toContain("not-an-email");
+    expect(executionReport).toContain("- sends_ready_or_sent: 0");
+    expect(executionReport).toContain("- sends_blocked: 1");
+    expect(executionReport).toContain("invalid or placeholder recipient email");
+    expect(result.outboundReadiness?.blockers).toContain(
+      "1 direct-outreach action(s) have invalid or placeholder recipient emails and cannot count as recipient-backed.",
     );
     expect(executeCityLaunchSends).not.toHaveBeenCalled();
   });

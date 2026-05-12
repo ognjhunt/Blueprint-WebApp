@@ -609,6 +609,57 @@ export function buildManagerStateSnapshot(input: BuildManagerStateInput): Manage
   };
 }
 
+function commentEvidenceKey(comment: Pick<IssueComment, "id" | "body" | "createdAt">) {
+  const body = typeof comment.body === "string" ? comment.body.trim() : "";
+  return [
+    comment.id,
+    toIsoString(comment.createdAt),
+    body.length,
+    body.slice(0, 160),
+  ].join("|");
+}
+
+function isAutomationOnlyEvidenceComment(comment: Pick<IssueComment, "body">) {
+  const body = typeof comment.body === "string" ? comment.body.trim().toLowerCase() : "";
+  if (!body) return true;
+  const automationPrefixes = [
+    "automation refresh",
+    "automation rerouted this issue",
+    "automation rerouted this execution issue",
+    "automation merged ",
+    "automation cancelled ",
+    "automation reused existing blocker follow-up",
+    "automation refreshed this canonical blocker",
+    "created follow-up blocker issue",
+    "repo scan cleared",
+    "skipped chief-of-staff wakeup",
+    "skipped no-change blocked issue wake",
+  ];
+  return automationPrefixes.some((prefix) => body.startsWith(prefix));
+}
+
+export function buildChiefOfStaffIssueEvidenceSignature(input: {
+  issue: Pick<Issue, "status" | "priority" | "assigneeAgentId"> & {
+    executionRunId?: string | null;
+  };
+  comments?: Array<Pick<IssueComment, "id" | "body" | "createdAt">>;
+}) {
+  const comments = [...(input.comments ?? [])].sort((left, right) =>
+    toIsoString(left.createdAt).localeCompare(toIsoString(right.createdAt))
+    || left.id.localeCompare(right.id),
+  );
+  const evidenceComments = comments.filter((comment) => !isAutomationOnlyEvidenceComment(comment));
+  const latestComment = evidenceComments.at(-1) ?? null;
+  return JSON.stringify({
+    status: input.issue.status,
+    priority: input.issue.priority,
+    assigneeAgentId: input.issue.assigneeAgentId ?? null,
+    executionRunId: input.issue.executionRunId ?? null,
+    commentCount: evidenceComments.length,
+    latestComment: latestComment ? commentEvidenceKey(latestComment) : null,
+  });
+}
+
 export function shouldWakeChiefOfStaffForIssueEvent(input: {
   eventType: "issue.created" | "issue.updated";
   issue: Pick<Issue, "status" | "priority" | "assigneeAgentId" | "createdByAgentId" | "originKind">;

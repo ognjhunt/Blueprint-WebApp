@@ -12,6 +12,14 @@ export type QuotaFallbackRetryRecord = {
 
 export type QuotaFallbackRetryState = Record<string, QuotaFallbackRetryRecord>;
 
+export type ActiveOpenRouterProviderAuthBlocker = QuotaFallbackRetryRecord & {
+  key: string;
+};
+
+export type ActiveCodexUsageLimitBlocker = QuotaFallbackRetryRecord & {
+  key: string;
+};
+
 export type LocalQuotaFallbackAdapterType = "claude_local" | "codex_local" | "hermes_local";
 
 export type LocalAdapterSnapshot = {
@@ -91,6 +99,8 @@ const PROVIDER_CAPACITY_RE =
   /(?:internalservererror\s*\[http 503\]|http\s+503:\s*provider returned error|provider returned error|model_execution_failed)/i;
 const PROVIDER_CREDIT_RE =
   /(?:\b402\b|insufficient credits|api key usd spend limit exceeded|usd spend(?:ing)? limit exceeded|spend(?:ing)? limit exceeded|hit your usage limit|hit your limit[^.\n]*purchase)/i;
+const CODEX_USAGE_LIMIT_RE =
+  /(?:chatgpt\.com\/codex\/settings\/usage|codex[^.\n]*(?:usage limit|usage cap)|you['’]ve hit your usage limit[^.\n]*(?:purchase more credits|try again))/i;
 const MODEL_NOT_FOUND_RE = /model.*not.*found|model.*404|invalid.*model|unknown.*model|gpt-5-4-mini|http.*404|not_found_error/i;
 const FRESH_SESSION_RETRYABLE_RE =
   /(?:context window|ran out of room|clear earlier history|start a new thread|max[_ ]output[_ ]tokens|incomplete response returned|stream disconnected before completion)/i;
@@ -99,9 +109,11 @@ const PROVIDER_TIMEOUT_RE =
 const PROCESS_LOSS_RE =
   /(?:process lost --|child pid .* no longer running|server may have restarted)/i;
 const PROVIDER_AUTH_RE =
-  /(?:unauthorized|forbidden|auth(?:entication)?(?:orization)?[^.\n]*failed|failed to authenticate|invalid api key|invalid authentication credentials|missing api key|login is required|not logged in|authentication_error)/i;
+  /(?:unauthorized|forbidden|auth(?:entication)?(?:orization)?[^.\n]*failed|failed to authenticate|invalid api key|invalid authentication credentials|missing api key|login is required|not logged in|authentication_error|user not found)/i;
 const CLAUDE_PROVIDER_RE =
   /(?:claude run failed.*failed to authenticate|api error: 401.*authentication_error|invalid authentication credentials)/i;
+const OPENROUTER_PROVIDER_AUTH_RE =
+  /(?:provider:\s*openrouter|via openrouter|openrouter[^.\n]*(?:unauthorized|forbidden|invalid api key|user not found)|user not found)/i;
 const DISALLOWED_HERMES_FALLBACK_MODEL_RE =
   /^(?:openrouter\/free|(?:openrouter\/)?arcee-ai\/trinity-large-preview(?::free)?|(?:openrouter\/)?nvidia\/nemotron-3-super(?::free)?|(?:openrouter\/)?(?:qwen\/)?qwen3\.6-plus(?:-preview)?(?::free)?|(?:openrouter\/)?inclusionai\/ling-2\.6-(?:flash|1t)(?::free)?|(?:openrouter\/)?stepfun\/step-3\.5-flash(?::free)?)$/i;
 const OPENROUTER_SHARED_FREE_POOL_LIMIT_RE =
@@ -137,6 +149,52 @@ export function isProviderCreditFailure(message: string | null | undefined): boo
   return PROVIDER_CREDIT_RE.test(message);
 }
 
+export function isCodexUsageLimitFailure(message: string | null | undefined): boolean {
+  if (!message) return false;
+  return CODEX_USAGE_LIMIT_RE.test(message);
+}
+
+export function parseCodexUsageLimitResetAt(message: string | null | undefined): string | null {
+  if (!message) return null;
+
+  const isoMatch = /\buntil\s+(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z)\b/i.exec(message);
+  if (isoMatch?.[1]) {
+    const parsed = new Date(isoMatch[1]);
+    return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+  }
+
+  const tryAgainMatch =
+    /try again at\s+([A-Za-z]{3,9})\s+(\d{1,2})(?:st|nd|rd|th)?,\s+(\d{4})\s+(\d{1,2}):(\d{2})\s*(am|pm)/i.exec(
+      message,
+    );
+  if (!tryAgainMatch) {
+    return null;
+  }
+
+  const [, monthToken, dayToken, yearToken, hourToken, minuteToken, ampmToken] = tryAgainMatch;
+  const monthIndex = MONTH_INDEX[monthToken.slice(0, 3).toLowerCase()];
+  const day = Number(dayToken);
+  const year = Number(yearToken);
+  const hour12 = Number(hourToken);
+  const minute = Number(minuteToken);
+  if (
+    monthIndex === undefined ||
+    !Number.isFinite(day) ||
+    !Number.isFinite(year) ||
+    !Number.isFinite(hour12) ||
+    !Number.isFinite(minute)
+  ) {
+    return null;
+  }
+
+  let hour24 = hour12 % 12;
+  if (ampmToken.toLowerCase() === "pm") {
+    hour24 += 12;
+  }
+  const parsed = new Date(Date.UTC(year, monthIndex, day, hour24, minute, 0, 0));
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+}
+
 export function isSharedOpenRouterFreePoolRateLimitFailure(message: string | null | undefined): boolean {
   if (!message) return false;
   return OPENROUTER_SHARED_FREE_POOL_LIMIT_RE.test(message);
@@ -165,6 +223,59 @@ export function isProcessLossFailure(message: string | null | undefined): boolea
 export function isProviderAuthFailure(message: string | null | undefined): boolean {
   if (!message) return false;
   return PROVIDER_AUTH_RE.test(message);
+}
+
+export function isOpenRouterProviderAuthFailure(
+  message: string | null | undefined,
+  adapterConfig?: Record<string, unknown> | null,
+): boolean {
+  if (!isProviderAuthFailure(message)) return false;
+  const provider = asTrimmedString(adapterConfig?.provider);
+  return provider === "openrouter" || OPENROUTER_PROVIDER_AUTH_RE.test(message ?? "");
+}
+
+export function findActiveOpenRouterProviderAuthBlocker(
+  state: QuotaFallbackRetryState,
+  options: {
+    nowMs?: number;
+    ttlMs: number;
+  },
+): ActiveOpenRouterProviderAuthBlocker | null {
+  const nowMs = options.nowMs ?? Date.now();
+  const ttlMs = Math.max(0, options.ttlMs);
+  const active = Object.entries(state)
+    .map(([key, record]) => ({ key, ...record }))
+    .filter((record) => {
+      if (record.status !== "skipped") return false;
+      const attemptedAtMs = Date.parse(record.attemptedAt);
+      if (!Number.isFinite(attemptedAtMs)) return false;
+      if (ttlMs > 0 && nowMs - attemptedAtMs > ttlMs) return false;
+      return /paperclip-provider-auth-openrouter|hermes\/openrouter provider auth/i.test(record.note ?? "");
+    })
+    .sort((left, right) => Date.parse(right.attemptedAt) - Date.parse(left.attemptedAt));
+  return active[0] ?? null;
+}
+
+export function findActiveCodexUsageLimitBlocker(
+  state: QuotaFallbackRetryState,
+  options: {
+    nowMs?: number;
+    ttlMs: number;
+  },
+): ActiveCodexUsageLimitBlocker | null {
+  const nowMs = options.nowMs ?? Date.now();
+  const ttlMs = Math.max(0, options.ttlMs);
+  const active = Object.entries(state)
+    .map(([key, record]) => ({ key, ...record }))
+    .filter((record) => {
+      if (record.status !== "skipped") return false;
+      const attemptedAtMs = Date.parse(record.attemptedAt);
+      if (!Number.isFinite(attemptedAtMs)) return false;
+      if (ttlMs > 0 && nowMs - attemptedAtMs > ttlMs) return false;
+      return /paperclip-codex-usage-limit|codex usage limit/i.test(record.note ?? "");
+    })
+    .sort((left, right) => Date.parse(right.attemptedAt) - Date.parse(left.attemptedAt));
+  return active[0] ?? null;
 }
 
 export function isClaudeProviderAuthFailure(message: string | null | undefined): boolean {
@@ -320,6 +431,10 @@ function normalizeExecutionPolicyAdapterList(
   values: unknown,
   targetAdapterType: LocalQuotaFallbackAdapterType,
 ): LocalQuotaFallbackAdapterType[] {
+  if (targetAdapterType === "codex_local") {
+    return ["codex_local"];
+  }
+
   const defaultAdapters =
     targetAdapterType === "hermes_local"
       ? HERMES_EXECUTION_POLICY_ADAPTERS
@@ -610,9 +725,11 @@ export function syncExecutionPolicyToAdapter(
   nextRuntimeConfig.executionPolicy = {
     ...currentExecutionPolicy,
     mode:
-      currentExecutionPolicy.mode === "fixed" || currentExecutionPolicy.mode === "prefer_available"
-        ? currentExecutionPolicy.mode
-        : "prefer_available",
+      targetAdapterType === "codex_local"
+        ? "fixed"
+        : currentExecutionPolicy.mode === "fixed" || currentExecutionPolicy.mode === "prefer_available"
+          ? currentExecutionPolicy.mode
+          : "prefer_available",
     compatibleAdapterTypes: normalizeExecutionPolicyAdapterList(
       currentExecutionPolicy.compatibleAdapterTypes,
       targetAdapterType,
@@ -720,6 +837,9 @@ export function buildLocalQuotaFallbackDescriptor(input: {
 
   if (currentAdapterType === "hermes_local") {
     if (isProviderAuthFailure(failureReason)) {
+      if (isOpenRouterProviderAuthFailure(failureReason, currentAdapterConfig)) {
+        return null;
+      }
       const rebuiltHermesConfig = buildHermesFallbackAdapterConfig(desiredAdapterConfig);
       if (
         asTrimmedString(rebuiltHermesConfig.provider) === "openrouter"

@@ -17,6 +17,7 @@ Each run must:
   Selected city: <City, ST>
   Artifact: <repo path or issue-document:key>
   Outcome: updated | no_change
+  Movement: <target/contact/send/reply/proof/hosted-review/capture-ask/intake/call movement when updated; use none only for truthful no_change>
   Evidence delta: <what changed or none>
   Other cities touched: none
 - make missing human approvals explicit

@@ -52,6 +52,7 @@ All review findings, blockers, monitor-only concerns, handoffs, and validation e
 
 Paperclip fallback rule:
 
+- Never run `env`, `printenv`, `set`, `export`, or broad `rg`/`grep` commands that print `PAPERCLIP_*`, API key, token, cookie, or secret values. To check auth, use `bash -lc 'test -n "$PAPERCLIP_API_KEY" && echo PAPERCLIP_API_KEY_PRESENT || echo PAPERCLIP_API_KEY_MISSING'` and do not print the value.
 - Safe Paperclip read fallback: `npm exec tsx -- scripts/paperclip/paperclip-heartbeat-snapshot.ts --assigned-open --plain`
 - Safe issue-context fallback: `npm exec tsx -- scripts/paperclip/paperclip-heartbeat-snapshot.ts --heartbeat-context --issue-id "$PAPERCLIP_TASK_ID" --plain`
 - On issue-bound runs, before probing any localhost web-app port such as `3000`, first use the injected `PAPERCLIP_API_URL` or the safe heartbeat snapshot fallback to resolve the bound issue context.

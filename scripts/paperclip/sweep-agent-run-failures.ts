@@ -48,6 +48,7 @@ type FailureSignature = {
   category: SignatureCategory;
   fixLayer: string;
   matchedBy: string;
+  blockerId?: string;
 };
 
 type CandidateRun = {
@@ -211,6 +212,8 @@ function normalizeWhitespace(value: string) {
 
 const TOOL_RUNTIME_FAILURE_RE =
   /(?:CreateProcess .*No such file or directory|Failed to create unified exec process|exec_command failed|write_stdin failed: stdin is closed|rerun exec_command with tty=true to keep stdin open|Codex lost access to its local exec tooling during the run\.)/i;
+const TERMINAL_PROVIDER_FAILURE_RE =
+  /(?:http\s+(?:401|402|403|404|429)|user not found|invalid api key|invalid authentication credentials|authentication_error|no endpoints found|rate limit exceeded|insufficient credits|spend limit exceeded|free-models-per-min|free-models-per-day-high-balance)/i;
 
 function hasActualRunsProbe(sourceText: string) {
   const commandEncodedProbe =
@@ -366,6 +369,61 @@ export function classifyFailureSignature(input: {
       category: "runtime_capacity" as const,
       fixLayer: "Hermes ladder fallback, provider quota policy, or lane cooldown recovery",
       matchedBy: "429/quota output in run logs",
+    };
+  }
+
+  if (
+    rawText.includes("no execution adapter available")
+    && rawText.includes("codex_local")
+    && (
+      rawText.includes("weekly limit exhausted")
+      || rawText.includes("usage limit")
+      || rawText.includes("quota")
+    )
+  ) {
+    return {
+      key: "codex_usage_limit_adapter_unavailable",
+      title: "Codex usage limit made the local adapter unavailable",
+      category: "runtime_capacity" as const,
+      fixLayer: "Codex account credits, usage reset, and Paperclip adapter availability gate",
+      matchedBy: "adapter_unavailable plus Codex quota/usage-limit signal",
+      blockerId: "paperclip-codex-usage-limit",
+    };
+  }
+
+  if (
+    rawText.includes("openrouter")
+    && (
+      rawText.includes("http 401")
+      || rawText.includes("401 unauthorized")
+      || rawText.includes("401 forbidden")
+      || rawText.includes("invalid api key")
+      || rawText.includes("provider auth")
+      || rawText.includes("auth failed")
+      || rawText.includes("authentication failed")
+    )
+  ) {
+    return {
+      key: "openrouter_provider_auth_unavailable",
+      title: "OpenRouter provider auth blocked Hermes runs",
+      category: "auth_or_env" as const,
+      fixLayer: "Hermes/OpenRouter account key, provider policy, and fallback gating",
+      matchedBy: "OpenRouter auth failure signal",
+      blockerId: "paperclip-provider-auth-openrouter",
+    };
+  }
+
+  if (
+    normalizeWhitespace(run.errorCode ?? "").toLowerCase() === "provider_logical_failure"
+    && run.exitCode === 0
+    && !TERMINAL_PROVIDER_FAILURE_RE.test(rawText)
+  ) {
+    return {
+      key: "exit_zero_provider_logical_failure_false_positive",
+      title: "Exit-zero run was marked failed by transcript logical-failure scanning",
+      category: "tooling_gap" as const,
+      fixLayer: "Paperclip run-result classifier; ignore raw stdout/stderr source snippets for provider failures",
+      matchedBy: "provider_logical_failure with exit code 0 and no terminal provider failure signal",
     };
   }
 
@@ -748,6 +806,10 @@ function isRecoverableQuotaFamily(signature: FailureSignature) {
   );
 }
 
+function isKnownNonActionableFalsePositiveFamily(signature: FailureSignature) {
+  return signature.key === "exit_zero_provider_logical_failure_false_positive";
+}
+
 function isResolvedIssueStatus(status: string | undefined | null) {
   const normalized = normalizeWhitespace(status ?? "").toLowerCase();
   return normalized === "done" || normalized === "cancelled" || normalized === "canceled";
@@ -812,6 +874,11 @@ export function splitRecoveredCandidates(
     }
 
     if (hasOnlyResolvedIssues(candidate)) {
+      suppressedRecoveredCandidates.push(candidate);
+      continue;
+    }
+
+    if (isKnownNonActionableFalsePositiveFamily(candidate.signature)) {
       suppressedRecoveredCandidates.push(candidate);
       continue;
     }
@@ -918,7 +985,7 @@ function buildMarkdownReport(input: {
       lines.push("| --- | ---: | --- | --- | --- |");
       for (const cluster of input.suppressedRecoveredClusters) {
         lines.push(
-          `| ${cluster.signature.title} | ${cluster.count} | ${cluster.agentKeys.join(", ")} | ${cluster.signature.category} | Later run recovered the task, or the run completed despite a transient tool fault |`,
+          `| ${cluster.signature.title} | ${cluster.count} | ${cluster.agentKeys.join(", ")} | ${cluster.signature.category} | Later run recovered the task, completed despite a transient tool fault, or matched a known exit-zero false-positive classifier |`,
         );
       }
     }
@@ -944,6 +1011,9 @@ function buildMarkdownReport(input: {
     lines.push(`- Category: ${cluster.signature.category}`);
     lines.push(`- Fix layer: ${cluster.signature.fixLayer}`);
     lines.push(`- Matched by: ${cluster.signature.matchedBy}`);
+    if (cluster.signature.blockerId) {
+      lines.push(`- Durable blocker id: \`${cluster.signature.blockerId}\``);
+    }
     lines.push(`- Affected agents: ${cluster.agentKeys.join(", ")}`);
     if (cluster.issueIdentifiers.length > 0) {
       lines.push(`- Related issues: ${cluster.issueIdentifiers.slice(0, 10).join(", ")}`);
@@ -964,7 +1034,7 @@ function buildMarkdownReport(input: {
     lines.push("| --- | ---: | --- | --- | --- |");
     for (const cluster of input.suppressedRecoveredClusters) {
       lines.push(
-        `| ${cluster.signature.title} | ${cluster.count} | ${cluster.agentKeys.join(", ")} | ${cluster.signature.category} | Later run recovered the task, or the run completed despite a transient tool fault |`,
+        `| ${cluster.signature.title} | ${cluster.count} | ${cluster.agentKeys.join(", ")} | ${cluster.signature.category} | Later run recovered the task, completed despite a transient tool fault, or matched a known exit-zero false-positive classifier |`,
       );
     }
   }

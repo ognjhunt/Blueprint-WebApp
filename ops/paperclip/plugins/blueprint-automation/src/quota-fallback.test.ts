@@ -11,21 +11,26 @@ import {
   DEFAULT_HERMES_OPENROUTER_PROVIDER_IGNORE,
   DEFAULT_HERMES_OPENROUTER_PROVIDER_ORDER,
   extractLogicalSucceededRunFailure,
+  findActiveCodexUsageLimitBlocker,
+  findActiveOpenRouterProviderAuthBlocker,
   FALLBACK_ORIGIN_ADAPTER_CONFIG_KEY,
   HERMES_MODEL_LADDER_CONFIG_KEY,
   hasQuotaFallbackRetryForTask,
   getWorkspaceAdapterCooldownKey,
   inferFailedLocalAdapterType,
   isDisallowedHermesFallbackModel,
+  isCodexUsageLimitFailure,
   isFreshSessionRetryableFailure,
   isIncompatibleHermesFreeRoutingModel,
   isClaudeProviderAuthFailure,
+  isOpenRouterProviderAuthFailure,
   isProviderAuthFailure,
   isProcessLossFailure,
   isProviderCreditFailure,
   isProviderTimeoutFailure,
   isQuotaOrRateLimitFailure,
   isSharedOpenRouterFreePoolRateLimitFailure,
+  parseCodexUsageLimitResetAt,
   parseQuotaResetAt,
   resolveHermesFallbackModels,
   resolveQuotaCooldownUntil,
@@ -124,6 +129,17 @@ describe("quota fallback helpers", () => {
     expect(
       isClaudeProviderAuthFailure("HTTP 401: unauthorized: login is required"),
     ).toBe(false);
+    expect(
+      isOpenRouterProviderAuthFailure(
+        "HTTP 401: User not found. Provider: openrouter Model: deepseek/deepseek-v4-flash",
+      ),
+    ).toBe(true);
+    expect(
+      isOpenRouterProviderAuthFailure(
+        "HTTP 401: unauthorized: login is required",
+        { provider: "openrouter" },
+      ),
+    ).toBe(true);
   });
 
   it("extracts terminal logical-failure text from succeeded-run logs", () => {
@@ -628,10 +644,27 @@ describe("quota fallback helpers", () => {
   });
 
   it("detects codex usage limit as provider credit failure", () => {
-    expect(
-      isProviderCreditFailure("You've hit your usage limit. Visit https://chatgpt.com/codex/settings/usage to purchase more credits or try again at Apr 16th, 2026 1:01 PM."),
-    ).toBe(true);
+    const codexUsageLimit =
+      "You've hit your usage limit. Visit https://chatgpt.com/codex/settings/usage to purchase more credits or try again at Apr 16th, 2026 1:01 PM.";
+    expect(isProviderCreditFailure(codexUsageLimit)).toBe(true);
+    expect(isCodexUsageLimitFailure(codexUsageLimit)).toBe(true);
+    expect(isCodexUsageLimitFailure("Codex usage limit reached; try again later.")).toBe(true);
+    expect(isCodexUsageLimitFailure("HTTP 402: Insufficient credits. Add more using https://openrouter.ai/settings/credits")).toBe(false);
     expect(isProviderCreditFailure("HTTP 429: Rate limit exceeded: free-models-per-min.")).toBe(false);
+  });
+
+  it("parses Codex usage-limit reset timestamps", () => {
+    expect(
+      parseCodexUsageLimitResetAt(
+        "No execution adapter available: codex_local: Weekly limit exhausted until 2026-05-11T22:34:58.000Z",
+      ),
+    ).toBe("2026-05-11T22:34:58.000Z");
+
+    expect(
+      parseCodexUsageLimitResetAt(
+        "You've hit your usage limit. Visit https://chatgpt.com/codex/settings/usage to purchase more credits or try again at May 11th, 2026 10:34 PM.",
+      ),
+    ).toBe("2026-05-11T22:34:00.000Z");
   });
 
   it("does not loop codex_local auth failure back to hermes when origin was hermes", () => {
@@ -690,6 +723,26 @@ describe("quota fallback helpers", () => {
         [FALLBACK_ORIGIN_ADAPTER_CONFIG_KEY]: "hermes_local",
       },
     });
+  });
+
+  it("does not retry Hermes/OpenRouter provider auth failures through another OpenRouter wake", () => {
+    expect(
+      buildLocalQuotaFallbackDescriptor({
+        currentAdapterType: "hermes_local",
+        currentAdapterConfig: {
+          cwd: "/tmp/project",
+          provider: "openrouter",
+          model: "deepseek/deepseek-v4-flash",
+        },
+        desiredAdapterType: "hermes_local",
+        desiredAdapterConfig: {
+          cwd: "/tmp/project",
+          provider: "openrouter",
+          model: "deepseek/deepseek-v4-flash",
+        },
+        failureReason: "HTTP 401: User not found. Provider: openrouter Model: deepseek/deepseek-v4-flash",
+      }),
+    ).toBeNull();
   });
 
   it("moves authored hermes agents from exhausted hermes models to claude, then codex", () => {
@@ -930,6 +983,129 @@ describe("quota fallback helpers", () => {
     });
   });
 
+  it("finds only active OpenRouter provider-auth blockers", () => {
+    const blocker = findActiveOpenRouterProviderAuthBlocker(
+      {
+        old: {
+          attemptedAt: "2026-05-09T10:00:00.000Z",
+          status: "skipped",
+          agentId: "chief",
+          issueId: "issue-old",
+          taskKey: "issue-old",
+          reason: "quota_fallback_skipped",
+          note: "paperclip-provider-auth-openrouter: old blocker",
+        },
+        current: {
+          attemptedAt: "2026-05-10T10:00:00.000Z",
+          status: "skipped",
+          agentId: "chief",
+          issueId: "issue-current",
+          taskKey: "issue-current",
+          reason: "quota_fallback_skipped",
+          note:
+            "paperclip-provider-auth-openrouter: Hermes/OpenRouter provider auth failed; suppressed automatic retry/fallback because credential or account repair is required.",
+        },
+        unrelated: {
+          attemptedAt: "2026-05-10T11:00:00.000Z",
+          status: "skipped",
+          agentId: "codex",
+          issueId: "issue-codex",
+          taskKey: "issue-codex",
+          reason: "quota_fallback_skipped",
+          note: "paperclip-codex-usage-limit: Codex usage limit blocked this lane.",
+        },
+      },
+      {
+        nowMs: Date.parse("2026-05-10T12:00:00.000Z"),
+        ttlMs: 6 * 60 * 60 * 1000,
+      },
+    );
+
+    expect(blocker?.key).toBe("current");
+    expect(blocker?.issueId).toBe("issue-current");
+
+    expect(
+      findActiveOpenRouterProviderAuthBlocker(
+        {
+          expired: {
+            attemptedAt: "2026-05-09T10:00:00.000Z",
+            status: "skipped",
+            agentId: "chief",
+            issueId: "issue-old",
+            taskKey: "issue-old",
+            reason: "quota_fallback_skipped",
+            note: "paperclip-provider-auth-openrouter: old blocker",
+          },
+        },
+        {
+          nowMs: Date.parse("2026-05-10T12:00:00.000Z"),
+          ttlMs: 6 * 60 * 60 * 1000,
+        },
+      ),
+    ).toBeNull();
+  });
+
+  it("finds only active Codex usage-limit blockers", () => {
+    const blocker = findActiveCodexUsageLimitBlocker(
+      {
+        openrouter: {
+          attemptedAt: "2026-05-10T10:00:00.000Z",
+          status: "skipped",
+          agentId: "chief",
+          issueId: "issue-openrouter",
+          taskKey: "issue-openrouter",
+          reason: "quota_fallback_skipped",
+          note: "paperclip-provider-auth-openrouter: old blocker",
+        },
+        current: {
+          attemptedAt: "2026-05-10T11:00:00.000Z",
+          status: "skipped",
+          agentId: "webapp-codex",
+          issueId: "issue-codex",
+          taskKey: "issue-codex",
+          reason: "quota_fallback_skipped",
+          note: "paperclip-codex-usage-limit: Codex usage limit blocked this lane.",
+        },
+        retried: {
+          attemptedAt: "2026-05-10T11:30:00.000Z",
+          status: "retried",
+          agentId: "webapp-codex",
+          issueId: "issue-retried",
+          taskKey: "issue-retried",
+          reason: "quota_fallback_to_hermes_free",
+          note: "paperclip-codex-usage-limit: not an active blocker because it retried.",
+        },
+      },
+      {
+        nowMs: Date.parse("2026-05-10T12:00:00.000Z"),
+        ttlMs: 6 * 60 * 60 * 1000,
+      },
+    );
+
+    expect(blocker?.key).toBe("current");
+    expect(blocker?.issueId).toBe("issue-codex");
+
+    expect(
+      findActiveCodexUsageLimitBlocker(
+        {
+          expired: {
+            attemptedAt: "2026-05-09T10:00:00.000Z",
+            status: "skipped",
+            agentId: "webapp-codex",
+            issueId: "issue-old",
+            taskKey: "issue-old",
+            reason: "quota_fallback_skipped",
+            note: "paperclip-codex-usage-limit: expired blocker",
+          },
+        },
+        {
+          nowMs: Date.parse("2026-05-10T12:00:00.000Z"),
+          ttlMs: 6 * 60 * 60 * 1000,
+        },
+      ),
+    ).toBeNull();
+  });
+
   it("infers the failed adapter from fallback wake reasons and hermes result payloads", () => {
     expect(
       inferFailedLocalAdapterType({
@@ -964,7 +1140,7 @@ describe("quota fallback helpers", () => {
     ).toBe("codex_local");
   });
 
-  it("syncs execution policy order to the active adapter", () => {
+  it("fixes codex primary execution policy to Codex only", () => {
     expect(
       syncExecutionPolicyToAdapter(
         {
@@ -981,12 +1157,37 @@ describe("quota fallback helpers", () => {
       ),
     ).toEqual({
       executionPolicy: {
-        mode: "prefer_available",
-        preferredAdapterTypes: ["codex_local", "hermes_local"],
-        compatibleAdapterTypes: ["codex_local", "hermes_local"],
+        mode: "fixed",
+        preferredAdapterTypes: ["codex_local"],
+        compatibleAdapterTypes: ["codex_local"],
         perAdapterConfig: {
           codex_local: { model: "gpt-5.4-mini" },
         },
+      },
+    });
+  });
+
+  it("preserves Hermes first with Codex fallback for Hermes lanes", () => {
+    expect(
+      syncExecutionPolicyToAdapter(
+        {
+          executionPolicy: {
+            mode: "prefer_available",
+            preferredAdapterTypes: ["codex_local", "hermes_local"],
+            compatibleAdapterTypes: ["codex_local", "hermes_local"],
+            perAdapterConfig: {
+              codex_local: { model: "gpt-5.4-mini" },
+              hermes_local: { model: "deepseek/deepseek-v4-flash", provider: "openrouter" },
+            },
+          },
+        },
+        "hermes_local",
+      ),
+    ).toMatchObject({
+      executionPolicy: {
+        mode: "prefer_available",
+        preferredAdapterTypes: ["hermes_local", "codex_local"],
+        compatibleAdapterTypes: ["hermes_local", "codex_local"],
       },
     });
   });

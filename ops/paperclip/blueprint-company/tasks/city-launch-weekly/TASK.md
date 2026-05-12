@@ -17,6 +17,7 @@ Each run must:
 - leave one proof-bearing closeout comment before marking the issue done with exactly these lines:
   Selected city: <City, ST>
   Artifact: <repo path or issue-document:key>
+  Movement: <target/contact/send/reply/proof/hosted-review/capture-ask/intake/call movement, not a narrative summary>
   Evidence: <why this city was chosen now>
   Other cities touched: none
 - recommend sequencing, but leave final launch decisions to humans

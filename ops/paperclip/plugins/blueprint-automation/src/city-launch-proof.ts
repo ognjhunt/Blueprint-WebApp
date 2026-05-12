@@ -15,10 +15,23 @@ export type CityLaunchCloseout = {
   artifactRef: string;
   otherCitiesTouched: string;
   outcome: "updated" | "no_change" | null;
+  movement: string | null;
+  movementKinds: CityLaunchMovementKind[];
   evidence: string | null;
   evidenceDelta: string | null;
   body: string;
 };
+
+export type CityLaunchMovementKind =
+  | "target"
+  | "recipient_contact"
+  | "send"
+  | "reply"
+  | "proof_artifact"
+  | "hosted_review"
+  | "capture_ask"
+  | "structured_intake"
+  | "qualified_call";
 
 export type CityLaunchCompletionAssessment = {
   ok: boolean;
@@ -38,6 +51,7 @@ const FIELD_PATTERNS = {
   artifact: /^artifact:\s*(.+)$/im,
   otherCitiesTouched: /^other cities touched:\s*(.+)$/im,
   outcome: /^outcome:\s*(.+)$/im,
+  movement: /^movement:\s*(.+)$/im,
   evidence: /^evidence:\s*(.+)$/im,
   evidenceDelta: /^evidence delta:\s*(.+)$/im,
 } as const;
@@ -61,6 +75,26 @@ function normalizeOutcome(value: string | null | undefined): "updated" | "no_cha
   return null;
 }
 
+const MOVEMENT_PATTERNS: Array<[CityLaunchMovementKind, RegExp]> = [
+  ["target", /\b(target|prospect|account|site row|candidate)\b/i],
+  ["recipient_contact", /\b(recipient[- ]backed|contact|contact_email|email evidence|named recipient)\b/i],
+  ["send", /\b(send|sent touch|outreach sent|send ledger|first-send|live send)\b/i],
+  ["reply", /\b(reply|response|inbound response|human reply)\b/i],
+  ["proof_artifact", /\b(proof|proof artifact|proof pack|proof-ready|site proof|world-model package|package evidence)\b/i],
+  ["hosted_review", /\b(hosted review|hosted-review|review start|session start)\b/i],
+  ["capture_ask", /\b(capture[- ]ask|capture request|capture target|capture invite|capture applicant)\b/i],
+  ["structured_intake", /\b(intake|structured intake|intake route|intake record|intake path)\b/i],
+  ["qualified_call", /\b(call|qualified call|call scheduled|call completed|buyer call)\b/i],
+];
+
+function parseMovementKinds(value: string | null | undefined): CityLaunchMovementKind[] {
+  const normalized = normalizeField(value);
+  if (!normalized || normalizeNone(normalized)) return [];
+  return MOVEMENT_PATTERNS
+    .filter(([, pattern]) => pattern.test(normalized))
+    .map(([kind]) => kind);
+}
+
 export function slugifyCityName(city: string) {
   return city
     .trim()
@@ -81,6 +115,7 @@ function extractField(body: string, pattern: RegExp) {
 export function parseCityLaunchCloseoutComment(comment: CommentLike): CityLaunchCloseout | null {
   const selectedCity = extractField(comment.body, FIELD_PATTERNS.selectedCity);
   const artifactRef = extractField(comment.body, FIELD_PATTERNS.artifact);
+  const movement = extractField(comment.body, FIELD_PATTERNS.movement) || null;
   if (!selectedCity || !artifactRef) return null;
 
   return {
@@ -90,6 +125,8 @@ export function parseCityLaunchCloseoutComment(comment: CommentLike): CityLaunch
     artifactRef,
     otherCitiesTouched: extractField(comment.body, FIELD_PATTERNS.otherCitiesTouched),
     outcome: normalizeOutcome(extractField(comment.body, FIELD_PATTERNS.outcome)),
+    movement,
+    movementKinds: parseMovementKinds(movement),
     evidence: extractField(comment.body, FIELD_PATTERNS.evidence) || null,
     evidenceDelta: extractField(comment.body, FIELD_PATTERNS.evidenceDelta) || null,
     body: comment.body,
@@ -162,6 +199,11 @@ export function assessCityLaunchCompletion(input: {
     if (!closeout.evidence || normalizeNone(closeout.evidence)) {
       errors.push("Weekly completion requires an Evidence line that explains why this city was chosen now.");
     }
+    if (closeout.movementKinds.length === 0) {
+      errors.push(
+        "Weekly completion requires a Movement line naming real target/contact/send/reply/proof/hosted-review/capture-ask/intake/call movement.",
+      );
+    }
   } else {
     if (!input.currentSelection) {
       errors.push("Refresh completion requires a previously validated weekly city selection.");
@@ -175,8 +217,22 @@ export function assessCityLaunchCompletion(input: {
       errors.push("Refresh completion requires Outcome: updated or Outcome: no_change.");
     }
 
+    if (!closeout.evidenceDelta) {
+      errors.push("Refresh completion requires an Evidence delta line.");
+    }
     if (closeout.outcome === "updated" && (!closeout.evidenceDelta || normalizeNone(closeout.evidenceDelta))) {
       errors.push("Refresh completion marked updated must include a non-empty Evidence delta line.");
+    }
+    if (closeout.outcome === "updated" && closeout.movementKinds.length === 0) {
+      errors.push(
+        "Refresh completion marked updated requires a Movement line naming real target/contact/send/reply/proof/hosted-review/capture-ask/intake/call movement.",
+      );
+    }
+    if (closeout.outcome === "no_change" && !closeout.movement) {
+      errors.push("Refresh completion marked no_change requires a Movement line set to none.");
+    }
+    if (closeout.outcome === "no_change" && closeout.movement && !normalizeNone(closeout.movement)) {
+      errors.push("Refresh completion marked no_change requires Movement: none.");
     }
   }
 

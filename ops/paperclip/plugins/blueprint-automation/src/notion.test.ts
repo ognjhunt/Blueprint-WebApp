@@ -102,6 +102,10 @@ describe("notion helpers", () => {
         priority: "P1",
         system: "WebApp",
         lifecycleStage: "Blocked",
+        "Proof State": "Source needed",
+        "Metric Outcome": "Missing source",
+        "Verification Commands": "npm run check",
+        "Blocker ID": "buyer-proof-source-needed",
         needsFounder: true,
         lastStatusChange: "2026-04-01T09:20:00.000Z",
         escalateAfter: "2026-04-01T13:20:00.000Z",
@@ -110,6 +114,10 @@ describe("notion helpers", () => {
     );
 
     expect(item.businessLane).toBe("Buyer");
+    expect(item.proofState).toBe("Source needed");
+    expect(item.metricOutcome).toBe("Missing source");
+    expect(item.verificationCommands).toBe("npm run check");
+    expect(item.blockerId).toBe("buyer-proof-source-needed");
     expect(item.needsFounder).toBe(true);
     expect(item.lastStatusChange).toBe("2026-04-01T09:20:00.000Z");
     expect(item.escalateAfter).toBe("2026-04-01T13:20:00.000Z");

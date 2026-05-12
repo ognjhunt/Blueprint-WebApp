@@ -566,6 +566,72 @@ function pickMatching(rows, exactKey) {
   });
 }
 
+function normalizeLookupKey(value) {
+  return typeof value === "string"
+    ? value.toLowerCase().replace(/[^a-z0-9]+/g, "")
+    : "";
+}
+
+function resolvePrimaryWorkspaceConfig(projectConfig) {
+  const workspaceEntries = Object.entries(projectConfig?.workspaces ?? {});
+  const primaryWorkspace = workspaceEntries.find(([, workspace]) => workspace?.isPrimary)
+    ?? workspaceEntries[0]
+    ?? null;
+  return primaryWorkspace?.[1] ?? null;
+}
+
+function expectedProjectName(projectKey, projectConfig) {
+  const workspaceConfig = resolvePrimaryWorkspaceConfig(projectConfig);
+  return typeof workspaceConfig?.name === "string" && workspaceConfig.name.trim().length > 0
+    ? workspaceConfig.name.trim()
+    : projectKey.split("-").map(titleizeToken).join(" ");
+}
+
+function projectWorkspaceMatches(project, workspaceConfig) {
+  if (!workspaceConfig) return false;
+  const workspaces = Array.isArray(project?.workspaces) ? project.workspaces : [];
+  return workspaces.some((workspace) => {
+    const cwdMatches =
+      typeof workspaceConfig.cwd === "string"
+      && typeof workspace?.cwd === "string"
+      && workspace.cwd === workspaceConfig.cwd;
+    const repoMatches =
+      typeof workspaceConfig.repoUrl === "string"
+      && typeof workspace?.repoUrl === "string"
+      && workspace.repoUrl === workspaceConfig.repoUrl;
+    return cwdMatches || repoMatches;
+  });
+}
+
+function pickCanonicalProject(projects, projectKey, projectConfig) {
+  const direct = pickCanonical(projects, projectKey);
+  if (direct) return direct;
+
+  const workspaceConfig = resolvePrimaryWorkspaceConfig(projectConfig);
+  const normalizedProjectKey = normalizeLookupKey(projectKey);
+  const normalizedProjectName = normalizeLookupKey(expectedProjectName(projectKey, projectConfig));
+  const normalizedWorkspaceName = normalizeLookupKey(workspaceConfig?.name);
+  const normalizedKeys = new Set(
+    [normalizedProjectKey, normalizedProjectName, normalizedWorkspaceName].filter(Boolean),
+  );
+
+  const byNormalizedKey = projects.find((project) => {
+    if (hasSuffix(project?.urlKey) || hasSuffix(project?.name)) return false;
+    return normalizedKeys.has(normalizeLookupKey(project?.urlKey))
+      || normalizedKeys.has(normalizeLookupKey(project?.name));
+  });
+  if (byNormalizedKey) return byNormalizedKey;
+
+  const byWorkspace = projects.find((project) =>
+    !hasSuffix(project?.urlKey)
+    && !hasSuffix(project?.name)
+    && projectWorkspaceMatches(project, workspaceConfig),
+  );
+  if (byWorkspace) return byWorkspace;
+
+  return null;
+}
+
 async function cancelOpenRunsForAgent(companyId, agentId) {
   const runs = await fetchJson(`/api/companies/${companyId}/heartbeat-runs?agentId=${agentId}&limit=200`);
   const openRuns = runs.filter((run) => run.status === "queued" || run.status === "running");
@@ -752,20 +818,13 @@ function resolveInstructionSource(agentKey) {
 }
 
 async function ensureCanonicalProject(companyId, projects, projectKey, projectConfig) {
-  const existing = pickCanonical(projects, projectKey);
+  const existing = pickCanonicalProject(projects, projectKey, projectConfig);
   if (existing) {
     return existing;
   }
 
-  const workspaceEntries = Object.entries(projectConfig?.workspaces ?? {});
-  const primaryWorkspace = workspaceEntries.find(([, workspace]) => workspace?.isPrimary)
-    ?? workspaceEntries[0]
-    ?? null;
-  const workspaceConfig = primaryWorkspace?.[1] ?? null;
-  const projectName =
-    (typeof workspaceConfig?.name === "string" && workspaceConfig.name.trim().length > 0
-      ? workspaceConfig.name.trim()
-      : projectKey.split("-").map(titleizeToken).join(" "));
+  const workspaceConfig = resolvePrimaryWorkspaceConfig(projectConfig);
+  const projectName = expectedProjectName(projectKey, projectConfig);
   const normalizedProjectStatus =
     projectConfig?.status === "active"
       ? "in_progress"
@@ -848,7 +907,7 @@ function buildNotionReconcilerRoutineDescription(mode) {
     "Inspect Blueprint Hub state first across Work Queue, Knowledge, Skills, Agents, and Agent Runs.",
     "Repair only clear metadata drift, stale flags, doctrine status, relation repair, and safe duplicates on Blueprint-managed pages.",
     "Do not guess across ambiguous page identity or unsafe archive/move decisions.",
-    `Call POST ${paperclipApiUrl}/api/plugins/blueprint.automation/actions/notion-reconciler-run with JSON body {"params":{"mode":"${mode}"...}} after the sweep is complete so Agent Runs mirrors the work.`,
+    `Call POST ${paperclipApiUrl}/api/plugins/blueprint.automation/actions/notion-reconciler-run with JSON body {"params":{"mode":"${mode}"...}} after the sweep is complete so Agent Runs mirrors the work under Notion Manager ownership.`,
     "After the action returns, PATCH the current issue to done when data.outcome is done; otherwise PATCH it to blocked.",
     "Use data.issueComment as the issue comment so the final state carries the repair counts and escalations.",
   ].join(" ");
@@ -1242,6 +1301,17 @@ function buildExecutionPolicyForAgent(agentConfig, requestedMode, effectiveAdapt
     };
   }
 
+  if (authoredAdapterType === "codex_local") {
+    return {
+      mode: "fixed",
+      compatibleAdapterTypes: ["codex_local"],
+      preferredAdapterTypes: ["codex_local"],
+      perAdapterConfig: {
+        codex_local: perAdapterConfig.codex_local,
+      },
+    };
+  }
+
   if (requestedMode === "codex") {
     return {
       mode: "prefer_available",
@@ -1260,19 +1330,17 @@ function buildExecutionPolicyForAgent(agentConfig, requestedMode, effectiveAdapt
     };
   }
 
-  if (authoredAdapterType === "codex_local") {
-    return {
-      mode: "prefer_available",
-      compatibleAdapterTypes: ["codex_local", "claude_local", "hermes_local"],
-      preferredAdapterTypes: ["codex_local", "claude_local", "hermes_local"],
-      perAdapterConfig,
-    };
-  }
-
   return {};
 }
 
 function chooseAdapterForAgent(desired, requestedMode, workspaceAvailability) {
+  // Codex-authored implementation/review/creative lanes are fixed primary
+  // adapter lanes during reconcile. A transient probe timeout is a verifier
+  // blocker, not a reason to demote the live primary adapter to Hermes.
+  if (desired.adapterType === "codex_local") {
+    return desired;
+  }
+
   // hermes mode: force all agents to hermes_local when it is available
   if (requestedMode === "hermes") {
     const hermesFree = hermesFreeFallbackFor(desired);
@@ -1429,10 +1497,12 @@ for (const [agentKey, desired] of Object.entries(desiredAgents)) {
   }
   const currentAdapterConfig = asPlainObject(agent.adapterConfig);
   const existingRuntimeConfig = asPlainObject(agent.runtimeConfig);
-  const preserveFixedLiveAdapter = shouldPreserveFixedLiveAdapter(
-    agent,
-    workspaceAvailability[currentAdapterConfig.cwd ?? desired.adapterConfig.cwd] ?? {},
-  );
+  const preserveFixedLiveAdapter =
+    agent.adapterType === desired.adapterType
+    && shouldPreserveFixedLiveAdapter(
+      agent,
+      workspaceAvailability[currentAdapterConfig.cwd ?? desired.adapterConfig.cwd] ?? {},
+    );
   const effectiveDesired = preserveFixedLiveAdapter
     ? {
       adapterType: agent.adapterType,
@@ -1636,6 +1706,8 @@ for (const desired of desiredRoutines) {
     description,
     priority,
     desiredStatus,
+    concurrencyPolicy,
+    catchUpPolicy,
   } = desired;
   if (!project || !agent) {
     console.warn(`Skipping routine ${title}: missing canonical project or agent`);
@@ -1659,8 +1731,8 @@ for (const desired of desiredRoutines) {
       }),
     });
 
-  const desiredConcurrencyPolicy = preferred.concurrencyPolicy ?? "coalesce_if_active";
-  const desiredCatchUpPolicy = preferred.catchUpPolicy ?? "skip_missed";
+  const desiredConcurrencyPolicy = concurrencyPolicy ?? "coalesce_if_active";
+  const desiredCatchUpPolicy = catchUpPolicy ?? "skip_missed";
   const routineNeedsPatch =
     preferred.projectId !== project.id
     || preferred.assigneeAgentId !== agent.id
