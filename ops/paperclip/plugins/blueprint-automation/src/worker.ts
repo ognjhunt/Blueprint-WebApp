@@ -154,6 +154,7 @@ import {
   buildDailyAccountabilitySnapshot,
   buildManagerStateSnapshot,
   collectRoutineHealthAlerts,
+  shouldWakeChiefOfStaffForRoutineActivity,
   shouldWakeChiefOfStaffForIssueEvent,
   type ManagerStateSnapshot,
   type ManagerRoutineHealthEntry,
@@ -1688,7 +1689,10 @@ async function findRecentOpenRouterProviderAuthRunBlocker(companyId: string): Pr
   const cutoffMs = Date.now() - OPENROUTER_PROVIDER_AUTH_BLOCKER_TTL_MS;
   for (const run of runs) {
     const observedAt = asString(run.finishedAt) ?? asString(run.updatedAt) ?? asString(run.startedAt) ?? asString(run.createdAt);
-    const observedAtMs = observedAt ? Date.parse(observedAt) : Number.NaN;
+    if (!observedAt) {
+      continue;
+    }
+    const observedAtMs = Date.parse(observedAt);
     const resetAt = parseCodexUsageLimitResetAt(run.error);
     const resetAtMs = resetAt ? Date.parse(resetAt) : Number.NaN;
     const resetStillActive = Number.isFinite(resetAtMs) && resetAtMs > Date.now();
@@ -1705,7 +1709,7 @@ async function findRecentOpenRouterProviderAuthRunBlocker(companyId: string): Pr
     const context = asRecord(run.contextSnapshot) ?? {};
     return {
       attemptedAt: observedAt,
-      issueId: asString(context.issueId),
+      issueId: asString(context.issueId) ?? null,
       runId: run.id,
     };
   }
@@ -1769,7 +1773,10 @@ async function findRecentCodexUsageLimitRunBlocker(companyId: string): Promise<{
   const cutoffMs = Date.now() - CODEX_USAGE_LIMIT_BLOCKER_TTL_MS;
   for (const run of runs) {
     const observedAt = asString(run.finishedAt) ?? asString(run.updatedAt) ?? asString(run.startedAt) ?? asString(run.createdAt);
-    const observedAtMs = observedAt ? Date.parse(observedAt) : Number.NaN;
+    if (!observedAt) {
+      continue;
+    }
+    const observedAtMs = Date.parse(observedAt);
     if (!Number.isFinite(observedAtMs) || observedAtMs < cutoffMs) {
       continue;
     }
@@ -1783,7 +1790,7 @@ async function findRecentCodexUsageLimitRunBlocker(companyId: string): Promise<{
     const context = asRecord(run.contextSnapshot) ?? {};
     return {
       attemptedAt: observedAt,
-      issueId: asString(context.issueId),
+      issueId: asString(context.issueId) ?? null,
       runId: run.id,
     };
   }
@@ -5950,11 +5957,15 @@ async function handleChiefOfStaffActivitySignal(
 ) {
   const payload = asRecord(event.payload);
   const action = asString(payload?.action);
-  if (action !== "routine.run_triggered") {
+  const details = asRecord(payload?.details);
+  if (!shouldWakeChiefOfStaffForRoutineActivity({
+    action,
+    status: asString(details?.status) ?? null,
+    source: asString(details?.source) ?? null,
+  })) {
     return;
   }
 
-  const details = asRecord(payload?.details);
   const config = await getConfig(ctx);
   await wakeChiefOfStaff(ctx, event.companyId, config, {
     reason: "routine.run_triggered",

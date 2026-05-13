@@ -98,7 +98,7 @@ const captureExamples = [
 
 const homeDirectAnswers = [
   {
-    question: "What does Blueprint do?",
+    question: "What is a site-specific world model?",
     answer:
       "Blueprint records real places and turns approved capture into site-specific world models robot teams can use for training runs, hosted evaluation, and deployment evidence.",
   },

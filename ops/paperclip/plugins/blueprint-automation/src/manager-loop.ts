@@ -691,3 +691,21 @@ export function shouldWakeChiefOfStaffForIssueEvent(input: {
 
   return Boolean(chiefOfStaffAgentId && issue.assigneeAgentId === chiefOfStaffAgentId);
 }
+
+export function shouldWakeChiefOfStaffForRoutineActivity(input: {
+  action?: string | null;
+  status?: string | null;
+  source?: string | null;
+}): boolean {
+  if ((input.action ?? "").trim() !== "routine.run_triggered") {
+    return false;
+  }
+
+  const status = (input.status ?? "").trim().toLowerCase();
+  const source = (input.source ?? "").trim().toLowerCase();
+  if (source === "manual" || source === "human" || source === "operator") {
+    return true;
+  }
+
+  return status === "blocked" || status === "failed" || status === "timed_out" || status === "error";
+}

@@ -2,7 +2,7 @@
   "schema_version": "2026-04-25.indoor-location-supply-rejected.v1",
   "city": "Durham, NC",
   "city_slug": "durham-nc",
-  "generated_at": "2026-05-12T01:00:27.127Z",
+  "generated_at": "2026-05-13T17:11:31.255Z",
   "status": "awaiting_capturer_growth_agent_location_supply",
   "source_activation_payload": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-activation-payload.json",
   "delegation_task_key": "public-commercial-community-sourcing",

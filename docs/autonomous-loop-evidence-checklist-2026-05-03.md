@@ -118,6 +118,7 @@ Deadline:
 
 - Paperclip issue id and proof-bearing comment.
 - WebApp ledger, Firestore projection, hosted-session id, buyer outcome record, or operating graph event when relevant.
+- Pipeline/WebApp sync closeout must name the real `site_submission_id`, `request_id`, `buyer_request_id`, and `capture_job_id` used for projection; missing request/job/bootstrap links are blockers, not placeholder records or hosted-review proof.
 - Targeted command output such as `npm run check`, focused `vitest`, launch smoke, or the domain-specific script that covers the claim.
 
 `BlueprintCapture`:

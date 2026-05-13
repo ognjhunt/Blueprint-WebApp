@@ -394,6 +394,68 @@ describe("pipeline integration routes", () => {
     }
   });
 
+  it("rejects pipeline sync without the upstream buyer request link", async () => {
+    process.env.PIPELINE_SYNC_TOKEN = "secret";
+    const { server, baseUrl } = await startServer(() => import("../routes/internal-pipeline"));
+
+    try {
+      const response = await fetch(`${baseUrl}/attachments`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Blueprint-Pipeline-Token": "secret",
+        },
+        body: JSON.stringify({
+          ...pipelineAttachmentFixture,
+          buyer_request_id: "",
+        }),
+      });
+
+      expect(response.status).toBe(400);
+      await expect(response.json()).resolves.toEqual(
+        expect.objectContaining({
+          code: "missing_pipeline_upstream_link",
+          missing_fields: expect.arrayContaining(["buyer_request_id"]),
+        })
+      );
+      expect(state.docSet).not.toHaveBeenCalled();
+      expect(state.docUpdate).not.toHaveBeenCalled();
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("rejects pipeline sync without the upstream capture job link", async () => {
+    process.env.PIPELINE_SYNC_TOKEN = "secret";
+    const { server, baseUrl } = await startServer(() => import("../routes/internal-pipeline"));
+
+    try {
+      const response = await fetch(`${baseUrl}/attachments`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Blueprint-Pipeline-Token": "secret",
+        },
+        body: JSON.stringify({
+          ...pipelineAttachmentFixture,
+          capture_job_id: "",
+        }),
+      });
+
+      expect(response.status).toBe(400);
+      await expect(response.json()).resolves.toEqual(
+        expect.objectContaining({
+          code: "missing_pipeline_upstream_link",
+          missing_fields: expect.arrayContaining(["capture_job_id"]),
+        })
+      );
+      expect(state.docSet).not.toHaveBeenCalled();
+      expect(state.docUpdate).not.toHaveBeenCalled();
+    } finally {
+      await stopServer(server);
+    }
+  });
+
   it("allows explicit placeholder fallback when pipeline sync fallback is enabled", async () => {
     process.env.PIPELINE_SYNC_TOKEN = "secret";
     process.env.PIPELINE_SYNC_ALLOW_PLACEHOLDER_REQUESTS = "true";

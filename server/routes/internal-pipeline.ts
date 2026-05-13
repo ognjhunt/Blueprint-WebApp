@@ -59,6 +59,16 @@ function allowPipelinePlaceholderRequests() {
   return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
 }
 
+function missingPipelineUpstreamLinks(body: Record<string, unknown>) {
+  const requiredFields = [
+    "site_submission_id",
+    "request_id",
+    "buyer_request_id",
+    "capture_job_id",
+  ] as const;
+  return requiredFields.filter((field) => !String(body[field] || "").trim());
+}
+
 function inferDefaultOpportunityState(
   qualificationState: QualificationState
 ): OpportunityState {
@@ -280,6 +290,7 @@ router.post("/attachments", requirePipelineToken, async (req: Request, res: Resp
     const parsedBody = parsePipelineAttachmentSyncPayload(body);
     const siteSubmissionId = String(parsedBody.site_submission_id || "").trim();
     const requestId = String(parsedBody.request_id || "").trim();
+    const missingUpstreamLinks = missingPipelineUpstreamLinks(parsedBody);
     const authoritativeStateUpdate = parsedBody.authoritative_state_update === true;
     const qualificationState = String(parsedBody.qualification_state || "").trim();
     const opportunityState = String(parsedBody.opportunity_state || "").trim();
@@ -292,6 +303,16 @@ router.post("/attachments", requirePipelineToken, async (req: Request, res: Resp
 
     if (!siteSubmissionId && !requestId) {
       return res.status(400).json({ error: "site_submission_id or request_id is required" });
+    }
+    if (missingUpstreamLinks.length > 0) {
+      return res.status(400).json({
+        error:
+          "Pipeline sync requires upstream request, site submission, buyer request, and capture job links.",
+        code: "missing_pipeline_upstream_link",
+        missing_fields: missingUpstreamLinks,
+        request_id: requestId || null,
+        site_submission_id: siteSubmissionId || null,
+      });
     }
 
     let docRef: FirebaseFirestore.DocumentReference | null = null;

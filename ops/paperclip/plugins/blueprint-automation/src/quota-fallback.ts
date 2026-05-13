@@ -350,7 +350,7 @@ export function buildOpenRouterProviderRouting(): Record<string, unknown> {
     ),
     allow_fallbacks: parseEnvBoolean(
       "BLUEPRINT_PAPERCLIP_HERMES_OPENROUTER_ALLOW_FALLBACKS",
-      true,
+      false,
     ),
   };
 }

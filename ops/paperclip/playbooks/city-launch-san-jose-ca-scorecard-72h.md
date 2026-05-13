@@ -4,10 +4,10 @@
 - evidence_boundary: checkpoint placeholder only until the window closes and the first-party collections below are queried
 - city: San Jose, CA
 - city_slug: san-jose-ca
-- launch_run_id: 2026-05-12T01-00-26.987Z
+- launch_run_id: 2026-05-13T17-11-30.906Z
 - checkpoint_hour: 72
-- window_start_iso: 2026-05-12T01:00:26.987Z
-- window_end_iso: 2026-05-15T01:00:26.987Z
+- window_start_iso: 2026-05-13T17:11:30.906Z
+- window_end_iso: 2026-05-16T17:11:30.906Z
 
 ## Prompt-To-Artifact Contract
 - canonical city launch plan and activation payload must be linked from the launch manifest.

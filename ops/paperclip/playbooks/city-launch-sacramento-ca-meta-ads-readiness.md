@@ -17,4 +17,4 @@
 ## Required Scorecard Evidence
 - ad_studio_runs query: collection("ad_studio_runs").where("city", "==", city).orderBy("updated_at_iso", "desc").limit(100)
 - meta_ads_cli_runs query: collection("meta_ads_cli_runs").where("city", "==", city).orderBy("createdAtIso", "desc").limit(100)
-- gtm_contract: /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/invalid-recipient-city-launch-harness-FMnKjb/sacramento-ca/2026-05-12T01-00-26.701Z/city-launch-sacramento-ca-gtm-72h-contract.md
+- gtm_contract: /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/autonomy-sparse-city-HIU9Lp/sacramento-ca/2026-05-13T17-12-11.760Z/city-launch-sacramento-ca-gtm-72h-contract.md

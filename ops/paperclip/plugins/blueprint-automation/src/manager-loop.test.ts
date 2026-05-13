@@ -5,6 +5,7 @@ import {
   buildDailyAccountabilitySnapshot,
   buildManagerStateSnapshot,
   collectRoutineHealthAlerts,
+  shouldWakeChiefOfStaffForRoutineActivity,
   shouldWakeChiefOfStaffForIssueEvent,
   type ManagerRoutineHealthEntry,
 } from "./manager-loop.js";
@@ -453,6 +454,40 @@ describe("manager loop helpers", () => {
           createdByAgentId: "ops-lead",
           originKind: "blueprint_automation",
         } as any,
+      }),
+    ).toBe(true);
+  });
+
+  it("does not wake chief of staff for routine start noise", () => {
+    expect(
+      shouldWakeChiefOfStaffForRoutineActivity({
+        action: "routine.run_triggered",
+        status: "running",
+        source: "schedule",
+      }),
+    ).toBe(false);
+
+    expect(
+      shouldWakeChiefOfStaffForRoutineActivity({
+        action: "routine.run_triggered",
+        status: "queued",
+        source: "schedule",
+      }),
+    ).toBe(false);
+
+    expect(
+      shouldWakeChiefOfStaffForRoutineActivity({
+        action: "routine.run_triggered",
+        status: "failed",
+        source: "schedule",
+      }),
+    ).toBe(true);
+
+    expect(
+      shouldWakeChiefOfStaffForRoutineActivity({
+        action: "routine.run_triggered",
+        status: "running",
+        source: "manual",
       }),
     ).toBe(true);
   });

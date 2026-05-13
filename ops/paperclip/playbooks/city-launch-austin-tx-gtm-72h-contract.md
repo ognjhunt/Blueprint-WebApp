@@ -3,7 +3,7 @@
 - status: deterministic launch contract
 - doctrine: capture-first, world-model-product-first, proof-led GTM only
 - city: Austin, TX
-- launch_run_id: 2026-05-12T01-00-25.399Z
+- launch_run_id: 2026-05-13T17-11-26.575Z
 - budget_tier: zero_budget
 - budget_max_usd: 0
 - founder_approved: true
@@ -26,9 +26,9 @@
 ## 24/48/72h Scorecard Windows
 | Checkpoint | Status | Window end | Run artifact | Canonical artifact |
 | --- | --- | --- | --- | --- |
-| 24h | scheduled_not_due | 2026-05-13T01:00:25.399Z | /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/approval-packet-city-launch-harness-vDFt4O/austin-tx/2026-05-12T01-00-25.399Z/city-launch-austin-tx-scorecard-24h.md | /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-austin-tx-scorecard-24h.md |
-| 48h | scheduled_not_due | 2026-05-14T01:00:25.399Z | /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/approval-packet-city-launch-harness-vDFt4O/austin-tx/2026-05-12T01-00-25.399Z/city-launch-austin-tx-scorecard-48h.md | /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-austin-tx-scorecard-48h.md |
-| 72h | scheduled_not_due | 2026-05-15T01:00:25.399Z | /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/approval-packet-city-launch-harness-vDFt4O/austin-tx/2026-05-12T01-00-25.399Z/city-launch-austin-tx-scorecard-72h.md | /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-austin-tx-scorecard-72h.md |
+| 24h | scheduled_not_due | 2026-05-14T17:11:26.575Z | /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/approval-packet-city-launch-harness-I4uNKc/austin-tx/2026-05-13T17-11-26.575Z/city-launch-austin-tx-scorecard-24h.md | /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-austin-tx-scorecard-24h.md |
+| 48h | scheduled_not_due | 2026-05-15T17:11:26.575Z | /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/approval-packet-city-launch-harness-I4uNKc/austin-tx/2026-05-13T17-11-26.575Z/city-launch-austin-tx-scorecard-48h.md | /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-austin-tx-scorecard-48h.md |
+| 72h | scheduled_not_due | 2026-05-16T17:11:26.575Z | /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/approval-packet-city-launch-harness-I4uNKc/austin-tx/2026-05-13T17-11-26.575Z/city-launch-austin-tx-scorecard-72h.md | /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-austin-tx-scorecard-72h.md |
 
 ## Firestore/Admin Evidence Sources
 | Collection | Query name | Query | Purpose |

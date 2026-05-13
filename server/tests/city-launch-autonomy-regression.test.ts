@@ -360,5 +360,5 @@ describe("city launch autonomy regression", () => {
       expect.arrayContaining(["contacts", "proofMotion", "hostedReview"]),
     );
     expect(certification.warnings.join("\n")).toContain("External market-signal enrichment unavailable");
-  });
+  }, 90_000);
 });

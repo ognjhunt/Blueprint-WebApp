@@ -43,14 +43,14 @@ const expectedOpenRouterProviderRouting = {
   only: [...DEFAULT_HERMES_OPENROUTER_PROVIDER_ORDER],
   order: [...DEFAULT_HERMES_OPENROUTER_PROVIDER_ORDER],
   ignore: [...DEFAULT_HERMES_OPENROUTER_PROVIDER_IGNORE],
-  allow_fallbacks: true,
+  allow_fallbacks: false,
 };
 
 const expectedOpenRouterProviderEnv = {
   OPENROUTER_PROVIDER_ONLY: DEFAULT_HERMES_OPENROUTER_PROVIDER_ORDER.join(","),
   OPENROUTER_PROVIDER_ORDER: DEFAULT_HERMES_OPENROUTER_PROVIDER_ORDER.join(","),
   OPENROUTER_PROVIDER_IGNORE: DEFAULT_HERMES_OPENROUTER_PROVIDER_IGNORE.join(","),
-  OPENROUTER_ALLOW_FALLBACKS: "1",
+  OPENROUTER_ALLOW_FALLBACKS: "0",
 };
 
 function expectedDefaultDeepSeekHermesConfig(cwd: string, timeoutSec = 1800) {

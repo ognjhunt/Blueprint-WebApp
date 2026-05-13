@@ -73,7 +73,47 @@ describe("agent task prompts", () => {
       expect(payloadIndex, `${kind} should label the final dynamic payload`).toBeGreaterThan(0);
       expect(returnShapeIndex, `${kind} should define return shape before payload`).toBeGreaterThan(0);
       expect(returnShapeIndex, `${kind} should place return shape before payload`).toBeLessThan(payloadIndex);
-      expect(prompt.trim().endsWith(JSON.stringify(sampleInputs[kind], null, 2))).toBe(true);
+      expect(JSON.parse(prompt.slice(payloadIndex + "Dynamic payload:".length).trim())).toEqual(sampleInputs[kind]);
     }
+  });
+
+  it("serializes dynamic payload object keys deterministically for prompt-cache reuse", async () => {
+    const { buildCacheFriendlyPrompt } = await import("../agents/tasks/prompt-cache");
+
+    const first = buildCacheFriendlyPrompt({
+      instructions: "Stable instructions.",
+      returnShape: {
+        z: "",
+        a: "",
+      },
+      payload: {
+        z: 1,
+        nested: {
+          b: 2,
+          a: 1,
+        },
+        a: 0,
+      },
+    });
+    const second = buildCacheFriendlyPrompt({
+      instructions: "Stable instructions.",
+      returnShape: {
+        a: "",
+        z: "",
+      },
+      payload: {
+        a: 0,
+        nested: {
+          a: 1,
+          b: 2,
+        },
+        z: 1,
+      },
+    });
+
+    expect(first).toBe(second);
+    expect(first).toContain('"a": 0');
+    expect(first.indexOf('"a": 0')).toBeLessThan(first.indexOf('"nested"'));
+    expect(first.indexOf('"a": 1')).toBeLessThan(first.indexOf('"b": 2'));
   });
 });

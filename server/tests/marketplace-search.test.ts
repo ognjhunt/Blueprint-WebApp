@@ -1,8 +1,16 @@
 // @vitest-environment node
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import express from "express";
 import { createServer } from "http";
 import type { Server } from "http";
+
+const embedTextsMock = vi.hoisted(() =>
+  vi.fn(async (texts: string[]) => texts.map(() => [] as number[])),
+);
+
+vi.mock("../retrieval/embeddings", () => ({
+  embedTexts: embedTextsMock,
+}));
 
 import {
   environmentPolicies,

@@ -52,7 +52,7 @@ describe("agent adapters", () => {
     only: ["deepseek", "atlas-cloud/fp8", "novita", "siliconflow/fp8"],
     order: ["deepseek", "atlas-cloud/fp8", "novita", "siliconflow/fp8"],
     ignore: ["parasail", "parasail/fp8", "akashml", "akashml/fp8", "deepinfra", "deepinfra/fp4"],
-    allow_fallbacks: true,
+    allow_fallbacks: false,
   };
 
   it("normalizes OpenAI structured output", async () => {

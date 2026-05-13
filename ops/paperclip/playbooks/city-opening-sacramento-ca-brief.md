@@ -18,7 +18,7 @@ Open Sacramento with truthful awareness before expecting replies: make the right
 - CTA: respond through the tagged city intake path with site type, access posture, contact role, and what kind of follow-up is requested.
 
 ## Evidence Anchors Available Now
-- No research-backed capture targets are materialized yet; keep claims narrow and posture-led.
+- Example research-backed capture targets: Northgate Logistics.
 - No research-backed buyer target set is materialized yet.
 
 ## Usage Rule

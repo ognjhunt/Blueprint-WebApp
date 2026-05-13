@@ -161,7 +161,7 @@ function openRouterProviderPreferences(model: string) {
     only: parseEnvList("DEEPSEEK_OPENROUTER_PROVIDER_ONLY", order),
     order,
     ignore: parseEnvList("DEEPSEEK_OPENROUTER_PROVIDER_IGNORE", DEFAULT_OPENROUTER_PROVIDER_IGNORE),
-    allow_fallbacks: parseEnvBoolean("DEEPSEEK_OPENROUTER_ALLOW_FALLBACKS", true),
+    allow_fallbacks: parseEnvBoolean("DEEPSEEK_OPENROUTER_ALLOW_FALLBACKS", false),
   };
 }
 
