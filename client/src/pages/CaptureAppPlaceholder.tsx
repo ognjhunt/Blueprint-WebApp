@@ -19,16 +19,16 @@ import { publicCaptureGeneratedAssets } from "@/lib/publicCaptureGeneratedAssets
 
 const steps = [
   {
-    label: "Plan",
-    body: "Pick a lawful public-facing route, identify sensitive zones, and keep the walkthrough narrow.",
+    label: "Apply",
+    body: "Enter the city or invite path. Approved assignments show the route, rules, and payout before you start.",
   },
   {
-    label: "Capture",
-    body: "Record grocery, retail, service, library, lobby, or other everyday spaces from common areas.",
+    label: "Walk",
+    body: "Use a phone first to walk one public-facing route, follow app guidance, and keep private or sensitive areas out.",
   },
   {
-    label: "Process",
-    body: "Blueprint reviews coverage, privacy, and usefulness before the capture becomes downstream output.",
+    label: "Review",
+    body: "Upload one complete walkthrough. Blueprint reviews it before an accepted capture can become payout-eligible.",
   },
 ] as const;
 
@@ -89,7 +89,7 @@ export default function CaptureAppPlaceholder() {
     <>
       <SEO
 	        title="Capture App | Blueprint"
-	        description="Open Blueprint Capture to record lawful public-facing locations and submit walkthrough evidence for review."
+	        description="Open Blueprint Capture for approved phone-first field assignments, lawful public-facing walkthroughs, and review-gated payout eligibility."
 	        canonical="/capture-app"
 	        noIndex
 	      />
@@ -108,27 +108,33 @@ export default function CaptureAppPlaceholder() {
                 <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.76),rgba(0,0,0,0.38)_58%,rgba(0,0,0,0.18))]" />
                 <div className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between gap-4 border-b border-white/10 px-6 py-4 text-[11px] uppercase tracking-[0.22em] text-white/60">
                   <span>Capture App</span>
-	                  <span>Capture & Earn</span>
+	                  <span>Paid Field Capture</span>
                   <span>Capture Basics</span>
                 </div>
                 <div className="relative flex h-full items-end px-6 py-8 lg:px-8">
                   <div className="max-w-[28rem]">
-	                    <SurfaceMiniLabel className="text-white/50">Public Capture Path</SurfaceMiniLabel>
+	                    <SurfaceMiniLabel className="text-white/50">Approved Capture Assignments</SurfaceMiniLabel>
 	                    <h1 className="mt-5 text-[clamp(3.5rem,7vw,6rem)] font-semibold uppercase leading-[0.86] tracking-[-0.08em] text-white">
-	                      Everyday site.
+	                      Get paid to capture real places robots need to understand.
 	                      <br />
-	                      Captured.
+	                      Phone first.
 	                    </h1>
 	                    <p className="mt-5 max-w-[22rem] text-base leading-8 text-white/75">
-	                      Open Blueprint Capture to record public-facing places people visit every day: grocery stores, retail aisles, libraries, lobbies, and other common areas where capture is allowed.
+	                      Open Blueprint Capture when you have access to an approved assignment:
+                        walk a public-facing route, follow app guidance, upload one complete
+                        walkthrough, and wait for review.
 	                    </p>
+                      <p className="mt-4 max-w-[22rem] text-sm leading-7 text-white/65">
+                        Payout applies only to an accepted capture. The assignment payout is shown
+                        before you start; review is required after upload.
+                      </p>
                     <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                       {showExternalHandoff ? (
                         <a
                           href={captureAppUrl}
                           className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/10 bg-white px-5 text-sm font-semibold text-[#111110] transition hover:bg-[#f4f0e8]"
                         >
-                          Open the capture app
+                          Open assignment app
                           <ExternalLink className="h-4 w-4" />
                         </a>
                       ) : (
@@ -136,7 +142,7 @@ export default function CaptureAppPlaceholder() {
                           href="/capture-app/launch-access?source=capture-app-placeholder"
                           className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/10 bg-white px-5 text-sm font-semibold text-[#111110] transition hover:bg-[#f4f0e8]"
                         >
-	                          Request capture access
+	                          Request assignment access
 	                          <Mail className="h-4 w-4" />
                         </a>
                       )}
@@ -144,7 +150,7 @@ export default function CaptureAppPlaceholder() {
                         href="/signup/capturer"
                         className="inline-flex min-h-12 items-center justify-center rounded-full border border-white/20 px-5 text-sm font-semibold text-white transition hover:bg-white/10"
                       >
-	                        Apply for capturer access
+	                        Apply to capture
                       </a>
                     </div>
                   </div>
@@ -157,13 +163,13 @@ export default function CaptureAppPlaceholder() {
                     <div className="flex items-center justify-between gap-3">
                       <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/70">
                         <Smartphone className="h-3.5 w-3.5" />
-                        Capture App
+                        Phone-first capture
                       </div>
 	                      <span className="text-[10px] uppercase tracking-[0.22em] text-white/45">Review required</span>
                     </div>
                     <div className="mt-6 rounded-[1.6rem] border border-white/10 bg-white/5 p-5">
                       <p className="text-center text-sm font-semibold uppercase tracking-[0.22em] text-white/55">
-                        {showExternalHandoff ? "Scan to open" : "Scan to request access"}
+                      {showExternalHandoff ? "Scan to open" : "Scan to request assignment access"}
                       </p>
                       <div className="mt-4 flex justify-center">
                         <div className="rounded-[1.35rem] border border-white/10 bg-[#f8f5ee] p-3">
@@ -186,8 +192,8 @@ export default function CaptureAppPlaceholder() {
                       </div>
                     <p className="mt-4 text-center text-sm leading-6 text-white/65">
                       {showExternalHandoff
-                        ? "Capturers use this stable path to open the app, follow field rules, and submit walkthroughs for review."
-                        : "The app link is invite-gated for now. Request access or apply as a capturer so Blueprint can route the right access path."}
+                        ? "Capturers use this stable path to open the app, follow field rules, and submit accepted-capture candidates for review."
+                        : "The app link is invite-gated for now. Request access or apply as a capturer so Blueprint can route the right city, invite, and review path."}
                     </p>
                     </div>
                     <div className="mt-5">
@@ -200,7 +206,7 @@ export default function CaptureAppPlaceholder() {
                         tone="secondary"
                         className="w-full rounded-full"
                       >
-                        {showExternalHandoff ? "Open the capture app" : "Request capture access"}
+                        {showExternalHandoff ? "Open assignment app" : "Request assignment access"}
                       </SurfaceButton>
                     </div>
                   </div>
@@ -234,7 +240,7 @@ export default function CaptureAppPlaceholder() {
                         ))
                       ) : (
                         <p className="text-sm leading-7 text-black/55">
-	                          City access is opening in stages. Leave a signal if your city is not open yet, especially if you can capture common public-facing locations.
+	                        City access is opening in stages. Leave a signal if your city is not open yet, especially if you can capture public-area-only routes in common public-facing locations.
                         </p>
                       )}
                     </div>
@@ -262,7 +268,7 @@ export default function CaptureAppPlaceholder() {
                 <div className="rounded-[1.35rem] border border-black/10 bg-[#111110] p-5 text-white">
                   <SurfaceMiniLabel className="text-white/50">Need The Buyer Side Instead?</SurfaceMiniLabel>
                   <p className="mt-4 text-base leading-7 text-white/75">
-	                    Robot teams browse exact-site worlds and hosted review. Capturers use this path to record lawful public-facing locations for review.
+	                    Robot teams browse exact-site worlds and hosted review. Capturers use this path for approved paid assignments, lawful public-facing walkthroughs, and review-gated payout eligibility.
                   </p>
                   <a
                     href="/world-models"
@@ -278,7 +284,10 @@ export default function CaptureAppPlaceholder() {
                 <div className="rounded-[1.35rem] border border-black/10 bg-[#111110] p-5 text-white">
                   <SurfaceMiniLabel className="text-white/50">Capture Opportunities</SurfaceMiniLabel>
                   <p className="mt-4 text-base leading-7 text-white/75">
-                    The public app is for ordinary places with useful robot workflows: store aisles, lobbies, corridors, common areas, venues, and service spaces.
+                    The public app is for ordinary places with useful robot workflows: store
+                    aisles, lobbies, corridors, common areas, venues, and service spaces.
+                    Smart glasses are supported only for approved repeat walkthroughs where
+                    hardware and launch proof exist.
                   </p>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

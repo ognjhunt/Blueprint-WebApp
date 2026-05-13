@@ -40,9 +40,13 @@ import { publicCaptureGeneratedAssets } from "@/lib/publicCaptureGeneratedAssets
 import { joinLaunchCityLabels } from "@/lib/publicLaunchStatus";
 
 const EQUIPMENT_OPTIONS = [
-  { value: "iphone", label: "iPhone", detail: "Best fit for mobile indoor capture." },
+  { value: "iphone", label: "iPhone", detail: "Best fit for phone-first walkthrough work." },
   { value: "ipad", label: "iPad", detail: "Useful when you already work from a tablet." },
-  { value: "smart_glasses", label: "Smart glasses", detail: "Good fit for repeat walkthroughs." },
+  {
+    value: "smart_glasses",
+    label: "Smart glasses",
+    detail: "Optional for approved repeat walkthroughs when hardware and launch proof exist.",
+  },
 ] as const;
 
 const AVAILABILITY_OPTIONS = [
@@ -479,7 +483,7 @@ export default function CapturerSignUpFlow() {
     <>
       <SEO
         title="Capturer Access | Blueprint"
-        description="Apply for capturer access and complete Blueprint mobile capture setup."
+        description="Apply for paid Blueprint field capture access and complete review-gated mobile capture setup."
         canonical="/signup/capturer"
         noIndex={true}
       />
@@ -517,10 +521,18 @@ export default function CapturerSignUpFlow() {
 
             <div className="space-y-4">
               <h1 className="max-w-md text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-                Apply on web. Capture in the Blueprint app.
+                Apply to get paid for approved field capture.
               </h1>
               <p className="max-w-lg text-base leading-7 text-[color:var(--ink-soft)]">
-                Capturer access is public to request and review-based by market. This page creates the account and routes the application; actual capture work happens in Blueprint Capture, not the operator dashboard.
+                Capturer access is public to request and review-based by market. This page creates
+                the account and routes the application for phone-first walkthrough work; actual
+                capture assignments happen in Blueprint Capture, not the operator dashboard.
+              </p>
+              <p className="max-w-lg text-sm leading-6 text-[color:var(--ink-soft)]">
+                Review is required before any assignment or payout eligibility. The assignment
+                payout is shown before you start, and only an accepted capture can move forward.
+                Smart glasses stay optional for approved repeat walkthroughs where hardware and
+                launch proof exist.
               </p>
               <p className="max-w-lg text-sm leading-6 text-[color:var(--ink-soft)]">
                 Robot teams and site operators use the{" "}
@@ -546,24 +558,24 @@ export default function CapturerSignUpFlow() {
             <div className="grid gap-3 sm:grid-cols-3">
               <div className="rounded-2xl border border-[color:var(--line)] bg-white/85 p-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--ink-muted)]">
-                  Session length
+                  Field task
                 </p>
-                <p className="mt-3 text-2xl font-semibold">15-30 min</p>
-                <p className="mt-1 text-sm text-[color:var(--ink-soft)]">Short, repeatable site walks.</p>
+                <p className="mt-3 text-2xl font-semibold">One route</p>
+                <p className="mt-1 text-sm text-[color:var(--ink-soft)]">Walk, upload, review.</p>
               </div>
               <div className="rounded-2xl border border-[color:var(--line)] bg-white/85 p-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--ink-muted)]">
                   Gear
                 </p>
                 <p className="mt-3 text-2xl font-semibold">Phone first</p>
-                <p className="mt-1 text-sm text-[color:var(--ink-soft)]">Smart glasses supported when available.</p>
+                <p className="mt-1 text-sm text-[color:var(--ink-soft)]">Smart glasses when approved.</p>
               </div>
               <div className="rounded-2xl border border-[color:var(--line)] bg-white/85 p-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--ink-muted)]">
                   Web role
                 </p>
-                <p className="mt-3 text-2xl font-semibold">Apply + status</p>
-                <p className="mt-1 text-sm text-[color:var(--ink-soft)]">Not the primary place to work.</p>
+                <p className="mt-3 text-2xl font-semibold">Apply + review</p>
+                <p className="mt-1 text-sm text-[color:var(--ink-soft)]">No guaranteed assignments.</p>
               </div>
             </div>
 
@@ -596,7 +608,8 @@ export default function CapturerSignUpFlow() {
                     <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[color:var(--leaf)] text-xs font-semibold text-white">
                       3
                     </span>
-                    Approved capturers receive mobile access instructions and complete sessions in Blueprint Capture.
+                    Approved capturers receive mobile access instructions, see assignment payout
+                    before starting, and complete public-area-only sessions in Blueprint Capture.
                   </li>
                 </ol>
               </div>
@@ -630,7 +643,7 @@ export default function CapturerSignUpFlow() {
               <p className="mt-2 max-w-xl text-sm leading-6 text-[color:var(--ink-soft)]">
                 {step === 1
                   ? "Keep the web form short. We only need enough to open your account and move you into the right market."
-                  : "This is a capturer application, not a buyer site intake. Keep it focused on where you can capture, your device fit, and the market review path."}
+                  : "This is a capturer application, not a buyer site intake. Keep it focused on where you can capture, your device fit, and the review path for approved assignments."}
                   </p>
                 </div>
                 <StepDots currentStep={step} />
@@ -827,7 +840,7 @@ export default function CapturerSignUpFlow() {
                       <div>
                         <p className="text-sm font-semibold text-[color:var(--ink)]">What can you capture with?</p>
                         <p className="mt-1 text-sm text-[color:var(--ink-soft)]">
-                          Select the devices you can reliably use for indoor walkthroughs.
+                          Select the devices you can reliably use for public-facing walkthroughs.
                         </p>
                       </div>
                       <div className="grid gap-3">
@@ -909,8 +922,10 @@ export default function CapturerSignUpFlow() {
                         />
                         <span className="text-sm leading-6 text-[color:var(--ink-soft)]">
                           I understand this is an application for capturer access, not an open
-                          signup. Approval is not guaranteed — Blueprint reviews each submission for
-                          market fit and device availability before granting capture access. Actual
+                          signup. Approval is not guaranteed; Blueprint reviews each submission for
+                          market fit, device availability, privacy fit, and cohort capacity before
+                          granting capture access. Assignments show payout before work starts, but
+                          payout eligibility requires an accepted capture after review. Actual
                           capture sessions, verification, and payout setup happen in Blueprint
                           Capture. I agree to Blueprint&apos;s{" "}
                           <a href="/terms" className="font-semibold text-[color:var(--leaf-deep)] underline-offset-4 hover:underline">

@@ -12,24 +12,24 @@ import { ArrowRight, DollarSign } from "lucide-react";
 const processRows = [
   {
     step: "01",
-    label: "Capture",
-    title: "Open the app",
+    label: "Assignment",
+    title: "Accept a reviewed assignment",
     body:
-      "Capturers record in the mobile app. Use this page to open the app or request access.",
+      "Apply for access, enter the city or invite gate, and only start work when an approved capture assignment is visible with the payout shown before you start.",
   },
   {
     step: "02",
-    label: "Upload",
-    title: "Keep one walkthrough moving",
+    label: "Walkthrough",
+    title: "Walk one public-facing route",
     body:
-      "Record one complete pass, keep the app open, and let Blueprint review coverage before the capture supports a package.",
+      "Follow app guidance through a lawful public-facing route, avoid private or sensitive areas, and upload one complete walkthrough for review.",
   },
   {
     step: "03",
     label: "Review",
-    title: "Approval stays explicit",
+    title: "Accepted capture or redo",
     body:
-      "Access stays invite- and code-gated. Coverage, quality, and route accuracy still decide whether the capture is usable.",
+      "Blueprint reviews coverage, privacy fit, route accuracy, and completeness. Payout eligibility starts only after an accepted capture, not from signup alone.",
   },
 ];
 
@@ -45,14 +45,14 @@ export default function Capture() {
     <>
       <SEO
         title="For Capturers | Blueprint"
-        description="Check where Blueprint capture is open, apply for capturer access, and learn how lawful public-facing walkthroughs support site-specific products."
+        description="Apply for paid Blueprint capture assignments, record lawful public-facing walkthroughs, and learn how review, city gates, privacy, and payout eligibility work."
         canonical="/capture"
         jsonLd={[
           webPageJsonLd({
             path: "/capture",
             name: "Blueprint For Capturers",
             description:
-              "How lawful public-facing capture, review gates, provenance, privacy, and rights handling support site-specific products for robot teams.",
+              "How approved capturers can complete phone-first public-facing walkthrough assignments with review gates, provenance, privacy, and conditional payout eligibility.",
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },
@@ -67,26 +67,31 @@ export default function Capture() {
             <div className="px-8 py-10 lg:px-12 lg:py-14">
               <EditorialSectionLabel>Capture</EditorialSectionLabel>
               <h1 className="font-editorial mt-8 max-w-[24rem] text-[4rem] leading-[0.88] tracking-[-0.07em] text-slate-950 sm:text-[5.2rem]">
-                Capture real places only where Blueprint has opened access.
+                Get paid to capture real places robots need to understand.
               </h1>
               <p className="mt-8 max-w-[30rem] text-base leading-8 text-slate-700">
-                If you can record public-facing places, start here. Capture access is city-,
-                invite-, and code-gated so reviewed walkthroughs can support real site products
-                without pretending every location is open.
+                Apply for approved field capture assignments you can complete with a phone first.
+                Walk a public-facing route, follow app guidance, upload one complete walkthrough,
+                and wait for review. Access stays city-, invite-, and code-gated so Blueprint
+                never treats every location as open.
+              </p>
+              <p className="mt-4 max-w-[30rem] text-sm leading-7 text-slate-600">
+                Payout language is conditional: assignment payout shown before you start, review
+                required after upload, and only an accepted capture can become payout-eligible.
               </p>
               <div className="mt-10 flex flex-wrap gap-3">
                 <a
                   href="/capture-app/launch-access?role=capturer&source=capture-hero"
                   className="inline-flex items-center justify-center bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                 >
-                  Check capture access
+                  Find paid assignments
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </a>
                 <a
                   href="/signup/capturer"
                   className="inline-flex items-center justify-center border border-black/10 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
                 >
-                  Apply for capturer access
+                  Apply to capture
                 </a>
               </div>
             </div>
@@ -150,16 +155,16 @@ export default function Capture() {
                           Field route
                         </p>
                         <div className="mt-4 space-y-3 text-sm text-white/80">
-                          <div>Route 04</div>
-                          <div>Floor 02</div>
-                          <div>Wing B</div>
+                          <div>Public aisle route</div>
+                          <div>Common area only</div>
+                          <div>Review required</div>
                         </div>
                         <div className="mt-6 border-t border-white/10 pt-5">
                           <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">
-                            Uploading
+                          Uploading
                           </p>
                           <p className="mt-3 text-4xl tracking-[-0.06em]">73%</p>
-                          <p className="mt-2 text-sm text-white/55">2.4 GB / 3.2 GB</p>
+                          <p className="mt-2 text-sm text-white/55">One complete walkthrough</p>
                           <div className="mt-4 h-px w-full bg-white/10">
                             <div className="h-px w-[73%] bg-white" />
                           </div>
@@ -169,13 +174,13 @@ export default function Capture() {
                       <div className="bg-[#f5f3ef] px-6 py-6">
                         <div className="border border-black/10 bg-white p-5">
                           <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
-                            Uplink
+                          Assignment
                           </p>
-                          <p className="mt-4 text-sm text-slate-700">Wi-Fi</p>
-                          <p className="mt-1 text-sm text-slate-700">Blueprint_Capture</p>
+                          <p className="mt-4 text-sm text-slate-700">Payout shown upfront</p>
+                          <p className="mt-1 text-sm text-slate-700">Accepted capture required</p>
                           <ul className="mt-5 space-y-2 text-sm text-slate-700">
-                            <li>Uploading...</li>
-                            <li>Keep app open</li>
+                            <li>Follow app guidance</li>
+                            <li>Upload after route completion</li>
                           </ul>
                         </div>
                       </div>
@@ -192,10 +197,10 @@ export default function Capture() {
                         </ul>
                         <div className="mt-6 border-t border-white/10 pt-4">
                           <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">
-                            Status
+                          Result
                           </p>
-                          <p className="mt-3 text-2xl tracking-[-0.05em]">Approved</p>
-                          <p className="mt-2 text-sm text-white/55">Ready for processing</p>
+                          <p className="mt-3 text-2xl tracking-[-0.05em]">Accepted capture</p>
+                          <p className="mt-2 text-sm text-white/55">Payout review can proceed</p>
                         </div>
                       </div>
                     )}
@@ -209,15 +214,20 @@ export default function Capture() {
                 <div>
                   <div className="inline-flex items-center gap-2 border border-black/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-700">
                     <DollarSign className="h-3.5 w-3.5" />
-                    Current capture rollout
+                    Paid field capture rollout
                   </div>
                   <h2 className="font-editorial mt-5 max-w-[36rem] text-[2.8rem] leading-[0.94] tracking-[-0.05em] text-slate-950">
-                    Current capture access is limited to launch-approved cities.
+                    Capture work opens only where the city, assignment, and review gates are ready.
                   </h2>
                   <p className="mt-4 max-w-[40rem] text-sm leading-7 text-slate-700">
-                    Blueprint Capture follows the current launch-city roster. If your city is not in the
-                    current rollout, you can still register interest, but the app and public
-                    capture feed stay locked until the city is approved.
+                    Blueprint Capture follows the current launch-city roster. If your city is not
+                    in the current rollout, you can still register interest, but paid assignments,
+                    app access, and the public capture feed stay locked until the city is approved.
+                    Public-area-only and privacy-safe route rules stay visible before field work.
+                  </p>
+                  <p className="mt-3 max-w-[40rem] text-sm leading-7 text-slate-700">
+                    Smart glasses are aspirational here: supported for approved repeat walkthroughs
+                    only when hardware, launch proof, and downstream capture proof exist.
                   </p>
                 </div>
                 <div>
@@ -226,25 +236,25 @@ export default function Capture() {
                       {launchStatusLoading ? (
                         <>
                           <strong>Checking current launch cities.</strong> Capture access stays
-                          locked until the launch roster confirms a city is open.
+                          locked until the launch roster confirms a city is open for approved assignments.
                         </>
                       ) : launchStatusError ? (
                         <>
                           <strong>Launch status unavailable.</strong> This page is not treating any
-                          city as supported from saved page copy. Request access or check the launch map
-                          for the current backend status.
+                          city as supported from saved page copy. Request access or check the
+                          launch map for the current backend status before expecting assignments.
                         </>
                       ) : supportedCities.length ? (
                         <>
                           <strong>Currently supported:</strong>{" "}
                           {supportedCities.map((city) => city.displayName).join(", ")}. Only
-                          approved launch cities open public capture access and capture cards.
+                          approved launch cities open public capture access, assignment cards, and payout review.
                         </>
                       ) : (
                         <>
                           <strong>No public launch cities are marked open right now.</strong> You can
-                          still request access, but the app and capture feed stay locked until the
-                          city is approved.
+                          still request access, but the app, assignment feed, and payout review
+                          stay locked until the city is approved.
                         </>
                       )}
                     </p>

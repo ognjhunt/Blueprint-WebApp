@@ -61,7 +61,7 @@ export const publicCaptureProofStories: PublicProofStory[] = [
     locationType: "Grocery store public aisles",
     city: "Austin, TX",
     captureMode: "Public-facing route from common customer areas",
-    captureAppCue: "$40 review cue, 25 minute walkthrough",
+    captureAppCue: "Review required; assignment payout shown before start",
     buyerPersona: "Maya Ortiz",
     buyerRole: "Robotics deployment lead",
     robotQuestion:
@@ -87,7 +87,7 @@ export const publicCaptureProofStories: PublicProofStory[] = [
     locationType: "Shopping mall common areas",
     city: "Sacramento, CA",
     captureMode: "Public common-area loop",
-    captureAppCue: "$45 review cue, 30 minute walkthrough",
+    captureAppCue: "Review required; assignment payout shown before start",
     buyerPersona: "Evan Cho",
     buyerRole: "Autonomy product manager",
     robotQuestion:
@@ -113,7 +113,7 @@ export const publicCaptureProofStories: PublicProofStory[] = [
     locationType: "Hotel lobby and public common areas",
     city: "Durham, NC",
     captureMode: "Lobby and public circulation path",
-    captureAppCue: "$80 review cue, 40 minute walkthrough",
+    captureAppCue: "Review required; assignment payout shown before start",
     buyerPersona: "Priya Raman",
     buyerRole: "Robot delivery partnerships",
     robotQuestion:
@@ -139,7 +139,7 @@ export const publicCaptureProofStories: PublicProofStory[] = [
     locationType: "Retail store public aisles",
     city: "San Jose, CA",
     captureMode: "Public sales-floor route",
-    captureAppCue: "$40 review cue, 25 minute walkthrough",
+    captureAppCue: "Review required; assignment payout shown before start",
     buyerPersona: "Noah Stein",
     buyerRole: "Field robotics founder",
     robotQuestion:

@@ -21,6 +21,7 @@
     "paperclip:backfill-legacy-inbound-request-states": "tsx scripts/paperclip/backfill-legacy-inbound-request-states.ts",
     "smoke:launch": "node scripts/launch-smoke.mjs",
     "smoke:launch:local": "node scripts/launch-smoke-local.mjs",
+    "test": "vitest run",
     "human-replies:poll": "tsx scripts/human-replies/poll-gmail-replies.ts",
     "human-replies:audit-gmail": "tsx scripts/human-replies/audit-gmail-oauth.ts",
     "human-replies:audit-durability": "tsx scripts/human-replies/audit-outbound-reply-durability.ts",

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import Capture from "@/pages/Capture";
 import CaptureAppPlaceholder from "@/pages/CaptureAppPlaceholder";
 import CaptureLaunchAccess from "@/pages/CaptureLaunchAccess";
+import CapturerSignUpFlow from "@/pages/CapturerSignUpFlow";
 import Login from "@/pages/Login";
 
 const launchStatusMock = vi.hoisted(() => ({
@@ -69,11 +70,16 @@ describe("Capturer access copy", () => {
     render(<Capture />);
 
     expect(
-      screen.getByRole("heading", { name: /Capture real places only where Blueprint has opened access/i }),
+      screen.getByRole("heading", { name: /Get paid to capture real places robots need to understand/i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/invite- and code-gated/i)).toBeInTheDocument();
-    expect(screen.getByText(/If you can record public-facing places, start here/i)).toBeInTheDocument();
+    expect(screen.getByText(/assignment payout shown before you start/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/accepted capture/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/walk a public-facing route/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/upload one complete walkthrough/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/public-area-only/i)).toBeInTheDocument();
+    expect(screen.getByText(/city-, invite-, and code-gated/i)).toBeInTheDocument();
     expect(screen.getByText(/Currently supported:/i)).toBeInTheDocument();
+    expect(screen.queryByText(/\$40 average/i)).not.toBeInTheDocument();
   });
 
   it("does not infer supported capture cities when launch status is unavailable", () => {
@@ -107,9 +113,34 @@ describe("Capturer access copy", () => {
   it("keeps the capture app handoff explicit about approval gates", () => {
     render(<CaptureAppPlaceholder />);
 
-    expect(screen.getByText(/Open Blueprint Capture to record public-facing places people visit every day/i)).toBeInTheDocument();
-    expect(screen.getByText(/Review required/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Get paid to capture real places robots need to understand/i })).toBeInTheDocument();
+    expect(screen.getAllByText(/phone first/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/smart glasses are supported only for approved repeat walkthroughs/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/accepted capture/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Review required/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Available launch cities/i)).toBeInTheDocument();
+    expect(screen.queryByText(/\$40 average/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/\$(40|45|80)\b/i)).not.toBeInTheDocument();
+  });
+
+  it("keeps launch-access copy focused on city demand and local capturer signals", () => {
+    render(<CaptureLaunchAccess />);
+
+    expect(screen.getByRole("heading", { name: /Signal demand for paid capture in your city/i })).toBeInTheDocument();
+    expect(screen.getByText(/local capturer or operator signal/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/approved assignments/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/public-area-only capture candidates/i)).toBeInTheDocument();
+    expect(screen.queryByText(/\$40 average/i)).not.toBeInTheDocument();
+  });
+
+  it("keeps the capturer application simple and honest about review", () => {
+    render(<CapturerSignUpFlow />);
+
+    expect(screen.getByRole("heading", { name: /Apply to get paid for approved field capture/i })).toBeInTheDocument();
+    expect(screen.getByText(/phone-first walkthrough work/i)).toBeInTheDocument();
+    expect(screen.getByText(/review is required before any assignment or payout eligibility/i)).toBeInTheDocument();
+    expect(screen.getByText(/Smart glasses stay optional/i)).toBeInTheDocument();
+    expect(screen.queryByText(/\$40 average/i)).not.toBeInTheDocument();
   });
 
   it("keeps capturers on the mobile path from the sign-in page", () => {
