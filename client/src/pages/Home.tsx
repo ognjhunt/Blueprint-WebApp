@@ -386,7 +386,7 @@ export default function Home() {
       <div className="bg-[#f5f3ef] text-slate-950">
         <section className="border-b border-black/10" data-home-section="hero">
           <MonochromeMedia
-            src={editorialGeneratedAssets.homeHero}
+            src="/generated/editorial/world-models-hero.png"
             alt={heroSite.siteName}
             className="min-h-[42rem] rounded-none"
             loading="eager"
