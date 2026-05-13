@@ -181,6 +181,21 @@ export default function Pricing() {
                 <p className="mt-6 text-lg leading-8 text-slate-700">
                   Pick package access when your team needs files. Pick hosted evaluation when it wants Blueprint to run the site first. Use custom scope for private, multi-site, or unusual rights work.
                 </p>
+                <div className="mt-8 flex flex-wrap gap-3">
+                  <a
+                    href="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=pricing-hero"
+                    className="inline-flex items-center justify-center bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                  >
+                    Request hosted evaluation
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </a>
+                  <a
+                    href="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=request-capture&source=pricing-hero"
+                    className="inline-flex items-center justify-center border border-black/10 bg-white/75 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-white"
+                  >
+                    Request world model
+                  </a>
+                </div>
               </div>
             </div>
           </MonochromeMedia>
@@ -385,22 +400,22 @@ export default function Pricing() {
           <div className="mt-8 grid gap-3 sm:flex sm:flex-wrap">
             <a
               href={publicDemoHref}
-              className="inline-flex items-center justify-center rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+              className="inline-flex items-center justify-center bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
             >
               Open sample world model
               <ArrowRight className="ml-2 h-4 w-4" />
             </a>
             <a
               href="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=pricing"
-              className="inline-flex items-center justify-center rounded-full border border-black/10 bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-50"
+              className="inline-flex items-center justify-center border border-black/10 bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-50"
             >
               Request hosted evaluation
             </a>
             <a
               href="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=request-capture&source=pricing"
-              className="inline-flex items-center justify-center rounded-full border border-black/10 px-6 py-3 text-sm font-semibold text-slate-700 transition hover:bg-white"
+              className="inline-flex items-center justify-center border border-black/10 px-6 py-3 text-sm font-semibold text-slate-700 transition hover:bg-white"
             >
-              Request capture/world model
+              Request world model
             </a>
           </div>
         </section>

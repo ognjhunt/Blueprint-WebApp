@@ -10,6 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { BrandLockup } from "./BrandMark";
 import { primaryNavLinks } from "./navigation";
 
 export function Header() {
@@ -49,25 +50,24 @@ export function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-40 border-b border-white/10 bg-black text-white">
+    <header className="sticky top-0 z-40 border-b border-white/10 bg-[#0d0d0b] text-white">
       <div className="mx-auto flex max-w-[88rem] items-center justify-between gap-4 px-4 py-4 sm:px-6">
         <a
           href="/"
           className="inline-flex min-h-11 items-center text-white transition hover:opacity-90"
+          aria-label="Blueprint home"
         >
-          <span className="font-editorial text-[2.1rem] leading-none tracking-[-0.05em]">
-            Blueprint
-          </span>
+          <BrandLockup tone="paper" compact />
         </a>
 
-        <nav className="hidden min-w-0 flex-1 items-center justify-center gap-7 xl:flex">
+        <nav className="hidden min-w-0 flex-1 items-center justify-center gap-6 xl:flex">
           {primaryNavLinks.map((link) => {
             const active = isActive(link.href);
             return (
               <a
                 key={link.href}
                 href={link.href}
-                className={`relative pb-1.5 text-sm font-medium tracking-[-0.01em] transition ${
+                className={`relative pb-1.5 text-sm font-semibold tracking-[-0.01em] transition ${
                   active ? "text-white" : "text-white/60 hover:text-white"
                 }`}
               >
@@ -85,7 +85,7 @@ export function Header() {
         <div className="hidden items-center gap-4 xl:flex">
           <a
             href="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=request-capture&source=header"
-            className="inline-flex items-center justify-center whitespace-nowrap rounded-none border border-white/20 px-4.5 py-2.5 text-[13px] font-semibold leading-none text-white transition hover:bg-white/10"
+            className="inline-flex items-center justify-center whitespace-nowrap border border-[#c7a775]/55 bg-[#c7a775] px-[1.125rem] py-2.5 text-[13px] font-semibold leading-none text-[#0d0d0b] transition hover:bg-[#d8bd8d]"
           >
             Request world model
           </a>
@@ -138,7 +138,7 @@ export function Header() {
       </div>
 
       {open ? (
-        <div className="border-t border-white/10 bg-black xl:hidden">
+        <div className="border-t border-white/10 bg-[#0d0d0b] xl:hidden">
           <nav className="mx-auto flex max-w-6xl flex-col gap-5 px-4 py-5 text-sm font-medium text-white">
             <div className="space-y-2">
               <p className="px-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/60">
@@ -158,7 +158,7 @@ export function Header() {
 
             <a
               href="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=request-capture&source=mobile-header"
-              className="inline-flex min-h-11 items-center justify-center rounded-none border border-white/20 bg-white/5 px-4 py-2.5 text-center font-semibold text-white"
+              className="inline-flex min-h-11 items-center justify-center rounded-none border border-[#c7a775]/55 bg-[#c7a775] px-4 py-2.5 text-center font-semibold text-[#0d0d0b]"
               onClick={() => setOpen(false)}
             >
               Request world model

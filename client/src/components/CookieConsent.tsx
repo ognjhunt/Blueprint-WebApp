@@ -69,12 +69,12 @@ export function CookieConsent() {
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-50 p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] sm:p-6 sm:pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]">
-      <div className="mx-auto max-w-2xl rounded-2xl border border-zinc-200 bg-white p-6 shadow-xl">
+      <div className="mx-auto max-w-2xl border border-black/10 bg-[#f5f1e8] p-6 shadow-xl">
         {/* Header */}
         <div className="mb-4 flex items-start justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-50">
-              <Cookie className="h-5 w-5 text-indigo-600" />
+            <div className="flex h-10 w-10 items-center justify-center border border-black/10 bg-white">
+              <Cookie className="h-5 w-5 text-slate-900" />
             </div>
             <div>
               <h3 className="text-lg font-semibold text-zinc-900">Cookie Preferences</h3>
@@ -83,7 +83,7 @@ export function CookieConsent() {
           </div>
           <button
             onClick={handleRejectAll}
-            className="rounded-full p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600"
+            className="p-1 text-zinc-500 hover:bg-white hover:text-zinc-900"
             aria-label="Close"
           >
             <X className="h-5 w-5" />
@@ -94,7 +94,7 @@ export function CookieConsent() {
         <p className="mb-4 text-sm text-zinc-600">
           We use cookies to enhance your experience, analyze site traffic, and for marketing purposes.
           Review our{" "}
-          <a href="/privacy" className="font-medium text-indigo-600 hover:text-indigo-500">
+          <a href="/privacy" className="font-medium text-slate-900 underline-offset-4 hover:underline">
             Privacy &amp; Cookies
           </a>{" "}
           details, customize your preferences, or accept all cookies.
@@ -102,7 +102,7 @@ export function CookieConsent() {
 
         {/* Cookie Details (expandable) */}
         {showDetails && (
-          <div className="mb-4 space-y-3 rounded-xl border border-zinc-100 bg-zinc-50 p-4">
+          <div className="mb-4 space-y-3 border border-black/10 bg-white p-4">
             {/* Necessary */}
             <label className="flex items-center justify-between">
               <div>
@@ -113,7 +113,7 @@ export function CookieConsent() {
                 type="checkbox"
                 checked={preferences.necessary}
                 disabled
-                className="h-4 w-4 rounded border-zinc-300 text-indigo-600"
+                className="h-4 w-4 rounded-none border-zinc-300 text-slate-950"
               />
             </label>
 
@@ -127,7 +127,7 @@ export function CookieConsent() {
                 type="checkbox"
                 checked={preferences.analytics}
                 onChange={(e) => setPreferences(p => ({ ...p, analytics: e.target.checked }))}
-                className="h-4 w-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
+                className="h-4 w-4 rounded-none border-zinc-300 text-slate-950 focus:ring-slate-950"
               />
             </label>
 
@@ -141,7 +141,7 @@ export function CookieConsent() {
                 type="checkbox"
                 checked={preferences.marketing}
                 onChange={(e) => setPreferences(p => ({ ...p, marketing: e.target.checked }))}
-                className="h-4 w-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
+                className="h-4 w-4 rounded-none border-zinc-300 text-slate-950 focus:ring-slate-950"
               />
             </label>
           </div>
@@ -159,21 +159,21 @@ export function CookieConsent() {
           <div className="flex gap-3">
             <button
               onClick={handleRejectAll}
-              className="flex-1 rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 sm:flex-none"
+              className="flex-1 border border-black/10 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 sm:flex-none"
             >
               Reject all
             </button>
             {showDetails ? (
               <button
                 onClick={handleAcceptSelected}
-                className="flex-1 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-500 sm:flex-none"
+                className="flex-1 bg-[#0d0d0b] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 sm:flex-none"
               >
                 Save preferences
               </button>
             ) : (
               <button
                 onClick={handleAcceptAll}
-                className="flex-1 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-500 sm:flex-none"
+                className="flex-1 bg-[#0d0d0b] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 sm:flex-none"
               >
                 Accept all
               </button>

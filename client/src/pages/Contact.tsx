@@ -8,7 +8,7 @@ import { analyticsEvents } from "@/lib/analytics";
 import { normalizeInterestToLane } from "@/lib/contactInterest";
 import { getDemandCityMessaging } from "@/lib/cityDemandMessaging";
 import { editorialGeneratedAssets } from "@/lib/editorialGeneratedAssets";
-import { ArrowRight, CheckCircle2, Mail, MessageSquare, Sparkles } from "lucide-react";
+import { ArrowRight, CheckCircle2, Mail, MessageSquare } from "lucide-react";
 import { useMemo } from "react";
 import { useLocation, useSearch } from "wouter";
 
@@ -227,19 +227,19 @@ export default function Contact() {
             className="min-h-[45rem] rounded-none sm:min-h-[38rem]"
             loading="eager"
             imageClassName="min-h-[45rem] sm:min-h-[38rem]"
-            overlayClassName="bg-[linear-gradient(90deg,rgba(255,255,255,0.88)_0%,rgba(255,255,255,0.72)_34%,rgba(255,255,255,0.2)_78%)]"
+            overlayClassName="bg-[linear-gradient(90deg,rgba(0,0,0,0.9)_0%,rgba(0,0,0,0.68)_36%,rgba(0,0,0,0.18)_82%)]"
           >
             <div className="absolute inset-0">
               <div className="mx-auto h-full max-w-[88rem] px-5 py-12 sm:px-8 lg:px-10 lg:py-16">
-                <div className="flex h-full max-w-[36rem] flex-col justify-end">
-                <div className="inline-flex items-center gap-2 border border-black/10 bg-white/80 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-slate-600">
+                <div className="flex h-full max-w-[36rem] flex-col justify-end text-white">
+                <div className="inline-flex items-center gap-2 border border-white/15 bg-black/35 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white/70">
                   <MessageSquare className="h-3.5 w-3.5" />
                   {badgeLabel}
                 </div>
-                <h1 className="font-editorial mt-6 text-[3.7rem] leading-[0.9] tracking-[-0.06em] sm:text-[5rem]">
+                <h1 className="font-editorial mt-6 text-[3.7rem] leading-[0.9] tracking-[-0.06em] text-white sm:text-[5rem]">
                   {heroTitle}
                 </h1>
-                <p className="mt-6 text-base leading-8 text-slate-700">{heroBody}</p>
+                <p className="mt-6 text-base leading-8 text-white/82">{heroBody}</p>
                 <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                   <a
                     href="#contact-intake"
@@ -251,7 +251,7 @@ export default function Contact() {
                         "contact-hero",
                       )
                     }
-                    className="inline-flex items-center justify-center bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                    className="inline-flex items-center justify-center bg-[#c7a775] px-5 py-3 text-sm font-semibold text-[#0d0d0b] transition hover:bg-[#d8bd8d]"
                   >
                     {primaryActionLabel}
                     <ArrowRight className="ml-2 h-4 w-4" />
@@ -266,15 +266,15 @@ export default function Contact() {
                         "contact-hero",
                       )
                     }
-                    className="inline-flex items-center justify-center border border-black/10 bg-white/70 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-white"
+                    className="inline-flex items-center justify-center border border-white/15 bg-white/8 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/12"
                   >
                     {persona === "site_operator" ? "Review governance" : "Browse world models"}
                   </a>
                 </div>
                 <div className="mt-6 grid max-w-[31rem] gap-2 sm:grid-cols-3">
                   {proofPoints.map((point) => (
-                    <div key={point} className="flex items-center gap-2 bg-white/75 px-3 py-2 text-xs font-semibold text-slate-700">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-slate-950" />
+                    <div key={point} className="flex items-center gap-2 bg-black/45 px-3 py-2 text-xs font-semibold text-white/80">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-[#c7a775]" />
                       {point}
                     </div>
                   ))}
@@ -331,7 +331,7 @@ export default function Contact() {
                 <div className="border border-black/10 bg-white p-6">
                   <div className="flex items-start gap-4">
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center border border-black/10 bg-[#f5f3ef] text-slate-950">
-                      <Sparkles className="h-5 w-5" />
+                      <MessageSquare className="h-5 w-5" />
                     </div>
                     <div>
                       <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">

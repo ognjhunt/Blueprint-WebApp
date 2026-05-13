@@ -13,7 +13,7 @@ interface SEOProps {
 }
 
 const BASE_URL = "https://tryblueprint.io";
-const DEFAULT_IMAGE = `${BASE_URL}/generated/editorial/world-models-hero.png`;
+const DEFAULT_IMAGE = `${BASE_URL}/generated/2026-05-13-brand-system/blueprint-og-hosted-review-gpt-image-2.png`;
 const SITE_NAME = "Blueprint";
 
 export function SEO({

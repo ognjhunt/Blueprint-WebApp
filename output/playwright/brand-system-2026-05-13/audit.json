@@ -1,0 +1,262 @@
+[
+  {
+    "viewport": "desktop",
+    "route": "/",
+    "status": 200,
+    "screenshot": "output/playwright/brand-system-2026-05-13/desktop-home.png",
+    "title": "Blueprint | Site-Specific World Models For Robot Training And Evaluation",
+    "h1": "Site-specific world models built from real capture.",
+    "missingImages": [],
+    "clippedControls": [],
+    "horizontalOverflow": 0,
+    "ctas": [
+      "Request world model",
+      "Browse world models",
+      "Request hosted evaluation",
+      "Check capture access"
+    ],
+    "hasSampleLabel": true,
+    "hasProofLabel": true,
+    "brandVisible": true
+  },
+  {
+    "viewport": "desktop",
+    "route": "/product",
+    "status": 200,
+    "screenshot": "output/playwright/brand-system-2026-05-13/desktop-product.png",
+    "title": "Product | Blueprint",
+    "h1": "Exact-site world models, hosted for buyer review.",
+    "missingImages": [],
+    "clippedControls": [],
+    "horizontalOverflow": 0,
+    "ctas": [
+      "Request world model",
+      "Browse world models",
+      "Request hosted evaluation"
+    ],
+    "hasSampleLabel": true,
+    "hasProofLabel": true,
+    "brandVisible": true
+  },
+  {
+    "viewport": "desktop",
+    "route": "/world-models",
+    "status": 200,
+    "screenshot": "output/playwright/brand-system-2026-05-13/desktop-world-models.png",
+    "title": "World Models | Blueprint",
+    "h1": "World models for exact-site training and evaluation.",
+    "missingImages": [],
+    "clippedControls": [],
+    "horizontalOverflow": 0,
+    "ctas": [
+      "Request world model",
+      "Browse world models"
+    ],
+    "hasSampleLabel": true,
+    "hasProofLabel": true,
+    "brandVisible": true
+  },
+  {
+    "viewport": "desktop",
+    "route": "/capture",
+    "status": 200,
+    "screenshot": "output/playwright/brand-system-2026-05-13/desktop-capture.png",
+    "title": "For Capturers | Blueprint",
+    "h1": "Get paid to capture real places robots need to understand.",
+    "missingImages": [],
+    "clippedControls": [],
+    "horizontalOverflow": 0,
+    "ctas": [
+      "Request world model",
+      "Browse world models",
+      "Check capture access"
+    ],
+    "hasSampleLabel": true,
+    "hasProofLabel": true,
+    "brandVisible": true
+  },
+  {
+    "viewport": "desktop",
+    "route": "/proof",
+    "status": 200,
+    "screenshot": "output/playwright/brand-system-2026-05-13/desktop-proof.png",
+    "title": "Sample Grocery Aisle Proof Packet | Blueprint",
+    "h1": "Sample grocery aisle proof packet",
+    "missingImages": [],
+    "clippedControls": [],
+    "horizontalOverflow": 0,
+    "ctas": [
+      "Request world model",
+      "Request hosted evaluation"
+    ],
+    "hasSampleLabel": true,
+    "hasProofLabel": true,
+    "brandVisible": true
+  },
+  {
+    "viewport": "desktop",
+    "route": "/pricing",
+    "status": 200,
+    "screenshot": "output/playwright/brand-system-2026-05-13/desktop-pricing.png",
+    "title": "Pricing | Blueprint",
+    "h1": "Choose the first step for one real site.",
+    "missingImages": [],
+    "clippedControls": [],
+    "horizontalOverflow": 0,
+    "ctas": [
+      "Request world model",
+      "Request hosted evaluation"
+    ],
+    "hasSampleLabel": true,
+    "hasProofLabel": true,
+    "brandVisible": true
+  },
+  {
+    "viewport": "desktop",
+    "route": "/contact",
+    "status": 200,
+    "screenshot": "output/playwright/brand-system-2026-05-13/desktop-contact.png",
+    "title": "For Robot Teams | Blueprint",
+    "h1": "Tell us the site, task, and robot in a few lines.",
+    "missingImages": [],
+    "clippedControls": [],
+    "horizontalOverflow": 0,
+    "ctas": [
+      "Request world model",
+      "Browse world models",
+      "Request hosted evaluation"
+    ],
+    "hasSampleLabel": true,
+    "hasProofLabel": true,
+    "brandVisible": true
+  },
+  {
+    "viewport": "mobile",
+    "route": "/",
+    "status": 200,
+    "screenshot": "output/playwright/brand-system-2026-05-13/mobile-home.png",
+    "title": "Blueprint | Site-Specific World Models For Robot Training And Evaluation",
+    "h1": "Site-specific world models built from real capture.",
+    "missingImages": [],
+    "clippedControls": [],
+    "horizontalOverflow": 0,
+    "ctas": [
+      "Request world model",
+      "Browse world models",
+      "Request hosted evaluation",
+      "Check capture access"
+    ],
+    "hasSampleLabel": true,
+    "hasProofLabel": true,
+    "brandVisible": true
+  },
+  {
+    "viewport": "mobile",
+    "route": "/product",
+    "status": 200,
+    "screenshot": "output/playwright/brand-system-2026-05-13/mobile-product.png",
+    "title": "Product | Blueprint",
+    "h1": "Exact-site world models, hosted for buyer review.",
+    "missingImages": [],
+    "clippedControls": [],
+    "horizontalOverflow": 0,
+    "ctas": [
+      "Browse world models",
+      "Request hosted evaluation"
+    ],
+    "hasSampleLabel": true,
+    "hasProofLabel": true,
+    "brandVisible": true
+  },
+  {
+    "viewport": "mobile",
+    "route": "/world-models",
+    "status": 200,
+    "screenshot": "output/playwright/brand-system-2026-05-13/mobile-world-models.png",
+    "title": "World Models | Blueprint",
+    "h1": "World models for exact-site training and evaluation.",
+    "missingImages": [],
+    "clippedControls": [],
+    "horizontalOverflow": 0,
+    "ctas": [
+      "Request world model",
+      "Browse world models"
+    ],
+    "hasSampleLabel": true,
+    "hasProofLabel": true,
+    "brandVisible": true
+  },
+  {
+    "viewport": "mobile",
+    "route": "/capture",
+    "status": 200,
+    "screenshot": "output/playwright/brand-system-2026-05-13/mobile-capture.png",
+    "title": "For Capturers | Blueprint",
+    "h1": "Get paid to capture real places robots need to understand.",
+    "missingImages": [],
+    "clippedControls": [],
+    "horizontalOverflow": 0,
+    "ctas": [
+      "Browse world models",
+      "Check capture access"
+    ],
+    "hasSampleLabel": true,
+    "hasProofLabel": true,
+    "brandVisible": true
+  },
+  {
+    "viewport": "mobile",
+    "route": "/proof",
+    "status": 200,
+    "screenshot": "output/playwright/brand-system-2026-05-13/mobile-proof.png",
+    "title": "Sample Grocery Aisle Proof Packet | Blueprint",
+    "h1": "Sample grocery aisle proof packet",
+    "missingImages": [],
+    "clippedControls": [],
+    "horizontalOverflow": 0,
+    "ctas": [
+      "Request world model",
+      "Request hosted evaluation"
+    ],
+    "hasSampleLabel": true,
+    "hasProofLabel": true,
+    "brandVisible": true
+  },
+  {
+    "viewport": "mobile",
+    "route": "/pricing",
+    "status": 200,
+    "screenshot": "output/playwright/brand-system-2026-05-13/mobile-pricing.png",
+    "title": "Pricing | Blueprint",
+    "h1": "Choose the first step for one real site.",
+    "missingImages": [],
+    "clippedControls": [],
+    "horizontalOverflow": 0,
+    "ctas": [
+      "Request world model",
+      "Request hosted evaluation"
+    ],
+    "hasSampleLabel": true,
+    "hasProofLabel": true,
+    "brandVisible": true
+  },
+  {
+    "viewport": "mobile",
+    "route": "/contact",
+    "status": 200,
+    "screenshot": "output/playwright/brand-system-2026-05-13/mobile-contact.png",
+    "title": "For Robot Teams | Blueprint",
+    "h1": "Tell us the site, task, and robot in a few lines.",
+    "missingImages": [],
+    "clippedControls": [],
+    "horizontalOverflow": 0,
+    "ctas": [
+      "Request world model",
+      "Browse world models",
+      "Request hosted evaluation"
+    ],
+    "hasSampleLabel": true,
+    "hasProofLabel": true,
+    "brandVisible": true
+  }
+]

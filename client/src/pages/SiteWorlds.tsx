@@ -233,11 +233,26 @@ export default function SiteWorlds() {
                   World models for exact-site training and evaluation.
                 </h1>
                 <p className="mt-3 text-lg text-white/90">
-                  Browse current samples or request the place and task you need.
+                  Browse current samples or request the place and task your robot team needs.
                 </p>
                 <div className="mt-6 flex flex-wrap gap-2">
                   <ProofChip light>Exact site</ProofChip>
                   <ProofChip light>{getSiteWorldHostedAccessDisclosure(heroSite).label}</ProofChip>
+                </div>
+                <div className="mt-7 flex flex-wrap gap-3">
+                  <a
+                    href="#catalog"
+                    className="inline-flex items-center justify-center bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
+                  >
+                    Browse world models
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </a>
+                  <a
+                    href="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=request-capture&source=world-models-hero"
+                    className="inline-flex items-center justify-center border border-white/15 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+                  >
+                    Request world model
+                  </a>
                 </div>
               </div>
             </div>
@@ -256,7 +271,7 @@ export default function SiteWorlds() {
               href="#catalog"
               className="hidden items-center text-sm font-semibold text-slate-700 transition hover:text-slate-950 lg:inline-flex"
             >
-                Explore all world models
+                Browse all world models
               <ArrowRight className="ml-2 h-4 w-4" />
             </a>
           </div>

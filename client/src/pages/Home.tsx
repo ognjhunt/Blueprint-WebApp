@@ -6,6 +6,7 @@ import {
   EditorialSectionIntro,
   MonochromeMedia,
   MonochromeVideo,
+  ProofChip,
   RouteTraceOverlay,
 } from "@/components/site/editorial";
 import { siteWorldCards } from "@/data/siteWorlds";
@@ -139,28 +140,28 @@ const homeVariantContent: Record<
   }
 > = {
   hosted_review: {
-    title: "Blueprint turns real places into world models your robot team can train and evaluate on.",
+    title: "Site-specific world models built from real capture.",
     description:
-      "Send the place, route, or facility type you care about. Blueprint uses real capture to build a site-specific world model with task runs, proof, limits, and next steps attached.",
+      "Blueprint packages exact-site capture into world models, hosted review rooms, and proof your robot team can inspect before deployment work.",
     primaryLabel: "Request world model",
     primaryPath: "request-capture",
     secondaryLabel: "Browse world models",
     secondaryHref: "/world-models",
     panelTitle: "New here?",
     panelBody:
-      "A robot team asks for a world model. A site operator sets the rules. A capturer applies where capture is open.",
+      "Request one site, one workflow, and one robot question. Proof stays attached.",
   },
   proof_pack: {
-    title: "Blueprint turns real places into world models your robot team can train and evaluate on.",
+    title: "Site-specific world models built from real capture.",
     description:
-      "Start with one real place and the robot task you need to prove. Blueprint keeps the capture source, rights, package scope, and hosted evaluation path tied to that world model.",
+      "Start with one real place and the robot task you need to prove. Capture source, rights, package scope, and hosted review stay tied to the same world.",
     primaryLabel: "Request world model",
     primaryPath: "request-capture",
     secondaryLabel: "Browse world models",
     secondaryHref: "/world-models",
     panelTitle: "New here?",
     panelBody:
-      "Use the path that matches your role: request a world model, claim a facility, or apply to capture approved places.",
+      "Browse what exists, request what is missing, or ask for hosted evaluation.",
   },
 };
 
@@ -390,18 +391,21 @@ export default function Home() {
             className="min-h-[42rem] rounded-none"
             loading="eager"
             imageClassName="min-h-[42rem]"
-            overlayClassName="bg-[linear-gradient(90deg,rgba(0,0,0,0.82)_0%,rgba(0,0,0,0.58)_34%,rgba(0,0,0,0.18)_78%)]"
+            overlayClassName="bg-[linear-gradient(90deg,rgba(0,0,0,0.92)_0%,rgba(0,0,0,0.72)_34%,rgba(0,0,0,0.2)_82%)]"
           >
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.08),transparent_45%)]" />
             <RouteTraceOverlay className="opacity-60" />
 
             <div className="absolute inset-0">
               <div className="mx-auto grid h-full max-w-[88rem] gap-10 px-5 py-12 sm:px-8 lg:grid-cols-[0.62fr_0.38fr] lg:px-10 lg:py-16">
                 <div className="flex min-h-[34rem] flex-col justify-end">
-	                <h1 className="font-editorial max-w-[42rem] text-[3.15rem] leading-[0.9] tracking-[-0.06em] text-white sm:text-[4.6rem]">
+                  <div className="mb-5 flex flex-wrap gap-2">
+                    <ProofChip light>Exact-site world models</ProofChip>
+                    <ProofChip light>Hosted review</ProofChip>
+                  </div>
+	                <h1 className="font-editorial max-w-[40rem] text-[3.05rem] leading-[0.9] tracking-[-0.06em] text-white sm:text-[4.45rem]">
 	                  {heroContent.title}
 	                </h1>
-	                <p className="mt-6 max-w-[32rem] text-base leading-8 text-white opacity-90 sm:text-[1.03rem]">
+	                <p className="mt-6 max-w-[31rem] text-base leading-8 text-white opacity-90 sm:text-[1.03rem]">
 	                  {heroContent.description}
 	                </p>
 
@@ -435,6 +439,20 @@ export default function Home() {
 	                  >
 	                    {heroContent.secondaryLabel}
 	                  </a>
+                    <a
+                      href="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=home-hero-hosted"
+                      onClick={() =>
+                        trackHomeCtaClick(
+                          "home_hero_hosted",
+                          "Request hosted evaluation",
+                          "/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=home-hero-hosted",
+                          "home-hero-hosted",
+                        )
+                      }
+                      className="inline-flex items-center justify-center border border-white/15 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+                    >
+                      Request hosted evaluation
+                    </a>
                 </div>
               </div>
 
@@ -448,7 +466,7 @@ export default function Home() {
                     {heroContent.panelBody}
                   </p>
                   <div className="mt-5 border-t border-white/10 pt-4 text-sm text-white/70">
-                    One real world model. One robot task. Proof stays attached.
+                    Capture first. World-model product next. Review before commitment.
                   </div>
                   </div>
                 </div>
@@ -581,14 +599,14 @@ export default function Home() {
                     onClick={() =>
                       trackHomeCtaClick(
                         "home_proof_primary",
-                        "Open proof",
+                        "Open sample proof",
                         "/proof",
                         "home-proof-story",
                       )
                     }
 	                  className="inline-flex items-center justify-center bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
 	                >
-	                  Open proof
+	                  Open sample proof
 	                  <ArrowRight className="ml-2 h-4 w-4" />
 	                </a>
 	                <a
@@ -703,6 +721,7 @@ export default function Home() {
             <MonochromeMedia
               src={publicCaptureGeneratedAssets.cedarMarketProofBoard}
               alt="Blueprint public proof board"
+              loading="eager"
               className="min-h-[32rem] rounded-none"
               imageClassName="min-h-[32rem]"
               overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.1),rgba(0,0,0,0.4))]"
@@ -786,6 +805,7 @@ export default function Home() {
                   <MonochromeMedia
                     src={story.image}
                     alt={story.locationName}
+                    loading="eager"
                     className="aspect-[4/3] rounded-none"
                     imageClassName="aspect-[4/3] transition duration-700 group-hover:scale-[1.03]"
                     overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.04),rgba(0,0,0,0.32))]"

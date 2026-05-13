@@ -14,8 +14,8 @@ import {
   MessageSquare,
   Play,
   Route,
+  ScanEye,
   ShieldCheck,
-  Sparkles,
   Sun,
   Warehouse,
 } from "lucide-react";
@@ -47,7 +47,7 @@ const proofSummary = [
     note: "Real requests still require route-specific redaction review",
   },
   {
-    icon: Sparkles,
+    icon: ScanEye,
     label: "Robot question",
     value: "Can our robot navigate this aisle, handle obstructions, and keep shelf-front perception stable?",
   },
@@ -111,9 +111,9 @@ function MiniMap() {
       <div className="absolute right-7 top-8 h-14 w-24 rotate-[12deg] border border-white/15 bg-white/5" />
       <div className="absolute bottom-5 left-12 h-12 w-28 rotate-[6deg] border border-white/15 bg-white/5" />
       <div className="absolute inset-x-8 top-1/2 h-px bg-white/20" />
-      <div className="absolute left-[28%] top-[28%] h-16 w-28 rounded-[50%] border border-emerald-300/70" />
-      <div className="absolute left-[36%] top-[35%] h-3 w-3 rounded-full bg-emerald-300 shadow-[0_0_18px_rgba(110,231,183,0.9)]" />
-      <div className="absolute right-[24%] top-[42%] h-2.5 w-2.5 rounded-full bg-red-300 shadow-[0_0_16px_rgba(252,165,165,0.9)]" />
+      <div className="absolute left-[28%] top-[28%] h-16 w-28 rounded-[50%] border border-[#c7a775]/70" />
+      <div className="absolute left-[36%] top-[35%] h-3 w-3 rounded-full bg-[#c7a775]" />
+      <div className="absolute right-[24%] top-[42%] h-2.5 w-2.5 rounded-full bg-white/75" />
       <svg className="absolute inset-0 h-full w-full" viewBox="0 0 260 150" fill="none" aria-hidden="true">
         <path
           d="M35 112 C68 92 90 88 114 68 C138 48 158 48 198 35"
@@ -139,7 +139,7 @@ export default function Proof() {
       <div className="bg-white text-slate-950">
         <div className="mx-auto max-w-[96rem] px-5 py-7 sm:px-8">
           <div className="flex flex-wrap items-center gap-3 text-sm">
-            <a href="/proof" className="inline-flex items-center gap-2 font-medium text-blue-700">
+            <a href="/proof" className="inline-flex items-center gap-2 font-medium text-slate-800">
               <ArrowLeft className="h-4 w-4" />
               Stories / proof
             </a>
@@ -163,22 +163,22 @@ export default function Proof() {
                 alt="Annotated grocery aisle capture for robot evaluation"
                 className="aspect-[16/9] h-full w-full object-cover"
               />
-              <div className="absolute left-4 top-4 inline-flex items-center gap-3 rounded-md bg-black/72 px-3 py-2 text-xs font-semibold text-white backdrop-blur">
+              <div className="absolute left-3 right-3 top-3 inline-flex flex-wrap items-center gap-2 rounded-md bg-black/72 px-3 py-2 text-[11px] font-semibold text-white backdrop-blur sm:left-4 sm:right-auto sm:top-4 sm:gap-3 sm:text-xs">
                 <CalendarClock className="h-4 w-4" />
                 <span>Sample packet</span>
                 <span className="font-medium text-white/80">Composite route</span>
                 <span className="font-medium text-white/80">Not live proof</span>
               </div>
-              <div className="absolute bottom-4 left-4 inline-flex items-center gap-2 rounded-md bg-black/76 px-4 py-2.5 text-sm font-semibold text-white backdrop-blur">
+              <div className="absolute bottom-4 left-4 hidden items-center gap-2 rounded-md bg-black/76 px-4 py-2.5 text-sm font-semibold text-white backdrop-blur sm:inline-flex">
                 <FileText className="h-4 w-4" />
                 Sample capture details
               </div>
-              <div className="absolute bottom-4 right-4 flex items-center gap-2">
-                <span className="inline-flex min-h-10 items-center gap-2 rounded-md bg-black/78 px-4 text-sm font-semibold text-white backdrop-blur">
+              <div className="absolute inset-x-3 bottom-3 flex flex-wrap items-center gap-2 sm:inset-x-auto sm:bottom-4 sm:right-4">
+                <span className="inline-flex min-h-9 items-center gap-2 rounded-md bg-black/78 px-3 text-xs font-semibold text-white backdrop-blur sm:min-h-10 sm:px-4 sm:text-sm">
                   <Play className="h-4 w-4" />
                   Sample still
                 </span>
-                <span className="inline-flex min-h-10 items-center gap-2 rounded-md bg-black/78 px-4 text-sm font-semibold text-white backdrop-blur">
+                <span className="inline-flex min-h-9 items-center gap-2 rounded-md bg-black/78 px-3 text-xs font-semibold text-white backdrop-blur sm:min-h-10 sm:px-4 sm:text-sm">
                   <Map className="h-4 w-4" />
                   Map preview below
                 </span>
@@ -199,7 +199,7 @@ export default function Proof() {
                         <p className="text-sm font-semibold leading-5 text-slate-950">{item.value}</p>
                         {item.note ? <p className="mt-1 text-sm leading-5 text-slate-500">{item.note}</p> : null}
                         {item.action ? (
-                          <a href="/world-models/siteworld-f5fd54898cfb/start" className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-blue-700">
+                          <a href="/world-models/siteworld-f5fd54898cfb/start" className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-slate-800">
                             {item.action}
                             <ArrowUpRight className="h-3.5 w-3.5" />
                           </a>
@@ -209,7 +209,7 @@ export default function Proof() {
                   );
                 })}
               </div>
-              <a href="/proof" className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-blue-700">
+              <a href="/proof" className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-slate-800">
                 View full proof packet
                 <ArrowUpRight className="h-3.5 w-3.5" />
               </a>
@@ -236,7 +236,7 @@ export default function Proof() {
                   );
                 })}
               </div>
-              <a href="/proof" className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-blue-700">
+              <a href="/proof" className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-slate-800">
                 See evaluation checklist
                 <ArrowUpRight className="h-3.5 w-3.5" />
               </a>
@@ -258,7 +258,7 @@ export default function Proof() {
                   </div>
                 ))}
               </dl>
-              <a href="/proof" className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-blue-700">
+              <a href="/proof" className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-slate-800">
                 View capture log
                 <ArrowUpRight className="h-3.5 w-3.5" />
               </a>
@@ -283,7 +283,7 @@ export default function Proof() {
                 </div>
                 <MiniMap />
               </div>
-              <a href="/proof" className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-blue-700">
+              <a href="/proof" className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-slate-800">
                 See sample output
                 <ArrowUpRight className="h-3.5 w-3.5" />
               </a>
@@ -300,17 +300,17 @@ export default function Proof() {
             </div>
             <div className="grid gap-3 sm:grid-cols-2 lg:min-w-[31rem]">
               <a
-                href="/contact?persona=robot-team"
+                href="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=request-capture&source=proof-bottom"
                 className="inline-flex min-h-14 items-center justify-center gap-3 rounded-md border border-slate-300 bg-white px-6 text-base font-semibold text-slate-800 transition hover:bg-slate-50"
               >
                 <MessageSquare className="h-5 w-5" />
-                Discuss a similar site
+                Request world model
               </a>
               <a
-                href="/world-models/siteworld-f5fd54898cfb/start"
+                href="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=proof-bottom"
                 className="inline-flex min-h-14 items-center justify-center gap-3 rounded-md bg-slate-950 px-6 text-base font-semibold text-white transition hover:bg-slate-800"
               >
-                Open hosted evaluation
+                Request hosted evaluation
                 <ArrowUpRight className="h-5 w-5" />
               </a>
             </div>

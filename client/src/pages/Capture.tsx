@@ -84,7 +84,7 @@ export default function Capture() {
                   href="/capture-app/launch-access?role=capturer&source=capture-hero"
                   className="inline-flex items-center justify-center bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                 >
-                  Find paid assignments
+                  Check capture access
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </a>
                 <a
@@ -263,13 +263,13 @@ export default function Capture() {
                     {supportedCities.map((city) => (
                       <span
                         key={city.citySlug}
-                        className="rounded-full border border-black/10 bg-[#f5f3ef] px-4 py-2 text-sm text-slate-700"
+                        className="border border-black/10 bg-[#f5f3ef] px-4 py-2 text-sm text-slate-700"
                       >
                         {city.displayName}
                       </span>
                     ))}
                     {!supportedCities.length ? (
-                      <span className="rounded-full border border-black/10 bg-[#f5f3ef] px-4 py-2 text-sm text-slate-700">
+                      <span className="border border-black/10 bg-[#f5f3ef] px-4 py-2 text-sm text-slate-700">
                         Backend launch roster required
                       </span>
                     ) : null}
@@ -283,12 +283,12 @@ export default function Capture() {
         <section className="mx-auto max-w-[96rem] px-5 py-10 sm:px-8 lg:px-10">
           <EditorialCtaBand
 	            eyebrow="Buyer side"
-	            title="Looking for a world model your robot team can evaluate?"
-	            description="Robot teams start with world models and structured site requests, not capturer access."
-	            imageSrc={publicCaptureGeneratedAssets.everydayPlacesCollage}
+            title="Looking for a world model your robot team can evaluate?"
+            description="Robot teams start with world models and structured site requests, not capturer access."
+            imageSrc={publicCaptureGeneratedAssets.everydayPlacesCollage}
             imageAlt="Blueprint capture route"
             primaryHref="/world-models"
-            primaryLabel="Explore world models"
+            primaryLabel="Browse world models"
             secondaryHref="mailto:hello@tryblueprint.io?subject=Blueprint%20Capture%20Support"
             secondaryLabel="Email support"
           />

@@ -3,20 +3,21 @@ import {
   footerProductLinks,
   footerSupportLinks,
 } from "./navigation";
+import { BrandLockup } from "./BrandMark";
 
 export function Footer() {
   return (
-    <footer className="border-t border-black/10 bg-[#f5f3ef]">
+    <footer className="border-t border-black/10 bg-[#f5f1e8]">
       <div className="mx-auto grid max-w-[88rem] gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[1.35fr_0.82fr_0.82fr_0.82fr] lg:px-10">
         <div className="max-w-sm space-y-4">
-          <a href="/" className="font-editorial text-[2rem] tracking-[-0.05em] text-slate-900">
-            Blueprint
+          <a href="/" className="inline-flex text-slate-950" aria-label="Blueprint home">
+            <BrandLockup compact />
           </a>
           <p className="text-sm leading-6 text-slate-600">
-            Blueprint turns real-site capture into site-specific world models for robot training runs, hosted evals, and deployment evidence.
+            Blueprint turns real-site capture into site-specific world models, hosted review rooms, and package evidence for robot teams.
           </p>
           <p className="text-sm leading-6 text-slate-600">
-            Robot teams request or evaluate world models. Site operators set access and privacy boundaries. Capturers apply where capture is open.
+            Robot teams request worlds. Site operators set access and privacy boundaries. Capturers apply only where capture is open.
           </p>
           <div className="flex flex-col gap-2">
             <a
@@ -71,7 +72,7 @@ export function Footer() {
       <div className="border-t border-black/10 bg-white py-4">
         <div className="mx-auto flex max-w-[88rem] flex-col items-start gap-2 px-4 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-10">
           <p>© {new Date().getFullYear()} Blueprint, Inc. All rights reserved.</p>
-          <p>World models. Earlier deployment evidence.</p>
+          <p>Capture first. Exact-site world-model products.</p>
         </div>
       </div>
     </footer>

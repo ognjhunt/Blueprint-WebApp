@@ -9,9 +9,14 @@
     --muted: 210 14% 96%;
     --muted-foreground: 225 8% 38%;
     --border: 210 16% 90%;
-    --accent: 160 89% 52%;
-    --accent-foreground: 0 0% 0%;
+    --accent: 37 36% 61%;
+    --accent-foreground: 48 24% 8%;
     --heading: 220 20% 8%;
+    --brand-ink: #0d0d0b;
+    --brand-paper: #f5f1e8;
+    --brand-bone: #ebe4d7;
+    --brand-brass: #c7a775;
+    --brand-graphite: #1a1a17;
   }
 
   body {
@@ -39,6 +44,53 @@
     background-color: hsl(var(--accent));
     color: hsl(var(--accent-foreground));
   }
+}
+
+.brand-paper {
+  background-color: var(--brand-paper);
+}
+
+.brand-ink {
+  background-color: var(--brand-ink);
+}
+
+.brand-hairline {
+  border-color: color-mix(in srgb, var(--brand-ink) 12%, transparent);
+}
+
+.brand-focus-frame {
+  position: relative;
+}
+
+.brand-focus-frame::before,
+.brand-focus-frame::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  width: 1.15rem;
+  height: 1.15rem;
+  border-color: color-mix(in srgb, var(--brand-brass) 78%, white 8%);
+}
+
+.brand-focus-frame::before {
+  left: 1rem;
+  top: 1rem;
+  border-left-width: 1px;
+  border-top-width: 1px;
+}
+
+.brand-focus-frame::after {
+  right: 1rem;
+  bottom: 1rem;
+  border-right-width: 1px;
+  border-bottom-width: 1px;
+}
+
+.evidence-rule {
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--brand-brass) 35%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--brand-brass) 35%, transparent) 1px, transparent 1px);
+  background-size: 4.5rem 4.5rem;
 }
 
 .fade-up {

@@ -14,6 +14,7 @@ import {
   sampleHostedRunRows,
 } from "@/lib/proofEvidence";
 import { analyticsEvents } from "@/lib/analytics";
+import { editorialGeneratedAssets } from "@/lib/editorialGeneratedAssets";
 import { publicCaptureGeneratedAssets } from "@/lib/publicCaptureGeneratedAssets";
 import { hostedFilmstripFrames } from "@/lib/siteEditorialContent";
 import { breadcrumbJsonLd, productJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
@@ -99,22 +100,22 @@ export default function ExactSiteHostedReview() {
       <div className="bg-[#f5f3ef] text-slate-950">
         <section className="border-b border-black/10">
           <MonochromeMedia
-            src={publicCaptureGeneratedAssets.hostedReviewPublicRoute}
+            src={editorialGeneratedAssets.hostedReviewHero}
             alt="Hosted evaluation hero"
             className="min-h-[42rem] rounded-none"
             loading="eager"
             imageClassName="min-h-[42rem]"
-            overlayClassName="bg-[linear-gradient(90deg,rgba(0,0,0,0.82)_0%,rgba(0,0,0,0.58)_34%,rgba(0,0,0,0.18)_78%)]"
+            overlayClassName="bg-[linear-gradient(90deg,rgba(0,0,0,0.92)_0%,rgba(0,0,0,0.72)_34%,rgba(0,0,0,0.2)_78%)]"
           >
             <div className="absolute inset-0">
               <div className="mx-auto grid h-full max-w-[88rem] gap-10 px-5 py-12 sm:px-8 lg:grid-cols-[0.6fr_0.4fr] lg:px-10 lg:py-16">
                 <div className="flex min-h-[34rem] flex-col justify-end selection:bg-white/20 selection:text-white">
                 <EditorialSectionLabel light>Product</EditorialSectionLabel>
-                <h1 className="font-editorial mt-6 max-w-[36rem] text-[3.7rem] leading-[0.9] tracking-[-0.06em] text-white sm:text-[5rem]">
-                  One real place, packaged as a robot evaluation world model.
+                <h1 className="font-editorial mt-6 max-w-[36rem] text-[3.55rem] leading-[0.9] tracking-[-0.06em] text-white sm:text-[4.8rem]">
+                  Exact-site world models, hosted for buyer review.
                 </h1>
                 <p className="mt-6 max-w-[30rem] text-base leading-8 text-white/[0.86]">
-                  Blueprint starts with real capture of a facility or public-facing place, then turns it into a site-specific world model with package files, hosted evaluation, and proof boundaries attached.
+                  Blueprint starts with real capture, then keeps the world model, package scope, hosted session, and proof boundaries attached to the same site.
                 </p>
                 <div className="mt-8 flex flex-wrap gap-2">
                   <ProofChip light>Site package</ProofChip>
@@ -165,8 +166,8 @@ export default function ExactSiteHostedReview() {
 	          <div className="grid gap-6 lg:grid-cols-[0.38fr_0.62fr]">
 	            <EditorialSectionIntro
 	              eyebrow="Preview"
-	              title="A cold visitor can see the product shape quickly."
-	              description="Start with a real site. Then choose whether your team needs package files, a managed hosted evaluation, or a narrower capture request."
+	              title="See the product path quickly."
+	              description="Start with a real site. Then choose package access, managed hosted evaluation, or a narrower capture request."
 	            />
             <div className="overflow-hidden border border-black/10 bg-slate-950 p-4 text-white">
               <EditorialFilmstrip frames={hostedFilmstripFrames.map((frame, index) => ({
@@ -370,11 +371,11 @@ export default function ExactSiteHostedReview() {
           <EditorialCtaBand
             eyebrow="Next step"
             title="Start with one world model and one workflow."
-            description="Browse the catalog, open truthful sample proof, or send the world model your team needs when it is not listed yet."
-            imageSrc={publicCaptureGeneratedAssets.hostedReviewPublicRoute}
+            description="Browse the catalog, open sample proof, or send the world model your team needs when it is not listed yet."
+            imageSrc={editorialGeneratedAssets.hostedReviewHero}
             imageAlt="Hosted evaluation hero"
             primaryHref="/proof"
-            primaryLabel="Open proof"
+            primaryLabel="Open sample proof"
             secondaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=product-bottom"
             secondaryLabel="Request hosted evaluation"
           />

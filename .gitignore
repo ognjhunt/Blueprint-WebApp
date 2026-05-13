@@ -59,4 +59,7 @@ scripts/gtm.bak/
 # Build artifacts for server/utils
 server/utils/growth-ops.*
 docs/development_artefacts/
-client/public/generated/
+!client/public/generated/
+client/public/generated/*
+!client/public/generated/2026-05-13-brand-system/
+!client/public/generated/2026-05-13-brand-system/**
