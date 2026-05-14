@@ -47,7 +47,7 @@ describe("Header", () => {
     const requestLink = screen.getAllByRole("link", { name: /Request world model/i })[0];
     expect(requestLink).toHaveAttribute(
       "href",
-      "/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=request-capture&source=header",
+      "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=header",
     );
     expect(screen.queryByRole("link", { name: /See hosted evaluation/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /^Book call$/i })).not.toBeInTheDocument();

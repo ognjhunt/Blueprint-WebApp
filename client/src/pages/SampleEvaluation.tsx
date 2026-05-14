@@ -144,7 +144,7 @@ export default function SampleEvaluation() {
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </a>
                     <a
-                      href="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&source=sample-evaluation&path=request-capture&siteName=Media%20Room%20Demo%20Walkthrough"
+                      href="/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&source=sample-evaluation&path=request-capture&siteName=Media%20Room%20Demo%20Walkthrough"
                       className="inline-flex items-center justify-center border border-white/15 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
                     >
                       Request capture
@@ -278,7 +278,7 @@ export default function SampleEvaluation() {
             imageAlt="Sample evaluation proof board"
             primaryHref={publicDemoHref}
             primaryLabel="Open sample world model"
-            secondaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&source=sample-evaluation&path=request-capture&siteName=Media%20Room%20Demo%20Walkthrough"
+            secondaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&source=sample-evaluation&path=request-capture&siteName=Media%20Room%20Demo%20Walkthrough"
             secondaryLabel="Request capture"
           />
         </section>

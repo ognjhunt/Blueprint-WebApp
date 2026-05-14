@@ -4,35 +4,35 @@ import SiteWorlds from "@/pages/SiteWorlds";
 import { siteWorldCards } from "@/data/siteWorlds";
 
 describe("SiteWorlds", () => {
-  it("renders the simplified catalog-first world-models page", () => {
+  it("renders the marketplace-grade world-model catalog with truthful state labels", () => {
     render(<SiteWorlds />);
 
     expect(
       screen.getByRole("heading", {
-        name: /World models for exact-site training and evaluation\./i,
+        name: /Browse exact-site world models\./i,
       }),
     ).toBeInTheDocument();
 
-    expect(screen.getByText(/Browse current samples or request the place and task you need\./i)).toBeInTheDocument();
+    expect(screen.getByText(/Blueprint is building a capture-backed supply of site worlds/i)).toBeInTheDocument();
 
     expect(
       screen.getByRole("link", { name: /Open sample world model/i }),
     ).toHaveAttribute("href", "/world-models/siteworld-f5fd54898cfb");
 
-    expect(
-      screen.getAllByRole("link", { name: /Request world model/i })[0],
-    ).toHaveAttribute(
+    const requestLinks = screen.getAllByRole("link", { name: /Request world model/i });
+    expect(requestLinks[requestLinks.length - 1]).toHaveAttribute(
       "href",
-      "/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=request-capture&source=site-worlds",
+      "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=site-worlds",
     );
 
-    expect(screen.getAllByText(/Exact site/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Hosted request/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Public catalog/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Sample/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Request-gated/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Planned catalog profile/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Catalog records/i)).toBeInTheDocument();
 
     expect(
       screen.getByRole("heading", {
-        name: /Start with a world model, not an abstract demo\./i,
+        name: /Start with a site world, not an abstract demo\./i,
       }),
     ).toBeInTheDocument();
 
@@ -48,12 +48,18 @@ describe("SiteWorlds", () => {
         name: /Scan every listing by proof, access, and freshness\./i,
       }),
     ).toBeInTheDocument();
+    expect(screen.getByText(/Marketplace filters/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/Search site, workflow, robot/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Retail$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Proof visible$/i })).toBeInTheDocument();
 
     siteWorldCards.forEach((site) => {
       expect(screen.getAllByText(site.siteName).length).toBeGreaterThan(0);
     });
     expect(screen.getAllByText(/Freshness/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Composite preview/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Planned route diagram/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: /Inspect listing/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: /Scope this site/i }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("link", { name: /Hosted setup/i }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("link", { name: /Package access/i }).length).toBeGreaterThan(0);
 
@@ -62,7 +68,7 @@ describe("SiteWorlds", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Start with the world model that matters\./i,
+        name: /Ask for the exact site your robot team needs\./i,
       }),
     ).toBeInTheDocument();
 

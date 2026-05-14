@@ -4,14 +4,15 @@ test('world models page exposes hosted access and package paths', async ({ page 
   await page.goto('/world-models', { waitUntil: 'domcontentloaded' });
 
   await expect(
-    page.getByRole('heading', { name: /Sites your robot team can inspect\./i }),
+    page.getByRole('heading', { name: /Browse exact-site world models\./i }),
   ).toBeVisible();
-  await expect(page.getByText(/Browse current samples and request the place you need\./i)).toBeVisible();
-  await expect(page.getByRole('link', { name: /Inspect a real site/i }).first()).toBeVisible();
-  await expect(page.getByRole('link', { name: /Request Access/i }).first()).toBeVisible();
-  await expect(page.getByRole('heading', { name: /Start with a place, not an abstract demo\./i })).toBeVisible();
+  await expect(page.getByText(/Blueprint is building a capture-backed supply of site worlds/i)).toBeVisible();
+  await expect(page.getByText(/Marketplace filters/i)).toBeVisible();
+  await expect(page.getByRole('link', { name: /Inspect listing/i }).first()).toBeVisible();
+  await expect(page.getByRole('link', { name: /Package access/i }).first()).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Start with a site world, not an abstract demo\./i })).toBeVisible();
   await expect(page.getByRole('heading', { name: /Built from real capture\./i })).toBeVisible();
-  await expect(page.getByRole('heading', { name: /Start with the site that matters\./i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Ask for the exact site your robot team needs\./i })).toBeVisible();
 });
 
 test('direct navigation to the setup flow stays reachable', async ({ page }) => {

@@ -19,6 +19,12 @@ export type BudgetBucket =
 
 export type BuyerType = "site_operator" | "robot_team";
 
+export type CommercialRequestPath =
+  | "world_model"
+  | "hosted_evaluation"
+  | "capture_access"
+  | "site_claim";
+
 export type ProofPathPreference =
   | "exact_site_required"
   | "adjacent_site_acceptable"
@@ -116,6 +122,7 @@ export interface RequestDetails {
   helpWith: HelpWithOption[];
   details?: string | null;
   buyerType: BuyerType;
+  commercialRequestPath?: CommercialRequestPath | null;
   siteName: string;
   siteLocation: string;
   siteLocationMetadata?: PlaceLocationMetadata | null;
@@ -559,6 +566,7 @@ export interface RequestDetailsStored {
   helpWith: HelpWithOption[];
   details?: EncryptableString | null;
   buyerType: BuyerType;
+  commercialRequestPath?: CommercialRequestPath | null;
   siteName: EncryptableString;
   siteLocation: EncryptableString;
   siteLocationMetadata?: PlaceLocationMetadataStored | null;
@@ -596,6 +604,7 @@ export interface InboundRequestPayload {
   requestedLanes?: RequestedLane[];
   helpWith?: HelpWithOption[];
   buyerType?: BuyerType;
+  commercialRequestPath?: CommercialRequestPath;
   siteName?: string;
   siteLocation?: string;
   siteLocationMetadata?: PlaceLocationMetadata | null;
@@ -729,6 +738,7 @@ export interface InboundRequestListItem {
     requestedLanes: RequestedLane[];
     helpWith: HelpWithOption[];
     buyerType: BuyerType;
+    commercialRequestPath?: CommercialRequestPath | null;
     siteName: string;
     siteLocation: string;
     siteLocationMetadata?: PlaceLocationMetadata | null;

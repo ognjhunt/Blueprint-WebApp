@@ -129,7 +129,7 @@ describe("SiteWorldDetail", () => {
     const hostedLink = screen.getByRole("link", { name: /Request hosted evaluation/i });
     const hostedUrl = new URL(hostedLink.getAttribute("href")!, "https://example.com");
     expect(hostedUrl.pathname).toBe("/contact");
-    expect(hostedUrl.searchParams.get("interest")).toBe("evaluation-package");
+    expect(hostedUrl.searchParams.get("interest")).toBe("hosted-evaluation");
   });
 
   it("shows admin Marble controls to allowed admin users", async () => {

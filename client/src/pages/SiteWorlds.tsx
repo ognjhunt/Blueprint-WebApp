@@ -8,7 +8,7 @@ import {
   RouteTraceOverlay,
 } from "@/components/site/editorial";
 import { SiteWorldGraphic } from "@/components/site/SiteWorldGraphic";
-import { siteWorldCards } from "@/data/siteWorlds";
+import { categoryFilters, siteWorldCards, type SiteCategory } from "@/data/siteWorlds";
 import { publicDemoHref } from "@/lib/marketingProof";
 import { publicCaptureLocationTypes } from "@/lib/proofEvidence";
 import {
@@ -17,21 +17,44 @@ import {
 } from "@/lib/siteEditorialContent";
 import {
   getSiteWorldCatalogPriority,
+  getSiteWorldCommercialStatus,
   getSiteWorldFreshnessSummary,
   getSiteWorldHostedAccessDisclosure,
   getSiteWorldPackageAccessSummary,
   getSiteWorldPlainEnglishStatus,
+  getSiteWorldProofDepth,
   getSiteWorldPublicProofSummary,
   getSiteWorldStatusBadges,
   getSiteWorldVisualDisclosure,
+  isPlannedCatalogSiteWorld,
   siteWorldStatusLegend,
 } from "@/lib/siteWorldCommercialStatus";
 import { fetchSiteWorldCatalog } from "@/lib/siteWorldsApi";
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
-import { ArrowRight, Box, Camera, MapPinned, Route, Smartphone } from "lucide-react";
+import {
+  ArrowRight,
+  Box,
+  Camera,
+  ListFilter,
+  MapPinned,
+  Route,
+  Search,
+  SlidersHorizontal,
+  Smartphone,
+  X,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 type SiteWorld = (typeof siteWorldCards)[number];
+type AvailabilityFilter = "All" | "Sample" | "Request-gated" | "Planned" | "Proof visible";
+
+const availabilityFilters: AvailabilityFilter[] = [
+  "All",
+  "Sample",
+  "Request-gated",
+  "Planned",
+  "Proof visible",
+];
 
 function sortCatalog(sites: SiteWorld[]) {
   return [...sites].sort((left, right) => {
@@ -39,6 +62,29 @@ function sortCatalog(sites: SiteWorld[]) {
     if (priorityDelta !== 0) return priorityDelta;
     return left.siteName.localeCompare(right.siteName);
   });
+}
+
+function hasPublicProof(site: SiteWorld) {
+  const proofSummary = getSiteWorldPublicProofSummary(site);
+  return (
+    proofSummary !== "Listing metadata only"
+    && !proofSummary.toLowerCase().includes("planned profile")
+  );
+}
+
+function getCatalogStateLabel(site: SiteWorld) {
+  const status = getSiteWorldCommercialStatus(site);
+  if (status.id === "public_demo_sample") return "Sample";
+  if (status.id === "planned_catalog_profile") return "Planned";
+  return "Request-gated";
+}
+
+function matchesAvailabilityFilter(site: SiteWorld, filter: AvailabilityFilter) {
+  if (filter === "All") return true;
+  if (filter === "Sample") return getSiteWorldCommercialStatus(site).id === "public_demo_sample";
+  if (filter === "Planned") return isPlannedCatalogSiteWorld(site);
+  if (filter === "Proof visible") return hasPublicProof(site);
+  return getCatalogStateLabel(site) === "Request-gated";
 }
 
 function SiteCard({
@@ -49,21 +95,26 @@ function SiteCard({
   large?: boolean;
 }) {
   const badges = getSiteWorldStatusBadges(site).slice(0, 3);
+  const commercialStatus = getSiteWorldCommercialStatus(site);
   const hostedDisclosure = getSiteWorldHostedAccessDisclosure(site);
   const visualDisclosure = getSiteWorldVisualDisclosure(site);
   const scenePackage = site.packages[0];
   const proofSummary = getSiteWorldPublicProofSummary(site);
   const freshnessSummary = getSiteWorldFreshnessSummary(site);
   const packageSummary = getSiteWorldPackageAccessSummary(site);
+  const catalogState = getCatalogStateLabel(site);
+  const planned = isPlannedCatalogSiteWorld(site);
   const factRows = [
-    ["Proof", proofSummary],
+    ["State", commercialStatus.label],
+    ["Proof", large ? getSiteWorldProofDepth(site) : proofSummary],
     ["Freshness", freshnessSummary],
     ["Hosted", hostedDisclosure.label],
   ];
+  const primaryCta = planned ? "Scope this site" : "Inspect listing";
 
   return (
     <article
-      className={`group grid overflow-hidden border border-black/10 bg-white shadow-[0_22px_60px_-48px_rgba(15,23,42,0.38)] ${
+      className={`group grid overflow-hidden border border-black/10 bg-white shadow-[0_22px_60px_-48px_rgba(15,23,42,0.38)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_30px_70px_-52px_rgba(15,23,42,0.42)] ${
         large ? "lg:grid-cols-[0.46fr_0.54fr]" : ""
       }`}
     >
@@ -77,11 +128,16 @@ function SiteCard({
       <div className="flex min-h-full flex-col p-5 sm:p-6">
         <div className="flex flex-wrap items-center gap-2">
           <ProofChip className="border-black/10 bg-[#f5f3ef] text-slate-700">
-            Exact site
+            {catalogState}
           </ProofChip>
           <ProofChip className="border-black/10 bg-[#f5f3ef] text-slate-700">
             {visualDisclosure.label}
           </ProofChip>
+          {hasPublicProof(site) ? (
+            <ProofChip className="border-black/10 bg-[#f5f3ef] text-slate-700">
+              Proof visible
+            </ProofChip>
+          ) : null}
         </div>
         <p className="mt-5 text-[11px] uppercase tracking-[0.22em] text-slate-500">
           {getEditorialSiteLocation(site)} / {site.industry}
@@ -92,10 +148,18 @@ function SiteCard({
           </a>
         </h3>
         <p className="mt-3 text-sm leading-6 text-slate-700">{site.summary}</p>
+        <div className="mt-4 grid gap-2 text-sm leading-5 text-slate-700 sm:grid-cols-2">
+          <p>
+            <span className="font-semibold text-slate-950">Workflow:</span> {site.taskLane}
+          </p>
+          <p>
+            <span className="font-semibold text-slate-950">Robot fit:</span> {site.bestFor}
+          </p>
+        </div>
 
-        <div className="mt-5 grid gap-px bg-black/10 sm:grid-cols-3">
+        <div className="mt-5 grid gap-px bg-black/10 sm:grid-cols-2">
           {factRows.map(([label, value]) => (
-            <div key={label} className="min-h-[5rem] bg-[#f8f6f1] p-3">
+            <div key={label} className="min-h-[5.6rem] bg-[#f8f6f1] p-3">
               <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">{label}</p>
               <p className="mt-2 text-sm leading-5 text-slate-800">{value}</p>
             </div>
@@ -118,23 +182,25 @@ function SiteCard({
           <p className="mt-2">{packageSummary}</p>
         </div>
 
-        <div className="mt-auto flex flex-wrap gap-2 pt-5">
+        <div className="mt-auto flex flex-col gap-2 pt-5 sm:flex-row sm:flex-wrap">
           <a
-            href={`/world-models/${site.id}`}
-            className="inline-flex items-center justify-center bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+            href={planned ? scenePackage?.actionHref || "/contact?persona=robot-team" : `/world-models/${site.id}`}
+            className="inline-flex w-full items-center justify-center bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 sm:w-auto"
           >
-            Open world model
+            {primaryCta}
             <ArrowRight className="ml-2 h-4 w-4" />
           </a>
-          <a
-            href={`/world-models/${site.id}/start`}
-            className="inline-flex items-center justify-center border border-black/10 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
-          >
-            Hosted setup
-          </a>
+          {!planned ? (
+            <a
+              href={`/world-models/${site.id}/start`}
+              className="inline-flex w-full items-center justify-center border border-black/10 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-slate-100 sm:w-auto"
+            >
+              Hosted setup
+            </a>
+          ) : null}
           <a
             href={scenePackage?.actionHref || "/contact?persona=robot-team"}
-            className="inline-flex items-center justify-center border border-black/10 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
+            className="inline-flex w-full items-center justify-center border border-black/10 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-slate-100 sm:w-auto"
           >
             Package access
           </a>
@@ -146,6 +212,9 @@ function SiteCard({
 
 export default function SiteWorlds() {
   const [catalog, setCatalog] = useState(siteWorldCards);
+  const [categoryFilter, setCategoryFilter] = useState<SiteCategory>("All");
+  const [availabilityFilter, setAvailabilityFilter] = useState<AvailabilityFilter>("All");
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -166,30 +235,73 @@ export default function SiteWorlds() {
   const sortedCatalog = useMemo(() => sortCatalog(catalog), [catalog]);
   const featuredSites = useMemo(() => getEditorialFeaturedSites(sortedCatalog, 4), [sortedCatalog]);
   const heroSite = featuredSites[0] || sortedCatalog[0];
-  const catalogSites = sortedCatalog;
+  const normalizedQuery = query.trim().toLowerCase();
+  const catalogSites = useMemo(
+    () =>
+      sortedCatalog.filter((site) => {
+        const matchesCategory = categoryFilter === "All" || site.category === categoryFilter;
+        const matchesAvailability = matchesAvailabilityFilter(site, availabilityFilter);
+        const searchable = [
+          site.siteName,
+          site.siteCode,
+          site.industry,
+          site.taskLane,
+          site.bestFor,
+          site.sampleRobot,
+          getCatalogStateLabel(site),
+        ]
+          .join(" ")
+          .toLowerCase();
+        const matchesQuery = !normalizedQuery || searchable.includes(normalizedQuery);
+        return matchesCategory && matchesAvailability && matchesQuery;
+      }),
+    [availabilityFilter, categoryFilter, normalizedQuery, sortedCatalog],
+  );
+  const activeFilterCount =
+    (categoryFilter === "All" ? 0 : 1)
+    + (availabilityFilter === "All" ? 0 : 1)
+    + (normalizedQuery ? 1 : 0);
+  const catalogStats = useMemo(() => {
+    const sampleCount = sortedCatalog.filter(
+      (site) => getSiteWorldCommercialStatus(site).id === "public_demo_sample",
+    ).length;
+    const plannedCount = sortedCatalog.filter((site) => isPlannedCatalogSiteWorld(site)).length;
+    const proofCount = sortedCatalog.filter((site) => hasPublicProof(site)).length;
+    return {
+      sampleCount,
+      plannedCount,
+      proofCount,
+      requestGatedCount: Math.max(sortedCatalog.length - sampleCount - plannedCount, 0),
+    };
+  }, [sortedCatalog]);
+  const clearFilters = () => {
+    setCategoryFilter("All");
+    setAvailabilityFilter("All");
+    setQuery("");
+  };
 
   const heroImageSrc = "/generated/editorial/world-models-hero.png";
 
   const metrics = useMemo(
     () => [
       {
-        label: "Public catalog",
-        detail: `${sortedCatalog.length} current listings visible in the buyer-facing world-model catalog.`,
+        label: "Catalog records",
+        detail: `${sortedCatalog.length} visible profiles across sample, request-gated, and planned exact-site world categories.`,
       },
       {
-        label: "Buying paths",
-        detail: "Every listing keeps the package path and the hosted-evaluation request path legible.",
+        label: "Sample proof",
+        detail: `${catalogStats.sampleCount} public sample profile carries visible proof assets without becoming a customer claim.`,
       },
       {
-        label: "Proof shown",
-        detail: "Public proof depth and commercial status stay attached to each exact-site card.",
+        label: "Request gates",
+        detail: `${catalogStats.requestGatedCount} profile${catalogStats.requestGatedCount === 1 ? "" : "s"} keep package and hosted access behind review.`,
       },
       {
-        label: "Access limits",
-        detail: "Rights, freshness, and hosted-access limits remain visible instead of implied.",
+        label: "Planned supply",
+        detail: `${catalogStats.plannedCount} planned profile${catalogStats.plannedCount === 1 ? "" : "s"} show the catalog vision without claiming cleared live supply.`,
       },
     ],
-    [sortedCatalog.length],
+    [catalogStats, sortedCatalog.length],
   );
 
   if (!heroSite) {
@@ -200,14 +312,14 @@ export default function SiteWorlds() {
     <>
       <SEO
         title="World Models | Blueprint"
-        description="Browse real-capture world models robot teams can train against, evaluate on, request, or use to understand Blueprint's package and hosted-evaluation paths."
+        description="Browse Blueprint's exact-site world-model catalog vision: sample, request-gated, and planned site worlds for robot training and evaluation with honest proof and access labels."
         canonical="/world-models"
         jsonLd={[
           webPageJsonLd({
             path: "/world-models",
             name: "Blueprint World Models",
             description:
-              "Real captured sites, site-specific world models, package paths, hosted evaluation, and provenance review for robot teams.",
+              "Exact-site world-model marketplace surface for robot teams, with sample, request-gated, and planned catalog states separated from proof, access, freshness, and provenance review.",
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },
@@ -230,13 +342,14 @@ export default function SiteWorlds() {
             <div className="absolute inset-x-0 bottom-0 mx-auto max-w-[88rem] px-5 pb-12 sm:px-8 lg:px-10 lg:pb-14">
               <div className="max-w-[34rem]">
                 <h1 className="font-editorial text-[3.4rem] leading-[0.94] tracking-[-0.05em] text-white sm:text-[4.7rem]">
-                  World models for exact-site training and evaluation.
+                  Browse exact-site world models.
                 </h1>
                 <p className="mt-3 text-lg text-white/90">
-                  Browse current samples or request the place and task your robot team needs.
+                  Blueprint is building a capture-backed supply of site worlds for robot training, evaluation, and hosted review. Start from public samples, request-gated profiles, or planned catalog lanes without losing the proof boundary.
                 </p>
                 <div className="mt-6 flex flex-wrap gap-2">
-                  <ProofChip light>Exact site</ProofChip>
+                  <ProofChip light>Capture-backed catalog</ProofChip>
+                  <ProofChip light>{getCatalogStateLabel(heroSite)}</ProofChip>
                   <ProofChip light>{getSiteWorldHostedAccessDisclosure(heroSite).label}</ProofChip>
                 </div>
                 <div className="mt-7 flex flex-wrap gap-3">
@@ -248,7 +361,7 @@ export default function SiteWorlds() {
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </a>
                   <a
-                    href="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=request-capture&source=world-models-hero"
+                    href="/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=world-models-hero"
                     className="inline-flex items-center justify-center border border-white/15 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
                   >
                     Request world model
@@ -263,15 +376,15 @@ export default function SiteWorlds() {
           <div className="mb-5 flex items-center justify-between gap-4">
             <EditorialSectionIntro
               eyebrow="Featured sites"
-              title="Start with a world model, not an abstract demo."
-              description="The clearest listings come first. Each card keeps proof, access, freshness, and hosted-evaluation state separate."
+              title="Start with a site world, not an abstract demo."
+              description="The top row anchors the catalog: public sample proof, commercial exemplar framing, and planned profiles are separated before a buyer clicks."
               className="max-w-3xl"
             />
             <a
               href="#catalog"
               className="hidden items-center text-sm font-semibold text-slate-700 transition hover:text-slate-950 lg:inline-flex"
             >
-                Browse all world models
+              Browse all world models
               <ArrowRight className="ml-2 h-4 w-4" />
             </a>
           </div>
@@ -286,9 +399,9 @@ export default function SiteWorlds() {
         <section className="border-y border-black/10 bg-white">
           <div className="mx-auto grid max-w-[88rem] gap-6 px-5 py-10 sm:px-8 lg:grid-cols-[0.34fr_0.66fr] lg:px-10 lg:py-12">
             <EditorialSectionIntro
-	              eyebrow="Status legend"
-	              title="Know what is visible now."
-	              description="Every listing keeps public proof, request gates, package access, and hosted availability separate so broad catalog coverage does not pretend every world model has the same proof depth."
+              eyebrow="Catalog states"
+              title="Sample, request-gated, and planned mean different things."
+              description="Blueprint can sell the catalog vision confidently while keeping public proof, hosted availability, package access, and future supply labels separate."
             />
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {siteWorldStatusLegend.map((item) => (
@@ -392,11 +505,11 @@ export default function SiteWorlds() {
             <EditorialSectionIntro
               eyebrow="Full catalog"
               title="Scan every listing by proof, access, and freshness."
-              description={getSiteWorldPlainEnglishStatus(heroSite)}
+              description={`${getSiteWorldPlainEnglishStatus(heroSite)} Filters are built around buyer questions: site type, state, visible proof, and whether access is still gated.`}
               className="max-w-3xl"
             />
             <a
-              href="/contact?persona=robot-team&interest=evaluation-package"
+              href="/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=world-models-section"
               className="hidden items-center text-sm font-semibold text-slate-700 transition hover:text-slate-950 lg:inline-flex"
             >
               Request access
@@ -404,11 +517,129 @@ export default function SiteWorlds() {
             </a>
           </div>
 
-          <div className="grid gap-4 xl:grid-cols-2">
-            {catalogSites.map((site, index) => (
-              <SiteCard key={site.id} site={site} large={index < 2} />
-            ))}
+          <div className="mb-5 border border-black/10 bg-white p-4 sm:p-5">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center border border-black/10 bg-[#f5f3ef]">
+                  <SlidersHorizontal className="h-4 w-4 text-slate-700" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-slate-950">Marketplace filters</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-600">
+                    Showing {catalogSites.length} of {sortedCatalog.length}; {catalogStats.proofCount} with public proof visible.
+                  </p>
+                </div>
+              </div>
+              {activeFilterCount > 0 ? (
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="inline-flex items-center justify-center border border-black/10 px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
+                >
+                  Clear filters
+                  <X className="ml-2 h-3.5 w-3.5" />
+                </button>
+              ) : null}
+            </div>
+
+            <div className="mt-4 grid gap-4 lg:grid-cols-[0.72fr_1fr_1fr]">
+              <label className="flex min-h-[2.75rem] items-center gap-2 border border-black/10 bg-[#f8f6f1] px-3 text-sm text-slate-700">
+                <Search className="h-4 w-4 shrink-0 text-slate-500" />
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Search site, workflow, robot"
+                  className="min-w-0 flex-1 bg-transparent text-sm text-slate-950 outline-none placeholder:text-slate-500"
+                />
+              </label>
+
+              <div className="min-w-0">
+                <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  Site type
+                </p>
+                <div className="flex flex-wrap gap-2 pb-1">
+                  {categoryFilters.map((filter) => {
+                    const active = categoryFilter === filter;
+                    return (
+                      <button
+                        key={filter}
+                        type="button"
+                        onClick={() => setCategoryFilter(filter)}
+                        aria-pressed={active}
+                        className={`shrink-0 border px-3 py-2 text-xs font-semibold transition ${
+                          active
+                            ? "border-slate-950 bg-slate-950 text-white"
+                            : "border-black/10 bg-white text-slate-700 hover:bg-slate-100"
+                        }`}
+                      >
+                        {filter}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="min-w-0">
+                <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  Catalog state
+                </p>
+                <div className="flex flex-wrap gap-2 pb-1">
+                  {availabilityFilters.map((filter) => {
+                    const active = availabilityFilter === filter;
+                    return (
+                      <button
+                        key={filter}
+                        type="button"
+                        onClick={() => setAvailabilityFilter(filter)}
+                        aria-pressed={active}
+                        className={`shrink-0 border px-3 py-2 text-xs font-semibold transition ${
+                          active
+                            ? "border-slate-950 bg-slate-950 text-white"
+                            : "border-black/10 bg-white text-slate-700 hover:bg-slate-100"
+                        }`}
+                      >
+                        {filter}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
           </div>
+
+          {catalogSites.length > 0 ? (
+            <div className="grid gap-4 xl:grid-cols-2">
+              {catalogSites.map((site, index) => (
+                <SiteCard key={site.id} site={site} large={index < 2} />
+              ))}
+            </div>
+          ) : (
+            <div className="border border-black/10 bg-white px-6 py-10 sm:px-8">
+              <ListFilter className="h-6 w-6 text-slate-950" />
+              <h3 className="font-editorial mt-5 text-[2.5rem] leading-none tracking-[-0.05em] text-slate-950">
+                No exact-site profile matches this view.
+              </h3>
+              <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-600">
+                Request the site, workflow, and robot class you need. Blueprint can route it through capture, package review, hosted evaluation, and rights/privacy checks before access is represented as available.
+              </p>
+              <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                <a
+                  href="/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=world-models-empty"
+                  className="inline-flex items-center justify-center bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                >
+                  Request exact-site world
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </a>
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="inline-flex items-center justify-center border border-black/10 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
+                >
+                  Show all profiles
+                </button>
+              </div>
+            </div>
+          )}
         </section>
 
         <section className="mx-auto max-w-[88rem] px-5 py-4 sm:px-8 lg:px-10 lg:py-6">
@@ -418,13 +649,13 @@ export default function SiteWorlds() {
         <section className="mx-auto max-w-[88rem] px-5 pb-16 pt-8 sm:px-8 lg:px-10 lg:pb-20">
           <EditorialCtaBand
             eyebrow="Evaluate a world"
-            title="Start with the world model that matters."
-            description="Open the strongest current public sample, then request package access, hosted evaluation, or capture only after the world model is legible."
+            title="Ask for the exact site your robot team needs."
+            description="Open the public sample for shape, then request package access, hosted evaluation, or a new capture-backed profile when the catalog does not yet show the site you need."
             imageSrc="/generated/editorial/cross-dock.png"
             imageAlt={heroSite.siteName}
             primaryHref={publicDemoHref}
             primaryLabel="Open sample world model"
-            secondaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=request-capture&source=site-worlds"
+            secondaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=site-worlds"
             secondaryLabel="Request world model"
           />
         </section>

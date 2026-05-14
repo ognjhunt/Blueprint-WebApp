@@ -17,6 +17,10 @@ vi.mock("@/contexts/AuthContext", () => ({
   }),
 }));
 
+vi.mock("@/lib/experiments", () => ({
+  resolveExperimentVariant: vi.fn(() => new Promise(() => {})),
+}));
+
 describe("public capture and world-model copy", () => {
   it("keeps the buyer path centered on world models, proof, and hosted evaluation", { timeout: 10000 }, () => {
     window.localStorage.clear();
@@ -31,14 +35,14 @@ describe("public capture and world-model copy", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Blueprint turns real places into world models your robot team can train and evaluate on\./i,
+        name: /Site-specific world models built from real capture\./i,
       }),
 	    ).toBeInTheDocument();
 	    expect(screen.getAllByRole("link", { name: /Request world model/i }).length).toBeGreaterThan(0);
-	    expect(screen.getAllByRole("link", { name: /Open proof/i }).length).toBeGreaterThan(0);
+	    expect(screen.getAllByRole("link", { name: /Open sample proof/i }).length).toBeGreaterThan(0);
     expect(container).toHaveTextContent(/world model/i);
     expect(container).toHaveTextContent(/real capture/i);
-    expect(container).toHaveTextContent(/training and eval worlds/i);
+    expect(container).toHaveTextContent(/site-specific packages/i);
     expect(container).toHaveTextContent(/products/i);
     expect(container).toHaveTextContent(/proof/i);
     expect(container).toHaveTextContent(/hosted evaluation/i);

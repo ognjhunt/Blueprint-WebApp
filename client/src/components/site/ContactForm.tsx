@@ -1,6 +1,15 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useSearch } from "wouter";
-import { ArrowRight, Calendar, CheckCircle2, Clock, Mail } from "lucide-react";
+import {
+  ArrowRight,
+  Calendar,
+  CheckCircle2,
+  Clock,
+  Mail,
+  MapPin,
+  MonitorPlay,
+  Package,
+} from "lucide-react";
 import { analyticsEvents, getSafeErrorType } from "@/lib/analytics";
 import { withCsrfHeader } from "@/lib/csrf";
 import {
@@ -17,6 +26,7 @@ import { useLocation } from "wouter";
 import type {
   BudgetBucket,
   BuyerType,
+  CommercialRequestPath,
   InboundRequestPayload,
   PlaceLocationMetadata,
   ProofPathPreference,
@@ -29,6 +39,138 @@ type Persona = "robot_team" | "site_operator";
 function getDefaultRequestedLane(persona: Persona): RequestedLane {
   return persona === "site_operator" ? "qualification" : "deeper_evaluation";
 }
+
+function getCommercialRequestPathFromContext(params: {
+  persona: Persona;
+  sourcePath: string;
+  interest: string;
+  hostedMode: boolean;
+}): CommercialRequestPath {
+  if (params.persona === "site_operator") return "site_claim";
+
+  const sourcePath = params.sourcePath.trim().toLowerCase();
+  const interest = params.interest.trim().toLowerCase();
+
+  if (
+    params.hostedMode ||
+    sourcePath === "hosted-evaluation" ||
+    interest === "hosted-evaluation" ||
+    interest === "hosted-session"
+  ) {
+    return "hosted_evaluation";
+  }
+
+  if (
+    sourcePath === "request-capture" ||
+    sourcePath === "capture-access" ||
+    interest === "capture-access"
+  ) {
+    return "capture_access";
+  }
+
+  return "world_model";
+}
+
+function getDefaultProofPathPreference(
+  commercialRequestPath: CommercialRequestPath,
+): ProofPathPreference {
+  return commercialRequestPath === "hosted_evaluation" ||
+    commercialRequestPath === "capture_access"
+    ? "exact_site_required"
+    : "need_guidance";
+}
+
+const robotRequestPathOptions: Array<{
+  value: Extract<CommercialRequestPath, "world_model" | "hosted_evaluation" | "capture_access">;
+  label: string;
+  description: string;
+  Icon: typeof Package;
+}> = [
+  {
+    value: "world_model",
+    label: "World model",
+    description: "Ask for a site-specific package or package path.",
+    Icon: Package,
+  },
+  {
+    value: "hosted_evaluation",
+    label: "Hosted evaluation",
+    description: "Scope a hosted review after availability is checked.",
+    Icon: MonitorPlay,
+  },
+  {
+    value: "capture_access",
+    label: "Capture access",
+    description: "Open a capture path for a site not packaged yet.",
+    Icon: MapPin,
+  },
+];
+
+const requestPathCopy: Record<
+  CommercialRequestPath,
+  {
+    successTitle: string;
+    successBody: string;
+    requestSectionTitle: string;
+    taskLabel: string;
+    taskPlaceholder: string;
+    taskHelper: string;
+    submitLabel: string;
+    nextStep: string;
+  }
+> = {
+  world_model: {
+    successTitle: "World model request received",
+    successBody:
+      "Blueprint now has the buyer, site, and robot context needed to route this toward a package path, hosted evaluation option, or one narrow follow-up.",
+    requestSectionTitle: "What should the world model be scoped around?",
+    taskLabel: "What should this world model help your team evaluate?",
+    taskPlaceholder:
+      "Describe the deployment question, task, site class, or package need you want answered first.*",
+    taskHelper: "One concrete robot workflow converts faster than a broad discovery note.",
+    submitLabel: "Request world model",
+    nextStep:
+      "Blueprint reviews the site, task, and robot details, then routes the request toward package access, hosted evaluation, capture access, or one missing detail.",
+  },
+  hosted_evaluation: {
+    successTitle: "Hosted evaluation request received",
+    successBody:
+      "Blueprint now has the site and robot context needed to evaluate a hosted review path without treating availability or entitlement as automatic.",
+    requestSectionTitle: "What should the hosted evaluation prove?",
+    taskLabel: "What should the hosted evaluation help your team answer?",
+    taskPlaceholder:
+      "Describe the robot task, scenario, pass/fail question, or review workflow this hosted evaluation should support.*",
+    taskHelper: "Hosted evaluation stays request-gated until site, entitlement, and runtime availability are confirmed.",
+    submitLabel: "Request hosted evaluation",
+    nextStep:
+      "Blueprint checks the site, task, entitlement, and hosted-path readiness before confirming whether a hosted evaluation can move forward.",
+  },
+  capture_access: {
+    successTitle: "Capture access request received",
+    successBody:
+      "Blueprint now has the site and workflow signal needed to review whether a capture path can be opened or whether an existing package is a better first step.",
+    requestSectionTitle: "What should Blueprint capture or inspect?",
+    taskLabel: "What site or workflow should Blueprint capture for your team?",
+    taskPlaceholder:
+      "Name the site, workflow, or site class your team wants captured before package or hosted-review work.*",
+    taskHelper: "Capture access is reviewed against site availability, lawful access, rights, and operational fit.",
+    submitLabel: "Request capture access",
+    nextStep:
+      "Blueprint checks whether this needs a new capture, an existing package, a hosted evaluation, or an access follow-up before making commitments.",
+  },
+  site_claim: {
+    successTitle: "Site claim received",
+    successBody:
+      "Blueprint now has the site claim, access notes, and governance boundaries needed for a measured follow-up.",
+    requestSectionTitle: "What facility and access path are you bringing?",
+    taskLabel: "What site participation path should Blueprint review?",
+    taskPlaceholder: "Describe the facility, access path, or approval question.",
+    taskHelper: "Use a concrete access boundary so Blueprint can route the right review.",
+    submitLabel: "Submit site claim",
+    nextStep:
+      "Blueprint reviews the facility, access rules, privacy boundary, and commercialization posture before suggesting any next step.",
+  },
+};
 
 function generateRequestId(): string {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
@@ -106,12 +248,23 @@ export function ContactForm() {
   const interest = searchParams.get("interest")?.trim() ?? "";
   const buyerTypeParam = searchParams.get("buyerType")?.trim() ?? "";
   const personaParam = searchParams.get("persona")?.trim() ?? "";
+  const sourcePath = searchParams.get("path")?.trim() ?? "";
   const interestLane = normalizeInterestToLane(interest);
-  const hostedMode = interestLane === "deeper_evaluation" && buyerTypeParam === "robot_team";
+  const hostedMode =
+    buyerTypeParam === "robot_team" &&
+    (sourcePath.toLowerCase() === "hosted-evaluation" ||
+      interest.toLowerCase() === "hosted-evaluation" ||
+      interest.toLowerCase() === "hosted-session");
   const persona =
     location === "/contact/site-operator"
       ? "site_operator"
       : getPersonaFromSearch(personaParam, buyerTypeParam, hostedMode);
+  const defaultCommercialRequestPath = getCommercialRequestPathFromContext({
+    persona,
+    sourcePath,
+    interest,
+    hostedMode,
+  });
   const searchDemandAttribution = useMemo(
     () => getDemandAttributionFromSearchParams(searchParams),
     [searchParams],
@@ -130,6 +283,9 @@ export function ContactForm() {
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
   const [submittedRequestId, setSubmittedRequestId] = useState<string | null>(null);
+  const [commercialRequestPath, setCommercialRequestPath] = useState<CommercialRequestPath>(
+    defaultCommercialRequestPath,
+  );
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [company, setCompany] = useState("");
@@ -144,7 +300,7 @@ export function ContactForm() {
   const [targetRobotTeam, setTargetRobotTeam] = useState("");
   const [budgetBucket, setBudgetBucket] = useState<BudgetBucket>("Undecided/Unsure");
   const [proofPathPreference, setProofPathPreference] = useState<ProofPathPreference>(
-    hostedMode ? "exact_site_required" : "need_guidance",
+    getDefaultProofPathPreference(defaultCommercialRequestPath),
   );
   const [operatingConstraints, setOperatingConstraints] = useState("");
   const [captureRights, setCaptureRights] = useState("");
@@ -163,6 +319,20 @@ export function ContactForm() {
     }),
     [searchParams],
   );
+
+  useEffect(() => {
+    setCommercialRequestPath(defaultCommercialRequestPath);
+    setProofPathPreference(getDefaultProofPathPreference(defaultCommercialRequestPath));
+  }, [defaultCommercialRequestPath]);
+
+  useEffect(() => {
+    if (
+      commercialRequestPath === "hosted_evaluation" ||
+      commercialRequestPath === "capture_access"
+    ) {
+      setProofPathPreference("exact_site_required");
+    }
+  }, [commercialRequestPath]);
 
   useEffect(() => {
     const displayName = userData?.name || currentUser?.displayName || "";
@@ -228,16 +398,18 @@ export function ContactForm() {
     ? ["deeper_evaluation"]
     : [interestLane || getDefaultRequestedLane(persona)];
   const requestedLane = requestedLanes[0] || "qualification";
+  const activeRequestPathCopy = requestPathCopy[commercialRequestPath];
   const requiredFieldSummary =
     persona === "site_operator"
       ? ["Name", "Operator", "Work email", "Facility", "Location", "Access rules"]
-      : ["Name", "Company", "Work email", "Role", "First question", "Site or site class"];
+      : ["Name", "Company", "Work email", "Role", "Request path", "Site or site class"];
 
   useEffect(() => {
     analyticsEvents.contactRequestStarted({
       persona,
       hostedMode,
       requestedLane,
+      commercialRequestPath,
       authenticated: Boolean(currentUser?.uid),
       prefilledSiteContext: Boolean(prefills.siteName || prefills.siteLocation),
       ...(analyticsDemandAttribution
@@ -283,6 +455,7 @@ export function ContactForm() {
         persona,
         hostedMode,
         requestedLane,
+        commercialRequestPath,
         ...(analyticsDemandAttribution
           ? { demandAttribution: analyticsDemandAttribution }
           : {}),
@@ -300,6 +473,7 @@ export function ContactForm() {
         persona,
         hostedMode,
         requestedLane,
+        commercialRequestPath,
         ...(analyticsDemandAttribution
           ? { demandAttribution: analyticsDemandAttribution }
           : {}),
@@ -324,6 +498,7 @@ export function ContactForm() {
       budgetBucket,
       requestedLanes,
       buyerType,
+      commercialRequestPath,
       siteName: siteName.trim(),
       siteLocation: siteLocation.trim(),
       siteLocationMetadata: resolvePlaceLocationMetadata(siteLocation, siteLocationMetadata),
@@ -360,6 +535,7 @@ export function ContactForm() {
       persona,
       hostedMode,
       requestedLane,
+      commercialRequestPath,
       authenticated: Boolean(currentUser?.uid),
       hasJobTitle: Boolean(jobTitle.trim()),
       hasSiteName: Boolean(siteName.trim()),
@@ -391,6 +567,7 @@ export function ContactForm() {
         persona,
         hostedMode,
         requestedLane,
+        commercialRequestPath,
         authenticated: Boolean(currentUser?.uid),
         ...(analyticsDemandAttribution
           ? { demandAttribution: analyticsDemandAttribution }
@@ -403,6 +580,7 @@ export function ContactForm() {
         persona,
         hostedMode,
         requestedLane,
+        commercialRequestPath,
         ...(analyticsDemandAttribution
           ? { demandAttribution: analyticsDemandAttribution }
           : {}),
@@ -421,18 +599,10 @@ export function ContactForm() {
           <CheckCircle2 className="h-8 w-8" />
         </div>
         <h2 className="text-2xl font-bold text-zinc-900">
-          {hostedMode
-            ? "Hosted evaluation request received"
-            : persona === "site_operator"
-              ? "Site claim received"
-              : "Site review request received"}
+          {activeRequestPathCopy.successTitle}
         </h2>
         <p className="mt-4 text-zinc-600">
-          {hostedMode
-            ? "Blueprint now has the request details for this hosted evaluation follow-up."
-            : persona === "site_operator"
-              ? "Blueprint now has the site claim, access notes, and governance boundaries needed for a measured follow-up."
-              : "Blueprint now has the site, task, and robot details needed to answer with a useful next step."}
+          {activeRequestPathCopy.successBody}
         </p>
         <div className="mt-8 rounded-xl bg-zinc-50 p-6 text-left">
           <h3 className="mb-4 text-sm font-semibold text-zinc-900">What happens next?</h3>
@@ -441,19 +611,19 @@ export function ContactForm() {
               <div className="mt-0.5 rounded-full bg-indigo-100 p-1 text-indigo-600">
                 <Clock className="h-3 w-3" />
               </div>
-              <p>Blueprint reviews the site, task, and robot details, then replies with the next useful step.</p>
+              <p>{activeRequestPathCopy.nextStep}</p>
             </div>
             <div className="flex items-start gap-3">
               <div className="mt-0.5 rounded-full bg-indigo-100 p-1 text-indigo-600">
                 <Mail className="h-3 w-3" />
               </div>
-              <p>You get a follow-up from the team rather than a dead-end auto-response.</p>
+              <p>You get a request-specific follow-up rather than a dead-end auto-response.</p>
             </div>
             <div className="flex items-start gap-3">
               <div className="mt-0.5 rounded-full bg-indigo-100 p-1 text-indigo-600">
                 <Calendar className="h-3 w-3" />
               </div>
-              <p>If the request looks workable, the next reply narrows the scope instead of reopening discovery from scratch.</p>
+              <p>The reply will not imply instant access, rights clearance, or live hosted availability unless the record supports it.</p>
             </div>
           </div>
         </div>
@@ -491,15 +661,51 @@ export function ContactForm() {
         </div>
       </div>
 
-      {hostedMode ? (
+      {commercialRequestPath === "hosted_evaluation" ? (
         <div className="border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700">
-          You are requesting a hosted evaluation for a specific site. Keep the submission tight.
+          You are requesting a hosted evaluation. Blueprint will still confirm entitlement, site fit, and hosted-path availability before promising access.
           {siteName ? ` Site: ${siteName}.` : ""}
           {siteLocation ? ` Location: ${siteLocation}.` : ""}
         </div>
       ) : null}
 
-      <FormSection eyebrow="01 Contact" title="Who should Blueprint follow up with?">
+      {persona === "robot_team" ? (
+        <FormSection eyebrow="01 Path" title="Choose the commercial request path.">
+          <div className="grid gap-3 md:grid-cols-3" role="radiogroup" aria-label="Commercial request path">
+            {robotRequestPathOptions.map(({ value, label, description, Icon }) => {
+              const active = commercialRequestPath === value;
+              return (
+                <label
+                  key={value}
+                  className={`flex min-h-[8.25rem] cursor-pointer flex-col justify-between border px-4 py-4 transition ${
+                    active
+                      ? "border-slate-950 bg-slate-950 text-white"
+                      : "border-black/10 bg-white text-slate-800 hover:border-slate-400"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="commercial-request-path"
+                    value={value}
+                    checked={active}
+                    onChange={() => setCommercialRequestPath(value)}
+                    className="sr-only"
+                  />
+                  <span className="flex items-center justify-between gap-3">
+                    <span className="text-sm font-semibold">{label}</span>
+                    <Icon className={`h-4 w-4 ${active ? "text-[#c7a775]" : "text-slate-500"}`} />
+                  </span>
+                  <span className={`mt-3 text-xs leading-5 ${active ? "text-white/70" : "text-slate-500"}`}>
+                    {description}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+        </FormSection>
+      ) : null}
+
+      <FormSection eyebrow={persona === "robot_team" ? "02 Contact" : "01 Contact"} title="Who should Blueprint follow up with?">
       <div className="grid gap-4 md:grid-cols-2">
         <div>
           <label htmlFor="contact-first-name" className={labelClassName}>
@@ -570,7 +776,7 @@ export function ContactForm() {
 
       {persona === "robot_team" ? (
         <>
-          <FormSection eyebrow="02 Request" title="What should the next step be scoped around?">
+          <FormSection eyebrow="03 Request" title={activeRequestPathCopy.requestSectionTitle}>
           <div>
             <label htmlFor="contact-title" className={labelClassName}>
               Your role
@@ -589,18 +795,18 @@ export function ContactForm() {
           </div>
           <div>
             <label htmlFor="contact-task" className={labelClassName}>
-              What should Blueprint help your team answer first?
+              {activeRequestPathCopy.taskLabel}
               <RequiredMark />
             </label>
             <textarea
               id="contact-task"
               className={textareaClassName}
-              placeholder="Describe the deployment question, site review, or package need you want answered first.*"
+              placeholder={activeRequestPathCopy.taskPlaceholder}
               aria-required="true"
               value={taskStatement}
               onChange={(event) => setTaskStatement(event.target.value)}
             />
-            <p className={helperClassName}>One concrete question converts better than a broad discovery note.</p>
+            <p className={helperClassName}>{activeRequestPathCopy.taskHelper}</p>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <div>
@@ -650,7 +856,7 @@ export function ContactForm() {
           </div>
 
           {showOptionalDetails ? (
-            <FormSection eyebrow="03 Optional" title="Add detail only when it helps the first reply.">
+            <FormSection eyebrow="04 Optional" title="Add detail only when it helps the first reply.">
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
                   <label
@@ -696,7 +902,7 @@ export function ContactForm() {
                     <option value=">$1M">&gt;$1M</option>
                   </select>
                 </div>
-                {!hostedMode ? (
+                {commercialRequestPath !== "hosted_evaluation" ? (
                   <div>
                     <label htmlFor="contact-proof-path" className={labelClassName}>
                       Proof path
@@ -714,7 +920,7 @@ export function ContactForm() {
                   </div>
                 ) : null}
               </div>
-              {!hostedMode ? (
+              {commercialRequestPath !== "hosted_evaluation" ? (
               <div>
                 <label htmlFor="contact-human-gates" className={labelClassName}>
                   Human-gated topics
@@ -896,13 +1102,7 @@ export function ContactForm() {
           disabled={status === "loading"}
           className="inline-flex w-full items-center justify-center bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
         >
-          {status === "loading"
-            ? "Submitting..."
-            : hostedMode
-              ? "Request hosted evaluation"
-              : persona === "site_operator"
-                ? "Submit site claim"
-                : "Request world model"}
+          {status === "loading" ? "Submitting..." : activeRequestPathCopy.submitLabel}
           <ArrowRight className="ml-2 h-4 w-4" />
         </button>
       </div>

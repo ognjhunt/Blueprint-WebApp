@@ -48,6 +48,7 @@ function buildPayload(requestId: string, email: string) {
     budgetBucket: "$50K-$300K",
     requestedLanes: ["qualification"],
     buyerType: "site_operator",
+    commercialRequestPath: "site_claim",
     siteName: "Durham Facility",
     siteLocation: "Durham, NC",
     siteLocationMetadata: {
@@ -90,6 +91,7 @@ function buildRobotTeamPayload(requestId: string, email: string) {
     budgetBucket: "$50K-$300K",
     requestedLanes: ["qualification"],
     buyerType: "robot_team",
+    commercialRequestPath: "world_model",
     siteName: "",
     siteLocation: "",
     taskStatement: "Can Blueprint show a proof path for pallet putaway in a warehouse?",
@@ -195,6 +197,7 @@ describe("inbound request route", () => {
         .map((line) => JSON.parse(line) as {
           requestId: string;
           request?: {
+            commercialRequestPath?: string;
             siteLocationMetadata?: {
               source?: string;
               placeId?: string;
@@ -225,6 +228,7 @@ describe("inbound request route", () => {
         country: "US",
         postalCode: "27701",
       });
+      expect(savedRequest?.request?.commercialRequestPath).toBe("site_claim");
       expect(savedRequest?.debug?.mode).toBe("dev_fallback");
       expect(savedRequest?.structured_intake?.calendar_disposition).toBe("required_before_next_step");
       expect(savedRequest?.ops_automation?.recommended_path).toBe("intake_then_required_scoping_call");
@@ -295,6 +299,7 @@ describe("inbound request route", () => {
         .find((entry) => entry.requestId === requestId);
 
       expect(savedRequest?.request?.targetSiteType).toBe("Warehouse pallet putaway");
+      expect(savedRequest?.request?.commercialRequestPath).toBe("world_model");
       expect(savedRequest?.request?.proofPathPreference).toBe("adjacent_site_acceptable");
       expect(savedRequest?.request?.siteName).toBe("");
       expect(savedRequest?.structured_intake?.calendar_disposition).toBe("not_needed_yet");
@@ -358,6 +363,7 @@ describe("inbound request route", () => {
           properties: expect.objectContaining({
             request_id: requestId,
             exact_site_classification: "exact_site",
+            commercial_request_path: "world_model",
             adjacent_site_allowed: false,
             proof_path_preference: "exact_site_required",
             proof_ready_outcome: "proof_ready_intake",

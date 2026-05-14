@@ -8,6 +8,7 @@ import { analyticsEvents } from "@/lib/analytics";
 import { normalizeInterestToLane } from "@/lib/contactInterest";
 import { getDemandCityMessaging } from "@/lib/cityDemandMessaging";
 import { editorialGeneratedAssets } from "@/lib/editorialGeneratedAssets";
+import type { CommercialRequestPath } from "@/types/inbound-request";
 import { ArrowRight, CheckCircle2, Mail, MessageSquare } from "lucide-react";
 import { useMemo } from "react";
 import { useLocation, useSearch } from "wouter";
@@ -15,6 +16,151 @@ import { useLocation, useSearch } from "wouter";
 function cleanParam(value: string | null) {
   return String(value || "").trim();
 }
+
+function resolveCommercialRequestPath(params: {
+  persona: "robot_team" | "site_operator";
+  sourcePath: string;
+  interest: string;
+  hostedMode: boolean;
+}): CommercialRequestPath {
+  if (params.persona === "site_operator") return "site_claim";
+
+  const sourcePath = params.sourcePath.toLowerCase();
+  const interest = params.interest.toLowerCase();
+
+  if (
+    params.hostedMode ||
+    sourcePath === "hosted-evaluation" ||
+    interest === "hosted-evaluation" ||
+    interest === "hosted-session"
+  ) {
+    return "hosted_evaluation";
+  }
+
+  if (
+    sourcePath === "request-capture" ||
+    sourcePath === "capture-access" ||
+    interest === "capture-access"
+  ) {
+    return "capture_access";
+  }
+
+  return "world_model";
+}
+
+function resolveCommercialRequestPathFromDestination(
+  destination: string,
+  fallback: CommercialRequestPath,
+): CommercialRequestPath {
+  try {
+    const url = new URL(destination, "https://tryblueprint.local");
+    if (url.protocol === "mailto:") return fallback;
+
+    const destinationInterest = cleanParam(url.searchParams.get("interest"));
+    const destinationBuyerType = cleanParam(url.searchParams.get("buyerType"));
+    const destinationPersona = cleanParam(url.searchParams.get("persona"));
+    const destinationPath = cleanParam(url.searchParams.get("path"));
+
+    if (
+      !destinationInterest &&
+      !destinationBuyerType &&
+      !destinationPersona &&
+      !destinationPath
+    ) {
+      return fallback;
+    }
+
+    const destinationHostedMode =
+      destinationBuyerType === "robot_team" &&
+      (destinationPath.toLowerCase() === "hosted-evaluation" ||
+        destinationInterest.toLowerCase() === "hosted-evaluation" ||
+        destinationInterest.toLowerCase() === "hosted-session");
+    const resolvedPersona =
+      destinationHostedMode ||
+      destinationPersona === "robot-team" ||
+      destinationBuyerType === "robot_team"
+        ? "robot_team"
+        : destinationPersona === "site-operator" || destinationBuyerType === "site_operator"
+          ? "site_operator"
+          : "robot_team";
+
+    return resolveCommercialRequestPath({
+      persona: resolvedPersona,
+      sourcePath: destinationPath,
+      interest: destinationInterest,
+      hostedMode: destinationHostedMode,
+    });
+  } catch {
+    return fallback;
+  }
+}
+
+const contactRequestPathCopy: Record<
+  CommercialRequestPath,
+  {
+    seoTitle: string;
+    seoDescription: string;
+    badgeLabel: string;
+    heroTitle: string;
+    heroBody: string;
+    responseBody: string;
+    primaryActionLabel: string;
+    formSummary: string;
+  }
+> = {
+  world_model: {
+    seoTitle: "Request A World Model | Blueprint",
+    seoDescription:
+      "Ask Blueprint for a site-specific world model package, hosted evaluation path, or capture plan for your robot team.",
+    badgeLabel: "Commercial Intake",
+    heroTitle: "Request the site-specific world model your robot team needs.",
+    heroBody:
+      "Blueprint turns real-site capture into world-model packages and hosted evaluation paths for robot teams. Share the site, task, and robot context; the reply routes you toward package access, hosted evaluation, capture access, or one specific follow-up.",
+    responseBody:
+      "Blueprint reviews the buyer, site, task, and robot context first. The reply points your team toward package access, hosted evaluation, capture access, or a narrower follow-up without claiming access the backend has not proven.",
+    primaryActionLabel: "Request world model",
+    formSummary: "Required: contact details, role, request path, first question, and a site or site class.",
+  },
+  hosted_evaluation: {
+    seoTitle: "Request Hosted Evaluation | Blueprint",
+    seoDescription:
+      "Request a hosted robot-team evaluation for a site-specific world model, subject to entitlement, proof, and runtime availability checks.",
+    badgeLabel: "Hosted Evaluation",
+    heroTitle: "Request a hosted evaluation for this site.",
+    heroBody:
+      "Confirm the site, task, and robot setup. Blueprint uses that to scope the hosted evaluation path and only confirms live availability after entitlement, proof, and runtime checks support it.",
+    responseBody:
+      "Blueprint reviews the site, robot setup, requested outputs, entitlement path, and hosted-session readiness before confirming whether a hosted evaluation can move forward.",
+    primaryActionLabel: "Request hosted evaluation",
+    formSummary: "Required: contact details, role, request path, hosted question, and the site or site class.",
+  },
+  capture_access: {
+    seoTitle: "Request Capture Access | Blueprint",
+    seoDescription:
+      "Ask Blueprint to review capture access for a real site or workflow your robot team wants packaged into world-model outputs.",
+    badgeLabel: "Capture Access",
+    heroTitle: "Ask Blueprint to capture the site or workflow your team needs.",
+    heroBody:
+      "Name the place, workflow, and robot question. Blueprint will confirm whether a capture path can be opened, whether an existing package fits first, or which access detail is missing.",
+    responseBody:
+      "Blueprint reviews the requested site, workflow, access path, and robot need first. The reply confirms whether the next move is capture review, an existing package, hosted evaluation, or a specific blocker.",
+    primaryActionLabel: "Request capture access",
+    formSummary: "Required: contact details, role, request path, capture question, and a site or site class.",
+  },
+  site_claim: {
+    seoTitle: "For Site Operators | Blueprint",
+    seoDescription:
+      "Talk to Blueprint about facility participation, access rules, privacy boundaries, and governance.",
+    badgeLabel: "For Site Operators",
+    heroTitle: "Submit or claim a site for robot evaluation.",
+    heroBody:
+      "Start with the facility, access rules, and privacy boundaries. A call comes later only when private areas, rights, or commercialization need a human pass.",
+    responseBody:
+      "Blueprint reviews the facility details, access rules, privacy notes, and commercialization preference first. A call is only the next step when those details are specific enough to resolve.",
+    primaryActionLabel: "Start site claim",
+    formSummary: "Required: contact details, facility, location, and access rules.",
+  },
+};
 
 export default function Contact() {
   const search = useSearch();
@@ -35,8 +181,10 @@ export default function Contact() {
   const cityMessaging = getDemandCityMessaging(searchParams.get("city"));
   const normalizedInterestLane = normalizeInterestToLane(interest);
   const hostedMode =
-    normalizedInterestLane === "deeper_evaluation" && buyerType === "robot_team";
-  const captureRequestMode = sourcePath === "request-capture" && buyerType === "robot_team";
+    buyerType === "robot_team" &&
+    (sourcePath.toLowerCase() === "hosted-evaluation" ||
+      interest.toLowerCase() === "hosted-evaluation" ||
+      interest.toLowerCase() === "hosted-session");
   const persona =
     hostedMode || personaParam === "robot-team" || buyerType === "robot_team"
       ? "robot_team"
@@ -45,69 +193,42 @@ export default function Contact() {
           location === "/contact/site-operator"
         ? "site_operator"
         : "robot_team";
+  const commercialRequestPath = resolveCommercialRequestPath({
+    persona,
+    sourcePath,
+    interest,
+    hostedMode,
+  });
+  const requestPathCopy = contactRequestPathCopy[commercialRequestPath];
   const robotTeamCityMessaging = persona === "robot_team" ? cityMessaging : null;
   const requestedLane =
     normalizedInterestLane || (persona === "site_operator" ? "qualification" : "deeper_evaluation");
 
-  const seoTitle = captureRequestMode
-    ? "Request Capture | Blueprint"
-    : hostedMode
-    ? "Request Hosted Evaluation | Blueprint"
-    : robotTeamCityMessaging
-      ? `For ${robotTeamCityMessaging.shortLabel} Robot Teams | Blueprint`
-        : persona === "site_operator"
-          ? "For Site Operators | Blueprint"
-          : "For Robot Teams | Blueprint";
-  const seoDescription = captureRequestMode
-    ? "Ask Blueprint to capture the exact site or workflow your robot team needs to evaluate."
-    : hostedMode
-    ? "Request a hosted robot-team evaluation for a site-specific world model."
-    : robotTeamCityMessaging
-      ? robotTeamCityMessaging.requestHeroBody
-      : persona === "site_operator"
-        ? "Talk to Blueprint about facility participation, access rules, and governance."
-        : "Tell Blueprint which real site, workflow, and robot setup your team wants to evaluate.";
+  const seoTitle = robotTeamCityMessaging
+    ? `For ${robotTeamCityMessaging.shortLabel} Robot Teams | Blueprint`
+    : requestPathCopy.seoTitle;
+  const seoDescription = robotTeamCityMessaging
+    ? robotTeamCityMessaging.requestHeroBody
+    : requestPathCopy.seoDescription;
 
-  const badgeLabel = captureRequestMode
-    ? "Request Capture"
-    : hostedMode
-    ? "Hosted Evaluation"
-    : robotTeamCityMessaging
-      ? `For Robot Teams • ${robotTeamCityMessaging.shortLabel}`
-      : persona === "site_operator"
-        ? "For Site Operators"
-        : "For Robot Teams";
-  const heroTitle = captureRequestMode
-    ? "Tell us the site or workflow to capture."
-    : hostedMode
-    ? "Request a hosted evaluation for this site."
-    : robotTeamCityMessaging
-      ? robotTeamCityMessaging.requestHeroTitle
-      : persona === "site_operator"
-        ? "Submit or claim a site for robot evaluation."
-        : "Tell us the site, task, and robot in a few lines.";
-  const heroBody = captureRequestMode
-    ? "Name the place, workflow, and robot question. Blueprint will confirm whether we can open a capture path, point you to an existing site package, or ask one narrow follow-up."
-    : hostedMode
-    ? "Confirm the site, the task, and the robot setup. Blueprint will use that to line up the right hosted evaluation path for your team."
-      : robotTeamCityMessaging
-      ? robotTeamCityMessaging.requestHeroBody
-      : persona === "site_operator"
-        ? "Start with the facility, access rules, and privacy boundaries. A call comes later only when private areas, rights, or commercialization need a human pass."
-        : "Use this form when your team needs a real place to train against, evaluate, compare, or request before deployment work moves forward.";
+  const badgeLabel = robotTeamCityMessaging
+    ? `For Robot Teams • ${robotTeamCityMessaging.shortLabel}`
+    : requestPathCopy.badgeLabel;
+  const heroTitle = robotTeamCityMessaging
+    ? robotTeamCityMessaging.requestHeroTitle
+    : requestPathCopy.heroTitle;
+  const heroBody = robotTeamCityMessaging
+    ? robotTeamCityMessaging.requestHeroBody
+    : requestPathCopy.heroBody;
 
-  const responseBody = captureRequestMode
-    ? "Fill out the short form and Blueprint will reply with the capture option, hosted evaluation path, or the one missing detail we need first."
-    : hostedMode
-    ? "Fill out the short form and Blueprint will follow up to confirm the site, robot setup, and the next step toward a hosted evaluation."
-      : robotTeamCityMessaging
-      ? robotTeamCityMessaging.requestResponseBody
-      : persona === "site_operator"
-        ? "Blueprint reviews the facility details, access rules, privacy notes, and commercialization preference first. A call is only the next step when those details are specific enough to resolve."
-        : "Blueprint reviews the site, task, and robot details first. The reply points your team toward package access, hosted evaluation, or one concrete follow-up question.";
+  const responseBody = robotTeamCityMessaging
+    ? robotTeamCityMessaging.requestResponseBody
+    : requestPathCopy.responseBody;
 
   const expectedNextStep =
-    sourcePath === "request-capture"
+    sourcePath === "world-model"
+      ? "Blueprint confirms the site, task, robot setup, and whether the first move is package access, hosted evaluation, or capture access."
+      : sourcePath === "request-capture" || sourcePath === "capture-access"
       ? "Blueprint confirms the requested site, workflow, robot setup, and whether a capture path can be opened."
       : sourcePath === "hosted-evaluation"
       ? "Blueprint confirms the site, robot setup, requested outputs, and hosted-evaluation scope."
@@ -123,7 +244,11 @@ export default function Contact() {
       sourcePath === "hosted-evaluation"
         ? "Hosted evaluation"
         : sourcePath === "request-capture"
-          ? "Request capture"
+          ? "Capture access"
+        : sourcePath === "capture-access"
+          ? "Capture access"
+        : sourcePath === "world-model"
+          ? "World model"
         : sourcePath === "package-access"
           ? "Package access"
           : interest
@@ -163,37 +288,27 @@ export default function Contact() {
         ]
       : [
           {
-            href: "/product",
-            label: "How Blueprint works",
-            detail: "Best when your team is new to Blueprint and wants the product shape before sharing site details.",
+            href: "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=contact-fast-path",
+            label: "Request world model",
+            detail: "Best when your team wants a site-specific package path for a concrete deployment or evaluation question.",
           },
           {
-            href: "/world-models",
-            label: "Browse world models",
-            detail: "Best when your team wants to see sample proof, access state, and package paths before outreach.",
-          },
-          {
-            href: "/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=contact-fast-path",
+            href: "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=contact-fast-path",
             label: "Request hosted evaluation",
-            detail: "Best when the site is already known and a structured first reply would save time.",
+            detail: "Best when the site is known and a hosted review could shorten technical evaluation.",
+          },
+          {
+            href: "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=contact-fast-path",
+            label: "Request capture access",
+            detail: "Best when your team needs Blueprint to review a new site or workflow before package work exists.",
           },
         ];
-  const primaryActionLabel =
-    captureRequestMode
-      ? "Start capture request"
-      : hostedMode
-        ? "Request hosted evaluation"
-        : persona === "site_operator"
-          ? "Start site claim"
-          : "Request world model";
+  const primaryActionLabel = requestPathCopy.primaryActionLabel;
   const proofPoints =
     persona === "site_operator"
       ? ["Facility first", "Access rules visible", "Call only when needed"]
-      : ["World model, task, robot first", "Proof boundaries visible", "Call only when useful"];
-  const formSummary =
-    persona === "site_operator"
-      ? "Required: contact details, facility, location, and access rules."
-      : "Required: contact details, role, first question, and a site or site class.";
+      : ["Request path first", "Proof boundaries visible", "Call only when useful"];
+  const formSummary = requestPathCopy.formSummary;
 
   const trackContactCta = (
     ctaId: string,
@@ -201,6 +316,10 @@ export default function Contact() {
     destination: string,
     sourceName: string,
   ) => {
+    const destinationRequestPath = resolveCommercialRequestPathFromDestination(
+      destination,
+      commercialRequestPath,
+    );
     analyticsEvents.contactPageCtaClicked({
       persona,
       ctaId,
@@ -208,6 +327,7 @@ export default function Contact() {
       destination,
       source: sourceName,
       requestedLane,
+      commercialRequestPath: destinationRequestPath,
     });
   };
 

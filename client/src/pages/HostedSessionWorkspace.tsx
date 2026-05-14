@@ -1195,7 +1195,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
     const request = new URLSearchParams({
       persona: "robot-team",
       buyerType: "robot_team",
-      interest: "evaluation-package",
+      interest: "hosted-evaluation",
       path: "buyer-success",
       source: "hosted-session-workspace",
       siteWorldId: site?.id || params.slug,

@@ -66,6 +66,7 @@ describe("AdminLeads scene readiness", () => {
                     requestedLanes: ["qualification"],
                     helpWith: ["benchmark-packs"],
                     buyerType: "site_operator",
+                    commercialRequestPath: "site_claim",
                     siteName: "Durham Facility",
                     siteLocation: "Durham, NC",
                     taskStatement: "Review a picking workflow.",
@@ -120,10 +121,32 @@ describe("AdminLeads scene readiness", () => {
                 requestedLanes: ["qualification"],
                 helpWith: ["benchmark-packs"],
                 buyerType: "site_operator",
+                commercialRequestPath: "site_claim",
                 siteName: "Durham Facility",
                 siteLocation: "Durham, NC",
                 taskStatement: "Review a picking workflow.",
                 workflowContext: "Backroom to staging handoff.",
+              },
+              structured_intake: {
+                mode: "calendar_accelerated",
+                primary_cta: "Submit or claim a site",
+                secondary_cta: "Book a scoping call",
+                calendar_disposition: "required_before_next_step",
+                calendar_reasons: ["operator_named_access_rules"],
+                missing_structured_fields: [],
+                owner_lane: "site-operator-partnership-agent",
+                recommended_path: "intake_then_required_scoping_call",
+                next_action: "review structured intake before any access or commercialization commitment",
+                proof_ready_outcome: "operator_handoff",
+                proof_path_outcome: "operator_handoff",
+                proof_readiness_score: 0,
+                proof_ready_criteria: [],
+                missing_proof_ready_fields: [],
+                site_operator_claim_outcome: "site_claim_access_boundary_ready",
+                access_boundary_outcome: "access_boundary_defined",
+                site_claim_readiness_score: 100,
+                site_claim_criteria: ["facility_name"],
+                missing_site_claim_fields: [],
               },
               owner: {},
               context: { sourcePageUrl: "https://example.com", utm: {} },
@@ -226,6 +249,9 @@ describe("AdminLeads scene readiness", () => {
     fireEvent.click(leadButton);
 
     expect(await screen.findByText(/Scene readiness/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Request path: Site operator claim/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Intake routing/i)).toBeInTheDocument();
+    expect(await screen.findByText(/site-operator-partnership-agent/i)).toBeInTheDocument();
     expect(await screen.findByText(/Whole-home/i)).toBeInTheDocument();
     expect(screen.getByText(/Need redesign/i)).toBeInTheDocument();
     expect(screen.getByText(/Outside envelope/i)).toBeInTheDocument();

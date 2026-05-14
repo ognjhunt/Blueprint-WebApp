@@ -39,7 +39,7 @@ const offerCards = [
       "Rollout video, metrics, and failure review",
       "Raw bundles and dataset exports for tuning and adaptation",
     ],
-    href: "/contact?persona=robot-team&interest=evaluation-package",
+    href: "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation",
     cta: "Scope hosted evaluation",
     icon: Play,
     imageSrc: "/illustrations/offer-hosted-evaluation-preview.svg",

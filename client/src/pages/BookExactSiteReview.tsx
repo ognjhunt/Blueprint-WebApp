@@ -99,7 +99,7 @@ export default function BookExactSiteReview() {
                 Open the scheduler when the site and first review question are already clear. Use contact instead when rights, privacy, or scope still need sorting first.
               </p>
               <a
-                href="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=book-exact-site-review"
+                href="/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=book-exact-site-review"
                 className="mt-8 inline-flex items-center justify-center bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
               >
                 Submit site review intake
@@ -123,7 +123,7 @@ export default function BookExactSiteReview() {
             description="If you still need public proof first, open the listing or hosted-evaluation page before opening a time slot."
             imageSrc={editorialGeneratedAssets.scopingRoom}
             imageAlt="Scoping room"
-            primaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=book-exact-site-review-bottom"
+            primaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=book-exact-site-review-bottom"
             primaryLabel="Submit site review intake"
             secondaryHref={exactSiteScopingCallUrl}
             secondaryLabel="Book only if scope is concrete"

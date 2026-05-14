@@ -5,15 +5,13 @@ import {
   EditorialMetricStrip,
   EditorialSectionIntro,
   MonochromeMedia,
-  MonochromeVideo,
   ProofChip,
   RouteTraceOverlay,
 } from "@/components/site/editorial";
 import { siteWorldCards } from "@/data/siteWorlds";
 import { editorialGeneratedAssets } from "@/lib/editorialGeneratedAssets";
-import { publicDemoHref, siteMotionLoopPosterSrc, siteMotionLoopVideoSrc } from "@/lib/marketingProof";
+import { publicDemoHref } from "@/lib/marketingProof";
 import { publicCaptureProofStories } from "@/lib/proofEvidence";
-import { publicCaptureGeneratedAssets } from "@/lib/publicCaptureGeneratedAssets";
 import {
   getEditorialFeaturedSites,
   getEditorialSiteLocation,
@@ -32,31 +30,39 @@ import { useEffect, useMemo, useState } from "react";
 
 const productPaths = [
   {
-    title: "World Model Package",
+    title: "Exact-Site World Model Package",
     body:
-      "License the exact-site world model when your team wants capture notes, routes, geometry when available, metadata, rights, and exports inside its own stack.",
+      "A listing- or request-scoped package for one real place: capture route, manifest, proof notes, rights and privacy limits, export scope, and geometry when available.",
     href: "/pricing",
     label: "View package access",
   },
   {
     title: "Hosted Evaluation",
     body:
-      "Start with hosted evaluation when your team needs repeatable task runs, checkpoint comparisons, and a clear next step before sending people on-site.",
+      "A request-gated review path for task scenarios, checkpoint comparisons, and buyer notes before export, field travel, or custom integration work.",
     href: "/product",
-    label: "See evaluation path",
+    label: "See hosted workflow",
     dark: true,
+  },
+  {
+    title: "Buyer Review",
+    body:
+      "A structured intake loop that turns a robot-team question into the next requested site, package scope, hosted evaluation, or capture run.",
+    href:
+      "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-product-review",
+    label: "Start buyer review",
   },
 ];
 
 const personaEntryPoints = [
   {
     audience: "Robot team",
-    question: "I need a world model of a real place my robot may operate in.",
-    title: "Train or evaluate on a world model.",
+    question: "I need a real place my robot can train or evaluate against.",
+    title: "Request a site-world package.",
     body:
-      "Start with a current world model, or send the place, workflow, and robot setup your team needs to train against or evaluate.",
+      "Name the exact facility, route, task, and robot setup. Blueprint will route you to a current listing, a new capture request, or hosted evaluation.",
     primaryHref:
-      "/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=request-capture&source=home-persona-robot-team",
+      "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-persona-robot-team",
     primaryLabel: "Request world model",
     secondaryHref: "/world-models",
     secondaryLabel: "Browse world models",
@@ -64,9 +70,9 @@ const personaEntryPoints = [
   {
     audience: "Site operator",
     question: "I control or influence a facility.",
-    title: "Submit or claim a site.",
+    title: "Set site boundaries.",
     body:
-      "Name the facility, access rules, privacy boundaries, and how commercialization should be handled.",
+      "Define access rules, privacy constraints, restricted zones, and commercialization terms before a package is released.",
     primaryHref: "/contact/site-operator",
     primaryLabel: "Submit or claim a site",
     secondaryHref: "/governance",
@@ -75,9 +81,9 @@ const personaEntryPoints = [
   {
     audience: "Capturer",
     question: "I can record real public-facing places.",
-    title: "Check where capture is open.",
+    title: "Apply for capture access.",
     body:
-      "Capture access is city- and approval-gated. Check the current launch path before recording or applying.",
+      "Capture work remains city- and approval-gated. Open the launch path before recording, routing, or expecting assignment payout.",
     primaryHref: "/capture-app/launch-access?role=capturer&source=home-persona-capturer",
     primaryLabel: "Check capture access",
     secondaryHref: "/capture",
@@ -86,37 +92,31 @@ const personaEntryPoints = [
 ];
 
 const proofItems = [
-  "Capture provenance stays attached to the site record.",
-  "Package and hosted paths stay tied to the same site.",
-  "Rights, freshness, and restrictions stay visible before purchase.",
-];
-
-const captureExamples = [
-  "Grocery aisles and retail backrooms",
-  "Public customer areas and everyday service locations",
-  "Lawfully accessible walkthroughs with privacy rules visible",
+  "Sample proof and demo worlds are labeled before the buyer path starts.",
+  "Approved listings keep capture basis, freshness, rights, restrictions, and package scope attached.",
+  "Hosted access and exports remain request-gated until a site-specific review approves them.",
 ];
 
 const homeDirectAnswers = [
   {
-    question: "What is a site-specific world model?",
+    question: "What does Blueprint sell?",
     answer:
-      "Blueprint records real places and turns approved capture into site-specific world models robot teams can use for training runs, hosted evaluation, and deployment evidence.",
+      "Blueprint sells capture-backed exact-site world-model packages, hosted evaluation paths, and buyer review workflows for robot teams evaluating real operating environments.",
   },
   {
-    question: "Who is it for?",
+    question: "Why does exact-site capture matter?",
     answer:
-      "Robot teams use Blueprint to evaluate or request world models. Site operators use it to set access, privacy, and commercialization boundaries. Capturers use it to apply for approved public-facing capture work.",
+      "A generic scene cannot preserve the route, occlusions, constraints, freshness, and rights posture of the real place your robot may enter. Blueprint keeps that context attached to the package.",
   },
   {
-    question: "What does a robot team get first?",
+    question: "What proof is attached?",
     answer:
-      "A robot team starts with a world-model listing, sample proof, or a structured request. Package access and hosted evaluation only come after the exact site and proof path are clear.",
+      "Public examples show the proof shape. Approved listings can attach capture provenance, site and capture ids, restrictions, freshness, package scope, and hosted-review notes when available.",
   },
   {
-    question: "What is sample versus real approved output?",
+    question: "What should a buyer request next?",
     answer:
-      "Public examples are labeled as samples unless they are tied to an approved listing, capture record, rights posture, and hosted-evaluation result.",
+      "Request one exact site, one robot task, and the review path you need: package access, hosted evaluation, new capture, or a proof packet for internal buyer review.",
   },
 ];
 
@@ -132,7 +132,7 @@ const homeVariantContent: Record<
     title: string;
     description: string;
     primaryLabel: string;
-    primaryPath: "hosted-evaluation" | "request-capture";
+    primaryPath: "world-model" | "hosted-evaluation" | "request-capture";
     secondaryLabel: string;
     secondaryHref: string;
     panelTitle: string;
@@ -144,7 +144,7 @@ const homeVariantContent: Record<
     description:
       "Blueprint packages exact-site capture into world models, hosted review rooms, and proof your robot team can inspect before deployment work.",
     primaryLabel: "Request world model",
-    primaryPath: "request-capture",
+    primaryPath: "world-model",
     secondaryLabel: "Browse world models",
     secondaryHref: "/world-models",
     panelTitle: "New here?",
@@ -156,7 +156,7 @@ const homeVariantContent: Record<
     description:
       "Start with one real place and the robot task you need to prove. Capture source, rights, package scope, and hosted review stay tied to the same world.",
     primaryLabel: "Request world model",
-    primaryPath: "request-capture",
+    primaryPath: "world-model",
     secondaryLabel: "Browse world models",
     secondaryHref: "/world-models",
     panelTitle: "New here?",
@@ -167,28 +167,34 @@ const homeVariantContent: Record<
 
 const robotTeamDecisionSteps = [
   {
-    title: "Pick the world",
-    body: "Start with one facility, site class, or route your team needs to train against before spending more time.",
+    title: "Name the exact site",
+    body: "Bring the facility, route, site class, or operating context your team needs to test. Blueprint starts from the real place, not an abstract category.",
   },
   {
-    title: "Run the task",
-    body: "Use the listing, capture notes, rights limits, freshness, hosted eval report, and export shape to scope the run.",
+    title: "Review attached proof",
+    body: "Inspect capture basis, freshness, rights limits, visible restrictions, package scope, and sample-vs-approved status before committing time or budget.",
   },
   {
-    title: "Compare the result",
-    body: "Ask for package access, hosted evaluation, checkpoint comparison, or new capture when the exact world is not available yet.",
+    title: "Choose the buyer path",
+    body: "Move into package access, hosted evaluation, checkpoint comparison, or new capture when the exact world is not available yet.",
   },
 ];
 
 function buildRobotTeamContactHref(
   variantId: HomeRobotTeamVariant,
   source: string,
-  path: "hosted-evaluation" | "request-capture",
+  path: "world-model" | "hosted-evaluation" | "request-capture",
 ) {
+  const interest =
+    path === "hosted-evaluation"
+      ? "hosted-evaluation"
+      : path === "request-capture"
+        ? "capture-access"
+        : "world-model";
   const params = new URLSearchParams({
     persona: "robot-team",
     buyerType: "robot_team",
-    interest: "evaluation-package",
+    interest,
     path,
     source,
     utm_source: "homepage",
@@ -256,7 +262,7 @@ export default function Home() {
   const decisionPathHref = buildRobotTeamContactHref(
     heroVariant,
     "home-decision-path",
-    "hosted-evaluation",
+    "world-model",
   );
   const bottomCtaHref = buildRobotTeamContactHref(
     heroVariant,
@@ -268,18 +274,18 @@ export default function Home() {
     () => [
       {
         label: "Real capture",
-        detail: "A walkthrough or site record starts the product. Provenance and limits stay attached.",
+        detail: "A walkthrough or site record starts the product. Provenance, freshness, and limits stay attached.",
       },
       {
         label: "Site product",
-        detail: "Blueprint packages the capture into a site-specific world model, listing, and export scope.",
+        detail: "Blueprint packages the capture into a site-specific world model, buyer listing, and export scope.",
       },
       {
         label: "Hosted eval",
-        detail: "A managed browser session can help a robot team run task scenarios on the same world model before file handoff.",
+        detail: "A managed review path gives robot teams task scenarios on the same world model before file handoff.",
       },
       {
-        label: "Evidence",
+        label: "Buyer proof",
         detail: "Use the proof before committing travel, rollout spend, custom sim work, or deeper integration.",
       },
     ],
@@ -440,12 +446,12 @@ export default function Home() {
 	                    {heroContent.secondaryLabel}
 	                  </a>
                     <a
-                      href="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=home-hero-hosted"
+                      href="/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=home-hero-hosted"
                       onClick={() =>
                         trackHomeCtaClick(
                           "home_hero_hosted",
                           "Request hosted evaluation",
-                          "/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=home-hero-hosted",
+                          "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=home-hero-hosted",
                           "home-hero-hosted",
                         )
                       }
@@ -475,78 +481,98 @@ export default function Home() {
           </MonochromeMedia>
         </section>
 
-        <section className="border-b border-black/10 bg-white" data-home-section="persona-paths">
-          <div className="mx-auto max-w-[88rem] px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
-            <div className="grid gap-px bg-black/10 lg:grid-cols-3">
-              {personaEntryPoints.map((entry, index) => (
-                <article
-                  key={entry.audience}
-                  className={index === 0 ? "bg-slate-950 p-6 text-white" : "bg-[#f5f3ef] p-6 text-slate-950"}
+        <section className="border-b border-black/10 bg-[#101310] text-white" data-home-section="product-stack">
+          <div className="mx-auto grid max-w-[88rem] gap-10 px-5 py-12 sm:px-8 lg:grid-cols-[0.43fr_0.57fr] lg:px-10 lg:py-14">
+            <div className="max-w-xl">
+              <ProofChip light>Commercial product</ProofChip>
+              <h2 className="font-editorial mt-5 text-[3rem] leading-[0.9] tracking-[-0.05em] sm:text-[4.15rem]">
+                Blueprint sells exact-site world-model products.
+              </h2>
+              <p className="mt-6 text-base leading-8 text-white/76">
+                The product is not a generic scene library. Blueprint turns real capture into
+                site-specific packages, hosted review paths, and buyer decisions tied to the same
+                facility, route, and proof record.
+              </p>
+              <div className="mt-8 flex flex-wrap gap-3">
+                <a
+                  href={decisionPathHref}
+                  onClick={() =>
+                    trackHomeCtaClick(
+                      "home_product_stack_primary",
+                      "Request world model",
+                      decisionPathHref,
+                      "home-product-stack",
+                    )
+                  }
+                  className="inline-flex items-center justify-center bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
                 >
-                  <p className={`text-[11px] uppercase tracking-[0.18em] ${index === 0 ? "text-white/45" : "text-slate-500"}`}>
-                    {entry.audience}
+                  Request world model
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </a>
+                <a
+                  href="/world-models"
+                  onClick={() =>
+                    trackHomeCtaClick(
+                      "home_product_stack_catalog",
+                      "Browse world models",
+                      "/world-models",
+                      "home-product-stack",
+                    )
+                  }
+                  className="inline-flex items-center justify-center border border-white/15 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+                >
+                  Browse world models
+                </a>
+              </div>
+            </div>
+
+            <div className="grid gap-px bg-white/10 md:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+              {productPaths.map((path, index) => (
+                <article
+                  key={path.title}
+                  className={index === 1 ? "bg-[#e8efe8] p-6 text-slate-950" : "bg-white/[0.06] p-6 text-white"}
+                >
+                  <p className={`text-[11px] uppercase tracking-[0.18em] ${index === 1 ? "text-slate-500" : "text-white/45"}`}>
+                    0{index + 1}
                   </p>
-                  <p className={`mt-3 text-sm leading-6 ${index === 0 ? "text-white/65" : "text-slate-600"}`}>
-                    {entry.question}
+                  <h3 className="font-editorial mt-5 text-[2.25rem] leading-[0.92] tracking-[-0.04em]">
+                    {path.title}
+                  </h3>
+                  <p className={`mt-4 text-sm leading-7 ${index === 1 ? "text-slate-700" : "text-white/68"}`}>
+                    {path.body}
                   </p>
-                  <h2 className="font-editorial mt-5 text-[2.25rem] leading-[0.94] tracking-[-0.05em]">
-                    {entry.title}
-                  </h2>
-                  <p className={`mt-4 text-sm leading-7 ${index === 0 ? "text-white/72" : "text-slate-700"}`}>
-                    {entry.body}
-                  </p>
-                  <div className="mt-7 flex flex-wrap gap-3">
-                    <a
-                      href={entry.primaryHref}
-                      onClick={() =>
-                        trackHomeCtaClick(
-                          `home_persona_${entry.audience.toLowerCase().replace(/[^a-z0-9]+/g, "_")}_primary`,
-                          entry.primaryLabel,
-                          entry.primaryHref,
-                          "home-persona-paths",
-                        )
-                      }
-                      className={index === 0
-                        ? "inline-flex items-center justify-center bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
-                        : "inline-flex items-center justify-center bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"}
-                    >
-                      {entry.primaryLabel}
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </a>
-                    <a
-                      href={entry.secondaryHref}
-                      onClick={() =>
-                        trackHomeCtaClick(
-                          `home_persona_${entry.audience.toLowerCase().replace(/[^a-z0-9]+/g, "_")}_secondary`,
-                          entry.secondaryLabel,
-                          entry.secondaryHref,
-                          "home-persona-paths",
-                        )
-                      }
-                      className={index === 0
-                        ? "inline-flex items-center justify-center border border-white/15 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
-                        : "inline-flex items-center justify-center border border-black/10 bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"}
-                    >
-                      {entry.secondaryLabel}
-                    </a>
-                  </div>
+                  <a
+                    href={path.href}
+                    onClick={() =>
+                      trackHomeCtaClick(
+                        `home_product_stack_${path.title.toLowerCase().replace(/\s+/g, "_")}`,
+                        path.label,
+                        path.href,
+                        "home-product-stack",
+                      )
+                    }
+                    className={`mt-7 inline-flex items-center text-sm font-semibold ${index === 1 ? "text-slate-950" : "text-white"}`}
+                  >
+                    {path.label}
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </a>
                 </article>
               ))}
             </div>
           </div>
         </section>
 
-        <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10" data-home-section="metrics">
+        <section className="mx-auto max-w-[88rem] px-5 py-8 sm:px-8 lg:px-10 lg:py-10" data-home-section="metrics">
           <EditorialMetricStrip items={metrics} />
         </section>
 
         <section className="border-y border-black/10 bg-white" data-home-section="robot-team-path">
           <div className="mx-auto grid max-w-[88rem] gap-px px-5 py-10 sm:px-8 lg:grid-cols-[0.35fr_0.65fr] lg:px-10">
-            <div className="bg-[#f5f3ef] px-6 py-8 lg:px-8 lg:py-10">
+            <div className="bg-[#e8efe8] px-6 py-8 lg:px-8 lg:py-10">
               <EditorialSectionIntro
                 eyebrow="For robot teams"
-                title="Start with the world model your robot needs to learn from."
-                description="Blueprint helps your team evaluate what exists, request what is missing, and move toward hosted evaluation without a long discovery loop."
+                title="Start with the exact site your robot needs to understand."
+                description="A buyer request should name the place, workflow, and robot question. Blueprint then keeps the capture-backed proof, package scope, and hosted path together."
               />
               <a
                 href={decisionPathHref}
@@ -585,64 +611,70 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="border-y border-black/10 bg-white" data-home-section="proof-story">
-          <div className="mx-auto grid max-w-[88rem] gap-px px-5 py-10 sm:px-8 lg:grid-cols-[0.38fr_0.62fr] lg:px-10">
-            <div className="bg-[#f5f3ef] px-6 py-8 lg:px-8 lg:py-10">
-	              <EditorialSectionIntro
-	                eyebrow="Stories / Proof"
-	                title="Start with one complete proof journey."
-	                description="Before you request a new world model, open the sample path: one exact site, one package, one hosted-evaluation request, and limits that stay visible."
-	              />
-	              <div className="mt-7 flex flex-wrap gap-3">
-	                <a
-	                  href="/proof"
-                    onClick={() =>
-                      trackHomeCtaClick(
-                        "home_proof_primary",
-                        "Open sample proof",
-                        "/proof",
-                        "home-proof-story",
-                      )
-                    }
-	                  className="inline-flex items-center justify-center bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-	                >
-	                  Open sample proof
-	                  <ArrowRight className="ml-2 h-4 w-4" />
-	                </a>
-	                <a
-	                  href={publicDemoHref}
-                    onClick={() =>
-                      trackHomeCtaClick(
-                        "home_sample_site_secondary",
-                        "Open sample world model",
-                        publicDemoHref,
-                        "home-proof-story",
-                      )
-                    }
-	                  className="inline-flex items-center justify-center border border-black/10 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
-	                >
-	                  Open sample world model
-	                </a>
-	              </div>
-	            </div>
-	            <MonochromeVideo
-	              src={siteMotionLoopVideoSrc}
-	              poster={siteMotionLoopPosterSrc}
-	              title="Blueprint exact-site walkthrough"
-	              className="min-h-[30rem] rounded-none"
-	              videoClassName="min-h-[30rem]"
-	              overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.02),rgba(0,0,0,0.16))]"
+        <section className="border-y border-black/10 bg-[#f5f3ef]" data-home-section="proof-story">
+          <div className="mx-auto grid max-w-[88rem] gap-px px-5 py-10 sm:px-8 lg:grid-cols-[0.52fr_0.48fr] lg:px-10 lg:py-12">
+            <MonochromeMedia
+              src={publicCaptureProofStories[0]?.image || editorialGeneratedAssets.groceryBackroom}
+              alt="Blueprint exact-site proof route"
+              className="min-h-[29rem] rounded-none"
+              imageClassName="min-h-[29rem]"
+              overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.02),rgba(0,0,0,0.18))]"
             />
+            <div className="bg-white px-6 py-8 lg:px-8 lg:py-10">
+              <EditorialSectionIntro
+                eyebrow="Proof boundary"
+                title="The proof travels with the product."
+                description="A polished sample is useful only when it stays honest. Blueprint labels public examples, keeps approved proof attached to the exact site, and gates hosted access until the request is reviewed."
+              />
+              <div className="mt-8 divide-y divide-black/10 border-y border-black/10">
+                {proofItems.map((item) => (
+                  <div key={item} className="py-4 text-sm leading-7 text-slate-700">
+                    {item}
+                  </div>
+                ))}
+              </div>
+              <div className="mt-8 flex flex-wrap gap-3">
+                <a
+                  href="/proof"
+                  onClick={() =>
+                    trackHomeCtaClick(
+                      "home_proof_primary",
+                      "Open sample proof",
+                      "/proof",
+                      "home-proof-story",
+                    )
+                  }
+                  className="inline-flex items-center justify-center bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                >
+                  Open sample proof
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </a>
+                <a
+                  href={publicDemoHref}
+                  onClick={() =>
+                    trackHomeCtaClick(
+                      "home_sample_site_secondary",
+                      "Open sample world model",
+                      publicDemoHref,
+                      "home-proof-story",
+                    )
+                  }
+                  className="inline-flex items-center justify-center border border-black/10 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
+                >
+                  Open sample world model
+                </a>
+              </div>
+            </div>
           </div>
         </section>
 
-        <section className="mx-auto max-w-[88rem] px-5 py-8 sm:px-8 lg:px-10 lg:py-10" data-home-section="catalog">
+        <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12" data-home-section="catalog">
           <EditorialSectionIntro
-                eyebrow="Real places"
-                title="Everyday places can become training and eval worlds."
-                description="Blueprint is not limited to warehouses. Public-facing grocery, retail, service, and common-area locations can become capture-backed world-model products when the walkthrough is lawful, privacy-safe, and useful."
-                className="max-w-3xl"
-              />
+            eyebrow="World-model catalog"
+            title="Sample worlds show the package shape."
+            description="Browse public examples to inspect the proof format, then request the exact facility or route your team needs when it is not already listed."
+            className="max-w-3xl"
+          />
 
           <div className="mt-8 grid gap-4 lg:grid-cols-3">
             {featuredSites.map((site) => (
@@ -663,136 +695,12 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="border-y border-black/10 bg-white" data-home-section="product-paths">
-          <div className="mx-auto grid max-w-[88rem] gap-px px-5 py-10 sm:px-8 lg:grid-cols-[0.44fr_0.56fr] lg:px-10">
-            <div className="bg-[#f5f3ef] px-6 py-8 lg:px-8 lg:py-10">
-              <EditorialSectionIntro
-                eyebrow="Products"
-                title="Two ways to work with one exact site."
-                description="Start with the world-model listing, then choose package access or hosted evaluation."
-              />
-            </div>
-            <div className="grid gap-px bg-black/10 md:grid-cols-2">
-              {productPaths.map((path) => (
-                <div
-                  key={path.title}
-                  className={path.dark ? "bg-slate-950 p-6 text-white" : "bg-white p-6 text-slate-950"}
-                >
-                  <p className={`text-[11px] uppercase tracking-[0.18em] ${path.dark ? "text-white/45" : "text-slate-400"}`}>
-                    {path.title}
-                  </p>
-                  <h3 className="font-editorial mt-4 text-[2.3rem] leading-[0.92] tracking-[-0.04em]">
-                    {path.title}
-                  </h3>
-                  <p className={`mt-4 text-sm leading-7 ${path.dark ? "text-white/70" : "text-slate-600"}`}>
-                    {path.body}
-                  </p>
-                  <a
-                    href={path.href}
-                    onClick={() =>
-                      trackHomeCtaClick(
-                        `home_product_${path.title.toLowerCase().replace(/\s+/g, "_")}`,
-                        path.label,
-                        path.href,
-                        "home-product-paths",
-                      )
-                    }
-                    className={`mt-6 inline-flex items-center text-sm font-semibold ${path.dark ? "text-white" : "text-slate-950"}`}
-                  >
-                    {path.label}
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </a>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12" data-home-section="direct-answers">
-          <EditorialFaq
-            title="Direct answers"
-            description="Short definitions for teams comparing exact-site packages, hosted evaluation, capture provenance, rights, and sample boundaries."
-            items={homeDirectAnswers}
-          />
-        </section>
-
-	        <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12" data-home-section="proof">
-	          <div className="grid overflow-hidden rounded-[2rem] border border-black/10 bg-white lg:grid-cols-[0.46fr_0.54fr]">
-            <MonochromeMedia
-              src={publicCaptureGeneratedAssets.cedarMarketProofBoard}
-              alt="Blueprint public proof board"
-              loading="eager"
-              className="min-h-[32rem] rounded-none"
-              imageClassName="min-h-[32rem]"
-              overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.1),rgba(0,0,0,0.4))]"
-            >
-              <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.12)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.12)_1px,transparent_1px)] bg-[size:58px_58px] opacity-30" />
-              <div className="absolute inset-x-0 bottom-0 p-6 text-white lg:p-8">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-white/50">
-                  Public proof board
-                </p>
-                <h2 className="font-editorial mt-4 max-w-[20rem] text-[3rem] leading-[0.94] tracking-[-0.05em]">
-                  One site, shown before the sales motion starts.
-                </h2>
-              </div>
-            </MonochromeMedia>
-
-            <div className="bg-[#f5f3ef] px-6 py-8 lg:px-8 lg:py-10">
-	              <EditorialSectionIntro
-	                eyebrow="Proof"
-	                title="See what is attached before you commit."
-	                description="The listing keeps the package, hosted path, rights, freshness, and restrictions readable before your team moves forward."
-	              />
-              <div className="mt-8 space-y-3">
-                {proofItems.map((item) => (
-                  <div
-                    key={item}
-                    className="rounded-full border border-black/10 bg-white px-5 py-4 text-sm text-slate-700"
-                  >
-                    {item}
-                  </div>
-                ))}
-              </div>
-              <div className="mt-8 flex flex-wrap gap-3">
-                <a
-                  href="/proof"
-                  onClick={() =>
-                    trackHomeCtaClick(
-                      "home_proof",
-                      "View proof",
-                      "/proof",
-                      "home-proof",
-                    )
-                  }
-                  className="inline-flex items-center justify-center bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-                >
-                  View proof
-                </a>
-                <a
-                  href="/product"
-                  onClick={() =>
-                    trackHomeCtaClick(
-                      "home_product",
-                      "See product",
-                      "/product",
-                      "home-proof",
-                    )
-                  }
-                  className="inline-flex items-center justify-center border border-black/10 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
-                >
-                  See product
-                </a>
-              </div>
-            </div>
-          </div>
-	        </section>
-
         <section className="border-y border-black/10 bg-white" data-home-section="capture-examples">
           <div className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10">
             <EditorialSectionIntro
-              eyebrow="Capture examples"
-              title="See what a robot team can test."
-              description="Grocery aisles, retail floors, hotel lobbies, and mall corridors can all become useful world-model evidence when the route is lawful, privacy-safe, and tied to a real robot task."
+              eyebrow="Why capture matters"
+              title="Exact-site capture turns vague simulation demand into a buyer-ready package."
+              description="The useful details are local: aisle width, signage, occlusions, public access boundaries, restricted areas, and the robot task a team is actually deciding on."
               className="max-w-3xl"
             />
             <div className="mt-8 grid gap-4 lg:grid-cols-4">
@@ -811,11 +719,14 @@ export default function Home() {
                     overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.04),rgba(0,0,0,0.32))]"
                   />
                   <div className="p-5">
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">{story.city}</p>
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">{story.label}</p>
                     <h2 className="mt-3 text-lg font-semibold leading-tight text-slate-950">
                       {story.locationName}
                     </h2>
-                    <p className="mt-3 text-sm leading-6 text-slate-600">{story.captureAppCue}</p>
+                    <p className="mt-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                      {story.city}
+                    </p>
+                    <p className="mt-3 text-sm leading-6 text-slate-600">{story.robotQuestion}</p>
                   </div>
                 </a>
               ))}
@@ -823,30 +734,88 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="border-y border-black/10 bg-white" data-home-section="capture-supply">
-          <div className="mx-auto grid max-w-[88rem] gap-px px-5 py-10 sm:px-8 lg:grid-cols-[0.38fr_0.62fr] lg:px-10">
-            <div className="bg-[#f5f3ef] px-6 py-8 lg:px-8 lg:py-10">
+        <section className="border-y border-black/10 bg-[#101310] text-white" data-home-section="persona-paths">
+          <div className="mx-auto grid max-w-[88rem] gap-px px-5 py-10 sm:px-8 lg:grid-cols-[0.31fr_0.69fr] lg:px-10 lg:py-12">
+            <div className="bg-white/[0.06] px-6 py-8 lg:px-8 lg:py-10">
               <EditorialSectionIntro
-                eyebrow="Capture supply"
-                title="Everyday capture expands the catalog."
-                description="The Capture app path is for everyday places people can actually reach, not only industrial facilities."
+                eyebrow="Request next"
+                title="Three ways into the same product path."
+                description="Robot teams, site operators, and capturers enter from different sides. The package still resolves around one exact site and its proof."
+                light
               />
             </div>
-            <div className="grid gap-px bg-black/10 md:grid-cols-3">
-              {captureExamples.map((item) => (
-                <div key={item} className="bg-white p-6 text-sm leading-7 text-slate-700">
-                  {item}
-                </div>
+            <div className="grid gap-px bg-white/10 md:grid-cols-3">
+              {personaEntryPoints.map((entry, index) => (
+                <article
+                  key={entry.audience}
+                  className={index === 0 ? "bg-[#e8efe8] p-6 text-slate-950" : "bg-white/[0.06] p-6 text-white"}
+                >
+                  <p className={`text-[11px] uppercase tracking-[0.18em] ${index === 0 ? "text-slate-500" : "text-white/45"}`}>
+                    {entry.audience}
+                  </p>
+                  <p className={`mt-3 text-sm leading-6 ${index === 0 ? "text-slate-600" : "text-white/62"}`}>
+                    {entry.question}
+                  </p>
+                  <h2 className="font-editorial mt-5 text-[2rem] leading-[0.95] tracking-[-0.04em]">
+                    {entry.title}
+                  </h2>
+                  <p className={`mt-4 text-sm leading-7 ${index === 0 ? "text-slate-700" : "text-white/70"}`}>
+                    {entry.body}
+                  </p>
+                  <div className="mt-7 flex flex-wrap gap-3">
+                    <a
+                      href={entry.primaryHref}
+                      onClick={() =>
+                        trackHomeCtaClick(
+                          `home_persona_${entry.audience.toLowerCase().replace(/[^a-z0-9]+/g, "_")}_primary`,
+                          entry.primaryLabel,
+                          entry.primaryHref,
+                          "home-persona-paths",
+                        )
+                      }
+                      className={index === 0
+                        ? "inline-flex items-center justify-center bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                        : "inline-flex items-center justify-center bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"}
+                    >
+                      {entry.primaryLabel}
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </a>
+                    <a
+                      href={entry.secondaryHref}
+                      onClick={() =>
+                        trackHomeCtaClick(
+                          `home_persona_${entry.audience.toLowerCase().replace(/[^a-z0-9]+/g, "_")}_secondary`,
+                          entry.secondaryLabel,
+                          entry.secondaryHref,
+                          "home-persona-paths",
+                        )
+                      }
+                      className={index === 0
+                        ? "inline-flex items-center justify-center border border-black/10 bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
+                        : "inline-flex items-center justify-center border border-white/15 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"}
+                    >
+                      {entry.secondaryLabel}
+                    </a>
+                  </div>
+                </article>
               ))}
             </div>
           </div>
         </section>
 
+        <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12" data-home-section="direct-answers">
+          <EditorialFaq
+            title="Buyer answers"
+            description="Short definitions for investors and robot teams comparing exact-site packages, hosted evaluation, provenance, rights, and sample boundaries."
+            items={homeDirectAnswers}
+          />
+        </section>
+
 	        <section className="mx-auto max-w-[88rem] px-5 pb-12 sm:px-8 lg:px-10 lg:pb-14" data-home-section="bottom-cta">
           <EditorialCtaBand
             eyebrow="Start"
-            title="Start with the world model, task, and robot question."
-            description="Blueprint can give a better answer when your request names the place, workflow, and robot setup your team needs to train or evaluate."
+            title="Request one exact-site world model."
+            description="Name the place, workflow, robot setup, and review path. Blueprint will route the request to a current listing, new capture, package access, or hosted evaluation without blurring sample proof into approved output."
             imageSrc={editorialGeneratedAssets.homeHero}
             imageAlt="Blueprint hosted evaluation still"
             primaryHref={bottomCtaHref}

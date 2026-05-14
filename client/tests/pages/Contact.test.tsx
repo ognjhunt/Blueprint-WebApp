@@ -71,30 +71,34 @@ describe("Contact page", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Tell us the site, task, and robot in a few lines\./i,
+        name: /Request the site-specific world model your robot team needs\./i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getAllByText(/For Robot Teams/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Commercial Intake/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/What happens after you send this/i)).toBeInTheDocument();
     expect(screen.getByText(/Rights, privacy, and proof boundaries stay explicit/i)).toBeInTheDocument();
     expect(screen.queryByText(/Buyer type/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Requested lanes/i)).not.toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /Request world model/i }).length).toBeGreaterThan(0);
+    expect(screen.getByRole("radio", { name: /World model/i })).toBeChecked();
+    expect(screen.getByRole("radio", { name: /Hosted evaluation/i })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /Capture access/i })).toBeInTheDocument();
     expect(screen.getByText(/Short form first\. Call only when useful\./i)).toBeInTheDocument();
     expect(screen.getByText(/Required first pass/i)).toBeInTheDocument();
     expect(screen.getByText(/Fastest paths/i)).toBeInTheDocument();
-    expect(screen.getByText(/How Blueprint works/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Request hosted evaluation/i).length).toBeGreaterThan(0);
     expect(
-      screen.getByText(/Best when your team is new to Blueprint and wants the product shape before sharing site details\./i),
+      screen.getByText(/Best when your team wants a site-specific package path/i),
     ).toBeInTheDocument();
-    expect(screen.getAllByText(/Browse world models/i).length).toBeGreaterThan(0);
-    expect(screen.getByRole("textbox", { name: /What should Blueprint help your team answer first\?/i })).toBeInTheDocument();
+    expect(screen.getAllByText(/Request capture access/i).length).toBeGreaterThan(0);
+    expect(screen.getByRole("textbox", { name: /What should this world model help your team evaluate\?/i })).toBeInTheDocument();
     expect(screen.queryByText(/Learn More/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Prefer a lighter first step\?/i)).not.toBeInTheDocument();
     expect(analyticsEventsMock.contactRequestStarted).toHaveBeenCalledWith({
       persona: "robot_team",
       hostedMode: false,
       requestedLane: "deeper_evaluation",
+      commercialRequestPath: "world_model",
       authenticated: false,
       prefilledSiteContext: false,
     });
@@ -112,12 +116,13 @@ describe("Contact page", () => {
       destination: "#contact-intake",
       source: "contact-hero",
       requestedLane: "deeper_evaluation",
+      commercialRequestPath: "world_model",
     });
   });
 
   it("renders a compact hosted-session mode with prefilled robot-team data", () => {
     mockSearch =
-      "?interest=evaluation-package&buyerType=robot_team&source=site-worlds&siteName=Harborview+Grocery+Distribution+Annex&siteLocation=1847+W+Fulton+St%2C+Chicago%2C+IL+60612&taskStatement=Walk+to+shelf+staging+and+pick+the+blue+tote&targetRobotTeam=Unitree+G1+with+head+cam+and+wrist+cam";
+      "?interest=hosted-evaluation&buyerType=robot_team&path=hosted-evaluation&source=site-worlds&siteName=Harborview+Grocery+Distribution+Annex&siteLocation=1847+W+Fulton+St%2C+Chicago%2C+IL+60612&taskStatement=Walk+to+shelf+staging+and+pick+the+blue+tote&targetRobotTeam=Unitree+G1+with+head+cam+and+wrist+cam";
 
     render(<Contact />);
 
@@ -129,7 +134,7 @@ describe("Contact page", () => {
     expect(screen.getByRole("button", { name: /Request hosted evaluation/i })).toBeInTheDocument();
     expect(
       screen.getByText(
-        /Confirm the site, the task, and the robot setup\. Blueprint will use that to line up the right hosted evaluation path for your team\./i,
+        /Confirm the site, task, and robot setup\. Blueprint uses that to scope the hosted evaluation path/i,
       ),
     ).toBeInTheDocument();
 
@@ -193,7 +198,7 @@ describe("Contact page", () => {
     fireEvent.change(screen.getByRole("textbox", { name: /Your role/i }), {
       target: { value: "Autonomy lead" },
     });
-    fireEvent.change(screen.getByRole("textbox", { name: /What should Blueprint help your team answer first\?/i }), {
+    fireEvent.change(screen.getByRole("textbox", { name: /What should this world model help your team evaluate\?/i }), {
       target: { value: "Qualify a tote picking workflow." },
     });
     fireEvent.change(screen.getByRole("textbox", { name: /Site or facility/i }), {
@@ -208,11 +213,12 @@ describe("Contact page", () => {
       );
     });
 
-    expect(screen.getByText(/Site review request received/i)).toBeInTheDocument();
+    expect(screen.getByText(/World model request received/i)).toBeInTheDocument();
     expect(analyticsEventsMock.contactRequestSubmitted).toHaveBeenCalledWith({
       persona: "robot_team",
       hostedMode: false,
       requestedLane: "deeper_evaluation",
+      commercialRequestPath: "world_model",
       authenticated: false,
       hasJobTitle: true,
       hasSiteName: true,
@@ -226,13 +232,14 @@ describe("Contact page", () => {
       persona: "robot_team",
       hostedMode: false,
       requestedLane: "deeper_evaluation",
+      commercialRequestPath: "world_model",
       authenticated: false,
     });
   });
 
   it("submits hosted-session mode with robot-team defaults", async () => {
     mockSearch =
-      "?interest=evaluation-package&buyerType=robot_team&source=site-worlds&siteName=Harborview+Grocery+Distribution+Annex&siteLocation=1847+W+Fulton+St%2C+Chicago%2C+IL+60612&taskStatement=Walk+to+shelf+staging+and+pick+the+blue+tote&targetRobotTeam=Unitree+G1+with+head+cam+and+wrist+cam";
+      "?interest=hosted-evaluation&buyerType=robot_team&path=hosted-evaluation&source=site-worlds&siteName=Harborview+Grocery+Distribution+Annex&siteLocation=1847+W+Fulton+St%2C+Chicago%2C+IL+60612&taskStatement=Walk+to+shelf+staging+and+pick+the+blue+tote&targetRobotTeam=Unitree+G1+with+head+cam+and+wrist+cam";
 
     render(<Contact />);
 
@@ -267,6 +274,7 @@ describe("Contact page", () => {
     );
     const body = JSON.parse(String(submitCall?.[1]?.body));
     expect(body.buyerType).toBe("robot_team");
+    expect(body.commercialRequestPath).toBe("hosted_evaluation");
     expect(body.requestedLanes).toEqual(["deeper_evaluation"]);
     expect(body.budgetBucket).toBe("Undecided/Unsure");
     expect(body.siteName).toBe("Harborview Grocery Distribution Annex");
@@ -364,6 +372,7 @@ describe("Contact page", () => {
       persona: "robot_team",
       hostedMode: false,
       requestedLane: "deeper_evaluation",
+      commercialRequestPath: "world_model",
     });
   });
 });

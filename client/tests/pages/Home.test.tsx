@@ -31,20 +31,24 @@ vi.mock("@/hooks/usePublicLaunchStatus", () => ({
   }),
 }));
 
+vi.mock("@/lib/experiments", () => ({
+  resolveExperimentVariant: vi.fn(() => new Promise(() => {})),
+}));
+
 describe("Home", () => {
-  it("renders the simplified hero with the two primary entry points", { timeout: 10000 }, () => {
+  it("renders the preserved hero and commercial product path", { timeout: 10000 }, () => {
     window.localStorage.clear();
     render(<Home />);
 
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Blueprint turns real places into world models your robot team can train and evaluate on\./i,
+        name: /Site-specific world models built from real capture\./i,
       }),
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        /Send the place, route, or facility type you care about/i,
+        /Blueprint packages exact-site capture into world models, hosted review rooms, and proof/i,
       ),
     ).toBeInTheDocument();
     expect(
@@ -53,11 +57,14 @@ describe("Home", () => {
       "href",
       expect.stringContaining("/contact?persona=robot-team"),
     );
-    expect(screen.getByRole("heading", { name: /Submit or claim a site\./i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Check where capture is open\./i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Blueprint sells exact-site world-model products\./i })).toBeInTheDocument();
+    expect(screen.getByText(/The product is not a generic scene library/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Exact-Site World Model Package/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Hosted Evaluation/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Buyer Review/i })).toBeInTheDocument();
     expect(screen.getByText(/A walkthrough or site record starts the product/i)).toBeInTheDocument();
     expect(screen.getByText(/Blueprint packages the capture into a site-specific world model/i)).toBeInTheDocument();
-    expect(screen.getByText(/A managed browser session can help a robot team run task scenarios/i)).toBeInTheDocument();
+    expect(screen.getByText(/A managed review path gives robot teams task scenarios/i)).toBeInTheDocument();
   });
 
   it("surfaces concise sections for sites, products, proof, and closing action", {
@@ -68,34 +75,34 @@ describe("Home", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Start with one complete proof journey\./i,
+        name: /Start with the exact site your robot needs to understand\./i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Open proof/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Open sample proof/i })).toHaveAttribute(
       "href",
       "/proof",
     );
     expect(
       screen.getByRole("heading", {
-        name: /Everyday places can become training and eval worlds\./i,
+        name: /The proof travels with the product\./i,
       }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
-        name: /Two ways to work with one exact site\./i,
+        name: /Sample worlds show the package shape\./i,
       }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
-        name: /See what is attached before you commit\./i,
+        name: /Exact-site capture turns vague simulation demand into a buyer-ready package\./i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getAllByText(/Capture provenance/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/See what a robot team can test/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Sample proof and demo worlds are labeled/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Approved listings keep capture basis/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Cedar Market Aisle Loop/i)).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /Start with the world model, task, and robot question\./i }),
+      screen.getByRole("heading", { name: /Request one exact-site world model\./i }),
     ).toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: /See product/i })[0]).toHaveAttribute("href", "/product");
+    expect(screen.getAllByRole("link", { name: /See hosted workflow/i })[0]).toHaveAttribute("href", "/product");
   });
 });

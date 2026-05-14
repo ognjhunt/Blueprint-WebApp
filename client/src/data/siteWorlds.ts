@@ -632,7 +632,7 @@ function withDerivedSessionDefaults(site: RawSiteWorldCard): SiteWorldCard {
 }
 
 function buildContactHref(
-  interest: "evaluation-package" | "data-licensing",
+  interest: "hosted-evaluation" | "data-licensing",
   config: Pick<PackageConfig, "siteName" | "siteAddress" | "sampleTask" | "sampleRobot">,
 ) {
   const params = new URLSearchParams({
@@ -674,7 +674,7 @@ function buildPackages(config: PackageConfig): [SiteWorldPackage, SiteWorldPacka
       priceLabel: config.hostedRate,
       payerLabel: "Robot team",
       actionLabel: "Request hosted evaluation",
-      actionHref: buildContactHref("evaluation-package", config),
+      actionHref: buildContactHref("hosted-evaluation", config),
       deliverables: [
         "Streamed hosted review on one exact site",
         "Reset, rerun, and scenario changes",

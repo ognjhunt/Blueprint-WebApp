@@ -43,6 +43,7 @@ import {
   REQUEST_CAPTURE_STATUS_LABELS as captureStatusLabels,
   OPPORTUNITY_STATE_LABELS as opportunityStateLabels,
   REQUEST_QUOTE_STATUS_LABELS as quoteStatusLabels,
+  COMMERCIAL_REQUEST_PATH_LABELS as commercialRequestPathLabels,
   REQUESTED_LANE_LABELS as requestedLaneLabels,
   REQUEST_PRIORITY_LABELS as priorityLabels,
   REQUEST_RIGHTS_STATUS_LABELS as rightsStatusLabels,
@@ -104,6 +105,7 @@ interface StatsResponse {
   byPriority: Record<string, number>;
   byQueue?: Record<string, number>;
   byWedge?: Record<string, number>;
+  byRequestPath?: Record<string, number>;
 }
 
 interface WaitlistSubmissionItem {
@@ -357,6 +359,12 @@ function formatActionPreview(item: ActionQueueItem) {
   }
 
   return preview(item.approval_reason || item.auto_approve_reason || "No preview available.");
+}
+
+function formatCommercialRequestPath(
+  value: InboundRequestListItem["request"]["commercialRequestPath"],
+) {
+  return value ? commercialRequestPathLabels[value] : "Request path unknown";
 }
 
 function extractCreativeAssetUri(item: ActionQueueItem) {
@@ -1232,12 +1240,23 @@ export default function AdminLeads() {
       { label: "Total submissions", value: statsQuery.data?.total ?? 0 },
       { label: "Last 24h", value: statsQuery.data?.newLast24h ?? 0 },
       {
-        label: "Ready / risky",
+        label: "World model",
         value:
-          (statsQuery.data?.byStatus?.qualified_ready ?? 0) +
-          (statsQuery.data?.byStatus?.qualified_risky ?? 0),
+          statsQuery.data?.byRequestPath?.world_model ??
+          leads.filter((lead) => lead.request.commercialRequestPath === "world_model").length,
       },
-      { label: "Needs evidence", value: statsQuery.data?.byStatus?.needs_more_evidence ?? 0 },
+      {
+        label: "Hosted eval",
+        value:
+          statsQuery.data?.byRequestPath?.hosted_evaluation ??
+          leads.filter((lead) => lead.request.commercialRequestPath === "hosted_evaluation").length,
+      },
+      {
+        label: "Capture access",
+        value:
+          statsQuery.data?.byRequestPath?.capture_access ??
+          leads.filter((lead) => lead.request.commercialRequestPath === "capture_access").length,
+      },
     ];
   }, [
     activeView,
@@ -1248,6 +1267,7 @@ export default function AdminLeads() {
     approvalQueueQuery.data?.summary.pending_approval,
     approvalQueueQuery.data?.summary.total,
     filteredWaitlistSubmissions,
+    leads,
     overdueFinanceCount,
     overdueSiteAccessCount,
     rescheduleQueueItems.length,
@@ -2296,6 +2316,11 @@ export default function AdminLeads() {
                             hosted-review queue
                           </span>
                         ) : null}
+                        {lead.request.commercialRequestPath ? (
+                          <span className="rounded-full bg-slate-900 px-3 py-1 text-white">
+                            {formatCommercialRequestPath(lead.request.commercialRequestPath)}
+                          </span>
+                        ) : null}
                         {lead.request.requestedLanes.map((lane) => (
                           <span key={lane} className="rounded-full bg-zinc-100 px-3 py-1 text-zinc-700">
                             {requestedLaneLabels[lane]}
@@ -2393,6 +2418,7 @@ export default function AdminLeads() {
                     <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Submission facts</p>
                     <div className="mt-2 space-y-2 text-sm text-zinc-700">
                       <p>Buyer type: {buyerTypeLabels[selectedLead.request.buyerType]}</p>
+                      <p>Request path: {formatCommercialRequestPath(selectedLead.request.commercialRequestPath)}</p>
                       <p>Budget: {selectedLead.request.budgetBucket}</p>
                       <p>Priority: {priorityLabels[selectedLead.priority]}</p>
                       <p>Created: {formatDate(selectedLead.createdAt)}</p>
@@ -2407,6 +2433,49 @@ export default function AdminLeads() {
                       : "Task statement"}
                   </p>
                   <p className="mt-2 text-sm text-zinc-800">{selectedLead.request.taskStatement}</p>
+                </div>
+
+                <div className="rounded-xl border border-zinc-200 p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">
+                    Intake routing
+                  </p>
+                  <div className="mt-3 grid gap-3 text-sm text-zinc-700 md:grid-cols-2">
+                    <p>
+                      Owner lane:{" "}
+                      {selectedLead.structured_intake?.owner_lane ||
+                        selectedLead.ops_automation?.queue_label ||
+                        "Not assigned"}
+                    </p>
+                    <p>
+                      Calendar:{" "}
+                      {selectedLead.structured_intake?.calendar_disposition?.replace(/_/g, " ") ||
+                        "not evaluated"}
+                    </p>
+                    <p>
+                      Recommended path:{" "}
+                      {selectedLead.structured_intake?.recommended_path?.replace(/_/g, " ") ||
+                        selectedLead.ops_automation?.recommended_path?.replace(/_/g, " ") ||
+                        "not evaluated"}
+                    </p>
+                    <p>
+                      Human review:{" "}
+                      {selectedLead.structured_intake?.calendar_disposition ===
+                        "required_before_next_step" ||
+                      selectedLead.ops_automation?.requires_human_review
+                        ? "required"
+                        : "not required by intake"}
+                    </p>
+                  </div>
+                  <p className="mt-3 text-sm leading-6 text-zinc-700">
+                    {selectedLead.structured_intake?.next_action ||
+                      selectedLead.ops_automation?.next_action ||
+                      "No intake next action recorded yet."}
+                  </p>
+                  {selectedLead.structured_intake?.missing_structured_fields?.length ? (
+                    <p className="mt-2 text-xs text-zinc-500">
+                      Missing: {selectedLead.structured_intake.missing_structured_fields.join(", ")}
+                    </p>
+                  ) : null}
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2">

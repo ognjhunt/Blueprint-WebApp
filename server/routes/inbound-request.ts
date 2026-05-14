@@ -18,6 +18,8 @@ import { logGrowthEvent } from "../utils/growth-events";
 import { runHighIntentLeadEnrichmentForRequest } from "../utils/highIntentLeadEnrichment";
 import { createLifecycleCadenceForInboundRequest } from "../utils/lifecycle-cadence";
 import {
+  COMMERCIAL_REQUEST_PATH_LABELS,
+  COMMERCIAL_REQUEST_PATHS,
   HELP_WITH_OPTIONS,
   LEGACY_HELP_WITH_TO_LANE,
   LANE_TO_LEGACY_HELP_WITH,
@@ -32,6 +34,7 @@ import type {
   RequestStatus,
   BudgetBucket,
   HelpWithOption,
+  CommercialRequestPath,
   ProofPathPreference,
   RequestedLane,
   BuyerType,
@@ -75,6 +78,9 @@ const VALID_BUDGET_BUCKETS: BudgetBucket[] = [
 const VALID_HELP_WITH: HelpWithOption[] = [...HELP_WITH_OPTIONS];
 
 const VALID_REQUESTED_LANES: RequestedLane[] = [...REQUESTED_LANES];
+const VALID_COMMERCIAL_REQUEST_PATHS: CommercialRequestPath[] = [
+  ...COMMERCIAL_REQUEST_PATHS,
+];
 const VALID_PROOF_PATH_PREFERENCES: ProofPathPreference[] = [
   "exact_site_required",
   "adjacent_site_acceptable",
@@ -280,6 +286,50 @@ function normalizeBuyerType(value?: BuyerType): BuyerType {
   return value === "robot_team" ? "robot_team" : "site_operator";
 }
 
+function normalizeCommercialRequestPath(params: {
+  value?: CommercialRequestPath;
+  buyerType: BuyerType;
+  requestedLanes: RequestedLane[];
+  sourcePageUrl?: string | null;
+}): CommercialRequestPath {
+  if (
+    params.value &&
+    VALID_COMMERCIAL_REQUEST_PATHS.includes(params.value)
+  ) {
+    return params.buyerType === "site_operator" ? "site_claim" : params.value;
+  }
+
+  if (params.buyerType === "site_operator") {
+    return "site_claim";
+  }
+
+  const sourcePageUrl = String(params.sourcePageUrl || "").toLowerCase();
+  if (
+    sourcePageUrl.includes("path=hosted-evaluation") ||
+    sourcePageUrl.includes("interest=hosted-evaluation") ||
+    sourcePageUrl.includes("interest=hosted-session")
+  ) {
+    return "hosted_evaluation";
+  }
+
+  if (
+    sourcePageUrl.includes("path=request-capture") ||
+    sourcePageUrl.includes("path=capture-access") ||
+    sourcePageUrl.includes("interest=capture-access")
+  ) {
+    return "capture_access";
+  }
+
+  if (
+    params.requestedLanes.includes("deeper_evaluation") ||
+    params.requestedLanes.includes("data_licensing")
+  ) {
+    return "world_model";
+  }
+
+  return "world_model";
+}
+
 function normalizeProofPathPreference(
   value?: ProofPathPreference
 ): ProofPathPreference | null {
@@ -464,7 +514,12 @@ function validateEmail(email: string): { valid: boolean; error?: string } {
 /**
  * Generate confirmation email HTML
  */
-function generateConfirmationEmailHtml(firstName: string): string {
+function generateConfirmationEmailHtml(
+  firstName: string,
+  commercialRequestPath: CommercialRequestPath,
+): string {
+  const requestPathLabel =
+    COMMERCIAL_REQUEST_PATH_LABELS[commercialRequestPath] || "Blueprint request";
   return `<!DOCTYPE html>
 <html lang="en">
   <head>
@@ -486,25 +541,25 @@ function generateConfirmationEmailHtml(firstName: string): string {
             <!-- Content -->
             <tr>
               <td style="padding:40px 32px;">
-                <h2 style="margin:0 0 16px;font-size:24px;font-weight:600;color:#111827;">Thanks, ${firstName}. Your site submission is in.</h2>
+                <h2 style="margin:0 0 16px;font-size:24px;font-weight:600;color:#111827;">Thanks, ${firstName}. Your ${requestPathLabel.toLowerCase()} is in.</h2>
                 <p style="margin:0 0 24px;font-size:16px;line-height:1.6;color:#4b5563;">
-                  Blueprint has your intake details. We will review the site, task, and constraints and follow up with the right next step.
+                  Blueprint has your intake details. We will review the buyer, site, task, robot, and proof boundaries and follow up with the right next step.
                 </p>
 
                 <!-- What happens next -->
                 <div style="background-color:#f3f4f6;border-radius:8px;padding:24px;margin-bottom:24px;">
                   <h3 style="margin:0 0 16px;font-size:16px;font-weight:600;color:#111827;">What happens next?</h3>
                   <ol style="margin:0;padding-left:20px;color:#4b5563;font-size:14px;line-height:1.8;">
-                    <li>We review the submission for scope, evidence needs, and qualification risk.</li>
-                    <li>If key evidence is missing, we ask for a more targeted capture pass.</li>
-                    <li>If the site is ready enough, we move it toward qualified handoff or deeper review.</li>
+                    <li>We route the request as a world-model, hosted-evaluation, capture-access, or site-operator path.</li>
+                    <li>If proof, entitlement, rights, or capture availability is missing, we ask for the narrow missing detail.</li>
+                    <li>If the record supports it, we move the request toward package access, hosted review, capture planning, or a scoped buyer handoff.</li>
                   </ol>
                 </div>
 
-                <!-- CTA -->
-                <div style="text-align:center;margin-bottom:32px;">
-                  <p style="margin:0 0 16px;font-size:14px;color:#6b7280;">Want to get started faster?</p>
-                  <a href="https://calendly.com/blueprintar/30min" style="display:inline-block;padding:14px 28px;background-color:#4f46e5;color:#ffffff;font-weight:600;text-decoration:none;border-radius:8px;font-size:14px;">Book a Call Now</a>
+                <div style="background-color:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:16px;margin-bottom:32px;">
+                  <p style="margin:0;font-size:14px;line-height:1.6;color:#9a3412;">
+                    This confirmation does not grant instant access, rights clearance, or live hosted availability. Blueprint will confirm those only when the backing record supports them.
+                  </p>
                 </div>
 
                 <!-- Resources -->
@@ -593,6 +648,12 @@ router.post("/", async (req: Request, res: Response) => {
       payload.helpWith
     );
     const buyerType = normalizeBuyerType(payload.buyerType);
+    const commercialRequestPath = normalizeCommercialRequestPath({
+      value: payload.commercialRequestPath,
+      buyerType,
+      requestedLanes,
+      sourcePageUrl: payload.context?.sourcePageUrl || null,
+    });
     const siteName = payload.siteName?.trim() || "";
     const siteLocation = payload.siteLocation?.trim() || "";
     const siteLocationMetadata = normalizePlaceLocationMetadata(
@@ -747,6 +808,7 @@ router.post("/", async (req: Request, res: Response) => {
     });
     const structuredIntake = toStructuredIntakeSummary(structuredIntakeDecision);
     const queueTags = [...new Set([...routing.queueTags, ...structuredIntakeDecision.filterTags])];
+    queueTags.push(`request_path_${commercialRequestPath}`);
     const emitRobotTeamFitChecked = async () => {
       if (buyerType !== "robot_team") {
         return;
@@ -759,6 +821,7 @@ router.post("/", async (req: Request, res: Response) => {
           request_id: payload.requestId,
           city: demandAttribution.demandCity || null,
           requested_lane: requestedLanes[0] || null,
+          commercial_request_path: commercialRequestPath,
           requested_lane_count: requestedLanes.length,
           buyer_segment: payload.roleTitle?.trim() || null,
           exact_site_classification: proofPathClassification(
@@ -795,6 +858,7 @@ router.post("/", async (req: Request, res: Response) => {
           request_id: payload.requestId,
           city: demandAttribution.demandCity || null,
           requested_lane: requestedLanes[0] || null,
+          commercial_request_path: commercialRequestPath,
           requested_lane_count: requestedLanes.length,
           site_operator_claim_outcome: structuredIntakeDecision.siteOperatorClaimOutcome,
           access_boundary_outcome: structuredIntakeDecision.accessBoundaryOutcome,
@@ -849,6 +913,7 @@ router.post("/", async (req: Request, res: Response) => {
           requestedLanes,
           helpWith: legacyHelpWith,
           buyerType,
+          commercialRequestPath,
           siteName,
           siteLocation,
           siteLocationMetadata,
@@ -995,6 +1060,7 @@ router.post("/", async (req: Request, res: Response) => {
         helpWith: legacyHelpWith,
         details: payload.details?.trim() || null,
         buyerType,
+        commercialRequestPath,
         siteName,
         siteLocation,
         siteLocationMetadata,
@@ -1139,6 +1205,8 @@ router.post("/", async (req: Request, res: Response) => {
           [`byStatus.submitted`]: admin.firestore.FieldValue.increment(1),
           [`byPriority.${priority}`]: admin.firestore.FieldValue.increment(1),
           [`byQueue.${routing.queueKey}`]: admin.firestore.FieldValue.increment(1),
+          [`byRequestPath.${commercialRequestPath}`]:
+            admin.firestore.FieldValue.increment(1),
           ...(routing.growthWedge
             ? {
                 [`byWedge.${routing.growthWedge}`]:
@@ -1161,6 +1229,7 @@ router.post("/", async (req: Request, res: Response) => {
           city: demandAttribution.demandCity || null,
           buyer_role: payload.roleTitle?.trim() || null,
           requested_lane: requestedLanes[0] || null,
+          commercial_request_path: commercialRequestPath,
           requested_lane_count: requestedLanes.length,
           proof_path_preference: proofPathPreference,
         },
@@ -1184,6 +1253,7 @@ router.post("/", async (req: Request, res: Response) => {
             request_id: payload.requestId,
             city: demandAttribution.demandCity || null,
             site_request_type: "exact_site_required",
+            commercial_request_path: commercialRequestPath,
             buyer_segment: payload.roleTitle?.trim() || null,
           },
           attribution: {
@@ -1210,6 +1280,7 @@ router.post("/", async (req: Request, res: Response) => {
               payload.humanGateTopics?.trim()
               || payload.privacySecurityConstraints?.trim()
               || "deeper_evaluation_requested",
+            commercial_request_path: commercialRequestPath,
             buyer_segment: payload.roleTitle?.trim() || null,
           },
           attribution: {
@@ -1312,18 +1383,21 @@ router.post("/", async (req: Request, res: Response) => {
       (async () => {
         try {
           const confirmationHtml = generateConfirmationEmailHtml(
-            payload.firstName.trim()
+            payload.firstName.trim(),
+            commercialRequestPath,
           );
+          const requestPathLabel =
+            COMMERCIAL_REQUEST_PATH_LABELS[commercialRequestPath] || "Blueprint request";
           const confirmationText = `Hi ${payload.firstName.trim()},
 
-Thank you for your request. We've received your submission and our team will get back to you within 24 hours.
+Thank you for your request. We received your ${requestPathLabel.toLowerCase()}.
 
 What happens next?
-1. We review the site, task, and constraints in your intake
-2. We build the right qualification plan and flag any missing evidence
-3. We use the qualification record to show feasibility, readiness, and whether the site should move toward team evaluation
+1. We route the request as a world-model, hosted-evaluation, capture-access, or site-operator path
+2. If proof, entitlement, rights, or capture availability is missing, we ask for the narrow missing detail
+3. If the record supports it, we move the request toward package access, hosted review, capture planning, or a scoped buyer handoff
 
-Want to get started faster? Book a call now: https://calendly.com/blueprintar/30min
+This confirmation does not grant instant access, rights clearance, or live hosted availability. Blueprint will confirm those only when the backing record supports them.
 
 In the meantime, explore our resources:
 - Product: https://tryblueprint.io/product
@@ -1366,7 +1440,9 @@ Blueprint | 1005 Crete St, Durham, NC 27707`;
       (async () => {
         try {
           const to = process.env.CONTACT_TO ?? "ops@tryblueprint.io";
-          const subject = `[${priority.toUpperCase()}] New site submission from ${payload.company.trim()}`;
+          const requestPathLabel =
+            COMMERCIAL_REQUEST_PATH_LABELS[commercialRequestPath] || "Blueprint request";
+          const subject = `[${priority.toUpperCase()}] New ${requestPathLabel.toLowerCase()} from ${payload.company.trim()}`;
           const text = `New site submission received:
 
 Name: ${payload.firstName.trim()} ${payload.lastName.trim()}
@@ -1374,6 +1450,7 @@ Email: ${emailLower}
 Company: ${payload.company.trim()}
 Role: ${payload.roleTitle?.trim() || "Not specified"}
 Buyer type: ${buyerType}
+Request path: ${requestPathLabel} (${commercialRequestPath})
 Site: ${payload.siteName?.trim()}
 Location: ${payload.siteLocation?.trim()}
 Task: ${payload.taskStatement?.trim()}

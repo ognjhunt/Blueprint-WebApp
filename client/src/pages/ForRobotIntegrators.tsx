@@ -94,7 +94,7 @@ export default function ForRobotIntegrators() {
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </a>
                   <a
-                    href="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=request-capture&source=robot-teams-hero"
+                    href="/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=robot-teams-hero"
                     className="inline-flex items-center justify-center border border-white/15 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
                   >
                     Request capture
@@ -185,7 +185,7 @@ export default function ForRobotIntegrators() {
             imageAlt="Hosted evaluation still"
             primaryHref="/proof"
             primaryLabel="Open sample evaluation"
-            secondaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=request-capture&source=robot-teams-bottom"
+            secondaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=robot-teams-bottom"
             secondaryLabel="Request capture"
             dark={false}
           />

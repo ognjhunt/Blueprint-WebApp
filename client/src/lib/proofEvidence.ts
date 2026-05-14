@@ -37,7 +37,7 @@ export const mediaRoomSampleEvaluation = {
   buyerQuestion:
     "Can the team evaluate one exact indoor route, its constraints, and its hosted-evaluation output shape before committing field time or custom simulation work?",
   disclosure:
-    "Example evaluation. The site, route, and interface are Blueprint demo material; real customer exports use approved site-specific proof and rights review.",
+    "Example evaluation. The site, route, and interface are Blueprint demo material; buyer exports require site-specific proof and rights review.",
   artifacts: [
     "Capture manifest with site id, scene id, capture id, route notes, and freshness state",
     "Rights sheet with demo-use boundary, sharing limits, and export review notes",

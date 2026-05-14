@@ -56,4 +56,21 @@ describe("siteWorldCommercialStatus", () => {
       launchVerified: false,
     });
   });
+
+  it("labels static catalog profiles as planned instead of current supply", () => {
+    const site = getSiteWorldById("sw-atl-02");
+    expect(site).not.toBeNull();
+
+    expect(getSiteWorldCommercialStatus(site!)).toMatchObject({
+      id: "planned_catalog_profile",
+      label: "Planned catalog profile",
+    });
+    expect(getSiteWorldPublicProofSummary(site!)).toContain("no listing-specific proof yet");
+    expect(getSiteWorldFreshnessSummary(site!)).toContain("Planned");
+    expect(getSiteWorldPackageAccessSummary(site!)).toContain("request");
+    expect(getSiteWorldVisualDisclosure(site!)).toMatchObject({
+      label: "Planned route diagram",
+      proofBacked: false,
+    });
+  });
 });

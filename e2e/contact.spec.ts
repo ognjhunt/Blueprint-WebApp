@@ -4,13 +4,15 @@ test('contact page leads with capture and world-model requests', async ({ page }
   await page.goto('/contact', { waitUntil: 'networkidle' });
 
   await expect(
-    page.getByRole('heading', { name: /Tell us the site, task, and robot in a few lines\./i }),
+    page.getByRole('heading', { name: /Request the site-specific world model your robot team needs\./i }),
   ).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Request site review', exact: true })).toBeVisible();
-  await expect(page.getByText('For Robot Teams', { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Request world model', exact: true }).first()).toBeVisible();
+  await expect(page.getByText('Commercial Intake', { exact: true }).first()).toBeVisible();
   await expect(
-    page.getByText(/a real place to inspect, compare, or request before deployment work moves forward/i),
+    page.getByText(/site-specific world model package/i),
   ).toBeVisible();
+  await expect(page.getByRole('radio', { name: /Hosted evaluation/i })).toBeVisible();
+  await expect(page.getByRole('radio', { name: /Capture access/i })).toBeVisible();
   await expect(page.getByText(/Short form first\. Call only when useful\./i)).toBeVisible();
   await expect(page.getByText(/Required first pass/i)).toBeVisible();
 });

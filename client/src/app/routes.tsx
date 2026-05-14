@@ -108,7 +108,7 @@ const LegacyHowItWorksRedirect = () => (
 );
 
 const LegacyBookExactSiteReviewRedirect = () => (
-  <MarketingRedirect to="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=book-exact-site-review" />
+  <MarketingRedirect to="/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=book-exact-site-review" />
 );
 
 const LegacyBlogRedirect = () => (

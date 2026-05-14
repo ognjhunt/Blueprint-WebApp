@@ -2,6 +2,7 @@
  * Client-side types for the site-specific intake and review system.
  */
 import {
+  COMMERCIAL_REQUEST_PATH_LABELS as SHARED_COMMERCIAL_REQUEST_PATH_LABELS,
   HELP_WITH_LABELS as SHARED_HELP_WITH_LABELS,
   OPPORTUNITY_STATE_LABELS as SHARED_OPPORTUNITY_STATE_LABELS,
   REQUESTED_LANE_LABELS as SHARED_REQUESTED_LANE_LABELS,
@@ -21,6 +22,12 @@ export type BudgetBucket =
   | "Undecided/Unsure";
 
 export type BuyerType = "site_operator" | "robot_team";
+
+export type CommercialRequestPath =
+  | "world_model"
+  | "hosted_evaluation"
+  | "capture_access"
+  | "site_claim";
 
 export type ProofPathPreference =
   | "exact_site_required"
@@ -118,6 +125,7 @@ export interface InboundRequestPayload {
   requestedLanes?: RequestedLane[];
   helpWith?: HelpWithOption[];
   buyerType?: BuyerType;
+  commercialRequestPath?: CommercialRequestPath;
   siteName?: string;
   siteLocation?: string;
   siteLocationMetadata?: PlaceLocationMetadata | null;
@@ -633,6 +641,7 @@ export interface InboundRequestListItem {
     requestedLanes: RequestedLane[];
     helpWith: HelpWithOption[];
     buyerType: BuyerType;
+    commercialRequestPath?: CommercialRequestPath | null;
     siteName: string;
     siteLocation: string;
     siteLocationMetadata?: PlaceLocationMetadata | null;
@@ -815,6 +824,10 @@ export const HELP_WITH_LABELS: Record<HelpWithOption, string> = {
 
 export const REQUESTED_LANE_LABELS: Record<RequestedLane, string> = {
   ...SHARED_REQUESTED_LANE_LABELS,
+};
+
+export const COMMERCIAL_REQUEST_PATH_LABELS: Record<CommercialRequestPath, string> = {
+  ...SHARED_COMMERCIAL_REQUEST_PATH_LABELS,
 };
 
 export const BUYER_TYPE_LABELS: Record<BuyerType, string> = {

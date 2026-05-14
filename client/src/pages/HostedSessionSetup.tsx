@@ -338,7 +338,7 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
     const request = new URLSearchParams({
       persona: "robot-team",
       buyerType: "robot_team",
-      interest: "evaluation-package",
+      interest: "hosted-evaluation",
       path: "hosted-evaluation",
       source: "hosted-session-setup",
       siteWorldId: site.id,

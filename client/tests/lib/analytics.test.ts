@@ -271,6 +271,7 @@ describe("analytics contract", () => {
       persona: "robot_team",
       hostedMode: true,
       requestedLane: "deeper_evaluation",
+      commercialRequestPath: "hosted_evaluation",
       authenticated: true,
       hasJobTitle: true,
       hasSiteName: true,
@@ -291,6 +292,7 @@ describe("analytics contract", () => {
       persona: "robot_team",
       hosted_mode: true,
       requested_lane: "deeper_evaluation",
+      commercial_request_path: "hosted_evaluation",
       authenticated: true,
       has_job_title: true,
       has_site_name: true,
@@ -309,10 +311,11 @@ describe("analytics contract", () => {
     analyticsEvents.contactPageCtaClicked({
       persona: "robot_team",
       ctaId: "contact_hero_start",
-      ctaLabel: "Request site review",
+      ctaLabel: "Request world model",
       destination: "#contact-intake",
       source: "contact-hero",
       requestedLane: "deeper_evaluation",
+      commercialRequestPath: "world_model",
     });
 
     await flushAnalytics();
@@ -324,10 +327,11 @@ describe("analytics contract", () => {
     expect(payload.properties).toEqual({
       persona: "robot_team",
       cta_id: "contact_hero_start",
-      cta_label: "Request site review",
+      cta_label: "Request world model",
       destination: "#contact-intake",
       source: "contact-hero",
       requested_lane: "deeper_evaluation",
+      commercial_request_path: "world_model",
     });
     expect(payload.properties).not.toHaveProperty("email");
     expect(payload.properties).not.toHaveProperty("company");

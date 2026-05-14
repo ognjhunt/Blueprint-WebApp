@@ -611,7 +611,7 @@ export default function PilotExchange() {
                 If a site needs private access, exclusivity, data licensing changes, or longer managed work, that becomes a separate enterprise deal. It is not part of the standard exchange path.
               </p>
               <a
-                href="/contact?interest=evaluation-package&source=qualified-opportunities"
+                href="/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=qualified-opportunities"
                 className="mt-5 inline-flex items-center justify-center rounded-lg border border-zinc-300 bg-zinc-50 px-4 py-2.5 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-100"
               >
                 Discuss private terms

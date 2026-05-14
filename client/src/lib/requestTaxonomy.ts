@@ -6,6 +6,13 @@ export const REQUESTED_LANES = [
   "qualification",
 ] as const;
 
+export const COMMERCIAL_REQUEST_PATHS = [
+  "world_model",
+  "hosted_evaluation",
+  "capture_access",
+  "site_claim",
+] as const;
+
 export const HELP_WITH_OPTIONS = [
   "benchmark-packs",
   "scene-library",
@@ -36,19 +43,36 @@ export const OPPORTUNITY_STATES = [
 ] as const;
 
 export const REQUESTED_LANE_LABELS = {
-  qualification: "Site Review",
+  qualification: "Site Access Review",
   preview_simulation: "Preview Simulation",
-  deeper_evaluation: "Evaluation Package",
+  deeper_evaluation: "World Model / Hosted Evaluation",
   managed_tuning: "Managed Tuning",
-  data_licensing: "Data Licensing",
+  data_licensing: "World Model Package Access",
 } as const;
 
 export const REQUESTED_LANE_DESCRIPTIONS = {
-  qualification: "Review the site, task, and blockers first.",
+  qualification: "Review the site, access path, and blockers before capture or release.",
   preview_simulation: "Prepare a preview asset once the record supports it.",
-  deeper_evaluation: "Request a deeper technical review package for one exact site.",
+  deeper_evaluation: "Request a site-specific world model path or hosted evaluation scope.",
   managed_tuning: "Flag later scenario generation or managed tuning work.",
-  data_licensing: "Request licensed datasets or derived asset packages for one exact site.",
+  data_licensing: "Request licensed world-model package access for one exact site.",
+} as const;
+
+export const COMMERCIAL_REQUEST_PATH_LABELS = {
+  world_model: "World model request",
+  hosted_evaluation: "Hosted evaluation request",
+  capture_access: "Capture access request",
+  site_claim: "Site operator claim",
+} as const;
+
+export const COMMERCIAL_REQUEST_PATH_DESCRIPTIONS = {
+  world_model: "Package a real site into a world-model product your robot team can evaluate.",
+  hosted_evaluation:
+    "Scope a hosted review path after Blueprint confirms site, entitlement, and runtime availability.",
+  capture_access:
+    "Ask Blueprint to open a capture path for a site or workflow that is not packaged yet.",
+  site_claim:
+    "Register a facility, access boundary, and governance posture for Blueprint review.",
 } as const;
 
 export const HELP_WITH_LABELS = {
@@ -90,11 +114,16 @@ export const CANONICAL_CONTACT_INTEREST_BY_LANE = {
 export const CONTACT_INTEREST_TO_LANE = {
   "site-review": "qualification",
   "site-qualification": "qualification",
+  "site-access-review": "qualification",
   "preview-simulation": "preview_simulation",
+  "world-model": "deeper_evaluation",
+  "world-model-package": "deeper_evaluation",
+  "capture-access": "deeper_evaluation",
   "evaluation-package": "deeper_evaluation",
   "deeper-evaluation": "deeper_evaluation",
   "evaluation-run": "deeper_evaluation",
   "hosted-session": "deeper_evaluation",
+  "hosted-evaluation": "deeper_evaluation",
   "adaptation-data-pack": "data_licensing",
   "exclusive-dataset": "data_licensing",
   "scene-package": "data_licensing",

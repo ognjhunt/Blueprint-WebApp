@@ -33,6 +33,7 @@ import type {
   PipelineAttachment,
   RequestedLane,
   BuyerType,
+  CommercialRequestPath,
   RequestQueueKey,
   GrowthWedgeKey,
   UpdateRequestOpsPayload,
@@ -501,6 +502,14 @@ function normalizeDecryptedRequest(decrypted: InboundRequest) {
       : ["qualification"];
 
   const buyerType: BuyerType = decrypted.request.buyerType ?? "site_operator";
+  const commercialRequestPath: CommercialRequestPath =
+    decrypted.request.commercialRequestPath ||
+    (buyerType === "site_operator"
+      ? "site_claim"
+      : requestedLanes.includes("deeper_evaluation") ||
+          requestedLanes.includes("data_licensing")
+        ? "world_model"
+        : "world_model");
   const pipeline = normalizePipelineAttachment(decrypted.pipeline);
   const derivedAssets = normalizeDerivedAssets(decrypted.derived_assets);
   const deploymentReadiness = normalizeDeploymentReadiness(decrypted.deployment_readiness);
@@ -538,6 +547,7 @@ function normalizeDecryptedRequest(decrypted: InboundRequest) {
       ...decrypted.request,
       requestedLanes,
       buyerType,
+      commercialRequestPath,
       siteName: decrypted.request.siteName || "Legacy submission",
       siteLocation: decrypted.request.siteLocation || "Legacy location",
       taskStatement:
@@ -851,6 +861,7 @@ router.get("/", requireAdmin, async (req: Request, res: Response) => {
             requestedLanes: decrypted.request.requestedLanes,
             helpWith: decrypted.request.helpWith,
             buyerType: decrypted.request.buyerType,
+            commercialRequestPath: decrypted.request.commercialRequestPath || null,
             siteName: decrypted.request.siteName,
             siteLocation: decrypted.request.siteLocation,
             taskStatement: decrypted.request.taskStatement,
@@ -858,6 +869,7 @@ router.get("/", requireAdmin, async (req: Request, res: Response) => {
           },
           owner: decrypted.owner,
           ops_automation: normalizeOpsAutomationEnvelope(decrypted.ops_automation),
+          structured_intake: decrypted.structured_intake,
           buyer_review_access: {
             buyer_review_url: decrypted.buyer_review_access?.buyer_review_url || null,
             token_issued_at: normalizeTimestamp(decrypted.buyer_review_access?.token_issued_at),
@@ -1220,6 +1232,7 @@ router.get("/:requestId", requireAdmin, async (req: Request, res: Response) => {
         requestedLanes: decrypted.request.requestedLanes,
         helpWith: decrypted.request.helpWith,
         buyerType: decrypted.request.buyerType,
+        commercialRequestPath: decrypted.request.commercialRequestPath || null,
         siteName: decrypted.request.siteName,
         siteLocation: decrypted.request.siteLocation,
         taskStatement: decrypted.request.taskStatement,
@@ -1237,6 +1250,7 @@ router.get("/:requestId", requireAdmin, async (req: Request, res: Response) => {
       },
       owner: decrypted.owner,
       ops_automation: normalizeOpsAutomationEnvelope(decrypted.ops_automation),
+      structured_intake: decrypted.structured_intake,
       buyer_review_access: {
         buyer_review_url: decrypted.buyer_review_access?.buyer_review_url || null,
         token_issued_at: normalizeTimestamp(decrypted.buyer_review_access?.token_issued_at),
@@ -2277,6 +2291,12 @@ router.get("/stats/summary", requireAdmin, async (req: Request, res: Response) =
       byWedge: {
         exact_site_hosted_review:
           statsData.byWedge?.exact_site_hosted_review ?? 0,
+      },
+      byRequestPath: {
+        world_model: statsData.byRequestPath?.world_model ?? 0,
+        hosted_evaluation: statsData.byRequestPath?.hosted_evaluation ?? 0,
+        capture_access: statsData.byRequestPath?.capture_access ?? 0,
+        site_claim: statsData.byRequestPath?.site_claim ?? 0,
       },
     });
   } catch (error) {

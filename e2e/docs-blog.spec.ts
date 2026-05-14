@@ -6,7 +6,7 @@ test("docs page is publicly reachable", async ({ page }) => {
   await expect(page).toHaveURL(/\/proof\/?$/);
   await expect(
     page.getByRole("heading", {
-      name: /Sample grocery aisle proof packet/i,
+      name: /See what is attached to the world model before you buy\./i,
     }),
   ).toBeVisible();
 });
@@ -17,7 +17,7 @@ test("blog alias redirects to updates", async ({ page }) => {
   await expect(page).toHaveURL(/\/updates\/?$/);
   await expect(
     page.getByRole("heading", {
-      name: /Blueprint updates\./i,
+      name: /Notes on exact-site world models\./i,
     }),
   ).toBeVisible();
 });

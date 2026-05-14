@@ -376,6 +376,7 @@ export const analyticsEvents = {
     destination: string;
     source: string;
     requestedLane: string;
+    commercialRequestPath: string;
   }) =>
     trackEvent("contact_page_cta_clicked", {
       persona: properties.persona,
@@ -384,6 +385,7 @@ export const analyticsEvents = {
       destination: properties.destination,
       source: properties.source,
       requested_lane: properties.requestedLane,
+      commercial_request_path: properties.commercialRequestPath,
     }),
 
   contactFormSubmit: (formType: string) =>
@@ -693,6 +695,7 @@ export const analyticsEvents = {
     persona: string;
     hostedMode: boolean;
     requestedLane: string;
+    commercialRequestPath: string;
     authenticated: boolean;
     prefilledSiteContext: boolean;
     demandAttribution?: DemandAttribution;
@@ -701,6 +704,7 @@ export const analyticsEvents = {
       persona: properties.persona,
       hosted_mode: properties.hostedMode,
       requested_lane: properties.requestedLane,
+      commercial_request_path: properties.commercialRequestPath,
       authenticated: properties.authenticated,
       prefilled_site_context: properties.prefilledSiteContext,
       ...buildDemandAttributionEventParams(properties.demandAttribution),
@@ -710,6 +714,7 @@ export const analyticsEvents = {
     persona: string;
     hostedMode: boolean;
     requestedLane: string;
+    commercialRequestPath: string;
     authenticated: boolean;
     hasJobTitle: boolean;
     hasSiteName: boolean;
@@ -724,6 +729,7 @@ export const analyticsEvents = {
       persona: properties.persona,
       hosted_mode: properties.hostedMode,
       requested_lane: properties.requestedLane,
+      commercial_request_path: properties.commercialRequestPath,
       authenticated: properties.authenticated,
       has_job_title: properties.hasJobTitle,
       has_site_name: properties.hasSiteName,
@@ -739,6 +745,7 @@ export const analyticsEvents = {
     persona: string;
     hostedMode: boolean;
     requestedLane: string;
+    commercialRequestPath: string;
     authenticated: boolean;
     demandAttribution?: DemandAttribution;
   }) =>
@@ -746,6 +753,7 @@ export const analyticsEvents = {
       persona: properties.persona,
       hosted_mode: properties.hostedMode,
       requested_lane: properties.requestedLane,
+      commercial_request_path: properties.commercialRequestPath,
       authenticated: properties.authenticated,
       ...buildDemandAttributionEventParams(properties.demandAttribution),
     }),
@@ -756,6 +764,7 @@ export const analyticsEvents = {
     persona: string;
     hostedMode: boolean;
     requestedLane: string;
+    commercialRequestPath: string;
     demandAttribution?: DemandAttribution;
   }) =>
     trackEvent("contact_request_failed", {
@@ -764,6 +773,7 @@ export const analyticsEvents = {
       persona: properties.persona,
       hosted_mode: properties.hostedMode,
       requested_lane: properties.requestedLane,
+      commercial_request_path: properties.commercialRequestPath,
       ...buildDemandAttributionEventParams(properties.demandAttribution),
     }),
 

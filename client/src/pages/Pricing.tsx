@@ -183,14 +183,14 @@ export default function Pricing() {
                 </p>
                 <div className="mt-8 flex flex-wrap gap-3">
                   <a
-                    href="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=pricing-hero"
+                    href="/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=pricing-hero"
                     className="inline-flex items-center justify-center bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                   >
                     Request hosted evaluation
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </a>
                   <a
-                    href="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=request-capture&source=pricing-hero"
+                    href="/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=pricing-hero"
                     className="inline-flex items-center justify-center border border-black/10 bg-white/75 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-white"
                   >
                     Request world model
@@ -406,13 +406,13 @@ export default function Pricing() {
               <ArrowRight className="ml-2 h-4 w-4" />
             </a>
             <a
-              href="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=pricing"
+              href="/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=pricing"
               className="inline-flex items-center justify-center border border-black/10 bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-50"
             >
               Request hosted evaluation
             </a>
             <a
-              href="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=request-capture&source=pricing"
+              href="/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=pricing"
               className="inline-flex items-center justify-center border border-black/10 px-6 py-3 text-sm font-semibold text-slate-700 transition hover:bg-white"
             >
               Request world model

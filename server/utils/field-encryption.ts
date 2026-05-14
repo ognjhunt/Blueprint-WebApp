@@ -280,6 +280,7 @@ export async function encryptInboundRequestForStorage<
       helpWith: request.request.helpWith,
       details: await encryptOptionalField(request.request.details ?? null),
       buyerType: request.request.buyerType,
+      commercialRequestPath: request.request.commercialRequestPath ?? null,
       siteName: await encryptFieldValue(
         request.request.siteName || request.contact.company || "Untitled site"
       ),
@@ -357,6 +358,7 @@ export async function decryptInboundRequestForAdmin<
       helpWith: request.request.helpWith,
       details: await decryptOptionalField(request.request.details ?? null),
       buyerType: request.request.buyerType ?? "site_operator",
+      commercialRequestPath: request.request.commercialRequestPath ?? null,
       siteName: request.request.siteName
         ? await decryptFieldValue(request.request.siteName)
         : request.contact.company

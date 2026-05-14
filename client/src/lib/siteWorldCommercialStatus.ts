@@ -5,6 +5,7 @@ export const COMMERCIAL_EXEMPLAR_SITE_WORLD_ID = "sw-chi-01";
 
 export type SiteWorldCommercialStatusId =
   | "public_demo_sample"
+  | "planned_catalog_profile"
   | "request_scoped_review"
   | "restriction_review_required"
   | "refresh_review_required";
@@ -39,7 +40,7 @@ export type SiteWorldVisualDisclosure = {
 export const siteWorldStatusLegend: SiteWorldStatusBadge[] = [
   {
     id: "public_demo",
-    label: "Public demo",
+    label: "Public sample",
     summary: "A public sample listing you can evaluate without treating it as a customer claim.",
     tone: "border-indigo-200 bg-indigo-50 text-indigo-700",
   },
@@ -54,6 +55,13 @@ export const siteWorldStatusLegend: SiteWorldStatusBadge[] = [
     label: "Listing metadata only",
     summary: "The public page shows site and pricing metadata, but not listing-specific exports.",
     tone: "border-slate-200 bg-slate-100 text-slate-700",
+  },
+  {
+    id: "planned_profile",
+    label: "Planned profile",
+    summary:
+      "A catalog profile for the type of exact-site world Blueprint is building; capture proof and access open only after request review.",
+    tone: "border-zinc-200 bg-zinc-100 text-zinc-700",
   },
   {
     id: "request_scoped_proof",
@@ -82,6 +90,15 @@ export function isPublicSampleSiteWorld(site: Pick<PublicSiteWorldRecord, "id">)
 
 export function isCommercialExemplarSiteWorld(site: Pick<PublicSiteWorldRecord, "id">) {
   return site.id === COMMERCIAL_EXEMPLAR_SITE_WORLD_ID;
+}
+
+export function isPlannedCatalogSiteWorld(site: PublicSiteWorldRecord) {
+  return (
+    !isPublicSampleSiteWorld(site)
+    && !isCommercialExemplarSiteWorld(site)
+    && site.dataSource !== "pipeline"
+    && !site.deploymentReadiness
+  );
 }
 
 function hasRestrictionSignals(site: PublicSiteWorldRecord) {
@@ -119,6 +136,18 @@ export function getSiteWorldCommercialStatus(
         "This listing shows a real captured sample, example files, and hosted-evaluation request previews.",
       buyerNote:
         "The public demo lets you evaluate the sample listing. It does not grant blanket facility approval or unrestricted commercial use for future requests.",
+    };
+  }
+
+  if (isPlannedCatalogSiteWorld(site)) {
+    return {
+      id: "planned_catalog_profile",
+      label: "Planned catalog profile",
+      tone: "border-zinc-200 bg-zinc-100 text-zinc-700",
+      summary:
+        "This is a planned catalog profile that shows the buyer workflow Blueprint is building toward, not a claim of current live supply or cleared access.",
+      buyerNote:
+        "Use it to scope the exact site and robot workflow. Capture proof, rights, exports, and hosted access open only after a request-specific review.",
     };
   }
 
@@ -160,6 +189,7 @@ export function getSiteWorldCommercialStatus(
 export function getSiteWorldProofDepth(site: PublicSiteWorldRecord) {
   if (isPublicSampleSiteWorld(site)) return "Public demo + current public proof assets";
   if (isCommercialExemplarSiteWorld(site)) return "Commercial exemplar with listing proof fields + request-scoped hosted request path";
+  if (isPlannedCatalogSiteWorld(site)) return "Planned profile; proof opens after capture/package review";
   if (site.worldLabsPreview?.launchUrl) return "Listing + hosted request path disclosure + fallback preview";
   if (site.deploymentReadiness?.native_world_model_primary) return "Listing + hosted request path disclosure";
   return "Listing only";
@@ -174,6 +204,10 @@ export function getSiteWorldPublicProofSummary(site: PublicSiteWorldRecord) {
     isCommercialExemplarSiteWorld(site) ? "buyer note" : null,
   ].filter(Boolean) as string[];
 
+  if (isPlannedCatalogSiteWorld(site)) {
+    return "Planned profile; no listing-specific proof yet";
+  }
+
   if (proofAssets.length === 0) {
     return "Listing metadata only";
   }
@@ -182,6 +216,10 @@ export function getSiteWorldPublicProofSummary(site: PublicSiteWorldRecord) {
 }
 
 export function getSiteWorldFreshnessSummary(site: PublicSiteWorldRecord) {
+  if (isPlannedCatalogSiteWorld(site)) {
+    return "Planned; freshness set after capture review";
+  }
+
   if (site.deploymentReadiness?.recapture_required) {
     return "Recapture required before commercial use";
   }
@@ -226,6 +264,15 @@ export function getSiteWorldVisualDisclosure(site: PublicSiteWorldRecord): SiteW
     };
   }
 
+  if (isPlannedCatalogSiteWorld(site)) {
+    return {
+      label: "Planned route diagram",
+      summary:
+        "Catalog planning diagram for buyer scanning. It is not listing-specific capture proof, customer traction, or cleared supply.",
+      proofBacked: false,
+    };
+  }
+
   return {
     label: "Composite route diagram",
     summary:
@@ -240,17 +287,19 @@ export function getSiteWorldStatusBadges(site: PublicSiteWorldRecord): SiteWorld
     badges.push(siteWorldStatusLegend[0] as SiteWorldStatusBadge);
   } else if (isCommercialExemplarSiteWorld(site)) {
     badges.push(siteWorldStatusLegend[1] as SiteWorldStatusBadge);
+  } else if (isPlannedCatalogSiteWorld(site)) {
+    badges.push(siteWorldStatusLegend[3] as SiteWorldStatusBadge);
   }
 
   if (getSiteWorldPublicProofSummary(site) === "Listing metadata only") {
     badges.push(siteWorldStatusLegend[2] as SiteWorldStatusBadge);
-  } else {
-    badges.push(siteWorldStatusLegend[3] as SiteWorldStatusBadge);
+  } else if (!isPlannedCatalogSiteWorld(site)) {
+    badges.push(siteWorldStatusLegend[4] as SiteWorldStatusBadge);
   }
 
   badges.push(
-    siteWorldStatusLegend[4] as SiteWorldStatusBadge,
     siteWorldStatusLegend[5] as SiteWorldStatusBadge,
+    siteWorldStatusLegend[6] as SiteWorldStatusBadge,
   );
   return badges.filter(Boolean);
 }
@@ -300,6 +349,10 @@ export function getSiteWorldPlainEnglishStatus(site: PublicSiteWorldRecord) {
     return "Best public sample to start with if you are new to Blueprint.";
   }
 
+  if (status.id === "planned_catalog_profile") {
+    return "Planned catalog profile for scoping the exact-site request before proof and access open.";
+  }
+
   if (status.id === "refresh_review_required") {
     return "Useful for fit-checking, but confirm freshness before treating it as current.";
   }
@@ -320,6 +373,10 @@ export function getSiteWorldPlainEnglishProof(site: PublicSiteWorldRecord) {
     return "This listing is the commercial exemplar: real pricing, listing proof fields, and a clearer path into hosted evaluation request or package access.";
   }
 
+  if (isPlannedCatalogSiteWorld(site)) {
+    return "This profile shows the intended exact-site package shape. Listing-specific proof appears after capture and review, not before.";
+  }
+
   if (getSiteWorldPublicProofSummary(site) === "Listing metadata only") {
     return "This listing currently shows the site, price, and trust fields, but not listing-specific screenshots or export previews.";
   }
@@ -332,6 +389,10 @@ export function getSiteWorldPlainEnglishRestrictions(site: PublicSiteWorldRecord
     return "Refresh work is still part of the commercial conversation for this site.";
   }
 
+  if (isPlannedCatalogSiteWorld(site)) {
+    return "Capture, rights, privacy, freshness, and package access all remain pending until a buyer request starts the review path.";
+  }
+
   if (hasRestrictionSignals(site)) {
     return "Expect rights, privacy, or export limits to be confirmed in follow-up before access opens.";
   }
@@ -342,6 +403,10 @@ export function getSiteWorldPlainEnglishRestrictions(site: PublicSiteWorldRecord
 export function getSiteWorldPackageAccessSummary(site: PublicSiteWorldRecord) {
   if (isPublicSampleSiteWorld(site)) {
     return "Sample files are public; commercial package access still uses request review.";
+  }
+
+  if (isPlannedCatalogSiteWorld(site)) {
+    return "Package access starts after the exact-site request, capture package, and rights/privacy review are in place.";
   }
 
   if (site.deploymentReadiness?.export_readiness_status === "ready") {
@@ -380,6 +445,15 @@ export function getSiteWorldHostedAccessDisclosure(
       label: "Hosted request path",
       summary:
         "The listing can support a hosted evaluation request, but the setup page must verify account access and hosted-session availability before launch.",
+      launchVerified: false,
+    };
+  }
+
+  if (isPlannedCatalogSiteWorld(site)) {
+    return {
+      label: "Planned hosted path",
+      summary:
+        "Hosted evaluation is part of the intended buyer path for this site type, but no live hosted session is being claimed for this profile.",
       launchVerified: false,
     };
   }

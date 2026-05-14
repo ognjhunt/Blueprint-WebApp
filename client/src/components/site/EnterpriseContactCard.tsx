@@ -22,7 +22,7 @@ export function EnterpriseContactCard({
   productSlug,
   variant = "sidebar",
 }: EnterpriseContactCardProps) {
-  const contactUrl = `/contact?product=${encodeURIComponent(productSlug)}&interest=evaluation-package`;
+  const contactUrl = `/contact?product=${encodeURIComponent(productSlug)}&persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model`;
 
   if (variant === "inline") {
     return (
@@ -115,7 +115,7 @@ export function EnterpriseContactCard({
         </a>
 
         <p className="mt-4 text-center text-xs text-zinc-500">
-          Response within 24 hours
+          Routed after request review
         </p>
       </div>
     );
@@ -169,7 +169,7 @@ export function EnterpriseContactCard({
 export function EnterpriseQuickLink({ productSlug }: { productSlug: string }) {
   return (
     <a
-      href={`/contact?product=${encodeURIComponent(productSlug)}&interest=evaluation-package`}
+      href={`/contact?product=${encodeURIComponent(productSlug)}&persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model`}
       className="inline-flex items-center gap-1 text-[10px] font-medium text-zinc-500 hover:text-zinc-700 transition-colors"
     >
       <Building className="h-3 w-3" />

@@ -14,6 +14,11 @@ describe("contact interest mapping", () => {
   it("maps canonical values to requested lanes", () => {
     expect(normalizeInterestToLane("site-review")).toBe("qualification");
     expect(normalizeInterestToLane("site-qualification")).toBe("qualification");
+    expect(normalizeInterestToLane("site-access-review")).toBe("qualification");
+    expect(normalizeInterestToLane("world-model")).toBe("deeper_evaluation");
+    expect(normalizeInterestToLane("world-model-package")).toBe("deeper_evaluation");
+    expect(normalizeInterestToLane("capture-access")).toBe("deeper_evaluation");
+    expect(normalizeInterestToLane("hosted-evaluation")).toBe("deeper_evaluation");
     expect(normalizeInterestToLane("evaluation-package")).toBe("deeper_evaluation");
     expect(normalizeInterestToLane("deeper-evaluation")).toBe("deeper_evaluation");
     expect(normalizeInterestToLane("managed-tuning")).toBe("managed_tuning");

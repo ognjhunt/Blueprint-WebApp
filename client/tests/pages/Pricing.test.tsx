@@ -39,15 +39,15 @@ describe("Pricing", () => {
         .getAllByRole("link", { name: /Request hosted evaluation/i })
         .some((link) =>
           link.getAttribute("href") ===
-          "/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=pricing",
+          "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=pricing",
         ),
     ).toBe(true);
     expect(
       screen
-        .getAllByRole("link", { name: /Request capture\/world model/i })
+        .getAllByRole("link", { name: /Request world model/i })
         .some((link) =>
           link.getAttribute("href") ===
-          "/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=request-capture&source=pricing",
+          "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=pricing",
         ),
     ).toBe(true);
 

@@ -138,11 +138,13 @@ describe("build output", () => {
     );
 
     expect(proofHtml).not.toContain("images.unsplash.com");
-    expect(proofHtml).toContain("Sample packet");
+    expect(proofHtml).toContain("Public sample, clearly labeled");
+    expect(proofHtml).toContain("Sample proof system");
+    expect(proofHtml).toContain("No invented rights or outcomes");
     expect(homeHtml).toContain('rel="canonical" href="https://tryblueprint.io/"');
-    expect(homeHtml).toContain('property="og:image" content="https://tryblueprint.io/generated/editorial/world-models-hero.png"');
+    expect(homeHtml).toContain('property="og:image" content="https://tryblueprint.io/generated/2026-05-13-brand-system/blueprint-og-hosted-review-gpt-image-2.png"');
     expect(homeHtml).toContain('type="application/ld+json"');
-    expect(homeHtml).toContain("What is a site-specific world model?");
+    expect(homeHtml).toContain("What does Blueprint sell?");
   });
 
   it("ships the placeholder proof assets", () => {
