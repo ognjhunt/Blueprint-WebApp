@@ -6,14 +6,14 @@ test("exact-site hosted review route keeps the sample-review selector path stabl
   await expect(page).toHaveURL(/\/product$/);
   await expect(
     page.getByRole("heading", {
-      name: /One real place, packaged for robot evaluation\./i,
+      name: /Turn the exact site into a decision-ready world model\./i,
     }),
   ).toBeVisible();
   await expect(
-    page.getByRole("link", { name: /Inspect proof/i }).first(),
+    page.getByRole("link", { name: /Inspect sample proof/i }).first(),
   ).toHaveAttribute("href", "/proof");
   await expect(
-    page.getByRole("link", { name: /Request site review/i }).first(),
+    page.getByRole("link", { name: /Request evaluation/i }).first(),
   ).toHaveAttribute(
     "href",
     "/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=product",

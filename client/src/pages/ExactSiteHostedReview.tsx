@@ -1,73 +1,97 @@
 import { SEO } from "@/components/SEO";
-import {
-  EditorialCtaBand,
-  EditorialFilmstrip,
-  EditorialSectionIntro,
-  EditorialSectionLabel,
-  MonochromeMedia,
-  ProofChip,
-} from "@/components/site/editorial";
+import { MonochromeMedia, ProofChip } from "@/components/site/editorial";
+import { analyticsEvents } from "@/lib/analytics";
+import { editorialGeneratedAssets } from "@/lib/editorialGeneratedAssets";
 import {
   proofEvidencePacket,
-  publicCaptureProofStories,
   sampleExportTree,
   sampleHostedRunRows,
 } from "@/lib/proofEvidence";
-import { analyticsEvents } from "@/lib/analytics";
-import { editorialGeneratedAssets } from "@/lib/editorialGeneratedAssets";
 import { publicCaptureGeneratedAssets } from "@/lib/publicCaptureGeneratedAssets";
-import { hostedFilmstripFrames } from "@/lib/siteEditorialContent";
 import { breadcrumbJsonLd, productJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 import { ArrowRight, MapPinned, ShieldCheck, Smartphone, UsersRound } from "lucide-react";
 import { useEffect } from "react";
 
-const trustCards = [
+const buyerFlow = [
   {
-    title: "What stays explicit",
-    body: "Hosted evaluation is not a deployment guarantee. Rights, privacy, restrictions, and export boundaries stay visible and irreversible commitments remain human-gated.",
+    label: "01",
+    title: "Exact-site capture",
+    body: "Record the real route, preserve timestamps, device context, capture notes, and the access boundaries around the place.",
+    icon: Smartphone,
   },
   {
-    title: "When this is a fit",
-    body: "Use this path when one real site already matters and the team needs run evidence before moving files around or sending people on-site.",
+    label: "02",
+    title: "World model package",
+    body: "Package the site into a provider-swappable world-model product with manifest, media, restrictions, and review artifacts attached.",
+    icon: MapPinned,
   },
   {
-    title: "Typical first reply",
-    body: "Public-listing and hosted-evaluation questions usually get a first reply within 1 business day. Rights or export review usually gets a first scoped answer within 2 business days.",
-  },
-];
-
-const reviewSteps = [
-  {
-    title: "Scope",
-    body: "Name one listing or facility, one workflow, and the robot setup or policy question that matters.",
+    label: "03",
+    title: "Hosted evaluation",
+    body: "Open a request-gated buyer room for task runs, route review, observations, and export framing against the same site package.",
+    icon: ShieldCheck,
   },
   {
-    title: "Run",
-    body: "Blueprint opens a hosted evaluation session against the exact-site world model and records task outcomes, route behavior, observations, and limits.",
-  },
-  {
-    title: "Export",
-    body: "The buyer leaves with a review summary, run evidence, export framing, and a clear recommendation for what to do next.",
+    label: "04",
+    title: "Buyer decision",
+    body: "Decide whether to approve export, request recapture, scope the next workflow, or leave the package in review.",
+    icon: UsersRound,
   },
 ];
 
-const hostedOutputs = [
-  "Review summary and next-step recommendation",
-  "Observation frames and route/replay notes when available",
-  "Export bundle scope, dataset references, and raw-bundle pointers",
-  "Rights, restrictions, and non-guarantee language attached to the result",
+const packageLayers = [
+  {
+    title: "Capture proof",
+    body: "Raw-bundle pointers, route notes, freshness, and provenance remain attached to the product record.",
+  },
+  {
+    title: "World output",
+    body: "Model artifacts and previews sit behind stable site-package contracts instead of a permanent model backend.",
+  },
+  {
+    title: "Hosted buyer room",
+    body: "Run evidence, observations, limitations, and recommendation notes are reviewed in one evaluation surface.",
+  },
+  {
+    title: "Commercial boundary",
+    body: "Rights, privacy, export scope, and irreversible commitments stay request-scoped and review-gated.",
+  },
 ];
+
+const decisionOptions = [
+  "Approve a scoped export",
+  "Request a deeper hosted run",
+  "Ask for recapture or operator access",
+  "Hold until rights or privacy review clears",
+];
+
+const proofBoundaries = [
+  {
+    title: "Sample assets are labeled",
+    body: "The public sample package shows product shape and proof structure. It is not presented as customer traction.",
+  },
+  {
+    title: "Hosted access is gated",
+    body: "The page sells the intended hosted evaluation workflow without claiming every session is generally live or production-ready.",
+  },
+  {
+    title: "Rights do not disappear",
+    body: "Capture provenance, restrictions, privacy review, and export approvals stay visible through the buyer workflow.",
+  },
+];
+
+const selectedStory = proofEvidencePacket.selectedStory;
 
 export default function ExactSiteHostedReview() {
   useEffect(() => {
-    analyticsEvents.exactSiteReviewView("exact_site_hosted_review_v1");
+    analyticsEvents.exactSiteReviewView("product_page_world_model_buyer_workflow_v2");
   }, []);
 
   return (
     <>
       <SEO
         title="Product | Blueprint"
-        description="See how Blueprint turns real-site capture into site-specific world models, package access, and hosted evaluation for robot teams."
+        description="Blueprint turns exact-site capture into site-specific world model packages, hosted evaluation, and buyer decision evidence for robot teams."
         canonical="/product"
         type="product"
         jsonLd={[
@@ -75,7 +99,7 @@ export default function ExactSiteHostedReview() {
             path: "/product",
             name: "Blueprint Product",
             description:
-              "Real-site capture, site-specific world models, package access, hosted evaluation, and provenance boundaries for robot teams.",
+              "Exact-site capture, site-specific world model packages, hosted evaluation, and buyer decision evidence for robot teams.",
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },
@@ -83,78 +107,85 @@ export default function ExactSiteHostedReview() {
           ]),
           productJsonLd({
             path: "/product",
-            name: "Blueprint Site-Specific World Models",
+            name: "Blueprint Site-Specific World Model Packages",
             description:
-              "A capture-backed product path for one real site, one workflow, package access, hosted evaluation, and clear export boundaries.",
+              "A capture-backed product workflow for exact-site world model packages, request-gated hosted evaluation, and buyer decisions with proof attached.",
             image: publicCaptureGeneratedAssets.hostedReviewPublicRoute,
             category: "Site-specific world-model product",
             properties: [
-              { name: "Capture basis", value: "Real-site capture with provenance metadata" },
-              { name: "Output", value: "World model, site package, hosted evaluation, export scope, and next-step recommendation" },
-              { name: "Boundary", value: "Not a deployment guarantee" },
+              { name: "Capture basis", value: "Exact-site capture with provenance metadata" },
+              { name: "Package", value: "Site manifest, model artifacts, hosted review, and export scope" },
+              { name: "Hosted access", value: "Request-gated evaluation for buyer review" },
             ],
           }),
         ]}
       />
 
-      <div className="bg-[#f5f3ef] text-slate-950">
-        <section className="border-b border-black/10">
+      <div className="bg-[#f5f1e8] text-[#15130f]">
+        <section className="relative border-b border-[#15130f]/10 bg-[#0d0d0b] text-white">
           <MonochromeMedia
             src={editorialGeneratedAssets.hostedReviewHero}
-            alt="Hosted evaluation hero"
-            className="min-h-[42rem] rounded-none"
+            alt="Blueprint hosted evaluation workspace"
+            className="min-h-[46rem] rounded-none md:min-h-[43rem]"
+            imageClassName="min-h-[46rem] md:min-h-[43rem]"
             loading="eager"
-            imageClassName="min-h-[42rem]"
-            overlayClassName="bg-[linear-gradient(90deg,rgba(0,0,0,0.92)_0%,rgba(0,0,0,0.72)_34%,rgba(0,0,0,0.2)_78%)]"
+            overlayClassName="bg-[linear-gradient(90deg,rgba(13,13,11,0.95)_0%,rgba(13,13,11,0.82)_38%,rgba(13,13,11,0.18)_100%)]"
           >
             <div className="absolute inset-0">
-              <div className="mx-auto grid h-full max-w-[88rem] gap-10 px-5 py-12 sm:px-8 lg:grid-cols-[0.6fr_0.4fr] lg:px-10 lg:py-16">
-                <div className="flex min-h-[34rem] flex-col justify-end selection:bg-white/20 selection:text-white">
-                <EditorialSectionLabel light>Product</EditorialSectionLabel>
-                <h1 className="font-editorial mt-6 max-w-[36rem] text-[3.55rem] leading-[0.9] tracking-[-0.06em] text-white sm:text-[4.8rem]">
-                  Exact-site world models, hosted for buyer review.
-                </h1>
-                <p className="mt-6 max-w-[30rem] text-base leading-8 text-white/[0.86]">
-                  Blueprint starts with real capture, then keeps the world model, package scope, hosted session, and proof boundaries attached to the same site.
-                </p>
-                <div className="mt-8 flex flex-wrap gap-2">
-                  <ProofChip light>Site package</ProofChip>
-                  <ProofChip light>Request-gated access</ProofChip>
-                  <ProofChip light>Hosted evaluation</ProofChip>
+              <div className="mx-auto grid h-full max-w-[88rem] gap-10 px-5 py-10 sm:px-8 lg:grid-cols-[0.56fr_0.44fr] lg:px-10 lg:py-14">
+                <div className="flex min-h-[29rem] flex-col justify-end lg:min-h-[34rem]">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/60">
+                    Blueprint product
+                  </p>
+                  <h1 className="font-editorial mt-5 max-w-[42rem] text-[3rem] leading-[0.98] tracking-normal text-white sm:text-[4.7rem] lg:text-[5.6rem] lg:leading-[0.94]">
+                    Turn the exact site into a decision-ready world model.
+                  </h1>
+                  <p className="mt-6 max-w-[36rem] text-base leading-8 text-white/80">
+                    Blueprint packages real capture, world-model output, hosted evaluation, and buyer proof around one site so robot teams can decide before they commit field time.
+                  </p>
+                  <div className="mt-7 flex flex-wrap gap-2">
+                    <ProofChip light>Capture-backed</ProofChip>
+                    <ProofChip light>Provider-swappable</ProofChip>
+                    <ProofChip light>Hosted buyer review</ProofChip>
+                  </div>
+                  <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                    <a
+                      href="/world-models"
+                      className="inline-flex items-center justify-center border border-white bg-white px-6 py-3 text-sm font-semibold text-[#15130f] transition hover:bg-[#f5f1e8]"
+                    >
+                      Browse world models
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </a>
+                    <a
+                      href="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=product"
+                      className="inline-flex items-center justify-center border border-white/25 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+                    >
+                      Request evaluation
+                    </a>
+                  </div>
                 </div>
-                <div className="mt-8 flex flex-wrap gap-3">
-                  <a
-	                    href="/world-models"
-                    className="inline-flex items-center justify-center bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
-                  >
-	                    Browse world models
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </a>
-                  <a
-	                    href="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=product"
-                    className="inline-flex items-center justify-center border border-white/[0.16] px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/[0.08]"
-                  >
-	                    Request hosted evaluation
-                  </a>
-                </div>
-              </div>
 
-                <div className="hidden items-end justify-end lg:flex">
-                  <div className="w-full max-w-[24rem] overflow-hidden border border-white/[0.14] bg-black/[0.42] text-white backdrop-blur-sm">
-                  <div className="border-b border-white/10 px-5 py-4 text-[11px] uppercase tracking-[0.18em] text-white/[0.44]">
-                    Hosted evaluation workspace
-                  </div>
-                  <div className="grid gap-3 p-5">
-                    <div className="rounded-[1rem] border border-white/10 bg-white/[0.08] p-4 text-sm text-white/[0.72]">
-                    Site: one real place
+                <div className="hidden items-end lg:flex">
+                  <div className="w-full border border-white/20 bg-[#0d0d0b]/75 backdrop-blur-sm">
+                    <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/50">
+                        Product flow
+                      </p>
+                      <span className="text-[11px] text-white/50">request-gated</span>
                     </div>
-                    <div className="rounded-[1rem] border border-white/10 bg-white/[0.08] p-4 text-sm text-white/[0.72]">
-                    Eval: task runs, observations, exports
+                    <div className="divide-y divide-white/10">
+                      {buyerFlow.map((step) => (
+                        <div key={step.title} className="grid grid-cols-[3.4rem_1fr] gap-4 px-5 py-4">
+                          <span className="font-editorial text-3xl tracking-normal text-[#d0ad72]">
+                            {step.label}
+                          </span>
+                          <div>
+                            <p className="text-sm font-semibold text-white">{step.title}</p>
+                            <p className="mt-1 text-sm leading-6 text-white/65">{step.body}</p>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                    <div className="rounded-[1rem] border border-white/10 bg-white/[0.08] p-4 text-sm text-white/[0.72]">
-                    Output: next step stays explicit
-                    </div>
-                  </div>
                   </div>
                 </div>
               </div>
@@ -162,223 +193,195 @@ export default function ExactSiteHostedReview() {
           </MonochromeMedia>
         </section>
 
-        <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
-	          <div className="grid gap-6 lg:grid-cols-[0.38fr_0.62fr]">
-	            <EditorialSectionIntro
-	              eyebrow="Preview"
-	              title="See the product path quickly."
-	              description="Start with a real site. Then choose package access, managed hosted evaluation, or a narrower capture request."
-	            />
-            <div className="overflow-hidden border border-black/10 bg-slate-950 p-4 text-white">
-              <EditorialFilmstrip frames={hostedFilmstripFrames.map((frame, index) => ({
-                ...frame,
-                src: publicCaptureProofStories[index % publicCaptureProofStories.length].image,
-              }))} />
+        <section className="border-b border-[#15130f]/10 bg-[#f5f1e8]">
+          <div className="mx-auto grid max-w-[88rem] gap-8 px-5 py-11 sm:px-8 lg:grid-cols-[0.34fr_0.66fr] lg:px-10 lg:py-14">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#7b6a51]">
+                Buyer workflow
+              </p>
+              <h2 className="font-editorial mt-4 max-w-[24rem] text-4xl leading-[1] tracking-normal text-[#15130f] sm:text-[3.2rem]">
+                One continuous path from capture to decision.
+              </h2>
             </div>
-	          </div>
-	        </section>
-
-        <section className="border-y border-black/10 bg-white">
-          <div className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
-            <div className="grid gap-4 lg:grid-cols-[0.44fr_0.56fr]">
-              <div className="bg-[#f5f3ef] p-6 lg:p-8">
-                <EditorialSectionIntro
-                  eyebrow="Sample review packet"
-                  title="A sample shows the path without pretending to be customer proof."
-                  description="The grocery route is a sample. It shows the motion: a capturer records an everyday place, Blueprint reviews privacy and restrictions, and a robot team gets evidence it can evaluate."
-                />
-                <div className="mt-7 space-y-3">
-                  {[
-                    ["Location", `${proofEvidencePacket.selectedStory.locationName}, ${proofEvidencePacket.selectedStory.city}`],
-                    ["Capture cue", proofEvidencePacket.selectedStory.captureAppCue],
-                    ["Buyer", `${proofEvidencePacket.selectedStory.buyerPersona}, ${proofEvidencePacket.selectedStory.buyerRole}`],
-                    ["Boundary", "Example sample, not a customer result"],
-                  ].map(([label, value]) => (
-                    <div key={label} className="grid gap-3 border border-black/10 bg-white px-4 py-3 text-sm md:grid-cols-[0.28fr_0.72fr]">
-                      <span className="text-[11px] uppercase tracking-[0.18em] text-slate-500">{label}</span>
-                      <span className="text-slate-800">{value}</span>
+            <div className="grid border border-[#15130f]/10 bg-[#15130f]/10 md:grid-cols-2 xl:grid-cols-4">
+              {buyerFlow.map((step) => {
+                const Icon = step.icon;
+                return (
+                  <article key={step.title} className="bg-white p-6">
+                    <div className="flex items-center justify-between">
+                      <Icon className="h-5 w-5 text-[#15130f]" />
+                      <span className="font-editorial text-3xl tracking-normal text-[#c7a775]">
+                        {step.label}
+                      </span>
                     </div>
-                  ))}
-                </div>
-              </div>
+                    <h3 className="mt-8 text-base font-semibold text-[#15130f]">{step.title}</h3>
+                    <p className="mt-3 text-sm leading-7 text-[#5c5141]">{step.body}</p>
+                  </article>
+                );
+              })}
+            </div>
+          </div>
+        </section>
 
-              <div className="grid gap-4">
-                <div className="grid gap-px bg-black/10 md:grid-cols-3">
-                  {[
-                    {
-                      icon: Smartphone,
-                      label: "Capture",
-                      body: "Record a public-facing route from common areas and submit it for review.",
-                    },
-                    {
-                      icon: ShieldCheck,
-                      label: "Review",
-                      body: "Privacy, rights, restrictions, and usefulness are checked before buyer framing.",
-                    },
-                    {
-                      icon: UsersRound,
-                      label: "Buyer room",
-                      body: "Robot teams compare run evidence, limits, and export scope before committing.",
-                    },
-                  ].map((item) => {
-                    const Icon = item.icon;
-                    return (
-                      <div key={item.label} className="bg-white p-5">
-                        <Icon className="h-5 w-5 text-slate-950" />
-                        <p className="mt-4 text-[11px] uppercase tracking-[0.18em] text-slate-500">{item.label}</p>
-                        <p className="mt-3 text-sm leading-6 text-slate-700">{item.body}</p>
-                      </div>
-                    );
-                  })}
+        <section className="border-b border-[#15130f]/10 bg-white">
+          <div className="mx-auto grid max-w-[88rem] gap-5 px-5 py-11 sm:px-8 lg:grid-cols-[0.52fr_0.48fr] lg:px-10 lg:py-14">
+            <div className="min-h-[30rem]">
+              <MonochromeMedia
+                src={publicCaptureGeneratedAssets.hostedReviewPublicRoute}
+                alt="Sample public route prepared for hosted evaluation"
+                className="h-full min-h-[30rem] rounded-none"
+                imageClassName="h-full min-h-[30rem]"
+                overlayClassName="bg-[linear-gradient(180deg,rgba(13,13,11,0.06),rgba(13,13,11,0.36))]"
+              >
+                <div className="absolute inset-x-0 bottom-0 p-5 text-white sm:p-7">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/70">
+                    Labeled sample
+                  </p>
+                  <h3 className="font-editorial mt-3 max-w-[28rem] text-4xl leading-[1] tracking-normal">
+                    {selectedStory.locationName}
+                  </h3>
+                  <p className="mt-3 max-w-[30rem] text-sm leading-7 text-white/80">
+                    {selectedStory.locationType}. Representative product evidence, not a customer result.
+                  </p>
                 </div>
-                <div className="border border-black/10 bg-slate-950 p-5 text-white">
-                  <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-white/45">
-                    <MapPinned className="h-4 w-4" />
-                    Capture example set
+              </MonochromeMedia>
+            </div>
+            <div className="flex flex-col justify-between bg-[#15130f] p-6 text-white sm:p-8">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#d0ad72]">
+                  World model package
+                </p>
+                <h2 className="font-editorial mt-4 max-w-[34rem] text-4xl leading-[1] tracking-normal sm:text-[3.2rem]">
+                  The sellable product is the site package, not a detached demo.
+                </h2>
+                <p className="mt-5 max-w-[34rem] text-sm leading-7 text-white/70">
+                  The package keeps capture proof, model output, hosted review, and commercial limits together. Better model providers can be swapped in without breaking the buyer workflow.
+                </p>
+              </div>
+              <div className="mt-8 grid gap-px border border-white/10 bg-white/10 sm:grid-cols-2">
+                {packageLayers.map((layer) => (
+                  <div key={layer.title} className="bg-[#15130f] p-5">
+                    <h3 className="text-sm font-semibold text-white">{layer.title}</h3>
+                    <p className="mt-3 text-sm leading-6 text-white/65">{layer.body}</p>
                   </div>
-                  <div className="mt-4 grid gap-2 md:grid-cols-2">
-                    {publicCaptureProofStories.map((story) => (
-                      <div key={story.id} className="border border-white/10 bg-white/5 p-4">
-                        <p className="text-sm font-semibold text-white">{story.locationName}</p>
-                        <p className="mt-2 text-xs leading-5 text-white/60">
-                          {story.locationType} / {story.captureAppCue}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
           </div>
         </section>
 
-        <section className="border-y border-black/10 bg-white">
-          <div className="mx-auto grid max-w-[88rem] gap-px px-5 py-10 sm:px-8 lg:grid-cols-[0.36fr_0.64fr] lg:px-10 lg:py-12">
-            <div className="bg-[#f5f3ef] px-6 py-8 lg:px-8 lg:py-10">
-              <EditorialSectionIntro
-                eyebrow="Session"
-                  title="What happens in a hosted evaluation."
-                  description="The setup stays narrow so the result can answer a robot-team question instead of becoming a generic demo."
-              />
+        <section className="border-b border-[#15130f]/10 bg-[#efe7d8]">
+          <div className="mx-auto grid max-w-[88rem] gap-8 px-5 py-11 sm:px-8 lg:grid-cols-[0.42fr_0.58fr] lg:px-10 lg:py-14">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#7b6a51]">
+                Hosted evaluation
+              </p>
+              <h2 className="font-editorial mt-4 max-w-[32rem] text-4xl leading-[1] tracking-normal text-[#15130f] sm:text-[3.2rem]">
+                A buyer room for runs, limits, and next-step calls.
+              </h2>
+              <p className="mt-5 max-w-[30rem] text-sm leading-7 text-[#5c5141]">
+                Hosted evaluation is the review layer between a world-model listing and a commercial commitment. It turns the package into evidence a robot team can act on.
+              </p>
               <a
                 href="/samples/sample-hosted-review-report.md"
-                className="mt-7 inline-flex items-center justify-center bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                className="mt-7 inline-flex items-center justify-center border border-[#15130f] bg-[#15130f] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#2a251d]"
               >
                 Open sample report
                 <ArrowRight className="ml-2 h-4 w-4" />
               </a>
             </div>
-            <div className="grid gap-px bg-black/10 md:grid-cols-3">
-              {reviewSteps.map((step) => (
-                <div key={step.title} className="bg-white p-6">
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">{step.title}</p>
-                  <p className="mt-5 text-sm leading-7 text-slate-700">{step.body}</p>
+            <div className="grid gap-5">
+              <div className="border border-[#15130f]/10 bg-white">
+                <div className="grid grid-cols-[0.22fr_0.34fr_0.44fr] border-b border-[#15130f]/10 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#7b6a51]">
+                  <span>Run</span>
+                  <span>Question</span>
+                  <span>Decision evidence</span>
                 </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="border-b border-black/10 bg-white">
-          <div className="mx-auto grid max-w-[88rem] min-w-0 gap-4 px-5 py-10 sm:px-8 lg:grid-cols-[0.58fr_0.42fr] lg:px-10 lg:py-12">
-            <div className="min-w-0 border border-black/10 bg-[#f5f3ef] p-6 lg:p-8">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Run evidence example</p>
-              <div className="mt-5 divide-y divide-black/10 border border-black/10 bg-white">
-                {sampleHostedRunRows.map((row) => (
-                  <div key={row.run} className="grid min-w-0 gap-3 p-4 text-sm leading-6 text-slate-700 md:grid-cols-[0.16fr_0.3fr_0.34fr_0.2fr]">
-                    <span className="min-w-0 font-semibold text-slate-950">{row.run}</span>
-                    <span className="min-w-0 break-words">{row.scenario}</span>
-                    <span className="min-w-0 break-words">{row.observation}</span>
-                    <span className="min-w-0 break-words text-slate-950">{row.output}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="min-w-0 border border-black/10 bg-slate-950 p-6 text-white lg:p-8">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Export evidence</p>
-              <h2 className="font-editorial mt-4 text-[2.4rem] leading-[0.94] tracking-[-0.05em]">
-                What leaves the session.
-              </h2>
-              <div className="mt-5 space-y-2 font-mono text-[12px] leading-6 text-white/70">
-                {sampleExportTree.slice(0, 6).map((item) => (
-                  <div key={item} className="min-w-0 break-all border border-white/10 bg-white/5 px-3 py-2">
-                    {item}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="border-b border-black/10 bg-white">
-          <div className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
-            <div className="grid gap-4 lg:grid-cols-[0.5fr_0.5fr]">
-              <MonochromeMedia
-                src={publicCaptureGeneratedAssets.hostedReviewPublicRoute}
-                alt="Hosted evaluation interior"
-                className="min-h-[28rem]"
-                overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.08),rgba(0,0,0,0.24))]"
-              />
-              <div className="bg-[#f5f3ef] px-6 py-8 lg:px-8 lg:py-10">
-                <EditorialSectionIntro
-                  eyebrow="Commercial shape"
-                  title="Hosted evaluation sits between listing and commitment."
-                  description="It is the managed eval path for one site-specific world model, not a generic benchmark console or deployment guarantee."
-                />
-                  <div className="mt-8 space-y-3 text-sm leading-7 text-slate-700">
-                    <div>1. Pick the site and workflow.</div>
-                    <div>2. Confirm the robot setup in scope.</div>
-                    <div>3. Run the hosted evaluation and compare the evidence.</div>
-                    <div>4. Decide what to do next with the proof still attached.</div>
-                  </div>
-                  <div className="mt-8 border border-black/10 bg-white p-5">
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">What you receive</p>
-                    <div className="mt-4 space-y-3 text-sm leading-6 text-slate-700">
-                      {hostedOutputs.map((item) => (
-                        <div key={item}>{item}</div>
-                      ))}
+                <div className="divide-y divide-[#15130f]/10">
+                  {sampleHostedRunRows.slice(0, 3).map((row) => (
+                    <div key={row.run} className="grid gap-3 px-4 py-4 text-sm leading-6 text-[#5c5141] md:grid-cols-[0.22fr_0.34fr_0.44fr]">
+                      <span className="font-semibold text-[#15130f]">{row.run}</span>
+                      <span>{row.scenario}</span>
+                      <span>{row.observation}</span>
                     </div>
-                  </div>
+                  ))}
                 </div>
+              </div>
+              <div className="grid gap-px border border-[#15130f]/10 bg-[#15130f]/10 sm:grid-cols-2">
+                {decisionOptions.map((option) => (
+                  <div key={option} className="bg-white px-5 py-4 text-sm font-semibold text-[#15130f]">
+                    {option}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </section>
 
-        <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
-          <EditorialSectionIntro
-            eyebrow="Trust and fit"
-            title="What this path is good for and what it does not claim."
-            className="max-w-3xl"
-          />
-          <div className="mt-8 grid gap-4 lg:grid-cols-3">
-            {trustCards.map((card, index) => (
-              <div
-                key={card.title}
-                className={index === 1 ? "bg-slate-950 p-6 text-white" : "bg-white p-6 text-slate-950"}
-              >
-                <h2 className="font-editorial text-[2rem] leading-[0.95] tracking-[-0.04em]">
-                  {card.title}
-                </h2>
-                <p className={`mt-4 text-sm leading-7 ${index === 1 ? "text-white/[0.72]" : "text-slate-600"}`}>
-                  {card.body}
+        <section className="border-b border-[#15130f]/10 bg-white">
+          <div className="mx-auto grid max-w-[88rem] gap-8 px-5 py-11 sm:px-8 lg:grid-cols-[0.36fr_0.64fr] lg:px-10 lg:py-14">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#7b6a51]">
+                Proof boundary
+              </p>
+              <h2 className="font-editorial mt-4 max-w-[26rem] text-4xl leading-[1] tracking-normal text-[#15130f] sm:text-[3.2rem]">
+                Commercially confident, proof honest.
+              </h2>
+            </div>
+            <div className="grid gap-5 lg:grid-cols-[0.44fr_0.56fr]">
+              <div className="border border-[#15130f]/10 bg-[#f5f1e8] p-5">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#7b6a51]">
+                  Package preview
                 </p>
+                <div className="mt-5 min-w-0 space-y-2 font-mono text-[12px] leading-6 text-[#4f4637]">
+                  {sampleExportTree.slice(0, 6).map((item) => (
+                    <div key={item} className="min-w-0 break-all border border-[#15130f]/10 bg-white px-3 py-2">
+                      {item}
+                    </div>
+                  ))}
+                </div>
               </div>
-            ))}
+              <div className="grid gap-px border border-[#15130f]/10 bg-[#15130f]/10">
+                {proofBoundaries.map((boundary) => (
+                  <article key={boundary.title} className="bg-white p-5">
+                    <h3 className="text-base font-semibold text-[#15130f]">{boundary.title}</h3>
+                    <p className="mt-3 text-sm leading-7 text-[#5c5141]">{boundary.body}</p>
+                  </article>
+                ))}
+              </div>
+            </div>
           </div>
         </section>
 
-        <section className="mx-auto max-w-[88rem] px-5 pb-12 sm:px-8 lg:px-10 lg:pb-14">
-          <EditorialCtaBand
-            eyebrow="Next step"
-            title="Start with one world model and one workflow."
-            description="Browse the catalog, open sample proof, or send the world model your team needs when it is not listed yet."
-            imageSrc={editorialGeneratedAssets.hostedReviewHero}
-            imageAlt="Hosted evaluation hero"
-            primaryHref="/proof"
-            primaryLabel="Open sample proof"
-            secondaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=product-bottom"
-            secondaryLabel="Request hosted evaluation"
-          />
+        <section className="bg-[#15130f] px-5 py-12 text-white sm:px-8 lg:px-10 lg:py-14">
+          <div className="mx-auto grid max-w-[88rem] gap-8 lg:grid-cols-[0.62fr_0.38fr] lg:items-end">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#d0ad72]">
+                Next step
+              </p>
+              <h2 className="font-editorial mt-4 max-w-[42rem] text-4xl leading-[1] tracking-normal sm:text-[3.4rem]">
+                Start with one site, one workflow, and one decision.
+              </h2>
+              <p className="mt-5 max-w-[36rem] text-sm leading-7 text-white/70">
+                Browse available world models, inspect sample proof, or send the site your team needs packaged for hosted evaluation.
+              </p>
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row lg:justify-end">
+              <a
+                href="/proof"
+                className="inline-flex items-center justify-center border border-white bg-white px-6 py-3 text-sm font-semibold text-[#15130f] transition hover:bg-[#f5f1e8]"
+              >
+                Inspect sample proof
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </a>
+              <a
+                href="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=product-bottom"
+                className="inline-flex items-center justify-center border border-white/20 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+              >
+                Request evaluation
+              </a>
+            </div>
+          </div>
         </section>
       </div>
     </>
