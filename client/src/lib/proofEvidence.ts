@@ -147,7 +147,7 @@ export const publicCaptureProofStories: PublicProofStory[] = [
     evidenceOpened: [
       "Sales-floor stills with aisle, display, service-counter exclusion, and route transition notes",
       "Manifest preview with capture basis, freshness state, and buyer-visible restrictions",
-      "Sample export tree with run summary, observation frames, and route replay placeholders",
+      "Sample export tree with run summary, observation frames, and route replay references",
     ],
     decisionNote:
       "The robot team can start with hosted evaluation while export rights stay gated until the listing-specific review is done.",

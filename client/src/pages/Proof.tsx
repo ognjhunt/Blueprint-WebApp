@@ -51,9 +51,9 @@ const boundaryRows: LedgerRow[] = [
   },
   {
     label: "Live buyer state",
-    value: "Live proof packet",
+    value: "Request-specific proof packet",
     detail:
-      "A live packet appears only after the site-specific capture, rights/privacy review, package manifest, and hosted-session path exist for that request.",
+      "A request-specific packet appears only after the site-specific capture, rights/privacy review, package manifest, and hosted-session path exist for that request.",
   },
   {
     label: "What the buyer gets",
@@ -204,13 +204,13 @@ function StatusBadge({
   tone,
   children,
 }: {
-  tone: "sample" | "live" | "blocked";
+  tone: "sample" | "attached" | "blocked";
   children: string;
 }) {
   const toneClass =
     tone === "sample"
       ? "border-[#b58d45]/40 bg-[#f7eddc] text-[#5d4520]"
-      : tone === "live"
+      : tone === "attached"
         ? "border-[#2f7d6b]/35 bg-[#e6f3ef] text-[#174f43]"
         : "border-[#c2410c]/30 bg-[#fff0e8] text-[#7c2d12]";
 
@@ -275,8 +275,8 @@ export default function Proof() {
                 Blueprint proof keeps capture provenance, rights posture, package scope, hosted outputs, and buyer decisions visible in one packet.
               </p>
               <div className="mt-8 flex flex-wrap gap-2">
-                <StatusBadge tone="live">Capture provenance</StatusBadge>
-                <StatusBadge tone="live">Rights posture</StatusBadge>
+                <StatusBadge tone="attached">Capture provenance</StatusBadge>
+                <StatusBadge tone="attached">Rights posture</StatusBadge>
                 <StatusBadge tone="sample">Hosted review context</StatusBadge>
               </div>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
@@ -298,7 +298,7 @@ export default function Proof() {
 
             <aside className="self-end border border-white/20 bg-black/40 p-5 backdrop-blur-md">
               <div className="flex flex-wrap gap-2">
-                <StatusBadge tone="live">Buyer proof packet</StatusBadge>
+                <StatusBadge tone="attached">Buyer proof packet</StatusBadge>
                 <StatusBadge tone="sample">Sample packet view</StatusBadge>
               </div>
               <div className="mt-6 grid gap-px bg-white/10">
@@ -361,10 +361,10 @@ export default function Proof() {
             <div className="border border-black/10 bg-[#f8f6f1] p-6 lg:p-8">
               <p className="text-[11px] font-semibold uppercase tracking-normal text-slate-500">Sample vs live</p>
               <h2 className="mt-4 text-4xl font-semibold leading-tight tracking-normal text-slate-950">
-                The public packet teaches the workflow. The live packet proves one request.
+                The public packet teaches the workflow. The request packet proves one site.
               </h2>
               <p className="mt-4 text-sm leading-7 text-slate-600">
-                Blueprint can show a polished sample without pretending it is a customer result. For a buyer, the proof only becomes live when it points to a concrete site, request, package, rights posture, and hosted-evaluation path.
+                Blueprint can show a polished sample without pretending it is a customer result. For a buyer, the proof becomes operational only when it points to a concrete site, request, package, rights posture, and hosted-evaluation path.
               </p>
               <div className="mt-5 border border-black/10 bg-white px-4 py-3 text-sm font-semibold leading-6 text-slate-800">
                 This is the launch-ready public surface and buyer workflow. Live availability, rights, and fulfillment are confirmed per site/request.
@@ -418,8 +418,8 @@ export default function Proof() {
                 The best proof page does not sound less confident because it has boundaries. It sounds more commercial because the buyer can see where the packet is strong, where access is scoped, and where the system will stop.
               </p>
               <div className="mt-6 flex flex-wrap gap-2">
-                <StatusBadge tone="live">Provenance attached</StatusBadge>
-                <StatusBadge tone="live">Rights posture attached</StatusBadge>
+                <StatusBadge tone="attached">Provenance attached</StatusBadge>
+                <StatusBadge tone="attached">Rights posture attached</StatusBadge>
                 <StatusBadge tone="blocked">Claims fail closed</StatusBadge>
               </div>
             </div>
@@ -538,7 +538,7 @@ export default function Proof() {
                 Ask for the packet when one exact site matters.
               </h2>
               <p className="mt-4 max-w-2xl text-sm leading-7 text-white/70">
-                Blueprint can scope the proof path around a sample catalog listing, a site you already know, or a new capture request. The packet stays honest: sample until live evidence exists, with access opened after rights and hosted availability are ready.
+                Blueprint can scope the proof path around a sample catalog listing, a site you already know, or a new capture request. The packet stays honest: sample until request-specific evidence exists, with access opened after rights and hosted availability are ready.
               </p>
             </div>
             <div className="flex flex-col justify-end gap-3 sm:flex-row lg:flex-col">
@@ -553,7 +553,7 @@ export default function Proof() {
                 href="/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=proof-bottom"
                 className="inline-flex min-h-14 items-center justify-center gap-3 rounded-md border border-white/20 px-6 text-sm font-semibold text-white transition hover:bg-white/10"
               >
-                Book hosted review
+                Request hosted review
               </a>
             </div>
           </div>

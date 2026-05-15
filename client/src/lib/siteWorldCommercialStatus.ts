@@ -53,8 +53,8 @@ export const siteWorldStatusLegend: SiteWorldStatusBadge[] = [
   },
   {
     id: "commercial_exemplar",
-    label: "Commercial exemplar",
-    summary: "A commercial listing with clear pricing, proof fields, and request-scoped follow-up.",
+    label: "Buyer-ready exemplar",
+    summary: "A buyer-facing listing with clear pricing, proof fields, and request-scoped follow-up.",
     tone: "border-emerald-200 bg-emerald-50 text-emerald-700",
   },
   {
@@ -78,14 +78,14 @@ export const siteWorldStatusLegend: SiteWorldStatusBadge[] = [
   },
   {
     id: "hosted_request_gated",
-    label: "Hosted request-gated",
+    label: "Hosted review request",
     summary:
       "The hosted path is a commercial next step, but live launch still depends on entitlement, account type, and hosted-session availability.",
     tone: "border-sky-200 bg-sky-50 text-sky-700",
   },
   {
     id: "package_request_gated",
-    label: "Package request-gated",
+    label: "Package access review",
     summary: "Package access follows the normal request-specific rights and export review.",
     tone: "border-stone-200 bg-stone-100 text-stone-700",
   },
@@ -137,10 +137,10 @@ export function getSiteWorldCommercialStatus(
   if (isPublicSampleSiteWorld(site)) {
     return {
       id: "public_demo_sample",
-      label: "Public demo sample",
+      label: "Public sample packet",
       tone: "border-indigo-200 bg-indigo-50 text-indigo-700",
       summary:
-        "This listing shows a real captured sample, example files, and hosted-evaluation request previews.",
+        "This listing shows a labeled sample capture story, example files, and hosted-evaluation request previews.",
       buyerNote:
         "The public demo lets you evaluate the sample listing. It does not grant blanket facility approval or unrestricted commercial use for future requests.",
     };
@@ -152,7 +152,7 @@ export function getSiteWorldCommercialStatus(
       label: "Planned catalog profile",
       tone: "border-zinc-200 bg-zinc-100 text-zinc-700",
       summary:
-        "This is a planned catalog profile that shows the buyer workflow Blueprint is building toward, not a claim of current live supply or cleared access.",
+        "This planned profile shows the buyer workflow and target site class, not a claim of current live supply or cleared access.",
       buyerNote:
         "Use it to scope the exact site and robot workflow. Capture proof, rights, exports, and hosted access open only after a request-specific review.",
     };
@@ -184,7 +184,7 @@ export function getSiteWorldCommercialStatus(
 
   return {
     id: "request_scoped_review",
-    label: "Request-scoped commercial review",
+    label: "Access-reviewed listing",
     tone: "border-emerald-200 bg-emerald-50 text-emerald-700",
     summary:
       "The listing is ready for buyer review with visible proof, export signals, and hosted-request disclosure, but final access still follows the request-specific rights and privacy review.",
@@ -194,8 +194,8 @@ export function getSiteWorldCommercialStatus(
 }
 
 export function getSiteWorldProofDepth(site: PublicSiteWorldRecord) {
-  if (isPublicSampleSiteWorld(site)) return "Public demo + current public proof assets";
-  if (isCommercialExemplarSiteWorld(site)) return "Commercial exemplar with listing proof fields + request-scoped hosted request path";
+  if (isPublicSampleSiteWorld(site)) return "Public sample packet + proof assets";
+  if (isCommercialExemplarSiteWorld(site)) return "Buyer-ready exemplar with listing proof fields + request-scoped hosted request path";
   if (isPlannedCatalogSiteWorld(site)) return "Planned profile; proof opens after capture/package review";
   if (site.worldLabsPreview?.launchUrl) return "Listing + hosted request path disclosure + fallback preview";
   if (site.deploymentReadiness?.native_world_model_primary) return "Listing + hosted request path disclosure";
@@ -212,7 +212,7 @@ export function getSiteWorldPublicProofSummary(site: PublicSiteWorldRecord) {
   ].filter(Boolean) as string[];
 
   if (isPlannedCatalogSiteWorld(site)) {
-    return "Planned profile; no listing-specific proof yet";
+    return "Planned profile; proof opens after capture/package review";
   }
 
   if (proofAssets.length === 0) {
@@ -246,9 +246,9 @@ export function getSiteWorldFreshnessSummary(site: PublicSiteWorldRecord) {
 export function getSiteWorldVisualDisclosure(site: PublicSiteWorldRecord): SiteWorldVisualDisclosure {
   if (isPublicSampleSiteWorld(site)) {
     return {
-      label: "Public sample proof",
+      label: "Public sample packet",
       summary:
-        "Public demo material with linked sample files. It is still an example, not a customer result or blanket site approval.",
+        "Public sample material with linked example files. It is still an example, not a customer result or blanket site approval.",
       proofBacked: true,
     };
   }
@@ -341,7 +341,7 @@ export function getSiteWorldFeaturedTag(site: PublicSiteWorldRecord) {
 
   if (isCommercialExemplarSiteWorld(site)) {
     return {
-      label: "Commercial exemplar",
+      label: "Buyer-ready exemplar",
       tone: "border-emerald-200 bg-emerald-50 text-emerald-700",
     };
   }
@@ -368,7 +368,7 @@ export function getSiteWorldPlainEnglishStatus(site: PublicSiteWorldRecord) {
     return "Public to evaluate, but rights, privacy, or export scope still need confirmation.";
   }
 
-  return "Commercially legible, but access still follows request-specific review.";
+  return "Access-reviewed for buyer evaluation, with final files and hosted review still request-scoped.";
 }
 
 export function getSiteWorldPlainEnglishProof(site: PublicSiteWorldRecord) {
@@ -377,7 +377,7 @@ export function getSiteWorldPlainEnglishProof(site: PublicSiteWorldRecord) {
   }
 
   if (isCommercialExemplarSiteWorld(site)) {
-    return "This listing is the commercial exemplar: real pricing, listing proof fields, and a clearer path into hosted evaluation request or package access.";
+    return "This listing is the buyer-ready exemplar: pricing, listing proof fields, and a clearer path into hosted evaluation request or package access.";
   }
 
   if (isPlannedCatalogSiteWorld(site)) {
@@ -466,7 +466,7 @@ export function getSiteWorldHostedAccessDisclosure(
   }
 
   return {
-    label: "Hosted request-gated",
+    label: "Hosted review request",
     summary:
       "Hosted evaluation is request-gated until site package files, entitlement, and hosted-session availability are verified.",
     launchVerified: false,

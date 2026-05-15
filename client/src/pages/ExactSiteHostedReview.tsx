@@ -153,7 +153,7 @@ export default function ExactSiteHostedReview() {
                       href="/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=product"
                       className="inline-flex w-full items-center justify-center border border-white bg-white px-6 py-3 text-sm font-semibold text-[#15130f] transition hover:bg-[#f5f1e8] sm:w-auto"
                     >
-                      Book hosted review
+                      Request hosted review
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </a>
                     <a
@@ -280,7 +280,7 @@ export default function ExactSiteHostedReview() {
                 A buyer room for runs, limits, and next steps.
               </h2>
               <p className="mt-5 max-w-[30rem] text-sm leading-7 text-[#5c5141]">
-                Hosted evaluation is the review layer between a listing and a commercial commitment. It turns the package into evidence a robot team can act on.
+                Hosted evaluation is the managed review layer between a listing and a commercial commitment. It turns the package into evidence a robot team can act on.
               </p>
               <a
                 href="/samples/sample-hosted-review-report.md"
@@ -371,7 +371,7 @@ export default function ExactSiteHostedReview() {
                 href="/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=product-bottom"
                 className="inline-flex items-center justify-center border border-white bg-white px-6 py-3 text-sm font-semibold text-[#15130f] transition hover:bg-[#f5f1e8]"
               >
-                Book hosted review
+                Request hosted review
                 <ArrowRight className="ml-2 h-4 w-4" />
               </a>
               <a

@@ -114,6 +114,41 @@ Examples:
 - a partial answer that leaves the decisive variable unknown
 - a reply that introduces a new exception without selecting an execution path
 
+## Exact Blocker Ask Requirements
+
+When a reply watcher or blocker audit records a missing sender, Gmail OAuth, first-send approval, or city-launch resume input, it must preserve the exact ask instead of a vague blocked state.
+
+Minimum fields for these blockers:
+
+- durable blocker id
+- owner
+- exact env var, account action, approval artifact, or input needed
+- safe proof command
+- retry/resume condition
+- disallowed workaround
+
+Current canonical blocker ids:
+
+| Blocker | Blocker id | Exact resume input |
+|---|---|---|
+| Sender/domain verification | `human-blocker:city-launch-sender-verification` | Provider sender/domain verified and `BLUEPRINT_CITY_LAUNCH_SENDER_VERIFICATION=verified`. |
+| Gmail OAuth missing or wrong mailbox | `human-blocker:gmail-oauth-<reason>` | OAuth credentials for `ohstnhunt@gmail.com`, production OAuth publishing state, and no `hlfabhunt@gmail.com` mailbox binding. |
+| Approved reply identity | `human-blocker:approved-reply-identity` | `BLUEPRINT_HUMAN_REPLY_APPROVED_EMAIL=ohstnhunt@gmail.com` explicitly configured. |
+| First-send approval | `human-blocker:exact-site-first-send-approval:<date-or-run-id>` | Founder decisions recorded against the first-send approval template before live dispatch. |
+| City-launch approval or Deep Research resume | `city-launch-approval-<city-slug>` or `city-launch-deep-research-<city-slug>` | Reply recorded with the blocker id plus city, budget tier, budget max, and resume action metadata. |
+
+Safe proof defaults:
+
+- durability: `npm run human-replies:audit-durability -- --allow-not-ready`
+- first-send gate: `npm run gtm:send -- --dry-run --allow-blocked`
+- city-launch preflight: `npm run city-launch:preflight -- --city "<City, ST>" --allow-blocked --no-write-report --no-write-deep-research-blocker --format markdown`
+
+Disallowed workarounds:
+
+- Do not use `hlfabhunt@gmail.com` for any org-facing sender, watcher, reply, draft, or escalation path.
+- Do not treat outbound email delivery, Slack mirror visibility, Notion comments, dry-run output, or provider credential presence as proof that replies can resume agents.
+- Do not wake live Paperclip, send test emails, poll Gmail, mutate Notion, or run live city-launch sends just to prove a missing input.
+
 ## Resume Immediately Definition
 
 “Resume immediately” means all of the following happen in the same watcher or ingest pass:

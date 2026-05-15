@@ -151,7 +151,7 @@ export const publicQaRoutes: PublicQaRoute[] = [
     canonicalPath: "/product",
     expectedHeading: "Turn the exact site into a decision-ready world model.",
     requiredCtas: [
-      { label: "Book hosted review", hrefStartsWith: "/contact" },
+      { label: "Request hosted review", hrefStartsWith: "/contact" },
       { label: "Inspect proof", hrefStartsWith: "/proof" },
     ],
   },
@@ -162,7 +162,7 @@ export const publicQaRoutes: PublicQaRoute[] = [
     expectedHeading: "Browse exact-site world models.",
     requiredCtas: [
       { label: "Request world model", hrefStartsWith: "/contact" },
-      { label: "Browse world models", hrefStartsWith: "#catalog" },
+      { label: "Jump to catalog", hrefStartsWith: "#catalog" },
     ],
   },
   {
@@ -172,7 +172,7 @@ export const publicQaRoutes: PublicQaRoute[] = [
     expectedHeading: "Choose the first step for one real site.",
     requiredCtas: [
       { label: "Request world model", hrefStartsWith: "/contact" },
-      { label: "Book hosted review", hrefStartsWith: "/contact" },
+      { label: "Request hosted review", hrefStartsWith: "/contact" },
     ],
   },
   {

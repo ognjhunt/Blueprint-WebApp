@@ -53,13 +53,13 @@ const accessModels = [
   {
     title: "Package access first",
     price: "$2,100-$3,400",
-    body: "Use this when your team wants package files, manifest, routes, and approved exports for one site.",
+    body: "Use this when your team wants files, manifest, routes, and approved export scope for one exact site.",
     items: ["Files and manifest", "Export limits", "Optional hosted add-on"],
   },
   {
     title: "Hosted review first",
     price: "$16-$29 / session-hour",
-    body: "Use this when your team wants Blueprint to run a managed review before file handoff or deeper package work.",
+    body: "Use this when your team wants Blueprint to run a managed buyer room before file handoff or deeper package work.",
     items: ["Browser session", "Reruns and notes", "Export scope"],
   },
   {
@@ -179,7 +179,7 @@ export default function Pricing() {
                   Choose the first step for one real site.
                 </h1>
                 <p className="mt-6 text-lg leading-8 text-slate-900 sm:text-slate-700">
-                  Pick package access for files, hosted review for a managed buyer room, or custom scope for private and multi-site work.
+                  Start with files, a managed buyer room, or custom scope. Blueprint keeps proof, rights, and access review tied to the exact site.
                 </p>
                 <div className="mt-8 flex flex-wrap gap-3">
                   <a
@@ -193,7 +193,7 @@ export default function Pricing() {
                     href="/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=pricing-hero"
                     className="inline-flex items-center justify-center border border-black/10 bg-white/75 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-white"
                   >
-                    Book hosted review
+                    Request hosted review
                   </a>
                 </div>
               </div>
@@ -239,7 +239,7 @@ export default function Pricing() {
             eyebrow="Managed session before file handoff."
             title="Hosted Review"
             price="$16 – $29 / session-hour"
-            body="Blueprint hosts the exact-site world model so your team can review configured routes, reruns, observations, and outputs before deciding whether package access should open next."
+            body="Blueprint hosts the exact-site world model in a managed buyer room so your team can review configured routes, reruns, observations, and outputs before deciding whether package access should open next."
             bullets={hostedBullets}
             image="/generated/editorial/hosted-hero.png"
             imageAlt="Hosted evaluation panel"
@@ -327,7 +327,7 @@ export default function Pricing() {
             <div className="border border-black/10 bg-white p-6 lg:p-8">
               <EditorialSectionIntro
                 eyebrow="Access model"
-                title="Choose by what your team needs first."
+                title="Choose by the first decision your team needs to make."
                 description="Package access means files and approved exports. Hosted review means managed browser sessions and run evidence. Custom scope is for private or multi-site work."
               />
               <div className="mt-6 border-t border-black/10 pt-5">
@@ -409,7 +409,7 @@ export default function Pricing() {
               href="/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=pricing"
               className="inline-flex items-center justify-center border border-black/10 bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-50"
             >
-              Book hosted review
+              Request hosted review
             </a>
             <a
               href="/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=pricing"

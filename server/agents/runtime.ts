@@ -2093,6 +2093,163 @@ export async function sendAgentSessionMessage(params: {
     taskMetadata.compact_startup_context === true
     || workflowMetadata.startupContextMode === "compact_references";
 
+  const managedRuntimeMetadata = {
+    ...((taskMetadata.managedRuntime as Record<string, unknown> | undefined) || {}),
+    agentProfileId: agentProfile?.id || session.agent_profile_id || null,
+    environmentProfileId: environmentProfile?.id || session.environment_profile_id || null,
+    profileName: agentProfile?.name || null,
+    environmentName: environmentProfile?.name || null,
+    profileSnapshot: buildProfileSnapshot(agentProfile),
+    environmentSnapshot: buildEnvironmentSnapshot(environmentProfile),
+  };
+  const preflightNormalizedTask = normalizeTask({
+    ...params.task,
+    session_id: params.sessionId,
+    session_key: params.task.session_key || session.session_key,
+    parent_run_id: params.task.parent_run_id || null,
+    provider: params.task.provider || agentProfile?.default_provider || session.provider,
+    runtime: params.task.runtime || agentProfile?.default_runtime || session.runtime,
+    tool_policy: mergeToolPolicy(
+      environmentProfile?.tool_policy,
+      agentProfile?.tool_policy,
+      params.task.tool_policy,
+    ),
+    approval_policy: mergeApprovalPolicy(
+      environmentProfile?.approval_policy,
+      agentProfile?.approval_policy,
+      params.task.approval_policy,
+    ),
+    session_policy: mergeSessionPolicy(
+      environmentProfile?.session_policy,
+      agentProfile?.session_policy,
+      params.task.session_policy,
+    ),
+    outcome_contract: mergeOutcomeContract(
+      params.task.kind,
+      agentProfile?.outcome_contract,
+      params.task.outcome_contract,
+    ),
+    metadata: {
+      ...taskMetadata,
+      managedRuntime: managedRuntimeMetadata,
+    },
+  });
+
+  const activeRun = await findActiveSessionRun(preflightNormalizedTask.session_key || session.session_key);
+  await recordRuntimeEvent({
+    session_id: params.sessionId,
+    run_id: activeRun?.id || null,
+    kind: "session.message.received",
+    status: "info",
+    summary: "Received session message",
+    metadata: {
+      dispatch_mode: preflightNormalizedTask.session_policy.dispatch_mode,
+      parent_run_id: preflightNormalizedTask.parent_run_id || null,
+      compact_startup_context: compactStartupContext,
+      agent_profile_id: agentProfile?.id || session.agent_profile_id || null,
+      environment_profile_id: environmentProfile?.id || session.environment_profile_id || null,
+    },
+  });
+
+  if (activeRun && preflightNormalizedTask.session_policy.dispatch_mode === "interrupt") {
+    await markRunStatus(activeRun.id, "cancelled", {
+      error: "Interrupted by a newer session message",
+    });
+    await recordRuntimeEvent({
+      session_id: params.sessionId,
+      run_id: activeRun.id,
+      kind: "run.interrupted",
+      status: "warning",
+      summary: "Interrupted active run for a newer session message",
+      metadata: {
+        dispatch_mode: preflightNormalizedTask.session_policy.dispatch_mode,
+      },
+    });
+  }
+
+  const runId = crypto.randomUUID();
+  const dedupeFingerprint = agentRunDedupeFingerprint(preflightNormalizedTask);
+  const activeRunFingerprint =
+    typeof activeRun?.dedupe_fingerprint === "string" && activeRun.dedupe_fingerprint
+      ? activeRun.dedupe_fingerprint
+      : activeRun
+        ? agentRunDedupeFingerprint(activeRun.input)
+        : null;
+  const duplicateActiveRun =
+    Boolean(activeRun) &&
+    preflightNormalizedTask.session_policy.dispatch_mode !== "interrupt" &&
+    dedupeFingerprint === activeRunFingerprint;
+
+  if (duplicateActiveRun && activeRun) {
+    const runtimeSuppression = {
+      reason: "duplicate_active_run",
+      active_run_id: activeRun.id,
+      dedupe_fingerprint: dedupeFingerprint,
+      dispatch_mode: preflightNormalizedTask.session_policy.dispatch_mode,
+      suppressed_at: new Date().toISOString(),
+    };
+    if (db) {
+      await saveRun({
+        id: runId,
+        session_id: params.sessionId,
+        session_key: preflightNormalizedTask.session_key || session.session_key,
+        task_kind: preflightNormalizedTask.kind,
+        provider: preflightNormalizedTask.provider,
+        runtime: preflightNormalizedTask.runtime,
+        model: preflightNormalizedTask.model,
+        status: "cancelled",
+        dispatch_mode: preflightNormalizedTask.session_policy.dispatch_mode,
+        input: preflightNormalizedTask,
+        dedupe_fingerprint: dedupeFingerprint,
+        requires_human_review: false,
+        tool_policy: preflightNormalizedTask.tool_policy,
+        approval_policy: preflightNormalizedTask.approval_policy,
+        outcome_contract: preflightNormalizedTask.outcome_contract,
+        metadata: {
+          ...(preflightNormalizedTask.metadata || {}),
+          runtime_suppression: runtimeSuppression,
+        },
+        resume_from_run_id: preflightNormalizedTask.resume_from_run_id || null,
+        parent_run_id: preflightNormalizedTask.parent_run_id || null,
+        created_at: nowTimestamp(),
+        updated_at: nowTimestamp(),
+        cancelled_at: nowTimestamp(),
+      });
+    }
+    await logRunEvent(
+      preflightNormalizedTask as unknown as NormalizedAgentTask<unknown, unknown>,
+      {
+        runId,
+        sessionId: params.sessionId,
+        actionKey: "agent.run.suppress_duplicate",
+        status: "cancelled",
+        summary: "Suppressed duplicate session message already covered by an active run",
+        metadata: {
+          active_run_id: activeRun.id,
+          runtime_suppression: runtimeSuppression,
+        },
+      },
+    );
+    await recordRuntimeEvent({
+      session_id: params.sessionId,
+      run_id: runId,
+      kind: "run.suppressed",
+      status: "info",
+      summary: "Suppressed duplicate session message already covered by an active run",
+      metadata: {
+        active_run_id: activeRun.id,
+        runtime_suppression: runtimeSuppression,
+      },
+    });
+    return {
+      queued: false,
+      suppressed: true,
+      runId,
+      activeRunId: activeRun.id,
+      suppressionReason: "duplicate_active_run",
+    };
+  }
+
   const startupContext =
     params.task.kind === "operator_thread" ||
     params.task.kind === "external_harness_thread"
@@ -2210,15 +2367,7 @@ export async function sendAgentSessionMessage(params: {
             resolved_startup_context: resolvedStartupContextSummary,
           }
         : taskMetadata),
-        managedRuntime: {
-          ...((taskMetadata.managedRuntime as Record<string, unknown> | undefined) || {}),
-          agentProfileId: agentProfile?.id || session.agent_profile_id || null,
-          environmentProfileId: environmentProfile?.id || session.environment_profile_id || null,
-          profileName: agentProfile?.name || null,
-          environmentName: environmentProfile?.name || null,
-          profileSnapshot: buildProfileSnapshot(agentProfile),
-          environmentSnapshot: buildEnvironmentSnapshot(environmentProfile),
-        },
+        managedRuntime: managedRuntimeMetadata,
       },
     input:
       startupContext && params.task.input && typeof params.task.input === "object"
@@ -2228,122 +2377,6 @@ export async function sendAgentSessionMessage(params: {
           }
         : params.task.input,
   });
-
-  const activeRun = await findActiveSessionRun(normalizedTask.session_key || session.session_key);
-  await recordRuntimeEvent({
-    session_id: params.sessionId,
-    run_id: activeRun?.id || null,
-    kind: "session.message.received",
-    status: "info",
-    summary: "Received session message",
-    metadata: {
-      dispatch_mode: normalizedTask.session_policy.dispatch_mode,
-      parent_run_id: normalizedTask.parent_run_id || null,
-      compact_startup_context: compactStartupContext,
-      agent_profile_id: agentProfile?.id || session.agent_profile_id || null,
-      environment_profile_id: environmentProfile?.id || session.environment_profile_id || null,
-    },
-  });
-
-  if (activeRun && normalizedTask.session_policy.dispatch_mode === "interrupt") {
-    await markRunStatus(activeRun.id, "cancelled", {
-      error: "Interrupted by a newer session message",
-    });
-    await recordRuntimeEvent({
-      session_id: params.sessionId,
-      run_id: activeRun.id,
-      kind: "run.interrupted",
-      status: "warning",
-      summary: "Interrupted active run for a newer session message",
-      metadata: {
-        dispatch_mode: normalizedTask.session_policy.dispatch_mode,
-      },
-    });
-  }
-
-  const runId = crypto.randomUUID();
-  const dedupeFingerprint = agentRunDedupeFingerprint(normalizedTask);
-  const activeRunFingerprint =
-    typeof activeRun?.dedupe_fingerprint === "string" && activeRun.dedupe_fingerprint
-      ? activeRun.dedupe_fingerprint
-      : activeRun
-        ? agentRunDedupeFingerprint(activeRun.input)
-        : null;
-  const duplicateActiveRun =
-    Boolean(activeRun) &&
-    normalizedTask.session_policy.dispatch_mode !== "interrupt" &&
-    dedupeFingerprint === activeRunFingerprint;
-
-  if (duplicateActiveRun && activeRun) {
-    const runtimeSuppression = {
-      reason: "duplicate_active_run",
-      active_run_id: activeRun.id,
-      dedupe_fingerprint: dedupeFingerprint,
-      dispatch_mode: normalizedTask.session_policy.dispatch_mode,
-      suppressed_at: new Date().toISOString(),
-    };
-    if (db) {
-      await saveRun({
-        id: runId,
-        session_id: params.sessionId,
-        session_key: normalizedTask.session_key || session.session_key,
-        task_kind: normalizedTask.kind,
-        provider: normalizedTask.provider,
-        runtime: normalizedTask.runtime,
-        model: normalizedTask.model,
-        status: "cancelled",
-        dispatch_mode: normalizedTask.session_policy.dispatch_mode,
-        input: normalizedTask,
-        dedupe_fingerprint: dedupeFingerprint,
-        requires_human_review: false,
-        tool_policy: normalizedTask.tool_policy,
-        approval_policy: normalizedTask.approval_policy,
-        outcome_contract: normalizedTask.outcome_contract,
-        metadata: {
-          ...(normalizedTask.metadata || {}),
-          runtime_suppression: runtimeSuppression,
-        },
-        resume_from_run_id: normalizedTask.resume_from_run_id || null,
-        parent_run_id: normalizedTask.parent_run_id || null,
-        created_at: nowTimestamp(),
-        updated_at: nowTimestamp(),
-        cancelled_at: nowTimestamp(),
-      });
-    }
-    await logRunEvent(
-      normalizedTask as unknown as NormalizedAgentTask<unknown, unknown>,
-      {
-        runId,
-        sessionId: params.sessionId,
-        actionKey: "agent.run.suppress_duplicate",
-        status: "cancelled",
-        summary: "Suppressed duplicate session message already covered by an active run",
-        metadata: {
-          active_run_id: activeRun.id,
-          runtime_suppression: runtimeSuppression,
-          ...(resolvedStartupContextSummary || {}),
-        },
-      },
-    );
-    await recordRuntimeEvent({
-      session_id: params.sessionId,
-      run_id: runId,
-      kind: "run.suppressed",
-      status: "info",
-      summary: "Suppressed duplicate session message already covered by an active run",
-      metadata: {
-        active_run_id: activeRun.id,
-        runtime_suppression: runtimeSuppression,
-      },
-    });
-    return {
-      queued: false,
-      suppressed: true,
-      runId,
-      activeRunId: activeRun.id,
-      suppressionReason: "duplicate_active_run",
-    };
-  }
 
   const shouldQueue =
     activeRun &&

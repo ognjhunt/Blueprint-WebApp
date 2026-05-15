@@ -492,7 +492,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                       href={`/world-models/${site.id}/start`}
                       className="inline-flex items-center justify-center border border-white/15 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
                     >
-                      Check hosted setup
+                      Check hosted review
                     </a>
                   </div>
                 </div>
@@ -557,7 +557,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                 href={`/world-models/${site.id}/start`}
                 className="inline-flex items-center justify-center border border-black/10 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
               >
-                Hosted setup
+                Hosted review
               </a>
             </div>
           </div>
@@ -632,7 +632,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                 Tasks in this world model
               </h2>
               <p className="mt-2 text-sm leading-7 text-slate-700">
-                Pre-configured evaluation tasks for hosted review.
+                Evaluation tasks prepared for hosted review.
               </p>
               <div className="mt-6 space-y-3">
                 {taskRows.map((row, index) => (
@@ -1039,7 +1039,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                   href={`/world-models/${site.id}/start`}
                   className="inline-flex items-center justify-center bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                 >
-                  Check hosted setup
+                  Check hosted review
                 </a>
                 <a
                   href={hostedPackage?.actionHref || "/contact?persona=robot-team"}
@@ -1062,7 +1062,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
             primaryHref={scenePackage?.actionHref || "/contact?persona=robot-team"}
             primaryLabel="Request package access"
             secondaryHref={`/world-models/${site.id}/start`}
-            secondaryLabel="Check hosted setup"
+            secondaryLabel="Check hosted review"
           />
         </section>
       </div>

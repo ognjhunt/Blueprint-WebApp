@@ -66,7 +66,7 @@ export default function About() {
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </a>
                   <a
-                    href="/contact?persona=robot-team"
+                    href="/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=about-hero"
                     className="inline-flex w-full items-center justify-center border border-white/20 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10 sm:w-auto"
                   >
                     Contact Blueprint
@@ -140,8 +140,8 @@ export default function About() {
             imageAlt="Blueprint scoping room"
             primaryHref="/world-models"
             primaryLabel="Explore world models"
-            secondaryHref="/contact?persona=robot-team"
-            secondaryLabel="Contact Blueprint"
+            secondaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=about-bottom"
+            secondaryLabel="Request world model"
             dark={false}
           />
         </section>

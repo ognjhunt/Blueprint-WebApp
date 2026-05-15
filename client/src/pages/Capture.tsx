@@ -282,9 +282,9 @@ export default function Capture() {
 
         <section className="mx-auto max-w-[96rem] px-5 py-10 sm:px-8 lg:px-10">
           <EditorialCtaBand
-	            eyebrow="Buyer side"
-            title="Looking for a world model your robot team can evaluate?"
-            description="Robot teams start with world models and structured site requests, not capturer access."
+            eyebrow="Buyer side"
+            title="Need a world model for one real workflow?"
+            description="Robot teams start with package requests, hosted review, and proof packets. Capturer access is a separate supply path."
             imageSrc={publicCaptureGeneratedAssets.everydayPlacesCollage}
             imageAlt="Blueprint capture route"
             primaryHref="/world-models"

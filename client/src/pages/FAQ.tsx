@@ -96,7 +96,7 @@ export default function FAQ() {
                 </p>
                 <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                   <a
-                    href="/contact?persona=robot-team"
+                    href="/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=faq-hero"
                     className="inline-flex w-full items-center justify-center bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100 sm:w-auto"
                   >
                     Talk to Blueprint about a real site
@@ -130,7 +130,7 @@ export default function FAQ() {
             description="If one real site already matters, tell Blueprint the place, workflow, and robot question your team needs answered."
             imageSrc={editorialGeneratedAssets.scopingRoom}
             imageAlt="Scoping room"
-            primaryHref="/contact?persona=robot-team"
+            primaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=faq-bottom"
             primaryLabel="Talk to Blueprint about a real site"
             dark
           />

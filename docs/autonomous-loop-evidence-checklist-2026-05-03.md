@@ -63,6 +63,7 @@ Required `blocked` proof:
 - Why the lane cannot continue with reversible work.
 - Next required input, owner, and retry condition.
 - Linked follow-up or escalation issue when another repo, provider, or executive lane owns the unblock.
+- For sender verification, Gmail OAuth, first-send approval, or city-launch resume blockers: durable blocker id, exact env/account/approval input, safe proof command, retry/resume condition, and disallowed workaround. Do not summarize these as vague credential or approval blockers.
 
 Required `blocked` proof format:
 

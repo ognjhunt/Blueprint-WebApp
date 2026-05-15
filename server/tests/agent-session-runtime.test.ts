@@ -45,6 +45,17 @@ const runDeepSeekChatTask = vi.hoisted(() =>
     requires_approval: false,
   }),
 );
+const resolveStartupContext = vi.hoisted(() =>
+  vi.fn().mockResolvedValue({
+    attached_startup_packs: [],
+    repo_docs: [],
+    knowledge_pages: [],
+    blueprint_contexts: [],
+    attached_documents: [],
+    external_sources: [],
+    creative_contexts: [],
+  }),
+);
 
 vi.mock("../agents/adapters/openai-responses", () => ({
   runOpenAIResponsesTask,
@@ -52,6 +63,10 @@ vi.mock("../agents/adapters/openai-responses", () => ({
 
 vi.mock("../agents/adapters/deepseek-chat", () => ({
   runDeepSeekChatTask,
+}));
+
+vi.mock("../agents/knowledge", () => ({
+  resolveStartupContext,
 }));
 
 type QueryFilter = {
@@ -209,6 +224,7 @@ beforeEach(() => {
 afterEach(() => {
   runOpenAIResponsesTask.mockClear();
   runDeepSeekChatTask.mockClear();
+  resolveStartupContext.mockClear();
   vi.resetModules();
 });
 
@@ -310,6 +326,7 @@ describe("agent session runtime", () => {
     expect(result.queued).toBe(false);
     expect(result.activeRunId).toBe("run-active");
     expect(runDeepSeekChatTask).not.toHaveBeenCalled();
+    expect(resolveStartupContext).not.toHaveBeenCalled();
     expect([...fake.store.agentRuns.values()].filter((run) => run.status === "queued")).toHaveLength(0);
     expect([...fake.store.agentRuns.values()]).toEqual(
       expect.arrayContaining([

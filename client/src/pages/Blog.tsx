@@ -127,8 +127,7 @@ export default function Blog() {
                   </h2>
                   <p className="mt-4 text-sm leading-7 text-slate-700">{item.body}</p>
                   <div className="mt-5 inline-flex items-center text-sm font-semibold text-slate-700">
-                    Read note
-                    <ArrowRight className="ml-2 h-4 w-4" />
+                    Product note
                   </div>
                 </div>
               </article>
@@ -147,8 +146,7 @@ export default function Blog() {
                 How Blueprint brings survey, context, and behavior together in one site-specific package.
               </p>
               <div className="mt-6 inline-flex items-center text-sm font-semibold text-white/85">
-                Read feature
-                <ArrowRight className="ml-2 h-4 w-4" />
+                Product feature
               </div>
             </div>
             <MonochromeMedia

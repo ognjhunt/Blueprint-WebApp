@@ -30,14 +30,14 @@ import { useEffect, useMemo, useState } from "react";
 
 const productPaths = [
   {
-    title: "Exact-Site World Model Package",
+    title: "Site Package Access",
     body:
       "One real place, packaged with capture route, manifest, proof notes, rights limits, export scope, and geometry when available.",
     href: "/pricing",
     label: "View package access",
   },
   {
-    title: "Hosted Evaluation",
+    title: "Hosted Review",
     body:
       "A hosted review path for task scenarios, observations, and buyer notes before export, travel, or integration work.",
     href: "/product",
@@ -45,7 +45,7 @@ const productPaths = [
     dark: true,
   },
   {
-    title: "Buyer Review",
+    title: "Buyer Request Path",
     body:
       "Structured intake turns a robot-team question into the next site, package scope, hosted evaluation, or capture run.",
     href:
@@ -149,7 +149,7 @@ const homeVariantContent: Record<
     secondaryHref: "/world-models",
     panelTitle: "Start here",
     panelBody:
-      "Name one site and workflow. Proof stays attached before access expands.",
+      "Name one site, robot task, and review path. Proof stays attached before access expands.",
   },
   proof_pack: {
     title: "Site-specific world models from real capture.",
@@ -161,7 +161,7 @@ const homeVariantContent: Record<
     secondaryHref: "/world-models",
     panelTitle: "Start here",
     panelBody:
-      "Browse what exists, request what is missing, or ask for hosted review.",
+      "Browse what exists, request what is missing, or ask for the proof packet your team needs.",
   },
 };
 
@@ -277,11 +277,11 @@ export default function Home() {
         detail: "A walkthrough or site record starts the product. Provenance and limits stay attached.",
       },
       {
-        label: "Site product",
+        label: "Site package",
         detail: "Blueprint packages the capture into a site-specific world model, buyer listing, and export scope.",
       },
       {
-        label: "Hosted eval",
+        label: "Hosted review",
         detail: "A managed review path lets robot teams inspect task scenarios before file handoff.",
       },
       {
@@ -449,17 +449,17 @@ export default function Home() {
                 </div>
 
                 <div className="hidden items-end justify-end lg:flex">
-                  <div className="w-full max-w-[18rem] border border-white/15 bg-black/35 p-5 text-white shadow-[0_24px_60px_-40px_rgba(0,0,0,0.58)] backdrop-blur-sm">
-                  <p className="text-[11px] uppercase tracking-[0.2em] text-white/45">
-                    Robot-team next step
-                  </p>
-                  <h2 className="mt-4 text-lg font-semibold">{heroContent.panelTitle}</h2>
-                  <p className="mt-2 text-sm text-white/60">
-                    {heroContent.panelBody}
-                  </p>
-                  <div className="mt-5 border-t border-white/10 pt-4 text-sm text-white/70">
-                    Capture first. World-model product next. Review before commitment.
-                  </div>
+                  <div className="w-full max-w-[19rem] border border-white/15 bg-black/35 p-5 text-white shadow-[0_24px_60px_-40px_rgba(0,0,0,0.58)] backdrop-blur-sm">
+                    <p className="text-[11px] uppercase tracking-[0.2em] text-white/45">
+                      Robot-team next step
+                    </p>
+                    <h2 className="mt-4 text-lg font-semibold">{heroContent.panelTitle}</h2>
+                    <p className="mt-2 text-sm text-white/60">
+                      {heroContent.panelBody}
+                    </p>
+                    <div className="mt-5 border-t border-white/10 pt-4 text-sm text-white/70">
+                      Capture first. Package next. Review before commitment.
+                    </div>
                   </div>
                 </div>
               </div>

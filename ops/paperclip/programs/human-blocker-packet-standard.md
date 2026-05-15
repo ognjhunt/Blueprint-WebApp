@@ -80,6 +80,32 @@ Required field order:
 11. Non-Scope
 - what this reply does not authorize
 
+Credential, sender, OAuth, approval, and resume blockers:
+
+- These blockers must not stop at "credentials missing", "approval missing", or "blocked".
+- The packet must include:
+  - durable blocker id
+  - owner responsible for collecting the input
+  - exact env var, account action, approval artifact, or human input needed
+  - safe proof command that does not send email, poll Gmail, wake live Paperclip, mutate Notion, or change provider state
+  - retry/resume condition
+  - disallowed workaround
+- Safe proof command default:
+
+```bash
+npm run human-replies:audit-durability -- --allow-not-ready
+```
+
+Common exact asks:
+
+| Blocker | Durable blocker id | Owner | Exact input needed | Safe proof | Retry/resume condition | Disallowed workaround |
+|---|---|---|---|---|---|---|
+| Sender/domain verification | `human-blocker:city-launch-sender-verification` | `blueprint-chief-of-staff` | Confirm the active provider sender/domain is verified and set `BLUEPRINT_CITY_LAUNCH_SENDER_VERIFICATION=verified`. | `npm run human-replies:audit-durability -- --allow-not-ready` | Rerun the audit after provider verification and the live env flag are in place. | Do not treat configured SendGrid/SMTP credentials, Slack status, dry-run sends, or first-send approval as sender proof. |
+| Gmail OAuth | `human-blocker:gmail-oauth-<reason>` | `blueprint-chief-of-staff` | Provide `BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_ID`, `BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_SECRET`, `BLUEPRINT_HUMAN_REPLY_GMAIL_REFRESH_TOKEN` for `ohstnhunt@gmail.com`, and `BLUEPRINT_HUMAN_REPLY_GMAIL_OAUTH_PUBLISHING_STATUS=production`. | `npm run human-replies:audit-durability -- --allow-not-ready` | Rerun the audit after OAuth resolves the mailbox as `ohstnhunt@gmail.com` and production publishing state is explicit. | Do not poll `hlfabhunt@gmail.com`, scrape Gmail, use browser cookies, or claim outbound delivery proves reply resume. |
+| Approved reply identity | `human-blocker:approved-reply-identity` | `blueprint-chief-of-staff` | Set `BLUEPRINT_HUMAN_REPLY_APPROVED_EMAIL=ohstnhunt@gmail.com` explicitly. | `npm run human-replies:audit-durability -- --allow-not-ready` | Rerun the audit after the live env explicitly names the approved mailbox. | Do not rely on code defaults, alternate Gmail connectors, Slack mirrors, or `hlfabhunt@gmail.com`. |
+| First-send approval | `human-blocker:exact-site-first-send-approval:<date-or-run-id>` | `blueprint-chief-of-staff` | Founder approves, edits, or rejects the rows in `ops/paperclip/playbooks/exact-site-hosted-review-first-send-approval.template.json`; then apply with the documented GTM approval command. | `npm run gtm:send -- --dry-run --allow-blocked` | Resume GTM send only after approval decisions are recorded and durability audit is ready. | Do not send recipient-backed first touches from dry-run rows, generic approval language, inferred recipient evidence, or approval of the product page alone. |
+| City-launch resume | `city-launch-approval-<city-slug>` or `city-launch-deep-research-<city-slug>` | `city-launch-agent` with `blueprint-chief-of-staff` watching | Reply must approve the named launch action or confirm the named Deep Research/provider credential; resume metadata must name city, budget tier, budget max, and window. | `npm run city-launch:preflight -- --city "<City, ST>" --allow-blocked --no-write-report --no-write-deep-research-blocker --format markdown` | Resume only after the reply is recorded with the blocker id and the safe preflight or planning audit reaches the next stage. | Do not wake live Paperclip, run live sends, spend provider budget, or mark the city live from a vague approval or missing-credential note. |
+
 Channel rule:
 
 - use Slack DM to `Nijel Hunt` when speed matters and the ask can fit in a concise message

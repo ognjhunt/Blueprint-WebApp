@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-15T14:39:05.984Z",
+  "generatedAt": "2026-05-15T16:09:24.481Z",
   "baseUrl": "http://127.0.0.1:4173",
   "routeResults": [
     {
@@ -17,7 +17,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "6930 visible text characters"
+          "detail": "7192 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -126,7 +126,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "6697 visible text characters"
+          "detail": "6690 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -235,7 +235,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "4348 visible text characters"
+          "detail": "4624 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -308,7 +308,7 @@
           "detail": "No broad prelaunch or apology language found"
         },
         {
-          "name": "CTA: Book hosted review",
+          "name": "CTA: Request hosted review",
           "status": "pass",
           "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=product"
         },
@@ -344,7 +344,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "3802 visible text characters"
+          "detail": "3816 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -417,7 +417,7 @@
           "detail": "No broad prelaunch or apology language found"
         },
         {
-          "name": "CTA: Book hosted review",
+          "name": "CTA: Request hosted review",
           "status": "pass",
           "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=product"
         },
@@ -453,7 +453,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "24248 visible text characters"
+          "detail": "24507 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -531,7 +531,7 @@
           "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=header"
         },
         {
-          "name": "CTA: Browse world models",
+          "name": "CTA: Jump to catalog",
           "status": "pass",
           "detail": "hrefs=#catalog"
         },
@@ -562,7 +562,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "24146 visible text characters"
+          "detail": "24405 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -640,7 +640,7 @@
           "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=world-models-hero"
         },
         {
-          "name": "CTA: Browse world models",
+          "name": "CTA: Jump to catalog",
           "status": "pass",
           "detail": "hrefs=#catalog"
         },
@@ -661,6 +661,115 @@
       "routePath": "/pricing",
       "viewportName": "desktop",
       "screenshotPath": "output/qa/brand-polish/latest/screenshots/pricing-desktop.png",
+      "status": "pass",
+      "checks": [
+        {
+          "name": "HTTP document status",
+          "status": "pass",
+          "detail": "200 OK"
+        },
+        {
+          "name": "Nonblank body",
+          "status": "pass",
+          "detail": "4653 visible text characters"
+        },
+        {
+          "name": "No framework error overlay",
+          "status": "pass",
+          "detail": "No overlay detected"
+        },
+        {
+          "name": "Visible H1 exists",
+          "status": "pass",
+          "detail": "Choose the first step for one real site."
+        },
+        {
+          "name": "Expected route heading",
+          "status": "pass",
+          "detail": "Expected \"Choose the first step for one real site.\", saw \"Choose the first step for one real site.\""
+        },
+        {
+          "name": "SEO title",
+          "status": "pass",
+          "detail": "Pricing | Blueprint"
+        },
+        {
+          "name": "SEO description",
+          "status": "pass",
+          "detail": "118 chars"
+        },
+        {
+          "name": "Canonical URL",
+          "status": "pass",
+          "detail": "https://tryblueprint.io/pricing"
+        },
+        {
+          "name": "Robots indexable",
+          "status": "pass",
+          "detail": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+        },
+        {
+          "name": "No horizontal overflow",
+          "status": "pass",
+          "detail": "0px overflow"
+        },
+        {
+          "name": "Visible images carry alt attributes",
+          "status": "pass",
+          "detail": "All visible images have alt attributes"
+        },
+        {
+          "name": "Visible images load",
+          "status": "pass",
+          "detail": "All visible images decoded"
+        },
+        {
+          "name": "Interactive controls have names",
+          "status": "pass",
+          "detail": "All visible controls have names"
+        },
+        {
+          "name": "Visible form controls are labeled",
+          "status": "pass",
+          "detail": "All visible form controls are labeled"
+        },
+        {
+          "name": "No placeholder residue",
+          "status": "pass",
+          "detail": "No placeholder markers found"
+        },
+        {
+          "name": "Public launch posture",
+          "status": "pass",
+          "detail": "No broad prelaunch or apology language found"
+        },
+        {
+          "name": "CTA: Request world model",
+          "status": "pass",
+          "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=header"
+        },
+        {
+          "name": "CTA: Request hosted review",
+          "status": "pass",
+          "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=pricing-hero"
+        },
+        {
+          "name": "Console health",
+          "status": "pass",
+          "detail": "No console/page errors"
+        },
+        {
+          "name": "Critical asset responses",
+          "status": "pass",
+          "detail": "No critical document/script/style/image/font failures"
+        }
+      ]
+    },
+    {
+      "routeLabel": "Pricing",
+      "routePath": "/pricing",
+      "viewportName": "mobile",
+      "screenshotPath": "output/qa/brand-polish/latest/screenshots/pricing-mobile.png",
       "status": "pass",
       "checks": [
         {
@@ -746,119 +855,10 @@
         {
           "name": "CTA: Request world model",
           "status": "pass",
-          "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=header"
-        },
-        {
-          "name": "CTA: Book hosted review",
-          "status": "pass",
-          "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=pricing-hero"
-        },
-        {
-          "name": "Console health",
-          "status": "pass",
-          "detail": "No console/page errors"
-        },
-        {
-          "name": "Critical asset responses",
-          "status": "pass",
-          "detail": "No critical document/script/style/image/font failures"
-        }
-      ]
-    },
-    {
-      "routeLabel": "Pricing",
-      "routePath": "/pricing",
-      "viewportName": "mobile",
-      "screenshotPath": "output/qa/brand-polish/latest/screenshots/pricing-mobile.png",
-      "status": "pass",
-      "checks": [
-        {
-          "name": "HTTP document status",
-          "status": "pass",
-          "detail": "200 OK"
-        },
-        {
-          "name": "Nonblank body",
-          "status": "pass",
-          "detail": "4527 visible text characters"
-        },
-        {
-          "name": "No framework error overlay",
-          "status": "pass",
-          "detail": "No overlay detected"
-        },
-        {
-          "name": "Visible H1 exists",
-          "status": "pass",
-          "detail": "Choose the first step for one real site."
-        },
-        {
-          "name": "Expected route heading",
-          "status": "pass",
-          "detail": "Expected \"Choose the first step for one real site.\", saw \"Choose the first step for one real site.\""
-        },
-        {
-          "name": "SEO title",
-          "status": "pass",
-          "detail": "Pricing | Blueprint"
-        },
-        {
-          "name": "SEO description",
-          "status": "pass",
-          "detail": "118 chars"
-        },
-        {
-          "name": "Canonical URL",
-          "status": "pass",
-          "detail": "https://tryblueprint.io/pricing"
-        },
-        {
-          "name": "Robots indexable",
-          "status": "pass",
-          "detail": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
-        },
-        {
-          "name": "No horizontal overflow",
-          "status": "pass",
-          "detail": "0px overflow"
-        },
-        {
-          "name": "Visible images carry alt attributes",
-          "status": "pass",
-          "detail": "All visible images have alt attributes"
-        },
-        {
-          "name": "Visible images load",
-          "status": "pass",
-          "detail": "All visible images decoded"
-        },
-        {
-          "name": "Interactive controls have names",
-          "status": "pass",
-          "detail": "All visible controls have names"
-        },
-        {
-          "name": "Visible form controls are labeled",
-          "status": "pass",
-          "detail": "All visible form controls are labeled"
-        },
-        {
-          "name": "No placeholder residue",
-          "status": "pass",
-          "detail": "No placeholder markers found"
-        },
-        {
-          "name": "Public launch posture",
-          "status": "pass",
-          "detail": "No broad prelaunch or apology language found"
-        },
-        {
-          "name": "CTA: Request world model",
-          "status": "pass",
           "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=pricing-hero"
         },
         {
-          "name": "CTA: Book hosted review",
+          "name": "CTA: Request hosted review",
           "status": "pass",
           "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=pricing-hero"
         },
@@ -889,7 +889,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "8440 visible text characters"
+          "detail": "8486 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -998,7 +998,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "8377 visible text characters"
+          "detail": "8423 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -1107,7 +1107,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "3325 visible text characters"
+          "detail": "3080 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -1216,7 +1216,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "3000 visible text characters"
+          "detail": "3017 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -1325,7 +1325,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "3353 visible text characters"
+          "detail": "3356 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -1434,7 +1434,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "3290 visible text characters"
+          "detail": "3293 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -1836,7 +1836,7 @@
         {
           "name": "CTA: Talk to Blueprint about a real site",
           "status": "pass",
-          "detail": "hrefs=/contact?persona=robot-team"
+          "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=faq-hero"
         },
         {
           "name": "Console health",
@@ -1940,7 +1940,7 @@
         {
           "name": "CTA: Talk to Blueprint about a real site",
           "status": "pass",
-          "detail": "hrefs=/contact?persona=robot-team"
+          "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=faq-hero"
         },
         {
           "name": "Console health",
@@ -1969,7 +1969,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "2204 visible text characters"
+          "detail": "2206 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -2049,7 +2049,7 @@
         {
           "name": "CTA: Contact Blueprint",
           "status": "pass",
-          "detail": "hrefs=/contact?persona=robot-team"
+          "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=about-hero"
         },
         {
           "name": "Console health",
@@ -2078,7 +2078,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "2048 visible text characters"
+          "detail": "2050 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -2158,7 +2158,7 @@
         {
           "name": "CTA: Contact Blueprint",
           "status": "pass",
-          "detail": "hrefs=/contact?persona=robot-team"
+          "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=about-hero"
         },
         {
           "name": "Console health",
@@ -2187,7 +2187,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "1751 visible text characters"
+          "detail": "1772 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -2296,7 +2296,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "1688 visible text characters"
+          "detail": "1709 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -2691,11 +2691,43 @@
       ]
     },
     {
+      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=about-bottom",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/about"
+      ]
+    },
+    {
+      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=about-hero",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/about"
+      ]
+    },
+    {
       "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=contact-fast-path",
       "status": "pass",
       "httpStatus": 200,
       "sourceRoutes": [
         "/contact"
+      ]
+    },
+    {
+      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=faq-bottom",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/faq"
+      ]
+    },
+    {
+      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=faq-hero",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/faq"
       ]
     },
     {

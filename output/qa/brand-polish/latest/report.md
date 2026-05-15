@@ -1,6 +1,6 @@
 # Blueprint Brand Polish QA Report
 
-Generated: 2026-05-15T14:39:05.984Z
+Generated: 2026-05-15T16:09:24.481Z
 Base URL: http://127.0.0.1:4173
 Command: `npm run qa:polish`
 Boundary: local Playwright dev server only. No live sends, provider calls, payments, deploys, or Notion writes.
@@ -8,7 +8,7 @@ Boundary: local Playwright dev server only. No live sends, provider calls, payme
 ## Summary
 
 - Route viewport checks: 22/22 passed.
-- Internal link checks: 70/70 passed.
+- Internal link checks: 74/74 passed.
 - Notion layout checklist: `output/qa/brand-polish/latest/notion-layout-checklist.md`
 
 ## Issues
@@ -77,7 +77,11 @@ Boundary: local Playwright dev server only. No live sends, provider calls, payme
 | /contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=proof-bottom | pass | 200 | /proof |
 | /contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=proof-packet&source=proof-bottom | pass | 200 | /proof |
 | /contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=proof-packet&source=proof-hero | pass | 200 | /proof |
+| /contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=about-bottom | pass | 200 | /about |
+| /contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=about-hero | pass | 200 | /about |
 | /contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=contact-fast-path | pass | 200 | /contact |
+| /contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=faq-bottom | pass | 200 | /faq |
+| /contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=faq-hero | pass | 200 | /faq |
 | /contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=header | pass | 200 | /, /about, /capture, /careers, /contact, /faq, /pricing, /product, /proof, /updates, /world-models |
 | /contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-bottom&utm_source=homepage&utm_medium=website&utm_campaign=home_robot_team_conversion_v1&utm_content=proof_pack%3Ahome-bottom | pass | 200 | / |
 | /contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-decision-path&utm_source=homepage&utm_medium=website&utm_campaign=home_robot_team_conversion_v1&utm_content=proof_pack%3Ahome-decision-path | pass | 200 | / |

@@ -122,16 +122,16 @@ const contactRequestPathCopy: Record<
     formSummary: "Required: contact details, role, request path, first question, and a site or site class.",
   },
   hosted_evaluation: {
-    seoTitle: "Request Hosted Evaluation | Blueprint",
+    seoTitle: "Request Hosted Review | Blueprint",
     seoDescription:
       "Request a hosted robot-team evaluation for a site-specific world model, subject to entitlement, proof, and runtime availability checks.",
-    badgeLabel: "Hosted Evaluation",
-    heroTitle: "Book a hosted review for this workflow.",
+    badgeLabel: "Hosted Review",
+    heroTitle: "Request hosted review for this workflow.",
     heroBody:
       "Name the site, task, and robot setup. Blueprint routes the request into hosted review, package access, or capture scoping with proof attached.",
     responseBody:
       "Blueprint reviews the site, robot setup, requested outputs, entitlement path, proof, and hosted-session readiness before confirming whether a hosted evaluation can move forward.",
-    primaryActionLabel: "Book hosted review",
+    primaryActionLabel: "Request hosted review",
     formSummary: "Required: contact details, role, request path, hosted question, and the site or workflow.",
   },
   capture_access: {
@@ -299,7 +299,7 @@ export default function Contact() {
           },
           {
             href: "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=contact-fast-path",
-            label: "Book hosted review",
+            label: "Request hosted review",
             detail: "Best when the site or workflow is known and a labeled review could shorten technical evaluation.",
           },
           {

@@ -46,12 +46,12 @@ import {
 import { useEffect, useMemo, useState } from "react";
 
 type SiteWorld = (typeof siteWorldCards)[number];
-type AvailabilityFilter = "All" | "Sample" | "Request-gated" | "Planned" | "Proof visible";
+type AvailabilityFilter = "All" | "Sample" | "Access-reviewed" | "Planned" | "Proof visible";
 
 const availabilityFilters: AvailabilityFilter[] = [
   "All",
   "Sample",
-  "Request-gated",
+  "Access-reviewed",
   "Planned",
   "Proof visible",
 ];
@@ -76,7 +76,7 @@ function getCatalogStateLabel(site: SiteWorld) {
   const status = getSiteWorldCommercialStatus(site);
   if (status.id === "public_demo_sample") return "Sample";
   if (status.id === "planned_catalog_profile") return "Planned";
-  return "Request-gated";
+  return "Access-reviewed";
 }
 
 function matchesAvailabilityFilter(site: SiteWorld, filter: AvailabilityFilter) {
@@ -84,7 +84,7 @@ function matchesAvailabilityFilter(site: SiteWorld, filter: AvailabilityFilter) 
   if (filter === "Sample") return getSiteWorldCommercialStatus(site).id === "public_demo_sample";
   if (filter === "Planned") return isPlannedCatalogSiteWorld(site);
   if (filter === "Proof visible") return hasPublicProof(site);
-  return getCatalogStateLabel(site) === "Request-gated";
+  return getCatalogStateLabel(site) === "Access-reviewed";
 }
 
 function SiteCard({
@@ -110,8 +110,8 @@ function SiteCard({
     ["Freshness", freshnessSummary],
     ["Hosted", hostedDisclosure.label],
   ];
-  const primaryCta = planned ? "Scope this site" : "Inspect listing";
-  const packageCta = planned ? "Scope package" : "Package access";
+  const primaryCta = planned ? "Scope this site" : "Review proof and access";
+  const packageCta = planned ? "Scope package" : "Request package access";
 
   return (
     <article
@@ -196,7 +196,7 @@ function SiteCard({
               href={`/world-models/${site.id}/start`}
               className="inline-flex w-full items-center justify-center border border-black/10 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-slate-100 sm:w-auto"
             >
-              Hosted setup
+              Check hosted review
             </a>
           ) : null}
           <a
@@ -346,7 +346,7 @@ export default function SiteWorlds() {
                   Browse exact-site world models.
                 </h1>
                 <p className="mt-4 max-w-[32rem] text-base leading-7 text-white/90 sm:text-lg sm:leading-8">
-                  Browse site-specific packages for robot evaluation, hosted review, and package requests. Listing details keep proof, access, and availability labels visible.
+                  Browse site-specific packages for robot evaluation, hosted review, and package requests. Each listing keeps proof depth, access state, and availability labels visible.
                 </p>
                 <div className="mt-6 flex flex-wrap gap-2">
                   <ProofChip light>Capture-backed catalog</ProofChip>
@@ -365,7 +365,7 @@ export default function SiteWorlds() {
                     href="#catalog"
                     className="inline-flex w-full items-center justify-center border border-white/15 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10 sm:w-auto"
                   >
-                    Browse world models
+                    Jump to catalog
                   </a>
                 </div>
               </div>
@@ -399,11 +399,11 @@ export default function SiteWorlds() {
 
         <section className="border-y border-black/10 bg-white">
           <div className="mx-auto grid max-w-[88rem] gap-6 px-5 py-10 sm:px-8 lg:grid-cols-[0.34fr_0.66fr] lg:px-10 lg:py-12">
-              <EditorialSectionIntro
-                eyebrow="Catalog states"
-              title="Sample, access-reviewed, and planned mean different things."
-                description="Blueprint can sell the catalog vision confidently while keeping public proof, hosted availability, package access, and future supply labels separate."
-              />
+            <EditorialSectionIntro
+              eyebrow="Catalog states"
+              title="Sample, access-reviewed, and planned listings mean different things."
+              description="Blueprint can sell the catalog vision confidently while keeping public proof, hosted availability, package access, and future supply labels separate."
+            />
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {siteWorldStatusLegend.map((item) => (
                 <div key={item.id} className={`border px-4 py-4 ${item.tone}`}>
@@ -525,7 +525,7 @@ export default function SiteWorlds() {
                   <SlidersHorizontal className="h-4 w-4 text-slate-700" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-slate-950">Marketplace filters</p>
+                  <p className="text-sm font-semibold text-slate-950">Catalog filters</p>
                   <p className="mt-1 text-xs leading-5 text-slate-600">
                     Showing {catalogSites.length} of {sortedCatalog.length}; {catalogStats.proofCount} with public proof visible.
                   </p>
