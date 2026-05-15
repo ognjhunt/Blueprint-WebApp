@@ -1,0 +1,6 @@
+
+> rest-express@1.0.0 check
+> tsc -p tsconfig.full.json --noEmit
+
+
+EXIT_CODE=0

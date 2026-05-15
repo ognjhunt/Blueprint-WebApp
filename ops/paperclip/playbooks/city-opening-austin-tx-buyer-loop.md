@@ -1,6 +1,6 @@
 # Exact-Site Hosted Review Buyer Loop
 
-- report_date: 2026-05-13
+- report_date: 2026-05-15
 - city: Austin, TX
 - ledger: ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json
 - loop_status: decision_due
@@ -44,8 +44,25 @@
 
 ## Founder First Send Batch
 
-- Founder action: approve, edit, or reject these recipient-backed drafts. Do not authorize pricing, rights, privacy, legal, or permission commitments here.
-- gtm-001-simbe-retail-aisle-review: Simbe Robotics / Retail shelf-scanning robotics team / Founder approves, edits, or rejects this recipient-backed draft before any live send.
+- Founder action: approve, edit, or reject these recipient-backed drafts. This does not authorize live sends, pricing, rights, privacy, legal, permission, paid spend, or readiness claims.
+- Review order: recipient evidence, draft angle, CTA, landing page handoff, objection plan, then decision.
+
+| Target | Recipient | Draft angle | CTA | Landing page | Review flag |
+| --- | --- | --- | --- | --- | --- |
+| gtm-001-simbe-retail-aisle-review: Simbe Robotics | sales@simberobotics.com | Offer /sample-evaluation as inspectable proof shape, then ask what exact site or workflow would be more useful. | Inspect the review, then name the more relevant site or workflow. | /sample-evaluation | public/general inbox |
+
+## First-Send Review Workflow
+
+- Keep all rows draft-only until the approval packet records explicit approve, edit, or reject decisions.
+- Apply decisions with `npm run gtm:first-send-approval:apply -- --write --allow-blocked`, then rerun audit and dry-run send checks.
+- A successful approval apply still does not permit a live send until reply durability passes and live dispatch is separately authorized.
+- Rows marked edit or reject should keep a specific next action in the ledger before requesting approval again.
+
+## Objection Handling
+
+| Target | Likely objection or review question | Evidence-safe response boundary |
+| --- | --- | --- |
+| gtm-001-simbe-retail-aisle-review: Simbe Robotics | If the sample is not close enough, ask for the exact site/workflow to capture next; do not call the sample a customer result. | Answer from the ledger row, linked artifact, and public page only; route pricing, rights, privacy, or capability exceptions back to human review. |
 
 ## Proof Artifact Queue
 

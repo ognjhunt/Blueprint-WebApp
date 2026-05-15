@@ -18,7 +18,15 @@ Reply durability is also blocked downstream by sender verification and Gmail wat
 
 Review `ops/paperclip/playbooks/exact-site-hosted-review-first-send-approval.template.json` and approve, edit, or reject the first-send rows that should move forward.
 
-Default recommendation: approve only rows whose public inbox and ask are acceptable for a first Exact-Site Hosted Review touch, leave questionable public inboxes as `edit`, and reject any row that should not receive outbound.
+Default recommendation: approve only rows where all of the following are true:
+
+- the public inbox or named address is acceptable for a first touch
+- the draft angle matches the row track
+- the CTA points to either inspecting a labeled review or naming a site/workflow to capture
+- the landing-page handoff matches the CTA
+- the objection plan can be answered from ledger evidence and public pages without inventing proof
+
+Leave broad support/community inboxes as `edit` if the ask should be narrowed, and reject any row that should not receive outbound.
 
 # Alternatives
 
@@ -38,11 +46,20 @@ Provide a first-send approval packet using:
 
 `ops/paperclip/playbooks/exact-site-hosted-review-first-send-approval.template.json`
 
-For each reviewed row, set:
+For each reviewed row, inspect:
+
+- `recipientEmail`, `recipientRole`, `recipientEvidenceSource`, and `recipientEvidenceType`
+- `draftAngle`
+- `cta`
+- `landingPage`
+- `objectionPlan`
+- `reviewFlags`
+
+Then set:
 
 - `decision`: `approve`, `edit`, or `reject`
 - `approvedBy`: required for `approve`
-- `approvalNote`: required when edits or rejection are needed
+- `approvalNote`: required when edits or rejection are needed; recommended for approvals when the row has review flags
 
 Leave unreviewed rows at `decision=null`.
 
@@ -66,7 +83,7 @@ npm run gtm:send -- --dry-run --allow-blocked
 npm run human-replies:audit-durability
 ```
 
-If the dry run reaches the durability gate, do not send live until `npm run human-replies:audit-durability` passes and live dispatch is explicitly authorized with `npm run gtm:send -- --write --dry-run=0`.
+If the dry run reaches the durability gate, do not send live until `npm run human-replies:audit-durability` passes and live dispatch is explicitly authorized with `npm run gtm:send -- --write --dry-run 0`.
 
 # Deadline / Checkpoint
 

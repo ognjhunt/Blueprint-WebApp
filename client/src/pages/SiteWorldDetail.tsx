@@ -18,6 +18,7 @@ import {
 } from "@/lib/proofEvidence";
 import {
   getSiteWorldCommercialStatus,
+  getSiteWorldBuyerFlowDisclosure,
   getSiteWorldHostedAccessDisclosure,
   getSiteWorldPlainEnglishProof,
   getSiteWorldPlainEnglishRestrictions,
@@ -271,6 +272,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
   }
 
   const commercialStatus = getSiteWorldCommercialStatus(site);
+  const buyerFlowDisclosure = getSiteWorldBuyerFlowDisclosure(site);
   const hostedAccessDisclosure = getSiteWorldHostedAccessDisclosure(site);
   const isPublicSample = isPublicSampleSiteWorld(site);
   const publicProofSummary = getSiteWorldPublicProofSummary(site);
@@ -392,6 +394,9 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
     ["Visible now", isPublicSample ? "Sample route, reference stills, sample files, and hosted request path." : "Site metadata, workflow, pricing frame, trust fields, and request path."],
     ["Gated", "Package files, raw exports, live hosted sessions, and listing-specific commercial proof open through request review and hosted-access checks."],
     ["Why gated", "Rights, privacy, freshness, and buyer context need to remain attached before access expands."],
+    ["Proof label", buyerFlowDisclosure.proofLabel],
+    ["Package path", buyerFlowDisclosure.packageAccess],
+    ["Hosted path", buyerFlowDisclosure.hostedAccess],
   ];
 
   const scenePackage = site.packages[0];
@@ -978,9 +983,12 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                 Site package
               </p>
               <h2 className="mt-3 text-[2.1rem] leading-[0.98] tracking-[-0.05em] text-slate-950">
-                Buy the site package.
+                Request package access.
               </h2>
-              <p className="mt-4 text-sm leading-7 text-slate-700">{scenePackage.summary}</p>
+              <p className="mt-4 text-sm leading-7 text-slate-700">
+                {scenePackage.summary} Package access is request-scoped; checkout, raw exports,
+                and fulfillment open only after proof, rights, privacy, and buyer scope review.
+              </p>
               <div className="mt-6 grid gap-3 sm:grid-cols-2">
                 {scenePackage.deliverables.map((item) => (
                   <div key={item} className="border border-black/10 bg-[#f8f6f1] px-4 py-4 text-sm text-slate-700">
@@ -990,7 +998,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
               </div>
               <div className="mt-6 border border-black/10 bg-[#f8f6f1] p-5">
                 <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Best fit</p>
-                <p className="mt-2 text-lg text-slate-950">Teams that want all the site data in their own stack</p>
+                <p className="mt-2 text-lg text-slate-950">Teams that want package files after request review</p>
                 <p className="mt-3 text-sm text-slate-700">{scenePackage.priceLabel}</p>
               </div>
               <a
@@ -1047,8 +1055,8 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
         <section className="mx-auto max-w-[96rem] px-5 pb-10 sm:px-8 lg:px-10">
           <EditorialCtaBand
             eyebrow="Next step"
-            title="Ready to evaluate this site?"
-            description="Request access to confirm hosted evaluation availability, or take the package path when your team wants the site data inside its own stack."
+            title="Ready to scope this site?"
+            description={buyerFlowDisclosure.nextStep}
             imageSrc={editorialRefreshAssets.detailHeroWarehouse}
             imageAlt={site.siteName}
             primaryHref={scenePackage?.actionHref || "/contact?persona=robot-team"}

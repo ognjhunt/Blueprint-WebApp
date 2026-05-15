@@ -31,6 +31,7 @@
     "autonomy:closure-drill": "tsx scripts/autonomy/run-city-closure-drill.ts",
     "autonomy:growth-blockers": "tsx scripts/autonomy/audit-autonomous-growth-blockers.ts",
     "audit:assets": "tsx scripts/audit-assets.ts",
+    "qa:polish": "playwright test e2e/brand-polish.spec.ts --reporter=line",
     "graphify:pilot:webapp-architecture": "bash scripts/graphify/run-webapp-architecture-pilot.sh",
     "city-launch:plan": "tsx scripts/city-launch/run-deep-research-playbook.ts",
     "city-launch:preflight": "tsx scripts/city-launch/audit-city-launch-readiness.ts",

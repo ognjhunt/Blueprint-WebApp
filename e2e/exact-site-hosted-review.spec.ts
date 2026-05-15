@@ -10,12 +10,12 @@ test("exact-site hosted review route keeps the sample-review selector path stabl
     }),
   ).toBeVisible();
   await expect(
-    page.getByRole("link", { name: /Inspect sample proof/i }).first(),
+    page.getByRole("link", { name: /Inspect proof/i }).first(),
   ).toHaveAttribute("href", "/proof");
   await expect(
-    page.getByRole("link", { name: /Request evaluation/i }).first(),
+    page.getByRole("link", { name: /Book hosted review/i }).first(),
   ).toHaveAttribute(
     "href",
-    "/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=product",
+    "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=product",
   );
 });

@@ -233,6 +233,7 @@ describe("HostedSessionWorkspace", () => {
       await screen.findByRole("heading", { name: /Control room for one exact-site world\./i }),
     ).toBeInTheDocument();
     expect(screen.getByText(/A session ID is required before the hosted workspace/i)).toBeInTheDocument();
+    expect(screen.getByText(/No payment, provider job, or fulfillment action/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Back to setup/i })).toHaveAttribute(
       "href",
       "/world-models/siteworld-f5fd54898cfb/start",
@@ -373,9 +374,9 @@ describe("HostedSessionWorkspace", () => {
       ).toBe(true);
     });
     await findModeLabel("Live Session");
-    expect(await screen.findByText(/Buyer Success Follow-Up/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Review Follow-Up/i)).toBeInTheDocument();
     expect(
-      screen.getByText(/Post-delivery onboarding stays attached to this session\./i),
+      screen.getByText(/Follow-up stays attached to this session state\./i),
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Send session feedback/i })).toHaveAttribute(
       "href",

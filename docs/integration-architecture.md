@@ -2,22 +2,32 @@
 
 Date: 2026-03-10
 
-Status: Working integration spec
+Status: Current integration support spec with historical qualification-first language corrected on 2026-05-14
+
+Current doctrine note:
+
+This document is a support-layer integration map. `PLATFORM_CONTEXT.md` and
+`WORLD_MODEL_STRATEGY_CONTEXT.md` remain authoritative for product framing.
+Blueprint is capture-first and world-model-product-first. Qualification,
+readiness, and review outputs are optional trust layers around capture-backed
+site-specific world-model packages and hosted access; they are not the default
+product center of gravity.
 
 ## Summary
 
 Blueprint is a three-repo system with one primary lifecycle:
 
-1. `Blueprint-WebApp` creates and routes a scoped site request.
-2. `BlueprintCapture` collects the evidence package for that request.
-3. `BlueprintCapturePipeline` turns the evidence into a qualification record and handoff.
-4. `Blueprint-WebApp` ingests the resulting artifacts, updates request state, and promotes qualified records into exchange and later paid lanes.
+1. `Blueprint-WebApp` creates and routes a scoped buyer/site/capture request.
+2. `BlueprintCapture` collects the real-site evidence package for that request.
+3. `BlueprintCapturePipeline` turns the evidence into site-specific package artifacts, hosted-session assets, and optional qualification/readiness handoff material.
+4. `Blueprint-WebApp` ingests the resulting artifacts, updates request state, and promotes eligible capture-backed packages into buyer, hosted-access, licensing, and ops lanes.
 
 The key product rule is:
 
-- qualification is the default product
-- exchange, preview simulation, evaluation packages, scenario generation, and managed tuning are follow-on lanes
-- derived assets must be stored separately from qualification truth
+- capture provenance, rights/privacy metadata, site-specific package artifacts, and hosted-session readiness are the central truth surfaces
+- qualification/readiness is an optional trust layer that can guide buyer review, commercialization, and deployment support
+- exchange, hosted review, evaluation packages, scenario generation, licensing, and managed tuning are downstream commercial lanes
+- derived assets must be stored separately from capture/provenance truth and must not overwrite it
 
 ## Repo Responsibilities
 
@@ -28,7 +38,7 @@ Primary role:
 - intake
 - routing
 - admin review
-- qualified opportunity exchange
+- buyer, hosted-access, licensing, and ops surfaces for eligible site-specific packages
 - later evaluation / tuning packaging
 - monetization
 
@@ -69,6 +79,8 @@ raw/
 Primary role:
 
 - convert the evidence package into:
+  - site-specific package artifacts
+  - hosted-session artifacts where available
   - qualification artifacts
   - readiness decision
   - opportunity handoff
@@ -198,7 +210,7 @@ pipeline/
 
 ## Pipeline Artifact URIs
 
-The minimum artifacts the webapp should ingest back from `BlueprintCapturePipeline` are:
+The minimum support artifacts the webapp should ingest back from `BlueprintCapturePipeline` are:
 
 - `readiness_decision.json`
 - `readiness_report.md`
@@ -254,7 +266,7 @@ Internal sync rule:
 
 - `pipeline` and `derived_assets` attachments are downstream metadata only
 - default attachment sync must preserve `status`, `qualification_state`, and `opportunity_state`
-- a pipeline caller may update qualification truth only when it explicitly sets an authoritative state-update flag
+- a pipeline caller may update qualification/readiness support-layer state only when it explicitly sets an authoritative state-update flag
 
 ### Optional advanced-geometry attachment block
 
@@ -272,7 +284,7 @@ Only for selected opportunities:
 }
 ```
 
-## How A Qualified Site Becomes A Live Exchange Item
+## How A Capture-Backed Site Becomes A Buyer-Facing Item
 
 ### Step 1. Intake creates the request
 
@@ -296,12 +308,13 @@ Creates a finalized evidence bundle tied to:
 - `scene_id`
 - `capture_id`
 
-### Step 3. Pipeline runs qualification
+### Step 3. Pipeline materializes package and trust outputs
 
 `BlueprintCapturePipeline`
 
 Produces:
 
+- site-specific package and hosted-session artifacts where available
 - qualification artifacts
 - readiness decision
 - handoff
@@ -313,14 +326,14 @@ Produces:
 The integration bridge should:
 
 - locate the target Firestore request by `site_submission_id`
-- attach capture and artifact references
-- update `qualification_state`
+- attach capture, package, hosted-session, and trust-layer artifact references
+- update `qualification_state` only as a support-layer state
 - update `opportunity_state`
 - expose report/handoff links to admin users
 
 ### Step 5. Promote only eligible records
 
-A record becomes a live exchange item only if:
+A record becomes a buyer-facing package or hosted-review item only if:
 
 - `qualification_state` is `qualified_ready` or `qualified_risky`
 - required artifacts exist
@@ -362,7 +375,7 @@ To support the bridge cleanly, add these fields to the request document:
 - `pipeline.artifacts.*`
 - `latest_capture_completed_at`
 - `latest_pipeline_completed_at`
-- `exchange_status` (`not_listed`, `eligible`, `live`, `paused`, `closed`)
+- `exchange_status` (`not_listed`, `eligible`, `live`, `paused`, `closed`) as a legacy/compatibility name for buyer-facing package visibility
 - `exchange_visibility` (`internal`, `gated_robot_teams`, `private`)
 
 ## Product Ladder Mapping
@@ -403,5 +416,5 @@ Current posture:
 The remaining work is not "build the bridge" from scratch. The remaining work is operational:
 
 - keep production sync verified end to end
-- ensure live exchange promotion stays gated by truthful hosted-review readiness
+- ensure buyer-facing package promotion stays gated by truthful hosted-review readiness
 - keep docs and reporting surfaces aligned with the implemented bridge

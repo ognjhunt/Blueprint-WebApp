@@ -97,7 +97,7 @@ describe("SiteWorldDetail", () => {
     expect(screen.getByRole("heading", { name: /Tasks in this world model/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Composite hosted evaluation preview/i })).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /Buy the site package\./i }),
+      screen.getByRole("heading", { name: /Request package access\./i }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: /Configure a hosted evaluation request for this site\./i }),
@@ -105,6 +105,9 @@ describe("SiteWorldDetail", () => {
     expect(screen.getAllByText(/^Status$/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Request-scoped commercial review/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Proof depth/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Proof label/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Pipeline-backed metadata/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/setup checks for account access/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Freshness/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/hosted still \+ presentation still \+ buyer note/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Listing proof preview/i).length).toBeGreaterThan(0);

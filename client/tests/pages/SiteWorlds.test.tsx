@@ -13,7 +13,7 @@ describe("SiteWorlds", () => {
       }),
     ).toBeInTheDocument();
 
-    expect(screen.getByText(/Blueprint is building a capture-backed supply of site worlds/i)).toBeInTheDocument();
+    expect(screen.getByText(/Browse site-specific packages for robot evaluation, hosted review, and package requests/i)).toBeInTheDocument();
 
     expect(
       screen.getByRole("link", { name: /Open sample world model/i }),
@@ -32,7 +32,7 @@ describe("SiteWorlds", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Start with a site world, not an abstract demo\./i,
+        name: /Start with a site, not an abstract demo\./i,
       }),
     ).toBeInTheDocument();
 
@@ -63,8 +63,8 @@ describe("SiteWorlds", () => {
     expect(screen.getAllByRole("link", { name: /Hosted setup/i }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("link", { name: /Package access/i }).length).toBeGreaterThan(0);
 
-    expect(screen.getByText(/True-to-site geometry/i)).toBeInTheDocument();
-    expect(screen.getByText(/Photoreal textures/i)).toBeInTheDocument();
+    expect(screen.getByText(/Site-tied structure/i)).toBeInTheDocument();
+    expect(screen.getByText(/Capture-backed views/i)).toBeInTheDocument();
 
     expect(
       screen.getByRole("heading", {

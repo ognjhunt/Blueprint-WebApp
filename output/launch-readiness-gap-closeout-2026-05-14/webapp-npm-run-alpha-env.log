@@ -1,0 +1,25 @@
+
+> rest-express@1.0.0 alpha:env
+> node scripts/launch-env-audit.mjs
+
+Autonomous alpha env audit
+
+Required
+- [x] Firebase Admin
+- [x] Structured runtime provider
+- [x] Stripe checkout + payout wiring
+- [x] Autonomous alpha lane enables
+- [x] Post-signup Google auth
+- [x] Slack notifications
+- [x] Email delivery
+- [x] Research outbound prerequisites
+
+Recommended
+- [ ] Redis live session state
+  Missing: REDIS_URL
+- [ ] Web voice concierge
+  Missing: ELEVENLABS_API_KEY, ELEVENLABS_VOICE_ID
+- [ ] PSTN voice intake
+  Missing: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER
+
+EXIT_CODE=0

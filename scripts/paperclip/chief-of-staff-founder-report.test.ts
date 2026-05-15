@@ -191,7 +191,7 @@ describe("chief of staff founder report", () => {
     expect(report.content).toContain("Why decision is needed now: Chicago remains in planning");
     expect(report.content).toContain("Recommended answer: Defer Chicago. Keep it plan-only until Austin proof exists or a new Chicago anchor signal changes the evidence.");
     expect(report.content).toContain("Exact approval or info needed: - Confirm Chicago stays deferred until Austin proof exists.");
-    expect(report.content).toContain("Who executes immediately after approval: Ops Lead");
+    expect(report.content).toContain("Who executes immediately after approval: - Growth Lead");
     expect(report.content).toContain("Alternatives: Missing alternatives — packet incomplete.");
   });
 
@@ -231,6 +231,18 @@ describe("chief of staff founder report", () => {
           "",
           "## Decision Needed",
           "Approve or reject the first live buyer send batch.",
+          "",
+          "## Blocker Id",
+          "human-blocker:first-live-buyer-send:2026-04-01",
+          "",
+          "## Evidence Packet",
+          "ops/paperclip/reports/gtm-send-executor/2026-04-01/send-executor.md",
+          "",
+          "## Resume Condition",
+          "Reply is recorded on BLU-31 and first-send approvals are applied.",
+          "",
+          "## Watcher / Resume Owner",
+          "blueprint-chief-of-staff",
         ].join("\n"),
       },
     ];
@@ -241,5 +253,9 @@ describe("chief of staff founder report", () => {
     expect(report.content).not.toContain("### Unblock Solutions Engineering Active Delivery Review");
     expect(report.content).toContain("### Approve first live buyer send batch for Exact-Site Hosted Review");
     expect(report.content).toContain("Recommended answer: Approve the recipient-backed first batch.");
+    expect(report.content).toContain("Blocker / decision id: human-blocker:first-live-buyer-send:2026-04-01");
+    expect(report.content).toContain("Evidence packet: ops/paperclip/reports/gtm-send-executor/2026-04-01/send-executor.md");
+    expect(report.content).toContain("Resume condition: Reply is recorded on BLU-31 and first-send approvals are applied.");
+    expect(report.content).toContain("Watcher / resume owner: blueprint-chief-of-staff");
   });
 });

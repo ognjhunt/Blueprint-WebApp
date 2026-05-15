@@ -43,12 +43,12 @@ describe("Home", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Site-specific world models built from real capture\./i,
+        name: /Site-specific world models from real capture\./i,
       }),
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        /Blueprint packages exact-site capture into world models, hosted review rooms, and proof/i,
+        /Request one exact site, inspect proof, and choose package access, hosted review, or new capture/i,
       ),
     ).toBeInTheDocument();
     expect(
@@ -57,14 +57,14 @@ describe("Home", () => {
       "href",
       expect.stringContaining("/contact?persona=robot-team"),
     );
-    expect(screen.getByRole("heading", { name: /Blueprint sells exact-site world-model products\./i })).toBeInTheDocument();
-    expect(screen.getByText(/The product is not a generic scene library/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Blueprint sells exact-site products, not generic demos\./i })).toBeInTheDocument();
+    expect(screen.getByText(/Blueprint turns real capture into site-specific packages/i)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Exact-Site World Model Package/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Hosted Evaluation/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Buyer Review/i })).toBeInTheDocument();
     expect(screen.getByText(/A walkthrough or site record starts the product/i)).toBeInTheDocument();
     expect(screen.getByText(/Blueprint packages the capture into a site-specific world model/i)).toBeInTheDocument();
-    expect(screen.getByText(/A managed review path gives robot teams task scenarios/i)).toBeInTheDocument();
+    expect(screen.getByText(/A hosted review path for task scenarios/i)).toBeInTheDocument();
   });
 
   it("surfaces concise sections for sites, products, proof, and closing action", {
@@ -78,7 +78,7 @@ describe("Home", () => {
         name: /Start with the exact site your robot needs to understand\./i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Open sample proof/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Inspect proof/i })).toHaveAttribute(
       "href",
       "/proof",
     );
@@ -97,7 +97,7 @@ describe("Home", () => {
         name: /Exact-site capture turns vague simulation demand into a buyer-ready package\./i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getAllByText(/Sample proof and demo worlds are labeled/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Samples and demo worlds are labeled/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Approved listings keep capture basis/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Cedar Market Aisle Loop/i)).toBeInTheDocument();
     expect(

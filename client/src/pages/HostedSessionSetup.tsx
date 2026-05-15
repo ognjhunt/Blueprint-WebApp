@@ -457,27 +457,27 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
         </section>
 
         <section className="mx-auto max-w-[96rem] px-5 py-10 sm:px-8 lg:px-10">
-          <form onSubmit={handleLaunch} className="space-y-6">
-            <div className="grid gap-4 lg:grid-cols-[0.36fr_0.64fr]">
-              <div className="border border-black/10 bg-white p-6 lg:p-8">
-                <h2 className="font-editorial text-[2.9rem] leading-[0.94] tracking-[-0.05em] text-slate-950">
+          <form onSubmit={handleLaunch} className="min-w-0 space-y-6">
+            <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,0.36fr)_minmax(0,0.64fr)]">
+              <div className="min-w-0 overflow-hidden border border-black/10 bg-white p-5 sm:p-6 lg:p-8">
+                <h2 className="font-editorial text-[2.45rem] leading-[0.94] text-slate-950 sm:text-[2.9rem] sm:tracking-[-0.05em]">
                   Configure Hosted Evaluation
                 </h2>
-                <p className="mt-4 text-[1.8rem] leading-tight tracking-[-0.03em] text-slate-950">
+                <p className="mt-4 break-words text-[1.55rem] leading-tight text-slate-950 sm:text-[1.8rem] sm:tracking-[-0.03em]">
                   {site.siteName}
                 </p>
                 <div className="mt-3 flex items-start gap-2 text-sm text-slate-600">
                   <MapPin className="mt-0.5 h-4 w-4 shrink-0" />
-                  <span>{site.siteAddress}</span>
+                  <span className="min-w-0 break-words">{site.siteAddress}</span>
                 </div>
 
                 <div className="mt-8 space-y-3">
-                  <div className="grid items-center gap-4 border border-black/10 bg-[#f8f6f1] px-5 py-4 lg:grid-cols-[0.34fr_0.66fr]">
+                  <div className="grid min-w-0 items-center gap-4 border border-black/10 bg-[#f8f6f1] px-4 py-4 sm:px-5 lg:grid-cols-[minmax(0,0.34fr)_minmax(0,0.66fr)]">
                     <div>
                       <p className="text-sm font-semibold text-slate-950">Robot profile</p>
                     </div>
                     <select
-                      className="border border-black/10 bg-white px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-950"
+                      className="w-full min-w-0 border border-black/10 bg-white px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-950"
                       value={robotProfileId}
                       onChange={(event) => setRobotProfileId(event.target.value)}
                     >
@@ -489,12 +489,12 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
                     </select>
                   </div>
 
-                  <div className="grid items-center gap-4 border border-black/10 bg-[#f8f6f1] px-5 py-4 lg:grid-cols-[0.34fr_0.66fr]">
+                  <div className="grid min-w-0 items-center gap-4 border border-black/10 bg-[#f8f6f1] px-4 py-4 sm:px-5 lg:grid-cols-[minmax(0,0.34fr)_minmax(0,0.66fr)]">
                     <div>
                       <p className="text-sm font-semibold text-slate-950">Task</p>
                     </div>
                     <select
-                      className="border border-black/10 bg-white px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-950"
+                      className="w-full min-w-0 border border-black/10 bg-white px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-950"
                       value={taskId}
                       onChange={(event) => setTaskId(event.target.value)}
                     >
@@ -506,12 +506,12 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
                     </select>
                   </div>
 
-                  <div className="grid items-center gap-4 border border-black/10 bg-[#f8f6f1] px-5 py-4 lg:grid-cols-[0.34fr_0.66fr]">
+                  <div className="grid min-w-0 items-center gap-4 border border-black/10 bg-[#f8f6f1] px-4 py-4 sm:px-5 lg:grid-cols-[minmax(0,0.34fr)_minmax(0,0.66fr)]">
                     <div>
                       <p className="text-sm font-semibold text-slate-950">Scenario</p>
                     </div>
                     <select
-                      className="border border-black/10 bg-white px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-950"
+                      className="w-full min-w-0 border border-black/10 bg-white px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-950"
                       value={scenarioId}
                       onChange={(event) => setScenarioId(event.target.value)}
                     >
@@ -523,7 +523,7 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
                     </select>
                   </div>
 
-                  <div className="grid items-start gap-4 border border-black/10 bg-[#f8f6f1] px-5 py-4 lg:grid-cols-[0.34fr_0.66fr]">
+                  <div className="grid min-w-0 items-start gap-4 border border-black/10 bg-[#f8f6f1] px-4 py-4 sm:px-5 lg:grid-cols-[minmax(0,0.34fr)_minmax(0,0.66fr)]">
                     <div>
                       <p className="text-sm font-semibold text-slate-950">Requested outputs</p>
                     </div>
@@ -567,14 +567,19 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
                   <p className="mt-4 max-w-[20rem] text-sm leading-7 text-slate-700">
                     Blueprint will turn this configuration into a scoped hosted-review request for {site.siteName}. One site, one robot profile, one buyer question, and explicit hosted-session limits.
                   </p>
+                  <div className="mt-4 border border-black/10 bg-[#f8f6f1] px-4 py-3 text-sm leading-6 text-slate-700">
+                    If launch checks fail, this setup carries the same site, task, robot, scenario,
+                    and output choices into a request. It does not charge, run a provider job, or
+                    start fulfillment.
+                  </div>
                   <p className="mt-6 text-sm text-slate-950">Blueprint Team</p>
                 </div>
               </div>
 
-              <div className="border border-black/10 bg-slate-950 text-white">
-                <div className="grid gap-0 lg:grid-cols-[0.66fr_0.34fr]">
-                  <div>
-                    <div className="flex items-center gap-8 border-b border-white/10 px-5 py-4 text-sm text-white/70">
+              <div className="min-w-0 overflow-hidden border border-black/10 bg-slate-950 text-white">
+                <div className="grid min-w-0 gap-0 lg:grid-cols-[minmax(0,0.66fr)_minmax(0,0.34fr)]">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-white/10 px-5 py-4 text-sm text-white/70 lg:gap-x-8">
                       <span className="border-b border-white pb-1 text-white">Site overview</span>
                       <span>Observation preview</span>
                       <span>Route &amp; waypoints</span>
@@ -628,8 +633,8 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
               </div>
             </div>
 
-            <div className="grid gap-4 lg:grid-cols-[0.62fr_0.38fr]">
-              <div className="border border-black/10 bg-white p-6">
+            <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,0.62fr)_minmax(0,0.38fr)]">
+              <div className="min-w-0 overflow-hidden border border-black/10 bg-white p-5 sm:p-6">
                 <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-slate-500">
                   <ScanSearch className="h-4 w-4" />
                   World model
@@ -665,7 +670,7 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
                 </div>
               </div>
 
-              <div className="border border-black/10 bg-slate-950 p-6 text-white">
+              <div className="min-w-0 overflow-hidden border border-black/10 bg-slate-950 p-5 text-white sm:p-6">
                 <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-white/45">
                   <Settings2 className="h-4 w-4" />
                   Launch check
@@ -682,6 +687,13 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
                             : "Embedded demo can launch."
                           : "Embedded demo is request-gated for this public path."}
                     </p>
+                    {!checkingReadiness && presentationReadiness?.blockers?.length ? (
+                      <ul className="mt-3 space-y-1 text-xs leading-5 text-white/55">
+                        {presentationReadiness.blockers.slice(0, 3).map((blocker) => (
+                          <li key={blocker}>{blocker}</li>
+                        ))}
+                      </ul>
+                    ) : null}
                   </div>
                   <div className="border border-white/10 bg-white/5 px-4 py-4">
                     <p className="font-semibold text-white">Hosted workspace</p>
@@ -692,6 +704,13 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
                           ? "Hosted session can launch from this setup."
                           : "Hosted session is request-gated. Submit the configuration instead."}
                     </p>
+                    {!checkingReadiness && runtimeReadiness?.blockers?.length ? (
+                      <ul className="mt-3 space-y-1 text-xs leading-5 text-white/55">
+                        {runtimeReadiness.blockers.slice(0, 3).map((blocker) => (
+                          <li key={blocker}>{blocker}</li>
+                        ))}
+                      </ul>
+                    ) : null}
                   </div>
                   <div className="border border-white/10 bg-white/5 px-4 py-4">
                     <p className="font-semibold text-white">Scenario</p>
@@ -731,14 +750,15 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
 
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div className="text-sm text-slate-700">
-                The site package remains the default path; hosted launch depends on account,
-                entitlement, and availability checks.
+                The site package remains the default path. Hosted launch depends on account,
+                entitlement, package proof, and runtime availability checks; blocked setups become
+                scoped requests instead of live fulfillment claims.
               </div>
-              <div className="flex flex-col gap-3 sm:flex-row">
+              <div className="flex min-w-0 flex-col gap-3 sm:flex-row">
                 {runtimeLaunchBlocked ? (
                   <a
                     href={hostedRequestHref}
-                    className="inline-flex items-center justify-center bg-slate-950 px-8 py-4 text-sm font-semibold text-white transition hover:bg-slate-800"
+                    className="inline-flex w-full items-center justify-center bg-slate-950 px-6 py-4 text-center text-sm font-semibold text-white transition hover:bg-slate-800 sm:w-auto sm:px-8"
                   >
                     Submit hosted evaluation request
                     <ArrowRight className="ml-2 h-4 w-4" />
@@ -747,7 +767,7 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
                   <button
                     type="submit"
                     disabled={submitting}
-                    className="inline-flex items-center justify-center bg-slate-950 px-8 py-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="inline-flex w-full items-center justify-center bg-slate-950 px-6 py-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:px-8"
                   >
                     {submitting ? "Launching..." : "Launch hosted session"}
                   </button>
@@ -756,7 +776,7 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
                   type="button"
                   disabled={submitting || launchBlocked}
                   onClick={() => void launchSession("presentation_demo")}
-                  className="inline-flex items-center justify-center border border-black/10 bg-white px-8 py-4 text-sm font-semibold text-slate-950 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="inline-flex w-full items-center justify-center border border-black/10 bg-white px-6 py-4 text-sm font-semibold text-slate-950 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:px-8"
                 >
                   {submitting
                     ? "Launching..."

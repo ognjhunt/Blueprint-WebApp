@@ -1,0 +1,5 @@
+[launch-gate] overall_status=automated_contracts_passed_manual_ops_required
+[launch-gate] json=/Users/nijelhunt_1/workspace/BlueprintCapturePipeline/output/paid_marketplace_launch_gate.json
+[launch-gate] markdown=/Users/nijelhunt_1/workspace/BlueprintCapturePipeline/output/paid_marketplace_launch_gate.md
+
+EXIT_CODE=0

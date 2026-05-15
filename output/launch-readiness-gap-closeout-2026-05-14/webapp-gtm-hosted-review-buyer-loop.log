@@ -1,0 +1,7 @@
+
+> rest-express@1.0.0 gtm:hosted-review:buyer-loop
+> tsx scripts/gtm/run-exact-site-hosted-review-buyer-loop.ts --write --allow-blocked
+
+ops/paperclip/reports/exact-site-hosted-review-buyer-loop/global/2026-05-14/buyer-loop.md
+
+EXIT_CODE=0

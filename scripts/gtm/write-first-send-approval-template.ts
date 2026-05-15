@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import {
   hasExactSiteRecipientBackedEvidence,
   loadExactSiteHostedReviewGtmLedger,
+  type ExactSiteGtmTarget,
 } from "../../server/utils/exactSiteHostedReviewGtmPilot";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
@@ -33,6 +34,64 @@ function parseArgs(argv: string[]) {
   return args;
 }
 
+function draftAngleForTarget(target: ExactSiteGtmTarget) {
+  if (target.track === "proof_ready_outreach") {
+    return "Invite the recipient to inspect a labeled exact-site hosted review, then ask what site or workflow would make the review more relevant.";
+  }
+
+  return "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.";
+}
+
+function ctaForTarget(target: ExactSiteGtmTarget) {
+  if (target.track === "proof_ready_outreach") {
+    return "Inspect the review, then name the more relevant site or workflow.";
+  }
+
+  return "Name the site or workflow worth capturing first.";
+}
+
+function landingPageForTarget(target: ExactSiteGtmTarget) {
+  if (target.track === "proof_ready_outreach") {
+    return target.artifact.hostedReviewPath || "/product";
+  }
+
+  return "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch";
+}
+
+function reviewFlagForTarget(target: ExactSiteGtmTarget) {
+  const flags: string[] = [];
+  const recipientRole = String(target.recipient?.role || "").toLowerCase();
+  const recipientEmail = String(target.recipient?.email || "").toLowerCase();
+
+  if (target.track === "demand_sourced_capture") {
+    flags.push("capture ask only; no hosted-review claim");
+  }
+  if (target.artifact.status === "draft") {
+    flags.push("artifact is a draft opportunity brief");
+  }
+  if (
+    recipientRole.includes("general")
+    || recipientRole.includes("support")
+    || recipientRole.includes("public inbox")
+    || recipientEmail.startsWith("info@")
+    || recipientEmail.startsWith("support@")
+    || recipientEmail.startsWith("contact@")
+    || recipientEmail.startsWith("community@")
+  ) {
+    flags.push("public/general inbox; expect routing friction");
+  }
+
+  return flags;
+}
+
+function objectionPlanForTarget(target: ExactSiteGtmTarget) {
+  if (target.track === "proof_ready_outreach") {
+    return "If they say the sample is not their site, ask for the exact workflow to capture next and keep the sample labeled as representative proof shape.";
+  }
+
+  return "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.";
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const ledgerPath = path.resolve(args.get("ledger") ?? DEFAULT_LEDGER_PATH);
@@ -49,21 +108,46 @@ async function main() {
     generatedAt: new Date().toISOString(),
     ledgerPath: path.relative(process.cwd(), ledgerPath) || ledgerPath,
     instructions: [
-      "Set decision to approve, edit, or reject for each row the founder has actually reviewed.",
-      "Do not approve pricing, legal, privacy, permission, rights, readiness, live spend, or sender durability from this packet.",
-      "Live sends remain blocked until npm run human-replies:audit-durability passes.",
+      "Review recipient evidence, draft angle, CTA, landing-page handoff, objection plan, and review flags before setting a decision.",
+      "Set decision to approve, edit, or reject only for rows the founder/operator has actually reviewed.",
+      "Do not approve pricing, legal, privacy, permission, rights, readiness, live spend, sender durability, or live dispatch from this packet.",
+      "Live sends remain blocked until decisions are applied, npm run gtm:send -- --dry-run --allow-blocked is rerun, npm run human-replies:audit-durability passes, and live dispatch is explicitly authorized.",
       "Leave decision null for rows that have not been reviewed.",
+    ],
+    reviewChecklist: [
+      "Recipient email and evidence source are acceptable for a first touch.",
+      "Message asks one clear thing and stays aligned to the row track.",
+      "Proof-ready rows link to a labeled review/sample without claiming customer traction.",
+      "Demand-sourced rows ask for the site/workflow to capture and do not imply a hosted review exists.",
+      "Landing-page handoff matches the CTA.",
+      "Objection response can be answered from ledger evidence and public pages without inventing claims.",
+    ],
+    decisionOptions: [
+      "approve: row may move to human_approved after apply, but live send remains separately gated.",
+      "edit: row stays draft_ready with a required revision note.",
+      "reject: row stays blocked until the target, proof artifact, recipient, or message is revised.",
     ],
     approvals: pendingTargets.map((target) => ({
       targetId: target.id,
       organizationName: target.organizationName,
       recipientEmail: target.recipient?.email || null,
+      recipientRole: target.recipient?.role || null,
       recipientEvidenceSource: target.recipient?.evidenceSource || null,
+      recipientEvidenceType: target.recipient?.evidenceType || null,
       track: target.track,
       buyerSegment: target.buyerSegment,
       workflowNeed: target.workflowNeed,
+      intentSignals: target.intentSignals,
       messagePath: target.outbound.messagePath || null,
       artifactPath: target.artifact?.path || null,
+      hostedReviewPath: target.artifact?.hostedReviewPath || null,
+      siteWorldId: target.artifact?.siteWorldId || null,
+      draftAngle: draftAngleForTarget(target),
+      cta: ctaForTarget(target),
+      landingPage: landingPageForTarget(target),
+      objectionPlan: objectionPlanForTarget(target),
+      reviewFlags: reviewFlagForTarget(target),
+      reviewerPrompt: "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
       decision: null as "approve" | "edit" | "reject" | null,
       approvedBy: null as string | null,
       approvalNote: null as string | null,

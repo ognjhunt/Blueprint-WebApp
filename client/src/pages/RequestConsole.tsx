@@ -537,6 +537,23 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
 
                 <SurfaceCard className="bg-white">
                   <div className="flex items-center gap-3">
+                    <ShieldCheck className="h-5 w-5 text-black/45" />
+                    <div>
+                      <SurfaceMiniLabel>Dry-Run Boundary</SurfaceMiniLabel>
+                      <p className="mt-1 text-sm text-black/55">
+                        What this protected room can and cannot claim yet.
+                      </p>
+                    </div>
+                  </div>
+                  <p className="mt-5 text-sm leading-7 text-black/60">
+                    This console shows request state, buyer context, and attached evidence labels.
+                    Package files, provider previews, live hosted sessions, payment, and fulfillment
+                    stay blocked until the backing record explicitly supports them.
+                  </p>
+                </SurfaceCard>
+
+                <SurfaceCard className="bg-white">
+                  <div className="flex items-center gap-3">
                     <Radar className="h-5 w-5 text-black/45" />
                     <div>
                       <SurfaceMiniLabel>Preview Status</SurfaceMiniLabel>

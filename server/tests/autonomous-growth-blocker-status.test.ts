@@ -325,4 +325,27 @@ describe("autonomous growth blocker status", () => {
     expect(buyerBlocker?.stageReached).toContain("unresolvedBuyerTargets=2");
     expect(buyerBlocker?.why).toContain("explicit launch-ready recipient evidence");
   });
+
+  it("renders blocker reports with retry conditions and proof paths in the dashboard table", async () => {
+    const repoRoot = await writeFixtureRepo();
+    const {
+      buildAutonomousGrowthBlockerStatus,
+      renderAutonomousGrowthBlockerMarkdown,
+    } = await import("../utils/autonomousGrowthBlockerStatus");
+    const report = await buildAutonomousGrowthBlockerStatus({
+      repoRoot,
+      city: "Durham, NC",
+      publicPaperclipApiUrl: "https://public.example",
+      localPaperclipApiUrl: "https://local.example",
+      fetchImpl: vi.fn(async () => Response.json([])) as unknown as typeof fetch,
+    });
+
+    const markdown = renderAutonomousGrowthBlockerMarkdown(report);
+
+    expect(markdown).toContain("| Blocker | Status | Owner | Retry / resume condition | Proof paths | Next action |");
+    expect(markdown).toContain("Retry after `npm run gtm:recipient-evidence:validate");
+    expect(markdown).toContain("buyer-loop-manifest.json");
+    expect(markdown).toContain("- retry_resume_condition:");
+    expect(markdown).toContain("- proof_paths:");
+  });
 });

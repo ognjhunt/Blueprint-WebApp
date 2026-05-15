@@ -111,6 +111,7 @@ function SiteCard({
     ["Hosted", hostedDisclosure.label],
   ];
   const primaryCta = planned ? "Scope this site" : "Inspect listing";
+  const packageCta = planned ? "Scope package" : "Package access";
 
   return (
     <article
@@ -202,7 +203,7 @@ function SiteCard({
             href={scenePackage?.actionHref || "/contact?persona=robot-team"}
             className="inline-flex w-full items-center justify-center border border-black/10 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-slate-100 sm:w-auto"
           >
-            Package access
+            {packageCta}
           </a>
         </div>
       </div>
@@ -286,15 +287,15 @@ export default function SiteWorlds() {
     () => [
       {
         label: "Catalog records",
-        detail: `${sortedCatalog.length} visible profiles across sample, request-gated, and planned exact-site world categories.`,
+        detail: `${sortedCatalog.length} visible profiles across sample, access-reviewed, and planned exact-site world categories.`,
       },
       {
         label: "Sample proof",
-        detail: `${catalogStats.sampleCount} public sample profile carries visible proof assets without becoming a customer claim.`,
+        detail: `${catalogStats.sampleCount} public sample profile${catalogStats.sampleCount === 1 ? "" : "s"} show proof shape without becoming customer proof.`,
       },
       {
-        label: "Request gates",
-        detail: `${catalogStats.requestGatedCount} profile${catalogStats.requestGatedCount === 1 ? "" : "s"} keep package and hosted access behind review.`,
+        label: "Access review",
+        detail: `${catalogStats.requestGatedCount} profile${catalogStats.requestGatedCount === 1 ? "" : "s"} keep package and hosted access behind buyer/site review.`,
       },
       {
         label: "Planned supply",
@@ -312,14 +313,14 @@ export default function SiteWorlds() {
     <>
       <SEO
         title="World Models | Blueprint"
-        description="Browse Blueprint's exact-site world-model catalog vision: sample, request-gated, and planned site worlds for robot training and evaluation with honest proof and access labels."
+        description="Browse Blueprint's exact-site world-model catalog for robot training, hosted review, package requests, and proof-led evaluation."
         canonical="/world-models"
         jsonLd={[
           webPageJsonLd({
             path: "/world-models",
             name: "Blueprint World Models",
             description:
-              "Exact-site world-model marketplace surface for robot teams, with sample, request-gated, and planned catalog states separated from proof, access, freshness, and provenance review.",
+              "Exact-site world-model catalog for robot teams, with package requests, hosted review paths, proof, access, freshness, and provenance labels.",
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },
@@ -344,27 +345,27 @@ export default function SiteWorlds() {
                 <h1 className="font-editorial text-[3.4rem] leading-[0.94] tracking-[-0.05em] text-white sm:text-[4.7rem]">
                   Browse exact-site world models.
                 </h1>
-                <p className="mt-3 text-lg text-white/90">
-                  Blueprint is building a capture-backed supply of site worlds for robot training, evaluation, and hosted review. Start from public samples, request-gated profiles, or planned catalog lanes without losing the proof boundary.
+                <p className="mt-4 max-w-[32rem] text-base leading-7 text-white/90 sm:text-lg sm:leading-8">
+                  Browse site-specific packages for robot evaluation, hosted review, and package requests. Listing details keep proof, access, and availability labels visible.
                 </p>
                 <div className="mt-6 flex flex-wrap gap-2">
                   <ProofChip light>Capture-backed catalog</ProofChip>
-                  <ProofChip light>{getCatalogStateLabel(heroSite)}</ProofChip>
-                  <ProofChip light>{getSiteWorldHostedAccessDisclosure(heroSite).label}</ProofChip>
+                  <ProofChip light>Site packages</ProofChip>
+                  <ProofChip light>Hosted review paths</ProofChip>
                 </div>
                 <div className="mt-7 flex flex-wrap gap-3">
                   <a
-                    href="#catalog"
-                    className="inline-flex items-center justify-center bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
+                    href="/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=world-models-hero"
+                    className="inline-flex w-full items-center justify-center bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100 sm:w-auto"
                   >
-                    Browse world models
+                    Request world model
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </a>
                   <a
-                    href="/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=world-models-hero"
-                    className="inline-flex items-center justify-center border border-white/15 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+                    href="#catalog"
+                    className="inline-flex w-full items-center justify-center border border-white/15 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10 sm:w-auto"
                   >
-                    Request world model
+                    Browse world models
                   </a>
                 </div>
               </div>
@@ -376,7 +377,7 @@ export default function SiteWorlds() {
           <div className="mb-5 flex items-center justify-between gap-4">
             <EditorialSectionIntro
               eyebrow="Featured sites"
-              title="Start with a site world, not an abstract demo."
+              title="Start with a site, not an abstract demo."
               description="The top row anchors the catalog: public sample proof, commercial exemplar framing, and planned profiles are separated before a buyer clicks."
               className="max-w-3xl"
             />
@@ -398,11 +399,11 @@ export default function SiteWorlds() {
 
         <section className="border-y border-black/10 bg-white">
           <div className="mx-auto grid max-w-[88rem] gap-6 px-5 py-10 sm:px-8 lg:grid-cols-[0.34fr_0.66fr] lg:px-10 lg:py-12">
-            <EditorialSectionIntro
-              eyebrow="Catalog states"
-              title="Sample, request-gated, and planned mean different things."
-              description="Blueprint can sell the catalog vision confidently while keeping public proof, hosted availability, package access, and future supply labels separate."
-            />
+              <EditorialSectionIntro
+                eyebrow="Catalog states"
+              title="Sample, access-reviewed, and planned mean different things."
+                description="Blueprint can sell the catalog vision confidently while keeping public proof, hosted availability, package access, and future supply labels separate."
+              />
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {siteWorldStatusLegend.map((item) => (
                 <div key={item.id} className={`border px-4 py-4 ${item.tone}`}>
@@ -448,25 +449,25 @@ export default function SiteWorlds() {
               <EditorialSectionIntro
                 eyebrow="Inside the world"
                 title="Built from real capture."
-                description="Every site-specific world model stays grounded to one place, one proof chain, and trust details your team can use for eval setup."
+                description="Every site-specific world model stays grounded to one place, one proof chain, and buyer-readable limits."
                 light
               />
               <div className="mt-8 space-y-5">
                 {[
                   {
                     icon: Box,
-                    title: "True-to-site geometry",
-                    body: "Walls, aisles, fixtures, and navigable structure tied back to the site record.",
+                    title: "Site-tied structure",
+                    body: "Walls, aisles, fixtures, and navigable cues tie back to the site record when the package supports them.",
                   },
                   {
                     icon: Camera,
-                    title: "Photoreal textures",
-                    body: "Capture-backed imagery and hosted-evaluation stills instead of generic synthetic polish.",
+                    title: "Capture-backed views",
+                    body: "Imagery and hosted-evaluation stills stay labeled instead of standing in as unsupported proof.",
                   },
                   {
                     icon: Route,
-                    title: "Navigable graphs",
-                    body: "Route traces and traversal cues built from the same exact-site ground truth.",
+                    title: "Navigable cues",
+                    body: "Route traces and traversal cues point back to the same exact-site capture basis.",
                   },
                 ].map((item) => {
                   const Icon = item.icon;
@@ -627,7 +628,7 @@ export default function SiteWorlds() {
                   href="/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=world-models-empty"
                   className="inline-flex items-center justify-center bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                 >
-                  Request exact-site world
+                  Request world model
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </a>
                 <button
@@ -653,10 +654,10 @@ export default function SiteWorlds() {
             description="Open the public sample for shape, then request package access, hosted evaluation, or a new capture-backed profile when the catalog does not yet show the site you need."
             imageSrc="/generated/editorial/cross-dock.png"
             imageAlt={heroSite.siteName}
-            primaryHref={publicDemoHref}
-            primaryLabel="Open sample world model"
-            secondaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=site-worlds"
-            secondaryLabel="Request world model"
+            primaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=site-worlds"
+            primaryLabel="Request world model"
+            secondaryHref={publicDemoHref}
+            secondaryLabel="Open sample world model"
           />
         </section>
       </div>

@@ -1,0 +1,14 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.13.5, pytest-9.0.2, pluggy-1.6.0
+rootdir: /Users/nijelhunt_1/workspace/BlueprintCapturePipeline
+configfile: pyproject.toml
+plugins: anyio-4.12.1
+collected 21 items
+
+tests/test_webapp_sync.py ..........                                     [ 47%]
+tests/test_launch_proof_policy.py .                                      [ 52%]
+tests/test_site_world_packaging.py ..........                            [100%]
+
+============================= 21 passed in 16.67s ==============================
+
+EXIT_CODE=0

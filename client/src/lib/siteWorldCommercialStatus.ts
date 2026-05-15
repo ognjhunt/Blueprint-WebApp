@@ -37,6 +37,13 @@ export type SiteWorldVisualDisclosure = {
   proofBacked: boolean;
 };
 
+export type SiteWorldBuyerFlowDisclosure = {
+  proofLabel: string;
+  packageAccess: string;
+  hostedAccess: string;
+  nextStep: string;
+};
+
 export const siteWorldStatusLegend: SiteWorldStatusBadge[] = [
   {
     id: "public_demo",
@@ -463,5 +470,57 @@ export function getSiteWorldHostedAccessDisclosure(
     summary:
       "Hosted evaluation is request-gated until site package files, entitlement, and hosted-session availability are verified.",
     launchVerified: false,
+  };
+}
+
+export function getSiteWorldBuyerFlowDisclosure(
+  site: PublicSiteWorldRecord,
+): SiteWorldBuyerFlowDisclosure {
+  if (isPublicSampleSiteWorld(site)) {
+    return {
+      proofLabel: "Sample-backed demo",
+      packageAccess:
+        "Sample files are visible now. Commercial package access still starts with a request-scoped rights and privacy review.",
+      hostedAccess:
+        "A demo/runtime path can open only when the local or configured demo runtime passes launch checks.",
+      nextStep:
+        "Use the sample to understand the buyer flow, then submit the exact site, task, and robot context for a real request.",
+    };
+  }
+
+  if (isPlannedCatalogSiteWorld(site)) {
+    return {
+      proofLabel: "Planned profile",
+      packageAccess:
+        "No package files are being claimed yet. Capture, package creation, and rights review begin after a scoped request.",
+      hostedAccess:
+        "Hosted evaluation is planned for this site type, but no live hosted session is implied by the profile.",
+      nextStep:
+        "Submit the site class or exact site so Blueprint can decide whether to route capture access, package work, or a narrower follow-up.",
+    };
+  }
+
+  if (site.dataSource === "pipeline" || site.deploymentReadiness) {
+    return {
+      proofLabel: site.deploymentReadiness?.export_readiness_status === "ready"
+        ? "Pipeline-backed proof fields"
+        : "Pipeline-backed metadata",
+      packageAccess:
+        "Package access is request-scoped. Exports open only after rights, privacy, freshness, and buyer scope stay attached.",
+      hostedAccess:
+        "Hosted review starts from setup checks for account access, entitlement, runtime availability, and package readiness.",
+      nextStep:
+        "Request package access or hosted evaluation; Blueprint replies with the available path or the first blocking proof detail.",
+    };
+  }
+
+  return {
+    proofLabel: "Request-scoped listing",
+    packageAccess:
+      "Public metadata is visible now. Package files and raw exports require a scoped request before access opens.",
+    hostedAccess:
+      "Hosted evaluation remains gated until package files and runtime/session checks support it.",
+    nextStep:
+      "Submit the buyer request so Blueprint can attach the right proof, capture, package, or hosted-review path.",
   };
 }

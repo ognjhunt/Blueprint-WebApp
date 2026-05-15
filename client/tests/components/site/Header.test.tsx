@@ -19,22 +19,29 @@ describe("Header", () => {
   it("keeps the buyer-facing nav focused", () => {
     render(<Header />);
 
-    expect(screen.getByRole("link", { name: /^For robot teams$/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /^Product$/i })).toHaveAttribute(
       "href",
       "/product",
-    );
-    expect(screen.getByRole("link", { name: /^For site operators$/i })).toHaveAttribute(
-      "href",
-      "/contact/site-operator",
-    );
-    expect(screen.getByRole("link", { name: /^For capturers$/i })).toHaveAttribute(
-      "href",
-      "/capture",
     );
     expect(screen.getByRole("link", { name: /^World models$/i })).toHaveAttribute(
       "href",
       "/world-models",
     );
+    expect(screen.getByRole("link", { name: /^Capture$/i })).toHaveAttribute(
+      "href",
+      "/capture",
+    );
+    expect(screen.getByRole("link", { name: /^Proof$/i })).toHaveAttribute(
+      "href",
+      "/proof",
+    );
+    expect(screen.getByRole("link", { name: /^Pricing$/i })).toHaveAttribute(
+      "href",
+      "/pricing",
+    );
+    expect(screen.queryByRole("link", { name: /^For robot teams$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /^For site operators$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /^For capturers$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /^Sample Listing$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /^Deliverables$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /^About$/i })).not.toBeInTheDocument();

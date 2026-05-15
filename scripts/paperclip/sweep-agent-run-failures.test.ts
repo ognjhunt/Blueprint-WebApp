@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildMarkdownReport,
   classifyFailureSignature,
   clusterRunFailures,
   isLogicalFailureSucceededRun,
@@ -27,6 +28,54 @@ describe("sweep agent run failures", () => {
 
     expect(signature.key).toBe("paperclip_runs_probe_invalid_jq_issue_bound");
     expect(signature.category).toBe("shared_prompt_guardrail");
+  });
+
+  it("renders operator-ready stale-run families with owner, retry, and proof paths", () => {
+    const signature = classifyFailureSignature({
+      run: {
+        id: "run-stalled",
+        agentId: "agent-ops",
+        companyId: "company-1",
+        status: "running",
+        createdAt: "2026-05-10T14:00:00.000Z",
+      },
+    });
+    const clusters = clusterRunFailures([
+      {
+        run: {
+          id: "run-stalled",
+          agentId: "agent-ops",
+          companyId: "company-1",
+          status: "running",
+        },
+        agent: { id: "agent-ops", name: "Ops Lead", urlKey: "ops-lead" },
+        issues: [{ id: "issue-1", identifier: "BLU-701", status: "in_progress" }],
+        bestText: "",
+        signature,
+        stalled: true,
+      },
+    ]);
+
+    const report = buildMarkdownReport({
+      paperclipApiUrl: "http://127.0.0.1:3100",
+      paperclipApiUrlSource: "default-local",
+      paperclipApiTargetNote: "Default local target.",
+      inspectedRuns: 1,
+      candidateRuns: 1,
+      clusters,
+      suppressedRecoveredCandidates: 0,
+      suppressedRecoveredClusters: [],
+      limit: 10,
+      stalledMinutes: 20,
+      since: "2026-05-10T13:00:00.000Z",
+    });
+
+    expect(report).toContain("| Family | Count | State mix | Owner / lane | Retry / resume condition | Proof paths |");
+    expect(report).toContain("stalled=1, failed=0, timed_out=0");
+    expect(report).toContain("- Owner / lane: ops-lead");
+    expect(report).toContain("- Next action: Inspect the scheduler/runner for the stalled run before retrying or marking the issue blocked.");
+    expect(report).toContain("- Retry / resume condition: Runner emits a fresh heartbeat event for BLU-701 or the run is cancelled and restarted with a new run id.");
+    expect(report).toContain("- Proof paths: run=run-stalled; issues=BLU-701; source=http://127.0.0.1:3100");
   });
 
   it("classifies Paperclip auth failures separately", () => {

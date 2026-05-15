@@ -231,13 +231,19 @@ function escapeRegExp(value: string) {
 function extractPacketValue(description: string | null | undefined, labels: string[]) {
   if (!description) return null;
   const source = description.replace(/\r\n/g, "\n");
+  const lines = source.split("\n");
 
   for (const label of labels) {
-    const headingMatch = source.match(
-      new RegExp(`^##\\s+${escapeRegExp(label)}\\s*$\\n([\\s\\S]*?)(?=^##\\s+|\\Z)`, "im"),
-    );
-    if (headingMatch?.[1]) {
-      return headingMatch[1].trim().replace(/\n+/g, " ");
+    const headingRe = new RegExp(`^##\\s+${escapeRegExp(label)}\\s*$`, "i");
+    const headingIndex = lines.findIndex((line) => headingRe.test(line));
+    if (headingIndex >= 0) {
+      const valueLines: string[] = [];
+      for (let index = headingIndex + 1; index < lines.length; index += 1) {
+        if (/^##\s+/.test(lines[index] ?? "")) break;
+        valueLines.push(lines[index] ?? "");
+      }
+      const value = valueLines.join("\n").trim().replace(/\n+/g, " ");
+      if (value) return value;
     }
 
     const inlineMatch = source.match(
@@ -314,6 +320,35 @@ function founderDecisionPacket(issue: Issue, assigneeNameById: Map<string, strin
     "By When",
     "Deadline",
   ]) ?? checkpoint(issue);
+  const blockerOrDecisionId = extractPacketValue(issue.description, [
+    "Blocker Id",
+    "Blocker ID",
+    "Decision Id",
+    "Decision ID",
+    "Durable Blocker Id",
+    "Durable blocker id",
+  ]) ?? "Missing durable blocker/decision id — packet incomplete.";
+  const evidencePacket = extractPacketValue(issue.description, [
+    "Evidence Packet",
+    "Evidence packet",
+    "Evidence",
+    "Proof Path",
+    "Proof Paths",
+  ]) ?? "Missing evidence packet path — packet incomplete.";
+  const resumeCondition = extractPacketValue(issue.description, [
+    "Resume Condition",
+    "Retry Condition",
+    "Retry / Resume Condition",
+    "Retry/resume condition",
+  ]) ?? "Missing resume condition — packet incomplete.";
+  const watcherOwner = extractPacketValue(issue.description, [
+    "Watcher / Resume Owner",
+    "Watcher/Resume Owner",
+    "Watcher Owner",
+    "Watcher/owner",
+    "Reply Watcher",
+    "Execution Owner After Reply",
+  ]) ?? owner;
 
   return [
     `### ${issueDisplayTitle(issue)}`,
@@ -322,7 +357,11 @@ function founderDecisionPacket(issue: Issue, assigneeNameById: Map<string, strin
     `- Alternatives: ${alternatives}`,
     `- Downside / risk: ${downside}`,
     `- Exact approval or info needed: ${approvalNeeded}`,
+    `- Blocker / decision id: ${blockerOrDecisionId}`,
+    `- Evidence packet: ${evidencePacket}`,
     `- Who executes immediately after approval: ${immediateExecutor}`,
+    `- Watcher / resume owner: ${watcherOwner}`,
+    `- Resume condition: ${resumeCondition}`,
     `- By when: ${byWhen}`,
   ].join("\n");
 }

@@ -32,14 +32,14 @@ const productPaths = [
   {
     title: "Exact-Site World Model Package",
     body:
-      "A listing- or request-scoped package for one real place: capture route, manifest, proof notes, rights and privacy limits, export scope, and geometry when available.",
+      "One real place, packaged with capture route, manifest, proof notes, rights limits, export scope, and geometry when available.",
     href: "/pricing",
     label: "View package access",
   },
   {
     title: "Hosted Evaluation",
     body:
-      "A request-gated review path for task scenarios, checkpoint comparisons, and buyer notes before export, field travel, or custom integration work.",
+      "A hosted review path for task scenarios, observations, and buyer notes before export, travel, or integration work.",
     href: "/product",
     label: "See hosted workflow",
     dark: true,
@@ -47,10 +47,10 @@ const productPaths = [
   {
     title: "Buyer Review",
     body:
-      "A structured intake loop that turns a robot-team question into the next requested site, package scope, hosted evaluation, or capture run.",
+      "Structured intake turns a robot-team question into the next site, package scope, hosted evaluation, or capture run.",
     href:
       "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-product-review",
-    label: "Start buyer review",
+    label: "Start request",
   },
 ];
 
@@ -58,9 +58,9 @@ const personaEntryPoints = [
   {
     audience: "Robot team",
     question: "I need a real place my robot can train or evaluate against.",
-    title: "Request a site-world package.",
+    title: "Request an exact-site package.",
     body:
-      "Name the exact facility, route, task, and robot setup. Blueprint will route you to a current listing, a new capture request, or hosted evaluation.",
+      "Name the facility, route, task, and robot setup. Blueprint routes you to a listing, new capture request, or hosted evaluation.",
     primaryHref:
       "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-persona-robot-team",
     primaryLabel: "Request world model",
@@ -92,9 +92,9 @@ const personaEntryPoints = [
 ];
 
 const proofItems = [
-  "Sample proof and demo worlds are labeled before the buyer path starts.",
+  "Samples and demo worlds are labeled inside the proof flow.",
   "Approved listings keep capture basis, freshness, rights, restrictions, and package scope attached.",
-  "Hosted access and exports remain request-gated until a site-specific review approves them.",
+  "Hosted access and exports open after site-specific review confirms the path.",
 ];
 
 const homeDirectAnswers = [
@@ -140,43 +140,43 @@ const homeVariantContent: Record<
   }
 > = {
   hosted_review: {
-    title: "Site-specific world models built from real capture.",
+    title: "Site-specific world models from real capture.",
     description:
-      "Blueprint packages exact-site capture into world models, hosted review rooms, and proof your robot team can inspect before deployment work.",
+      "Request one exact site, inspect proof, and choose package access, hosted review, or new capture without losing provenance.",
     primaryLabel: "Request world model",
     primaryPath: "world-model",
     secondaryLabel: "Browse world models",
     secondaryHref: "/world-models",
-    panelTitle: "New here?",
+    panelTitle: "Start here",
     panelBody:
-      "Request one site, one workflow, and one robot question. Proof stays attached.",
+      "Name one site and workflow. Proof stays attached before access expands.",
   },
   proof_pack: {
-    title: "Site-specific world models built from real capture.",
+    title: "Site-specific world models from real capture.",
     description:
-      "Start with one real place and the robot task you need to prove. Capture source, rights, package scope, and hosted review stay tied to the same world.",
+      "Start with one real place and the robot task you need to prove. Capture source, rights, package scope, and hosted review stay tied together.",
     primaryLabel: "Request world model",
     primaryPath: "world-model",
     secondaryLabel: "Browse world models",
     secondaryHref: "/world-models",
-    panelTitle: "New here?",
+    panelTitle: "Start here",
     panelBody:
-      "Browse what exists, request what is missing, or ask for hosted evaluation.",
+      "Browse what exists, request what is missing, or ask for hosted review.",
   },
 };
 
 const robotTeamDecisionSteps = [
   {
     title: "Name the exact site",
-    body: "Bring the facility, route, site class, or operating context your team needs to test. Blueprint starts from the real place, not an abstract category.",
+    body: "Bring the facility, route, site class, or operating context your team needs to test.",
   },
   {
     title: "Review attached proof",
-    body: "Inspect capture basis, freshness, rights limits, visible restrictions, package scope, and sample-vs-approved status before committing time or budget.",
+    body: "Inspect capture basis, freshness, rights limits, package scope, and sample-vs-approved status.",
   },
   {
     title: "Choose the buyer path",
-    body: "Move into package access, hosted evaluation, checkpoint comparison, or new capture when the exact world is not available yet.",
+    body: "Move into package access, hosted evaluation, or new capture when the exact world is not available yet.",
   },
 ];
 
@@ -274,7 +274,7 @@ export default function Home() {
     () => [
       {
         label: "Real capture",
-        detail: "A walkthrough or site record starts the product. Provenance, freshness, and limits stay attached.",
+        detail: "A walkthrough or site record starts the product. Provenance and limits stay attached.",
       },
       {
         label: "Site product",
@@ -282,11 +282,11 @@ export default function Home() {
       },
       {
         label: "Hosted eval",
-        detail: "A managed review path gives robot teams task scenarios on the same world model before file handoff.",
+        detail: "A managed review path lets robot teams inspect task scenarios before file handoff.",
       },
       {
         label: "Buyer proof",
-        detail: "Use the proof before committing travel, rollout spend, custom sim work, or deeper integration.",
+        detail: "Use the proof before committing travel, rollout spend, or deeper integration.",
       },
     ],
     [],
@@ -394,30 +394,30 @@ export default function Home() {
           <MonochromeMedia
             src="/generated/editorial/world-models-hero.png"
             alt={heroSite.siteName}
-            className="min-h-[42rem] rounded-none"
+            className="min-h-[39rem] rounded-none sm:min-h-[42rem]"
             loading="eager"
-            imageClassName="min-h-[42rem]"
+            imageClassName="min-h-[39rem] sm:min-h-[42rem]"
             overlayClassName="bg-[linear-gradient(90deg,rgba(0,0,0,0.92)_0%,rgba(0,0,0,0.72)_34%,rgba(0,0,0,0.2)_82%)]"
           >
             <RouteTraceOverlay className="opacity-60" />
 
             <div className="absolute inset-0">
               <div className="mx-auto grid h-full max-w-[88rem] gap-10 px-5 py-12 sm:px-8 lg:grid-cols-[0.62fr_0.38fr] lg:px-10 lg:py-16">
-                <div className="flex min-h-[34rem] flex-col justify-end">
+                <div className="flex min-h-[31rem] flex-col justify-end sm:min-h-[34rem]">
                   <div className="mb-5 flex flex-wrap gap-2">
                     <ProofChip light>Exact-site world models</ProofChip>
                     <ProofChip light>Hosted review</ProofChip>
                   </div>
-	                <h1 className="font-editorial max-w-[40rem] text-[3.05rem] leading-[0.9] tracking-[-0.06em] text-white sm:text-[4.45rem]">
-	                  {heroContent.title}
-	                </h1>
-	                <p className="mt-6 max-w-[31rem] text-base leading-8 text-white opacity-90 sm:text-[1.03rem]">
-	                  {heroContent.description}
-	                </p>
+                  <h1 className="font-editorial max-w-[40rem] text-[2.85rem] leading-[0.92] tracking-[-0.04em] text-white sm:text-[4.35rem]">
+                    {heroContent.title}
+                  </h1>
+                  <p className="mt-5 max-w-[31rem] text-base leading-7 text-white opacity-90 sm:text-[1.03rem] sm:leading-8">
+                    {heroContent.description}
+                  </p>
 
-	                <div className="mt-8 flex flex-wrap gap-3">
-	                  <a
-	                    href={heroPrimaryHref}
+                  <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                    <a
+                      href={heroPrimaryHref}
                       onClick={() =>
                         trackHomeCtaClick(
                           "home_hero_primary",
@@ -426,13 +426,13 @@ export default function Home() {
                           "home-hero-primary",
                         )
                       }
-	                    className="inline-flex items-center justify-center bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
-	                  >
-	                    {heroContent.primaryLabel}
-	                    <ArrowRight className="ml-2 h-4 w-4" />
-	                  </a>
-	                  <a
-	                    href={heroContent.secondaryHref}
+                      className="inline-flex w-full items-center justify-center bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100 sm:w-auto"
+                    >
+                      {heroContent.primaryLabel}
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </a>
+                    <a
+                      href={heroContent.secondaryHref}
                       onClick={() =>
                         trackHomeCtaClick(
                           "home_hero_secondary",
@@ -441,26 +441,12 @@ export default function Home() {
                           "home-hero-secondary",
                         )
                       }
-	                    className="inline-flex items-center justify-center border border-white/15 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
-	                  >
-	                    {heroContent.secondaryLabel}
-	                  </a>
-                    <a
-                      href="/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=home-hero-hosted"
-                      onClick={() =>
-                        trackHomeCtaClick(
-                          "home_hero_hosted",
-                          "Request hosted evaluation",
-                          "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=home-hero-hosted",
-                          "home-hero-hosted",
-                        )
-                      }
-                      className="inline-flex items-center justify-center border border-white/15 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+                      className="inline-flex w-full items-center justify-center border border-white/15 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10 sm:w-auto"
                     >
-                      Request hosted evaluation
+                      {heroContent.secondaryLabel}
                     </a>
+                  </div>
                 </div>
-              </div>
 
                 <div className="hidden items-end justify-end lg:flex">
                   <div className="w-full max-w-[18rem] border border-white/15 bg-black/35 p-5 text-white shadow-[0_24px_60px_-40px_rgba(0,0,0,0.58)] backdrop-blur-sm">
@@ -486,12 +472,11 @@ export default function Home() {
             <div className="max-w-xl">
               <ProofChip light>Commercial product</ProofChip>
               <h2 className="font-editorial mt-5 text-[3rem] leading-[0.9] tracking-[-0.05em] sm:text-[4.15rem]">
-                Blueprint sells exact-site world-model products.
+                Blueprint sells exact-site products, not generic demos.
               </h2>
               <p className="mt-6 text-base leading-8 text-white/76">
-                The product is not a generic scene library. Blueprint turns real capture into
-                site-specific packages, hosted review paths, and buyer decisions tied to the same
-                facility, route, and proof record.
+                Blueprint turns real capture into site-specific packages, hosted review paths, and
+                buyer decisions tied to the same facility, route, and proof record.
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <a
@@ -637,16 +622,16 @@ export default function Home() {
                 <a
                   href="/proof"
                   onClick={() =>
-                    trackHomeCtaClick(
+                  trackHomeCtaClick(
                       "home_proof_primary",
-                      "Open sample proof",
+                      "Inspect proof",
                       "/proof",
                       "home-proof-story",
                     )
                   }
                   className="inline-flex items-center justify-center bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                 >
-                  Open sample proof
+                  Inspect proof
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </a>
                 <a

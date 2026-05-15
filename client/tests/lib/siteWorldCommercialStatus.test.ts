@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { getSiteWorldById } from "@/data/siteWorlds";
 import {
   getSiteWorldCommercialStatus,
+  getSiteWorldBuyerFlowDisclosure,
   getSiteWorldFreshnessSummary,
   getSiteWorldHostedAccessDisclosure,
   getSiteWorldPackageAccessSummary,
@@ -25,6 +26,10 @@ describe("siteWorldCommercialStatus", () => {
       proofBacked: true,
     });
     expect(getSiteWorldReadinessDisclosure(site!)).toContain("public listing proves");
+    expect(getSiteWorldBuyerFlowDisclosure(site!)).toMatchObject({
+      proofLabel: "Sample-backed demo",
+    });
+    expect(getSiteWorldBuyerFlowDisclosure(site!).packageAccess).toContain("Sample files are visible");
   });
 
   it("keeps non-demo listings request-scoped instead of overclaiming approval", () => {
@@ -43,6 +48,10 @@ describe("siteWorldCommercialStatus", () => {
     });
     expect(getSiteWorldFreshnessSummary(site!)).toBe("Freshness confirmed during request review");
     expect(getSiteWorldPackageAccessSummary(site!)).toContain("request-specific rights");
+    expect(getSiteWorldBuyerFlowDisclosure(site!)).toMatchObject({
+      proofLabel: "Request-scoped listing",
+    });
+    expect(getSiteWorldBuyerFlowDisclosure(site!).hostedAccess).toContain("gated");
     expect(
       getSiteWorldHostedAccessDisclosure({
         ...site!,
@@ -71,6 +80,9 @@ describe("siteWorldCommercialStatus", () => {
     expect(getSiteWorldVisualDisclosure(site!)).toMatchObject({
       label: "Planned route diagram",
       proofBacked: false,
+    });
+    expect(getSiteWorldBuyerFlowDisclosure(site!)).toMatchObject({
+      proofLabel: "Planned profile",
     });
   });
 });

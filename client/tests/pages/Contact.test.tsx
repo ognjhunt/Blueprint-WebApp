@@ -77,16 +77,17 @@ describe("Contact page", () => {
     expect(screen.getAllByText(/Commercial Intake/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/What happens after you send this/i)).toBeInTheDocument();
     expect(screen.getByText(/Rights, privacy, and proof boundaries stay explicit/i)).toBeInTheDocument();
+    expect(screen.getByText(/does not charge, send a provider job, start fulfillment/i)).toBeInTheDocument();
     expect(screen.queryByText(/Buyer type/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Requested lanes/i)).not.toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /Request world model/i }).length).toBeGreaterThan(0);
     expect(screen.getByRole("radio", { name: /World model/i })).toBeChecked();
-    expect(screen.getByRole("radio", { name: /Hosted evaluation/i })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /Hosted review/i })).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: /Capture access/i })).toBeInTheDocument();
     expect(screen.getByText(/Short form first\. Call only when useful\./i)).toBeInTheDocument();
     expect(screen.getByText(/Required first pass/i)).toBeInTheDocument();
     expect(screen.getByText(/Fastest paths/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/Request hosted evaluation/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Book hosted review/i).length).toBeGreaterThan(0);
     expect(
       screen.getByText(/Best when your team wants a site-specific package path/i),
     ).toBeInTheDocument();
@@ -127,14 +128,14 @@ describe("Contact page", () => {
     render(<Contact />);
 
     expect(
-      screen.getByRole("heading", { name: /Request a hosted evaluation for this site\./i }),
+      screen.getByRole("heading", { name: /Book a hosted review for this workflow\./i }),
     ).toBeInTheDocument();
     expect(screen.getByDisplayValue("Walk to shelf staging and pick the blue tote")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Unitree G1 with head cam and wrist cam")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Request hosted evaluation/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Book hosted review/i })).toBeInTheDocument();
     expect(
       screen.getByText(
-        /Confirm the site, task, and robot setup\. Blueprint uses that to scope the hosted evaluation path/i,
+        /Required: contact details, role, request path, hosted question, and the site or workflow/i,
       ),
     ).toBeInTheDocument();
 
@@ -158,7 +159,7 @@ describe("Contact page", () => {
       screen.getByText(/This city leans on high-trust introductions/i),
     ).toBeInTheDocument();
     expect(screen.getByText(/Fastest paths/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/Browse world models/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Request world model/i).length).toBeGreaterThan(0);
   });
 
   it("renders San Francisco-specific buyer guidance when the city param is present", () => {
@@ -214,6 +215,7 @@ describe("Contact page", () => {
     });
 
     expect(screen.getByText(/World model request received/i)).toBeInTheDocument();
+    expect(screen.getByText(/No checkout, provider generation, live hosted launch/i)).toBeInTheDocument();
     expect(analyticsEventsMock.contactRequestSubmitted).toHaveBeenCalledWith({
       persona: "robot_team",
       hostedMode: false,
@@ -260,7 +262,7 @@ describe("Contact page", () => {
     fireEvent.change(screen.getByRole("textbox", { name: /Your role/i }), {
       target: { value: "Autonomy lead" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /Request hosted evaluation/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Book hosted review/i }));
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
@@ -296,7 +298,7 @@ describe("Contact page", () => {
         content: null,
       },
     });
-    expect(screen.getByText(/Hosted evaluation request received/i)).toBeInTheDocument();
+    expect(screen.getByText(/Hosted review request received/i)).toBeInTheDocument();
   });
 
   it("submits site-operator rights, privacy, access, and commercial boundaries", async () => {

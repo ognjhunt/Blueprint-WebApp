@@ -113,6 +113,9 @@ describe("Exact-Site Hosted Review buyer loop report", () => {
     expect(report.summary.paperclipLinkedBlockers).toBe(1);
     expect(report.summary.decisionTouchGap).toBe(100);
     expect(report.markdown).toContain("## Founder First Send Batch");
+    expect(report.markdown).toContain("## First-Send Review Workflow");
+    expect(report.markdown).toContain("## Objection Handling");
+    expect(report.markdown).toContain("Landing page");
     expect(report.markdown).toContain("## Blocker Ledger");
     expect(report.markdown).toContain("BLU-5400");
     expect(report.markdown).toContain("Governed recipient discovery is not configured.");

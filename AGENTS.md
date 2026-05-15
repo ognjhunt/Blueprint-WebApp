@@ -13,13 +13,20 @@ This repo must reinforce the platform doctrine in:
 
 Before making changes, read:
 
-1. `/Users/nijelhunt_1/workspace/Blueprint-WebApp/PLATFORM_CONTEXT.md` — repo-authoritative mirror of Blueprint Knowledge for platform doctrine
-2. `/Users/nijelhunt_1/workspace/Blueprint-WebApp/WORLD_MODEL_STRATEGY_CONTEXT.md` — repo-authoritative mirror of Blueprint Knowledge for world-model strategy
-3. `/Users/nijelhunt_1/workspace/Blueprint-WebApp/AUTONOMOUS_ORG.md` — repo-authoritative mirror of Blueprint Knowledge for org structure
-4. `/Users/nijelhunt_1/workspace/Blueprint-WebApp/DEPLOYMENT.md`
-5. `/Users/nijelhunt_1/workspace/Blueprint-WebApp/package.json`
-6. `/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/ai-tooling-adoption-implementation-2026-04-07.md`
-7. `/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/ai-skills-governance-2026-04-07.md`
+1. `/Users/nijelhunt_1/workspace/Blueprint-WebApp/README.md`
+2. `/Users/nijelhunt_1/workspace/Blueprint-WebApp/PLATFORM_CONTEXT.md` — repo-authoritative mirror of Blueprint Knowledge for platform doctrine
+3. `/Users/nijelhunt_1/workspace/Blueprint-WebApp/WORLD_MODEL_STRATEGY_CONTEXT.md` — repo-authoritative mirror of Blueprint Knowledge for world-model strategy
+4. `/Users/nijelhunt_1/workspace/Blueprint-WebApp/AUTONOMOUS_ORG.md` — repo-authoritative mirror of Blueprint Knowledge for org structure
+5. `/Users/nijelhunt_1/workspace/Blueprint-WebApp/DEPLOYMENT.md`
+6. `/Users/nijelhunt_1/workspace/Blueprint-WebApp/package.json`
+7. `/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/architecture/source-of-truth-map.md`
+8. `/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/architecture/command-safety-matrix.md`
+9. `/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/architecture/public-display-ready-claims-matrix.md`
+10. `/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/architecture/ai-onboarding-map.md`
+11. `/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/ai-tooling-adoption-implementation-2026-04-07.md`
+12. `/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/ai-skills-governance-2026-04-07.md`
+
+Agents also follow the nearest nested `AGENTS.md` when working under `client/`, `server/`, `scripts/`, or `ops/paperclip/`; nested guides add local constraints but do not weaken root doctrine.
 
 ## Product Rules
 
@@ -29,6 +36,17 @@ Before making changes, read:
 - Buyer, licensing, hosted-session, and ops flows should stay anchored to real capture provenance.
 - Qualification and readiness surfaces are support layers, not the center of the product.
 
+## Public Display Ready Standard
+
+Public Display Ready and Operational Launch Ready are separate standards.
+
+- **Public Display Ready** means public brand, product, buyer, pricing, proof, contact, and hiring surfaces may look complete, confident, present-tense, and launch-quality. Incomplete backend, ops, provider, city-launch, payment, payout, hosted-session, or support-loop proof is not by itself a blocker to polished website/app presentation.
+- **Operational Launch Ready** means a specific live claim is backed by current proof from the system that owns it: Stripe for payment state, provider/runtime artifacts for execution, capture/provenance records for supply, rights/privacy records for clearance, Paperclip/Firestore/Render/Redis for the live operational loop, and city-launch artifacts for city activation.
+- Before weakening public copy, ask: **does this sentence invent a specific unsupported fact?** Do not ask only whether Blueprint is operationally launched enough to sound polished.
+- Allowed public display language includes product category, intended workflow, buyer value, request paths, sample/demo framing, launch-quality UI labels, and present-tense descriptions of what Blueprint sells or routes.
+- Block or qualify only the specific unsupported claim: live availability, real customers, cleared rights, active capture supply, payment or payout success, provider execution, city coverage, hosted-session fulfillment, package access already open, or guaranteed support/launch outcomes.
+- Put caveats where they help the buyer inspect proof, rights, access, or fulfillment detail. Do not lead public first screens with broad apology language just because operations still require request-specific proof.
+
 ## Repo Map
 
 - `client/src/pages/`: product routes and marketing pages
@@ -36,6 +54,8 @@ Before making changes, read:
 - `client/src/lib/`: API, client environment, and app helpers
 - `server/`: backend routes and runtime integrations
 - `scripts/`: smoke checks, sitemap/prerender, launch gates
+- `docs/company/`: employee handbook and company policy drafts
+- `docs/onboarding/`: human, manager, AI-agent, role-scorecard, and Notion IA onboarding
 - `e2e/`: Playwright coverage
 
 ## Working Rules
@@ -48,6 +68,8 @@ Before making changes, read:
 - Do not use external boilerplates, skill packs, or AI-generated migration suggestions to introduce new primary services unless `blueprint-cto` explicitly approves the change.
 - Anything that applies to Claude guidance in this repo also applies to Codex and Hermes-backed agents unless a narrower runtime rule explicitly overrides it.
 - For autonomous-loop closeouts, use `/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/autonomous-loop-evidence-checklist-2026-05-03.md` before claiming `done`, `blocked`, or `awaiting_human_decision`.
+- For onboarding or policy work, keep repo docs as canonical drafts, mirror into Notion only for human review/visibility, and mark legal/HR/payroll/benefits material as requiring counsel/PEO review when applicable.
+- For repo work, start with `git status --short`; inspect dirty and untracked files before editing and preserve unrelated work.
 
 ## Human Gates
 
@@ -113,6 +135,8 @@ npm run smoke:launch
 npm run smoke:launch:local
 npm run alpha:check
 ```
+
+Read `/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/architecture/command-safety-matrix.md` before running commands with live, provider, send, Notion, Stripe, Firebase, Render, Paperclip, payroll, or production-like side effects.
 
 ## graphify
 

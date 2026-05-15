@@ -59,8 +59,14 @@ const boundaryRows: LedgerRow[] = [
     label: "What the buyer gets",
     value: "Decision-ready evidence",
     detail:
-      "The buyer can see what is capture-grounded, what is model-inferred, what exports are allowed, and what remains blocked before purchase or hosted evaluation.",
+      "The buyer can see what is capture-grounded, what is model-inferred, what exports are allowed, and what remains blocked before purchase or hosted review.",
   },
+];
+
+const heroPacketRows = [
+  ["Capture", "Source route, freshness, and provenance"],
+  ["Package", "Manifest, model output, and export scope"],
+  ["Review", "Hosted notes and buyer next step"],
 ];
 
 const trustSystemCards: IconItem[] = [
@@ -263,44 +269,43 @@ export default function Proof() {
             <div className="flex min-h-[35rem] flex-col justify-end">
               <p className="text-[11px] font-semibold uppercase tracking-normal text-[#d4b06b]">Blueprint proof</p>
               <h1 className="mt-6 max-w-[43rem] text-5xl font-semibold leading-none tracking-normal text-white sm:text-7xl">
-                See what is attached to the world model before you buy.
+                See what is attached before your team commits.
               </h1>
-              <p className="mt-6 max-w-[37rem] text-base leading-8 text-white/80">
-                Blueprint proof is the buyer-facing trust layer for site-specific world models: capture provenance, rights posture, package scope, hosted outputs, and the exact boundaries between sample material and live evidence.
+              <p className="mt-5 max-w-[36rem] text-base leading-7 text-white/80 sm:leading-8">
+                Blueprint proof keeps capture provenance, rights posture, package scope, hosted outputs, and buyer decisions visible in one packet.
               </p>
               <div className="mt-8 flex flex-wrap gap-2">
-                <StatusBadge tone="sample">Public sample, clearly labeled</StatusBadge>
-                <StatusBadge tone="live">Live proof packet is request-gated</StatusBadge>
-                <StatusBadge tone="blocked">No invented rights or outcomes</StatusBadge>
+                <StatusBadge tone="live">Capture provenance</StatusBadge>
+                <StatusBadge tone="live">Rights posture</StatusBadge>
+                <StatusBadge tone="sample">Hosted review context</StatusBadge>
               </div>
-              <div className="mt-8 flex flex-wrap gap-3">
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <a
                   href="/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=proof-packet&source=proof-hero"
-                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-white px-5 text-sm font-semibold text-slate-950 transition hover:bg-[#f1efe7]"
+                  className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-md bg-white px-5 text-sm font-semibold text-slate-950 transition hover:bg-[#f1efe7] sm:w-auto"
                 >
-                  Request a proof packet
+                  Request world model
                   <ArrowUpRight className="h-4 w-4" />
                 </a>
                 <a
                   href="/world-models"
-                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-white/20 px-5 text-sm font-semibold text-white transition hover:bg-white/10"
+                  className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-md border border-white/20 px-5 text-sm font-semibold text-white transition hover:bg-white/10 sm:w-auto"
                 >
-                  Browse sample world models
+                  Browse world models
                 </a>
               </div>
             </div>
 
             <aside className="self-end border border-white/20 bg-black/40 p-5 backdrop-blur-md">
               <div className="flex flex-wrap gap-2">
-                <StatusBadge tone="sample">Illustrative product preview</StatusBadge>
-                <StatusBadge tone="blocked">Not customer proof</StatusBadge>
+                <StatusBadge tone="live">Buyer proof packet</StatusBadge>
+                <StatusBadge tone="sample">Sample packet view</StatusBadge>
               </div>
               <div className="mt-6 grid gap-px bg-white/10">
-                {boundaryRows.map((row) => (
-                  <div key={row.label} className="bg-black/50 p-4">
-                    <p className="text-[11px] font-semibold uppercase tracking-normal text-white/50">{row.label}</p>
-                    <p className="mt-2 text-sm font-semibold leading-6 text-white">{row.value}</p>
-                    <p className="mt-2 text-sm leading-6 text-white/60">{row.detail}</p>
+                {heroPacketRows.map(([label, value]) => (
+                  <div key={label} className="bg-black/50 p-4">
+                    <p className="text-[11px] font-semibold uppercase tracking-normal text-white/50">{label}</p>
+                    <p className="mt-2 text-sm font-semibold leading-6 text-white">{value}</p>
                   </div>
                 ))}
               </div>
@@ -361,6 +366,9 @@ export default function Proof() {
               <p className="mt-4 text-sm leading-7 text-slate-600">
                 Blueprint can show a polished sample without pretending it is a customer result. For a buyer, the proof only becomes live when it points to a concrete site, request, package, rights posture, and hosted-evaluation path.
               </p>
+              <div className="mt-5 border border-black/10 bg-white px-4 py-3 text-sm font-semibold leading-6 text-slate-800">
+                This is the launch-ready public surface and buyer workflow. Live availability, rights, and fulfillment are confirmed per site/request.
+              </div>
               <div className="mt-7 border-y border-black/10">
                 {boundaryRows.map((row) => (
                   <LedgerLine key={row.label} row={row} />
@@ -530,7 +538,7 @@ export default function Proof() {
                 Ask for the packet when one exact site matters.
               </h2>
               <p className="mt-4 max-w-2xl text-sm leading-7 text-white/70">
-                Blueprint can scope the proof path around a sample catalog listing, a site you already know, or a new capture request. The packet stays honest: sample until live evidence exists, request-gated until rights and hosted access are ready.
+                Blueprint can scope the proof path around a sample catalog listing, a site you already know, or a new capture request. The packet stays honest: sample until live evidence exists, with access opened after rights and hosted availability are ready.
               </p>
             </div>
             <div className="flex flex-col justify-end gap-3 sm:flex-row lg:flex-col">
@@ -538,14 +546,14 @@ export default function Proof() {
                 href="/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=proof-packet&source=proof-bottom"
                 className="inline-flex min-h-14 items-center justify-center gap-3 rounded-md bg-white px-6 text-sm font-semibold text-slate-950 transition hover:bg-[#f1efe7]"
               >
-                Request a proof packet
+                Request world model
                 <ArrowUpRight className="h-5 w-5" />
               </a>
               <a
                 href="/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=proof-bottom"
                 className="inline-flex min-h-14 items-center justify-center gap-3 rounded-md border border-white/20 px-6 text-sm font-semibold text-white transition hover:bg-white/10"
               >
-                Request hosted evaluation
+                Book hosted review
               </a>
             </div>
           </div>

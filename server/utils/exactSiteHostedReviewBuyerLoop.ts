@@ -118,6 +118,87 @@ function cleanTableValue(value: string | undefined | null) {
   return String(value || "").replace(/\|/g, "/").trim();
 }
 
+function targetDraftAngle(target: ExactSiteGtmTarget) {
+  if (target.track === "proof_ready_outreach") {
+    const reviewLabel = target.artifact.hostedReviewPath || target.artifact.path || "the labeled hosted-review sample";
+    return `Offer ${reviewLabel} as inspectable proof shape, then ask what exact site or workflow would be more useful.`;
+  }
+
+  return `Ask the buyer to name the site or workflow behind this need: ${target.workflowNeed} Do not imply a hosted review exists yet.`;
+}
+
+function targetCta(target: ExactSiteGtmTarget) {
+  if (target.track === "proof_ready_outreach") {
+    return "Inspect the review, then name the more relevant site or workflow.";
+  }
+
+  return "Name the site or workflow worth capturing first.";
+}
+
+function targetLandingPage(target: ExactSiteGtmTarget) {
+  if (target.track === "proof_ready_outreach") {
+    return target.artifact.hostedReviewPath || "/product";
+  }
+
+  return "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch";
+}
+
+function targetReviewFlag(target: ExactSiteGtmTarget) {
+  const flags: string[] = [];
+  const recipientRole = String(target.recipient?.role || "").toLowerCase();
+  const recipientEmail = String(target.recipient?.email || "").toLowerCase();
+
+  if (target.track === "demand_sourced_capture") {
+    flags.push("capture ask only");
+  }
+  if (target.artifact.status === "draft") {
+    flags.push("artifact is a draft brief");
+  }
+  if (
+    recipientRole.includes("general")
+    || recipientRole.includes("support")
+    || recipientRole.includes("public inbox")
+    || recipientEmail.startsWith("info@")
+    || recipientEmail.startsWith("support@")
+    || recipientEmail.startsWith("contact@")
+    || recipientEmail.startsWith("community@")
+  ) {
+    flags.push("public/general inbox");
+  }
+
+  return flags.length > 0 ? flags.join("; ") : "standard first-send review";
+}
+
+function targetObjectionPlan(target: ExactSiteGtmTarget) {
+  if (hasText(target.sales?.objection)) {
+    return `Recorded objection: ${target.sales?.objection}`;
+  }
+  if (target.track === "proof_ready_outreach") {
+    return "If the sample is not close enough, ask for the exact site/workflow to capture next; do not call the sample a customer result.";
+  }
+
+  return "If they ask for a review before naming a workflow, share only labeled sample proof or state that a new capture is needed.";
+}
+
+function targetApprovalMarkdownLine(target: ExactSiteGtmTarget) {
+  return [
+    cleanTableValue(`${target.id}: ${target.organizationName}`),
+    cleanTableValue(target.recipient?.email || "missing"),
+    cleanTableValue(targetDraftAngle(target)),
+    cleanTableValue(targetCta(target)),
+    cleanTableValue(targetLandingPage(target)),
+    cleanTableValue(targetReviewFlag(target)),
+  ].join(" | ");
+}
+
+function targetObjectionMarkdownLine(target: ExactSiteGtmTarget) {
+  return [
+    cleanTableValue(`${target.id}: ${target.organizationName}`),
+    cleanTableValue(targetObjectionPlan(target)),
+    cleanTableValue("Answer from the ledger row, linked artifact, and public page only; route pricing, rights, privacy, or capability exceptions back to human review."),
+  ].join(" | ");
+}
+
 function isOpenBlocker(blocker: ExactSiteGtmBlocker) {
   return blocker.status !== "resolved";
 }
@@ -303,10 +384,29 @@ export function buildExactSiteHostedReviewBuyerLoopReport(input: {
     "",
     ...(founderApprovalQueue.length > 0
       ? [
-          "- Founder action: approve, edit, or reject these recipient-backed drafts. Do not authorize pricing, rights, privacy, legal, or permission commitments here.",
-          ...founderApprovalQueue.slice(0, 30).map(targetListLine),
+          "- Founder action: approve, edit, or reject these recipient-backed drafts. This does not authorize live sends, pricing, rights, privacy, legal, permission, paid spend, or readiness claims.",
+          "- Review order: recipient evidence, draft angle, CTA, landing page handoff, objection plan, then decision.",
+          "",
+          "| Target | Recipient | Draft angle | CTA | Landing page | Review flag |",
+          "| --- | --- | --- | --- | --- | --- |",
+          ...founderApprovalQueue.slice(0, 30).map((target) => `| ${targetApprovalMarkdownLine(target)} |`),
         ]
       : ["- no recipient-backed drafts are ready for founder approval yet"]),
+    "",
+    "## First-Send Review Workflow",
+    "",
+    "- Keep all rows draft-only until the approval packet records explicit approve, edit, or reject decisions.",
+    "- Apply decisions with `npm run gtm:first-send-approval:apply -- --write --allow-blocked`, then rerun audit and dry-run send checks.",
+    "- A successful approval apply still does not permit a live send until reply durability passes and live dispatch is separately authorized.",
+    "- Rows marked edit or reject should keep a specific next action in the ledger before requesting approval again.",
+    "",
+    "## Objection Handling",
+    "",
+    "| Target | Likely objection or review question | Evidence-safe response boundary |",
+    "| --- | --- | --- |",
+    ...(targets.length > 0
+      ? targets.slice(0, 30).map((target) => `| ${targetObjectionMarkdownLine(target)} |`)
+      : ["| none | none | none |"]),
     "",
     "## Proof Artifact Queue",
     "",

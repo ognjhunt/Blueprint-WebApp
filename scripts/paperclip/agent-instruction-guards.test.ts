@@ -30,10 +30,12 @@ const goalCloseoutFields = [
   "Budget/timeout context:",
   "Stage reached:",
   "State claimed:",
+  "Owner:",
+  "Blocker/decision id:",
   "Proof paths:",
   "Command outputs:",
   "Next action:",
-  "Retry condition:",
+  "Retry/resume condition:",
   "Residual risk:",
 ];
 
@@ -183,6 +185,7 @@ describe("Blueprint Paperclip agent instruction guards", () => {
     expect(instructions).toContain(
       "State claimed must be exactly one of: `done`, `blocked`, or `awaiting_human_decision`.",
     );
+    expect(instructions).toContain("Blocked closeouts must name the earliest hard stop, owner, and retry/resume condition.");
     expect(instructions).toContain("Do not claim native `/goal` status unless Codex CLI state or run artifacts prove it.");
   });
 

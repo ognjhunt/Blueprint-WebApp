@@ -1,0 +1,12 @@
+
+ RUN  v3.1.4 /Users/nijelhunt_1/workspace/Blueprint-WebApp
+
+ ✓ server/tests/gtm-send-executor.test.ts (4 tests) 12ms
+
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+   Start at  07:33:07
+   Duration  2.47s (transform 247ms, setup 258ms, collect 1.16s, tests 12ms, environment 0ms, prepare 239ms)
+
+
+EXIT_CODE=0

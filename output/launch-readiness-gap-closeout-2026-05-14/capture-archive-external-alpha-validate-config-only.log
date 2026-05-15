@@ -1,0 +1,6 @@
+Archive external alpha gate failed:
+Stage: release_config_blocked
+Next input needed: Set BLUEPRINT_PAYOUT_PROVIDER in the untracked release xcconfig before building external alpha artifacts.
+- BLUEPRINT_PAYOUT_PROVIDER must be set in /Users/nijelhunt_1/workspace/BlueprintCapture/Config/BlueprintCapture.release.xcconfig.
+
+EXIT_CODE=1

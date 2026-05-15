@@ -82,6 +82,7 @@ describe("HostedSessionSetup", () => {
     expect(screen.getAllByText(/Launch check/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Presentation demo/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Observation frames/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/does not charge, run a provider job, or start fulfillment/i)).toBeInTheDocument();
   });
 
   it("renders structured readiness blockers for demo and runtime launch", async () => {

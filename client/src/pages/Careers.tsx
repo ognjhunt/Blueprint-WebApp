@@ -113,7 +113,7 @@ export default function Careers() {
     <>
       <SEO
         title="Careers | Blueprint"
-        description="Blueprint is hiring founding systems leads to run lean human-plus-agent GTM and delivery loops for site-specific world-model products."
+        description="Blueprint is hiring founding systems leads for GTM and delivery loops around site-specific world-model products."
         canonical="/careers"
       />
 
@@ -132,18 +132,33 @@ export default function Careers() {
                 <div className="flex h-full max-w-[36rem] flex-col justify-end">
                   <EditorialSectionLabel light>Careers</EditorialSectionLabel>
                   <h1 className="font-editorial mt-6 text-[3.7rem] leading-[0.9] text-white sm:text-[5rem]">
-                    Run the company with small human teams and serious agent workflows.
+                    Build the systems behind exact-site world models.
                   </h1>
-                  <p className="mt-6 text-base leading-8 text-white/70">
-                    We are looking for people who can turn agent runs, city research, capture supply, buyer requests, and delivery work into systems that get sharper every week.
+                  <p className="mt-5 max-w-[34rem] text-base leading-7 text-white/75 sm:leading-8">
+                    Founding systems leads turn agent runs, city research, capture supply, buyer requests, and delivery work into repeatable operating loops.
                   </p>
+                  <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                    <a
+                      href="#open-roles"
+                      className="inline-flex w-full items-center justify-center bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100 sm:w-auto"
+                    >
+                      View open roles
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </a>
+                    <a
+                      href="mailto:careers@tryblueprint.io?subject=Blueprint%20Founding%20Systems%20Lead"
+                      className="inline-flex w-full items-center justify-center border border-white/20 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10 sm:w-auto"
+                    >
+                      Apply by email
+                    </a>
+                  </div>
                 </div>
               </div>
             </div>
           </MonochromeMedia>
         </section>
 
-        <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
+        <section id="open-roles" className="mx-auto max-w-[88rem] scroll-mt-20 px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
           <div className="grid gap-4 lg:grid-cols-2">
             {roles.map((role, index) => {
               const Icon = role.icon;

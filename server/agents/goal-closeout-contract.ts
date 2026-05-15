@@ -10,10 +10,12 @@ export const PAPERCLIP_GOAL_CLOSEOUT_REQUIRED_FIELDS = [
   "Budget/timeout context:",
   "Stage reached:",
   "State claimed:",
+  "Owner:",
+  "Blocker/decision id:",
   "Proof paths:",
   "Command outputs:",
   "Next action:",
-  "Retry condition:",
+  "Retry/resume condition:",
   "Residual risk:",
 ] as const;
 
@@ -124,11 +126,15 @@ export function buildPaperclipGoalCloseoutPrompt(params: {
     `- Budget/timeout context: ${params.budgetTimeoutContext}`,
     `- Stage reached: ${stageReached}`,
     "- State claimed: one of done, blocked, awaiting_human_decision",
+    "- Owner: responsible agent, human, repo, provider, or lane that owns the current next move",
+    "- Blocker/decision id: durable blocker id, decision id, issue id, or none",
     "- Proof paths: exact file paths, ledger keys, issue ids, run ids, artifact URIs, or hosted ids",
     "- Command outputs: commands or inspections run, with observed output",
     "- Next action: owner, target repo or lane, and concrete action",
-    "- Retry condition: exact condition that allows safe retry or resume",
+    "- Retry/resume condition: exact condition that allows safe retry, resume, or no-op suppression",
     "- Residual risk: what remains unverified or outside this lane",
+    "Blocked closeouts must name the earliest hard stop, the owner, and the exact retry/resume condition.",
+    "Awaiting-human closeouts must include the blocker/decision id, routing surface, watcher owner, and resume condition.",
     "Adapter success is not completion. Do not claim native /goal completion unless Codex CLI state or run artifacts prove it.",
   ].join("\n");
 }

@@ -44,7 +44,7 @@ const comparisonArtifacts = [
   { label: "Package manifest", detail: "The file-backed access path starts here.", icon: Boxes },
   { label: "Export bundle", detail: "Files move only when the listing supports that use.", icon: Map },
   { label: "Rights sheet", detail: "Use, sharing, and export limits stay attached.", icon: ShieldCheck },
-  { label: "Hosted evaluation", detail: "The managed session path starts in the browser.", icon: CirclePlay },
+  { label: "Hosted review", detail: "The managed session path starts in the browser.", icon: CirclePlay },
   { label: "Observation frames", detail: "Review what the hosted run saw.", icon: ScanEye },
   { label: "Change state", detail: "Freshness and recapture notes stay visible.", icon: ShieldCheck },
 ];
@@ -53,19 +53,19 @@ const accessModels = [
   {
     title: "Package access first",
     price: "$2,100-$3,400",
-    body: "Use this when your team wants the site package files, manifest, routes, and approved exports for its own stack.",
+    body: "Use this when your team wants package files, manifest, routes, and approved exports for one site.",
     items: ["Files and manifest", "Export limits", "Optional hosted add-on"],
   },
   {
-    title: "Hosted evaluation first",
+    title: "Hosted review first",
     price: "$16-$29 / session-hour",
-    body: "Use this when your team wants Blueprint to run the exact site before a file handoff, local setup, or deeper package request.",
+    body: "Use this when your team wants Blueprint to run a managed review before file handoff or deeper package work.",
     items: ["Browser session", "Reruns and notes", "Export scope"],
   },
   {
     title: "Custom scope first",
     price: "Scoped",
-    body: "Use this when the site is private, the rights model is unusual, or the work needs multi-site delivery and managed support.",
+    body: "Use this when the site is private, rights are custom, or the work needs multi-site delivery support.",
     items: ["Capture plan", "Rights review", "Commercial terms"],
   },
 ];
@@ -87,8 +87,8 @@ const trustNotes = [
     body: "A hosted evaluation gives your team managed session access, run evidence, and next-step notes. It is not a package license by itself.",
   },
   {
-    title: "What pricing does not claim",
-    body: "Public prices do not promise deployment readiness, private-site permission, unrestricted exports, or rights approval before the request is reviewed.",
+    title: "Planning ranges",
+    body: "Public ranges help buyers choose a path. Live availability, rights, payment, and fulfillment are confirmed per site/request.",
   },
 ];
 
@@ -170,7 +170,7 @@ export default function Pricing() {
             className="min-h-[35rem] rounded-none"
             loading="eager"
             imageClassName="min-h-[35rem]"
-            overlayClassName="bg-[linear-gradient(90deg,rgba(255,255,255,0.94)_0%,rgba(255,255,255,0.34)_30%,rgba(255,255,255,0.04)_72%)]"
+            overlayClassName="bg-[linear-gradient(90deg,rgba(255,255,255,0.96)_0%,rgba(255,255,255,0.82)_54%,rgba(255,255,255,0.2)_100%)] sm:bg-[linear-gradient(90deg,rgba(255,255,255,0.94)_0%,rgba(255,255,255,0.34)_30%,rgba(255,255,255,0.04)_72%)]"
           >
             <div className="absolute inset-0 mx-auto max-w-[88rem] px-5 py-12 sm:px-8 lg:px-10 lg:py-16">
               <div className="max-w-[34rem]">
@@ -178,22 +178,22 @@ export default function Pricing() {
                 <h1 className="font-editorial mt-6 text-[3.7rem] leading-[0.9] tracking-[-0.06em] text-slate-950 sm:text-[5.1rem]">
                   Choose the first step for one real site.
                 </h1>
-                <p className="mt-6 text-lg leading-8 text-slate-700">
-                  Pick package access when your team needs files. Pick hosted evaluation when it wants Blueprint to run the site first. Use custom scope for private, multi-site, or unusual rights work.
+                <p className="mt-6 text-lg leading-8 text-slate-900 sm:text-slate-700">
+                  Pick package access for files, hosted review for a managed buyer room, or custom scope for private and multi-site work.
                 </p>
                 <div className="mt-8 flex flex-wrap gap-3">
                   <a
-                    href="/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=pricing-hero"
+                    href="/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=pricing-hero"
                     className="inline-flex items-center justify-center bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                   >
-                    Request hosted evaluation
+                    Request world model
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </a>
                   <a
-                    href="/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=pricing-hero"
+                    href="/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=pricing-hero"
                     className="inline-flex items-center justify-center border border-black/10 bg-white/75 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-white"
                   >
-                    Request world model
+                    Book hosted review
                   </a>
                 </div>
               </div>
@@ -218,7 +218,7 @@ export default function Pricing() {
                 <div className="rounded-[1.6rem] border border-white/10 bg-black/55 p-5 text-white">
                   <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Blueprint site package</p>
                   <p className="mt-5 text-2xl font-semibold">Market Hall Grocery</p>
-                  <p className="mt-3 text-sm text-white/60">Sample capture date · Mar 13, 2026</p>
+                  <p className="mt-3 text-sm text-white/60">Sample packet date · Mar 13, 2026</p>
                 </div>
                 <div className="space-y-3">
                   <div className="rounded-[1.2rem] border border-white/10 bg-white/90 p-4">
@@ -237,7 +237,7 @@ export default function Pricing() {
           <PricePanel
             index="02"
             eyebrow="Managed session before file handoff."
-            title="Hosted Evaluation"
+            title="Hosted Review"
             price="$16 – $29 / session-hour"
             body="Blueprint hosts the exact-site world model so your team can review configured routes, reruns, observations, and outputs before deciding whether package access should open next."
             bullets={hostedBullets}
@@ -294,10 +294,10 @@ export default function Pricing() {
                 <div className="grid gap-px bg-white/10 md:grid-cols-[0.62fr_0.38fr]">
                   <div className="bg-black/35 px-5 py-4 text-sm text-white/70">
                     {[
-                      ["Rivergate DC 01", "Live"],
-                      ["Northfield Fulfillment", "Live"],
-                      ["Lakeside Manufacturing", "Review"],
-                      ["Southpoint DC", "Updating"],
+                      ["Sample site package", "Review"],
+                      ["Private facility", "Rights check"],
+                      ["Multi-site request", "Scoped"],
+                      ["Recapture need", "Pending"],
                     ].map(([name, state]) => (
                       <div key={name} className="flex items-center justify-between border-b border-white/10 py-3 last:border-b-0">
                         <span>{name}</span>
@@ -328,7 +328,7 @@ export default function Pricing() {
               <EditorialSectionIntro
                 eyebrow="Access model"
                 title="Choose by what your team needs first."
-                description="Package access means files and approved exports. Hosted evaluation means managed browser sessions and run evidence. Custom scope is for private or multi-site work."
+                description="Package access means files and approved exports. Hosted review means managed browser sessions and run evidence. Custom scope is for private or multi-site work."
               />
               <div className="mt-6 border-t border-black/10 pt-5">
                 <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Scope changes with</p>
@@ -409,7 +409,7 @@ export default function Pricing() {
               href="/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=pricing"
               className="inline-flex items-center justify-center border border-black/10 bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-50"
             >
-              Request hosted evaluation
+              Book hosted review
             </a>
             <a
               href="/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=pricing"

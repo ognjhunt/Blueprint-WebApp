@@ -94,8 +94,8 @@ const robotRequestPathOptions: Array<{
   },
   {
     value: "hosted_evaluation",
-    label: "Hosted evaluation",
-    description: "Scope a hosted review after availability is checked.",
+    label: "Hosted review",
+    description: "Scope a hosted buyer review for one exact-site workflow.",
     Icon: MonitorPlay,
   },
   {
@@ -122,7 +122,7 @@ const requestPathCopy: Record<
   world_model: {
     successTitle: "World model request received",
     successBody:
-      "Blueprint now has the buyer, site, and robot context needed to route this toward a package path, hosted evaluation option, or one narrow follow-up.",
+      "Blueprint now has the buyer, site, and robot context needed to route this toward a package path, hosted evaluation option, or one narrow follow-up. No payment, provider run, or fulfillment action was triggered by this form.",
     requestSectionTitle: "What should the world model be scoped around?",
     taskLabel: "What should this world model help your team evaluate?",
     taskPlaceholder:
@@ -133,22 +133,22 @@ const requestPathCopy: Record<
       "Blueprint reviews the site, task, and robot details, then routes the request toward package access, hosted evaluation, capture access, or one missing detail.",
   },
   hosted_evaluation: {
-    successTitle: "Hosted evaluation request received",
+    successTitle: "Hosted review request received",
     successBody:
-      "Blueprint now has the site and robot context needed to evaluate a hosted review path without treating availability or entitlement as automatic.",
-    requestSectionTitle: "What should the hosted evaluation prove?",
-    taskLabel: "What should the hosted evaluation help your team answer?",
+      "Blueprint now has the site and robot context needed to evaluate a hosted review path without treating availability or entitlement as automatic. No hosted runtime, provider job, or fulfillment action was started by this request.",
+    requestSectionTitle: "What should the hosted review prove?",
+    taskLabel: "What should the hosted review help your team answer?",
     taskPlaceholder:
-      "Describe the robot task, scenario, pass/fail question, or review workflow this hosted evaluation should support.*",
-    taskHelper: "Hosted evaluation stays request-gated until site, entitlement, and runtime availability are confirmed.",
-    submitLabel: "Request hosted evaluation",
+      "Describe the robot task, scenario, pass/fail question, or review workflow this hosted review should support.*",
+    taskHelper: "Hosted review is confirmed after site, entitlement, and runtime availability are checked.",
+    submitLabel: "Book hosted review",
     nextStep:
       "Blueprint checks the site, task, entitlement, and hosted-path readiness before confirming whether a hosted evaluation can move forward.",
   },
   capture_access: {
     successTitle: "Capture access request received",
     successBody:
-      "Blueprint now has the site and workflow signal needed to review whether a capture path can be opened or whether an existing package is a better first step.",
+      "Blueprint now has the site and workflow signal needed to review whether a capture path can be opened or whether an existing package is a better first step. This does not schedule capture or imply rights clearance yet.",
     requestSectionTitle: "What should Blueprint capture or inspect?",
     taskLabel: "What site or workflow should Blueprint capture for your team?",
     taskPlaceholder:
@@ -161,7 +161,7 @@ const requestPathCopy: Record<
   site_claim: {
     successTitle: "Site claim received",
     successBody:
-      "Blueprint now has the site claim, access notes, and governance boundaries needed for a measured follow-up.",
+      "Blueprint now has the site claim, access notes, and governance boundaries needed for a measured follow-up. This does not list the site, clear rights, or open buyer access by itself.",
     requestSectionTitle: "What facility and access path are you bringing?",
     taskLabel: "What site participation path should Blueprint review?",
     taskPlaceholder: "Describe the facility, access path, or approval question.",
@@ -626,6 +626,29 @@ export function ContactForm() {
               <p>The reply will not imply instant access, rights clearance, or live hosted availability unless the record supports it.</p>
             </div>
           </div>
+        </div>
+        <div className="mt-4 grid gap-3 text-left sm:grid-cols-3">
+          {[
+            [
+              "Recorded",
+              "The request id and submitted context are now the source for follow-up.",
+            ],
+            [
+              "Not triggered",
+              "No checkout, provider generation, live hosted launch, send, or fulfillment action ran from this form.",
+            ],
+            [
+              "Next proof",
+              "Blueprint replies with the available path or the first missing proof, rights, entitlement, or runtime detail.",
+            ],
+          ].map(([label, body]) => (
+            <div key={label} className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">
+                {label}
+              </p>
+              <p className="mt-2 text-sm leading-6 text-zinc-600">{body}</p>
+            </div>
+          ))}
         </div>
         {submittedRequestId ? (
           <p className="mt-6 text-xs uppercase tracking-[0.18em] text-zinc-400">
@@ -1095,7 +1118,8 @@ export function ContactForm() {
 
       <div className="flex flex-col gap-3 border-t border-black/10 pt-6 sm:flex-row sm:items-center sm:justify-between">
         <p className="max-w-md text-xs leading-5 text-slate-500">
-          Submitting this form does not claim buyer fit, rights clearance, or a live capture commitment.
+          Submitting this form records a request. It does not claim buyer fit, rights clearance,
+          payment, provider execution, fulfillment, or a live hosted session.
         </p>
         <button
           type="submit"

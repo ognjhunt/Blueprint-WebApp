@@ -1,0 +1,24 @@
+==> Validating Android external alpha release config
+> Task :app:validateExternalAlphaReleaseConfig FAILED
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:validateExternalAlphaReleaseConfig'.
+> BLUEPRINT_BACKEND_BASE_URL must be set for Android external alpha builds.
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 3s
+1 actionable task: 1 executed
+Android alpha readiness gate failed:
+Stage: android_release_config_blocked
+Next input needed: Set the missing Android release properties in android/gradle.properties or pass them with -P; do not use placeholders or real secrets in tracked files.
+- Gradle validateExternalAlphaReleaseConfig exited with status 1.
+Android remains internal-only until config validation, unit tests, release build, and device/App Distribution smoke are all explicitly satisfied.
+
+EXIT_CODE=1

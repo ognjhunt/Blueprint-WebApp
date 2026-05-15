@@ -1,24 +1,53 @@
 {
   "schema": "blueprint/exact-site-hosted-review-first-send-approval-template/v1",
-  "generatedAt": "2026-05-09T18:33:47.788Z",
+  "generatedAt": "2026-05-15T01:11:51.321Z",
   "ledgerPath": "ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json",
   "instructions": [
-    "Set decision to approve, edit, or reject for each row the founder has actually reviewed.",
-    "Do not approve pricing, legal, privacy, permission, rights, readiness, live spend, or sender durability from this packet.",
-    "Live sends remain blocked until npm run human-replies:audit-durability passes.",
+    "Review recipient evidence, draft angle, CTA, landing-page handoff, objection plan, and review flags before setting a decision.",
+    "Set decision to approve, edit, or reject only for rows the founder/operator has actually reviewed.",
+    "Do not approve pricing, legal, privacy, permission, rights, readiness, live spend, sender durability, or live dispatch from this packet.",
+    "Live sends remain blocked until decisions are applied, npm run gtm:send -- --dry-run --allow-blocked is rerun, npm run human-replies:audit-durability passes, and live dispatch is explicitly authorized.",
     "Leave decision null for rows that have not been reviewed."
+  ],
+  "reviewChecklist": [
+    "Recipient email and evidence source are acceptable for a first touch.",
+    "Message asks one clear thing and stays aligned to the row track.",
+    "Proof-ready rows link to a labeled review/sample without claiming customer traction.",
+    "Demand-sourced rows ask for the site/workflow to capture and do not imply a hosted review exists.",
+    "Landing-page handoff matches the CTA.",
+    "Objection response can be answered from ledger evidence and public pages without inventing claims."
+  ],
+  "decisionOptions": [
+    "approve: row may move to human_approved after apply, but live send remains separately gated.",
+    "edit: row stays draft_ready with a required revision note.",
+    "reject: row stays blocked until the target, proof artifact, recipient, or message is revised."
   ],
   "approvals": [
     {
       "targetId": "gtm-001-simbe-retail-aisle-review",
       "organizationName": "Simbe Robotics",
       "recipientEmail": "sales@simberobotics.com",
+      "recipientRole": "Sales and deployment public inbox",
       "recipientEvidenceSource": "Fetched Simbe Robotics contact page lists SALES & DEPLOYMENT as sales@simberobotics.com.",
+      "recipientEvidenceType": "human_supplied",
       "track": "proof_ready_outreach",
       "buyerSegment": "Retail shelf-scanning robotics team",
       "workflowNeed": "Inspect a grocery-style public aisle loop before deciding whether a more specific retail capture would be useful.",
+      "intentSignals": [
+        "Company publicly sells retail shelf-intelligence robots that operate in grocery and store aisles."
+      ],
       "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
       "artifactPath": "client/public/samples/sample-hosted-review-report.md",
+      "hostedReviewPath": "/sample-evaluation",
+      "siteWorldId": "sample-public-capture-cedar-market-aisle-loop",
+      "draftAngle": "Invite the recipient to inspect a labeled exact-site hosted review, then ask what site or workflow would make the review more relevant.",
+      "cta": "Inspect the review, then name the more relevant site or workflow.",
+      "landingPage": "/sample-evaluation",
+      "objectionPlan": "If they say the sample is not their site, ask for the exact workflow to capture next and keep the sample labeled as representative proof shape.",
+      "reviewFlags": [
+        "public/general inbox; expect routing friction"
+      ],
+      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -27,12 +56,27 @@
       "targetId": "gtm-002-braincorp-retail-service-review",
       "organizationName": "Brain Corp",
       "recipientEmail": "support@braincorporation.com",
+      "recipientRole": "Support services public inbox",
       "recipientEvidenceSource": "Fetched Brain Corp legal/contact page lists support@braincorporation.com for questions about terms or services.",
+      "recipientEvidenceType": "human_supplied",
       "track": "proof_ready_outreach",
       "buyerSegment": "Retail and commercial service robotics team",
       "workflowNeed": "Review a public-facing store route as a proxy for commercial-service robot perception and operations questions.",
+      "intentSignals": [
+        "Company publicly presents autonomous robots for commercial spaces including retail environments."
+      ],
       "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
       "artifactPath": "client/public/samples/sample-hosted-review-report.md",
+      "hostedReviewPath": "/sample-evaluation",
+      "siteWorldId": "sample-public-capture-cedar-market-aisle-loop",
+      "draftAngle": "Invite the recipient to inspect a labeled exact-site hosted review, then ask what site or workflow would make the review more relevant.",
+      "cta": "Inspect the review, then name the more relevant site or workflow.",
+      "landingPage": "/sample-evaluation",
+      "objectionPlan": "If they say the sample is not their site, ask for the exact workflow to capture next and keep the sample labeled as representative proof shape.",
+      "reviewFlags": [
+        "public/general inbox; expect routing friction"
+      ],
+      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -41,12 +85,27 @@
       "targetId": "gtm-003-agility-warehouse-humanoid",
       "organizationName": "Agility Robotics",
       "recipientEmail": "sales@agilityrobotics.com",
+      "recipientRole": "Enterprise customer sales public inbox",
       "recipientEvidenceSource": "Fetched Agility Robotics funding announcement says interested enterprise customers can reach out to sales@agilityrobotics.com.",
+      "recipientEvidenceType": "human_supplied",
       "track": "proof_ready_outreach",
       "buyerSegment": "Warehouse humanoid deployment team",
       "workflowNeed": "Identify which warehouse aisle, tote movement, or staging workflow would be most useful to capture for a hosted review.",
+      "intentSignals": [
+        "Company publicly positions Digit for logistics and warehouse work."
+      ],
       "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
       "artifactPath": "client/public/samples/sample-warehouse-amr-hosted-review-report.md",
+      "hostedReviewPath": "/sample-evaluation?workflow=warehouse-amr",
+      "siteWorldId": "sample-warehouse-tote-pick-lane",
+      "draftAngle": "Invite the recipient to inspect a labeled exact-site hosted review, then ask what site or workflow would make the review more relevant.",
+      "cta": "Inspect the review, then name the more relevant site or workflow.",
+      "landingPage": "/sample-evaluation?workflow=warehouse-amr",
+      "objectionPlan": "If they say the sample is not their site, ask for the exact workflow to capture next and keep the sample labeled as representative proof shape.",
+      "reviewFlags": [
+        "public/general inbox; expect routing friction"
+      ],
+      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -55,12 +114,29 @@
       "targetId": "gtm-004-boston-dynamics-stretch-warehouse",
       "organizationName": "Boston Dynamics",
       "recipientEmail": "sales@bostondynamics.com",
+      "recipientRole": "Stretch sales public inbox",
       "recipientEvidenceSource": "Fetched Boston Dynamics Stretch security PDF lists Contact: sales@bostondynamics.com.",
+      "recipientEvidenceType": "human_supplied",
       "track": "demand_sourced_capture",
       "buyerSegment": "Warehouse case-handling robotics team",
       "workflowNeed": "Identify a trailer, dock, pallet, or case-handling site workflow worth capturing for review.",
+      "intentSignals": [
+        "Company publicly sells Stretch for warehouse case handling and unloading workflows."
+      ],
       "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
       "artifactPath": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
+      "hostedReviewPath": null,
+      "siteWorldId": null,
+      "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
+      "cta": "Name the site or workflow worth capturing first.",
+      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
+      "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
+      "reviewFlags": [
+        "capture ask only; no hosted-review claim",
+        "artifact is a draft opportunity brief",
+        "public/general inbox; expect routing friction"
+      ],
+      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -69,12 +145,29 @@
       "targetId": "gtm-005-locus-fulfillment-amr",
       "organizationName": "Locus Robotics",
       "recipientEmail": "info@locusrobotics.com",
+      "recipientRole": "General public inbox",
       "recipientEvidenceSource": "Fetched Locus Robotics Origin product sheet lists info@LocusRobotics.com.",
+      "recipientEvidenceType": "human_supplied",
       "track": "demand_sourced_capture",
       "buyerSegment": "Fulfillment AMR deployment team",
       "workflowNeed": "Identify a pick aisle, induction, replenishment, or returns workflow worth capturing for hosted review.",
+      "intentSignals": [
+        "Company publicly positions autonomous mobile robots for warehouse fulfillment workflows."
+      ],
       "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
       "artifactPath": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
+      "hostedReviewPath": null,
+      "siteWorldId": null,
+      "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
+      "cta": "Name the site or workflow worth capturing first.",
+      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
+      "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
+      "reviewFlags": [
+        "capture ask only; no hosted-review claim",
+        "artifact is a draft opportunity brief",
+        "public/general inbox; expect routing friction"
+      ],
+      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -83,12 +176,29 @@
       "targetId": "gtm-006-seegrid-warehouse-amr",
       "organizationName": "Seegrid",
       "recipientEmail": "sales@seegrid.com",
+      "recipientRole": "Sales public inbox",
       "recipientEvidenceSource": "Fetched Seegrid corporate sales asset lists Email Sales as sales@seegrid.com.",
+      "recipientEvidenceType": "human_supplied",
       "track": "demand_sourced_capture",
       "buyerSegment": "Autonomous industrial vehicle team",
       "workflowNeed": "Identify a material-movement route, staging lane, or dock-to-line workflow for exact-site review.",
+      "intentSignals": [
+        "Company publicly sells autonomous mobile robots for material handling in manufacturing, warehousing, and logistics."
+      ],
       "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
       "artifactPath": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
+      "hostedReviewPath": null,
+      "siteWorldId": null,
+      "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
+      "cta": "Name the site or workflow worth capturing first.",
+      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
+      "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
+      "reviewFlags": [
+        "capture ask only; no hosted-review claim",
+        "artifact is a draft opportunity brief",
+        "public/general inbox; expect routing friction"
+      ],
+      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -97,12 +207,29 @@
       "targetId": "gtm-007-vecna-robotics-warehouse-orchestration",
       "organizationName": "Vecna Robotics",
       "recipientEmail": "team@vecnarobotics.com",
+      "recipientRole": "Team public inbox",
       "recipientEvidenceSource": "Fetched Vecna Robotics autonomous forklift resource says interested teams can reach Vecna by emailing team@vecnarobotics.com.",
+      "recipientEvidenceType": "human_supplied",
       "track": "demand_sourced_capture",
       "buyerSegment": "Warehouse automation and orchestration team",
       "workflowNeed": "Identify a warehouse route or fleet-coordination site that would benefit from capture-backed review.",
+      "intentSignals": [
+        "Company publicly presents autonomous material-handling and workflow orchestration products."
+      ],
       "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
       "artifactPath": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
+      "hostedReviewPath": null,
+      "siteWorldId": null,
+      "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
+      "cta": "Name the site or workflow worth capturing first.",
+      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
+      "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
+      "reviewFlags": [
+        "capture ask only; no hosted-review claim",
+        "artifact is a draft opportunity brief",
+        "public/general inbox; expect routing friction"
+      ],
+      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -111,12 +238,29 @@
       "targetId": "gtm-008-fox-robotics-forklift-dock",
       "organizationName": "Fox Robotics",
       "recipientEmail": "sales@foxrobotics.com",
+      "recipientRole": "Sales public inbox",
       "recipientEvidenceSource": "Fetched Fox Robotics ATL one-pager lists CONTACT SALES: sales@foxrobotics.com.",
+      "recipientEvidenceType": "human_supplied",
       "track": "demand_sourced_capture",
       "buyerSegment": "Autonomous forklift deployment team",
       "workflowNeed": "Identify a dock, trailer, or pallet movement workflow worth capturing for hosted review.",
+      "intentSignals": [
+        "Company publicly presents autonomous forklifts for warehouse and logistics workflows."
+      ],
       "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
       "artifactPath": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
+      "hostedReviewPath": null,
+      "siteWorldId": null,
+      "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
+      "cta": "Name the site or workflow worth capturing first.",
+      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
+      "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
+      "reviewFlags": [
+        "capture ask only; no hosted-review claim",
+        "artifact is a draft opportunity brief",
+        "public/general inbox; expect routing friction"
+      ],
+      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -125,12 +269,29 @@
       "targetId": "gtm-009-diligent-healthcare-service-route",
       "organizationName": "Diligent Robotics",
       "recipientEmail": "info@diligentrobots.com",
+      "recipientRole": "Company contact inbox from published company profile",
       "recipientEvidenceSource": "Fetched Crunchbase company profile lists Contact Email info@diligentrobots.com for Diligent Robotics.",
+      "recipientEvidenceType": "human_supplied",
       "track": "demand_sourced_capture",
       "buyerSegment": "Healthcare service robot deployment team",
       "workflowNeed": "Identify a hospital supply, hallway, or nursing-unit support route suitable for a privacy-safe hosted review.",
+      "intentSignals": [
+        "Company publicly presents Moxi as a healthcare support robot working in hospital environments."
+      ],
       "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
       "artifactPath": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
+      "hostedReviewPath": null,
+      "siteWorldId": null,
+      "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
+      "cta": "Name the site or workflow worth capturing first.",
+      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
+      "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
+      "reviewFlags": [
+        "capture ask only; no hosted-review claim",
+        "artifact is a draft opportunity brief",
+        "public/general inbox; expect routing friction"
+      ],
+      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -139,12 +300,29 @@
       "targetId": "gtm-010-gecko-industrial-inspection",
       "organizationName": "Gecko Robotics",
       "recipientEmail": "info@geckorobotics.com",
+      "recipientRole": "General public inbox",
       "recipientEvidenceSource": "Fetched Gecko Robotics contact page lists info@geckorobotics.com.",
+      "recipientEvidenceType": "human_supplied",
       "track": "demand_sourced_capture",
       "buyerSegment": "Industrial inspection robotics team",
       "workflowNeed": "Identify an industrial inspection route or facility type where capture-backed hosted review would answer a site-planning question.",
+      "intentSignals": [
+        "Company publicly describes robotics and software for industrial asset inspection."
+      ],
       "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
       "artifactPath": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
+      "hostedReviewPath": null,
+      "siteWorldId": null,
+      "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
+      "cta": "Name the site or workflow worth capturing first.",
+      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
+      "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
+      "reviewFlags": [
+        "capture ask only; no hosted-review claim",
+        "artifact is a draft opportunity brief",
+        "public/general inbox; expect routing friction"
+      ],
+      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -153,12 +331,29 @@
       "targetId": "gtm-011-anybotics-industrial-inspection",
       "organizationName": "ANYbotics",
       "recipientEmail": "info@anybotics.com",
+      "recipientRole": "General public inbox",
       "recipientEvidenceSource": "Fetched ANYbotics specifications sheet says contact ANYbotics via info@anybotics.com.",
+      "recipientEvidenceType": "human_supplied",
       "track": "demand_sourced_capture",
       "buyerSegment": "Autonomous industrial inspection team",
       "workflowNeed": "Identify an industrial inspection route where a hosted site review would reduce field-planning uncertainty.",
+      "intentSignals": [
+        "Company publicly positions ANYmal for autonomous inspection in industrial environments."
+      ],
       "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
       "artifactPath": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
+      "hostedReviewPath": null,
+      "siteWorldId": null,
+      "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
+      "cta": "Name the site or workflow worth capturing first.",
+      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
+      "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
+      "reviewFlags": [
+        "capture ask only; no hosted-review claim",
+        "artifact is a draft opportunity brief",
+        "public/general inbox; expect routing friction"
+      ],
+      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -167,12 +362,29 @@
       "targetId": "gtm-012-outrider-yard-automation",
       "organizationName": "Outrider",
       "recipientEmail": "info@outrider.ai",
+      "recipientRole": "Media, analyst, speaking, and commercial-use public inbox",
       "recipientEvidenceSource": "Fetched Outrider press page lists info@outrider.ai for media, analyst, speaking inquiries and commercial use.",
+      "recipientEvidenceType": "human_supplied",
       "track": "demand_sourced_capture",
       "buyerSegment": "Autonomous yard operations team",
       "workflowNeed": "Identify a yard, trailer movement, or distribution-center route where capture-backed hosted review could answer a planning question.",
+      "intentSignals": [
+        "Company publicly positions autonomous yard operations for logistics facilities."
+      ],
       "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
       "artifactPath": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
+      "hostedReviewPath": null,
+      "siteWorldId": null,
+      "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
+      "cta": "Name the site or workflow worth capturing first.",
+      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
+      "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
+      "reviewFlags": [
+        "capture ask only; no hosted-review claim",
+        "artifact is a draft opportunity brief",
+        "public/general inbox; expect routing friction"
+      ],
+      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -181,12 +393,29 @@
       "targetId": "gtm-covariant-identify-a-bin-picking-induction-or-item-handling-workflow-worth-capturi",
       "organizationName": "Covariant",
       "recipientEmail": "info@covariant.ai",
+      "recipientRole": "General inquiries public inbox",
       "recipientEvidenceSource": "Fetched Covariant contact page lists general inquiries at info@covariant.ai.",
+      "recipientEvidenceType": "human_supplied",
       "track": "demand_sourced_capture",
       "buyerSegment": "Warehouse AI robotics team",
       "workflowNeed": "Identify a bin-picking, induction, or item-handling workflow worth capturing for hosted review.",
+      "intentSignals": [
+        "Company publicly positions AI robotics for warehouse item handling and picking workflows."
+      ],
       "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
       "artifactPath": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
+      "hostedReviewPath": null,
+      "siteWorldId": null,
+      "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
+      "cta": "Name the site or workflow worth capturing first.",
+      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
+      "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
+      "reviewFlags": [
+        "capture ask only; no hosted-review claim",
+        "artifact is a draft opportunity brief",
+        "public/general inbox; expect routing friction"
+      ],
+      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -195,12 +424,28 @@
       "targetId": "gtm-autostore-identify-a-goods-to-person-port-or-tote-flow-workflow-worth-capturing-fo",
       "organizationName": "AutoStore",
       "recipientEmail": "goro.shiraishi@autostoresystem.com",
+      "recipientRole": "Business Development Director public directory contact",
       "recipientEvidenceSource": "Fetched AutoStore contact directory lists Goro Shiraishi, Business Development Director, with goro.shiraishi@autostoresystem.com.",
+      "recipientEvidenceType": "human_supplied",
       "track": "demand_sourced_capture",
       "buyerSegment": "Cube storage and fulfillment automation team",
       "workflowNeed": "Identify a goods-to-person, port, or tote-flow workflow worth capturing for hosted review.",
+      "intentSignals": [
+        "Company publicly sells cube storage and goods-to-person automation for fulfillment workflows."
+      ],
       "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
       "artifactPath": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
+      "hostedReviewPath": null,
+      "siteWorldId": null,
+      "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
+      "cta": "Name the site or workflow worth capturing first.",
+      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
+      "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
+      "reviewFlags": [
+        "capture ask only; no hosted-review claim",
+        "artifact is a draft opportunity brief"
+      ],
+      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -209,12 +454,29 @@
       "targetId": "gtm-greyorange-identify-a-fulfillment-picking-or-sortation-workflow-worth-capturing-for",
       "organizationName": "GreyOrange",
       "recipientEmail": "sales.usa@greyorange.com",
+      "recipientRole": "U.S. sales public inbox",
       "recipientEvidenceSource": "Fetched GreyOrange Next-Generation Warehouse whitepaper lists E: sales.usa@greyorange.com for contacting a GreyOrange representative.",
+      "recipientEvidenceType": "human_supplied",
       "track": "demand_sourced_capture",
       "buyerSegment": "Fulfillment orchestration robotics team",
       "workflowNeed": "Identify a fulfillment, picking, or sortation workflow worth capturing for exact-site review.",
+      "intentSignals": [
+        "Company publicly positions fulfillment orchestration and warehouse automation workflows."
+      ],
       "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
       "artifactPath": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
+      "hostedReviewPath": null,
+      "siteWorldId": null,
+      "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
+      "cta": "Name the site or workflow worth capturing first.",
+      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
+      "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
+      "reviewFlags": [
+        "capture ask only; no hosted-review claim",
+        "artifact is a draft opportunity brief",
+        "public/general inbox; expect routing friction"
+      ],
+      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -223,12 +485,29 @@
       "targetId": "gtm-exotec-identify-a-goods-to-person-picking-or-storage-workflow-worth-capturing-f",
       "organizationName": "Exotec",
       "recipientEmail": "contact@exotec.com",
+      "recipientRole": "Company public contact inbox",
       "recipientEvidenceSource": "Fetched Exotec Impressum lists E-Mail: contact@exotec.com.",
+      "recipientEvidenceType": "human_supplied",
       "track": "demand_sourced_capture",
       "buyerSegment": "Skypod warehouse robotics team",
       "workflowNeed": "Identify a goods-to-person picking or storage workflow worth capturing for hosted review.",
+      "intentSignals": [
+        "Company publicly sells Skypod warehouse robotics for order preparation and fulfillment."
+      ],
       "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
       "artifactPath": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
+      "hostedReviewPath": null,
+      "siteWorldId": null,
+      "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
+      "cta": "Name the site or workflow worth capturing first.",
+      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
+      "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
+      "reviewFlags": [
+        "capture ask only; no hosted-review claim",
+        "artifact is a draft opportunity brief",
+        "public/general inbox; expect routing friction"
+      ],
+      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -237,12 +516,29 @@
       "targetId": "gtm-symbotic-identify-a-case-handling-palletizing-or-distribution-center-workflow-wor",
       "organizationName": "Symbotic",
       "recipientEmail": "info@symbotic.com",
+      "recipientRole": "Published company-profile contact inbox",
       "recipientEvidenceSource": "Fetched Crunchbase company profile lists Contact Email info@symbotic.com for Symbotic.",
+      "recipientEvidenceType": "human_supplied",
       "track": "demand_sourced_capture",
       "buyerSegment": "Warehouse automation systems team",
       "workflowNeed": "Identify a case-handling, palletizing, or distribution-center workflow worth capturing for hosted review.",
+      "intentSignals": [
+        "Company publicly describes AI-powered warehouse automation for supply-chain operations."
+      ],
       "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
       "artifactPath": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
+      "hostedReviewPath": null,
+      "siteWorldId": null,
+      "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
+      "cta": "Name the site or workflow worth capturing first.",
+      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
+      "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
+      "reviewFlags": [
+        "capture ask only; no hosted-review claim",
+        "artifact is a draft opportunity brief",
+        "public/general inbox; expect routing friction"
+      ],
+      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -251,12 +547,28 @@
       "targetId": "gtm-ocado-technology-identify-an-online-grocery-fulfillment-or-robotic-picking-workflow-worth",
       "organizationName": "Ocado Technology",
       "recipientEmail": "ocadosolutionscomms@ocado.com",
+      "recipientRole": "Ocado Smart Platform contact inbox",
       "recipientEvidenceSource": "Fetched Ocado Group media contact page lists Ocado Smart Platform contacts as ocadosolutionscomms@ocado.com.",
+      "recipientEvidenceType": "human_supplied",
       "track": "demand_sourced_capture",
       "buyerSegment": "Grocery fulfillment robotics team",
       "workflowNeed": "Identify an online grocery fulfillment or robotic picking workflow worth capturing for hosted review.",
+      "intentSignals": [
+        "Company publicly presents robotics and automation for online grocery fulfillment."
+      ],
       "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
       "artifactPath": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
+      "hostedReviewPath": null,
+      "siteWorldId": null,
+      "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
+      "cta": "Name the site or workflow worth capturing first.",
+      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
+      "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
+      "reviewFlags": [
+        "capture ask only; no hosted-review claim",
+        "artifact is a draft opportunity brief"
+      ],
+      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -265,12 +577,29 @@
       "targetId": "gtm-berkshire-grey-identify-a-package-handling-sortation-or-fulfillment-workflow-worth-capt",
       "organizationName": "Berkshire Grey",
       "recipientEmail": "sales_inquiry@berkshiregrey.com",
+      "recipientRole": "Sales inquiry public inbox",
       "recipientEvidenceSource": "Fetched Berkshire Grey company fact sheet lists CONTACT sales_inquiry@berkshiregrey.com.",
+      "recipientEvidenceType": "human_supplied",
       "track": "demand_sourced_capture",
       "buyerSegment": "Robotic package handling team",
       "workflowNeed": "Identify a package handling, sortation, or fulfillment workflow worth capturing for hosted review.",
+      "intentSignals": [
+        "Company publicly positions robotic automation for package handling and fulfillment operations."
+      ],
       "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
       "artifactPath": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
+      "hostedReviewPath": null,
+      "siteWorldId": null,
+      "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
+      "cta": "Name the site or workflow worth capturing first.",
+      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
+      "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
+      "reviewFlags": [
+        "capture ask only; no hosted-review claim",
+        "artifact is a draft opportunity brief",
+        "public/general inbox; expect routing friction"
+      ],
+      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -279,12 +608,29 @@
       "targetId": "gtm-righthand-robotics-identify-a-piece-picking-or-order-fulfillment-cell-worth-capturing-for-e",
       "organizationName": "RightHand Robotics",
       "recipientEmail": "info@righthandrobotics.com",
+      "recipientRole": "North America public inbox",
       "recipientEvidenceSource": "Fetched RightHand Robotics contact page lists North America contact info@righthandrobotics.com.",
+      "recipientEvidenceType": "human_supplied",
       "track": "demand_sourced_capture",
       "buyerSegment": "Piece-picking robotics team",
       "workflowNeed": "Identify a piece-picking or order-fulfillment cell worth capturing for exact-site review.",
+      "intentSignals": [
+        "Company publicly sells robotic piece-picking systems for order fulfillment."
+      ],
       "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
       "artifactPath": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
+      "hostedReviewPath": null,
+      "siteWorldId": null,
+      "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
+      "cta": "Name the site or workflow worth capturing first.",
+      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
+      "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
+      "reviewFlags": [
+        "capture ask only; no hosted-review claim",
+        "artifact is a draft opportunity brief",
+        "public/general inbox; expect routing friction"
+      ],
+      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -293,12 +639,29 @@
       "targetId": "gtm-mujin-identify-a-depalletizing-truck-unloading-or-material-handling-workflow-w",
       "organizationName": "Mujin",
       "recipientEmail": "info@mujin-corp.com",
+      "recipientRole": "Americas public inbox",
       "recipientEvidenceSource": "Fetched Mujin contact page lists Email: info@mujin-corp.com for the Americas/U.S. headquarters contact block.",
+      "recipientEvidenceType": "human_supplied",
       "track": "demand_sourced_capture",
       "buyerSegment": "Industrial robotics and truck unloading team",
       "workflowNeed": "Identify a depalletizing, truck-unloading, or material-handling workflow worth capturing for hosted review.",
+      "intentSignals": [
+        "Company publicly presents intelligent robot controllers and logistics automation workflows."
+      ],
       "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
       "artifactPath": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
+      "hostedReviewPath": null,
+      "siteWorldId": null,
+      "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
+      "cta": "Name the site or workflow worth capturing first.",
+      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
+      "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
+      "reviewFlags": [
+        "capture ask only; no hosted-review claim",
+        "artifact is a draft opportunity brief",
+        "public/general inbox; expect routing friction"
+      ],
+      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -307,12 +670,29 @@
       "targetId": "gtm-dexterity-identify-a-truck-loading-palletizing-or-warehouse-manipulation-workflow-",
       "organizationName": "Dexterity",
       "recipientEmail": "contact@dexterity.ai",
+      "recipientRole": "Company public contact inbox",
       "recipientEvidenceSource": "Fetched Dexterity contact page lists Email contact@dexterity.ai.",
+      "recipientEvidenceType": "human_supplied",
       "track": "demand_sourced_capture",
       "buyerSegment": "Warehouse manipulation robotics team",
       "workflowNeed": "Identify a truck-loading, palletizing, or warehouse manipulation workflow worth capturing for hosted review.",
+      "intentSignals": [
+        "Company publicly positions robots for warehouse loading and manipulation tasks."
+      ],
       "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
       "artifactPath": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
+      "hostedReviewPath": null,
+      "siteWorldId": null,
+      "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
+      "cta": "Name the site or workflow worth capturing first.",
+      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
+      "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
+      "reviewFlags": [
+        "capture ask only; no hosted-review claim",
+        "artifact is a draft opportunity brief",
+        "public/general inbox; expect routing friction"
+      ],
+      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -321,12 +701,29 @@
       "targetId": "gtm-robust-ai-identify-a-warehouse-cart-tote-or-collaborative-material-movement-workfl",
       "organizationName": "Robust.AI",
       "recipientEmail": "contact@robust.ai",
+      "recipientRole": "Company public contact inbox",
       "recipientEvidenceSource": "Fetched Robust.AI terms page lists contact@robust.ai for company questions about the service.",
+      "recipientEvidenceType": "human_supplied",
       "track": "demand_sourced_capture",
       "buyerSegment": "Collaborative mobile robotics team",
       "workflowNeed": "Identify a warehouse cart, tote, or collaborative material-movement workflow worth capturing for hosted review.",
+      "intentSignals": [
+        "Company publicly positions Carter and collaborative mobile robots for warehouse operations."
+      ],
       "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
       "artifactPath": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
+      "hostedReviewPath": null,
+      "siteWorldId": null,
+      "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
+      "cta": "Name the site or workflow worth capturing first.",
+      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
+      "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
+      "reviewFlags": [
+        "capture ask only; no hosted-review claim",
+        "artifact is a draft opportunity brief",
+        "public/general inbox; expect routing friction"
+      ],
+      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -335,12 +732,29 @@
       "targetId": "gtm-zebra-robotics-automation-identify-a-picking-replenishment-or-fulfillment-amr-workflow-worth-captu",
       "organizationName": "Zebra Robotics Automation",
       "recipientEmail": "contact.emea@zebra.com",
+      "recipientRole": "Robotics and automation specialists public inbox",
       "recipientEvidenceSource": "Fetched Zebra OEM Robotics and Automation application brief says to contact the specialist team at contact.emea@zebra.com.",
+      "recipientEvidenceType": "human_supplied",
       "track": "demand_sourced_capture",
       "buyerSegment": "Warehouse AMR automation team",
       "workflowNeed": "Identify a picking, replenishment, or fulfillment AMR workflow worth capturing for hosted review.",
+      "intentSignals": [
+        "Zebra publicly offers robotics automation for warehouse and fulfillment operations."
+      ],
       "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
       "artifactPath": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
+      "hostedReviewPath": null,
+      "siteWorldId": null,
+      "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
+      "cta": "Name the site or workflow worth capturing first.",
+      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
+      "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
+      "reviewFlags": [
+        "capture ask only; no hosted-review claim",
+        "artifact is a draft opportunity brief",
+        "public/general inbox; expect routing friction"
+      ],
+      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -349,12 +763,29 @@
       "targetId": "gtm-skydio-identify-an-industrial-inspection-route-or-facility-workflow-worth-captu",
       "organizationName": "Skydio",
       "recipientEmail": "sales@skydio.com",
+      "recipientRole": "Enterprise sales public inbox",
       "recipientEvidenceSource": "Fetched Skydio 2/2+ FAQ says enterprise customers should contact sales@skydio.com to learn more.",
+      "recipientEvidenceType": "human_supplied",
       "track": "demand_sourced_capture",
       "buyerSegment": "Autonomous inspection drone team",
       "workflowNeed": "Identify an industrial inspection route or facility workflow worth capturing for hosted review.",
+      "intentSignals": [
+        "Company publicly presents autonomous drones for inspection and enterprise operations."
+      ],
       "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
       "artifactPath": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
+      "hostedReviewPath": null,
+      "siteWorldId": null,
+      "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
+      "cta": "Name the site or workflow worth capturing first.",
+      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
+      "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
+      "reviewFlags": [
+        "capture ask only; no hosted-review claim",
+        "artifact is a draft opportunity brief",
+        "public/general inbox; expect routing friction"
+      ],
+      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -363,12 +794,29 @@
       "targetId": "gtm-zipline-identify-a-loading-dispatch-or-delivery-operations-workflow-worth-captur",
       "organizationName": "Zipline",
       "recipientEmail": "community@flyzipline.com",
+      "recipientRole": "Community and stakeholder public inbox",
       "recipientEvidenceSource": "Fetched Zipline cities information page asks residents and stakeholders to reach out at community@flyzipline.com.",
+      "recipientEvidenceType": "human_supplied",
       "track": "demand_sourced_capture",
       "buyerSegment": "Autonomous delivery operations team",
       "workflowNeed": "Identify a loading, dispatch, or delivery operations workflow worth capturing for hosted review.",
+      "intentSignals": [
+        "Company publicly operates autonomous delivery systems with logistics and dispatch workflows."
+      ],
       "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
       "artifactPath": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
+      "hostedReviewPath": null,
+      "siteWorldId": null,
+      "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
+      "cta": "Name the site or workflow worth capturing first.",
+      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
+      "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
+      "reviewFlags": [
+        "capture ask only; no hosted-review claim",
+        "artifact is a draft opportunity brief",
+        "public/general inbox; expect routing friction"
+      ],
+      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -377,12 +825,29 @@
       "targetId": "gtm-serve-robotics-identify-a-restaurant-handoff-sidewalk-route-or-curbside-delivery-workfl",
       "organizationName": "Serve Robotics",
       "recipientEmail": "contact@serverobotics.com",
+      "recipientRole": "Serve Advertising public contact inbox",
       "recipientEvidenceSource": "Fetched Serve Advertising page lists contact@serverobotics.com in the contact form for Serve robot advertising inquiries.",
+      "recipientEvidenceType": "human_supplied",
       "track": "demand_sourced_capture",
       "buyerSegment": "Sidewalk delivery robotics team",
       "workflowNeed": "Identify a restaurant handoff, sidewalk route, or curbside delivery workflow worth capturing for hosted review.",
+      "intentSignals": [
+        "Company publicly presents autonomous sidewalk delivery robots for last-mile delivery."
+      ],
       "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
       "artifactPath": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
+      "hostedReviewPath": null,
+      "siteWorldId": null,
+      "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
+      "cta": "Name the site or workflow worth capturing first.",
+      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
+      "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
+      "reviewFlags": [
+        "capture ask only; no hosted-review claim",
+        "artifact is a draft opportunity brief",
+        "public/general inbox; expect routing friction"
+      ],
+      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -391,12 +856,29 @@
       "targetId": "gtm-nuro-identify-a-curbside-pickup-delivery-staging-or-goods-handoff-workflow-wo",
       "organizationName": "Nuro",
       "recipientEmail": "feedback@nuro.ai",
+      "recipientRole": "Community feedback public inbox",
       "recipientEvidenceSource": "Fetched Nuro legal page says members of the community can contact Nuro directly with feedback by emailing feedback@nuro.ai.",
+      "recipientEvidenceType": "human_supplied",
       "track": "demand_sourced_capture",
       "buyerSegment": "Autonomous goods delivery team",
       "workflowNeed": "Identify a curbside pickup, delivery staging, or goods handoff workflow worth capturing for hosted review.",
+      "intentSignals": [
+        "Company publicly develops autonomous delivery vehicles for goods movement."
+      ],
       "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
       "artifactPath": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
+      "hostedReviewPath": null,
+      "siteWorldId": null,
+      "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
+      "cta": "Name the site or workflow worth capturing first.",
+      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
+      "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
+      "reviewFlags": [
+        "capture ask only; no hosted-review claim",
+        "artifact is a draft opportunity brief",
+        "public/general inbox; expect routing friction"
+      ],
+      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -405,12 +887,29 @@
       "targetId": "gtm-starship-technologies-identify-a-campus-retail-or-sidewalk-delivery-workflow-worth-capturing-f",
       "organizationName": "Starship Technologies",
       "recipientEmail": "business@starship.co",
+      "recipientRole": "Delivery by Starship business integration public inbox",
       "recipientEvidenceSource": "Fetched Starship FAQ says businesses interested in Delivery by Starship can contact business@starship.co for more information.",
+      "recipientEvidenceType": "human_supplied",
       "track": "demand_sourced_capture",
       "buyerSegment": "Autonomous sidewalk delivery team",
       "workflowNeed": "Identify a campus, retail, or sidewalk-delivery workflow worth capturing for hosted review.",
+      "intentSignals": [
+        "Company publicly operates autonomous delivery robots on campuses and local delivery routes."
+      ],
       "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
       "artifactPath": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
+      "hostedReviewPath": null,
+      "siteWorldId": null,
+      "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
+      "cta": "Name the site or workflow worth capturing first.",
+      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
+      "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
+      "reviewFlags": [
+        "capture ask only; no hosted-review claim",
+        "artifact is a draft opportunity brief",
+        "public/general inbox; expect routing friction"
+      ],
+      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -419,12 +918,29 @@
       "targetId": "gtm-knightscope-identify-a-patrol-route-lobby-parking-or-facility-security-workflow-wort",
       "organizationName": "Knightscope",
       "recipientEmail": "contact@knightscope.com",
+      "recipientRole": "Authorized partner program public inbox",
       "recipientEvidenceSource": "Fetched Knightscope partner-program press release says those interested in becoming a KAP are encouraged to email contact@knightscope.com.",
+      "recipientEvidenceType": "human_supplied",
       "track": "demand_sourced_capture",
       "buyerSegment": "Autonomous security robot team",
       "workflowNeed": "Identify a patrol route, lobby, parking, or facility security workflow worth capturing for hosted review.",
+      "intentSignals": [
+        "Company publicly sells autonomous security robots for patrol and facility monitoring workflows."
+      ],
       "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
       "artifactPath": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
+      "hostedReviewPath": null,
+      "siteWorldId": null,
+      "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
+      "cta": "Name the site or workflow worth capturing first.",
+      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
+      "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
+      "reviewFlags": [
+        "capture ask only; no hosted-review claim",
+        "artifact is a draft opportunity brief",
+        "public/general inbox; expect routing friction"
+      ],
+      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null

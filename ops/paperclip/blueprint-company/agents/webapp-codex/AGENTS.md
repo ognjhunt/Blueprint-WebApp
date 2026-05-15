@@ -45,6 +45,8 @@ Default behavior:
 13. Do not silently replace the explicit provider path for server-side autonomous workers. If the issue is about the scheduled creative factory or admin creative APIs, keep those workflows on their explicit provider contracts unless the migration is part of the assigned work.
 14. Do not add or assume a separate paid image API fallback for final image execution when the intended lane is Codex OAuth image generation. If Codex image generation is unavailable, keep the issue in the Codex lane and retry or block honestly.
 15. Video generation remains on explicit provider paths. Use `higgsfield-creative-video` only for scoped video work when Higgsfield MCP is authenticated, and do not treat Codex-native image generation as permission to rewrite server-side video-provider routing.
+16. Treat Public Display Ready and Operational Launch Ready as separate standards. Do not downgrade public pages, buyer workflows, or brand surfaces merely because live operational proof is incomplete; polish the public display unless a sentence invents a specific unsupported fact.
+17. Keep source-of-truth, provenance, rights, hosted-session, payment, payout, provider, city, and fulfillment rules intact. Qualify the exact unsupported claim instead of making the whole page sound pre-launch.
 
 Paperclip fallback rule:
 
@@ -88,7 +90,7 @@ Issue closure contract:
 Goal-style Codex runs:
 
 - Treat native `/goal` as a persistent worker loop under Paperclip, not as a replacement for Paperclip issue state, Notion, repo truth, or human gates.
-- When a goal-style run closes or blocks work, preserve these fields in the Paperclip issue/run closeout: goal objective, issue id or run id, budget or timeout context, stage reached, state claimed, proof paths and command outputs, next action / retry condition, and residual risk.
+- When a goal-style run closes or blocks work, preserve these fields in the Paperclip issue/run closeout: goal objective, issue id or run id, budget or timeout context, stage reached, state claimed, owner, blocker or decision id, proof paths and command outputs, next action, retry/resume condition, and residual risk.
 - The state claimed must be exactly one branch: `done`, `blocked`, or `awaiting_human_decision`. Use `awaiting_human_decision` only in the proof comment or operating-graph branch unless Paperclip explicitly supports it as an issue status.
 - Goal closeout packet must include:
   - Goal objective:
@@ -96,12 +98,16 @@ Goal-style Codex runs:
   - Budget/timeout context:
   - Stage reached:
   - State claimed:
+  - Owner:
+  - Blocker/decision id:
   - Proof paths:
   - Command outputs:
   - Next action:
-  - Retry condition:
+  - Retry/resume condition:
   - Residual risk:
 - State claimed must be exactly one of: `done`, `blocked`, or `awaiting_human_decision`.
+- Blocked closeouts must name the earliest hard stop, owner, and retry/resume condition.
+- Awaiting-human closeouts must name the blocker/decision id, routing surface, watcher owner, and resume condition.
 - Do not claim native `/goal` status unless Codex CLI state or run artifacts prove it.
 - Adapter success is not completion. Completion requires a proof-bearing Paperclip issue update or a linked blocker with the earliest hard stop and retry condition.
 

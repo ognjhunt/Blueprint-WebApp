@@ -1,0 +1,19 @@
+[graphify pilot] staged corpus at /Users/nijelhunt_1/workspace/Blueprint-WebApp/derived/graphify/webapp-architecture/corpus
+[graphify pilot] manifest: /Users/nijelhunt_1/workspace/Blueprint-WebApp/derived/graphify/webapp-architecture/corpus.manifest.txt
+[graphify pilot] running staged AST pilot
+{
+  "status": "ok",
+  "output_dir": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/derived/graphify/webapp-architecture/corpus/graphify-out",
+  "total_files": 37,
+  "total_words": 67592,
+  "code_files": 29,
+  "document_files": 8,
+  "nodes": 224,
+  "edges": 396,
+  "communities": 16
+}
+[graphify pilot] published canonical outputs to /Users/nijelhunt_1/workspace/Blueprint-WebApp/graphify-out
+[graphify pilot] graph run complete
+[graphify pilot] outputs, if generated, are under /Users/nijelhunt_1/workspace/Blueprint-WebApp/derived/graphify/webapp-architecture/corpus/graphify-out
+
+EXIT_CODE=0

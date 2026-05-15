@@ -1,0 +1,71 @@
+[
+  {
+    "viewport": "desktop-after",
+    "route": "/pricing",
+    "file": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/playwright/brand-ux-qa-2026-05-15/desktop-after-pricing.png",
+    "h1": "Choose the first step for one real site.",
+    "issues": [
+      {
+        "type": "narrow-target",
+        "text": "Proof",
+        "rect": {
+          "width": 36,
+          "height": 26
+        }
+      }
+    ]
+  },
+  {
+    "viewport": "desktop-after",
+    "route": "/contact",
+    "file": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/playwright/brand-ux-qa-2026-05-15/desktop-after-contact.png",
+    "h1": "Request the site-specific world model your robot team needs.",
+    "issues": [
+      {
+        "type": "narrow-target",
+        "text": "Proof",
+        "rect": {
+          "width": 36,
+          "height": 26
+        }
+      }
+    ]
+  },
+  {
+    "viewport": "desktop-after",
+    "route": "/careers",
+    "file": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/playwright/brand-ux-qa-2026-05-15/desktop-after-careers.png",
+    "h1": "Build the systems behind exact-site world models.",
+    "issues": [
+      {
+        "type": "narrow-target",
+        "text": "Proof",
+        "rect": {
+          "width": 36,
+          "height": 26
+        }
+      }
+    ]
+  },
+  {
+    "viewport": "mobile-after",
+    "route": "/pricing",
+    "file": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/playwright/brand-ux-qa-2026-05-15/mobile-after-pricing.png",
+    "h1": "Choose the first step for one real site.",
+    "issues": []
+  },
+  {
+    "viewport": "mobile-after",
+    "route": "/contact",
+    "file": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/playwright/brand-ux-qa-2026-05-15/mobile-after-contact.png",
+    "h1": "Request the site-specific world model your robot team needs.",
+    "issues": []
+  },
+  {
+    "viewport": "mobile-after",
+    "route": "/careers",
+    "file": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/playwright/brand-ux-qa-2026-05-15/mobile-after-careers.png",
+    "h1": "Build the systems behind exact-site world models.",
+    "issues": []
+  }
+]

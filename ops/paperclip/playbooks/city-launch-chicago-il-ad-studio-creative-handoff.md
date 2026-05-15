@@ -18,5 +18,5 @@ Generated creative is marketing material, not ground truth.
 Generated images and videos cannot substitute for capture provenance, rights clearance, proof-pack delivery, hosted-review evidence, recipient-backed sends, or ad performance.
 
 ## Scorecard Linkage
-- gtm_contract: /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/autonomy-cert-city-7QV5px/chicago-il/2026-05-13T17-11-34.861Z/city-launch-chicago-il-gtm-72h-contract.md
-- checkpoint_manifest: /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/autonomy-cert-city-7QV5px/chicago-il/2026-05-13T17-11-34.861Z/city-launch-chicago-il-scorecard-windows.json
+- gtm_contract: /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/autonomy-cert-city-DRh9Bi/chicago-il/2026-05-15T01-49-01.550Z/city-launch-chicago-il-gtm-72h-contract.md
+- checkpoint_manifest: /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/autonomy-cert-city-DRh9Bi/chicago-il/2026-05-15T01-49-01.550Z/city-launch-chicago-il-scorecard-windows.json

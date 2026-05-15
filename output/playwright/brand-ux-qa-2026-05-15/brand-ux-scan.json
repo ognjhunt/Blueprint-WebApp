@@ -1,0 +1,699 @@
+[
+  {
+    "viewport": "desktop",
+    "route": "/",
+    "url": "http://127.0.0.1:5174/",
+    "screenshot": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/playwright/brand-ux-qa-2026-05-15/desktop-home.png",
+    "title": "Blueprint | Site-Specific World Models For Robot Training And Evaluation",
+    "bodyTextStart": "Blueprint\nProduct\nWorld models\nCapture\nProof\nPricing\nRequest world model\nEXACT-SITE WORLD MODELS\nHOSTED REVIEW\nSite-specific world models from real capture.\n\nStart with one real place and the robot task you need to prove. Capture source, rights, package scope, and hosted review stay tied together.\n\nRequest exact-site world\nBrowse world models\n\nROBOT-TEAM NEXT STEP\n\nStart here\n\nBrowse what exists, request what is missing, or ask for hosted review.\n\nCapture first. World-model product next. Review ",
+    "issues": [
+      {
+        "type": "small-target-first-screen",
+        "tag": "a",
+        "text": "Product",
+        "rect": {
+          "width": 53,
+          "height": 26,
+          "top": 25
+        }
+      },
+      {
+        "type": "small-target-first-screen",
+        "tag": "a",
+        "text": "World models",
+        "rect": {
+          "width": 91,
+          "height": 26,
+          "top": 25
+        }
+      },
+      {
+        "type": "small-target-first-screen",
+        "tag": "a",
+        "text": "Capture",
+        "rect": {
+          "width": 53,
+          "height": 26,
+          "top": 25
+        }
+      },
+      {
+        "type": "small-target-first-screen",
+        "tag": "a",
+        "text": "Proof",
+        "rect": {
+          "width": 36,
+          "height": 26,
+          "top": 25
+        }
+      },
+      {
+        "type": "small-target-first-screen",
+        "tag": "a",
+        "text": "Pricing",
+        "rect": {
+          "width": 46,
+          "height": 26,
+          "top": 25
+        }
+      },
+      {
+        "type": "small-target-first-screen",
+        "tag": "a",
+        "text": "Request world model",
+        "rect": {
+          "width": 171,
+          "height": 35,
+          "top": 21
+        }
+      }
+    ],
+    "hero": [
+      "Exact-site world modelsHosted reviewSite-specific world models from real capture.Start with one real place and the robot task you need to prove. Capture source, rights, package scope, and hosted review stay tied together.Request exact-site ",
+      "Site-specific world models from real capture.",
+      "Commercial productBlueprint sells exact-site products, not generic demos.Blueprint turns real capture into site-specific packages, hosted review paths, and buyer decisions tied to the same facility, route, and proof record.Request world mod",
+      "Real captureA walkthrough or site record starts the product. Provenance and limits stay attached.Site productBlueprint packages the capture into a site-specific world model, buyer listing, and export scope.Hosted evalA managed review path l",
+      "For robot teamsStart with the exact site your robot needs to understand.A buyer request should name the place, workflow, and robot question. Blueprint then keeps the capture-backed proof, package scope, and hosted path together.Request exac",
+      "Proof boundaryThe proof travels with the product.A polished sample is useful only when it stays honest. Blueprint labels public examples, keeps approved proof attached to the exact site, and gates hosted access until the request is reviewed",
+      "World-model catalogSample worlds show the package shape.Browse public examples to inspect the proof format, then request the exact facility or route your team needs when it is not already listed.Blueprint hosted review demoMedia Room Demo W",
+      "Why capture mattersExact-site capture turns vague simulation demand into a buyer-ready package.The useful details are local: aisle width, signage, occlusions, public access boundaries, restricted areas, and the robot task a team is actually"
+    ]
+  },
+  {
+    "viewport": "desktop",
+    "route": "/product",
+    "url": "http://127.0.0.1:5174/product",
+    "screenshot": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/playwright/brand-ux-qa-2026-05-15/desktop-product.png",
+    "title": "Product | Blueprint",
+    "bodyTextStart": "Blueprint\nProduct\nWorld models\nCapture\nProof\nPricing\nRequest world model\n\nBLUEPRINT PRODUCT\n\nTurn the exact site into a decision-ready world model.\n\nRequest one site, review the attached proof, and move toward hosted evaluation or package access only when the evidence supports it.\n\nCAPTURE-BACKED\nPROVIDER-SWAPPABLE\nHOSTED BUYER REVIEW\nRequest hosted evaluation\nBrowse world models\n\nPRODUCT FLOW\n\nrequest-gated\n01\n\nExact-site capture\n\nRecord the real route, timestamps, device context, capture notes",
+    "issues": [
+      {
+        "type": "small-target-first-screen",
+        "tag": "a",
+        "text": "Product",
+        "rect": {
+          "width": 53,
+          "height": 26,
+          "top": 25
+        }
+      },
+      {
+        "type": "small-target-first-screen",
+        "tag": "a",
+        "text": "World models",
+        "rect": {
+          "width": 91,
+          "height": 26,
+          "top": 25
+        }
+      },
+      {
+        "type": "small-target-first-screen",
+        "tag": "a",
+        "text": "Capture",
+        "rect": {
+          "width": 53,
+          "height": 26,
+          "top": 25
+        }
+      },
+      {
+        "type": "small-target-first-screen",
+        "tag": "a",
+        "text": "Proof",
+        "rect": {
+          "width": 36,
+          "height": 26,
+          "top": 25
+        }
+      },
+      {
+        "type": "small-target-first-screen",
+        "tag": "a",
+        "text": "Pricing",
+        "rect": {
+          "width": 46,
+          "height": 26,
+          "top": 25
+        }
+      },
+      {
+        "type": "small-target-first-screen",
+        "tag": "a",
+        "text": "Request world model",
+        "rect": {
+          "width": 171,
+          "height": 35,
+          "top": 21
+        }
+      }
+    ],
+    "hero": [
+      "Blueprint productTurn the exact site into a decision-ready world model.Request one site, review the attached proof, and move toward hosted evaluation or package access only when the evidence supports it.Capture-backedProvider-swappableHoste",
+      "Turn the exact site into a decision-ready world model.",
+      "Buyer workflowOne path from capture to decision.01Exact-site captureRecord the real route, timestamps, device context, capture notes, and access boundaries.02World model packagePackage the site into a provider-swappable product with manifes",
+      "Labeled sampleCedar Market Aisle LoopGrocery store public aisles. Representative product evidence, not a customer result.World model packageThe sellable product is the site package, not a detached demo.The package keeps capture proof, model",
+      "Hosted evaluationA buyer room for runs, limits, and next steps.Hosted evaluation is the review layer between a listing and a commercial commitment. It turns the package into evidence a robot team can act on.Open sample reportRunQuestionDeci",
+      "Proof boundaryCommercially confident, proof honest.Package previewmanifest/site_package_manifest.jsonrights/sample_rights_sheet.mdmedia/redacted_walkthrough_reference.mp4routes/public_aisle_loop_waypoints.jsonhosted/runs/run_01_observations",
+      "Next stepStart with one site, one workflow, and one decision.Inspect sample proof, then send the site your team needs packaged for hosted evaluation.Request hosted evaluationInspect sample proof"
+    ]
+  },
+  {
+    "viewport": "desktop",
+    "route": "/world-models",
+    "url": "http://127.0.0.1:5174/world-models",
+    "screenshot": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/playwright/brand-ux-qa-2026-05-15/desktop-world-models.png",
+    "title": "World Models | Blueprint",
+    "bodyTextStart": "Blueprint\nProduct\nWorld models\nCapture\nProof\nPricing\nRequest world model\nBrowse exact-site world models.\n\nInspect public samples, request-gated profiles, and planned catalog lanes with the proof boundary visible before you click.\n\nCAPTURE-BACKED CATALOG\nSAMPLE\nHOSTED REQUEST-GATED\nRequest world model\nBrowse catalog\n\nFEATURED SITES\n\nStart with a site, not an abstract demo.\n\nThe top row anchors the catalog: public sample proof, commercial exemplar framing, and planned profiles are separated before",
+    "issues": [
+      {
+        "type": "small-target-first-screen",
+        "tag": "a",
+        "text": "Product",
+        "rect": {
+          "width": 53,
+          "height": 26,
+          "top": 25
+        }
+      },
+      {
+        "type": "small-target-first-screen",
+        "tag": "a",
+        "text": "World models",
+        "rect": {
+          "width": 91,
+          "height": 26,
+          "top": 25
+        }
+      },
+      {
+        "type": "small-target-first-screen",
+        "tag": "a",
+        "text": "Capture",
+        "rect": {
+          "width": 53,
+          "height": 26,
+          "top": 25
+        }
+      },
+      {
+        "type": "small-target-first-screen",
+        "tag": "a",
+        "text": "Proof",
+        "rect": {
+          "width": 36,
+          "height": 26,
+          "top": 25
+        }
+      },
+      {
+        "type": "small-target-first-screen",
+        "tag": "a",
+        "text": "Pricing",
+        "rect": {
+          "width": 46,
+          "height": 26,
+          "top": 25
+        }
+      },
+      {
+        "type": "small-target-first-screen",
+        "tag": "a",
+        "text": "Request world model",
+        "rect": {
+          "width": 171,
+          "height": 35,
+          "top": 21
+        }
+      },
+      {
+        "type": "small-target-first-screen",
+        "tag": "a",
+        "text": "Browse all world models",
+        "rect": {
+          "width": 187,
+          "height": 20,
+          "top": 976
+        }
+      }
+    ],
+    "hero": [
+      "Browse exact-site world models.Inspect public samples, request-gated profiles, and planned catalog lanes with the proof boundary visible before you click.Capture-backed catalogSampleHosted request-gatedRequest world modelBrowse catalog",
+      "Browse exact-site world models.",
+      "Featured sitesStart with a site, not an abstract demo.The top row anchors the catalog: public sample proof, commercial exemplar framing, and planned profiles are separated before a buyer clicks.Browse all world modelsSW-DEMO-01Proof preview",
+      "Catalog statesSample, request-gated, and planned mean different things.Blueprint can sell the catalog vision confidently while keeping public proof, hosted availability, package access, and future supply labels separate.Public sampleA publi",
+      "Capture appBlueprint is not warehouse-only.Grocery stores, retail floors, lobbies, malls, museums, and other everyday places can become useful robot-team training and eval evidence when capture is lawful, privacy-safe, and reviewed.See capt",
+      "Inside the worldBuilt from real capture.Every site-specific world model stays grounded to one place, one proof chain, and buyer-readable limits.Site-tied structureWalls, aisles, fixtures, and navigable cues tie back to the site record when ",
+      "Full catalogScan every listing by proof, access, and freshness.Best public sample to start with if you are new to Blueprint. Filters are built around buyer questions: site type, state, visible proof, and whether access is still gated.Reques",
+      "Catalog records13 visible profiles across sample, request-gated, and planned exact-site world categories.Sample proof1 public sample profile show proof shape without becoming customer proof.Request gates1 profile keep package and hosted acc"
+    ]
+  },
+  {
+    "viewport": "desktop",
+    "route": "/pricing",
+    "url": "http://127.0.0.1:5174/pricing",
+    "screenshot": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/playwright/brand-ux-qa-2026-05-15/desktop-pricing.png",
+    "title": "Pricing | Blueprint",
+    "bodyTextStart": "Blueprint\nProduct\nWorld models\nCapture\nProof\nPricing\nRequest world model\n\nPRICING\n\nChoose the first step for one real site.\n\nPick package access for files, hosted evaluation for a managed review first, or custom scope for private and multi-site work.\n\nThese are planning ranges. Blueprint confirms site proof, rights, hosted availability, and terms before any commitment.\n\nRequest pricing\nRequest hosted evaluation\n\n01\n\nSite Package Access\n\nFILES AND LICENSE FOR YOUR STACK.\n\nLicense the capture-back",
+    "issues": [
+      {
+        "type": "small-target-first-screen",
+        "tag": "a",
+        "text": "Product",
+        "rect": {
+          "width": 53,
+          "height": 26,
+          "top": 25
+        }
+      },
+      {
+        "type": "small-target-first-screen",
+        "tag": "a",
+        "text": "World models",
+        "rect": {
+          "width": 91,
+          "height": 26,
+          "top": 25
+        }
+      },
+      {
+        "type": "small-target-first-screen",
+        "tag": "a",
+        "text": "Capture",
+        "rect": {
+          "width": 53,
+          "height": 26,
+          "top": 25
+        }
+      },
+      {
+        "type": "small-target-first-screen",
+        "tag": "a",
+        "text": "Proof",
+        "rect": {
+          "width": 36,
+          "height": 26,
+          "top": 25
+        }
+      },
+      {
+        "type": "small-target-first-screen",
+        "tag": "a",
+        "text": "Pricing",
+        "rect": {
+          "width": 46,
+          "height": 26,
+          "top": 25
+        }
+      },
+      {
+        "type": "small-target-first-screen",
+        "tag": "a",
+        "text": "Request world model",
+        "rect": {
+          "width": 171,
+          "height": 35,
+          "top": 21
+        }
+      }
+    ],
+    "hero": [
+      "PricingChoose the first step for one real site.Pick package access for files, hosted evaluation for a managed review first, or custom scope for private and multi-site work.These are planning ranges. Blueprint confirms site proof, rights, ho",
+      "Choose the first step for one real site.",
+      "01Site Package AccessFiles and license for your stack.License the capture-backed package for one exact site: manifest, routes, provenance, rights notes, and the export modes cleared for that listing.$2,100 – $3,400Capture manifest, site not",
+      "01Site Package AccessFiles and license for your stack.License the capture-backed package for one exact site: manifest, routes, provenance, rights notes, and the export modes cleared for that listing.$2,100 – $3,400Capture manifest, site not",
+      "02Hosted EvaluationManaged session before file handoff.Blueprint hosts the exact-site world model so your team can review configured routes, reruns, observations, and outputs before deciding whether package access should open next.$16 – $29",
+      "03Custom ScopePrivate sites, multiple markets, or deeper ops.Use this path when the site is private, the rights model is custom, or your team needs Blueprint-managed support across multiple locations.$50,000+ scopedCustom capture and privat",
+      "Access modelChoose by what your team needs first.Package access means files and approved exports. Hosted evaluation means managed browser sessions and run evidence. Custom scope is for private or multi-site work.Scope changes withSite size ",
+      "Package accessA package license covers the listed capture-backed artifacts and approved export modes. It does not clear unrelated sites or unsupported uses.Hosted evaluationA hosted evaluation gives your team managed session access, run evi"
+    ]
+  },
+  {
+    "viewport": "desktop",
+    "route": "/proof",
+    "url": "http://127.0.0.1:5174/proof",
+    "screenshot": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/playwright/brand-ux-qa-2026-05-15/desktop-proof.png",
+    "title": "Proof System | Blueprint",
+    "bodyTextStart": "Blueprint\nProduct\nWorld models\nCapture\nProof\nPricing\nRequest world model\n\nBLUEPRINT PROOF\n\nSee what is attached before your team commits.\n\nBlueprint proof keeps capture provenance, rights posture, package scope, hosted outputs, and sample-vs-live boundaries visible in one buyer packet.\n\nPublic sample, clearly labeled\nLive proof packet is request-gated\nNo invented rights or outcomes\nRequest a proof packet\nBrowse sample world models\nIllustrative product preview\nNot customer proof\n\nPUBLIC PAGE STAT",
+    "issues": [
+      {
+        "type": "small-target-first-screen",
+        "tag": "a",
+        "text": "Product",
+        "rect": {
+          "width": 53,
+          "height": 26,
+          "top": 25
+        }
+      },
+      {
+        "type": "small-target-first-screen",
+        "tag": "a",
+        "text": "World models",
+        "rect": {
+          "width": 91,
+          "height": 26,
+          "top": 25
+        }
+      },
+      {
+        "type": "small-target-first-screen",
+        "tag": "a",
+        "text": "Capture",
+        "rect": {
+          "width": 53,
+          "height": 26,
+          "top": 25
+        }
+      },
+      {
+        "type": "small-target-first-screen",
+        "tag": "a",
+        "text": "Proof",
+        "rect": {
+          "width": 36,
+          "height": 26,
+          "top": 25
+        }
+      },
+      {
+        "type": "small-target-first-screen",
+        "tag": "a",
+        "text": "Pricing",
+        "rect": {
+          "width": 46,
+          "height": 26,
+          "top": 25
+        }
+      },
+      {
+        "type": "small-target-first-screen",
+        "tag": "a",
+        "text": "Request world model",
+        "rect": {
+          "width": 171,
+          "height": 35,
+          "top": 21
+        }
+      }
+    ],
+    "hero": [
+      "Blueprint proofSee what is attached before your team commits.Blueprint proof keeps capture provenance, rights posture, package scope, hosted outputs, and sample-vs-live boundaries visible in one buyer packet.Public sample, clearly labeledLi",
+      "See what is attached before your team commits.",
+      "Trust systemProof is a product capability.The trust system is not a footnote after checkout. It is how Blueprint makes exact-site world models inspectable, requestable, and commercially usable without blurring sample assets into live proof.",
+      "Sample artifact stillDisplayed values are illustrativeExample public captureCedar Market Aisle LoopThis sample shows how a buyer-facing packet can organize route evidence, not that this exact site is live, rights-approved, or commercially a",
+      "Attached hierarchyEvery output should point back to the source packet.Blueprint can use different model providers over time, but the buyer-visible contract stays stable: capture truth, package truth, rights truth, hosted-session truth, and ",
+      "Rights and provenanceBuyer confidence comes from visible limits.The best proof page does not sound less confident because it has boundaries. It sounds more commercial because the buyer can see where the packet is strong, where access is sco",
+      "Hosted outputHosted review is the buyer room, not the proof source.Hosted outputs are strongest when they inherit the packet instead of replacing it. The session helps the buyer inspect, compare, and decide, while the source evidence keeps ",
+      "Representative packetMedia Room Demo WalkthroughExample evaluation. The site, route, and interface are Blueprint demo material; buyer exports require site-specific proof and rights review.Capture appCapturer records a lawful public-facing r"
+    ]
+  },
+  {
+    "viewport": "desktop",
+    "route": "/contact",
+    "url": "http://127.0.0.1:5174/contact",
+    "screenshot": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/playwright/brand-ux-qa-2026-05-15/desktop-contact.png",
+    "title": "Request A World Model | Blueprint",
+    "bodyTextStart": "Blueprint\nProduct\nWorld models\nCapture\nProof\nPricing\nRequest world model\nCOMMERCIAL INTAKE\nRequest the site-specific world model your robot team needs.\n\nShare the site, task, and robot context. Blueprint replies with the right next step: package access, hosted evaluation, capture access, or one specific follow-up.\n\nRequest world model\nBrowse world models\nRequest path first\nProof boundaries visible\nCall only when useful\n\nSTART HERE\n\nTell us the site and the decision you need to make.\n\nRequired: c",
+    "issues": [
+      {
+        "type": "small-target-first-screen",
+        "tag": "a",
+        "text": "Product",
+        "rect": {
+          "width": 53,
+          "height": 26,
+          "top": 25
+        }
+      },
+      {
+        "type": "small-target-first-screen",
+        "tag": "a",
+        "text": "World models",
+        "rect": {
+          "width": 91,
+          "height": 26,
+          "top": 25
+        }
+      },
+      {
+        "type": "small-target-first-screen",
+        "tag": "a",
+        "text": "Capture",
+        "rect": {
+          "width": 53,
+          "height": 26,
+          "top": 25
+        }
+      },
+      {
+        "type": "small-target-first-screen",
+        "tag": "a",
+        "text": "Proof",
+        "rect": {
+          "width": 36,
+          "height": 26,
+          "top": 25
+        }
+      },
+      {
+        "type": "small-target-first-screen",
+        "tag": "a",
+        "text": "Pricing",
+        "rect": {
+          "width": 46,
+          "height": 26,
+          "top": 25
+        }
+      },
+      {
+        "type": "small-target-first-screen",
+        "tag": "a",
+        "text": "Request world model",
+        "rect": {
+          "width": 171,
+          "height": 35,
+          "top": 21
+        }
+      }
+    ],
+    "hero": [
+      "Commercial IntakeRequest the site-specific world model your robot team needs.Share the site, task, and robot context. Blueprint replies with the right next step: package access, hosted evaluation, capture access, or one specific follow-up.R",
+      "Request the site-specific world model your robot team needs.",
+      "Start hereTell us the site and the decision you need to make.Required: contact details, role, request path, first question, and a site or site class. We will reply with the supported package path, hosted evaluation option, capture request, ",
+      "01 PathChoose the commercial request path.World modelAsk for a site-specific package or package path.Hosted evaluationScope a hosted review after availability is checked.Capture accessOpen a capture path for a site not packaged yet.",
+      "02 ContactWho should Blueprint follow up with?First name*Last name*Company*Work email*",
+      "03 RequestWhat should the world model be scoped around?Your role*Use the role that owns the deployment, evaluation, or procurement question.What should this world model help your team evaluate?*One concrete robot workflow converts faster th"
+    ]
+  },
+  {
+    "viewport": "desktop",
+    "route": "/careers",
+    "url": "http://127.0.0.1:5174/careers",
+    "screenshot": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/playwright/brand-ux-qa-2026-05-15/desktop-careers.png",
+    "title": "Careers | Blueprint",
+    "bodyTextStart": "Blueprint\nProduct\nWorld models\nCapture\nProof\nPricing\nRequest world model\n\nCAREERS\n\nRun the company with small human teams and serious agent workflows.\n\nWe are looking for people who can turn agent runs, city research, capture supply, buyer requests, and delivery work into systems that get sharper every week.\n\nFounding GTM Systems Lead\nFull-time\nRemote, with city-launch travel when useful\nApply by email\n\nOwn the human-plus-agent GTM system for Blueprint: city launches, buyer research, outbound, f",
+    "issues": [
+      {
+        "type": "small-target-first-screen",
+        "tag": "a",
+        "text": "Product",
+        "rect": {
+          "width": 53,
+          "height": 26,
+          "top": 25
+        }
+      },
+      {
+        "type": "small-target-first-screen",
+        "tag": "a",
+        "text": "World models",
+        "rect": {
+          "width": 91,
+          "height": 26,
+          "top": 25
+        }
+      },
+      {
+        "type": "small-target-first-screen",
+        "tag": "a",
+        "text": "Capture",
+        "rect": {
+          "width": 53,
+          "height": 26,
+          "top": 25
+        }
+      },
+      {
+        "type": "small-target-first-screen",
+        "tag": "a",
+        "text": "Proof",
+        "rect": {
+          "width": 36,
+          "height": 26,
+          "top": 25
+        }
+      },
+      {
+        "type": "small-target-first-screen",
+        "tag": "a",
+        "text": "Pricing",
+        "rect": {
+          "width": 46,
+          "height": 26,
+          "top": 25
+        }
+      },
+      {
+        "type": "small-target-first-screen",
+        "tag": "a",
+        "text": "Request world model",
+        "rect": {
+          "width": 171,
+          "height": 35,
+          "top": 21
+        }
+      }
+    ],
+    "hero": [
+      "CareersRun the company with small human teams and serious agent workflows.We are looking for people who can turn agent runs, city research, capture supply, buyer requests, and delivery work into systems that get sharper every week.",
+      "Run the company with small human teams and serious agent workflows.",
+      "Founding GTM Systems LeadFull-timeRemote, with city-launch travel when usefulApply by emailOwn the human-plus-agent GTM system for Blueprint: city launches, buyer research, outbound, follow-up, content, reporting, and the workflows behind i",
+      "Agent workflow ownershipRun the GTM agent workflows like a small team: buyer research, city demand, outbound drafts, reply triage, content, analytics, and partner discovery.City launchesStart from zero in a city, use agents to map the marke",
+      "What You Will OwnThe first real GTM system for a lean company.The work should feel closer to an early Uber city launcher than a conventional growth hire. You will build the process, run it in the real world, measure what happened, and make ",
+      "Delivery Systems LeadMake real-site delivery repeatable before it turns into chaos.This role sits between capture, site access, hosted review, buyer success, and the agents that keep the work moving. The goal is simple: every messy request ",
+      "ApplyShow us the system you would run.Send a short note with one workflow, launch, delivery loop, automation, or market buildout you owned end to end. Tell us what the agents or tools did, what you checked yourself, and what changed because",
+      "ApplyShow us the system you would run.Send a short note with one workflow, launch, delivery loop, automation, or market buildout you owned end to end. Tell us what the agents or tools did, what you checked yourself, and what changed because"
+    ]
+  },
+  {
+    "viewport": "mobile",
+    "route": "/",
+    "url": "http://127.0.0.1:5174/",
+    "screenshot": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/playwright/brand-ux-qa-2026-05-15/mobile-home.png",
+    "title": "Blueprint | Site-Specific World Models For Robot Training And Evaluation",
+    "bodyTextStart": "Blueprint\nEXACT-SITE WORLD MODELS\nHOSTED REVIEW\nSite-specific world models from real capture.\n\nRequest one exact site, inspect proof, and choose package access, hosted evaluation, or new capture without losing provenance.\n\nRequest exact-site world\nBrowse world models\nCOMMERCIAL PRODUCT\nBlueprint sells exact-site products, not generic demos.\n\nBlueprint turns real capture into site-specific packages, hosted review paths, and buyer decisions tied to the same facility, route, and proof record.\n\nRequ",
+    "issues": [],
+    "hero": [
+      "Exact-site world modelsHosted reviewSite-specific world models from real capture.Request one exact site, inspect proof, and choose package access, hosted evaluation, or new capture without losing provenance.Request exact-site worldBrowse wo",
+      "Site-specific world models from real capture.",
+      "Commercial productBlueprint sells exact-site products, not generic demos.Blueprint turns real capture into site-specific packages, hosted review paths, and buyer decisions tied to the same facility, route, and proof record.Request world mod",
+      "Real captureA walkthrough or site record starts the product. Provenance and limits stay attached.Site productBlueprint packages the capture into a site-specific world model, buyer listing, and export scope.Hosted evalA managed review path l",
+      "For robot teamsStart with the exact site your robot needs to understand.A buyer request should name the place, workflow, and robot question. Blueprint then keeps the capture-backed proof, package scope, and hosted path together.Request exac",
+      "Proof boundaryThe proof travels with the product.A polished sample is useful only when it stays honest. Blueprint labels public examples, keeps approved proof attached to the exact site, and gates hosted access until the request is reviewed",
+      "World-model catalogSample worlds show the package shape.Browse public examples to inspect the proof format, then request the exact facility or route your team needs when it is not already listed.Blueprint hosted review demoMedia Room Demo W",
+      "Why capture mattersExact-site capture turns vague simulation demand into a buyer-ready package.The useful details are local: aisle width, signage, occlusions, public access boundaries, restricted areas, and the robot task a team is actually"
+    ]
+  },
+  {
+    "viewport": "mobile",
+    "route": "/product",
+    "url": "http://127.0.0.1:5174/product",
+    "screenshot": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/playwright/brand-ux-qa-2026-05-15/mobile-product.png",
+    "title": "Product | Blueprint",
+    "bodyTextStart": "Blueprint\n\nBLUEPRINT PRODUCT\n\nTurn the exact site into a decision-ready world model.\n\nRequest one site, review the attached proof, and move toward hosted evaluation or package access only when the evidence supports it.\n\nCAPTURE-BACKED\nPROVIDER-SWAPPABLE\nHOSTED BUYER REVIEW\nRequest hosted evaluation\nBrowse world models\n\nBUYER WORKFLOW\n\nOne path from capture to decision.\n01\nExact-site capture\n\nRecord the real route, timestamps, device context, capture notes, and access boundaries.\n\n02\nWorld model ",
+    "issues": [],
+    "hero": [
+      "Blueprint productTurn the exact site into a decision-ready world model.Request one site, review the attached proof, and move toward hosted evaluation or package access only when the evidence supports it.Capture-backedProvider-swappableHoste",
+      "Turn the exact site into a decision-ready world model.",
+      "Buyer workflowOne path from capture to decision.01Exact-site captureRecord the real route, timestamps, device context, capture notes, and access boundaries.02World model packagePackage the site into a provider-swappable product with manifes",
+      "Labeled sampleCedar Market Aisle LoopGrocery store public aisles. Representative product evidence, not a customer result.World model packageThe sellable product is the site package, not a detached demo.The package keeps capture proof, model",
+      "Hosted evaluationA buyer room for runs, limits, and next steps.Hosted evaluation is the review layer between a listing and a commercial commitment. It turns the package into evidence a robot team can act on.Open sample reportRunQuestionDeci",
+      "Proof boundaryCommercially confident, proof honest.Package previewmanifest/site_package_manifest.jsonrights/sample_rights_sheet.mdmedia/redacted_walkthrough_reference.mp4routes/public_aisle_loop_waypoints.jsonhosted/runs/run_01_observations",
+      "Next stepStart with one site, one workflow, and one decision.Inspect sample proof, then send the site your team needs packaged for hosted evaluation.Request hosted evaluationInspect sample proof"
+    ]
+  },
+  {
+    "viewport": "mobile",
+    "route": "/world-models",
+    "url": "http://127.0.0.1:5174/world-models",
+    "screenshot": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/playwright/brand-ux-qa-2026-05-15/mobile-world-models.png",
+    "title": "World Models | Blueprint",
+    "bodyTextStart": "Blueprint\nBrowse exact-site world models.\n\nInspect public samples, request-gated profiles, and planned catalog lanes with the proof boundary visible before you click.\n\nCAPTURE-BACKED CATALOG\nSAMPLE\nHOSTED REQUEST-GATED\nRequest world model\nBrowse catalog\n\nFEATURED SITES\n\nStart with a site, not an abstract demo.\n\nThe top row anchors the catalog: public sample proof, commercial exemplar framing, and planned profiles are separated before a buyer clicks.\n\nSW-DEMO-01\nPROOF PREVIEW\nTRAY\nBENCH\nTEST\nSAMP",
+    "issues": [],
+    "hero": [
+      "Browse exact-site world models.Inspect public samples, request-gated profiles, and planned catalog lanes with the proof boundary visible before you click.Capture-backed catalogSampleHosted request-gatedRequest world modelBrowse catalog",
+      "Browse exact-site world models.",
+      "Featured sitesStart with a site, not an abstract demo.The top row anchors the catalog: public sample proof, commercial exemplar framing, and planned profiles are separated before a buyer clicks.Browse all world modelsSW-DEMO-01Proof preview",
+      "Catalog statesSample, request-gated, and planned mean different things.Blueprint can sell the catalog vision confidently while keeping public proof, hosted availability, package access, and future supply labels separate.Public sampleA publi",
+      "Capture appBlueprint is not warehouse-only.Grocery stores, retail floors, lobbies, malls, museums, and other everyday places can become useful robot-team training and eval evidence when capture is lawful, privacy-safe, and reviewed.See capt",
+      "Inside the worldBuilt from real capture.Every site-specific world model stays grounded to one place, one proof chain, and buyer-readable limits.Site-tied structureWalls, aisles, fixtures, and navigable cues tie back to the site record when ",
+      "Full catalogScan every listing by proof, access, and freshness.Best public sample to start with if you are new to Blueprint. Filters are built around buyer questions: site type, state, visible proof, and whether access is still gated.Reques",
+      "Catalog records13 visible profiles across sample, request-gated, and planned exact-site world categories.Sample proof1 public sample profile show proof shape without becoming customer proof.Request gates1 profile keep package and hosted acc"
+    ]
+  },
+  {
+    "viewport": "mobile",
+    "route": "/pricing",
+    "url": "http://127.0.0.1:5174/pricing",
+    "screenshot": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/playwright/brand-ux-qa-2026-05-15/mobile-pricing.png",
+    "title": "Pricing | Blueprint",
+    "bodyTextStart": "Blueprint\n\nPRICING\n\nChoose the first step for one real site.\n\nPick package access for files, hosted evaluation for a managed review first, or custom scope for private and multi-site work.\n\nThese are planning ranges. Blueprint confirms site proof, rights, hosted availability, and terms before any commitment.\n\nRequest pricing\nRequest hosted evaluation\n\n01\n\nSite Package Access\n\nFILES AND LICENSE FOR YOUR STACK.\n\nLicense the capture-backed package for one exact site: manifest, routes, provenance, ri",
+    "issues": [],
+    "hero": [
+      "PricingChoose the first step for one real site.Pick package access for files, hosted evaluation for a managed review first, or custom scope for private and multi-site work.These are planning ranges. Blueprint confirms site proof, rights, ho",
+      "Choose the first step for one real site.",
+      "01Site Package AccessFiles and license for your stack.License the capture-backed package for one exact site: manifest, routes, provenance, rights notes, and the export modes cleared for that listing.$2,100 – $3,400Capture manifest, site not",
+      "01Site Package AccessFiles and license for your stack.License the capture-backed package for one exact site: manifest, routes, provenance, rights notes, and the export modes cleared for that listing.$2,100 – $3,400Capture manifest, site not",
+      "02Hosted EvaluationManaged session before file handoff.Blueprint hosts the exact-site world model so your team can review configured routes, reruns, observations, and outputs before deciding whether package access should open next.$16 – $29",
+      "03Custom ScopePrivate sites, multiple markets, or deeper ops.Use this path when the site is private, the rights model is custom, or your team needs Blueprint-managed support across multiple locations.$50,000+ scopedCustom capture and privat",
+      "Access modelChoose by what your team needs first.Package access means files and approved exports. Hosted evaluation means managed browser sessions and run evidence. Custom scope is for private or multi-site work.Scope changes withSite size ",
+      "Package accessA package license covers the listed capture-backed artifacts and approved export modes. It does not clear unrelated sites or unsupported uses.Hosted evaluationA hosted evaluation gives your team managed session access, run evi"
+    ]
+  },
+  {
+    "viewport": "mobile",
+    "route": "/proof",
+    "url": "http://127.0.0.1:5174/proof",
+    "screenshot": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/playwright/brand-ux-qa-2026-05-15/mobile-proof.png",
+    "title": "Proof System | Blueprint",
+    "bodyTextStart": "Blueprint\n\nBLUEPRINT PROOF\n\nSee what is attached before your team commits.\n\nBlueprint proof keeps capture provenance, rights posture, package scope, hosted outputs, and sample-vs-live boundaries visible in one buyer packet.\n\nPublic sample, clearly labeled\nLive proof packet is request-gated\nNo invented rights or outcomes\nRequest a proof packet\nBrowse sample world models\nIllustrative product preview\nNot customer proof\n\nPUBLIC PAGE STATE\n\nSample proof system\n\nThis page shows the shape of a Blueprin",
+    "issues": [],
+    "hero": [
+      "Blueprint proofSee what is attached before your team commits.Blueprint proof keeps capture provenance, rights posture, package scope, hosted outputs, and sample-vs-live boundaries visible in one buyer packet.Public sample, clearly labeledLi",
+      "See what is attached before your team commits.",
+      "Trust systemProof is a product capability.The trust system is not a footnote after checkout. It is how Blueprint makes exact-site world models inspectable, requestable, and commercially usable without blurring sample assets into live proof.",
+      "Sample artifact stillDisplayed values are illustrativeExample public captureCedar Market Aisle LoopThis sample shows how a buyer-facing packet can organize route evidence, not that this exact site is live, rights-approved, or commercially a",
+      "Attached hierarchyEvery output should point back to the source packet.Blueprint can use different model providers over time, but the buyer-visible contract stays stable: capture truth, package truth, rights truth, hosted-session truth, and ",
+      "Rights and provenanceBuyer confidence comes from visible limits.The best proof page does not sound less confident because it has boundaries. It sounds more commercial because the buyer can see where the packet is strong, where access is sco",
+      "Hosted outputHosted review is the buyer room, not the proof source.Hosted outputs are strongest when they inherit the packet instead of replacing it. The session helps the buyer inspect, compare, and decide, while the source evidence keeps ",
+      "Representative packetMedia Room Demo WalkthroughExample evaluation. The site, route, and interface are Blueprint demo material; buyer exports require site-specific proof and rights review.Capture appCapturer records a lawful public-facing r"
+    ]
+  },
+  {
+    "viewport": "mobile",
+    "route": "/contact",
+    "url": "http://127.0.0.1:5174/contact",
+    "screenshot": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/playwright/brand-ux-qa-2026-05-15/mobile-contact.png",
+    "title": "Request A World Model | Blueprint",
+    "bodyTextStart": "Blueprint\nCOMMERCIAL INTAKE\nRequest the site-specific world model your robot team needs.\n\nShare the site, task, and robot context. Blueprint replies with the right next step: package access, hosted evaluation, capture access, or one specific follow-up.\n\nRequest world model\nBrowse world models\nRequest path first\nProof boundaries visible\nCall only when useful\n\nSTART HERE\n\nTell us the site and the decision you need to make.\n\nRequired: contact details, role, request path, first question, and a site ",
+    "issues": [],
+    "hero": [
+      "Commercial IntakeRequest the site-specific world model your robot team needs.Share the site, task, and robot context. Blueprint replies with the right next step: package access, hosted evaluation, capture access, or one specific follow-up.R",
+      "Request the site-specific world model your robot team needs.",
+      "Start hereTell us the site and the decision you need to make.Required: contact details, role, request path, first question, and a site or site class. We will reply with the supported package path, hosted evaluation option, capture request, ",
+      "01 PathChoose the commercial request path.World modelAsk for a site-specific package or package path.Hosted evaluationScope a hosted review after availability is checked.Capture accessOpen a capture path for a site not packaged yet.",
+      "02 ContactWho should Blueprint follow up with?First name*Last name*Company*Work email*",
+      "03 RequestWhat should the world model be scoped around?Your role*Use the role that owns the deployment, evaluation, or procurement question.What should this world model help your team evaluate?*One concrete robot workflow converts faster th"
+    ]
+  },
+  {
+    "viewport": "mobile",
+    "route": "/careers",
+    "url": "http://127.0.0.1:5174/careers",
+    "screenshot": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/playwright/brand-ux-qa-2026-05-15/mobile-careers.png",
+    "title": "Careers | Blueprint",
+    "bodyTextStart": "Blueprint\n\nCAREERS\n\nRun the company with small human teams and serious agent workflows.\n\nWe are looking for people who can turn agent runs, city research, capture supply, buyer requests, and delivery work into systems that get sharper every week.\n\nFounding GTM Systems Lead\nFull-time\nRemote, with city-launch travel when useful\nApply by email\n\nOwn the human-plus-agent GTM system for Blueprint: city launches, buyer research, outbound, follow-up, content, reporting, and the workflows behind it.\n\nThi",
+    "issues": [],
+    "hero": [
+      "CareersRun the company with small human teams and serious agent workflows.We are looking for people who can turn agent runs, city research, capture supply, buyer requests, and delivery work into systems that get sharper every week.",
+      "Run the company with small human teams and serious agent workflows.",
+      "Founding GTM Systems LeadFull-timeRemote, with city-launch travel when usefulApply by emailOwn the human-plus-agent GTM system for Blueprint: city launches, buyer research, outbound, follow-up, content, reporting, and the workflows behind i",
+      "Agent workflow ownershipRun the GTM agent workflows like a small team: buyer research, city demand, outbound drafts, reply triage, content, analytics, and partner discovery.City launchesStart from zero in a city, use agents to map the marke",
+      "What You Will OwnThe first real GTM system for a lean company.The work should feel closer to an early Uber city launcher than a conventional growth hire. You will build the process, run it in the real world, measure what happened, and make ",
+      "Delivery Systems LeadMake real-site delivery repeatable before it turns into chaos.This role sits between capture, site access, hosted review, buyer success, and the agents that keep the work moving. The goal is simple: every messy request ",
+      "ApplyShow us the system you would run.Send a short note with one workflow, launch, delivery loop, automation, or market buildout you owned end to end. Tell us what the agents or tools did, what you checked yourself, and what changed because",
+      "ApplyShow us the system you would run.Send a short note with one workflow, launch, delivery loop, automation, or market buildout you owned end to end. Tell us what the agents or tools did, what you checked yourself, and what changed because"
+    ]
+  }
+]

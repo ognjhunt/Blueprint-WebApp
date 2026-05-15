@@ -102,11 +102,15 @@ describe("Codex local goal closeout contract", () => {
     expect(prompt).toContain("Budget/timeout context:");
     expect(prompt).toContain("Stage reached:");
     expect(prompt).toContain("State claimed:");
+    expect(prompt).toContain("Owner:");
+    expect(prompt).toContain("Blocker/decision id:");
     expect(prompt).toContain("Proof paths:");
     expect(prompt).toContain("Command outputs:");
     expect(prompt).toContain("Next action:");
-    expect(prompt).toContain("Retry condition:");
+    expect(prompt).toContain("Retry/resume condition:");
     expect(prompt).toContain("Residual risk:");
+    expect(prompt).toContain("Blocked closeouts must name the earliest hard stop, the owner, and the exact retry/resume condition.");
+    expect(prompt).toContain("Awaiting-human closeouts must include the blocker/decision id, routing surface, watcher owner, and resume condition.");
     expect(prompt).toContain("State claimed must be exactly one of: done, blocked, awaiting_human_decision.");
     expect(prompt).toContain("Issue/run context: issue=BLU-123; run=run-456");
     expect(prompt).toContain("Budget/timeout context: 45000ms timeout");
@@ -124,10 +128,12 @@ describe("Codex local goal closeout contract", () => {
           "Budget/timeout context:",
           "Stage reached:",
           "State claimed:",
+          "Owner:",
+          "Blocker/decision id:",
           "Proof paths:",
           "Command outputs:",
           "Next action:",
-          "Retry condition:",
+          "Retry/resume condition:",
           "Residual risk:",
         ],
         allowed_states: ["done", "blocked", "awaiting_human_decision"],

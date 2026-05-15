@@ -1,0 +1,3011 @@
+{
+  "generatedAt": "2026-05-15T01:52:57.523Z",
+  "baseUrl": "http://127.0.0.1:4173",
+  "routeResults": [
+    {
+      "routeLabel": "Home",
+      "routePath": "/",
+      "viewportName": "desktop",
+      "screenshotPath": "output/qa/brand-polish/latest/screenshots/home-desktop.png",
+      "status": "pass",
+      "checks": [
+        {
+          "name": "HTTP document status",
+          "status": "pass",
+          "detail": "200 OK"
+        },
+        {
+          "name": "Nonblank body",
+          "status": "pass",
+          "detail": "7160 visible text characters"
+        },
+        {
+          "name": "No framework error overlay",
+          "status": "pass",
+          "detail": "No overlay detected"
+        },
+        {
+          "name": "Visible H1 exists",
+          "status": "pass",
+          "detail": "Site-specific world models from real capture."
+        },
+        {
+          "name": "Expected route heading",
+          "status": "pass",
+          "detail": "Expected \"Site-specific world models from real capture.\", saw \"Site-specific world models from real capture.\""
+        },
+        {
+          "name": "SEO title",
+          "status": "pass",
+          "detail": "Blueprint | Site-Specific World Models For Robot Training And Evaluation"
+        },
+        {
+          "name": "SEO description",
+          "status": "pass",
+          "detail": "118 chars"
+        },
+        {
+          "name": "Canonical URL",
+          "status": "pass",
+          "detail": "https://tryblueprint.io/"
+        },
+        {
+          "name": "Robots indexable",
+          "status": "pass",
+          "detail": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+        },
+        {
+          "name": "No horizontal overflow",
+          "status": "pass",
+          "detail": "0px overflow"
+        },
+        {
+          "name": "Visible images carry alt attributes",
+          "status": "pass",
+          "detail": "All visible images have alt attributes"
+        },
+        {
+          "name": "Visible images load",
+          "status": "pass",
+          "detail": "All visible images decoded"
+        },
+        {
+          "name": "Interactive controls have names",
+          "status": "pass",
+          "detail": "All visible controls have names"
+        },
+        {
+          "name": "Visible form controls are labeled",
+          "status": "pass",
+          "detail": "All visible form controls are labeled"
+        },
+        {
+          "name": "No placeholder residue",
+          "status": "pass",
+          "detail": "No placeholder markers found"
+        },
+        {
+          "name": "CTA: Request world model",
+          "status": "pass",
+          "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=header"
+        },
+        {
+          "name": "CTA: Browse world models",
+          "status": "pass",
+          "detail": "hrefs=/world-models"
+        },
+        {
+          "name": "Console health",
+          "status": "pass",
+          "detail": "No console/page errors"
+        },
+        {
+          "name": "Critical asset responses",
+          "status": "pass",
+          "detail": "No critical document/script/style/image/font failures"
+        }
+      ]
+    },
+    {
+      "routeLabel": "Home",
+      "routePath": "/",
+      "viewportName": "mobile",
+      "screenshotPath": "output/qa/brand-polish/latest/screenshots/home-mobile.png",
+      "status": "pass",
+      "checks": [
+        {
+          "name": "HTTP document status",
+          "status": "pass",
+          "detail": "200 OK"
+        },
+        {
+          "name": "Nonblank body",
+          "status": "pass",
+          "detail": "6926 visible text characters"
+        },
+        {
+          "name": "No framework error overlay",
+          "status": "pass",
+          "detail": "No overlay detected"
+        },
+        {
+          "name": "Visible H1 exists",
+          "status": "pass",
+          "detail": "Site-specific world models from real capture."
+        },
+        {
+          "name": "Expected route heading",
+          "status": "pass",
+          "detail": "Expected \"Site-specific world models from real capture.\", saw \"Site-specific world models from real capture.\""
+        },
+        {
+          "name": "SEO title",
+          "status": "pass",
+          "detail": "Blueprint | Site-Specific World Models For Robot Training And Evaluation"
+        },
+        {
+          "name": "SEO description",
+          "status": "pass",
+          "detail": "118 chars"
+        },
+        {
+          "name": "Canonical URL",
+          "status": "pass",
+          "detail": "https://tryblueprint.io/"
+        },
+        {
+          "name": "Robots indexable",
+          "status": "pass",
+          "detail": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+        },
+        {
+          "name": "No horizontal overflow",
+          "status": "pass",
+          "detail": "0px overflow"
+        },
+        {
+          "name": "Visible images carry alt attributes",
+          "status": "pass",
+          "detail": "All visible images have alt attributes"
+        },
+        {
+          "name": "Visible images load",
+          "status": "pass",
+          "detail": "All visible images decoded"
+        },
+        {
+          "name": "Interactive controls have names",
+          "status": "pass",
+          "detail": "All visible controls have names"
+        },
+        {
+          "name": "Visible form controls are labeled",
+          "status": "pass",
+          "detail": "All visible form controls are labeled"
+        },
+        {
+          "name": "No placeholder residue",
+          "status": "pass",
+          "detail": "No placeholder markers found"
+        },
+        {
+          "name": "CTA: Request world model",
+          "status": "pass",
+          "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-hero-primary&utm_source=homepage&utm_medium=website&utm_campaign=home_robot_team_conversion_v1&utm_content=hosted_review%3Ahome-hero-primary"
+        },
+        {
+          "name": "CTA: Browse world models",
+          "status": "pass",
+          "detail": "hrefs=/world-models"
+        },
+        {
+          "name": "Console health",
+          "status": "pass",
+          "detail": "No console/page errors"
+        },
+        {
+          "name": "Critical asset responses",
+          "status": "pass",
+          "detail": "No critical document/script/style/image/font failures"
+        }
+      ]
+    },
+    {
+      "routeLabel": "Product",
+      "routePath": "/product",
+      "viewportName": "desktop",
+      "screenshotPath": "output/qa/brand-polish/latest/screenshots/product-desktop.png",
+      "status": "pass",
+      "checks": [
+        {
+          "name": "HTTP document status",
+          "status": "pass",
+          "detail": "200 OK"
+        },
+        {
+          "name": "Nonblank body",
+          "status": "pass",
+          "detail": "4353 visible text characters"
+        },
+        {
+          "name": "No framework error overlay",
+          "status": "pass",
+          "detail": "No overlay detected"
+        },
+        {
+          "name": "Visible H1 exists",
+          "status": "pass",
+          "detail": "Turn the exact site into a decision-ready world model."
+        },
+        {
+          "name": "Expected route heading",
+          "status": "pass",
+          "detail": "Expected \"Turn the exact site into a decision-ready world model.\", saw \"Turn the exact site into a decision-ready world model.\""
+        },
+        {
+          "name": "SEO title",
+          "status": "pass",
+          "detail": "Product | Blueprint"
+        },
+        {
+          "name": "SEO description",
+          "status": "pass",
+          "detail": "118 chars"
+        },
+        {
+          "name": "Canonical URL",
+          "status": "pass",
+          "detail": "https://tryblueprint.io/product"
+        },
+        {
+          "name": "Robots indexable",
+          "status": "pass",
+          "detail": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+        },
+        {
+          "name": "No horizontal overflow",
+          "status": "pass",
+          "detail": "0px overflow"
+        },
+        {
+          "name": "Visible images carry alt attributes",
+          "status": "pass",
+          "detail": "All visible images have alt attributes"
+        },
+        {
+          "name": "Visible images load",
+          "status": "pass",
+          "detail": "All visible images decoded"
+        },
+        {
+          "name": "Interactive controls have names",
+          "status": "pass",
+          "detail": "All visible controls have names"
+        },
+        {
+          "name": "Visible form controls are labeled",
+          "status": "pass",
+          "detail": "All visible form controls are labeled"
+        },
+        {
+          "name": "No placeholder residue",
+          "status": "pass",
+          "detail": "No placeholder markers found"
+        },
+        {
+          "name": "CTA: Book hosted review",
+          "status": "pass",
+          "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=product"
+        },
+        {
+          "name": "CTA: Inspect proof",
+          "status": "pass",
+          "detail": "hrefs=/proof"
+        },
+        {
+          "name": "Console health",
+          "status": "pass",
+          "detail": "No console/page errors"
+        },
+        {
+          "name": "Critical asset responses",
+          "status": "pass",
+          "detail": "No critical document/script/style/image/font failures"
+        }
+      ]
+    },
+    {
+      "routeLabel": "Product",
+      "routePath": "/product",
+      "viewportName": "mobile",
+      "screenshotPath": "output/qa/brand-polish/latest/screenshots/product-mobile.png",
+      "status": "pass",
+      "checks": [
+        {
+          "name": "HTTP document status",
+          "status": "pass",
+          "detail": "200 OK"
+        },
+        {
+          "name": "Nonblank body",
+          "status": "pass",
+          "detail": "3807 visible text characters"
+        },
+        {
+          "name": "No framework error overlay",
+          "status": "pass",
+          "detail": "No overlay detected"
+        },
+        {
+          "name": "Visible H1 exists",
+          "status": "pass",
+          "detail": "Turn the exact site into a decision-ready world model."
+        },
+        {
+          "name": "Expected route heading",
+          "status": "pass",
+          "detail": "Expected \"Turn the exact site into a decision-ready world model.\", saw \"Turn the exact site into a decision-ready world model.\""
+        },
+        {
+          "name": "SEO title",
+          "status": "pass",
+          "detail": "Product | Blueprint"
+        },
+        {
+          "name": "SEO description",
+          "status": "pass",
+          "detail": "118 chars"
+        },
+        {
+          "name": "Canonical URL",
+          "status": "pass",
+          "detail": "https://tryblueprint.io/product"
+        },
+        {
+          "name": "Robots indexable",
+          "status": "pass",
+          "detail": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+        },
+        {
+          "name": "No horizontal overflow",
+          "status": "pass",
+          "detail": "0px overflow"
+        },
+        {
+          "name": "Visible images carry alt attributes",
+          "status": "pass",
+          "detail": "All visible images have alt attributes"
+        },
+        {
+          "name": "Visible images load",
+          "status": "pass",
+          "detail": "All visible images decoded"
+        },
+        {
+          "name": "Interactive controls have names",
+          "status": "pass",
+          "detail": "All visible controls have names"
+        },
+        {
+          "name": "Visible form controls are labeled",
+          "status": "pass",
+          "detail": "All visible form controls are labeled"
+        },
+        {
+          "name": "No placeholder residue",
+          "status": "pass",
+          "detail": "No placeholder markers found"
+        },
+        {
+          "name": "CTA: Book hosted review",
+          "status": "pass",
+          "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=product"
+        },
+        {
+          "name": "CTA: Inspect proof",
+          "status": "pass",
+          "detail": "hrefs=/proof"
+        },
+        {
+          "name": "Console health",
+          "status": "pass",
+          "detail": "No console/page errors"
+        },
+        {
+          "name": "Critical asset responses",
+          "status": "pass",
+          "detail": "No critical document/script/style/image/font failures"
+        }
+      ]
+    },
+    {
+      "routeLabel": "World models",
+      "routePath": "/world-models",
+      "viewportName": "desktop",
+      "screenshotPath": "output/qa/brand-polish/latest/screenshots/world-models-desktop.png",
+      "status": "pass",
+      "checks": [
+        {
+          "name": "HTTP document status",
+          "status": "pass",
+          "detail": "200 OK"
+        },
+        {
+          "name": "Nonblank body",
+          "status": "pass",
+          "detail": "24246 visible text characters"
+        },
+        {
+          "name": "No framework error overlay",
+          "status": "pass",
+          "detail": "No overlay detected"
+        },
+        {
+          "name": "Visible H1 exists",
+          "status": "pass",
+          "detail": "Browse exact-site world models."
+        },
+        {
+          "name": "Expected route heading",
+          "status": "pass",
+          "detail": "Expected \"Browse exact-site world models.\", saw \"Browse exact-site world models.\""
+        },
+        {
+          "name": "SEO title",
+          "status": "pass",
+          "detail": "World Models | Blueprint"
+        },
+        {
+          "name": "SEO description",
+          "status": "pass",
+          "detail": "118 chars"
+        },
+        {
+          "name": "Canonical URL",
+          "status": "pass",
+          "detail": "https://tryblueprint.io/world-models"
+        },
+        {
+          "name": "Robots indexable",
+          "status": "pass",
+          "detail": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+        },
+        {
+          "name": "No horizontal overflow",
+          "status": "pass",
+          "detail": "0px overflow"
+        },
+        {
+          "name": "Visible images carry alt attributes",
+          "status": "pass",
+          "detail": "All visible images have alt attributes"
+        },
+        {
+          "name": "Visible images load",
+          "status": "pass",
+          "detail": "All visible images decoded"
+        },
+        {
+          "name": "Interactive controls have names",
+          "status": "pass",
+          "detail": "All visible controls have names"
+        },
+        {
+          "name": "Visible form controls are labeled",
+          "status": "pass",
+          "detail": "All visible form controls are labeled"
+        },
+        {
+          "name": "No placeholder residue",
+          "status": "pass",
+          "detail": "No placeholder markers found"
+        },
+        {
+          "name": "CTA: Request world model",
+          "status": "pass",
+          "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=header"
+        },
+        {
+          "name": "CTA: Browse world models",
+          "status": "pass",
+          "detail": "hrefs=#catalog"
+        },
+        {
+          "name": "Console health",
+          "status": "pass",
+          "detail": "No console/page errors"
+        },
+        {
+          "name": "Critical asset responses",
+          "status": "pass",
+          "detail": "No critical document/script/style/image/font failures"
+        }
+      ]
+    },
+    {
+      "routeLabel": "World models",
+      "routePath": "/world-models",
+      "viewportName": "mobile",
+      "screenshotPath": "output/qa/brand-polish/latest/screenshots/world-models-mobile.png",
+      "status": "pass",
+      "checks": [
+        {
+          "name": "HTTP document status",
+          "status": "pass",
+          "detail": "200 OK"
+        },
+        {
+          "name": "Nonblank body",
+          "status": "pass",
+          "detail": "24144 visible text characters"
+        },
+        {
+          "name": "No framework error overlay",
+          "status": "pass",
+          "detail": "No overlay detected"
+        },
+        {
+          "name": "Visible H1 exists",
+          "status": "pass",
+          "detail": "Browse exact-site world models."
+        },
+        {
+          "name": "Expected route heading",
+          "status": "pass",
+          "detail": "Expected \"Browse exact-site world models.\", saw \"Browse exact-site world models.\""
+        },
+        {
+          "name": "SEO title",
+          "status": "pass",
+          "detail": "World Models | Blueprint"
+        },
+        {
+          "name": "SEO description",
+          "status": "pass",
+          "detail": "118 chars"
+        },
+        {
+          "name": "Canonical URL",
+          "status": "pass",
+          "detail": "https://tryblueprint.io/world-models"
+        },
+        {
+          "name": "Robots indexable",
+          "status": "pass",
+          "detail": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+        },
+        {
+          "name": "No horizontal overflow",
+          "status": "pass",
+          "detail": "0px overflow"
+        },
+        {
+          "name": "Visible images carry alt attributes",
+          "status": "pass",
+          "detail": "All visible images have alt attributes"
+        },
+        {
+          "name": "Visible images load",
+          "status": "pass",
+          "detail": "All visible images decoded"
+        },
+        {
+          "name": "Interactive controls have names",
+          "status": "pass",
+          "detail": "All visible controls have names"
+        },
+        {
+          "name": "Visible form controls are labeled",
+          "status": "pass",
+          "detail": "All visible form controls are labeled"
+        },
+        {
+          "name": "No placeholder residue",
+          "status": "pass",
+          "detail": "No placeholder markers found"
+        },
+        {
+          "name": "CTA: Request world model",
+          "status": "pass",
+          "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=world-models-hero"
+        },
+        {
+          "name": "CTA: Browse world models",
+          "status": "pass",
+          "detail": "hrefs=#catalog"
+        },
+        {
+          "name": "Console health",
+          "status": "pass",
+          "detail": "No console/page errors"
+        },
+        {
+          "name": "Critical asset responses",
+          "status": "pass",
+          "detail": "No critical document/script/style/image/font failures"
+        }
+      ]
+    },
+    {
+      "routeLabel": "Pricing",
+      "routePath": "/pricing",
+      "viewportName": "desktop",
+      "screenshotPath": "output/qa/brand-polish/latest/screenshots/pricing-desktop.png",
+      "status": "pass",
+      "checks": [
+        {
+          "name": "HTTP document status",
+          "status": "pass",
+          "detail": "200 OK"
+        },
+        {
+          "name": "Nonblank body",
+          "status": "pass",
+          "detail": "4590 visible text characters"
+        },
+        {
+          "name": "No framework error overlay",
+          "status": "pass",
+          "detail": "No overlay detected"
+        },
+        {
+          "name": "Visible H1 exists",
+          "status": "pass",
+          "detail": "Choose the first step for one real site."
+        },
+        {
+          "name": "Expected route heading",
+          "status": "pass",
+          "detail": "Expected \"Choose the first step for one real site.\", saw \"Choose the first step for one real site.\""
+        },
+        {
+          "name": "SEO title",
+          "status": "pass",
+          "detail": "Pricing | Blueprint"
+        },
+        {
+          "name": "SEO description",
+          "status": "pass",
+          "detail": "118 chars"
+        },
+        {
+          "name": "Canonical URL",
+          "status": "pass",
+          "detail": "https://tryblueprint.io/pricing"
+        },
+        {
+          "name": "Robots indexable",
+          "status": "pass",
+          "detail": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+        },
+        {
+          "name": "No horizontal overflow",
+          "status": "pass",
+          "detail": "0px overflow"
+        },
+        {
+          "name": "Visible images carry alt attributes",
+          "status": "pass",
+          "detail": "All visible images have alt attributes"
+        },
+        {
+          "name": "Visible images load",
+          "status": "pass",
+          "detail": "All visible images decoded"
+        },
+        {
+          "name": "Interactive controls have names",
+          "status": "pass",
+          "detail": "All visible controls have names"
+        },
+        {
+          "name": "Visible form controls are labeled",
+          "status": "pass",
+          "detail": "All visible form controls are labeled"
+        },
+        {
+          "name": "No placeholder residue",
+          "status": "pass",
+          "detail": "No placeholder markers found"
+        },
+        {
+          "name": "CTA: Request world model",
+          "status": "pass",
+          "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=header"
+        },
+        {
+          "name": "CTA: Book hosted review",
+          "status": "pass",
+          "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=pricing-hero"
+        },
+        {
+          "name": "Console health",
+          "status": "pass",
+          "detail": "No console/page errors"
+        },
+        {
+          "name": "Critical asset responses",
+          "status": "pass",
+          "detail": "No critical document/script/style/image/font failures"
+        }
+      ]
+    },
+    {
+      "routeLabel": "Pricing",
+      "routePath": "/pricing",
+      "viewportName": "mobile",
+      "screenshotPath": "output/qa/brand-polish/latest/screenshots/pricing-mobile.png",
+      "status": "pass",
+      "checks": [
+        {
+          "name": "HTTP document status",
+          "status": "pass",
+          "detail": "200 OK"
+        },
+        {
+          "name": "Nonblank body",
+          "status": "pass",
+          "detail": "4527 visible text characters"
+        },
+        {
+          "name": "No framework error overlay",
+          "status": "pass",
+          "detail": "No overlay detected"
+        },
+        {
+          "name": "Visible H1 exists",
+          "status": "pass",
+          "detail": "Choose the first step for one real site."
+        },
+        {
+          "name": "Expected route heading",
+          "status": "pass",
+          "detail": "Expected \"Choose the first step for one real site.\", saw \"Choose the first step for one real site.\""
+        },
+        {
+          "name": "SEO title",
+          "status": "pass",
+          "detail": "Pricing | Blueprint"
+        },
+        {
+          "name": "SEO description",
+          "status": "pass",
+          "detail": "118 chars"
+        },
+        {
+          "name": "Canonical URL",
+          "status": "pass",
+          "detail": "https://tryblueprint.io/pricing"
+        },
+        {
+          "name": "Robots indexable",
+          "status": "pass",
+          "detail": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+        },
+        {
+          "name": "No horizontal overflow",
+          "status": "pass",
+          "detail": "0px overflow"
+        },
+        {
+          "name": "Visible images carry alt attributes",
+          "status": "pass",
+          "detail": "All visible images have alt attributes"
+        },
+        {
+          "name": "Visible images load",
+          "status": "pass",
+          "detail": "All visible images decoded"
+        },
+        {
+          "name": "Interactive controls have names",
+          "status": "pass",
+          "detail": "All visible controls have names"
+        },
+        {
+          "name": "Visible form controls are labeled",
+          "status": "pass",
+          "detail": "All visible form controls are labeled"
+        },
+        {
+          "name": "No placeholder residue",
+          "status": "pass",
+          "detail": "No placeholder markers found"
+        },
+        {
+          "name": "CTA: Request world model",
+          "status": "pass",
+          "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=pricing-hero"
+        },
+        {
+          "name": "CTA: Book hosted review",
+          "status": "pass",
+          "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=pricing-hero"
+        },
+        {
+          "name": "Console health",
+          "status": "pass",
+          "detail": "No console/page errors"
+        },
+        {
+          "name": "Critical asset responses",
+          "status": "pass",
+          "detail": "No critical document/script/style/image/font failures"
+        }
+      ]
+    },
+    {
+      "routeLabel": "Proof",
+      "routePath": "/proof",
+      "viewportName": "desktop",
+      "screenshotPath": "output/qa/brand-polish/latest/screenshots/proof-desktop.png",
+      "status": "pass",
+      "checks": [
+        {
+          "name": "HTTP document status",
+          "status": "pass",
+          "detail": "200 OK"
+        },
+        {
+          "name": "Nonblank body",
+          "status": "pass",
+          "detail": "8440 visible text characters"
+        },
+        {
+          "name": "No framework error overlay",
+          "status": "pass",
+          "detail": "No overlay detected"
+        },
+        {
+          "name": "Visible H1 exists",
+          "status": "pass",
+          "detail": "See what is attached before your team commits."
+        },
+        {
+          "name": "Expected route heading",
+          "status": "pass",
+          "detail": "Expected \"See what is attached before your team commits.\", saw \"See what is attached before your team commits.\""
+        },
+        {
+          "name": "SEO title",
+          "status": "pass",
+          "detail": "Proof System | Blueprint"
+        },
+        {
+          "name": "SEO description",
+          "status": "pass",
+          "detail": "118 chars"
+        },
+        {
+          "name": "Canonical URL",
+          "status": "pass",
+          "detail": "https://tryblueprint.io/proof"
+        },
+        {
+          "name": "Robots indexable",
+          "status": "pass",
+          "detail": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+        },
+        {
+          "name": "No horizontal overflow",
+          "status": "pass",
+          "detail": "0px overflow"
+        },
+        {
+          "name": "Visible images carry alt attributes",
+          "status": "pass",
+          "detail": "All visible images have alt attributes"
+        },
+        {
+          "name": "Visible images load",
+          "status": "pass",
+          "detail": "All visible images decoded"
+        },
+        {
+          "name": "Interactive controls have names",
+          "status": "pass",
+          "detail": "All visible controls have names"
+        },
+        {
+          "name": "Visible form controls are labeled",
+          "status": "pass",
+          "detail": "All visible form controls are labeled"
+        },
+        {
+          "name": "No placeholder residue",
+          "status": "pass",
+          "detail": "No placeholder markers found"
+        },
+        {
+          "name": "CTA: Request world model",
+          "status": "pass",
+          "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=header"
+        },
+        {
+          "name": "CTA: Browse world models",
+          "status": "pass",
+          "detail": "hrefs=/world-models"
+        },
+        {
+          "name": "Console health",
+          "status": "pass",
+          "detail": "No console/page errors"
+        },
+        {
+          "name": "Critical asset responses",
+          "status": "pass",
+          "detail": "No critical document/script/style/image/font failures"
+        }
+      ]
+    },
+    {
+      "routeLabel": "Proof",
+      "routePath": "/proof",
+      "viewportName": "mobile",
+      "screenshotPath": "output/qa/brand-polish/latest/screenshots/proof-mobile.png",
+      "status": "pass",
+      "checks": [
+        {
+          "name": "HTTP document status",
+          "status": "pass",
+          "detail": "200 OK"
+        },
+        {
+          "name": "Nonblank body",
+          "status": "pass",
+          "detail": "8377 visible text characters"
+        },
+        {
+          "name": "No framework error overlay",
+          "status": "pass",
+          "detail": "No overlay detected"
+        },
+        {
+          "name": "Visible H1 exists",
+          "status": "pass",
+          "detail": "See what is attached before your team commits."
+        },
+        {
+          "name": "Expected route heading",
+          "status": "pass",
+          "detail": "Expected \"See what is attached before your team commits.\", saw \"See what is attached before your team commits.\""
+        },
+        {
+          "name": "SEO title",
+          "status": "pass",
+          "detail": "Proof System | Blueprint"
+        },
+        {
+          "name": "SEO description",
+          "status": "pass",
+          "detail": "118 chars"
+        },
+        {
+          "name": "Canonical URL",
+          "status": "pass",
+          "detail": "https://tryblueprint.io/proof"
+        },
+        {
+          "name": "Robots indexable",
+          "status": "pass",
+          "detail": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+        },
+        {
+          "name": "No horizontal overflow",
+          "status": "pass",
+          "detail": "0px overflow"
+        },
+        {
+          "name": "Visible images carry alt attributes",
+          "status": "pass",
+          "detail": "All visible images have alt attributes"
+        },
+        {
+          "name": "Visible images load",
+          "status": "pass",
+          "detail": "All visible images decoded"
+        },
+        {
+          "name": "Interactive controls have names",
+          "status": "pass",
+          "detail": "All visible controls have names"
+        },
+        {
+          "name": "Visible form controls are labeled",
+          "status": "pass",
+          "detail": "All visible form controls are labeled"
+        },
+        {
+          "name": "No placeholder residue",
+          "status": "pass",
+          "detail": "No placeholder markers found"
+        },
+        {
+          "name": "CTA: Request world model",
+          "status": "pass",
+          "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=proof-packet&source=proof-hero"
+        },
+        {
+          "name": "CTA: Browse world models",
+          "status": "pass",
+          "detail": "hrefs=/world-models"
+        },
+        {
+          "name": "Console health",
+          "status": "pass",
+          "detail": "No console/page errors"
+        },
+        {
+          "name": "Critical asset responses",
+          "status": "pass",
+          "detail": "No critical document/script/style/image/font failures"
+        }
+      ]
+    },
+    {
+      "routeLabel": "Capture",
+      "routePath": "/capture",
+      "viewportName": "desktop",
+      "screenshotPath": "output/qa/brand-polish/latest/screenshots/capture-desktop.png",
+      "status": "pass",
+      "checks": [
+        {
+          "name": "HTTP document status",
+          "status": "pass",
+          "detail": "200 OK"
+        },
+        {
+          "name": "Nonblank body",
+          "status": "pass",
+          "detail": "3218 visible text characters"
+        },
+        {
+          "name": "No framework error overlay",
+          "status": "pass",
+          "detail": "No overlay detected"
+        },
+        {
+          "name": "Visible H1 exists",
+          "status": "pass",
+          "detail": "Get paid to capture real places robots need to understand."
+        },
+        {
+          "name": "Expected route heading",
+          "status": "pass",
+          "detail": "Expected \"Get paid to capture real places robots need to understand.\", saw \"Get paid to capture real places robots need to understand.\""
+        },
+        {
+          "name": "SEO title",
+          "status": "pass",
+          "detail": "For Capturers | Blueprint"
+        },
+        {
+          "name": "SEO description",
+          "status": "pass",
+          "detail": "118 chars"
+        },
+        {
+          "name": "Canonical URL",
+          "status": "pass",
+          "detail": "https://tryblueprint.io/capture"
+        },
+        {
+          "name": "Robots indexable",
+          "status": "pass",
+          "detail": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+        },
+        {
+          "name": "No horizontal overflow",
+          "status": "pass",
+          "detail": "0px overflow"
+        },
+        {
+          "name": "Visible images carry alt attributes",
+          "status": "pass",
+          "detail": "All visible images have alt attributes"
+        },
+        {
+          "name": "Visible images load",
+          "status": "pass",
+          "detail": "All visible images decoded"
+        },
+        {
+          "name": "Interactive controls have names",
+          "status": "pass",
+          "detail": "All visible controls have names"
+        },
+        {
+          "name": "Visible form controls are labeled",
+          "status": "pass",
+          "detail": "All visible form controls are labeled"
+        },
+        {
+          "name": "No placeholder residue",
+          "status": "pass",
+          "detail": "No placeholder markers found"
+        },
+        {
+          "name": "CTA: Check capture access",
+          "status": "pass",
+          "detail": "hrefs=/capture-app/launch-access?role=capturer&source=capture-hero"
+        },
+        {
+          "name": "CTA: Apply to capture",
+          "status": "pass",
+          "detail": "hrefs=/signup/capturer"
+        },
+        {
+          "name": "Console health",
+          "status": "pass",
+          "detail": "No console/page errors"
+        },
+        {
+          "name": "Critical asset responses",
+          "status": "pass",
+          "detail": "No critical document/script/style/image/font failures"
+        }
+      ]
+    },
+    {
+      "routeLabel": "Capture",
+      "routePath": "/capture",
+      "viewportName": "mobile",
+      "screenshotPath": "output/qa/brand-polish/latest/screenshots/capture-mobile.png",
+      "status": "pass",
+      "checks": [
+        {
+          "name": "HTTP document status",
+          "status": "pass",
+          "detail": "200 OK"
+        },
+        {
+          "name": "Nonblank body",
+          "status": "pass",
+          "detail": "3155 visible text characters"
+        },
+        {
+          "name": "No framework error overlay",
+          "status": "pass",
+          "detail": "No overlay detected"
+        },
+        {
+          "name": "Visible H1 exists",
+          "status": "pass",
+          "detail": "Get paid to capture real places robots need to understand."
+        },
+        {
+          "name": "Expected route heading",
+          "status": "pass",
+          "detail": "Expected \"Get paid to capture real places robots need to understand.\", saw \"Get paid to capture real places robots need to understand.\""
+        },
+        {
+          "name": "SEO title",
+          "status": "pass",
+          "detail": "For Capturers | Blueprint"
+        },
+        {
+          "name": "SEO description",
+          "status": "pass",
+          "detail": "118 chars"
+        },
+        {
+          "name": "Canonical URL",
+          "status": "pass",
+          "detail": "https://tryblueprint.io/capture"
+        },
+        {
+          "name": "Robots indexable",
+          "status": "pass",
+          "detail": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+        },
+        {
+          "name": "No horizontal overflow",
+          "status": "pass",
+          "detail": "0px overflow"
+        },
+        {
+          "name": "Visible images carry alt attributes",
+          "status": "pass",
+          "detail": "All visible images have alt attributes"
+        },
+        {
+          "name": "Visible images load",
+          "status": "pass",
+          "detail": "All visible images decoded"
+        },
+        {
+          "name": "Interactive controls have names",
+          "status": "pass",
+          "detail": "All visible controls have names"
+        },
+        {
+          "name": "Visible form controls are labeled",
+          "status": "pass",
+          "detail": "All visible form controls are labeled"
+        },
+        {
+          "name": "No placeholder residue",
+          "status": "pass",
+          "detail": "No placeholder markers found"
+        },
+        {
+          "name": "CTA: Check capture access",
+          "status": "pass",
+          "detail": "hrefs=/capture-app/launch-access?role=capturer&source=capture-hero"
+        },
+        {
+          "name": "CTA: Apply to capture",
+          "status": "pass",
+          "detail": "hrefs=/signup/capturer"
+        },
+        {
+          "name": "Console health",
+          "status": "pass",
+          "detail": "No console/page errors"
+        },
+        {
+          "name": "Critical asset responses",
+          "status": "pass",
+          "detail": "No critical document/script/style/image/font failures"
+        }
+      ]
+    },
+    {
+      "routeLabel": "Contact",
+      "routePath": "/contact",
+      "viewportName": "desktop",
+      "screenshotPath": "output/qa/brand-polish/latest/screenshots/contact-desktop.png",
+      "status": "pass",
+      "checks": [
+        {
+          "name": "HTTP document status",
+          "status": "pass",
+          "detail": "200 OK"
+        },
+        {
+          "name": "Nonblank body",
+          "status": "pass",
+          "detail": "3353 visible text characters"
+        },
+        {
+          "name": "No framework error overlay",
+          "status": "pass",
+          "detail": "No overlay detected"
+        },
+        {
+          "name": "Visible H1 exists",
+          "status": "pass",
+          "detail": "Request the site-specific world model your robot team needs."
+        },
+        {
+          "name": "Expected route heading",
+          "status": "pass",
+          "detail": "Expected \"Request the site-specific world model your robot team needs.\", saw \"Request the site-specific world model your robot team needs.\""
+        },
+        {
+          "name": "SEO title",
+          "status": "pass",
+          "detail": "Request A World Model | Blueprint"
+        },
+        {
+          "name": "SEO description",
+          "status": "pass",
+          "detail": "118 chars"
+        },
+        {
+          "name": "Canonical URL",
+          "status": "pass",
+          "detail": "https://tryblueprint.io/contact"
+        },
+        {
+          "name": "Robots indexable",
+          "status": "pass",
+          "detail": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+        },
+        {
+          "name": "No horizontal overflow",
+          "status": "pass",
+          "detail": "0px overflow"
+        },
+        {
+          "name": "Visible images carry alt attributes",
+          "status": "pass",
+          "detail": "All visible images have alt attributes"
+        },
+        {
+          "name": "Visible images load",
+          "status": "pass",
+          "detail": "All visible images decoded"
+        },
+        {
+          "name": "Interactive controls have names",
+          "status": "pass",
+          "detail": "All visible controls have names"
+        },
+        {
+          "name": "Visible form controls are labeled",
+          "status": "pass",
+          "detail": "All visible form controls are labeled"
+        },
+        {
+          "name": "No placeholder residue",
+          "status": "pass",
+          "detail": "No placeholder markers found"
+        },
+        {
+          "name": "CTA: Request world model",
+          "status": "pass",
+          "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=header, #contact-intake"
+        },
+        {
+          "name": "CTA: Inspect proof",
+          "status": "pass",
+          "detail": "hrefs=/proof"
+        },
+        {
+          "name": "Console health",
+          "status": "pass",
+          "detail": "No console/page errors"
+        },
+        {
+          "name": "Critical asset responses",
+          "status": "pass",
+          "detail": "No critical document/script/style/image/font failures"
+        }
+      ]
+    },
+    {
+      "routeLabel": "Contact",
+      "routePath": "/contact",
+      "viewportName": "mobile",
+      "screenshotPath": "output/qa/brand-polish/latest/screenshots/contact-mobile.png",
+      "status": "pass",
+      "checks": [
+        {
+          "name": "HTTP document status",
+          "status": "pass",
+          "detail": "200 OK"
+        },
+        {
+          "name": "Nonblank body",
+          "status": "pass",
+          "detail": "3290 visible text characters"
+        },
+        {
+          "name": "No framework error overlay",
+          "status": "pass",
+          "detail": "No overlay detected"
+        },
+        {
+          "name": "Visible H1 exists",
+          "status": "pass",
+          "detail": "Request the site-specific world model your robot team needs."
+        },
+        {
+          "name": "Expected route heading",
+          "status": "pass",
+          "detail": "Expected \"Request the site-specific world model your robot team needs.\", saw \"Request the site-specific world model your robot team needs.\""
+        },
+        {
+          "name": "SEO title",
+          "status": "pass",
+          "detail": "Request A World Model | Blueprint"
+        },
+        {
+          "name": "SEO description",
+          "status": "pass",
+          "detail": "118 chars"
+        },
+        {
+          "name": "Canonical URL",
+          "status": "pass",
+          "detail": "https://tryblueprint.io/contact"
+        },
+        {
+          "name": "Robots indexable",
+          "status": "pass",
+          "detail": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+        },
+        {
+          "name": "No horizontal overflow",
+          "status": "pass",
+          "detail": "0px overflow"
+        },
+        {
+          "name": "Visible images carry alt attributes",
+          "status": "pass",
+          "detail": "All visible images have alt attributes"
+        },
+        {
+          "name": "Visible images load",
+          "status": "pass",
+          "detail": "All visible images decoded"
+        },
+        {
+          "name": "Interactive controls have names",
+          "status": "pass",
+          "detail": "All visible controls have names"
+        },
+        {
+          "name": "Visible form controls are labeled",
+          "status": "pass",
+          "detail": "All visible form controls are labeled"
+        },
+        {
+          "name": "No placeholder residue",
+          "status": "pass",
+          "detail": "No placeholder markers found"
+        },
+        {
+          "name": "CTA: Request world model",
+          "status": "pass",
+          "detail": "hrefs=#contact-intake"
+        },
+        {
+          "name": "CTA: Inspect proof",
+          "status": "pass",
+          "detail": "hrefs=/proof"
+        },
+        {
+          "name": "Console health",
+          "status": "pass",
+          "detail": "No console/page errors"
+        },
+        {
+          "name": "Critical asset responses",
+          "status": "pass",
+          "detail": "No critical document/script/style/image/font failures"
+        }
+      ]
+    },
+    {
+      "routeLabel": "Careers",
+      "routePath": "/careers",
+      "viewportName": "desktop",
+      "screenshotPath": "output/qa/brand-polish/latest/screenshots/careers-desktop.png",
+      "status": "pass",
+      "checks": [
+        {
+          "name": "HTTP document status",
+          "status": "pass",
+          "detail": "200 OK"
+        },
+        {
+          "name": "Nonblank body",
+          "status": "pass",
+          "detail": "7790 visible text characters"
+        },
+        {
+          "name": "No framework error overlay",
+          "status": "pass",
+          "detail": "No overlay detected"
+        },
+        {
+          "name": "Visible H1 exists",
+          "status": "pass",
+          "detail": "Build the systems behind exact-site world models."
+        },
+        {
+          "name": "Expected route heading",
+          "status": "pass",
+          "detail": "Expected \"Build the systems behind exact-site world models.\", saw \"Build the systems behind exact-site world models.\""
+        },
+        {
+          "name": "SEO title",
+          "status": "pass",
+          "detail": "Careers | Blueprint"
+        },
+        {
+          "name": "SEO description",
+          "status": "pass",
+          "detail": "118 chars"
+        },
+        {
+          "name": "Canonical URL",
+          "status": "pass",
+          "detail": "https://tryblueprint.io/careers"
+        },
+        {
+          "name": "Robots indexable",
+          "status": "pass",
+          "detail": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+        },
+        {
+          "name": "No horizontal overflow",
+          "status": "pass",
+          "detail": "0px overflow"
+        },
+        {
+          "name": "Visible images carry alt attributes",
+          "status": "pass",
+          "detail": "All visible images have alt attributes"
+        },
+        {
+          "name": "Visible images load",
+          "status": "pass",
+          "detail": "All visible images decoded"
+        },
+        {
+          "name": "Interactive controls have names",
+          "status": "pass",
+          "detail": "All visible controls have names"
+        },
+        {
+          "name": "Visible form controls are labeled",
+          "status": "pass",
+          "detail": "All visible form controls are labeled"
+        },
+        {
+          "name": "No placeholder residue",
+          "status": "pass",
+          "detail": "No placeholder markers found"
+        },
+        {
+          "name": "CTA: View open roles",
+          "status": "pass",
+          "detail": "hrefs=#open-roles"
+        },
+        {
+          "name": "CTA: Apply by email",
+          "status": "pass",
+          "detail": "hrefs=mailto:careers@tryblueprint.io?subject=Blueprint%20Founding%20Systems%20Lead"
+        },
+        {
+          "name": "Console health",
+          "status": "pass",
+          "detail": "No console/page errors"
+        },
+        {
+          "name": "Critical asset responses",
+          "status": "pass",
+          "detail": "No critical document/script/style/image/font failures"
+        }
+      ]
+    },
+    {
+      "routeLabel": "Careers",
+      "routePath": "/careers",
+      "viewportName": "mobile",
+      "screenshotPath": "output/qa/brand-polish/latest/screenshots/careers-mobile.png",
+      "status": "pass",
+      "checks": [
+        {
+          "name": "HTTP document status",
+          "status": "pass",
+          "detail": "200 OK"
+        },
+        {
+          "name": "Nonblank body",
+          "status": "pass",
+          "detail": "7727 visible text characters"
+        },
+        {
+          "name": "No framework error overlay",
+          "status": "pass",
+          "detail": "No overlay detected"
+        },
+        {
+          "name": "Visible H1 exists",
+          "status": "pass",
+          "detail": "Build the systems behind exact-site world models."
+        },
+        {
+          "name": "Expected route heading",
+          "status": "pass",
+          "detail": "Expected \"Build the systems behind exact-site world models.\", saw \"Build the systems behind exact-site world models.\""
+        },
+        {
+          "name": "SEO title",
+          "status": "pass",
+          "detail": "Careers | Blueprint"
+        },
+        {
+          "name": "SEO description",
+          "status": "pass",
+          "detail": "118 chars"
+        },
+        {
+          "name": "Canonical URL",
+          "status": "pass",
+          "detail": "https://tryblueprint.io/careers"
+        },
+        {
+          "name": "Robots indexable",
+          "status": "pass",
+          "detail": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+        },
+        {
+          "name": "No horizontal overflow",
+          "status": "pass",
+          "detail": "0px overflow"
+        },
+        {
+          "name": "Visible images carry alt attributes",
+          "status": "pass",
+          "detail": "All visible images have alt attributes"
+        },
+        {
+          "name": "Visible images load",
+          "status": "pass",
+          "detail": "All visible images decoded"
+        },
+        {
+          "name": "Interactive controls have names",
+          "status": "pass",
+          "detail": "All visible controls have names"
+        },
+        {
+          "name": "Visible form controls are labeled",
+          "status": "pass",
+          "detail": "All visible form controls are labeled"
+        },
+        {
+          "name": "No placeholder residue",
+          "status": "pass",
+          "detail": "No placeholder markers found"
+        },
+        {
+          "name": "CTA: View open roles",
+          "status": "pass",
+          "detail": "hrefs=#open-roles"
+        },
+        {
+          "name": "CTA: Apply by email",
+          "status": "pass",
+          "detail": "hrefs=mailto:careers@tryblueprint.io?subject=Blueprint%20Founding%20Systems%20Lead"
+        },
+        {
+          "name": "Console health",
+          "status": "pass",
+          "detail": "No console/page errors"
+        },
+        {
+          "name": "Critical asset responses",
+          "status": "pass",
+          "detail": "No critical document/script/style/image/font failures"
+        }
+      ]
+    },
+    {
+      "routeLabel": "FAQ",
+      "routePath": "/faq",
+      "viewportName": "desktop",
+      "screenshotPath": "output/qa/brand-polish/latest/screenshots/faq-desktop.png",
+      "status": "pass",
+      "checks": [
+        {
+          "name": "HTTP document status",
+          "status": "pass",
+          "detail": "200 OK"
+        },
+        {
+          "name": "Nonblank body",
+          "status": "pass",
+          "detail": "3081 visible text characters"
+        },
+        {
+          "name": "No framework error overlay",
+          "status": "pass",
+          "detail": "No overlay detected"
+        },
+        {
+          "name": "Visible H1 exists",
+          "status": "pass",
+          "detail": "The questions that usually decide fit."
+        },
+        {
+          "name": "Expected route heading",
+          "status": "pass",
+          "detail": "Expected \"The questions that usually decide fit.\", saw \"The questions that usually decide fit.\""
+        },
+        {
+          "name": "SEO title",
+          "status": "pass",
+          "detail": "FAQ | Blueprint"
+        },
+        {
+          "name": "SEO description",
+          "status": "pass",
+          "detail": "118 chars"
+        },
+        {
+          "name": "Canonical URL",
+          "status": "pass",
+          "detail": "https://tryblueprint.io/faq"
+        },
+        {
+          "name": "Robots indexable",
+          "status": "pass",
+          "detail": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+        },
+        {
+          "name": "No horizontal overflow",
+          "status": "pass",
+          "detail": "0px overflow"
+        },
+        {
+          "name": "Visible images carry alt attributes",
+          "status": "pass",
+          "detail": "All visible images have alt attributes"
+        },
+        {
+          "name": "Visible images load",
+          "status": "pass",
+          "detail": "All visible images decoded"
+        },
+        {
+          "name": "Interactive controls have names",
+          "status": "pass",
+          "detail": "All visible controls have names"
+        },
+        {
+          "name": "Visible form controls are labeled",
+          "status": "pass",
+          "detail": "All visible form controls are labeled"
+        },
+        {
+          "name": "No placeholder residue",
+          "status": "pass",
+          "detail": "No placeholder markers found"
+        },
+        {
+          "name": "CTA: Talk to Blueprint about a real site",
+          "status": "pass",
+          "detail": "hrefs=/contact?persona=robot-team"
+        },
+        {
+          "name": "Console health",
+          "status": "pass",
+          "detail": "No console/page errors"
+        },
+        {
+          "name": "Critical asset responses",
+          "status": "pass",
+          "detail": "No critical document/script/style/image/font failures"
+        }
+      ]
+    },
+    {
+      "routeLabel": "FAQ",
+      "routePath": "/faq",
+      "viewportName": "mobile",
+      "screenshotPath": "output/qa/brand-polish/latest/screenshots/faq-mobile.png",
+      "status": "pass",
+      "checks": [
+        {
+          "name": "HTTP document status",
+          "status": "pass",
+          "detail": "200 OK"
+        },
+        {
+          "name": "Nonblank body",
+          "status": "pass",
+          "detail": "3018 visible text characters"
+        },
+        {
+          "name": "No framework error overlay",
+          "status": "pass",
+          "detail": "No overlay detected"
+        },
+        {
+          "name": "Visible H1 exists",
+          "status": "pass",
+          "detail": "The questions that usually decide fit."
+        },
+        {
+          "name": "Expected route heading",
+          "status": "pass",
+          "detail": "Expected \"The questions that usually decide fit.\", saw \"The questions that usually decide fit.\""
+        },
+        {
+          "name": "SEO title",
+          "status": "pass",
+          "detail": "FAQ | Blueprint"
+        },
+        {
+          "name": "SEO description",
+          "status": "pass",
+          "detail": "118 chars"
+        },
+        {
+          "name": "Canonical URL",
+          "status": "pass",
+          "detail": "https://tryblueprint.io/faq"
+        },
+        {
+          "name": "Robots indexable",
+          "status": "pass",
+          "detail": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+        },
+        {
+          "name": "No horizontal overflow",
+          "status": "pass",
+          "detail": "0px overflow"
+        },
+        {
+          "name": "Visible images carry alt attributes",
+          "status": "pass",
+          "detail": "All visible images have alt attributes"
+        },
+        {
+          "name": "Visible images load",
+          "status": "pass",
+          "detail": "All visible images decoded"
+        },
+        {
+          "name": "Interactive controls have names",
+          "status": "pass",
+          "detail": "All visible controls have names"
+        },
+        {
+          "name": "Visible form controls are labeled",
+          "status": "pass",
+          "detail": "All visible form controls are labeled"
+        },
+        {
+          "name": "No placeholder residue",
+          "status": "pass",
+          "detail": "No placeholder markers found"
+        },
+        {
+          "name": "CTA: Talk to Blueprint about a real site",
+          "status": "pass",
+          "detail": "hrefs=/contact?persona=robot-team"
+        },
+        {
+          "name": "Console health",
+          "status": "pass",
+          "detail": "No console/page errors"
+        },
+        {
+          "name": "Critical asset responses",
+          "status": "pass",
+          "detail": "No critical document/script/style/image/font failures"
+        }
+      ]
+    },
+    {
+      "routeLabel": "About",
+      "routePath": "/about",
+      "viewportName": "desktop",
+      "screenshotPath": "output/qa/brand-polish/latest/screenshots/about-desktop.png",
+      "status": "pass",
+      "checks": [
+        {
+          "name": "HTTP document status",
+          "status": "pass",
+          "detail": "200 OK"
+        },
+        {
+          "name": "Nonblank body",
+          "status": "pass",
+          "detail": "2165 visible text characters"
+        },
+        {
+          "name": "No framework error overlay",
+          "status": "pass",
+          "detail": "No overlay detected"
+        },
+        {
+          "name": "Visible H1 exists",
+          "status": "pass",
+          "detail": "Blueprint exists to make one real site legible earlier."
+        },
+        {
+          "name": "Expected route heading",
+          "status": "pass",
+          "detail": "Expected \"Blueprint exists to make one real site legible earlier.\", saw \"Blueprint exists to make one real site legible earlier.\""
+        },
+        {
+          "name": "SEO title",
+          "status": "pass",
+          "detail": "About | Blueprint"
+        },
+        {
+          "name": "SEO description",
+          "status": "pass",
+          "detail": "118 chars"
+        },
+        {
+          "name": "Canonical URL",
+          "status": "pass",
+          "detail": "https://tryblueprint.io/about"
+        },
+        {
+          "name": "Robots indexable",
+          "status": "pass",
+          "detail": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+        },
+        {
+          "name": "No horizontal overflow",
+          "status": "pass",
+          "detail": "0px overflow"
+        },
+        {
+          "name": "Visible images carry alt attributes",
+          "status": "pass",
+          "detail": "All visible images have alt attributes"
+        },
+        {
+          "name": "Visible images load",
+          "status": "pass",
+          "detail": "All visible images decoded"
+        },
+        {
+          "name": "Interactive controls have names",
+          "status": "pass",
+          "detail": "All visible controls have names"
+        },
+        {
+          "name": "Visible form controls are labeled",
+          "status": "pass",
+          "detail": "All visible form controls are labeled"
+        },
+        {
+          "name": "No placeholder residue",
+          "status": "pass",
+          "detail": "No placeholder markers found"
+        },
+        {
+          "name": "CTA: Explore world models",
+          "status": "pass",
+          "detail": "hrefs=/world-models"
+        },
+        {
+          "name": "CTA: Contact Blueprint",
+          "status": "pass",
+          "detail": "hrefs=/contact?persona=robot-team"
+        },
+        {
+          "name": "Console health",
+          "status": "pass",
+          "detail": "No console/page errors"
+        },
+        {
+          "name": "Critical asset responses",
+          "status": "pass",
+          "detail": "No critical document/script/style/image/font failures"
+        }
+      ]
+    },
+    {
+      "routeLabel": "About",
+      "routePath": "/about",
+      "viewportName": "mobile",
+      "screenshotPath": "output/qa/brand-polish/latest/screenshots/about-mobile.png",
+      "status": "pass",
+      "checks": [
+        {
+          "name": "HTTP document status",
+          "status": "pass",
+          "detail": "200 OK"
+        },
+        {
+          "name": "Nonblank body",
+          "status": "pass",
+          "detail": "2009 visible text characters"
+        },
+        {
+          "name": "No framework error overlay",
+          "status": "pass",
+          "detail": "No overlay detected"
+        },
+        {
+          "name": "Visible H1 exists",
+          "status": "pass",
+          "detail": "Blueprint exists to make one real site legible earlier."
+        },
+        {
+          "name": "Expected route heading",
+          "status": "pass",
+          "detail": "Expected \"Blueprint exists to make one real site legible earlier.\", saw \"Blueprint exists to make one real site legible earlier.\""
+        },
+        {
+          "name": "SEO title",
+          "status": "pass",
+          "detail": "About | Blueprint"
+        },
+        {
+          "name": "SEO description",
+          "status": "pass",
+          "detail": "118 chars"
+        },
+        {
+          "name": "Canonical URL",
+          "status": "pass",
+          "detail": "https://tryblueprint.io/about"
+        },
+        {
+          "name": "Robots indexable",
+          "status": "pass",
+          "detail": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+        },
+        {
+          "name": "No horizontal overflow",
+          "status": "pass",
+          "detail": "0px overflow"
+        },
+        {
+          "name": "Visible images carry alt attributes",
+          "status": "pass",
+          "detail": "All visible images have alt attributes"
+        },
+        {
+          "name": "Visible images load",
+          "status": "pass",
+          "detail": "All visible images decoded"
+        },
+        {
+          "name": "Interactive controls have names",
+          "status": "pass",
+          "detail": "All visible controls have names"
+        },
+        {
+          "name": "Visible form controls are labeled",
+          "status": "pass",
+          "detail": "All visible form controls are labeled"
+        },
+        {
+          "name": "No placeholder residue",
+          "status": "pass",
+          "detail": "No placeholder markers found"
+        },
+        {
+          "name": "CTA: Explore world models",
+          "status": "pass",
+          "detail": "hrefs=/world-models"
+        },
+        {
+          "name": "CTA: Contact Blueprint",
+          "status": "pass",
+          "detail": "hrefs=/contact?persona=robot-team"
+        },
+        {
+          "name": "Console health",
+          "status": "pass",
+          "detail": "No console/page errors"
+        },
+        {
+          "name": "Critical asset responses",
+          "status": "pass",
+          "detail": "No critical document/script/style/image/font failures"
+        }
+      ]
+    },
+    {
+      "routeLabel": "Updates",
+      "routePath": "/updates",
+      "viewportName": "desktop",
+      "screenshotPath": "output/qa/brand-polish/latest/screenshots/updates-desktop.png",
+      "status": "pass",
+      "checks": [
+        {
+          "name": "HTTP document status",
+          "status": "pass",
+          "detail": "200 OK"
+        },
+        {
+          "name": "Nonblank body",
+          "status": "pass",
+          "detail": "1625 visible text characters"
+        },
+        {
+          "name": "No framework error overlay",
+          "status": "pass",
+          "detail": "No overlay detected"
+        },
+        {
+          "name": "Visible H1 exists",
+          "status": "pass",
+          "detail": "Notes on exact-site world models."
+        },
+        {
+          "name": "Expected route heading",
+          "status": "pass",
+          "detail": "Expected \"Notes on exact-site world models.\", saw \"Notes on exact-site world models.\""
+        },
+        {
+          "name": "SEO title",
+          "status": "pass",
+          "detail": "Updates | Blueprint"
+        },
+        {
+          "name": "SEO description",
+          "status": "pass",
+          "detail": "118 chars"
+        },
+        {
+          "name": "Canonical URL",
+          "status": "pass",
+          "detail": "https://tryblueprint.io/updates"
+        },
+        {
+          "name": "Robots indexable",
+          "status": "pass",
+          "detail": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+        },
+        {
+          "name": "No horizontal overflow",
+          "status": "pass",
+          "detail": "0px overflow"
+        },
+        {
+          "name": "Visible images carry alt attributes",
+          "status": "pass",
+          "detail": "All visible images have alt attributes"
+        },
+        {
+          "name": "Visible images load",
+          "status": "pass",
+          "detail": "All visible images decoded"
+        },
+        {
+          "name": "Interactive controls have names",
+          "status": "pass",
+          "detail": "All visible controls have names"
+        },
+        {
+          "name": "Visible form controls are labeled",
+          "status": "pass",
+          "detail": "All visible form controls are labeled"
+        },
+        {
+          "name": "No placeholder residue",
+          "status": "pass",
+          "detail": "No placeholder markers found"
+        },
+        {
+          "name": "CTA: Explore world models",
+          "status": "pass",
+          "detail": "hrefs=/world-models"
+        },
+        {
+          "name": "CTA: See proof",
+          "status": "pass",
+          "detail": "hrefs=/proof"
+        },
+        {
+          "name": "Console health",
+          "status": "pass",
+          "detail": "No console/page errors"
+        },
+        {
+          "name": "Critical asset responses",
+          "status": "pass",
+          "detail": "No critical document/script/style/image/font failures"
+        }
+      ]
+    },
+    {
+      "routeLabel": "Updates",
+      "routePath": "/updates",
+      "viewportName": "mobile",
+      "screenshotPath": "output/qa/brand-polish/latest/screenshots/updates-mobile.png",
+      "status": "pass",
+      "checks": [
+        {
+          "name": "HTTP document status",
+          "status": "pass",
+          "detail": "200 OK"
+        },
+        {
+          "name": "Nonblank body",
+          "status": "pass",
+          "detail": "1562 visible text characters"
+        },
+        {
+          "name": "No framework error overlay",
+          "status": "pass",
+          "detail": "No overlay detected"
+        },
+        {
+          "name": "Visible H1 exists",
+          "status": "pass",
+          "detail": "Notes on exact-site world models."
+        },
+        {
+          "name": "Expected route heading",
+          "status": "pass",
+          "detail": "Expected \"Notes on exact-site world models.\", saw \"Notes on exact-site world models.\""
+        },
+        {
+          "name": "SEO title",
+          "status": "pass",
+          "detail": "Updates | Blueprint"
+        },
+        {
+          "name": "SEO description",
+          "status": "pass",
+          "detail": "118 chars"
+        },
+        {
+          "name": "Canonical URL",
+          "status": "pass",
+          "detail": "https://tryblueprint.io/updates"
+        },
+        {
+          "name": "Robots indexable",
+          "status": "pass",
+          "detail": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+        },
+        {
+          "name": "No horizontal overflow",
+          "status": "pass",
+          "detail": "0px overflow"
+        },
+        {
+          "name": "Visible images carry alt attributes",
+          "status": "pass",
+          "detail": "All visible images have alt attributes"
+        },
+        {
+          "name": "Visible images load",
+          "status": "pass",
+          "detail": "All visible images decoded"
+        },
+        {
+          "name": "Interactive controls have names",
+          "status": "pass",
+          "detail": "All visible controls have names"
+        },
+        {
+          "name": "Visible form controls are labeled",
+          "status": "pass",
+          "detail": "All visible form controls are labeled"
+        },
+        {
+          "name": "No placeholder residue",
+          "status": "pass",
+          "detail": "No placeholder markers found"
+        },
+        {
+          "name": "CTA: Explore world models",
+          "status": "pass",
+          "detail": "hrefs=/world-models"
+        },
+        {
+          "name": "CTA: See proof",
+          "status": "pass",
+          "detail": "hrefs=/proof"
+        },
+        {
+          "name": "Console health",
+          "status": "pass",
+          "detail": "No console/page errors"
+        },
+        {
+          "name": "Critical asset responses",
+          "status": "pass",
+          "detail": "No critical document/script/style/image/font failures"
+        }
+      ]
+    }
+  ],
+  "linkResults": [
+    {
+      "href": "/",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/",
+        "/about",
+        "/capture",
+        "/careers",
+        "/contact",
+        "/faq",
+        "/pricing",
+        "/product",
+        "/proof",
+        "/updates",
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/about",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/",
+        "/about",
+        "/capture",
+        "/careers",
+        "/contact",
+        "/faq",
+        "/pricing",
+        "/product",
+        "/proof",
+        "/updates",
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/capture",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/",
+        "/about",
+        "/capture",
+        "/careers",
+        "/contact",
+        "/faq",
+        "/pricing",
+        "/product",
+        "/proof",
+        "/updates",
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/capture-app/launch-access?role=capturer&source=capture-hero",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/capture"
+      ]
+    },
+    {
+      "href": "/capture-app/launch-access?role=capturer&source=home-persona-capturer",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/"
+      ]
+    },
+    {
+      "href": "/careers",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/",
+        "/about",
+        "/capture",
+        "/careers",
+        "/contact",
+        "/faq",
+        "/pricing",
+        "/product",
+        "/proof",
+        "/updates",
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/contact",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/contact"
+      ]
+    },
+    {
+      "href": "/contact/site-operator",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/"
+      ]
+    },
+    {
+      "href": "/contact?interest=data-licensing&buyerType=robot_team&source=site-worlds&path=package-access&siteName=Bayview+Micro-Fulfillment+Center&siteLocation=1380+Oakland+Rd%2C+San+Jose%2C+CA+95112&taskStatement=Pick+the+order+items+and+transfer+the+tote+to+pack&targetRobotTeam=AMR+with+shelf-facing+camera+and+tote+sensor",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/contact?interest=data-licensing&buyerType=robot_team&source=site-worlds&path=package-access&siteName=Cherry+Creek+Hospital+Supply+Annex&siteLocation=950+Josephine+St%2C+Denver%2C+CO+80206&taskStatement=Load+the+cart%2C+deliver+to+the+room%2C+and+return+through+the+clear+corridor&targetRobotTeam=Hospital+cart+robot+with+head+cam+and+map+state+feed",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/contact?interest=data-licensing&buyerType=robot_team&source=site-worlds&path=package-access&siteName=Commonwealth+Pharmacy+Refill+Center&siteLocation=71+Southampton+St%2C+Boston%2C+MA+02118&taskStatement=Pick+the+refill+item%2C+verify+it%2C+and+load+the+secure+bin&targetRobotTeam=Dual-arm+pharmacy+assistant+with+wrist+cam+and+barcode+state",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/contact?interest=data-licensing&buyerType=robot_team&source=site-worlds&path=package-access&siteName=Front+Range+Cold+Storage+Pod&siteLocation=1911+Groveport+Rd%2C+Columbus%2C+OH+43207&taskStatement=Pick+the+target+bin+and+transfer+it+without+breaking+the+route+timing&targetRobotTeam=Cold-room+picker+with+arm+camera+and+thermal+state+feed",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/contact?interest=data-licensing&buyerType=robot_team&source=site-worlds&path=package-access&siteName=Harborview+Grocery+Distribution+Annex&siteLocation=1847+W+Fulton+St%2C+Chicago%2C+IL+60612&taskStatement=Walk+to+shelf+staging+and+pick+the+blue+tote&targetRobotTeam=Unitree+G1+with+head+cam+and+wrist+cam",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/contact?interest=data-licensing&buyerType=robot_team&source=site-worlds&path=package-access&siteName=Meadowlands+Returns+Processing+Suite&siteLocation=500+Duncan+Ave%2C+Jersey+City%2C+NJ+07306&taskStatement=Triage+the+returned+item+and+route+it+to+the+correct+tote&targetRobotTeam=Stationary+arm+with+table+cams+and+barcode+reader",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/contact?interest=data-licensing&buyerType=robot_team&source=site-worlds&path=package-access&siteName=Media+Room+Demo+Walkthrough&siteLocation=Blueprint+hosted+review+demo&taskStatement=Media+room&targetRobotTeam=Mobile+manipulator+with+head+and+wrist+cameras",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/contact?interest=data-licensing&buyerType=robot_team&source=site-worlds&path=package-access&siteName=Motor+City+Battery+Staging+Cell&siteLocation=7440+Lynch+Rd%2C+Detroit%2C+MI+48234&taskStatement=Move+the+part+feed+into+the+fixture+and+complete+the+transfer&targetRobotTeam=Assembly+arm+with+force+trace+stream+and+wrist+camera",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/contact?interest=data-licensing&buyerType=robot_team&source=site-worlds&path=package-access&siteName=Newark+Terminal+B+Baggage+Feed&siteLocation=3+Brewster+Rd%2C+Newark%2C+NJ+07114&taskStatement=Scan+the+bag%2C+route+it+correctly%2C+and+clear+the+lane&targetRobotTeam=Bag-handling+arm+with+feed+camera+and+scan+event+stream",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/contact?interest=data-licensing&buyerType=robot_team&source=site-worlds&path=package-access&siteName=Peachtree+Parcel+Exchange+South&siteLocation=2550+Lakewood+Ave+SW%2C+Atlanta%2C+GA+30315&taskStatement=Induct+a+parcel%2C+clear+the+lane%2C+and+reset+the+tote+position&targetRobotTeam=Mobile+manipulator+with+mast+cam+and+overhead+assist+view",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/contact?interest=data-licensing&buyerType=robot_team&source=site-worlds&path=package-access&siteName=Sonoran+Assembly+Cart+Bay&siteLocation=4025+E+University+Dr%2C+Phoenix%2C+AZ+85034&taskStatement=Fetch+the+staged+cart+and+deliver+it+to+the+resupply+station&targetRobotTeam=Autonomous+cart+tug+with+front+stereo+pair",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/contact?interest=data-licensing&buyerType=robot_team&source=site-worlds&path=package-access&siteName=Soundside+Electronics+Rework+Lab&siteLocation=2211+4th+Ave+S%2C+Seattle%2C+WA+98134&taskStatement=Fetch+the+tray+and+hand+the+part+to+the+rework+bench&targetRobotTeam=Bench-side+arm+with+wrist+cams+and+tray+state+sensor",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/contact?interest=data-licensing&buyerType=robot_team&source=site-worlds&path=package-access&siteName=Trinity+Linen+Operations+Hub&siteLocation=1410+Irving+Blvd%2C+Dallas%2C+TX+75207&taskStatement=Lift+the+intake+bag%2C+sort+it%2C+and+transfer+the+load+to+outbound&targetRobotTeam=Humanoid+with+head+cam+and+top-down+supervisor+view",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/contact?persona=robot-team",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/",
+        "/about",
+        "/capture",
+        "/careers",
+        "/contact",
+        "/faq",
+        "/pricing",
+        "/product",
+        "/proof",
+        "/updates",
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=contact-fast-path",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/contact"
+      ]
+    },
+    {
+      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=contact-fast-path",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/contact"
+      ]
+    },
+    {
+      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=pricing",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/pricing"
+      ]
+    },
+    {
+      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=pricing-hero",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/pricing"
+      ]
+    },
+    {
+      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=product",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/product"
+      ]
+    },
+    {
+      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=product-bottom",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/product"
+      ]
+    },
+    {
+      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=proof-bottom",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/proof"
+      ]
+    },
+    {
+      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=proof-packet&source=proof-bottom",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/proof"
+      ]
+    },
+    {
+      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=proof-packet&source=proof-hero",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/proof"
+      ]
+    },
+    {
+      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=contact-fast-path",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/contact"
+      ]
+    },
+    {
+      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=header",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/",
+        "/about",
+        "/capture",
+        "/careers",
+        "/contact",
+        "/faq",
+        "/pricing",
+        "/product",
+        "/proof",
+        "/updates",
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-bottom&utm_source=homepage&utm_medium=website&utm_campaign=home_robot_team_conversion_v1&utm_content=hosted_review%3Ahome-bottom",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/"
+      ]
+    },
+    {
+      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-decision-path&utm_source=homepage&utm_medium=website&utm_campaign=home_robot_team_conversion_v1&utm_content=hosted_review%3Ahome-decision-path",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/"
+      ]
+    },
+    {
+      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-hero-primary&utm_source=homepage&utm_medium=website&utm_campaign=home_robot_team_conversion_v1&utm_content=hosted_review%3Ahome-hero-primary",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/"
+      ]
+    },
+    {
+      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-persona-robot-team",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/"
+      ]
+    },
+    {
+      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-product-review",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/"
+      ]
+    },
+    {
+      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=pricing",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/pricing"
+      ]
+    },
+    {
+      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=pricing-hero",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/pricing"
+      ]
+    },
+    {
+      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=site-worlds",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=world-models-hero",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=world-models-section",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/faq",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/",
+        "/about",
+        "/capture",
+        "/careers",
+        "/contact",
+        "/faq",
+        "/pricing",
+        "/product",
+        "/proof",
+        "/updates",
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/governance",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/",
+        "/about",
+        "/capture",
+        "/careers",
+        "/contact",
+        "/faq",
+        "/pricing",
+        "/product",
+        "/proof",
+        "/updates",
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/help",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/",
+        "/about",
+        "/capture",
+        "/careers",
+        "/contact",
+        "/faq",
+        "/pricing",
+        "/product",
+        "/proof",
+        "/updates",
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/pricing",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/",
+        "/about",
+        "/capture",
+        "/careers",
+        "/contact",
+        "/faq",
+        "/pricing",
+        "/product",
+        "/proof",
+        "/updates",
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/privacy",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/",
+        "/about",
+        "/capture",
+        "/careers",
+        "/contact",
+        "/faq",
+        "/pricing",
+        "/product",
+        "/proof",
+        "/updates",
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/product",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/",
+        "/about",
+        "/capture",
+        "/careers",
+        "/contact",
+        "/faq",
+        "/pricing",
+        "/product",
+        "/proof",
+        "/updates",
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/proof",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/",
+        "/about",
+        "/capture",
+        "/careers",
+        "/contact",
+        "/faq",
+        "/pricing",
+        "/product",
+        "/proof",
+        "/updates",
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/samples/sample-hosted-review-report.md",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/product"
+      ]
+    },
+    {
+      "href": "/signup/capturer",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/capture"
+      ]
+    },
+    {
+      "href": "/terms",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/",
+        "/about",
+        "/capture",
+        "/careers",
+        "/contact",
+        "/faq",
+        "/pricing",
+        "/product",
+        "/proof",
+        "/updates",
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/updates",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/",
+        "/about",
+        "/capture",
+        "/careers",
+        "/contact",
+        "/faq",
+        "/pricing",
+        "/product",
+        "/proof",
+        "/updates",
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/world-models",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/",
+        "/about",
+        "/capture",
+        "/careers",
+        "/contact",
+        "/faq",
+        "/pricing",
+        "/product",
+        "/proof",
+        "/updates",
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/world-models/siteworld-f5fd54898cfb",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/",
+        "/pricing",
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/world-models/siteworld-f5fd54898cfb/start",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/world-models/sw-atl-02",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/world-models/sw-bos-08",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/world-models/sw-chi-01",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/",
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/world-models/sw-chi-01/start",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/world-models/sw-col-05",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/world-models/sw-dal-04",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/world-models/sw-den-11",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/world-models/sw-det-09",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/world-models/sw-ewr-10",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/world-models/sw-jer-06",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/world-models/sw-phx-03",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/world-models/sw-sea-12",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/world-models/sw-sjc-07",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/",
+        "/world-models"
+      ]
+    }
+  ],
+  "issues": []
+}

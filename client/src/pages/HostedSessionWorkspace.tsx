@@ -471,7 +471,7 @@ export function buildBuyerSuccessChecklist(params: {
       body: sessionUsable
         ? "The buyer can load this hosted workspace and inspect the current exact-site session."
         : params.workspaceError || params.sessionStatus === "error"
-          ? "Access or session loading needs buyer-success follow-up before this can count as onboarding progress."
+          ? "Access or session loading needs review follow-up before this can count as a usable workspace."
           : "The session is still starting. Keep onboarding tied to the real workspace state.",
       status: sessionUsable ? "complete" : params.workspaceError || params.sessionStatus === "error" ? "attention" : "pending",
       statusLabel: sessionUsable ? "Ready" : params.workspaceError || params.sessionStatus === "error" ? "Needs attention" : "Starting",
@@ -2275,14 +2275,15 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                       <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/45">Why the workspace is empty</p>
                       <p className="mt-4 text-sm leading-7 text-white/70">
                         A session ID is required before the hosted workspace, observation cameras,
-                        diagnostics, and export panels become active.
+                        diagnostics, and export panels become active. No payment, provider job,
+                        or fulfillment action has run from this empty workspace.
                       </p>
                     </div>
                     <div className="rounded-[1.35rem] border border-white/10 bg-white/5 p-5">
                       <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/45">Next move</p>
                       <p className="mt-4 text-sm leading-7 text-white/70">
-                        Return to setup and launch a hosted review or preview-backed session from
-                        the exact-site start flow.
+                        Return to setup to run the launch checks. If the checks are blocked, the
+                        setup submits a scoped request instead of pretending live access exists.
                       </p>
                     </div>
                   </div>
@@ -3158,13 +3159,13 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                   <LifeBuoy className="h-5 w-5" />
                 </div>
                 <p className="mt-5 text-xs font-semibold uppercase tracking-[0.18em] text-white/45">
-                  Buyer Success Follow-Up
+                  Review Follow-Up
                 </p>
                 <h2 className="mt-3 max-w-xl text-2xl font-bold tracking-[-0.03em] text-white">
-                  Post-delivery onboarding stays attached to this session.
+                  Follow-up stays attached to this session state.
                 </h2>
                 <p className="mt-3 max-w-xl text-sm leading-6 text-white/65">
-                  Use the active hosted-review state to confirm access, inspect evidence, share exports, and route blockers while the exact-site context is still present.
+                  Use the active hosted-review state to confirm access, inspect evidence, share exports, and route blockers while the exact-site context is still present. Do not treat missing exports or diagnostics as delivered work.
                 </p>
                 <div className="mt-6 flex flex-wrap gap-3">
                   <a

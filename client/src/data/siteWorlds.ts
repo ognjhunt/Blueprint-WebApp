@@ -654,7 +654,7 @@ function buildPackages(config: PackageConfig): [SiteWorldPackage, SiteWorldPacka
     {
       name: "Site Package",
       summary:
-        "Get all the site data for this exact workflow area so your team can run or build its own world model.",
+        "Request access to the capture-backed package for this exact workflow area so your team can review the data inside its own stack after rights and scope checks.",
       priceLabel: config.scenePrice,
       payerLabel: "Robot team",
       actionLabel: "Request site package",
@@ -670,7 +670,7 @@ function buildPackages(config: PackageConfig): [SiteWorldPackage, SiteWorldPacka
     {
       name: "Hosted Evaluation",
       summary:
-        "Request a Blueprint-managed hosted session for this exact site when your team wants reruns, review, and exports without moving the package first.",
+        "Request a Blueprint-managed hosted session for this exact site when your team wants reruns, review, and exports after setup verifies account, package, and runtime availability.",
       priceLabel: config.hostedRate,
       payerLabel: "Robot team",
       actionLabel: "Request hosted evaluation",

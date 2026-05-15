@@ -247,6 +247,10 @@ function compactSnippet(value: string | undefined, maxLength = 220) {
   return `${normalized.slice(0, maxLength - 1)}…`;
 }
 
+function escapeMarkdownTableCell(value: string) {
+  return value.replace(/\|/g, "/").replace(/\n/g, " ").trim();
+}
+
 function logicalFailureText(run: HeartbeatRunRecord, logText?: string, bestText?: string) {
   const resultJson = asRecord(run.resultJson);
   return normalizeWhitespace(
@@ -699,6 +703,66 @@ export function clusterRunFailures(runs: CandidateRun[]) {
   });
 }
 
+function clusterStateMix(cluster: Cluster) {
+  return `stalled=${cluster.stalledCount}, failed=${cluster.failedCount}, timed_out=${cluster.timedOutCount}`;
+}
+
+function clusterOwnerLane(cluster: Cluster) {
+  return cluster.agentKeys.join(", ") || "unknown";
+}
+
+function clusterProofPaths(cluster: Cluster, paperclipApiUrl: string) {
+  const runLabel = cluster.runIds.length === 1 ? "run" : "runs";
+  const runValue = cluster.runIds.slice(0, 8).join(", ") || "none";
+  const issueValue = cluster.issueIdentifiers.slice(0, 8).join(", ") || "none";
+  return `${runLabel}=${runValue}; issues=${issueValue}; source=${paperclipApiUrl}`;
+}
+
+function clusterNextAction(cluster: Cluster) {
+  switch (cluster.signature.key) {
+    case "stalled_run_without_output":
+      return "Inspect the scheduler/runner for the stalled run before retrying or marking the issue blocked.";
+    case "codex_usage_limit_adapter_unavailable":
+      return "Keep affected Codex issues blocked on capacity until the usage reset or credits are confirmed.";
+    case "openrouter_provider_auth_unavailable":
+      return "Repair or explicitly disable OpenRouter/Hermes provider auth before resuming affected Hermes lanes.";
+    case "provider_quota_or_rate_limit":
+    case "provider_quota_or_rate_limit_marked_succeeded":
+      return "Wait for provider cooldown or route through the approved fallback lane before retrying the same issue.";
+    case "paperclip_auth_or_env_missing":
+      return "Restore Paperclip auth/env bootstrap for the agent lane, then rerun the bound issue.";
+    case "paperclip_runs_probe_issue_bound":
+    case "paperclip_runs_probe_invalid_jq_issue_bound":
+    case "issue_bound_wake_widened_scope":
+      return "Tighten the issue-bound prompt or helper path so the agent stays on the assigned issue.";
+    default:
+      return `Inspect the example run log, fix ${cluster.signature.fixLayer}, then retry only the affected issue scope.`;
+  }
+}
+
+function clusterRetryResumeCondition(cluster: Cluster) {
+  const firstIssue = cluster.issueIdentifiers[0];
+  switch (cluster.signature.key) {
+    case "stalled_run_without_output":
+      return firstIssue
+        ? `Runner emits a fresh heartbeat event for ${firstIssue} or the run is cancelled and restarted with a new run id.`
+        : "Runner emits a fresh heartbeat event or the stale run is cancelled and restarted with a new run id.";
+    case "codex_usage_limit_adapter_unavailable":
+      return "Codex usage reset or credits are visible, then rerun the blocked issue without changing the evidence claim.";
+    case "openrouter_provider_auth_unavailable":
+      return "Hermes/OpenRouter provider check passes, or the affected lane is intentionally moved to an approved fallback.";
+    case "provider_quota_or_rate_limit":
+    case "provider_quota_or_rate_limit_marked_succeeded":
+      return "Provider quota/cooldown has cleared or a later same-scope recovery run succeeds.";
+    case "paperclip_auth_or_env_missing":
+      return "Bound issue context can be read with the injected Paperclip auth or the trusted CLI fallback.";
+    case "exit_zero_provider_logical_failure_false_positive":
+      return "No retry needed unless a fresh run reproduces a terminal provider failure.";
+    default:
+      return "A new same-scope run reaches done or blocked with a proof-bearing closeout comment.";
+  }
+}
+
 export function resolveSinceTimestamp(input: {
   since?: string;
   sinceHours?: number | null;
@@ -941,7 +1005,7 @@ async function fetchRunDetail(runId: string) {
   }
 }
 
-function buildMarkdownReport(input: {
+export function buildMarkdownReport(input: {
   paperclipApiUrl: string;
   paperclipApiUrlSource: PaperclipApiTargetSource;
   paperclipApiTargetNote?: string | null;
@@ -985,7 +1049,7 @@ function buildMarkdownReport(input: {
       lines.push("| --- | ---: | --- | --- | --- |");
       for (const cluster of input.suppressedRecoveredClusters) {
         lines.push(
-          `| ${cluster.signature.title} | ${cluster.count} | ${cluster.agentKeys.join(", ")} | ${cluster.signature.category} | Later run recovered the task, completed despite a transient tool fault, or matched a known exit-zero false-positive classifier |`,
+          `| ${escapeMarkdownTableCell(cluster.signature.title)} | ${cluster.count} | ${escapeMarkdownTableCell(cluster.agentKeys.join(", "))} | ${cluster.signature.category} | Later run recovered the task, completed despite a transient tool fault, or matched a known exit-zero false-positive classifier |`,
         );
       }
     }
@@ -994,11 +1058,11 @@ function buildMarkdownReport(input: {
 
   lines.push("## Top Families");
   lines.push("");
-  lines.push("| Family | Count | Agents | Category | Fix layer |");
-  lines.push("| --- | ---: | --- | --- | --- |");
+  lines.push("| Family | Count | State mix | Owner / lane | Retry / resume condition | Proof paths |");
+  lines.push("| --- | ---: | --- | --- | --- | --- |");
   for (const cluster of input.clusters) {
     lines.push(
-      `| ${cluster.signature.title} | ${cluster.count} | ${cluster.agentKeys.join(", ")} | ${cluster.signature.category} | ${cluster.signature.fixLayer} |`,
+      `| ${escapeMarkdownTableCell(cluster.signature.title)} | ${cluster.count} | ${clusterStateMix(cluster)} | ${escapeMarkdownTableCell(clusterOwnerLane(cluster))} | ${escapeMarkdownTableCell(clusterRetryResumeCondition(cluster))} | ${escapeMarkdownTableCell(clusterProofPaths(cluster, input.paperclipApiUrl))} |`,
     );
   }
 
@@ -1011,6 +1075,11 @@ function buildMarkdownReport(input: {
     lines.push(`- Category: ${cluster.signature.category}`);
     lines.push(`- Fix layer: ${cluster.signature.fixLayer}`);
     lines.push(`- Matched by: ${cluster.signature.matchedBy}`);
+    lines.push(`- State mix: ${clusterStateMix(cluster)}`);
+    lines.push(`- Owner / lane: ${clusterOwnerLane(cluster)}`);
+    lines.push(`- Next action: ${clusterNextAction(cluster)}`);
+    lines.push(`- Retry / resume condition: ${clusterRetryResumeCondition(cluster)}`);
+    lines.push(`- Proof paths: ${clusterProofPaths(cluster, input.paperclipApiUrl)}`);
     if (cluster.signature.blockerId) {
       lines.push(`- Durable blocker id: \`${cluster.signature.blockerId}\``);
     }
@@ -1034,7 +1103,7 @@ function buildMarkdownReport(input: {
     lines.push("| --- | ---: | --- | --- | --- |");
     for (const cluster of input.suppressedRecoveredClusters) {
       lines.push(
-        `| ${cluster.signature.title} | ${cluster.count} | ${cluster.agentKeys.join(", ")} | ${cluster.signature.category} | Later run recovered the task, completed despite a transient tool fault, or matched a known exit-zero false-positive classifier |`,
+        `| ${escapeMarkdownTableCell(cluster.signature.title)} | ${cluster.count} | ${escapeMarkdownTableCell(cluster.agentKeys.join(", "))} | ${cluster.signature.category} | Later run recovered the task, completed despite a transient tool fault, or matched a known exit-zero false-positive classifier |`,
       );
     }
   }

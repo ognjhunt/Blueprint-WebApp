@@ -1,0 +1,70 @@
+
+> rest-express@1.0.0 human-replies:audit-durability
+> tsx scripts/human-replies/audit-outbound-reply-durability.ts --allow-not-ready
+
+{
+  "ok": false,
+  "status": "blocked",
+  "generatedAt": "2026-05-14T11:30:34.679Z",
+  "blockers": [
+    "City-launch sender/domain verification is not production-proven. Confirm the active mail provider and set BLUEPRINT_CITY_LAUNCH_SENDER_VERIFICATION=verified.",
+    "Human-reply approved identity is relying on code default. Set BLUEPRINT_HUMAN_REPLY_APPROVED_EMAIL=ohstnhunt@gmail.com in the live env so production routing is explicit.",
+    "BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_ID, BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_SECRET, and BLUEPRINT_HUMAN_REPLY_GMAIL_REFRESH_TOKEN are required."
+  ],
+  "warnings": [
+    "Sender verification cannot be proven programmatically from env state. Confirm the configured city-launch sender/domain is verified in the active mail provider before claiming outward launchability."
+  ],
+  "missingEnv": [
+    "BLUEPRINT_CITY_LAUNCH_SENDER_VERIFICATION=verified",
+    "BLUEPRINT_HUMAN_REPLY_APPROVED_EMAIL=ohstnhunt@gmail.com",
+    "BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_ID",
+    "BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_SECRET",
+    "BLUEPRINT_HUMAN_REPLY_GMAIL_REFRESH_TOKEN",
+    "BLUEPRINT_HUMAN_REPLY_GMAIL_OAUTH_PUBLISHING_STATUS=production"
+  ],
+  "sender": {
+    "capability": "warning",
+    "transport": {
+      "enabled": true,
+      "configured": true,
+      "provider": "sendgrid"
+    },
+    "sender": {
+      "fromEmail": "ohstnhunt@gmail.com",
+      "fromName": "Blueprint",
+      "replyTo": "ohstnhunt@gmail.com",
+      "source": "sendgrid_default",
+      "verificationStatus": "unknown"
+    },
+    "blockers": [],
+    "warnings": [
+      "Sender verification cannot be proven programmatically from env state. Confirm the configured city-launch sender/domain is verified in the active mail provider before claiming outward launchability."
+    ],
+    "productionProven": false
+  },
+  "humanReply": {
+    "ingestTokenConfigured": true,
+    "approvedIdentityConfigured": false,
+    "approvedIdentity": "ohstnhunt@gmail.com",
+    "approvedIdentityMatchesDefault": true,
+    "watcherEnabled": true,
+    "gmail": {
+      "enabled": false,
+      "configured": false,
+      "approved_identity": "ohstnhunt@gmail.com",
+      "mailbox_email": null,
+      "reason": "BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_ID, BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_SECRET, and BLUEPRINT_HUMAN_REPLY_GMAIL_REFRESH_TOKEN are required.",
+      "oauth_publishing_status": "unknown",
+      "production_ready": false,
+      "risk": "missing_config"
+    }
+  },
+  "proofCommands": [
+    "npm run human-replies:audit-durability",
+    "npm run human-replies:send-test-blocker",
+    "Reply to the tagged test email from ohstnhunt@gmail.com",
+    "npm run human-replies:prove-production -- --require-processed-reply"
+  ]
+}
+
+EXIT_CODE=0

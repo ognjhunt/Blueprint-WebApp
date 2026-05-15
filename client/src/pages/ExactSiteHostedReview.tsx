@@ -16,25 +16,25 @@ const buyerFlow = [
   {
     label: "01",
     title: "Exact-site capture",
-    body: "Record the real route, preserve timestamps, device context, capture notes, and the access boundaries around the place.",
+    body: "Record the real route, timestamps, device context, capture notes, and access boundaries.",
     icon: Smartphone,
   },
   {
     label: "02",
     title: "World model package",
-    body: "Package the site into a provider-swappable world-model product with manifest, media, restrictions, and review artifacts attached.",
+    body: "Package the site into a provider-swappable product with manifest, media, restrictions, and review artifacts.",
     icon: MapPinned,
   },
   {
     label: "03",
     title: "Hosted evaluation",
-    body: "Open a request-gated buyer room for task runs, route review, observations, and export framing against the same site package.",
+    body: "Open a buyer room for task runs, route review, observations, and export framing.",
     icon: ShieldCheck,
   },
   {
     label: "04",
     title: "Buyer decision",
-    body: "Decide whether to approve export, request recapture, scope the next workflow, or leave the package in review.",
+    body: "Approve export, request recapture, scope the next workflow, or leave the package in review.",
     icon: UsersRound,
   },
 ];
@@ -46,7 +46,7 @@ const packageLayers = [
   },
   {
     title: "World output",
-    body: "Model artifacts and previews sit behind stable site-package contracts instead of a permanent model backend.",
+    body: "Model artifacts and previews sit behind stable site-package contracts, not a permanent model backend.",
   },
   {
     title: "Hosted buyer room",
@@ -109,13 +109,13 @@ export default function ExactSiteHostedReview() {
             path: "/product",
             name: "Blueprint Site-Specific World Model Packages",
             description:
-              "A capture-backed product workflow for exact-site world model packages, request-gated hosted evaluation, and buyer decisions with proof attached.",
+              "A capture-backed product workflow for exact-site world model packages, hosted evaluation requests, and buyer decisions with proof attached.",
             image: publicCaptureGeneratedAssets.hostedReviewPublicRoute,
             category: "Site-specific world-model product",
             properties: [
               { name: "Capture basis", value: "Exact-site capture with provenance metadata" },
               { name: "Package", value: "Site manifest, model artifacts, hosted review, and export scope" },
-              { name: "Hosted access", value: "Request-gated evaluation for buyer review" },
+              { name: "Hosted access", value: "Evaluation path confirmed per request" },
             ],
           }),
         ]}
@@ -137,11 +137,11 @@ export default function ExactSiteHostedReview() {
                   <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/60">
                     Blueprint product
                   </p>
-                  <h1 className="font-editorial mt-5 max-w-[42rem] text-[3rem] leading-[0.98] tracking-normal text-white sm:text-[4.7rem] lg:text-[5.6rem] lg:leading-[0.94]">
+                  <h1 className="font-editorial mt-5 max-w-[42rem] text-[2.85rem] leading-[0.98] tracking-normal text-white sm:text-[4.65rem] lg:text-[5.45rem] lg:leading-[0.94]">
                     Turn the exact site into a decision-ready world model.
                   </h1>
-                  <p className="mt-6 max-w-[36rem] text-base leading-8 text-white/80">
-                    Blueprint packages real capture, world-model output, hosted evaluation, and buyer proof around one site so robot teams can decide before they commit field time.
+                  <p className="mt-5 max-w-[35rem] text-base leading-7 text-white/82 sm:leading-8">
+                    Blueprint packages capture, world-model output, hosted review, and buyer proof around one site so robot teams can decide before field time.
                   </p>
                   <div className="mt-7 flex flex-wrap gap-2">
                     <ProofChip light>Capture-backed</ProofChip>
@@ -150,17 +150,17 @@ export default function ExactSiteHostedReview() {
                   </div>
                   <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                     <a
-                      href="/world-models"
-                      className="inline-flex items-center justify-center border border-white bg-white px-6 py-3 text-sm font-semibold text-[#15130f] transition hover:bg-[#f5f1e8]"
+                      href="/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=product"
+                      className="inline-flex w-full items-center justify-center border border-white bg-white px-6 py-3 text-sm font-semibold text-[#15130f] transition hover:bg-[#f5f1e8] sm:w-auto"
                     >
-                      Browse world models
+                      Book hosted review
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </a>
                     <a
-                      href="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=product"
-                      className="inline-flex items-center justify-center border border-white/25 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+                      href="/proof"
+                      className="inline-flex w-full items-center justify-center border border-white/25 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10 sm:w-auto"
                     >
-                      Request evaluation
+                      Inspect proof
                     </a>
                   </div>
                 </div>
@@ -171,7 +171,7 @@ export default function ExactSiteHostedReview() {
                       <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/50">
                         Product flow
                       </p>
-                      <span className="text-[11px] text-white/50">request-gated</span>
+                      <span className="text-[11px] text-white/50">buyer workflow</span>
                     </div>
                     <div className="divide-y divide-white/10">
                       {buyerFlow.map((step) => (
@@ -200,7 +200,7 @@ export default function ExactSiteHostedReview() {
                 Buyer workflow
               </p>
               <h2 className="font-editorial mt-4 max-w-[24rem] text-4xl leading-[1] tracking-normal text-[#15130f] sm:text-[3.2rem]">
-                One continuous path from capture to decision.
+                One path from capture to decision.
               </h2>
             </div>
             <div className="grid border border-[#15130f]/10 bg-[#15130f]/10 md:grid-cols-2 xl:grid-cols-4">
@@ -255,7 +255,7 @@ export default function ExactSiteHostedReview() {
                   The sellable product is the site package, not a detached demo.
                 </h2>
                 <p className="mt-5 max-w-[34rem] text-sm leading-7 text-white/70">
-                  The package keeps capture proof, model output, hosted review, and commercial limits together. Better model providers can be swapped in without breaking the buyer workflow.
+                  The package keeps capture proof, model output, hosted review, and commercial limits together. Model providers can change without breaking the buyer workflow.
                 </p>
               </div>
               <div className="mt-8 grid gap-px border border-white/10 bg-white/10 sm:grid-cols-2">
@@ -277,10 +277,10 @@ export default function ExactSiteHostedReview() {
                 Hosted evaluation
               </p>
               <h2 className="font-editorial mt-4 max-w-[32rem] text-4xl leading-[1] tracking-normal text-[#15130f] sm:text-[3.2rem]">
-                A buyer room for runs, limits, and next-step calls.
+                A buyer room for runs, limits, and next steps.
               </h2>
               <p className="mt-5 max-w-[30rem] text-sm leading-7 text-[#5c5141]">
-                Hosted evaluation is the review layer between a world-model listing and a commercial commitment. It turns the package into evidence a robot team can act on.
+                Hosted evaluation is the review layer between a listing and a commercial commitment. It turns the package into evidence a robot team can act on.
               </p>
               <a
                 href="/samples/sample-hosted-review-report.md"
@@ -360,25 +360,25 @@ export default function ExactSiteHostedReview() {
                 Next step
               </p>
               <h2 className="font-editorial mt-4 max-w-[42rem] text-4xl leading-[1] tracking-normal sm:text-[3.4rem]">
-                Start with one site, one workflow, and one decision.
+                Book the review, or name the site to capture next.
               </h2>
               <p className="mt-5 max-w-[36rem] text-sm leading-7 text-white/70">
-                Browse available world models, inspect sample proof, or send the site your team needs packaged for hosted evaluation.
+                The first useful answer is narrow: review a labeled exact-site sample, or tell Blueprint which workflow would make the next capture worth packaging.
               </p>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row lg:justify-end">
               <a
-                href="/proof"
+                href="/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=product-bottom"
                 className="inline-flex items-center justify-center border border-white bg-white px-6 py-3 text-sm font-semibold text-[#15130f] transition hover:bg-[#f5f1e8]"
               >
-                Inspect sample proof
+                Book hosted review
                 <ArrowRight className="ml-2 h-4 w-4" />
               </a>
               <a
-                href="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=product-bottom"
+                href="/proof"
                 className="inline-flex items-center justify-center border border-white/20 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
               >
-                Request evaluation
+                Inspect proof
               </a>
             </div>
           </div>

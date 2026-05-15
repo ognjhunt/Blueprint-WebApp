@@ -1,0 +1,191 @@
+
+> rest-express@1.0.0 city-launch:preflight
+> tsx scripts/city-launch/audit-city-launch-readiness.ts --city Durham, NC --budget-max-usd 0 --budget-tier lean --window-hours 72 --allow-blocked --no-write-report --no-write-deep-research-blocker --format markdown
+
+Firebase Admin SDK initialized successfully.
+# Durham, NC CITY+BUDGET Launch Readiness Preflight
+
+- status: blocked
+- city_slug: durham-nc
+- earliest_hard_blocker_key: deep_research_city_plan
+- budget_tier: lean
+- budget_max_usd: 0
+- window_hours: 72
+- founder_approved: true
+
+## Autonomous Loop Closeout
+- objective: Verify whether Durham, NC can enter the truthful 72-hour CITY+BUDGET launch loop at lean budget tier without inventing contacts, proof, sends, readiness, or spend.
+- claim_scope: city_launch_readiness_preflight
+- state_claim: blocked
+- stage_reached: deep_research_city_plan
+- next_action: Run npm run city-launch:plan for this city, or provide a valid completed playbook.
+- verification:
+  - runCityLaunchReadinessPreflight evaluated planning state, activation state, recipient-backed send actions, reply durability, required lane artifacts, and the prompt-to-artifact checklist.
+  - WINDOW_HOURS=72 was enforced by resolveCityLaunchWindowHours.
+- durable_evidence:
+  - /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-execution/durham-nc/2026-05-07T00-11-20.556Z/deep-research-blocker-packet.md
+  - /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-gtm-72h-contract.md
+  - /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-ad-studio-creative-handoff.md
+  - /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-meta-ads-readiness.md
+  - /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-scorecard-windows.json
+  - /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-scorecard-24h.md
+  - /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-scorecard-48h.md
+  - /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-scorecard-72h.md
+  - /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/durham-nc/2026-05-06T23-08-48.567Z/manifest.json
+- residual_risk:
+  - This closeout is scoped to readiness preflight; it is not proof that live sends, live spend, buyer responses, capture outcomes, or 24/48/72h scorecard windows have happened.
+  - Generated creative and draft ad artifacts remain marketing material, not ground truth.
+  - Passing this preflight does not override founder gates for city posture, budget, rights/privacy exceptions, live sends, or live paid spend.
+- blocked:
+  - earliest_hard_stop: No valid completed city playbook is available; Deep Research must run or credentials/account state must be fixed.
+  - why_no_reversible_work_remains: The readiness branch cannot truthfully advance to the next city-launch stage until the earliest missing evidence or provider/account input is recorded.
+  - owner: city-launch-agent
+  - retry_resume_condition: Run npm run city-launch:plan for this city, or provide a valid completed playbook.
+  - linked_follow_up: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-execution/durham-nc/2026-05-07T00-11-20.556Z/deep-research-blocker-packet.md
+  - next_required_input:
+    - Deep Research credentials/account access, or a valid existing city playbook.
+
+## Closeout Verification
+- schema_version: 2026-05-06.city-launch-closeout-verifier.v1
+- status: pass
+- require_ready: false
+- earliest_hard_blocker_key: deep_research_city_plan
+- missing_requirement_keys:
+  - none
+- non_ready_requirement_keys:
+  - deep_research_city_plan
+  - canonical_activation_payload
+  - launch_surface_coverage
+  - paperclip_issue_tree
+  - target_ledger_distribution_pack
+  - recipient_backed_direct_outreach
+  - reply_durability_resume
+  - community_social_artifact_only
+  - ad_studio_claims_review_handoff
+  - meta_ads_read_only_paused_draft
+  - firestore_admin_evidence
+  - scorecards_24_48_72
+- failures:
+  - none
+- warnings:
+  - none
+
+## Earliest Hard Blocker
+- key: deep_research_city_plan
+- status: blocked
+- stage_reached: deep_research_city_plan
+- owner: city-launch-agent
+- retry_condition: Run npm run city-launch:plan for this city, or provide a valid completed playbook.
+- summary: No valid completed city playbook is available; Deep Research must run or credentials/account state must be fixed.
+- required_inputs:
+  - Deep Research credentials/account access, or a valid existing city playbook.
+- evidence_paths:
+  - /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/durham-nc/2026-05-06T23-08-48.567Z/manifest.json
+  - /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-execution/durham-nc/2026-05-07T00-11-20.556Z/deep-research-blocker-packet.md
+
+## Launch Surface Coverage
+- status: blocked
+- required_count: 21
+- covered_count: 0
+- missing_count: 21
+- missing_surfaces:
+  - city_thesis_and_wedge
+  - lawful_access_and_rights
+  - capture_supply
+  - indoor_public_location_supply
+  - capture_app_targets_and_notifications
+  - site_operator_or_buyer_access
+  - proof_assets_pipeline_and_qa
+  - hosted_review_buyer_surface
+  - buyer_targets_and_proof_path
+  - first_wave_outreach
+  - city_opening_distribution
+  - cta_intake_and_response_tracking
+  - reply_conversion_and_follow_up
+  - channel_registry_and_send_ledger
+  - proof_led_creative_and_video_handoff
+  - meta_ads_readiness_and_paused_draft
+  - budget_and_spend_policy
+  - analytics_scorecard
+  - scorecard_window_24_48_72
+  - paperclip_notion_and_issue_tree
+  - public_claims_and_widening_gate
+- evidence_paths:
+  - none
+- next_action: Run npm run city-launch:plan for this city, or provide a valid completed playbook.
+
+## Checks
+| Check | Status | Summary |
+| --- | --- | --- |
+| budget_policy | ready | Lean budget policy resolves to max $0. |
+| launch_window | ready | CITY+BUDGET run uses the 72h launch contract with 24h, 48h, and 72h scorecards. |
+| deep_research_playbook | blocked | No valid completed city playbook is available; Deep Research must run or credentials/account state must be fixed. |
+| founder_approval | ready | Founder approval is present or not required for this preflight mode. |
+| paperclip_issue_tree | blocked | Activation started but Paperclip child issue ids are missing for 3 required task(s): ad-studio-creative-handoff, meta-paused-draft-readiness, scorecard-window-24-48-72. |
+| recipient_backed_outreach | blocked | 2 recipient-backed direct-outreach action(s) are in the city send ledger. |
+| founder_first_send_approval | ready | Recipient-backed direct-outreach actions do not have pending first-send approval gates. |
+| reply_durability | blocked | Outbound reply durability is blocked for live sends and resume. |
+| gtm_72h_artifacts | ready | 72h GTM contract, Ad Studio handoff, Meta gate, and scorecard window artifacts exist. |
+| ad_studio_claims_review_handoff | blocked | Activation started but no creative/ad evidence closeout JSON was found for this city. |
+| meta_ads_read_only_paused_draft | blocked | Activation started but no creative/ad evidence closeout JSON was found for Meta Ads proof. |
+| scorecards_24_48_72 | not_due | Scorecard windows are scheduled by the manifest; no scorecard closeout JSONs are present yet. |
+| firestore_admin_evidence | not_due | Firestore/admin evidence is named by collection/query and remains not due until checkpoint closeouts run. |
+
+## Prompt-To-Artifact Checklist
+| Requirement | Status | Evidence | Collections / Queries | Next Action |
+| --- | --- | --- | --- | --- |
+| Founder provides one city and one budget tier/max, with WINDOW_HOURS=72, before any city launch loop starts. | ready | none | none | npm run city-launch:run -- --city "Durham, NC" --budget-tier lean --budget-max-usd 0 --window-hours 72 --require-founder-approval |
+| Run Deep Research through the configured harness, reuse a valid completed playbook, or stop with an evidence-backed blocker packet. | blocked | /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/durham-nc/2026-05-06T23-08-48.567Z/manifest.json<br>/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-execution/durham-nc/2026-05-07T00-11-20.556Z/deep-research-blocker-packet.md | collection:humanBlockerThreads<br>collection:humanBlockerDispatches<br>query:human_blocker_thread<br>query:human_blocker_dispatch | Run npm run city-launch:plan for this city, or provide a valid completed playbook. |
+| Produce or verify the canonical machine-readable activation payload for the city launch. | blocked | none | none | Run npm run city-launch:plan for this city, or provide a valid completed playbook. |
+| Verify launch_surface_coverage for every required city-launch lane and delegation surface. | blocked | none | none | Run npm run city-launch:plan for this city, or provide a valid completed playbook. |
+| Dispatch a Paperclip root issue and delegated child issue tree before claiming agents can run the city launch work. | blocked | cityLaunchActivations/durham-nc | collection:cityLaunchActivations<br>query:city_launch_activation | none |
+| Produce or verify the target ledger and city-opening distribution pack with exact artifact paths. | blocked | /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-capture-target-ledger-durham-nc.md<br>/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-opening-durham-nc-first-wave-pack.md<br>/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-opening-durham-nc-buyer-loop.md<br>/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-opening-durham-nc-send-ledger.md<br>/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-opening-durham-nc-channel-registry.md | collection:cityLaunchProspects<br>collection:cityLaunchBuyerTargets<br>collection:cityLaunchTouches<br>query:city_launch_prospects<br>query:city_launch_buyer_targets<br>query:city_launch_touches | Run activation after a valid Deep Research playbook is available. |
+| Verify recipient-backed direct outreach ledger with no fake or placeholder emails before live first sends. | blocked | none | collection:cityLaunchSendActions<br>query:city_launch_send_actions | Provide recipient-backed contact evidence; no invented emails. |
+| Verify durable reply handling, correlation, and resume ownership before counting live replies or auto-resuming blocked city-launch lanes. | blocked | none | collection:humanBlockerThreads<br>collection:humanReplyEvents<br>query:human_blocker_threads_open<br>query:human_reply_events_by_blocker | Run npm run human-replies:audit-durability and configure the missing env/account inputs. |
+| Mark community/social publication tasks artifact-only unless a real publication connector and proof record exist. | blocked | /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-opening-durham-nc-first-wave-pack.md<br>/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-opening-durham-nc-channel-registry.md | collection:cityLaunchSendActions<br>query:city_launch_send_actions | Run activation after a valid Deep Research playbook is available. |
+| Run Ad Studio with claims review and image/video handoff; generated creative is marketing material, not ground truth. | blocked | /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-ad-studio-creative-handoff.md | collection:ad_studio_runs<br>query:city_launch_ad_studio_runs | Run npm run city-launch:creative-ads for this city and verify a draft-safe Ad Studio run with claims review and handoff evidence. |
+| Run Meta Ads CLI read-only proof and paused draft creation only when policy/env allow it; never claim live spend from drafts. | blocked | /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-meta-ads-readiness.md | collection:meta_ads_cli_runs<br>query:city_launch_meta_ads_cli_runs | Run npm run city-launch:creative-ads with --run-meta-read-only after Meta Ads CLI env/account access is configured. |
+| Generate a founder decision packet for city posture, budget, rights/privacy exceptions, live sends, and live paid spend gates. | ready | none | collection:humanBlockerThreads<br>collection:cityLaunchActivations<br>query:human_blocker_thread<br>query:city_launch_activation | npm run city-launch:run -- --city "Durham, NC" --budget-tier lean --budget-max-usd 0 --window-hours 72 --phase approve --require-founder-approval |
+| Verify Firestore/admin evidence for waitlist, signups, CTA responses, sends, replies, spend, creative, and Meta provenance. | not_due | /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-scorecard-windows.json<br>/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-scorecard-24h.md<br>/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-scorecard-48h.md<br>/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-scorecard-72h.md<br>/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-scorecard-24h.json<br>/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-scorecard-48h.json<br>/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-scorecard-72h.json | collection:growth_events<br>collection:waitlistSubmissions<br>collection:users<br>collection:inboundRequests<br>collection:cityLaunchActivations<br>collection:cityLaunchProspects<br>collection:cityLaunchBuyerTargets<br>collection:cityLaunchTouches<br>collection:cityLaunchChannelAccounts<br>collection:cityLaunchSendActions<br>collection:cityLaunchReplyConversions<br>collection:cityLaunchBudgetEvents<br>collection:agentSpendRequests<br>collection:ad_studio_runs<br>collection:meta_ads_cli_runs<br>query:city_launch_growth_events_recent<br>query:city_capturer_waitlist_recent<br>query:city_capturer_users_recent<br>query:city_inbound_requests_recent<br>query:city_launch_activation_doc<br>query:city_launch_prospects_by_city<br>query:city_launch_buyer_targets_by_city<br>query:city_launch_touches_by_city<br>query:city_launch_channel_accounts_by_city<br>query:city_launch_send_actions_by_city<br>query:city_launch_reply_conversions_by_city<br>query:city_launch_budget_events_by_city<br>query:city_launch_agent_spend_requests<br>query:city_launch_ad_studio_runs<br>query:city_launch_meta_ads_cli_runs | Run npm run city-launch:scorecard for 24h, 48h, and 72h after each checkpoint window closes. |
+| Produce 24h, 48h, and 72h scorecards with exact artifact paths and collection/query names. | not_due | /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-scorecard-windows.json<br>/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-scorecard-24h.md<br>/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-scorecard-48h.md<br>/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-scorecard-72h.md<br>/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-scorecard-24h.json<br>/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-scorecard-48h.json<br>/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-scorecard-72h.json | collection:growth_events<br>collection:waitlistSubmissions<br>collection:users<br>collection:inboundRequests<br>collection:cityLaunchActivations<br>collection:cityLaunchProspects<br>collection:cityLaunchBuyerTargets<br>collection:cityLaunchTouches<br>collection:cityLaunchChannelAccounts<br>collection:cityLaunchSendActions<br>collection:cityLaunchReplyConversions<br>collection:cityLaunchBudgetEvents<br>collection:agentSpendRequests<br>collection:ad_studio_runs<br>collection:meta_ads_cli_runs<br>query:city_launch_growth_events_recent<br>query:city_capturer_waitlist_recent<br>query:city_capturer_users_recent<br>query:city_inbound_requests_recent<br>query:city_launch_activation_doc<br>query:city_launch_prospects_by_city<br>query:city_launch_buyer_targets_by_city<br>query:city_launch_touches_by_city<br>query:city_launch_channel_accounts_by_city<br>query:city_launch_send_actions_by_city<br>query:city_launch_reply_conversions_by_city<br>query:city_launch_budget_events_by_city<br>query:city_launch_agent_spend_requests<br>query:city_launch_ad_studio_runs<br>query:city_launch_meta_ads_cli_runs | Run npm run city-launch:scorecard for 24h, 48h, and 72h after each checkpoint window closes. |
+
+## Evidence Paths
+- completed_playbook: missing
+- activation_payload: missing
+- deep_research_blocker_packet: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-execution/durham-nc/2026-05-07T00-11-20.556Z/deep-research-blocker-packet.md
+- gtm_72h_contract: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-gtm-72h-contract.md
+- ad_studio_handoff: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-ad-studio-creative-handoff.md
+- meta_ads_readiness: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-meta-ads-readiness.md
+- scorecard_manifest: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-scorecard-windows.json
+- scorecard_24h: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-scorecard-24h.md
+- scorecard_48h: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-scorecard-48h.md
+- scorecard_72h: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-scorecard-72h.md
+
+## Blockers
+- No valid completed Deep Research playbook is available.
+- Activation started but Paperclip child issue ids are missing for required task(s): ad-studio-creative-handoff, meta-paused-draft-readiness, scorecard-window-24-48-72.
+- City-launch sender/domain verification is not production-proven. Confirm the active mail provider and set BLUEPRINT_CITY_LAUNCH_SENDER_VERIFICATION=verified before any live city-launch send.
+- City-launch sender/domain verification is not production-proven. Confirm the active mail provider and set BLUEPRINT_CITY_LAUNCH_SENDER_VERIFICATION=verified.
+- Human-reply approved identity is relying on code default. Set BLUEPRINT_HUMAN_REPLY_APPROVED_EMAIL=ohstnhunt@gmail.com in the live env so production routing is explicit.
+- BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_ID, BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_SECRET, and BLUEPRINT_HUMAN_REPLY_GMAIL_REFRESH_TOKEN are required.
+- Activation started but no creative/ad evidence closeout JSON was found for this city.
+- Activation started but no creative/ad evidence closeout JSON was found for Meta Ads proof.
+
+## Required Inputs
+- Deep Research credentials/account access, or a valid existing city playbook.
+- Paperclip delegated child issue ids for every default city-launch activation task.
+- Verified live sender/domain and configured email transport.
+- BLUEPRINT_CITY_LAUNCH_SENDER_VERIFICATION=verified
+- BLUEPRINT_HUMAN_REPLY_APPROVED_EMAIL=ohstnhunt@gmail.com
+- BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_ID
+- BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_SECRET
+- BLUEPRINT_HUMAN_REPLY_GMAIL_REFRESH_TOKEN
+- BLUEPRINT_HUMAN_REPLY_GMAIL_OAUTH_PUBLISHING_STATUS=production
+
+## Warnings
+- Canonical city-launch playbook exists but fails the current machine-readable validation contract.
+- No city-launch planning artifacts were found for this city.
+- Sender verification cannot be proven programmatically from env state. Confirm the configured city-launch sender/domain is verified in the active mail provider before claiming outward launchability.
+- Scorecard windows are scheduled by the manifest; no scorecard closeout JSONs are present yet.
+
+EXIT_CODE=0

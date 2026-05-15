@@ -2,7 +2,7 @@
 
 - city: Sacramento, CA
 - city_slug: sacramento-ca
-- generated_at: 2026-05-13T17:12:29.070Z
+- generated_at: 2026-05-15T01:49:50.718Z
 - mode: deep_research_records
 - status: hypothesis-ranked targeting ledger, not a claim that every site is already accessible
 
@@ -47,7 +47,7 @@ This ledger is intentionally split into:
 
 ## Sources
 
-- [Sacramento deep research playbook](/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/autonomy-sparse-city-HIU9Lp/sacramento-ca/2026-05-13T17-12-11.760Z/city-launch-contact-enrichment-sacramento-ca.json) — Latest completed deep-research artifact with structured launch records.
+- [Sacramento deep research playbook](/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/autonomy-sparse-city-ucGaYG/sacramento-ca/2026-05-15T01-49-33.264Z/city-launch-contact-enrichment-sacramento-ca.json) — Latest completed deep-research artifact with structured launch records.
 
 ## Warnings
 

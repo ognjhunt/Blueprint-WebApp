@@ -514,12 +514,45 @@ function validateEmail(email: string): { valid: boolean; error?: string } {
 /**
  * Generate confirmation email HTML
  */
+function confirmationNextSteps(commercialRequestPath: CommercialRequestPath): string[] {
+  if (commercialRequestPath === "hosted_evaluation") {
+    return [
+      "We route the request as a hosted-evaluation path tied to the submitted site, task, robot, and requested outputs.",
+      "We check proof, entitlement, rights, package readiness, and hosted-session availability before confirming any launch path.",
+      "If the record is blocked, we reply with the first missing proof, access, runtime, or buyer-scope detail instead of implying live availability.",
+    ];
+  }
+
+  if (commercialRequestPath === "capture_access") {
+    return [
+      "We route the request as a capture-access path tied to the requested site or workflow.",
+      "We check lawful access, rights/privacy boundaries, capture feasibility, and whether an existing package should be reviewed first.",
+      "If capture cannot move yet, we reply with the first missing access, proof, or site-detail blocker instead of implying field work is scheduled.",
+    ];
+  }
+
+  if (commercialRequestPath === "site_claim") {
+    return [
+      "We route the request as a site-operator claim with access, privacy, and commercialization boundaries attached.",
+      "We check whether the site can be reviewed from the submitted rules or whether a human access/rights pass is required.",
+      "If more review is needed, we ask for the narrow missing boundary before listing, package access, or buyer visibility changes.",
+    ];
+  }
+
+  return [
+    "We route the request as a world-model package path tied to the submitted buyer, site, task, and robot context.",
+    "We check package proof, rights/privacy, capture availability, and hosted-evaluation fit before promising access.",
+    "If the record supports it, we move toward package access, hosted review, capture planning, or a scoped buyer handoff.",
+  ];
+}
+
 function generateConfirmationEmailHtml(
   firstName: string,
   commercialRequestPath: CommercialRequestPath,
 ): string {
   const requestPathLabel =
     COMMERCIAL_REQUEST_PATH_LABELS[commercialRequestPath] || "Blueprint request";
+  const nextSteps = confirmationNextSteps(commercialRequestPath);
   return `<!DOCTYPE html>
 <html lang="en">
   <head>
@@ -550,15 +583,13 @@ function generateConfirmationEmailHtml(
                 <div style="background-color:#f3f4f6;border-radius:8px;padding:24px;margin-bottom:24px;">
                   <h3 style="margin:0 0 16px;font-size:16px;font-weight:600;color:#111827;">What happens next?</h3>
                   <ol style="margin:0;padding-left:20px;color:#4b5563;font-size:14px;line-height:1.8;">
-                    <li>We route the request as a world-model, hosted-evaluation, capture-access, or site-operator path.</li>
-                    <li>If proof, entitlement, rights, or capture availability is missing, we ask for the narrow missing detail.</li>
-                    <li>If the record supports it, we move the request toward package access, hosted review, capture planning, or a scoped buyer handoff.</li>
+                    ${nextSteps.map((step) => `<li>${step}</li>`).join("\n                    ")}
                   </ol>
                 </div>
 
                 <div style="background-color:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:16px;margin-bottom:32px;">
                   <p style="margin:0;font-size:14px;line-height:1.6;color:#9a3412;">
-                    This confirmation does not grant instant access, rights clearance, or live hosted availability. Blueprint will confirm those only when the backing record supports them.
+                    This confirmation does not grant instant access, rights clearance, payment, provider execution, fulfillment, or live hosted availability. Blueprint will confirm those only when the backing record supports them.
                   </p>
                 </div>
 
@@ -956,7 +987,7 @@ router.post("/", async (req: Request, res: Response) => {
           capture_status: "not_requested",
           recapture_reason: null,
           quote_status: "not_started",
-          next_step: "Review the site scope and decide whether to request capture.",
+          next_step: structuredIntakeDecision.nextAction,
           last_buyer_ready_at: null,
           proof_path: {
             exact_site_requested_at:
@@ -1388,16 +1419,15 @@ router.post("/", async (req: Request, res: Response) => {
           );
           const requestPathLabel =
             COMMERCIAL_REQUEST_PATH_LABELS[commercialRequestPath] || "Blueprint request";
+          const confirmationSteps = confirmationNextSteps(commercialRequestPath);
           const confirmationText = `Hi ${payload.firstName.trim()},
 
 Thank you for your request. We received your ${requestPathLabel.toLowerCase()}.
 
 What happens next?
-1. We route the request as a world-model, hosted-evaluation, capture-access, or site-operator path
-2. If proof, entitlement, rights, or capture availability is missing, we ask for the narrow missing detail
-3. If the record supports it, we move the request toward package access, hosted review, capture planning, or a scoped buyer handoff
+${confirmationSteps.map((step, index) => `${index + 1}. ${step}`).join("\n")}
 
-This confirmation does not grant instant access, rights clearance, or live hosted availability. Blueprint will confirm those only when the backing record supports them.
+This confirmation does not grant instant access, rights clearance, payment, provider execution, fulfillment, or live hosted availability. Blueprint will confirm those only when the backing record supports them.
 
 In the meantime, explore our resources:
 - Product: https://tryblueprint.io/product

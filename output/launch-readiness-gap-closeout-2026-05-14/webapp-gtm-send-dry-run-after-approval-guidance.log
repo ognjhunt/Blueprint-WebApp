@@ -1,0 +1,28 @@
+
+> rest-express@1.0.0 gtm:send
+> tsx scripts/gtm/run-gtm-send-executor.ts --dry-run --allow-blocked
+
+# GTM Send Executor
+
+- ledger: ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json
+- mode: dry_run
+- dry_run: true
+- eligible: 0
+- sent: 0
+- dry_run_receipts: 0
+- skipped_approval: 30
+- skipped_no_recipient: 0
+- skipped_no_message: 0
+- skipped_already_sent: 0
+- failed: 1
+
+## Receipts
+
+- none
+
+## Errors
+
+- No eligible GTM sends: 30 draft(s) are not founder/operator approved.
+- First-send approval next action: run npm run gtm:first-send-approval:template -- --write, record founder/operator decisions in the generated packet, then apply reviewed decisions with npm run gtm:first-send-approval:apply -- --write before rerunning the send dry-run.
+
+EXIT_CODE=0

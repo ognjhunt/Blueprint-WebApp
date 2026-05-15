@@ -109,6 +109,23 @@ describe("GTM send executor", () => {
     expect(result.errors.join("\n")).not.toContain("Outbound reply durability is blocked");
   });
 
+  it("points approval-blocked dry-runs to the first-send approval workflow", async () => {
+    const pilotLedger = ledger();
+    pilotLedger.targets[0].outbound.approvalState = "pending_first_send_approval";
+
+    const result = await executeGtmSends({
+      ledger: pilotLedger,
+      dryRun: true,
+      skipDurability: true,
+    });
+
+    expect(result.summary.eligible).toBe(0);
+    expect(result.summary.skippedApproval).toBe(1);
+    expect(result.errors.join("\n")).toContain("npm run gtm:first-send-approval:template -- --write");
+    expect(result.errors.join("\n")).toContain("npm run gtm:first-send-approval:apply -- --write");
+    expect(result.errors.join("\n")).toContain("recipient evidence/draft angle/CTA/objection plan");
+  });
+
   it("counts emails without explicit evidence as missing recipient-backed evidence", async () => {
     const pilotLedger = ledger();
     pilotLedger.targets[0].recipient = {

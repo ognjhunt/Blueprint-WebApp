@@ -35,11 +35,11 @@ describe("public capture and world-model copy", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Site-specific world models built from real capture\./i,
+        name: /Site-specific world models from real capture\./i,
       }),
-	    ).toBeInTheDocument();
-	    expect(screen.getAllByRole("link", { name: /Request world model/i }).length).toBeGreaterThan(0);
-	    expect(screen.getAllByRole("link", { name: /Open sample proof/i }).length).toBeGreaterThan(0);
+    ).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: /Request world model/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: /^Proof$/i }).length).toBeGreaterThan(0);
     expect(container).toHaveTextContent(/world model/i);
     expect(container).toHaveTextContent(/real capture/i);
     expect(container).toHaveTextContent(/site-specific packages/i);

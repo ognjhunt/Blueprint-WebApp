@@ -115,9 +115,9 @@ const contactRequestPathCopy: Record<
     badgeLabel: "Commercial Intake",
     heroTitle: "Request the site-specific world model your robot team needs.",
     heroBody:
-      "Blueprint turns real-site capture into world-model packages and hosted evaluation paths for robot teams. Share the site, task, and robot context; the reply routes you toward package access, hosted evaluation, capture access, or one specific follow-up.",
+      "Share the site, task, and robot context. Blueprint replies with the right next step: package access, hosted evaluation, capture access, or one specific follow-up.",
     responseBody:
-      "Blueprint reviews the buyer, site, task, and robot context first. The reply points your team toward package access, hosted evaluation, capture access, or a narrower follow-up without claiming access the backend has not proven.",
+      "Blueprint reviews the buyer, site, task, and robot context first. The reply points your team toward package access, hosted evaluation, capture access, or a narrower follow-up without promising access before proof supports it.",
     primaryActionLabel: "Request world model",
     formSummary: "Required: contact details, role, request path, first question, and a site or site class.",
   },
@@ -126,13 +126,13 @@ const contactRequestPathCopy: Record<
     seoDescription:
       "Request a hosted robot-team evaluation for a site-specific world model, subject to entitlement, proof, and runtime availability checks.",
     badgeLabel: "Hosted Evaluation",
-    heroTitle: "Request a hosted evaluation for this site.",
+    heroTitle: "Book a hosted review for this workflow.",
     heroBody:
-      "Confirm the site, task, and robot setup. Blueprint uses that to scope the hosted evaluation path and only confirms live availability after entitlement, proof, and runtime checks support it.",
+      "Name the site, task, and robot setup. Blueprint routes the request into hosted review, package access, or capture scoping with proof attached.",
     responseBody:
-      "Blueprint reviews the site, robot setup, requested outputs, entitlement path, and hosted-session readiness before confirming whether a hosted evaluation can move forward.",
-    primaryActionLabel: "Request hosted evaluation",
-    formSummary: "Required: contact details, role, request path, hosted question, and the site or site class.",
+      "Blueprint reviews the site, robot setup, requested outputs, entitlement path, proof, and hosted-session readiness before confirming whether a hosted evaluation can move forward.",
+    primaryActionLabel: "Book hosted review",
+    formSummary: "Required: contact details, role, request path, hosted question, and the site or workflow.",
   },
   capture_access: {
     seoTitle: "Request Capture Access | Blueprint",
@@ -231,7 +231,7 @@ export default function Contact() {
       : sourcePath === "request-capture" || sourcePath === "capture-access"
       ? "Blueprint confirms the requested site, workflow, robot setup, and whether a capture path can be opened."
       : sourcePath === "hosted-evaluation"
-      ? "Blueprint confirms the site, robot setup, requested outputs, and hosted-evaluation scope."
+      ? "Blueprint confirms the site, robot setup, requested outputs, and whether the next step is a labeled review, hosted-evaluation scope, or capture request."
       : sourcePath === "package-access"
         ? "Blueprint confirms rights, export scope, and package access for the requested site."
         : interest
@@ -294,8 +294,8 @@ export default function Contact() {
           },
           {
             href: "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=contact-fast-path",
-            label: "Request hosted evaluation",
-            detail: "Best when the site is known and a hosted review could shorten technical evaluation.",
+            label: "Book hosted review",
+            detail: "Best when the site or workflow is known and a labeled review could shorten technical evaluation.",
           },
           {
             href: "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=contact-fast-path",
@@ -344,19 +344,19 @@ export default function Contact() {
           <MonochromeMedia
             src={editorialGeneratedAssets.scopingRoom}
             alt="Contact hero"
-            className="min-h-[45rem] rounded-none sm:min-h-[38rem]"
+            className="min-h-[48rem] rounded-none sm:min-h-[38rem]"
             loading="eager"
-            imageClassName="min-h-[45rem] sm:min-h-[38rem]"
+            imageClassName="min-h-[48rem] sm:min-h-[38rem]"
             overlayClassName="bg-[linear-gradient(90deg,rgba(0,0,0,0.9)_0%,rgba(0,0,0,0.68)_36%,rgba(0,0,0,0.18)_82%)]"
           >
             <div className="absolute inset-0">
-              <div className="mx-auto h-full max-w-[88rem] px-5 py-12 sm:px-8 lg:px-10 lg:py-16">
+              <div className="mx-auto h-full max-w-[88rem] px-5 pb-10 pt-28 sm:px-8 sm:py-12 lg:px-10 lg:py-16">
                 <div className="flex h-full max-w-[36rem] flex-col justify-end text-white">
                 <div className="inline-flex items-center gap-2 border border-white/15 bg-black/35 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white/70">
                   <MessageSquare className="h-3.5 w-3.5" />
                   {badgeLabel}
                 </div>
-                <h1 className="font-editorial mt-6 text-[3.7rem] leading-[0.9] tracking-[-0.06em] text-white sm:text-[5rem]">
+                <h1 className="font-editorial mt-6 text-[3.05rem] leading-[0.92] tracking-[-0.04em] text-white sm:text-[5rem] sm:tracking-[-0.06em]">
                   {heroTitle}
                 </h1>
                 <p className="mt-6 text-base leading-8 text-white/82">{heroBody}</p>
@@ -371,24 +371,24 @@ export default function Contact() {
                         "contact-hero",
                       )
                     }
-                    className="inline-flex items-center justify-center bg-[#c7a775] px-5 py-3 text-sm font-semibold text-[#0d0d0b] transition hover:bg-[#d8bd8d]"
+                    className="inline-flex w-full items-center justify-center bg-[#c7a775] px-5 py-3 text-sm font-semibold text-[#0d0d0b] transition hover:bg-[#d8bd8d] sm:w-auto"
                   >
                     {primaryActionLabel}
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </a>
                   <a
-                    href={persona === "site_operator" ? "/governance" : "/world-models"}
+                    href={persona === "site_operator" ? "/governance" : "/proof"}
                     onClick={() =>
                       trackContactCta(
                         "contact_hero_proof",
-                        persona === "site_operator" ? "Review governance" : "Browse world models",
-                        persona === "site_operator" ? "/governance" : "/world-models",
+                        persona === "site_operator" ? "Review governance" : "Inspect proof",
+                        persona === "site_operator" ? "/governance" : "/proof",
                         "contact-hero",
                       )
                     }
-                    className="inline-flex items-center justify-center border border-white/15 bg-white/8 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/12"
+                    className="inline-flex w-full items-center justify-center border border-white/15 bg-white/8 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/12 sm:w-auto"
                   >
-                    {persona === "site_operator" ? "Review governance" : "Browse world models"}
+                    {persona === "site_operator" ? "Review governance" : "Inspect proof"}
                   </a>
                 </div>
                 <div className="mt-6 grid max-w-[31rem] gap-2 sm:grid-cols-3">
@@ -416,7 +416,7 @@ export default function Contact() {
                       Tell us the site and the decision you need to make.
                     </h2>
                     <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600">
-                      {formSummary} We will reply with the available package path, hosted evaluation option, capture request, or the one missing detail we need.
+                      {formSummary} We will reply with the supported package path, hosted evaluation option, capture request, or the one missing detail we need.
                     </p>
                   </div>
                   <div className="border border-black/10 bg-[#f8f6f1] px-4 py-3 text-sm text-slate-700">
@@ -432,7 +432,8 @@ export default function Contact() {
                   <EditorialSectionLabel>Request context</EditorialSectionLabel>
                   <p className="mt-3 text-sm leading-7 text-slate-700">
                     This form is carrying the site and path you came from so the follow-up can
-                    start with the right package or hosted-evaluation request.
+                    start with the right package or hosted-evaluation request. The prefill does
+                    not imply package access, payment, provider execution, or hosted launch.
                   </p>
                   <div className="mt-5 grid gap-2 sm:grid-cols-2">
                     {sourceAwareRows.map(([label, value]) => (
@@ -473,6 +474,10 @@ export default function Contact() {
                 <p className="mt-4 text-sm leading-7 text-white/70">{responseBody}</p>
                 <div className="mt-6 border-t border-white/10 pt-4 text-sm leading-7 text-white/70">
                   Rights, privacy, and proof boundaries stay explicit instead of being deferred into vague sales language.
+                </div>
+                <div className="mt-4 border border-white/10 bg-white/5 px-4 py-3 text-sm leading-6 text-white/70">
+                  The form records a request only. It does not charge, send a provider job, start
+                  fulfillment, or promise live hosted availability.
                 </div>
               </div>
 

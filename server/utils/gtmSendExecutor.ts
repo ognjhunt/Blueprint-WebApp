@@ -138,6 +138,26 @@ function noEligibleSendReason(summary: GtmSendExecutionResult["summary"]) {
   return reasons.length > 0 ? reasons.join("; ") : "no target rows matched the selected send criteria";
 }
 
+function noEligibleSendNextActions(summary: GtmSendExecutionResult["summary"]) {
+  const actions: string[] = [];
+  if (summary.skippedApproval > 0) {
+    actions.push(
+      "First-send approval next action: run npm run gtm:first-send-approval:template -- --write, review recipient evidence/draft angle/CTA/objection plan in the generated packet, then apply only explicit approve/edit/reject decisions with npm run gtm:first-send-approval:apply -- --write before rerunning the send dry-run.",
+    );
+  }
+  if (summary.skippedNoRecipient > 0) {
+    actions.push(
+      "Recipient evidence next action: run npm run gtm:enrichment:run -- --write or validate human-supplied recipient evidence before requesting first-send approval; do not infer emails from role or domain patterns.",
+    );
+  }
+  if (summary.skippedNoMessage > 0) {
+    actions.push(
+      "Message next action: attach a reviewed messagePath/body to each recipient-backed target before requesting approval, with proof-ready rows framed as review inspection and demand-sourced rows framed as capture asks.",
+    );
+  }
+  return actions;
+}
+
 export async function executeGtmSends(input: {
   ledger: ExactSiteGtmPilotLedger;
   dryRun?: boolean;
@@ -200,6 +220,7 @@ export async function executeGtmSends(input: {
       receipts,
       errors: [
         `No eligible GTM sends: ${noEligibleSendReason(summary)}.`,
+        ...noEligibleSendNextActions(summary),
       ],
     };
   }

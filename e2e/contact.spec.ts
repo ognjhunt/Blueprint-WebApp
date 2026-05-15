@@ -11,7 +11,7 @@ test('contact page leads with capture and world-model requests', async ({ page }
   await expect(
     page.getByText(/site-specific world model package/i),
   ).toBeVisible();
-  await expect(page.getByRole('radio', { name: /Hosted evaluation/i })).toBeVisible();
+  await expect(page.getByRole('radio', { name: /Hosted review/i })).toBeVisible();
   await expect(page.getByRole('radio', { name: /Capture access/i })).toBeVisible();
   await expect(page.getByText(/Short form first\. Call only when useful\./i)).toBeVisible();
   await expect(page.getByText(/Required first pass/i)).toBeVisible();

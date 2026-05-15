@@ -867,6 +867,33 @@ export async function buildAutonomousGrowthBlockerStatus(options: BuildOptions =
 }
 
 export function renderAutonomousGrowthBlockerMarkdown(report: Awaited<ReturnType<typeof buildAutonomousGrowthBlockerStatus>>) {
+  const tableCell = (value: string) => value.replace(/\|/g, "/").replace(/\n/g, " ").trim();
+  const proofPaths = (entry: BlockerStatus) => entry.evidence.length > 0 ? entry.evidence.join("; ") : "none";
+  const retryResumeCondition = (entry: BlockerStatus) => {
+    switch (entry.key) {
+      case "exact_site_buyer_loop_recipient_evidence":
+        return "Retry after `npm run gtm:recipient-evidence:validate -- --human-recipient-evidence-path <path>` passes or governed discovery config is recorded; then rerun enrichment, hosted-review audit, send dry-run, and reply durability checks.";
+      case "buyer_recipient_evidence":
+        return "Retry after recipient-backed buyer contacts include exact target matching, non-placeholder email, evidence source, and first-send selection state.";
+      case "sender_and_reply_durability":
+        return "Retry after sender verification, approved reply mailbox, ingest token, Gmail OAuth, and watcher readiness are configured and the durability audit passes.";
+      case "marketing_provider_config":
+        return "Retry after the chosen provider and Notion Growth Studio env is intentionally configured, or keep the lane disabled/draft-only.";
+      case "content_campaign_live_side_effects":
+        return "Resume only after a documented approval policy permits the named live-send, public-post, paid-spend, or publish action.";
+      case "city_live_signal":
+        return "Retry after a real response, applicant, operator approval path, qualified intro, hosted-review start, or no-response outcome is recorded.";
+      case "scheduled_routine_posture":
+        return "Retry after the routine is drill-proven and intentionally unpaused, or keep the paused state explicit.";
+      case "paperclip_state_sync":
+        return "Retry after public and local Paperclip company reads can be compared from the intended host.";
+      default:
+        return entry.status === "clear"
+          ? "No retry required while the status remains clear."
+          : "Retry after the named owner records fresh evidence on the listed proof paths.";
+    }
+  };
+
   return [
     `# Autonomous Growth Blocker Status - ${report.city}`,
     "",
@@ -876,10 +903,10 @@ export function renderAutonomousGrowthBlockerMarkdown(report: Awaited<ReturnType
     "",
     "## Ranked Blockers",
     "",
-    "| Blocker | Status | Owner | Next action |",
-    "| --- | --- | --- | --- |",
+    "| Blocker | Status | Owner | Retry / resume condition | Proof paths | Next action |",
+    "| --- | --- | --- | --- | --- | --- |",
     ...report.blockers.map((entry) =>
-      `| ${entry.name} | ${entry.status} | ${entry.owner} | ${entry.nextAction.replace(/\|/g, "/")} |`,
+      `| ${tableCell(entry.name)} | ${entry.status} | ${tableCell(entry.owner)} | ${tableCell(retryResumeCondition(entry))} | ${tableCell(proofPaths(entry))} | ${tableCell(entry.nextAction)} |`,
     ),
     "",
     "## Details",
@@ -893,6 +920,7 @@ export function renderAutonomousGrowthBlockerMarkdown(report: Awaited<ReturnType
       `- stage_reached: ${entry.stageReached}`,
       `- why: ${entry.why}`,
       `- owner: ${entry.owner}`,
+      `- retry_resume_condition: ${retryResumeCondition(entry)}`,
       `- next_action: ${entry.nextAction}`,
       ...(entry.missingEnv?.length
         ? [
@@ -900,6 +928,8 @@ export function renderAutonomousGrowthBlockerMarkdown(report: Awaited<ReturnType
             ...entry.missingEnv.map((key) => `  - ${key}`),
           ]
         : ["- missing_env: none"]),
+      "- proof_paths:",
+      ...entry.evidence.map((item) => `  - ${item}`),
       "- evidence:",
       ...entry.evidence.map((item) => `  - ${item}`),
       "",

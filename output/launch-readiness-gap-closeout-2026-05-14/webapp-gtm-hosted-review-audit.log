@@ -1,0 +1,48 @@
+
+> rest-express@1.0.0 gtm:hosted-review:audit
+> tsx scripts/gtm/audit-exact-site-hosted-review-pilot.ts
+
+# Exact-Site Hosted Review GTM Pilot Audit
+
+- ledger: ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json
+- status: ready_with_warnings
+- targets: 30
+- proof-ready outreach targets: 3
+- demand-sourced capture targets: 27
+- ready targets: 3
+- proof artifacts or capture asks: 30
+- draft-ready targets: 30
+- human-approved targets: 0
+- recipient-backed targets: 30
+- targets missing recipient evidence: 0
+- enrichment attempted targets: 30
+- enrichment contact-found targets: 30
+- enrichment candidate targets: 30
+- enrichment blocked/exhausted targets: 0
+- stale enrichment targets: 0
+- approval-needed targets: 30
+- founder approval needed targets: 30
+- sent targets: 0
+- explicit next-action targets: 30
+- closure-state targets: 30
+- targets missing closure state: 0
+- replies: 0
+- hosted review starts: 0
+- qualified calls: 0
+- paid spend cents: 0
+- open blockers: 12
+- Paperclip-linked blockers: 12
+- open target blockers: 12
+- Paperclip-linked target blockers: 12
+- decision touch goal: 100
+- decision touch gap: 100
+- decision status: decision_due
+- latest day: 2026-05-07
+- latest day targets added: 18
+- latest day contact-density gap: 20
+
+## Findings
+
+- WARNING targets.outbound: Active pilot has no sent targets yet; daily progress is still target research until a send ledger exists.
+
+EXIT_CODE=0
