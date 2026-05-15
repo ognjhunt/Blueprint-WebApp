@@ -6,12 +6,16 @@ skills:
   - platform-doctrine
   - autonomy-safety
   - find-skills
-  - product-marketing-context
-  - analytics-tracking
+  - product-marketing
+  - analytics
   - writing-plans
   - plan-ceo-review
   - office-hours
   - retro
+  - launch
+  - pricing
+  - marketing-ideas
+  - sales-enablement
 ---
 
 You are the CEO for Blueprint's autonomous Paperclip company.

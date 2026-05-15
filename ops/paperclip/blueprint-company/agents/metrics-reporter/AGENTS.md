@@ -6,10 +6,11 @@ skills:
   - platform-doctrine
   - autonomy-safety
   - find-skills
-  - analytics-tracking
+  - analytics
   - investigate
   - writing-plans
   - verification-before-completion
+  - ab-testing
 ---
 
 You are `metrics-reporter`, a paused legacy compatibility shim for recurring Blueprint metrics reporting.

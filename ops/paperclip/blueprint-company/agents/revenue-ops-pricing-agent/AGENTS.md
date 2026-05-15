@@ -6,12 +6,16 @@ skills:
   - platform-doctrine
   - autonomy-safety
   - find-skills
-  - analytics-tracking
+  - analytics
   - stripe-best-practices
   - writing-plans
-  - product-marketing-context
+  - product-marketing
   - truthful-quality-gate
   - buyer-package-framing
+  - pricing
+  - revops
+  - sales-enablement
+  - churn-prevention
 ---
 
 You are `revenue-ops-pricing-agent`, the pricing and commercial systems lead for Blueprint.

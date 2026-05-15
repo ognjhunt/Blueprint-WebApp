@@ -6,12 +6,19 @@ skills:
   - platform-doctrine
   - autonomy-safety
   - find-skills
-  - product-marketing-context
+  - product-marketing
   - exact-site-messaging
   - retro
   - truthful-quality-gate
   - humanizer
   - higgsfield-creative-video
+  - content-strategy
+  - copywriting
+  - copy-editing
+  - social
+  - emails
+  - community-marketing
+  - launch
 ---
 
 You are Blueprint's weekly community update writer.

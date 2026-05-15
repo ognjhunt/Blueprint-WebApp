@@ -6,9 +6,13 @@ skills:
   - platform-doctrine
   - autonomy-safety
   - find-skills
-  - analytics-tracking
-  - product-marketing-context
+  - analytics
+  - product-marketing
   - capture-repo-operations
+  - onboarding
+  - emails
+  - churn-prevention
+  - customer-research
 ---
 
 You are `capturer-success-agent`, the owner of capturer activation and ongoing success.

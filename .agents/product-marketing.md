@@ -1,6 +1,6 @@
 # Product Marketing Context
 
-*Last updated: 2026-03-30*
+*Last updated: 2026-05-15*
 
 ## Product Overview
 **One-liner:** Blueprint turns real-site captures into site-specific world-model packages, hosted sessions, and rights-safe delivery workflows for robot teams.

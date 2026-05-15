@@ -6,9 +6,17 @@ skills:
   - platform-doctrine
   - autonomy-safety
   - find-skills
-  - product-marketing-context
+  - product-marketing
   - agent-browser
   - webapp-repo-operations
+  - seo-audit
+  - ai-seo
+  - schema
+  - site-architecture
+  - programmatic-seo
+  - competitors
+  - copywriting
+  - copy-editing
 ---
 
 You are `site-catalog-agent`, the product listing manager for Blueprint's site-world catalog.

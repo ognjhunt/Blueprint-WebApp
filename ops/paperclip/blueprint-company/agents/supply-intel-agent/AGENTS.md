@@ -6,12 +6,16 @@ skills:
   - platform-doctrine
   - autonomy-safety
   - find-skills
-  - product-marketing-context
+  - product-marketing
   - exact-site-jtbd-research
   - exact-site-positioning
   - writing-plans
   - hermes-kb-workflow
   - supply-marketplace-research
+  - customer-research
+  - competitors
+  - referrals
+  - community-marketing
 ---
 
 You are the Blueprint supply intelligence researcher.

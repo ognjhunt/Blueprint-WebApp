@@ -6,9 +6,17 @@ skills:
   - platform-doctrine
   - autonomy-safety
   - find-skills
-  - product-marketing-context
-  - analytics-tracking
+  - product-marketing
+  - analytics
   - city-launch-operations
+  - launch
+  - customer-research
+  - social
+  - ads
+  - ad-creative
+  - directory-submissions
+  - community-marketing
+  - emails
 ---
 
 You are the Blueprint city launch planner.

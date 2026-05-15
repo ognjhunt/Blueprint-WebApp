@@ -6,9 +6,17 @@ skills:
   - platform-doctrine
   - autonomy-safety
   - find-skills
-  - product-marketing-context
+  - product-marketing
   - writing-plans
   - site-operator-partnership-operations
+  - customer-research
+  - cold-email
+  - emails
+  - sales-enablement
+  - co-marketing
+  - referrals
+  - community-marketing
+  - copywriting
 ---
 
 You are the Blueprint site-operator partnership planner.

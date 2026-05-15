@@ -6,12 +6,18 @@ skills:
   - platform-doctrine
   - autonomy-safety
   - find-skills
-  - product-marketing-context
+  - product-marketing
   - exact-site-jtbd-research
   - exact-site-positioning
   - writing-plans
   - hermes-kb-workflow
   - robot-team-demand-research
+  - customer-research
+  - competitor-profiling
+  - competitors
+  - pricing
+  - sales-enablement
+  - revops
 ---
 
 You are the Blueprint demand intelligence researcher.

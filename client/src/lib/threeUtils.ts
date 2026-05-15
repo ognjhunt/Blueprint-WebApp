@@ -9,6 +9,7 @@ let CSS3DObject: any = null;
 let PointerLockControls: any = null;
 let GLTFLoader: any = null;
 let USDZLoader: any = null;
+let SparkSplatMesh: any = null;
 
 export const getThree = async () => {
   if (!THREE) {
@@ -64,6 +65,14 @@ export const getUSDZLoader = async () => {
     USDZLoader = module.USDZLoader;
   }
   return USDZLoader;
+};
+
+export const getSparkSplatMesh = async () => {
+  if (!SparkSplatMesh) {
+    const module = await import("@sparkjsdev/spark");
+    SparkSplatMesh = module.SplatMesh;
+  }
+  return SparkSplatMesh;
 };
 
 // Get CSS3DObject class specifically

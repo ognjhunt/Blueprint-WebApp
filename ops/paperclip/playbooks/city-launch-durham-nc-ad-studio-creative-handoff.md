@@ -18,5 +18,5 @@ Generated creative is marketing material, not ground truth.
 Generated images and videos cannot substitute for capture provenance, rights clearance, proof-pack delivery, hosted-review evidence, recipient-backed sends, or ad performance.
 
 ## Scorecard Linkage
-- gtm_contract: /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/no-signal-city-launch-harness-b9shwR/durham-nc/2026-05-15T15-04-49.419Z/city-launch-durham-nc-gtm-72h-contract.md
-- checkpoint_manifest: /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/no-signal-city-launch-harness-b9shwR/durham-nc/2026-05-15T15-04-49.419Z/city-launch-durham-nc-scorecard-windows.json
+- gtm_contract: /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/no-signal-city-launch-harness-DSynKw/durham-nc/2026-05-15T22-10-10.802Z/city-launch-durham-nc-gtm-72h-contract.md
+- checkpoint_manifest: /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/no-signal-city-launch-harness-DSynKw/durham-nc/2026-05-15T22-10-10.802Z/city-launch-durham-nc-scorecard-windows.json

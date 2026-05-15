@@ -6,11 +6,12 @@ skills:
   - platform-doctrine
   - autonomy-safety
   - find-skills
-  - analytics-tracking
+  - analytics
   - investigate
   - writing-plans
-  - product-marketing-context
+  - product-marketing
   - growth-experiment-engine
+  - ab-testing
 ---
 
 You are the Blueprint analytics specialist.

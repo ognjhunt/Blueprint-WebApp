@@ -17,12 +17,16 @@ agents:
             - platform-doctrine
             - autonomy-safety
             - find-skills
-            - product-marketing-context
-            - analytics-tracking
+            - product-marketing
+            - analytics
             - writing-plans
             - plan-ceo-review
             - office-hours
             - retro
+            - launch
+            - pricing
+            - marketing-ideas
+            - sales-enablement
     permissions:
       canCreateAgents: true
     budgetMonthlyCents: 5000
@@ -423,10 +427,11 @@ agents:
             - autonomy-safety
             - find-skills
             - humanizer
-            - analytics-tracking
+            - analytics
             - writing-plans
             - hermes-kb-workflow
             - meeting-action-extractor
+            - revops
     budgetMonthlyCents: 3000
   intake-agent:
     role: engineer
@@ -444,7 +449,9 @@ agents:
           desiredSkills:
             - platform-doctrine
             - autonomy-safety
-            - product-marketing-context
+            - product-marketing
+            - customer-research
+            - revops
     budgetMonthlyCents: 2000
   capture-qa-agent:
     role: engineer
@@ -522,9 +529,9 @@ agents:
             - autonomy-safety
             - find-skills
             - humanizer
-            - product-marketing-context
-            - analytics-tracking
-            - page-cro
+            - product-marketing
+            - analytics
+            - cro
             - growth-experiment-engine
             - exact-site-positioning
             - exact-site-messaging
@@ -533,6 +540,22 @@ agents:
             - writing-plans
             - hermes-kb-workflow
             - meeting-action-extractor
+            - marketing-ideas
+            - marketing-psychology
+            - launch
+            - pricing
+            - referrals
+            - content-strategy
+            - customer-research
+            - sales-enablement
+            - revops
+            - ads
+            - ad-creative
+            - emails
+            - social
+            - copywriting
+            - copy-editing
+            - ab-testing
     budgetMonthlyCents: 3000
   conversion-agent:
     role: engineer
@@ -557,9 +580,9 @@ agents:
             - vercel-react-best-practices
             - web-design-guidelines
             - agent-browser
-            - product-marketing-context
-            - analytics-tracking
-            - page-cro
+            - product-marketing
+            - analytics
+            - cro
             - growth-experiment-engine
             - exact-site-cro-research
             - exact-site-messaging
@@ -569,6 +592,16 @@ agents:
             - verification-before-completion
             - karpathy-guidelines
             - taste-skill
+            - ab-testing
+            - copywriting
+            - copy-editing
+            - marketing-psychology
+            - onboarding
+            - signup
+            - paywalls
+            - popups
+            - pricing
+            - site-architecture
     budgetMonthlyCents: 3000
   analytics-agent:
     role: engineer
@@ -589,11 +622,12 @@ agents:
             - platform-doctrine
             - autonomy-safety
             - find-skills
-            - analytics-tracking
+            - analytics
             - investigate
             - writing-plans
-            - product-marketing-context
+            - product-marketing
             - growth-experiment-engine
+            - ab-testing
     budgetMonthlyCents: 2000
   investor-relations-agent:
     role: engineer
@@ -615,12 +649,17 @@ agents:
             - platform-doctrine
             - autonomy-safety
             - find-skills
-            - product-marketing-context
+            - product-marketing
             - exact-site-messaging
             - writing-plans
             - retro
             - truthful-quality-gate
             - humanizer
+            - content-strategy
+            - copywriting
+            - copy-editing
+            - emails
+            - launch
     budgetMonthlyCents: 2000
   community-updates-agent:
     role: engineer
@@ -643,12 +682,19 @@ agents:
             - platform-doctrine
             - autonomy-safety
             - find-skills
-            - product-marketing-context
+            - product-marketing
             - exact-site-messaging
             - retro
             - truthful-quality-gate
             - humanizer
             - higgsfield-creative-video
+            - content-strategy
+            - copywriting
+            - copy-editing
+            - social
+            - emails
+            - community-marketing
+            - launch
     budgetMonthlyCents: 2000
   metrics-reporter:
     role: engineer
@@ -670,10 +716,11 @@ agents:
             - platform-doctrine
             - autonomy-safety
             - find-skills
-            - analytics-tracking
+            - analytics
             - investigate
             - writing-plans
             - verification-before-completion
+            - ab-testing
     budgetMonthlyCents: 1800
   workspace-digest-publisher:
     role: engineer
@@ -695,10 +742,11 @@ agents:
             - platform-doctrine
             - autonomy-safety
             - find-skills
-            - product-marketing-context
-            - analytics-tracking
+            - product-marketing
+            - analytics
             - writing-plans
             - verification-before-completion
+            - copy-editing
     budgetMonthlyCents: 1800
   market-intel-agent:
     role: engineer
@@ -720,11 +768,16 @@ agents:
             - platform-doctrine
             - autonomy-safety
             - find-skills
-            - product-marketing-context
+            - product-marketing
             - exact-site-jtbd-research
             - exact-site-positioning
             - writing-plans
             - hermes-kb-workflow
+            - customer-research
+            - competitor-profiling
+            - competitors
+            - pricing
+            - marketing-ideas
     budgetMonthlyCents: 2000
   supply-intel-agent:
     role: engineer
@@ -747,12 +800,16 @@ agents:
             - platform-doctrine
             - autonomy-safety
             - find-skills
-            - product-marketing-context
+            - product-marketing
             - exact-site-jtbd-research
             - exact-site-positioning
             - writing-plans
             - hermes-kb-workflow
             - supply-marketplace-research
+            - customer-research
+            - competitors
+            - referrals
+            - community-marketing
     budgetMonthlyCents: 2000
   capturer-growth-agent:
     role: engineer
@@ -774,11 +831,21 @@ agents:
             - platform-doctrine
             - autonomy-safety
             - find-skills
-            - product-marketing-context
-            - analytics-tracking
+            - product-marketing
+            - analytics
             - writing-plans
             - capturer-growth-operations
             - higgsfield-creative-video
+            - customer-research
+            - content-strategy
+            - copywriting
+            - emails
+            - social
+            - referrals
+            - community-marketing
+            - launch
+            - ads
+            - ad-creative
     budgetMonthlyCents: 2500
   public-space-review-agent:
     role: engineer
@@ -823,9 +890,17 @@ agents:
             - platform-doctrine
             - autonomy-safety
             - find-skills
-            - product-marketing-context
-            - analytics-tracking
+            - product-marketing
+            - analytics
             - city-launch-operations
+            - launch
+            - customer-research
+            - social
+            - ads
+            - ad-creative
+            - directory-submissions
+            - community-marketing
+            - emails
     budgetMonthlyCents: 2500
   demand-intel-agent:
     role: engineer
@@ -848,12 +923,18 @@ agents:
             - platform-doctrine
             - autonomy-safety
             - find-skills
-            - product-marketing-context
+            - product-marketing
             - exact-site-jtbd-research
             - exact-site-positioning
             - writing-plans
             - hermes-kb-workflow
             - robot-team-demand-research
+            - customer-research
+            - competitor-profiling
+            - competitors
+            - pricing
+            - sales-enablement
+            - revops
     budgetMonthlyCents: 2000
   robot-team-growth-agent:
     role: engineer
@@ -877,15 +958,31 @@ agents:
             - autonomy-safety
             - find-skills
             - humanizer
-            - product-marketing-context
-            - analytics-tracking
-            - page-cro
+            - product-marketing
+            - analytics
+            - cro
             - robot-team-growth-operations
             - exact-site-positioning
             - exact-site-messaging
             - exact-site-offer-architecture
             - robot-team-outbound-operations
             - higgsfield-creative-video
+            - customer-research
+            - content-strategy
+            - copywriting
+            - copy-editing
+            - cold-email
+            - emails
+            - social
+            - ads
+            - ad-creative
+            - launch
+            - sales-enablement
+            - revops
+            - referrals
+            - competitors
+            - co-marketing
+            - ab-testing
     budgetMonthlyCents: 2500
   site-operator-partnership-agent:
     role: engineer
@@ -907,9 +1004,17 @@ agents:
             - platform-doctrine
             - autonomy-safety
             - find-skills
-            - product-marketing-context
+            - product-marketing
             - writing-plans
             - site-operator-partnership-operations
+            - customer-research
+            - cold-email
+            - emails
+            - sales-enablement
+            - co-marketing
+            - referrals
+            - community-marketing
+            - copywriting
     budgetMonthlyCents: 2000
   beta-launch-commander:
     role: engineer
@@ -958,13 +1063,17 @@ agents:
             - platform-doctrine
             - autonomy-safety
             - find-skills
-            - product-marketing-context
+            - product-marketing
             - agent-browser
             - writing-plans
             - hermes-kb-workflow
             - webapp-repo-operations
             - truthful-quality-gate
             - buyer-package-framing
+            - customer-research
+            - sales-enablement
+            - copywriting
+            - emails
     budgetMonthlyCents: 3000
   solutions-engineering-agent:
     role: engineer
@@ -1064,9 +1173,13 @@ agents:
             - platform-doctrine
             - autonomy-safety
             - find-skills
-            - analytics-tracking
-            - product-marketing-context
+            - analytics
+            - product-marketing
             - capture-repo-operations
+            - onboarding
+            - emails
+            - churn-prevention
+            - customer-research
     budgetMonthlyCents: 2500
   city-demand-agent:
     role: engineer
@@ -1089,10 +1202,21 @@ agents:
             - platform-doctrine
             - autonomy-safety
             - find-skills
-            - product-marketing-context
-            - analytics-tracking
-            - page-cro
+            - product-marketing
+            - analytics
+            - cro
             - city-demand-operations
+            - customer-research
+            - cold-email
+            - emails
+            - social
+            - ads
+            - ad-creative
+            - launch
+            - sales-enablement
+            - revops
+            - competitors
+            - ab-testing
     budgetMonthlyCents: 2500
   site-catalog-agent:
     role: engineer
@@ -1114,9 +1238,17 @@ agents:
             - platform-doctrine
             - autonomy-safety
             - find-skills
-            - product-marketing-context
+            - product-marketing
             - agent-browser
             - webapp-repo-operations
+            - seo-audit
+            - ai-seo
+            - schema
+            - site-architecture
+            - programmatic-seo
+            - competitors
+            - copywriting
+            - copy-editing
     budgetMonthlyCents: 2000
   outbound-sales-agent:
     role: engineer
@@ -1138,14 +1270,22 @@ agents:
             - platform-doctrine
             - autonomy-safety
             - find-skills
-            - product-marketing-context
-            - analytics-tracking
+            - product-marketing
+            - analytics
             - truthful-quality-gate
             - exact-site-positioning
             - exact-site-messaging
             - exact-site-offer-architecture
             - robot-team-outbound-operations
             - writing-plans
+            - customer-research
+            - cold-email
+            - emails
+            - sales-enablement
+            - revops
+            - competitors
+            - copywriting
+            - copy-editing
     budgetMonthlyCents: 3000
   buyer-success-agent:
     role: engineer
@@ -1166,10 +1306,15 @@ agents:
             - platform-doctrine
             - autonomy-safety
             - find-skills
-            - product-marketing-context
-            - analytics-tracking
+            - product-marketing
+            - analytics
             - agent-browser
             - webapp-repo-operations
+            - onboarding
+            - emails
+            - churn-prevention
+            - customer-research
+            - sales-enablement
     budgetMonthlyCents: 2500
   revenue-ops-pricing-agent:
     role: engineer
@@ -1192,12 +1337,16 @@ agents:
             - platform-doctrine
             - autonomy-safety
             - find-skills
-            - analytics-tracking
+            - analytics
             - stripe-best-practices
             - writing-plans
-            - product-marketing-context
+            - product-marketing
             - truthful-quality-gate
             - buyer-package-framing
+            - pricing
+            - revops
+            - sales-enablement
+            - churn-prevention
     budgetMonthlyCents: 2400
   docs-agent:
     role: engineer

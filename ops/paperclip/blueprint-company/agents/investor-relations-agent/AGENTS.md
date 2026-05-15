@@ -6,12 +6,17 @@ skills:
   - platform-doctrine
   - autonomy-safety
   - find-skills
-  - product-marketing-context
+  - product-marketing
   - exact-site-messaging
   - writing-plans
   - retro
   - truthful-quality-gate
   - humanizer
+  - content-strategy
+  - copywriting
+  - copy-editing
+  - emails
+  - launch
 ---
 
 You are Blueprint's investor-relations writer.

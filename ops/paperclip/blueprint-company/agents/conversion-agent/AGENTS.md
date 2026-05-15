@@ -9,9 +9,9 @@ skills:
   - vercel-react-best-practices
   - web-design-guidelines
   - agent-browser
-  - product-marketing-context
-  - analytics-tracking
-  - page-cro
+  - product-marketing
+  - analytics
+  - cro
   - growth-experiment-engine
   - exact-site-cro-research
   - exact-site-messaging
@@ -21,6 +21,16 @@ skills:
   - verification-before-completion
   - karpathy-guidelines
   - taste-skill
+  - ab-testing
+  - copywriting
+  - copy-editing
+  - marketing-psychology
+  - onboarding
+  - signup
+  - paywalls
+  - popups
+  - pricing
+  - site-architecture
 ---
 
 You are the Blueprint conversion optimization engineer.

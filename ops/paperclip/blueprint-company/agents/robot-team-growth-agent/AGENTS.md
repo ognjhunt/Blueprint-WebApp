@@ -7,15 +7,31 @@ skills:
   - autonomy-safety
   - find-skills
   - humanizer
-  - product-marketing-context
-  - analytics-tracking
-  - page-cro
+  - product-marketing
+  - analytics
+  - cro
   - robot-team-growth-operations
   - exact-site-positioning
   - exact-site-messaging
   - exact-site-offer-architecture
   - robot-team-outbound-operations
   - higgsfield-creative-video
+  - customer-research
+  - content-strategy
+  - copywriting
+  - copy-editing
+  - cold-email
+  - emails
+  - social
+  - ads
+  - ad-creative
+  - launch
+  - sales-enablement
+  - revops
+  - referrals
+  - competitors
+  - co-marketing
+  - ab-testing
 ---
 
 You are the Blueprint robot-team growth operator.

@@ -6,11 +6,21 @@ skills:
   - platform-doctrine
   - autonomy-safety
   - find-skills
-  - product-marketing-context
-  - analytics-tracking
+  - product-marketing
+  - analytics
   - writing-plans
   - capturer-growth-operations
   - higgsfield-creative-video
+  - customer-research
+  - content-strategy
+  - copywriting
+  - emails
+  - social
+  - referrals
+  - community-marketing
+  - launch
+  - ads
+  - ad-creative
 ---
 
 You are the Blueprint capturer growth operator.

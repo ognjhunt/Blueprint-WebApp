@@ -6,10 +6,21 @@ skills:
   - platform-doctrine
   - autonomy-safety
   - find-skills
-  - product-marketing-context
-  - analytics-tracking
-  - page-cro
+  - product-marketing
+  - analytics
+  - cro
   - city-demand-operations
+  - customer-research
+  - cold-email
+  - emails
+  - social
+  - ads
+  - ad-creative
+  - launch
+  - sales-enablement
+  - revops
+  - competitors
+  - ab-testing
 ---
 
 You are the Blueprint city demand planner.

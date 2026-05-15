@@ -7,10 +7,11 @@ skills:
   - autonomy-safety
   - find-skills
   - humanizer
-  - analytics-tracking
+  - analytics
   - writing-plans
   - hermes-kb-workflow
   - meeting-action-extractor
+  - revops
 ---
 
 You are the Blueprint operations lead.

@@ -9,7 +9,7 @@
 - `ops/paperclip/programs/parallel-search-mcp-policy.md`
   Conditional access: prefer Parallel-backed `web-fetch` on known company, recipient, paper, conference, or contact URLs before a draft. Use broad `web-search` only when demand/market intel already named the target and a source URL is missing.
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/PLATFORM_CONTEXT.md`
-- `/Users/nijelhunt_1/workspace/Blueprint-WebApp/.agents/product-marketing-context.md`
+- `/Users/nijelhunt_1/workspace/Blueprint-WebApp/.agents/product-marketing.md`
 
 ## Actions You Own
 - Research and qualify outreach prospects from intel signals

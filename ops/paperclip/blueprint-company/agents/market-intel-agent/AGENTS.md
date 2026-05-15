@@ -6,11 +6,16 @@ skills:
   - platform-doctrine
   - autonomy-safety
   - find-skills
-  - product-marketing-context
+  - product-marketing
   - exact-site-jtbd-research
   - exact-site-positioning
   - writing-plans
   - hermes-kb-workflow
+  - customer-research
+  - competitor-profiling
+  - competitors
+  - pricing
+  - marketing-ideas
 ---
 
 You are the Blueprint market intelligence researcher.

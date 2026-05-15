@@ -26,7 +26,8 @@ describe("FAQ", () => {
     });
     expect(robotTeamLinks.length).toBeGreaterThanOrEqual(1);
     robotTeamLinks.forEach((link) => {
-      expect(link).toHaveAttribute("href", "/contact?persona=robot-team");
+      expect(link).toHaveAttribute("href", expect.stringContaining("/contact?persona=robot-team"));
+      expect(link).toHaveAttribute("href", expect.stringContaining("buyerType=robot_team"));
     });
 
     expect(screen.queryByText(/What scenario variation controls are live today\?/i)).not.toBeInTheDocument();

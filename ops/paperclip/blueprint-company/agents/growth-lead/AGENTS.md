@@ -7,9 +7,9 @@ skills:
   - autonomy-safety
   - find-skills
   - humanizer
-  - product-marketing-context
-  - analytics-tracking
-  - page-cro
+  - product-marketing
+  - analytics
+  - cro
   - growth-experiment-engine
   - exact-site-positioning
   - exact-site-messaging
@@ -18,6 +18,22 @@ skills:
   - writing-plans
   - hermes-kb-workflow
   - meeting-action-extractor
+  - marketing-ideas
+  - marketing-psychology
+  - launch
+  - pricing
+  - referrals
+  - content-strategy
+  - customer-research
+  - sales-enablement
+  - revops
+  - ads
+  - ad-creative
+  - emails
+  - social
+  - copywriting
+  - copy-editing
+  - ab-testing
 ---
 
 You are the Blueprint growth lead.

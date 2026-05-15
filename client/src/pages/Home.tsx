@@ -1,4 +1,5 @@
 import { SEO } from "@/components/SEO";
+import { ExactSitePreviewSection } from "@/components/site/ExactSitePreviewSection";
 import {
   EditorialCtaBand,
   EditorialFaq,
@@ -10,12 +11,13 @@ import {
 } from "@/components/site/editorial";
 import { siteWorldCards } from "@/data/siteWorlds";
 import { editorialGeneratedAssets } from "@/lib/editorialGeneratedAssets";
-import { publicDemoHref } from "@/lib/marketingProof";
+import { publicDemoHref, publicDemoSiteWorldId } from "@/lib/marketingProof";
 import { publicCaptureProofStories } from "@/lib/proofEvidence";
 import {
   getEditorialFeaturedSites,
   getEditorialSiteLocation,
 } from "@/lib/siteEditorialContent";
+import { fetchSiteWorldDetail } from "@/lib/siteWorldsApi";
 import { analyticsEvents } from "@/lib/analytics";
 import { resolveExperimentVariant } from "@/lib/experiments";
 import {
@@ -25,6 +27,7 @@ import {
   webPageJsonLd,
   websiteJsonLd,
 } from "@/lib/seoStructuredData";
+import type { PublicSiteWorldRecord } from "@/types/inbound-request";
 import { ArrowRight } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -272,6 +275,8 @@ export default function Home() {
   const heroSite = featuredSites[0];
   const [heroVariant, setHeroVariant] =
     useState<HomeRobotTeamVariant>("hosted_review");
+  const [liveExactSitePreview, setLiveExactSitePreview] =
+    useState<PublicSiteWorldRecord | null>(null);
   const heroContent = homeVariantContent[heroVariant];
   const heroPrimaryHref = buildRobotTeamContactHref(
     heroVariant,
@@ -288,6 +293,11 @@ export default function Home() {
     "home-bottom",
     heroContent.primaryPath,
   );
+  const exactSitePreviewSeed = useMemo(
+    () => siteWorldCards.find((site) => site.id === publicDemoSiteWorldId) || heroSite,
+    [heroSite],
+  );
+  const exactSitePreviewSite = liveExactSitePreview || exactSitePreviewSeed || heroSite;
 
   const metrics = useMemo(
     () => [
@@ -335,6 +345,26 @@ export default function Home() {
 
     return () => {
       isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetchSiteWorldDetail(publicDemoSiteWorldId)
+      .then((site) => {
+        if (!cancelled) {
+          setLiveExactSitePreview(site);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setLiveExactSitePreview(null);
+        }
+      });
+
+    return () => {
+      cancelled = true;
     };
   }, []);
 
@@ -485,6 +515,12 @@ export default function Home() {
             </div>
           </MonochromeMedia>
         </section>
+
+        <ExactSitePreviewSection
+          site={exactSitePreviewSite}
+          primaryHref={decisionPathHref}
+          onCtaClick={trackHomeCtaClick}
+        />
 
         <section className="border-b border-black/10 bg-white" data-home-section="first-route">
           <div className="mx-auto grid max-w-[88rem] gap-px px-5 py-8 sm:px-8 lg:grid-cols-[0.34fr_0.66fr] lg:px-10 lg:py-10">

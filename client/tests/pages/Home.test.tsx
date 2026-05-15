@@ -35,20 +35,24 @@ vi.mock("@/lib/experiments", () => ({
   resolveExperimentVariant: vi.fn(() => new Promise(() => {})),
 }));
 
+vi.mock("@/lib/siteWorldsApi", () => ({
+  fetchSiteWorldDetail: vi.fn(() => new Promise(() => {})),
+}));
+
 describe("Home", () => {
   it("renders the preserved hero and commercial product path", { timeout: 10000 }, () => {
     window.localStorage.clear();
-    render(<Home />);
+    const { container } = render(<Home />);
 
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Site-specific world models from real capture\./i,
+        name: /Site-specific world models for robot teams, built from real capture\./i,
       }),
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        /Request one exact site, inspect proof, and choose package access, hosted review, or new capture/i,
+        /Name one facility or route\. Blueprint packages the capture, proof, rights limits, and hosted review path/i,
       ),
     ).toBeInTheDocument();
     expect(
@@ -57,11 +61,24 @@ describe("Home", () => {
       "href",
       expect.stringContaining("/contact?persona=robot-team"),
     );
+    expect(
+      Array.from(container.querySelectorAll("[data-home-section]"))
+        .map((node) => node.getAttribute("data-home-section"))
+        .slice(0, 3),
+    ).toEqual(["hero", "exact-site-preview", "first-route"]);
+    expect(
+      screen.getByRole("heading", { name: /Real capture route to explorable site preview\./i }),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText(/Sample\/generated preview fallback/i).length).toBeGreaterThan(0);
+    expect(screen.getByRole("link", { name: /Request exact-site preview/i })).toHaveAttribute(
+      "href",
+      expect.stringContaining("/contact?persona=robot-team"),
+    );
     expect(screen.getByRole("heading", { name: /Blueprint sells exact-site products, not generic demos\./i })).toBeInTheDocument();
     expect(screen.getByText(/Blueprint turns real capture into site-specific packages/i)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Exact-Site World Model Package/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Hosted Evaluation/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Buyer Review/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Site Package Access/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Hosted Review$/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Buyer Request Path/i })).toBeInTheDocument();
     expect(screen.getByText(/A walkthrough or site record starts the product/i)).toBeInTheDocument();
     expect(screen.getByText(/Blueprint packages the capture into a site-specific world model/i)).toBeInTheDocument();
     expect(screen.getByText(/A hosted review path for task scenarios/i)).toBeInTheDocument();
