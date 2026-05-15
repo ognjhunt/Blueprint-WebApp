@@ -541,7 +541,7 @@ export default function CapturerSignUpFlow() {
                 </a>
                 {" "}or the{" "}
                 <a className="font-semibold text-[color:var(--leaf-deep)] underline-offset-4 hover:underline" href="/book-exact-site-review">
-                  exact-site scoping call
+                  exact-site scoping request
                 </a>
                 {" "}instead of this capturer path.
               </p>

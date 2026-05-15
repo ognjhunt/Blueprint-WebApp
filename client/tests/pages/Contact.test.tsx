@@ -81,13 +81,13 @@ describe("Contact page", () => {
     expect(screen.queryByText(/Buyer type/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Requested lanes/i)).not.toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /Request world model/i }).length).toBeGreaterThan(0);
-    expect(screen.getByRole("radio", { name: /World model/i })).toBeChecked();
+    expect(screen.getByRole("radio", { name: /World model package/i })).toBeChecked();
     expect(screen.getByRole("radio", { name: /Hosted review/i })).toBeInTheDocument();
-    expect(screen.getByRole("radio", { name: /Capture access/i })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /New capture request/i })).toBeInTheDocument();
     expect(screen.getByText(/Short form first\. Call only when useful\./i)).toBeInTheDocument();
     expect(screen.getByText(/Required first pass/i)).toBeInTheDocument();
     expect(screen.getByText(/Fastest paths/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/Book hosted review/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Request hosted review/i).length).toBeGreaterThan(0);
     expect(
       screen.getByText(/Best when your team wants a site-specific package path/i),
     ).toBeInTheDocument();
@@ -128,11 +128,11 @@ describe("Contact page", () => {
     render(<Contact />);
 
     expect(
-      screen.getByRole("heading", { name: /Book a hosted review for this workflow\./i }),
+      screen.getByRole("heading", { name: /Request hosted review for this workflow\./i }),
     ).toBeInTheDocument();
     expect(screen.getByDisplayValue("Walk to shelf staging and pick the blue tote")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Unitree G1 with head cam and wrist cam")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Book hosted review/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Request hosted review/i })).toBeInTheDocument();
     expect(
       screen.getByText(
         /Required: contact details, role, request path, hosted question, and the site or workflow/i,
@@ -313,7 +313,7 @@ describe("Contact page", () => {
     fireEvent.change(screen.getByRole("textbox", { name: /Your role/i }), {
       target: { value: "Autonomy lead" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /Book hosted review/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Request hosted review/i }));
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(

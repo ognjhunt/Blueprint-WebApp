@@ -18,16 +18,16 @@ describe("siteWorldCommercialStatus", () => {
 
     expect(getSiteWorldCommercialStatus(site!)).toMatchObject({
       id: "public_demo_sample",
-      label: "Public demo sample",
+      label: "Public sample packet",
     });
     expect(getSiteWorldPublicProofSummary(site!)).toContain("hosted still");
     expect(getSiteWorldVisualDisclosure(site!)).toMatchObject({
-      label: "Public sample proof",
+      label: "Public sample packet",
       proofBacked: true,
     });
     expect(getSiteWorldReadinessDisclosure(site!)).toContain("public listing proves");
     expect(getSiteWorldBuyerFlowDisclosure(site!)).toMatchObject({
-      proofLabel: "Sample-backed demo",
+      proofLabel: "Sample-backed package",
     });
     expect(getSiteWorldBuyerFlowDisclosure(site!).packageAccess).toContain("Sample files are visible");
   });
@@ -38,7 +38,7 @@ describe("siteWorldCommercialStatus", () => {
 
     expect(getSiteWorldCommercialStatus(site!)).toMatchObject({
       id: "request_scoped_review",
-      label: "Request-scoped commercial review",
+      label: "Access-reviewed listing",
     });
     expect(getSiteWorldReadinessDisclosure(site!)).toContain("not a deployment guarantee");
     expect(getSiteWorldReadinessDisclosure(site!)).toContain("Hosted launch is checked separately");
@@ -72,9 +72,9 @@ describe("siteWorldCommercialStatus", () => {
 
     expect(getSiteWorldCommercialStatus(site!)).toMatchObject({
       id: "planned_catalog_profile",
-      label: "Planned catalog profile",
+      label: "Planned example profile",
     });
-    expect(getSiteWorldPublicProofSummary(site!)).toContain("no listing-specific proof yet");
+    expect(getSiteWorldPublicProofSummary(site!)).toContain("proof opens after capture/package review");
     expect(getSiteWorldFreshnessSummary(site!)).toContain("Planned");
     expect(getSiteWorldPackageAccessSummary(site!)).toContain("request");
     expect(getSiteWorldVisualDisclosure(site!)).toMatchObject({
@@ -82,7 +82,7 @@ describe("siteWorldCommercialStatus", () => {
       proofBacked: false,
     });
     expect(getSiteWorldBuyerFlowDisclosure(site!)).toMatchObject({
-      proofLabel: "Planned profile",
+      proofLabel: "Planned example profile",
     });
   });
 });

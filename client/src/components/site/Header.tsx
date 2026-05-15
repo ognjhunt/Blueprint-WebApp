@@ -44,6 +44,31 @@ export function Header() {
       .toUpperCase();
   }, [userData?.name, userData?.displayName]);
 
+  const headerCta = useMemo(() => {
+    if (
+      location === "/capture"
+      || location.startsWith("/capture-app")
+      || location.startsWith("/signup/capturer")
+    ) {
+      return {
+        href: "/capture-app/launch-access?role=capturer&source=header",
+        label: "Check capture access",
+      };
+    }
+
+    if (location === "/contact/site-operator" || location === "/governance") {
+      return {
+        href: "/contact/site-operator",
+        label: "Submit site boundaries",
+      };
+    }
+
+    return {
+      href: "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=header",
+      label: "Request world model",
+    };
+  }, [location]);
+
   const handleSignOut = async () => {
     await logout();
     setLocation("/");
@@ -84,10 +109,10 @@ export function Header() {
 
         <div className="hidden items-center gap-4 xl:flex">
           <a
-            href="/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=header"
+            href={headerCta.href}
             className="inline-flex items-center justify-center whitespace-nowrap border border-[#c7a775]/55 bg-[#c7a775] px-[1.125rem] py-2.5 text-[13px] font-semibold leading-none text-[#0d0d0b] transition hover:bg-[#d8bd8d]"
           >
-            Request world model
+            {headerCta.label}
           </a>
           {currentUser ? (
             <DropdownMenu>
@@ -157,11 +182,11 @@ export function Header() {
             </div>
 
             <a
-              href="/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=mobile-header"
+              href={headerCta.href}
               className="inline-flex min-h-11 items-center justify-center rounded-none border border-[#c7a775]/55 bg-[#c7a775] px-4 py-2.5 text-center font-semibold text-[#0d0d0b]"
               onClick={() => setOpen(false)}
             >
-              Request world model
+              {headerCta.label}
             </a>
 
             {currentUser ? (

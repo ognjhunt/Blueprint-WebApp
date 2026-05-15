@@ -92,6 +92,39 @@ const trustNotes = [
   },
 ];
 
+const pricingPathRows = [
+  {
+    path: "Site Package Access",
+    bestFor: "Robot teams that want files for one exact site after proof and rights review.",
+    startsWith: "One site, robot workflow, and requested export mode.",
+    receivesFirst: "Manifest, route notes, rights sheet, provenance summary, and package scope.",
+    gatedBy: "Rights/privacy review, freshness, export limits, and buyer scope.",
+    priceRange: "$2,100-$3,400",
+    cta: "Request package access",
+    href: "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=pricing-package-table",
+  },
+  {
+    path: "Hosted Review",
+    bestFor: "Teams that want Blueprint to run a managed exact-site review before file handoff.",
+    startsWith: "A site package or sample listing plus the task your team wants to inspect.",
+    receivesFirst: "Review room request, scoped run notes, observations, and output decisions.",
+    gatedBy: "Account access, entitlement, package readiness, and hosted-session availability.",
+    priceRange: "$16-$29 / session-hour",
+    cta: "Request hosted review",
+    href: "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=pricing-hosted-table",
+  },
+  {
+    path: "Custom Scope",
+    bestFor: "Private, multi-site, or operator-heavy work where a catalog path is too narrow.",
+    startsWith: "Facility, route, site boundaries, commercialization posture, and delivery goal.",
+    receivesFirst: "Scope brief, capture plan, operator boundary review, and delivery estimate.",
+    gatedBy: "Operator authority, custom rights/privacy terms, delivery capacity, and commercial review.",
+    priceRange: "$50,000+ scoped",
+    cta: "Request custom scope",
+    href: "/contact?persona=robot-team&buyerType=robot_team&interest=custom-scope&path=world-model&source=pricing-custom-table",
+  },
+] as const;
+
 function PricePanel({
   index,
   eyebrow,
@@ -199,6 +232,52 @@ export default function Pricing() {
               </div>
             </div>
           </MonochromeMedia>
+        </section>
+
+        <section className="border-b border-black/10 bg-white">
+          <div className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
+            <EditorialSectionIntro
+              eyebrow="Compare paths"
+              title="Pick by the first buyer decision."
+              description="Package access, hosted review, and custom scope are separate starts. Each remains tied to one exact site, request review, and proof boundaries."
+              className="max-w-3xl"
+            />
+            <div className="mt-7 overflow-x-auto border border-black/10">
+              <table className="min-w-[62rem] w-full border-collapse bg-white text-left text-sm">
+                <thead className="bg-slate-950 text-white">
+                  <tr>
+                    <th className="px-4 py-3 font-semibold">Path</th>
+                    <th className="px-4 py-3 font-semibold">Best for</th>
+                    <th className="px-4 py-3 font-semibold">Starts with</th>
+                    <th className="px-4 py-3 font-semibold">Buyer receives first</th>
+                    <th className="px-4 py-3 font-semibold">Gated by</th>
+                    <th className="px-4 py-3 font-semibold">Price range</th>
+                    <th className="px-4 py-3 font-semibold">Next step</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-black/10">
+                  {pricingPathRows.map((row) => (
+                    <tr key={row.path}>
+                      <td className="px-4 py-4 font-semibold text-slate-950">{row.path}</td>
+                      <td className="px-4 py-4 leading-6 text-slate-700">{row.bestFor}</td>
+                      <td className="px-4 py-4 leading-6 text-slate-700">{row.startsWith}</td>
+                      <td className="px-4 py-4 leading-6 text-slate-700">{row.receivesFirst}</td>
+                      <td className="px-4 py-4 leading-6 text-slate-700">{row.gatedBy}</td>
+                      <td className="px-4 py-4 font-semibold text-slate-950">{row.priceRange}</td>
+                      <td className="px-4 py-4">
+                        <a
+                          href={row.href}
+                          className="inline-flex whitespace-nowrap border border-black/10 bg-[#f8f6f1] px-3 py-2 text-xs font-semibold text-slate-950 transition hover:bg-white"
+                        >
+                          {row.cta}
+                        </a>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </section>
 
         <section className="mx-auto max-w-[88rem] space-y-4 px-5 py-10 sm:px-8 lg:px-10">

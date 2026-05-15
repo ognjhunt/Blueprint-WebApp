@@ -22,7 +22,7 @@ const buyerFlow = [
   {
     label: "02",
     title: "World model package",
-    body: "Package the site into a provider-swappable product with manifest, media, restrictions, and review artifacts.",
+    body: "Package the site into a site-specific product with manifest, media, restrictions, and review artifacts.",
     icon: MapPinned,
   },
   {
@@ -79,6 +79,30 @@ const proofBoundaries = [
     body: "Capture provenance, restrictions, privacy review, and export approvals stay visible through the buyer workflow.",
   },
 ];
+
+const whatYouReceiveRows = [
+  {
+    path: "Site package access",
+    receives:
+      "Manifest, route notes, capture provenance, rights limits, export scope, and package files when approved.",
+    definition: "A site package is the deliverable set for one exact site and robot workflow.",
+    firstAction: "Request package access for one site.",
+  },
+  {
+    path: "Hosted review",
+    receives:
+      "Blueprint-run review room, scoped tasks, observations, run notes, output links, and export decision context.",
+    definition: "Hosted review means Blueprint runs the site model for inspection before file handoff.",
+    firstAction: "Request a hosted evaluation path.",
+  },
+  {
+    path: "Custom scope",
+    receives:
+      "Private or multi-site capture planning, operator boundaries, deliverable spec, and governed handoff path.",
+    definition: "Custom scope is request-specific delivery work when the public catalog path is too narrow.",
+    firstAction: "Name the site class, facility, or route.",
+  },
+] as const;
 
 const selectedStory = proofEvidencePacket.selectedStory;
 
@@ -145,7 +169,7 @@ export default function ExactSiteHostedReview() {
                   </p>
                   <div className="mt-7 flex flex-wrap gap-2">
                     <ProofChip light>Capture-backed</ProofChip>
-                    <ProofChip light>Provider-swappable</ProofChip>
+                    <ProofChip light>Site package access</ProofChip>
                     <ProofChip light>Hosted buyer review</ProofChip>
                   </div>
                   <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
@@ -224,6 +248,45 @@ export default function ExactSiteHostedReview() {
         </section>
 
         <section className="border-b border-[#15130f]/10 bg-white">
+          <div className="mx-auto grid max-w-[88rem] gap-8 px-5 py-11 sm:px-8 lg:grid-cols-[0.34fr_0.66fr] lg:px-10 lg:py-14">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#7b6a51]">
+                What you receive
+              </p>
+              <h2 className="font-editorial mt-4 max-w-[25rem] text-4xl leading-[1] tracking-normal text-[#15130f] sm:text-[3.2rem]">
+                Three buyer paths, one exact-site proof chain.
+              </h2>
+              <p className="mt-5 max-w-[28rem] text-sm leading-7 text-[#5c5141]">
+                These are product paths, not generic model checkpoints. Each path starts with one
+                site, one robot workflow, and the proof needed to decide the next step.
+              </p>
+            </div>
+            <div className="overflow-x-auto border border-[#15130f]/10">
+              <table className="min-w-[48rem] w-full border-collapse bg-white text-left text-sm">
+                <thead className="bg-[#15130f] text-white">
+                  <tr>
+                    <th className="px-4 py-3 font-semibold">Path</th>
+                    <th className="px-4 py-3 font-semibold">Buyer receives</th>
+                    <th className="px-4 py-3 font-semibold">Plain-English definition</th>
+                    <th className="px-4 py-3 font-semibold">Starts with</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#15130f]/10">
+                  {whatYouReceiveRows.map((row) => (
+                    <tr key={row.path}>
+                      <td className="px-4 py-4 font-semibold text-[#15130f]">{row.path}</td>
+                      <td className="px-4 py-4 leading-6 text-[#5c5141]">{row.receives}</td>
+                      <td className="px-4 py-4 leading-6 text-[#5c5141]">{row.definition}</td>
+                      <td className="px-4 py-4 leading-6 text-[#5c5141]">{row.firstAction}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section className="border-b border-[#15130f]/10 bg-white">
           <div className="mx-auto grid max-w-[88rem] gap-5 px-5 py-11 sm:px-8 lg:grid-cols-[0.52fr_0.48fr] lg:px-10 lg:py-14">
             <div className="min-h-[30rem]">
               <MonochromeMedia
@@ -283,11 +346,17 @@ export default function ExactSiteHostedReview() {
                 Hosted evaluation is the managed review layer between a listing and a commercial commitment. It turns the package into evidence a robot team can act on.
               </p>
               <a
-                href="/samples/sample-hosted-review-report.md"
+                href="/sample-deliverables"
                 className="mt-7 inline-flex items-center justify-center border border-[#15130f] bg-[#15130f] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#2a251d]"
               >
-                Open sample report
+                Inspect sample package
                 <ArrowRight className="ml-2 h-4 w-4" />
+              </a>
+              <a
+                href="/samples/sample-hosted-review-report.md"
+                className="mt-3 inline-flex items-center justify-center border border-[#15130f]/20 px-6 py-3 text-sm font-semibold text-[#15130f] transition hover:bg-white"
+              >
+                Open raw sample report
               </a>
             </div>
             <div className="grid gap-5">
@@ -360,7 +429,7 @@ export default function ExactSiteHostedReview() {
                 Next step
               </p>
               <h2 className="font-editorial mt-4 max-w-[42rem] text-4xl leading-[1] tracking-normal sm:text-[3.4rem]">
-                Book the review, or name the site to capture next.
+                Request the review, or name the site to capture next.
               </h2>
               <p className="mt-5 max-w-[36rem] text-sm leading-7 text-white/70">
                 The first useful answer is narrow: review a labeled exact-site sample, or tell Blueprint which workflow would make the next capture worth packaging.

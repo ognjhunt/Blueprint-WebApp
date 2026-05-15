@@ -40,6 +40,7 @@ Public examples are samples unless the page explicitly ties them to an approved 
 - `/product` - Product page. Explains site-specific world models, site packages, and hosted review as one capture-backed, request-gated offer.
 - `/world-models` - Catalog of exact-site world models. Keeps public proof, package access, hosted access, and commercial status separate.
 - `/world-models/siteworld-f5fd54898cfb` - Public sample listing. Useful for seeing how a site-specific world model page presents evidence, restrictions, package paths, and hosted access.
+- `/sample-deliverables` - Buyer-readable sample package viewer for the public manifest, rights sheet, export bundle, hosted-review report, and raw sample files.
 - `/capture` - Capture rules and handoff page. Explains lawful public-facing capture, app access, review gates, and how capture supports downstream world-model products.
 - `/capture-app/launch-access` - Future-city signal path for capturers, site operators, and local leads.
 - `/proof` - Stories and proof page. Consolidates sample evaluation, sample deliverables, and proof-story framing into one truthful proof packet surface.
@@ -47,6 +48,7 @@ Public examples are samples unless the page explicitly ties them to an approved 
 - `/faq` - Direct Q&A about Blueprint's product, buyer outputs, hosted evaluation, proof boundaries, and starting path.
 - `/pricing` - Commercial paths for site package, hosted evaluation, and enterprise scope.
 - `/contact` - Structured buyer/operator intake. The request should name the site, workflow, robot question, rights context, and desired next step.
+- `/contact/site-operator` - Site-operator path for capture boundaries, restricted/private zones, commercialization posture, buyer-access review, and stale-boundary refresh/removal.
 - `/about` - Company overview.
 - `/updates` - Short product notes and public updates.
 - `/careers` - Hiring page.

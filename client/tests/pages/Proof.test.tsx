@@ -27,7 +27,7 @@ describe("Proof page", () => {
       screen.getByText(/Blueprint proof keeps capture provenance, rights posture, package scope, hosted outputs/i),
     ).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Proof is a product capability\./i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /The public packet teaches the workflow\. The live packet proves one request\./i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /The public packet teaches the workflow\. The request packet proves one site\./i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Every output should point back to the source packet\./i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Buyer confidence comes from visible limits\./i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Hosted review is the buyer room, not the proof source\./i })).toBeInTheDocument();
@@ -53,7 +53,7 @@ describe("Proof page", () => {
       "href",
       "/world-models",
     );
-    expect(screen.getByRole("link", { name: /Book hosted review/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Request hosted review/i })).toHaveAttribute(
       "href",
       "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=proof-bottom",
     );

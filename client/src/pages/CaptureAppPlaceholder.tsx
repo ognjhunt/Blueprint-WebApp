@@ -150,7 +150,7 @@ export default function CaptureAppPlaceholder() {
                         href="/signup/capturer"
                         className="inline-flex min-h-12 items-center justify-center rounded-full border border-white/20 px-5 text-sm font-semibold text-white transition hover:bg-white/10"
                       >
-	                        Apply to capture
+	                        Apply for approved capture assignments
                       </a>
                     </div>
                   </div>
@@ -214,12 +214,12 @@ export default function CaptureAppPlaceholder() {
                   <div className="rounded-[1.75rem] border border-black/10 bg-white p-5">
                     <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-black/40">
                       <MapPinned className="h-4 w-4" />
-                      Available launch cities
+                      Open capture markets
                     </div>
                     <div className="mt-4 grid gap-2">
                       {launchStatusLoading ? (
                         <p className="text-sm leading-7 text-black/55">
-                          Checking backend launch status before showing open cities.
+                          Reviewing public capture-market status before showing open cities.
                         </p>
                       ) : launchStatusError ? (
                         <p className="text-sm leading-7 text-black/55">
@@ -234,13 +234,13 @@ export default function CaptureAppPlaceholder() {
                           >
                             <span className="text-[#111110]">{label}</span>
                             <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-black/40">
-                              Live
+                              Open
                             </span>
                           </div>
                         ))
                       ) : (
                         <p className="text-sm leading-7 text-black/55">
-	                        City access is opening in stages. Leave a signal if your city is not open yet, especially if you can capture public-area-only routes in common public-facing locations.
+	                        No open public capture market is listed here right now. Leave your city if you can capture public-area-only routes in common public-facing locations.
                         </p>
                       )}
                     </div>

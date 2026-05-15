@@ -88,7 +88,7 @@ const robotRequestPathOptions: Array<{
 }> = [
   {
     value: "world_model",
-    label: "World model",
+    label: "World model package",
     description: "Ask for a site-specific package or package path.",
     Icon: Package,
   },
@@ -100,7 +100,7 @@ const robotRequestPathOptions: Array<{
   },
   {
     value: "capture_access",
-    label: "Capture access",
+    label: "New capture request",
     description: "Open a capture path for a site not packaged yet.",
     Icon: MapPin,
   },
@@ -141,7 +141,7 @@ const requestPathCopy: Record<
     taskPlaceholder:
       "Describe the robot task, scenario, pass/fail question, or review workflow this hosted review should support.*",
     taskHelper: "Hosted review is confirmed after site, entitlement, and runtime availability are checked.",
-    submitLabel: "Book hosted review",
+    submitLabel: "Request hosted review",
     nextStep:
       "Blueprint checks the site, task, entitlement, and hosted-path readiness before confirming whether a hosted evaluation can move forward.",
   },

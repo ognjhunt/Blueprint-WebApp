@@ -43,13 +43,17 @@ describe("ExactSiteHostedReview", () => {
     ).toBeInTheDocument();
 
     expect(screen.getAllByRole("link", { name: /Inspect proof/i })[0]).toHaveAttribute("href", "/proof");
-    expect(screen.getByRole("link", { name: /Open sample report/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Inspect sample package/i })).toHaveAttribute(
+      "href",
+      "/sample-deliverables",
+    );
+    expect(screen.getByRole("link", { name: /Open raw sample report/i })).toHaveAttribute(
       "href",
       "/samples/sample-hosted-review-report.md",
     );
     expect(
       screen
-        .getAllByRole("link", { name: /Book hosted review/i })
+        .getAllByRole("link", { name: /Request hosted review/i })
         .some(
           (link) =>
             link.getAttribute("href")

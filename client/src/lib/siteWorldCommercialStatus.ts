@@ -53,21 +53,21 @@ export const siteWorldStatusLegend: SiteWorldStatusBadge[] = [
   },
   {
     id: "commercial_exemplar",
-    label: "Buyer-ready exemplar",
-    summary: "A buyer-facing listing with clear pricing, proof fields, and request-scoped follow-up.",
+    label: "Request-reviewed exemplar",
+    summary: "An example listing with clear pricing, proof fields, and request-scoped follow-up, not live customer proof.",
     tone: "border-emerald-200 bg-emerald-50 text-emerald-700",
   },
   {
     id: "listing_metadata",
-    label: "Listing metadata only",
-    summary: "The public page shows site and pricing metadata, but not listing-specific exports.",
+    label: "Metadata preview only",
+    summary: "The public page shows target profile and pricing metadata, but not available inventory or listing-specific exports.",
     tone: "border-slate-200 bg-slate-100 text-slate-700",
   },
   {
     id: "planned_profile",
-    label: "Planned profile",
+    label: "Planned example profile",
     summary:
-      "A catalog profile for the type of exact-site world Blueprint is building; capture proof and access open only after request review.",
+      "A target profile for the type of exact-site world Blueprint is building; capture proof and access open only after request review.",
     tone: "border-zinc-200 bg-zinc-100 text-zinc-700",
   },
   {
@@ -149,7 +149,7 @@ export function getSiteWorldCommercialStatus(
   if (isPlannedCatalogSiteWorld(site)) {
     return {
       id: "planned_catalog_profile",
-      label: "Planned catalog profile",
+      label: "Planned example profile",
       tone: "border-zinc-200 bg-zinc-100 text-zinc-700",
       summary:
         "This planned profile shows the buyer workflow and target site class, not a claim of current live supply or cleared access.",
@@ -195,7 +195,7 @@ export function getSiteWorldCommercialStatus(
 
 export function getSiteWorldProofDepth(site: PublicSiteWorldRecord) {
   if (isPublicSampleSiteWorld(site)) return "Public sample packet + proof assets";
-  if (isCommercialExemplarSiteWorld(site)) return "Buyer-ready exemplar with listing proof fields + request-scoped hosted request path";
+  if (isCommercialExemplarSiteWorld(site)) return "Request-reviewed exemplar with listing proof fields + request-scoped hosted request path";
   if (isPlannedCatalogSiteWorld(site)) return "Planned profile; proof opens after capture/package review";
   if (site.worldLabsPreview?.launchUrl) return "Listing + hosted request path disclosure + fallback preview";
   if (site.deploymentReadiness?.native_world_model_primary) return "Listing + hosted request path disclosure";
@@ -216,7 +216,7 @@ export function getSiteWorldPublicProofSummary(site: PublicSiteWorldRecord) {
   }
 
   if (proofAssets.length === 0) {
-    return "Listing metadata only";
+    return "Metadata preview only";
   }
 
   return proofAssets.join(" + ");
@@ -298,7 +298,7 @@ export function getSiteWorldStatusBadges(site: PublicSiteWorldRecord): SiteWorld
     badges.push(siteWorldStatusLegend[3] as SiteWorldStatusBadge);
   }
 
-  if (getSiteWorldPublicProofSummary(site) === "Listing metadata only") {
+  if (getSiteWorldPublicProofSummary(site) === "Metadata preview only") {
     badges.push(siteWorldStatusLegend[2] as SiteWorldStatusBadge);
   } else if (!isPlannedCatalogSiteWorld(site)) {
     badges.push(siteWorldStatusLegend[4] as SiteWorldStatusBadge);
@@ -341,7 +341,7 @@ export function getSiteWorldFeaturedTag(site: PublicSiteWorldRecord) {
 
   if (isCommercialExemplarSiteWorld(site)) {
     return {
-      label: "Buyer-ready exemplar",
+      label: "Request-reviewed exemplar",
       tone: "border-emerald-200 bg-emerald-50 text-emerald-700",
     };
   }
@@ -357,7 +357,7 @@ export function getSiteWorldPlainEnglishStatus(site: PublicSiteWorldRecord) {
   }
 
   if (status.id === "planned_catalog_profile") {
-    return "Planned catalog profile for scoping the exact-site request before proof and access open.";
+    return "Planned example profile for scoping the exact-site request before proof and access open.";
   }
 
   if (status.id === "refresh_review_required") {
@@ -377,14 +377,14 @@ export function getSiteWorldPlainEnglishProof(site: PublicSiteWorldRecord) {
   }
 
   if (isCommercialExemplarSiteWorld(site)) {
-    return "This listing is the buyer-ready exemplar: pricing, listing proof fields, and a clearer path into hosted evaluation request or package access.";
+    return "This listing is a request-reviewed exemplar: pricing, listing proof fields, and a clearer path into hosted evaluation request or package access. It is not customer proof.";
   }
 
   if (isPlannedCatalogSiteWorld(site)) {
     return "This profile shows the intended exact-site package shape. Listing-specific proof appears after capture and review, not before.";
   }
 
-  if (getSiteWorldPublicProofSummary(site) === "Listing metadata only") {
+  if (getSiteWorldPublicProofSummary(site) === "Metadata preview only") {
     return "This listing currently shows the site, price, and trust fields, but not listing-specific screenshots or export previews.";
   }
 
@@ -431,9 +431,9 @@ export function getSiteWorldHostedAccessDisclosure(
     && site.presentationDemoReadiness.status === "presentation_ui_live"
   ) {
     return {
-      label: "Hosted demo verified",
+      label: "Hosted review verified",
       summary:
-        "The public listing has a launchable presentation demo, while hosted sessions still check entitlement and setup availability.",
+        "The public listing has a verified review-room path, while hosted sessions still check entitlement and setup availability.",
       launchVerified: true,
     };
   }
@@ -478,11 +478,11 @@ export function getSiteWorldBuyerFlowDisclosure(
 ): SiteWorldBuyerFlowDisclosure {
   if (isPublicSampleSiteWorld(site)) {
     return {
-      proofLabel: "Sample-backed demo",
+      proofLabel: "Sample-backed package",
       packageAccess:
         "Sample files are visible now. Commercial package access still starts with a request-scoped rights and privacy review.",
       hostedAccess:
-        "A demo/runtime path can open only when the local or configured demo runtime passes launch checks.",
+        "A hosted/runtime path can open only when the configured review path passes launch checks.",
       nextStep:
         "Use the sample to understand the buyer flow, then submit the exact site, task, and robot context for a real request.",
     };
@@ -490,7 +490,7 @@ export function getSiteWorldBuyerFlowDisclosure(
 
   if (isPlannedCatalogSiteWorld(site)) {
     return {
-      proofLabel: "Planned profile",
+      proofLabel: "Planned example profile",
       packageAccess:
         "No package files are being claimed yet. Capture, package creation, and rights review begin after a scoped request.",
       hostedAccess:

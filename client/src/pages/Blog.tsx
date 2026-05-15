@@ -10,39 +10,39 @@ import { ArrowRight } from "lucide-react";
 const updates = [
   {
     index: "01",
-    title: "On real capture",
+    slug: "why-real-capture-matters",
+    title: "Why real capture matters",
     body:
-      "A few notes from the field on lighting, access, and getting the whole site.",
+      "Robot teams do not just need a polished scene. They need the route, occlusions, access limits, freshness, and capture context that make one site different from another.",
+    sections: [
+      "Blueprint starts from real capture because site geometry, signage, lighting, clutter, and public-facing route limits are the product context.",
+      "A generated or generic benchmark can help teams reason, but it cannot replace the provenance attached to one actual facility or route.",
+      "That is why public samples are labeled as samples and request packets stay tied to capture records, rights limits, and freshness review.",
+    ],
   },
   {
     index: "02",
-    title: "What goes into a world model",
+    slug: "inside-a-site-package",
+    title: "What is inside a site package",
     body:
-      "From raw scans to placeable geometry and behavior, the package stays tied to one facility.",
+      "A site package is the buyer-readable container for one exact site: manifest, route notes, capture basis, rights limits, export scope, and hosted-review context.",
+    sections: [
+      "The package starts with a manifest so a buyer can see the site id, capture id, route, asset tree, and included or gated deliverables.",
+      "The rights sheet travels with the package. It explains use limits, sharing posture, redaction handling, and operator or privacy boundaries.",
+      "Exports open only when the request supports them. The public sample teaches the file shape without implying customer proof or live fulfillment.",
+    ],
   },
   {
-	    index: "03",
-	    title: "Inside a site package",
-	    body:
-	      "What is included, how it is organized, and why buyers can understand the next step.",
-	  },
-	  {
-	    index: "04",
-	    title: "Hosted evaluation in practice",
-	    body:
-	      "How a managed review room mirrors one real site instead of a generic benchmark.",
-	  },
-  {
-    index: "05",
-    title: "Fidelity over finish",
+    index: "03",
+    slug: "how-hosted-review-works",
+    title: "How hosted review works",
     body:
-      "Why we prioritize accuracy, consistency, and provenance before polish.",
-  },
-  {
-    index: "06",
-    title: "Small decisions, big impact",
-    body:
-      "The product choices that decide whether a world-model package feels truthful or ornamental.",
+      "Hosted review is the managed review layer before a robot team takes files into its own stack or commits field time to one site.",
+    sections: [
+      "A buyer names the site, robot workflow, task, scenario, and outputs they need to inspect.",
+      "Blueprint checks account access, package readiness, proof, rights, and hosted-session availability before claiming anything can launch.",
+      "When available, the review room keeps run notes, observations, limits, and export decisions attached to the same exact-site package.",
+    ],
   },
 ];
 
@@ -97,7 +97,11 @@ export default function Blog() {
         <section className="mx-auto max-w-[96rem] px-5 py-5 sm:px-8 lg:px-10">
           <div className="grid gap-4 lg:grid-cols-3">
             {updates.map((item, index) => (
-              <article key={item.title} className="border border-black/10 bg-white">
+              <a
+                key={item.title}
+                href={`#${item.slug}`}
+                className="group block border border-black/10 bg-white transition hover:-translate-y-0.5 hover:bg-[#f8f6f1]"
+              >
                 <MonochromeMedia
                   src={
                     index % 3 === 0
@@ -127,35 +131,41 @@ export default function Blog() {
                   </h2>
                   <p className="mt-4 text-sm leading-7 text-slate-700">{item.body}</p>
                   <div className="mt-5 inline-flex items-center text-sm font-semibold text-slate-700">
-                    Product note
+                    Read note
+                    <ArrowRight className="ml-2 h-4 w-4 transition group-hover:translate-x-1" />
                   </div>
                 </div>
-              </article>
+              </a>
             ))}
           </div>
         </section>
 
         <section className="mx-auto max-w-[96rem] px-5 py-5 sm:px-8 lg:px-10">
-          <div className="grid overflow-hidden border border-black/10 bg-slate-950 lg:grid-cols-[0.36fr_0.64fr]">
-            <div className="px-6 py-8 text-white lg:px-8 lg:py-10">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Feature</p>
-              <h2 className="font-editorial mt-5 max-w-[18rem] text-[2.9rem] leading-[0.94] tracking-[-0.05em]">
-                A site package ready for review.
-              </h2>
-              <p className="mt-5 max-w-[18rem] text-sm leading-7 text-white/70">
-                How Blueprint brings survey, context, and behavior together in one site-specific package.
-              </p>
-              <div className="mt-6 inline-flex items-center text-sm font-semibold text-white/85">
-                Product feature
-              </div>
-            </div>
-            <MonochromeMedia
-              src={editorialRefreshAssets.blogPackageBook}
-              alt="Blueprint package feature"
-              className="min-h-[22rem] rounded-none"
-              imageClassName="min-h-[22rem] object-cover object-center"
-              overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.04),rgba(0,0,0,0.14))]"
-            />
+          <div className="grid gap-4">
+            {updates.map((item) => (
+              <article
+                key={item.slug}
+                id={item.slug}
+                className="scroll-mt-24 border border-black/10 bg-white p-6 sm:p-8 lg:p-10"
+              >
+                <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
+                  Product note {item.index}
+                </p>
+                <h2 className="font-editorial mt-4 max-w-[30rem] text-[3rem] leading-[0.94] tracking-[-0.05em] text-slate-950">
+                  {item.title}
+                </h2>
+                <p className="mt-5 max-w-3xl text-base leading-8 text-slate-700">
+                  {item.body}
+                </p>
+                <div className="mt-7 grid gap-px bg-black/10 md:grid-cols-3">
+                  {item.sections.map((section) => (
+                    <p key={section} className="bg-[#f8f6f1] p-5 text-sm leading-7 text-slate-700">
+                      {section}
+                    </p>
+                  ))}
+                </div>
+              </article>
+            ))}
           </div>
         </section>
 

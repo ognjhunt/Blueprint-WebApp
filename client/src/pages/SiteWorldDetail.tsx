@@ -781,7 +781,10 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                   <div className="mt-6 grid gap-3 md:grid-cols-3">
                     {[
                       ["Capture app cue", proofStory.captureAppCue],
-                      ["Buyer", `${proofStory.buyerPersona}, ${proofStory.buyerRole}`],
+                      [
+                        "Sample buyer persona",
+                        `${proofStory.buyerPersona}, ${proofStory.buyerRole}. Not a customer result.`,
+                      ],
                       ["Capture mode", proofStory.captureMode],
                     ].map(([label, value]) => (
                       <div key={label} className="border border-black/10 bg-white p-4">
@@ -862,13 +865,29 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                     These files are examples, not customer results. They show the manifest,
                     rights, export, and hosted-report details a buyer reviews.
                   </p>
-                  <a
-                    href="/proof"
-                    className="mt-6 inline-flex items-center justify-center bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-                  >
-                    Open proof packet
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </a>
+                  <div className="mt-5 border border-black/10 bg-[#f8f6f1] px-4 py-3">
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
+                      Sample buyer persona
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-slate-700">
+                      Sample buyer persona, not a customer result.
+                    </p>
+                  </div>
+                  <div className="mt-6 flex flex-wrap gap-3">
+                    <a
+                      href="/sample-deliverables"
+                      className="inline-flex items-center justify-center bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                    >
+                      Inspect sample package
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </a>
+                    <a
+                      href="/proof"
+                      className="inline-flex items-center justify-center border border-black/10 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
+                    >
+                      Open proof packet
+                    </a>
+                  </div>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   {sampleArtifactLinks.map((artifact) => (

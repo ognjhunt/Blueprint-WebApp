@@ -26,6 +26,7 @@ const Pricing = lazy(() => import("../pages/Pricing"));
 const Contact = lazy(() => import("../pages/Contact"));
 const Support = lazy(() => import("../pages/Support"));
 const ExactSiteHostedReview = lazy(() => import("../pages/ExactSiteHostedReview"));
+const SampleDeliverables = lazy(() => import("../pages/SampleDeliverables"));
 const Proof = lazy(() => import("../pages/Proof"));
 const Portal = lazy(() => import("../pages/Portal"));
 const Login = lazy(() => import("../pages/Login"));
@@ -92,7 +93,7 @@ const LegacyForRobotTeamsRedirect = () => (
 );
 
 const LegacyForSiteOperatorsRedirect = () => (
-  <MarketingRedirect to="/contact?persona=site-operator" />
+  <MarketingRedirect to="/contact/site-operator" />
 );
 
 const LegacyHostedReviewRedirect = () => (
@@ -156,7 +157,7 @@ export const appRoutes: AppRoute[] = [
   { path: "/product", layout: "public", component: ExactSiteHostedReview },
   { path: "/pricing", layout: "public", component: Pricing },
   { path: "/sample-evaluation", layout: "public", component: LegacyProofStoryRedirect },
-  { path: "/sample-deliverables", layout: "public", component: LegacyProofStoryRedirect },
+  { path: "/sample-deliverables", layout: "public", component: SampleDeliverables },
   { path: "/case-studies", layout: "public", component: LegacyProofStoryRedirect },
   { path: "/contact", layout: "public", component: Contact },
   { path: "/contact/site-operator", layout: "public", component: Contact },

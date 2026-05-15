@@ -18,10 +18,13 @@ describe("Pricing", () => {
 
     expect(screen.getAllByText(/\$2,100 – \$3,400/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/\$16 – \$29 \/ session-hour/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/\$50,000\+ scoped/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/\$50,000\+ scoped/i).length).toBeGreaterThan(0);
 
     expect(
-      screen.getByRole("heading", { name: /Choose by what your team needs first\./i }),
+      screen.getByRole("heading", { name: /Pick by the first buyer decision\./i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /Choose by the first decision your team needs to make\./i }),
     ).toBeInTheDocument();
     expect(screen.getByText(/Package access first/i)).toBeInTheDocument();
     expect(screen.getByText(/Hosted review first/i)).toBeInTheDocument();
@@ -36,7 +39,7 @@ describe("Pricing", () => {
 
     expect(
       screen
-        .getAllByRole("link", { name: /Book hosted review/i })
+        .getAllByRole("link", { name: /Request hosted review/i })
         .some((link) =>
           link.getAttribute("href") ===
           "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=pricing",

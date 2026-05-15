@@ -26,8 +26,8 @@ describe("SiteWorlds", () => {
     );
 
     expect(screen.getAllByText(/Sample/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Request-gated/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Planned catalog profile/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Request-reviewed/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Planned example profile/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Catalog records/i)).toBeInTheDocument();
 
     expect(
@@ -48,7 +48,7 @@ describe("SiteWorlds", () => {
         name: /Scan every listing by proof, access, and freshness\./i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Marketplace filters/i)).toBeInTheDocument();
+    expect(screen.getByText(/Catalog filters/i)).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/Search site, workflow, robot/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^Retail$/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^Proof visible$/i })).toBeInTheDocument();
@@ -58,10 +58,10 @@ describe("SiteWorlds", () => {
     });
     expect(screen.getAllByText(/Freshness/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Planned route diagram/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole("link", { name: /Inspect listing/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: /Review proof and access/i }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("link", { name: /Scope this site/i }).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole("link", { name: /Hosted setup/i }).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole("link", { name: /Package access/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: /Check hosted review/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: /Request package access|Scope package/i }).length).toBeGreaterThan(0);
 
     expect(screen.getByText(/Site-tied structure/i)).toBeInTheDocument();
     expect(screen.getByText(/Capture-backed views/i)).toBeInTheDocument();

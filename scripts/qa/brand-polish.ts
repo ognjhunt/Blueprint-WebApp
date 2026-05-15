@@ -192,7 +192,7 @@ export const publicQaRoutes: PublicQaRoute[] = [
     expectedHeading: "Get paid to capture real places robots need to understand.",
     requiredCtas: [
       { label: "Check capture access", hrefStartsWith: "/capture-app/launch-access" },
-      { label: "Apply to capture", hrefStartsWith: "/signup/capturer" },
+      { label: "Apply for approved capture assignments", hrefStartsWith: "/signup/capturer" },
     ],
   },
   {

@@ -93,7 +93,7 @@ describe("Capturer access copy", () => {
 
     expect(screen.getByText(/Launch status unavailable/i)).toBeInTheDocument();
     expect(screen.queryByText(/Austin, TX/i)).not.toBeInTheDocument();
-    expect(screen.getByText(/Backend launch roster required/i)).toBeInTheDocument();
+    expect(screen.getByText(/Capture markets reviewed before opening publicly/i)).toBeInTheDocument();
   });
 
   it("does not show default launch cities on the launch-access form when the API fails", () => {
@@ -118,7 +118,7 @@ describe("Capturer access copy", () => {
     expect(screen.getByText(/smart glasses are supported only for approved repeat walkthroughs/i)).toBeInTheDocument();
     expect(screen.getAllByText(/accepted capture/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Review required/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Available launch cities/i)).toBeInTheDocument();
+    expect(screen.getByText(/Open capture markets/i)).toBeInTheDocument();
     expect(screen.queryByText(/\$40 average/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/\$(40|45|80)\b/i)).not.toBeInTheDocument();
   });

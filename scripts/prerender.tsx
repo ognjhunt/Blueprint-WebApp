@@ -21,6 +21,7 @@ import Pricing from "../client/src/pages/Pricing";
 import Contact from "../client/src/pages/Contact";
 import Support from "../client/src/pages/Support";
 import ExactSiteHostedReview from "../client/src/pages/ExactSiteHostedReview";
+import SampleDeliverables from "../client/src/pages/SampleDeliverables";
 import FAQ from "../client/src/pages/FAQ";
 import Governance from "../client/src/pages/Governance";
 import Proof from "../client/src/pages/Proof";
@@ -31,6 +32,7 @@ import Terms from "../client/src/pages/Terms";
 import Login from "../client/src/pages/Login";
 import Blog from "../client/src/pages/Blog";
 import LaunchMap from "../client/src/pages/LaunchMap";
+import { helpArticles, helpCategories } from "../client/src/data/helpCenter";
 import { siteWorldCards } from "../client/src/data/siteWorlds";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -217,11 +219,22 @@ const staticRoutes: StaticRoute[] = [
   { path: "/capture-app", component: CaptureAppPlaceholder },
   { path: "/capture-app/launch-access", component: CaptureLaunchAccess },
   { path: "/pricing", component: Pricing },
+  { path: "/sample-deliverables", component: SampleDeliverables },
   { path: "/proof", component: Proof, shell: "bare" },
   { path: "/contact", component: Contact },
   { path: "/contact/site-operator", component: Contact },
   { path: "/help", component: Support },
   { path: "/help/contact", component: Support },
+  ...helpCategories.map((category) => ({
+    path: `/help/category/${category.slug}`,
+    component: Support,
+    props: { params: { categorySlug: category.slug } },
+  })),
+  ...helpArticles.map((article) => ({
+    path: `/help/article/${article.slug}`,
+    component: Support,
+    props: { params: { articleSlug: article.slug } },
+  })),
   { path: "/launch-map", component: LaunchMap },
   { path: "/faq", component: FAQ },
   { path: "/governance", component: Governance },

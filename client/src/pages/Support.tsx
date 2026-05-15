@@ -786,7 +786,7 @@ function StillNeedHelpBand({ compact = false }: { compact?: boolean }) {
               href="/book-exact-site-review"
               className="inline-flex min-h-12 items-center justify-center border border-black/10 px-6 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
             >
-              Book scoping call
+              Request scoping call
             </a>
           </div>
         </div>

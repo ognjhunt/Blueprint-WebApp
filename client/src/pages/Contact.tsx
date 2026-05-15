@@ -157,10 +157,46 @@ const contactRequestPathCopy: Record<
       "Start with the facility, access rules, and privacy boundaries. A call comes later only when private areas, rights, or commercialization need a human pass.",
     responseBody:
       "Blueprint reviews the facility details, access rules, privacy notes, and commercialization preference first. A call is only the next step when those details are specific enough to resolve.",
-    primaryActionLabel: "Start site claim",
+    primaryActionLabel: "Submit site boundaries",
     formSummary: "Required: contact details, facility, location, and access rules.",
   },
 };
+
+const contactPathTabs: Array<{
+  label: string;
+  path: CommercialRequestPath;
+  href: string;
+}> = [
+  {
+    label: "World model package",
+    path: "world_model",
+    href: "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=contact-path-tabs",
+  },
+  {
+    label: "Hosted review",
+    path: "hosted_evaluation",
+    href: "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=contact-path-tabs",
+  },
+  {
+    label: "New capture request",
+    path: "capture_access",
+    href: "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=contact-path-tabs",
+  },
+  {
+    label: "Site operator claim",
+    path: "site_claim",
+    href: "/contact/site-operator",
+  },
+];
+
+const siteOperatorBenefits = [
+  "Control how the site is captured",
+  "Set restricted or private zones",
+  "Define commercialization posture",
+  "Reduce ad hoc site visits",
+  "Review buyer access",
+  "Refresh or remove stale boundaries",
+];
 
 export default function Contact() {
   const search = useSearch();
@@ -432,6 +468,61 @@ export default function Contact() {
                   </div>
                 </div>
               </div>
+              <div className="mb-6">
+                <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  Selected request path
+                </p>
+                <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4" role="tablist" aria-label="Request path">
+                  {contactPathTabs.map((tab) => {
+                    const active = commercialRequestPath === tab.path;
+                    return (
+                      <a
+                        key={tab.path}
+                        href={tab.href}
+                        aria-selected={active}
+                        role="tab"
+                        onClick={() =>
+                          trackContactCta(
+                            `contact_path_tab_${tab.path}`,
+                            tab.label,
+                            tab.href,
+                            "contact-path-tabs",
+                          )
+                        }
+                        className={`inline-flex min-h-12 items-center justify-center border px-3 py-2 text-center text-sm font-semibold transition ${
+                          active
+                            ? "border-slate-950 bg-slate-950 text-white"
+                            : "border-black/10 bg-[#f8f6f1] text-slate-800 hover:bg-white"
+                        }`}
+                      >
+                        {tab.label}
+                      </a>
+                    );
+                  })}
+                </div>
+              </div>
+              {persona === "site_operator" ? (
+                <div className="mb-6 border border-black/10 bg-[#f8f6f1] p-5">
+                  <EditorialSectionLabel>Why participate</EditorialSectionLabel>
+                  <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-700">
+                    Site controls let operators set capture, privacy, and buyer-access boundaries before a site package is represented as usable.
+                  </p>
+                  <div className="mt-5 grid gap-px bg-black/10 sm:grid-cols-2 lg:grid-cols-3">
+                    {siteOperatorBenefits.map((benefit) => (
+                      <div key={benefit} className="bg-white px-4 py-3 text-sm font-semibold text-slate-800">
+                        {benefit}
+                      </div>
+                    ))}
+                  </div>
+                  <a
+                    href="/governance"
+                    className="mt-5 inline-flex items-center text-sm font-semibold text-slate-950 transition hover:text-slate-700"
+                  >
+                    Review Trust & site controls
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </a>
+                </div>
+              ) : null}
               {hasSourceContext ? (
                 <div className="mb-6 border border-black/10 bg-[#f8f6f1] p-5">
                   <EditorialSectionLabel>Request context</EditorialSectionLabel>

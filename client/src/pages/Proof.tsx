@@ -69,6 +69,39 @@ const heroPacketRows = [
   ["Review", "Hosted notes and buyer next step"],
 ];
 
+const proofPacketExample: IconItem[] = [
+  {
+    icon: Route,
+    label: "01",
+    title: "Source capture",
+    body: "Where the route came from, when it was captured, and which public-facing path it covers.",
+  },
+  {
+    icon: FileText,
+    label: "02",
+    title: "Manifest",
+    body: "The site id, capture id, files, route notes, quality checks, and included export modes.",
+  },
+  {
+    icon: ShieldCheck,
+    label: "03",
+    title: "Rights sheet",
+    body: "Use limits, privacy posture, redactions, restricted zones, and sharing boundaries.",
+  },
+  {
+    icon: ClipboardCheck,
+    label: "04",
+    title: "Hosted report",
+    body: "Run notes, observations, requested outputs, and unresolved review questions.",
+  },
+  {
+    icon: PackageCheck,
+    label: "05",
+    title: "Export decision",
+    body: "Whether the buyer should proceed, request more capture, narrow the export, or hold.",
+  },
+];
+
 const trustSystemCards: IconItem[] = [
   {
     icon: Fingerprint,
@@ -310,6 +343,36 @@ export default function Proof() {
                 ))}
               </div>
             </aside>
+          </div>
+        </section>
+
+        <section className="border-b border-black/10 bg-white">
+          <div className="mx-auto max-w-[90rem] px-5 py-8 sm:px-8 lg:px-10">
+            <div className="grid gap-6 lg:grid-cols-[0.3fr_0.7fr]">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-normal text-slate-500">
+                  Proof packet example
+                </p>
+                <h2 className="mt-4 text-3xl font-semibold leading-tight tracking-normal text-slate-950">
+                  One packet, five buyer checks.
+                </h2>
+                <p className="mt-4 text-sm leading-7 text-slate-600">
+                  The public sample makes these checks inspectable without claiming customer proof.
+                </p>
+                <a
+                  href="/sample-deliverables"
+                  className="mt-6 inline-flex items-center rounded-md border border-black/10 bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                >
+                  Inspect sample package
+                  <ArrowUpRight className="ml-2 h-4 w-4" />
+                </a>
+              </div>
+              <div className="grid gap-px bg-black/10 md:grid-cols-5">
+                {proofPacketExample.map((item) => (
+                  <IconPanel key={item.title} item={item} />
+                ))}
+              </div>
+            </div>
           </div>
         </section>
 

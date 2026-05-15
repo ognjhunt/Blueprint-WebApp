@@ -16,12 +16,14 @@ Blueprint turns real-site capture into site-specific world-model products, hoste
 - [Product](https://tryblueprint.io/product): site-specific world models, site packages, and hosted review as one request-gated offer.
 - [Catalog](https://tryblueprint.io/world-models): exact-site world-model catalog with proof posture, package paths, and hosted-evaluation entry points.
 - [Sample Site](https://tryblueprint.io/world-models/siteworld-f5fd54898cfb): public sample listing showing how proof, package access, hosted access, and restrictions stay separate.
+- [Sample Deliverables](https://tryblueprint.io/sample-deliverables): buyer-readable sample manifest, rights sheet, export bundle, and hosted review report with raw file links.
 - [Capture App / Earn](https://tryblueprint.io/capture): public capture rules, capturer access boundaries, review gates, and lawful earning path.
 - [Stories / Proof](https://tryblueprint.io/proof): public sample proof packet with sample-vs-real boundaries, provenance, and hosted-review output examples.
 - [Governance](https://tryblueprint.io/governance): rights, privacy, provenance, restrictions, and hosted-access boundaries.
 - [FAQ](https://tryblueprint.io/faq): direct answers about world models, hosted evaluation, sample proof, and buyer next steps.
 - [Pricing](https://tryblueprint.io/pricing): site package, hosted evaluation, and enterprise scope options.
 - [Contact](https://tryblueprint.io/contact): structured intake for a site, workflow, robot question, rights context, and next step.
+- [Site Operators](https://tryblueprint.io/contact/site-operator): operator path for site boundaries, restricted zones, commercialization posture, and buyer-access review.
 - [Updates](https://tryblueprint.io/updates): short product notes and public updates.
 
 ## Full Machine-Readable Overview

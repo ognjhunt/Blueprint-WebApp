@@ -3,9 +3,28 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { beforeAll, describe, expect, it } from "vitest";
 
+function currentSitemapDate() {
+  const sourceDateEpoch = process.env.SOURCE_DATE_EPOCH;
+  if (sourceDateEpoch && Number.isFinite(Number(sourceDateEpoch))) {
+    return new Date(Number(sourceDateEpoch) * 1000).toISOString().slice(0, 10);
+  }
+
+  const sitemapLastModDate = process.env.SITEMAP_LASTMOD_DATE;
+  if (sitemapLastModDate?.trim()) {
+    return new Date(`${sitemapLastModDate.trim()}T00:00:00.000Z`)
+      .toISOString()
+      .slice(0, 10);
+  }
+
+  return new Date().toISOString().slice(0, 10);
+}
+
 function ensureBuildOutput() {
   const sitemapPath = path.resolve(process.cwd(), "dist/public/sitemap.xml");
-  if (fs.existsSync(sitemapPath)) {
+  if (
+    fs.existsSync(sitemapPath)
+    && fs.readFileSync(sitemapPath, "utf8").includes(`<lastmod>${currentSitemapDate()}</lastmod>`)
+  ) {
     return;
   }
   execFileSync("npm", ["run", "build"], {
@@ -44,10 +63,64 @@ describe("build output", () => {
       fs.existsSync(path.resolve(process.cwd(), "dist/public/proof/index.html")),
     ).toBe(true);
     expect(
+      fs.existsSync(path.resolve(process.cwd(), "dist/public/sample-deliverables/index.html")),
+    ).toBe(true);
+    expect(
       fs.existsSync(path.resolve(process.cwd(), "dist/public/help/index.html")),
     ).toBe(true);
     expect(
       fs.existsSync(path.resolve(process.cwd(), "dist/public/launch-map/index.html")),
+    ).toBe(true);
+    expect(
+      fs.existsSync(
+        path.resolve(process.cwd(), "dist/public/help/category/getting-started/index.html"),
+      ),
+    ).toBe(true);
+    expect(
+      fs.existsSync(
+        path.resolve(process.cwd(), "dist/public/help/article/what-blueprint-sells/index.html"),
+      ),
+    ).toBe(true);
+    expect(
+      fs.existsSync(
+        path.resolve(process.cwd(), "dist/public/help/article/choose-the-right-path/index.html"),
+      ),
+    ).toBe(true);
+  });
+
+  it("prerenders help article routes as article content instead of the homepage", () => {
+    const helpArticleHtml = fs.readFileSync(
+      path.resolve(process.cwd(), "dist/public/help/article/choose-the-right-path/index.html"),
+      "utf8",
+    );
+
+    expect(helpArticleHtml).toContain("Choose the right support path");
+    expect(helpArticleHtml).toContain("If you are buying");
+    expect(helpArticleHtml).toContain("If you are capturing");
+    expect(helpArticleHtml).not.toContain("Site-specific world models for robot teams");
+    expect(helpArticleHtml).not.toContain("Blueprint sells exact-site products, not generic demos.");
+  });
+
+  it("ships the sample deliverables viewer and keeps raw sample artifacts reachable", () => {
+    const sampleDeliverablesHtml = fs.readFileSync(
+      path.resolve(process.cwd(), "dist/public/sample-deliverables/index.html"),
+      "utf8",
+    );
+
+    expect(sampleDeliverablesHtml).toContain("Sample deliverables from one real site");
+    expect(sampleDeliverablesHtml).toContain("/samples/sample-site-package-manifest.json");
+    expect(sampleDeliverablesHtml).toContain("/samples/sample-rights-sheet.md");
+    expect(sampleDeliverablesHtml).toContain("/samples/sample-export-bundle.json");
+    expect(sampleDeliverablesHtml).toContain("/samples/sample-hosted-review-report.md");
+    expect(
+      fs.existsSync(
+        path.resolve(process.cwd(), "dist/public/samples/sample-rights-sheet.md"),
+      ),
+    ).toBe(true);
+    expect(
+      fs.existsSync(
+        path.resolve(process.cwd(), "dist/public/samples/sample-hosted-review-report.md"),
+      ),
     ).toBe(true);
   });
 
@@ -76,9 +149,17 @@ describe("build output", () => {
     expect(sitemap).toContain("https://tryblueprint.io/world-models/sw-chi-01");
     expect(sitemap).toContain("https://tryblueprint.io/product");
     expect(sitemap).toContain("https://tryblueprint.io/proof");
+    expect(sitemap).toContain("https://tryblueprint.io/sample-deliverables");
     expect(sitemap).toContain("https://tryblueprint.io/capture");
     expect(sitemap).toContain("https://tryblueprint.io/updates");
     expect(sitemap).toContain("https://tryblueprint.io/help");
+    expect(sitemap).toContain("https://tryblueprint.io/help/contact");
+    expect(sitemap).toContain("https://tryblueprint.io/contact/site-operator");
+    expect(sitemap).toContain("https://tryblueprint.io/launch-map");
+    expect(sitemap).toContain("https://tryblueprint.io/help/category/getting-started");
+    expect(sitemap).toContain("https://tryblueprint.io/help/article/what-blueprint-sells");
+    expect(sitemap).toContain("https://tryblueprint.io/help/article/choose-the-right-path");
+    expect(sitemap).toContain(`<lastmod>${currentSitemapDate()}</lastmod>`);
     expect(sitemap).not.toContain("https://tryblueprint.io/sample-evaluation");
     expect(sitemap).not.toContain("https://tryblueprint.io/exact-site-hosted-review");
     expect(sitemap).not.toContain("https://tryblueprint.io/book-exact-site-review");
@@ -86,6 +167,11 @@ describe("build output", () => {
     expect(sitemap).not.toContain("https://tryblueprint.io/site-worlds");
     expect(sitemap).not.toContain("https://tryblueprint.io/docs");
     expect(sitemap).not.toContain("https://tryblueprint.io/solutions");
+    expect(sitemap).not.toContain("https://tryblueprint.io/capture-app</loc>");
+    expect(sitemap).not.toContain("https://tryblueprint.io/portal");
+    expect(sitemap).not.toContain("https://tryblueprint.io/sign-in");
+    expect(sitemap).not.toContain("https://tryblueprint.io/signup");
+    expect(sitemap).not.toContain("https://tryblueprint.io/world-models/sw-chi-01/start");
   });
 
   it("ships crawl artifacts for public marketing routes", () => {
@@ -138,9 +224,9 @@ describe("build output", () => {
     );
 
     expect(proofHtml).not.toContain("images.unsplash.com");
-    expect(proofHtml).toContain("Public sample, clearly labeled");
-    expect(proofHtml).toContain("Sample proof system");
-    expect(proofHtml).toContain("No invented rights or outcomes");
+    expect(proofHtml).toContain("Sample artifact still");
+    expect(proofHtml).toContain("Sample vs live");
+    expect(proofHtml).toContain("Claims fail closed");
     expect(homeHtml).toContain('rel="canonical" href="https://tryblueprint.io/"');
     expect(homeHtml).toContain('property="og:image" content="https://tryblueprint.io/generated/2026-05-13-brand-system/blueprint-og-hosted-review-gpt-image-2.png"');
     expect(homeHtml).toContain('type="application/ld+json"');

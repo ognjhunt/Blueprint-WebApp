@@ -17,19 +17,19 @@ describe("SampleDeliverables", () => {
     expect(screen.getAllByText(/Sample manifest layout/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Hosted report example/i)).toBeInTheDocument();
     expect(screen.getByText(/Export tree example/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Download sample manifest/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Open raw manifest/i })).toHaveAttribute(
       "href",
       "/samples/sample-site-package-manifest.json",
     );
-    expect(screen.getByRole("link", { name: /Download sample rights sheet/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Open raw rights sheet/i })).toHaveAttribute(
       "href",
       "/samples/sample-rights-sheet.md",
     );
-    expect(screen.getByRole("link", { name: /Download sample export bundle/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Open raw export bundle/i })).toHaveAttribute(
       "href",
       "/samples/sample-export-bundle.json",
     );
-    expect(screen.getByRole("link", { name: /Open sample report/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Open raw hosted report/i })).toHaveAttribute(
       "href",
       "/samples/sample-hosted-review-report.md",
     );

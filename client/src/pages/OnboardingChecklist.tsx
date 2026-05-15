@@ -362,7 +362,7 @@ export default function OnboardingChecklist() {
         icon: CalendarClock,
         action: calendarIsRecommended
           ? {
-              label: "Book scoping call",
+              label: "Request scoping call",
               href: "/book-exact-site-review",
               updateField: "onboardingProgress.reviewSessionScoped",
             }

@@ -372,7 +372,6 @@ app.use((req, res, next) => {
     { from: "/exact-site-hosted-review", to: "/product" },
     { from: "/how-it-works", to: "/product" },
     { from: "/sample-evaluation", to: "/proof" },
-    { from: "/sample-deliverables", to: "/proof" },
     { from: "/case-studies", to: "/proof" },
     {
       from: "/book-exact-site-review",

@@ -103,7 +103,7 @@ describe("SiteWorldDetail", () => {
       screen.getByRole("heading", { name: /Configure a hosted evaluation request for this site\./i }),
     ).toBeInTheDocument();
     expect(screen.getAllByText(/^Status$/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Request-scoped commercial review/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Request-reviewed exemplar/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Proof depth/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Proof label/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Pipeline-backed metadata/i).length).toBeGreaterThan(0);

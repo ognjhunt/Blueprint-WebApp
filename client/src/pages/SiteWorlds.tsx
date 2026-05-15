@@ -67,7 +67,7 @@ function sortCatalog(sites: SiteWorld[]) {
 function hasPublicProof(site: SiteWorld) {
   const proofSummary = getSiteWorldPublicProofSummary(site);
   return (
-    proofSummary !== "Listing metadata only"
+    proofSummary !== "Metadata preview only"
     && !proofSummary.toLowerCase().includes("planned profile")
   );
 }
@@ -378,7 +378,7 @@ export default function SiteWorlds() {
             <EditorialSectionIntro
               eyebrow="Featured sites"
               title="Start with a site, not an abstract demo."
-              description="The top row anchors the catalog: public sample proof, commercial exemplar framing, and planned profiles are separated before a buyer clicks."
+              description="The top row anchors the catalog: public sample proof, request-reviewed exemplar framing, and planned example profiles are separated before a buyer clicks."
               className="max-w-3xl"
             />
             <a

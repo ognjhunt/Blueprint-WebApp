@@ -80,7 +80,7 @@ describe("HostedSessionSetup", () => {
     expect(screen.getAllByText(/World Model/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Robot profile/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Launch check/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Presentation demo/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Hosted review room/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Observation frames/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/does not charge, run a provider job, or start fulfillment/i)).toBeInTheDocument();
   });
@@ -120,9 +120,9 @@ describe("HostedSessionSetup", () => {
 
     render(<HostedSessionSetup params={{ slug: "sw-chi-01" }} />);
 
-    expect(await screen.findByText(/Presentation demo/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Hosted review room/i)).toBeInTheDocument();
     expect(
-      await screen.findByText(/Presentation files are ready\. Private operator UI is request-gated\./i),
+      await screen.findByText(/Review files are ready\. Runtime access remains request-reviewed for this exact site\./i),
     ).toBeInTheDocument();
     expect(
       screen.getByText(/Hosted session is request-gated\. Submit the configuration instead\./i),
@@ -169,7 +169,7 @@ describe("HostedSessionSetup", () => {
     render(<HostedSessionSetup params={{ slug: demoSiteId }} />);
 
     expect(
-      await screen.findByText(/Embedded demo is request-gated, but the hosted workspace is available\./i),
+      await screen.findByText(/Hosted review room access is request-reviewed, but the hosted workspace is available\./i),
     ).toBeInTheDocument();
     const runtimeButton = screen.getByRole("button", { name: /Launch hosted session/i });
     expect(runtimeButton).toBeEnabled();

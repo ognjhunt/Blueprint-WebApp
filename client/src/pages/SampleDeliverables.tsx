@@ -37,7 +37,8 @@ const artifactPreviews = [
     href: "/samples/sample-site-package-manifest.json",
     body: "Site id, capture date, proof depth, freshness state, rights class, and export types in one file.",
     icon: FileText,
-    action: "Download sample manifest",
+    proves: "Where the package came from, what site/workflow it describes, and which exports are included.",
+    action: "Open raw manifest",
   },
   {
     title: "Rights sheet",
@@ -45,7 +46,8 @@ const artifactPreviews = [
     href: "/samples/sample-rights-sheet.md",
     body: "Usage, sharing, retention, restricted zones, and export boundaries marked plainly.",
     icon: ShieldCheck,
-    action: "Download sample rights sheet",
+    proves: "The use limits, sharing limits, restricted-zone treatment, and review boundary attached to a package.",
+    action: "Open raw rights sheet",
   },
   {
     title: "Export bundle",
@@ -53,7 +55,8 @@ const artifactPreviews = [
     href: "/samples/sample-export-bundle.json",
     body: "A compact example of the run summary, file list, and notes a robot team can evaluate after hosted evaluation.",
     icon: PackageOpen,
-    action: "Download sample export bundle",
+    proves: "Which files a buyer can inspect first and which outputs remain tied to request-specific review.",
+    action: "Open raw export bundle",
   },
   {
     title: "Hosted evaluation report",
@@ -61,7 +64,8 @@ const artifactPreviews = [
     href: "/samples/sample-hosted-review-report.md",
     body: "An example report showing session scope, run evidence, buyer decision notes, and limits.",
     icon: FileText,
-    action: "Open sample report",
+    proves: "How a hosted review summarizes runs, observations, buyer questions, and non-guarantees.",
+    action: "Open raw hosted report",
   },
 ];
 
@@ -145,6 +149,12 @@ export default function SampleDeliverables() {
                 <p className="mt-6 text-base leading-8 text-slate-700">
                   See the manifest, rights sheet, package files, and hosted-evaluation report before the buyer conversation starts.
                 </p>
+                <div className="mt-6 border border-black/10 bg-white/82 px-4 py-3 text-sm leading-6 text-slate-700">
+                  Point-of-use disclaimer: sample people, buyer personas, package ids, run
+                  results, and outcomes on this page are illustrative. They show Blueprint&apos;s
+                  deliverable shape; they are not customer proof, rights clearance, or live
+                  fulfillment evidence.
+                </div>
                 </div>
               </div>
             </div>
@@ -285,6 +295,12 @@ export default function SampleDeliverables() {
                     <p className={`mt-4 text-sm leading-7 ${dark ? "text-white/70" : "text-slate-600"}`}>
                       {artifact.body}
                     </p>
+                    <p className={`mt-4 border-t pt-4 text-sm leading-6 ${dark ? "border-white/10 text-white/65" : "border-black/10 text-slate-600"}`}>
+                      <span className={dark ? "font-semibold text-white" : "font-semibold text-slate-950"}>
+                        What this proves:
+                      </span>{" "}
+                      {artifact.proves}
+                    </p>
                     <span className={`mt-6 inline-flex items-center text-sm font-semibold ${dark ? "text-white" : "text-slate-950"}`}>
                       {artifact.action}
                       <ArrowRight className="ml-2 h-4 w-4" />
@@ -300,8 +316,8 @@ export default function SampleDeliverables() {
           <div className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
             <EditorialSectionIntro
               eyebrow="Inline previews"
-              title="Read the sample before downloading."
-              description="The raw files still open as downloads. The core fields are also shown here so your team can scan the sample quickly."
+              title="Read the sample before opening raw files."
+              description="The raw files still open directly. The core fields are also shown here so your team can scan the manifest, rights sheet, export bundle, and hosted report quickly."
               className="mb-8 max-w-3xl"
             />
             <div className="mb-10 grid gap-4 lg:grid-cols-3">

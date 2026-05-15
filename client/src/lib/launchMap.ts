@@ -48,14 +48,14 @@ export function getLaunchAudienceActions(city: PublicLaunchCity): LaunchAudience
     return [
       {
         audience: "Robot teams",
-        label: "Book hosted review",
+        label: "Request hosted review",
         href: "/book-exact-site-review",
         note: "Start the exact-site evaluation path for this launch city.",
       },
       {
         audience: "Site operators",
         label: "Talk to Blueprint",
-        href: "/contact?persona=launch-map",
+        href: "/contact/site-operator",
         note: "Coordinate access, rights, or rollout conversations for this city.",
       },
       {
@@ -78,7 +78,7 @@ export function getLaunchAudienceActions(city: PublicLaunchCity): LaunchAudience
       {
         audience: "Site operators",
         label: "Express site interest",
-        href: "/contact?persona=site-operator",
+        href: "/contact/site-operator",
         note: "Share site access or rights interest for a future launch path.",
       },
       {

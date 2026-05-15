@@ -140,9 +140,9 @@ const homeVariantContent: Record<
   }
 > = {
   hosted_review: {
-    title: "Site-specific world models from real capture.",
+    title: "Site-specific world models for robot teams, built from real capture.",
     description:
-      "Request one exact site, inspect proof, and choose package access, hosted review, or new capture without losing provenance.",
+      "Name one facility or route. Blueprint packages the capture, proof, rights limits, and hosted review path so your team can evaluate the exact site before field time.",
     primaryLabel: "Request world model",
     primaryPath: "world-model",
     secondaryLabel: "Browse world models",
@@ -152,9 +152,9 @@ const homeVariantContent: Record<
       "Name one site, robot task, and review path. Proof stays attached before access expands.",
   },
   proof_pack: {
-    title: "Site-specific world models from real capture.",
+    title: "Site-specific world models for robot teams, built from real capture.",
     description:
-      "Start with one real place and the robot task you need to prove. Capture source, rights, package scope, and hosted review stay tied together.",
+      "Name one facility or route. Blueprint packages the capture, proof, rights limits, and hosted review path so your team can evaluate the exact site before field time.",
     primaryLabel: "Request world model",
     primaryPath: "world-model",
     secondaryLabel: "Browse world models",
@@ -167,16 +167,35 @@ const homeVariantContent: Record<
 
 const robotTeamDecisionSteps = [
   {
-    title: "Name the exact site",
-    body: "Bring the facility, route, site class, or operating context your team needs to test.",
+    title: "Capture the site",
+    body: "Start from a real facility, route, or public-facing walkthrough with provenance and limits attached.",
   },
   {
-    title: "Review attached proof",
-    body: "Inspect capture basis, freshness, rights limits, package scope, and sample-vs-approved status.",
+    title: "Package the proof",
+    body: "Turn capture into a site package with manifest, rights notes, freshness, exports, and hosted review context.",
   },
   {
-    title: "Choose the buyer path",
-    body: "Move into package access, hosted evaluation, or a capture request when the catalog does not yet show the exact world.",
+    title: "Review or license it",
+    body: "Use hosted review before field time, or request package access when the proof and rights path fit.",
+  },
+];
+
+const firstScreenDefinitions = [
+  {
+    term: "World model",
+    definition: "A captured digital environment for one real site and workflow.",
+  },
+  {
+    term: "Site package",
+    definition: "The manifest, route, proof, rights notes, exports, and files tied to that site.",
+  },
+  {
+    term: "Hosted review",
+    definition: "Blueprint runs the site model in a review room before your team takes files into its own stack.",
+  },
+  {
+    term: "Provenance",
+    definition: "The record of where the capture came from, when it was captured, what route it covered, and what limits apply.",
   },
 ];
 
@@ -465,6 +484,40 @@ export default function Home() {
               </div>
             </div>
           </MonochromeMedia>
+        </section>
+
+        <section className="border-b border-black/10 bg-white" data-home-section="first-route">
+          <div className="mx-auto grid max-w-[88rem] gap-px px-5 py-8 sm:px-8 lg:grid-cols-[0.34fr_0.66fr] lg:px-10 lg:py-10">
+            <div className="bg-[#f5f3ef] p-5 sm:p-6">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                Choose your path
+              </p>
+              <div className="mt-4 grid gap-2">
+                {[
+                  ["For robot teams", heroPrimaryHref],
+                  ["For site operators", "/contact/site-operator"],
+                  ["For capturers", "/capture-app/launch-access?role=capturer&source=home-top-persona"],
+                ].map(([label, href]) => (
+                  <a
+                    key={label}
+                    href={href}
+                    className="flex min-h-12 items-center justify-between border border-black/10 bg-white px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-50"
+                  >
+                    {label}
+                    <ArrowRight className="h-4 w-4" />
+                  </a>
+                ))}
+              </div>
+            </div>
+            <div className="grid gap-px bg-black/10 md:grid-cols-4">
+              {firstScreenDefinitions.map((item) => (
+                <div key={item.term} className="bg-white p-5">
+                  <p className="text-sm font-semibold text-slate-950">{item.term}</p>
+                  <p className="mt-3 text-sm leading-6 text-slate-600">{item.definition}</p>
+                </div>
+              ))}
+            </div>
+          </div>
         </section>
 
         <section className="border-b border-black/10 bg-[#101310] text-white" data-home-section="product-stack">

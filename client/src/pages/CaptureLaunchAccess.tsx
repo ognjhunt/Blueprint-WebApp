@@ -217,7 +217,7 @@ export default function CaptureLaunchAccess() {
                 <div className="mt-4 flex flex-wrap gap-2">
                   {launchStatusLoading ? (
                     <p className="text-sm leading-7 text-slate-600">
-                      Checking backend launch status before showing open cities.
+                      Reviewing public capture-market status before showing open cities.
                     </p>
                   ) : launchStatusError ? (
                     <p className="text-sm leading-7 text-slate-600">
@@ -235,8 +235,8 @@ export default function CaptureLaunchAccess() {
                     ))
                   ) : (
                     <p className="text-sm leading-7 text-slate-600">
-                      No city is currently marked open in the public launch roster. Leave a signal
-                      and Blueprint will route it through launch review.
+                      No open public capture market is listed here right now. Leave your city and
+                      Blueprint will route it through launch review.
                     </p>
                   )}
                 </div>

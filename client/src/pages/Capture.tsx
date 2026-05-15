@@ -33,6 +33,39 @@ const processRows = [
   },
 ];
 
+const captureExpectations = [
+  {
+    title: "Phone-first equipment",
+    body:
+      "Start with a phone capture path. Smart glasses or repeat-walk hardware appears only when the assignment, hardware, and launch proof support it.",
+  },
+  {
+    title: "Lawful public-facing routes",
+    body:
+      "Capture common public-facing routes only. Private rooms, restricted zones, employee-only areas, and sensitive personal information stay out.",
+  },
+  {
+    title: "What review checks",
+    body:
+      "Review checks coverage, route accuracy, completeness, image quality, privacy fit, and whether the walkthrough matches the approved assignment.",
+  },
+  {
+    title: "What can disqualify a capture",
+    body:
+      "Missing route segments, shaky or incomplete walkthroughs, private/sensitive areas, wrong location, or capture outside assignment rules can fail review.",
+  },
+  {
+    title: "Payout cue",
+    body:
+      "Assignment cards show the route-specific payout cue before work starts. Signup, city interest, or upload alone does not promise payment.",
+  },
+  {
+    title: "Review and payment timing",
+    body:
+      "Timing is assignment-specific. Review happens after upload; payout processing can start only after Blueprint accepts the capture.",
+  },
+];
+
 export default function Capture() {
   const {
     data: publicLaunchStatus,
@@ -84,14 +117,14 @@ export default function Capture() {
                   href="/capture-app/launch-access?role=capturer&source=capture-hero"
                   className="inline-flex items-center justify-center bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                 >
-                  Check capture access
+                  Check capture city
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </a>
                 <a
                   href="/signup/capturer"
                   className="inline-flex items-center justify-center border border-black/10 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
                 >
-                  Apply to capture
+                  Apply for approved capture assignments
                 </a>
               </div>
             </div>
@@ -104,6 +137,26 @@ export default function Capture() {
               imageClassName="min-h-[30rem]"
               overlayClassName="bg-[linear-gradient(90deg,rgba(255,255,255,0.78)_0%,rgba(255,255,255,0.2)_36%,rgba(0,0,0,0.08)_100%)]"
             />
+          </div>
+        </section>
+
+        <section className="border-b border-black/10 bg-[#f5f3ef]">
+          <div className="mx-auto max-w-[96rem] px-5 py-8 sm:px-8 lg:px-10">
+            <div className="grid gap-px border border-black/10 bg-black/10 md:grid-cols-2 lg:grid-cols-3">
+              {captureExpectations.map((item) => (
+                <article key={item.title} className="bg-white p-5 lg:p-6">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                    Capture expectation
+                  </p>
+                  <h2 className="font-editorial mt-4 text-[2rem] leading-[0.95] tracking-[-0.04em] text-slate-950">
+                    {item.title}
+                  </h2>
+                  <p className="mt-4 text-sm leading-7 text-slate-700">
+                    {item.body}
+                  </p>
+                </article>
+              ))}
+            </div>
           </div>
         </section>
 
@@ -235,14 +288,14 @@ export default function Capture() {
                     <p className="text-sm leading-7 text-slate-700">
                       {launchStatusLoading ? (
                         <>
-                          <strong>Checking current launch cities.</strong> Capture access stays
-                          locked until the launch roster confirms a city is open for approved assignments.
+                          <strong>Reviewing public capture-market status.</strong> Capture access
+                          stays locked until a market is opened for approved assignments.
                         </>
                       ) : launchStatusError ? (
                         <>
                           <strong>Launch status unavailable.</strong> This page is not treating any
                           city as supported from saved page copy. Request access or check the
-                          launch map for the current backend status before expecting assignments.
+                          launch access page before expecting assignments.
                         </>
                       ) : supportedCities.length ? (
                         <>
@@ -270,7 +323,7 @@ export default function Capture() {
                     ))}
                     {!supportedCities.length ? (
                       <span className="border border-black/10 bg-[#f5f3ef] px-4 py-2 text-sm text-slate-700">
-                        Backend launch roster required
+                        Capture markets reviewed before opening publicly
                       </span>
                     ) : null}
                   </div>

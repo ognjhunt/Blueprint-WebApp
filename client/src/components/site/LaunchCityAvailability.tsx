@@ -69,7 +69,9 @@ export function LaunchCityAvailability({
   const { data, loading } = usePublicLaunchStatus();
   const classes = toneClasses(tone);
   const supportedCities = data?.supportedCities ?? [];
-  const supportedCitySummary = joinLaunchCityLabels(supportedCities);
+  const supportedCitySummary = supportedCities.length
+    ? `Current open public capture markets: ${joinLaunchCityLabels(supportedCities)}.`
+    : "No open public capture market is listed here right now.";
 
   return (
     <section className={`rounded-[1.8rem] border p-6 sm:p-7 ${classes.shell} ${className}`}>
@@ -83,7 +85,7 @@ export function LaunchCityAvailability({
           <p className={`mt-3 text-sm leading-7 sm:text-base ${classes.body}`}>{description}</p>
           <div className={`mt-4 rounded-2xl border px-4 py-3 text-sm leading-6 ${classes.note}`}>
             <span className="font-semibold">
-              {loading ? "Checking current launch cities..." : `Currently supported: ${supportedCitySummary}.`}
+              {loading ? "Reviewing public capture-market status..." : supportedCitySummary}
             </span>{" "}
             Only approved launch cities open capture access and public capture cards. Nearby places can enter review for future launch, but they do not show as open until Blueprint approves them.
           </div>

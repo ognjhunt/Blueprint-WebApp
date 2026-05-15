@@ -15,13 +15,15 @@ export const footerProductLinks = [
   { href: "/product", label: "Product" },
   { href: "/world-models", label: "World models" },
   { href: "/proof", label: "Sample proof" },
+  { href: "/sample-deliverables", label: "Sample deliverables" },
   { href: "/capture", label: "Capture" },
   { href: "/pricing", label: "Pricing" },
 ];
 
 export const footerCompanyLinks = [
   { href: "/about", label: "About" },
-  { href: "/governance", label: "Trust" },
+  { href: "/governance", label: "Trust & site controls" },
+  { href: "/contact/site-operator", label: "Site operators" },
   { href: "/contact?persona=robot-team", label: "Contact" },
   { href: "/updates", label: "Updates" },
   { href: "/careers", label: "Careers" },

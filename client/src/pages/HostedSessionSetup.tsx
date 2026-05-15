@@ -653,10 +653,10 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
                       Hosted capabilities
                     </p>
                     <p className="mt-2 text-sm text-slate-950">
-                      Backend: {site.runtimeManifest?.defaultBackend || site.defaultRuntimeBackend}
+                      Runtime access is request-reviewed for this exact site.
                     </p>
                     <p className="mt-1 text-sm text-slate-700">
-                      Cameras: {cameraSummary} · Demo UI: {presentationReadiness?.launchable ? "ready" : "blocked"}
+                      Cameras: {cameraSummary}. Hosted session availability is verified after request review.
                     </p>
                   </div>
                 </div>
@@ -677,22 +677,20 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
                 </div>
                 <div className="mt-4 space-y-4 text-sm">
                   <div className="border border-white/10 bg-white/5 px-4 py-4">
-                    <p className="font-semibold text-white">Presentation demo</p>
+                    <p className="font-semibold text-white">Hosted review room</p>
                     <p className="mt-2 text-white/70">
                       {checkingReadiness
-                        ? "Checking presentation demo."
+                        ? "Checking hosted review availability."
                         : presentationReadiness?.launchable
                           ? presentationReadiness?.status === "presentation_ui_unconfigured"
-                            ? "Presentation files are ready. Private operator UI is request-gated."
-                            : "Embedded demo can launch."
-                          : "Embedded demo is request-gated for this public path."}
+                            ? "Review files are ready. Runtime access remains request-reviewed for this exact site."
+                            : "Hosted review room can launch."
+                          : "Runtime access is request-reviewed for this exact site."}
                     </p>
                     {!checkingReadiness && presentationReadiness?.blockers?.length ? (
-                      <ul className="mt-3 space-y-1 text-xs leading-5 text-white/55">
-                        {presentationReadiness.blockers.slice(0, 3).map((blocker) => (
-                          <li key={blocker}>{blocker}</li>
-                        ))}
-                      </ul>
+                      <p className="mt-3 text-xs leading-5 text-white/55">
+                        Request review confirms account access, package proof, and runtime availability before launch.
+                      </p>
                     ) : null}
                   </div>
                   <div className="border border-white/10 bg-white/5 px-4 py-4">
@@ -705,11 +703,9 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
                           : "Hosted session is request-gated. Submit the configuration instead."}
                     </p>
                     {!checkingReadiness && runtimeReadiness?.blockers?.length ? (
-                      <ul className="mt-3 space-y-1 text-xs leading-5 text-white/55">
-                        {runtimeReadiness.blockers.slice(0, 3).map((blocker) => (
-                          <li key={blocker}>{blocker}</li>
-                        ))}
-                      </ul>
+                      <p className="mt-3 text-xs leading-5 text-white/55">
+                        Request review confirms entitlement, package scope, and launch limits before any hosted fulfillment claim.
+                      </p>
                     ) : null}
                   </div>
                   <div className="border border-white/10 bg-white/5 px-4 py-4">
@@ -739,11 +735,10 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
             {suggestRuntimeFallback ? (
               <div className="border border-sky-200 bg-sky-50 px-5 py-4 text-sm text-sky-900">
                 <p className="font-semibold">
-                  Embedded demo is request-gated, but the hosted workspace is available.
+                  Hosted review room access is request-reviewed, but the hosted workspace is available.
                 </p>
                 <p className="mt-1">
-                  Launch the hosted workspace directly while the embedded demo UI remains
-                  unavailable.
+                  Launch the hosted workspace directly while the review-room access path is verified.
                 </p>
               </div>
             ) : null}
@@ -751,7 +746,7 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div className="text-sm text-slate-700">
                 The site package remains the default path. Hosted launch depends on account,
-                entitlement, package proof, and runtime availability checks; blocked setups become
+                entitlement, package proof, and runtime availability checks; gated setups become
                 scoped requests instead of live fulfillment claims.
               </div>
               <div className="flex min-w-0 flex-col gap-3 sm:flex-row">
@@ -781,7 +776,7 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
                   {submitting
                     ? "Launching..."
                     : launchBlocked
-                      ? "Embedded demo request-gated"
+                      ? "Runtime access request-reviewed"
                       : "Start hosted evaluation"}
                   {!submitting && !launchBlocked ? <ArrowRight className="ml-2 h-4 w-4" /> : null}
                 </button>
