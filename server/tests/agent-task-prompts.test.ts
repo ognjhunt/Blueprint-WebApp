@@ -73,6 +73,9 @@ describe("agent task prompts", () => {
       expect(payloadIndex, `${kind} should label the final dynamic payload`).toBeGreaterThan(0);
       expect(returnShapeIndex, `${kind} should define return shape before payload`).toBeGreaterThan(0);
       expect(returnShapeIndex, `${kind} should place return shape before payload`).toBeLessThan(payloadIndex);
+      expect(prompt, `${kind} should carry no-change discipline before the dynamic payload`).toContain(
+        "If the payload shows no material movement, report no_change or unchanged instead of inventing progress.",
+      );
       expect(JSON.parse(prompt.slice(payloadIndex + "Dynamic payload:".length).trim())).toEqual(sampleInputs[kind]);
     }
   });

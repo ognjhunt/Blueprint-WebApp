@@ -21,9 +21,13 @@ describe("FAQ", () => {
     expect(screen.getByText(/Can we book time instead of starting with a form\?/i)).toBeInTheDocument();
     expect(screen.getByText(/grocery stores, retail aisles, hotel lobbies, mall corridors/i)).toBeInTheDocument();
     expect(screen.getByText(/use invented names/i)).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: /Talk to Blueprint about a real site/i }),
-    ).toHaveAttribute("href", "/contact?persona=robot-team");
+    const robotTeamLinks = screen.getAllByRole("link", {
+      name: /Talk to Blueprint about a real site/i,
+    });
+    expect(robotTeamLinks.length).toBeGreaterThanOrEqual(1);
+    robotTeamLinks.forEach((link) => {
+      expect(link).toHaveAttribute("href", "/contact?persona=robot-team");
+    });
 
     expect(screen.queryByText(/What scenario variation controls are live today\?/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/What turns a listing from listing-only into proof-rich\?/i)).not.toBeInTheDocument();

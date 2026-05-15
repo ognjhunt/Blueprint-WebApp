@@ -123,7 +123,9 @@ describe("GTM send executor", () => {
     expect(result.summary.skippedApproval).toBe(1);
     expect(result.errors.join("\n")).toContain("npm run gtm:first-send-approval:template -- --write");
     expect(result.errors.join("\n")).toContain("npm run gtm:first-send-approval:apply -- --write");
-    expect(result.errors.join("\n")).toContain("recipient evidence/draft angle/CTA/objection plan");
+    expect(result.errors.join("\n")).toContain(
+      "recipient evidence/draft angle/CTA/proof source/objection plan/blocked claims",
+    );
   });
 
   it("counts emails without explicit evidence as missing recipient-backed evidence", async () => {

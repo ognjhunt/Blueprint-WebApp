@@ -7,6 +7,7 @@ import {
 } from "@/components/site/editorial";
 import { editorialGeneratedAssets } from "@/lib/editorialGeneratedAssets";
 import { breadcrumbJsonLd, faqJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
+import { ArrowRight } from "lucide-react";
 
 const faqs = [
   {
@@ -93,6 +94,21 @@ export default function FAQ() {
                 <p className="mt-6 text-base leading-8 text-white/70">
                   The fastest way to evaluate Blueprint is to answer the few questions that actually change the next step.
                 </p>
+                <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                  <a
+                    href="/contact?persona=robot-team"
+                    className="inline-flex w-full items-center justify-center bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100 sm:w-auto"
+                  >
+                    Talk to Blueprint about a real site
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </a>
+                  <a
+                    href="/world-models"
+                    className="inline-flex w-full items-center justify-center border border-white/20 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10 sm:w-auto"
+                  >
+                    Browse world models
+                  </a>
+                </div>
                 </div>
               </div>
             </div>

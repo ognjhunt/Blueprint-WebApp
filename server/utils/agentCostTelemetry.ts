@@ -6,9 +6,11 @@ export type AgentTelemetryRun = {
   task_kind?: string | null;
   provider?: string | null;
   model?: string | null;
+  status?: string | null;
   artifacts?: Record<string, unknown> | null;
   logs?: Array<Record<string, unknown>> | null;
   metadata?: Record<string, unknown> | null;
+  output?: unknown;
   input?: unknown;
   created_at?: unknown;
   updated_at?: unknown;
@@ -55,6 +57,31 @@ export type AgentCostTelemetryRecord = {
   created_at_ms: number | null;
 };
 
+export type AgentWasteSignalRow = {
+  signal: "low_cache_high_prompt" | "no_change_completed" | "duplicate_suppressed";
+  runs: number;
+  prompt_tokens: number;
+  cached_tokens: number;
+  cost_estimate_usd: number;
+  run_ids: string[];
+  recommendation: string;
+};
+
+export type AgentCostWasteSummary = {
+  totals: {
+    runs: number;
+    calls: number;
+    prompt_tokens: number;
+    completion_tokens: number;
+    cached_tokens: number;
+    cache_hit_ratio: number;
+    cost_estimate_usd: number;
+  };
+  signals: AgentWasteSignalRow[];
+  top_prompt_rows: AgentTelemetrySummaryRow[];
+  recommendations: string[];
+};
+
 type SpendWindowKey = "last15m" | "lastHour" | "lastDay";
 
 export type AgentSpendWindow = {
@@ -87,6 +114,17 @@ function asNumber(value: unknown, fallback = 0) {
     if (Number.isFinite(parsed)) return parsed;
   }
   return fallback;
+}
+
+function optionalNumber(...values: unknown[]) {
+  for (const value of values) {
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+    if (typeof value === "string" && value.trim().length > 0) {
+      const parsed = Number(value);
+      if (Number.isFinite(parsed)) return parsed;
+    }
+  }
+  return undefined;
 }
 
 function asString(value: unknown, fallback = "unknown") {
@@ -150,12 +188,12 @@ function readUpstreamProvider(artifacts: Record<string, unknown>) {
 function usageSourceFromLogs(run: AgentTelemetryRun) {
   const logs = Array.isArray(run.logs) ? run.logs : [];
   const aggregateLog = logs.find((log) => log.event_type === "provider.telemetry.aggregated");
-  const aggregateUsage = asRecord(aggregateLog?.usage);
-  if (aggregateUsage) return aggregateUsage;
+  const aggregateUsage = flattenUsageCounters(aggregateLog?.usage);
+  if (Object.keys(aggregateUsage).length > 0) return aggregateUsage;
   const responseUsages = logs
     .filter((log) => log.event_type === "provider.response.created")
-    .map((log) => asRecord(log.usage))
-    .filter((usage): usage is Record<string, unknown> => Boolean(usage));
+    .map((log) => flattenUsageCounters(log.usage))
+    .filter((usage) => Object.keys(usage).length > 0);
   if (responseUsages.length === 0) return {};
   return responseUsages.reduce<Record<string, unknown>>((acc, usage) => {
     for (const key of [
@@ -175,20 +213,127 @@ function usageSourceFromLogs(run: AgentTelemetryRun) {
   }, {});
 }
 
+function assignUsageNumber(
+  target: Record<string, unknown>,
+  key: string,
+  value: number | undefined,
+) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    target[key] = value;
+  }
+}
+
+function flattenUsageCounters(value: unknown): Record<string, unknown> {
+  const usage = asRecord(value);
+  if (!usage) return {};
+  const promptDetails =
+    asRecord(usage.prompt_tokens_details) || asRecord(usage.input_tokens_details);
+  const completionDetails =
+    asRecord(usage.completion_tokens_details) || asRecord(usage.output_tokens_details);
+  const costDetails = asRecord(usage.cost_details);
+  const promptTokens = optionalNumber(usage.prompt_tokens, usage.input_tokens);
+  const completionTokens = optionalNumber(usage.completion_tokens, usage.output_tokens);
+  const totalTokens = optionalNumber(
+    usage.total_tokens,
+    promptTokens !== undefined || completionTokens !== undefined
+      ? (promptTokens ?? 0) + (completionTokens ?? 0)
+      : undefined,
+  );
+  const directHitTokens = optionalNumber(
+    usage.prompt_cache_hit_tokens,
+    usage.cache_hit_tokens,
+  );
+  const cachedTokens = optionalNumber(
+    promptDetails?.cached_tokens,
+    promptDetails?.cache_hit_tokens,
+    usage.cached_tokens,
+    usage.cached_input_tokens,
+    directHitTokens,
+  );
+  const missTokens = optionalNumber(
+    usage.prompt_cache_miss_tokens,
+    promptDetails?.cache_miss_tokens,
+    promptTokens !== undefined && cachedTokens !== undefined
+      ? Math.max(promptTokens - cachedTokens, 0)
+      : undefined,
+  );
+  const result: Record<string, unknown> = {};
+
+  assignUsageNumber(result, "calls", optionalNumber(usage.calls));
+  assignUsageNumber(result, "prompt_tokens", promptTokens);
+  assignUsageNumber(result, "completion_tokens", completionTokens);
+  assignUsageNumber(result, "total_tokens", totalTokens);
+  assignUsageNumber(result, "prompt_cache_hit_tokens", directHitTokens ?? cachedTokens);
+  assignUsageNumber(result, "prompt_cache_miss_tokens", missTokens);
+  assignUsageNumber(result, "cached_tokens", cachedTokens);
+  assignUsageNumber(
+    result,
+    "cache_write_tokens",
+    optionalNumber(promptDetails?.cache_write_tokens, usage.cache_write_tokens),
+  );
+  assignUsageNumber(
+    result,
+    "reasoning_tokens",
+    optionalNumber(completionDetails?.reasoning_tokens, usage.reasoning_tokens),
+  );
+  assignUsageNumber(
+    result,
+    "cost_usd",
+    optionalNumber(
+      usage.cost_usd,
+      usage.cost,
+      usage.costUsd,
+      costDetails?.total_cost_usd,
+      costDetails?.total_cost,
+      costDetails?.cost_usd,
+    ),
+  );
+
+  return result;
+}
+
+function usageSourceFromArtifacts(artifacts: Record<string, unknown>) {
+  return [
+    artifacts.usage,
+    artifacts.openrouter_usage,
+    artifacts.provider_usage,
+    artifacts.raw_usage,
+  ].reduce<Record<string, unknown>>(
+    (acc, value) => ({ ...acc, ...flattenUsageCounters(value) }),
+    {},
+  );
+}
+
+function hasRuntimeSuppression(run: AgentTelemetryRun) {
+  const metadata = asRecord(run.metadata);
+  const artifacts = asRecord(run.artifacts);
+  return Boolean(
+    asRecord(metadata?.runtime_suppression) ||
+      asRecord(artifacts?.runtime_suppression),
+  );
+}
+
 function readUsageArtifacts(run: AgentTelemetryRun) {
   const artifacts = asRecord(run.artifacts) || {};
+  const artifactUsage = usageSourceFromArtifacts(artifacts);
   const usageFallback = usageSourceFromLogs(run);
-  const usageValue = (key: string) => artifacts[key] ?? usageFallback[key];
+  const usageValue = (key: string) => artifacts[key] ?? artifactUsage[key] ?? usageFallback[key];
   const promptTokens = asNumber(usageValue("prompt_tokens"));
   const directHitTokens = asNumber(usageValue("prompt_cache_hit_tokens"));
   const cachedTokens = asNumber(usageValue("cached_tokens"), directHitTokens);
+  const callsValue = usageValue("calls");
   return {
     task_kind: asString(run.task_kind, "unknown") as AgentTaskKind | "unknown",
     provider: asString(run.provider, "unknown"),
     route: inferRoute(run, artifacts),
     model: asString(artifacts.openrouter_model ?? run.model, "unknown"),
     provider_route: readProviderRoute(artifacts),
-    calls: Math.max(1, Math.floor(asNumber(usageValue("calls"), 1))),
+    calls:
+      callsValue === undefined || callsValue === null
+        ? hasRuntimeSuppression(run)
+          ? 0
+          : 1
+        : Math.max(0, Math.floor(asNumber(callsValue))),
     prompt_tokens: promptTokens,
     completion_tokens: asNumber(usageValue("completion_tokens")),
     total_tokens: asNumber(
@@ -422,4 +567,157 @@ export function summarizeRollingAgentSpend(
   }
 
   return { windows, by_agent: byAgent, records: telemetry };
+}
+
+function textIndicatesNoChange(value: unknown) {
+  if (typeof value !== "string") return false;
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return false;
+  return (
+    normalized === "no_change" ||
+    normalized === "no change" ||
+    normalized === "unchanged" ||
+    normalized === "none" ||
+    normalized.includes("movement: none") ||
+    normalized.includes("no material movement")
+  );
+}
+
+function isNoChangeRun(run: AgentTelemetryRun) {
+  const artifacts = asRecord(run.artifacts) || {};
+  const output = asRecord(run.output) || {};
+  const metadata = asRecord(run.metadata) || {};
+  return [
+    artifacts.movement,
+    artifacts.status,
+    artifacts.state,
+    artifacts.closeout_state,
+    output.movement,
+    output.status,
+    output.state,
+    output.summary,
+    output.reply,
+    metadata.movement,
+    metadata.status,
+  ].some(textIndicatesNoChange);
+}
+
+function buildWasteSignalRow(
+  signal: AgentWasteSignalRow["signal"],
+  records: AgentCostTelemetryRecord[],
+  recommendation: string,
+): AgentWasteSignalRow {
+  return {
+    signal,
+    runs: records.length,
+    prompt_tokens: records.reduce((sum, record) => sum + record.prompt_tokens, 0),
+    cached_tokens: records.reduce((sum, record) => sum + record.cached_tokens, 0),
+    cost_estimate_usd: Number(
+      records.reduce((sum, record) => sum + record.cost_estimate_usd, 0).toFixed(12),
+    ),
+    run_ids: records
+      .map((record) => record.run_id)
+      .filter((value): value is string => Boolean(value))
+      .slice(0, 10),
+    recommendation,
+  };
+}
+
+export function summarizeAgentCostWaste(
+  runs: AgentTelemetryRun[],
+  options?: {
+    lowCachePromptTokenFloor?: number;
+    lowCacheHitRatioCeiling?: number;
+  },
+): AgentCostWasteSummary {
+  const records = runs.map((run) => extractAgentCostTelemetry(run));
+  const lowCachePromptTokenFloor = options?.lowCachePromptTokenFloor ?? 1_000;
+  const lowCacheHitRatioCeiling = options?.lowCacheHitRatioCeiling ?? 0.5;
+  const recordsByRunId = new Map(records.map((record, index) => [record.run_id ?? `index:${index}`, record]));
+  const lowCacheHighPrompt = records.filter(
+    (record) =>
+      record.prompt_tokens >= lowCachePromptTokenFloor &&
+      record.cache_hit_ratio < lowCacheHitRatioCeiling,
+  );
+  const noChangeRecords = runs
+    .map((run, index) =>
+      isNoChangeRun(run)
+        ? recordsByRunId.get(asNullableString(run.id) ?? `index:${index}`)
+        : null,
+    )
+    .filter((record): record is AgentCostTelemetryRecord => Boolean(record));
+  const duplicateSuppressedRecords = runs
+    .map((run, index) =>
+      hasRuntimeSuppression(run)
+        ? recordsByRunId.get(asNullableString(run.id) ?? `index:${index}`)
+        : null,
+    )
+    .filter((record): record is AgentCostTelemetryRecord => Boolean(record));
+  const signals: AgentWasteSignalRow[] = [];
+
+  if (lowCacheHighPrompt.length > 0) {
+    signals.push(
+      buildWasteSignalRow(
+        "low_cache_high_prompt",
+        lowCacheHighPrompt,
+        "Stabilize prompt prefixes and trim dynamic payloads before touching model quality.",
+      ),
+    );
+  }
+  if (noChangeRecords.length > 0) {
+    signals.push(
+      buildWasteSignalRow(
+        "no_change_completed",
+        noChangeRecords,
+        "Suppress or coalesce repeated no-change checks instead of spending another full agent run.",
+      ),
+    );
+  }
+  if (duplicateSuppressedRecords.length > 0) {
+    signals.push(
+      buildWasteSignalRow(
+        "duplicate_suppressed",
+        duplicateSuppressedRecords,
+        "Keep exact duplicate active-session messages suppressed and recorded as local runtime savings.",
+      ),
+    );
+  }
+
+  const totals = records.reduce(
+    (acc, record) => ({
+      runs: acc.runs + 1,
+      calls: acc.calls + record.calls,
+      prompt_tokens: acc.prompt_tokens + record.prompt_tokens,
+      completion_tokens: acc.completion_tokens + record.completion_tokens,
+      cached_tokens: acc.cached_tokens + record.cached_tokens,
+      cost_estimate_usd: Number((acc.cost_estimate_usd + record.cost_estimate_usd).toFixed(12)),
+    }),
+    {
+      runs: 0,
+      calls: 0,
+      prompt_tokens: 0,
+      completion_tokens: 0,
+      cached_tokens: 0,
+      cost_estimate_usd: 0,
+    },
+  );
+  const topPromptRows = summarizeAgentCostTelemetry(runs).rows
+    .slice()
+    .sort((left, right) => right.prompt_tokens - left.prompt_tokens)
+    .slice(0, 5);
+  const recommendations = [
+    "Preserve high-quality routing; reduce prompt/context churn, cache misses, and duplicate/no-change execution before changing core model families.",
+    ...signals.map((signal) => signal.recommendation),
+  ];
+
+  return {
+    totals: {
+      ...totals,
+      cache_hit_ratio:
+        totals.prompt_tokens > 0 ? totals.cached_tokens / totals.prompt_tokens : 0,
+    },
+    signals,
+    top_prompt_rows: topPromptRows,
+    recommendations,
+  };
 }

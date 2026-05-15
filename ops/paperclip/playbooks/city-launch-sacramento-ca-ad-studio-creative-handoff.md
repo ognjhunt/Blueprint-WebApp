@@ -18,5 +18,5 @@ Generated creative is marketing material, not ground truth.
 Generated images and videos cannot substitute for capture provenance, rights clearance, proof-pack delivery, hosted-review evidence, recipient-backed sends, or ad performance.
 
 ## Scorecard Linkage
-- gtm_contract: /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/autonomy-sparse-city-ucGaYG/sacramento-ca/2026-05-15T01-49-33.264Z/city-launch-sacramento-ca-gtm-72h-contract.md
-- checkpoint_manifest: /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/autonomy-sparse-city-ucGaYG/sacramento-ca/2026-05-15T01-49-33.264Z/city-launch-sacramento-ca-scorecard-windows.json
+- gtm_contract: /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/autonomy-sparse-city-Z1EEcA/sacramento-ca/2026-05-15T15-05-06.004Z/city-launch-sacramento-ca-gtm-72h-contract.md
+- checkpoint_manifest: /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/autonomy-sparse-city-Z1EEcA/sacramento-ca/2026-05-15T15-05-06.004Z/city-launch-sacramento-ca-scorecard-windows.json

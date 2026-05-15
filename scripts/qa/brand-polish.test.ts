@@ -17,6 +17,17 @@ describe("brand polish QA harness contract", () => {
       "desktop",
       "mobile",
     ]);
+    expect(harness.publicLaunchPosturePatterns.map((pattern: { label: string }) => pattern.label)).toEqual(
+      expect.arrayContaining(["coming soon", "not ready", "backend incomplete"]),
+    );
+    expect(
+      harness.collectPublicLaunchPostureHits("We are still building, so the service is not ready."),
+    ).toEqual(expect.arrayContaining(["not ready", "still building"]));
+    expect(
+      harness.collectPublicLaunchPostureHits(
+        "Live availability, rights, and fulfillment are confirmed per site/request.",
+      ),
+    ).toEqual([]);
     expect(harness.publicQaRoutes.map((route: { path: string }) => route.path)).toEqual([
       "/",
       "/product",
@@ -55,5 +66,6 @@ describe("brand polish QA harness contract", () => {
     expect(doc).toContain("npm run qa:polish");
     expect(doc).toContain("output/qa/brand-polish/latest/report.md");
     expect(doc).toContain("No live sends, provider calls, payments, deploys, or Notion writes");
+    expect(doc).toContain("Public Launch Ready posture checks");
   });
 });

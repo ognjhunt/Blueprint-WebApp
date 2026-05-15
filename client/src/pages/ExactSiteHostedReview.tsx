@@ -72,7 +72,7 @@ const proofBoundaries = [
   },
   {
     title: "Hosted access is gated",
-    body: "The page sells the intended hosted evaluation workflow without claiming every session is generally live or production-ready.",
+    body: "The page sells the hosted evaluation workflow while confirming session availability and runtime scope per site/request.",
   },
   {
     title: "Rights do not disappear",

@@ -37,6 +37,7 @@ import type {
 } from "@/types/inbound-request";
 import {
   BUYER_TYPE_LABELS as buyerTypeLabels,
+  DISPLAY_ADVISORY_SCAN_HINT_LABELS as displayAdvisoryScanHintLabels,
   PROOF_PATH_MILESTONE_LABELS as proofPathMilestoneLabels,
   PROOF_PATH_PREFERENCE_LABELS as proofPathPreferenceLabels,
   REQUEST_CAPTURE_POLICY_LABELS as capturePolicyLabels,
@@ -106,6 +107,17 @@ interface StatsResponse {
   byQueue?: Record<string, number>;
   byWedge?: Record<string, number>;
   byRequestPath?: Record<string, number>;
+}
+
+interface CaptureHandoffResponse {
+  ok: boolean;
+  request_id: string;
+  capture_job_id: string;
+  handoff_token: string;
+  universal_link_url: string;
+  custom_scheme_url: string;
+  expires_at: string | null;
+  truth_boundary: string;
 }
 
 interface WaitlistSubmissionItem {
@@ -367,6 +379,10 @@ function formatCommercialRequestPath(
   return value ? commercialRequestPathLabels[value] : "Request path unknown";
 }
 
+function formatMachineLabel(value?: string | null) {
+  return value ? value.replace(/_/g, " ") : "";
+}
+
 function extractCreativeAssetUri(item: ActionQueueItem) {
   const payload = item.action_payload || {};
   const creativeContext =
@@ -540,6 +556,20 @@ export default function AdminLeads() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-submissions"] });
       queryClient.invalidateQueries({ queryKey: ["admin-submission-detail"] });
+    },
+  });
+
+  const captureHandoffMutation = useMutation({
+    mutationFn: async (requestId: string) => {
+      const response = await fetch(`/api/admin/leads/${requestId}/capture-handoff`, {
+        method: "POST",
+        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+      });
+      if (!response.ok) throw new Error("Failed to create capture handoff");
+      return response.json() as Promise<CaptureHandoffResponse>;
+    },
+    onSuccess: (handoff) => {
+      window.location.href = handoff.custom_scheme_url;
     },
   });
 
@@ -2390,6 +2420,17 @@ export default function AdminLeads() {
                   </button>
                   <button
                     type="button"
+                    onClick={() => captureHandoffMutation.mutate(selectedLead.requestId)}
+                    disabled={captureHandoffMutation.isPending}
+                    className="inline-flex items-center rounded-full border border-zinc-200 px-4 py-2 text-sm text-zinc-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <ExternalLink className="mr-2 h-4 w-4" />
+                    {captureHandoffMutation.isPending
+                      ? "Opening BlueprintCapture..."
+                      : "Open in BlueprintCapture"}
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => triggerPreviewMutation.mutate(selectedLead.requestId)}
                     className="inline-flex items-center rounded-full border border-zinc-200 px-4 py-2 text-sm text-zinc-700"
                   >
@@ -2448,13 +2489,14 @@ export default function AdminLeads() {
                     </p>
                     <p>
                       Calendar:{" "}
-                      {selectedLead.structured_intake?.calendar_disposition?.replace(/_/g, " ") ||
+                      {selectedLead.structured_intake?.calendar_summary ||
+                        formatMachineLabel(selectedLead.structured_intake?.calendar_disposition) ||
                         "not evaluated"}
                     </p>
                     <p>
                       Recommended path:{" "}
-                      {selectedLead.structured_intake?.recommended_path?.replace(/_/g, " ") ||
-                        selectedLead.ops_automation?.recommended_path?.replace(/_/g, " ") ||
+                      {formatMachineLabel(selectedLead.structured_intake?.recommended_path) ||
+                        formatMachineLabel(selectedLead.ops_automation?.recommended_path) ||
                         "not evaluated"}
                     </p>
                     <p>
@@ -2467,13 +2509,23 @@ export default function AdminLeads() {
                     </p>
                   </div>
                   <p className="mt-3 text-sm leading-6 text-zinc-700">
-                    {selectedLead.structured_intake?.next_action ||
+                    {selectedLead.structured_intake?.routing_summary ||
+                      selectedLead.structured_intake?.next_action ||
                       selectedLead.ops_automation?.next_action ||
                       "No intake next action recorded yet."}
                   </p>
+                  {selectedLead.structured_intake?.proof_path_summary ? (
+                    <p className="mt-2 text-sm leading-6 text-zinc-600">
+                      {selectedLead.structured_intake.proof_path_summary}
+                    </p>
+                  ) : null}
                   {selectedLead.structured_intake?.missing_structured_fields?.length ? (
                     <p className="mt-2 text-xs text-zinc-500">
-                      Missing: {selectedLead.structured_intake.missing_structured_fields.join(", ")}
+                      Missing:{" "}
+                      {(selectedLead.structured_intake.missing_structured_field_labels?.length
+                        ? selectedLead.structured_intake.missing_structured_field_labels
+                        : selectedLead.structured_intake.missing_structured_fields
+                      ).join(", ")}
                     </p>
                   ) : null}
                 </div>
@@ -2497,6 +2549,41 @@ export default function AdminLeads() {
                         : "No proof-path preference supplied."}
                     </p>
                   </div>
+                  {selectedLead.request.displayCaptureMetadata ? (
+                    <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 md:col-span-2">
+                      <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">
+                        Display HUD pilot
+                      </p>
+                      <p className="mt-2 text-sm leading-6 text-zinc-700">
+                        Target:{" "}
+                        {selectedLead.request.displayCaptureMetadata.targetName ||
+                          selectedLead.request.siteName}
+                        {" · "}
+                        {selectedLead.request.displayCaptureMetadata.addressLabel ||
+                          selectedLead.request.siteLocation}
+                      </p>
+                      <p className="mt-2 text-sm leading-6 text-zinc-700">
+                        {selectedLead.request.displayCaptureMetadata.captureBrief ||
+                          "No display capture brief supplied."}
+                      </p>
+                      {selectedLead.request.displayCaptureMetadata.allowedAdvisoryHints?.length ? (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {selectedLead.request.displayCaptureMetadata.allowedAdvisoryHints.map((hint) => (
+                            <span
+                              key={hint}
+                              className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs text-zinc-600"
+                            >
+                              {displayAdvisoryScanHintLabels[hint]}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
+                      <p className="mt-3 text-xs leading-5 text-zinc-500">
+                        Display coaching is advisory UX telemetry, not geometry, pose, depth,
+                        coverage, rights, or qualification proof.
+                      </p>
+                    </div>
+                  ) : null}
                   <div className="rounded-xl border border-zinc-200 p-4">
                     <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Workflow context</p>
                     <p className="mt-2 text-sm text-zinc-700">

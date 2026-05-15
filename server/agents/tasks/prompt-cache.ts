@@ -10,6 +10,9 @@ export function buildCacheFriendlyPrompt(params: {
 Return JSON with this exact shape:
 ${stableStringify(params.returnShape)}
 
+Cache/no-change discipline:
+- If the payload shows no material movement, report no_change or unchanged instead of inventing progress.
+
 Dynamic payload:
 ${stableStringify(params.payload)}`;
 }

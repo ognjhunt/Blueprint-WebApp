@@ -7,6 +7,7 @@ import {
   ProofChip,
 } from "@/components/site/editorial";
 import { editorialGeneratedAssets } from "@/lib/editorialGeneratedAssets";
+import { ArrowRight } from "lucide-react";
 
 const companyCards = [
   {
@@ -56,6 +57,21 @@ export default function About() {
                 <p className="mt-6 max-w-[30rem] text-base leading-8 text-white/70">
                   Blueprint helps robot teams evaluate one exact facility sooner, choose the right product path, and keep rights, privacy, provenance, and hosted-access boundaries readable along the way.
                 </p>
+                <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                  <a
+                    href="/world-models"
+                    className="inline-flex w-full items-center justify-center bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100 sm:w-auto"
+                  >
+                    Explore world models
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </a>
+                  <a
+                    href="/contact?persona=robot-team"
+                    className="inline-flex w-full items-center justify-center border border-white/20 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10 sm:w-auto"
+                  >
+                    Contact Blueprint
+                  </a>
+                </div>
               </div>
                 <div className="hidden flex-wrap content-end gap-2 lg:flex lg:justify-end">
                   <ProofChip light>Real-site products</ProofChip>

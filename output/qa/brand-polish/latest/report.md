@@ -1,6 +1,6 @@
 # Blueprint Brand Polish QA Report
 
-Generated: 2026-05-15T01:52:57.523Z
+Generated: 2026-05-15T14:39:05.984Z
 Base URL: http://127.0.0.1:4173
 Command: `npm run qa:polish`
 Boundary: local Playwright dev server only. No live sends, provider calls, payments, deploys, or Notion writes.
@@ -79,9 +79,9 @@ Boundary: local Playwright dev server only. No live sends, provider calls, payme
 | /contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=proof-packet&source=proof-hero | pass | 200 | /proof |
 | /contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=contact-fast-path | pass | 200 | /contact |
 | /contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=header | pass | 200 | /, /about, /capture, /careers, /contact, /faq, /pricing, /product, /proof, /updates, /world-models |
-| /contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-bottom&utm_source=homepage&utm_medium=website&utm_campaign=home_robot_team_conversion_v1&utm_content=hosted_review%3Ahome-bottom | pass | 200 | / |
-| /contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-decision-path&utm_source=homepage&utm_medium=website&utm_campaign=home_robot_team_conversion_v1&utm_content=hosted_review%3Ahome-decision-path | pass | 200 | / |
-| /contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-hero-primary&utm_source=homepage&utm_medium=website&utm_campaign=home_robot_team_conversion_v1&utm_content=hosted_review%3Ahome-hero-primary | pass | 200 | / |
+| /contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-bottom&utm_source=homepage&utm_medium=website&utm_campaign=home_robot_team_conversion_v1&utm_content=proof_pack%3Ahome-bottom | pass | 200 | / |
+| /contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-decision-path&utm_source=homepage&utm_medium=website&utm_campaign=home_robot_team_conversion_v1&utm_content=proof_pack%3Ahome-decision-path | pass | 200 | / |
+| /contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-hero-primary&utm_source=homepage&utm_medium=website&utm_campaign=home_robot_team_conversion_v1&utm_content=proof_pack%3Ahome-hero-primary | pass | 200 | / |
 | /contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-persona-robot-team | pass | 200 | / |
 | /contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-product-review | pass | 200 | / |
 | /contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=pricing | pass | 200 | /pricing |
@@ -126,5 +126,6 @@ Boundary: local Playwright dev server only. No live sends, provider calls, payme
 - Mobile layout: horizontal overflow guard.
 - Asset sanity: visible image decode/natural-size guard.
 - CTA presence and href contract for primary route actions.
+- Public Launch Ready posture guard for broad prelaunch, apology, placeholder, and backend-incomplete copy on public routes.
 - Broken internal link check over visible same-origin links.
 - Console errors after filtering known local dev-server, Firebase persistence, and React Helmet dev warnings.

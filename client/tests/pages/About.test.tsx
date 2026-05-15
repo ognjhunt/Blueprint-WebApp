@@ -22,12 +22,16 @@ describe("About", () => {
         name: /Why this matters before the expensive part starts\./i,
       }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: /Explore world models/i }),
-    ).toHaveAttribute("href", "/world-models");
-    expect(
-      screen.getByRole("link", { name: /Contact Blueprint/i }),
-    ).toHaveAttribute("href", "/contact?persona=robot-team");
+    const worldModelLinks = screen.getAllByRole("link", { name: /Explore world models/i });
+    expect(worldModelLinks.length).toBeGreaterThanOrEqual(1);
+    worldModelLinks.forEach((link) => {
+      expect(link).toHaveAttribute("href", "/world-models");
+    });
+    const contactLinks = screen.getAllByRole("link", { name: /Contact Blueprint/i });
+    expect(contactLinks.length).toBeGreaterThanOrEqual(1);
+    contactLinks.forEach((link) => {
+      expect(link).toHaveAttribute("href", "/contact?persona=robot-team");
+    });
 
     expect(screen.queryByText(/Company fact/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Public product surfaces/i)).not.toBeInTheDocument();

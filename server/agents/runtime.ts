@@ -78,6 +78,72 @@ function stripUndefinedDeep<T>(value: T): T {
   return value;
 }
 
+function isRuntimeRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+const RUN_DEDUPE_IGNORED_KEYS = new Set([
+  "startup_context",
+  "resolved_startup_context",
+  "managedRuntime",
+  "created_at",
+  "updated_at",
+  "started_at",
+  "completed_at",
+  "cancelled_at",
+]);
+
+function stripRunDedupeVolatileFields(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(stripRunDedupeVolatileFields);
+  }
+  if (!isRuntimeRecord(value)) {
+    return value;
+  }
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([key]) => !RUN_DEDUPE_IGNORED_KEYS.has(key))
+      .map(([key, entry]) => [key, stripRunDedupeVolatileFields(entry)]),
+  );
+}
+
+function sortRuntimeFingerprintValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(sortRuntimeFingerprintValue);
+  }
+  if (!isRuntimeRecord(value)) {
+    return value;
+  }
+  return Object.fromEntries(
+    Object.entries(value)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, entry]) => [key, sortRuntimeFingerprintValue(entry)]),
+  );
+}
+
+function agentRunDedupeFingerprint(value: unknown) {
+  const record = isRuntimeRecord(value) ? value : {};
+  const sessionPolicy = isRuntimeRecord(record.session_policy)
+    ? record.session_policy
+    : {};
+  const fingerprintShape = {
+    kind: record.kind ?? record.task_kind ?? null,
+    input: stripRunDedupeVolatileFields(record.input ?? null),
+    provider: record.provider ?? null,
+    runtime: record.runtime ?? null,
+    model: record.model ?? null,
+    session_key: record.session_key ?? null,
+    parent_run_id: record.parent_run_id ?? null,
+    resume_from_run_id: record.resume_from_run_id ?? null,
+    dispatch_mode: sessionPolicy.dispatch_mode ?? record.dispatch_mode ?? null,
+  };
+
+  return crypto
+    .createHash("sha256")
+    .update(JSON.stringify(sortRuntimeFingerprintValue(fingerprintShape)))
+    .digest("hex");
+}
+
 function mergeStringArrays(...values: Array<string[] | undefined>) {
   return Array.from(
     new Set(
@@ -1416,6 +1482,7 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
         status: "pending_approval",
         dispatch_mode: normalizedTask.session_policy.dispatch_mode,
         input: task,
+        dedupe_fingerprint: agentRunDedupeFingerprint(normalizedTask),
         approval_reason: approval.reason,
         requires_human_review: true,
         tool_policy: normalizedTask.tool_policy,
@@ -1492,6 +1559,7 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
       status: "running",
       dispatch_mode: normalizedTask.session_policy.dispatch_mode,
       input: task,
+      dedupe_fingerprint: agentRunDedupeFingerprint(normalizedTask),
       requires_human_review: shouldRequireHumanReview(normalizedTaskForLogs, {
         status: "running",
       }),
@@ -1521,6 +1589,7 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
         status: "running",
         dispatch_mode: normalizedTask.session_policy.dispatch_mode,
         input: task,
+        dedupe_fingerprint: agentRunDedupeFingerprint(normalizedTask),
         requires_human_review: shouldRequireHumanReview(normalizedTaskForLogs, {
           status: "running",
         }),
@@ -2192,14 +2261,96 @@ export async function sendAgentSessionMessage(params: {
     });
   }
 
+  const runId = crypto.randomUUID();
+  const dedupeFingerprint = agentRunDedupeFingerprint(normalizedTask);
+  const activeRunFingerprint =
+    typeof activeRun?.dedupe_fingerprint === "string" && activeRun.dedupe_fingerprint
+      ? activeRun.dedupe_fingerprint
+      : activeRun
+        ? agentRunDedupeFingerprint(activeRun.input)
+        : null;
+  const duplicateActiveRun =
+    Boolean(activeRun) &&
+    normalizedTask.session_policy.dispatch_mode !== "interrupt" &&
+    dedupeFingerprint === activeRunFingerprint;
+
+  if (duplicateActiveRun && activeRun) {
+    const runtimeSuppression = {
+      reason: "duplicate_active_run",
+      active_run_id: activeRun.id,
+      dedupe_fingerprint: dedupeFingerprint,
+      dispatch_mode: normalizedTask.session_policy.dispatch_mode,
+      suppressed_at: new Date().toISOString(),
+    };
+    if (db) {
+      await saveRun({
+        id: runId,
+        session_id: params.sessionId,
+        session_key: normalizedTask.session_key || session.session_key,
+        task_kind: normalizedTask.kind,
+        provider: normalizedTask.provider,
+        runtime: normalizedTask.runtime,
+        model: normalizedTask.model,
+        status: "cancelled",
+        dispatch_mode: normalizedTask.session_policy.dispatch_mode,
+        input: normalizedTask,
+        dedupe_fingerprint: dedupeFingerprint,
+        requires_human_review: false,
+        tool_policy: normalizedTask.tool_policy,
+        approval_policy: normalizedTask.approval_policy,
+        outcome_contract: normalizedTask.outcome_contract,
+        metadata: {
+          ...(normalizedTask.metadata || {}),
+          runtime_suppression: runtimeSuppression,
+        },
+        resume_from_run_id: normalizedTask.resume_from_run_id || null,
+        parent_run_id: normalizedTask.parent_run_id || null,
+        created_at: nowTimestamp(),
+        updated_at: nowTimestamp(),
+        cancelled_at: nowTimestamp(),
+      });
+    }
+    await logRunEvent(
+      normalizedTask as unknown as NormalizedAgentTask<unknown, unknown>,
+      {
+        runId,
+        sessionId: params.sessionId,
+        actionKey: "agent.run.suppress_duplicate",
+        status: "cancelled",
+        summary: "Suppressed duplicate session message already covered by an active run",
+        metadata: {
+          active_run_id: activeRun.id,
+          runtime_suppression: runtimeSuppression,
+          ...(resolvedStartupContextSummary || {}),
+        },
+      },
+    );
+    await recordRuntimeEvent({
+      session_id: params.sessionId,
+      run_id: runId,
+      kind: "run.suppressed",
+      status: "info",
+      summary: "Suppressed duplicate session message already covered by an active run",
+      metadata: {
+        active_run_id: activeRun.id,
+        runtime_suppression: runtimeSuppression,
+      },
+    });
+    return {
+      queued: false,
+      suppressed: true,
+      runId,
+      activeRunId: activeRun.id,
+      suppressionReason: "duplicate_active_run",
+    };
+  }
+
   const shouldQueue =
     activeRun &&
     normalizedTask.session_policy.dispatch_mode !== "interrupt" &&
     (activeRun.status === "queued" ||
       activeRun.status === "running" ||
       activeRun.status === "pending_approval");
-
-  const runId = crypto.randomUUID();
 
   if (shouldQueue && db) {
     const queuedRun: PersistedAgentRun = {
@@ -2213,6 +2364,7 @@ export async function sendAgentSessionMessage(params: {
       status: "queued",
       dispatch_mode: normalizedTask.session_policy.dispatch_mode,
       input: normalizedTask,
+      dedupe_fingerprint: dedupeFingerprint,
       requires_human_review: false,
       tool_policy: normalizedTask.tool_policy,
       approval_policy: normalizedTask.approval_policy,

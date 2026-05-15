@@ -92,6 +92,43 @@ function objectionPlanForTarget(target: ExactSiteGtmTarget) {
   return "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.";
 }
 
+function proofSourceForTarget(target: ExactSiteGtmTarget) {
+  const artifactPath = target.artifact?.path || "missing artifact path";
+  if (target.track === "proof_ready_outreach") {
+    return [
+      `Labeled hosted-review proof at ${artifactPath}.`,
+      target.artifact?.hostedReviewPath ? `Hosted review handoff: ${target.artifact.hostedReviewPath}.` : null,
+      target.artifact?.siteWorldId ? `Site-world id: ${target.artifact.siteWorldId}.` : null,
+      "Use as representative proof shape only; do not claim recipient/customer-specific proof.",
+    ].filter(Boolean).join(" ");
+  }
+
+  return [
+    `Draft opportunity brief at ${artifactPath}.`,
+    "No hosted review or site-world package exists for this target yet.",
+    "Use only to ask which site/workflow should be captured first.",
+  ].join(" ");
+}
+
+function blockedClaimsForTarget(target: ExactSiteGtmTarget) {
+  const claims = [
+    "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
+    "No pricing, legal, privacy, rights, permission, readiness, deployment, or guaranteed support commitment is approved by this packet.",
+  ];
+
+  if (target.track === "proof_ready_outreach") {
+    claims.push("Do not present the sample review as the recipient's site, a customer result, or a deployment outcome.");
+  } else {
+    claims.push("Do not imply a hosted review, site-world package, package access, or capture evidence already exists for this target.");
+  }
+
+  if (target.recipient?.email) {
+    claims.push("Recipient-backed evidence proves the address source only; it does not prove buyer intent or permission to make unsupported claims.");
+  }
+
+  return claims;
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const ledgerPath = path.resolve(args.get("ledger") ?? DEFAULT_LEDGER_PATH);
@@ -117,9 +154,11 @@ async function main() {
     reviewChecklist: [
       "Recipient email and evidence source are acceptable for a first touch.",
       "Message asks one clear thing and stays aligned to the row track.",
+      "Proof source matches the CTA and does not overstate what exists.",
       "Proof-ready rows link to a labeled review/sample without claiming customer traction.",
       "Demand-sourced rows ask for the site/workflow to capture and do not imply a hosted review exists.",
       "Landing-page handoff matches the CTA.",
+      "Blocked claims are preserved in the final draft and approval note.",
       "Objection response can be answered from ledger evidence and public pages without inventing claims.",
     ],
     decisionOptions: [
@@ -142,10 +181,12 @@ async function main() {
       artifactPath: target.artifact?.path || null,
       hostedReviewPath: target.artifact?.hostedReviewPath || null,
       siteWorldId: target.artifact?.siteWorldId || null,
+      proofSource: proofSourceForTarget(target),
       draftAngle: draftAngleForTarget(target),
       cta: ctaForTarget(target),
       landingPage: landingPageForTarget(target),
       objectionPlan: objectionPlanForTarget(target),
+      blockedClaims: blockedClaimsForTarget(target),
       reviewFlags: reviewFlagForTarget(target),
       reviewerPrompt: "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
       decision: null as "approve" | "edit" | "reject" | null,

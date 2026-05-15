@@ -3,7 +3,7 @@
 - status: deterministic launch contract
 - doctrine: capture-first, world-model-product-first, proof-led GTM only
 - city: Chicago, IL
-- launch_run_id: 2026-05-15T01-49-01.550Z
+- launch_run_id: 2026-05-15T15-04-54.332Z
 - budget_tier: zero_budget
 - budget_max_usd: 0
 - founder_approved: true
@@ -26,9 +26,9 @@
 ## 24/48/72h Scorecard Windows
 | Checkpoint | Status | Window end | Run artifact | Canonical artifact |
 | --- | --- | --- | --- | --- |
-| 24h | scheduled_not_due | 2026-05-16T01:49:01.550Z | /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/autonomy-cert-city-DRh9Bi/chicago-il/2026-05-15T01-49-01.550Z/city-launch-chicago-il-scorecard-24h.md | /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-chicago-il-scorecard-24h.md |
-| 48h | scheduled_not_due | 2026-05-17T01:49:01.550Z | /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/autonomy-cert-city-DRh9Bi/chicago-il/2026-05-15T01-49-01.550Z/city-launch-chicago-il-scorecard-48h.md | /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-chicago-il-scorecard-48h.md |
-| 72h | scheduled_not_due | 2026-05-18T01:49:01.550Z | /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/autonomy-cert-city-DRh9Bi/chicago-il/2026-05-15T01-49-01.550Z/city-launch-chicago-il-scorecard-72h.md | /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-chicago-il-scorecard-72h.md |
+| 24h | scheduled_not_due | 2026-05-16T15:04:54.332Z | /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/autonomy-cert-city-9eXVZC/chicago-il/2026-05-15T15-04-54.332Z/city-launch-chicago-il-scorecard-24h.md | /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-chicago-il-scorecard-24h.md |
+| 48h | scheduled_not_due | 2026-05-17T15:04:54.332Z | /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/autonomy-cert-city-9eXVZC/chicago-il/2026-05-15T15-04-54.332Z/city-launch-chicago-il-scorecard-48h.md | /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-chicago-il-scorecard-48h.md |
+| 72h | scheduled_not_due | 2026-05-18T15:04:54.332Z | /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/autonomy-cert-city-9eXVZC/chicago-il/2026-05-15T15-04-54.332Z/city-launch-chicago-il-scorecard-72h.md | /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-chicago-il-scorecard-72h.md |
 
 ## Firestore/Admin Evidence Sources
 | Collection | Query name | Query | Purpose |

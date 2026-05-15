@@ -7,6 +7,10 @@ import {
   decryptInboundRequestForAdmin,
   encryptFieldValue,
 } from "../utils/field-encryption";
+import {
+  createCaptureHandoffToken,
+  verifyCaptureHandoffToken,
+} from "../utils/capture-handoff-token";
 import { createRequestReviewToken } from "../utils/request-review-auth";
 import {
   OPPORTUNITY_STATES,
@@ -65,6 +69,8 @@ import {
 const router = Router();
 
 const CSV_FORMULA_PREFIX = /^[=+\-@]/;
+const CAPTURE_HANDOFF_TRUTH_BOUNDARY =
+  "Display HUD and scan coaching are advisory UX telemetry, not raw geometry, pose, depth, coverage, rights, payout, provider readiness, or qualification proof.";
 
 function normalizeTimestamp(value: unknown) {
   const timestamp = value as { toDate?: () => Date } | string | null | undefined;
@@ -264,6 +270,15 @@ function buildBuyerReviewUrl(requestId: string) {
   const token = createRequestReviewToken(requestId);
   const baseUrl = (process.env.APP_URL || "https://tryblueprint.io").replace(/\/+$/, "");
   return `${baseUrl}/requests/${encodeURIComponent(requestId)}?access=${encodeURIComponent(token)}`;
+}
+
+function buildCaptureHandoffUrls(handoffToken: string) {
+  const baseUrl = (process.env.APP_URL || "https://tryblueprint.io").replace(/\/+$/, "");
+  const encoded = encodeURIComponent(handoffToken);
+  return {
+    universal_link_url: `${baseUrl}/capture/open?handoff=${encoded}`,
+    custom_scheme_url: `blueprintcapture://capture?handoff=${encoded}`,
+  };
 }
 
 function sanitizeCsvCell(value: unknown): string {
@@ -571,6 +586,40 @@ function normalizeDecryptedRequest(decrypted: InboundRequest) {
   };
 }
 
+function resolveCaptureHandoffCaptureJobId(
+  decrypted: ReturnType<typeof normalizeDecryptedRequest>,
+) {
+  return (
+    decrypted.pipeline?.capture_job_id?.trim() ||
+    decrypted.request.displayCaptureMetadata?.captureJobId?.trim() ||
+    `job_${decrypted.requestId}`
+  );
+}
+
+function buildCaptureHandoffMetadata(
+  decrypted: ReturnType<typeof normalizeDecryptedRequest>,
+  captureJobId: string,
+) {
+  const displayMetadata = decrypted.request.displayCaptureMetadata || {};
+  const allowedAdvisoryHints = Array.isArray(displayMetadata.allowedAdvisoryHints)
+    ? Array.from(new Set(displayMetadata.allowedAdvisoryHints))
+    : [];
+
+  return {
+    request_id: decrypted.requestId,
+    capture_job_id: captureJobId,
+    target_name: displayMetadata.targetName || decrypted.request.siteName,
+    address_label: displayMetadata.addressLabel || decrypted.request.siteLocation,
+    capture_brief: displayMetadata.captureBrief || decrypted.request.taskStatement,
+    privacy_reminder:
+      displayMetadata.privacyReminder ||
+      "Capture only approved areas. Avoid private, restricted, or sensitive content.",
+    allowed_advisory_hints: allowedAdvisoryHints,
+    truth_boundary: CAPTURE_HANDOFF_TRUTH_BOUNDARY,
+    source: "server_verified",
+  };
+}
+
 function normalizePipelineAttachment(raw: unknown): PipelineAttachment | undefined {
   if (!raw || typeof raw !== "object") {
     return undefined;
@@ -866,6 +915,7 @@ router.get("/", requireAdmin, async (req: Request, res: Response) => {
             siteLocation: decrypted.request.siteLocation,
             taskStatement: decrypted.request.taskStatement,
             proofPathPreference: decrypted.request.proofPathPreference || null,
+            displayCaptureMetadata: decrypted.request.displayCaptureMetadata || null,
           },
           owner: decrypted.owner,
           ops_automation: normalizeOpsAutomationEnvelope(decrypted.ops_automation),
@@ -1247,6 +1297,7 @@ router.get("/:requestId", requireAdmin, async (req: Request, res: Response) => {
         knownBlockers: decrypted.request.knownBlockers,
         targetRobotTeam: decrypted.request.targetRobotTeam,
         details: decrypted.request.details,
+        displayCaptureMetadata: decrypted.request.displayCaptureMetadata || null,
       },
       owner: decrypted.owner,
       ops_automation: normalizeOpsAutomationEnvelope(decrypted.ops_automation),
@@ -1432,6 +1483,45 @@ router.post("/:requestId/capture-job", requireAdmin, async (req: Request, res: R
   } catch (error) {
     logger.error({ error, requestId: req.params.requestId }, "Error creating capture job");
     return res.status(500).json({ error: "Failed to create capture job" });
+  }
+});
+
+router.post("/:requestId/capture-handoff", requireAdmin, async (req: Request, res: Response) => {
+  try {
+    if (!db) {
+      return res.status(500).json({ error: "Database not available" });
+    }
+
+    const { requestId } = req.params;
+    const requestDoc = await db.collection("inboundRequests").doc(requestId).get();
+    if (!requestDoc.exists) {
+      return res.status(404).json({ error: "Request not found" });
+    }
+
+    const decrypted = normalizeDecryptedRequest(
+      (await decryptInboundRequestForAdmin(requestDoc.data() as any)) as InboundRequest
+    );
+    const captureJobId = resolveCaptureHandoffCaptureJobId(decrypted);
+    const handoffToken = createCaptureHandoffToken({ requestId, captureJobId });
+    const tokenPayload = verifyCaptureHandoffToken(handoffToken);
+    const handoffUrls = buildCaptureHandoffUrls(handoffToken);
+
+    return res.json({
+      ok: true,
+      request_id: requestId,
+      capture_job_id: captureJobId,
+      handoff_token: handoffToken,
+      expires_at: tokenPayload ? new Date(tokenPayload.exp * 1000).toISOString() : null,
+      ...handoffUrls,
+      display_metadata: buildCaptureHandoffMetadata(decrypted, captureJobId),
+      truth_boundary: CAPTURE_HANDOFF_TRUTH_BOUNDARY,
+    });
+  } catch (error) {
+    logger.error(
+      { error, requestId: req.params.requestId },
+      "Failed to create BlueprintCapture handoff"
+    );
+    return res.status(500).json({ error: "Failed to create capture handoff" });
   }
 });
 

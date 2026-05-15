@@ -142,7 +142,7 @@ function noEligibleSendNextActions(summary: GtmSendExecutionResult["summary"]) {
   const actions: string[] = [];
   if (summary.skippedApproval > 0) {
     actions.push(
-      "First-send approval next action: run npm run gtm:first-send-approval:template -- --write, review recipient evidence/draft angle/CTA/objection plan in the generated packet, then apply only explicit approve/edit/reject decisions with npm run gtm:first-send-approval:apply -- --write before rerunning the send dry-run.",
+      "First-send approval next action: run npm run gtm:first-send-approval:template -- --write, review recipient evidence/draft angle/CTA/proof source/objection plan/blocked claims in the generated packet, then apply only explicit approve/edit/reject decisions with npm run gtm:first-send-approval:apply -- --write before rerunning the send dry-run.",
     );
   }
   if (summary.skippedNoRecipient > 0) {

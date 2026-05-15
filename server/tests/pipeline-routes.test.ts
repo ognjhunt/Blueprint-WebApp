@@ -160,6 +160,8 @@ afterEach(() => {
   state.storageShouldFail = false;
   delete process.env.PIPELINE_SYNC_TOKEN;
   delete process.env.PIPELINE_SYNC_ALLOW_PLACEHOLDER_REQUESTS;
+  delete process.env.BLUEPRINT_CAPTURE_HANDOFF_TOKEN_SECRET;
+  delete process.env.APP_URL;
 });
 
 function findCollectionWrites(collection: string) {
@@ -729,6 +731,121 @@ describe("pipeline integration routes", () => {
           }),
         ]),
       );
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("serves capture handoff metadata from the server-authoritative request", async () => {
+    process.env.BLUEPRINT_CAPTURE_HANDOFF_TOKEN_SECRET = "test-capture-handoff-secret";
+    const { createCaptureHandoffToken } = await import("../utils/capture-handoff-token");
+    const token = createCaptureHandoffToken({
+      requestId: "req-1",
+      captureJobId: "job-1",
+    });
+    state.docData = {
+      requestId: "req-1",
+      site_submission_id: "submission-1",
+      buyer_request_id: "buyer-request-12",
+      contact: {
+        email: "ada@example.com",
+      },
+      request: {
+        buyerType: "robot_team",
+        siteName: "Durham Facility",
+        siteLocation: "Durham, NC",
+        taskStatement: "Review a picking workflow.",
+        displayCaptureMetadata: {
+          targetName: "Display Dock A",
+          addressLabel: "11 Warehouse Way",
+          captureBrief: "Capture approved dock approach and threshold.",
+          privacyReminder: "Capture only approved areas.",
+          allowedAdvisoryHints: ["hold_steady", "slow_down"],
+        },
+      },
+      context: {
+        sourcePageUrl: "https://example.com",
+        utm: {},
+      },
+      pipeline: {
+        capture_id: "cap-1",
+        scene_id: "scene-1",
+        capture_job_id: "job-1",
+      },
+    };
+
+    const { server, baseUrl } = await startServer(() => import("../routes/requests"));
+
+    try {
+      const response = await fetch(`${baseUrl}/capture-handoff/${encodeURIComponent(token)}`);
+      expect(response.status).toBe(200);
+      const payload = await response.json();
+      expect(payload).toMatchObject({
+        request_id: "req-1",
+        capture_job_id: "job-1",
+        target_name: "Display Dock A",
+        address_label: "11 Warehouse Way",
+        source: "server_verified",
+      });
+      expect(payload.allowed_advisory_hints).toEqual(["hold_steady", "slow_down"]);
+      expect(JSON.stringify(payload)).not.toContain("ada@example.com");
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("creates an admin BlueprintCapture handoff without target details in the URL", async () => {
+    process.env.BLUEPRINT_CAPTURE_HANDOFF_TOKEN_SECRET = "test-capture-handoff-secret";
+    process.env.APP_URL = "https://tryblueprint.io";
+    const { verifyCaptureHandoffToken } = await import("../utils/capture-handoff-token");
+    state.docData = {
+      requestId: "req-1",
+      site_submission_id: "submission-1",
+      contact: {
+        email: "ada@example.com",
+      },
+      request: {
+        buyerType: "robot_team",
+        requestedLanes: ["qualification"],
+        siteName: "Durham Facility",
+        siteLocation: "Durham, NC",
+        taskStatement: "Review a picking workflow.",
+        displayCaptureMetadata: {
+          targetName: "Display Dock A",
+          addressLabel: "11 Warehouse Way",
+          captureJobId: "job-1",
+          captureBrief: "Capture approved dock approach and threshold.",
+        },
+      },
+      context: {
+        sourcePageUrl: "https://example.com",
+        utm: {},
+      },
+      pipeline: {
+        capture_id: "cap-1",
+        scene_id: "scene-1",
+        capture_job_id: "job-1",
+      },
+    };
+
+    const { server, baseUrl } = await startServer(() => import("../routes/admin-leads"));
+
+    try {
+      const response = await fetch(`${baseUrl}/req-1/capture-handoff`, {
+        method: "POST",
+      });
+      expect(response.status).toBe(200);
+      const payload = await response.json();
+      expect(payload.universal_link_url).toMatch(
+        /^https:\/\/tryblueprint\.io\/capture\/open\?handoff=/,
+      );
+      expect(payload.custom_scheme_url).toMatch(/^blueprintcapture:\/\/capture\?handoff=/);
+      expect(payload.universal_link_url).not.toContain("Display");
+      expect(payload.custom_scheme_url).not.toContain("Warehouse");
+      expect(verifyCaptureHandoffToken(payload.handoff_token)).toMatchObject({
+        requestId: "req-1",
+        captureJobId: "job-1",
+      });
     } finally {
       await stopServer(server);
     }

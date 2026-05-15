@@ -67,6 +67,15 @@ describe("field encryption", () => {
         derivedScenePermission: "Derived scenes can be shared with the robot team.",
         datasetLicensingPermission: "Dataset exports require commercial review.",
         payoutEligibility: "Commercial terms still need approval.",
+        displayCaptureMetadata: {
+          targetName: "Analytical Engine Co - Durham",
+          addressLabel: "Durham, NC",
+          requestId: "req-123",
+          captureJobId: "capture-job-123",
+          captureBrief: "Capture the aisle handoff for display-guided review.",
+          privacyReminder: "Capture only approved areas.",
+          allowedAdvisoryHints: ["hold_steady", "scan_corners"],
+        },
       },
       context: {
         sourcePageUrl: "https://example.com",
@@ -100,6 +109,11 @@ describe("field encryption", () => {
     expect(isEncryptedField(encrypted.contact.lastName)).toBe(true);
     expect(isEncryptedField(encrypted.contact.company)).toBe(true);
     expect(isEncryptedField(encrypted.request.details ?? "")).toBe(true);
+    expect(isEncryptedField(encrypted.request.displayCaptureMetadata?.targetName ?? "")).toBe(true);
+    expect(isEncryptedField(encrypted.request.displayCaptureMetadata?.addressLabel ?? "")).toBe(true);
+    expect(isEncryptedField(encrypted.request.displayCaptureMetadata?.captureBrief ?? "")).toBe(true);
+    expect(encrypted.request.displayCaptureMetadata?.requestId).toBe("req-123");
+    expect(encrypted.request.displayCaptureMetadata?.captureJobId).toBe("capture-job-123");
 
     const decrypted = await decryptInboundRequestForAdmin(encrypted as any);
     expect(decrypted.request.targetSiteType).toBe("Warehouse picking aisle");
@@ -120,5 +134,14 @@ describe("field encryption", () => {
     expect(decrypted.request.payoutEligibility).toBe(
       "Commercial terms still need approval.",
     );
+    expect(decrypted.request.displayCaptureMetadata).toMatchObject({
+      targetName: "Analytical Engine Co - Durham",
+      addressLabel: "Durham, NC",
+      requestId: "req-123",
+      captureJobId: "capture-job-123",
+      captureBrief: "Capture the aisle handoff for display-guided review.",
+      privacyReminder: "Capture only approved areas.",
+      allowedAdvisoryHints: ["hold_steady", "scan_corners"],
+    });
   });
 });

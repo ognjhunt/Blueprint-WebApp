@@ -14,7 +14,7 @@ export default defineConfig({
     trace: 'on-first-retry',
   },
   webServer: {
-    command: `PORT=${port} npm run dev`,
+    command: `PORT=${port} npx tsx server/index.ts`,
     url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

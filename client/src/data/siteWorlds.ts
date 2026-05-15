@@ -432,7 +432,7 @@ function buildHostedDemoOverrideCard(): SiteWorldCard | null {
     },
     presentationDemoReadiness: {
       launchable: false,
-      blockers: ["Temporary tunnel-backed hosted review only. Presentation demo assets are not being claimed as production-ready."],
+      blockers: ["Temporary tunnel-backed hosted review only. Presentation demo assets are labeled as review-scope samples until production package evidence exists."],
       status: "presentation_ui_unconfigured",
       presentationWorldManifestUri,
       runtimeDemoManifestUri,

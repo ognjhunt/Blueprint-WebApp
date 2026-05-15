@@ -253,6 +253,89 @@ describe("agent session runtime", () => {
     15_000,
   );
 
+  it("suppresses duplicate no-change session messages while an equivalent run is active", async () => {
+    const { createAgentSession, sendAgentSessionMessage, listRuntimeEventsForSession } =
+      await import("../agents/runtime");
+
+    const session = await createAgentSession({
+      title: "Duplicate suppression session",
+      task_kind: "operator_thread",
+      provider: "deepseek_chat",
+      runtime: "deepseek_chat",
+      session_key: "session:dedupe",
+    });
+    const repeatedInput = {
+      message: "Recheck BLU-77; last run found no material movement.",
+    };
+
+    fake.store.agentRuns.set("run-active", {
+      id: "run-active",
+      session_id: session.id,
+      session_key: "session:dedupe",
+      task_kind: "operator_thread",
+      provider: "deepseek_chat",
+      runtime: "deepseek_chat",
+      model: "deepseek-v4-flash",
+      status: "running",
+      dispatch_mode: "collect",
+      input: {
+        kind: "operator_thread",
+        input: repeatedInput,
+        provider: "deepseek_chat",
+        runtime: "deepseek_chat",
+        model: "deepseek-v4-flash",
+        session_key: "session:dedupe",
+        session_policy: {
+          dispatch_mode: "collect",
+        },
+      },
+      created_at: "timestamp",
+      updated_at: "timestamp",
+    });
+
+    const result = await sendAgentSessionMessage({
+      sessionId: session.id,
+      task: {
+        kind: "operator_thread",
+        provider: "deepseek_chat",
+        runtime: "deepseek_chat",
+        input: repeatedInput,
+        session_policy: {
+          dispatch_mode: "collect",
+        },
+      },
+    });
+
+    expect(result.suppressed).toBe(true);
+    expect(result.queued).toBe(false);
+    expect(result.activeRunId).toBe("run-active");
+    expect(runDeepSeekChatTask).not.toHaveBeenCalled();
+    expect([...fake.store.agentRuns.values()].filter((run) => run.status === "queued")).toHaveLength(0);
+    expect([...fake.store.agentRuns.values()]).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          status: "cancelled",
+          metadata: expect.objectContaining({
+            runtime_suppression: expect.objectContaining({
+              reason: "duplicate_active_run",
+              active_run_id: "run-active",
+            }),
+          }),
+        }),
+      ]),
+    );
+
+    const events = await listRuntimeEventsForSession(session.id);
+    expect(events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "run.suppressed",
+          status: "info",
+        }),
+      ]),
+    );
+  });
+
   it("forks a session into a fresh implementation thread with a compressed handoff", async () => {
     const { createAgentSession, forkAgentSessionWithHandoff, listAgentRunsForSession } =
       await import("../agents/runtime");

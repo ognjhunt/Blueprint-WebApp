@@ -246,6 +246,7 @@ export interface PersistedAgentRun {
   parent_run_id?: string | null;
   openclaw_session_id?: string | null;
   openclaw_run_id?: string | null;
+  dedupe_fingerprint?: string | null;
   tool_policy: ToolPolicy;
   approval_policy: ApprovalPolicy;
   outcome_contract?: OutcomeContract | null;

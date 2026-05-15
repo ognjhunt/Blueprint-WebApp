@@ -87,6 +87,25 @@ export interface PlaceLocationMetadata {
   postalCode?: string | null;
 }
 
+export type DisplayAdvisoryScanHint =
+  | "slow_down"
+  | "hold_steady"
+  | "turn_left"
+  | "turn_right"
+  | "capture_doorway"
+  | "scan_corners"
+  | "finish_when_complete";
+
+export interface DisplayCaptureMetadata {
+  targetName?: string | null;
+  addressLabel?: string | null;
+  requestId?: string | null;
+  captureJobId?: string | null;
+  captureBrief?: string | null;
+  privacyReminder?: string | null;
+  allowedAdvisoryHints?: DisplayAdvisoryScanHint[];
+}
+
 // Priority levels
 export type RequestPriority = "low" | "normal" | "high";
 
@@ -143,6 +162,7 @@ export interface InboundRequestPayload {
   derivedScenePermission?: string;
   datasetLicensingPermission?: string;
   payoutEligibility?: string;
+  displayCaptureMetadata?: DisplayCaptureMetadata | null;
   details?: string;
   context: RequestContext;
   honeypot?: string; // Anti-bot honeypot field
@@ -270,9 +290,13 @@ export interface StructuredIntakeSummary {
   calendar_disposition: CalendarDisposition;
   calendar_reasons: string[];
   missing_structured_fields: string[];
+  missing_structured_field_labels: string[];
   owner_lane: string;
   recommended_path: string;
   next_action: string;
+  routing_summary: string;
+  calendar_summary: string;
+  proof_path_summary: string;
   proof_ready_outcome: ProofReadyOutcome;
   proof_path_outcome: ProofPathOutcome;
   proof_readiness_score: number;
@@ -648,6 +672,7 @@ export interface InboundRequestListItem {
     taskStatement: string;
     details?: string | null;
     proofPathPreference?: ProofPathPreference | null;
+    displayCaptureMetadata?: DisplayCaptureMetadata | null;
   };
   owner: RequestOwner;
   ops_automation?: OpsAutomationEnvelope;
@@ -702,6 +727,7 @@ export interface InboundRequestDetail extends InboundRequestListItem {
     derivedScenePermission?: string | null;
     datasetLicensingPermission?: string | null;
     payoutEligibility?: string | null;
+    displayCaptureMetadata?: DisplayCaptureMetadata | null;
   };
 }
 
@@ -772,6 +798,16 @@ export const PROOF_PATH_PREFERENCE_LABELS: Record<ProofPathPreference, string> =
   exact_site_required: "Exact-site proof required",
   adjacent_site_acceptable: "Adjacent-site proof is acceptable",
   need_guidance: "Need guidance on the proof path",
+};
+
+export const DISPLAY_ADVISORY_SCAN_HINT_LABELS: Record<DisplayAdvisoryScanHint, string> = {
+  slow_down: "Slow down",
+  hold_steady: "Hold steady",
+  turn_left: "Turn left",
+  turn_right: "Turn right",
+  capture_doorway: "Capture doorway",
+  scan_corners: "Scan corners",
+  finish_when_complete: "Finish when complete",
 };
 
 export const REQUEST_RIGHTS_STATUS_LABELS: Record<RequestRightsStatus, string> = {

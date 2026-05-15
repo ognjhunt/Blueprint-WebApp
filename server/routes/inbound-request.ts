@@ -43,6 +43,8 @@ import type {
   SubmitInboundRequestResponse,
   StructuredIntakeSummary,
   PlaceLocationMetadata,
+  DisplayAdvisoryScanHint,
+  DisplayCaptureMetadata,
 } from "../types/inbound-request";
 
 const router = Router();
@@ -86,6 +88,17 @@ const VALID_PROOF_PATH_PREFERENCES: ProofPathPreference[] = [
   "adjacent_site_acceptable",
   "need_guidance",
 ];
+const VALID_DISPLAY_ADVISORY_HINTS: DisplayAdvisoryScanHint[] = [
+  "slow_down",
+  "hold_steady",
+  "turn_left",
+  "turn_right",
+  "capture_doorway",
+  "scan_corners",
+  "finish_when_complete",
+];
+const DISPLAY_CAPTURE_PRIVACY_REMINDER =
+  "Capture only approved areas. Avoid private, restricted, or sensitive content.";
 
 // Known disposable email domains (extend as needed)
 const DISPOSABLE_EMAIL_DOMAINS = [
@@ -390,6 +403,62 @@ function normalizePlaceLocationMetadata(
     : null;
 }
 
+function normalizeDisplayAdvisoryHints(value?: DisplayAdvisoryScanHint[]): DisplayAdvisoryScanHint[] {
+  const rawHints = Array.isArray(value) ? value : VALID_DISPLAY_ADVISORY_HINTS;
+  return Array.from(
+    new Set(rawHints.filter((hint): hint is DisplayAdvisoryScanHint =>
+      VALID_DISPLAY_ADVISORY_HINTS.includes(hint)
+    ))
+  );
+}
+
+function normalizeDisplayCaptureMetadata(params: {
+  payload: InboundRequestPayload;
+  siteName: string;
+  siteLocation: string;
+  siteLocationMetadata: PlaceLocationMetadata | null;
+  taskStatement: string;
+  targetSiteType: string;
+}): DisplayCaptureMetadata | null {
+  const raw = params.payload.displayCaptureMetadata || null;
+  const targetName =
+    normalizeOptionalString(raw?.targetName) ||
+    params.siteName ||
+    params.targetSiteType ||
+    params.payload.company?.trim() ||
+    null;
+  const addressLabel =
+    normalizeOptionalString(raw?.addressLabel) ||
+    params.siteLocation ||
+    params.siteLocationMetadata?.formattedAddress ||
+    null;
+  const captureBrief =
+    normalizeOptionalString(raw?.captureBrief) ||
+    params.taskStatement ||
+    null;
+  const metadata: DisplayCaptureMetadata = {
+    targetName,
+    addressLabel,
+    requestId: normalizeOptionalString(raw?.requestId) || params.payload.requestId,
+    captureJobId: normalizeOptionalString(raw?.captureJobId),
+    captureBrief,
+    privacyReminder:
+      normalizeOptionalString(raw?.privacyReminder) ||
+      DISPLAY_CAPTURE_PRIVACY_REMINDER,
+    allowedAdvisoryHints: normalizeDisplayAdvisoryHints(raw?.allowedAdvisoryHints),
+  };
+
+  return [
+    metadata.targetName,
+    metadata.addressLabel,
+    metadata.requestId,
+    metadata.captureJobId,
+    metadata.captureBrief,
+  ].some((entry) => entry !== null && entry !== undefined && entry !== "")
+    ? metadata
+    : null;
+}
+
 function normalizeToken(value: string | null | undefined) {
   return String(value || "")
     .trim()
@@ -456,9 +525,13 @@ function toStructuredIntakeSummary(
     calendar_disposition: decision.calendarDisposition,
     calendar_reasons: decision.calendarReasons,
     missing_structured_fields: decision.missingStructuredFields,
+    missing_structured_field_labels: decision.missingStructuredFieldLabels,
     owner_lane: decision.ownerLane,
     recommended_path: decision.recommendedPath,
     next_action: decision.nextAction,
+    routing_summary: decision.routingSummary,
+    calendar_summary: decision.calendarSummary,
+    proof_path_summary: decision.proofPathSummary,
     proof_ready_outcome: decision.proofReadyOutcome,
     proof_path_outcome: decision.proofPathOutcome,
     proof_readiness_score: decision.proofReadinessScore,
@@ -692,6 +765,14 @@ router.post("/", async (req: Request, res: Response) => {
     );
     const taskStatement = payload.taskStatement?.trim() || "";
     const targetSiteType = payload.targetSiteType?.trim() || "";
+    const displayCaptureMetadata = normalizeDisplayCaptureMetadata({
+      payload,
+      siteName,
+      siteLocation,
+      siteLocationMetadata,
+      taskStatement,
+      targetSiteType,
+    });
     const proofPathPreference = normalizeProofPathPreference(
       payload.proofPathPreference
     );
@@ -827,6 +908,7 @@ router.post("/", async (req: Request, res: Response) => {
       proofPathPreference,
       targetRobotTeam: payload.targetRobotTeam?.trim() || null,
       roleTitle: payload.roleTitle?.trim() || null,
+      humanGateTopics: payload.humanGateTopics?.trim() || null,
       workflowContext: payload.workflowContext?.trim() || null,
       operatingConstraints: payload.operatingConstraints?.trim() || null,
       privacySecurityConstraints: payload.privacySecurityConstraints?.trim() || null,
@@ -964,6 +1046,7 @@ router.post("/", async (req: Request, res: Response) => {
           derivedScenePermission: payload.derivedScenePermission?.trim() || null,
           datasetLicensingPermission: payload.datasetLicensingPermission?.trim() || null,
           payoutEligibility: payload.payoutEligibility?.trim() || null,
+          displayCaptureMetadata,
           details: payload.details?.trim() || null,
         },
         context: {
@@ -1111,6 +1194,7 @@ router.post("/", async (req: Request, res: Response) => {
         derivedScenePermission: payload.derivedScenePermission?.trim() || null,
         datasetLicensingPermission: payload.datasetLicensingPermission?.trim() || null,
         payoutEligibility: payload.payoutEligibility?.trim() || null,
+        displayCaptureMetadata,
       },
       context: {
         sourcePageUrl: payload.context?.sourcePageUrl || "",

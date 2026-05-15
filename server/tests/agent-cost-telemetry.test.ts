@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   extractAgentCostTelemetry,
   summarizeAgentCostTelemetry,
+  summarizeAgentCostWaste,
   summarizeRollingAgentSpend,
 } from "../utils/agentCostTelemetry";
 
@@ -66,6 +67,104 @@ describe("agent cost telemetry", () => {
         cost_usd: 0.004,
       }),
     ]);
+  });
+
+  it("parses raw nested provider usage and identifies local waste signals", () => {
+    const runs = [
+      {
+        id: "run-openrouter-nested",
+        task_kind: "operator_thread",
+        provider: "deepseek_chat",
+        model: "deepseek/deepseek-v4-flash",
+        artifacts: {
+          route: "deepseek_via_openrouter",
+          openrouter_provider: "DeepSeek",
+          usage: {
+            prompt_tokens: 1_000,
+            completion_tokens: 100,
+            total_tokens: 1_120,
+            prompt_tokens_details: {
+              cached_tokens: 250,
+              cache_write_tokens: 50,
+            },
+            completion_tokens_details: {
+              reasoning_tokens: 20,
+            },
+            cost: 0.02,
+          },
+        },
+      },
+      {
+        id: "run-no-change",
+        task_kind: "operator_thread",
+        provider: "deepseek_chat",
+        model: "deepseek/deepseek-v4-flash",
+        output: {
+          movement: "no_change",
+          summary: "No material movement since the previous check.",
+        },
+        artifacts: {
+          prompt_tokens: 2_000,
+          completion_tokens: 90,
+          cached_tokens: 100,
+          cost_usd: 0.03,
+        },
+      },
+      {
+        id: "run-duplicate-suppressed",
+        task_kind: "operator_thread",
+        provider: "deepseek_chat",
+        model: "deepseek/deepseek-v4-flash",
+        status: "cancelled",
+        metadata: {
+          runtime_suppression: {
+            reason: "duplicate_active_run",
+            active_run_id: "run-no-change",
+          },
+        },
+      },
+    ];
+
+    const summary = summarizeAgentCostTelemetry(runs);
+    expect(summary.rows[0]).toMatchObject({
+      task_kind: "operator_thread",
+      route: "deepseek_via_openrouter",
+      prompt_tokens: 1_000,
+      cached_tokens: 250,
+      cache_write_tokens: 50,
+      reasoning_tokens: 20,
+      cache_hit_ratio: 0.25,
+      cost_usd: 0.02,
+    });
+
+    const waste = summarizeAgentCostWaste(runs);
+    expect(waste.totals).toMatchObject({
+      runs: 3,
+      prompt_tokens: 3_000,
+      cached_tokens: 350,
+    });
+    expect(waste.signals).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          signal: "low_cache_high_prompt",
+          runs: 2,
+          prompt_tokens: 3_000,
+        }),
+        expect.objectContaining({
+          signal: "no_change_completed",
+          runs: 1,
+          prompt_tokens: 2_000,
+        }),
+        expect.objectContaining({
+          signal: "duplicate_suppressed",
+          runs: 1,
+          prompt_tokens: 0,
+        }),
+      ]),
+    );
+    expect(waste.recommendations.join("\n")).toContain("Preserve high-quality routing");
+    expect(waste.recommendations.join("\n")).toContain("cache");
+    expect(waste.recommendations.join("\n")).toContain("no-change");
   });
 
   it("extracts request-level cost telemetry with issue id, upstream provider, and estimates", () => {

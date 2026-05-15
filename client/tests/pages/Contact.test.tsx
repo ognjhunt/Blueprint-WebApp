@@ -144,6 +144,57 @@ describe("Contact page", () => {
     expect(screen.queryByRole("textbox", { name: /Human-gated topics to raise early/i })).not.toBeInTheDocument();
   });
 
+  it("carries source route context into the robot-team payload", async () => {
+    mockSearch =
+      "?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=site-world-detail&siteName=Harborview+Grocery+Distribution+Annex&targetSiteType=Grocery+distribution&scenario=Walk+to+shelf+staging&requestedOutputs=Runtime+manifest+and+proof+packet";
+
+    render(<Contact />);
+
+    expect(screen.getByDisplayValue("Harborview Grocery Distribution Annex")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Grocery distribution")).toBeInTheDocument();
+    expect(screen.getAllByText(/Scenario/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Runtime manifest and proof packet/i).length).toBeGreaterThan(0);
+
+    fireEvent.change(screen.getByPlaceholderText("First name*"), {
+      target: { value: "Ada" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("Last name*"), {
+      target: { value: "Lovelace" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("Company name*"), {
+      target: { value: "Analytical Engines" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("Work email*"), {
+      target: { value: "ada@example.com" },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: /Your role/i }), {
+      target: { value: "Autonomy lead" },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: /What should this world model help your team evaluate\?/i }), {
+      target: { value: "Compare shelf-staging behavior before field travel." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Request world model/i }));
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        "/api/inbound-request",
+        expect.objectContaining({ method: "POST" }),
+      );
+    });
+
+    const submitCall = vi.mocked(global.fetch).mock.calls.find(
+      ([input]) => input === "/api/inbound-request",
+    );
+    const body = JSON.parse(String(submitCall?.[1]?.body));
+    expect(body).toMatchObject({
+      buyerType: "robot_team",
+      commercialRequestPath: "world_model",
+      siteName: "Harborview Grocery Distribution Annex",
+      targetSiteType: "Grocery distribution",
+      details: "Scenario: Walk to shelf staging\nRequested outputs: Runtime manifest and proof packet",
+    });
+  });
+
   it("renders Austin-specific buyer guidance when the city param is present", () => {
     mockSearch = "?persona=robot-team&city=austin";
 
@@ -368,6 +419,7 @@ describe("Contact page", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /Request world model/i }));
 
+    expect(screen.getByText(/keeps the request routeable before any call or human review/i)).toBeInTheDocument();
     expect(analyticsEventsMock.contactRequestFailed).toHaveBeenCalledWith({
       stage: "validation",
       errorType: "missing_required_fields",

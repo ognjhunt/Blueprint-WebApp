@@ -209,11 +209,16 @@ Implementation behavior:
 
 ## Immediate Next Steps
 
-1. Export 100-300 historical resolved cases per pilot lane.
-2. Normalize them into the case format documented in `labs/autoagent/tasks/*/CASE_FORMAT.md`.
-3. Stand up a dedicated ACP harness endpoint for offline optimization.
-4. Run baseline evals before any AutoAgent tuning.
-5. Port only winning prompt/tool/orchestration changes back into `server/agents/tasks/`.
+1. Keep the seed/canonical fixture path runnable without Firestore or provider credentials:
+   `npm run autoagent:run -- --sample 3`.
+2. Export 100-300 historical resolved cases per pilot lane only when Firebase Admin
+   credentials are intentionally available: `npm run autoagent:run -- --export-live`.
+3. Normalize exported cases into the case format documented in
+   `labs/autoagent/tasks/*/CASE_FORMAT.md`.
+4. Stand up a dedicated ACP harness endpoint only after the local fixture evaluator
+   is producing clean baseline evidence.
+5. Run baseline evals before any AutoAgent tuning.
+6. Port only winning prompt/tool/orchestration changes back into `server/agents/tasks/`.
 
 ## Graduation Criteria
 

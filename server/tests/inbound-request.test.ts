@@ -68,6 +68,14 @@ function buildPayload(requestId: string, email: string) {
     privacySecurityConstraints: "No cameras in employee locker area.",
     knownBlockers: "Tight turn near the dock.",
     targetRobotTeam: "General humanoid team",
+    displayCaptureMetadata: {
+      targetName: "Dock A",
+      addressLabel: "11 Warehouse Way",
+      captureJobId: "capture-job-123",
+      captureBrief: "Capture the dock doors and staging handoff.",
+      privacyReminder: "Capture only approved areas.",
+      allowedAdvisoryHints: ["hold_steady", "scan_corners", "unsupported_hint"],
+    },
     details: "Need a fast feasibility read.",
     context: {
       sourcePageUrl: "http://localhost:5001/contact",
@@ -209,6 +217,15 @@ describe("inbound request route", () => {
               country?: string;
               postalCode?: string;
             };
+            displayCaptureMetadata?: {
+              targetName?: string;
+              addressLabel?: string;
+              requestId?: string;
+              captureJobId?: string;
+              captureBrief?: string;
+              privacyReminder?: string;
+              allowedAdvisoryHints?: string[];
+            };
           };
           debug?: { mode?: string };
           structured_intake?: { calendar_disposition?: string; recommended_path?: string };
@@ -229,6 +246,15 @@ describe("inbound request route", () => {
         postalCode: "27701",
       });
       expect(savedRequest?.request?.commercialRequestPath).toBe("site_claim");
+      expect(savedRequest?.request?.displayCaptureMetadata).toMatchObject({
+        targetName: "Dock A",
+        addressLabel: "11 Warehouse Way",
+        requestId,
+        captureJobId: "capture-job-123",
+        captureBrief: "Capture the dock doors and staging handoff.",
+        privacyReminder: "Capture only approved areas.",
+        allowedAdvisoryHints: ["hold_steady", "scan_corners"],
+      });
       expect(savedRequest?.debug?.mode).toBe("dev_fallback");
       expect(savedRequest?.structured_intake?.calendar_disposition).toBe("required_before_next_step");
       expect(savedRequest?.ops_automation?.recommended_path).toBe("intake_then_required_scoping_call");
@@ -294,7 +320,13 @@ describe("inbound request route", () => {
         .map((line) => JSON.parse(line) as {
           requestId: string;
           request?: Record<string, unknown>;
-          structured_intake?: { calendar_disposition?: string; owner_lane?: string };
+          structured_intake?: {
+            calendar_disposition?: string;
+            owner_lane?: string;
+            missing_structured_fields?: string[];
+            missing_structured_field_labels?: string[];
+            routing_summary?: string;
+          };
         })
         .find((entry) => entry.requestId === requestId);
 
@@ -304,6 +336,9 @@ describe("inbound request route", () => {
       expect(savedRequest?.request?.siteName).toBe("");
       expect(savedRequest?.structured_intake?.calendar_disposition).toBe("not_needed_yet");
       expect(savedRequest?.structured_intake?.owner_lane).toBe("intake-agent");
+      expect(savedRequest?.structured_intake?.missing_structured_fields).toEqual(["robot_or_stack"]);
+      expect(savedRequest?.structured_intake?.missing_structured_field_labels).toEqual(["Robot or stack"]);
+      expect(savedRequest?.structured_intake?.routing_summary).toMatch(/intake-agent/i);
     } finally {
       await stopServer(server);
     }
@@ -346,7 +381,11 @@ describe("inbound request route", () => {
             proof_path_outcome?: string;
             proof_readiness_score?: number;
             missing_proof_ready_fields?: string[];
+            missing_structured_field_labels?: string[];
+            proof_path_summary?: string;
+            calendar_summary?: string;
           };
+          ops_automation?: { recommended_path?: string; next_action?: string };
         })
         .find((entry) => entry.requestId === requestId);
 
@@ -355,7 +394,11 @@ describe("inbound request route", () => {
         proof_path_outcome: "exact_site",
         proof_readiness_score: 100,
         missing_proof_ready_fields: [],
+        missing_structured_field_labels: [],
       });
+      expect(savedRequest?.structured_intake?.proof_path_summary).toMatch(/exact-site proof path/i);
+      expect(savedRequest?.structured_intake?.calendar_summary).toMatch(/recommended/i);
+      expect(savedRequest?.ops_automation?.recommended_path).toBe("intake_then_recommended_scoping_call");
       expect(logGrowthEvent).toHaveBeenCalledWith(
         expect.objectContaining({
           event: "robot_team_fit_checked",
@@ -455,6 +498,9 @@ describe("inbound request route", () => {
             access_boundary_outcome?: string;
             site_claim_readiness_score?: number;
             missing_site_claim_fields?: string[];
+            routing_summary?: string;
+            calendar_summary?: string;
+            proof_path_summary?: string;
           };
         })
         .find((entry) => entry.requestId === requestId);
@@ -465,6 +511,9 @@ describe("inbound request route", () => {
         site_claim_readiness_score: 100,
         missing_site_claim_fields: [],
       });
+      expect(savedRequest?.structured_intake?.routing_summary).toMatch(/site-operator-partnership-agent/i);
+      expect(savedRequest?.structured_intake?.calendar_summary).toMatch(/required/i);
+      expect(savedRequest?.structured_intake?.proof_path_summary).toMatch(/operator/i);
       expect(logGrowthEvent).toHaveBeenCalledWith(
         expect.objectContaining({
           event: "site_operator_claim_checked",

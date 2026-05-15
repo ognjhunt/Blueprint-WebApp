@@ -7,6 +7,7 @@ import {
   getRequestReviewCookieName,
   verifyRequestReviewToken,
 } from "../utils/request-review-auth";
+import { verifyCaptureHandoffToken } from "../utils/capture-handoff-token";
 import { parseCookies } from "../utils/hosted-session-ui-auth";
 import { logGrowthEvent } from "../utils/growth-events";
 import {
@@ -22,6 +23,8 @@ import {
 } from "../utils/buyerOutcomes";
 
 const router = Router();
+const CAPTURE_HANDOFF_TRUTH_BOUNDARY =
+  "Display HUD and scan coaching are advisory UX telemetry, not raw geometry, pose, depth, coverage, rights, payout, provider readiness, or qualification proof.";
 
 function normalizeTimestamp(value: unknown) {
   const timestamp = value as { toDate?: () => Date } | string | null | undefined;
@@ -65,6 +68,36 @@ function canAccessRequest(req: Request, requestId: string) {
   return Boolean(token && verifyRequestReviewToken(token, requestId));
 }
 
+function resolveCaptureHandoffCaptureJobId(request: InboundRequest) {
+  return (
+    request.pipeline?.capture_job_id?.trim() ||
+    request.request.displayCaptureMetadata?.captureJobId?.trim() ||
+    `job_${request.requestId}`
+  );
+}
+
+function buildCaptureHandoffMetadata(request: InboundRequest, captureJobId: string) {
+  const displayMetadata = request.request.displayCaptureMetadata || {};
+  const allowedAdvisoryHints = Array.isArray(displayMetadata.allowedAdvisoryHints)
+    ? Array.from(new Set(displayMetadata.allowedAdvisoryHints))
+    : [];
+
+  return {
+    handoff_id: `${request.requestId}:${captureJobId}`,
+    request_id: request.requestId,
+    capture_job_id: captureJobId,
+    target_name: displayMetadata.targetName || request.request.siteName,
+    address_label: displayMetadata.addressLabel || request.request.siteLocation,
+    capture_brief: displayMetadata.captureBrief || request.request.taskStatement,
+    privacy_reminder:
+      displayMetadata.privacyReminder ||
+      "Capture only approved areas. Avoid private, restricted, or sensitive content.",
+    allowed_advisory_hints: allowedAdvisoryHints,
+    truth_boundary: CAPTURE_HANDOFF_TRUTH_BOUNDARY,
+    source: "server_verified",
+  };
+}
+
 router.post("/:requestId/bootstrap", async (req: Request, res: Response) => {
   const token = typeof req.body?.access === "string" ? req.body.access.trim() : "";
   if (!token || !verifyRequestReviewToken(token, req.params.requestId)) {
@@ -79,6 +112,37 @@ router.post("/:requestId/bootstrap", async (req: Request, res: Response) => {
   });
 
   return res.json({ ok: true });
+});
+
+router.get("/capture-handoff/:handoff", async (req: Request, res: Response) => {
+  try {
+    if (!db) {
+      return res.status(500).json({ error: "Database not available" });
+    }
+
+    const handoff = String(req.params.handoff || "").trim();
+    const tokenPayload = verifyCaptureHandoffToken(handoff);
+    if (!tokenPayload) {
+      return res.status(401).json({ error: "Invalid or expired capture handoff" });
+    }
+
+    const doc = await db.collection("inboundRequests").doc(tokenPayload.requestId).get();
+    if (!doc.exists) {
+      return res.status(404).json({ error: "Request not found" });
+    }
+
+    const decrypted = (await decryptInboundRequestForAdmin(
+      doc.data() as InboundRequestStored
+    )) as unknown as InboundRequest;
+    const captureJobId = resolveCaptureHandoffCaptureJobId(decrypted);
+    if (captureJobId !== tokenPayload.captureJobId) {
+      return res.status(409).json({ error: "Capture handoff no longer matches this request" });
+    }
+
+    return res.json(buildCaptureHandoffMetadata(decrypted, captureJobId));
+  } catch {
+    return res.status(500).json({ error: "Failed to load capture handoff" });
+  }
 });
 
 router.get("/:requestId", async (req: Request, res: Response) => {
@@ -204,13 +268,25 @@ router.get("/:requestId", async (req: Request, res: Response) => {
         siteName: decrypted.request.siteName,
         siteLocation: decrypted.request.siteLocation,
         taskStatement: decrypted.request.taskStatement,
+        commercialRequestPath: decrypted.request.commercialRequestPath || null,
+        targetSiteType: decrypted.request.targetSiteType || null,
+        proofPathPreference: decrypted.request.proofPathPreference || null,
+        targetRobotTeam: decrypted.request.targetRobotTeam || null,
+        details: decrypted.request.details || null,
         workflowContext: decrypted.request.workflowContext,
         operatingConstraints: decrypted.request.operatingConstraints,
         privacySecurityConstraints: decrypted.request.privacySecurityConstraints,
         knownBlockers: decrypted.request.knownBlockers,
+        captureRights: decrypted.request.captureRights || null,
+        derivedScenePermission: decrypted.request.derivedScenePermission || null,
+        datasetLicensingPermission: decrypted.request.datasetLicensingPermission || null,
+        payoutEligibility: decrypted.request.payoutEligibility || null,
+        displayCaptureMetadata: decrypted.request.displayCaptureMetadata || null,
         requestedLanes: decrypted.request.requestedLanes || [],
         buyerType: decrypted.request.buyerType,
       },
+      structured_intake: decrypted.structured_intake || null,
+      ops_automation: decrypted.ops_automation || null,
       pipeline: decrypted.pipeline || null,
       derived_assets: decrypted.derived_assets || null,
       deployment_readiness: decrypted.deployment_readiness || null,

@@ -104,7 +104,7 @@ const deliveryGoodFitSignals = [
   "You have run operations, customer delivery, field programs, implementation, technical account work, marketplace supply, or production workflows.",
   "You are comfortable managing agents and humans in the same loop. Some work is digital, some work is field reality, and both need clean follow-through.",
   "You can read a messy request and turn it into a checklist, a runbook, a QA gate, and a buyer-facing update without making it bureaucratic.",
-  "You care about evidence. If a package is not ready, a site is not cleared, or a hosted review is not real yet, you say that plainly.",
+  "You care about evidence. If package proof, site clearance, or hosted-review evidence is missing, you name the exact gap plainly.",
   "You are calm around operational mess: late inputs, partial captures, unclear ownership, buyer pressure, and tools that almost work.",
 ];
 

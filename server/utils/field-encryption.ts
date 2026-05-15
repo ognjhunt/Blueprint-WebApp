@@ -7,6 +7,8 @@ import type {
   RequestDetailsStored,
   PlaceLocationMetadata,
   PlaceLocationMetadataStored,
+  DisplayCaptureMetadata,
+  DisplayCaptureMetadataStored,
 } from "../types/inbound-request";
 import type { EncryptedField, EncryptableString } from "../types/field-encryption";
 
@@ -256,6 +258,55 @@ export async function decryptLocationMetadata(
   };
 }
 
+function hasDisplayCaptureMetadata(value?: DisplayCaptureMetadata | null): value is DisplayCaptureMetadata {
+  if (!value) return false;
+  return [
+    value.targetName,
+    value.addressLabel,
+    value.requestId,
+    value.captureJobId,
+    value.captureBrief,
+    value.privacyReminder,
+  ].some((entry) => entry !== null && entry !== undefined && entry !== "")
+    || Boolean(value.allowedAdvisoryHints?.length);
+}
+
+export async function encryptDisplayCaptureMetadata(
+  value?: DisplayCaptureMetadata | null
+): Promise<DisplayCaptureMetadataStored | null> {
+  if (!hasDisplayCaptureMetadata(value)) {
+    return null;
+  }
+
+  return {
+    targetName: await encryptOptionalField(value.targetName ?? null),
+    addressLabel: await encryptOptionalField(value.addressLabel ?? null),
+    requestId: value.requestId ?? null,
+    captureJobId: value.captureJobId ?? null,
+    captureBrief: await encryptOptionalField(value.captureBrief ?? null),
+    privacyReminder: await encryptOptionalField(value.privacyReminder ?? null),
+    allowedAdvisoryHints: value.allowedAdvisoryHints ?? [],
+  };
+}
+
+export async function decryptDisplayCaptureMetadata(
+  value?: DisplayCaptureMetadataStored | null
+): Promise<DisplayCaptureMetadata | null> {
+  if (!value) {
+    return null;
+  }
+
+  return {
+    targetName: await decryptOptionalField(value.targetName ?? null),
+    addressLabel: await decryptOptionalField(value.addressLabel ?? null),
+    requestId: value.requestId ?? null,
+    captureJobId: value.captureJobId ?? null,
+    captureBrief: await decryptOptionalField(value.captureBrief ?? null),
+    privacyReminder: await decryptOptionalField(value.privacyReminder ?? null),
+    allowedAdvisoryHints: value.allowedAdvisoryHints ?? [],
+  };
+}
+
 export async function encryptInboundRequestForStorage<
   T extends {
     contact: ContactInfo;
@@ -329,6 +380,9 @@ export async function encryptInboundRequestForStorage<
       ),
       payoutEligibility: await encryptOptionalField(
         request.request.payoutEligibility ?? null
+      ),
+      displayCaptureMetadata: await encryptDisplayCaptureMetadata(
+        request.request.displayCaptureMetadata ?? null
       ),
     },
   };
@@ -409,6 +463,9 @@ export async function decryptInboundRequestForAdmin<
       ),
       payoutEligibility: await decryptOptionalField(
         request.request.payoutEligibility ?? null
+      ),
+      displayCaptureMetadata: await decryptDisplayCaptureMetadata(
+        request.request.displayCaptureMetadata ?? null
       ),
     },
   };

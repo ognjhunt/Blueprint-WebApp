@@ -1,6 +1,6 @@
 {
   "schema": "blueprint/exact-site-hosted-review-first-send-approval-template/v1",
-  "generatedAt": "2026-05-15T01:11:51.321Z",
+  "generatedAt": "2026-05-15T14:40:16.999Z",
   "ledgerPath": "ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json",
   "instructions": [
     "Review recipient evidence, draft angle, CTA, landing-page handoff, objection plan, and review flags before setting a decision.",
@@ -12,9 +12,11 @@
   "reviewChecklist": [
     "Recipient email and evidence source are acceptable for a first touch.",
     "Message asks one clear thing and stays aligned to the row track.",
+    "Proof source matches the CTA and does not overstate what exists.",
     "Proof-ready rows link to a labeled review/sample without claiming customer traction.",
     "Demand-sourced rows ask for the site/workflow to capture and do not imply a hosted review exists.",
     "Landing-page handoff matches the CTA.",
+    "Blocked claims are preserved in the final draft and approval note.",
     "Objection response can be answered from ledger evidence and public pages without inventing claims."
   ],
   "decisionOptions": [
@@ -40,10 +42,17 @@
       "artifactPath": "client/public/samples/sample-hosted-review-report.md",
       "hostedReviewPath": "/sample-evaluation",
       "siteWorldId": "sample-public-capture-cedar-market-aisle-loop",
+      "proofSource": "Labeled hosted-review proof at client/public/samples/sample-hosted-review-report.md. Hosted review handoff: /sample-evaluation. Site-world id: sample-public-capture-cedar-market-aisle-loop. Use as representative proof shape only; do not claim recipient/customer-specific proof.",
       "draftAngle": "Invite the recipient to inspect a labeled exact-site hosted review, then ask what site or workflow would make the review more relevant.",
       "cta": "Inspect the review, then name the more relevant site or workflow.",
       "landingPage": "/sample-evaluation",
       "objectionPlan": "If they say the sample is not their site, ask for the exact workflow to capture next and keep the sample labeled as representative proof shape.",
+      "blockedClaims": [
+        "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
+        "No pricing, legal, privacy, rights, permission, readiness, deployment, or guaranteed support commitment is approved by this packet.",
+        "Do not present the sample review as the recipient's site, a customer result, or a deployment outcome.",
+        "Recipient-backed evidence proves the address source only; it does not prove buyer intent or permission to make unsupported claims."
+      ],
       "reviewFlags": [
         "public/general inbox; expect routing friction"
       ],
@@ -69,10 +78,17 @@
       "artifactPath": "client/public/samples/sample-hosted-review-report.md",
       "hostedReviewPath": "/sample-evaluation",
       "siteWorldId": "sample-public-capture-cedar-market-aisle-loop",
+      "proofSource": "Labeled hosted-review proof at client/public/samples/sample-hosted-review-report.md. Hosted review handoff: /sample-evaluation. Site-world id: sample-public-capture-cedar-market-aisle-loop. Use as representative proof shape only; do not claim recipient/customer-specific proof.",
       "draftAngle": "Invite the recipient to inspect a labeled exact-site hosted review, then ask what site or workflow would make the review more relevant.",
       "cta": "Inspect the review, then name the more relevant site or workflow.",
       "landingPage": "/sample-evaluation",
       "objectionPlan": "If they say the sample is not their site, ask for the exact workflow to capture next and keep the sample labeled as representative proof shape.",
+      "blockedClaims": [
+        "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
+        "No pricing, legal, privacy, rights, permission, readiness, deployment, or guaranteed support commitment is approved by this packet.",
+        "Do not present the sample review as the recipient's site, a customer result, or a deployment outcome.",
+        "Recipient-backed evidence proves the address source only; it does not prove buyer intent or permission to make unsupported claims."
+      ],
       "reviewFlags": [
         "public/general inbox; expect routing friction"
       ],
@@ -98,10 +114,17 @@
       "artifactPath": "client/public/samples/sample-warehouse-amr-hosted-review-report.md",
       "hostedReviewPath": "/sample-evaluation?workflow=warehouse-amr",
       "siteWorldId": "sample-warehouse-tote-pick-lane",
+      "proofSource": "Labeled hosted-review proof at client/public/samples/sample-warehouse-amr-hosted-review-report.md. Hosted review handoff: /sample-evaluation?workflow=warehouse-amr. Site-world id: sample-warehouse-tote-pick-lane. Use as representative proof shape only; do not claim recipient/customer-specific proof.",
       "draftAngle": "Invite the recipient to inspect a labeled exact-site hosted review, then ask what site or workflow would make the review more relevant.",
       "cta": "Inspect the review, then name the more relevant site or workflow.",
       "landingPage": "/sample-evaluation?workflow=warehouse-amr",
       "objectionPlan": "If they say the sample is not their site, ask for the exact workflow to capture next and keep the sample labeled as representative proof shape.",
+      "blockedClaims": [
+        "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
+        "No pricing, legal, privacy, rights, permission, readiness, deployment, or guaranteed support commitment is approved by this packet.",
+        "Do not present the sample review as the recipient's site, a customer result, or a deployment outcome.",
+        "Recipient-backed evidence proves the address source only; it does not prove buyer intent or permission to make unsupported claims."
+      ],
       "reviewFlags": [
         "public/general inbox; expect routing friction"
       ],
@@ -127,10 +150,17 @@
       "artifactPath": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
       "hostedReviewPath": null,
       "siteWorldId": null,
+      "proofSource": "Draft opportunity brief at ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md. No hosted review or site-world package exists for this target yet. Use only to ask which site/workflow should be captured first.",
       "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
       "cta": "Name the site or workflow worth capturing first.",
       "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
       "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
+      "blockedClaims": [
+        "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
+        "No pricing, legal, privacy, rights, permission, readiness, deployment, or guaranteed support commitment is approved by this packet.",
+        "Do not imply a hosted review, site-world package, package access, or capture evidence already exists for this target.",
+        "Recipient-backed evidence proves the address source only; it does not prove buyer intent or permission to make unsupported claims."
+      ],
       "reviewFlags": [
         "capture ask only; no hosted-review claim",
         "artifact is a draft opportunity brief",
@@ -158,10 +188,17 @@
       "artifactPath": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
       "hostedReviewPath": null,
       "siteWorldId": null,
+      "proofSource": "Draft opportunity brief at ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md. No hosted review or site-world package exists for this target yet. Use only to ask which site/workflow should be captured first.",
       "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
       "cta": "Name the site or workflow worth capturing first.",
       "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
       "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
+      "blockedClaims": [
+        "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
+        "No pricing, legal, privacy, rights, permission, readiness, deployment, or guaranteed support commitment is approved by this packet.",
+        "Do not imply a hosted review, site-world package, package access, or capture evidence already exists for this target.",
+        "Recipient-backed evidence proves the address source only; it does not prove buyer intent or permission to make unsupported claims."
+      ],
       "reviewFlags": [
         "capture ask only; no hosted-review claim",
         "artifact is a draft opportunity brief",
@@ -189,10 +226,17 @@
       "artifactPath": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
       "hostedReviewPath": null,
       "siteWorldId": null,
+      "proofSource": "Draft opportunity brief at ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md. No hosted review or site-world package exists for this target yet. Use only to ask which site/workflow should be captured first.",
       "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
       "cta": "Name the site or workflow worth capturing first.",
       "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
       "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
+      "blockedClaims": [
+        "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
+        "No pricing, legal, privacy, rights, permission, readiness, deployment, or guaranteed support commitment is approved by this packet.",
+        "Do not imply a hosted review, site-world package, package access, or capture evidence already exists for this target.",
+        "Recipient-backed evidence proves the address source only; it does not prove buyer intent or permission to make unsupported claims."
+      ],
       "reviewFlags": [
         "capture ask only; no hosted-review claim",
         "artifact is a draft opportunity brief",
@@ -220,10 +264,17 @@
       "artifactPath": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
       "hostedReviewPath": null,
       "siteWorldId": null,
+      "proofSource": "Draft opportunity brief at ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md. No hosted review or site-world package exists for this target yet. Use only to ask which site/workflow should be captured first.",
       "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
       "cta": "Name the site or workflow worth capturing first.",
       "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
       "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
+      "blockedClaims": [
+        "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
+        "No pricing, legal, privacy, rights, permission, readiness, deployment, or guaranteed support commitment is approved by this packet.",
+        "Do not imply a hosted review, site-world package, package access, or capture evidence already exists for this target.",
+        "Recipient-backed evidence proves the address source only; it does not prove buyer intent or permission to make unsupported claims."
+      ],
       "reviewFlags": [
         "capture ask only; no hosted-review claim",
         "artifact is a draft opportunity brief",
@@ -251,10 +302,17 @@
       "artifactPath": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
       "hostedReviewPath": null,
       "siteWorldId": null,
+      "proofSource": "Draft opportunity brief at ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md. No hosted review or site-world package exists for this target yet. Use only to ask which site/workflow should be captured first.",
       "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
       "cta": "Name the site or workflow worth capturing first.",
       "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
       "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
+      "blockedClaims": [
+        "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
+        "No pricing, legal, privacy, rights, permission, readiness, deployment, or guaranteed support commitment is approved by this packet.",
+        "Do not imply a hosted review, site-world package, package access, or capture evidence already exists for this target.",
+        "Recipient-backed evidence proves the address source only; it does not prove buyer intent or permission to make unsupported claims."
+      ],
       "reviewFlags": [
         "capture ask only; no hosted-review claim",
         "artifact is a draft opportunity brief",
@@ -282,10 +340,17 @@
       "artifactPath": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
       "hostedReviewPath": null,
       "siteWorldId": null,
+      "proofSource": "Draft opportunity brief at ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md. No hosted review or site-world package exists for this target yet. Use only to ask which site/workflow should be captured first.",
       "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
       "cta": "Name the site or workflow worth capturing first.",
       "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
       "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
+      "blockedClaims": [
+        "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
+        "No pricing, legal, privacy, rights, permission, readiness, deployment, or guaranteed support commitment is approved by this packet.",
+        "Do not imply a hosted review, site-world package, package access, or capture evidence already exists for this target.",
+        "Recipient-backed evidence proves the address source only; it does not prove buyer intent or permission to make unsupported claims."
+      ],
       "reviewFlags": [
         "capture ask only; no hosted-review claim",
         "artifact is a draft opportunity brief",
@@ -313,10 +378,17 @@
       "artifactPath": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
       "hostedReviewPath": null,
       "siteWorldId": null,
+      "proofSource": "Draft opportunity brief at ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md. No hosted review or site-world package exists for this target yet. Use only to ask which site/workflow should be captured first.",
       "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
       "cta": "Name the site or workflow worth capturing first.",
       "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
       "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
+      "blockedClaims": [
+        "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
+        "No pricing, legal, privacy, rights, permission, readiness, deployment, or guaranteed support commitment is approved by this packet.",
+        "Do not imply a hosted review, site-world package, package access, or capture evidence already exists for this target.",
+        "Recipient-backed evidence proves the address source only; it does not prove buyer intent or permission to make unsupported claims."
+      ],
       "reviewFlags": [
         "capture ask only; no hosted-review claim",
         "artifact is a draft opportunity brief",
@@ -344,10 +416,17 @@
       "artifactPath": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
       "hostedReviewPath": null,
       "siteWorldId": null,
+      "proofSource": "Draft opportunity brief at ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md. No hosted review or site-world package exists for this target yet. Use only to ask which site/workflow should be captured first.",
       "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
       "cta": "Name the site or workflow worth capturing first.",
       "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
       "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
+      "blockedClaims": [
+        "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
+        "No pricing, legal, privacy, rights, permission, readiness, deployment, or guaranteed support commitment is approved by this packet.",
+        "Do not imply a hosted review, site-world package, package access, or capture evidence already exists for this target.",
+        "Recipient-backed evidence proves the address source only; it does not prove buyer intent or permission to make unsupported claims."
+      ],
       "reviewFlags": [
         "capture ask only; no hosted-review claim",
         "artifact is a draft opportunity brief",
@@ -375,10 +454,17 @@
       "artifactPath": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
       "hostedReviewPath": null,
       "siteWorldId": null,
+      "proofSource": "Draft opportunity brief at ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md. No hosted review or site-world package exists for this target yet. Use only to ask which site/workflow should be captured first.",
       "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
       "cta": "Name the site or workflow worth capturing first.",
       "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
       "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
+      "blockedClaims": [
+        "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
+        "No pricing, legal, privacy, rights, permission, readiness, deployment, or guaranteed support commitment is approved by this packet.",
+        "Do not imply a hosted review, site-world package, package access, or capture evidence already exists for this target.",
+        "Recipient-backed evidence proves the address source only; it does not prove buyer intent or permission to make unsupported claims."
+      ],
       "reviewFlags": [
         "capture ask only; no hosted-review claim",
         "artifact is a draft opportunity brief",
@@ -406,10 +492,17 @@
       "artifactPath": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
       "hostedReviewPath": null,
       "siteWorldId": null,
+      "proofSource": "Draft opportunity brief at ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md. No hosted review or site-world package exists for this target yet. Use only to ask which site/workflow should be captured first.",
       "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
       "cta": "Name the site or workflow worth capturing first.",
       "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
       "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
+      "blockedClaims": [
+        "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
+        "No pricing, legal, privacy, rights, permission, readiness, deployment, or guaranteed support commitment is approved by this packet.",
+        "Do not imply a hosted review, site-world package, package access, or capture evidence already exists for this target.",
+        "Recipient-backed evidence proves the address source only; it does not prove buyer intent or permission to make unsupported claims."
+      ],
       "reviewFlags": [
         "capture ask only; no hosted-review claim",
         "artifact is a draft opportunity brief",
@@ -437,10 +530,17 @@
       "artifactPath": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
       "hostedReviewPath": null,
       "siteWorldId": null,
+      "proofSource": "Draft opportunity brief at ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md. No hosted review or site-world package exists for this target yet. Use only to ask which site/workflow should be captured first.",
       "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
       "cta": "Name the site or workflow worth capturing first.",
       "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
       "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
+      "blockedClaims": [
+        "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
+        "No pricing, legal, privacy, rights, permission, readiness, deployment, or guaranteed support commitment is approved by this packet.",
+        "Do not imply a hosted review, site-world package, package access, or capture evidence already exists for this target.",
+        "Recipient-backed evidence proves the address source only; it does not prove buyer intent or permission to make unsupported claims."
+      ],
       "reviewFlags": [
         "capture ask only; no hosted-review claim",
         "artifact is a draft opportunity brief"
@@ -467,10 +567,17 @@
       "artifactPath": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
       "hostedReviewPath": null,
       "siteWorldId": null,
+      "proofSource": "Draft opportunity brief at ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md. No hosted review or site-world package exists for this target yet. Use only to ask which site/workflow should be captured first.",
       "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
       "cta": "Name the site or workflow worth capturing first.",
       "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
       "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
+      "blockedClaims": [
+        "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
+        "No pricing, legal, privacy, rights, permission, readiness, deployment, or guaranteed support commitment is approved by this packet.",
+        "Do not imply a hosted review, site-world package, package access, or capture evidence already exists for this target.",
+        "Recipient-backed evidence proves the address source only; it does not prove buyer intent or permission to make unsupported claims."
+      ],
       "reviewFlags": [
         "capture ask only; no hosted-review claim",
         "artifact is a draft opportunity brief",
@@ -498,10 +605,17 @@
       "artifactPath": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
       "hostedReviewPath": null,
       "siteWorldId": null,
+      "proofSource": "Draft opportunity brief at ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md. No hosted review or site-world package exists for this target yet. Use only to ask which site/workflow should be captured first.",
       "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
       "cta": "Name the site or workflow worth capturing first.",
       "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
       "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
+      "blockedClaims": [
+        "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
+        "No pricing, legal, privacy, rights, permission, readiness, deployment, or guaranteed support commitment is approved by this packet.",
+        "Do not imply a hosted review, site-world package, package access, or capture evidence already exists for this target.",
+        "Recipient-backed evidence proves the address source only; it does not prove buyer intent or permission to make unsupported claims."
+      ],
       "reviewFlags": [
         "capture ask only; no hosted-review claim",
         "artifact is a draft opportunity brief",
@@ -529,10 +643,17 @@
       "artifactPath": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
       "hostedReviewPath": null,
       "siteWorldId": null,
+      "proofSource": "Draft opportunity brief at ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md. No hosted review or site-world package exists for this target yet. Use only to ask which site/workflow should be captured first.",
       "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
       "cta": "Name the site or workflow worth capturing first.",
       "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
       "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
+      "blockedClaims": [
+        "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
+        "No pricing, legal, privacy, rights, permission, readiness, deployment, or guaranteed support commitment is approved by this packet.",
+        "Do not imply a hosted review, site-world package, package access, or capture evidence already exists for this target.",
+        "Recipient-backed evidence proves the address source only; it does not prove buyer intent or permission to make unsupported claims."
+      ],
       "reviewFlags": [
         "capture ask only; no hosted-review claim",
         "artifact is a draft opportunity brief",
@@ -560,10 +681,17 @@
       "artifactPath": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
       "hostedReviewPath": null,
       "siteWorldId": null,
+      "proofSource": "Draft opportunity brief at ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md. No hosted review or site-world package exists for this target yet. Use only to ask which site/workflow should be captured first.",
       "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
       "cta": "Name the site or workflow worth capturing first.",
       "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
       "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
+      "blockedClaims": [
+        "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
+        "No pricing, legal, privacy, rights, permission, readiness, deployment, or guaranteed support commitment is approved by this packet.",
+        "Do not imply a hosted review, site-world package, package access, or capture evidence already exists for this target.",
+        "Recipient-backed evidence proves the address source only; it does not prove buyer intent or permission to make unsupported claims."
+      ],
       "reviewFlags": [
         "capture ask only; no hosted-review claim",
         "artifact is a draft opportunity brief"
@@ -590,10 +718,17 @@
       "artifactPath": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
       "hostedReviewPath": null,
       "siteWorldId": null,
+      "proofSource": "Draft opportunity brief at ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md. No hosted review or site-world package exists for this target yet. Use only to ask which site/workflow should be captured first.",
       "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
       "cta": "Name the site or workflow worth capturing first.",
       "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
       "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
+      "blockedClaims": [
+        "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
+        "No pricing, legal, privacy, rights, permission, readiness, deployment, or guaranteed support commitment is approved by this packet.",
+        "Do not imply a hosted review, site-world package, package access, or capture evidence already exists for this target.",
+        "Recipient-backed evidence proves the address source only; it does not prove buyer intent or permission to make unsupported claims."
+      ],
       "reviewFlags": [
         "capture ask only; no hosted-review claim",
         "artifact is a draft opportunity brief",
@@ -621,10 +756,17 @@
       "artifactPath": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
       "hostedReviewPath": null,
       "siteWorldId": null,
+      "proofSource": "Draft opportunity brief at ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md. No hosted review or site-world package exists for this target yet. Use only to ask which site/workflow should be captured first.",
       "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
       "cta": "Name the site or workflow worth capturing first.",
       "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
       "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
+      "blockedClaims": [
+        "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
+        "No pricing, legal, privacy, rights, permission, readiness, deployment, or guaranteed support commitment is approved by this packet.",
+        "Do not imply a hosted review, site-world package, package access, or capture evidence already exists for this target.",
+        "Recipient-backed evidence proves the address source only; it does not prove buyer intent or permission to make unsupported claims."
+      ],
       "reviewFlags": [
         "capture ask only; no hosted-review claim",
         "artifact is a draft opportunity brief",
@@ -652,10 +794,17 @@
       "artifactPath": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
       "hostedReviewPath": null,
       "siteWorldId": null,
+      "proofSource": "Draft opportunity brief at ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md. No hosted review or site-world package exists for this target yet. Use only to ask which site/workflow should be captured first.",
       "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
       "cta": "Name the site or workflow worth capturing first.",
       "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
       "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
+      "blockedClaims": [
+        "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
+        "No pricing, legal, privacy, rights, permission, readiness, deployment, or guaranteed support commitment is approved by this packet.",
+        "Do not imply a hosted review, site-world package, package access, or capture evidence already exists for this target.",
+        "Recipient-backed evidence proves the address source only; it does not prove buyer intent or permission to make unsupported claims."
+      ],
       "reviewFlags": [
         "capture ask only; no hosted-review claim",
         "artifact is a draft opportunity brief",
@@ -683,10 +832,17 @@
       "artifactPath": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
       "hostedReviewPath": null,
       "siteWorldId": null,
+      "proofSource": "Draft opportunity brief at ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md. No hosted review or site-world package exists for this target yet. Use only to ask which site/workflow should be captured first.",
       "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
       "cta": "Name the site or workflow worth capturing first.",
       "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
       "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
+      "blockedClaims": [
+        "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
+        "No pricing, legal, privacy, rights, permission, readiness, deployment, or guaranteed support commitment is approved by this packet.",
+        "Do not imply a hosted review, site-world package, package access, or capture evidence already exists for this target.",
+        "Recipient-backed evidence proves the address source only; it does not prove buyer intent or permission to make unsupported claims."
+      ],
       "reviewFlags": [
         "capture ask only; no hosted-review claim",
         "artifact is a draft opportunity brief",
@@ -714,10 +870,17 @@
       "artifactPath": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
       "hostedReviewPath": null,
       "siteWorldId": null,
+      "proofSource": "Draft opportunity brief at ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md. No hosted review or site-world package exists for this target yet. Use only to ask which site/workflow should be captured first.",
       "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
       "cta": "Name the site or workflow worth capturing first.",
       "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
       "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
+      "blockedClaims": [
+        "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
+        "No pricing, legal, privacy, rights, permission, readiness, deployment, or guaranteed support commitment is approved by this packet.",
+        "Do not imply a hosted review, site-world package, package access, or capture evidence already exists for this target.",
+        "Recipient-backed evidence proves the address source only; it does not prove buyer intent or permission to make unsupported claims."
+      ],
       "reviewFlags": [
         "capture ask only; no hosted-review claim",
         "artifact is a draft opportunity brief",
@@ -745,10 +908,17 @@
       "artifactPath": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
       "hostedReviewPath": null,
       "siteWorldId": null,
+      "proofSource": "Draft opportunity brief at ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md. No hosted review or site-world package exists for this target yet. Use only to ask which site/workflow should be captured first.",
       "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
       "cta": "Name the site or workflow worth capturing first.",
       "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
       "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
+      "blockedClaims": [
+        "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
+        "No pricing, legal, privacy, rights, permission, readiness, deployment, or guaranteed support commitment is approved by this packet.",
+        "Do not imply a hosted review, site-world package, package access, or capture evidence already exists for this target.",
+        "Recipient-backed evidence proves the address source only; it does not prove buyer intent or permission to make unsupported claims."
+      ],
       "reviewFlags": [
         "capture ask only; no hosted-review claim",
         "artifact is a draft opportunity brief",
@@ -776,10 +946,17 @@
       "artifactPath": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
       "hostedReviewPath": null,
       "siteWorldId": null,
+      "proofSource": "Draft opportunity brief at ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md. No hosted review or site-world package exists for this target yet. Use only to ask which site/workflow should be captured first.",
       "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
       "cta": "Name the site or workflow worth capturing first.",
       "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
       "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
+      "blockedClaims": [
+        "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
+        "No pricing, legal, privacy, rights, permission, readiness, deployment, or guaranteed support commitment is approved by this packet.",
+        "Do not imply a hosted review, site-world package, package access, or capture evidence already exists for this target.",
+        "Recipient-backed evidence proves the address source only; it does not prove buyer intent or permission to make unsupported claims."
+      ],
       "reviewFlags": [
         "capture ask only; no hosted-review claim",
         "artifact is a draft opportunity brief",
@@ -807,10 +984,17 @@
       "artifactPath": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
       "hostedReviewPath": null,
       "siteWorldId": null,
+      "proofSource": "Draft opportunity brief at ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md. No hosted review or site-world package exists for this target yet. Use only to ask which site/workflow should be captured first.",
       "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
       "cta": "Name the site or workflow worth capturing first.",
       "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
       "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
+      "blockedClaims": [
+        "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
+        "No pricing, legal, privacy, rights, permission, readiness, deployment, or guaranteed support commitment is approved by this packet.",
+        "Do not imply a hosted review, site-world package, package access, or capture evidence already exists for this target.",
+        "Recipient-backed evidence proves the address source only; it does not prove buyer intent or permission to make unsupported claims."
+      ],
       "reviewFlags": [
         "capture ask only; no hosted-review claim",
         "artifact is a draft opportunity brief",
@@ -838,10 +1022,17 @@
       "artifactPath": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
       "hostedReviewPath": null,
       "siteWorldId": null,
+      "proofSource": "Draft opportunity brief at ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md. No hosted review or site-world package exists for this target yet. Use only to ask which site/workflow should be captured first.",
       "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
       "cta": "Name the site or workflow worth capturing first.",
       "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
       "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
+      "blockedClaims": [
+        "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
+        "No pricing, legal, privacy, rights, permission, readiness, deployment, or guaranteed support commitment is approved by this packet.",
+        "Do not imply a hosted review, site-world package, package access, or capture evidence already exists for this target.",
+        "Recipient-backed evidence proves the address source only; it does not prove buyer intent or permission to make unsupported claims."
+      ],
       "reviewFlags": [
         "capture ask only; no hosted-review claim",
         "artifact is a draft opportunity brief",
@@ -869,10 +1060,17 @@
       "artifactPath": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
       "hostedReviewPath": null,
       "siteWorldId": null,
+      "proofSource": "Draft opportunity brief at ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md. No hosted review or site-world package exists for this target yet. Use only to ask which site/workflow should be captured first.",
       "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
       "cta": "Name the site or workflow worth capturing first.",
       "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
       "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
+      "blockedClaims": [
+        "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
+        "No pricing, legal, privacy, rights, permission, readiness, deployment, or guaranteed support commitment is approved by this packet.",
+        "Do not imply a hosted review, site-world package, package access, or capture evidence already exists for this target.",
+        "Recipient-backed evidence proves the address source only; it does not prove buyer intent or permission to make unsupported claims."
+      ],
       "reviewFlags": [
         "capture ask only; no hosted-review claim",
         "artifact is a draft opportunity brief",
@@ -900,10 +1098,17 @@
       "artifactPath": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
       "hostedReviewPath": null,
       "siteWorldId": null,
+      "proofSource": "Draft opportunity brief at ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md. No hosted review or site-world package exists for this target yet. Use only to ask which site/workflow should be captured first.",
       "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
       "cta": "Name the site or workflow worth capturing first.",
       "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
       "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
+      "blockedClaims": [
+        "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
+        "No pricing, legal, privacy, rights, permission, readiness, deployment, or guaranteed support commitment is approved by this packet.",
+        "Do not imply a hosted review, site-world package, package access, or capture evidence already exists for this target.",
+        "Recipient-backed evidence proves the address source only; it does not prove buyer intent or permission to make unsupported claims."
+      ],
       "reviewFlags": [
         "capture ask only; no hosted-review claim",
         "artifact is a draft opportunity brief",
@@ -931,10 +1136,17 @@
       "artifactPath": "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
       "hostedReviewPath": null,
       "siteWorldId": null,
+      "proofSource": "Draft opportunity brief at ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md. No hosted review or site-world package exists for this target yet. Use only to ask which site/workflow should be captured first.",
       "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
       "cta": "Name the site or workflow worth capturing first.",
       "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
       "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
+      "blockedClaims": [
+        "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
+        "No pricing, legal, privacy, rights, permission, readiness, deployment, or guaranteed support commitment is approved by this packet.",
+        "Do not imply a hosted review, site-world package, package access, or capture evidence already exists for this target.",
+        "Recipient-backed evidence proves the address source only; it does not prove buyer intent or permission to make unsupported claims."
+      ],
       "reviewFlags": [
         "capture ask only; no hosted-review claim",
         "artifact is a draft opportunity brief",

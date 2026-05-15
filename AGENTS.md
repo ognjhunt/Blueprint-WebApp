@@ -36,15 +36,16 @@ Agents also follow the nearest nested `AGENTS.md` when working under `client/`, 
 - Buyer, licensing, hosted-session, and ops flows should stay anchored to real capture provenance.
 - Qualification and readiness surfaces are support layers, not the center of the product.
 
-## Public Display Ready Standard
+## Public Launch Ready Standard
 
-Public Display Ready and Operational Launch Ready are separate standards.
+Public Launch Ready and Operational Launch Ready are separate standards. Public Launch Ready is the default public posture for Blueprint routes.
 
-- **Public Display Ready** means public brand, product, buyer, pricing, proof, contact, and hiring surfaces may look complete, confident, present-tense, and launch-quality. Incomplete backend, ops, provider, city-launch, payment, payout, hosted-session, or support-loop proof is not by itself a blocker to polished website/app presentation.
+- **Public Launch Ready** means public brand, product, buyer, pricing, proof, contact, capturer, operator, investor, and hiring surfaces may look complete, premium, confident, present-tense, and service-ready. Incomplete backend, ops, provider, city-launch, payment, payout, hosted-session, or support-loop proof is not by itself a blocker to polished website/app presentation.
 - **Operational Launch Ready** means a specific live claim is backed by current proof from the system that owns it: Stripe for payment state, provider/runtime artifacts for execution, capture/provenance records for supply, rights/privacy records for clearance, Paperclip/Firestore/Render/Redis for the live operational loop, and city-launch artifacts for city activation.
 - Before weakening public copy, ask: **does this sentence invent a specific unsupported fact?** Do not ask only whether Blueprint is operationally launched enough to sound polished.
 - Allowed public display language includes product category, intended workflow, buyer value, request paths, sample/demo framing, launch-quality UI labels, and present-tense descriptions of what Blueprint sells or routes.
-- Block or qualify only the specific unsupported claim: live availability, real customers, cleared rights, active capture supply, payment or payout success, provider execution, city coverage, hosted-session fulfillment, package access already open, or guaranteed support/launch outcomes.
+- Do not add broad apology, "not launched yet", "coming soon", "not ready", "we are still building", "future service", "placeholder", "demo only", or "operationally not ready" language just because operations remain request-specific.
+- Block or qualify only the specific unsupported claim: real customers, real traction metrics, cleared rights, completed provider execution, completed payments, live payouts, active city coverage, hosted-session fulfillment, package access already open, or guaranteed support/launch outcomes.
 - Put caveats where they help the buyer inspect proof, rights, access, or fulfillment detail. Do not lead public first screens with broad apology language just because operations still require request-specific proof.
 
 ## Repo Map

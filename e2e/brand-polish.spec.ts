@@ -8,6 +8,7 @@ import {
   buildNotionLayoutChecklistMarkdown,
   normalizeCheckableInternalHref,
   normalizeWhitespace,
+  publicLaunchPosturePatterns,
   publicQaRoutes,
   qaOutputRoot,
   qaViewports,
@@ -38,6 +39,7 @@ type PageMetrics = {
   unnamedInteractive: string[];
   unlabeledControls: string[];
   placeholderHits: string[];
+  publicPostureHits: string[];
 };
 
 type VisibleAnchor = {
@@ -278,6 +280,14 @@ async function auditRouteViewport(
       routeKey,
       context.issues,
     );
+    addCheck(
+      checks,
+      metrics.publicPostureHits.length === 0,
+      "Public launch posture",
+      metrics.publicPostureHits.join(", ") || "No broad prelaunch or apology language found",
+      routeKey,
+      context.issues,
+    );
 
     await auditRequiredCtas(page, route, routeKey, checks, context.issues);
 
@@ -334,7 +344,7 @@ async function auditRouteViewport(
 }
 
 async function collectPageMetrics(page: Page): Promise<PageMetrics> {
-  return page.evaluate(() => {
+  return page.evaluate((posturePatterns) => {
     const normalize = (value: string) => value.replace(/\s+/g, " ").trim();
     const isVisible = (element: Element) => {
       const htmlElement = element as HTMLElement;
@@ -402,6 +412,9 @@ async function collectPageMetrics(page: Page): Promise<PageMetrics> {
     const placeholderHits = placeholderPatterns
       .filter((entry) => entry.pattern.test(bodyText))
       .map((entry) => entry.label);
+    const publicPostureHits = posturePatterns
+      .filter((entry) => new RegExp(entry.pattern, entry.flags).test(bodyText))
+      .map((entry) => entry.label);
 
     const hasFrameworkOverlay = Boolean(
       document.querySelector("vite-error-overlay, nextjs-portal, webpack-dev-server-client-overlay") ||
@@ -423,8 +436,9 @@ async function collectPageMetrics(page: Page): Promise<PageMetrics> {
       unnamedInteractive,
       unlabeledControls,
       placeholderHits,
+      publicPostureHits,
     };
-  });
+  }, publicLaunchPosturePatterns);
 }
 
 async function auditRequiredCtas(

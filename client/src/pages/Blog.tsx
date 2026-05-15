@@ -63,6 +63,24 @@ export default function Blog() {
               <h1 className="font-editorial mt-6 max-w-[26rem] text-[4rem] leading-[0.88] tracking-[-0.07em] text-slate-950 sm:text-[5.2rem]">
                 Notes on exact-site world models.
               </h1>
+              <p className="mt-6 max-w-[28rem] text-base leading-8 text-slate-700">
+                Product updates from the capture-backed catalog, hosted review path, and buyer proof workflow.
+              </p>
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                <a
+                  href="/world-models"
+                  className="inline-flex w-full items-center justify-center bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 sm:w-auto"
+                >
+                  Explore world models
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </a>
+                <a
+                  href="/proof"
+                  className="inline-flex w-full items-center justify-center border border-black/10 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100 sm:w-auto"
+                >
+                  See proof
+                </a>
+              </div>
               <div className="mt-8 h-1 w-24 bg-slate-950" />
             </div>
             <MonochromeMedia

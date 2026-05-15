@@ -9,6 +9,13 @@ export type RequiredCta = {
   hrefStartsWith: string;
 };
 
+export type PublicLaunchPosturePattern = {
+  label: string;
+  pattern: string;
+  flags: string;
+  guidance: string;
+};
+
 export type PublicQaRoute = {
   label: string;
   path: string;
@@ -44,6 +51,87 @@ export const qaOutputRoot = "output/qa/brand-polish/latest";
 export const qaViewports: QaViewport[] = [
   { name: "desktop", width: 1440, height: 1000 },
   { name: "mobile", width: 390, height: 844 },
+];
+
+export const publicLaunchPosturePatterns: PublicLaunchPosturePattern[] = [
+  {
+    label: "not launched",
+    pattern: "\\bnot launched(?: yet)?\\b",
+    flags: "i",
+    guidance: "Use request/access review language instead of broad launch-status apology copy.",
+  },
+  {
+    label: "coming soon",
+    pattern: "\\bcoming soon\\b",
+    flags: "i",
+    guidance: "Route users to the request path that exists today.",
+  },
+  {
+    label: "not ready",
+    pattern: "\\bnot ready\\b",
+    flags: "i",
+    guidance: "Qualify the exact missing fact instead of weakening the whole service posture.",
+  },
+  {
+    label: "still building",
+    pattern: "\\bwe (?:are|'re) still building\\b|\\bstill being built\\b",
+    flags: "i",
+    guidance: "Public routes should read like a live service with request review gates.",
+  },
+  {
+    label: "future service",
+    pattern: "\\bfuture service\\b",
+    flags: "i",
+    guidance: "Describe the present service and route request-specific proof checks into details.",
+  },
+  {
+    label: "placeholder",
+    pattern: "\\bplaceholder\\b",
+    flags: "i",
+    guidance: "Use sample, representative, planned, or request-gated labels instead.",
+  },
+  {
+    label: "demo only",
+    pattern: "\\bdemo only\\b|\\bonly a demo\\b",
+    flags: "i",
+    guidance: "Use labeled sample language in proof/detail areas.",
+  },
+  {
+    label: "operationally not ready",
+    pattern: "\\boperationally not ready\\b",
+    flags: "i",
+    guidance: "Separate Public Launch Ready from Operational Launch Ready.",
+  },
+  {
+    label: "backend incomplete",
+    pattern: "\\bbackend (?:is )?(?:incomplete|missing|not ready)\\b|\\bunavailable because (?:the )?(?:backend|payment|provider|city|payout|ops)",
+    flags: "i",
+    guidance: "Do not expose internal lane incompleteness as first-screen public posture.",
+  },
+  {
+    label: "cannot claim this yet",
+    pattern: "\\b(?:we\\s+)?(?:can(?:not|'t)|cannot) claim (?:this|that|it) yet\\b",
+    flags: "i",
+    guidance: "Block or qualify the specific unsupported claim only.",
+  },
+  {
+    label: "not live yet",
+    pattern: "\\bnot live yet\\b",
+    flags: "i",
+    guidance: "Use availability-confirmed-per-request language.",
+  },
+  {
+    label: "not production ready",
+    pattern: "\\bnot production[- ]ready\\b",
+    flags: "i",
+    guidance: "Name the exact unsupported production claim instead.",
+  },
+  {
+    label: "prelaunch",
+    pattern: "\\bpre[- ]launch\\b",
+    flags: "i",
+    guidance: "Use Public Launch Ready posture on public routes.",
+  },
 ];
 
 export const publicQaRoutes: PublicQaRoute[] = [
@@ -172,6 +260,12 @@ export function artifactSlugForRoute(routePath: string, viewportName: string): s
 
 export function normalizeWhitespace(value: string): string {
   return value.replace(/\s+/g, " ").trim();
+}
+
+export function collectPublicLaunchPostureHits(text: string): string[] {
+  return publicLaunchPosturePatterns
+    .filter((entry) => new RegExp(entry.pattern, entry.flags).test(text))
+    .map((entry) => entry.label);
 }
 
 export function normalizeCheckableInternalHref(href: string, baseUrl: string): string | null {
@@ -332,6 +426,7 @@ ${linkRows}
 - Mobile layout: horizontal overflow guard.
 - Asset sanity: visible image decode/natural-size guard.
 - CTA presence and href contract for primary route actions.
+- Public Launch Ready posture guard for broad prelaunch, apology, placeholder, and backend-incomplete copy on public routes.
 - Broken internal link check over visible same-origin links.
 - Console errors after filtering known local dev-server, Firebase persistence, and React Helmet dev warnings.
 `;

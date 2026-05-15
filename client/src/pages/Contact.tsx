@@ -174,6 +174,10 @@ export default function Contact() {
   const siteName = cleanParam(searchParams.get("siteName"));
   const siteWorldId = cleanParam(searchParams.get("siteWorldId"));
   const siteLocation = cleanParam(searchParams.get("siteLocation"));
+  const targetSiteType =
+    cleanParam(searchParams.get("targetSiteType")) ||
+    cleanParam(searchParams.get("siteType")) ||
+    cleanParam(searchParams.get("siteClass"));
   const taskStatement = cleanParam(searchParams.get("taskStatement"));
   const targetRobotTeam = cleanParam(searchParams.get("targetRobotTeam"));
   const scenario = cleanParam(searchParams.get("scenario"));
@@ -258,6 +262,7 @@ export default function Contact() {
     ["Site", siteName],
     ["Listing", siteWorldId],
     ["Location", siteLocation],
+    ["Site class", targetSiteType],
     ["Robot", targetRobotTeam],
     ["Task", taskStatement],
     ["Scenario", scenario],

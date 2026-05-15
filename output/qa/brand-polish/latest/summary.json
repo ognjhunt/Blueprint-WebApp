@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-15T01:52:57.523Z",
+  "generatedAt": "2026-05-15T14:39:05.984Z",
   "baseUrl": "http://127.0.0.1:4173",
   "routeResults": [
     {
@@ -17,7 +17,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "7160 visible text characters"
+          "detail": "6930 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -83,6 +83,11 @@
           "name": "No placeholder residue",
           "status": "pass",
           "detail": "No placeholder markers found"
+        },
+        {
+          "name": "Public launch posture",
+          "status": "pass",
+          "detail": "No broad prelaunch or apology language found"
         },
         {
           "name": "CTA: Request world model",
@@ -121,7 +126,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "6926 visible text characters"
+          "detail": "6697 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -189,9 +194,14 @@
           "detail": "No placeholder markers found"
         },
         {
+          "name": "Public launch posture",
+          "status": "pass",
+          "detail": "No broad prelaunch or apology language found"
+        },
+        {
           "name": "CTA: Request world model",
           "status": "pass",
-          "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-hero-primary&utm_source=homepage&utm_medium=website&utm_campaign=home_robot_team_conversion_v1&utm_content=hosted_review%3Ahome-hero-primary"
+          "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-hero-primary&utm_source=homepage&utm_medium=website&utm_campaign=home_robot_team_conversion_v1&utm_content=proof_pack%3Ahome-hero-primary"
         },
         {
           "name": "CTA: Browse world models",
@@ -225,7 +235,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "4353 visible text characters"
+          "detail": "4348 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -291,6 +301,11 @@
           "name": "No placeholder residue",
           "status": "pass",
           "detail": "No placeholder markers found"
+        },
+        {
+          "name": "Public launch posture",
+          "status": "pass",
+          "detail": "No broad prelaunch or apology language found"
         },
         {
           "name": "CTA: Book hosted review",
@@ -329,7 +344,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "3807 visible text characters"
+          "detail": "3802 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -397,6 +412,11 @@
           "detail": "No placeholder markers found"
         },
         {
+          "name": "Public launch posture",
+          "status": "pass",
+          "detail": "No broad prelaunch or apology language found"
+        },
+        {
           "name": "CTA: Book hosted review",
           "status": "pass",
           "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=product"
@@ -433,7 +453,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "24246 visible text characters"
+          "detail": "24248 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -499,6 +519,11 @@
           "name": "No placeholder residue",
           "status": "pass",
           "detail": "No placeholder markers found"
+        },
+        {
+          "name": "Public launch posture",
+          "status": "pass",
+          "detail": "No broad prelaunch or apology language found"
         },
         {
           "name": "CTA: Request world model",
@@ -537,7 +562,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "24144 visible text characters"
+          "detail": "24146 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -603,6 +628,11 @@
           "name": "No placeholder residue",
           "status": "pass",
           "detail": "No placeholder markers found"
+        },
+        {
+          "name": "Public launch posture",
+          "status": "pass",
+          "detail": "No broad prelaunch or apology language found"
         },
         {
           "name": "CTA: Request world model",
@@ -709,6 +739,11 @@
           "detail": "No placeholder markers found"
         },
         {
+          "name": "Public launch posture",
+          "status": "pass",
+          "detail": "No broad prelaunch or apology language found"
+        },
+        {
           "name": "CTA: Request world model",
           "status": "pass",
           "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=header"
@@ -811,6 +846,11 @@
           "name": "No placeholder residue",
           "status": "pass",
           "detail": "No placeholder markers found"
+        },
+        {
+          "name": "Public launch posture",
+          "status": "pass",
+          "detail": "No broad prelaunch or apology language found"
         },
         {
           "name": "CTA: Request world model",
@@ -917,6 +957,11 @@
           "detail": "No placeholder markers found"
         },
         {
+          "name": "Public launch posture",
+          "status": "pass",
+          "detail": "No broad prelaunch or apology language found"
+        },
+        {
           "name": "CTA: Request world model",
           "status": "pass",
           "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=header"
@@ -1021,6 +1066,11 @@
           "detail": "No placeholder markers found"
         },
         {
+          "name": "Public launch posture",
+          "status": "pass",
+          "detail": "No broad prelaunch or apology language found"
+        },
+        {
           "name": "CTA: Request world model",
           "status": "pass",
           "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=proof-packet&source=proof-hero"
@@ -1057,7 +1107,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "3218 visible text characters"
+          "detail": "3325 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -1123,6 +1173,11 @@
           "name": "No placeholder residue",
           "status": "pass",
           "detail": "No placeholder markers found"
+        },
+        {
+          "name": "Public launch posture",
+          "status": "pass",
+          "detail": "No broad prelaunch or apology language found"
         },
         {
           "name": "CTA: Check capture access",
@@ -1161,7 +1216,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "3155 visible text characters"
+          "detail": "3000 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -1227,6 +1282,11 @@
           "name": "No placeholder residue",
           "status": "pass",
           "detail": "No placeholder markers found"
+        },
+        {
+          "name": "Public launch posture",
+          "status": "pass",
+          "detail": "No broad prelaunch or apology language found"
         },
         {
           "name": "CTA: Check capture access",
@@ -1333,6 +1393,11 @@
           "detail": "No placeholder markers found"
         },
         {
+          "name": "Public launch posture",
+          "status": "pass",
+          "detail": "No broad prelaunch or apology language found"
+        },
+        {
           "name": "CTA: Request world model",
           "status": "pass",
           "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=header, #contact-intake"
@@ -1437,6 +1502,11 @@
           "detail": "No placeholder markers found"
         },
         {
+          "name": "Public launch posture",
+          "status": "pass",
+          "detail": "No broad prelaunch or apology language found"
+        },
+        {
           "name": "CTA: Request world model",
           "status": "pass",
           "detail": "hrefs=#contact-intake"
@@ -1473,7 +1543,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "7790 visible text characters"
+          "detail": "7786 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -1539,6 +1609,11 @@
           "name": "No placeholder residue",
           "status": "pass",
           "detail": "No placeholder markers found"
+        },
+        {
+          "name": "Public launch posture",
+          "status": "pass",
+          "detail": "No broad prelaunch or apology language found"
         },
         {
           "name": "CTA: View open roles",
@@ -1577,7 +1652,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "7727 visible text characters"
+          "detail": "7723 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -1645,6 +1720,11 @@
           "detail": "No placeholder markers found"
         },
         {
+          "name": "Public launch posture",
+          "status": "pass",
+          "detail": "No broad prelaunch or apology language found"
+        },
+        {
           "name": "CTA: View open roles",
           "status": "pass",
           "detail": "hrefs=#open-roles"
@@ -1681,7 +1761,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "3081 visible text characters"
+          "detail": "3137 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -1747,6 +1827,11 @@
           "name": "No placeholder residue",
           "status": "pass",
           "detail": "No placeholder markers found"
+        },
+        {
+          "name": "Public launch posture",
+          "status": "pass",
+          "detail": "No broad prelaunch or apology language found"
         },
         {
           "name": "CTA: Talk to Blueprint about a real site",
@@ -1780,7 +1865,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "3018 visible text characters"
+          "detail": "3074 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -1848,6 +1933,11 @@
           "detail": "No placeholder markers found"
         },
         {
+          "name": "Public launch posture",
+          "status": "pass",
+          "detail": "No broad prelaunch or apology language found"
+        },
+        {
           "name": "CTA: Talk to Blueprint about a real site",
           "status": "pass",
           "detail": "hrefs=/contact?persona=robot-team"
@@ -1879,7 +1969,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "2165 visible text characters"
+          "detail": "2204 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -1945,6 +2035,11 @@
           "name": "No placeholder residue",
           "status": "pass",
           "detail": "No placeholder markers found"
+        },
+        {
+          "name": "Public launch posture",
+          "status": "pass",
+          "detail": "No broad prelaunch or apology language found"
         },
         {
           "name": "CTA: Explore world models",
@@ -1983,7 +2078,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "2009 visible text characters"
+          "detail": "2048 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -2051,6 +2146,11 @@
           "detail": "No placeholder markers found"
         },
         {
+          "name": "Public launch posture",
+          "status": "pass",
+          "detail": "No broad prelaunch or apology language found"
+        },
+        {
           "name": "CTA: Explore world models",
           "status": "pass",
           "detail": "hrefs=/world-models"
@@ -2087,7 +2187,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "1625 visible text characters"
+          "detail": "1751 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -2153,6 +2253,11 @@
           "name": "No placeholder residue",
           "status": "pass",
           "detail": "No placeholder markers found"
+        },
+        {
+          "name": "Public launch posture",
+          "status": "pass",
+          "detail": "No broad prelaunch or apology language found"
         },
         {
           "name": "CTA: Explore world models",
@@ -2191,7 +2296,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "1562 visible text characters"
+          "detail": "1688 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -2257,6 +2362,11 @@
           "name": "No placeholder residue",
           "status": "pass",
           "detail": "No placeholder markers found"
+        },
+        {
+          "name": "Public launch posture",
+          "status": "pass",
+          "detail": "No broad prelaunch or apology language found"
         },
         {
           "name": "CTA: Explore world models",
@@ -2607,7 +2717,7 @@
       ]
     },
     {
-      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-bottom&utm_source=homepage&utm_medium=website&utm_campaign=home_robot_team_conversion_v1&utm_content=hosted_review%3Ahome-bottom",
+      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-bottom&utm_source=homepage&utm_medium=website&utm_campaign=home_robot_team_conversion_v1&utm_content=proof_pack%3Ahome-bottom",
       "status": "pass",
       "httpStatus": 200,
       "sourceRoutes": [
@@ -2615,7 +2725,7 @@
       ]
     },
     {
-      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-decision-path&utm_source=homepage&utm_medium=website&utm_campaign=home_robot_team_conversion_v1&utm_content=hosted_review%3Ahome-decision-path",
+      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-decision-path&utm_source=homepage&utm_medium=website&utm_campaign=home_robot_team_conversion_v1&utm_content=proof_pack%3Ahome-decision-path",
       "status": "pass",
       "httpStatus": 200,
       "sourceRoutes": [
@@ -2623,7 +2733,7 @@
       ]
     },
     {
-      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-hero-primary&utm_source=homepage&utm_medium=website&utm_campaign=home_robot_team_conversion_v1&utm_content=hosted_review%3Ahome-hero-primary",
+      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-hero-primary&utm_source=homepage&utm_medium=website&utm_campaign=home_robot_team_conversion_v1&utm_content=proof_pack%3Ahome-hero-primary",
       "status": "pass",
       "httpStatus": 200,
       "sourceRoutes": [

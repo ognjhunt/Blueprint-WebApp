@@ -49,6 +49,7 @@ The harness catches obvious local polish defects before screenshots reach a huma
 - mobile horizontal overflow checks;
 - visible image load checks;
 - placeholder residue checks for `TODO`, `Lorem ipsum`, `undefined`, `[object Object]`, and `NaN`.
+- Public Launch Ready posture checks that flag broad prelaunch, apology, placeholder, demo-only, backend-incomplete, and "not ready" language on public buyer routes while still allowing request-scoped proof, access, rights, and availability qualifiers.
 
 Known local dev-server, Firebase persistence, and React Helmet development warnings are filtered out of the console check so the report stays focused on route-level polish defects.
 

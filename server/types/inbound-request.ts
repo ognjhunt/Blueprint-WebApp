@@ -79,6 +79,25 @@ export interface PlaceLocationMetadata {
   postalCode?: string | null;
 }
 
+export type DisplayAdvisoryScanHint =
+  | "slow_down"
+  | "hold_steady"
+  | "turn_left"
+  | "turn_right"
+  | "capture_doorway"
+  | "scan_corners"
+  | "finish_when_complete";
+
+export interface DisplayCaptureMetadata {
+  targetName?: string | null;
+  addressLabel?: string | null;
+  requestId?: string | null;
+  captureJobId?: string | null;
+  captureBrief?: string | null;
+  privacyReminder?: string | null;
+  allowedAdvisoryHints?: DisplayAdvisoryScanHint[];
+}
+
 // Priority levels
 export type RequestPriority = "low" | "normal" | "high";
 
@@ -140,6 +159,7 @@ export interface RequestDetails {
   derivedScenePermission?: string | null;
   datasetLicensingPermission?: string | null;
   payoutEligibility?: string | null;
+  displayCaptureMetadata?: DisplayCaptureMetadata | null;
 }
 
 // Owner assignment
@@ -251,9 +271,13 @@ export interface StructuredIntakeSummary {
   calendar_disposition: CalendarDisposition;
   calendar_reasons: string[];
   missing_structured_fields: string[];
+  missing_structured_field_labels: string[];
   owner_lane: string;
   recommended_path: string;
   next_action: string;
+  routing_summary: string;
+  calendar_summary: string;
+  proof_path_summary: string;
   proof_ready_outcome: ProofReadyOutcome;
   proof_path_outcome: ProofPathOutcome;
   proof_readiness_score: number;
@@ -560,6 +584,16 @@ export interface PlaceLocationMetadataStored {
   postalCode?: EncryptableString | null;
 }
 
+export interface DisplayCaptureMetadataStored {
+  targetName?: EncryptableString | null;
+  addressLabel?: EncryptableString | null;
+  requestId?: string | null;
+  captureJobId?: string | null;
+  captureBrief?: EncryptableString | null;
+  privacyReminder?: EncryptableString | null;
+  allowedAdvisoryHints?: DisplayAdvisoryScanHint[];
+}
+
 export interface RequestDetailsStored {
   budgetBucket: BudgetBucket;
   requestedLanes: RequestedLane[];
@@ -584,6 +618,7 @@ export interface RequestDetailsStored {
   derivedScenePermission?: EncryptableString | null;
   datasetLicensingPermission?: EncryptableString | null;
   payoutEligibility?: EncryptableString | null;
+  displayCaptureMetadata?: DisplayCaptureMetadataStored | null;
 }
 
 export interface InboundRequestStored
@@ -622,6 +657,7 @@ export interface InboundRequestPayload {
   derivedScenePermission?: string;
   datasetLicensingPermission?: string;
   payoutEligibility?: string;
+  displayCaptureMetadata?: DisplayCaptureMetadata | null;
   details?: string;
   context: {
     sourcePageUrl: string;
@@ -744,6 +780,7 @@ export interface InboundRequestListItem {
     siteLocationMetadata?: PlaceLocationMetadata | null;
     taskStatement: string;
     proofPathPreference?: ProofPathPreference | null;
+    displayCaptureMetadata?: DisplayCaptureMetadata | null;
   };
   owner: RequestOwner;
   ops_automation?: OpsAutomationEnvelope;

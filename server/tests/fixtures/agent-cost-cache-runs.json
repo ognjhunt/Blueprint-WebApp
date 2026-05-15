@@ -1,0 +1,71 @@
+[
+  {
+    "id": "fixture-openrouter-nested",
+    "task_kind": "operator_thread",
+    "provider": "deepseek_chat",
+    "model": "deepseek/deepseek-v4-flash",
+    "artifacts": {
+      "route": "deepseek_via_openrouter",
+      "openrouter_provider": "DeepSeek",
+      "usage": {
+        "prompt_tokens": 1800,
+        "completion_tokens": 120,
+        "total_tokens": 1950,
+        "prompt_tokens_details": {
+          "cached_tokens": 300,
+          "cache_write_tokens": 80
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 30
+        },
+        "cost": 0.021
+      }
+    },
+    "created_at": "2026-05-15T12:00:00.000Z"
+  },
+  {
+    "id": "fixture-direct-cache",
+    "task_kind": "support_triage",
+    "provider": "deepseek_chat",
+    "model": "deepseek-v4-flash",
+    "artifacts": {
+      "route": "deepseek_official_direct",
+      "prompt_tokens": 900,
+      "completion_tokens": 90,
+      "prompt_cache_hit_tokens": 760,
+      "prompt_cache_miss_tokens": 140
+    },
+    "created_at": "2026-05-15T12:05:00.000Z"
+  },
+  {
+    "id": "fixture-no-change",
+    "task_kind": "operator_thread",
+    "provider": "deepseek_chat",
+    "model": "deepseek/deepseek-v4-flash",
+    "output": {
+      "movement": "no_change",
+      "summary": "No material movement since the last check."
+    },
+    "artifacts": {
+      "prompt_tokens": 2400,
+      "completion_tokens": 140,
+      "cached_tokens": 120,
+      "cost_usd": 0.032
+    },
+    "created_at": "2026-05-15T12:10:00.000Z"
+  },
+  {
+    "id": "fixture-duplicate-suppressed",
+    "task_kind": "operator_thread",
+    "provider": "deepseek_chat",
+    "model": "deepseek/deepseek-v4-flash",
+    "status": "cancelled",
+    "metadata": {
+      "runtime_suppression": {
+        "reason": "duplicate_active_run",
+        "active_run_id": "fixture-no-change"
+      }
+    },
+    "created_at": "2026-05-15T12:11:00.000Z"
+  }
+]

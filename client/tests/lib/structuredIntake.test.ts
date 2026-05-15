@@ -41,6 +41,33 @@ describe("structured intake proof readiness", () => {
     expect(decision.proofPathOutcome).toBe("scoped_follow_up");
     expect(decision.proofReadinessScore).toBeLessThan(100);
     expect(decision.missingProofReadyFields).toContain("robot_or_stack");
+    expect(decision.missingStructuredFields).toEqual(["robot_or_stack"]);
+    expect(decision.missingStructuredFieldLabels).toEqual(["Robot or stack"]);
+    expect(decision.calendarDisposition).toBe("not_needed_yet");
+    expect(decision.routingSummary).toMatch(/intake-agent/i);
+  });
+
+  it("routes adjacent-site robot-team proof requests without requiring exact-site fields", () => {
+    const decision = evaluateStructuredIntake({
+      buyerType: "robot_team",
+      requestedLanes: ["deeper_evaluation"],
+      budgetBucket: "$50K-$300K",
+      roleTitle: "Deployment engineer",
+      taskStatement: "Compare pallet putaway policies before field travel.",
+      targetRobotTeam: "AMR fleet",
+      targetSiteType: "Warehouse pallet putaway",
+      proofPathPreference: "adjacent_site_acceptable",
+    });
+
+    expect(decision.proofReadyOutcome).toBe("proof_ready_intake");
+    expect(decision.proofPathOutcome).toBe("adjacent_site");
+    expect(decision.missingStructuredFields).toEqual([]);
+    expect(decision.missingStructuredFieldLabels).toEqual([]);
+    expect(decision.ownerLane).toBe("buyer-solutions-agent");
+    expect(decision.recommendedPath).toBe("proof_ready_buyer_solutions_handoff");
+    expect(decision.calendarDisposition).toBe("eligible_optional");
+    expect(decision.proofPathSummary).toMatch(/adjacent-site proof path/i);
+    expect(decision.calendarSummary).toMatch(/secondary/i);
   });
 
   it("keeps site-operator records out of robot-team proof-ready scoring", () => {
@@ -85,5 +112,25 @@ describe("structured intake proof readiness", () => {
     expect(decision.missingSiteClaimFields).toEqual([]);
     expect(decision.filterTags).toContain("site_claim_access_boundary_ready");
     expect(decision.filterTags).toContain("access_boundary_defined");
+  });
+
+  it("keeps site-operator access claims in boundary clarification before human review", () => {
+    const decision = evaluateStructuredIntake({
+      buyerType: "site_operator",
+      requestedLanes: ["qualification"],
+      budgetBucket: "Undecided/Unsure",
+      siteName: "Brightleaf Books",
+      siteLocation: "Durham, NC",
+      taskStatement: "Claim this facility for escorted robot-team review.",
+      operatingConstraints: "Escorted weekday access, no capture before 9am.",
+    });
+
+    expect(decision.siteOperatorClaimOutcome).toBe("site_claim_needs_access_boundary");
+    expect(decision.accessBoundaryOutcome).toBe("needs_privacy_security_boundary");
+    expect(decision.requiresHumanReview).toBe(false);
+    expect(decision.calendarDisposition).toBe("eligible_optional");
+    expect(decision.recommendedPath).toBe("operator_access_boundary_review");
+    expect(decision.nextAction).toMatch(/privacy\/security/i);
+    expect(decision.calendarSummary).toMatch(/secondary/i);
   });
 });

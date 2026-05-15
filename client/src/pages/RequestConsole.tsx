@@ -31,6 +31,7 @@ import { privateGeneratedAssets } from "@/lib/privateGeneratedAssets";
 import type { InboundRequestDetail } from "@/types/inbound-request";
 import {
   BUYER_TYPE_LABELS,
+  DISPLAY_ADVISORY_SCAN_HINT_LABELS,
   OPPORTUNITY_STATE_LABELS,
   REQUEST_CAPTURE_POLICY_LABELS,
   REQUEST_CAPTURE_STATUS_LABELS,
@@ -280,9 +281,17 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
   const reviewDemandAttribution = getDemandAttributionFromContext(request.context);
   const readiness = request.deployment_readiness;
   const ops = request.ops;
+  const structuredIntake = request.structured_intake;
   const trustScore = readiness?.buyer_trust_score;
   const previewRun = readiness?.provider_run;
   const missingEvidence = readiness?.missing_evidence || [];
+  const missingStructuredLabels =
+    structuredIntake?.missing_structured_field_labels?.length
+      ? structuredIntake.missing_structured_field_labels
+      : structuredIntake?.missing_structured_fields?.map((field) => field.replaceAll("_", " ")) || [];
+  const displayMetadata = request.request.displayCaptureMetadata;
+  const displayHintLabels =
+    displayMetadata?.allowedAdvisoryHints?.map((hint) => DISPLAY_ADVISORY_SCAN_HINT_LABELS[hint]) || [];
 
   useEffect(() => {
     const trackingKey = `${request.requestId}:${section}`;
@@ -393,6 +402,22 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
                       <ValueChip label="Region" value={ops?.assigned_region_id || "Managed assignment"} />
                       <ValueChip label="Buyer type" value={BUYER_TYPE_LABELS[request.request.buyerType]} />
                       <ValueChip label="Quote status" value={REQUEST_QUOTE_STATUS_LABELS[ops?.quote_status || "not_started"]} />
+                      <ValueChip
+                        label="Intake route"
+                        value={structuredIntake?.routing_summary || structuredIntake?.owner_lane || "Structured intake review pending"}
+                      />
+                      <ValueChip
+                        label="Calendar"
+                        value={structuredIntake?.calendar_summary || "Calendar stays secondary until intake justifies it."}
+                      />
+                      <ValueChip
+                        label="Proof path"
+                        value={structuredIntake?.proof_path_summary || "Proof path is pending intake review."}
+                      />
+                      <ValueChip
+                        label="Missing intake fields"
+                        value={missingStructuredLabels.length ? missingStructuredLabels.join(", ") : "None blocking first review"}
+                      />
                       <div className="rounded-2xl border border-zinc-200 bg-[#faf6ef] p-4 md:col-span-2">
                         <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-400">Workflow context</p>
                         <p className="mt-2 text-sm leading-7 text-zinc-800">
@@ -514,6 +539,49 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
                   />
                 </SurfaceCard>
 
+                {displayMetadata ? (
+                  <SurfaceCard className="bg-white">
+                    <div className="flex items-center gap-3">
+                      <Radar className="h-5 w-5 text-black/45" />
+                      <div>
+                        <SurfaceMiniLabel>Display HUD Pilot</SurfaceMiniLabel>
+                        <p className="mt-1 text-sm text-black/55">
+                          Target labels and advisory scan prompts for the capture display.
+                        </p>
+                      </div>
+                    </div>
+                    <SurfaceStatusList
+                      className="mt-5"
+                      items={[
+                        { label: "Target", value: displayMetadata.targetName || request.request.siteName },
+                        { label: "Address", value: displayMetadata.addressLabel || request.request.siteLocation },
+                        { label: "Request ID", value: displayMetadata.requestId || request.requestId },
+                        { label: "Capture job", value: displayMetadata.captureJobId || "Pending" },
+                      ]}
+                    />
+                    {displayMetadata.captureBrief ? (
+                      <p className="mt-5 text-sm leading-7 text-black/60">
+                        {displayMetadata.captureBrief}
+                      </p>
+                    ) : null}
+                    {displayHintLabels.length ? (
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {displayHintLabels.map((label) => (
+                          <span
+                            key={label}
+                            className="rounded-full border border-black/10 bg-[#faf6ef] px-3 py-1 text-xs text-black/60"
+                          >
+                            {label}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
+                    <p className="mt-5 text-xs leading-6 text-black/50">
+                      {displayMetadata.privacyReminder || "Capture only approved areas."} HUD prompts are advisory UX telemetry, not geometry, pose, depth, coverage, rights, or qualification proof.
+                    </p>
+                  </SurfaceCard>
+                ) : null}
+
                 <SurfaceCard className="bg-[#111110] text-white">
                   <div className="flex items-center gap-3">
                     <Sparkles className="h-5 w-5 text-white/60" />
@@ -525,7 +593,9 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
                     </div>
                   </div>
                   <p className="mt-5 text-base leading-7 text-white/80">
-                    {ops?.next_step || "Blueprint will route the next step once the review record is stable."}
+                    {structuredIntake?.next_action ||
+                      ops?.next_step ||
+                      "Blueprint will route the next step once the review record is stable."}
                   </p>
                   {previewRun?.provider_name ? (
                     <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70">
@@ -539,9 +609,9 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
                   <div className="flex items-center gap-3">
                     <ShieldCheck className="h-5 w-5 text-black/45" />
                     <div>
-                      <SurfaceMiniLabel>Dry-Run Boundary</SurfaceMiniLabel>
+                      <SurfaceMiniLabel>Access Boundary</SurfaceMiniLabel>
                       <p className="mt-1 text-sm text-black/55">
-                        What this protected room can and cannot claim yet.
+                        What this protected room shows today.
                       </p>
                     </div>
                   </div>

@@ -1,4 +1,4 @@
-# Public Display Ready Claims Matrix
+# Public Launch Ready Claims Matrix
 
 Date: 2026-05-15
 
@@ -8,7 +8,9 @@ Purpose: separate polished public presentation from operational launch proof so 
 
 ## Core Rule
 
-Public brand and buyer surfaces should present Blueprint as a complete, launch-quality product experience. Incomplete backend, ops, provider, or city-launch state is not by itself a public-copy blocker. Only a specific unsupported claim about live availability, customers, rights, payments, payouts, provider execution, city coverage, package access, or hosted-session fulfillment must be blocked or qualified.
+Public Launch Ready is the default public posture for Blueprint routes. Public brand, buyer, investor, capturer, and operator surfaces should present Blueprint as a complete, premium, operational product experience with confident present-tense service language. Incomplete backend, ops, provider, payment, payout, city-launch, hosted-session, or support-loop proof is not by itself a public-copy blocker.
+
+Do not add broad apology, "not launched yet", "coming soon", "not ready", "we are still building", "future service", "placeholder", "demo only", or "operationally not ready" language just because operational launch proof is request-specific. Only a specific unsupported claim about real customers, real traction metrics, cleared rights, completed provider execution, completed payments, live payouts, active city coverage, guaranteed package access, guaranteed hosted-session fulfillment, or guaranteed launch outcomes must be blocked or qualified.
 
 Agents should ask:
 
@@ -18,11 +20,14 @@ They should not ask:
 
 > Are we operationally launched enough to say anything polished?
 
+Caveats belong in proof, detail, access-review, pricing-scope, or request-review areas. They should not weaken hero copy, route headings, primary CTAs, or first-screen service posture unless the first-screen sentence itself would otherwise invent a false fact.
+
 ## Definitions
 
 | Standard | Meaning | Proof Needed |
 |---|---|---|
-| Public Display Ready | The public site, app, buyer workflow, docs, and agent instructions can look complete, confident, and launch-quality. | Repo doctrine, current public route behavior, truthful sample/demo labels, and a claim-level review. |
+| Public Launch Ready | The default posture for public routes: the public site, app, buyer workflow, investor showcase, capturer path, and operator surfaces look complete, confident, premium, present-tense, and service-ready. | Repo doctrine, current public route behavior, truthful sample/demo labels, and a claim-level review. |
+| Public Display Ready | Older name for the same public-presentation standard. Treat it as Public Launch Ready unless a document is explicitly talking about visual display only. | Same as Public Launch Ready. |
 | Operational Launch Ready | A concrete live operational claim is true in the system that owns it. | Live or current artifacts for payments, payouts, providers, capture supply, rights, hosted sessions, city activation, fulfillment, and support loops. |
 
 ## Allowed Public Claims
@@ -37,6 +42,7 @@ These are allowed on public pages without requiring Operational Launch Ready pro
 | Request paths | Forms and CTAs can route buyers to package access, hosted review, capture access, proof packets, or pricing. | A request is not a payment, entitlement grant, provider job, or fulfillment start. |
 | Demo/sample framing | Public samples and representative packets can show product shape, UI quality, proof structure, and buyer workflow. | Label sample/demo material in proof/detail areas; do not present it as a customer result. |
 | Launch-quality UI language | The site may use polished present-tense interface labels and confident buyer language. | Do not add broad apology copy solely because operations are still request-specific. |
+| Request/access review | Request package access, book hosted review, submit site, apply for capture access, open request console. | Availability, rights, access, payment, payout, and fulfillment are confirmed per site/request. |
 
 ## Conditional Claims
 
@@ -78,4 +84,4 @@ This sentence is safe because it describes the public experience and the request
 
 ## Agent Closeout Rule
 
-When a page looks polished but an operational lane is not live, close the copy/design work as Public Display Ready only. Do not claim Operational Launch Ready unless live proof was verified in the owning systems.
+When a page looks polished but an operational lane is not live, close the copy/design work as Public Launch Ready / investor-showcase ready only. Do not claim Operational Launch Ready unless live proof was verified in the owning systems.

@@ -201,6 +201,15 @@ function getPersonaFromSearch(
   return "robot_team";
 }
 
+function getProofPathPreferenceFromSearch(value: string | null): ProofPathPreference | "" {
+  const normalized = value?.trim() ?? "";
+  return normalized === "exact_site_required" ||
+    normalized === "adjacent_site_acceptable" ||
+    normalized === "need_guidance"
+    ? normalized
+    : "";
+}
+
 const labelClassName = "mb-1.5 block text-sm font-semibold text-slate-800";
 const inputClassName =
   "w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-950 focus:ring-2 focus:ring-slate-950/10";
@@ -272,9 +281,36 @@ export function ContactForm() {
   const analyticsDemandAttribution = hasDemandAttribution(searchDemandAttribution)
     ? searchDemandAttribution
     : undefined;
+  const prefills = useMemo(() => {
+    const scenario = searchParams.get("scenario")?.trim() ?? "";
+    const requestedOutputs = searchParams.get("requestedOutputs")?.trim() ?? "";
+    const routeDetails = [
+      scenario ? `Scenario: ${scenario}` : "",
+      requestedOutputs ? `Requested outputs: ${requestedOutputs}` : "",
+    ].filter(Boolean).join("\n");
+
+    return {
+      siteName: searchParams.get("siteName")?.trim() ?? "",
+      siteLocation: searchParams.get("siteLocation")?.trim() ?? "",
+      taskStatement: searchParams.get("taskStatement")?.trim() ?? "",
+      targetRobotTeam: searchParams.get("targetRobotTeam")?.trim() ?? "",
+      targetSiteType:
+        searchParams.get("targetSiteType")?.trim()
+        || searchParams.get("siteType")?.trim()
+        || searchParams.get("siteClass")?.trim()
+        || "",
+      proofPathPreference: getProofPathPreferenceFromSearch(
+        searchParams.get("proofPathPreference"),
+      ),
+      routeDetails,
+    };
+  }, [searchParams]);
   const hasPrefilledOptionalContext = Boolean(
-    searchParams.get("siteLocation")?.trim()
-      || searchParams.get("targetRobotTeam")?.trim(),
+    prefills.siteLocation
+      || prefills.targetRobotTeam
+      || prefills.targetSiteType
+      || prefills.routeDetails
+      || prefills.proofPathPreference,
   );
   const [showOptionalDetails, setShowOptionalDetails] = useState(
     hostedMode || hasPrefilledOptionalContext,
@@ -300,7 +336,7 @@ export function ContactForm() {
   const [targetRobotTeam, setTargetRobotTeam] = useState("");
   const [budgetBucket, setBudgetBucket] = useState<BudgetBucket>("Undecided/Unsure");
   const [proofPathPreference, setProofPathPreference] = useState<ProofPathPreference>(
-    getDefaultProofPathPreference(defaultCommercialRequestPath),
+    prefills.proofPathPreference || getDefaultProofPathPreference(defaultCommercialRequestPath),
   );
   const [operatingConstraints, setOperatingConstraints] = useState("");
   const [captureRights, setCaptureRights] = useState("");
@@ -310,20 +346,12 @@ export function ContactForm() {
   const [detailsMessage, setDetailsMessage] = useState("");
   const [honeypot, setHoneypot] = useState("");
 
-  const prefills = useMemo(
-    () => ({
-      siteName: searchParams.get("siteName")?.trim() ?? "",
-      siteLocation: searchParams.get("siteLocation")?.trim() ?? "",
-      taskStatement: searchParams.get("taskStatement")?.trim() ?? "",
-      targetRobotTeam: searchParams.get("targetRobotTeam")?.trim() ?? "",
-    }),
-    [searchParams],
-  );
-
   useEffect(() => {
     setCommercialRequestPath(defaultCommercialRequestPath);
-    setProofPathPreference(getDefaultProofPathPreference(defaultCommercialRequestPath));
-  }, [defaultCommercialRequestPath]);
+    setProofPathPreference(
+      prefills.proofPathPreference || getDefaultProofPathPreference(defaultCommercialRequestPath),
+    );
+  }, [defaultCommercialRequestPath, prefills.proofPathPreference]);
 
   useEffect(() => {
     if (
@@ -365,6 +393,12 @@ export function ContactForm() {
     if (!targetRobotTeam && (prefills.targetRobotTeam || userData?.targetRobotTeam)) {
       setTargetRobotTeam(prefills.targetRobotTeam || userData?.targetRobotTeam || "");
     }
+    if (!targetSiteType && (prefills.targetSiteType || userData?.targetSiteType)) {
+      setTargetSiteType(prefills.targetSiteType || userData?.targetSiteType || "");
+    }
+    if (!detailsMessage && prefills.routeDetails) {
+      setDetailsMessage(prefills.routeDetails);
+    }
     if (!operatingConstraints && userData?.operatingConstraints) {
       setOperatingConstraints(userData.operatingConstraints);
     }
@@ -386,8 +420,10 @@ export function ContactForm() {
     persona,
     prefills,
     privacySecurityConstraints,
+    detailsMessage,
     siteLocation,
     siteName,
+    targetSiteType,
     targetRobotTeam,
     taskStatement,
     userData,
@@ -461,7 +497,9 @@ export function ContactForm() {
           : {}),
       });
       setStatus("error");
-      setMessage(`Please fill in: ${missingFields.join(", ")}`);
+      setMessage(
+        `Please add: ${missingFields.join(", ")}. This keeps the request routeable before any call or human review.`,
+      );
       return;
     }
 

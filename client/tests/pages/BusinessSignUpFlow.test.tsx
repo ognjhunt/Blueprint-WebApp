@@ -205,6 +205,8 @@ describe("BusinessSignUpFlow analytics", () => {
 
     const savedUser = setDocMock.mock.calls[0]?.[1];
     expect(savedUser).toMatchObject({
+      structuredIntakeRecommendedPath: "intake_then_recommended_scoping_call",
+      calendarDisposition: "recommended",
       proofReadyOutcome: "proof_ready_intake",
       proofPathOutcome: "exact_site",
       proofReadinessScore: 100,
@@ -343,6 +345,8 @@ describe("BusinessSignUpFlow analytics", () => {
     expect(savedUser).toMatchObject({
       buyerType: "site_operator",
       requestedLanes: ["qualification"],
+      structuredIntakeRecommendedPath: "intake_then_required_scoping_call",
+      calendarDisposition: "required_before_next_step",
       siteOperatorClaimOutcome: "site_claim_access_boundary_ready",
       accessBoundaryOutcome: "access_boundary_defined",
       siteClaimReadinessScore: 100,

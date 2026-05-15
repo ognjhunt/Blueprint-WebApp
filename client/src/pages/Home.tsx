@@ -176,7 +176,7 @@ const robotTeamDecisionSteps = [
   },
   {
     title: "Choose the buyer path",
-    body: "Move into package access, hosted evaluation, or new capture when the exact world is not available yet.",
+    body: "Move into package access, hosted evaluation, or a capture request when the catalog does not yet show the exact world.",
   },
 ];
 

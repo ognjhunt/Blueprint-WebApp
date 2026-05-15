@@ -52,7 +52,9 @@ For each reviewed row, inspect:
 - `draftAngle`
 - `cta`
 - `landingPage`
+- `proofSource`
 - `objectionPlan`
+- `blockedClaims`
 - `reviewFlags`
 
 Then set:
