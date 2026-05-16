@@ -12,6 +12,7 @@ type CameraTourKeyframe = {
   target: [number, number, number];
   fov: number;
 };
+type VectorLike3 = { x: number; y: number; z: number };
 
 const SPARK_LOAD_TIMEOUT_MS = 30000;
 const CAMERA_TOUR_DURATION_MS = 9000;
@@ -45,6 +46,41 @@ function interpolateCameraKeyframes(keyframes: CameraTourKeyframe[], progress: n
     target: mixVector(start.target, end.target),
     fov: interpolateNumber(start.fov, end.fov, localProgress),
   };
+}
+
+function createCameraTourKeyframes(worldCenter: VectorLike3, maxAxis: number): CameraTourKeyframe[] {
+  const target: [number, number, number] = [
+    worldCenter.x,
+    worldCenter.y - maxAxis * 0.02,
+    worldCenter.z,
+  ];
+
+  return [
+    {
+      time: 0,
+      position: [worldCenter.x + maxAxis * 0.16, worldCenter.y + maxAxis * 0.12, worldCenter.z + maxAxis * 0.82],
+      target,
+      fov: 42,
+    },
+    {
+      time: 0.32,
+      position: [worldCenter.x - maxAxis * 0.26, worldCenter.y + maxAxis * 0.07, worldCenter.z + maxAxis * 0.58],
+      target: [worldCenter.x - maxAxis * 0.1, target[1], target[2]],
+      fov: 38,
+    },
+    {
+      time: 0.66,
+      position: [worldCenter.x + maxAxis * 0.04, worldCenter.y + maxAxis * 0.02, worldCenter.z + maxAxis * 0.42],
+      target: [worldCenter.x + maxAxis * 0.08, worldCenter.y - maxAxis * 0.04, target[2]],
+      fov: 32,
+    },
+    {
+      time: 1,
+      position: [worldCenter.x + maxAxis * 0.32, worldCenter.y + maxAxis * 0.13, worldCenter.z + maxAxis * 0.62],
+      target: [worldCenter.x + maxAxis * 0.04, target[1], target[2]],
+      fov: 40,
+    },
+  ];
 }
 
 export interface ExactSiteSplatPreviewOption {
@@ -252,56 +288,31 @@ export function ExactSiteSparkViewer({
         }
 
         const bounds = splat.getBoundingBox?.(true);
+        let worldCenter = new THREE.Vector3();
+        let maxAxis = 2;
+        splat.updateMatrixWorld(true);
         if (bounds && !bounds.isEmpty?.()) {
           const center = bounds.getCenter(new THREE.Vector3());
           const size = bounds.getSize(new THREE.Vector3());
-          const maxAxis = Math.max(size.x, size.y, size.z, 1);
-          splat.updateMatrixWorld(true);
-          const worldCenter = splat.localToWorld(center.clone());
-          const target: [number, number, number] = [
-            worldCenter.x,
-            worldCenter.y - maxAxis * 0.02,
-            worldCenter.z,
-          ];
-          const cameraTourKeyframes: CameraTourKeyframe[] = [
-            {
-              time: 0,
-              position: [worldCenter.x + maxAxis * 0.16, worldCenter.y + maxAxis * 0.12, worldCenter.z + maxAxis * 0.82],
-              target,
-              fov: 42,
-            },
-            {
-              time: 0.32,
-              position: [worldCenter.x - maxAxis * 0.26, worldCenter.y + maxAxis * 0.07, worldCenter.z + maxAxis * 0.58],
-              target: [worldCenter.x - maxAxis * 0.1, target[1], target[2]],
-              fov: 38,
-            },
-            {
-              time: 0.66,
-              position: [worldCenter.x + maxAxis * 0.04, worldCenter.y + maxAxis * 0.02, worldCenter.z + maxAxis * 0.42],
-              target: [worldCenter.x + maxAxis * 0.08, worldCenter.y - maxAxis * 0.04, target[2]],
-              fov: 32,
-            },
-            {
-              time: 1,
-              position: [worldCenter.x + maxAxis * 0.32, worldCenter.y + maxAxis * 0.13, worldCenter.z + maxAxis * 0.62],
-              target: [worldCenter.x + maxAxis * 0.04, target[1], target[2]],
-              fov: 40,
-            },
-          ];
-          cameraTourRef.current = {
-            keyframes: cameraTourKeyframes,
-            startedAt: 0,
-          };
-          controls.target.set(...cameraTourKeyframes[0].target);
-          camera.position.set(...cameraTourKeyframes[0].position);
-          camera.fov = cameraTourKeyframes[0].fov;
-          camera.near = Math.max(maxAxis / 1000, 0.01);
-          camera.far = Math.max(maxAxis * 80, 100);
-          controls.minDistance = Math.max(maxAxis * 0.08, 0.08);
-          controls.maxDistance = Math.max(maxAxis * 8, 8);
-          camera.updateProjectionMatrix();
+          maxAxis = Math.max(size.x, size.y, size.z, 1);
+          worldCenter = splat.localToWorld(center.clone());
+        } else {
+          splat.getWorldPosition?.(worldCenter);
         }
+
+        const cameraTourKeyframes = createCameraTourKeyframes(worldCenter, maxAxis);
+        cameraTourRef.current = {
+          keyframes: cameraTourKeyframes,
+          startedAt: 0,
+        };
+        controls.target.set(...cameraTourKeyframes[0].target);
+        camera.position.set(...cameraTourKeyframes[0].position);
+        camera.fov = cameraTourKeyframes[0].fov;
+        camera.near = Math.max(maxAxis / 1000, 0.01);
+        camera.far = Math.max(maxAxis * 80, 100);
+        controls.minDistance = Math.max(maxAxis * 0.08, 0.08);
+        controls.maxDistance = Math.max(maxAxis * 8, 8);
+        camera.updateProjectionMatrix();
         initialViewRef.current = {
           cameraPosition: camera.position.clone(),
           target: controls.target.clone(),
