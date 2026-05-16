@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Move3d, Pause, Play, RotateCcw, ZoomIn, ZoomOut } from "lucide-react";
+import { Move3d, Pause, Play, RotateCcw, Volume2, VolumeX, ZoomIn, ZoomOut } from "lucide-react";
 import { getOrbitControls, getSparkSplatMesh, getThree } from "@/lib/threeUtils";
 
-type PreviewMode = "splat" | "provider" | "sample";
+type PreviewMode = "video" | "splat" | "provider" | "sample";
 type SparkStatus = "idle" | "loading" | "ready" | "failed";
 type SplatFormat = "spz" | "ply" | "splat";
 type CameraTourState = "idle" | "playing";
@@ -135,6 +135,9 @@ interface ExactSiteSparkViewerProps {
   thumbnailUrl?: string | null;
   videoSrc?: string | null;
   posterSrc?: string | null;
+  taskVideoSrc?: string | null;
+  taskVideoPosterSrc?: string | null;
+  taskVideoLabel?: string | null;
   className?: string;
 }
 
@@ -151,9 +154,13 @@ export function ExactSiteSparkViewer({
   thumbnailUrl,
   videoSrc,
   posterSrc,
+  taskVideoSrc,
+  taskVideoPosterSrc,
+  taskVideoLabel,
   className = "",
 }: ExactSiteSparkViewerProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const taskVideoRef = useRef<HTMLVideoElement | null>(null);
   const cameraRef = useRef<any>(null);
   const controlsRef = useRef<any>(null);
   const sceneFrameRef = useRef<{
@@ -200,13 +207,23 @@ export function ExactSiteSparkViewer({
   const [sparkError, setSparkError] = useState<string | null>(null);
   const [cameraTourState, setCameraTourState] = useState<CameraTourState>("idle");
   const [splatRequested, setSplatRequested] = useState(false);
+  const [taskVideoMuted, setTaskVideoMuted] = useState(true);
+  const taskVideoSource = firstUrl(taskVideoSrc);
+  const taskVideoPoster = firstUrl(taskVideoPosterSrc, posterSrc, thumbnailUrl, panoUrl);
   const fallbackImage = firstUrl(panoUrl, thumbnailUrl, posterSrc);
-  const previewMode: PreviewMode = selectedSplatUrl ? "splat" : panoUrl || thumbnailUrl ? "provider" : "sample";
+  const previewMode: PreviewMode = taskVideoSource
+    ? "video"
+    : selectedSplatUrl
+      ? "splat"
+      : panoUrl || thumbnailUrl
+        ? "provider"
+        : "sample";
   const fallbackLabel = useMemo(() => {
+    if (previewMode === "video") return taskVideoLabel || "Generated task-conditioned preview";
     if (previewMode === "splat") return "Self-hosted splat preview";
     if (previewMode === "provider") return "Provider preview fallback";
     return "Sample/generated preview fallback";
-  }, [previewMode]);
+  }, [previewMode, taskVideoLabel]);
   const showFallback = !selectedSplatUrl || !splatRequested || sparkStatus === "loading" || sparkStatus === "failed";
   const setCameraTourPhase = useCallback((nextState: CameraTourState) => {
     cameraTourStateRef.current = nextState;
@@ -268,6 +285,17 @@ export function ExactSiteSparkViewer({
     sceneFrameRef.current = null;
     setSplatRequested(false);
   }, [selectedSplatUrl, setCameraTourPhase]);
+
+  useEffect(() => {
+    setTaskVideoMuted(true);
+    const video = taskVideoRef.current;
+    if (!video || !taskVideoSource) {
+      return;
+    }
+
+    video.muted = true;
+    void video.play().catch(() => undefined);
+  }, [taskVideoSource]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -526,6 +554,60 @@ export function ExactSiteSparkViewer({
     cameraTourRef.current.startedAt = 0;
     setCameraTourPhase("playing");
   };
+  const toggleTaskVideoAudio = () => {
+    const video = taskVideoRef.current;
+    if (!video) {
+      return;
+    }
+
+    const nextMuted = !video.muted;
+    video.muted = nextMuted;
+    setTaskVideoMuted(nextMuted);
+    if (!nextMuted) {
+      void video.play().catch(() => undefined);
+    }
+  };
+
+  if (taskVideoSource) {
+    return (
+      <div
+        className={`relative min-h-[28rem] overflow-hidden bg-[#111711] text-white sm:min-h-[34rem] lg:min-h-[38rem] ${className}`}
+        data-preview-mode={previewMode}
+      >
+        <video
+          ref={taskVideoRef}
+          className="absolute inset-0 h-full w-full cursor-pointer object-cover"
+          src={taskVideoSource}
+          poster={taskVideoPoster || undefined}
+          autoPlay
+          muted={taskVideoMuted}
+          loop
+          playsInline
+          preload="metadata"
+          aria-label={taskVideoLabel || "Generated task-conditioned evaluation preview"}
+          onClick={toggleTaskVideoAudio}
+        />
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(8,12,10,0.56),rgba(8,12,10,0.06)_48%,rgba(8,12,10,0.48))]" />
+        <button
+          type="button"
+          onClick={toggleTaskVideoAudio}
+          className="absolute right-4 top-4 inline-flex h-10 w-10 items-center justify-center border border-white/12 bg-black/36 text-white/72 backdrop-blur-sm transition hover:bg-white hover:text-slate-950"
+          aria-label={taskVideoMuted ? "Enable generated preview audio" : "Mute generated preview audio"}
+          title={taskVideoMuted ? "Enable audio" : "Mute audio"}
+        >
+          {taskVideoMuted ? (
+            <VolumeX className="h-4 w-4" aria-hidden="true" />
+          ) : (
+            <Volume2 className="h-4 w-4" aria-hidden="true" />
+          )}
+        </button>
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-wrap items-center justify-between gap-3 border-t border-white/12 bg-black/28 px-4 py-3 text-xs text-white/70 backdrop-blur-sm sm:px-5">
+          <span className="font-semibold uppercase tracking-[0.18em] text-white/72">{fallbackLabel}</span>
+          <span className="text-white/60">{taskVideoMuted ? "Muted" : "Audio enabled"}</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

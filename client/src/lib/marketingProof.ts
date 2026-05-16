@@ -2,6 +2,10 @@ export const proofReelVideoSrc = "/proof/blueprint-proof-reel.mp4";
 export const proofReelPosterSrc = "/siteworld-f5fd54898cfb-presentation-reference.png";
 export const siteMotionLoopVideoSrc = "/proof/blueprint-site-motion-loop.mp4";
 export const siteMotionLoopPosterSrc = "/proof/blueprint-site-motion-loop-poster.png";
+export const onlineOrderPickEvalVideoSrc =
+  "/proof/blueprint-site-world-eval-online-order-pick-seedance-2.mp4";
+export const onlineOrderPickEvalPosterSrc =
+  "/proof/blueprint-site-world-eval-online-order-pick-poster.jpg";
 export const proofReferenceImageSrc = "/siteworld-f5fd54898cfb-runtime-reference.png";
 export const publicDemoSiteWorldId = "siteworld-f5fd54898cfb";
 export const publicDemoHref = "/world-models/siteworld-f5fd54898cfb";

@@ -5,6 +5,8 @@ import {
   type ExactSiteCameraPath,
 } from "@/components/site/ExactSiteSparkViewer";
 import {
+  onlineOrderPickEvalPosterSrc,
+  onlineOrderPickEvalVideoSrc,
   publicDemoHref,
   siteMotionLoopPosterSrc,
   siteMotionLoopVideoSrc,
@@ -46,6 +48,11 @@ interface GroceryEvalTask {
   route: string;
   evaluationFocus: string;
   cameraPath: ExactSiteCameraPath;
+  generatedVideo?: {
+    src: string;
+    poster: string;
+    label: string;
+  };
 }
 
 const groceryEvalTasks: GroceryEvalTask[] = [
@@ -56,6 +63,11 @@ const groceryEvalTasks: GroceryEvalTask[] = [
     objective: "Navigate from aisle entry to a shelf face and inspect the target zone before a tote handoff.",
     route: "Aisle entry -> shelf face -> close SKU check -> handoff angle",
     evaluationFocus: "Reachability, shelf visibility, aisle clearance",
+    generatedVideo: {
+      src: onlineOrderPickEvalVideoSrc,
+      poster: onlineOrderPickEvalPosterSrc,
+      label: "Generated online-order pick evaluation clip",
+    },
     cameraPath: {
       id: "online-order-pick",
       label: "Online order pick path",
@@ -305,6 +317,9 @@ export function ExactSitePreviewSection({
             thumbnailUrl={preview?.thumbnailUrl}
             videoSrc={siteMotionLoopVideoSrc}
             posterSrc={posterFallback}
+            taskVideoSrc={activeEvalTask.generatedVideo?.src}
+            taskVideoPosterSrc={activeEvalTask.generatedVideo?.poster}
+            taskVideoLabel={activeEvalTask.generatedVideo?.label}
           />
           <div className="absolute left-4 top-4 max-w-[18rem] border border-white/12 bg-black/38 p-4 text-white backdrop-blur-sm sm:left-5 sm:top-5">
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/48">
