@@ -1,12 +1,51 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Move3d, RotateCcw, ZoomIn, ZoomOut } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Move3d, Pause, Play, RotateCcw, ZoomIn, ZoomOut } from "lucide-react";
 import { getOrbitControls, getSparkSplatMesh, getThree } from "@/lib/threeUtils";
 
 type PreviewMode = "splat" | "provider" | "sample";
 type SparkStatus = "idle" | "loading" | "ready" | "failed";
 type SplatFormat = "spz" | "ply" | "splat";
+type CameraTourState = "idle" | "playing";
+type CameraTourKeyframe = {
+  time: number;
+  position: [number, number, number];
+  target: [number, number, number];
+  fov: number;
+};
 
 const SPARK_LOAD_TIMEOUT_MS = 30000;
+const CAMERA_TOUR_DURATION_MS = 9000;
+
+function interpolateNumber(start: number, end: number, progress: number) {
+  return start + (end - start) * progress;
+}
+
+function smoothStep(progress: number) {
+  return progress * progress * (3 - 2 * progress);
+}
+
+function interpolateCameraKeyframes(keyframes: CameraTourKeyframe[], progress: number) {
+  const clampedProgress = Math.min(Math.max(progress, 0), 1);
+  const currentIndex = Math.max(
+    0,
+    keyframes.findIndex((keyframe, index) => {
+      const next = keyframes[index + 1];
+      return Boolean(next && clampedProgress >= keyframe.time && clampedProgress <= next.time);
+    }),
+  );
+  const start = keyframes[currentIndex] || keyframes[0];
+  const end = keyframes[currentIndex + 1] || start;
+  const localRange = Math.max(end.time - start.time, 0.001);
+  const localProgress = smoothStep((clampedProgress - start.time) / localRange);
+  const mixVector = (from: [number, number, number], to: [number, number, number]) =>
+    from.map((value, index) => interpolateNumber(value, to[index], localProgress)) as [number, number, number];
+
+  return {
+    position: mixVector(start.position, end.position),
+    target: mixVector(start.target, end.target),
+    fov: interpolateNumber(start.fov, end.fov, localProgress),
+  };
+}
 
 export interface ExactSiteSplatPreviewOption {
   url: string;
@@ -46,7 +85,13 @@ export function ExactSiteSparkViewer({
     target: any;
     minDistance: number;
     maxDistance: number;
+    fov: number;
   } | null>(null);
+  const cameraTourRef = useRef<{
+    keyframes: CameraTourKeyframe[];
+    startedAt: number;
+  } | null>(null);
+  const cameraTourStateRef = useRef<CameraTourState>("idle");
   const normalizedSplatOptions = useMemo(() => {
     const options = splatOptions
       .map((option) => ({
@@ -70,6 +115,7 @@ export function ExactSiteSparkViewer({
   const selectedSplatUrl = selectedSplat?.url || null;
   const [sparkStatus, setSparkStatus] = useState<SparkStatus>(() => (selectedSplatUrl ? "idle" : "failed"));
   const [sparkError, setSparkError] = useState<string | null>(null);
+  const [cameraTourState, setCameraTourState] = useState<CameraTourState>("idle");
   const [splatRequested, setSplatRequested] = useState(false);
   const fallbackImage = firstUrl(panoUrl, thumbnailUrl, posterSrc);
   const previewMode: PreviewMode = selectedSplatUrl ? "splat" : panoUrl || thumbnailUrl ? "provider" : "sample";
@@ -79,6 +125,10 @@ export function ExactSiteSparkViewer({
     return "Sample/generated preview fallback";
   }, [previewMode]);
   const showFallback = !selectedSplatUrl || !splatRequested || sparkStatus === "loading" || sparkStatus === "failed";
+  const setCameraTourPhase = useCallback((nextState: CameraTourState) => {
+    cameraTourStateRef.current = nextState;
+    setCameraTourState(nextState);
+  }, []);
 
   useEffect(() => {
     setSelectedSplatIndex(0);
@@ -87,8 +137,10 @@ export function ExactSiteSparkViewer({
   useEffect(() => {
     setSparkStatus(selectedSplatUrl ? "idle" : "failed");
     setSparkError(null);
+    setCameraTourPhase("idle");
+    cameraTourRef.current = null;
     setSplatRequested(false);
-  }, [selectedSplatUrl]);
+  }, [selectedSplatUrl, setCameraTourPhase]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -106,6 +158,7 @@ export function ExactSiteSparkViewer({
     let splat: any = null;
     let loadTimeoutId: number | null = null;
     let loadTimedOut = false;
+    let stopTourOnUserInput: (() => void) | null = null;
 
     const init = async () => {
       setSparkStatus("loading");
@@ -140,6 +193,14 @@ export function ExactSiteSparkViewer({
         renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
         renderer.domElement.className = "absolute inset-0 h-full w-full";
         container.appendChild(renderer.domElement);
+        stopTourOnUserInput = () => {
+          if (cameraTourStateRef.current === "playing") {
+            setCameraTourPhase("idle");
+          }
+        };
+        renderer.domElement.addEventListener("pointerdown", stopTourOnUserInput);
+        renderer.domElement.addEventListener("wheel", stopTourOnUserInput, { passive: true });
+        renderer.domElement.addEventListener("touchstart", stopTourOnUserInput, { passive: true });
 
         controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
@@ -197,12 +258,48 @@ export function ExactSiteSparkViewer({
           const maxAxis = Math.max(size.x, size.y, size.z, 1);
           splat.updateMatrixWorld(true);
           const worldCenter = splat.localToWorld(center.clone());
-          controls.target.copy(worldCenter);
-          camera.position.set(worldCenter.x + maxAxis * 0.28, worldCenter.y + maxAxis * 0.22, worldCenter.z + maxAxis * 1.45);
+          const target: [number, number, number] = [
+            worldCenter.x,
+            worldCenter.y - maxAxis * 0.02,
+            worldCenter.z,
+          ];
+          const cameraTourKeyframes: CameraTourKeyframe[] = [
+            {
+              time: 0,
+              position: [worldCenter.x + maxAxis * 0.16, worldCenter.y + maxAxis * 0.12, worldCenter.z + maxAxis * 0.82],
+              target,
+              fov: 42,
+            },
+            {
+              time: 0.32,
+              position: [worldCenter.x - maxAxis * 0.26, worldCenter.y + maxAxis * 0.07, worldCenter.z + maxAxis * 0.58],
+              target: [worldCenter.x - maxAxis * 0.1, target[1], target[2]],
+              fov: 38,
+            },
+            {
+              time: 0.66,
+              position: [worldCenter.x + maxAxis * 0.04, worldCenter.y + maxAxis * 0.02, worldCenter.z + maxAxis * 0.42],
+              target: [worldCenter.x + maxAxis * 0.08, worldCenter.y - maxAxis * 0.04, target[2]],
+              fov: 32,
+            },
+            {
+              time: 1,
+              position: [worldCenter.x + maxAxis * 0.32, worldCenter.y + maxAxis * 0.13, worldCenter.z + maxAxis * 0.62],
+              target: [worldCenter.x + maxAxis * 0.04, target[1], target[2]],
+              fov: 40,
+            },
+          ];
+          cameraTourRef.current = {
+            keyframes: cameraTourKeyframes,
+            startedAt: 0,
+          };
+          controls.target.set(...cameraTourKeyframes[0].target);
+          camera.position.set(...cameraTourKeyframes[0].position);
+          camera.fov = cameraTourKeyframes[0].fov;
           camera.near = Math.max(maxAxis / 1000, 0.01);
           camera.far = Math.max(maxAxis * 80, 100);
           controls.minDistance = Math.max(maxAxis * 0.08, 0.08);
-          controls.maxDistance = Math.max(maxAxis * 12, 10);
+          controls.maxDistance = Math.max(maxAxis * 8, 8);
           camera.updateProjectionMatrix();
         }
         initialViewRef.current = {
@@ -210,20 +307,36 @@ export function ExactSiteSparkViewer({
           target: controls.target.clone(),
           minDistance: controls.minDistance,
           maxDistance: controls.maxDistance,
+          fov: camera.fov,
         };
 
         setSparkStatus("ready");
 
-        const tick = () => {
+        const tick = (timestamp: number) => {
           if (cancelled) {
             return;
           }
-          splat.rotation.y += 0.0025;
+          const cameraTour = cameraTourRef.current;
+          if (cameraTour && cameraTourStateRef.current === "playing") {
+            if (!cameraTour.startedAt) {
+              cameraTour.startedAt = timestamp;
+            }
+            const progress = Math.min((timestamp - cameraTour.startedAt) / CAMERA_TOUR_DURATION_MS, 1);
+            const nextView = interpolateCameraKeyframes(cameraTour.keyframes, progress);
+            camera.position.set(...nextView.position);
+            camera.fov = nextView.fov;
+            camera.updateProjectionMatrix();
+            controls.target.set(...nextView.target);
+            if (progress >= 1) {
+              cameraTour.startedAt = 0;
+              setCameraTourPhase("idle");
+            }
+          }
           controls.update();
           renderer.render(scene, camera);
           frameId = window.requestAnimationFrame(tick);
         };
-        tick();
+        tick(window.performance.now());
       } catch (error) {
         if (loadTimeoutId) {
           window.clearTimeout(loadTimeoutId);
@@ -245,6 +358,11 @@ export function ExactSiteSparkViewer({
       }
       window.cancelAnimationFrame(frameId);
       resizeObserver?.disconnect();
+      if (stopTourOnUserInput && renderer?.domElement) {
+        renderer.domElement.removeEventListener("pointerdown", stopTourOnUserInput);
+        renderer.domElement.removeEventListener("wheel", stopTourOnUserInput);
+        renderer.domElement.removeEventListener("touchstart", stopTourOnUserInput);
+      }
       controls?.dispose?.();
       if (controlsRef.current === controls) {
         controlsRef.current = null;
@@ -253,6 +371,8 @@ export function ExactSiteSparkViewer({
         cameraRef.current = null;
       }
       initialViewRef.current = null;
+      cameraTourRef.current = null;
+      cameraTourStateRef.current = "idle";
       splat?.dispose?.();
       if (renderer) {
         renderer.dispose?.();
@@ -260,7 +380,7 @@ export function ExactSiteSparkViewer({
         renderer.domElement?.remove?.();
       }
     };
-  }, [selectedSplat?.label, selectedSplatUrl, splatRequested]);
+  }, [selectedSplat?.label, selectedSplatUrl, setCameraTourPhase, splatRequested]);
 
   const selectedFormatLabel = selectedSplat?.format ? selectedSplat.format.toUpperCase() : "SPLAT";
   const zoomViewer = (scale: number) => {
@@ -293,8 +413,26 @@ export function ExactSiteSparkViewer({
     controls.target.copy(initialView.target);
     controls.minDistance = initialView.minDistance;
     controls.maxDistance = initialView.maxDistance;
+    camera.fov = initialView.fov;
     camera.updateProjectionMatrix();
     controls.update();
+    setCameraTourPhase("idle");
+    if (cameraTourRef.current) {
+      cameraTourRef.current.startedAt = 0;
+    }
+  };
+  const toggleCameraTour = () => {
+    if (!cameraTourRef.current) {
+      return;
+    }
+
+    if (cameraTourStateRef.current === "playing") {
+      setCameraTourPhase("idle");
+      return;
+    }
+
+    cameraTourRef.current.startedAt = 0;
+    setCameraTourPhase("playing");
   };
 
   return (
@@ -388,6 +526,23 @@ export function ExactSiteSparkViewer({
 
       {sparkStatus === "ready" ? (
         <div className="absolute right-4 top-20 flex items-center gap-1 border border-white/12 bg-black/36 p-1 text-white backdrop-blur-sm">
+          <button
+            type="button"
+            onClick={toggleCameraTour}
+            className="inline-flex h-9 w-9 items-center justify-center text-white/72 transition hover:bg-white hover:text-slate-950"
+            aria-label={
+              cameraTourState === "playing"
+                ? `Pause ${selectedFormatLabel} camera path`
+                : `Play ${selectedFormatLabel} camera path`
+            }
+            title={cameraTourState === "playing" ? "Pause path" : "Play path"}
+          >
+            {cameraTourState === "playing" ? (
+              <Pause className="h-4 w-4" aria-hidden="true" />
+            ) : (
+              <Play className="h-4 w-4" aria-hidden="true" />
+            )}
+          </button>
           <button
             type="button"
             onClick={() => zoomViewer(0.72)}
