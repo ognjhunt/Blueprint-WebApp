@@ -30,4 +30,14 @@ describe("content security policy", () => {
     expect(scriptSrc).not.toContain("'unsafe-eval'");
     expect(scriptSrc).not.toContain("http://localhost:5173");
   });
+
+  it("allows Spark splat wasm data loaders used by the self-hosted preview", () => {
+    const policy = buildContentSecurityPolicy({ isProduction: true });
+
+    const scriptSrc = parseDirective(policy, "script-src");
+    const connectSrc = parseDirective(policy, "connect-src");
+
+    expect(scriptSrc).toContain("'wasm-unsafe-eval'");
+    expect(connectSrc).toContain("data:");
+  });
 });

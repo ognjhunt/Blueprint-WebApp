@@ -5,6 +5,8 @@ type PreviewMode = "splat" | "provider" | "sample";
 type SparkStatus = "idle" | "loading" | "ready" | "failed";
 type SplatFormat = "spz" | "ply" | "splat";
 
+const SPARK_LOAD_TIMEOUT_MS = 30000;
+
 export interface ExactSiteSplatPreviewOption {
   url: string;
   label: string;
@@ -58,6 +60,7 @@ export function ExactSiteSparkViewer({
   const selectedSplat = normalizedSplatOptions[selectedSplatIndex] || normalizedSplatOptions[0] || null;
   const selectedSplatUrl = selectedSplat?.url || null;
   const [sparkStatus, setSparkStatus] = useState<SparkStatus>(() => (selectedSplatUrl ? "idle" : "failed"));
+  const [sparkError, setSparkError] = useState<string | null>(null);
   const [splatRequested, setSplatRequested] = useState(false);
   const fallbackImage = firstUrl(panoUrl, thumbnailUrl, posterSrc);
   const previewMode: PreviewMode = selectedSplatUrl ? "splat" : panoUrl || thumbnailUrl ? "provider" : "sample";
@@ -66,7 +69,7 @@ export function ExactSiteSparkViewer({
     if (previewMode === "provider") return "Provider preview fallback";
     return "Sample/generated preview fallback";
   }, [previewMode]);
-  const showFallback = !selectedSplatUrl || !splatRequested || sparkStatus === "failed";
+  const showFallback = !selectedSplatUrl || !splatRequested || sparkStatus === "loading" || sparkStatus === "failed";
 
   useEffect(() => {
     setSelectedSplatIndex(0);
@@ -74,6 +77,7 @@ export function ExactSiteSparkViewer({
 
   useEffect(() => {
     setSparkStatus(selectedSplatUrl ? "idle" : "failed");
+    setSparkError(null);
     setSplatRequested(false);
   }, [selectedSplatUrl]);
 
@@ -90,9 +94,19 @@ export function ExactSiteSparkViewer({
     let renderer: any = null;
     let controls: any = null;
     let splat: any = null;
+    let loadTimeoutId: number | null = null;
+    let loadTimedOut = false;
 
     const init = async () => {
       setSparkStatus("loading");
+      setSparkError(null);
+      loadTimeoutId = window.setTimeout(() => {
+        loadTimedOut = true;
+        if (!cancelled) {
+          setSparkStatus("failed");
+          setSparkError(`${selectedSplat?.label || "Splat preview"} did not finish loading within 30 seconds.`);
+        }
+      }, SPARK_LOAD_TIMEOUT_MS);
       try {
         const [THREE, OrbitControls, SplatMesh] = await Promise.all([
           getThree(),
@@ -152,7 +166,11 @@ export function ExactSiteSparkViewer({
         resizeObserver.observe(container);
 
         await splat.initialized;
-        if (cancelled) {
+        if (loadTimeoutId) {
+          window.clearTimeout(loadTimeoutId);
+          loadTimeoutId = null;
+        }
+        if (cancelled || loadTimedOut) {
           return;
         }
 
@@ -183,9 +201,14 @@ export function ExactSiteSparkViewer({
           frameId = window.requestAnimationFrame(tick);
         };
         tick();
-      } catch {
+      } catch (error) {
+        if (loadTimeoutId) {
+          window.clearTimeout(loadTimeoutId);
+          loadTimeoutId = null;
+        }
         if (!cancelled) {
           setSparkStatus("failed");
+          setSparkError(error instanceof Error ? error.message : "The splat loader could not start.");
         }
       }
     };
@@ -194,6 +217,9 @@ export function ExactSiteSparkViewer({
 
     return () => {
       cancelled = true;
+      if (loadTimeoutId) {
+        window.clearTimeout(loadTimeoutId);
+      }
       window.cancelAnimationFrame(frameId);
       resizeObserver?.disconnect();
       controls?.dispose?.();
@@ -204,7 +230,7 @@ export function ExactSiteSparkViewer({
         renderer.domElement?.remove?.();
       }
     };
-  }, [selectedSplatUrl, splatRequested]);
+  }, [selectedSplat?.label, selectedSplatUrl, splatRequested]);
 
   const selectedFormatLabel = selectedSplat?.format ? selectedSplat.format.toUpperCase() : "SPLAT";
 
@@ -238,18 +264,38 @@ export function ExactSiteSparkViewer({
         <div className="absolute inset-0 flex items-center justify-center px-5 text-center">
           <div className="max-w-[21rem] border border-white/18 bg-black/50 p-5 text-white shadow-[0_22px_70px_-46px_rgba(0,0,0,0.75)] backdrop-blur-md">
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/58">
-              {selectedFormatLabel} available
+              {sparkStatus === "failed" ? `${selectedFormatLabel} did not load` : `${selectedFormatLabel} available`}
             </p>
             <p className="mt-3 text-sm leading-6 text-white/76">
-              {selectedSplat?.detail || "Load the self-hosted splat only when you want to inspect it in-browser."}
+              {sparkStatus === "failed"
+                ? sparkError || "The fallback preview is still available while the splat viewer is unavailable."
+                : selectedSplat?.detail || "Load the self-hosted splat only when you want to inspect it in-browser."}
             </p>
             <button
               type="button"
-              onClick={() => setSplatRequested(true)}
+              onClick={() => {
+                setSparkError(null);
+                setSplatRequested(false);
+                window.requestAnimationFrame(() => setSplatRequested(true));
+              }}
               className="mt-5 inline-flex items-center justify-center bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
             >
               {sparkStatus === "failed" ? "Retry splat preview" : `Load ${selectedFormatLabel} preview`}
             </button>
+          </div>
+        </div>
+      ) : null}
+
+      {selectedSplatUrl && splatRequested && sparkStatus === "loading" ? (
+        <div className="absolute inset-0 flex items-center justify-center px-5 text-center">
+          <div className="max-w-[20rem] border border-white/16 bg-black/48 p-5 text-white shadow-[0_22px_70px_-46px_rgba(0,0,0,0.75)] backdrop-blur-md">
+            <div className="mx-auto h-8 w-8 animate-spin rounded-full border border-white/20 border-t-white" />
+            <p className="mt-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/72">
+              Loading {selectedFormatLabel} preview
+            </p>
+            <p className="mt-3 text-sm leading-6 text-white/70">
+              The fallback preview stays visible while the browser viewer starts.
+            </p>
           </div>
         </div>
       ) : null}
