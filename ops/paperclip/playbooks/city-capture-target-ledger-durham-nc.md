@@ -2,7 +2,7 @@
 
 - city: Durham, NC
 - city_slug: durham-nc
-- generated_at: 2026-05-15T22:10:10.810Z
+- generated_at: 2026-05-16T01:51:00.878Z
 - mode: deep_research_records
 - status: hypothesis-ranked targeting ledger, not a claim that every site is already accessible
 
@@ -47,7 +47,7 @@ This ledger is intentionally split into:
 
 ## Sources
 
-- [Durham deep research playbook](/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/no-signal-city-launch-harness-DSynKw/durham-nc/2026-05-15T22-10-10.802Z/city-launch-contact-enrichment-durham-nc.json) — Latest completed deep-research artifact with structured launch records.
+- [Durham deep research playbook](/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/no-signal-city-launch-harness-a9qD5y/durham-nc/2026-05-16T01-51-00.869Z/city-launch-contact-enrichment-durham-nc.json) — Latest completed deep-research artifact with structured launch records.
 
 ## Warnings
 

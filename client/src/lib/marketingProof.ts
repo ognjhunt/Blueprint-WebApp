@@ -6,6 +6,8 @@ export const proofReferenceImageSrc = "/siteworld-f5fd54898cfb-runtime-reference
 export const publicDemoSiteWorldId = "siteworld-f5fd54898cfb";
 export const publicDemoHref = "/world-models/siteworld-f5fd54898cfb";
 export const publicDemoLabel = "View sample listing";
+export const publicDemoSpzPreviewSrc = "/world-model-previews/project-vintage-classroom-with-chalkboard.spz";
+export const publicDemoPlyPreviewSrc = "/world-model-previews/interiorgs-0043-839876-3dgs-compressed.ply";
 export const runtimeReferenceHref = "/siteworld-f5fd54898cfb-runtime-reference.png";
 export const presentationReferenceHref = "/siteworld-f5fd54898cfb-presentation-reference.png";
 

@@ -11,7 +11,12 @@ import {
 } from "@/components/site/editorial";
 import { siteWorldCards } from "@/data/siteWorlds";
 import { editorialGeneratedAssets } from "@/lib/editorialGeneratedAssets";
-import { publicDemoHref, publicDemoSiteWorldId } from "@/lib/marketingProof";
+import {
+  publicDemoHref,
+  publicDemoPlyPreviewSrc,
+  publicDemoSiteWorldId,
+  publicDemoSpzPreviewSrc,
+} from "@/lib/marketingProof";
 import { publicCaptureProofStories } from "@/lib/proofEvidence";
 import {
   getEditorialFeaturedSites,
@@ -297,7 +302,26 @@ export default function Home() {
     () => siteWorldCards.find((site) => site.id === publicDemoSiteWorldId) || heroSite,
     [heroSite],
   );
-  const exactSitePreviewSite = liveExactSitePreview || exactSitePreviewSeed || heroSite;
+  const exactSitePreviewSite = useMemo(() => {
+    const site = liveExactSitePreview || exactSitePreviewSeed || heroSite;
+    if (!site) {
+      return site;
+    }
+
+    const preview = site.worldLabsPreview || { status: "ready" as const };
+    const spzUrls = preview.spzUrls?.length ? preview.spzUrls : [publicDemoSpzPreviewSrc];
+    const previewWithSplat = {
+      ...preview,
+      status: preview.status || "ready",
+      spzUrls,
+      plyUrls: [publicDemoPlyPreviewSrc],
+    };
+
+    return {
+      ...site,
+      worldLabsPreview: previewWithSplat,
+    };
+  }, [exactSitePreviewSeed, heroSite, liveExactSitePreview]);
 
   const metrics = useMemo(
     () => [

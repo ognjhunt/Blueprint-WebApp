@@ -1,4 +1,5 @@
 import { ArrowRight, ExternalLink } from "lucide-react";
+import { useMemo } from "react";
 import { ExactSiteSparkViewer } from "@/components/site/ExactSiteSparkViewer";
 import {
   publicDemoHref,
@@ -22,6 +23,7 @@ interface ExactSitePreviewSite {
     thumbnailUrl?: string | null;
     panoUrl?: string | null;
     spzUrls?: string[] | null;
+    plyUrls?: string[] | null;
     caption?: string | null;
     generationSourceType?: string | null;
   } | null;
@@ -50,14 +52,16 @@ export function ExactSitePreviewSection({
 }: ExactSitePreviewSectionProps) {
   const preview = site.worldLabsPreview || null;
   const spzUrl = firstPreviewUrl(preview?.spzUrls);
+  const plyUrl = firstPreviewUrl(preview?.plyUrls);
+  const hasSplatPreview = Boolean(spzUrl || plyUrl);
   const hasProviderFallback = Boolean(preview?.panoUrl || preview?.thumbnailUrl);
-  const previewLabel = spzUrl
-    ? "Self-hosted SPZ preview"
+  const previewLabel = hasSplatPreview
+    ? "Self-hosted sample splat preview"
     : hasProviderFallback
       ? "Provider preview fallback"
       : "Sample/generated preview fallback";
-  const previewCopy = spzUrl
-    ? "A World Labs SPZ asset is attached to this site package, so the preview renders in Blueprint's browser viewer instead of an iframe."
+  const previewCopy = hasSplatPreview
+    ? "A self-hosted sample splat asset is attached here, so the preview can render in Blueprint's browser viewer instead of an iframe. It is sample/generated media, not customer proof."
     : hasProviderFallback
       ? "The SPZ file is not attached yet, so this module shows the provider preview media while keeping the self-hosted path ready."
       : "No public SPZ is attached to the sample package yet, so this module uses a truthful generated motion-loop preview and keeps the SPZ path ready.";
@@ -66,6 +70,30 @@ export function ExactSitePreviewSection({
     site.presentationReferenceImageUrl ||
     site.runtimeReferenceImageUrl ||
     siteMotionLoopPosterSrc;
+  const splatOptions = useMemo(
+    () =>
+      [
+        spzUrl
+          ? {
+              url: spzUrl,
+              label: "Classroom SPZ preview",
+              format: "spz" as const,
+              detail:
+                "Load the self-hosted sample SPZ in-browser. It is a generated classroom splat used to prove the hosted preview path.",
+            }
+          : null,
+        plyUrl
+          ? {
+              url: plyUrl,
+              label: "InteriorGS PLY preview",
+              format: "ply" as const,
+              detail:
+                "Load the InteriorGS PLY splat in-browser. It is dataset media, not Blueprint customer proof.",
+            }
+          : null,
+      ].filter((option): option is NonNullable<typeof option> => Boolean(option)),
+    [plyUrl, spzUrl],
+  );
 
   const proofRows = [
     ["Capture route", shortId(site.captureId || site.siteSubmissionId)],
@@ -90,7 +118,7 @@ export function ExactSitePreviewSection({
             <p className="mt-6 max-w-[32rem] text-base leading-8 text-white/74">
               Blueprint starts with a real walkthrough, packages the proof and rights boundaries,
               then opens a hosted review path. This module is labeled as a {previewLabel.toLowerCase()}{" "}
-              when generated/provider media stands in for the self-hosted SPZ asset.
+              when generated/provider media stands in for a real package splat asset.
             </p>
           </div>
 
@@ -139,6 +167,7 @@ export function ExactSitePreviewSection({
         <div className="relative border-x border-b border-white/12 lg:border-y lg:border-r">
           <ExactSiteSparkViewer
             spzUrl={spzUrl}
+            splatOptions={splatOptions}
             panoUrl={preview?.panoUrl}
             thumbnailUrl={preview?.thumbnailUrl}
             videoSrc={siteMotionLoopVideoSrc}

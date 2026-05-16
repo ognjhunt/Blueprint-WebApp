@@ -1,7 +1,7 @@
 # Chicago, IL No-Signal Recovery
 
 - status: not_triggered
-- evaluated_at: 2026-05-15T22:10:50.975Z
+- evaluated_at: 2026-05-16T01:51:48.337Z
 - trigger_rule: no positive applicant/capturer/reply/operator signal after 3 days or 2 sent direct-outreach actions
 - reason: Not triggered because Chicago, IL has not reached 3 days since first send or 2 sent direct-outreach actions.
 - dispatch_status: not_applicable

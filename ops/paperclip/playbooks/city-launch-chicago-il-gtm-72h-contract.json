@@ -2,9 +2,9 @@
   "schema_version": "2026-05-06.city-launch-gtm-72h-contract.v1",
   "city": "Chicago, IL",
   "city_slug": "chicago-il",
-  "launch_run_id": "2026-05-15T22-10-21.677Z",
+  "launch_run_id": "2026-05-16T01-51-20.733Z",
   "status": "founder_approved_activation_ready",
-  "generated_at": "2026-05-15T22:10:43.329Z",
+  "generated_at": "2026-05-16T01:51:42.639Z",
   "budget": {
     "tier": "zero_budget",
     "label": "Zero Budget",
@@ -44,9 +44,9 @@
       "checkpoint_hour": 24,
       "checkpoint_key": "24h",
       "status": "scheduled_not_due",
-      "window_start_iso": "2026-05-15T22:10:21.677Z",
-      "window_end_iso": "2026-05-16T22:10:21.677Z",
-      "run_artifact_path": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/autonomy-cert-city-EsTxyw/chicago-il/2026-05-15T22-10-21.677Z/city-launch-chicago-il-scorecard-24h.md",
+      "window_start_iso": "2026-05-16T01:51:20.733Z",
+      "window_end_iso": "2026-05-17T01:51:20.733Z",
+      "run_artifact_path": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/autonomy-cert-city-3PXzlE/chicago-il/2026-05-16T01-51-20.733Z/city-launch-chicago-il-scorecard-24h.md",
       "canonical_artifact_path": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-chicago-il-scorecard-24h.md",
       "query_names": [
         "city_launch_growth_events_recent",
@@ -87,9 +87,9 @@
       "checkpoint_hour": 48,
       "checkpoint_key": "48h",
       "status": "scheduled_not_due",
-      "window_start_iso": "2026-05-15T22:10:21.677Z",
-      "window_end_iso": "2026-05-17T22:10:21.677Z",
-      "run_artifact_path": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/autonomy-cert-city-EsTxyw/chicago-il/2026-05-15T22-10-21.677Z/city-launch-chicago-il-scorecard-48h.md",
+      "window_start_iso": "2026-05-16T01:51:20.733Z",
+      "window_end_iso": "2026-05-18T01:51:20.733Z",
+      "run_artifact_path": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/autonomy-cert-city-3PXzlE/chicago-il/2026-05-16T01-51-20.733Z/city-launch-chicago-il-scorecard-48h.md",
       "canonical_artifact_path": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-chicago-il-scorecard-48h.md",
       "query_names": [
         "city_launch_growth_events_recent",
@@ -130,9 +130,9 @@
       "checkpoint_hour": 72,
       "checkpoint_key": "72h",
       "status": "scheduled_not_due",
-      "window_start_iso": "2026-05-15T22:10:21.677Z",
-      "window_end_iso": "2026-05-18T22:10:21.677Z",
-      "run_artifact_path": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/autonomy-cert-city-EsTxyw/chicago-il/2026-05-15T22-10-21.677Z/city-launch-chicago-il-scorecard-72h.md",
+      "window_start_iso": "2026-05-16T01:51:20.733Z",
+      "window_end_iso": "2026-05-19T01:51:20.733Z",
+      "run_artifact_path": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/autonomy-cert-city-3PXzlE/chicago-il/2026-05-16T01-51-20.733Z/city-launch-chicago-il-scorecard-72h.md",
       "canonical_artifact_path": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-chicago-il-scorecard-72h.md",
       "query_names": [
         "city_launch_growth_events_recent",
@@ -264,15 +264,15 @@
   ],
   "artifact_paths": {
     "run": {
-      "contractJsonPath": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/autonomy-cert-city-EsTxyw/chicago-il/2026-05-15T22-10-21.677Z/city-launch-chicago-il-gtm-72h-contract.json",
-      "contractMarkdownPath": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/autonomy-cert-city-EsTxyw/chicago-il/2026-05-15T22-10-21.677Z/city-launch-chicago-il-gtm-72h-contract.md",
-      "adStudioCreativeHandoffPath": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/autonomy-cert-city-EsTxyw/chicago-il/2026-05-15T22-10-21.677Z/city-launch-chicago-il-ad-studio-creative-handoff.md",
-      "metaAdsReadinessPath": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/autonomy-cert-city-EsTxyw/chicago-il/2026-05-15T22-10-21.677Z/city-launch-chicago-il-meta-ads-readiness.md",
-      "scorecardManifestPath": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/autonomy-cert-city-EsTxyw/chicago-il/2026-05-15T22-10-21.677Z/city-launch-chicago-il-scorecard-windows.json",
+      "contractJsonPath": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/autonomy-cert-city-3PXzlE/chicago-il/2026-05-16T01-51-20.733Z/city-launch-chicago-il-gtm-72h-contract.json",
+      "contractMarkdownPath": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/autonomy-cert-city-3PXzlE/chicago-il/2026-05-16T01-51-20.733Z/city-launch-chicago-il-gtm-72h-contract.md",
+      "adStudioCreativeHandoffPath": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/autonomy-cert-city-3PXzlE/chicago-il/2026-05-16T01-51-20.733Z/city-launch-chicago-il-ad-studio-creative-handoff.md",
+      "metaAdsReadinessPath": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/autonomy-cert-city-3PXzlE/chicago-il/2026-05-16T01-51-20.733Z/city-launch-chicago-il-meta-ads-readiness.md",
+      "scorecardManifestPath": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/autonomy-cert-city-3PXzlE/chicago-il/2026-05-16T01-51-20.733Z/city-launch-chicago-il-scorecard-windows.json",
       "scorecardPaths": {
-        "24h": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/autonomy-cert-city-EsTxyw/chicago-il/2026-05-15T22-10-21.677Z/city-launch-chicago-il-scorecard-24h.md",
-        "48h": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/autonomy-cert-city-EsTxyw/chicago-il/2026-05-15T22-10-21.677Z/city-launch-chicago-il-scorecard-48h.md",
-        "72h": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/autonomy-cert-city-EsTxyw/chicago-il/2026-05-15T22-10-21.677Z/city-launch-chicago-il-scorecard-72h.md"
+        "24h": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/autonomy-cert-city-3PXzlE/chicago-il/2026-05-16T01-51-20.733Z/city-launch-chicago-il-scorecard-24h.md",
+        "48h": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/autonomy-cert-city-3PXzlE/chicago-il/2026-05-16T01-51-20.733Z/city-launch-chicago-il-scorecard-48h.md",
+        "72h": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/autonomy-cert-city-3PXzlE/chicago-il/2026-05-16T01-51-20.733Z/city-launch-chicago-il-scorecard-72h.md"
       }
     },
     "canonical": {

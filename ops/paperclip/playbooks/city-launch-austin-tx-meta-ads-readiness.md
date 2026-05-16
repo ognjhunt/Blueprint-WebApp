@@ -17,4 +17,4 @@
 ## Required Scorecard Evidence
 - ad_studio_runs query: collection("ad_studio_runs").where("city", "==", city).orderBy("updated_at_iso", "desc").limit(100)
 - meta_ads_cli_runs query: collection("meta_ads_cli_runs").where("city", "==", city).orderBy("createdAtIso", "desc").limit(100)
-- gtm_contract: /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/approval-packet-city-launch-harness-gnpEwm/austin-tx/2026-05-15T22-09-58.174Z/city-launch-austin-tx-gtm-72h-contract.md
+- gtm_contract: /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/approval-packet-city-launch-harness-s5EH7A/austin-tx/2026-05-16T01-50-50.151Z/city-launch-austin-tx-gtm-72h-contract.md
