@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Move3d, RotateCcw, ZoomIn, ZoomOut } from "lucide-react";
 import { getOrbitControls, getSparkSplatMesh, getThree } from "@/lib/threeUtils";
 
 type PreviewMode = "splat" | "provider" | "sample";
@@ -38,6 +39,14 @@ export function ExactSiteSparkViewer({
   className = "",
 }: ExactSiteSparkViewerProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const cameraRef = useRef<any>(null);
+  const controlsRef = useRef<any>(null);
+  const initialViewRef = useRef<{
+    cameraPosition: any;
+    target: any;
+    minDistance: number;
+    maxDistance: number;
+  } | null>(null);
   const normalizedSplatOptions = useMemo(() => {
     const options = splatOptions
       .map((option) => ({
@@ -92,6 +101,7 @@ export function ExactSiteSparkViewer({
     let frameId = 0;
     let resizeObserver: ResizeObserver | null = null;
     let renderer: any = null;
+    let camera: any = null;
     let controls: any = null;
     let splat: any = null;
     let loadTimeoutId: number | null = null;
@@ -120,8 +130,9 @@ export function ExactSiteSparkViewer({
         const scene = new THREE.Scene();
         scene.background = new THREE.Color("#111711");
 
-        const camera = new THREE.PerspectiveCamera(50, 1, 0.01, 500);
+        camera = new THREE.PerspectiveCamera(50, 1, 0.01, 500);
         camera.position.set(0.4, 0.7, 3.6);
+        cameraRef.current = camera;
 
         renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true });
         renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -133,10 +144,15 @@ export function ExactSiteSparkViewer({
         controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
         controls.dampingFactor = 0.08;
-        controls.enablePan = false;
+        controls.enablePan = true;
+        controls.screenSpacePanning = true;
+        controls.zoomSpeed = 0.86;
+        controls.panSpeed = 0.72;
+        controls.rotateSpeed = 0.62;
         controls.minDistance = 0.6;
         controls.maxDistance = 40;
         controls.target.set(0, 0, 0);
+        controlsRef.current = controls;
 
         scene.add(new THREE.AmbientLight("#f8f7ec", 1.05));
         const key = new THREE.DirectionalLight("#fff2cf", 1.25);
@@ -185,9 +201,16 @@ export function ExactSiteSparkViewer({
           camera.position.set(worldCenter.x + maxAxis * 0.28, worldCenter.y + maxAxis * 0.22, worldCenter.z + maxAxis * 1.45);
           camera.near = Math.max(maxAxis / 1000, 0.01);
           camera.far = Math.max(maxAxis * 80, 100);
+          controls.minDistance = Math.max(maxAxis * 0.08, 0.08);
           controls.maxDistance = Math.max(maxAxis * 12, 10);
           camera.updateProjectionMatrix();
         }
+        initialViewRef.current = {
+          cameraPosition: camera.position.clone(),
+          target: controls.target.clone(),
+          minDistance: controls.minDistance,
+          maxDistance: controls.maxDistance,
+        };
 
         setSparkStatus("ready");
 
@@ -223,6 +246,13 @@ export function ExactSiteSparkViewer({
       window.cancelAnimationFrame(frameId);
       resizeObserver?.disconnect();
       controls?.dispose?.();
+      if (controlsRef.current === controls) {
+        controlsRef.current = null;
+      }
+      if (cameraRef.current === camera) {
+        cameraRef.current = null;
+      }
+      initialViewRef.current = null;
       splat?.dispose?.();
       if (renderer) {
         renderer.dispose?.();
@@ -233,6 +263,39 @@ export function ExactSiteSparkViewer({
   }, [selectedSplat?.label, selectedSplatUrl, splatRequested]);
 
   const selectedFormatLabel = selectedSplat?.format ? selectedSplat.format.toUpperCase() : "SPLAT";
+  const zoomViewer = (scale: number) => {
+    const camera = cameraRef.current;
+    const controls = controlsRef.current;
+    if (!camera || !controls) {
+      return;
+    }
+
+    const target = controls.target;
+    const offset = camera.position.clone().sub(target);
+    const currentDistance = Math.max(offset.length(), 0.001);
+    const minDistance = controls.minDistance || initialViewRef.current?.minDistance || 0.08;
+    const maxDistance = controls.maxDistance || initialViewRef.current?.maxDistance || 40;
+    const nextDistance = Math.min(Math.max(currentDistance * scale, minDistance), maxDistance);
+    offset.normalize().multiplyScalar(nextDistance);
+    camera.position.copy(target).add(offset);
+    camera.updateProjectionMatrix();
+    controls.update();
+  };
+  const resetViewer = () => {
+    const camera = cameraRef.current;
+    const controls = controlsRef.current;
+    const initialView = initialViewRef.current;
+    if (!camera || !controls || !initialView) {
+      return;
+    }
+
+    camera.position.copy(initialView.cameraPosition);
+    controls.target.copy(initialView.target);
+    controls.minDistance = initialView.minDistance;
+    controls.maxDistance = initialView.maxDistance;
+    camera.updateProjectionMatrix();
+    controls.update();
+  };
 
   return (
     <div
@@ -257,8 +320,12 @@ export function ExactSiteSparkViewer({
         )
       ) : null}
 
-      <div ref={containerRef} className="absolute inset-0" aria-label="Blueprint Exact-Site Preview viewer" />
-      <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(8,12,10,0.74),rgba(8,12,10,0.18)_48%,rgba(8,12,10,0.64))]" />
+      <div
+        ref={containerRef}
+        className="absolute inset-0 cursor-grab touch-none active:cursor-grabbing"
+        aria-label="Blueprint Exact-Site Preview viewer"
+      />
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(8,12,10,0.74),rgba(8,12,10,0.18)_48%,rgba(8,12,10,0.64))]" />
 
       {selectedSplatUrl && (!splatRequested || sparkStatus === "failed") ? (
         <div className="absolute inset-0 flex items-center justify-center px-5 text-center">
@@ -287,7 +354,7 @@ export function ExactSiteSparkViewer({
       ) : null}
 
       {selectedSplatUrl && splatRequested && sparkStatus === "loading" ? (
-        <div className="absolute inset-0 flex items-center justify-center px-5 text-center">
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-5 text-center">
           <div className="max-w-[20rem] border border-white/16 bg-black/48 p-5 text-white shadow-[0_22px_70px_-46px_rgba(0,0,0,0.75)] backdrop-blur-md">
             <div className="mx-auto h-8 w-8 animate-spin rounded-full border border-white/20 border-t-white" />
             <p className="mt-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/72">
@@ -319,7 +386,46 @@ export function ExactSiteSparkViewer({
         </div>
       ) : null}
 
-      <div className="absolute inset-x-0 bottom-0 flex flex-wrap items-center justify-between gap-3 border-t border-white/12 bg-black/28 px-4 py-3 text-xs text-white/70 backdrop-blur-sm sm:px-5">
+      {sparkStatus === "ready" ? (
+        <div className="absolute right-4 top-20 flex items-center gap-1 border border-white/12 bg-black/36 p-1 text-white backdrop-blur-sm">
+          <button
+            type="button"
+            onClick={() => zoomViewer(0.72)}
+            className="inline-flex h-9 w-9 items-center justify-center text-white/72 transition hover:bg-white hover:text-slate-950"
+            aria-label={`Zoom into ${selectedFormatLabel} preview`}
+            title="Zoom in"
+          >
+            <ZoomIn className="h-4 w-4" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            onClick={() => zoomViewer(1.38)}
+            className="inline-flex h-9 w-9 items-center justify-center text-white/72 transition hover:bg-white hover:text-slate-950"
+            aria-label={`Zoom out of ${selectedFormatLabel} preview`}
+            title="Zoom out"
+          >
+            <ZoomOut className="h-4 w-4" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            onClick={resetViewer}
+            className="inline-flex h-9 w-9 items-center justify-center text-white/72 transition hover:bg-white hover:text-slate-950"
+            aria-label={`Reset ${selectedFormatLabel} preview view`}
+            title="Reset view"
+          >
+            <RotateCcw className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </div>
+      ) : null}
+
+      {sparkStatus === "ready" ? (
+        <div className="pointer-events-none absolute bottom-16 left-4 flex items-center gap-2 border border-white/12 bg-black/34 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/62 backdrop-blur-sm">
+          <Move3d className="h-4 w-4" aria-hidden="true" />
+          Drag / Zoom / Pan
+        </div>
+      ) : null}
+
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-wrap items-center justify-between gap-3 border-t border-white/12 bg-black/28 px-4 py-3 text-xs text-white/70 backdrop-blur-sm sm:px-5">
         <span className="font-semibold uppercase tracking-[0.18em] text-white/72">{fallbackLabel}</span>
         {selectedSplatUrl ? (
           <span className="text-white/60">
