@@ -3229,7 +3229,12 @@ async function listAllIssues(ctx: PluginContext, companyId: string) {
   const pageSize = 200;
   const rows: Issue[] = [];
   for (let offset = 0; offset < 2000; offset += pageSize) {
-    const page = await ctx.issues.list({ companyId, limit: pageSize, offset });
+    const page = await ctx.issues.list({
+      companyId,
+      limit: pageSize,
+      offset,
+      includeRoutineExecutions: true,
+    });
     rows.push(...page);
     if (page.length < pageSize) break;
   }
