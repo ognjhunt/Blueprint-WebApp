@@ -3,6 +3,7 @@
 ## Primary Sources
 - `ops/paperclip/programs/growth-lead-program.md`
 - `ops/paperclip/blueprint-company/tasks/webapp-creative-image-execution/TASK.md`
+- `ops/paperclip/blueprint-company/skills/site-world-creative-production/SKILL.md`
 - analytics reports, experiment results, and anomaly alerts
 - `ops/paperclip/programs/conversion-agent-program.md`
 - `ops/paperclip/programs/market-intel-program.md`
@@ -43,7 +44,7 @@
 - positioning or copy recommendations
   Keep them within Blueprint's actual product and rights posture.
 - image-heavy creative routing
-  When a growth issue needs generated visuals, create or update a `webapp-codex` downstream issue using the dedicated image-execution task template instead of leaving the handoff implicit.
+  When a growth issue needs generated visuals, storyboards, reference frames, or video prompt packs, use `site-world-creative-production`, then create or update a `webapp-codex` downstream issue using the dedicated image-execution task template instead of leaving the handoff implicit.
 - Higgsfield MCP video routing
   Use `higgsfield-creative-video` only for scoped short-form video generation or provider testing. Require a proof-led first frame, allowed claims, blocked claims, and an output review note in the owning Paperclip issue.
 

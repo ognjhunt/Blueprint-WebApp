@@ -6,6 +6,7 @@
 - `ops/paperclip/playbooks/city-launch-austin-tx.md`
 - `ops/paperclip/playbooks/city-launch-san-francisco-ca.md`
 - `ops/paperclip/playbooks/capturer-supply-playbook.md`
+- `ops/paperclip/blueprint-company/skills/site-world-creative-production/SKILL.md`
 - supply-intel, capturer-growth, market-intel, city-demand, analytics, intake, and ops feedback
 - Paperclip issue lifecycle tools for cross-agent dependencies
 - `ops/paperclip/programs/parallel-search-mcp-policy.md`
@@ -34,6 +35,8 @@
   Use them to clarify tradeoffs, not to create false precision.
 - city-specific copy or channel recommendations
   Keep them explicitly internal until approved.
+- city creative packets
+  Use `site-world-creative-production` for storyboard/reference/prompt structure, then route final image execution to `webapp-codex`. Do not treat generated city ads or videos as launch proof.
 
 ## Do Not Use Casually
 - public launch language

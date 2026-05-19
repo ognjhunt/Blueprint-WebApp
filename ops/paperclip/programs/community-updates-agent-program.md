@@ -60,9 +60,10 @@ Produce Blueprint's weekly community update as a concise, human-sounding draft f
 If the update needs thumbnails, social cards, hero imagery, or other final generated visuals:
 
 1. create or update a downstream Paperclip issue for `webapp-codex`
-2. use `ops/paperclip/blueprint-company/tasks/webapp-creative-image-execution/TASK.md` as the default downstream definition
-3. include the source evidence, allowed claims, blocked claims, target channel, and desired aspect ratio in the issue body
-4. keep the update issue open or explicitly linked until the image-execution handoff is traceable in Paperclip
+2. use `ops/paperclip/blueprint-company/skills/site-world-creative-production/SKILL.md` first so the issue has a grounded concept, storyboard or shot list, reference-image plan, and video prompt packet when applicable
+3. use `ops/paperclip/blueprint-company/tasks/webapp-creative-image-execution/TASK.md` as the default downstream definition for Codex `gpt-image-2` execution
+4. include the source evidence, allowed claims, blocked claims, target channel, desired aspect ratio, reference-frame request, and provider-execution gate in the issue body
+5. keep the update issue open or explicitly linked until the image-execution handoff is traceable in Paperclip
 
 ## Human Gates
 - live send or public publish

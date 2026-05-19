@@ -1,0 +1,28 @@
+{
+  "references": [
+    {
+      "label": "Figure 03 official full-body identity reference",
+      "url": "https://images.ctfassets.net/qx5k8y1u9drj/6rREWE2DjWe7W3AFbZYSyH/21889f6a8f17464410b45c9ae12b718a/human-form-module-figure-3-image-v3.png"
+    },
+    {
+      "label": "Figure 03 official hero identity reference",
+      "url": "https://images.ctfassets.net/qx5k8y1u9drj/2qouCIcKmTzyS3v2HqyQB2/1dbed1bf7345042abc62823d9d890593/hero-figure-03-image-02.jpg"
+    },
+    {
+      "label": "Blueprint grocery fulfillment environment reference",
+      "url": "https://tryblueprint.io/generated/editorial/grocery-fulfillment.png"
+    },
+    {
+      "label": "Blueprint grocery aisle proof reference",
+      "url": "https://tryblueprint.io/proof/grocery-aisle-proof-capture.png"
+    },
+    {
+      "label": "Blueprint tote picking aisle reference",
+      "url": "https://tryblueprint.io/thumbnails/tote-picking-aisle.png"
+    },
+    {
+      "label": "Blueprint grocery visual style reference",
+      "url": "https://tryblueprint.io/images/nano-banana_grocery.png"
+    }
+  ]
+}

@@ -1,0 +1,103 @@
+schemaVersion: 1
+generatedAt: "2026-05-18"
+status: repo_ready_live_sync_blocked
+purpose: "Deterministic trace path from Hermes Kanban triage parents to Paperclip child issues/runs."
+currentGate:
+  hermesKanbanCommandAvailable: false
+  localMutationAllowed: false
+  reason: "Local Hermes v0.6.0 has no `hermes kanban` command and no `hermes profile describe` subcommand."
+authoritativeRecord:
+  executionOwner: Paperclip
+  planningRouter: Hermes
+  implementationLane: Codex
+  notAuthoritative:
+    - "Hermes KB summaries"
+    - "Generated Kanban cards without Paperclip issue links"
+    - "Runtime subagents without parent Paperclip issues"
+parentTrace:
+  parentIdFormat: "hermes-kanban:<date-or-board-id>:<stable-parent-key>"
+  paperclipSourceType: "hermes-kanban-parent"
+  paperclipSourceId: "<parentId>"
+  defaultAssignee: blueprint-chief-of-staff
+  requiredPaperclipFields:
+    - sourceType
+    - sourceId
+    - title
+    - description
+    - projectName
+    - assignee
+    - priority
+    - status
+childTrace:
+  childIdFormat: "<parentId>:child:<stable-child-key>"
+  paperclipSourceType: "hermes-kanban-child"
+  paperclipSourceId: "<childId>"
+  requiredChildPayload:
+    parentIssueId: "Paperclip issue id for the parent triage card."
+    assignedProfile: "Hermes/Paperclip profile key from profiles.yaml."
+    title: "Actionable child task title."
+    description: "Task body containing acceptance criteria, proof path expectation, blocker id policy, closeout owner, and side-effect gate."
+    projectName: "Paperclip project that owns the work."
+    assignee: "Responsible Paperclip agent/profile key. No unowned child tasks."
+    priority: "low, medium, high, or urgent."
+    status: "todo unless the child is intentionally parked as backlog or blocked."
+  requiredDescriptionSections:
+    - "Parent trace: Hermes parent id and Paperclip parent issue id."
+    - "Assigned profile: exact profileKey/paperclipAgentKey."
+    - "Acceptance criteria: observable repo, artifact, runtime, or buyer-facing result."
+    - "Proof path expectation: exact file path, command output, artifact URI, issue id, run id, ledger key, or hosted id expected at closeout."
+    - "Blocker id policy: durable blocker id required for human-gated or external-gated stops; use none only when no blocker exists."
+    - "Side-effect gate: command-safety approval state for any live send/payment/provider/Notion/Paperclip/Render/Firebase/VPS mutation."
+    - "Closeout owner: agent/profile responsible for resolving or blocking the child."
+    - "Residual risk: what remains unverified or outside the child scope."
+approvedPaperclipTools:
+  upsertWorkItem:
+    toolName: blueprint-upsert-work-item
+    use: "Create or update parent and child issues with stable sourceType/sourceId."
+  reportBlocker:
+    toolName: blueprint-report-blocker
+    use: "Create child blocker issues linked to parentIssueId when work is truly blocked."
+  dispatchHumanBlocker:
+    toolName: blueprint-dispatch-human-blocker
+    use: "Queue/send standard human blocker packets only after command-safety and human-gate rules allow it."
+  resolveWorkItem:
+    toolName: blueprint-resolve-work-item
+    use: "Resolve or block a Paperclip issue with an explicit trace comment and required closeout packet."
+  runtimeSpawnSubagent:
+    toolName: blueprint-runtime-spawn-subagent
+    use: "Optional runtime-only helper after a parent Paperclip issue/run exists. It never replaces parent/child issue creation."
+orchestratorFlow:
+  - step: "Classify the prompt against profiles.yaml."
+    requiredOutput: "selected parent profile and one-line routing rationale."
+  - step: "Create or identify the parent Paperclip issue with sourceType hermes-kanban-parent."
+    requiredOutput: "parentIssueId."
+  - step: "Decompose only into children with one responsible profile each."
+    requiredOutput: "child list with assignedProfile, acceptance criteria, proof path expectation, blocker policy, closeout owner."
+  - step: "Upsert each child through blueprint-upsert-work-item with parentIssueId."
+    requiredOutput: "Paperclip child issue ids."
+  - step: "Wake or assign the responsible Paperclip agent/profile."
+    requiredOutput: "run/session proof when execution starts, or a visible queued issue when execution is not started."
+  - step: "Close each child through blueprint-resolve-work-item or blueprint-report-blocker."
+    requiredOutput: "closeout comment containing issue/run id, proof paths, command outputs, next action, retry condition, and residual risk."
+prohibitions:
+  - "No broad queue scans from narrow issue-bound prompts."
+  - "No child task without a responsible Paperclip agent/profile."
+  - "No fake sends, payments, provider artifacts, hosted-session proof, capture provenance, rights clearance, or city activation."
+  - "No live side effects without command-safety approval and the required human gate."
+  - "No Codex fallback for all agents; preserve Hermes/DeepSeek lanes where configured."
+  - "No claims that Hermes Kanban/profile descriptions are live-synced while local commands are unavailable."
+closeoutContract:
+  preserveExistingContract: "server/agents/goal-closeout-contract.ts"
+  requiredLabels:
+    - "Goal objective:"
+    - "Issue/run id:"
+    - "Budget/timeout context:"
+    - "Stage reached:"
+    - "State claimed:"
+    - "Owner:"
+    - "Blocker/decision id:"
+    - "Proof paths:"
+    - "Command outputs:"
+    - "Next action:"
+    - "Retry/resume condition:"
+    - "Residual risk:"

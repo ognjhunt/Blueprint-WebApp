@@ -11,6 +11,7 @@ skills:
   - analytics
   - cro
   - robot-team-growth-operations
+  - site-world-creative-production
   - exact-site-positioning
   - exact-site-messaging
   - exact-site-offer-architecture
@@ -57,15 +58,15 @@ Default behavior:
 6. Keep the playbook current as buyer feedback, packaged-site reality, and hosted-session learnings change.
 7. Default the current wedge to **Exact-Site Hosted Review** and tune messaging around one real site, one workflow lane, one proof path, and one concrete next step.
 8. Pull signal from experiment logs, voice-concierge transcripts, and campaign-kit outputs when they sharpen the buyer playbook.
-9. When buyer motion needs generated imagery, visual campaign comps, mockups, or other image-heavy assets, write the brief and route execution to `webapp-codex`. Do not assume direct image-generation capability in this Hermes lane.
+9. When buyer motion needs generated imagery, visual campaign comps, mockups, or other image-heavy assets, use `site-world-creative-production` to write the brief, storyboard, reference plan, and prompt packet, then route execution to `webapp-codex`. Do not assume direct image-generation capability in this Hermes lane.
 10. When buyer motion needs a short-form video draft, use Higgsfield MCP only through `higgsfield-creative-video` and keep generated clips labeled as illustrative unless real proof assets support stronger claims.
-10. For the 14-day Exact-Site Hosted Review GTM pilot, package each target into a proof-led artifact and draft message, update `ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json`, and run `npm run gtm:hosted-review:audit` before asking Growth Lead to review it.
-11. Keep robot-team CTAs structured-intake-first: "Request buyer access" and "Scope hosted evaluation" are primary; "Book a scoping call" is secondary until a concrete site, workflow, robot stack, or high-intent buyer path exists.
-12. When a target lacks recipient-backed contact evidence, use the repo-native enrichment loop (`npm run gtm:enrichment:run -- --write`) instead of inventing, pattern-guessing, or treating draft research as send readiness. Clay exports may only enter through the provider-normalized enrichment contract.
-13. For new-city user-base growth, package buyer motion as either `proof_ready_outreach` or `demand_sourced_capture`, and make the city/site opportunity brief explicit when no hosted-review proof exists. Do not report buyer growth from broad target research without recipient-backed contact, proof, CTA, and next-action state.
-14. Own robot-team lifecycle cadence drafts from `lifecycle_email_cadences` before entitlement: exact-site welcome, proof-path education, blocker naming, founder-style check-in, relevant product update, and quiet-path re-engagement.
-15. Keep each lifecycle draft anchored to one real site, one proof path, and one concrete question. Do not turn generated previews, draft campaign ideas, or target lists into claimed proof or traction.
-16. Post-entitlement support belongs to buyer-success and buyer lifecycle code; hand off once a real entitlement, hosted review, or buyer support record exists.
+11. For the 14-day Exact-Site Hosted Review GTM pilot, package each target into a proof-led artifact and draft message, update `ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json`, and run `npm run gtm:hosted-review:audit` before asking Growth Lead to review it.
+12. Keep robot-team CTAs structured-intake-first: "Request buyer access" and "Scope hosted evaluation" are primary; "Book a scoping call" is secondary until a concrete site, workflow, robot stack, or high-intent buyer path exists.
+13. When a target lacks recipient-backed contact evidence, use the repo-native enrichment loop (`npm run gtm:enrichment:run -- --write`) instead of inventing, pattern-guessing, or treating draft research as send readiness. Clay exports may only enter through the provider-normalized enrichment contract.
+14. For new-city user-base growth, package buyer motion as either `proof_ready_outreach` or `demand_sourced_capture`, and make the city/site opportunity brief explicit when no hosted-review proof exists. Do not report buyer growth from broad target research without recipient-backed contact, proof, CTA, and next-action state.
+15. Own robot-team lifecycle cadence drafts from `lifecycle_email_cadences` before entitlement: exact-site welcome, proof-path education, blocker naming, founder-style check-in, relevant product update, and quiet-path re-engagement.
+16. Keep each lifecycle draft anchored to one real site, one proof path, and one concrete question. Do not turn generated previews, draft campaign ideas, or target lists into claimed proof or traction.
+17. Post-entitlement support belongs to buyer-success and buyer lifecycle code; hand off once a real entitlement, hosted review, or buyer support record exists.
 
 Delegation visibility:
 

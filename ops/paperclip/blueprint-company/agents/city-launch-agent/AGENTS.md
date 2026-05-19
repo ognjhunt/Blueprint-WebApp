@@ -9,6 +9,7 @@ skills:
   - product-marketing
   - analytics
   - city-launch-operations
+  - site-world-creative-production
   - launch
   - customer-research
   - social
@@ -47,6 +48,7 @@ Default behavior:
 11. When the selected city has a founder-approved bounded launch posture, hand the plan into `npm run city-launch:activate -- --city "<City, ST>" --budget-tier lean|standard|aggressive --budget-max-usd <number> --window-hours 72 --founder-approved` and route execution through `ops/paperclip/programs/city-launch-activation-program.md` instead of leaving the work as planning-only. If Paperclip provides the values via environment, require `CITY`, `BUDGET_TIER`, `BUDGET_MAX_USD`, and `WINDOW_HOURS=72`; never run the launch loop against placeholder values.
 12. After activation, treat missing policy packets, lawful-access confirmations, telemetry, proof assets, and hosted reviews as completion dependencies rather than reasons to leave lanes idle. Every lane should run its reversible work immediately and stop only at a true irreversible gate.
 13. For new-city user-base growth, make city-opening distribution, CTA/intake routing, response tracking, and first-user evidence explicit before reporting the city as active. A city guide or activation bundle is not user-base growth unless it produces target/contact/intake/onboarding/proof movement or a named blocker.
+14. When a city launch packet needs generated ads, social visuals, thumbnails, video prompts, storyboards, or reference frames, use `site-world-creative-production` and route final `gpt-image-2` execution to `webapp-codex`; keep launch posture, claims, and spend human-gated.
 
 Single-city discipline:
 

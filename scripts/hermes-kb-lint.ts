@@ -40,6 +40,8 @@ type LintError = {
   message: string;
 };
 
+type LintScope = "all" | "compiled" | "reports";
+
 type FrontmatterShape = {
   authority?: unknown;
   source_system?: unknown;
@@ -113,6 +115,9 @@ function isNonEmptyString(value: unknown): value is string {
 }
 
 function isIsoDate(value: unknown): value is string {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return /^\d{4}-\d{2}-\d{2}$/.test(value.toISOString().slice(0, 10));
+  }
   return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
 
@@ -338,7 +343,17 @@ function shouldSkipPage(file: string) {
   );
 }
 
+function readScope(): LintScope {
+  const scopeIndex = process.argv.indexOf("--scope");
+  const rawScope = scopeIndex >= 0 ? process.argv[scopeIndex + 1] : "all";
+  if (rawScope === "all" || rawScope === "compiled" || rawScope === "reports") {
+    return rawScope;
+  }
+  throw new Error("Invalid --scope. Use all, compiled, or reports.");
+}
+
 async function main() {
+  const scope = readScope();
   const errors: LintError[] = [];
 
   for (const relativeDir of requiredDirectories) {
@@ -372,49 +387,53 @@ async function main() {
   const compiledFiles = (await walkMarkdownFiles(compiledRoot)).filter((file) => !shouldSkipPage(file));
   const reportFiles = (await walkMarkdownFiles(reportsRoot)).filter((file) => !shouldSkipPage(file));
 
-  for (const file of compiledFiles) {
-    const rel = relativePath(file);
-    const content = await fs.readFile(file, "utf8");
-    const parsed = parseFrontmatter(content);
+  if (scope === "all" || scope === "compiled") {
+    for (const file of compiledFiles) {
+      const rel = relativePath(file);
+      const content = await fs.readFile(file, "utf8");
+      const parsed = parseFrontmatter(content);
 
-    if (!parsed) {
-      errors.push({
-        file: rel,
-        message: "Missing YAML frontmatter block.",
-      });
-      continue;
+      if (!parsed) {
+        errors.push({
+          file: rel,
+          message: "Missing YAML frontmatter block.",
+        });
+        continue;
+      }
+
+      validateFrontmatter(rel, parsed.data, errors);
+      validateRequiredSections(rel, parsed.body, requiredSectionsForPageKind(parsed.data.page_kind), errors);
     }
-
-    validateFrontmatter(rel, parsed.data, errors);
-    validateRequiredSections(rel, parsed.body, requiredSectionsForPageKind(parsed.data.page_kind), errors);
   }
 
-  for (const file of reportFiles) {
-    const rel = relativePath(file);
-    const content = await fs.readFile(file, "utf8");
-    const parsed = parseFrontmatter(content);
+  if (scope === "all" || scope === "reports") {
+    for (const file of reportFiles) {
+      const rel = relativePath(file);
+      const content = await fs.readFile(file, "utf8");
+      const parsed = parseFrontmatter(content);
 
-    if (!parsed) {
-      errors.push({
-        file: rel,
-        message: "Missing YAML frontmatter block.",
-      });
-      continue;
+      if (!parsed) {
+        errors.push({
+          file: rel,
+          message: "Missing YAML frontmatter block.",
+        });
+        continue;
+      }
+
+      validateFrontmatter(rel, parsed.data, errors);
+      validateRequiredSections(
+        rel,
+        parsed.body,
+        [
+          "## Summary",
+          "## Evidence",
+          "## Recommended Follow-up",
+          "## Linked KB Pages",
+          "## Authority Boundary",
+        ],
+        errors,
+      );
     }
-
-    validateFrontmatter(rel, parsed.data, errors);
-    validateRequiredSections(
-      rel,
-      parsed.body,
-      [
-        "## Summary",
-        "## Evidence",
-        "## Recommended Follow-up",
-        "## Linked KB Pages",
-        "## Authority Boundary",
-      ],
-      errors,
-    );
   }
 
   report(errors);

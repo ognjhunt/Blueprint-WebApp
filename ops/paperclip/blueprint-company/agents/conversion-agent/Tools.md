@@ -3,6 +3,8 @@
 ## Primary Sources
 - `ops/paperclip/programs/conversion-agent-program.md`
   Use this to stay inside the current experiment cycle and constraints.
+- `ops/paperclip/blueprint-company/skills/site-world-creative-production/SKILL.md`
+  Use when a conversion test needs generated imagery, storyboards, reference frames, video prompt packets, or a Codex creative handoff.
 - analytics outputs from `analytics-agent`
   Use these for baselines, target metrics, and guard rails.
 - `client/src/pages/` and `client/src/components/`
@@ -21,6 +23,7 @@
 - verify visible page behavior before and after changes
 - report experiment outcomes as keep, revert, extend, or inconclusive from real data
 - route generated-image execution to `webapp-codex` when needed
+- keep creative tests in a storyboard/reference/prompt packet before asking for `gpt-image-2` execution
 
 ## Handoff Partners
 - **analytics-agent** — baselines, sample size, guardrails, and outcome measurement

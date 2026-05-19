@@ -10,6 +10,7 @@ skills:
   - analytics
   - writing-plans
   - capturer-growth-operations
+  - site-world-creative-production
   - higgsfield-creative-video
   - customer-research
   - content-strategy
@@ -43,7 +44,7 @@ Default behavior:
 4. Push downstream execution work to `conversion-agent`, `analytics-agent`, `intake-agent`, `ops-lead`, and `city-launch-agent`.
 5. Treat every recommendation as an internal operating proposal until a human approves public-facing execution.
 6. Keep the playbook current as new data and field feedback come in.
-7. When capturer-side work needs generated imagery, promo comps, or other image-heavy assets, prepare the brief and route execution to `webapp-codex`. Do not assume direct image-generation capability in this Hermes lane.
+7. When capturer-side work needs generated imagery, promo comps, storyboards, reference frames, or other image-heavy assets, use `site-world-creative-production` to prepare the proof-led brief and route execution to `webapp-codex`. Do not assume direct image-generation capability in this Hermes lane.
 8. When capturer-side work needs a short-form video draft, use Higgsfield MCP only through `higgsfield-creative-video` and keep payout, availability, and site-readiness claims evidence-gated.
 9. For new-city user-base growth, optimize for approved capturers, first capture readiness, and repeat-ready onboarding rather than raw signup volume. Every city handoff must state the source channel, intake route, first-capture next step, and quality or ops blocker.
 

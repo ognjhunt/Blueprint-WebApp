@@ -64,3 +64,12 @@ For rights-sensitive exact-site work, the reusable playbook also now points at a
 ## Authority Boundary
 
 This report is a derived work product. It does not replace Paperclip work state, approvals, rights/privacy review, pricing/legal commitments, or live capture/posting truth.
+
+## Recommended Follow-up
+
+- Promote reusable findings into `knowledge/compiled/` before treating this historical report as current guidance.
+- Verify current Paperclip issue state, rights/provenance state, and repo artifacts before acting on this report.
+
+## Linked KB Pages
+
+- No additional linked KB page was added during schema cleanup; use existing links in the report body and canonical repo/Paperclip references above.

@@ -48,6 +48,12 @@ Use this dossier as the buyer-thread reference for Sacramento exact-site proof p
 - The current posture is blocker-aware packaging, not buyer-facing readiness claims.
 - The latest bounded heartbeat snapshot for BLU-2664 reports the task as blocked, so the commercial thread remains in packaging/blocker mode rather than buyer-evaluating mode.
 
+## Evidence
+
+- The linked Sacramento launch bundle and scorecard describe activation readiness, not a cleared buyer proof asset.
+- `BLU-2664` remains the blocker thread for the missing rights-cleared proof pack.
+- The proof candidate register below separates public non-controlled prospects from private controlled interiors and records that no live capture artifact exists yet.
+
 ## Sacramento Proof Candidate Rights Register
 
 The current Sacramento target ledger splits the city into permissioned industrial interiors and public non-controlled retail / mall surfaces. No live capture artifact has been materialized yet, so this register is still a rights posture map rather than a buyer-ready proof-pack clearance.
@@ -86,6 +92,18 @@ The current Sacramento target ledger splits the city into permissioned industria
 - Keep access path, provenance, and privacy limits visible in the proof summary.
 - Route any precedent-setting rights or commercialization question to the human rights lane before buyer delivery.
 - Do not convert demand research into proof readiness without a concrete proof artifact.
+
+## Implications For Blueprint
+
+- Keep Sacramento demand, activation, and buyer-proof readiness as separate states.
+- Treat the rights-cleared proof asset as the next proof-motion blocker, not as a copy or positioning gap.
+- Use the target-account map only after the proof asset and hosted-review path exist together.
+
+## Open Questions
+
+- Which Sacramento candidate will produce the first rights-cleared proof asset?
+- Which rights owner will clear the exact-site versus adjacent-site label for that asset?
+- What hosted-review path should become buyer-visible once the proof asset exists?
 
 ## Recommended Follow-up
 

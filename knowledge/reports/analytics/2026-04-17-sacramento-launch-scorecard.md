@@ -59,3 +59,7 @@ Sacramento launch scorecard remains publishable, but the city is still blocked o
 ## Authority Boundary
 
 This report is a derivative work product. It does not replace Paperclip work state, approvals, rights/privacy review, pricing/legal commitments, capture provenance, or package/runtime truth.
+
+## Linked KB Pages
+
+- No additional linked KB page was added during schema cleanup; use existing links in the report body and canonical repo/Paperclip references above.

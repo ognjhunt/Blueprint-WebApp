@@ -40,6 +40,10 @@ Blueprint's current market baseline is shifting in six directions at once: captu
 - Industrial platform vendors are starting to package the digital-twin and AI-factory stack as an operating-system layer, not a standalone simulation product.
 - Rights, privacy, documentation, and energy-consumption metadata are becoming more important product inputs, not just legal back-office artifacts.
 
+## Evidence
+
+The source URLs in this page are first-party vendor, regulatory, and research references. The signal history below records the observed market movement and should be refreshed before it is used for current claims.
+
 ## Signal History
 
 ### 2026-04-10
@@ -82,6 +86,18 @@ Blueprint's current market baseline is shifting in six directions at once: captu
 - Streamed 3DGS delivery is now part of the category baseline, so Blueprint should treat web runtime and asset portability as product expectations, not optional polish.
 - Industrial AI platform consolidation is now a second front: Blueprint should avoid competing as a generic simulation layer and instead keep the focus on site-specific capture plus exportable, rights-safe assets.
 - The compliance trend reinforces a product strategy that makes provenance, consent, exportability, and energy metadata explicit in the asset contract.
+
+## Implications For Blueprint
+
+- Keep investing in real-site capture, provenance-safe packaging, hosted access, and buyer workflow rather than model ownership claims.
+- Treat streaming/runtime quality, exportability, and rights documentation as product requirements.
+- Use vendor and regulatory market signals as context only; do not turn them into proof of Blueprint readiness or traction.
+
+## Open Questions
+
+- Which market signals changed after the 2026-04-25 verification date?
+- Which buyer-facing claims need fresh source checks before publication?
+- Which runtime expectations should be converted into explicit product acceptance tests?
 
 ## Linked Artifacts
 

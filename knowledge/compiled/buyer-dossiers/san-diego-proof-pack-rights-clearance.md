@@ -59,6 +59,18 @@ San Diego only works as a demand wedge when the proof-path remains explicit. Blu
 - Do not imply access, commercialization rights, or procurement readiness that have not been cleared.
 - Keep site-operator conversations separate from buyer conversations unless the access path itself is the product of the handoff.
 
+## Implications For Blueprint
+
+- Keep San Diego buyer motion proof-path first, especially for defense, marine, lab, and systems-integration accounts.
+- Use Brain Corp and Biosero as likely buyer-fit anchors without implying an asset is ready for hosted review.
+- Treat operator-lane accounts as access/right-path work until a named site and rights chain are explicit.
+
+## Open Questions
+
+- Which San Diego exact-site or adjacent-site asset will be cleared first?
+- Which accounts require export-control or defense-sensitivity review before any buyer-facing motion?
+- What evidence will resolve `BLU-3261` from pre-proof into hosted-review readiness?
+
 ## Recommended Follow-up
 
 - Use this dossier as the rights boundary reference for the San Diego target-account page.

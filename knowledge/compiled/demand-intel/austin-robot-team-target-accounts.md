@@ -158,6 +158,12 @@ Why this cluster matters:
 - Prioritize humanoid/workplace robotics and warehouse/dock automation first, then construction, industrial autonomy, and field robotics.
 - Use Texas Robotics and Austin Robotics & AI as channel density sources rather than direct buyers.
 - Keep exact-site versus adjacent-site labeling explicit before any downstream outbound or proof-pack packaging.
+
+## Implications For Blueprint
+
+- Use Austin as a proof-led buyer map, not as broad city awareness.
+- Route Apptronik, Diligent Robotics, Fox Robotics, and ICON through exact-site proof hypotheses before any first-touch claims.
+- Keep community anchors in the channel lane unless they produce a concrete buyer or proof-pack handoff.
 - Route the named account list to `robot-team-growth-agent` once the rights-cleared proof assets are ready.
 
 ## Open Questions
@@ -254,7 +260,7 @@ Best first-touch surfaces:
 | RoyCo Robotics | Energy and field robotics | Public Austin routing and a narrow oilfield automation workflow | Contact email / form | Evidence |
 | RobotLAB Austin | Local integrator | Local consultative entry point for deployment-heavy conversations | Austin contact email / consultation | Evidence |
 
-## Linked Reports
+## Canonical Links
 
 - [Austin robot-company target accounts and buyer clusters](../../reports/demand-intel/2026-04-17-demand-intel-daily-digest-2026-04-17-austin-robot-company-target-accounts-and-buyer-clusters.md)
 - [Austin robot team buyer threads and first-touch candidates](../../reports/demand-intel/2026-04-27-austin-robot-team-buyer-threads-and-first-touch-candidates.md)

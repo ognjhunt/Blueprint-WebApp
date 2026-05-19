@@ -10,6 +10,7 @@ source_urls:
 last_verified_at: "2026-04-10"
 owner: blueprint-ops-lead
 sensitivity: internal
+confidence: 0.94
 source_hashes:
   PLATFORM_CONTEXT.md: "5069227c9a272d57a02d68eda25d7667ee25fde3"
   WORLD_MODEL_STRATEGY_CONTEXT.md: "15e20534964c106d1062b300505180397eb6f9b4"

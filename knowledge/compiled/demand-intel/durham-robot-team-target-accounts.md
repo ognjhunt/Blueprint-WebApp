@@ -141,13 +141,19 @@ Why this cluster matters:
 - Route Durham AEC supply to the professional capture lane, not generic community capture.
 - Keep `proof_motion_stalled` visible whenever contact, rights, or delivery assumptions fail.
 
+## Implications For Blueprint
+
+- Treat Durham as a narrow proof-motion city, not a broad demand campaign.
+- Keep the first buyer path attached to a bounded logistics bay, real authorization, and recipient-backed contact evidence.
+- Do not convert BotBuilt, ROI Industries, or AEC supply research into live outreach without proof, rights, and contact validation.
+
 ## Open Questions
 
 - Which Durham site operator will actually approve a bounded bay for capture?
 - Which buyer is most likely to accept hosted review after seeing a real proof pack?
 - Does the first Durham conversion path start with direct buyer outreach or with a site-operator-led proof motion?
 
-## Linked Reports
+## Canonical Links
 
 - [Durham robot-company target accounts and buyer clusters](../../reports/demand-intel/2026-04-22-durham-robot-company-target-accounts-and-buyer-clusters.md)
 - [Robot Team Demand Weekly Tracker](./robot-team-demand-weekly-tracker.md)

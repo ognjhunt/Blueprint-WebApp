@@ -32,7 +32,7 @@ The loop has five stages:
 4. **Run draft-first distribution**
    - all public posts, first-batch outbound, community posts, paid spend, and commercial commitments remain gated
    - first reversible work is target packaging, recipient evidence, draft copy, asset briefs, send ledger updates, and follow-up queues
-   - image-heavy or visual campaign execution routes to `webapp-codex`
+   - image-heavy, generated-visual, storyboard, or video-prompt work uses `ops/paperclip/blueprint-company/skills/site-world-creative-production/SKILL.md` first, then routes executable image/reference-frame work to `webapp-codex` through `ops/paperclip/blueprint-company/tasks/webapp-creative-image-execution/TASK.md`
 5. **Close the first-user loop**
    - every weekly run must report real movement in at least one user-motion field:
      target, recipient-backed contact, approved draft, sent touch, reply, structured intake, approved capturer, capture ask, hosted-review start, qualified call, capture completed, blocker, or stop/change decision

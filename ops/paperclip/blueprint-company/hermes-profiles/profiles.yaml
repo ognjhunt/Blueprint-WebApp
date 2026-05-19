@@ -1,0 +1,322 @@
+schemaVersion: 1
+generatedAt: "2026-05-18"
+status: repo_ready_live_sync_blocked
+localHermesGate:
+  version: "Hermes Agent v0.6.0 (2026.3.30)"
+  updateCommand: "hermes update"
+  updateState: "5698 commits behind"
+  kanbanCommandAvailable: false
+  profileDescribeCommandAvailable: false
+  liveProfileDescriptionSync: blocked
+sourceOfTruth:
+  paperclipExecutionRecord: "Paperclip issues, routines, runs, comments, blocker records"
+  hermesRole: "planning, routing, research, specialist text work, and profile-description assisted triage"
+  codexRole: "implementation, browser/front-end verification, and image-heavy creative execution"
+  defaultRuntimePolicy: "Keep Hermes/DeepSeek-backed lanes on their configured cheap/default text runtime. Route to Codex only for Codex-authored implementation, review, browser/image-heavy, or explicitly Codex-scoped work."
+descriptionContract:
+  fieldName: description
+  purpose: "Short Hermes routing label for Kanban/default-assignee decisions."
+  constraints:
+    - "One or two sentences."
+    - "Do not duplicate or replace .paperclip.yaml capabilities."
+    - "Do not imply live operational readiness, cleared rights, completed sends, payments, payouts, provider execution, or hosted-session fulfillment."
+    - "Each routed task still needs a Paperclip issue/run record before execution closes."
+profiles:
+  - profileKey: blueprint-chief-of-staff
+    paperclipAgentKey: blueprint-chief-of-staff
+    runtimeLane: hermes_local
+    defaultAssigneeRole: orchestrator
+    description: "Hermes orchestrator for Blueprint's Paperclip-managed company. Decomposes triage into owned Paperclip child issues, keeps issue/run proof and blockers explicit, and routes implementation or image-heavy work to the correct Codex lane instead of doing it inside Hermes."
+    routeWhen: "Use for ambiguous prompts, queue triage, cross-agent decomposition, stalled-work follow-through, blocker routing, or default-assignee decisions."
+    derivedFrom:
+      - "ops/paperclip/blueprint-company/.paperclip.yaml#agents.blueprint-chief-of-staff.capabilities"
+      - "ops/paperclip/blueprint-company/agents/blueprint-chief-of-staff/AGENTS.md"
+      - "ops/paperclip/blueprint-company/agents/blueprint-chief-of-staff/Soul.md"
+      - "ops/paperclip/blueprint-company/agents/blueprint-chief-of-staff/Tools.md"
+      - "ops/paperclip/blueprint-company/agents/blueprint-chief-of-staff/Heartbeat.md"
+  - profileKey: growth-lead
+    paperclipAgentKey: growth-lead
+    runtimeLane: hermes_local
+    description: "Hermes growth strategy lead for the reduced core growth tree: analytics, conversion, market/demand intelligence, and one city-demand loop. Turns evidence into downstream Paperclip work while keeping public sends, claims, and creative execution gated."
+    routeWhen: "Use for growth prioritization, experiment selection, funnel/channel posture, growth program updates, and routing downstream growth issues."
+    derivedFrom:
+      - "ops/paperclip/blueprint-company/.paperclip.yaml#agents.growth-lead.capabilities"
+      - "ops/paperclip/blueprint-company/agents/growth-lead/AGENTS.md"
+      - "ops/paperclip/blueprint-company/agents/growth-lead/Soul.md"
+      - "ops/paperclip/blueprint-company/agents/growth-lead/Tools.md"
+      - "ops/paperclip/blueprint-company/agents/growth-lead/Heartbeat.md"
+  - profileKey: city-launch-agent
+    paperclipAgentKey: city-launch-agent
+    runtimeLane: hermes_local
+    description: "Hermes city-specific capturer launch planner for evidence-backed supply activation. Builds and refreshes city launch artifacts, scorecards, and downstream work without treating a plan as active city coverage or rights-cleared proof."
+    routeWhen: "Use for city capturer supply planning, launch scorecards, local channel evidence, and city launch dependency routing."
+    derivedFrom:
+      - "ops/paperclip/blueprint-company/.paperclip.yaml#agents.city-launch-agent.capabilities"
+      - "ops/paperclip/blueprint-company/agents/city-launch-agent/AGENTS.md"
+      - "ops/paperclip/blueprint-company/agents/city-launch-agent/Soul.md"
+      - "ops/paperclip/blueprint-company/agents/city-launch-agent/Tools.md"
+      - "ops/paperclip/blueprint-company/agents/city-launch-agent/Heartbeat.md"
+  - profileKey: city-demand-agent
+    paperclipAgentKey: city-demand-agent
+    runtimeLane: hermes_local
+    description: "Hermes city-specific robot-team demand planner. Evaluates local buyer clusters, exact-site relevance, and site-operator opportunity lanes, then creates proof-bound Paperclip work without generic market optimism."
+    routeWhen: "Use for city buyer demand plans, local robot-team ecosystem evidence, proof requirements, and city demand dependency routing."
+    derivedFrom:
+      - "ops/paperclip/blueprint-company/.paperclip.yaml#agents.city-demand-agent.capabilities"
+      - "ops/paperclip/blueprint-company/agents/city-demand-agent/AGENTS.md"
+      - "ops/paperclip/blueprint-company/agents/city-demand-agent/Soul.md"
+      - "ops/paperclip/blueprint-company/agents/city-demand-agent/Tools.md"
+      - "ops/paperclip/blueprint-company/agents/city-demand-agent/Heartbeat.md"
+  - profileKey: capturer-growth-agent
+    paperclipAgentKey: capturer-growth-agent
+    runtimeLane: hermes_local
+    description: "Hermes capturer acquisition and activation playbook operator. Converts supply-intel findings into channel strategy and executable Paperclip issues while keeping payout, availability, and site-readiness claims evidence-gated."
+    routeWhen: "Use for capturer channel planning, supply-growth playbooks, acquisition briefs, and supply-side downstream task creation."
+    derivedFrom:
+      - "ops/paperclip/blueprint-company/.paperclip.yaml#agents.capturer-growth-agent.capabilities"
+      - "ops/paperclip/blueprint-company/agents/capturer-growth-agent/AGENTS.md"
+      - "ops/paperclip/blueprint-company/agents/capturer-growth-agent/Soul.md"
+      - "ops/paperclip/blueprint-company/agents/capturer-growth-agent/Tools.md"
+      - "ops/paperclip/blueprint-company/agents/capturer-growth-agent/Heartbeat.md"
+  - profileKey: robot-team-growth-agent
+    paperclipAgentKey: robot-team-growth-agent
+    runtimeLane: hermes_local
+    description: "Hermes robot-team demand playbook operator for proof-led buyer motion. Shapes proof packs, hosted-session demo motion, lifecycle cadence drafts, and downstream work while routing final imagery or implementation to Codex."
+    routeWhen: "Use for reusable robot-team demand playbooks, proof-pack structure, buyer-stage language, and demand-side task creation."
+    derivedFrom:
+      - "ops/paperclip/blueprint-company/.paperclip.yaml#agents.robot-team-growth-agent.capabilities"
+      - "ops/paperclip/blueprint-company/agents/robot-team-growth-agent/AGENTS.md"
+      - "ops/paperclip/blueprint-company/agents/robot-team-growth-agent/Soul.md"
+      - "ops/paperclip/blueprint-company/agents/robot-team-growth-agent/Tools.md"
+      - "ops/paperclip/blueprint-company/agents/robot-team-growth-agent/Heartbeat.md"
+  - profileKey: conversion-agent
+    paperclipAgentKey: conversion-agent
+    runtimeLane: codex_local
+    description: "Codex conversion engineer for reversible experiments on WebApp and capture flows. Owns code/browser validation for CTA, onboarding, signup, and pricing tests after Hermes or Growth defines the hypothesis and guardrails."
+    routeWhen: "Use when the task requires code edits, browser verification, visual regression checks, or implementation of a measured conversion experiment."
+    derivedFrom:
+      - "ops/paperclip/blueprint-company/.paperclip.yaml#agents.conversion-agent.capabilities"
+      - "ops/paperclip/blueprint-company/agents/conversion-agent/AGENTS.md"
+      - "ops/paperclip/blueprint-company/agents/conversion-agent/Soul.md"
+      - "ops/paperclip/blueprint-company/agents/conversion-agent/Tools.md"
+      - "ops/paperclip/blueprint-company/agents/conversion-agent/Heartbeat.md"
+  - profileKey: community-updates-agent
+    paperclipAgentKey: community-updates-agent
+    runtimeLane: hermes_local
+    description: "Hermes community update writer for draft-first blog, email, and social summaries grounded in real shipped work and measured signals. Never publishes, invents traction, or turns internal plans into public proof."
+    routeWhen: "Use for weekly community update drafts, shipped-work synthesis, internal review artifacts, and content proof comments."
+    derivedFrom:
+      - "ops/paperclip/blueprint-company/.paperclip.yaml#agents.community-updates-agent.capabilities"
+      - "ops/paperclip/blueprint-company/agents/community-updates-agent/AGENTS.md"
+      - "ops/paperclip/blueprint-company/agents/community-updates-agent/Soul.md"
+      - "ops/paperclip/blueprint-company/agents/community-updates-agent/Tools.md"
+      - "ops/paperclip/blueprint-company/agents/community-updates-agent/Heartbeat.md"
+  - profileKey: webapp-codex
+    paperclipAgentKey: webapp-codex
+    runtimeLane: codex_local
+    description: "Codex implementation owner for Blueprint-WebApp buyer, licensing, hosted-session, ops, and Paperclip surfaces. Use for scoped code changes, frontend QA, browser/image-heavy execution, and verification that must land in the repo."
+    routeWhen: "Use for WebApp implementation, asset/image execution, local browser checks, tests, and repo patches."
+    derivedFrom:
+      - "ops/paperclip/blueprint-company/.paperclip.yaml#agents.webapp-codex.capabilities"
+      - "ops/paperclip/blueprint-company/agents/webapp-codex/AGENTS.md"
+      - "ops/paperclip/blueprint-company/agents/webapp-codex/Soul.md"
+      - "ops/paperclip/blueprint-company/agents/webapp-codex/Tools.md"
+      - "ops/paperclip/blueprint-company/agents/webapp-codex/Heartbeat.md"
+  - profileKey: webapp-review
+    paperclipAgentKey: webapp-review
+    runtimeLane: codex_local
+    description: "Codex review and planning specialist for Blueprint-WebApp. Use for code review, risk analysis, architecture-impact review, and implementation plans that still preserve Paperclip issue proof and repo doctrine."
+    routeWhen: "Use for review-only WebApp tasks, implementation plan review, regression risk checks, and acceptance-criteria refinement."
+    derivedFrom:
+      - "ops/paperclip/blueprint-company/.paperclip.yaml#agents.webapp-review.capabilities"
+      - "ops/paperclip/blueprint-company/agents/webapp-review/AGENTS.md"
+      - "ops/paperclip/blueprint-company/agents/webapp-review/Soul.md"
+      - "ops/paperclip/blueprint-company/agents/webapp-review/Tools.md"
+      - "ops/paperclip/blueprint-company/agents/webapp-review/Heartbeat.md"
+  - profileKey: rights-provenance-agent
+    paperclipAgentKey: rights-provenance-agent
+    runtimeLane: hermes_local
+    description: "Hermes rights, privacy, consent, and provenance gatekeeper. Reviews evidence and commercialization scope before buyer release, failing closed instead of inferring clearance from a listing, sample, or generated artifact."
+    routeWhen: "Use for rights/privacy/provenance review, commercialization scope questions, buyer-release gates, and policy-bound exceptions."
+    derivedFrom:
+      - "ops/paperclip/blueprint-company/.paperclip.yaml#agents.rights-provenance-agent.capabilities"
+      - "ops/paperclip/blueprint-company/agents/rights-provenance-agent/AGENTS.md"
+      - "ops/paperclip/blueprint-company/agents/rights-provenance-agent/Soul.md"
+      - "ops/paperclip/blueprint-company/agents/rights-provenance-agent/Tools.md"
+      - "ops/paperclip/blueprint-company/agents/rights-provenance-agent/Heartbeat.md"
+  - profileKey: public-space-review-agent
+    paperclipAgentKey: public-space-review-agent
+    runtimeLane: hermes_local
+    description: "Hermes reviewer for public-facing city-launch candidate batches. Promotes evidence-backed common-access locations as capture targets without marking them rights-cleared, payable, or world-model-ready."
+    routeWhen: "Use for public-space candidate batch review, common-access location promotion, and launch-target evidence boundaries."
+    derivedFrom:
+      - "ops/paperclip/blueprint-company/.paperclip.yaml#agents.public-space-review-agent.capabilities"
+      - "ops/paperclip/blueprint-company/agents/public-space-review-agent/AGENTS.md"
+      - "ops/paperclip/blueprint-company/agents/public-space-review-agent/Soul.md"
+      - "ops/paperclip/blueprint-company/agents/public-space-review-agent/Tools.md"
+      - "ops/paperclip/blueprint-company/agents/public-space-review-agent/Heartbeat.md"
+  - profileKey: security-procurement-agent
+    paperclipAgentKey: security-procurement-agent
+    runtimeLane: hermes_local
+    description: "Hermes security and procurement response drafter grounded in repo and system evidence. Keeps enterprise review moving without making unsupported certification, compliance, legal, or architecture claims."
+    routeWhen: "Use for buyer security questionnaires, procurement architecture responses, data-handling drafts, and evidence-bound enterprise review work."
+    derivedFrom:
+      - "ops/paperclip/blueprint-company/.paperclip.yaml#agents.security-procurement-agent.capabilities"
+      - "ops/paperclip/blueprint-company/agents/security-procurement-agent/AGENTS.md"
+      - "ops/paperclip/blueprint-company/agents/security-procurement-agent/Soul.md"
+      - "ops/paperclip/blueprint-company/agents/security-procurement-agent/Tools.md"
+      - "ops/paperclip/blueprint-company/agents/security-procurement-agent/Heartbeat.md"
+  - profileKey: ops-lead
+    paperclipAgentKey: ops-lead
+    runtimeLane: hermes_local
+    description: "Hermes product operations coordinator for intake, QA, field, support, finance, and launch-readiness ops. Routes operational work into owned Paperclip issues and escalates only true policy, spend, rights, legal, or irreversible exceptions."
+    routeWhen: "Use for operational coordination, cross-ops routing, daily ops summaries, and non-technical human-reply ownership."
+    derivedFrom:
+      - "ops/paperclip/blueprint-company/.paperclip.yaml#agents.ops-lead.capabilities"
+      - "ops/paperclip/blueprint-company/agents/ops-lead/AGENTS.md"
+      - "ops/paperclip/blueprint-company/agents/ops-lead/Soul.md"
+      - "ops/paperclip/blueprint-company/agents/ops-lead/Tools.md"
+      - "ops/paperclip/blueprint-company/agents/ops-lead/Heartbeat.md"
+  - profileKey: intake-agent
+    paperclipAgentKey: intake-agent
+    runtimeLane: hermes_local
+    description: "Hermes intake triage lane for capturer waitlist applications and buyer inbound requests. Classifies and scores readiness, detects missing information, and drafts responses without granting access, payment, or fulfillment state."
+    routeWhen: "Use for structured intake review, waitlist scoring, buyer inbound classification, and missing-information follow-ups."
+    derivedFrom:
+      - "ops/paperclip/blueprint-company/.paperclip.yaml#agents.intake-agent.capabilities"
+      - "ops/paperclip/blueprint-company/agents/intake-agent/AGENTS.md"
+      - "ops/paperclip/blueprint-company/agents/intake-agent/Soul.md"
+      - "ops/paperclip/blueprint-company/agents/intake-agent/Tools.md"
+      - "ops/paperclip/blueprint-company/agents/intake-agent/Heartbeat.md"
+  - profileKey: buyer-solutions-agent
+    paperclipAgentKey: buyer-solutions-agent
+    runtimeLane: hermes_local
+    description: "Hermes commercial journey owner from qualified inbound to proof-ready motion. Keeps buyer goals, capture matching, packaging, pricing support, and technical support in one Paperclip thread without taking unsupported commitments."
+    routeWhen: "Use for buyer journey ownership, commercial-thread continuity, proof delivery coordination, and buyer-facing support routing."
+    derivedFrom:
+      - "ops/paperclip/blueprint-company/.paperclip.yaml#agents.buyer-solutions-agent.capabilities"
+      - "ops/paperclip/blueprint-company/agents/buyer-solutions-agent/AGENTS.md"
+      - "ops/paperclip/blueprint-company/agents/buyer-solutions-agent/Soul.md"
+      - "ops/paperclip/blueprint-company/agents/buyer-solutions-agent/Tools.md"
+      - "ops/paperclip/blueprint-company/agents/buyer-solutions-agent/Heartbeat.md"
+  - profileKey: buyer-success-agent
+    paperclipAgentKey: buyer-success-agent
+    runtimeLane: hermes_local
+    description: "Hermes post-delivery buyer support lane for onboarding, feedback, support, and churn signals. Operates event-driven until buyer volume justifies standing cadence and never masks product or fulfillment gaps."
+    routeWhen: "Use for post-delivery support, buyer onboarding follow-up, feedback triage, and churn-risk signals."
+    derivedFrom:
+      - "ops/paperclip/blueprint-company/.paperclip.yaml#agents.buyer-success-agent.capabilities"
+      - "ops/paperclip/blueprint-company/agents/buyer-success-agent/AGENTS.md"
+      - "ops/paperclip/blueprint-company/agents/buyer-success-agent/Soul.md"
+      - "ops/paperclip/blueprint-company/agents/buyer-success-agent/Tools.md"
+      - "ops/paperclip/blueprint-company/agents/buyer-success-agent/Heartbeat.md"
+  - profileKey: finance-support-agent
+    paperclipAgentKey: finance-support-agent
+    runtimeLane: hermes_local
+    description: "Hermes support lane for Stripe health, payout exceptions, finance review, and support inbox drafting. Separates queue routing and response drafts from any live finance, dispute, payout, or account mutation."
+    routeWhen: "Use for Stripe/support triage, payout issue diagnosis, finance-review follow-ups, and response drafting."
+    derivedFrom:
+      - "ops/paperclip/blueprint-company/.paperclip.yaml#agents.finance-support-agent.capabilities"
+      - "ops/paperclip/blueprint-company/agents/finance-support-agent/AGENTS.md"
+      - "ops/paperclip/blueprint-company/agents/finance-support-agent/Soul.md"
+      - "ops/paperclip/blueprint-company/agents/finance-support-agent/Tools.md"
+      - "ops/paperclip/blueprint-company/agents/finance-support-agent/Heartbeat.md"
+  - profileKey: field-ops-agent
+    paperclipAgentKey: field-ops-agent
+    runtimeLane: hermes_local
+    description: "Hermes capture scheduling and assignment coordinator. Separates capturer match, schedule certainty, reminders, travel, and site-access state so operational risk remains explicit."
+    routeWhen: "Use for capture scheduling, capturer assignment, reminders, reschedules, and site-access aging review."
+    derivedFrom:
+      - "ops/paperclip/blueprint-company/.paperclip.yaml#agents.field-ops-agent.capabilities"
+      - "ops/paperclip/blueprint-company/agents/field-ops-agent/AGENTS.md"
+      - "ops/paperclip/blueprint-company/agents/field-ops-agent/Soul.md"
+      - "ops/paperclip/blueprint-company/agents/field-ops-agent/Tools.md"
+      - "ops/paperclip/blueprint-company/agents/field-ops-agent/Heartbeat.md"
+  - profileKey: capturer-success-agent
+    paperclipAgentKey: capturer-success-agent
+    runtimeLane: hermes_local
+    description: "Hermes capturer activation and retention specialist focused on first successful capture, recapture recovery, and recurring capturer friction. Uses capture and QA evidence to produce specific next steps without inventing payout or quality proof."
+    routeWhen: "Use for capturer onboarding, first-capture follow-up, QA/recapture guidance, lifecycle cadence drafts, and systemic capturer issue routing."
+    derivedFrom:
+      - "ops/paperclip/blueprint-company/.paperclip.yaml#agents.capturer-success-agent.capabilities"
+      - "ops/paperclip/blueprint-company/agents/capturer-success-agent/AGENTS.md"
+      - "ops/paperclip/blueprint-company/agents/capturer-success-agent/Soul.md"
+      - "ops/paperclip/blueprint-company/agents/capturer-success-agent/Tools.md"
+      - "ops/paperclip/blueprint-company/agents/capturer-success-agent/Heartbeat.md"
+  - profileKey: site-catalog-agent
+    paperclipAgentKey: site-catalog-agent
+    runtimeLane: hermes_local
+    description: "Hermes product listing manager for accurate site-world catalog entries after package, QA, and rights state support listing. Prevents stale, duplicate, fabricated, or over-available catalog claims."
+    routeWhen: "Use for catalog listing creation/update, discoverability hygiene, listing accuracy review, and catalog gaps reported by buyer lanes."
+    derivedFrom:
+      - "ops/paperclip/blueprint-company/.paperclip.yaml#agents.site-catalog-agent.capabilities"
+      - "ops/paperclip/blueprint-company/agents/site-catalog-agent/AGENTS.md"
+      - "ops/paperclip/blueprint-company/agents/site-catalog-agent/Soul.md"
+      - "ops/paperclip/blueprint-company/agents/site-catalog-agent/Tools.md"
+      - "ops/paperclip/blueprint-company/agents/site-catalog-agent/Heartbeat.md"
+  - profileKey: solutions-engineering-agent
+    paperclipAgentKey: solutions-engineering-agent
+    runtimeLane: hermes_local
+    description: "Hermes technical buyer enablement lead for exact-site evaluation plans, hosted-session/export boundaries, and integration checklists. Verifies current product truth before drafting technical answers and routes software blockers into explicit follow-up."
+    routeWhen: "Use for proof-ready or implementation-ready buyer questions, hosted-session/export fit, technical proof plans, and integration unblock recommendations."
+    derivedFrom:
+      - "ops/paperclip/blueprint-company/.paperclip.yaml#agents.solutions-engineering-agent.capabilities"
+      - "ops/paperclip/blueprint-company/agents/solutions-engineering-agent/AGENTS.md"
+      - "ops/paperclip/blueprint-company/agents/solutions-engineering-agent/Soul.md"
+      - "ops/paperclip/blueprint-company/agents/solutions-engineering-agent/Tools.md"
+      - "ops/paperclip/blueprint-company/agents/solutions-engineering-agent/Heartbeat.md"
+  - profileKey: revenue-ops-pricing-agent
+    paperclipAgentKey: revenue-ops-pricing-agent
+    runtimeLane: hermes_local
+    description: "Hermes pricing and commercial-systems hygiene lane. Supports buyer threads with quote logic, discount guardrails, and packaging analysis without owning the buyer journey or making live commercial commitments."
+    routeWhen: "Use for pricing contradictions, quote-support summaries, package/discount guardrails, and revenue-ops analysis."
+    derivedFrom:
+      - "ops/paperclip/blueprint-company/.paperclip.yaml#agents.revenue-ops-pricing-agent.capabilities"
+      - "ops/paperclip/blueprint-company/agents/revenue-ops-pricing-agent/AGENTS.md"
+      - "ops/paperclip/blueprint-company/agents/revenue-ops-pricing-agent/Soul.md"
+      - "ops/paperclip/blueprint-company/agents/revenue-ops-pricing-agent/Tools.md"
+      - "ops/paperclip/blueprint-company/agents/revenue-ops-pricing-agent/Heartbeat.md"
+  - profileKey: notion-manager-agent
+    paperclipAgentKey: notion-manager-agent
+    runtimeLane: hermes_local
+    description: "Hermes Notion hygiene steward for Blueprint-managed Hub, Knowledge, Work Queue, Skills, and Agents surfaces. Mirrors and repairs visibility state while preserving Paperclip as the execution record and repo files as doctrine."
+    routeWhen: "Use for Notion placement, metadata, duplicate, stale-page, and mirror repair work after repo/Paperclip truth is settled."
+    derivedFrom:
+      - "ops/paperclip/blueprint-company/.paperclip.yaml#agents.notion-manager-agent.capabilities"
+      - "ops/paperclip/blueprint-company/agents/notion-manager-agent/AGENTS.md"
+      - "ops/paperclip/blueprint-company/agents/notion-manager-agent/Soul.md"
+      - "ops/paperclip/blueprint-company/agents/notion-manager-agent/Tools.md"
+      - "ops/paperclip/blueprint-company/agents/notion-manager-agent/Heartbeat.md"
+  - profileKey: docs-agent
+    paperclipAgentKey: docs-agent
+    runtimeLane: codex_local
+    description: "Codex documentation owner for cross-repo docs that must match real app flows, contracts, endpoints, and org architecture. Use when documentation needs repo edits or cross-repo evidence rather than a Hermes summary."
+    routeWhen: "Use for documentation patches, org-doc updates after agent changes, API/capture guide corrections, and doc-impact review from code changes."
+    derivedFrom:
+      - "ops/paperclip/blueprint-company/.paperclip.yaml#agents.docs-agent.capabilities"
+      - "ops/paperclip/blueprint-company/agents/docs-agent/AGENTS.md"
+      - "ops/paperclip/blueprint-company/agents/docs-agent/Soul.md"
+      - "ops/paperclip/blueprint-company/agents/docs-agent/Tools.md"
+      - "ops/paperclip/blueprint-company/agents/docs-agent/Heartbeat.md"
+  - profileKey: capture-codex
+    paperclipAgentKey: capture-codex
+    runtimeLane: codex_local
+    description: "Codex implementation owner for BlueprintCapture. Use for scoped capture-app code changes, build fixes, and bundle-contract validation that must preserve real-device capture evidence."
+    routeWhen: "Use for BlueprintCapture implementation issues, capture build/runtime regressions, and raw bundle contract fixes."
+    derivedFrom:
+      - "ops/paperclip/blueprint-company/.paperclip.yaml#agents.capture-codex.capabilities"
+      - "ops/paperclip/blueprint-company/agents/capture-codex/AGENTS.md"
+      - "ops/paperclip/blueprint-company/agents/capture-codex/Soul.md"
+      - "ops/paperclip/blueprint-company/agents/capture-codex/Tools.md"
+      - "ops/paperclip/blueprint-company/agents/capture-codex/Heartbeat.md"
+  - profileKey: pipeline-codex
+    paperclipAgentKey: pipeline-codex
+    runtimeLane: codex_local
+    description: "Codex implementation owner for BlueprintCapturePipeline. Use for scoped package, hosted-runtime, artifact-generation, and downstream contract code changes grounded in real capture evidence."
+    routeWhen: "Use for Pipeline implementation issues, artifact/runtime regressions, provider/package contract fixes, and validation requiring repo patches."
+    derivedFrom:
+      - "ops/paperclip/blueprint-company/.paperclip.yaml#agents.pipeline-codex.capabilities"
+      - "ops/paperclip/blueprint-company/agents/pipeline-codex/AGENTS.md"
+      - "ops/paperclip/blueprint-company/agents/pipeline-codex/Soul.md"
+      - "ops/paperclip/blueprint-company/agents/pipeline-codex/Tools.md"
+      - "ops/paperclip/blueprint-company/agents/pipeline-codex/Heartbeat.md"

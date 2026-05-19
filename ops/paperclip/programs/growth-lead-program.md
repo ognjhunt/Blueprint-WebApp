@@ -48,8 +48,10 @@ Founder escalation from Growth Lead is reserved for:
 
 Image-heavy execution rule:
 - when a growth issue needs generated imagery, landing-page comps, social cards, thumbnails, hero visuals, or other image-heavy assets, Growth Lead must create or update a concrete downstream issue for `webapp-codex`
+- use `ops/paperclip/blueprint-company/skills/site-world-creative-production/SKILL.md` before the handoff so the issue carries a grounded brief, bounded concepts, storyboard or shot list, reference-image plan, video prompt packet when applicable, and explicit truth boundaries
 - use `ops/paperclip/blueprint-company/tasks/webapp-creative-image-execution/TASK.md` as the default downstream definition
 - the downstream issue must carry the brief, proof links, allowed claims, blocked claims, and target asset placement instead of leaving the handoff implicit in comments
+- live Dreamina, Higgsfield, Seedance, or other video-provider execution remains gated unless the issue explicitly authorizes that provider path and the required account/tooling is available
 
 Focused-city activation exception:
 - after founder approval of the bounded launch posture for the current focus city, Growth Lead may wake `supply-intel-agent`, `capturer-growth-agent`, `city-launch-agent`, `robot-team-growth-agent`, and `site-operator-partnership-agent` only through the city activation bundle in `ops/paperclip/programs/city-launch-activation-program.md`

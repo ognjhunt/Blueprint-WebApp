@@ -170,3 +170,8 @@ Medium-high overall. The strongest evidence is direct and first-party for Brain 
 ## Authority Boundary
 
 This report is a derived work product. It does not replace Paperclip work state, approvals, rights/privacy review, pricing/legal commitments, capture provenance, or package/runtime truth.
+
+## Recommended Follow-up
+
+- Promote reusable findings into `knowledge/compiled/` before treating this historical report as current guidance.
+- Verify current Paperclip issue state, rights/provenance state, and repo artifacts before acting on this report.

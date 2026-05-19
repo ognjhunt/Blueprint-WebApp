@@ -1,6 +1,8 @@
 ---
-authority: current
-source_system: codex
+authority: derived
+source_system: repo
+source_urls:
+  - "repo:///knowledge/reports/city-launch-execution/durham-nc/2026-04-23-durham-closure-pilot-status.md"
 last_verified_at: 2026-04-23
 owner: city-launch-agent
 sensitivity: internal
@@ -56,3 +58,24 @@ Do not count official generic contact paths as buyer intent. They only unblock t
 - Durham send state: `ops/paperclip/playbooks/city-opening-durham-nc-send-ledger.md`
 - Durham response state: `ops/paperclip/playbooks/city-opening-durham-nc-response-tracking.md`
 - Durham scorecard: `knowledge/reports/analytics/2026-04-22-durham-launch-scorecard.md`
+
+## Summary
+
+Legacy report section backfilled for Hermes KB schema compliance. Use the existing report body above as the substantive summary and verify current state in Paperclip or repo truth before reuse.
+
+## Evidence
+
+Legacy report section backfilled for Hermes KB schema compliance. Evidence remains the source links, issue references, artifact paths, and report body above; no new runtime proof was added by this cleanup.
+
+## Recommended Follow-up
+
+- Promote reusable findings into `knowledge/compiled/` before treating this historical report as current guidance.
+- Verify current Paperclip issue state, rights/provenance state, and repo artifacts before acting on this report.
+
+## Linked KB Pages
+
+- No additional linked KB page was added during schema cleanup; use existing links in the report body and canonical repo/Paperclip references above.
+
+## Authority Boundary
+
+This report is a historical Hermes KB support artifact. It does not replace Paperclip work state, approvals, rights/privacy review, pricing/legal commitments, capture provenance, package manifests, or hosted-runtime truth.

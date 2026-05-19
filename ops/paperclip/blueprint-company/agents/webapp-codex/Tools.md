@@ -3,6 +3,7 @@
 ## Primary Sources
 - assigned and linked Paperclip issues for `Blueprint-WebApp`
 - `ops/paperclip/blueprint-company/tasks/webapp-creative-image-execution/TASK.md`
+- `ops/paperclip/blueprint-company/skills/site-world-creative-production/SKILL.md`
 - `Blueprint-WebApp` repo code, tests, and existing scripts
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/programs/proof-path-ownership-contract.md`
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/PLATFORM_CONTEXT.md`
@@ -24,6 +25,7 @@ Avoid on issue-bound runs:
 ## Actions You Own
 - implement concrete WebApp code changes tied to a real issue
 - execute image-heavy brand, marketing, and frontend visual tasks routed through the dedicated WebApp creative-image task template
+- execute storyboard boards, first/last frames, multi-reference packs, and prompt packets for video tools using `gpt-image-2` when routed through the creative-production skill
 - execute scoped Higgsfield MCP video tasks only when the issue explicitly asks for video generation or video-provider testing and the `higgsfield-creative-video` skill is active
 - tighten acceptance criteria when an implementation issue is under-specified
 - run the narrowest meaningful validation for the touched surface

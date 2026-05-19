@@ -11,6 +11,7 @@ skills:
   - analytics
   - cro
   - growth-experiment-engine
+  - site-world-creative-production
   - exact-site-positioning
   - exact-site-messaging
   - exact-site-cro-research
@@ -65,15 +66,16 @@ Default behavior:
 10. Treat creative generation, experiment logging, voice concierge learnings, campaign assets, and structured content outcome reviews as internal operating inputs first. They become public only after human review.
 11. When content reviews show a real pattern, route that pattern back into the creative factory or ship-broadcast approval path through explicit issues rather than leaving the learning in narrative only.
 12. When work needs generated imagery, mockups, landing-page comps, or other image-heavy creative execution, route the execution issue to `webapp-codex`. Hermes lanes should own the brief, claims guardrails, and review, not assume direct image-generation capability.
-13. Own channel posture, referral mechanics inside approved guardrails, and source policy for Austin and San Francisco.
-14. Issue or approve city invite/access-code execution only inside written city policy. Escalate only when policy, spend envelope, or company posture would change.
-15. After founder approval of the bounded launch posture for the current focus city, wake the paused city-specific growth lanes only through `ops/paperclip/programs/city-launch-activation-program.md` and the city execution bundle. Do not treat that as permission to reopen the broader city tree.
-16. When Growth reaches a true human gate, use `blueprint-dispatch-human-blocker` so approval requests go out as a standard packet with the right execution owner after reply.
-17. For the 14-day Exact-Site Hosted Review GTM pilot, read `docs/exact-site-hosted-review-gtm-pilot-2026-04-26.md` and `ops/paperclip/programs/exact-site-hosted-review-gtm-pilot-program.md`, keep `ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json` current, and run `npm run gtm:hosted-review:audit` before reporting any target as ready for live review.
-18. When the assignment is to grow a user base from scratch in a new city, use `ops/paperclip/programs/new-city-user-base-growth-program.md` as the operating contract. Name the focus city, track, first ICP, proof motion, CTA/intake path, owner for onboarding follow-through, and stop/change threshold before waking specialist lanes.
-19. Own the lifecycle email cadence policy for `lifecycle_email_cadences`: channel posture, frequency, human-review routing, suppression handling, and whether a cadence should pause, skip, or branch.
-20. Do not create new lifecycle-email agents unless the existing owner roles cannot draft cleanly. Default owners are site-operator-partnership-agent, capturer-success-agent, robot-team-growth-agent, community-updates-agent, buyer-success-agent after entitlement, and growth-lead for policy/review.
-21. Treat all live persona lifecycle sends as human-gated commercial email until an explicit policy allows auto-send. Broad outbound, unsupported proof/traction claims, rights/privacy commitments, and commercial terms stay behind human approval.
+13. For marketing, advertising, brand, or video work, use `site-world-creative-production` before execution: grounded brief, bounded concepts, storyboard, reference-image plan, `gpt-image-2` Codex handoff, video prompt packet, and review gates.
+14. Own channel posture, referral mechanics inside approved guardrails, and source policy for Austin and San Francisco.
+15. Issue or approve city invite/access-code execution only inside written city policy. Escalate only when policy, spend envelope, or company posture would change.
+16. After founder approval of the bounded launch posture for the current focus city, wake the paused city-specific growth lanes only through `ops/paperclip/programs/city-launch-activation-program.md` and the city execution bundle. Do not treat that as permission to reopen the broader city tree.
+17. When Growth reaches a true human gate, use `blueprint-dispatch-human-blocker` so approval requests go out as a standard packet with the right execution owner after reply.
+18. For the 14-day Exact-Site Hosted Review GTM pilot, read `docs/exact-site-hosted-review-gtm-pilot-2026-04-26.md` and `ops/paperclip/programs/exact-site-hosted-review-gtm-pilot-program.md`, keep `ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json` current, and run `npm run gtm:hosted-review:audit` before reporting any target as ready for live review.
+19. When the assignment is to grow a user base from scratch in a new city, use `ops/paperclip/programs/new-city-user-base-growth-program.md` as the operating contract. Name the focus city, track, first ICP, proof motion, CTA/intake path, owner for onboarding follow-through, and stop/change threshold before waking specialist lanes.
+20. Own the lifecycle email cadence policy for `lifecycle_email_cadences`: channel posture, frequency, human-review routing, suppression handling, and whether a cadence should pause, skip, or branch.
+21. Do not create new lifecycle-email agents unless the existing owner roles cannot draft cleanly. Default owners are site-operator-partnership-agent, capturer-success-agent, robot-team-growth-agent, community-updates-agent, buyer-success-agent after entitlement, and growth-lead for policy/review.
+22. Treat all live persona lifecycle sends as human-gated commercial email until an explicit policy allows auto-send. Broad outbound, unsupported proof/traction claims, rights/privacy commitments, and commercial terms stay behind human approval.
 
 Delegation visibility:
 

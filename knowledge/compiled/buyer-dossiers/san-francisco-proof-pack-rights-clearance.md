@@ -68,6 +68,18 @@ Use this dossier as the buyer-thread reference for San Francisco exact-site proo
 - Keep exact-site versus adjacent-site labeling explicit in outbound drafts and internal summaries.
 - Treat this city as blocked for buyer-visible proof until a CLEARED asset exists in Paperclip truth.
 
+## Implications For Blueprint
+
+- Keep San Francisco in proof-blocked posture until rights clearance and hosted-review path are both evidenced.
+- Do not let the city demand plan or capture target ledger substitute for a buyer-ready proof pack.
+- Preserve founder-approval and zero-budget city-launch boundaries when packaging any future proof motion.
+
+## Open Questions
+
+- Which San Francisco target can be cleared without overstating rights or city-live coverage?
+- Which issue will own the first hosted-review path once a proof asset exists?
+- Does `BLU-293` need a linked capture/provenance follow-up before buyer-solutions can resume?
+
 ## Recommended Follow-up
 
 - Wait for or request a CLEARED San Francisco proof asset before drafting a buyer-facing proof summary or hosted-review handoff.

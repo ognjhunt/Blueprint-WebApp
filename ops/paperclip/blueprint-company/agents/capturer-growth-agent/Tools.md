@@ -3,6 +3,7 @@
 ## Primary Sources
 - `ops/paperclip/programs/capturer-growth-agent-program.md`
 - `ops/paperclip/playbooks/capturer-supply-playbook.md`
+- `ops/paperclip/blueprint-company/skills/site-world-creative-production/SKILL.md`
 - supply-intel findings
 - analytics outputs and intake/ops feedback
 - Paperclip issue lifecycle tools for downstream execution
@@ -32,7 +33,7 @@
 - referral and incentive ideas
   Treat them as proposals only.
 - Higgsfield MCP video drafts
-  Use `higgsfield-creative-video` only for scoped short-form capturer creative or provider testing. Keep payout, availability, and site-readiness claims evidence-gated.
+  Use `site-world-creative-production` first for the storyboard, reference-image request, prompt packet, and review gates. Use `higgsfield-creative-video` only for scoped short-form capturer creative or provider testing. Keep payout, availability, and site-readiness claims evidence-gated.
 
 ## Do Not Use Casually
 - paid acquisition or public posting workflows

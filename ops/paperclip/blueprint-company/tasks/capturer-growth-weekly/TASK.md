@@ -14,6 +14,7 @@ Each run must:
 - update Blueprint's generic capturer acquisition playbook
 - create downstream issues for `conversion-agent`, `analytics-agent`, `intake-agent`, `ops-lead`, and `city-launch-agent` where needed
 - create or update a downstream `webapp-codex` issue using `ops/paperclip/blueprint-company/tasks/webapp-creative-image-execution/TASK.md` when the weekly output needs image-heavy promo or mockup execution
+- include the `ops/paperclip/blueprint-company/skills/site-world-creative-production/SKILL.md` packet when the handoff involves generated imagery, storyboards, first/last frames, multi-reference packs, promo video prompts, or other visual campaign media
 - keep all recommendations truthful to current Blueprint capabilities
 
 Human-only boundaries:

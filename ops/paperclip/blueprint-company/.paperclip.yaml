@@ -171,6 +171,7 @@ agents:
             - verification-before-completion
             - karpathy-guidelines
             - taste-skill
+            - site-world-creative-production
             - higgsfield-creative-video
     budgetMonthlyCents: 3000
   webapp-review:
@@ -186,6 +187,7 @@ agents:
         modelReasoningEffort: medium
         timeoutSec: 1800
         dangerouslyBypassApprovalsAndSandbox: true
+        paperclipGoalPromptEnabled: true
         paperclipSkillSync:
           desiredSkills:
             - platform-doctrine
@@ -233,6 +235,7 @@ agents:
         modelReasoningEffort: medium
         timeoutSec: 1800
         dangerouslyBypassApprovalsAndSandbox: true
+        paperclipGoalPromptEnabled: true
         paperclipSkillSync:
           desiredSkills:
             - platform-doctrine
@@ -271,6 +274,7 @@ agents:
         modelReasoningEffort: medium
         timeoutSec: 1800
         dangerouslyBypassApprovalsAndSandbox: true
+        paperclipGoalPromptEnabled: true
         paperclipSkillSync:
           desiredSkills:
             - platform-doctrine
@@ -326,6 +330,7 @@ agents:
         modelReasoningEffort: medium
         timeoutSec: 1800
         dangerouslyBypassApprovalsAndSandbox: true
+        paperclipGoalPromptEnabled: true
         paperclipSkillSync:
           desiredSkills:
             - platform-doctrine
@@ -364,6 +369,7 @@ agents:
         modelReasoningEffort: medium
         timeoutSec: 1800
         dangerouslyBypassApprovalsAndSandbox: true
+        paperclipGoalPromptEnabled: true
         paperclipSkillSync:
           desiredSkills:
             - platform-doctrine
@@ -536,6 +542,7 @@ agents:
             - exact-site-positioning
             - exact-site-messaging
             - exact-site-cro-research
+            - site-world-creative-production
             - higgsfield-creative-video
             - writing-plans
             - hermes-kb-workflow
@@ -586,6 +593,7 @@ agents:
             - growth-experiment-engine
             - exact-site-cro-research
             - exact-site-messaging
+            - site-world-creative-production
             - writing-plans
             - systematic-debugging
             - requesting-code-review
@@ -687,6 +695,7 @@ agents:
             - retro
             - truthful-quality-gate
             - humanizer
+            - site-world-creative-production
             - higgsfield-creative-video
             - content-strategy
             - copywriting
@@ -835,6 +844,7 @@ agents:
             - analytics
             - writing-plans
             - capturer-growth-operations
+            - site-world-creative-production
             - higgsfield-creative-video
             - customer-research
             - content-strategy
@@ -893,6 +903,7 @@ agents:
             - product-marketing
             - analytics
             - city-launch-operations
+            - site-world-creative-production
             - launch
             - customer-research
             - social
@@ -966,6 +977,7 @@ agents:
             - exact-site-messaging
             - exact-site-offer-architecture
             - robot-team-outbound-operations
+            - site-world-creative-production
             - higgsfield-creative-video
             - customer-research
             - content-strategy
@@ -1206,6 +1218,7 @@ agents:
             - analytics
             - cro
             - city-demand-operations
+            - site-world-creative-production
             - customer-research
             - cold-email
             - emails

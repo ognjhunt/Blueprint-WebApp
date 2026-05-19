@@ -49,7 +49,8 @@ Required behavior:
 
 Image-heavy execution rule:
 - when a capturer-facing output needs generated imagery, promo comps, or other final visual assets, create or update a downstream `webapp-codex` issue using `ops/paperclip/blueprint-company/tasks/webapp-creative-image-execution/TASK.md`
-- include the exact proof, allowed claims, blocked claims, channel, and placement in that handoff issue
+- use `ops/paperclip/blueprint-company/skills/site-world-creative-production/SKILL.md` first for the proof-grounded concept set, storyboard or shot list, reference-image plan, and video prompt packet when the work involves promo video or multi-frame creative
+- include the exact proof, allowed claims, blocked claims, channel, placement, reference-frame request, and provider-execution gate in that handoff issue
 
 ## Current Priorities
 1. Build the first truthful generic capturer supply playbook.

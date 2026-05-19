@@ -49,6 +49,12 @@ Brain Corp is the clearest San Diego exact-site buyer fit for the current buyer 
 - The next owned action is a capture request to `ops-lead` for an exact-site Otay Mesa warehouse proof asset with explicit rights and coverage boundaries, or a canonical issue reconciliation if the proof already exists elsewhere.
 - Do not describe Brain Corp as proof-ready until a real hosted review artifact exists.
 
+## Evidence
+
+- Paperclip issue `BLU-4737` is the current buyer-thread anchor for the Brain Corp hosted-review motion.
+- The linked San Diego target-account report supports Brain Corp as a relevant warehouse/retail autonomy buyer.
+- The current page records no attached proof asset, so buyer-visible readiness remains blocked until a hosted-review artifact exists.
+
 ## Proof Pack Shape
 
 - Buyer context block: Brain Corp, exact-site warehouse workflow, hosted-review evaluation
@@ -70,6 +76,18 @@ Brain Corp is the clearest San Diego exact-site buyer fit for the current buyer 
 - No claim that rights, privacy, or commercialization exceptions have been waived
 - No claim that Brain Corp has accepted or purchased anything yet
 - No claim that this replaces the canonical Paperclip issue state or city-launch contract
+
+## Implications For Blueprint
+
+- Keep the Brain Corp path exact-site and proof-pack led instead of turning buyer fit into traction.
+- Route capture/proof asset creation through the owning ops lane before buyer-facing hosted-review claims.
+- Preserve ROS 2 / Gazebo compatibility as an evaluation note, not as proof that a package has already been delivered.
+
+## Open Questions
+
+- Which exact Otay Mesa or equivalent warehouse asset will become the first Brain Corp proof candidate?
+- Has a rights-cleared hosted-review artifact been created outside the current issue thread?
+- Which owner should reconcile the proof asset back into `BLU-4737` once it exists?
 
 ## Canonical References
 

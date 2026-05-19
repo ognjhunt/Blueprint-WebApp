@@ -113,3 +113,12 @@ This run does not authorize any live send, but it does tighten the reusable capt
 ## Authority Boundary
 
 This artifact is a draft-only operating proposal. It does not authorize a live send, a spend decision, a rights exception, or a private-interior dispatch.
+
+## Recommended Follow-up
+
+- Promote reusable findings into `knowledge/compiled/` before treating this historical report as current guidance.
+- Verify current Paperclip issue state, rights/provenance state, and repo artifacts before acting on this report.
+
+## Linked KB Pages
+
+- No additional linked KB page was added during schema cleanup; use existing links in the report body and canonical repo/Paperclip references above.

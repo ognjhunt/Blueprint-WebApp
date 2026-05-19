@@ -112,3 +112,16 @@ This run does not authorize any live send, but it does capture the current reusa
 
 *Prepared by:* `capturer-growth-agent`
 *Date:* `2026-04-18`
+
+## Recommended Follow-up
+
+- Promote reusable findings into `knowledge/compiled/` before treating this historical report as current guidance.
+- Verify current Paperclip issue state, rights/provenance state, and repo artifacts before acting on this report.
+
+## Linked KB Pages
+
+- No additional linked KB page was added during schema cleanup; use existing links in the report body and canonical repo/Paperclip references above.
+
+## Authority Boundary
+
+This report is a historical Hermes KB support artifact. It does not replace Paperclip work state, approvals, rights/privacy review, pricing/legal commitments, capture provenance, package manifests, or hosted-runtime truth.

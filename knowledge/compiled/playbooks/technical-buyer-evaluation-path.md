@@ -53,6 +53,13 @@ The current repo assets show this path clearly:
 - the sample rights sheet defines sharing and retention boundaries
 - the sample export bundle defines the buyer-facing outputs returned from the hosted path
 
+## Evidence
+
+- `client/public/samples/sample-site-package-manifest.json` defines the package metadata and proof fields a buyer can inspect.
+- `client/public/samples/sample-rights-sheet.md` records the rights and sharing boundary for the sample path.
+- `client/public/samples/sample-export-bundle.json` shows the export shape returned from the hosted path.
+- `proof-reel/BlueprintProofReel.tsx` frames the buyer-facing sequence as real site, site package, hosted access, and exports.
+
 ## What To Check In Evaluation
 
 Use this checklist when a buyer asks whether Blueprint fits their stack:
@@ -128,3 +135,19 @@ When answering a buyer thread, keep the response in this shape:
 3. The integration or evaluation checklist
 4. The blockers or unsupported asks
 5. The owner and next step for each blocker
+
+## Implications For Blueprint
+
+- Keep technical buyer evaluation attached to a concrete site, package, hosted target, and rights/provenance posture.
+- Treat sample artifacts as product-shape evidence, not as proof that a buyer-specific package has already been fulfilled.
+- Route unsupported deployment, rights, privacy, export-control, and commercial asks to the owner named in the map instead of stretching the buyer path.
+
+## Open Questions
+
+- Which buyer threads currently have enough artifact truth to use this evaluation path directly?
+- Which hosted-session proof fields should become mandatory before a technical buyer handoff?
+- Should the sample manifest and rights sheet be mirrored into a stricter buyer-facing checklist?
+
+## Authority Boundary
+
+This page is a derived Hermes KB artifact. It does not replace Paperclip issue state, buyer-thread ownership, rights/privacy review, pricing/legal commitments, capture provenance, package manifests, or hosted-session runtime truth.

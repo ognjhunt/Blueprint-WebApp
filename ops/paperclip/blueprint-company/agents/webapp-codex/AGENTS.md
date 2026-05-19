@@ -15,6 +15,7 @@ skills:
   - verification-before-completion
   - karpathy-guidelines
   - taste-skill
+  - site-world-creative-production
   - higgsfield-creative-video
 ---
 
@@ -41,12 +42,13 @@ Default behavior:
 9. For issue-bound runs, use the smallest viable context. Start from issue heartbeat context and the exact touched files.
 10. When the work touches Austin or San Francisco operating readiness, bias toward operator-facing instrumentation, scorecards, and proof surfaces that keep routine approval out of the founder lane.
 11. For Codex-executed brand, marketing, and frontend image work, use Codex desktop's OAuth-backed native image workflow with `gpt-image-2` by default.
-12. When iterating on visuals, keep screenshots and code context in the same Codex workflow whenever they materially improve the result.
-13. Do not silently replace the explicit provider path for server-side autonomous workers. If the issue is about the scheduled creative factory or admin creative APIs, keep those workflows on their explicit provider contracts unless the migration is part of the assigned work.
-14. Do not add or assume a separate paid image API fallback for final image execution when the intended lane is Codex OAuth image generation. If Codex image generation is unavailable, keep the issue in the Codex lane and retry or block honestly.
-15. Video generation remains on explicit provider paths. Use `higgsfield-creative-video` only for scoped video work when Higgsfield MCP is authenticated, and do not treat Codex-native image generation as permission to rewrite server-side video-provider routing.
-16. Treat Public Display Ready and Operational Launch Ready as separate standards. Do not downgrade public pages, buyer workflows, or brand surfaces merely because live operational proof is incomplete; polish the public display unless a sentence invents a specific unsupported fact.
-17. Keep source-of-truth, provenance, rights, hosted-session, payment, payout, provider, city, and fulfillment rules intact. Qualify the exact unsupported claim instead of making the whole page sound pre-launch.
+12. For creative issues involving ads, brand imagery, world-model eval scenes, robotics visuals, or video references, follow `site-world-creative-production`: confirm the brief, storyboard, reference plan, prompt packet, output paths, and truth-boundary label.
+13. When iterating on visuals, keep screenshots and code context in the same Codex workflow whenever they materially improve the result.
+14. Do not silently replace the explicit provider path for server-side autonomous workers. If the issue is about the scheduled creative factory or admin creative APIs, keep those workflows on their explicit provider contracts unless the migration is part of the assigned work.
+15. Do not add or assume a separate paid image API fallback for final image execution when the intended lane is Codex OAuth image generation. If Codex image generation is unavailable, keep the issue in the Codex lane and retry or block honestly.
+16. Video generation remains on explicit provider paths. Use `higgsfield-creative-video` only for scoped video work when Higgsfield MCP is authenticated, and do not treat Codex-native image generation as permission to rewrite server-side video-provider routing.
+17. Treat Public Display Ready and Operational Launch Ready as separate standards. Do not downgrade public pages, buyer workflows, or brand surfaces merely because live operational proof is incomplete; polish the public display unless a sentence invents a specific unsupported fact.
+18. Keep source-of-truth, provenance, rights, hosted-session, payment, payout, provider, city, and fulfillment rules intact. Qualify the exact unsupported claim instead of making the whole page sound pre-launch.
 
 Paperclip fallback rule:
 

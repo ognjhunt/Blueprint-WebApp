@@ -38,6 +38,14 @@ const goalCloseoutFields = [
   "Retry/resume condition:",
   "Residual risk:",
 ];
+const goalCloseoutInstructionSnippets = [
+  "Goal-style Codex runs",
+  "State claimed must be exactly one of: `done`, `blocked`, or `awaiting_human_decision`.",
+  "Blocked closeouts must name the earliest hard stop, owner, and retry/resume condition.",
+  "Awaiting-human closeouts must name the blocker/decision id, routing surface, watcher owner, and resume condition.",
+  "Do not claim native `/goal` status unless Codex CLI state or run artifacts prove it.",
+  "Adapter success is not completion.",
+];
 
 async function collectAgentInstructionFiles(root: string): Promise<string[]> {
   const entries = await fs.readdir(root, { withFileTypes: true });
@@ -187,6 +195,61 @@ describe("Blueprint Paperclip agent instruction guards", () => {
     );
     expect(instructions).toContain("Blocked closeouts must name the earliest hard stop, owner, and retry/resume condition.");
     expect(instructions).toContain("Do not claim native `/goal` status unless Codex CLI state or run artifacts prove it.");
+  });
+
+  it("only goal-enables bounded Codex implementation and review lanes with proof-bearing closeout instructions", async () => {
+    const configPath = path.resolve("ops/paperclip/blueprint-company/.paperclip.yaml");
+    const config = yaml.load(await fs.readFile(configPath, "utf8")) as {
+      agents?: Record<
+        string,
+        {
+          adapter?: {
+            type?: string;
+            config?: Record<string, unknown>;
+          };
+        }
+      >;
+    };
+    const agents = config.agents ?? {};
+    const enabled = Object.entries(agents)
+      .filter(([, agent]) => agent.adapter?.config?.paperclipGoalPromptEnabled === true)
+      .map(([slug]) => slug)
+      .sort();
+
+    expect(enabled).toEqual([
+      "capture-codex",
+      "capture-review",
+      "pipeline-codex",
+      "pipeline-review",
+      "webapp-codex",
+      "webapp-review",
+    ]);
+
+    for (const slug of enabled) {
+      const agent = agents[slug];
+      expect(agent?.adapter?.type, `${slug} must stay on Codex for goal-style runs`).toBe("codex_local");
+      const instructionsPath = path.resolve(`ops/paperclip/blueprint-company/agents/${slug}/AGENTS.md`);
+      const instructions = await fs.readFile(instructionsPath, "utf8");
+      for (const field of goalCloseoutFields) {
+        expect(instructions, `${slug} instructions must preserve ${field}`).toContain(field);
+      }
+      for (const snippet of goalCloseoutInstructionSnippets) {
+        expect(instructions, `${slug} instructions must preserve ${snippet}`).toContain(snippet);
+      }
+    }
+
+    const intentionallyDisabled = [
+      "blueprint-cto",
+      "conversion-agent",
+      "beta-launch-commander",
+      "docs-agent",
+    ];
+    for (const slug of intentionallyDisabled) {
+      expect(
+        agents[slug]?.adapter?.config?.paperclipGoalPromptEnabled,
+        `${slug} is intentionally not /goal-enabled because it is strategy, release orchestration, growth experimentation, or docs freshness work`,
+      ).not.toBe(true);
+    }
   });
 
   it("keeps cross-repo autonomy loops pinned to the shared evidence checklist", async () => {

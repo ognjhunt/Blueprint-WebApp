@@ -14,6 +14,7 @@ Each run must:
 - update Blueprint's generic robot-team demand playbook
 - create downstream issues for `conversion-agent`, `analytics-agent`, `intake-agent`, `ops-lead`, `buyer-solutions-agent`, `revenue-ops-pricing-agent`, and `city-demand-agent` where needed
 - create or update a downstream `webapp-codex` issue using `ops/paperclip/blueprint-company/tasks/webapp-creative-image-execution/TASK.md` when the weekly output needs image-heavy campaign or mockup execution
+- include the `ops/paperclip/blueprint-company/skills/site-world-creative-production/SKILL.md` packet when the handoff involves generated imagery, storyboards, robot-world-model scenes, first/last frames, multi-reference packs, or video prompts
 - keep all recommendations truthful to current Blueprint capabilities
 
 Human-only boundaries:

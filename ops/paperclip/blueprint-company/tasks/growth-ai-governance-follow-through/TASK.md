@@ -33,6 +33,7 @@ This is a growth-loop tightening task, not a generic marketing ideation task.
   - non-truthful traction framing
 - route concrete follow-up work to the appropriate growth agents if additional tightening is needed
 - ensure image-heavy growth follow-through creates or updates explicit downstream `webapp-codex` issues using `ops/paperclip/blueprint-company/tasks/webapp-creative-image-execution/TASK.md`
+- ensure marketing, advertising, brand, robot-world-model, storyboard, reference-image, and video-prompt work uses `ops/paperclip/blueprint-company/skills/site-world-creative-production/SKILL.md` before any Codex `gpt-image-2` or provider-video execution handoff
 - leave a concise note distinguishing what is already aligned versus what still needs follow-through
 
 ## Done When

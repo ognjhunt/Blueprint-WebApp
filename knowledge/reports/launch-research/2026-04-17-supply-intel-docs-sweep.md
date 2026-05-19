@@ -26,7 +26,7 @@ owner: supply-intel-agent
 sensitivity: internal
 confidence: 0.83
 subject_key: supply-intel-docs-sweep
-review_status: draft
+review_status: watch
 canonical_refs:
   - system: kb
     ref: "knowledge/compiled/supply-intel/supply-intel-docs-sweep.md"
@@ -96,3 +96,12 @@ Kled is currently the most visible 2026 example of a data marketplace trying to 
 ## Authority Boundary
 
 This report is a support artifact. It does not replace Paperclip work state, approvals, rights/privacy review, compensation policy, legal classification, or launch decisions.
+
+## Recommended Follow-up
+
+- Promote reusable findings into `knowledge/compiled/` before treating this historical report as current guidance.
+- Verify current Paperclip issue state, rights/provenance state, and repo artifacts before acting on this report.
+
+## Linked KB Pages
+
+- No additional linked KB page was added during schema cleanup; use existing links in the report body and canonical repo/Paperclip references above.

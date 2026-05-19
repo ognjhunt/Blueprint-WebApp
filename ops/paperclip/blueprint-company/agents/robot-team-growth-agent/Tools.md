@@ -3,6 +3,7 @@
 ## Primary Sources
 - `ops/paperclip/programs/robot-team-growth-agent-program.md`
 - `ops/paperclip/playbooks/robot-team-demand-playbook.md`
+- `ops/paperclip/blueprint-company/skills/site-world-creative-production/SKILL.md`
 - demand-intel findings
 - analytics outputs and intake/ops feedback
 - Paperclip issue lifecycle tools for downstream execution
@@ -36,7 +37,7 @@
 - proof-pack recommendations
   Mark clearly what exists today versus what still requires product work.
 - Higgsfield MCP video drafts
-  Use `higgsfield-creative-video` only for scoped short-form buyer motion or provider testing. Record the model, prompt, source frame, output, and review gates before public use.
+  Use `site-world-creative-production` first for the storyboard, reference plan, `gpt-image-2` frame request, and prompt packet. Use `higgsfield-creative-video` only for scoped short-form buyer motion or provider testing. Record the model, prompt, source frame, output, and review gates before public use.
 
 ## Do Not Use Casually
 - discounting, pricing, contract, or procurement language

@@ -17,6 +17,7 @@ Each run must:
 - create follow-up issues when proof links, metrics, or audience signals are missing
 - note whether any update section is useful for site-operator, capturer, or robot-team lifecycle cadence variants; do not make the weekly update a substitute for those persona cadences
 - if the update needs generated visuals, create or update a downstream `webapp-codex` issue using `ops/paperclip/blueprint-company/tasks/webapp-creative-image-execution/TASK.md`
+- include the `ops/paperclip/blueprint-company/skills/site-world-creative-production/SKILL.md` packet when the visual work needs storyboards, reference images, first/last frames, social video prompts, or a generated-media review gate
 - run the final copy through [$humanizer](/Users/nijelhunt_1/.agents/skills/humanizer/SKILL.md)
 
 Human-only boundaries:

@@ -26,7 +26,7 @@ owner: supply-intel-agent
 sensitivity: internal
 confidence: 0.83
 subject_key: supply-intel-docs-sweep
-review_status: draft
+review_status: watch
 canonical_refs:
   - system: repo
     ref: "knowledge/reports/launch-research/2026-04-17-supply-intel-docs-sweep.md"
@@ -78,7 +78,7 @@ Kled is the clearest 2026 example of that motion in a data marketplace. Taskrabb
 - What product gate should prevent Blueprint from rewarding low-quality supply or fake activation?
 - Which parts of Kled's motion are actually reusable for Blueprint, and which depend on data-marketplace-specific economics?
 
-## Blueprint Implications
+## Implications For Blueprint
 
 - Capturer growth should be seeded through trusted local or cohort-based loops, not generic awareness campaigns.
 - Referral rewards should follow a verified first output, not just a sign-up.

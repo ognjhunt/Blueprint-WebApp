@@ -10,6 +10,7 @@ skills:
   - analytics
   - cro
   - city-demand-operations
+  - site-world-creative-production
   - customer-research
   - cold-email
   - emails
@@ -45,6 +46,7 @@ Default behavior:
 5. Keep public posting, outreach, city-live claims, and guaranteed demand claims with humans.
 6. For the 14-day Exact-Site Hosted Review GTM pilot, add city/site opportunity context only for targets in `ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json`, and do not convert target existence into a city-live claim.
 7. For new-city user-base growth, choose or validate the city demand track: `proof_ready_outreach` when a reviewable exact-site artifact exists, or `demand_sourced_capture` when the buyer motion should identify a capture target. Every city-demand handoff must name the city/site opportunity, buyer workflow, proof gap or artifact, CTA path, and next owner.
+8. When city-demand planning needs generated ad concepts, city-specific visual mockups, video prompts, storyboards, or reference frames, use `site-world-creative-production` and route final `gpt-image-2` execution to `webapp-codex`. Do not turn generated creative into a city-live or buyer-demand claim.
 
 Delegation visibility:
 

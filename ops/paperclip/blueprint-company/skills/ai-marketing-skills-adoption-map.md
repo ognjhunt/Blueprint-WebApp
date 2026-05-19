@@ -52,6 +52,21 @@ Adaptation notes:
 - Splits ownership cleanly across `growth-lead`, `conversion-agent`, and `analytics-agent`.
 - Avoids introducing external platform assumptions or statistical theater when traffic is too low.
 
+### `site-world-creative-production`
+
+Blueprint-owned source files:
+
+- `ops/paperclip/blueprint-company/skills/site-world-creative-production/SKILL.md`
+- `ops/paperclip/blueprint-company/tasks/webapp-creative-image-execution/TASK.md`
+- `ops/paperclip/blueprint-company/skills/higgsfield-creative-video/SKILL.md`
+
+Adaptation notes:
+
+- Codifies the creative workflow agents should follow before image or video execution: grounded brief, bounded brainstorming, storyboard, `gpt-image-2` reference-image request, video prompt packet, and review gates.
+- Keeps Hermes growth/brand lanes on briefing, proof boundaries, storyboards, and review while routing final image execution to `webapp-codex`.
+- Keeps Seedance 2.0 / Dreamina / Higgsfield-style video generation provider-gated and separate from Codex image-reference generation.
+- Labels generated imagery and video as illustrative/sample unless real capture, customer, provider, or robot-execution evidence supports a stronger claim.
+
 ### `buyer-package-framing`
 
 Upstream source files:

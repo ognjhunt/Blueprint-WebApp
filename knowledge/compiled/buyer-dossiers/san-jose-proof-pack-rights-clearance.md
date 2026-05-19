@@ -42,6 +42,12 @@ Use this dossier as the buyer-thread reference for San Jose exact-site proof pac
 - The current buyer-journey issue (`BLU-2559`) is in `in_progress`, but its required dependency chain still points to `rights-clearance`.
 - San Jose buyer demand is best anchored to exact-site robotics workflows, not generic robotics marketing language.
 
+## Evidence
+
+- `BLU-2559` is the buyer-journey thread, but it still depends on rights clearance before proof packaging can become buyer-visible.
+- The linked San Jose city-launch and target-account materials support buyer fit, not proof-pack availability.
+- No current source URL in this dossier records a CLEARED hosted-review asset or proof-ready listing.
+
 ## Buyer Clusters
 
 - Humanoid and human-environment robotics: Figure, IntBot
@@ -64,6 +70,18 @@ Use this dossier as the buyer-thread reference for San Jose exact-site proof pac
 - Keep exact-site versus adjacent-site labeling explicit.
 - Keep access path, provenance, and privacy limits visible in the proof summary.
 - Route any precedent-setting rights or commercialization question to the human rights lane before buyer delivery.
+
+## Implications For Blueprint
+
+- Keep San Jose exact-site buyer motion blocked on rights and proof artifacts, not on demand research.
+- Use target-account research as framing only after a concrete asset exists.
+- Preserve the difference between buyer interest, city planning, and proof-ready hosted review.
+
+## Open Questions
+
+- Which San Jose proof candidate can be cleared first?
+- Who owns the rights-clearance handoff for `BLU-2559`?
+- What hosted-review artifact will buyer-solutions reference once clearance lands?
 
 ## Recommended Follow-up
 

@@ -168,6 +168,12 @@ Why this cluster matters:
 - Keep exact-site versus adjacent-site labeling explicit for every target before any downstream outbound work.
 - Hand the named company list to `robot-team-growth-agent` as the next downstream operating map.
 
+## Implications For Blueprint
+
+- Use San Diego as a target-account map for proof-led sequencing, not as evidence that proof packs already exist.
+- Keep defense and export-sensitive accounts behind explicit rights, access, and sensitivity review.
+- Let warehouse and industrial-integration accounts move first only when the exact-site proof path is real.
+
 ## Confidence
 
 Medium-high overall. The strongest evidence is direct and first-party for Brain Corp, Shield AI, GA-ASI, UC San Diego CRI, and San Diego Tech Hub. Several other accounts are cluster-fit inferences that should be treated as high-probability targets, not confirmed buyers.

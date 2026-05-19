@@ -58,6 +58,7 @@
     "research-grounding:refresh": "tsx scripts/gemini/refresh-research-grounding.ts",
     "ingest:hermes-kb": "tsx scripts/hermes-kb-ingest.ts",
     "lint:hermes-kb": "tsx scripts/hermes-kb-lint.ts",
+    "paperclip:control-room:inventory": "tsx scripts/paperclip/control-room-inventory.ts",
     "notion:sync:growth-studio": "tsx scripts/notion-sync-growth-studio.ts",
     "paperclip:sweep:run-failures": "tsx scripts/paperclip/sweep-agent-run-failures.ts",
     "test:coverage": "vitest run --coverage --exclude client/tests/build-output.test.ts",

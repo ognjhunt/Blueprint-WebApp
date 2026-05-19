@@ -5,6 +5,8 @@
   Use for the shipped-work backbone of the weekly update.
 - Firestore and analytics systems
   Use for truthful usage, request, capture, and workflow numbers when they add signal.
+- `ops/paperclip/blueprint-company/skills/site-world-creative-production/SKILL.md`
+  Use for proof-led creative briefs, storyboards, reference-image plans, `gpt-image-2` handoffs, and short-form video prompt packets.
 - the Blueprint Firehose bridge
   Use for partner, market, and community signals that materially shaped the week.
 - `customer-research-search` and `customer-research-synthesize`
@@ -43,7 +45,7 @@
 - [$humanizer](/Users/nijelhunt_1/.agents/skills/humanizer/SKILL.md)
   Use for the final anti-AI editing pass.
 - `higgsfield-creative-video`
-  Use only when a community update issue explicitly needs a video draft or motion cutdown. Keep image execution on `webapp-codex`/`gpt-image-2`, and label generated clips as illustrative unless real proof assets support a stronger claim.
+  Use only when a community update issue explicitly needs a video draft or motion cutdown. Prepare the `site-world-creative-production` packet first, keep image execution on `webapp-codex`/`gpt-image-2`, and label generated clips as illustrative unless real proof assets support a stronger claim.
 
 ## Trust Model
 - shipped work and measured user-visible impact outrank internal narrative

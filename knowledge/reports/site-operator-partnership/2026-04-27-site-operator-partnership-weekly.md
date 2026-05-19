@@ -82,3 +82,12 @@ Site operator partnership momentum is tied to industrial AI adoption, with opera
 ## Authority Boundary
 
 This page is a derived Hermes KB artifact. It does not replace Paperclip work state, approvals, rights/privacy review, pricing/legal commitments, capture provenance, or package/runtime truth. If any of those areas matter, the canonical system wins over this page.
+
+## Recommended Follow-up
+
+- Promote reusable findings into `knowledge/compiled/` before treating this historical report as current guidance.
+- Verify current Paperclip issue state, rights/provenance state, and repo artifacts before acting on this report.
+
+## Linked KB Pages
+
+- No additional linked KB page was added during schema cleanup; use existing links in the report body and canonical repo/Paperclip references above.

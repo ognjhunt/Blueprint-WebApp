@@ -1,5 +1,5 @@
 ---
-authority: public
+authority: derived
 source_system: paperclip
 source_urls:
   - "paperclip://issue/905efc7c-bd8e-4b2a-807d-d8c87340bb6e"

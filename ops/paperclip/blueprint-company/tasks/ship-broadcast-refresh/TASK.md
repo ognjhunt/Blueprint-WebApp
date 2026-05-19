@@ -14,6 +14,7 @@ Each run must:
 - draft the ship package through the deterministic community-updates writer with asset metadata, source evidence, and blocked-claim rules
 - keep one issue per meaningful asset or campaign bundle, not one issue per commit unless the shipment genuinely stands alone
 - if the ship package needs generated visuals, create or update a downstream `webapp-codex` issue using `ops/paperclip/blueprint-company/tasks/webapp-creative-image-execution/TASK.md`
+- include the `ops/paperclip/blueprint-company/skills/site-world-creative-production/SKILL.md` packet for storyboarded visuals, first/last frames, multi-reference packs, or video prompt handoffs
 - leave proof-bearing closeout comments and preserve the linked Notion/Slack draft artifacts
 - avoid public send or publish paths without explicit human approval
 

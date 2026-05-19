@@ -110,3 +110,16 @@ Use the current repo artifacts, not a new sales narrative:
 ## Authority Boundary
 
 This page is a derived Hermes KB artifact. It does not replace Paperclip issue state, approvals, rights/privacy review, pricing/legal commitments, capture provenance, or package/runtime truth.
+
+## Evidence
+
+Legacy report section backfilled for Hermes KB schema compliance. Evidence remains the source links, issue references, artifact paths, and report body above; no new runtime proof was added by this cleanup.
+
+## Recommended Follow-up
+
+- Promote reusable findings into `knowledge/compiled/` before treating this historical report as current guidance.
+- Verify current Paperclip issue state, rights/provenance state, and repo artifacts before acting on this report.
+
+## Linked KB Pages
+
+- No additional linked KB page was added during schema cleanup; use existing links in the report body and canonical repo/Paperclip references above.

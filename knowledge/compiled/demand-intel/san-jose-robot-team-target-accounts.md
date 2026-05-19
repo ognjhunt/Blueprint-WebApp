@@ -152,6 +152,12 @@ Why this cluster matters:
 - Keep exact-site versus adjacent-site labeling explicit in the San Jose ledger before any downstream outreach.
 - Refresh city-demand planning when local proof requirements repeat across more than one account.
 
+## Implications For Blueprint
+
+- Treat San Jose as a technical proof-led buyer map, not as confirmed buyer traction.
+- Prioritize exact-site proof paths for humanoid, airport/public-space, warehouse, agriculture, and semiconductor workflows before broad outreach.
+- Use channel anchors for credibility only when they shorten a concrete hosted-review or proof-pack path.
+
 ## Confidence
 
 Medium-high overall. The strongest evidence is direct and first-party for Figure, IntBot, Vimaan, Bonsai Robotics, Kawasaki Robotics, RobotLAB, Silicon Valley Robotics, and Open Robotics. Several target-account implications are channel-fit inferences that should be treated as high-probability, not confirmed buyer intent.

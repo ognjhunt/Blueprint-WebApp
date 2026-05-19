@@ -6,6 +6,7 @@
 - `ops/paperclip/playbooks/city-demand-san-francisco-ca.md`
 - `ops/paperclip/playbooks/robot-team-demand-playbook.md`
 - `ops/paperclip/playbooks/site-operator-access-and-commercialization-playbook.md`
+- `ops/paperclip/blueprint-company/skills/site-world-creative-production/SKILL.md`
 - demand-intel, robot-team-growth, site-operator, analytics, intake, and ops feedback
 - Paperclip issue lifecycle tools for cross-agent dependencies
 - `ops/paperclip/programs/parallel-search-mcp-policy.md`
@@ -33,6 +34,8 @@
   Use them to clarify tradeoffs, not to create false precision.
 - city-specific channel and community recommendations
   Keep them explicitly internal until approved.
+- city-specific creative concepts
+  Use `site-world-creative-production` for storyboards, reference-frame plans, and video prompt packets; route final image execution to `webapp-codex` and keep generated creative labeled as illustrative planning unless proof supports more.
 
 ## Do Not Use Casually
 - public launch language

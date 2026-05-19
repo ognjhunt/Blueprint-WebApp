@@ -39,3 +39,11 @@ Analytics Daily re-run completed after partial source restoration. Notion, Slack
 - Restore GA4 measurement access to enable behavioral trend refresh.
 - Monitor Firestore read quota to ensure queue-depth refresh completes without exhaustion.
 - Verify Notion and Slack artifacts are updated with fresh data from this re-run.
+
+## Linked KB Pages
+
+- No additional linked KB page was added during schema cleanup; use existing links in the report body and canonical repo/Paperclip references above.
+
+## Authority Boundary
+
+This report is a historical Hermes KB support artifact. It does not replace Paperclip work state, approvals, rights/privacy review, pricing/legal commitments, capture provenance, package manifests, or hosted-runtime truth.
