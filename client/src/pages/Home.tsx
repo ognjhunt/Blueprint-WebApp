@@ -176,7 +176,7 @@ const homeVariantContent: Record<
           href={GOOGLE_GENIE_STREET_VIEW_URL}
           target="_blank"
           rel="noreferrer"
-          className="underline decoration-white/40 underline-offset-4 transition hover:decoration-white"
+          className="!text-white underline decoration-white/70 underline-offset-4 transition visited:!text-white hover:!text-white hover:decoration-white"
         >
           Street View-grounded Genie
         </a>{" "}
@@ -201,7 +201,7 @@ const homeVariantContent: Record<
           href={GOOGLE_GENIE_STREET_VIEW_URL}
           target="_blank"
           rel="noreferrer"
-          className="underline decoration-white/40 underline-offset-4 transition hover:decoration-white"
+          className="!text-white underline decoration-white/70 underline-offset-4 transition visited:!text-white hover:!text-white hover:decoration-white"
         >
           Street View-grounded Genie
         </a>{" "}
@@ -520,7 +520,7 @@ export default function Home() {
                   <h1 className="font-editorial max-w-[40rem] text-[2.85rem] leading-[0.92] tracking-[-0.04em] text-white sm:text-[4.35rem]">
                     {heroContent.title}
                   </h1>
-                  <p className="mt-5 max-w-[31rem] text-base leading-7 text-white opacity-90 sm:text-[1.03rem] sm:leading-8">
+                  <p className="mt-5 max-w-[31rem] text-base leading-7 text-white/90 sm:text-[1.03rem] sm:leading-8">
                     {heroContent.description}
                   </p>
 
