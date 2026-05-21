@@ -9,6 +9,19 @@ const originalFetch = global.fetch;
 const state = vi.hoisted(() => {
   const hostedSessions = new Map<string, Record<string, unknown>>();
   const userData = { buyerType: "robot_team" };
+  const defaultMarketplaceEntitlements = () => [
+    {
+      id: "ent-hosted-sw-chi-01",
+      order_id: "dry-order-hosted-sw-chi-01",
+      buyer_user_id: "user-1",
+      buyer_email: "robot@example.com",
+      sku: "hosted-session-sw-chi-01",
+      title: "Harborview Grocery Distribution Annex hosted session rental",
+      item_type: "hosted_session_rental",
+      delivery_mode: "hosted_session",
+      access_state: "provisioned",
+    },
+  ];
   const artifactPayloads = new Map<string, Record<string, unknown>>([
     [
       "scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/evaluation_prep/site_world_spec.json",
@@ -156,6 +169,8 @@ const state = vi.hoisted(() => {
   return {
     hostedSessions,
     userData,
+    marketplaceEntitlements: defaultMarketplaceEntitlements(),
+    defaultMarketplaceEntitlements,
     inboundRequestData,
     artifactPayloads,
     lastCreateHostedSessionRunParams,
@@ -266,6 +281,22 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
               data: () => state.hostedSessions.get(id),
             }),
           }),
+          where: (field: string, _operator: string, value: unknown) => buildQuery([{ field, value }]),
+        };
+      }
+      if (name === "marketplaceEntitlements") {
+        const buildQuery = (filters: Array<{ field: string; value: unknown }>) => ({
+          where: (field: string, _operator: string, value: unknown) => buildQuery([...filters, { field, value }]),
+          get: async () => ({
+            docs: state.marketplaceEntitlements
+              .filter((entry) => filters.every(({ field, value }) => entry[field] === value))
+              .map((entry) => ({
+                id: String(entry.id || "entitlement-1"),
+                data: () => entry,
+              })),
+          }),
+        });
+        return {
           where: (field: string, _operator: string, value: unknown) => buildQuery([{ field, value }]),
         };
       }
@@ -625,6 +656,7 @@ afterEach(async () => {
   state.hostedSessions.clear();
   state.lastCreateHostedSessionRunParams = null;
   state.userData.buyerType = "robot_team";
+  state.marketplaceEntitlements = state.defaultMarketplaceEntitlements();
   state.presentationLaunchConfig = {
     manifest: {},
     uiBaseUrl: "https://neoverse.example/demo",
@@ -699,6 +731,109 @@ afterEach(async () => {
 });
 
 describe("site world session routes", () => {
+  it("requires a provisioned hosted-session entitlement before protected non-demo session creation", async () => {
+    state.marketplaceEntitlements = [];
+    const { server, baseUrl } = await startServer();
+    try {
+      const response = await fetch(`${baseUrl}/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          siteWorldId: "sw-chi-01",
+          robotProfileId: "other_sample",
+          taskId: "sw-chi-01-task-1",
+          scenarioId: "sw-chi-01-scenario-1",
+          startStateId: "sw-chi-01-start-1",
+        }),
+      });
+      const payload = (await response.json()) as Record<string, unknown>;
+
+      expect(response.status).toBe(403);
+      expect(payload.code).toBe("entitlement_required");
+      expect(String(payload.error || "")).toMatch(/provisioned hosted-session entitlement/i);
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("marks protected readiness unentitled when buyerType is valid but no hosted-session entitlement exists", async () => {
+    state.marketplaceEntitlements = [];
+    const { server, baseUrl } = await startServer();
+    try {
+      const response = await fetch(`${baseUrl}/launch-readiness?siteWorldId=sw-chi-01`);
+      const payload = (await response.json()) as Record<string, unknown>;
+
+      expect(response.status).toBe(200);
+      expect(payload.entitled).toBe(false);
+      expect(payload.blockers).toContain("A provisioned hosted-session entitlement is required for protected site-world launch.");
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("blocks protected render access for another team's non-demo session without a matching entitlement", async () => {
+    state.marketplaceEntitlements = [];
+    state.hostedSessions.set("foreign-protected-session", {
+      sessionId: "foreign-protected-session",
+      site: {
+        siteWorldId: "sw-chi-01",
+        siteName: "Harborview Grocery Distribution Annex",
+        siteAddress: "1847 W Fulton St, Chicago, IL 60612",
+        scene_id: "scene-harborview-grocery-annex",
+        capture_id: "cap-harborview-grocery-annex-v1",
+        site_submission_id: "site-sub-harborview-grocery-annex",
+        pipeline_prefix: "scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline",
+      },
+      siteModel: {
+        runtimeRenderSource: "neoverse_full_capture",
+        runtimeBaseUrl: "http://runtime.local",
+        websocketBaseUrl: "ws://runtime.local",
+      },
+      sessionMode: "runtime_only",
+      runtime_backend_selected: "neoverse",
+      status: "running",
+      robot: "Mobile manipulator",
+      policy: {},
+      task: "Move a tote",
+      scenario: "default",
+      createdBy: { uid: "other-team", email: "other@example.com" },
+      createdAt: "2026-03-14T00:00:00Z",
+      elapsedSeconds: 0,
+      artifactUris: {},
+      metering: { sessionSeconds: 0, billableHours: 0 },
+      runtimeHandle: {
+        site_world_id: "sw-chi-01",
+        runtime_base_url: "http://runtime.local",
+        websocket_base_url: "ws://runtime.local",
+      },
+      launchContext: {
+        site_world_spec_uri:
+          "gs://bucket/scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/evaluation_prep/site_world_spec.json",
+        site_world_registration_uri:
+          "gs://bucket/scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/evaluation_prep/site_world_registration.json",
+        site_world_health_uri:
+          "gs://bucket/scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/evaluation_prep/site_world_health.json",
+        runtime_base_url: "http://runtime.local",
+        websocket_base_url: "ws://runtime.local",
+        conditioning_bundle_uri:
+          "gs://bucket/scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/scene_memory/conditioning_bundle.json",
+        scene_memory_manifest_uri:
+          "gs://bucket/scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/scene_memory/scene_memory_manifest.json",
+      },
+    });
+
+    const { server, baseUrl } = await startServer();
+    try {
+      const response = await fetch(`${baseUrl}/foreign-protected-session/render?cameraId=head_rgb`);
+      const payload = (await response.json()) as Record<string, unknown>;
+
+      expect(response.status).toBe(403);
+      expect(payload.code).toBe("session_access_denied");
+    } finally {
+      await stopServer(server);
+    }
+  });
+
   it("creates a hosted session and returns a workspace URL", async () => {
     const { server, baseUrl } = await startServer();
     try {
@@ -1421,10 +1556,11 @@ describe("site world session routes", () => {
     const { server, baseUrl } = await startServer();
     try {
       const response = await fetch(`${baseUrl}/public-demo-protected-ui/ui-access`);
-      expect(response.status).toBe(500);
+      expect(response.status).toBe(403);
       await expect(response.json()).resolves.toEqual(
         expect.objectContaining({
           error: "Hosted sessions are only available to robot-team accounts.",
+          code: "forbidden",
         })
       );
     } finally {

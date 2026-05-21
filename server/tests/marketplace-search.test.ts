@@ -104,6 +104,13 @@ describe("marketplaceQueryParser", () => {
     );
     expect((parsed.hard as any).minEpisodes).toBe(10000);
   });
+
+  it("maps store and grocery brand language to Grocery / Retail", () => {
+    for (const query of ["store", "Whole Foods", "Kroger", "supermarket", "retail aisle"]) {
+      const parsed = parseMarketplaceQuery(query, buildParserContext());
+      expect((parsed.hard as any).locationType).toBe("Grocery / Retail");
+    }
+  });
 });
 
 describe("marketplaceSearch (static)", () => {

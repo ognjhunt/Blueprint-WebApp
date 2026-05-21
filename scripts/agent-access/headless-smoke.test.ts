@@ -10,11 +10,16 @@ describe("headless hosted-session smoke", () => {
     expect(result.ok).toBe(true);
     expect(result.steps.map((step) => step.name)).toEqual([
       "catalog",
-      "readiness",
+      "commerce.quote",
+      "commerce.checkoutDryRun",
+      "commerce.entitlement",
+      "commerce.entitlementReadiness",
       "session.create",
       "session.reset",
       "session.step",
       "session.runBatch",
+      "session.control",
+      "session.explorerRender",
       "session.export",
     ]);
     expect(result.sessionId).toBe("mock-session-1");

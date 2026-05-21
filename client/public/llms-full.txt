@@ -44,7 +44,7 @@ Public examples are samples unless the page explicitly ties them to an approved 
 - `/how-it-works` - Workflow page. Separates robot teams, robot agents, and internal Blueprint agents across capture, package, hosted review, and decision steps.
 - `/world-models` - Catalog of exact-site world models. Keeps public proof, package access, hosted access, and commercial status separate.
 - `/world-models/siteworld-f5fd54898cfb` - Public sample listing. Useful for seeing how a site-specific world model page presents evidence, restrictions, package paths, and hosted access.
-- `/agents` - Robot-team agent access. Documents headless discovery, OpenAPI, CLI, MCP tools, truth labels, auth model, public demo flow, protected robot-team flow, hosted-session lifecycle, explorer rendering, exports, and error semantics.
+- `/agents` - Robot-team agent access. Documents headless discovery, explainable site-world catalog search, dry-run quote/order/entitlement proof, OpenAPI, CLI, MCP tools, truth labels, auth model, public demo flow, protected robot-team flow, hosted-session lifecycle, explorer rendering, exports, and error semantics.
 - `/sample-deliverables` - Buyer-readable sample package viewer for the public manifest, rights sheet, export bundle, hosted-review report, and raw sample files.
 - `/capture` - Capture rules and handoff page. Explains lawful public-facing capture, app access, review gates, and how capture supports downstream world-model products.
 - `/capture-app/launch-access` - Future-city signal path for capturers, site operators, and local leads.
@@ -76,6 +76,10 @@ Blueprint pages are most relevant to these themes:
 - site operator robot evaluation access
 - rights and privacy for site-specific robot evaluation
 - robot-team agent API
+- robot agent dry-run commerce
+- hosted-session entitlement proof
+- agent site-world catalog search
+- Whole Foods or store query close-match site-world search
 - headless hosted-session rollout
 - Blueprint MCP server
 
@@ -87,6 +91,7 @@ Blueprint pages are most relevant to these themes:
 - Do not treat qualification/readiness outputs as the main product.
 - Do not imply package files, raw exports, private request consoles, admin surfaces, or hosted workspaces are publicly accessible.
 - Do not treat public demo agent flows as protected customer access, provider success, rights clearance, or deployment proof.
+- Do not treat dry-run agent commerce as a live payment, live package delivery, rights clearance, provider execution, or guaranteed hosted fulfillment.
 - Do not invent customer results, prices, ratings, reviews, availability, providers, rights state, or capture provenance.
 
 ## Private Or Noindex Surfaces
@@ -97,4 +102,6 @@ The following are not public buyer-content targets: `/admin/*`, `/dashboard`, `/
 
 `/api/site-content` returns a non-sensitive JSON summary of the public pages, definitions, query themes, and safety boundaries.
 
-`/agent-access.openapi.json` and `/api/agent-access/openapi.json` describe the robot-team agent contract for catalog discovery, site-world detail, launch readiness, session create/read/reset/step/run-batch/control, explorer render, and export. Public demo eligibility is narrow; protected flows require Firebase robot-team or admin bearer auth.
+`/api/site-worlds/search` is the public read-only site-world search endpoint for agent queries such as `store`, `Whole Foods`, `supermarket`, `retail aisle`, and `warehouse tote`. It returns scores, reasons, matched aliases, matched fields, parsed filters, warnings, and embedding-use metadata. Brand aliases produce truthful close matches; they do not claim exact brand availability.
+
+`/agent-access.openapi.json` and `/api/agent-access/openapi.json` describe the robot-team agent contract for catalog search, site-world detail, dry-run quote/order/receipt/entitlement proof, entitlement readiness, launch readiness, session create/read/reset/step/run-batch/control, explorer render, and export. Public demo eligibility is narrow; protected flows require Firebase robot-team or admin bearer auth plus session ownership or a matching provisioned entitlement.

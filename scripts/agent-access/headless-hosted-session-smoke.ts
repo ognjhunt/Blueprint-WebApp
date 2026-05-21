@@ -14,6 +14,8 @@ export type HeadlessSmokeResult = {
   mode: "mock" | "public-demo";
   ok: boolean;
   sessionId: string | null;
+  orderId?: string;
+  entitlementId?: string;
   steps: SmokeStep[];
 };
 
@@ -24,6 +26,8 @@ type SmokeOptions = {
 };
 
 const mockSessionId = "mock-session-1";
+const mockOrderId = "dry-order-1";
+const mockEntitlementId = "dry-entitlement-1";
 
 function json(payload: unknown, status = 200) {
   return new Response(JSON.stringify(payload), {
@@ -44,6 +48,46 @@ function createMockFetch(): FetchLike {
         count: 1,
       });
     }
+    if (method === "GET" && path === "/api/site-worlds/search") {
+      const q = String(url.searchParams.get("q") || "").toLowerCase();
+      if (q.includes("whole foods")) {
+        return json({
+          query: "whole foods",
+          results: [
+            {
+              siteWorld: { id: "sw-chi-01", siteName: "Harborview Grocery Distribution Annex", category: "Retail" },
+              score: 0.92,
+              reasons: ["Alias whole foods maps to Retail; closest grocery/retail match; no exact Whole Foods availability is implied"],
+              matchedAliases: ["whole foods -> grocery retail"],
+              matchedFields: ["category", "industry", "taskLane"],
+            },
+          ],
+          parsed: { q: "whole foods", aliases: [{ alias: "whole foods", mapsTo: "whole foods -> grocery retail" }] },
+          appliedFilters: {},
+          warnings: ["embeddings_unavailable: mock smoke uses deterministic lexical and alias ranking"],
+          meta: { backend: "static-fallback", usedEmbeddings: false },
+        });
+      }
+      if (q.includes("store")) {
+        return json({
+          query: "store",
+          results: [
+            {
+              siteWorld: { id: "sw-chi-01", siteName: "Harborview Grocery Distribution Annex", category: "Retail" },
+              score: 0.78,
+              reasons: ["Alias store maps to Retail"],
+              matchedAliases: ["store -> grocery retail"],
+              matchedFields: ["category", "taskLane"],
+            },
+          ],
+          parsed: { q: "store", aliases: [{ alias: "store", mapsTo: "store -> grocery retail" }] },
+          appliedFilters: {},
+          warnings: ["embeddings_unavailable: mock smoke uses deterministic lexical and alias ranking"],
+          meta: { backend: "static-fallback", usedEmbeddings: false },
+        });
+      }
+      return json({ query: q, results: [], parsed: { q, aliases: [] }, appliedFilters: {}, warnings: [], meta: { backend: "static-fallback", usedEmbeddings: false } });
+    }
     if (method === "GET" && path === "/api/site-worlds/sessions/launch-readiness") {
       return json({
         entitled: true,
@@ -51,6 +95,44 @@ function createMockFetch(): FetchLike {
         launchable: true,
         blockers: [],
         runtime_only: { launchable: true, blockers: [] },
+      });
+    }
+    if (method === "GET" && path === "/api/agent-access/commerce/quote") {
+      return json({
+        quote: {
+          mode: "dry_run",
+          product: "hosted_session_rental",
+          siteWorldId: "siteworld-f5fd54898cfb",
+          sku: "hosted-session-siteworld-f5fd54898cfb",
+        },
+      });
+    }
+    if (method === "POST" && path === "/api/agent-access/commerce/dry-run-checkout") {
+      return json({
+        order: { id: mockOrderId, status: "fulfilled" },
+        entitlement: {
+          id: mockEntitlementId,
+          access_state: "provisioned",
+          sku: "hosted-session-siteworld-f5fd54898cfb",
+        },
+        receipt: { mode: "dry_run", liveStripeTouched: false },
+      }, 201);
+    }
+    if (method === "GET" && path === `/api/agent-access/commerce/entitlements/${mockEntitlementId}`) {
+      return json({
+        entitlement: {
+          id: mockEntitlementId,
+          access_state: "provisioned",
+          sku: "hosted-session-siteworld-f5fd54898cfb",
+        },
+      });
+    }
+    if (method === "GET" && path === "/api/agent-access/commerce/entitlement-readiness") {
+      return json({
+        mode: "dry_run",
+        entitled: true,
+        launchable: true,
+        blockers: [],
       });
     }
     if (method === "POST" && path === "/api/site-worlds/sessions") {
@@ -64,6 +146,12 @@ function createMockFetch(): FetchLike {
     }
     if (method === "POST" && path === `/api/site-worlds/sessions/${mockSessionId}/run-batch`) {
       return json({ summary: { batchRunId: "batch-1", status: "completed", numEpisodes: 1, numSuccess: 1 } });
+    }
+    if (method === "POST" && path === `/api/site-worlds/sessions/${mockSessionId}/control`) {
+      return json({ control: { mode: "pause", accepted: true } });
+    }
+    if (method === "POST" && path === `/api/site-worlds/sessions/${mockSessionId}/explorer-render`) {
+      return json({ explorerState: { frameUri: "mock://frames/explorer.png", cameraId: "head_rgb" } });
     }
     if (method === "POST" && path === `/api/site-worlds/sessions/${mockSessionId}/export`) {
       return json({
@@ -105,10 +193,32 @@ export async function runHeadlessAgentSmoke(options: SmokeOptions = {}): Promise
   });
 
   await runStep(steps, "catalog", () => client.listCatalog(1));
-  await runStep(steps, "readiness", () => client.readiness("siteworld-f5fd54898cfb"));
+  await runStep(steps, "commerce.quote", () =>
+    client.quoteCommerce({ siteWorldId: "siteworld-f5fd54898cfb", product: "hosted_session_rental", sessionHours: 1 }),
+  );
+  const checkout = await runStep(steps, "commerce.checkoutDryRun", () =>
+    client.createDryRunCheckout({ siteWorldId: "siteworld-f5fd54898cfb", product: "hosted_session_rental", sessionHours: 1 }),
+  ) as { order?: { id?: string }; entitlement?: { id?: string } };
+  const orderId = String(checkout.order?.id || "");
+  const entitlementId = String(checkout.entitlement?.id || "");
+  if (!orderId || !entitlementId) {
+    throw new Error("Smoke dry-run checkout did not return order and entitlement ids.");
+  }
+  await runStep(steps, "commerce.entitlement", () => client.getCommerceEntitlement(entitlementId));
+  await runStep(steps, "commerce.entitlementReadiness", () =>
+    client.entitlementReadiness({
+      siteWorldId: "siteworld-f5fd54898cfb",
+      entitlementId,
+      buyerUserId: "agent-dry-run-buyer",
+      product: "hosted_session_rental",
+    }),
+  );
   const created = await runStep(steps, "session.create", () =>
     client.createSession({
       siteWorldId: "siteworld-f5fd54898cfb",
+      entitlementId,
+      orderId,
+      commerceMode: "dry_run",
       sessionMode: "runtime_only",
       robotProfileId: "other_sample",
       taskId: "sw-chi-01-task-1",
@@ -140,12 +250,16 @@ export async function runHeadlessAgentSmoke(options: SmokeOptions = {}): Promise
       maxSteps: 2,
     }),
   );
+  await runStep(steps, "session.control", () => client.controlSession(sessionId, { mode: "pause" }));
+  await runStep(steps, "session.explorerRender", () => client.renderExplorer(sessionId, { cameraId: "head_rgb" }));
   await runStep(steps, "session.export", () => client.exportSession(sessionId));
 
   const result = {
     mode,
     ok: steps.every((step) => step.ok),
     sessionId,
+    orderId,
+    entitlementId,
     steps,
   };
   stdout(JSON.stringify(result, null, 2));

@@ -5,17 +5,25 @@ import {
   BlueprintAgentApiClient,
   BlueprintAgentApiError,
   type AgentClientEnv,
+  type AgentCommerceInput,
+  type AgentDryRunCheckoutInput,
   type BatchSessionInput,
   type CreateSessionInput,
   type ExplorerRenderInput,
   type FetchLike,
   type ResetSessionInput,
+  type SearchSiteWorldsInput,
   type StepSessionInput,
 } from "./agent-api-client";
 
 type AgentCliCommand =
   | "discover"
   | "catalog:list"
+  | "catalog:search"
+  | "commerce:quote"
+  | "commerce:checkout"
+  | "commerce:order:get"
+  | "commerce:entitlement:get"
   | "world:get"
   | "readiness"
   | "session:create"
@@ -98,7 +106,7 @@ function requireString(options: Record<string, unknown>, key: string) {
 export function parseAgentCliArgs(argv: string[]): ParsedAgentCliArgs {
   const [primary = "discover", secondaryOrId, ...rest] = argv;
   const scopedArgs =
-    primary === "catalog" || primary === "world" || primary === "session"
+    primary === "catalog" || primary === "world" || primary === "session" || primary === "commerce"
       ? rest
       : secondaryOrId
         ? [secondaryOrId, ...rest]
@@ -109,6 +117,9 @@ export function parseAgentCliArgs(argv: string[]): ParsedAgentCliArgs {
 
   if (primary === "catalog" && secondaryOrId === "list") {
     return { command: "catalog:list", options: { limit: Number(options.limit || 24) }, format };
+  }
+  if (primary === "catalog" && secondaryOrId === "search") {
+    return { command: "catalog:search", options: { ...options, limit: Number(options.limit || 10) }, format };
   }
   if (primary === "world" && secondaryOrId === "get") {
     return {
@@ -133,6 +144,16 @@ export function parseAgentCliArgs(argv: string[]): ParsedAgentCliArgs {
     }
     if (secondaryOrId === "control") return { command: "session:control", sessionId: String(positionals[0] || options.sessionId || "").trim(), options, format };
   }
+  if (primary === "commerce") {
+    if (secondaryOrId === "quote") return { command: "commerce:quote", options, format };
+    if (secondaryOrId === "checkout" || secondaryOrId === "dry-run-checkout") return { command: "commerce:checkout", options: { ...options, mode: options.mode || "dry_run" }, format };
+    if (secondaryOrId === "order" || secondaryOrId === "order:get") {
+      return { command: "commerce:order:get", options, sessionId: String(positionals[0] || options.orderId || "").trim(), format };
+    }
+    if (secondaryOrId === "entitlement" || secondaryOrId === "entitlement:get") {
+      return { command: "commerce:entitlement:get", options, sessionId: String(positionals[0] || options.entitlementId || "").trim(), format };
+    }
+  }
   if (primary === "readiness") {
     return { command: "readiness", siteWorldId: String(options.siteWorldId || positionals[0] || "").trim(), options, format };
   }
@@ -151,6 +172,9 @@ export function parseAgentCliArgs(argv: string[]): ParsedAgentCliArgs {
 function createSessionInput(options: Record<string, unknown>): CreateSessionInput {
   return {
     siteWorldId: requireString(options, "siteWorldId"),
+    entitlementId: typeof options.entitlementId === "string" ? options.entitlementId : undefined,
+    orderId: typeof options.orderId === "string" ? options.orderId : undefined,
+    commerceMode: options.commerceMode === "dry_run" ? "dry_run" : undefined,
     robotProfileId: requireString(options, "robotProfileId"),
     taskId: requireString(options, "taskId"),
     scenarioId: requireString(options, "scenarioId"),
@@ -208,6 +232,47 @@ function explorerInput(options: Record<string, unknown>): ExplorerRenderInput {
   };
 }
 
+function siteWorldSearchInput(options: Record<string, unknown>): SearchSiteWorldsInput {
+  return {
+    q: typeof options.q === "string" ? options.q : undefined,
+    limit: typeof options.limit === "number" ? options.limit : undefined,
+    category: typeof options.category === "string" ? options.category : undefined,
+    industry: typeof options.industry === "string" ? options.industry : undefined,
+    city: typeof options.city === "string" ? options.city : undefined,
+    state: typeof options.state === "string" ? options.state : undefined,
+    siteType: typeof options.siteType === "string" ? options.siteType : undefined,
+    taskLane: typeof options.taskLane === "string" ? options.taskLane : undefined,
+    objectTags: typeof options.objectTags === "string"
+      ? options.objectTags.split(",").map((item) => item.trim()).filter(Boolean)
+      : undefined,
+    robot: typeof options.robot === "string" ? options.robot : undefined,
+    availability: typeof options.availability === "string" ? options.availability : undefined,
+    readiness: typeof options.readiness === "string" ? options.readiness : undefined,
+    sort: typeof options.sort === "string" ? options.sort : undefined,
+  };
+}
+
+function normalizeCommerceProduct(value: unknown) {
+  const normalized = String(value || "hosted_session_rental").trim().replace(/-/g, "_");
+  return normalized || "hosted_session_rental";
+}
+
+function commerceInput(options: Record<string, unknown>): AgentCommerceInput {
+  return {
+    siteWorldId: requireString(options, "siteWorldId"),
+    product: normalizeCommerceProduct(options.product),
+    sessionHours: typeof options.sessionHours === "number" ? options.sessionHours : undefined,
+  };
+}
+
+function checkoutInput(options: Record<string, unknown>): AgentDryRunCheckoutInput {
+  return {
+    ...commerceInput(options),
+    mode: "dry_run",
+    buyer: parseJsonOption(options.buyer, undefined) as AgentDryRunCheckoutInput["buyer"],
+  };
+}
+
 async function execute(parsed: ParsedAgentCliArgs, client: BlueprintAgentApiClient) {
   switch (parsed.command) {
     case "discover":
@@ -223,6 +288,16 @@ async function execute(parsed: ParsedAgentCliArgs, client: BlueprintAgentApiClie
       };
     case "catalog:list":
       return client.listCatalog(Number(parsed.options.limit || 24));
+    case "catalog:search":
+      return client.searchSiteWorlds(siteWorldSearchInput(parsed.options));
+    case "commerce:quote":
+      return client.quoteCommerce(commerceInput(parsed.options));
+    case "commerce:checkout":
+      return client.createDryRunCheckout(checkoutInput(parsed.options));
+    case "commerce:order:get":
+      return client.getCommerceOrder(parsed.sessionId || requireString(parsed.options, "orderId"));
+    case "commerce:entitlement:get":
+      return client.getCommerceEntitlement(parsed.sessionId || requireString(parsed.options, "entitlementId"));
     case "world:get":
       return client.getSiteWorld(parsed.siteWorldId || requireString(parsed.options, "siteWorldId"));
     case "readiness":

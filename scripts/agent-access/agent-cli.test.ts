@@ -8,6 +8,10 @@ describe("Blueprint agent CLI", () => {
       command: "catalog:list",
       options: { limit: 3 },
     });
+    expect(parseAgentCliArgs(["catalog", "search", "--q", "whole foods", "--limit", "5", "--city", "Chicago"])).toMatchObject({
+      command: "catalog:search",
+      options: { q: "whole foods", limit: 5, city: "Chicago" },
+    });
     expect(parseAgentCliArgs(["session", "create", "--site-world-id", "demo", "--robot-profile-id", "g1", "--task-id", "task", "--scenario-id", "scenario", "--start-state-id", "start"])).toMatchObject({
       command: "session:create",
       options: {
@@ -22,6 +26,14 @@ describe("Blueprint agent CLI", () => {
       command: "session:batch",
       sessionId: "session-1",
       options: { numEpisodes: 2 },
+    });
+    expect(parseAgentCliArgs(["commerce", "quote", "--site-world-id", "sw-chi-01", "--product", "hosted-session-rental", "--session-hours", "2"])).toMatchObject({
+      command: "commerce:quote",
+      options: {
+        siteWorldId: "sw-chi-01",
+        product: "hosted-session-rental",
+        sessionHours: 2,
+      },
     });
   });
 
@@ -92,6 +104,73 @@ describe("Blueprint agent CLI", () => {
         method: "GET",
         headers: expect.not.objectContaining({ authorization: expect.any(String) }),
       }),
+    );
+  });
+
+  it("routes dry-run commerce commands through explicit agent-access endpoints", async () => {
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      const path = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url).pathname;
+      const payload =
+        path.endsWith("/quote")
+          ? { quote: { sku: "hosted-session-sw-chi-01", mode: "dry_run" } }
+          : { order: { id: "dry-order-1", status: "fulfilled" }, entitlement: { id: "dry-ent-1", access_state: "provisioned" } };
+      return new Response(JSON.stringify(payload), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    });
+    const writes: string[] = [];
+
+    await runAgentCli(
+      ["commerce", "quote", "--site-world-id", "sw-chi-01", "--product", "hosted-session-rental"],
+      {
+        env: { BLUEPRINT_API_BASE_URL: "https://agent.example" },
+        fetchImpl: fetchMock,
+        stdout: (line) => writes.push(line),
+      },
+    );
+    await runAgentCli(
+      ["commerce", "checkout", "--site-world-id", "sw-chi-01", "--product", "hosted-session-rental", "--mode", "dry_run"],
+      {
+        env: { BLUEPRINT_API_BASE_URL: "https://agent.example" },
+        fetchImpl: fetchMock,
+        stdout: (line) => writes.push(line),
+      },
+    );
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "https://agent.example/api/agent-access/commerce/quote?siteWorldId=sw-chi-01&product=hosted_session_rental",
+      expect.objectContaining({ method: "GET" }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "https://agent.example/api/agent-access/commerce/dry-run-checkout",
+      expect.objectContaining({
+        method: "POST",
+        body: expect.stringContaining("\"mode\":\"dry_run\""),
+      }),
+    );
+    expect(writes.join("\n")).toContain("dry-ent-1");
+  });
+
+  it("calls the public site-world search endpoint with query params", async () => {
+    const fetchMock = vi.fn(async () =>
+      new Response(JSON.stringify({ results: [] }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+
+    await runAgentCli(["catalog", "search", "--q", "whole foods", "--limit", "5", "--object-tags", "tote,shelf"], {
+      env: { BLUEPRINT_API_BASE_URL: "https://agent.example" },
+      fetchImpl: fetchMock,
+      stdout: () => undefined,
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://agent.example/api/site-worlds/search?q=whole+foods&limit=5&objectTags=tote%2Cshelf",
+      expect.objectContaining({ method: "GET" }),
     );
   });
 });

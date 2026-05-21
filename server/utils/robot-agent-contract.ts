@@ -1,4 +1,4 @@
-export const ROBOT_AGENT_CONTRACT_VERSION = "2026-05-20";
+export const ROBOT_AGENT_CONTRACT_VERSION = "2026-05-21";
 export const ROBOT_AGENT_PUBLIC_DEMO_SITE_WORLD_ID = "siteworld-f5fd54898cfb";
 
 const jsonResponse = (schemaRef: string, description = "JSON response") => ({
@@ -27,9 +27,9 @@ export function buildRobotAgentOpenApiContract() {
     info: {
       title: "Blueprint Robot-Team Agent API",
       version: ROBOT_AGENT_CONTRACT_VERSION,
-      summary: "Headless catalog, site-world, hosted-session, explorer-render, and export contract for robot-team agents.",
+      summary: "Headless catalog, site-world, dry-run commerce, hosted-session, explorer-render, and export contract for robot-team agents.",
       description:
-        "Blueprint exposes capture-backed site-world catalog and hosted-session endpoints for robot-team agents. Public demo calls may run without privileged credentials only when a demo site world is enabled. Protected robot-team flows use the existing Firebase bearer path and do not bypass buyerType robot_team/admin checks.",
+        "Blueprint exposes capture-backed site-world catalog, dry-run quote/order/entitlement proof, and hosted-session endpoints for robot-team agents. Public demo calls may run without privileged credentials only when a demo site world is enabled. Protected robot-team flows use the existing Firebase bearer path and require robot_team/admin outer auth plus session ownership or a matching provisioned entitlement.",
     },
     servers: [
       {
@@ -44,6 +44,7 @@ export function buildRobotAgentOpenApiContract() {
     tags: [
       { name: "Discovery", description: "Public site and API discovery for agents." },
       { name: "Catalog", description: "Public site-world catalog and detail endpoints." },
+      { name: "Agent commerce", description: "Dry-run quote, order, receipt, and entitlement proof. Does not call live Stripe." },
       { name: "Hosted sessions", description: "Session lifecycle, rollout, render, and export endpoints." },
     ],
     paths: {
@@ -75,6 +76,47 @@ export function buildRobotAgentOpenApiContract() {
           responses: {
             "200": jsonResponse("#/components/schemas/SiteWorldListResponse"),
           },
+        },
+      },
+      "/api/site-worlds/search": {
+        get: {
+          tags: ["Catalog"],
+          operationId: "searchSiteWorlds",
+          summary: "Search public site-world catalog entries by natural language query, alias, and structured filters.",
+          description:
+            "Public read-only catalog discovery for robot-team agents. Queries such as whole foods, store, supermarket, retail aisle, or warehouse tote return truthful close matches with scores, reasons, matched aliases, matched fields, parsed filters, warnings, and embedding-use metadata. Brand aliases do not imply exact partner or package availability.",
+          security: [{}],
+          parameters: [
+            { name: "q", in: "query", required: false, schema: { type: "string" }, examples: { wholeFoods: { value: "whole foods" }, store: { value: "store" }, warehouseTote: { value: "warehouse tote" } } },
+            { name: "limit", in: "query", required: false, schema: { type: "integer", minimum: 1, maximum: 100, default: 10 } },
+            { name: "category", in: "query", required: false, schema: { type: "string" } },
+            { name: "industry", in: "query", required: false, schema: { type: "string" } },
+            { name: "city", in: "query", required: false, schema: { type: "string" } },
+            { name: "state", in: "query", required: false, schema: { type: "string" } },
+            { name: "siteType", in: "query", required: false, schema: { type: "string" } },
+            { name: "taskLane", in: "query", required: false, schema: { type: "string" } },
+            {
+              name: "objectTags",
+              in: "query",
+              required: false,
+              schema: { type: "string" },
+              description: "Comma-separated required object tags, for example tote,pallet.",
+            },
+            { name: "robot", in: "query", required: false, schema: { type: "string" } },
+            { name: "availability", in: "query", required: false, schema: { type: "string" } },
+            { name: "readiness", in: "query", required: false, schema: { type: "string" } },
+            {
+              name: "sort",
+              in: "query",
+              required: false,
+              schema: { type: "string", enum: ["relevance", "name", "city", "category", "readiness", "availability"], default: "relevance" },
+            },
+          ],
+          responses: {
+            "200": jsonResponse("#/components/schemas/SiteWorldSearchResponse"),
+          },
+          "x-blueprint-truth-boundary":
+            "This endpoint is public catalog discovery only. It does not grant hosted-session access, buyer entitlement, private artifact access, or exact brand/site availability.",
         },
       },
       "/api/site-worlds/{siteWorldId}": {
@@ -111,6 +153,106 @@ export function buildRobotAgentOpenApiContract() {
           "x-blueprint-public-demo": true,
         },
       },
+      "/api/agent-access/commerce/quote": {
+        get: {
+          tags: ["Agent commerce"],
+          operationId: "quoteAgentCommerce",
+          summary: "Quote a site-world package or hosted-session rental for agent planning.",
+          security: [{}],
+          parameters: [
+            { name: "siteWorldId", in: "query", required: true, schema: { type: "string" } },
+            {
+              name: "product",
+              in: "query",
+              required: false,
+              schema: { type: "string", enum: ["site_world_package", "hosted_session_rental"], default: "hosted_session_rental" },
+            },
+            { name: "sessionHours", in: "query", required: false, schema: { type: "integer", minimum: 1, default: 1 } },
+          ],
+          responses: {
+            "200": jsonResponse("#/components/schemas/AgentCommerceQuoteResponse"),
+            "400": errorResponses["400"],
+          },
+          "x-blueprint-dry-run-only": true,
+          "x-blueprint-truth-boundary":
+            "Quotes are planning artifacts. They do not create live Stripe sessions, charge cards, grant live package access, or prove rights clearance.",
+        },
+      },
+      "/api/agent-access/commerce/dry-run-checkout": {
+        post: {
+          tags: ["Agent commerce"],
+          operationId: "createAgentDryRunCheckout",
+          summary: "Create a dry-run order and provisioned entitlement without live Stripe.",
+          security: [{}],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/AgentDryRunCheckoutRequest" },
+              },
+            },
+          },
+          responses: {
+            "201": jsonResponse("#/components/schemas/AgentDryRunOrderResponse", "Dry-run order created"),
+            "400": errorResponses["400"],
+          },
+          "x-blueprint-dry-run-only": true,
+          "x-blueprint-truth-boundary":
+            "This route reuses buyerOrders and marketplaceEntitlements response shapes for local/test proof only. It never calls live Stripe or opens live package access.",
+        },
+      },
+      "/api/agent-access/commerce/orders/{orderId}": {
+        get: {
+          tags: ["Agent commerce"],
+          operationId: "getAgentDryRunOrder",
+          summary: "Read a dry-run order and receipt.",
+          security: [{}],
+          parameters: [
+            { name: "orderId", in: "path", required: true, schema: { type: "string" } },
+          ],
+          responses: {
+            "200": jsonResponse("#/components/schemas/AgentDryRunOrderResponse"),
+            "404": errorResponses["404"],
+          },
+          "x-blueprint-dry-run-only": true,
+        },
+      },
+      "/api/agent-access/commerce/entitlements/{entitlementId}": {
+        get: {
+          tags: ["Agent commerce"],
+          operationId: "getAgentDryRunEntitlement",
+          summary: "Read a dry-run marketplace entitlement.",
+          security: [{}],
+          parameters: [
+            { name: "entitlementId", in: "path", required: true, schema: { type: "string" } },
+          ],
+          responses: {
+            "200": jsonResponse("#/components/schemas/AgentEntitlementResponse"),
+            "404": errorResponses["404"],
+          },
+          "x-blueprint-dry-run-only": true,
+        },
+      },
+      "/api/agent-access/commerce/entitlement-readiness": {
+        get: {
+          tags: ["Agent commerce"],
+          operationId: "getAgentEntitlementReadiness",
+          summary: "Check whether a provisioned entitlement would unlock protected hosted-session launch.",
+          security: [{}],
+          parameters: [
+            { name: "siteWorldId", in: "query", required: true, schema: { type: "string" } },
+            { name: "entitlementId", in: "query", required: true, schema: { type: "string" } },
+            { name: "buyerUserId", in: "query", required: false, schema: { type: "string", default: "agent-dry-run-buyer" } },
+          ],
+          responses: {
+            "200": jsonResponse("#/components/schemas/AgentEntitlementReadiness"),
+            "400": errorResponses["400"],
+          },
+          "x-blueprint-dry-run-only": true,
+          "x-blueprint-truth-boundary":
+            "Entitlement readiness proves commerce linkage only. Runtime launch, rights, provider execution, and package fulfillment still require their owning systems.",
+        },
+      },
       "/api/site-worlds/sessions": {
         post: {
           tags: ["Hosted sessions"],
@@ -131,8 +273,8 @@ export function buildRobotAgentOpenApiContract() {
             ...errorResponses,
           },
           "x-blueprint-public-demo": true,
-          "x-blueprint-truth-boundary":
-            "Public unauthenticated creation applies only to demo-eligible site worlds. Protected site worlds continue through Firebase entitlement and robot_team/admin checks.",
+        "x-blueprint-truth-boundary":
+            "Public unauthenticated creation applies only to demo-eligible site worlds. Protected site worlds continue through Firebase robot_team/admin checks plus provisioned entitlement or existing session ownership.",
         },
       },
       "/api/site-worlds/sessions/{sessionId}": {
@@ -245,6 +387,7 @@ export function buildRobotAgentOpenApiContract() {
       "public_demo_eligible",
       "request_gated",
       "protected_robot_team",
+      "dry_run_order",
     ],
   } as const;
 }
@@ -287,7 +430,12 @@ function buildSchemas() {
         "public_demo_eligible",
         "request_gated",
         "protected_robot_team",
+        "dry_run_order",
       ],
+    },
+    AgentCommerceProduct: {
+      type: "string",
+      enum: ["site_world_package", "hosted_session_rental"],
     },
     StatusLabel: {
       type: "string",
@@ -329,6 +477,81 @@ function buildSchemas() {
       properties: {
         items: { type: "array", items: { $ref: "#/components/schemas/SiteWorld" } },
         count: { type: "integer" },
+      },
+    },
+    SiteWorldSearchResponse: {
+      type: "object",
+      required: ["query", "results", "parsed", "appliedFilters", "warnings", "meta"],
+      properties: {
+        query: { type: "string" },
+        results: { type: "array", items: { $ref: "#/components/schemas/SiteWorldSearchResult" } },
+        parsed: { $ref: "#/components/schemas/SiteWorldSearchParsed" },
+        appliedFilters: { $ref: "#/components/schemas/SiteWorldSearchFilters" },
+        warnings: { type: "array", items: { type: "string" } },
+        meta: { $ref: "#/components/schemas/SiteWorldSearchMeta" },
+      },
+    },
+    SiteWorldSearchResult: {
+      type: "object",
+      required: ["siteWorld", "score", "reasons", "matchedAliases", "matchedFields"],
+      properties: {
+        siteWorld: { $ref: "#/components/schemas/SiteWorld" },
+        score: { type: "number" },
+        reasons: { type: "array", items: { type: "string" } },
+        matchedAliases: { type: "array", items: { type: "string" } },
+        matchedFields: { type: "array", items: { type: "string" } },
+      },
+    },
+    SiteWorldSearchParsed: {
+      type: "object",
+      required: ["q", "tokens", "aliases", "filters"],
+      properties: {
+        q: { type: "string" },
+        tokens: { type: "array", items: { type: "string" } },
+        aliases: { type: "array", items: { $ref: "#/components/schemas/SiteWorldSearchAlias" } },
+        filters: { $ref: "#/components/schemas/SiteWorldSearchFilters" },
+      },
+    },
+    SiteWorldSearchAlias: {
+      type: "object",
+      required: ["alias", "mapsTo", "categories", "industries", "siteTypes", "objectTags", "terms"],
+      properties: {
+        alias: { type: "string" },
+        mapsTo: { type: "string" },
+        categories: { type: "array", items: { type: "string" } },
+        industries: { type: "array", items: { type: "string" } },
+        siteTypes: { type: "array", items: { type: "string" } },
+        objectTags: { type: "array", items: { type: "string" } },
+        terms: { type: "array", items: { type: "string" } },
+        truthNote: { type: "string" },
+      },
+    },
+    SiteWorldSearchFilters: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        category: { type: ["string", "null"] },
+        industry: { type: ["string", "null"] },
+        city: { type: ["string", "null"] },
+        state: { type: ["string", "null"] },
+        siteType: { type: ["string", "null"] },
+        taskLane: { type: ["string", "null"] },
+        objectTags: { type: "array", items: { type: "string" } },
+        robot: { type: ["string", "null"] },
+        availability: { type: ["string", "null"] },
+        readiness: { type: ["string", "null"] },
+        sort: { type: "string", enum: ["relevance", "name", "city", "category", "readiness", "availability"] },
+      },
+    },
+    SiteWorldSearchMeta: {
+      type: "object",
+      required: ["backend", "embeddingModel", "usedEmbeddings", "totalCandidates", "returned"],
+      properties: {
+        backend: { type: "string", enum: ["firestore-live", "static-fallback"] },
+        embeddingModel: { type: "string" },
+        usedEmbeddings: { type: "boolean" },
+        totalCandidates: { type: "integer" },
+        returned: { type: "integer" },
       },
     },
     SiteWorld: {
@@ -437,6 +660,115 @@ function buildSchemas() {
         requestedOutputs: { type: "array", items: { type: "string" } },
         exportModes: { type: "array", items: { type: "string" } },
         notes: { type: "string" },
+        entitlementId: { type: "string" },
+        orderId: { type: "string" },
+        commerceMode: { type: "string", enum: ["dry_run"] },
+      },
+    },
+    AgentCommerceQuote: {
+      type: "object",
+      required: ["quoteId", "mode", "product", "siteWorldId", "sku", "quantity", "unitAmountCents", "totalAmountCents", "currency"],
+      properties: {
+        quoteId: { type: "string" },
+        mode: { type: "string", enum: ["dry_run"] },
+        product: { $ref: "#/components/schemas/AgentCommerceProduct" },
+        siteWorldId: { type: "string" },
+        sku: { type: "string" },
+        title: { type: "string" },
+        description: { type: "string" },
+        quantity: { type: "integer" },
+        quantityLabel: { type: "string" },
+        unitAmountCents: { type: "integer" },
+        totalAmountCents: { type: "integer" },
+        currency: { type: "string", enum: ["usd"] },
+        entitlementType: { type: "string", enum: ["package_access", "hosted_session"] },
+        truthLabels: { type: "array", items: { $ref: "#/components/schemas/TruthLabel" } },
+      },
+    },
+    AgentCommerceQuoteResponse: {
+      type: "object",
+      required: ["quote", "truth"],
+      properties: {
+        quote: { $ref: "#/components/schemas/AgentCommerceQuote" },
+        siteWorld: { type: ["object", "null"], additionalProperties: true },
+        truth: { type: "string" },
+      },
+    },
+    AgentDryRunCheckoutRequest: {
+      type: "object",
+      required: ["siteWorldId", "mode"],
+      properties: {
+        mode: { type: "string", enum: ["dry_run"] },
+        siteWorldId: { type: "string" },
+        product: { $ref: "#/components/schemas/AgentCommerceProduct" },
+        sessionHours: { type: "integer", minimum: 1, default: 1 },
+        buyer: {
+          type: "object",
+          properties: {
+            uid: { type: "string" },
+            email: { type: "string" },
+          },
+        },
+      },
+    },
+    AgentDryRunOrder: {
+      type: "object",
+      required: ["id", "dry_run", "status", "payment_status", "fulfillment_status", "item", "pricing", "entitlement_id"],
+      additionalProperties: true,
+      properties: {
+        id: { type: "string" },
+        dry_run: { type: "boolean" },
+        status: { type: "string", enum: ["fulfilled"] },
+        payment_status: { type: "string", enum: ["dry_run_paid"] },
+        fulfillment_status: { type: "string", enum: ["provisioned"] },
+        item: { type: "object", additionalProperties: true },
+        pricing: { type: "object", additionalProperties: true },
+        stripe: { type: "object", additionalProperties: true },
+        entitlement_id: { type: "string" },
+      },
+    },
+    AgentMarketplaceEntitlement: {
+      type: "object",
+      required: ["id", "order_id", "sku", "access_state"],
+      additionalProperties: true,
+      properties: {
+        id: { type: "string" },
+        order_id: { type: "string" },
+        sku: { type: "string" },
+        item_type: { $ref: "#/components/schemas/AgentCommerceProduct" },
+        delivery_mode: { type: "string" },
+        access_state: { type: "string", enum: ["provisioned", "manual_review_required", "revoked"] },
+        dry_run: { type: "boolean" },
+      },
+    },
+    AgentDryRunOrderResponse: {
+      type: "object",
+      properties: {
+        quote: { $ref: "#/components/schemas/AgentCommerceQuote" },
+        order: { $ref: "#/components/schemas/AgentDryRunOrder" },
+        receipt: { type: "object", additionalProperties: true },
+        entitlement: { $ref: "#/components/schemas/AgentMarketplaceEntitlement" },
+        truth: { type: "string" },
+      },
+    },
+    AgentEntitlementResponse: {
+      type: "object",
+      required: ["entitlement"],
+      properties: {
+        entitlement: { $ref: "#/components/schemas/AgentMarketplaceEntitlement" },
+      },
+    },
+    AgentEntitlementReadiness: {
+      type: "object",
+      required: ["mode", "siteWorldId", "entitled", "launchable", "blockers"],
+      properties: {
+        mode: { type: "string", enum: ["dry_run"] },
+        siteWorldId: { type: "string" },
+        entitlement: { type: ["object", "null"], additionalProperties: true },
+        entitled: { type: "boolean" },
+        launchable: { type: "boolean" },
+        blockers: { type: "array", items: { type: "string" } },
+        truth: { type: "string" },
       },
     },
     HostedRuntimeSessionConfig: {

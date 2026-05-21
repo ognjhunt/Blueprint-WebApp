@@ -11,6 +11,9 @@ export type AgentClientOptions = {
 
 export type CreateSessionInput = {
   siteWorldId: string;
+  entitlementId?: string;
+  orderId?: string;
+  commerceMode?: "dry_run";
   robotProfileId: string;
   taskId: string;
   scenarioId: string;
@@ -59,6 +62,36 @@ export type ExplorerRenderInput = {
   viewportWidth?: number;
   viewportHeight?: number;
   refineMode?: string | null;
+};
+
+export type SearchSiteWorldsInput = {
+  q?: string;
+  limit?: number;
+  category?: string;
+  industry?: string;
+  city?: string;
+  state?: string;
+  siteType?: string;
+  taskLane?: string;
+  objectTags?: string[];
+  robot?: string;
+  availability?: string;
+  readiness?: string;
+  sort?: string;
+};
+
+export type AgentCommerceInput = {
+  siteWorldId: string;
+  product?: string;
+  sessionHours?: number;
+};
+
+export type AgentDryRunCheckoutInput = AgentCommerceInput & {
+  mode?: "dry_run";
+  buyer?: {
+    uid?: string;
+    email?: string;
+  };
 };
 
 const DEFAULT_BASE_URL = "http://localhost:5000";
@@ -172,12 +205,65 @@ export class BlueprintAgentApiClient {
     return this.requestJson(appendQuery("/api/site-worlds", { limit }));
   }
 
+  searchSiteWorlds(input: SearchSiteWorldsInput = {}) {
+    return this.requestJson(appendQuery("/api/site-worlds/search", {
+      q: input.q,
+      limit: input.limit,
+      category: input.category,
+      industry: input.industry,
+      city: input.city,
+      state: input.state,
+      siteType: input.siteType,
+      taskLane: input.taskLane,
+      objectTags: input.objectTags?.join(","),
+      robot: input.robot,
+      availability: input.availability,
+      readiness: input.readiness,
+      sort: input.sort,
+    }));
+  }
+
   getSiteWorld(siteWorldId: string) {
     return this.requestJson(`/api/site-worlds/${encodeURIComponent(siteWorldId)}`);
   }
 
   readiness(siteWorldId: string) {
     return this.requestJson(appendQuery("/api/site-worlds/sessions/launch-readiness", { siteWorldId }));
+  }
+
+  quoteCommerce(input: AgentCommerceInput) {
+    return this.requestJson(appendQuery("/api/agent-access/commerce/quote", {
+      siteWorldId: input.siteWorldId,
+      product: input.product,
+      sessionHours: input.sessionHours,
+    }));
+  }
+
+  createDryRunCheckout(input: AgentDryRunCheckoutInput) {
+    return this.requestJson("/api/agent-access/commerce/dry-run-checkout", {
+      method: "POST",
+      body: JSON.stringify(compactBody({
+        ...input,
+        mode: "dry_run",
+      })),
+    });
+  }
+
+  getCommerceOrder(orderId: string) {
+    return this.requestJson(`/api/agent-access/commerce/orders/${encodeURIComponent(orderId)}`);
+  }
+
+  getCommerceEntitlement(entitlementId: string) {
+    return this.requestJson(`/api/agent-access/commerce/entitlements/${encodeURIComponent(entitlementId)}`);
+  }
+
+  entitlementReadiness(input: { siteWorldId: string; entitlementId: string; buyerUserId?: string; product?: string }) {
+    return this.requestJson(appendQuery("/api/agent-access/commerce/entitlement-readiness", {
+      siteWorldId: input.siteWorldId,
+      entitlementId: input.entitlementId,
+      buyerUserId: input.buyerUserId,
+      product: input.product,
+    }));
   }
 
   createSession(input: CreateSessionInput) {

@@ -118,6 +118,15 @@ export type SiteWorldPackage = {
   emphasis?: "default" | "recommended";
 };
 
+export type SiteWorldAgentCommerce = {
+  packageSku: string;
+  hostedSessionSku: string;
+  quoteHref: string;
+  dryRunCheckoutHref: string;
+  entitlementReadinessHref: string;
+  truthLabels: Array<"dry_run_order" | "request_gated" | "protected_robot_team">;
+};
+
 export type SiteWorldCard = {
   id: string;
   siteCode: string;
@@ -152,6 +161,7 @@ export type SiteWorldCard = {
   robotProfiles: RobotProfile[];
   exportModes: string[];
   packages: [SiteWorldPackage, SiteWorldPackage];
+  agentCommerce?: SiteWorldAgentCommerce;
   dataSource?: "static" | "pipeline";
   deploymentReadiness?: DeploymentReadinessSummary;
   presentationDemoReadiness?: {

@@ -411,6 +411,13 @@ export interface HostedSessionRecord {
     uid: string;
     email?: string | null;
   };
+  commerce?: {
+    entitlementId?: string | null;
+    orderId?: string | null;
+    mode?: "dry_run" | null;
+    sku?: string | null;
+    accessSource?: "admin" | "session_owner" | "agent_dry_run" | "firestore" | "public_demo" | null;
+  } | null;
   createdAt: FirebaseFirestore.Timestamp | FirebaseFirestore.FieldValue | string;
   startedAt?: FirebaseFirestore.Timestamp | FirebaseFirestore.FieldValue | string | null;
   stoppedAt?: FirebaseFirestore.Timestamp | FirebaseFirestore.FieldValue | string | null;
@@ -454,6 +461,9 @@ export interface HostedSessionRecord {
 
 export interface CreateHostedSessionRequest {
   siteWorldId: string;
+  entitlementId?: string;
+  orderId?: string;
+  commerceMode?: "dry_run";
   sessionMode?: HostedSessionMode;
   runtimeUi?: HostedSessionRuntimeUi;
   autoStartDemo?: boolean;

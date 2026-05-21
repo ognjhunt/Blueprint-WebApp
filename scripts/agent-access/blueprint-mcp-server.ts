@@ -8,6 +8,7 @@ import {
   type AgentClientEnv,
   type CreateSessionInput,
   type FetchLike,
+  type SearchSiteWorldsInput,
 } from "./agent-api-client";
 
 type JsonRpcRequest = {
@@ -41,11 +42,23 @@ const objectProp = (description: string) => ({ type: "object", description, addi
 export const BLUEPRINT_MCP_TOOLS: BlueprintMcpTool[] = [
   {
     name: "blueprint.catalog.search",
-    description: "List public Blueprint site-world catalog entries. Uses public endpoints unless the base URL itself is private.",
+    description: "Search public Blueprint site-world catalog entries by natural language query, alias, location, robot, task, object, category, readiness, or availability. With only limit, falls back to the legacy catalog list endpoint.",
     inputSchema: {
       type: "object",
       properties: {
-        limit: integerProp("Maximum catalog entries to return. Defaults to 24."),
+        q: stringProp("Natural-language search query, for example whole foods, store, or warehouse tote."),
+        limit: integerProp("Maximum catalog entries to return. Defaults to 10 for search or 24 for legacy list."),
+        category: stringProp("Optional exact public category filter, for example Retail or Logistics."),
+        industry: stringProp("Optional industry text filter."),
+        city: stringProp("Optional exact city filter."),
+        state: stringProp("Optional two-letter state filter."),
+        siteType: stringProp("Optional site type or archetype filter."),
+        taskLane: stringProp("Optional task/workflow lane text filter."),
+        objectTags: { type: "array", items: { type: "string" }, description: "Optional required object tags such as tote, shelf, pallet, or barcode." },
+        robot: stringProp("Optional robot profile or embodiment filter."),
+        availability: stringProp("Optional availability/status filter."),
+        readiness: stringProp("Optional readiness/status filter."),
+        sort: { type: "string", enum: ["relevance", "name", "city", "category", "readiness", "availability"], description: "Sort mode. Defaults to relevance." },
       },
       additionalProperties: false,
     },
@@ -63,12 +76,80 @@ export const BLUEPRINT_MCP_TOOLS: BlueprintMcpTool[] = [
     },
   },
   {
+    name: "blueprint.siteWorld.launchReadiness",
+    description: "Inspect launch readiness for a public-demo or protected robot-team site world.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        siteWorldId: stringProp("Site-world id."),
+      },
+      required: ["siteWorldId"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "blueprint.commerce.quote",
+    description: "Create a dry-run quote for a site-world package or hosted-session rental without calling live Stripe.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        siteWorldId: stringProp("Site-world id."),
+        product: { type: "string", enum: ["site_world_package", "hosted_session_rental"], default: "hosted_session_rental" },
+        sessionHours: integerProp("Hosted-session hours for rental quotes."),
+      },
+      required: ["siteWorldId"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "blueprint.commerce.checkoutDryRun",
+    description: "Create a dry-run order and entitlement for agent commerce verification. Does not call live Stripe.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        siteWorldId: stringProp("Site-world id."),
+        product: { type: "string", enum: ["site_world_package", "hosted_session_rental"], default: "hosted_session_rental" },
+        sessionHours: integerProp("Hosted-session hours for rental checkout."),
+        buyer: objectProp("Optional dry-run buyer identity with uid/email."),
+      },
+      required: ["siteWorldId"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "blueprint.commerce.order.get",
+    description: "Read one dry-run agent commerce order by id.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        orderId: stringProp("Dry-run order id."),
+      },
+      required: ["orderId"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "blueprint.commerce.entitlement.get",
+    description: "Read one dry-run agent commerce entitlement by id.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        entitlementId: stringProp("Dry-run entitlement id."),
+      },
+      required: ["entitlementId"],
+      additionalProperties: false,
+    },
+  },
+  {
     name: "blueprint.session.create",
     description: "Create a public-demo or protected robot-team hosted session.",
     inputSchema: {
       type: "object",
       properties: {
         siteWorldId: stringProp("Site-world id."),
+        entitlementId: stringProp("Optional provisioned entitlement id for protected hosted-session launch."),
+        orderId: stringProp("Optional dry-run order id associated with the entitlement."),
+        commerceMode: { type: "string", enum: ["dry_run"], description: "Optional dry-run commerce mode marker." },
         robotProfileId: stringProp("Robot profile id from the site-world runtime catalog."),
         taskId: stringProp("Task id from the task catalog."),
         scenarioId: stringProp("Scenario id from the scenario catalog."),
@@ -133,6 +214,19 @@ export const BLUEPRINT_MCP_TOOLS: BlueprintMcpTool[] = [
     },
   },
   {
+    name: "blueprint.session.control",
+    description: "Send a runtime control intent for camera, policy, or playback state.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        sessionId: stringProp("Hosted session id."),
+        control: objectProp("Control payload."),
+      },
+      required: ["sessionId"],
+      additionalProperties: false,
+    },
+  },
+  {
     name: "blueprint.session.renderExplorer",
     description: "Render an explorer frame for a camera and pose.",
     inputSchema: {
@@ -179,20 +273,91 @@ function requireArg(args: Record<string, unknown>, key: string) {
   return value;
 }
 
+function hasSearchArgs(args: Record<string, unknown>) {
+  return [
+    "q",
+    "category",
+    "industry",
+    "city",
+    "state",
+    "siteType",
+    "taskLane",
+    "objectTags",
+    "robot",
+    "availability",
+    "readiness",
+    "sort",
+  ].some((key) => args[key] !== undefined && args[key] !== null && String(args[key]).trim() !== "");
+}
+
+function searchArgs(args: Record<string, unknown>): SearchSiteWorldsInput {
+  return {
+    q: typeof args.q === "string" ? args.q : undefined,
+    limit: typeof args.limit === "number" ? args.limit : Number(args.limit || 10),
+    category: typeof args.category === "string" ? args.category : undefined,
+    industry: typeof args.industry === "string" ? args.industry : undefined,
+    city: typeof args.city === "string" ? args.city : undefined,
+    state: typeof args.state === "string" ? args.state : undefined,
+    siteType: typeof args.siteType === "string" ? args.siteType : undefined,
+    taskLane: typeof args.taskLane === "string" ? args.taskLane : undefined,
+    objectTags: Array.isArray(args.objectTags)
+      ? args.objectTags.map(String)
+      : typeof args.objectTags === "string"
+        ? args.objectTags.split(",").map((item) => item.trim()).filter(Boolean)
+        : undefined,
+    robot: typeof args.robot === "string" ? args.robot : undefined,
+    availability: typeof args.availability === "string" ? args.availability : undefined,
+    readiness: typeof args.readiness === "string" ? args.readiness : undefined,
+    sort: typeof args.sort === "string" ? args.sort : undefined,
+  };
+}
+
 export async function callBlueprintMcpTool(name: string, args: Record<string, unknown> = {}, options: BlueprintMcpCallOptions = {}) {
   const client = new BlueprintAgentApiClient({ env: options.env, fetchImpl: options.fetchImpl });
   let payload: unknown;
 
   switch (name) {
     case "blueprint.catalog.search":
-      payload = await client.listCatalog(Number(args.limit || 24));
+      payload = hasSearchArgs(args)
+        ? await client.searchSiteWorlds(searchArgs(args))
+        : await client.listCatalog(Number(args.limit || 24));
       break;
     case "blueprint.siteWorld.get":
       payload = await client.getSiteWorld(requireArg(args, "siteWorldId"));
       break;
+    case "blueprint.siteWorld.launchReadiness":
+      payload = await client.readiness(requireArg(args, "siteWorldId"));
+      break;
+    case "blueprint.commerce.quote":
+      payload = await client.quoteCommerce({
+        siteWorldId: requireArg(args, "siteWorldId"),
+        product: typeof args.product === "string" ? args.product : "hosted_session_rental",
+        sessionHours: typeof args.sessionHours === "number" ? args.sessionHours : undefined,
+      });
+      break;
+    case "blueprint.commerce.checkoutDryRun":
+      payload = await client.createDryRunCheckout({
+        siteWorldId: requireArg(args, "siteWorldId"),
+        product: typeof args.product === "string" ? args.product : "hosted_session_rental",
+        sessionHours: typeof args.sessionHours === "number" ? args.sessionHours : undefined,
+        mode: "dry_run",
+        buyer: args.buyer && typeof args.buyer === "object"
+          ? args.buyer as Parameters<typeof client.createDryRunCheckout>[0]["buyer"]
+          : undefined,
+      });
+      break;
+    case "blueprint.commerce.order.get":
+      payload = await client.getCommerceOrder(requireArg(args, "orderId"));
+      break;
+    case "blueprint.commerce.entitlement.get":
+      payload = await client.getCommerceEntitlement(requireArg(args, "entitlementId"));
+      break;
     case "blueprint.session.create":
       payload = await client.createSession({
         siteWorldId: requireArg(args, "siteWorldId"),
+        entitlementId: typeof args.entitlementId === "string" ? args.entitlementId : undefined,
+        orderId: typeof args.orderId === "string" ? args.orderId : undefined,
+        commerceMode: args.commerceMode === "dry_run" ? "dry_run" : undefined,
         robotProfileId: requireArg(args, "robotProfileId"),
         taskId: requireArg(args, "taskId"),
         scenarioId: requireArg(args, "scenarioId"),
@@ -231,6 +396,12 @@ export async function callBlueprintMcpTool(name: string, args: Record<string, un
         seed: typeof args.seed === "number" ? args.seed : undefined,
         maxSteps: typeof args.maxSteps === "number" ? args.maxSteps : undefined,
       });
+      break;
+    case "blueprint.session.control":
+      payload = await client.controlSession(
+        requireArg(args, "sessionId"),
+        args.control && typeof args.control === "object" ? args.control as Record<string, unknown> : {},
+      );
       break;
     case "blueprint.session.renderExplorer":
       payload = await client.renderExplorer(requireArg(args, "sessionId"), {
@@ -282,7 +453,7 @@ async function handleMessage(message: JsonRpcRequest) {
     return jsonRpcResult(message.id, {
       protocolVersion: "2025-06-18",
       capabilities: { tools: {} },
-      serverInfo: { name: "blueprint-agent-access", version: "2026-05-20" },
+      serverInfo: { name: "blueprint-agent-access", version: "2026-05-21" },
     });
   }
   if (message.method === "tools/list") {

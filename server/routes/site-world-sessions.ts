@@ -56,6 +56,10 @@ import {
   stopHostedSessionRun,
 } from "../utils/hosted-session-orchestrator";
 import { parseGsUri } from "../utils/pipeline-dashboard";
+import {
+  findProvisionedHostedSessionEntitlement,
+  type AgentEntitlementProof,
+} from "../utils/robot-agent-commerce";
 
 const protectedRouter = Router();
 export const publicSiteWorldSessionsRouter = Router();
@@ -131,8 +135,46 @@ function currentFirebaseUser(res: Response) {
     | undefined;
 }
 
-async function ensureLaunchAccess(req: Request, res: Response) {
-  void req;
+const PROVISIONED_HOSTED_ENTITLEMENT_REQUIRED =
+  "A provisioned hosted-session entitlement is required for protected site-world launch.";
+
+type HostedSessionAccessUser = {
+  uid: string;
+  email: string | null;
+  admin: boolean;
+};
+
+type HostedSessionLaunchAccess = HostedSessionAccessUser & {
+  entitled: boolean;
+  entitlement: AgentEntitlementProof | null;
+  accessSource: "admin" | "session_owner" | "agent_dry_run" | "firestore" | "public_demo" | "none";
+  blockers: string[];
+};
+
+function isHostedAccessError(error: unknown) {
+  if (!(error instanceof HostedSessionRuntimeError)) {
+    return false;
+  }
+  return ["unauthorized", "forbidden", "entitlement_required", "session_access_denied"].includes(error.code);
+}
+
+function hostedAccessStatus(error: HostedSessionRuntimeError) {
+  return error.code === "unauthorized" ? 401 : 403;
+}
+
+function sendHostedAccessError(res: Response, error: unknown) {
+  if (!isHostedAccessError(error)) {
+    return false;
+  }
+  const hostedError = error as HostedSessionRuntimeError;
+  res.status(hostedAccessStatus(hostedError)).json({
+    error: hostedError.message,
+    code: hostedError.code,
+  });
+  return true;
+}
+
+async function ensureRobotTeamOrAdminAccess(res: Response): Promise<HostedSessionAccessUser> {
   const firebaseUser = currentFirebaseUser(res);
   if (!firebaseUser?.uid) {
     throw new HostedSessionRuntimeError("unauthorized", "Missing authenticated user.");
@@ -142,7 +184,7 @@ async function ensureLaunchAccess(req: Request, res: Response) {
     return {
       uid: firebaseUser.uid,
       email: firebaseUser.email || null,
-      entitled: true,
+      admin: true,
     };
   }
 
@@ -158,20 +200,118 @@ async function ensureLaunchAccess(req: Request, res: Response) {
   return {
     uid: firebaseUser.uid,
     email: firebaseUser.email || null,
-    entitled: true,
+    admin: false,
   };
 }
 
-async function getLaunchAccessState(req: Request, res: Response) {
+function hostedSessionEntitlementIds(session: HostedSessionRecord | null | undefined) {
+  if (!session) {
+    return [];
+  }
+  return [
+    session.site.siteWorldId,
+    session.site.scene_id,
+    session.site.capture_id,
+    session.site.site_submission_id,
+    session.siteModel?.siteWorldId,
+    session.siteModel?.sceneId,
+    session.siteModel?.captureId,
+  ];
+}
+
+function hostedRuntimeEntitlementIds(runtime: Awaited<ReturnType<typeof resolveHostedRuntime>>, requestedSiteWorldId?: string | null) {
+  return [
+    requestedSiteWorldId,
+    runtime.siteWorldId,
+    runtime.scene_id,
+    runtime.capture_id,
+    runtime.site_submission_id,
+  ];
+}
+
+async function ensureLaunchAccess(
+  req: Request,
+  res: Response,
+  options: {
+    siteWorldIds?: Array<string | null | undefined>;
+    entitlementId?: string | null;
+    session?: HostedSessionRecord | null;
+    requireEntitlement?: boolean;
+  } = {},
+): Promise<HostedSessionLaunchAccess> {
+  const user = await ensureRobotTeamOrAdminAccess(res);
+  if (user.admin) {
+    return {
+      ...user,
+      entitled: true,
+      entitlement: null,
+      accessSource: "admin",
+      blockers: [],
+    };
+  }
+
+  const session =
+    options.session === undefined && req.params.sessionId
+      ? await loadHostedSession(String(req.params.sessionId || ""))
+      : options.session || null;
+  if (session?.createdBy?.uid === user.uid) {
+    return {
+      ...user,
+      entitled: true,
+      entitlement: null,
+      accessSource: "session_owner",
+      blockers: [],
+    };
+  }
+
+  const entitlement = await findProvisionedHostedSessionEntitlement({
+    buyerUserId: user.uid,
+    siteWorldIds: options.siteWorldIds?.length ? options.siteWorldIds : hostedSessionEntitlementIds(session),
+    entitlementId: options.entitlementId,
+  });
+  if (entitlement) {
+    return {
+      ...user,
+      entitled: true,
+      entitlement,
+      accessSource: entitlement.source,
+      blockers: [],
+    };
+  }
+
+  if (options.requireEntitlement || session) {
+    throw new HostedSessionRuntimeError(
+      session ? "session_access_denied" : "entitlement_required",
+      session
+        ? "Session access requires the creating robot-team account, admin access, or a matching provisioned entitlement."
+        : PROVISIONED_HOSTED_ENTITLEMENT_REQUIRED,
+    );
+  }
+
+  return {
+    ...user,
+    entitled: false,
+    entitlement: null,
+    accessSource: "none",
+    blockers: [PROVISIONED_HOSTED_ENTITLEMENT_REQUIRED],
+  };
+}
+
+async function getLaunchAccessState(req: Request, res: Response, siteWorldId: string) {
   try {
-    const user = await ensureLaunchAccess(req, res);
-    return { ...user, entitled: true, blockers: [] as string[] };
+    return await ensureLaunchAccess(req, res, {
+      siteWorldIds: [siteWorldId],
+      requireEntitlement: false,
+    });
   } catch (error) {
     if (error instanceof HostedSessionRuntimeError && (error.code === "forbidden" || error.code === "unauthorized")) {
       return {
         uid: currentFirebaseUser(res)?.uid || null,
         email: currentFirebaseUser(res)?.email || null,
+        admin: false,
         entitled: false,
+        entitlement: null,
+        accessSource: "none",
         blockers: [error.message],
       };
     }
@@ -1576,6 +1716,7 @@ async function proxyRuntimeExplorerFrameForSession(session: HostedSessionRecord,
     res.setHeader("Content-Type", "image/png");
     return res.send(payload);
   } catch (error) {
+    if (sendHostedAccessError(res, error)) return;
     const diagnostic = appendCanonicalPackageMismatch(buildFailureDiagnostic({
       source: "runtime",
       operation: "render",
@@ -2014,7 +2155,7 @@ function createSessionRecord(params: {
   body: CreateHostedSessionRequest;
   runtime: Awaited<ReturnType<typeof resolveHostedRuntime>>;
   presentationLaunchState?: PresentationLaunchState | null;
-  user: { uid: string; email?: string | null };
+  user: Pick<HostedSessionLaunchAccess, "uid" | "email" | "accessSource" | "entitlement">;
 }) {
   const taskSelection = normalizeTaskSelection(params.body, params.runtime);
   const runtimeConfig = normalizeRuntimeConfig(params.body, params.runtime);
@@ -2060,7 +2201,17 @@ function createSessionRecord(params: {
       params.runtime.scenarioCatalog.find((item) => item.id === runtimeConfig.scenarioId)?.name
       || runtimeConfig.scenarioId,
     notes: params.body.notes || null,
-    createdBy: params.user,
+    createdBy: {
+      uid: params.user.uid,
+      email: params.user.email,
+    },
+    commerce: {
+      entitlementId: params.user.entitlement?.id || params.body.entitlementId || null,
+      orderId: params.user.entitlement?.order_id || params.body.orderId || null,
+      mode: params.body.commerceMode === "dry_run" || params.user.entitlement?.dry_run ? "dry_run" : null,
+      sku: params.user.entitlement?.sku || null,
+      accessSource: params.user.accessSource === "none" ? null : params.user.accessSource,
+    },
     createdAt: nowTimestamp(),
     startedAt: null,
     stoppedAt: null,
@@ -2410,7 +2561,7 @@ publicSiteWorldSessionsRouter.post("/", async (req, res, next) => {
         readiness: readiness.presentation_demo,
         runtime,
       }),
-      user: { uid: "public-demo-user", email: null },
+      user: { uid: "public-demo-user", email: null, accessSource: "public_demo", entitlement: null },
     });
     await writeSession(record);
 
@@ -2609,6 +2760,7 @@ publicSiteWorldSessionsRouter.post("/:sessionId/reset", async (req, res, next) =
     );
     return res.json({ ...payload, episode: latestEpisode });
   } catch (error) {
+    if (sendHostedAccessError(res, error)) return;
     const diagnostic = appendCanonicalPackageMismatch(buildFailureDiagnostic({
       source: "runtime",
       operation: "reset",
@@ -2730,6 +2882,7 @@ publicSiteWorldSessionsRouter.post("/:sessionId/step", async (req, res, next) =>
     }, { awaitPersist: false });
     return res.json({ ...payload, episode: latestEpisode });
   } catch (error) {
+    if (sendHostedAccessError(res, error)) return;
     const diagnostic = appendCanonicalPackageMismatch(buildFailureDiagnostic({
       source: "runtime",
       operation: "step",
@@ -2873,6 +3026,7 @@ publicSiteWorldSessionsRouter.post("/:sessionId/control", async (req, res, next)
     void updateSession(session.sessionId, { latestRuntimeFailure: null }, { awaitPersist: false });
     return res.json(payload);
   } catch (error) {
+    if (sendHostedAccessError(res, error)) return;
     const diagnostic = appendCanonicalPackageMismatch(buildFailureDiagnostic({
       source: "runtime",
       operation: "step",
@@ -2983,6 +3137,7 @@ publicSiteWorldSessionsRouter.post("/:sessionId/export", async (req, res, next) 
       dataset_artifacts: nextDatasetArtifacts,
     });
   } catch (error) {
+    if (sendHostedAccessError(res, error)) return;
     return res.status(500).json({ error: error instanceof Error ? error.message : "Export failed" });
   }
 });
@@ -3003,7 +3158,7 @@ protectedRouter.get("/launch-readiness", async (req, res) => {
         }),
       );
     }
-    const access = await getLaunchAccessState(req, res);
+    const access = await getLaunchAccessState(req, res, siteWorldId);
     const runtime = await resolveHostedRuntime(siteWorldId);
     return res.json(
       await buildLaunchReadiness({
@@ -3026,7 +3181,6 @@ protectedRouter.get("/launch-readiness", async (req, res) => {
 
 protectedRouter.post("/", async (req: Request, res: Response) => {
   try {
-    const user = await ensureLaunchAccess(req, res);
     const body = (req.body ?? {}) as CreateHostedSessionRequest;
     if (!body.siteWorldId || !body.robotProfileId || !body.taskId || !body.scenarioId || !body.startStateId) {
       return res.status(400).json({
@@ -3034,6 +3188,13 @@ protectedRouter.post("/", async (req: Request, res: Response) => {
       });
     }
 
+    const runtime = await resolveHostedRuntime(String(body.siteWorldId));
+    const runtimeSessionConfig = normalizeRuntimeSessionConfig(body, runtime);
+    const user = await ensureLaunchAccess(req, res, {
+      siteWorldIds: hostedRuntimeEntitlementIds(runtime, String(body.siteWorldId)),
+      entitlementId: body.entitlementId,
+      requireEntitlement: true,
+    });
     const sessionMode = normalizeSessionMode(body.sessionMode);
     if (sessionMode === "presentation_demo") {
       const reusable = await findReusablePresentationSession(user.uid, String(body.siteWorldId));
@@ -3041,13 +3202,10 @@ protectedRouter.post("/", async (req: Request, res: Response) => {
         return res.status(200).json(buildSessionCreateResponse(reusable));
       }
     }
-
-    const runtime = await resolveHostedRuntime(String(body.siteWorldId));
-    const runtimeSessionConfig = normalizeRuntimeSessionConfig(body, runtime);
     const readiness = await buildLaunchReadiness({
       runtime,
-      entitled: true,
-      accessBlockers: [],
+      entitled: user.entitled,
+      accessBlockers: user.blockers,
       runtimeSessionConfig,
     });
     const selectedReadiness =
@@ -3099,7 +3257,7 @@ protectedRouter.post("/", async (req: Request, res: Response) => {
           ? new HostedSessionRuntimeError("session_create_failed", error.message)
           : new HostedSessionRuntimeError("session_create_failed", "Failed to create hosted session.");
     const status =
-      hostedError.code === "forbidden"
+      hostedError.code === "forbidden" || hostedError.code === "entitlement_required" || hostedError.code === "session_access_denied"
         ? 403
         : hostedError.code === "unauthorized"
           ? 401
@@ -3130,6 +3288,7 @@ protectedRouter.get("/:sessionId/ui-access", async (req, res) => {
       expiresAt: session.presentationRuntime?.expiresAt || null,
     });
   } catch (error) {
+    if (sendHostedAccessError(res, error)) return;
     return res.status(500).json({ error: error instanceof Error ? error.message : "Failed to create UI access" });
   }
 });
@@ -3143,6 +3302,7 @@ protectedRouter.get("/:sessionId", async (req, res) => {
     }
     return res.json(session);
   } catch (error) {
+    if (sendHostedAccessError(res, error)) return;
     return res.status(500).json({ error: error instanceof Error ? error.message : "Failed to load session" });
   }
 });
@@ -3305,6 +3465,7 @@ protectedRouter.post("/:sessionId/reset", async (req, res) => {
     );
     return res.json({ ...payload, episode: latestEpisode });
   } catch (error) {
+    if (sendHostedAccessError(res, error)) return;
     const diagnostic = appendCanonicalPackageMismatch(buildFailureDiagnostic({
       source: "runtime",
       operation: "reset",
@@ -3427,6 +3588,7 @@ protectedRouter.post("/:sessionId/step", async (req, res) => {
     }, { awaitPersist: false });
     return res.json({ ...payload, episode: latestEpisode });
   } catch (error) {
+    if (sendHostedAccessError(res, error)) return;
     const diagnostic = appendCanonicalPackageMismatch(buildFailureDiagnostic({
       source: "runtime",
       operation: "step",
@@ -3492,6 +3654,7 @@ protectedRouter.post("/:sessionId/run-batch", async (req, res) => {
       artifact_uris: nextArtifactUris,
     });
   } catch (error) {
+    if (sendHostedAccessError(res, error)) return;
     return res.status(500).json({ error: error instanceof Error ? error.message : "Batch run failed" });
   }
 });
@@ -3534,24 +3697,37 @@ protectedRouter.post("/:sessionId/stop", async (req, res) => {
     });
     return res.json(payload);
   } catch (error) {
+    if (sendHostedAccessError(res, error)) return;
     return res.status(500).json({ error: error instanceof Error ? error.message : "Stop failed" });
   }
 });
 
 protectedRouter.get("/:sessionId/render", async (req, res) => {
-  const session = await loadHostedSession(String(req.params.sessionId || ""));
-  if (!session) {
-    return res.status(404).json({ error: "Hosted session not found" });
+  try {
+    const session = await loadHostedSession(String(req.params.sessionId || ""));
+    if (!session) {
+      return res.status(404).json({ error: "Hosted session not found" });
+    }
+    await ensureLaunchAccess(req, res, { session, requireEntitlement: true });
+    return proxyRuntimeRenderForSession(session, req, res);
+  } catch (error) {
+    if (sendHostedAccessError(res, error)) return;
+    return res.status(500).json({ error: error instanceof Error ? error.message : "Render failed" });
   }
-  return proxyRuntimeRenderForSession(session, req, res);
 });
 
 protectedRouter.get("/:sessionId/media", async (req, res) => {
-  const session = await loadHostedSession(String(req.params.sessionId || ""));
-  if (!session) {
-    return res.status(404).json({ error: "Hosted session not found" });
+  try {
+    const session = await loadHostedSession(String(req.params.sessionId || ""));
+    if (!session) {
+      return res.status(404).json({ error: "Hosted session not found" });
+    }
+    await ensureLaunchAccess(req, res, { session, requireEntitlement: true });
+    return proxyRuntimeMediaForSession(session, req, res);
+  } catch (error) {
+    if (sendHostedAccessError(res, error)) return;
+    return res.status(500).json({ error: error instanceof Error ? error.message : "Media proxy failed" });
   }
-  return proxyRuntimeMediaForSession(session, req, res);
 });
 
 protectedRouter.post("/:sessionId/control", async (req, res) => {
@@ -3570,6 +3746,7 @@ protectedRouter.post("/:sessionId/control", async (req, res) => {
     void updateSession(session.sessionId, { latestRuntimeFailure: null }, { awaitPersist: false });
     return res.json(payload);
   } catch (error) {
+    if (sendHostedAccessError(res, error)) return;
     const diagnostic = appendCanonicalPackageMismatch(buildFailureDiagnostic({
       source: "runtime",
       operation: "step",
@@ -3606,6 +3783,7 @@ protectedRouter.post("/:sessionId/explorer-render", async (req, res) => {
     void updateSession(session.sessionId, { explorerState, latestRuntimeFailure: null }, { awaitPersist: false });
     return res.json({ explorerState });
   } catch (error) {
+    if (sendHostedAccessError(res, error)) return;
     const diagnostic = appendCanonicalPackageMismatch(buildFailureDiagnostic({
       source: "runtime",
       operation: "render",
@@ -3622,11 +3800,17 @@ protectedRouter.post("/:sessionId/explorer-render", async (req, res) => {
 });
 
 protectedRouter.get("/:sessionId/explorer-frame", async (req, res) => {
-  const session = await loadHostedSession(String(req.params.sessionId || ""));
-  if (!session) {
-    return res.status(404).json({ error: "Hosted session not found" });
+  try {
+    const session = await loadHostedSession(String(req.params.sessionId || ""));
+    if (!session) {
+      return res.status(404).json({ error: "Hosted session not found" });
+    }
+    await ensureLaunchAccess(req, res, { session, requireEntitlement: true });
+    return proxyRuntimeExplorerFrameForSession(session, req, res);
+  } catch (error) {
+    if (sendHostedAccessError(res, error)) return;
+    return res.status(500).json({ error: error instanceof Error ? error.message : "Explorer frame proxy failed" });
   }
-  return proxyRuntimeExplorerFrameForSession(session, req, res);
 });
 
 protectedRouter.post("/:sessionId/export", async (req, res) => {
@@ -3682,6 +3866,7 @@ protectedRouter.post("/:sessionId/export", async (req, res) => {
       dataset_artifacts: nextDatasetArtifacts,
     });
   } catch (error) {
+    if (sendHostedAccessError(res, error)) return;
     return res.status(500).json({ error: error instanceof Error ? error.message : "Export failed" });
   }
 });

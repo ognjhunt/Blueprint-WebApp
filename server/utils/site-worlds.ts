@@ -100,6 +100,25 @@ function buildExplorerAssetUrl(siteWorldId: string, relativePath: string) {
   return `/api/site-worlds/${encodeURIComponent(siteWorldId)}/explorer-asset?path=${encodeURIComponent(relativePath)}`;
 }
 
+function buildAgentCommerceSummary(siteWorldId: string): NonNullable<SiteWorldCard["agentCommerce"]> {
+  const encodedSiteWorldId = encodeURIComponent(siteWorldId);
+  return {
+    packageSku: `site-world-package-${siteWorldId}`,
+    hostedSessionSku: `hosted-session-${siteWorldId}`,
+    quoteHref: `/api/agent-access/commerce/quote?siteWorldId=${encodedSiteWorldId}&product=hosted_session_rental`,
+    dryRunCheckoutHref: "/api/agent-access/commerce/dry-run-checkout",
+    entitlementReadinessHref: `/api/agent-access/commerce/entitlement-readiness?siteWorldId=${encodedSiteWorldId}`,
+    truthLabels: ["dry_run_order", "request_gated", "protected_robot_team"],
+  };
+}
+
+function withAgentCommerce(record: SiteWorldCard): SiteWorldCard {
+  return {
+    ...record,
+    agentCommerce: record.agentCommerce || buildAgentCommerceSummary(record.id),
+  };
+}
+
 function resolvePresentationWorldManifestUri(pipeline?: PipelineAttachment): string | null {
   const explicit = String(pipeline?.artifacts.presentation_world_manifest_uri || "").trim();
   if (explicit) {
@@ -1575,7 +1594,7 @@ async function buildLiveRecord(
 export async function listPublicSiteWorlds(limit = 24): Promise<SiteWorldCard[]> {
   if (!db) {
     return SITE_WORLD_FALLBACKS_ENABLED
-      ? siteWorldCards.slice(0, limit).map(buildStaticRecord)
+      ? siteWorldCards.slice(0, limit).map(buildStaticRecord).map(withAgentCommerce)
       : [];
   }
 
@@ -1608,7 +1627,7 @@ export async function listPublicSiteWorlds(limit = 24): Promise<SiteWorldCard[]>
     }
   }
 
-  return Array.from(deduped.values()).slice(0, limit);
+  return Array.from(deduped.values()).slice(0, limit).map(withAgentCommerce);
 }
 
 export async function getPublicSiteWorldById(id: string): Promise<SiteWorldCard | null> {
@@ -1625,10 +1644,10 @@ export async function getPublicSiteWorldById(id: string): Promise<SiteWorldCard 
             item.captureId === staticDirectMatch.captureId),
       ) || null;
     if (liveEquivalent) {
-      return liveEquivalent;
+      return withAgentCommerce(liveEquivalent);
     }
     if (staticDirectMatch.hostedSessionOverride?.allowBlockedSiteWorld) {
-      return staticDirectMatch;
+      return withAgentCommerce(staticDirectMatch);
     }
   }
 
@@ -1653,20 +1672,20 @@ export async function getPublicSiteWorldById(id: string): Promise<SiteWorldCard 
           )) as InboundRequest;
           const worldLabsPreview = await buildWorldLabsPreviewFromPipeline(decrypted.pipeline);
           if (worldLabsPreview) {
-            return {
+            return withAgentCommerce({
               ...liveOrStaticRecord,
               worldLabsPreview,
-            };
+            });
           }
         } catch {
-          return liveOrStaticRecord;
+          return withAgentCommerce(liveOrStaticRecord);
         }
       }
     }
-    return liveOrStaticRecord;
+    return withAgentCommerce(liveOrStaticRecord);
   }
 
-  return staticDirectMatch;
+  return staticDirectMatch ? withAgentCommerce(staticDirectMatch) : null;
 }
 
 export async function resolveLiveSiteWorldContext(id: string): Promise<{

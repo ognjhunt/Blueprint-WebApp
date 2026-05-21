@@ -9,6 +9,7 @@ describe("robot agent OpenAPI contract", () => {
     expect(contract.openapi).toBe("3.1.0");
     expect(contract.info.title).toContain("Blueprint Robot-Team Agent API");
     expect(contract.paths).toHaveProperty("/api/site-worlds");
+    expect(contract.paths).toHaveProperty("/api/site-worlds/search");
     expect(contract.paths).toHaveProperty("/api/site-worlds/{siteWorldId}");
     expect(contract.paths).toHaveProperty("/api/site-worlds/sessions/launch-readiness");
     expect(contract.paths).toHaveProperty("/api/site-worlds/sessions");
@@ -18,15 +19,37 @@ describe("robot agent OpenAPI contract", () => {
     expect(contract.paths).toHaveProperty("/api/site-worlds/sessions/{sessionId}/control");
     expect(contract.paths).toHaveProperty("/api/site-worlds/sessions/{sessionId}/explorer-render");
     expect(contract.paths).toHaveProperty("/api/site-worlds/sessions/{sessionId}/export");
+    expect(contract.paths).toHaveProperty("/api/agent-access/commerce/quote");
+    expect(contract.paths).toHaveProperty("/api/agent-access/commerce/dry-run-checkout");
+    expect(contract.paths).toHaveProperty("/api/agent-access/commerce/orders/{orderId}");
+    expect(contract.paths).toHaveProperty("/api/agent-access/commerce/entitlements/{entitlementId}");
+    expect(contract.paths).toHaveProperty("/api/agent-access/commerce/entitlement-readiness");
 
     expect(contract.components.schemas).toHaveProperty("RobotProfile");
+    expect(contract.components.schemas).toHaveProperty("SiteWorldSearchResponse");
     expect(contract.components.schemas).toHaveProperty("TaskCatalogEntry");
     expect(contract.components.schemas).toHaveProperty("ScenarioCatalogEntry");
     expect(contract.components.schemas).toHaveProperty("StartStateCatalogEntry");
     expect(contract.components.schemas).toHaveProperty("CreateHostedSessionRequest");
+    expect(contract.components.schemas).toHaveProperty("AgentCommerceQuote");
+    expect(contract.components.schemas).toHaveProperty("AgentDryRunCheckoutRequest");
+    expect(contract.components.schemas).toHaveProperty("AgentDryRunOrderResponse");
+    expect(contract.components.schemas).toHaveProperty("AgentEntitlementReadiness");
     expect(contract.components.schemas).toHaveProperty("TruthLabel");
     expect(contract.components.schemas).toHaveProperty("StatusLabel");
     expect(contract.components.securitySchemes).toHaveProperty("BlueprintBearer");
+  });
+
+  it("documents explainable public site-world catalog search", () => {
+    const contract = buildRobotAgentOpenApiContract();
+    const searchOperation = contract.paths["/api/site-worlds/search"].get;
+
+    expect(searchOperation.security).toEqual([{}]);
+    expect(searchOperation.operationId).toBe("searchSiteWorlds");
+    expect(JSON.stringify(searchOperation.parameters)).toContain("objectTags");
+    expect(JSON.stringify(searchOperation.parameters)).toContain("warehouse tote");
+    expect(JSON.stringify(contract.components.schemas.SiteWorldSearchResult)).toContain("matchedAliases");
+    expect(JSON.stringify(searchOperation)).toContain("does not grant hosted-session access");
   });
 
   it("keeps protected write endpoints behind bearer auth while documenting public demo eligibility", () => {
@@ -40,5 +63,20 @@ describe("robot agent OpenAPI contract", () => {
     expect(JSON.stringify(contract)).toContain("public_demo_eligible");
     expect(JSON.stringify(contract)).toContain("capture_grounded");
     expect(JSON.stringify(contract)).toContain("provider_derived");
+  });
+
+  it("labels commerce endpoints as dry-run only and entitlement backed", () => {
+    const contract = buildRobotAgentOpenApiContract();
+    const quoteOperation = contract.paths["/api/agent-access/commerce/quote"].get;
+    const checkoutOperation = contract.paths["/api/agent-access/commerce/dry-run-checkout"].post;
+    const readinessOperation = contract.paths["/api/agent-access/commerce/entitlement-readiness"].get;
+
+    expect(quoteOperation.tags).toContain("Agent commerce");
+    expect(checkoutOperation["x-blueprint-dry-run-only"]).toBe(true);
+    expect(checkoutOperation.summary).toMatch(/dry-run/i);
+    expect(readinessOperation.summary).toMatch(/entitlement/i);
+    expect(JSON.stringify(contract)).toContain("dry_run_order");
+    expect(JSON.stringify(contract)).toContain("hosted_session_rental");
+    expect(JSON.stringify(contract)).toContain("site_world_package");
   });
 });

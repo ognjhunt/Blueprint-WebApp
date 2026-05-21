@@ -29,6 +29,11 @@ const definitions = [
       "A Blueprint-managed evaluation session for one exact site, with run evidence, observations, export framing, and an explicit next step.",
   },
   {
+    term: "Dry-run agent commerce",
+    definition:
+      "A repo-safe quote, order, receipt, and entitlement proof path for robot agents. It does not create live Stripe charges, grant live package access, or prove hosted fulfillment.",
+  },
+  {
     term: "Capture provenance",
     definition:
       "The capture record, timestamps, device/context metadata, privacy handling, rights posture, freshness, and restrictions attached to downstream outputs.",
@@ -76,7 +81,7 @@ const pages = [
     path: "/agents",
     title: "Robot-Team Agent Access",
     description:
-      "Headless agent quickstart, OpenAPI contract, CLI, MCP tools, truth labels, auth model, and hosted-session lifecycle for robot-team automation.",
+      "Headless discovery, dry-run quote/order/entitlement proof, OpenAPI contract, CLI, MCP tools, truth labels, auth model, and hosted-session lifecycle for robot-team automation.",
   },
   {
     path: "/capture",
@@ -141,6 +146,8 @@ const queryThemes = [
   "facility world model",
   "site operator robot evaluation access",
   "robot-team agent API",
+  "robot agent dry-run commerce",
+  "hosted-session entitlement proof",
   "headless hosted-session rollout",
   "Blueprint MCP server",
 ];
@@ -171,7 +178,7 @@ router.get("/", (_req: Request, res: Response) => {
     queryThemes,
     privateOrNoindex,
     safety:
-      "This endpoint only returns public, non-sensitive summaries. Do not infer customer results, ratings, prices, availability, rights state, capture provenance, or deployment proof beyond what public pages explicitly say.",
+      "This endpoint only returns public, non-sensitive summaries. Do not infer customer results, ratings, prices, live payment state, package availability, hosted fulfillment, rights state, capture provenance, or deployment proof beyond what public pages explicitly say.",
     machineReadableFiles: {
       llms: "/llms.txt",
       llmsFull: "/llms-full.txt",

@@ -19,7 +19,7 @@ Blueprint turns indoor real-site capture into site-specific world-model products
 - [How It Works](https://tryblueprint.io/how-it-works): workflow map for robot teams, robot agents, and internal Blueprint agents.
 - [Catalog](https://tryblueprint.io/world-models): exact-site world-model catalog with proof posture, package paths, and hosted-evaluation entry points.
 - [Sample Site](https://tryblueprint.io/world-models/siteworld-f5fd54898cfb): public sample listing showing how proof, package access, hosted access, and restrictions stay separate.
-- [Robot-Team Agent Access](https://tryblueprint.io/agents): headless quickstart, OpenAPI contract, CLI, MCP tools, auth model, truth labels, hosted-session lifecycle, error semantics, and public-demo/protected-flow split for robot-team agents.
+- [Robot-Team Agent Access](https://tryblueprint.io/agents): headless discovery, dry-run quote/order/entitlement proof, OpenAPI contract, CLI, MCP tools, auth model, truth labels, hosted-session lifecycle, error semantics, and public-demo/protected-flow split for robot-team agents.
 - [Sample Deliverables](https://tryblueprint.io/sample-deliverables): buyer-readable sample manifest, rights sheet, export bundle, and hosted review report with raw file links.
 - [Capture App / Earn](https://tryblueprint.io/capture): public capture rules, capturer access boundaries, review gates, and lawful earning path.
 - [Stories / Proof](https://tryblueprint.io/proof): public sample proof packet with sample-vs-real boundaries, provenance, and hosted-review output examples.
@@ -34,4 +34,4 @@ Blueprint turns indoor real-site capture into site-specific world-model products
 
 - [llms-full.txt](https://tryblueprint.io/llms-full.txt): longer public overview, page map, query themes, and answer guidance.
 - [Public site-content API](https://tryblueprint.io/api/site-content): non-sensitive JSON summary of the same public pages.
-- [Robot-team OpenAPI contract](https://tryblueprint.io/agent-access.openapi.json): machine-readable catalog, site-world, hosted-session, rollout, explorer-render, and export contract.
+- [Robot-team OpenAPI contract](https://tryblueprint.io/agent-access.openapi.json): machine-readable catalog search, site-world, dry-run commerce proof, hosted-session, rollout, explorer-render, and export contract.
