@@ -13,7 +13,10 @@ export const sitemapBaseUrl = "https://tryblueprint.io";
 const staticSitemapRoutes: SitemapRoute[] = [
   { path: "/", changefreq: "weekly", priority: 1.0 },
   { path: "/product", changefreq: "weekly", priority: 0.9 },
+  { path: "/for-robot-teams", changefreq: "weekly", priority: 0.9 },
+  { path: "/how-it-works", changefreq: "weekly", priority: 0.8 },
   { path: "/world-models", changefreq: "weekly", priority: 0.9 },
+  { path: "/agents", changefreq: "weekly", priority: 0.8 },
   { path: "/sample-deliverables", changefreq: "monthly", priority: 0.8 },
   { path: "/proof", changefreq: "weekly", priority: 0.8 },
   { path: "/launch-map", changefreq: "weekly", priority: 0.7 },

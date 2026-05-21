@@ -15,26 +15,77 @@ import { ArrowRight, CheckCircle2 } from "lucide-react";
 
 const useCases = [
   {
-    title: "Tune before travel",
-    body: "See the exact aisle, lane, or service zone before anyone gets on a plane.",
+    title: "Ground the eval in the real facility",
+    body: "Start with the aisle, service zone, lab, back room, or corridor your robot team actually needs to reason about.",
     image: editorialGeneratedAssets.homeHero,
   },
   {
-    title: "Make site-specific data",
-    body: "Generate exports and observations from the same facility your team actually cares about.",
+    title: "Replay the task before field time",
+    body: "Use hosted review to inspect route context, scenario notes, failure observations, and limits before a site visit or integration sprint.",
     image: editorialGeneratedAssets.groceryBackroom,
   },
   {
-    title: "Compare releases",
-    body: "Run the same site after each autonomy update so regressions show up earlier.",
+    title: "Decide export or recapture",
+    body: "Approve package access, ask for a narrower export, request more capture, or keep the site in review until the proof is strong enough.",
     image: editorialGeneratedAssets.warehouseAisle,
   },
 ];
 
+const workflowSteps = [
+  {
+    id: "01",
+    title: "Real indoor site",
+    body:
+      "Name the facility, route, robot task, and site context. The product starts with the real place, not a generic benchmark.",
+  },
+  {
+    id: "02",
+    title: "Capture and provenance",
+    body:
+      "Blueprint records the walkthrough basis, timestamps, device context, privacy limits, access boundaries, and source notes.",
+  },
+  {
+    id: "03",
+    title: "Grounded world model",
+    body:
+      "The capture becomes a site-specific package with route context, model output, manifest, rights notes, and freshness state.",
+  },
+  {
+    id: "04",
+    title: "Scenario and replay",
+    body:
+      "Robot teams review task scenarios, run notes, observations, and failure questions inside a hosted path when the request supports it.",
+  },
+  {
+    id: "05",
+    title: "Export or recapture",
+    body:
+      "The next step is explicit: package access, narrower export, more capture, operator access, or a hold until proof clears.",
+  },
+];
+
+const categoryRows = [
+  {
+    title: "Google made the category simple",
+    body:
+      "Genie plus Street View shows why real-place interactive worlds matter for agents and robots.",
+  },
+  {
+    title: "Robot teams need indoor sites next",
+    body:
+      "The useful operating spaces are often indoors, rights-sensitive, and specific to one deployment workflow.",
+  },
+  {
+    title: "Blueprint is the capture-backed layer",
+    body:
+      "The product is the indoor site package, hosted review path, proof boundary, and export decision around one exact site.",
+  },
+];
+
 const includedItems = [
-  "A site-specific world model of one real facility and workflow",
-  "Resettable runs on the same exact site so checkpoints are easier to compare",
-  "Scenario changes and export bundles for debugging, tuning, or review",
+  "A site-specific world model for one real indoor facility and workflow",
+  "Capture provenance, rights notes, freshness, and restricted-zone boundaries",
+  "Hosted review for scenario, replay, observation, and export decisions when the request supports it",
   "Package and hosted paths tied back to the same source capture record",
 ];
 
@@ -43,14 +94,14 @@ export default function ForRobotIntegrators() {
     <>
       <SEO
         title="For Robot Teams | Blueprint"
-        description="Blueprint helps robotics teams train and evaluate on one exact-site world model before deployment with capture-backed packages and hosted evaluation."
+        description="Blueprint captures unscanned indoor spaces and turns them into exact-site world-model packages, hosted review paths, and export decisions for robot teams."
         canonical="/for-robot-teams"
         jsonLd={[
           webPageJsonLd({
             path: "/for-robot-teams",
             name: "Blueprint for Robot Teams",
             description:
-              "How robotics teams use Blueprint for exact-site world models, capture-backed packages, hosted evaluation, and deployment evidence.",
+              "How robotics teams use Blueprint for indoor exact-site world models, capture-backed packages, hosted evaluation, and deployment evidence.",
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },
@@ -75,29 +126,29 @@ export default function ForRobotIntegrators() {
                 <div className="flex min-h-[32rem] flex-col justify-end">
                 <EditorialSectionLabel light>For Robot Teams</EditorialSectionLabel>
                 <h1 className="font-editorial mt-6 max-w-[34rem] text-[3.7rem] leading-[0.9] tracking-[-0.06em] text-white sm:text-[5rem]">
-                  Train and evaluate on the exact-site world model before deployment.
+                  Ground robot evaluation in the real indoor site.
                 </h1>
                 <p className="mt-6 max-w-[30rem] text-base leading-8 text-white/70">
-                  Blueprint turns one real facility into a site-specific world model, data package, and hosted evaluation path so the team can answer real deployment questions earlier.
+                  Google's Street View-grounded Genie makes real-place world models obvious outdoors. Blueprint captures the unscanned indoor spaces robot teams need, then packages the proof, hosted review, and export decision around one exact facility.
                 </p>
                 <div className="mt-8 flex flex-wrap gap-2">
-                  <ProofChip light>Tune before travel</ProofChip>
-                  <ProofChip light>Make site-specific data</ProofChip>
-                  <ProofChip light>Compare releases</ProofChip>
+                  <ProofChip light>Indoor exact sites</ProofChip>
+                  <ProofChip light>Capture provenance</ProofChip>
+                  <ProofChip light>Hosted scenario review</ProofChip>
                 </div>
                 <div className="mt-8 flex flex-wrap gap-3">
                   <a
-                    href="/proof"
+                    href="/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=robot-teams-hero"
                     className="inline-flex items-center justify-center bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
                   >
-                    Open sample evaluation
+                    Request world model
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </a>
                   <a
-                    href="/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=robot-teams-hero"
+                    href="/how-it-works"
                     className="inline-flex items-center justify-center border border-white/15 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
                   >
-                    Request capture
+                    See how it works
                   </a>
                 </div>
               </div>
@@ -105,11 +156,11 @@ export default function ForRobotIntegrators() {
                 <div className="hidden items-end justify-end lg:flex">
                   <div className="w-full max-w-[18rem] border border-white/15 bg-black/35 p-5 text-white backdrop-blur-sm">
                   <p className="text-[11px] uppercase tracking-[0.2em] text-white/45">
-                    Exact-site review
+                    Indoor site review
                   </p>
-                  <p className="mt-4 text-lg font-semibold">One real facility. One real question.</p>
+                  <p className="mt-4 text-lg font-semibold">One facility. One robot question.</p>
                 <p className="mt-3 text-sm leading-6 text-white/60">
-                    The product is not generic environment access. The product is task evidence from one exact-site world model.
+                    The product is not generic environment access. The product is task evidence from one indoor exact-site world model.
                   </p>
                   </div>
                 </div>
@@ -120,9 +171,51 @@ export default function ForRobotIntegrators() {
 
         <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
           <EditorialSectionIntro
+            eyebrow="Workflow"
+            title="From indoor site to robot-team decision."
+            description="The path is intentionally simple: real indoor site, capture and provenance, grounded world model, scenario or replay, then export or recapture decision."
+            className="max-w-3xl"
+          />
+
+          <div className="mt-8 grid gap-px bg-black/10 lg:grid-cols-5">
+            {workflowSteps.map((step) => (
+              <article key={step.id} className="bg-white p-5">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                  {step.id}
+                </p>
+                <h2 className="mt-4 text-base font-semibold text-slate-950">{step.title}</h2>
+                <p className="mt-3 text-sm leading-7 text-slate-600">{step.body}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="border-y border-black/10 bg-white">
+          <div className="mx-auto grid max-w-[88rem] gap-px px-5 py-10 sm:px-8 lg:grid-cols-[0.34fr_0.66fr] lg:px-10 lg:py-12">
+            <div className="bg-slate-950 px-6 py-8 text-white lg:px-8 lg:py-10">
+              <EditorialSectionIntro
+                eyebrow="Category signal"
+                title="The outdoor proof makes the indoor need easier to explain."
+                description="Blueprint references Google and Waymo as category validation only. The Blueprint claim is narrower: capture-backed indoor world-model packages for robot-team evaluation."
+                light
+              />
+            </div>
+            <div className="grid gap-px bg-black/10 md:grid-cols-3">
+              {categoryRows.map((row) => (
+                <article key={row.title} className="bg-white p-6">
+                  <h2 className="text-base font-semibold text-slate-950">{row.title}</h2>
+                  <p className="mt-3 text-sm leading-7 text-slate-600">{row.body}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
+          <EditorialSectionIntro
             eyebrow="Common jobs"
             title="Use exact-site worlds for the work that usually gets expensive late."
-            description="The strongest fit is when a buyer already knows the site and needs to de-risk a narrow deployment question."
+            description="The strongest fit is when a buyer already knows the indoor site and needs to de-risk a narrow deployment question."
             className="max-w-3xl"
           />
 
@@ -154,12 +247,12 @@ export default function ForRobotIntegrators() {
             <div className="bg-slate-950 px-6 py-8 text-white lg:px-8 lg:py-10">
 	              <EditorialSectionIntro
                 eyebrow="What this is"
-                title="A site-specific product, not a generic benchmark."
+                title="A site-specific indoor product, not a generic benchmark."
                 description="This path makes the package, hosted evaluation, and limits visible before more budget goes in."
 	                light
 	              />
               <p className="mt-8 text-sm leading-7 text-white/70">
-                This path works well for policy fine-tuning, training data generation, release comparison, and hosted evaluation. It does not replace final on-site safety validation or stack-specific signoff.
+                This path works well for policy fine-tuning, training data generation, release comparison, and hosted evaluation. It does not replace final on-site safety validation, stack-specific signoff, or live deployment proof.
               </p>
             </div>
             <div className="bg-[#f5f3ef] px-6 py-8 lg:px-8 lg:py-10">
@@ -179,14 +272,14 @@ export default function ForRobotIntegrators() {
         <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
           <EditorialCtaBand
             eyebrow="Next step"
-            title="Move from curiosity to one real site."
-            description="Start in the world-model catalog when you want to evaluate current proof, or open the hosted-evaluation path when a facility is already in scope."
+            title="Move from curiosity to one indoor site."
+            description="Start in the world-model catalog when you want to evaluate current proof, or request a world model when a facility is already in scope."
             imageSrc={editorialGeneratedAssets.homeHero}
             imageAlt="Hosted evaluation still"
-            primaryHref="/proof"
-            primaryLabel="Open sample evaluation"
-            secondaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=robot-teams-bottom"
-            secondaryLabel="Request capture"
+            primaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=robot-teams-bottom"
+            primaryLabel="Request world model"
+            secondaryHref="/world-models"
+            secondaryLabel="Browse world models"
             dark={false}
           />
         </section>

@@ -56,6 +56,24 @@ const availabilityFilters: AvailabilityFilter[] = [
   "Proof visible",
 ];
 
+const catalogPositioningRows = [
+  {
+    title: "Outdoor grounding is becoming normal",
+    body:
+      "Street View and autonomy world models are teaching buyers to expect real-place simulation, not detached synthetic scenes.",
+  },
+  {
+    title: "Indoor proof has to be captured",
+    body:
+      "The places robot teams inspect next are often inside facilities, with local occlusions, access rules, privacy boundaries, and task-specific routes.",
+  },
+  {
+    title: "Catalog labels stay honest",
+    body:
+      "Samples, planned profiles, request-reviewed listings, hosted paths, and package access remain separated before a buyer treats anything as available.",
+  },
+];
+
 function sortCatalog(sites: SiteWorld[]) {
   return [...sites].sort((left, right) => {
     const priorityDelta = getSiteWorldCatalogPriority(left) - getSiteWorldCatalogPriority(right);
@@ -313,14 +331,14 @@ export default function SiteWorlds() {
     <>
       <SEO
         title="World Models | Blueprint"
-        description="Browse Blueprint's exact-site world-model catalog for robot training, hosted review, package requests, and proof-led evaluation."
+        description="Browse Blueprint's indoor exact-site world-model catalog for robot training, hosted review, package requests, and proof-led evaluation."
         canonical="/world-models"
         jsonLd={[
           webPageJsonLd({
             path: "/world-models",
             name: "Blueprint World Models",
             description:
-              "Exact-site world-model catalog for robot teams, with package requests, hosted review paths, proof, access, freshness, and provenance labels.",
+              "Indoor exact-site world-model catalog for robot teams, with package requests, hosted review paths, proof, access, freshness, and provenance labels.",
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },
@@ -343,10 +361,10 @@ export default function SiteWorlds() {
             <div className="absolute inset-x-0 bottom-0 mx-auto max-w-[88rem] px-5 pb-12 sm:px-8 lg:px-10 lg:pb-14">
               <div className="max-w-[34rem]">
                 <h1 className="font-editorial text-[3.4rem] leading-[0.94] tracking-[-0.05em] text-white sm:text-[4.7rem]">
-                  Browse exact-site world models.
+                  Browse indoor exact-site world models.
                 </h1>
                 <p className="mt-4 max-w-[32rem] text-base leading-7 text-white/90 sm:text-lg sm:leading-8">
-                  Browse site-specific packages for robot evaluation, hosted review, and package requests. Each listing keeps proof depth, access state, and availability labels visible.
+                  Street View grounds outdoor worlds; this catalog focuses on indoor spaces robots need. Each listing keeps proof depth, access state, and availability labels visible.
                 </p>
                 <div className="mt-6 flex flex-wrap gap-2">
                   <ProofChip light>Capture-backed catalog</ProofChip>
@@ -371,6 +389,24 @@ export default function SiteWorlds() {
               </div>
             </div>
           </MonochromeMedia>
+        </section>
+
+        <section className="border-b border-black/10 bg-white">
+          <div className="mx-auto grid max-w-[88rem] gap-6 px-5 py-10 sm:px-8 lg:grid-cols-[0.34fr_0.66fr] lg:px-10 lg:py-12">
+            <EditorialSectionIntro
+              eyebrow="Indoor gap"
+              title="A catalog for the places public maps do not finish."
+              description="Blueprint can show a premium world-model catalog while keeping proof labels clear. Indoor package access is still confirmed per site, request, rights posture, and hosted path."
+            />
+            <div className="grid gap-px bg-black/10 md:grid-cols-3">
+              {catalogPositioningRows.map((row) => (
+                <article key={row.title} className="bg-[#f5f3ef] p-6">
+                  <h2 className="text-base font-semibold text-slate-950">{row.title}</h2>
+                  <p className="mt-3 text-sm leading-7 text-slate-600">{row.body}</p>
+                </article>
+              ))}
+            </div>
+          </div>
         </section>
 
         <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
@@ -449,7 +485,7 @@ export default function SiteWorlds() {
               <EditorialSectionIntro
                 eyebrow="Inside the world"
                 title="Built from real capture."
-                description="Every site-specific world model stays grounded to one place, one proof chain, and buyer-readable limits."
+                description="Every indoor site-specific world model stays grounded to one place, one proof chain, and buyer-readable limits."
                 light
               />
               <div className="mt-8 space-y-5">

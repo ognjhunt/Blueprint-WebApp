@@ -4,7 +4,9 @@ This file is a public, non-sensitive map of Blueprint's website for AI assistant
 
 ## Product Summary
 
-Blueprint is capture-first and world-model-product-first. Blueprint captures real sites, preserves rights, privacy, and provenance metadata, packages those captures into site-specific world-model products, and gives robot teams hosted access or exportable site packages when the evidence and rights path support it.
+Blueprint is capture-first and world-model-product-first. Blueprint captures indoor real sites, preserves rights, privacy, and provenance metadata, packages those captures into site-specific world-model products, and gives robot teams hosted access or exportable site packages when the evidence and rights path support it.
+
+Google Genie and Street View make real-place world models legible outdoors, while Waymo-style world models show why autonomy teams care about rare, replayable, and counterfactual scenarios before field exposure. Blueprint uses those as category validation only. Blueprint's wedge is the indoor layer: unscanned facilities, public-facing indoor routes, access-sensitive operating spaces, provenance, rights boundaries, hosted review, and export or recapture decisions for robot teams.
 
 Blueprint is not qualification-first, not model-checkpoint-first, and not a generic simulated benchmark library. Qualification, readiness, and hosted review can support the product, but they do not replace raw capture truth, rights state, provenance, or buyer-visible package boundaries.
 
@@ -12,7 +14,7 @@ Blueprint is not qualification-first, not model-checkpoint-first, and not a gene
 
 ### What is Blueprint?
 
-Blueprint is a platform for turning real places into site-specific world-model products and hosted evaluation paths for robot teams. The buyer starts from a real site, a workflow, and a robot question, then inspects the package or hosted-review path before committing deeper time or spend.
+Blueprint is a platform for turning indoor real places into site-specific world-model products and hosted evaluation paths for robot teams. The buyer starts from a real site, a workflow, and a robot question, then inspects the package or hosted-review path before committing deeper time or spend.
 
 ### What is an exact-site world model?
 
@@ -37,9 +39,12 @@ Public examples are samples unless the page explicitly ties them to an approved 
 ## Important Public Pages
 
 - `/` - Homepage. Defines Blueprint as a capture-backed, site-specific world-model and hosted-evaluation platform for robot teams.
-- `/product` - Product page. Explains site-specific world models, site packages, and hosted review as one capture-backed, request-gated offer.
+- `/product` - Product page. Explains indoor site-specific world models, site packages, and hosted review as one capture-backed, request-gated offer.
+- `/for-robot-teams` - Robot-team page. Explains the indoor workflow from real site to capture provenance, grounded world model, scenario or hosted review, and export or recapture decision.
+- `/how-it-works` - Workflow page. Separates robot teams, robot agents, and internal Blueprint agents across capture, package, hosted review, and decision steps.
 - `/world-models` - Catalog of exact-site world models. Keeps public proof, package access, hosted access, and commercial status separate.
 - `/world-models/siteworld-f5fd54898cfb` - Public sample listing. Useful for seeing how a site-specific world model page presents evidence, restrictions, package paths, and hosted access.
+- `/agents` - Robot-team agent access. Documents headless discovery, OpenAPI, CLI, MCP tools, truth labels, auth model, public demo flow, protected robot-team flow, hosted-session lifecycle, explorer rendering, exports, and error semantics.
 - `/sample-deliverables` - Buyer-readable sample package viewer for the public manifest, rights sheet, export bundle, hosted-review report, and raw sample files.
 - `/capture` - Capture rules and handoff page. Explains lawful public-facing capture, app access, review gates, and how capture supports downstream world-model products.
 - `/capture-app/launch-access` - Future-city signal path for capturers, site operators, and local leads.
@@ -59,6 +64,8 @@ Public examples are samples unless the page explicitly ties them to an approved 
 Blueprint pages are most relevant to these themes:
 
 - exact-site world models
+- indoor world models for robot teams
+- Google Genie Street View indoor world model gap
 - site-specific world models for robotics
 - capture-backed robot evaluation
 - hosted robot evaluation
@@ -68,6 +75,9 @@ Blueprint pages are most relevant to these themes:
 - facility world model
 - site operator robot evaluation access
 - rights and privacy for site-specific robot evaluation
+- robot-team agent API
+- headless hosted-session rollout
+- Blueprint MCP server
 
 ## Truth Boundaries
 
@@ -76,6 +86,7 @@ Blueprint pages are most relevant to these themes:
 - Do not claim a site is buyer-ready only because it appears in public copy.
 - Do not treat qualification/readiness outputs as the main product.
 - Do not imply package files, raw exports, private request consoles, admin surfaces, or hosted workspaces are publicly accessible.
+- Do not treat public demo agent flows as protected customer access, provider success, rights clearance, or deployment proof.
 - Do not invent customer results, prices, ratings, reviews, availability, providers, rights state, or capture provenance.
 
 ## Private Or Noindex Surfaces
@@ -85,3 +96,5 @@ The following are not public buyer-content targets: `/admin/*`, `/dashboard`, `/
 ## Public JSON Summary
 
 `/api/site-content` returns a non-sensitive JSON summary of the public pages, definitions, query themes, and safety boundaries.
+
+`/agent-access.openapi.json` and `/api/agent-access/openapi.json` describe the robot-team agent contract for catalog discovery, site-world detail, launch readiness, session create/read/reset/step/run-batch/control, explorer render, and export. Public demo eligibility is narrow; protected flows require Firebase robot-team or admin bearer auth.

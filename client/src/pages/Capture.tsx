@@ -100,7 +100,7 @@ export default function Capture() {
             <div className="px-8 py-10 lg:px-12 lg:py-14">
               <EditorialSectionLabel>Capture</EditorialSectionLabel>
               <h1 className="font-editorial mt-8 max-w-[24rem] text-[4rem] leading-[0.88] tracking-[-0.07em] text-slate-950 sm:text-[5.2rem]">
-                Get paid to capture real places robots need to understand.
+                Get paid to capture indoor places robots need to understand.
               </h1>
               <p className="mt-8 max-w-[30rem] text-base leading-8 text-slate-700">
                 Apply for approved field capture assignments you can complete with a phone first.

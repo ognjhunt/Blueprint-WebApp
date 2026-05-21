@@ -63,6 +63,13 @@ export function Header() {
       };
     }
 
+    if (location === "/agents" || location.startsWith("/developers/agents")) {
+      return {
+        href: "/agent-access.openapi.json",
+        label: "Open agent contract",
+      };
+    }
+
     return {
       href: "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=header",
       label: "Request world model",

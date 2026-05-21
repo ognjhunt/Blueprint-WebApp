@@ -10,6 +10,9 @@ describe("Route registration", () => {
     expect(source).toContain('path: "/"');
     expect(source).toContain('path: "/launch-map"');
     expect(source).toContain('path: "/product"');
+    expect(source).toContain('path: "/for-robot-teams"');
+    expect(source).toContain('path: "/how-it-works"');
+    expect(source).toContain('path: "/agents"');
     expect(source).toContain('path: "/world-models"');
     expect(source).toContain('path: "/world-models/:slug"');
     expect(source).toContain('path: "/capture-app"');
@@ -78,8 +81,10 @@ describe("Route registration", () => {
     const source = fs.readFileSync(routesPath, "utf-8");
 
     expect(source).toContain('{ path: "/for-site-operators", layout: "public", component: LegacyForSiteOperatorsRedirect }');
-    expect(source).toContain('{ path: "/for-robot-teams", layout: "public", component: LegacyForRobotTeamsRedirect }');
+    expect(source).toContain('{ path: "/for-robot-teams", layout: "public", component: ForRobotIntegrators }');
+    expect(source).toContain('{ path: "/for-robot-integrators", layout: "public", component: LegacyForRobotIntegratorsRedirect }');
     expect(source).toContain('{ path: "/exact-site-hosted-review", layout: "public", component: LegacyHostedReviewRedirect }');
+    expect(source).toContain('{ path: "/how-it-works", layout: "public", component: HowItWorks }');
     expect(source).toContain('{ path: "/sample-evaluation", layout: "public", component: LegacyProofStoryRedirect }');
     expect(source).toContain('{ path: "/blog", layout: "public", component: LegacyBlogRedirect }');
     expect(source).toContain('{ path: "/readiness-pack", layout: "public", component: LegacyReadinessPackRedirect }');

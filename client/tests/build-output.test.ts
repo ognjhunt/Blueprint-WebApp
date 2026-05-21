@@ -60,6 +60,9 @@ describe("build output", () => {
       fs.existsSync(path.resolve(process.cwd(), "dist/public/product/index.html")),
     ).toBe(true);
     expect(
+      fs.existsSync(path.resolve(process.cwd(), "dist/public/agents/index.html")),
+    ).toBe(true);
+    expect(
       fs.existsSync(path.resolve(process.cwd(), "dist/public/proof/index.html")),
     ).toBe(true);
     expect(
@@ -148,6 +151,9 @@ describe("build output", () => {
 
     expect(sitemap).toContain("https://tryblueprint.io/world-models/sw-chi-01");
     expect(sitemap).toContain("https://tryblueprint.io/product");
+    expect(sitemap).toContain("https://tryblueprint.io/for-robot-teams");
+    expect(sitemap).toContain("https://tryblueprint.io/how-it-works");
+    expect(sitemap).toContain("https://tryblueprint.io/agents");
     expect(sitemap).toContain("https://tryblueprint.io/proof");
     expect(sitemap).toContain("https://tryblueprint.io/sample-deliverables");
     expect(sitemap).toContain("https://tryblueprint.io/capture");
@@ -205,11 +211,13 @@ describe("build output", () => {
     );
 
     expect(llms).toContain("site-specific world-model products");
+    expect(llms).toContain("https://tryblueprint.io/agents");
     expect(llms).toContain("https://tryblueprint.io/product");
     expect(llms).toContain("https://tryblueprint.io/updates");
     expect(llms).not.toContain("https://tryblueprint.io/exact-site-hosted-review");
     expect(llms).not.toContain("https://tryblueprint.io/solutions");
     expect(llmsFull).toContain("hosted robot evaluation");
+    expect(llmsFull).toMatch(/robot-team agent access/i);
     expect(llmsFull).toContain("Do not invent customer results");
   });
 

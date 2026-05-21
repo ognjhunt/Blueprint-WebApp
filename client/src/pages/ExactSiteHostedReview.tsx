@@ -15,8 +15,8 @@ import { useEffect } from "react";
 const buyerFlow = [
   {
     label: "01",
-    title: "Exact-site capture",
-    body: "Record the real route, timestamps, device context, capture notes, and access boundaries.",
+    title: "Indoor site capture",
+    body: "Record the real facility route, timestamps, device context, capture notes, and access boundaries.",
     icon: Smartphone,
   },
   {
@@ -33,9 +33,27 @@ const buyerFlow = [
   },
   {
     label: "04",
-    title: "Buyer decision",
+    title: "Export or recapture decision",
     body: "Approve export, request recapture, scope the next workflow, or leave the package in review.",
     icon: UsersRound,
+  },
+];
+
+const categoryValidationRows = [
+  {
+    title: "Google validates real-place world models outdoors",
+    body:
+      "Genie and Street View make interactive worlds anchored to real places understandable for agents, robots, and buyers.",
+  },
+  {
+    title: "Waymo validates counterfactual simulation for roads",
+    body:
+      "Autonomous-driving world models show why teams want rare, long-tail, and replayable scenarios before real-world exposure.",
+  },
+  {
+    title: "Blueprint owns the indoor package layer",
+    body:
+      "Robot teams still need exact facilities, rights boundaries, provenance, hosted review, and export decisions for spaces public maps do not cover.",
   },
 ];
 
@@ -113,9 +131,9 @@ export default function ExactSiteHostedReview() {
 
   return (
     <>
-      <SEO
+  <SEO
         title="Product | Blueprint"
-        description="Blueprint turns exact-site capture into site-specific world model packages, hosted evaluation, and buyer decision evidence for robot teams."
+        description="Blueprint turns indoor exact-site capture into site-specific world model packages, hosted evaluation, and buyer decision evidence for robot teams."
         canonical="/product"
         type="product"
         jsonLd={[
@@ -123,7 +141,7 @@ export default function ExactSiteHostedReview() {
             path: "/product",
             name: "Blueprint Product",
             description:
-              "Exact-site capture, site-specific world model packages, hosted evaluation, and buyer decision evidence for robot teams.",
+              "Indoor exact-site capture, site-specific world model packages, hosted evaluation, and buyer decision evidence for robot teams.",
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },
@@ -133,11 +151,11 @@ export default function ExactSiteHostedReview() {
             path: "/product",
             name: "Blueprint Site-Specific World Model Packages",
             description:
-              "A capture-backed product workflow for exact-site world model packages, hosted evaluation requests, and buyer decisions with proof attached.",
+              "A capture-backed product workflow for indoor exact-site world model packages, hosted evaluation requests, and buyer decisions with proof attached.",
             image: publicCaptureGeneratedAssets.hostedReviewPublicRoute,
             category: "Site-specific world-model product",
             properties: [
-              { name: "Capture basis", value: "Exact-site capture with provenance metadata" },
+              { name: "Capture basis", value: "Indoor exact-site capture with provenance metadata" },
               { name: "Package", value: "Site manifest, model artifacts, hosted review, and export scope" },
               { name: "Hosted access", value: "Evaluation path confirmed per request" },
             ],
@@ -162,10 +180,10 @@ export default function ExactSiteHostedReview() {
                     Blueprint product
                   </p>
                   <h1 className="font-editorial mt-5 max-w-[42rem] text-[2.85rem] leading-[0.98] tracking-normal text-white sm:text-[4.65rem] lg:text-[5.45rem] lg:leading-[0.94]">
-                    Turn the exact site into a decision-ready world model.
+                    Turn the indoor site into a decision-ready world model.
                   </h1>
                   <p className="mt-5 max-w-[35rem] text-base leading-7 text-white/82 sm:leading-8">
-                    Blueprint packages capture, world-model output, hosted review, and buyer proof around one site so robot teams can decide before field time.
+                    Street View grounds outdoor worlds. Blueprint packages indoor capture, world-model output, hosted review, and buyer proof around one site so robot teams can decide before field time.
                   </p>
                   <div className="mt-7 flex flex-wrap gap-2">
                     <ProofChip light>Capture-backed</ProofChip>
@@ -215,6 +233,30 @@ export default function ExactSiteHostedReview() {
               </div>
             </div>
           </MonochromeMedia>
+        </section>
+
+        <section className="border-b border-[#15130f]/10 bg-white">
+          <div className="mx-auto grid max-w-[88rem] gap-8 px-5 py-11 sm:px-8 lg:grid-cols-[0.34fr_0.66fr] lg:px-10 lg:py-14">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#7b6a51]">
+                Category validation
+              </p>
+              <h2 className="font-editorial mt-4 max-w-[26rem] text-4xl leading-[1] tracking-normal text-[#15130f] sm:text-[3.2rem]">
+                Outdoor world models make the indoor gap obvious.
+              </h2>
+              <p className="mt-5 max-w-[28rem] text-sm leading-7 text-[#5c5141]">
+                Google and Waymo are useful reference points for the category, not Blueprint partners or proof of Blueprint fulfillment.
+              </p>
+            </div>
+            <div className="grid border border-[#15130f]/10 bg-[#15130f]/10 md:grid-cols-3">
+              {categoryValidationRows.map((row) => (
+                <article key={row.title} className="bg-[#f5f1e8] p-6">
+                  <h3 className="text-base font-semibold text-[#15130f]">{row.title}</h3>
+                  <p className="mt-3 text-sm leading-7 text-[#5c5141]">{row.body}</p>
+                </article>
+              ))}
+            </div>
+          </div>
         </section>
 
         <section className="border-b border-[#15130f]/10 bg-[#f5f1e8]">

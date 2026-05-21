@@ -6,12 +6,17 @@ const definitions = [
   {
     term: "Blueprint",
     definition:
-      "Blueprint turns real-site capture into site-specific world-model products, hosted robot evaluation, and package access for robot teams.",
+      "Blueprint turns indoor real-site capture into site-specific world-model products, hosted robot evaluation, and package access for robot teams.",
   },
   {
     term: "Exact-site world model",
     definition:
-      "A digital environment tied to one real facility, public-facing place, or workflow, with capture provenance, rights, privacy, and package limits kept attached.",
+      "A digital environment tied to one real indoor facility, public-facing place, or workflow, with capture provenance, rights, privacy, and package limits kept attached.",
+  },
+  {
+    term: "Category validation",
+    definition:
+      "Google Genie and Street View validate real-place world models outdoors; Blueprint applies that site-specific product logic to unscanned indoor spaces without claiming a Google or Waymo partnership.",
   },
   {
     term: "Site package",
@@ -41,7 +46,19 @@ const pages = [
     path: "/product",
     title: "Product",
     description:
-      "Blueprint's product path for site-specific world models, site packages, hosted review, and provenance boundaries.",
+      "Blueprint's product path for indoor site-specific world models, site packages, hosted review, and provenance boundaries.",
+  },
+  {
+    path: "/for-robot-teams",
+    title: "For Robot Teams",
+    description:
+      "Robot-team page explaining the indoor workflow from real site to capture provenance, grounded world model, hosted review, and export or recapture decision.",
+  },
+  {
+    path: "/how-it-works",
+    title: "How It Works",
+    description:
+      "Workflow page separating robot teams, robot agents, and Blueprint agents across capture, package, hosted review, and decision steps.",
   },
   {
     path: "/world-models",
@@ -54,6 +71,12 @@ const pages = [
     title: "Sample Site",
     description:
       "Public sample listing showing how proof, package access, hosted access, and restrictions stay separate.",
+  },
+  {
+    path: "/agents",
+    title: "Robot-Team Agent Access",
+    description:
+      "Headless agent quickstart, OpenAPI contract, CLI, MCP tools, truth labels, auth model, and hosted-session lifecycle for robot-team automation.",
   },
   {
     path: "/capture",
@@ -107,7 +130,9 @@ const pages = [
 
 const queryThemes = [
   "exact-site world models",
+  "indoor world models for robot teams",
   "site-specific world models for robotics",
+  "Google Genie Street View indoor world model gap",
   "capture-backed robot evaluation",
   "hosted robot evaluation",
   "robot deployment site evaluation",
@@ -115,6 +140,9 @@ const queryThemes = [
   "capture provenance for world models",
   "facility world model",
   "site operator robot evaluation access",
+  "robot-team agent API",
+  "headless hosted-session rollout",
+  "Blueprint MCP server",
 ];
 
 const privateOrNoindex = [
@@ -147,6 +175,8 @@ router.get("/", (_req: Request, res: Response) => {
     machineReadableFiles: {
       llms: "/llms.txt",
       llmsFull: "/llms-full.txt",
+      agentAccessOpenApi: "/agent-access.openapi.json",
+      agentAccessApi: "/api/agent-access/openapi.json",
       sitemap: "/sitemap.xml",
       robots: "/robots.txt",
     },

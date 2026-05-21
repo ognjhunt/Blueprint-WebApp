@@ -111,13 +111,13 @@ const contactRequestPathCopy: Record<
   world_model: {
     seoTitle: "Request A World Model | Blueprint",
     seoDescription:
-      "Ask Blueprint for a site-specific world model package, hosted evaluation path, or capture plan for your robot team.",
+      "Ask Blueprint for an indoor site-specific world model package, hosted evaluation path, or capture plan for your robot team.",
     badgeLabel: "Commercial Intake",
-    heroTitle: "Request the site-specific world model your robot team needs.",
+    heroTitle: "Request the indoor world model your robot team needs.",
     heroBody:
-      "Share the site, task, and robot context. Blueprint replies with the right next step: package access, hosted evaluation, capture access, or one specific follow-up.",
+      "Share the indoor site, task, and robot context. Blueprint replies with the right next step: package access, hosted evaluation, capture access, or one specific follow-up.",
     responseBody:
-      "Blueprint reviews the buyer, site, task, and robot context first. The reply points your team toward package access, hosted evaluation, capture access, or a narrower follow-up without promising access before proof supports it.",
+      "Blueprint reviews the buyer, indoor site, task, and robot context first. The reply points your team toward package access, hosted evaluation, capture access, or a narrower follow-up without promising access before proof supports it.",
     primaryActionLabel: "Request world model",
     formSummary: "Required: contact details, role, request path, first question, and a site or site class.",
   },
@@ -137,11 +137,11 @@ const contactRequestPathCopy: Record<
   capture_access: {
     seoTitle: "Request Capture Access | Blueprint",
     seoDescription:
-      "Ask Blueprint to review capture access for a real site or workflow your robot team wants packaged into world-model outputs.",
+      "Ask Blueprint to review capture access for a real indoor site or workflow your robot team wants packaged into world-model outputs.",
     badgeLabel: "Capture Access",
     heroTitle: "Ask Blueprint to capture the site or workflow your team needs.",
     heroBody:
-      "Name the place, workflow, and robot question. Blueprint will confirm whether a capture path can be opened, whether an existing package fits first, or which access detail is missing.",
+      "Name the indoor place, workflow, and robot question. Blueprint will confirm whether a capture path can be opened, whether an existing package fits first, or which access detail is missing.",
     responseBody:
       "Blueprint reviews the requested site, workflow, access path, and robot need first. The reply confirms whether the next move is capture review, an existing package, hosted evaluation, or a specific blocker.",
     primaryActionLabel: "Request capture access",

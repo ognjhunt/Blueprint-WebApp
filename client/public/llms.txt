@@ -1,10 +1,11 @@
 # Blueprint
 
-Blueprint turns real-site capture into site-specific world-model products, hosted robot evaluation, and package access for robot teams. This file is a machine-readable website map, not a permissions file or guaranteed ranking signal. Crawler access is controlled by `/robots.txt`.
+Blueprint turns indoor real-site capture into site-specific world-model products, hosted robot evaluation, and package access for robot teams. This file is a machine-readable website map, not a permissions file or guaranteed ranking signal. Crawler access is controlled by `/robots.txt`.
 
 ## Core Definitions
 
-- Exact-site world model: a digital environment tied to one real facility, public-facing place, or workflow.
+- Exact-site world model: a digital environment tied to one real indoor facility, public-facing place, or workflow.
+- Category validation: Google Genie and Street View make real-place world models legible outdoors; Blueprint focuses on unscanned indoor spaces without claiming a Google or Waymo partnership.
 - Site package: walkthrough media, poses, metadata, geometry when available, rights, privacy, provenance, and export scope for one site.
 - Hosted review: a Blueprint-managed evaluation session for one exact site, with run evidence, observations, export framing, and an explicit next step.
 - Capture provenance: the capture record, timestamps, device/context metadata, privacy handling, rights posture, freshness, and restrictions attached to downstream outputs.
@@ -14,8 +15,11 @@ Blueprint turns real-site capture into site-specific world-model products, hoste
 
 - [Home](https://tryblueprint.io/): concise overview of Blueprint for site-specific world models, hosted evaluation, and capture-backed site packages.
 - [Product](https://tryblueprint.io/product): site-specific world models, site packages, and hosted review as one request-gated offer.
+- [For Robot Teams](https://tryblueprint.io/for-robot-teams): indoor workflow from real site to capture provenance, grounded world model, hosted review, and export or recapture decision.
+- [How It Works](https://tryblueprint.io/how-it-works): workflow map for robot teams, robot agents, and internal Blueprint agents.
 - [Catalog](https://tryblueprint.io/world-models): exact-site world-model catalog with proof posture, package paths, and hosted-evaluation entry points.
 - [Sample Site](https://tryblueprint.io/world-models/siteworld-f5fd54898cfb): public sample listing showing how proof, package access, hosted access, and restrictions stay separate.
+- [Robot-Team Agent Access](https://tryblueprint.io/agents): headless quickstart, OpenAPI contract, CLI, MCP tools, auth model, truth labels, hosted-session lifecycle, error semantics, and public-demo/protected-flow split for robot-team agents.
 - [Sample Deliverables](https://tryblueprint.io/sample-deliverables): buyer-readable sample manifest, rights sheet, export bundle, and hosted review report with raw file links.
 - [Capture App / Earn](https://tryblueprint.io/capture): public capture rules, capturer access boundaries, review gates, and lawful earning path.
 - [Stories / Proof](https://tryblueprint.io/proof): public sample proof packet with sample-vs-real boundaries, provenance, and hosted-review output examples.
@@ -30,3 +34,4 @@ Blueprint turns real-site capture into site-specific world-model products, hoste
 
 - [llms-full.txt](https://tryblueprint.io/llms-full.txt): longer public overview, page map, query themes, and answer guidance.
 - [Public site-content API](https://tryblueprint.io/api/site-content): non-sensitive JSON summary of the same public pages.
+- [Robot-team OpenAPI contract](https://tryblueprint.io/agent-access.openapi.json): machine-readable catalog, site-world, hosted-session, rollout, explorer-render, and export contract.

@@ -19,6 +19,7 @@ const BusinessSignUpFlow = lazy(() => import("../pages/BusinessSignUpFlow"));
 const CapturerSignUpFlow = lazy(() => import("../pages/CapturerSignUpFlow"));
 const OnboardingChecklist = lazy(() => import("../pages/OnboardingChecklist"));
 const SiteWorlds = lazy(() => import("../pages/SiteWorlds"));
+const Agents = lazy(() => import("../pages/Agents"));
 const SiteWorldDetail = lazy(() => import("../pages/SiteWorldDetail"));
 const HostedSessionSetup = lazy(() => import("../pages/HostedSessionSetup"));
 const HostedSessionWorkspace = lazy(() => import("../pages/HostedSessionWorkspace"));
@@ -26,6 +27,8 @@ const Pricing = lazy(() => import("../pages/Pricing"));
 const Contact = lazy(() => import("../pages/Contact"));
 const Support = lazy(() => import("../pages/Support"));
 const ExactSiteHostedReview = lazy(() => import("../pages/ExactSiteHostedReview"));
+const ForRobotIntegrators = lazy(() => import("../pages/ForRobotIntegrators"));
+const HowItWorks = lazy(() => import("../pages/HowItWorks"));
 const SampleDeliverables = lazy(() => import("../pages/SampleDeliverables"));
 const Proof = lazy(() => import("../pages/Proof"));
 const Portal = lazy(() => import("../pages/Portal"));
@@ -85,11 +88,7 @@ const LegacyQualifiedOpportunitiesRedirect = () => (
 );
 
 const LegacyForRobotIntegratorsRedirect = () => (
-  <MarketingRedirect to="/product" />
-);
-
-const LegacyForRobotTeamsRedirect = () => (
-  <MarketingRedirect to="/product" />
+  <MarketingRedirect to="/for-robot-teams" />
 );
 
 const LegacyForSiteOperatorsRedirect = () => (
@@ -102,10 +101,6 @@ const LegacyHostedReviewRedirect = () => (
 
 const LegacyProofStoryRedirect = () => (
   <MarketingRedirect to="/proof" />
-);
-
-const LegacyHowItWorksRedirect = () => (
-  <MarketingRedirect to="/product" />
 );
 
 const LegacyBookExactSiteReviewRedirect = () => (
@@ -150,11 +145,12 @@ export const appRoutes: AppRoute[] = [
 
   // Persona pages
   { path: "/for-site-operators", layout: "public", component: LegacyForSiteOperatorsRedirect },
-  { path: "/for-robot-teams", layout: "public", component: LegacyForRobotTeamsRedirect },
+  { path: "/for-robot-teams", layout: "public", component: ForRobotIntegrators },
   { path: "/for-robot-integrators", layout: "public", component: LegacyForRobotIntegratorsRedirect },
 
   // Core pages
   { path: "/product", layout: "public", component: ExactSiteHostedReview },
+  { path: "/agents", layout: "public", component: Agents },
   { path: "/pricing", layout: "public", component: Pricing },
   { path: "/sample-evaluation", layout: "public", component: LegacyProofStoryRedirect },
   { path: "/sample-deliverables", layout: "public", component: SampleDeliverables },
@@ -167,7 +163,7 @@ export const appRoutes: AppRoute[] = [
   { path: "/help/article/:articleSlug", layout: "public", component: Support },
   { path: "/exact-site-hosted-review", layout: "public", component: LegacyHostedReviewRedirect },
   { path: "/book-exact-site-review", layout: "public", component: LegacyBookExactSiteReviewRedirect },
-  { path: "/how-it-works", layout: "public", component: LegacyHowItWorksRedirect },
+  { path: "/how-it-works", layout: "public", component: HowItWorks },
   { path: "/proof", layout: "public", component: Proof },
   { path: "/faq", layout: "public", component: FAQ },
   { path: "/governance", layout: "public", component: Governance },

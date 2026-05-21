@@ -285,7 +285,7 @@ export default function Proof() {
     <>
       <SEO
         title="Proof System | Blueprint"
-        description="Blueprint's proof system shows the capture provenance, rights posture, hosted outputs, and sample-vs-live boundaries attached to a site-specific world model before purchase or hosted evaluation."
+        description="Blueprint's proof system shows the capture provenance, rights posture, hosted outputs, and sample-vs-live boundaries attached to an indoor site-specific world model before purchase or hosted evaluation."
         canonical="/proof"
       />
 
@@ -305,7 +305,7 @@ export default function Proof() {
                 See what is attached before your team commits.
               </h1>
               <p className="mt-5 max-w-[36rem] text-base leading-7 text-white/80 sm:leading-8">
-                Blueprint proof keeps capture provenance, rights posture, package scope, hosted outputs, and buyer decisions visible in one packet.
+                Outdoor world models make real-place simulation legible. Blueprint proof keeps indoor capture provenance, rights posture, package scope, hosted outputs, and buyer decisions visible in one packet.
               </p>
               <div className="mt-8 flex flex-wrap gap-2">
                 <StatusBadge tone="attached">Capture provenance</StatusBadge>

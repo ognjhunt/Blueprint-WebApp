@@ -191,7 +191,7 @@ export default function Pricing() {
     <>
       <SEO
         title="Pricing | Blueprint"
-        description="Choose package access, hosted evaluation, or custom private-site scope for a real site your robot team needs to evaluate."
+        description="Choose package access, hosted evaluation, or custom private-site scope for an indoor exact site your robot team needs to evaluate."
         canonical="/pricing"
       />
 
@@ -212,7 +212,7 @@ export default function Pricing() {
                   Choose the first step for one real site.
                 </h1>
                 <p className="mt-6 text-lg leading-8 text-slate-900 sm:text-slate-700">
-                  Start with files, a managed buyer room, or custom scope. Blueprint keeps proof, rights, and access review tied to the exact site.
+                  Start with files, a managed buyer room, or custom scope. Blueprint keeps proof, rights, and access review tied to the indoor exact site.
                 </p>
                 <div className="mt-8 flex flex-wrap gap-3">
                   <a
@@ -239,7 +239,7 @@ export default function Pricing() {
             <EditorialSectionIntro
               eyebrow="Compare paths"
               title="Pick by the first buyer decision."
-              description="Package access, hosted review, and custom scope are separate starts. Each remains tied to one exact site, request review, and proof boundaries."
+              description="Package access, hosted review, and custom scope are separate starts. Each remains tied to one indoor exact site, request review, and proof boundaries."
               className="max-w-3xl"
             />
             <div className="mt-7 overflow-x-auto border border-black/10">

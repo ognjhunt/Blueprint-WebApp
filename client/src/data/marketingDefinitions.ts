@@ -1,11 +1,14 @@
 export const worldModelDefinition =
-  "A Blueprint world model is a site-specific digital environment built from real capture of one facility and one workflow.";
+  "A Blueprint world model is a site-specific digital environment built from real capture of one indoor operating space and one robot workflow.";
 
 export const sitePackageDefinition =
-  "A site package is everything a robot team needs to run, adapt, or build its own world model for that site: walkthrough media, geometry, metadata, and rights, without starting in a Blueprint-hosted session.";
+  "A site package is everything a robot team needs to ground a world model in that site: walkthrough media, geometry, metadata, provenance, rights, and export limits before field time.";
 
 export const hostedEvaluationDefinition =
   "Hosted evaluation is the Blueprint-managed review path for one exact site, used for reruns, failure review, checkpoint comparison, and export generation without passing files around first.";
+
+export const categoryValidationDefinition =
+  "Street View-grounded world models make outdoor places easier for agents to explore; Blueprint focuses the same site-specific logic on indoor spaces that need lawful capture, provenance, and rights review.";
 
 export const sessionHourDefinition =
   "A session-hour is one hour of self-serve hosted review on one exact site. It covers the live session time used to run, rerun, inspect, and export results.";
@@ -39,7 +42,7 @@ export const listingVariationItems = [
 ];
 
 export const companyTrustItems = [
-  "Blueprint captures real facilities and turns them into products robot teams can buy.",
+  "Blueprint captures indoor facilities and turns them into site-specific products robot teams can request, review, and license.",
   "Blueprint sells site-specific packages and hosted access, not deployment guarantees.",
   "Rights, privacy, and usage controls are attached to every listing up front.",
 ];

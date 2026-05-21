@@ -99,6 +99,24 @@ const personaEntryPoints = [
   },
 ];
 
+const categoryValidationItems = [
+  {
+    title: "Outdoor worlds are getting grounded",
+    body:
+      "Google's Genie and Street View work make the category legible: agents can explore worlds anchored to real places.",
+  },
+  {
+    title: "Indoor spaces are still missing",
+    body:
+      "Warehouses, stores, labs, hotels, back rooms, and service corridors are rights-sensitive, task-specific, and rarely captured at robot-evaluation depth.",
+  },
+  {
+    title: "Blueprint captures the indoor layer",
+    body:
+      "Blueprint turns those unscanned spaces into capture-backed packages, hosted review paths, proof boundaries, and export decisions for robot teams.",
+  },
+];
+
 const proofItems = [
   "Samples and demo worlds are labeled inside the proof flow.",
   "Approved listings keep capture basis, freshness, rights, restrictions, and package scope attached.",
@@ -109,12 +127,12 @@ const homeDirectAnswers = [
   {
     question: "What does Blueprint sell?",
     answer:
-      "Blueprint sells capture-backed exact-site world-model packages, hosted evaluation paths, and buyer review workflows for robot teams evaluating real operating environments.",
+      "Blueprint sells capture-backed indoor world-model packages, hosted evaluation paths, and buyer review workflows for robot teams evaluating real operating environments.",
   },
   {
     question: "Why does exact-site capture matter?",
     answer:
-      "A generic scene cannot preserve the route, occlusions, constraints, freshness, and rights posture of the real place your robot may enter. Blueprint keeps that context attached to the package.",
+      "Street View can help ground outdoor worlds, but indoor operating spaces need lawful capture, provenance, freshness, occlusion detail, and rights boundaries attached to the package.",
   },
   {
     question: "What proof is attached?",
@@ -148,21 +166,21 @@ const homeVariantContent: Record<
   }
 > = {
   hosted_review: {
-    title: "Site-specific world models for robot teams, built from real capture.",
+    title: "Street View grounds outdoor worlds. Blueprint captures the indoor sites robots need.",
     description:
-      "Name one facility or route. Blueprint packages the capture, proof, rights limits, and hosted review path so your team can evaluate the exact site before field time.",
+      "Google's Genie makes real-place world models easier to understand. Blueprint focuses on unscanned indoor spaces: capture, provenance, rights limits, and hosted review for the exact facility before field time.",
     primaryLabel: "Request world model",
     primaryPath: "world-model",
     secondaryLabel: "Browse world models",
     secondaryHref: "/world-models",
     panelTitle: "Start here",
     panelBody:
-      "Name one site, robot task, and review path. Proof stays attached before access expands.",
+      "Name one indoor site, robot task, and review path. Proof stays attached before access expands.",
   },
   proof_pack: {
-    title: "Site-specific world models for robot teams, built from real capture.",
+    title: "Street View grounds outdoor worlds. Blueprint captures the indoor sites robots need.",
     description:
-      "Name one facility or route. Blueprint packages the capture, proof, rights limits, and hosted review path so your team can evaluate the exact site before field time.",
+      "Google's Genie makes real-place world models easier to understand. Blueprint focuses on unscanned indoor spaces: capture, provenance, rights limits, and hosted review for the exact facility before field time.",
     primaryLabel: "Request world model",
     primaryPath: "world-model",
     secondaryLabel: "Browse world models",
@@ -175,23 +193,23 @@ const homeVariantContent: Record<
 
 const robotTeamDecisionSteps = [
   {
-    title: "Capture the site",
-    body: "Start from a real facility, route, or public-facing walkthrough with provenance and limits attached.",
+    title: "Capture the indoor site",
+    body: "Start from the facility, route, workflow, and public-facing or permissioned capture path with provenance and limits attached.",
   },
   {
-    title: "Package the proof",
-    body: "Turn capture into a site package with manifest, rights notes, freshness, exports, and hosted review context.",
+    title: "Ground the world model",
+    body: "Turn capture into a site package with manifest, route context, rights notes, freshness, exports, and hosted review context.",
   },
   {
-    title: "Review or license it",
-    body: "Use hosted review before field time, or request package access when the proof and rights path fit.",
+    title: "Decide before field time",
+    body: "Use hosted review, scenario replay, or package access to approve export, request recapture, or narrow the deployment question.",
   },
 ];
 
 const firstScreenDefinitions = [
   {
     term: "World model",
-    definition: "A captured digital environment for one real site and workflow.",
+    definition: "A capture-backed indoor environment for one real site and robot workflow.",
   },
   {
     term: "Site package",
@@ -326,20 +344,20 @@ export default function Home() {
   const metrics = useMemo(
     () => [
       {
-        label: "Real capture",
-        detail: "A walkthrough or site record starts the product. Provenance and limits stay attached.",
+        label: "Outdoor validation",
+        detail: "Street View-grounded world models validate real-place simulation; Blueprint focuses that demand indoors.",
+      },
+      {
+        label: "Indoor capture",
+        detail: "A walkthrough or site record starts the product. Provenance, rights, and limits stay attached.",
       },
       {
         label: "Site package",
         detail: "Blueprint packages the capture into a site-specific world model, buyer listing, and export scope.",
       },
       {
-        label: "Hosted review",
-        detail: "A managed review path lets robot teams inspect task scenarios before file handoff.",
-      },
-      {
-        label: "Buyer proof",
-        detail: "Use the proof before committing travel, rollout spend, or deeper integration.",
+        label: "Hosted decision",
+        detail: "Use hosted review and proof before committing travel, rollout spend, or deeper integration.",
       },
     ],
     [],
@@ -445,8 +463,8 @@ export default function Home() {
   return (
     <>
       <SEO
-        title="Blueprint | Site-Specific World Models For Robot Training And Evaluation"
-        description="Blueprint turns real-site capture into site-specific world models robot teams can train on, evaluate against, license, and review before deployment work."
+        title="Blueprint | Indoor World Models For Robot Teams"
+        description="Street View grounds outdoor worlds. Blueprint captures indoor spaces and turns them into site-specific world models, hosted review paths, and package requests for robot teams."
         canonical="/"
         jsonLd={[
           organizationJsonLd(),
@@ -455,7 +473,7 @@ export default function Home() {
             path: "/",
             name: "Blueprint",
             description:
-              "Real-site capture, site-specific world models, hosted evaluation, and clear paths for robot teams, site operators, and capturers.",
+              "Indoor real-site capture, site-specific world models, hosted evaluation, and clear paths for robot teams, site operators, and capturers.",
           }),
           breadcrumbJsonLd([{ name: "Home", path: "/" }]),
           faqJsonLd(homeDirectAnswers),
@@ -478,6 +496,7 @@ export default function Home() {
               <div className="mx-auto grid h-full max-w-[88rem] gap-10 px-5 py-12 sm:px-8 lg:grid-cols-[0.62fr_0.38fr] lg:px-10 lg:py-16">
                 <div className="flex min-h-[31rem] flex-col justify-end sm:min-h-[34rem]">
                   <div className="mb-5 flex flex-wrap gap-2">
+                    <ProofChip light>Indoor capture</ProofChip>
                     <ProofChip light>Exact-site world models</ProofChip>
                     <ProofChip light>Hosted review</ProofChip>
                   </div>
@@ -546,6 +565,27 @@ export default function Home() {
           onCtaClick={trackHomeCtaClick}
         />
 
+        <section className="border-b border-black/10 bg-white" data-home-section="category-validation">
+          <div className="mx-auto grid max-w-[88rem] gap-px px-5 py-10 sm:px-8 lg:grid-cols-[0.34fr_0.66fr] lg:px-10 lg:py-12">
+            <div className="bg-slate-950 px-6 py-8 text-white lg:px-8 lg:py-10">
+              <EditorialSectionIntro
+                eyebrow="Category signal"
+                title="Real-place world models are no longer abstract."
+                description="The public category is moving from generated scenes toward places agents and robots can navigate. Blueprint's wedge is the indoor site layer that public maps do not solve."
+                light
+              />
+            </div>
+            <div className="grid gap-px bg-black/10 md:grid-cols-3">
+              {categoryValidationItems.map((item) => (
+                <article key={item.title} className="bg-white p-6">
+                  <h2 className="text-base font-semibold text-slate-950">{item.title}</h2>
+                  <p className="mt-3 text-sm leading-7 text-slate-600">{item.body}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
         <section className="border-b border-black/10 bg-white" data-home-section="first-route">
           <div className="mx-auto grid max-w-[88rem] gap-px px-5 py-8 sm:px-8 lg:grid-cols-[0.34fr_0.66fr] lg:px-10 lg:py-10">
             <div className="bg-[#f5f3ef] p-5 sm:p-6">
@@ -585,10 +625,10 @@ export default function Home() {
             <div className="max-w-xl">
               <ProofChip light>Commercial product</ProofChip>
               <h2 className="font-editorial mt-5 text-[3rem] leading-[0.9] tracking-[-0.05em] sm:text-[4.15rem]">
-                Blueprint sells exact-site products, not generic demos.
+                Blueprint sells indoor exact-site products, not generic demos.
               </h2>
               <p className="mt-6 text-base leading-8 text-white/76">
-                Blueprint turns real capture into site-specific packages, hosted review paths, and
+                Blueprint turns indoor capture into site-specific packages, hosted review paths, and
                 buyer decisions tied to the same facility, route, and proof record.
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
@@ -670,7 +710,7 @@ export default function Home() {
               <EditorialSectionIntro
                 eyebrow="For robot teams"
                 title="Start with the exact site your robot needs to understand."
-                description="A buyer request should name the place, workflow, and robot question. Blueprint then keeps the capture-backed proof, package scope, and hosted path together."
+                description="A buyer request should name the indoor place, workflow, and robot question. Blueprint then keeps the capture-backed proof, package scope, and hosted path together."
               />
               <a
                 href={decisionPathHref}
@@ -797,8 +837,8 @@ export default function Home() {
           <div className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10">
             <EditorialSectionIntro
               eyebrow="Why capture matters"
-              title="Exact-site capture turns vague simulation demand into a buyer-ready package."
-              description="The useful details are local: aisle width, signage, occlusions, public access boundaries, restricted areas, and the robot task a team is actually deciding on."
+              title="Indoor capture turns vague simulation demand into a buyer-ready package."
+              description="The useful details are local: aisle width, signage, occlusions, access boundaries, restricted areas, and the robot task a team is actually deciding on."
               className="max-w-3xl"
             />
             <div className="mt-8 grid gap-4 lg:grid-cols-4">
@@ -912,7 +952,7 @@ export default function Home() {
 	        <section className="mx-auto max-w-[88rem] px-5 pb-12 sm:px-8 lg:px-10 lg:pb-14" data-home-section="bottom-cta">
           <EditorialCtaBand
             eyebrow="Start"
-            title="Request one exact-site world model."
+            title="Request one indoor exact-site world model."
             description="Name the place, workflow, robot setup, and review path. Blueprint will route the request to a current listing, new capture, package access, or hosted evaluation without blurring sample proof into approved output."
             imageSrc={editorialGeneratedAssets.homeHero}
             imageAlt="Blueprint hosted evaluation still"

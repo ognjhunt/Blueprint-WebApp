@@ -19,6 +19,7 @@ import applyHandler from "./routes/apply";
 import healthRouter from "./routes/health";
 import errorsRouter from "./routes/errors";
 import siteContentRouter from "./routes/site-content";
+import agentAccessRouter from "./routes/agent-access";
 import emailPreferencesRouter from "./routes/email-preferences";
 import inboundRequestRouter from "./routes/inbound-request";
 import adminLeadsRouter from "./routes/admin-leads";
@@ -61,6 +62,7 @@ export function registerRoutes(app: Express) {
 
   // Public content summary for external tooling.
   app.use("/api/site-content", siteContentRouter);
+  app.use("/api/agent-access", agentAccessRouter);
   app.use("/api/experiments", experimentsRouter);
   app.use("/api/public/launch", publicLaunchRouter);
   app.use("/api/internal/pipeline", internalPipelineRouter);

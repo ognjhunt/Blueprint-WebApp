@@ -14,26 +14,44 @@ const chapterCards = [
   {
     id: "01",
     title: "Capture",
-    body: "We capture the facility as it is, at site scale.",
-    proof: "12,842 frames · 278 scan positions · 3.2 cm RMS",
+    body: "Blueprint starts with the real indoor route, not an abstract benchmark.",
+    proof: "Walkthrough media · timestamps · capture notes",
   },
   {
     id: "02",
     title: "Package",
-    body: "We organize the capture into a site-specific package.",
-    proof: "Manifest locked · versioned metadata · explicit rights sheet",
+    body: "The capture becomes a site-specific package with provenance and limits attached.",
+    proof: "Manifest · route context · rights and privacy notes",
   },
   {
     id: "03",
-    title: "Run",
-    body: "Your robot runs against a site-specific world model.",
-    proof: "Routes validated · decisions replayable · coverage visible",
+    title: "Review",
+    body: "Robot teams inspect scenarios, replay notes, observations, and hosted outputs.",
+    proof: "Hosted path · scenario notes · visible blockers",
   },
   {
     id: "04",
-    title: "Deliver",
-    body: "You get a versioned world model and the files needed to use it.",
-    proof: "Export complete · review bundle · run-ready package",
+    title: "Decide",
+    body: "The request ends in package access, export scope, recapture, or a narrower follow-up.",
+    proof: "Export request · recapture call · next-step record",
+  },
+];
+
+const audienceRows = [
+  {
+    title: "Robot teams",
+    body:
+      "Use Blueprint to evaluate the indoor site, task, proof chain, and hosted review path before committing field time or integration budget.",
+  },
+  {
+    title: "Robot agents",
+    body:
+      "Use public or protected contracts to discover site-world records, inspect truth labels, and request hosted-session actions only inside the supported API surface.",
+  },
+  {
+    title: "Blueprint agents",
+    body:
+      "Route intake, proof, rights, capture, and follow-up work without inventing availability, provider success, clearance, or launch outcomes.",
   },
 ];
 
@@ -73,27 +91,27 @@ function PackagePanel() {
           <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
             Sample manifest
           </p>
-          <h3 className="mt-5 text-2xl font-semibold text-slate-950">Plant 7</h3>
+          <h3 className="mt-5 text-2xl font-semibold text-slate-950">Indoor route request</h3>
           <div className="mt-6 grid gap-y-3 text-sm text-slate-700">
             <div className="flex justify-between border-b border-black/5 pb-3">
-              <span>Capture date</span>
-              <span>04 / 18 / 2025</span>
+              <span>Capture basis</span>
+              <span>Walkthrough</span>
             </div>
             <div className="flex justify-between border-b border-black/5 pb-3">
               <span>Package ID</span>
-              <span>BP7-250418-01</span>
+              <span>Sample only</span>
             </div>
             <div className="flex justify-between border-b border-black/5 pb-3">
-              <span>Images</span>
-              <span>12,842</span>
+              <span>Route</span>
+              <span>Review-scoped</span>
             </div>
             <div className="flex justify-between border-b border-black/5 pb-3">
-              <span>LiDAR scans</span>
-              <span>278</span>
+              <span>Depth</span>
+              <span>When available</span>
             </div>
             <div className="flex justify-between border-b border-black/5 pb-3">
-              <span>Annotations</span>
-              <span>236</span>
+              <span>Rights</span>
+              <span>Attached</span>
             </div>
             <div className="flex justify-between">
               <span>Version</span>
@@ -106,7 +124,7 @@ function PackagePanel() {
             <p className="text-[11px] uppercase tracking-[0.2em] text-white/45">Package</p>
             <p className="mt-4 text-2xl font-semibold">Blueprint package</p>
             <p className="mt-5 text-sm leading-7 text-white/70">
-              Versioned geometry, routes, metadata, rights, and exports tied to one exact site.
+              Versioned route context, geometry when available, metadata, rights, and exports tied to one exact site.
             </p>
           </div>
           <div className="rounded-[1.8rem] border border-black/10 bg-white p-6 shadow-[0_20px_38px_-30px_rgba(15,23,42,0.16)]">
@@ -129,11 +147,11 @@ function DeliverPanel() {
         <div className="space-y-3">
           {[
             "World model (optimized)",
-            "Navigation graph",
+            "Route and task notes",
             "Asset bundle",
             "Metadata & maps",
-            "SDK & integration",
-            "Documentation",
+            "Hosted review notes",
+            "Export decision",
           ].map((item, index) => (
             <div
               key={item}
@@ -148,7 +166,7 @@ function DeliverPanel() {
           <div className="rounded-[1.7rem] border border-black/10 bg-slate-950 p-6 text-white shadow-[0_24px_42px_-32px_rgba(15,23,42,0.52)]">
             <p className="text-[11px] uppercase tracking-[0.2em] text-white/40">World model card</p>
             <p className="mt-5 text-[1.75rem] font-semibold leading-tight">Plant 7 world model</p>
-            <p className="mt-3 text-sm text-white/55">BP7-250418-01 · v1.0.0</p>
+            <p className="mt-3 text-sm text-white/55">Sample only · request-scoped access</p>
           </div>
           <div className="rounded-[1.3rem] border border-black/10 bg-white px-5 py-4 shadow-[0_16px_28px_-24px_rgba(15,23,42,0.18)]">
             <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Export bundle</p>
@@ -167,7 +185,7 @@ export default function HowItWorks() {
     <>
       <SEO
         title="How It Works | Blueprint"
-        description="See how Blueprint moves from real capture to site package, run-ready world model, and delivery files."
+        description="See how Blueprint moves from indoor capture to site package, grounded world model, hosted review, and export or recapture decision."
         canonical="/how-it-works"
       />
 
@@ -178,22 +196,21 @@ export default function HowItWorks() {
               <div className="pt-16 lg:pt-24">
                 <EditorialSectionLabel>How It Works</EditorialSectionLabel>
                 <h1 className="font-editorial mt-8 text-[3.8rem] leading-[0.9] tracking-[-0.06em] sm:text-[5.2rem]">
-                  Capture to world model.
+                  Indoor capture to world model.
                 </h1>
                 <p className="mt-6 max-w-[18rem] text-sm uppercase tracking-[0.2em] text-slate-500">
-                  Real places. Real routes. Site-specific world models that robots can run.
+                  Street View grounds outdoor places. Blueprint captures indoor routes robots need.
                 </p>
                 <p className="mt-5 max-w-[19rem] text-xs leading-6 text-slate-500">
-                  Metrics shown on this page are sample values unless a listing marks them as
-                  approved real-site proof.
+                  Any sample values on this page are illustrative unless a listing marks them as approved real-site proof.
                 </p>
               </div>
 
               <div className="relative min-h-[34rem]">
                 <div className="absolute right-[4%] top-0 z-20 rotate-[1deg] rounded-[0.2rem] bg-white px-5 py-4 shadow-[0_16px_30px_-20px_rgba(15,23,42,0.24)]">
-                  <p className="font-editorial text-[1.1rem] italic">Sample site: Plant 7</p>
-                  <p className="mt-2 text-sm text-slate-700">Sample date: 04 / 18</p>
-                  <p className="text-sm text-slate-700">Sample capture: 2 of 3</p>
+                  <p className="font-editorial text-[1.1rem] italic">Sample flow: indoor route</p>
+                  <p className="mt-2 text-sm text-slate-700">Capture basis: request-scoped</p>
+                  <p className="text-sm text-slate-700">Proof: labeled sample</p>
                 </div>
                 <div className="absolute left-[22%] right-[8%] top-[2.5rem] rounded-[1.3rem] border border-black/10 bg-white p-3 shadow-[0_24px_44px_-26px_rgba(15,23,42,0.2)]">
                   <div className="grid gap-3 md:grid-cols-3">
@@ -299,6 +316,28 @@ export default function HowItWorks() {
           </div>
         </section>
 
+        <section className="border-y border-black/10 bg-white">
+          <div className="mx-auto grid max-w-[88rem] gap-px px-5 py-10 sm:px-8 lg:grid-cols-[0.34fr_0.66fr] lg:px-10 lg:py-12">
+            <div className="bg-slate-950 px-6 py-8 text-white lg:px-8 lg:py-10">
+              <EditorialSectionLabel light>Who uses the flow</EditorialSectionLabel>
+              <h2 className="font-editorial mt-5 text-[3rem] leading-[0.95] tracking-[-0.05em]">
+                Teams, robot agents, and Blueprint agents have different jobs.
+              </h2>
+              <p className="mt-5 text-sm leading-7 text-white/70">
+                The workflow keeps product buyers, API-driven robot agents, and internal routing agents separate so no page implies unsupported access or automated fulfillment.
+              </p>
+            </div>
+            <div className="grid gap-px bg-black/10 md:grid-cols-3">
+              {audienceRows.map((row) => (
+                <article key={row.title} className="bg-white p-6">
+                  <h3 className="text-base font-semibold text-slate-950">{row.title}</h3>
+                  <p className="mt-3 text-sm leading-7 text-slate-600">{row.body}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
         <section className="mx-auto max-w-[88rem] px-5 pb-16 pt-8 sm:px-8 lg:px-10 lg:pb-20">
           <div className="grid gap-6 overflow-hidden rounded-[2rem] border border-black/10 bg-slate-950 px-6 py-8 text-white lg:grid-cols-[0.5fr_0.5fr] lg:px-8">
             <MonochromeMedia
@@ -310,10 +349,10 @@ export default function HowItWorks() {
             <div className="flex flex-col justify-center">
               <ProofChip light>Real site. Real route. Real package.</ProofChip>
               <h2 className="font-editorial mt-5 text-[3rem] leading-[0.95] tracking-[-0.05em]">
-                See the exact site before you start the sales motion.
+                See the indoor site before field time.
               </h2>
               <p className="mt-4 max-w-[28rem] text-sm leading-7 text-white/70">
-                The public sample listing shows how capture, package framing, and hosted evaluation stay attached to one facility.
+                The public sample listing shows how capture, package framing, and hosted evaluation stay attached to one facility without claiming live fulfillment.
               </p>
               <div className="mt-7 flex flex-col gap-3 sm:flex-row">
                 <a
@@ -324,10 +363,10 @@ export default function HowItWorks() {
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </a>
                 <a
-                  href="/proof"
+                  href="/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=how-it-works"
                   className="inline-flex items-center justify-center rounded-full border border-white/15 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/5"
                 >
-                  View sample deliverables
+                  Request world model
                 </a>
               </div>
             </div>

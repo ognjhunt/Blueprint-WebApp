@@ -21,6 +21,9 @@ import Pricing from "../client/src/pages/Pricing";
 import Contact from "../client/src/pages/Contact";
 import Support from "../client/src/pages/Support";
 import ExactSiteHostedReview from "../client/src/pages/ExactSiteHostedReview";
+import ForRobotIntegrators from "../client/src/pages/ForRobotIntegrators";
+import HowItWorks from "../client/src/pages/HowItWorks";
+import Agents from "../client/src/pages/Agents";
 import SampleDeliverables from "../client/src/pages/SampleDeliverables";
 import FAQ from "../client/src/pages/FAQ";
 import Governance from "../client/src/pages/Governance";
@@ -215,6 +218,9 @@ const staticRoutes: StaticRoute[] = [
   { path: "/", component: Home },
   { path: "/capture", component: Capture },
   { path: "/product", component: ExactSiteHostedReview },
+  { path: "/for-robot-teams", component: ForRobotIntegrators },
+  { path: "/how-it-works", component: HowItWorks },
+  { path: "/agents", component: Agents },
   { path: "/world-models", component: SiteWorlds },
   { path: "/capture-app", component: CaptureAppPlaceholder },
   { path: "/capture-app/launch-access", component: CaptureLaunchAccess },

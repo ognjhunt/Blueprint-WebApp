@@ -14,7 +14,7 @@ export function Footer() {
             <BrandLockup compact />
           </a>
           <p className="text-sm leading-6 text-slate-600">
-            Blueprint turns real-site capture into site-specific world models, hosted review rooms, and package evidence for robot teams.
+            Blueprint turns indoor real-site capture into site-specific world models, hosted review rooms, and package evidence for robot teams.
           </p>
           <p className="text-sm leading-6 text-slate-600">
             Robot teams request worlds. Site operators set access and privacy boundaries. Capturers apply only where capture is open.
