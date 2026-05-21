@@ -24,7 +24,6 @@ import {
 } from "@/lib/siteEditorialContent";
 import { fetchSiteWorldDetail } from "@/lib/siteWorldsApi";
 import { analyticsEvents } from "@/lib/analytics";
-import { resolveExperimentVariant } from "@/lib/experiments";
 import {
   breadcrumbJsonLd,
   faqJsonLd,
@@ -34,7 +33,7 @@ import {
 } from "@/lib/seoStructuredData";
 import type { PublicSiteWorldRecord } from "@/types/inbound-request";
 import { ArrowRight } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 const productPaths = [
   {
@@ -148,7 +147,10 @@ const homeDirectAnswers = [
 
 const HOME_ROBOT_TEAM_EXPERIMENT_KEY = "home_robot_team_conversion_v1";
 const HOME_ROBOT_TEAM_CONVERSION_GOAL = "structured_robot_team_intake";
-const homeRobotTeamVariants = ["hosted_review", "proof_pack"] as const;
+const GOOGLE_GENIE_STREET_VIEW_URL =
+  "https://blog.google/innovation-and-ai/models-and-research/google-deepmind/project-genie-expands/";
+
+const homeRobotTeamVariants = ["outdoor_street_view", "street_view_grounds"] as const;
 
 type HomeRobotTeamVariant = (typeof homeRobotTeamVariants)[number];
 
@@ -156,7 +158,7 @@ const homeVariantContent: Record<
   HomeRobotTeamVariant,
   {
     title: string;
-    description: string;
+    description: ReactNode;
     primaryLabel: string;
     primaryPath: "world-model" | "hosted-evaluation" | "request-capture";
     secondaryLabel: string;
@@ -165,10 +167,23 @@ const homeVariantContent: Record<
     panelBody: string;
   }
 > = {
-  hosted_review: {
-    title: "Street View grounds outdoor worlds. Blueprint captures the indoor sites robots need.",
+  outdoor_street_view: {
+    title: "Outdoor worlds have Street View. Indoor robot sites need Blueprint.",
     description:
-      "Google's Genie makes real-place world models easier to understand. Blueprint focuses on unscanned indoor spaces: capture, provenance, rights limits, and hosted review for the exact facility before field time.",
+      <>
+        Google's{" "}
+        <a
+          href={GOOGLE_GENIE_STREET_VIEW_URL}
+          target="_blank"
+          rel="noreferrer"
+          className="underline decoration-white/40 underline-offset-4 transition hover:decoration-white"
+        >
+          Street View-grounded Genie
+        </a>{" "}
+        makes real-place world models easier to understand. Blueprint focuses on
+        unscanned indoor spaces: capture, provenance, rights limits, and hosted
+        review for the exact facility before field time.
+      </>,
     primaryLabel: "Request world model",
     primaryPath: "world-model",
     secondaryLabel: "Browse world models",
@@ -177,10 +192,23 @@ const homeVariantContent: Record<
     panelBody:
       "Name one indoor site, robot task, and review path. Proof stays attached before access expands.",
   },
-  proof_pack: {
-    title: "Street View grounds outdoor worlds. Blueprint captures the indoor sites robots need.",
+  street_view_grounds: {
+    title: "Street View grounds the outside world. Blueprint captures the indoor sites robots need.",
     description:
-      "Google's Genie makes real-place world models easier to understand. Blueprint focuses on unscanned indoor spaces: capture, provenance, rights limits, and hosted review for the exact facility before field time.",
+      <>
+        Google's{" "}
+        <a
+          href={GOOGLE_GENIE_STREET_VIEW_URL}
+          target="_blank"
+          rel="noreferrer"
+          className="underline decoration-white/40 underline-offset-4 transition hover:decoration-white"
+        >
+          Street View-grounded Genie
+        </a>{" "}
+        makes real-place world models easier to understand. Blueprint focuses on
+        unscanned indoor spaces: capture, provenance, rights limits, and hosted
+        review for the exact facility before field time.
+      </>,
     primaryLabel: "Request world model",
     primaryPath: "world-model",
     secondaryLabel: "Browse world models",
@@ -297,7 +325,7 @@ export default function Home() {
   );
   const heroSite = featuredSites[0];
   const [heroVariant, setHeroVariant] =
-    useState<HomeRobotTeamVariant>("hosted_review");
+    useState<HomeRobotTeamVariant>("outdoor_street_view");
   const [liveExactSitePreview, setLiveExactSitePreview] =
     useState<PublicSiteWorldRecord | null>(null);
   const heroContent = homeVariantContent[heroVariant];
@@ -364,30 +392,19 @@ export default function Home() {
   );
 
   useEffect(() => {
-    let isMounted = true;
-
-    void resolveExperimentVariant(
+    const nextVariant =
+      homeRobotTeamVariants[Math.floor(Math.random() * homeRobotTeamVariants.length)];
+    setHeroVariant(nextVariant);
+    analyticsEvents.experimentExposure(
       HOME_ROBOT_TEAM_EXPERIMENT_KEY,
-      homeRobotTeamVariants,
-    ).then((resolvedVariant) => {
-      if (!isMounted) return;
-      const nextVariant = resolvedVariant as HomeRobotTeamVariant;
-      setHeroVariant(nextVariant);
-      analyticsEvents.experimentExposure(
-        HOME_ROBOT_TEAM_EXPERIMENT_KEY,
-        nextVariant,
-        "home",
-      );
-      analyticsEvents.homeHeroView({
-        variantId: nextVariant,
-        source: "home",
-        conversionGoal: HOME_ROBOT_TEAM_CONVERSION_GOAL,
-      });
+      nextVariant,
+      "home",
+    );
+    analyticsEvents.homeHeroView({
+      variantId: nextVariant,
+      source: "home",
+      conversionGoal: HOME_ROBOT_TEAM_CONVERSION_GOAL,
     });
-
-    return () => {
-      isMounted = false;
-    };
   }, []);
 
   useEffect(() => {
