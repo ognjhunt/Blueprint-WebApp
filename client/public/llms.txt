@@ -17,7 +17,7 @@ Blueprint turns indoor real-site capture into site-specific world-model products
 - [Product](https://tryblueprint.io/product): site-specific world models, site packages, and hosted review as one request-gated offer.
 - [For Robot Teams](https://tryblueprint.io/for-robot-teams): indoor workflow from real site to capture provenance, grounded world model, hosted review, and export or recapture decision.
 - [How It Works](https://tryblueprint.io/how-it-works): workflow map for robot teams, robot agents, and internal Blueprint agents.
-- [Catalog](https://tryblueprint.io/world-models): exact-site world-model catalog with proof posture, package paths, and hosted-evaluation entry points.
+- [Catalog](https://tryblueprint.io/world-models): search-first exact-site world-model catalog for addresses, sites, cities, store types, workflows, and robot tasks, with truthful request paths when no exact scanned package exists.
 - [Sample Site](https://tryblueprint.io/world-models/siteworld-f5fd54898cfb): public sample listing showing how proof, package access, hosted access, and restrictions stay separate.
 - [Robot-Team Agent Access](https://tryblueprint.io/agents): headless discovery, dry-run quote/order/entitlement proof, OpenAPI contract, CLI, MCP tools, auth model, truth labels, hosted-session lifecycle, error semantics, and public-demo/protected-flow split for robot-team agents.
 - [Sample Deliverables](https://tryblueprint.io/sample-deliverables): buyer-readable sample manifest, rights sheet, export bundle, and hosted review report with raw file links.

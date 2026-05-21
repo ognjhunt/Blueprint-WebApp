@@ -42,7 +42,7 @@ Public examples are samples unless the page explicitly ties them to an approved 
 - `/product` - Product page. Explains indoor site-specific world models, site packages, and hosted review as one capture-backed, request-gated offer.
 - `/for-robot-teams` - Robot-team page. Explains the indoor workflow from real site to capture provenance, grounded world model, scenario or hosted review, and export or recapture decision.
 - `/how-it-works` - Workflow page. Separates robot teams, robot agents, and internal Blueprint agents across capture, package, hosted review, and decision steps.
-- `/world-models` - Catalog of exact-site world models. Keeps public proof, package access, hosted access, and commercial status separate.
+- `/world-models` - Search-first catalog of exact-site world models for addresses, sites, cities, store types, workflows, and robot tasks. Separates exact matches, nearby or closest matches, category/workflow matches, and request candidates while keeping public proof, package access, hosted access, and commercial status separate.
 - `/world-models/siteworld-f5fd54898cfb` - Public sample listing. Useful for seeing how a site-specific world model page presents evidence, restrictions, package paths, and hosted access.
 - `/agents` - Robot-team agent access. Documents headless discovery, explainable site-world catalog search, dry-run quote/order/entitlement proof, OpenAPI, CLI, MCP tools, truth labels, auth model, public demo flow, protected robot-team flow, hosted-session lifecycle, explorer rendering, exports, and error semantics.
 - `/sample-deliverables` - Buyer-readable sample package viewer for the public manifest, rights sheet, export bundle, hosted-review report, and raw sample files.
@@ -102,6 +102,6 @@ The following are not public buyer-content targets: `/admin/*`, `/dashboard`, `/
 
 `/api/site-content` returns a non-sensitive JSON summary of the public pages, definitions, query themes, and safety boundaries.
 
-`/api/site-worlds/search` is the public read-only site-world search endpoint for agent queries such as `store`, `Whole Foods`, `supermarket`, `retail aisle`, and `warehouse tote`. It returns scores, reasons, matched aliases, matched fields, parsed filters, warnings, and embedding-use metadata. Brand aliases produce truthful close matches; they do not claim exact brand availability.
+`/api/site-worlds/search` is the public read-only site-world search endpoint for agent and buyer queries such as `store`, `Whole Foods`, `supermarket`, `retail aisle`, `hospital supply`, `lab`, and `warehouse tote`. It returns scores, reasons, matched aliases, matched fields, parsed filters, warnings, and embedding-use metadata. Brand, address, and category aliases produce truthful close matches or request candidates; they do not claim exact brand availability, completed capture, rights clearance, purchase, or hosted access.
 
 `/agent-access.openapi.json` and `/api/agent-access/openapi.json` describe the robot-team agent contract for catalog search, site-world detail, dry-run quote/order/receipt/entitlement proof, entitlement readiness, launch readiness, session create/read/reset/step/run-batch/control, explorer render, and export. Public demo eligibility is narrow; protected flows require Firebase robot-team or admin bearer auth plus session ownership or a matching provisioned entitlement.

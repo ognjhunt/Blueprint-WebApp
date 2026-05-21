@@ -71,7 +71,7 @@ describe("Contact page", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Request the site-specific world model your robot team needs\./i,
+        name: /Request the indoor world model your robot team needs\./i,
       }),
     ).toBeInTheDocument();
     expect(screen.getAllByText(/Commercial Intake/i).length).toBeGreaterThan(0);

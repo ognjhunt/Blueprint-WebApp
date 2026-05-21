@@ -1,81 +1,104 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import SiteWorlds from "@/pages/SiteWorlds";
 import { siteWorldCards } from "@/data/siteWorlds";
 
 describe("SiteWorlds", () => {
-  it("renders the marketplace-grade world-model catalog with truthful state labels", () => {
+  it("renders a search-first world-model catalog with truthful state labels", () => {
     render(<SiteWorlds />);
 
     expect(
       screen.getByRole("heading", {
-        name: /Browse exact-site world models\./i,
+        name: /Find the indoor world model your robot team needs\./i,
       }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByPlaceholderText(
+        /Search an address, site, city, store type, workflow, or robot task/i,
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Exact catalog match/i)).toBeInTheDocument();
+    expect(screen.getByText(/Nearby\/closest match/i)).toBeInTheDocument();
+    expect(screen.getByText(/Category\/workflow match/i)).toBeInTheDocument();
+    expect(screen.getByText(/Request candidate/i)).toBeInTheDocument();
 
-    expect(screen.getByText(/Browse site-specific packages for robot evaluation, hosted review, and package requests/i)).toBeInTheDocument();
+    for (const example of ["Whole Foods", "grocery store", "warehouse tote", "hospital supply", "lab", "Atlanta", "Chicago"]) {
+      expect(screen.getByRole("button", { name: example })).toBeInTheDocument();
+    }
 
     expect(
       screen.getByRole("link", { name: /Open sample world model/i }),
     ).toHaveAttribute("href", "/world-models/siteworld-f5fd54898cfb");
-
-    const requestLinks = screen.getAllByRole("link", { name: /Request world model/i });
-    expect(requestLinks[requestLinks.length - 1]).toHaveAttribute(
-      "href",
-      "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=site-worlds",
-    );
-
     expect(screen.getAllByText(/Sample/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Request-reviewed/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Planned example profile/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Catalog records/i)).toBeInTheDocument();
-
-    expect(
-      screen.getByRole("heading", {
-        name: /Start with a site, not an abstract demo\./i,
-      }),
-    ).toBeInTheDocument();
-
-    expect(
-      screen.getAllByRole("link", { name: /Harborview Grocery Distribution Annex/i }).length,
-    ).toBeGreaterThan(0);
-    expect(
-      screen.getAllByRole("link", { name: /Media Room Demo Walkthrough/i }).length,
-    ).toBeGreaterThan(0);
-
-    expect(
-      screen.getByRole("heading", {
-        name: /Scan every listing by proof, access, and freshness\./i,
-      }),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/Catalog filters/i)).toBeInTheDocument();
-    expect(screen.getByPlaceholderText(/Search site, workflow, robot/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^Retail$/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^Proof visible$/i })).toBeInTheDocument();
+    expect(screen.getAllByText(/Planned/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Proof visible/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Proof, access, freshness/i).length).toBeGreaterThan(0);
 
     siteWorldCards.forEach((site) => {
       expect(screen.getAllByText(site.siteName).length).toBeGreaterThan(0);
     });
-    expect(screen.getAllByText(/Freshness/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Planned route diagram/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole("link", { name: /Review proof and access/i }).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole("link", { name: /Scope this site/i }).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole("link", { name: /Check hosted review/i }).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole("link", { name: /Request package access|Scope package/i }).length).toBeGreaterThan(0);
+  });
 
-    expect(screen.getByText(/Site-tied structure/i)).toBeInTheDocument();
-    expect(screen.getByText(/Capture-backed views/i)).toBeInTheDocument();
+  it("shows suggestions for names, addresses, cities, aliases, and workflows", () => {
+    render(<SiteWorlds />);
 
+    const input = screen.getByLabelText(/Search the catalog/i);
+
+    fireEvent.change(input, { target: { value: "Harborview" } });
     expect(
-      screen.getByRole("heading", {
-        name: /Ask for the exact site your robot team needs\./i,
-      }),
+      screen.getAllByRole("option", { name: /Harborview Grocery Distribution Annex/i })[0],
     ).toBeInTheDocument();
 
+    fireEvent.change(input, { target: { value: "1847 W Fulton" } });
+    expect(screen.getByRole("option", { name: /1847 W Fulton St/i })).toBeInTheDocument();
+
+    fireEvent.change(input, { target: { value: "Chicago" } });
+    expect(screen.getAllByRole("option", { name: /Chicago, IL/i })[0]).toBeInTheDocument();
+
+    fireEvent.change(input, { target: { value: "Whole Foods" } });
+    expect(screen.getByRole("option", { name: /whole foods/i })).toBeInTheDocument();
+
+    fireEvent.change(input, { target: { value: "replenishment" } });
+    expect(screen.getByRole("option", { name: /Case pick and shelf replenishment/i })).toBeInTheDocument();
+  });
+
+  it("selecting or typing an unknown location shows a truthful request CTA with prefilled params", () => {
+    render(<SiteWorlds />);
+
+    const input = screen.getByLabelText(/Search the catalog/i);
+    fireEvent.change(input, { target: { value: "123 New Robot Ave, Austin, TX" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
     expect(
-      screen.queryByText(/Common reasons robot teams buy this path/i),
-    ).not.toBeInTheDocument();
-    expect(screen.queryByText(/What public status means/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Choose how you want access/i)).not.toBeInTheDocument();
+      screen.getByText(/No scanned package for this exact place yet/i),
+    ).toBeInTheDocument();
+
+    const requestLinks = screen.getAllByRole("link", { name: /Request this location/i });
+    expect(requestLinks.length).toBeGreaterThan(0);
+    const href = requestLinks[0].getAttribute("href") || "";
+    const url = new URL(href, "https://tryblueprint.local");
+    expect(href).toContain("buyerType=robot_team");
+    expect(href).toContain("source=site-worlds");
+    expect(href).toContain("path=request-capture");
+    expect(url.searchParams.get("siteLocation")).toBe("123 New Robot Ave, Austin, TX");
+    expect(url.searchParams.get("taskStatement")).toContain("Request an exact-site world model");
+  });
+
+  it("selecting a city suggestion clearly separates nearby matches from exact scanned packages", () => {
+    render(<SiteWorlds />);
+
+    const input = screen.getByLabelText(/Search the catalog/i);
+    fireEvent.change(input, { target: { value: "Chicago" } });
+    const cityOption = screen.getAllByRole("option", { name: /Chicago, IL/i })[0];
+    fireEvent.click(cityOption);
+
+    expect(screen.getByText(/No scanned package for this exact place yet/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Closest relevant catalog matches/i })).toBeInTheDocument();
+
+    const firstCard = screen.getByRole("heading", {
+      name: /Harborview Grocery Distribution Annex/i,
+    }).closest("article");
+    expect(firstCard).not.toBeNull();
+    expect(within(firstCard as HTMLElement).getByText(/Nearby\/closest catalog match/i)).toBeInTheDocument();
   });
 });
