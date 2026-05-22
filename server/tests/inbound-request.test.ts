@@ -419,6 +419,85 @@ describe("inbound request route", () => {
     }
   });
 
+  it("accepts an agent-friendly location-only robot-team request without granting access", async () => {
+    process.env.NODE_ENV = "development";
+    vi.resetModules();
+
+    const { server, baseUrl } = await startRouterServer();
+
+    try {
+      const requestId = `robot-location-${Date.now()}`;
+      const payload = {
+        ...buildRobotTeamPayload(requestId, `location-agent+${Date.now()}@example.com`),
+        requestedLanes: ["deeper_evaluation"],
+        commercialRequestPath: "hosted_evaluation",
+        siteName: "",
+        siteLocation: "123 Unknown St",
+        targetSiteType: "",
+        taskStatement: "warehouse tote",
+        targetRobotTeam: "robot-team agent",
+        proofPathPreference: "exact_site_required",
+        context: {
+          sourcePageUrl:
+            "http://localhost:5001/contact?source=site-worlds&buyerType=robot_team&path=hosted-review&location=123%20Unknown%20St&workflow=warehouse%20tote",
+          referrer: "http://localhost:5001/world-models",
+          utm: {},
+          timezoneOffset: 240,
+          locale: "en-US",
+          userAgent: "vitest",
+        },
+      };
+
+      const response = await fetch(`${baseUrl}/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      expect(response.status).toBe(201);
+
+      const lines = fs.readFileSync(devLogPath, "utf8").trim().split("\n");
+      const savedRequest = lines
+        .map((line) => JSON.parse(line) as {
+          requestId: string;
+          request?: Record<string, unknown>;
+          ops?: {
+            proof_path?: Record<string, unknown>;
+            capture_status?: string;
+            quote_status?: string;
+          };
+          structured_intake?: {
+            proof_ready_outcome?: string;
+            proof_path_outcome?: string;
+            missing_structured_fields?: string[];
+          };
+        })
+        .find((entry) => entry.requestId === requestId);
+
+      expect(savedRequest?.request).toMatchObject({
+        buyerType: "robot_team",
+        commercialRequestPath: "hosted_evaluation",
+        siteName: "",
+        siteLocation: "123 Unknown St",
+        taskStatement: "warehouse tote",
+        targetRobotTeam: "robot-team agent",
+      });
+      expect(savedRequest?.structured_intake).toMatchObject({
+        proof_ready_outcome: "proof_ready_intake",
+        proof_path_outcome: "exact_site",
+        missing_structured_fields: [],
+      });
+      expect(savedRequest?.ops?.capture_status).toBe("not_requested");
+      expect(savedRequest?.ops?.quote_status).toBe("not_started");
+      expect(savedRequest?.ops?.proof_path?.hosted_review_started_at).toBeNull();
+      expect(savedRequest?.ops?.proof_path?.proof_pack_delivered_at).toBeNull();
+    } finally {
+      await stopServer(server);
+    }
+  });
+
   it("marks operator rights and privacy boundaries as requiring a calendar checkpoint before movement", async () => {
     process.env.NODE_ENV = "development";
     vi.resetModules();

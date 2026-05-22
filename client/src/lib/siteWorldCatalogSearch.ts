@@ -1,4 +1,5 @@
 import type { SiteCategory, SiteWorldCard } from "@/data/siteWorlds";
+import { buildContactRequestUrl } from "@/lib/contactRequestPrefill";
 
 export type CatalogSuggestionKind =
   | "site"
@@ -494,23 +495,19 @@ function siteMatchesCategory(site: SiteWorldCard, query: string, queryTokens: st
 }
 
 function buildRequestHref(candidate: Omit<CatalogRequestCandidate, "href" | "headline" | "body">) {
-  const params = new URLSearchParams({
-    persona: "robot-team",
+  return buildContactRequestUrl({
+    requestPath: "new-capture",
     buyerType: "robot_team",
-    interest: "capture-access",
-    path: "request-capture",
     source: "site-worlds",
     proofPathPreference: "exact_site_required",
     requestedOutputs: "Site-specific world model package and hosted review scoping",
     query: candidate.query,
+    siteName: candidate.siteName,
+    siteLocation: candidate.siteLocation,
+    targetSiteType: candidate.targetSiteType,
+    workflow: candidate.taskStatement,
+    taskStatement: candidate.taskStatement,
   });
-
-  if (candidate.siteName) params.set("siteName", candidate.siteName);
-  if (candidate.siteLocation) params.set("siteLocation", candidate.siteLocation);
-  if (candidate.targetSiteType) params.set("targetSiteType", candidate.targetSiteType);
-  if (candidate.taskStatement) params.set("taskStatement", candidate.taskStatement);
-
-  return `/contact?${params.toString()}`;
 }
 
 export function buildCatalogRequestCandidate(

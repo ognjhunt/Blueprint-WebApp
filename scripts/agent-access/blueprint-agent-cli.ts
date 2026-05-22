@@ -20,6 +20,7 @@ type AgentCliCommand =
   | "discover"
   | "catalog:list"
   | "catalog:search"
+  | "site-world:search"
   | "commerce:quote"
   | "commerce:checkout"
   | "commerce:order:get"
@@ -106,7 +107,7 @@ function requireString(options: Record<string, unknown>, key: string) {
 export function parseAgentCliArgs(argv: string[]): ParsedAgentCliArgs {
   const [primary = "discover", secondaryOrId, ...rest] = argv;
   const scopedArgs =
-    primary === "catalog" || primary === "world" || primary === "session" || primary === "commerce"
+    primary === "catalog" || primary === "world" || primary === "site-world" || primary === "siteworld" || primary === "session" || primary === "commerce"
       ? rest
       : secondaryOrId
         ? [secondaryOrId, ...rest]
@@ -120,6 +121,9 @@ export function parseAgentCliArgs(argv: string[]): ParsedAgentCliArgs {
   }
   if (primary === "catalog" && secondaryOrId === "search") {
     return { command: "catalog:search", options: { ...options, limit: Number(options.limit || 10) }, format };
+  }
+  if ((primary === "site-world" || primary === "siteworld") && secondaryOrId === "search") {
+    return { command: "site-world:search", options: { ...options, limit: Number(options.limit || 10) }, format };
   }
   if (primary === "world" && secondaryOrId === "get") {
     return {
@@ -289,6 +293,7 @@ async function execute(parsed: ParsedAgentCliArgs, client: BlueprintAgentApiClie
     case "catalog:list":
       return client.listCatalog(Number(parsed.options.limit || 24));
     case "catalog:search":
+    case "site-world:search":
       return client.searchSiteWorlds(siteWorldSearchInput(parsed.options));
     case "commerce:quote":
       return client.quoteCommerce(commerceInput(parsed.options));

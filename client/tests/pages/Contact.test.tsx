@@ -71,28 +71,29 @@ describe("Contact page", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Request the indoor world model your robot team needs\./i,
+        name: /Request a site, location, or robot workflow\./i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getAllByText(/Commercial Intake/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/What happens after you send this/i)).toBeInTheDocument();
-    expect(screen.getByText(/Rights, privacy, and proof boundaries stay explicit/i)).toBeInTheDocument();
-    expect(screen.getByText(/does not charge, send a provider job, start fulfillment/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("textbox", {
+        name: /What site, location, or robot workflow do you need\?/i,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Human and agent friendly/i)).toBeInTheDocument();
+    expect(screen.getByText(/Add contact details and send the request/i)).toBeInTheDocument();
+    expect(screen.getByText(/This is an intake record, not access, payment/i)).toBeInTheDocument();
     expect(screen.queryByText(/Buyer type/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Requested lanes/i)).not.toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: /Request world model/i }).length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: /Request this location/i })).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: /World model package/i })).toBeChecked();
     expect(screen.getByRole("radio", { name: /Hosted review/i })).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: /New capture request/i })).toBeInTheDocument();
-    expect(screen.getByText(/Short form first\. Call only when useful\./i)).toBeInTheDocument();
     expect(screen.getByText(/Required first pass/i)).toBeInTheDocument();
-    expect(screen.getByText(/Fastest paths/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/Request hosted review/i).length).toBeGreaterThan(0);
-    expect(
-      screen.getByText(/Best when your team wants a site-specific package path/i),
-    ).toBeInTheDocument();
-    expect(screen.getAllByText(/Request capture access/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Hosted review/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/New capture request/i).length).toBeGreaterThan(0);
     expect(screen.getByRole("textbox", { name: /What should this world model help your team evaluate\?/i })).toBeInTheDocument();
+    expect(screen.queryByText(/Proof boundaries visible/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Fastest paths/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Learn More/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Prefer a lighter first step\?/i)).not.toBeInTheDocument();
     expect(analyticsEventsMock.contactRequestStarted).toHaveBeenCalledWith({
@@ -105,19 +106,19 @@ describe("Contact page", () => {
     });
   });
 
-  it("tracks the hero start CTA without adding personal data", () => {
+  it("tracks the path selector without adding personal data", () => {
     render(<Contact />);
 
-    fireEvent.click(screen.getAllByRole("link", { name: /Request world model/i })[0]);
+    fireEvent.click(screen.getAllByRole("button", { name: /Hosted review/i })[0]);
 
     expect(analyticsEventsMock.contactPageCtaClicked).toHaveBeenCalledWith({
       persona: "robot_team",
-      ctaId: "contact_hero_start",
-      ctaLabel: "Request world model",
-      destination: "#contact-intake",
-      source: "contact-hero",
+      ctaId: "contact_path_select_hosted-review",
+      ctaLabel: "Hosted review",
+      destination: "hosted-review",
+      source: "contact-primary-path-selector",
       requestedLane: "deeper_evaluation",
-      commercialRequestPath: "world_model",
+      commercialRequestPath: "hosted_evaluation",
     });
   });
 
@@ -128,16 +129,12 @@ describe("Contact page", () => {
     render(<Contact />);
 
     expect(
-      screen.getByRole("heading", { name: /Request hosted review for this workflow\./i }),
+      screen.getByRole("heading", { name: /Request a site, location, or robot workflow\./i }),
     ).toBeInTheDocument();
+    expect(screen.getAllByDisplayValue("Harborview Grocery Distribution Annex").length).toBeGreaterThan(0);
     expect(screen.getByDisplayValue("Walk to shelf staging and pick the blue tote")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Unitree G1 with head cam and wrist cam")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Request hosted review/i })).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        /Required: contact details, role, request path, hosted question, and the site or workflow/i,
-      ),
-    ).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /Request hosted review/i }).length).toBeGreaterThan(0);
 
     expect(screen.queryByRole("combobox", { name: /Proof path/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("textbox", { name: /Existing stack or review workflow/i })).not.toBeInTheDocument();
@@ -150,7 +147,7 @@ describe("Contact page", () => {
 
     render(<Contact />);
 
-    expect(screen.getByDisplayValue("Harborview Grocery Distribution Annex")).toBeInTheDocument();
+    expect(screen.getAllByDisplayValue("Harborview Grocery Distribution Annex").length).toBeGreaterThan(0);
     expect(screen.getByDisplayValue("Grocery distribution")).toBeInTheDocument();
     expect(screen.getAllByText(/Scenario/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Runtime manifest and proof packet/i).length).toBeGreaterThan(0);
@@ -195,41 +192,48 @@ describe("Contact page", () => {
     });
   });
 
-  it("renders Austin-specific buyer guidance when the city param is present", () => {
+  it("prefills the primary request from a city param without adding city-specific wall copy", () => {
     mockSearch = "?persona=robot-team&city=austin";
 
     render(<Contact />);
 
     expect(
       screen.getByRole("heading", {
-        name: /Give the Austin buyer enough exact-site proof to move quickly\./i,
+        name: /Request a site, location, or robot workflow\./i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Austin request lens/i)).toBeInTheDocument();
     expect(
-      screen.getByText(/This city leans on high-trust introductions/i),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/Fastest paths/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/Request world model/i).length).toBeGreaterThan(0);
+      screen.getByRole("textbox", {
+        name: /What site, location, or robot workflow do you need\?/i,
+      }),
+    ).toHaveValue("austin");
+    expect(screen.queryByText(/Austin request lens/i)).not.toBeInTheDocument();
   });
 
-  it("renders San Francisco-specific buyer guidance when the city param is present", () => {
-    mockSearch = "?persona=robot-team&city=san-francisco";
+  it("shows a truthful unknown-location request state from a direct agent URL", () => {
+    mockSearch =
+      "?source=site-worlds&buyerType=robot_team&path=hosted-review&location=123%20Unknown%20St&workflow=warehouse%20tote";
 
     render(<Contact />);
 
     expect(
-      screen.getByRole("heading", {
-        name: /Frame the San Francisco request for a technical buyer fast\./i,
+      screen.getByText(/No scanned package for this exact place yet\./i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("textbox", {
+        name: /What site, location, or robot workflow do you need\?/i,
       }),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/San Francisco request lens/i)).toBeInTheDocument();
+    ).toHaveValue("123 Unknown St");
     expect(
-      screen.getByText(/denser buyer and partner channels/i),
-    ).toBeInTheDocument();
+      screen.getByRole("link", { name: /Request hosted review/i }),
+    ).toHaveAttribute("href", expect.stringContaining("buyerType=robot_team"));
     expect(
-      screen.getByText(/technical scrutiny/i),
+      screen.getByRole("link", { name: /Request hosted review/i }),
+    ).toHaveAttribute("href", expect.stringContaining("source=site-worlds"));
+    expect(
+      screen.getByDisplayValue("warehouse tote"),
     ).toBeInTheDocument();
+    expect(screen.getAllByDisplayValue("123 Unknown St").length).toBeGreaterThan(0);
   });
 
   it("submits the default robot-team request when required fields are filled", async () => {
@@ -313,7 +317,8 @@ describe("Contact page", () => {
     fireEvent.change(screen.getByRole("textbox", { name: /Your role/i }), {
       target: { value: "Autonomy lead" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /Request hosted review/i }));
+    const hostedSubmitButtons = screen.getAllByRole("button", { name: /Request hosted review/i });
+    fireEvent.click(hostedSubmitButtons[hostedSubmitButtons.length - 1]);
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(

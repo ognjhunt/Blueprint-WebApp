@@ -39,29 +39,36 @@ const numberProp = (description: string) => ({ type: "number", description });
 const integerProp = (description: string) => ({ type: "integer", description });
 const objectProp = (description: string) => ({ type: "object", description, additionalProperties: true });
 
+const siteWorldSearchInputSchema: BlueprintMcpTool["inputSchema"] = {
+  type: "object",
+  properties: {
+    q: stringProp("Natural-language search query, for example whole foods, store, or warehouse tote."),
+    limit: integerProp("Maximum site-world search results to return. Defaults to 10."),
+    category: stringProp("Optional exact public category filter, for example Retail or Logistics."),
+    industry: stringProp("Optional industry text filter."),
+    city: stringProp("Optional exact city filter."),
+    state: stringProp("Optional two-letter state filter."),
+    siteType: stringProp("Optional site type or archetype filter."),
+    taskLane: stringProp("Optional task/workflow lane text filter."),
+    objectTags: { type: "array", items: { type: "string" }, description: "Optional required object tags such as tote, shelf, pallet, or barcode." },
+    robot: stringProp("Optional robot profile or embodiment filter."),
+    availability: stringProp("Optional availability/status filter."),
+    readiness: stringProp("Optional readiness/status filter."),
+    sort: { type: "string", enum: ["relevance", "name", "city", "category", "readiness", "availability"], description: "Sort mode. Defaults to relevance." },
+  },
+  additionalProperties: false,
+};
+
 export const BLUEPRINT_MCP_TOOLS: BlueprintMcpTool[] = [
   {
+    name: "blueprint.siteWorld.search",
+    description: "First-class Blueprint site-world search for robot-team agents. Returns ranked public catalog matches plus exact/no-exact semantics and request-candidate URLs/drafts when no exact scanned package exists. It does not grant entitlement, payment, provider execution, fulfillment, private artifact access, or hosted-session access.",
+    inputSchema: siteWorldSearchInputSchema,
+  },
+  {
     name: "blueprint.catalog.search",
-    description: "Search public Blueprint site-world catalog entries by natural language query, alias, location, robot, task, object, category, readiness, or availability. With only limit, falls back to the legacy catalog list endpoint.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        q: stringProp("Natural-language search query, for example whole foods, store, or warehouse tote."),
-        limit: integerProp("Maximum catalog entries to return. Defaults to 10 for search or 24 for legacy list."),
-        category: stringProp("Optional exact public category filter, for example Retail or Logistics."),
-        industry: stringProp("Optional industry text filter."),
-        city: stringProp("Optional exact city filter."),
-        state: stringProp("Optional two-letter state filter."),
-        siteType: stringProp("Optional site type or archetype filter."),
-        taskLane: stringProp("Optional task/workflow lane text filter."),
-        objectTags: { type: "array", items: { type: "string" }, description: "Optional required object tags such as tote, shelf, pallet, or barcode." },
-        robot: stringProp("Optional robot profile or embodiment filter."),
-        availability: stringProp("Optional availability/status filter."),
-        readiness: stringProp("Optional readiness/status filter."),
-        sort: { type: "string", enum: ["relevance", "name", "city", "category", "readiness", "availability"], description: "Sort mode. Defaults to relevance." },
-      },
-      additionalProperties: false,
-    },
+    description: "Backward-compatible catalog search/list alias. Prefer blueprint.siteWorld.search for site-world search because it always uses the ranked search endpoint and request-candidate semantics.",
+    inputSchema: siteWorldSearchInputSchema,
   },
   {
     name: "blueprint.siteWorld.get",
@@ -317,6 +324,9 @@ export async function callBlueprintMcpTool(name: string, args: Record<string, un
   let payload: unknown;
 
   switch (name) {
+    case "blueprint.siteWorld.search":
+      payload = await client.searchSiteWorlds(searchArgs(args));
+      break;
     case "blueprint.catalog.search":
       payload = hasSearchArgs(args)
         ? await client.searchSiteWorlds(searchArgs(args))

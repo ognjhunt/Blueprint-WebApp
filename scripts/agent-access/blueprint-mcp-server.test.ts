@@ -7,6 +7,7 @@ describe("Blueprint MCP server", () => {
     const toolNames = BLUEPRINT_MCP_TOOLS.map((tool) => tool.name);
 
     expect(toolNames).toEqual([
+      "blueprint.siteWorld.search",
       "blueprint.catalog.search",
       "blueprint.siteWorld.get",
       "blueprint.siteWorld.launchReadiness",
@@ -29,8 +30,8 @@ describe("Blueprint MCP server", () => {
       "scenarioId",
       "startStateId",
     ]);
-    expect(BLUEPRINT_MCP_TOOLS.find((tool) => tool.name === "blueprint.catalog.search")?.inputSchema.properties).toHaveProperty("q");
-    expect(BLUEPRINT_MCP_TOOLS.find((tool) => tool.name === "blueprint.catalog.search")?.inputSchema.properties).toHaveProperty("objectTags");
+    expect(BLUEPRINT_MCP_TOOLS.find((tool) => tool.name === "blueprint.siteWorld.search")?.inputSchema.properties).toHaveProperty("q");
+    expect(BLUEPRINT_MCP_TOOLS.find((tool) => tool.name === "blueprint.siteWorld.search")?.inputSchema.properties).toHaveProperty("objectTags");
   });
 
   it("routes tool calls through the same API client and returns JSON text content", async () => {
@@ -76,6 +77,53 @@ describe("Blueprint MCP server", () => {
       expect.objectContaining({ method: "GET" }),
     );
     expect(JSON.parse(result.content[0].text).results[0].siteWorld.id).toBe("sw-chi-01");
+  });
+
+  it("exposes first-class site-world search with request-candidate semantics", async () => {
+    const fetchMock = vi.fn(async () =>
+      new Response(JSON.stringify({
+        results: [{ siteWorld: { id: "sw-chi-01" }, matchedAliases: ["whole foods -> grocery retail"] }],
+        matchSemantics: {
+          exactMatch: false,
+          noExactScannedPackage: true,
+          message: "No scanned package for this exact place yet.",
+        },
+        requestCandidate: {
+          buyerType: "robot_team",
+          source: "site-worlds",
+          requestPath: "new-capture",
+          requestUrl: "/contact?source=site-worlds&buyerType=robot_team&path=new-capture",
+          inboundRequestDraft: {
+            buyerType: "robot_team",
+            commercialRequestPath: "capture_access",
+            requestedLanes: ["deeper_evaluation"],
+          },
+        },
+      }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+
+    const result = await callBlueprintMcpTool("blueprint.siteWorld.search", {
+      q: "Whole Foods near Durham",
+      limit: 5,
+    }, {
+      env: { BLUEPRINT_API_BASE_URL: "https://agent.example" },
+      fetchImpl: fetchMock,
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://agent.example/api/site-worlds/search?q=Whole+Foods+near+Durham&limit=5",
+      expect.objectContaining({ method: "GET" }),
+    );
+    const payload = JSON.parse(result.content[0].text);
+    expect(payload.matchSemantics.noExactScannedPackage).toBe(true);
+    expect(payload.requestCandidate.requestUrl).toContain("source=site-worlds");
+    expect(payload.requestCandidate.requestUrl).toContain("buyerType=robot_team");
+    expect(payload.requestCandidate.inboundRequestDraft).not.toHaveProperty("entitlementId");
+    expect(payload.requestCandidate.inboundRequestDraft).not.toHaveProperty("paymentStatus");
+    expect(payload.requestCandidate.inboundRequestDraft).not.toHaveProperty("hostedSessionId");
   });
 
   it("routes commerce tools through quote and dry-run checkout client methods", async () => {

@@ -21,6 +21,10 @@ import {
   hasDemandAttribution,
 } from "@/lib/demandAttribution";
 import { normalizeInterestToLane } from "@/lib/contactInterest";
+import {
+  defaultProofPathPreferenceForRequestPath,
+  parseContactRequestPrefill,
+} from "@/lib/contactRequestPrefill";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "wouter";
 import type {
@@ -258,22 +262,31 @@ export function ContactForm() {
   const buyerTypeParam = searchParams.get("buyerType")?.trim() ?? "";
   const personaParam = searchParams.get("persona")?.trim() ?? "";
   const sourcePath = searchParams.get("path")?.trim() ?? "";
+  const requestPrefill = useMemo(
+    () => parseContactRequestPrefill(searchParams, location),
+    [location, searchParams],
+  );
   const interestLane = normalizeInterestToLane(interest);
   const hostedMode =
-    buyerTypeParam === "robot_team" &&
-    (sourcePath.toLowerCase() === "hosted-evaluation" ||
+    (buyerTypeParam === "robot_team" || requestPrefill.buyerType === "robot_team") &&
+    (requestPrefill.requestPath === "hosted-review" ||
+      sourcePath.toLowerCase() === "hosted-review" ||
+      sourcePath.toLowerCase() === "hosted-evaluation" ||
       interest.toLowerCase() === "hosted-evaluation" ||
       interest.toLowerCase() === "hosted-session");
   const persona =
     location === "/contact/site-operator"
       ? "site_operator"
+      : requestPrefill.buyerType === "site_operator"
+        ? "site_operator"
       : getPersonaFromSearch(personaParam, buyerTypeParam, hostedMode);
-  const defaultCommercialRequestPath = getCommercialRequestPathFromContext({
-    persona,
-    sourcePath,
-    interest,
-    hostedMode,
-  });
+  const defaultCommercialRequestPath = requestPrefill.commercialRequestPath ||
+    getCommercialRequestPathFromContext({
+      persona,
+      sourcePath,
+      interest,
+      hostedMode,
+    });
   const searchDemandAttribution = useMemo(
     () => getDemandAttributionFromSearchParams(searchParams),
     [searchParams],
@@ -282,29 +295,27 @@ export function ContactForm() {
     ? searchDemandAttribution
     : undefined;
   const prefills = useMemo(() => {
-    const scenario = searchParams.get("scenario")?.trim() ?? "";
-    const requestedOutputs = searchParams.get("requestedOutputs")?.trim() ?? "";
+    const scenario = requestPrefill.scenario;
+    const requestedOutputs = requestPrefill.requestedOutputs;
+    const agentMessage = requestPrefill.message;
     const routeDetails = [
       scenario ? `Scenario: ${scenario}` : "",
       requestedOutputs ? `Requested outputs: ${requestedOutputs}` : "",
+      agentMessage ? `Message: ${agentMessage}` : "",
     ].filter(Boolean).join("\n");
 
     return {
-      siteName: searchParams.get("siteName")?.trim() ?? "",
-      siteLocation: searchParams.get("siteLocation")?.trim() ?? "",
-      taskStatement: searchParams.get("taskStatement")?.trim() ?? "",
-      targetRobotTeam: searchParams.get("targetRobotTeam")?.trim() ?? "",
-      targetSiteType:
-        searchParams.get("targetSiteType")?.trim()
-        || searchParams.get("siteType")?.trim()
-        || searchParams.get("siteClass")?.trim()
-        || "",
-      proofPathPreference: getProofPathPreferenceFromSearch(
-        searchParams.get("proofPathPreference"),
-      ),
+      siteName: requestPrefill.siteName,
+      siteLocation: requestPrefill.siteLocation,
+      taskStatement: requestPrefill.taskStatement,
+      targetRobotTeam: requestPrefill.targetRobotTeam,
+      targetSiteType: requestPrefill.targetSiteType,
+      proofPathPreference:
+        requestPrefill.proofPathPreference ||
+        getProofPathPreferenceFromSearch(searchParams.get("proofPathPreference")),
       routeDetails,
     };
-  }, [searchParams]);
+  }, [requestPrefill, searchParams]);
   const hasPrefilledOptionalContext = Boolean(
     prefills.siteLocation
       || prefills.targetRobotTeam
@@ -336,7 +347,8 @@ export function ContactForm() {
   const [targetRobotTeam, setTargetRobotTeam] = useState("");
   const [budgetBucket, setBudgetBucket] = useState<BudgetBucket>("Undecided/Unsure");
   const [proofPathPreference, setProofPathPreference] = useState<ProofPathPreference>(
-    prefills.proofPathPreference || getDefaultProofPathPreference(defaultCommercialRequestPath),
+    prefills.proofPathPreference ||
+      defaultProofPathPreferenceForRequestPath(requestPrefill.requestPath),
   );
   const [operatingConstraints, setOperatingConstraints] = useState("");
   const [captureRights, setCaptureRights] = useState("");
@@ -349,9 +361,14 @@ export function ContactForm() {
   useEffect(() => {
     setCommercialRequestPath(defaultCommercialRequestPath);
     setProofPathPreference(
-      prefills.proofPathPreference || getDefaultProofPathPreference(defaultCommercialRequestPath),
+      prefills.proofPathPreference ||
+        defaultProofPathPreferenceForRequestPath(requestPrefill.requestPath),
     );
-  }, [defaultCommercialRequestPath, prefills.proofPathPreference]);
+  }, [
+    defaultCommercialRequestPath,
+    prefills.proofPathPreference,
+    requestPrefill.requestPath,
+  ]);
 
   useEffect(() => {
     if (
@@ -438,7 +455,7 @@ export function ContactForm() {
   const requiredFieldSummary =
     persona === "site_operator"
       ? ["Name", "Operator", "Work email", "Facility", "Location", "Access rules"]
-      : ["Name", "Company", "Work email", "Role", "Request path", "Site or site class"];
+      : ["Name", "Company", "Work email", "Role", "Request path", "Site, location, or class"];
 
   useEffect(() => {
     analyticsEvents.contactRequestStarted({
@@ -477,8 +494,8 @@ export function ContactForm() {
     if (persona === "robot_team" && !jobTitle.trim()) {
       missingFields.push("Your role");
     }
-    if (persona === "robot_team" && !siteName.trim() && !targetSiteType.trim()) {
-      missingFields.push("Target site or site class");
+    if (persona === "robot_team" && !siteName.trim() && !siteLocation.trim() && !targetSiteType.trim()) {
+      missingFields.push("Target site, location, or site class");
     }
     if (persona === "site_operator" && !operatingConstraints.trim()) {
       missingFields.push("Access rules");
@@ -846,7 +863,7 @@ export function ContactForm() {
             <input
               id="contact-title"
               className={inputClassName}
-              placeholder="Autonomy lead, deployment engineer, perception lead"
+              placeholder="Deployment lead"
               autoComplete="organization-title"
               aria-required="true"
               value={jobTitle}
@@ -869,7 +886,7 @@ export function ContactForm() {
             />
             <p className={helperClassName}>{activeRequestPathCopy.taskHelper}</p>
           </div>
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 lg:grid-cols-3">
             <div>
               <label
                 htmlFor="contact-site-name"
@@ -880,12 +897,22 @@ export function ContactForm() {
               <input
                 id="contact-site-name"
                 className={inputClassName}
-                placeholder={hostedMode ? "Prefilled from the listing when available" : "Facility name, customer site, or short site label"}
+                placeholder={hostedMode ? "Prefilled if known" : "Facility or site name"}
                 value={siteName}
                 onChange={(event) => setSiteName(event.target.value)}
               />
               <p className={helperClassName}>Use a real place when known. Otherwise use the closest site class.</p>
             </div>
+            <PlaceAutocompleteInput
+              id="contact-site-location"
+              label="Location or address"
+              placeholder="Address, city, or region"
+              value={siteLocation}
+              onChange={setSiteLocation}
+              onPlaceSelect={setSiteLocationMetadata}
+              labelClassName={labelClassName}
+              inputClassName={inputClassName}
+            />
             <div>
               <label htmlFor="contact-site-type" className={labelClassName}>
                 Target site class
@@ -893,7 +920,7 @@ export function ContactForm() {
               <input
                 id="contact-site-type"
                 className={inputClassName}
-                placeholder="Warehouse, hotel corridor, grocery backroom"
+                placeholder="Warehouse, lab, hotel"
                 value={targetSiteType}
                 onChange={(event) => setTargetSiteType(event.target.value)}
               />
@@ -929,23 +956,11 @@ export function ContactForm() {
                   <input
                     id="contact-embodiment"
                     className={inputClassName}
-                    placeholder="Robot platform, stack, or policy/checkpoint name"
+                    placeholder="Robot platform or stack"
                     value={targetRobotTeam}
                     onChange={(event) => setTargetRobotTeam(event.target.value)}
                   />
                 </div>
-                <PlaceAutocompleteInput
-                  id="contact-site-location"
-                  label="Site location"
-                  placeholder="City, state, facility address, or region"
-                  value={siteLocation}
-                  onChange={setSiteLocation}
-                  onPlaceSelect={setSiteLocationMetadata}
-                  labelClassName={labelClassName}
-                  inputClassName={inputClassName}
-                />
-              </div>
-              <div className="grid gap-4 md:grid-cols-2">
                 <div>
                   <label htmlFor="contact-budget" className={labelClassName}>
                     Budget or procurement range
@@ -989,7 +1004,7 @@ export function ContactForm() {
                 <input
                   id="contact-human-gates"
                   className={inputClassName}
-                  placeholder="Procurement, legal, security, customer approval"
+                  placeholder="Procurement, legal, security"
                   value={humanGateTopics}
                   onChange={(event) => setHumanGateTopics(event.target.value)}
                 />
@@ -1000,7 +1015,7 @@ export function ContactForm() {
                 <textarea
                   id="contact-notes"
                   className={textareaClassName}
-                  placeholder="Anything useful about timing, constraints, integrations, rights questions, or why this site matters now."
+                  placeholder="Timing, constraints, integrations, rights, or site context."
                   value={detailsMessage}
                   onChange={(event) => setDetailsMessage(event.target.value)}
                 />

@@ -49,6 +49,9 @@ describe("robot agent OpenAPI contract", () => {
     expect(JSON.stringify(searchOperation.parameters)).toContain("objectTags");
     expect(JSON.stringify(searchOperation.parameters)).toContain("warehouse tote");
     expect(JSON.stringify(contract.components.schemas.SiteWorldSearchResult)).toContain("matchedAliases");
+    expect(JSON.stringify(contract.components.schemas.SiteWorldSearchResponse)).toContain("requestCandidate");
+    expect(JSON.stringify(contract.components.schemas.SiteWorldSearchRequestCandidate)).toContain("source");
+    expect(JSON.stringify(searchOperation)).toContain("blueprint.siteWorld.search");
     expect(JSON.stringify(searchOperation)).toContain("does not grant hosted-session access");
   });
 

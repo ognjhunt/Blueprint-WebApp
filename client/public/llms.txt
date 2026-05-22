@@ -30,8 +30,18 @@ Blueprint turns indoor real-site capture into site-specific world-model products
 - [Site Operators](https://tryblueprint.io/contact/site-operator): operator path for site boundaries, restricted zones, commercialization posture, and buyer-access review.
 - [Updates](https://tryblueprint.io/updates): short product notes and public updates.
 
+## Agent Request Pattern
+
+Robot-team agents may construct request URLs without scraping the UI:
+
+`/contact?source=site-worlds&buyerType=robot_team&path=hosted-review&location=123%20Unknown%20St&workflow=warehouse%20tote&message=Need%20a%20hosted%20review`
+
+Supported `path` values: `world-model`, `hosted-review`, `new-capture`, and `site-question`. Supported request fields include `source`, `buyerType`, `siteName`, `location`, `address`, `siteLocation`, `siteClass`, `targetSiteType`, `workflow`, `category`, `targetRobotTeam`, and `message`. A request URL or `/api/inbound-request` submission records intake only; it does not grant entitlement, package access, rights clearance, payment, provider execution, fulfillment, or hosted-session availability.
+
+For search, robot-team agents should prefer `GET /api/site-worlds/search` or MCP tool `blueprint.siteWorld.search`. Queries like `Whole Foods near Durham`, `store`, `supermarket`, `retail aisle`, and `warehouse tote` return ranked close matches, `matchSemantics`, and a `requestCandidate` when no exact scanned package exists.
+
 ## Full Machine-Readable Overview
 
 - [llms-full.txt](https://tryblueprint.io/llms-full.txt): longer public overview, page map, query themes, and answer guidance.
 - [Public site-content API](https://tryblueprint.io/api/site-content): non-sensitive JSON summary of the same public pages.
-- [Robot-team OpenAPI contract](https://tryblueprint.io/agent-access.openapi.json): machine-readable catalog search, site-world, dry-run commerce proof, hosted-session, rollout, explorer-render, and export contract.
+- [Robot-team OpenAPI contract](https://tryblueprint.io/agent-access.openapi.json): machine-readable `blueprint.siteWorld.search`, site-world, dry-run commerce proof, hosted-session, rollout, explorer-render, and export contract.

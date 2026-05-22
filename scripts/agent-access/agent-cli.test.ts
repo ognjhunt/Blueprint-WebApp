@@ -12,6 +12,10 @@ describe("Blueprint agent CLI", () => {
       command: "catalog:search",
       options: { q: "whole foods", limit: 5, city: "Chicago" },
     });
+    expect(parseAgentCliArgs(["site-world", "search", "--q", "whole foods", "--limit", "5", "--city", "Durham"])).toMatchObject({
+      command: "site-world:search",
+      options: { q: "whole foods", limit: 5, city: "Durham" },
+    });
     expect(parseAgentCliArgs(["session", "create", "--site-world-id", "demo", "--robot-profile-id", "g1", "--task-id", "task", "--scenario-id", "scenario", "--start-state-id", "start"])).toMatchObject({
       command: "session:create",
       options: {
@@ -172,5 +176,32 @@ describe("Blueprint agent CLI", () => {
       "https://agent.example/api/site-worlds/search?q=whole+foods&limit=5&objectTags=tote%2Cshelf",
       expect.objectContaining({ method: "GET" }),
     );
+  });
+
+  it("accepts the first-class site-world search command alias", async () => {
+    const fetchMock = vi.fn(async () =>
+      new Response(JSON.stringify({
+        matchSemantics: { noExactScannedPackage: true },
+        requestCandidate: {
+          requestUrl: "/contact?source=site-worlds&buyerType=robot_team&path=new-capture",
+        },
+      }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    const writes: string[] = [];
+
+    await runAgentCli(["site-world", "search", "--q", "Whole Foods near Durham", "--limit", "5"], {
+      env: { BLUEPRINT_API_BASE_URL: "https://agent.example" },
+      fetchImpl: fetchMock,
+      stdout: (line) => writes.push(line),
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://agent.example/api/site-worlds/search?q=Whole+Foods+near+Durham&limit=5",
+      expect.objectContaining({ method: "GET" }),
+    );
+    expect(JSON.parse(writes.join("\n")).requestCandidate.requestUrl).toContain("source=site-worlds");
   });
 });

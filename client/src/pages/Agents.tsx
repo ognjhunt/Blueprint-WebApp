@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 
 const lifecycle = [
-  ["Discover", "Read /llms.txt, /api/site-content, search for store or warehouse language, and inspect the OpenAPI contract before loading a specific site-world id."],
+  ["Discover", "Read /llms.txt, /api/site-content, call blueprint.siteWorld.search for store or warehouse language, and inspect the OpenAPI contract before loading a specific site-world id."],
   ["Quote", "Ask for a site-world package or hosted-session rental quote. The quote is a planning artifact, not a live Stripe checkout."],
   ["Dry-run order", "Create a dry-run order, receipt, and provisioned entitlement so an agent can prove the commerce link without charging a card."],
   ["Run", "Create an entitlement-gated hosted session, reset to a known start state, step, batch, send controls, render explorer frames, and export artifacts."],
@@ -46,7 +46,7 @@ const errorRows = [
 const commands = [
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts discover",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts catalog list --limit 3",
-  "npx tsx scripts/agent-access/blueprint-agent-cli.ts catalog search --q \"whole foods\" --limit 5",
+  "npx tsx scripts/agent-access/blueprint-agent-cli.ts site-world search --q \"Whole Foods near Durham\" --limit 5",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce quote --site-world-id siteworld-f5fd54898cfb --product hosted-session-rental --session-hours 1",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce checkout --site-world-id siteworld-f5fd54898cfb --product hosted-session-rental --mode dry_run",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce entitlement <dry-entitlement-id>",
@@ -135,7 +135,7 @@ export default function Agents() {
                 ].join("\n")}
               </CodeBlock>
               <p className="text-sm leading-7 text-slate-600">
-                Public demo commands omit the token when the demo site world is enabled. Dry-run checkout creates no live Stripe session or charge. Protected worlds keep Firebase, session ownership, and provisioned-entitlement checks in place.
+                Public demo commands omit the token when the demo site world is enabled. Site-world search returns ranked close matches plus no-exact scanned-package semantics and requestCandidate URLs/drafts for intake. Dry-run checkout creates no live Stripe session or charge. Protected worlds keep Firebase, session ownership, and provisioned-entitlement checks in place.
               </p>
             </div>
           </div>
@@ -236,6 +236,7 @@ export default function Agents() {
                 description="The MCP server is stdio-first for Codex and other local agent clients. Read-only tools can use public endpoints; session tools require public-demo eligibility or scoped bearer auth."
               />
               <div className="mt-6 flex flex-wrap gap-2">
+                <ProofChip>blueprint.siteWorld.search</ProofChip>
                 <ProofChip>blueprint.catalog.search</ProofChip>
                 <ProofChip>blueprint.siteWorld.get</ProofChip>
                 <ProofChip>blueprint.siteWorld.launchReadiness</ProofChip>

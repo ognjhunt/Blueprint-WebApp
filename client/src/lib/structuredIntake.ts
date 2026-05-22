@@ -211,7 +211,10 @@ function buildProofReadyDecision(
     { key: "robot_or_stack", met: hasText(input.targetRobotTeam) },
     {
       key: "target_site_type_or_site",
-      met: hasText(input.targetSiteType) || hasText(input.siteName),
+      met:
+        hasText(input.targetSiteType) ||
+        hasText(input.siteName) ||
+        hasText(input.siteLocation),
     },
     {
       key: "proof_path_preference",
@@ -223,7 +226,7 @@ function buildProofReadyDecision(
 
   if (input.proofPathPreference === "exact_site_required") {
     criteria.push(
-      { key: "site_name", met: hasText(input.siteName) },
+      { key: "site_name", met: hasText(input.siteName) || hasText(input.siteLocation) },
       { key: "site_location", met: hasText(input.siteLocation) },
     );
   }
@@ -336,9 +339,11 @@ export function evaluateStructuredIntake(input: StructuredIntakeInput): Structur
     if (!hasText(input.taskStatement)) missingStructuredFields.push("task_or_workflow_question");
     if (!hasText(input.targetRobotTeam)) missingStructuredFields.push("robot_or_stack");
     if (input.proofPathPreference === "exact_site_required") {
-      if (!hasText(input.siteName)) missingStructuredFields.push("site_name");
+      if (!hasText(input.siteName) && !hasText(input.siteLocation)) {
+        missingStructuredFields.push("site_name");
+      }
       if (!hasText(input.siteLocation)) missingStructuredFields.push("site_location");
-    } else if (!hasText(input.targetSiteType) && !hasText(input.siteName)) {
+    } else if (!hasText(input.targetSiteType) && !hasText(input.siteName) && !hasText(input.siteLocation)) {
       missingStructuredFields.push("target_site_type_or_site");
     }
     if (!input.proofPathPreference) missingStructuredFields.push("proof_path_preference");

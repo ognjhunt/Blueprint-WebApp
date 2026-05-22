@@ -318,6 +318,7 @@ function normalizeCommercialRequestPath(params: {
 
   const sourcePageUrl = String(params.sourcePageUrl || "").toLowerCase();
   if (
+    sourcePageUrl.includes("path=hosted-review") ||
     sourcePageUrl.includes("path=hosted-evaluation") ||
     sourcePageUrl.includes("interest=hosted-evaluation") ||
     sourcePageUrl.includes("interest=hosted-session")
@@ -326,6 +327,7 @@ function normalizeCommercialRequestPath(params: {
   }
 
   if (
+    sourcePageUrl.includes("path=new-capture") ||
     sourcePageUrl.includes("path=request-capture") ||
     sourcePageUrl.includes("path=capture-access") ||
     sourcePageUrl.includes("interest=capture-access")
@@ -790,7 +792,9 @@ router.post("/", async (req: Request, res: Response) => {
     }
     if (buyerType === "robot_team") {
       if (!payload.roleTitle?.trim()) missingFields.push("roleTitle");
-      if (!targetSiteType && !siteName) missingFields.push("targetSiteTypeOrSiteName");
+      if (!targetSiteType && !siteName && !siteLocation) {
+        missingFields.push("targetSiteTypeOrSiteNameOrLocation");
+      }
       if (!proofPathPreference) missingFields.push("proofPathPreference");
     }
 

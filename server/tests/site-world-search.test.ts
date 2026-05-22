@@ -18,7 +18,8 @@ vi.mock("../retrieval/embeddings", () => ({
 }));
 
 import siteWorldsRouter from "../routes/site-worlds";
-import { parseSiteWorldSearchQuery, searchPublicSiteWorlds } from "../retrieval/siteWorldSearch";
+import { siteWorldCards } from "../../client/src/data/siteWorlds";
+import { buildSiteWorldSearchDoc, parseSiteWorldSearchQuery, searchPublicSiteWorlds } from "../retrieval/siteWorldSearch";
 
 let server: Server;
 let baseUrl: string;
@@ -51,6 +52,22 @@ afterAll(async () => {
 });
 
 describe("site-world search aliases", () => {
+  it("builds reusable search docs from catalog, location, workflow, robot, object, package, alias, and truth metadata", () => {
+    const grocery = siteWorldCards.find((site) => site.id === "sw-chi-01");
+    expect(grocery).toBeDefined();
+
+    const doc = buildSiteWorldSearchDoc(grocery!);
+
+    expect(doc.searchDoc).toContain("siteName: Harborview Grocery Distribution Annex");
+    expect(doc.searchDoc).toContain("category: Retail");
+    expect(doc.searchDoc).toContain("city: Chicago");
+    expect(doc.searchDoc).toContain("packages:");
+    expect(doc.searchDoc).toContain("robotProfiles:");
+    expect(doc.searchDoc).toContain("aliases:");
+    expect(doc.objectTags).toContain("tote");
+    expect(doc.availability).toBe("request_reviewed_exemplar");
+  });
+
   it("parses retail aliases for agent-style store queries", () => {
     const aliases = [
       ["store", "store"],
@@ -67,9 +84,31 @@ describe("site-world search aliases", () => {
       expect(parsed.aliases[0].categories).toContain("Retail");
     }
   });
+
+  it("parses warehouse tote into logistics and task/object intent", () => {
+    const parsed = parseSiteWorldSearchQuery("warehouse tote");
+
+    expect(parsed.aliases.map((item) => item.alias)).toContain("warehouse");
+    expect(parsed.aliases.map((item) => item.alias)).toContain("tote");
+    expect(parsed.aliases.flatMap((item) => item.categories)).toContain("Logistics");
+    expect(parsed.aliases.flatMap((item) => item.objectTags)).toContain("tote");
+    expect(parsed.aliases.flatMap((item) => item.terms)).toContain("transfer");
+  });
 });
 
 describe("site-world search ranking", () => {
+  it("lets exact site/name and city signals beat category-only matches", async () => {
+    const exactName = await searchPublicSiteWorlds({ query: "Harborview Grocery", limit: 5 });
+    expect(exactName.results[0].siteWorld.id).toBe("sw-chi-01");
+    expect(exactName.results[0].matchedFields).toContain("siteName");
+    expect(exactName.matchSemantics.exactMatch).toBe(true);
+    expect(exactName.requestCandidate).toBeNull();
+
+    const cityCategory = await searchPublicSiteWorlds({ query: "Chicago grocery", limit: 5 });
+    expect(cityCategory.results[0].siteWorld.id).toBe("sw-chi-01");
+    expect(cityCategory.results[0].matchedFields).toContain("address");
+  });
+
   it("ranks the grocery/retail close match for q=whole foods without claiming exact availability", async () => {
     const response = await searchPublicSiteWorlds({ query: "whole foods", limit: 5 });
 
@@ -97,6 +136,36 @@ describe("site-world search ranking", () => {
     expect(response.results[0].matchedFields).toContain("objectTags");
     expect(response.results[0].reasons.join(" ").toLowerCase()).toContain("tote");
   });
+
+  it("returns no-exact scanned package semantics with a request candidate for unknown exact locations", async () => {
+    const response = await searchPublicSiteWorlds({ query: "Whole Foods near Durham", limit: 5 });
+
+    expect(response.results[0].siteWorld.category).toBe("Retail");
+    expect(response.matchSemantics.exactMatch).toBe(false);
+    expect(response.matchSemantics.noExactScannedPackage).toBe(true);
+    expect(response.matchSemantics.message).toContain("No scanned package for this exact place yet");
+    expect(response.requestCandidate).toMatchObject({
+      buyerType: "robot_team",
+      source: "site-worlds",
+      requestPath: "new-capture",
+      proofPathPreference: "exact_site_required",
+    });
+    expect(response.requestCandidate?.requestUrl).toContain("source=site-worlds");
+    expect(response.requestCandidate?.requestUrl).toContain("buyerType=robot_team");
+    expect(response.requestCandidate?.requestUrl).toContain("path=new-capture");
+    expect(response.requestCandidate?.inboundRequestDraft).toMatchObject({
+      buyerType: "robot_team",
+      commercialRequestPath: "capture_access",
+      requestedLanes: ["deeper_evaluation"],
+      context: {
+        buyerChannelSourceRaw: "site-worlds",
+      },
+    });
+    expect(response.requestCandidate?.inboundRequestDraft).not.toHaveProperty("entitlementId");
+    expect(response.requestCandidate?.inboundRequestDraft).not.toHaveProperty("paymentStatus");
+    expect(response.requestCandidate?.inboundRequestDraft).not.toHaveProperty("providerRunId");
+    expect(response.requestCandidate?.inboundRequestDraft).not.toHaveProperty("hostedSessionId");
+  });
 });
 
 describe("GET /api/site-worlds/search", () => {
@@ -109,6 +178,8 @@ describe("GET /api/site-worlds/search", () => {
     expect(payload.results[0].score).toBeGreaterThan(0);
     expect(payload.results[0].matchedAliases.join(" ")).toContain("whole foods");
     expect(payload.parsed.aliases[0].alias).toBe("whole foods");
+    expect(payload.matchSemantics.noExactScannedPackage).toBe(true);
+    expect(payload.requestCandidate.requestUrl).toContain("source=site-worlds");
     expect(["static-fallback", "firestore-live"]).toContain(payload.meta.backend);
   });
 });

@@ -68,9 +68,10 @@ describe("siteWorldCatalogSearch", () => {
     const url = new URL(candidate?.href || "", "https://tryblueprint.local");
 
     expect(candidate?.headline).toBe("No scanned package for this exact place yet");
-    expect(candidate?.href).toContain("path=request-capture");
+    expect(candidate?.href).toContain("path=new-capture");
     expect(candidate?.href).toContain("buyerType=robot_team");
     expect(candidate?.href).toContain("source=site-worlds");
+    expect(url.searchParams.get("location")).toBe("123 New Robot Ave, Austin, TX");
     expect(url.searchParams.get("siteLocation")).toBe("123 New Robot Ave, Austin, TX");
     expect(url.searchParams.get("taskStatement")).toContain("Request an exact-site world model");
   });

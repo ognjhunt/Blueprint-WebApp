@@ -21,6 +21,7 @@ export BLUEPRINT_AGENT_AUTH_TOKEN=<firebase-id-token>
 npm run agent:cli -- discover
 npm run agent:cli -- catalog list --limit 3
 npm run agent:cli -- catalog search --q "whole foods" --limit 5
+npm run agent:cli -- site-world search --q "Whole Foods near Durham" --limit 5
 npm run agent:cli -- catalog search --q "warehouse tote" --limit 5
 npm run agent:cli -- world get siteworld-f5fd54898cfb
 npm run agent:cli -- commerce quote --site-world-id siteworld-f5fd54898cfb --product hosted-session-rental --session-hours 1
@@ -62,11 +63,19 @@ Read-only tools can use public endpoints. Session/write tools require either pub
 
 ## Catalog Search
 
-Use `GET /api/site-worlds/search` when an agent does not know the exact site-world id. The endpoint accepts `q`, `limit`, `category`, `industry`, `city`, `state`, `siteType`, `taskLane`, `objectTags`, `robot`, `availability`, `readiness`, and `sort`.
+Use `GET /api/site-worlds/search` or MCP tool `blueprint.siteWorld.search` when an agent does not know the exact site-world id. The endpoint accepts `q`, `limit`, `category`, `industry`, `city`, `state`, `siteType`, `taskLane`, `objectTags`, `robot`, `availability`, `readiness`, and `sort`.
 
-Search is deterministic without `OPENAI_API_KEY`. When embeddings are unavailable, responses include `embeddings_unavailable` and rank by alias, lexical, location, task/object/robot, availability, and readiness signals. Queries such as `store`, `supermarket`, `Whole Foods`, `Kroger`, `retail aisle`, and `warehouse tote` return close catalog matches with `score`, `reasons`, `matchedAliases`, and `matchedFields`.
+Search is deterministic without `OPENAI_API_KEY`. When embeddings are unavailable, responses include `embeddings_unavailable` and rank by alias, lexical, location, task/object/robot, availability, and readiness signals. Queries such as `store`, `supermarket`, `Whole Foods`, `Kroger`, `retail aisle`, and `warehouse tote` return close catalog matches with `score`, `reasons`, `matchedAliases`, `matchedFields`, `matchSemantics`, and `requestCandidate`.
 
-Brand aliases are only ontology hints. A `Whole Foods` query may return the closest grocery/retail site-world, but it does not imply Blueprint has a real Whole Foods package or partner-cleared availability.
+Brand aliases are only ontology hints. A `Whole Foods` query may return the closest grocery/retail site-world, but it does not imply Blueprint has a real Whole Foods package or partner-cleared availability. If `matchSemantics.noExactScannedPackage` is true, use `requestCandidate.requestUrl` or `requestCandidate.inboundRequestDraft` to route intake with `source=site-worlds`, `buyerType=robot_team`, and `path=new-capture`.
+
+Example:
+
+```bash
+npm run agent:cli -- site-world search --q "Whole Foods near Durham" --limit 5
+```
+
+The returned request candidate records interest only. It does not grant package access, entitlement, payment, rights clearance, provider execution, fulfillment, live hosted-session availability, private artifact access, or admin access.
 
 ## Dry-Run Agent Commerce
 
@@ -82,7 +91,8 @@ The dry-run path never creates a live Stripe Checkout Session, payment intent, c
 
 ## Tools
 
-- `blueprint.catalog.search`
+- `blueprint.siteWorld.search`
+- `blueprint.catalog.search` (backward-compatible alias; prefer `blueprint.siteWorld.search`)
 - `blueprint.siteWorld.get`
 - `blueprint.siteWorld.launchReadiness`
 - `blueprint.commerce.quote`

@@ -32,6 +32,45 @@ export type SiteWorldSearchResult = {
   matchedFields: string[];
 };
 
+export type SiteWorldSearchMatchSemantics = {
+  exactMatch: boolean;
+  noExactScannedPackage: boolean;
+  message: string;
+  truthBoundary: string;
+};
+
+export type SiteWorldSearchRequestCandidate = {
+  buyerType: "robot_team";
+  source: "site-worlds";
+  requestPath: "new-capture";
+  requestUrl: string;
+  query: string;
+  siteName: string;
+  siteLocation: string;
+  targetSiteType: string;
+  workflow: string;
+  taskStatement: string;
+  requestedOutputs: string;
+  proofPathPreference: "exact_site_required";
+  inboundRequestDraft: {
+    buyerType: "robot_team";
+    commercialRequestPath: "capture_access";
+    requestedLanes: ["deeper_evaluation"];
+    siteName: string;
+    siteLocation: string;
+    targetSiteType?: string;
+    taskStatement: string;
+    proofPathPreference: "exact_site_required";
+    workflowContext?: string;
+    details?: string;
+    context: {
+      sourcePageUrl: string;
+      buyerChannelSourceRaw: "site-worlds";
+      utm: Record<string, never>;
+    };
+  };
+};
+
 export type SiteWorldSearchResponse = {
   query: string;
   results: SiteWorldSearchResult[];
@@ -42,6 +81,8 @@ export type SiteWorldSearchResponse = {
     filters: SiteWorldSearchFilters;
   };
   appliedFilters: SiteWorldSearchFilters;
+  matchSemantics: SiteWorldSearchMatchSemantics;
+  requestCandidate: SiteWorldSearchRequestCandidate | null;
   warnings: string[];
   meta: {
     backend: "firestore-live" | "static-fallback";
@@ -156,6 +197,26 @@ const KNOWN_OBJECT_TERMS = [
   "tote",
   "tray",
 ];
+
+const GENERIC_SITE_NAME_TOKENS = new Set([
+  "aisle",
+  "annex",
+  "backroom",
+  "center",
+  "distribution",
+  "facility",
+  "fulfillment",
+  "grocery",
+  "hospital",
+  "lab",
+  "lane",
+  "logistics",
+  "retail",
+  "room",
+  "store",
+  "supermarket",
+  "warehouse",
+]);
 
 const SITE_WORLD_ALIAS_RULES: SiteWorldAliasRule[] = [
   {
@@ -746,6 +807,175 @@ function scoreStructuredSignals(candidate: SiteWorldSearchCandidate, parsed: Ret
   };
 }
 
+function queryHasAddressSpecificity(normalizedQuery: string) {
+  return (
+    /\d/.test(normalizedQuery) ||
+    /\b(st|street|ave|avenue|road|rd|blvd|boulevard|dr|drive|lane|ln|way|pkwy|parkway|plaza|square|sq)\b/.test(normalizedQuery)
+  );
+}
+
+function candidateHasExactScannedPackageMatch(candidate: SiteWorldSearchCandidate, query: string) {
+  const normalizedQuery = normalizeText(query);
+  if (!normalizedQuery) return false;
+
+  const site = candidate.siteWorld;
+  const exactTargets = [site.id, site.siteCode].map(normalizeText).filter(Boolean);
+  if (exactTargets.some((value) => value === normalizedQuery || value.includes(normalizedQuery))) {
+    return true;
+  }
+
+  const normalizedAddress = normalizeText(site.siteAddress);
+  if (
+    normalizedAddress &&
+    (normalizedAddress === normalizedQuery ||
+      (queryHasAddressSpecificity(normalizedQuery) && normalizedAddress.includes(normalizedQuery)))
+  ) {
+    return true;
+  }
+
+  const normalizedName = normalizeText(site.siteName);
+  if (!normalizedName) return false;
+  if (normalizedName === normalizedQuery) return true;
+
+  const queryTokens = tokenize(query);
+  const hasDistinctiveNameToken = queryTokens.some(
+    (token) => !GENERIC_SITE_NAME_TOKENS.has(token) && normalizedName.includes(token),
+  );
+  return normalizedName.includes(normalizedQuery) && (queryTokens.length > 1 || hasDistinctiveNameToken);
+}
+
+function buildSearchMatchSemantics(
+  query: string,
+  candidates: SiteWorldSearchCandidate[],
+): SiteWorldSearchMatchSemantics {
+  const hasQuery = Boolean(String(query || "").trim());
+  const exactMatch = hasQuery
+    ? candidates.some((candidate) => candidateHasExactScannedPackageMatch(candidate, query))
+    : false;
+  const noExactScannedPackage = hasQuery && !exactMatch;
+
+  return {
+    exactMatch,
+    noExactScannedPackage,
+    message: noExactScannedPackage
+      ? "No scanned package for this exact place yet."
+      : exactMatch
+        ? "At least one public catalog record matches the site name, code, or address query."
+        : "Search the public catalog by site, address, category, workflow, robot, or object tags.",
+    truthBoundary:
+      "Search and request candidates are catalog/intake signals only; they do not grant entitlement, payment, provider execution, hosted-session access, private artifact access, fulfillment, or rights clearance.",
+  };
+}
+
+function firstNonEmpty(...values: Array<unknown>) {
+  return values.map((value) => String(value || "").trim()).find(Boolean) || "";
+}
+
+function buildRequestUrl(input: {
+  query: string;
+  siteName: string;
+  siteLocation: string;
+  targetSiteType: string;
+  workflow: string;
+  taskStatement: string;
+  requestedOutputs: string;
+}) {
+  const params = new URLSearchParams({
+    persona: "robot-team",
+    buyerType: "robot_team",
+    interest: "capture-access",
+    path: "new-capture",
+    source: "site-worlds",
+    proofPathPreference: "exact_site_required",
+  });
+
+  if (input.query) params.set("query", input.query);
+  if (input.siteName) params.set("siteName", input.siteName);
+  if (input.siteLocation) {
+    params.set("location", input.siteLocation);
+    params.set("siteLocation", input.siteLocation);
+  }
+  if (input.targetSiteType) params.set("targetSiteType", input.targetSiteType);
+  if (input.workflow) params.set("workflow", input.workflow);
+  if (input.taskStatement) params.set("taskStatement", input.taskStatement);
+  if (input.requestedOutputs) params.set("requestedOutputs", input.requestedOutputs);
+
+  return `/contact?${params.toString()}`;
+}
+
+function buildSearchRequestCandidate(params: {
+  query: string;
+  parsed: ReturnType<typeof parseSiteWorldSearchQuery>;
+  filters: SiteWorldSearchFilters;
+  results: SiteWorldSearchResult[];
+}): SiteWorldSearchRequestCandidate | null {
+  const query = String(params.query || "").trim();
+  if (!query) return null;
+
+  const alias = params.parsed.aliases[0];
+  const topResult = params.results[0]?.siteWorld;
+  const targetSiteType = firstNonEmpty(
+    params.filters.siteType,
+    alias?.siteTypes[0],
+    params.filters.category,
+    alias?.categories[0],
+    topResult?.industry,
+    topResult?.category,
+  );
+  const workflow = firstNonEmpty(
+    params.filters.taskLane,
+    alias?.terms.slice(0, 4).join(", "),
+    topResult?.taskLane,
+  );
+  const siteLocation = firstNonEmpty(
+    [params.filters.city, params.filters.state].filter(Boolean).join(", "),
+    query,
+  );
+  const requestedOutputs = "Site-specific world model package and hosted review scoping";
+  const taskStatement = [
+    `Request an exact-site world model for ${query}.`,
+    workflow ? `Workflow: ${workflow}.` : "",
+    targetSiteType ? `Site class: ${targetSiteType}.` : "",
+  ].filter(Boolean).join(" ");
+  const base = {
+    query,
+    siteName: query,
+    siteLocation,
+    targetSiteType,
+    workflow,
+    taskStatement,
+    requestedOutputs,
+  };
+  const requestUrl = buildRequestUrl(base);
+
+  return {
+    buyerType: "robot_team",
+    source: "site-worlds",
+    requestPath: "new-capture",
+    requestUrl,
+    ...base,
+    proofPathPreference: "exact_site_required",
+    inboundRequestDraft: {
+      buyerType: "robot_team",
+      commercialRequestPath: "capture_access",
+      requestedLanes: ["deeper_evaluation"],
+      siteName: query,
+      siteLocation,
+      ...(targetSiteType ? { targetSiteType } : {}),
+      taskStatement,
+      proofPathPreference: "exact_site_required",
+      ...(workflow ? { workflowContext: workflow } : {}),
+      details:
+        "Search found no exact scanned package for this requested place. This is an intake request only, not access, fulfillment, payment, provider execution, or rights clearance.",
+      context: {
+        sourcePageUrl: requestUrl,
+        buyerChannelSourceRaw: "site-worlds",
+        utm: {},
+      },
+    },
+  };
+}
+
 function sortResults(results: SiteWorldSearchResult[], sort: SiteWorldSearchSort) {
   const copy = results.slice();
   const availabilityRank = (value: string) => {
@@ -913,6 +1143,10 @@ export async function searchPublicSiteWorlds(params: {
 
   const sort = filters.sort || "relevance";
   const results = sortResults(scored, sort).slice(0, limit);
+  const matchSemantics = buildSearchMatchSemantics(query, candidates);
+  const requestCandidate = matchSemantics.noExactScannedPackage
+    ? buildSearchRequestCandidate({ query, parsed, filters, results })
+    : null;
 
   return {
     query,
@@ -924,6 +1158,8 @@ export async function searchPublicSiteWorlds(params: {
       filters,
     },
     appliedFilters: appliedFilters(filters),
+    matchSemantics,
+    requestCandidate,
     warnings,
     meta: {
       backend: sites.some((site) => site.dataSource === "pipeline") ? "firestore-live" : "static-fallback",
