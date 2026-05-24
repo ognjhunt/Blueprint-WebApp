@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-24T01:53:10.932Z",
+  "generatedAt": "2026-05-24T02:57:13.439Z",
   "baseUrl": "http://127.0.0.1:4173",
   "routeResults": [
     {
@@ -671,7 +671,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "8393 visible text characters"
+          "detail": "9093 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -780,7 +780,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "8318 visible text characters"
+          "detail": "9018 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -1325,7 +1325,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "4320 visible text characters"
+          "detail": "4582 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -1434,7 +1434,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "4244 visible text characters"
+          "detail": "4506 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -1543,7 +1543,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "3377 visible text characters"
+          "detail": "3492 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -1652,7 +1652,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "3302 visible text characters"
+          "detail": "3417 visible text characters"
         },
         {
           "name": "No framework error overlay",

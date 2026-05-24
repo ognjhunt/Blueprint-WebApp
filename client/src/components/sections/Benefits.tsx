@@ -14,9 +14,9 @@ const benefits = [
     icon: BarChart3Icon,
   },
   {
-    title: "Wearable AI Moments",
+    title: "Request-scoped Smart-glasses Moments",
     description:
-      "Delight guests with AI glasses that guide, answer, and activate service in real time.",
+      "Use approved Google/Meta glasses only for repeat walkthroughs where the assignment, hardware, launch proof, and downstream capture proof exist.",
     icon: UsersIcon,
   },
   {
@@ -49,11 +49,11 @@ export default function Benefits() {
       >
         <div className="text-center mb-16">
           <h2 className="text-4xl font-bold mb-4">
-            Unlock the Power of AI Glasses
+            Unlock Capture-backed Site Review
           </h2>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Blueprint helps you create exceptional customer experiences with
-            wearable AI concierges.
+            Blueprint helps you package real locations into world-model and
+            hosted-review workflows with proof attached.
           </p>
         </div>
 

@@ -333,7 +333,7 @@ export default function LocationShowcase() {
             onClick={scrollToContact}
             className="rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-600 text-white border-0 h-12 px-6 hover:shadow-2xl hover:scale-[1.02] transition"
           >
-            Join the AI glasses pilot, free setup
+            Request approved site review
           </Button>
         </div>
       </div>
@@ -676,7 +676,7 @@ export default function LocationShowcase() {
 //             onClick={scrollToContact}
 //             className="rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-600 text-white border-0 h-12 px-6 hover:shadow-2xl hover:scale-[1.02] transition"
 //           >
-//             Join the Durham Pilot, free setup
+//             Request approved site review
 //           </Button>
 //         </div>
 //       </div>

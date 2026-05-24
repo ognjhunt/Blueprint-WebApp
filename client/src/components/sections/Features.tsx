@@ -12,16 +12,16 @@ export default function Features() {
   const features = [
     {
       icon: CubeTransparentIcon,
-      title: "AI Glasses Concierge",
+      title: "Approved Smart-glasses Support",
       description:
-        "Deploy guided, voice-ready assistants on wearable AI glasses tailored to your venue.",
+        "Use Google/Meta glasses only for approved repeat walkthroughs with assignment, hardware, launch, and downstream capture proof.",
       color: "from-blue-400 to-indigo-500",
     },
     {
       icon: BoltIcon,
       title: "No App Required",
       description:
-        "Guests launch the AI glasses flow with a QR code. No custom app build or installs needed.",
+        "Start from the hosted review path without a custom app build; hardware demos are confirmed per request.",
       color: "from-emerald-400 to-teal-500",
     },
     {
@@ -35,7 +35,7 @@ export default function Features() {
       icon: UserGroupIcon,
       title: "Customer Insights",
       description:
-        "Understand how visitors use your space when guided by wearable AI and ambient prompts.",
+        "Understand how approved walkthroughs, hosted review, and ambient prompts support the site workflow.",
       color: "from-pink-400 to-rose-500",
     },
     {

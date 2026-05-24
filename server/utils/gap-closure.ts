@@ -10,16 +10,89 @@ import { sendSlackMessage } from "./slack";
 
 const COLLECTION = "opsWorkItems";
 
-export type OpsWorkItemKind = "readiness" | "automation_worker" | "external";
+export type OpsWorkItemKind =
+  | "readiness"
+  | "automation_worker"
+  | "automation_queue"
+  | "external";
 export type OpsWorkItemStatus = "open" | "delegated" | "completed";
+
+export type AutomationGapFindingType = "worker_failure" | "stuck_queue";
 
 export type AutomationWorkerGapFinding = {
   stableId: string;
+  kind: Extract<OpsWorkItemKind, "automation_worker" | "automation_queue">;
+  findingType: AutomationGapFindingType;
   workerKey: string;
+  queueKey?: string | null;
+  collection?: string | null;
+  sourceRef?: string | null;
   title: string;
   detail: string;
   severity: "operational";
 };
+
+export type AutomationSnapshotDoc = {
+  id: string;
+  data: Record<string, unknown>;
+};
+
+export type AutomationQueueSnapshotDoc = AutomationSnapshotDoc & {
+  collection: string;
+};
+
+export type AutomationQueueMonitor = {
+  collection: string;
+  workerKey: string;
+  queueKey: string;
+  statusPath?: string;
+  queueKeyPaths?: string[];
+  staleStatuses?: string[];
+  queuedAtPaths?: string[];
+  progressAtPaths?: string[];
+};
+
+export type AutomationQueueThresholds = {
+  staleQueueMs?: number;
+  noProgressMs?: number;
+  minBacklogCount?: number;
+};
+
+export const DEFAULT_AUTOMATION_QUEUE_THRESHOLDS = {
+  staleQueueMs: 60 * 60 * 1000,
+  noProgressMs: 30 * 60 * 1000,
+  minBacklogCount: 1,
+} satisfies Required<AutomationQueueThresholds>;
+
+const DEFAULT_AUTOMATION_QUEUE_MONITORS: AutomationQueueMonitor[] = [
+  {
+    collection: "inboundRequests",
+    workerKey: "inbound_qualification",
+    queueKey: "inbound_request_review",
+    statusPath: "ops_automation.status",
+    queueKeyPaths: ["queue_key", "ops_automation.queue"],
+    queuedAtPaths: ["createdAt", "created_at", "ops_automation.last_attempt_at"],
+    progressAtPaths: ["ops_automation.processed_at"],
+  },
+  {
+    collection: "inboundRequests",
+    workerKey: "inbound_qualification",
+    queueKey: "exact_site_hosted_review_queue",
+    statusPath: "ops_automation.status",
+    queueKeyPaths: ["queue_key", "ops_automation.queue"],
+    queuedAtPaths: ["createdAt", "created_at", "ops_automation.last_attempt_at"],
+    progressAtPaths: ["ops_automation.processed_at"],
+  },
+  {
+    collection: "contactRequests",
+    workerKey: "support_triage",
+    queueKey: "support_triage",
+    statusPath: "ops_automation.status",
+    queueKeyPaths: ["ops_automation.queue", "queue"],
+    queuedAtPaths: ["createdAt", "created_at", "ops_automation.last_attempt_at"],
+    progressAtPaths: ["ops_automation.processed_at"],
+  },
+];
 
 type OpsWorkItemDoc = {
   stable_id: string;
@@ -57,6 +130,9 @@ function suggestedOwnerForFinding(
   source?: string | null,
   repo?: string | null,
 ): string {
+  if (kind === "automation_queue") {
+    return "ops-lead";
+  }
   const normalizedRepo = String(repo || "").toLowerCase();
   if (normalizedRepo.includes("capture")) {
     return "capture-codex";
@@ -82,30 +158,302 @@ function suggestedOwnerForFinding(
   return "blueprint-chief-of-staff";
 }
 
-export async function listAutomationWorkerFindings(): Promise<AutomationWorkerGapFinding[]> {
-  if (!db) {
-    return [];
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
+}
+
+function getPathValue(data: Record<string, unknown>, path: string): unknown {
+  return path.split(".").reduce<unknown>((current, part) => {
+    const record = asRecord(current);
+    return record ? record[part] : undefined;
+  }, data);
+}
+
+function firstStringAtPath(data: Record<string, unknown>, paths: string[]): string | null {
+  for (const path of paths) {
+    const value = getPathValue(data, path);
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
   }
+  return null;
+}
 
-  const snap = await db.collection("opsAutomationWorkerStatus").limit(250).get();
-  const out: AutomationWorkerGapFinding[] = [];
+function timestampToMillis(value: unknown): number | null {
+  if (value instanceof Date) {
+    const millis = value.getTime();
+    return Number.isFinite(millis) ? millis : null;
+  }
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === "string" && value.trim()) {
+    const millis = Date.parse(value);
+    return Number.isFinite(millis) ? millis : null;
+  }
+  const record = asRecord(value);
+  if (!record) {
+    return null;
+  }
+  if (typeof record.toMillis === "function") {
+    const millis = record.toMillis();
+    return typeof millis === "number" && Number.isFinite(millis) ? millis : null;
+  }
+  if (typeof record.toDate === "function") {
+    return timestampToMillis(record.toDate());
+  }
+  const seconds =
+    typeof record.seconds === "number"
+      ? record.seconds
+      : typeof record._seconds === "number"
+        ? record._seconds
+        : null;
+  if (seconds !== null) {
+    const nanos =
+      typeof record.nanoseconds === "number"
+        ? record.nanoseconds
+        : typeof record._nanoseconds === "number"
+          ? record._nanoseconds
+          : 0;
+    return seconds * 1000 + Math.floor(nanos / 1_000_000);
+  }
+  return null;
+}
 
-  for (const doc of snap.docs) {
-    const data = doc.data() as Record<string, unknown>;
+function firstTimestampAtPath(data: Record<string, unknown>, paths: string[]): number | null {
+  for (const path of paths) {
+    const millis = timestampToMillis(getPathValue(data, path));
+    if (millis !== null) {
+      return millis;
+    }
+  }
+  return null;
+}
+
+function clampPositiveNumber(value: unknown, fallback: number): number {
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) && numberValue > 0 ? numberValue : fallback;
+}
+
+function formatDuration(ms: number): string {
+  const minutes = Math.max(1, Math.round(ms / 60_000));
+  if (minutes < 60) {
+    return `${minutes}m`;
+  }
+  const hours = Math.round((minutes / 60) * 10) / 10;
+  return `${hours}h`;
+}
+
+function normalizeThresholds(
+  thresholds?: AutomationQueueThresholds,
+): Required<AutomationQueueThresholds> {
+  return {
+    staleQueueMs: clampPositiveNumber(
+      thresholds?.staleQueueMs,
+      DEFAULT_AUTOMATION_QUEUE_THRESHOLDS.staleQueueMs,
+    ),
+    noProgressMs: clampPositiveNumber(
+      thresholds?.noProgressMs,
+      DEFAULT_AUTOMATION_QUEUE_THRESHOLDS.noProgressMs,
+    ),
+    minBacklogCount: Math.max(
+      1,
+      Math.floor(
+        clampPositiveNumber(
+          thresholds?.minBacklogCount,
+          DEFAULT_AUTOMATION_QUEUE_THRESHOLDS.minBacklogCount,
+        ),
+      ),
+    ),
+  };
+}
+
+function thresholdsFromEnv(): Required<AutomationQueueThresholds> {
+  return normalizeThresholds({
+    staleQueueMs:
+      process.env.BLUEPRINT_STUCK_QUEUE_STALE_MS !== undefined
+        ? Number(process.env.BLUEPRINT_STUCK_QUEUE_STALE_MS)
+        : undefined,
+    noProgressMs:
+      process.env.BLUEPRINT_STUCK_QUEUE_NO_PROGRESS_MS !== undefined
+        ? Number(process.env.BLUEPRINT_STUCK_QUEUE_NO_PROGRESS_MS)
+        : undefined,
+    minBacklogCount:
+      process.env.BLUEPRINT_STUCK_QUEUE_MIN_BACKLOG !== undefined
+        ? Number(process.env.BLUEPRINT_STUCK_QUEUE_MIN_BACKLOG)
+        : undefined,
+  });
+}
+
+function humanizeWorkerKey(value: string): string {
+  return value.replace(/_/g, " ");
+}
+
+function humanizeQueueKey(value: string): string {
+  return value.replace(/_/g, " ");
+}
+
+export function listAutomationWorkerFindingsFromSnapshots(params: {
+  now?: Date | string | number;
+  workerStatusDocs: AutomationSnapshotDoc[];
+  queueDocs?: AutomationQueueSnapshotDoc[];
+  queueMonitors?: AutomationQueueMonitor[];
+  thresholds?: AutomationQueueThresholds;
+}): AutomationWorkerGapFinding[] {
+  const nowMs = timestampToMillis(params.now ?? new Date()) ?? Date.now();
+  const thresholds = normalizeThresholds(params.thresholds);
+  const findings: AutomationWorkerGapFinding[] = [];
+  const workerDataByKey = new Map<string, Record<string, unknown>>();
+
+  for (const doc of params.workerStatusDocs) {
+    const data = doc.data || {};
+    workerDataByKey.set(doc.id, data);
     const status = typeof data.status === "string" ? data.status : "";
     const lastError = typeof data.last_error === "string" ? data.last_error.trim() : "";
     if (status === "failed" || lastError) {
-      out.push({
+      findings.push({
         stableId: `automation_worker:${doc.id}`,
+        kind: "automation_worker",
+        findingType: "worker_failure",
         workerKey: doc.id,
-        title: `Automation worker failure: ${doc.id.replace(/_/g, " ")}`,
+        title: `Automation worker failure: ${humanizeWorkerKey(doc.id)}`,
         detail: lastError || `Worker status is "${status || "unknown"}".`,
         severity: "operational",
       });
     }
   }
 
-  return out;
+  const queueDocs = params.queueDocs ?? [];
+  const monitors = params.queueMonitors ?? DEFAULT_AUTOMATION_QUEUE_MONITORS;
+  for (const monitor of monitors) {
+    const statusPath = monitor.statusPath ?? "ops_automation.status";
+    const staleStatuses = new Set(monitor.staleStatuses ?? ["pending", "failed"]);
+    const queueKeyPaths = monitor.queueKeyPaths ?? ["ops_automation.queue", "queue", "queue_key"];
+    const queuedAtPaths = monitor.queuedAtPaths ?? [
+      "createdAt",
+      "created_at",
+      "ops_automation.last_attempt_at",
+    ];
+    const progressAtPaths = monitor.progressAtPaths ?? ["ops_automation.processed_at"];
+    const backlog = queueDocs
+      .filter((doc) => doc.collection === monitor.collection)
+      .map((doc) => {
+        const queueKey = firstStringAtPath(doc.data, queueKeyPaths);
+        const status = firstStringAtPath(doc.data, [statusPath]);
+        const queuedAtMs = firstTimestampAtPath(doc.data, queuedAtPaths);
+        const progressAtMs = firstTimestampAtPath(doc.data, progressAtPaths);
+        return {
+          id: doc.id,
+          queueKey,
+          status,
+          queuedAtMs,
+          progressAtMs,
+        };
+      })
+      .filter((doc) => doc.queueKey === monitor.queueKey)
+      .filter((doc) => !doc.status || staleStatuses.has(doc.status))
+      .filter((doc) => doc.queuedAtMs !== null)
+      .filter((doc) => doc.progressAtMs === null || doc.progressAtMs < doc.queuedAtMs!);
+
+    if (backlog.length < thresholds.minBacklogCount) {
+      continue;
+    }
+
+    backlog.sort((left, right) => left.queuedAtMs! - right.queuedAtMs!);
+    const oldest = backlog[0];
+    const oldestAgeMs = nowMs - oldest.queuedAtMs!;
+    if (oldestAgeMs < thresholds.staleQueueMs) {
+      continue;
+    }
+
+    const workerData = workerDataByKey.get(monitor.workerKey) || {};
+    const lastCompletedAtMs = firstTimestampAtPath(workerData, [
+      "last_run_completed_at_iso",
+      "last_run_completed_at",
+    ]);
+    const lastStartedAtMs = firstTimestampAtPath(workerData, [
+      "last_run_started_at_iso",
+      "last_run_started_at",
+    ]);
+    const lastProcessedCount =
+      typeof workerData.last_processed_count === "number"
+        ? workerData.last_processed_count
+        : null;
+    const lastProgressAtMs =
+      lastProcessedCount !== null && lastProcessedCount > 0 ? lastCompletedAtMs : null;
+    if (lastProgressAtMs !== null && nowMs - lastProgressAtMs < thresholds.noProgressMs) {
+      continue;
+    }
+    const noProgressAnchor = lastProgressAtMs ?? lastCompletedAtMs ?? lastStartedAtMs;
+    const noProgressAgeMs = noProgressAnchor === null ? oldestAgeMs : nowMs - noProgressAnchor;
+    if (noProgressAgeMs < thresholds.noProgressMs) {
+      continue;
+    }
+
+    findings.push({
+      stableId: `automation_queue:${monitor.collection}:${monitor.queueKey}`,
+      kind: "automation_queue",
+      findingType: "stuck_queue",
+      workerKey: monitor.workerKey,
+      queueKey: monitor.queueKey,
+      collection: monitor.collection,
+      sourceRef: `${monitor.collection}/${oldest.id}`,
+      title: `Stuck automation queue: ${humanizeQueueKey(monitor.queueKey)}`,
+      detail: [
+        `Queue "${monitor.queueKey}" in ${monitor.collection} has ${backlog.length} pending or failed item(s).`,
+        `Oldest item "${oldest.id}" has waited ${formatDuration(oldestAgeMs)} since ${new Date(oldest.queuedAtMs!).toISOString()}.`,
+        `Worker "${monitor.workerKey}" shows no progress for ${formatDuration(noProgressAgeMs)}; last processed count is ${lastProcessedCount ?? "unknown"}.`,
+        `Thresholds: stale queue ${formatDuration(thresholds.staleQueueMs)}, no progress ${formatDuration(thresholds.noProgressMs)}, minimum backlog ${thresholds.minBacklogCount}.`,
+      ].join(" "),
+      severity: "operational",
+    });
+  }
+
+  return findings;
+}
+
+export async function listAutomationWorkerFindings(): Promise<AutomationWorkerGapFinding[]> {
+  if (!db) {
+    return [];
+  }
+
+  const snap = await db.collection("opsAutomationWorkerStatus").limit(250).get();
+  const queueDocs = new Map<string, AutomationQueueSnapshotDoc>();
+
+  for (const monitor of DEFAULT_AUTOMATION_QUEUE_MONITORS) {
+    try {
+      const querySnap = await db
+        .collection(monitor.collection)
+        .where(
+          monitor.statusPath ?? "ops_automation.status",
+          "in",
+          monitor.staleStatuses ?? ["pending", "failed"],
+        )
+        .limit(250)
+        .get();
+      for (const doc of querySnap.docs) {
+        queueDocs.set(`${monitor.collection}:${doc.id}`, {
+          collection: monitor.collection,
+          id: doc.id,
+          data: doc.data() as Record<string, unknown>,
+        });
+      }
+    } catch (err) {
+      logger.warn(
+        { err, collection: monitor.collection, queueKey: monitor.queueKey },
+        "automation stuck-queue snapshot failed",
+      );
+    }
+  }
+
+  return listAutomationWorkerFindingsFromSnapshots({
+    workerStatusDocs: snap.docs.map((doc) => ({
+      id: doc.id,
+      data: doc.data() as Record<string, unknown>,
+    })),
+    queueDocs: [...queueDocs.values()],
+    thresholds: thresholdsFromEnv(),
+  });
 }
 
 function hoursBetween(isoA: string, isoB: string): number {
@@ -353,10 +701,13 @@ export async function runGapClosureLoop(params?: { limit?: number }): Promise<{
         const prev = await ref.get();
         const { doc, shouldDelegate } = buildWorkItemPayload({
           stableId: f.stableId,
-          kind: "automation_worker",
+          kind: f.kind,
           title: f.title,
           detail: f.detail,
           severity: f.severity,
+          source: f.findingType,
+          failureFamily: f.findingType,
+          sourceRef: f.sourceRef,
           previous: prev,
         });
         await persistAndMaybeDelegate(ref, doc, shouldDelegate);
@@ -380,7 +731,11 @@ export async function runGapClosureLoop(params?: { limit?: number }): Promise<{
         const kind = data.kind;
         const sid = data.stable_id || docSnap.id;
 
-        if (kind === "readiness" || kind === "automation_worker") {
+        if (
+          kind === "readiness"
+          || kind === "automation_worker"
+          || kind === "automation_queue"
+        ) {
           if (!activeIds.has(sid)) {
             await markCompleted(docSnap.ref, "underlying_signal_cleared", data);
             processedCount += 1;

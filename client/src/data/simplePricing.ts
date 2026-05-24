@@ -18,14 +18,15 @@ export const simplePricingOptions: SimplePricingOption[] = [
     internalName: "Capturer",
     price: "Free",
     unit: "you get paid per capture",
-    payer: "Capturers (people with phones or smart glasses)",
-    summary: "Walk through any indoor space and get paid. No cost to join -- we pay you.",
+    payer: "Capturers (phone-first; smart glasses only when approved)",
+    summary:
+      "Apply for approved capture assignments. No cost to join; assignment cards show payout before work starts.",
     includes: [
-      "Sign up free and start capturing immediately",
-      "$20-$60 per capture depending on device and quality",
-      "Most approved captures land around $40",
-      "Quality bonuses for coverage, depth, and multi-pass",
-      "10% lifetime referral earnings on invites",
+      "Apply free; city, invite, and assignment gates still apply",
+      "Assignment payout shown before you start",
+      "Accepted captures become payout-eligible after review",
+      "Phone-first capture; smart glasses only for approved repeat walkthroughs",
+      "Referral or bonus programs require separate approval",
     ],
   },
   {

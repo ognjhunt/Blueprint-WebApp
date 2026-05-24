@@ -27,7 +27,7 @@ The task should stay concrete:
 - Do not publish `$40 average` or any fixed average payout unless a repo-backed artifact or human approval explicitly supports it.
 - Keep launch-city, invite, and access-code gates visible.
 - Keep public-area-only, privacy-safe, and sensitive-zone avoidance language visible.
-- Smart glasses are optional and aspirational: supported only for approved repeat walkthroughs where hardware, launch proof, and downstream capture proof exist.
+- Google/Meta smart glasses are optional repeat-walk tools: public copy may say they are supported only for approved repeat walkthroughs where the assignment, hardware, launch proof, and downstream capture proof exist.
 
 ## Research Calibration
 

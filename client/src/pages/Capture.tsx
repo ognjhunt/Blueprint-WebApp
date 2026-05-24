@@ -37,7 +37,7 @@ const captureExpectations = [
   {
     title: "Phone-first equipment",
     body:
-      "Start with a phone capture path. Smart glasses or repeat-walk hardware appears only when the assignment, hardware, and launch proof support it.",
+      "Start with a phone capture path. Google/Meta smart glasses or repeat-walk hardware appears only when the approved assignment, hardware, launch proof, and downstream capture proof support it.",
   },
   {
     title: "Lawful public-facing routes",
@@ -279,8 +279,8 @@ export default function Capture() {
                     Public-area-only and privacy-safe route rules stay visible before field work.
                   </p>
                   <p className="mt-3 max-w-[40rem] text-sm leading-7 text-slate-700">
-                    Smart glasses are aspirational here: supported for approved repeat walkthroughs
-                    only when hardware, launch proof, and downstream capture proof exist.
+                    Google/Meta smart glasses stay scoped to approved repeat walkthroughs
+                    only when the assignment, hardware, launch proof, and downstream capture proof exist.
                   </p>
                 </div>
                 <div>

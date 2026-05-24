@@ -4,11 +4,11 @@ export type FAQ = { q: string; a: string };
 export const PILOT_FAQ: FAQ[] = [
   {
     q: "What is Blueprint in one sentence?",
-    a: "It’s an AI glasses concierge for your physical space, so scan a QR code and visitors instantly get guided answers, stories, and offers hands-free.",
+    a: "Blueprint turns real-site walkthroughs into proof-backed hosted review and guidance experiences for physical spaces; smart-glasses demos are request-scoped, not default site access.",
   },
   {
     q: "What does the pilot cost?",
-    a: "Nothing. The rapid pilot (scan today, live tomorrow) is free and feedback-only. No contract, and there’s no purchase option yet.",
+    a: "Pilot scope is reviewed per request. If approved, the request packet defines capture, hosted review, and any demo window before work starts.",
   },
   {
     q: "How long does mapping take?",
@@ -16,7 +16,7 @@ export const PILOT_FAQ: FAQ[] = [
   },
   {
     q: "Do customers need special hardware?",
-    a: "No. Guests launch the wearable AI experience through the browser with QR codes. For demo day, we bring AI glasses so your team can try it hands-on.",
+    a: "Phones are the default. Google/Meta smart glasses are used only for approved repeat walkthroughs when the assignment, hardware, launch proof, and downstream capture proof exist.",
   },
   {
     q: "What do you need from us?",
@@ -24,7 +24,7 @@ export const PILOT_FAQ: FAQ[] = [
   },
   {
     q: "Is the AR experience live for more than a day?",
-    a: "No. The AI glasses experience is live during the activation session (1–2 hours) within 24 hours of mapping. The goal is to gather feedback and learn, not to run the experience continuously yet.",
+    a: "Hosted review and any smart-glasses demo window are confirmed per request after proof review; neither is guaranteed from mapping alone.",
   },
   {
     q: "What happens after the pilot?",
@@ -41,5 +41,5 @@ export const SUPPORT = {
   mappingTimeNote:
     "Most venues <5,000 sq ft take 30–60 minutes; larger venues 1–2 hours.",
   demoWindowNote:
-    "The AI glasses experience is live during the scheduled Demo Day window (1–2 hours) on Visit 2.",
+    "Hosted-review or smart-glasses demo windows are scheduled per approved request.",
 };

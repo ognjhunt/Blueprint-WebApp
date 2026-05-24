@@ -565,7 +565,7 @@ export default function ContactForm() {
                       ref={messageRef}
                       id="message"
                       name="message"
-                      placeholder="Describe your space, goals, or any specific AI glasses experiences you have in mind..."
+                      placeholder="Describe your space, goals, hosted-review needs, or any approved smart-glasses walkthrough you want scoped..."
                       rows={3}
                       value={formData.message}
                       onChange={handleChange}

@@ -1,0 +1,275 @@
+{
+  "actionLedgerDocs": [
+    {
+      "id": "ledger-lifecycle-approved",
+      "lane": "buyer_lifecycle",
+      "action_type": "send_email",
+      "source_collection": "marketplaceEntitlements",
+      "source_doc_id": "ent-approved",
+      "status": "operator_approved",
+      "action_tier": 3,
+      "idempotency_key": "buyer_lifecycle:ent-approved:30",
+      "approval_reason": "requires_human_review",
+      "approved_by": "ops@tryblueprint.io",
+      "approved_at": "2026-05-20T12:00:00.000Z",
+      "action_payload": {
+        "type": "send_email",
+        "to": "buyer@robotics.co",
+        "subject": "Adoption review for your exact-site package",
+        "lifecycleStage": "adoption_review",
+        "lifecycleDaysSinceGrant": 30
+      },
+      "draft_output": {
+        "recommendation": "lifecycle_check_in",
+        "category": "retention"
+      },
+      "created_at": "2026-05-20T11:58:00.000Z",
+      "updated_at": "2026-05-20T12:00:00.000Z"
+    },
+    {
+      "id": "ledger-lifecycle-failed",
+      "lane": "lifecycle_cadence",
+      "action_type": "send_email",
+      "source_collection": "marketplaceEntitlements",
+      "source_doc_id": "ent-failed",
+      "status": "failed",
+      "action_tier": 1,
+      "idempotency_key": "lifecycle_cadence:cadence-1:day-14",
+      "auto_approve_reason": "policy_auto_approved",
+      "execution_attempts": 2,
+      "last_execution_error": "SMTP timeout",
+      "action_payload": {
+        "type": "send_email",
+        "to": "buyer2@robotics.co",
+        "subject": "Activation check-in",
+        "lifecycleCadenceId": "cadence-1",
+        "lifecycleStepKey": "day-14"
+      },
+      "draft_output": {
+        "recommendation": "persona_lifecycle_touch",
+        "category": "lifecycle_cadence"
+      },
+      "created_at": "2026-05-20T12:10:00.000Z",
+      "updated_at": "2026-05-20T12:12:00.000Z"
+    }
+  ],
+  "gtmLedgers": [
+    {
+      "path": "ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json",
+      "ledger": {
+        "schema": "blueprint/exact-site-hosted-review-gtm-ledger/v1",
+        "pilot": {
+          "name": "Blueprint uses Blueprint to sell Blueprint",
+          "wedge": "Exact-Site Hosted Review",
+          "startDate": "2026-05-01",
+          "endDate": "2026-05-14",
+          "status": "active",
+          "dailyTouchTargetMin": 1,
+          "dailyTouchTargetMax": 50,
+          "paidScaleAllowed": false
+        },
+        "targets": [
+          {
+            "id": "gtm-approved-target",
+            "track": "proof_ready_outreach",
+            "organizationName": "Approved Robot Team",
+            "buyerSegment": "Warehouse autonomy",
+            "workflowNeed": "Inspect a reviewable route",
+            "intentSignals": ["public hiring signal"],
+            "evidence": {
+              "summary": "Recipient and proof artifact are present."
+            },
+            "artifact": {
+              "type": "exact_site_hosted_review",
+              "status": "review_ready",
+              "path": "ops/paperclip/playbooks/proof-approved.md"
+            },
+            "recipient": {
+              "email": "buyer@approved-robots.co",
+              "evidenceSource": "https://approved-robots.co/contact",
+              "evidenceType": "explicit_research"
+            },
+            "outbound": {
+              "status": "draft_ready",
+              "approvalState": "approved",
+              "approvedBy": "founder@tryblueprint.io",
+              "approvedAt": "2026-05-20T13:00:00.000Z",
+              "messagePath": "ops/paperclip/playbooks/gtm-approved-message.md"
+            },
+            "sales": {
+              "nextAction": "Dry-run before live dispatch",
+              "nextActionOwner": "outbound-sales-agent"
+            }
+          },
+          {
+            "id": "gtm-skipped-target",
+            "track": "proof_ready_outreach",
+            "organizationName": "Approval Pending Robots",
+            "buyerSegment": "Warehouse autonomy",
+            "workflowNeed": "Inspect a reviewable route",
+            "intentSignals": ["manual target list"],
+            "evidence": {
+              "summary": "Recipient exists but first-send approval is still pending."
+            },
+            "artifact": {
+              "type": "exact_site_hosted_review",
+              "status": "review_ready",
+              "path": "ops/paperclip/playbooks/proof-skipped.md"
+            },
+            "recipient": {
+              "email": "buyer@pending-robots.co",
+              "evidenceSource": "https://pending-robots.co/contact",
+              "evidenceType": "explicit_research"
+            },
+            "outbound": {
+              "status": "draft_ready",
+              "approvalState": "pending_first_send_approval",
+              "messagePath": "ops/paperclip/playbooks/gtm-skipped-message.md"
+            },
+            "sales": {
+              "nextAction": "Request founder first-send approval",
+              "nextActionOwner": "outbound-sales-agent"
+            }
+          },
+          {
+            "id": "gtm-blocked-target",
+            "track": "demand_sourced_capture",
+            "organizationName": "Blocked Capture Ask",
+            "buyerSegment": "Warehouse autonomy",
+            "workflowNeed": "Needs a new exact-site capture",
+            "intentSignals": ["buyer requested unavailable site"],
+            "evidence": {
+              "summary": "No recipient-backed contact exists yet."
+            },
+            "artifact": {
+              "type": "city_site_opportunity_brief",
+              "status": "draft",
+              "path": "ops/paperclip/playbooks/blocked-capture-ask.md"
+            },
+            "outbound": {
+              "status": "draft_ready",
+              "approvalState": "blocked",
+              "messagePath": "ops/paperclip/playbooks/gtm-blocked-message.md"
+            },
+            "blockers": [
+              {
+                "id": "gtm-blocker-recipient",
+                "status": "blocked",
+                "summary": "Missing explicit recipient evidence.",
+                "owner": "growth-lead",
+                "nextAction": "Supply recipient-backed evidence before first send."
+              }
+            ],
+            "sales": {
+              "nextAction": "Find explicit recipient evidence",
+              "nextActionOwner": "growth-lead"
+            }
+          }
+        ],
+        "dailyActivity": []
+      }
+    }
+  ],
+  "gtmSendExecutorManifests": [
+    {
+      "path": "ops/paperclip/reports/gtm-send-executor/2026-05-20/send-executor-manifest.json",
+      "schema": "blueprint/gtm-send-executor/v1",
+      "generatedAt": "2026-05-20T13:30:00.000Z",
+      "ledgerPath": "ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json",
+      "dryRun": true,
+      "summary": {
+        "eligible": 1,
+        "sent": 0,
+        "dryRun": 1,
+        "skippedApproval": 1,
+        "skippedNoRecipient": 1,
+        "skippedNoMessage": 0,
+        "skippedAlreadySent": 0,
+        "failed": 1
+      },
+      "receipts": [],
+      "errors": [
+        "No eligible GTM sends: 1 draft(s) are not founder/operator approved.",
+        "Recipient evidence next action: validate recipient evidence before send."
+      ]
+    }
+  ],
+  "humanBlockerDispatches": [
+    {
+      "id": "dispatch-review-required",
+      "blocker_id": "blocker-review-required",
+      "blocker_kind": "policy",
+      "title": "Pricing exception approval required",
+      "delivery_mode": "review_required",
+      "delivery_status": "awaiting_review",
+      "email_target": "ohstnhunt@gmail.com",
+      "email_subject": "[Blueprint blocker] Pricing exception approval required",
+      "email_sent": false,
+      "slack_mirrored": false,
+      "slack_sent": false,
+      "routing_owner": "blueprint-chief-of-staff",
+      "execution_owner": "revenue-ops-pricing-agent",
+      "escalation_owner": "blueprint-ceo",
+      "review_owner": "ops-lead",
+      "sender_owner": "blueprint-chief-of-staff",
+      "report_paths": ["ops/paperclip/reports/pricing-exception.md"],
+      "paperclip_issue_id": "issue-pricing-1",
+      "ops_work_item_id": "ops-pricing-1",
+      "actor": {
+        "uid": "agent-1",
+        "email": "chief-of-staff@tryblueprint.io"
+      },
+      "decision_context": {
+        "decision_type": "pricing_exception",
+        "irreversible_action_class": "commercial_commitment",
+        "gate_mode": "universal_founder_inbox",
+        "reason_category": "pricing_exception"
+      },
+      "repo_context": {
+        "repo": "Blueprint-WebApp",
+        "project": "external-action-audit",
+        "issue_id": "issue-pricing-1",
+        "ops_work_item_id": "ops-pricing-1",
+        "source_ref": "ops/paperclip/reports/pricing-exception.md"
+      },
+      "created_at": "2026-05-20T14:00:00.000Z",
+      "updated_at": "2026-05-20T14:00:00.000Z"
+    }
+  ],
+  "humanReplyEvents": [
+    {
+      "id": "reply-approval",
+      "blocker_id": "blocker-review-required",
+      "channel": "email",
+      "sender": "ohstnhunt@gmail.com",
+      "recipient": "ohstnhunt@gmail.com",
+      "subject": "Re: [Blueprint blocker] Pricing exception approval required",
+      "body_excerpt": "Approved for the bounded quote.",
+      "received_at": "2026-05-20T14:30:00.000Z",
+      "external_message_id": "gmail-message-1",
+      "external_thread_id": "gmail-thread-1",
+      "classification": "approval",
+      "resolution": "resolved_input",
+      "routing_owner": "blueprint-chief-of-staff",
+      "execution_owner": "revenue-ops-pricing-agent",
+      "escalation_owner": "blueprint-ceo",
+      "should_resume_now": true,
+      "reason": "Human approval was explicit."
+    }
+  ],
+  "voiceSupportQueueDocs": [
+    {
+      "id": "voice-escalation-1",
+      "conversation_id": "voice-escalation-1",
+      "status": "new",
+      "category": "pricing",
+      "handoff_required": true,
+      "last_user_message": "Can you approve a custom commercial term?",
+      "last_response_text": "I will route pricing and commercial commitments to a human operator.",
+      "support_email": "support@tryblueprint.io",
+      "page_context": "voice concierge",
+      "created_at": "2026-05-20T15:00:00.000Z",
+      "updated_at": "2026-05-20T15:00:00.000Z"
+    }
+  ]
+}

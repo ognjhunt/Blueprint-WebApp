@@ -22,55 +22,55 @@ export default function Hero({ onPrimaryCta }) {
     {
       k: "pitch",
       pre: "The simple pitch:",
-      highlight: "Turn your location into an AI-powered place people love.",
-      sub: "Blueprint adds a ‘glasses concierge’ that answers questions, gives directions, and triggers tasks without you building an app.",
+      highlight: "Turn a real location into capture-backed site proof.",
+      sub: "Blueprint records a lawful walkthrough, packages the proof, and routes hosted review or approved repeat-walk hardware only when the request supports it.",
     },
     {
       k: "how",
-      pre: "Fast to launch:",
-      highlight: "Scan today, go live tomorrow.",
-      sub: "We capture your space, map common questions & tasks, and deliver a hands-on demo for your team the very next day.",
+      pre: "How it works:",
+      highlight: "Capture first, proof next.",
+      sub: "We review assignment scope, capture the approved route, and confirm any hosted review or hardware demo from the resulting proof packet.",
     },
     {
       k: "why",
       pre: "Why now:",
-      highlight: "AI + glasses are moving from novelty to normal.",
-      sub: "Be ready as staff and visitors start wearing them on-site, and Blueprint makes it easy to start, learn, and scale.",
+      highlight: "Smart-glasses support stays proof-led.",
+      sub: "Phone capture is the default. Google/Meta glasses are limited to approved repeat walkthroughs with assignment, hardware, launch, and downstream capture proof.",
     },
     {
       k: "compat",
       pre: "Built for real hardware:",
-      highlight: "Works with today’s smart glasses.",
-      sub: "Scan QR code on phones and start experience on AI smart glasses. Future-proof your space as the next wave ships.",
+      highlight: "Google/Meta hardware is request-scoped.",
+      sub: "Blueprint can route smart-glasses walkthroughs when the assignment and downstream package path are ready; it does not treat every venue as hardware-ready by default.",
     },
   ];
 
   const features = [
     "No app to build",
-    "Mapping today, demo tomorrow (required)",
-    "On-site demo 1–2 hrs",
-    "Works with all smart glasses brands",
-    "Analytics & insights included",
+    "Capture proof before demos",
+    "Hosted review by request",
+    "Smart glasses only when approved",
+    "Analytics and proof notes included",
   ];
 
   const lines2 = [
     {
       k: "owners",
       pre: "For location owners:",
-      highlight: "Bring wearable AI service to your venue in 24 hours.",
-      sub: "Blueprint packages the new device access toolkits into guest-ready experiences for retail, hospitality, attractions, and campuses.",
+      highlight: "Make one site review-ready without promising hardware everywhere.",
+      sub: "Blueprint packages approved walkthroughs into buyer-facing proof, hosted review paths, and request-scoped smart-glasses demos when the chain supports it.",
     },
     {
       k: "how",
       pre: "What we handle:",
-      highlight: "Space scans, agent flows, and hardware provisioning.",
-      sub: "We capture your layout, map the top questions and tasks, and deliver a guided run-through for your team the very next day.",
+      highlight: "Assignment scope, capture proof, and hosted review.",
+      sub: "We capture the allowed route, preserve provenance, and confirm any hardware walkthrough only after proof review.",
     },
     {
       k: "why",
       pre: "Why plan now:",
-      highlight: "Wearable assistants are arriving from every major platform.",
-      sub: "Blueprint keeps your location ready as Meta, Google, Apple, and Samsung release next-gen glasses.",
+      highlight: "Wearable assistants are becoming real hardware, but site proof still comes first.",
+      sub: "Blueprint can support Google/Meta repeat walkthroughs when the assignment, hardware, launch proof, and downstream capture proof exist.",
     },
     {
       k: "proof",
@@ -82,11 +82,11 @@ export default function Hero({ onPrimaryCta }) {
   ];
 
   const features2 = [
-    "Venue scan + AI flows in under 24 hours",
-    "Mapping today, demo tomorrow (required)",
-    "Works with all smart glasses brands",
+    "Approved route capture",
+    "Hosted review after proof",
+    "Google/Meta glasses only when approved",
     "Staff onboarding + playbooks included",
-    "Analytics & privacy controls baked in",
+    "Analytics and privacy controls baked in",
   ];
 
   const [variant, setVariant] = useState("A");
@@ -296,14 +296,14 @@ export default function Hero({ onPrimaryCta }) {
 //       k: "how",
 //       pre: "We do the heavy lifting:",
 //       highlight:
-//         "Map your location → design the content → go live tomorrow.",
+//         "Map the approved route -> review the proof -> confirm hosted access.",
 //       sub: "One focused visit from us: mapping (~60 min) with a same-day activation run-through for your team.",
 //     },
 //     {
 //       k: "pilot",
 //       pre: "Now enrolling in Durham:",
 //       highlight: "$0 to try Blueprint at your location.",
-//       sub: "Free, feedback-only pilot. Scan today, live tomorrow. No contract; no purchase option yet.",
+//       sub: "Request-scoped pilot. Capture proof and access terms are confirmed before any demo window.",
 //     },
 //   ];
 
@@ -493,14 +493,14 @@ export default function Hero({ onPrimaryCta }) {
 //       k: "how",
 //       pre: "We do the heavy lifting:",
 //       highlight:
-//         "Map your location → design the content → go live tomorrow.",
+//         "Map the approved route -> review the proof -> confirm hosted access.",
 //       sub: "One focused visit from us: mapping (~60 min) with a same-day activation run-through for your team.",
 //     },
 //     {
 //       k: "pilot",
 //       pre: "Now enrolling in Durham:",
 //       highlight: "$0 to try Blueprint at your location.",
-//       sub: "Free, feedback-only pilot. Scan today, live tomorrow. No contract; no purchase option yet.",
+//       sub: "Request-scoped pilot. Capture proof and access terms are confirmed before any demo window.",
 //     },
 //   ];
 

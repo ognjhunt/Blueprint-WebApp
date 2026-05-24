@@ -45,7 +45,8 @@ const EQUIPMENT_OPTIONS = [
   {
     value: "smart_glasses",
     label: "Smart glasses",
-    detail: "Optional for approved repeat walkthroughs when hardware and launch proof exist.",
+    detail:
+      "Optional for approved repeat walkthroughs when the assignment, hardware, launch proof, and downstream capture proof exist.",
   },
 ] as const;
 
@@ -531,8 +532,8 @@ export default function CapturerSignUpFlow() {
               <p className="max-w-lg text-sm leading-6 text-[color:var(--ink-soft)]">
                 Review is required before any assignment or payout eligibility. The assignment
                 payout is shown before you start, and only an accepted capture can move forward.
-                Smart glasses stay optional for approved repeat walkthroughs where hardware and
-                launch proof exist.
+                Google/Meta smart glasses stay optional for approved repeat walkthroughs where
+                the assignment, hardware, launch proof, and downstream capture proof exist.
               </p>
               <p className="max-w-lg text-sm leading-6 text-[color:var(--ink-soft)]">
                 Robot teams and site operators use the{" "}
@@ -568,7 +569,7 @@ export default function CapturerSignUpFlow() {
                   Gear
                 </p>
                 <p className="mt-3 text-2xl font-semibold">Phone first</p>
-                <p className="mt-1 text-sm text-[color:var(--ink-soft)]">Smart glasses when approved.</p>
+                <p className="mt-1 text-sm text-[color:var(--ink-soft)]">Smart glasses only after proof review.</p>
               </div>
               <div className="rounded-2xl border border-[color:var(--line)] bg-white/85 p-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--ink-muted)]">

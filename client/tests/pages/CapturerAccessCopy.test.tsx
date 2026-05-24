@@ -70,7 +70,7 @@ describe("Capturer access copy", () => {
     render(<Capture />);
 
     expect(
-      screen.getByRole("heading", { name: /Get paid to capture real places robots need to understand/i }),
+      screen.getByRole("heading", { name: /Get paid to capture indoor places robots need to understand/i }),
     ).toBeInTheDocument();
     expect(screen.getByText(/assignment payout shown before you start/i)).toBeInTheDocument();
     expect(screen.getAllByText(/accepted capture/i).length).toBeGreaterThan(0);
@@ -115,7 +115,7 @@ describe("Capturer access copy", () => {
 
     expect(screen.getByRole("heading", { name: /Get paid to capture real places robots need to understand/i })).toBeInTheDocument();
     expect(screen.getAllByText(/phone first/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/smart glasses are supported only for approved repeat walkthroughs/i)).toBeInTheDocument();
+    expect(screen.getByText(/Google\/Meta smart glasses are supported only for approved repeat walkthroughs/i)).toBeInTheDocument();
     expect(screen.getAllByText(/accepted capture/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Review required/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Open capture markets/i)).toBeInTheDocument();
@@ -139,7 +139,7 @@ describe("Capturer access copy", () => {
     expect(screen.getByRole("heading", { name: /Apply to get paid for approved field capture/i })).toBeInTheDocument();
     expect(screen.getByText(/phone-first walkthrough work/i)).toBeInTheDocument();
     expect(screen.getByText(/review is required before any assignment or payout eligibility/i)).toBeInTheDocument();
-    expect(screen.getByText(/Smart glasses stay optional/i)).toBeInTheDocument();
+    expect(screen.getByText(/Google\/Meta smart glasses stay optional/i)).toBeInTheDocument();
     expect(screen.queryByText(/\$40 average/i)).not.toBeInTheDocument();
   });
 

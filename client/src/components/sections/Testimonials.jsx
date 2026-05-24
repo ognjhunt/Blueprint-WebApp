@@ -11,29 +11,29 @@ export default function Testimonials() {
   const testimonials = [
     {
       id: 1,
-      name: "Sarah Johnson",
-      role: "Marketing Director",
-      company: "Retail Innovations Inc.",
+      name: "Robot-team buyer",
+      role: "Evaluation lead",
+      company: "Representative request",
       image: "/images/testimonial-1.jpg", // Replace with actual image
-      text: "Blueprint completely transformed our in-store experience. Our customers love the interactive product information, and we've seen a 34% increase in average purchase value since implementation.",
+      text: "Before we review a site, we need the capture route, provenance, rights context, and hosted access boundary in one packet.",
       rating: 5,
     },
     {
       id: 2,
-      name: "Michael Chen",
-      role: "Operations Manager",
-      company: "Urban Grocery Co.",
+      name: "Site operator",
+      role: "Access reviewer",
+      company: "Representative request",
       image: "/images/testimonial-2.jpg", // Replace with actual image
-      text: "Blueprint's technology has revolutionized how our customers shop. The AI glasses guidance and product information features have reduced customer service inquiries by 45% while improving customer satisfaction scores.",
+      text: "Smart-glasses walkthroughs should only happen after the assignment, device, launch, and downstream proof chain is clear.",
       rating: 5,
     },
     {
       id: 3,
-      name: "Elena Rodriguez",
-      role: "Customer Experience Lead",
-      company: "Luxury Hotels Group",
+      name: "Capture operator",
+      role: "Field workflow",
+      company: "Representative request",
       image: "/images/testimonial-3.jpg", // Replace with actual image
-      text: "Our guests are amazed by the AI glasses experiences Blueprint has enabled throughout our properties. From interactive room service to guided wearable tours, the technology has set us apart from competitors and justified our premium pricing.",
+      text: "A phone-first walkthrough is the default path. Repeat-walk hardware is useful only when Blueprint has approved the exact route and review goal.",
       rating: 5,
     },
   ];
@@ -81,11 +81,11 @@ export default function Testimonials() {
           }}
         >
           <h2 className="text-4xl font-bold mb-6 bg-gradient-to-r from-indigo-600 to-violet-600 inline-block text-transparent bg-clip-text">
-            What Our Customers Say
+            What Buyers Need To Know
           </h2>
           <p className="text-xl text-gray-600">
-            Businesses across industries are transforming their spaces with
-            Blueprint's AI glasses platform.
+            Blueprint keeps public site review polished while tying hardware
+            claims to exact proof.
           </p>
         </motion.div>
 

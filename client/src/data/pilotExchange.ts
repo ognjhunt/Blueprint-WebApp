@@ -1244,7 +1244,7 @@ export const captureNetworkStats: CaptureNetworkStat[] = [
     id: "capture-001",
     label: "Active Capture Contributors",
     value: "420",
-    note: "Paid operators using smart glasses to map indoor spaces.",
+    note: "Phone-first paid operators; smart glasses only for approved repeat walkthroughs.",
   },
   {
     id: "capture-002",

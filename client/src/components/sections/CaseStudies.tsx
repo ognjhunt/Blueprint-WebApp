@@ -5,8 +5,8 @@ import { Avatar, AvatarImage } from "@/components/ui/avatar";
 const caseStudies = [
   {
     company: "Fine Dining Co.",
-    result: "+35% Order Value",
-    quote: "Blueprint's AI-powered glasses concierge transformed our traditional dining venue into a tech-forward destination, revolutionizing how customers experience our menu and service.",
+    result: "Representative review path",
+    quote: "The useful buyer question is whether one approved route has capture proof, rights context, and a hosted review path before any smart-glasses demo is discussed.",
     image: "https://images.unsplash.com/photo-1493857671505-72967e2e2760",
     avatar: "https://i.pravatar.cc/150?u=1",
     name: "Sarah Chen",
@@ -14,8 +14,8 @@ const caseStudies = [
   },
   {
     company: "Tech Retail",
-    result: "+45% Engagement",
-    quote: "By implementing Blueprint's wearable AI platform, we've pioneered a new era of retail interaction, setting new industry standards for digital customer engagement.",
+    result: "Representative capture path",
+    quote: "Phone capture stays first. Google/Meta smart glasses belong on approved repeat walkthroughs only when the assignment and downstream package proof are ready.",
     image: "https://images.unsplash.com/photo-1520333789090-1afc82db536a",
     avatar: "https://i.pravatar.cc/150?u=2",
     name: "Michael Roberts",
@@ -35,10 +35,10 @@ export default function CaseStudies() {
           className="text-center mb-16"
         >
           <h2 className="text-4xl font-bold mb-4">
-            Success Stories
+            Representative Proof Paths
           </h2>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            See how leading businesses are achieving remarkable results with Blueprint.
+            See how Blueprint frames site review without inventing customer outcomes or hardware readiness.
           </p>
         </motion.div>
 

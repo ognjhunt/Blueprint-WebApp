@@ -286,8 +286,8 @@ export default function CaptureAppPlaceholder() {
                   <p className="mt-4 text-base leading-7 text-white/75">
                     The public app is for ordinary places with useful robot workflows: store
                     aisles, lobbies, corridors, common areas, venues, and service spaces.
-                    Smart glasses are supported only for approved repeat walkthroughs where
-                    hardware and launch proof exist.
+                    Google/Meta smart glasses are supported only for approved repeat walkthroughs
+                    where the assignment, hardware, launch proof, and downstream capture proof exist.
                   </p>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
