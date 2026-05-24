@@ -148,4 +148,43 @@ describe("Exact-Site Hosted Review buyer loop report", () => {
     expect(report.founderApprovalQueue.map((target) => target.id)).not.toContain("target-1");
     expect(report.summary.loopStatus).toBe("blocked");
   });
+
+  it("shows target-specific first-touch copy and contact handoffs for founder approval", () => {
+    const pilotLedger = ledger();
+    pilotLedger.targets[1] = {
+      ...pilotLedger.targets[1],
+      recipient: {
+        email: "routing@robotteamtwo.co",
+        role: "Deployment routing inbox",
+        evidenceSource: "Human-supplied target sheet with explicit routing inbox.",
+        evidenceType: "human_supplied",
+      },
+      artifact: {
+        type: "city_site_opportunity_brief",
+        status: "draft",
+        path: "ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md",
+      },
+      outbound: {
+        status: "draft_ready",
+        approvalState: "pending_first_send_approval",
+        messagePath: "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
+      },
+    };
+    const audit = auditExactSiteHostedReviewGtmLedger(pilotLedger);
+    const report = buildExactSiteHostedReviewBuyerLoopReport({
+      ledger: pilotLedger,
+      audit,
+      ledgerPath: "/repo/ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json",
+      city: "Durham, NC",
+      reportDate: "2026-04-28",
+      durability: null,
+    });
+
+    expect(report.markdown).toContain("## Founder Approval Copy Preview");
+    expect(report.markdown).toContain("What exact Simulation team site should Blueprint capture next?");
+    expect(report.markdown).toContain("Do not imply a hosted review exists yet");
+    expect(report.markdown).toContain("/contact?persona=robot-team");
+    expect(report.markdown).toContain("targetSiteType=warehouse+staging+lane");
+    expect(report.markdown).toContain("proofPathPreference=exact_site_required");
+  });
 });

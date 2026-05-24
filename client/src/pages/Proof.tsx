@@ -305,7 +305,7 @@ export default function Proof() {
                 See what is attached before your team commits.
               </h1>
               <p className="mt-5 max-w-[36rem] text-base leading-7 text-white/80 sm:leading-8">
-                Outdoor world models make real-place simulation legible. Blueprint proof keeps indoor capture provenance, rights posture, package scope, hosted outputs, and buyer decisions visible in one packet.
+                Outdoor world models make real-place simulation legible. Blueprint proof gives robot teams a concrete packet to inspect: indoor capture provenance, rights posture, package scope, hosted outputs, and the next buyer decision in one place.
               </p>
               <div className="mt-8 flex flex-wrap gap-2">
                 <StatusBadge tone="attached">Capture provenance</StatusBadge>

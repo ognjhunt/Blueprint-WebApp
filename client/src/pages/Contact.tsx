@@ -222,11 +222,26 @@ export default function Contact() {
           <div className="mx-auto grid min-h-[35rem] max-w-[88rem] items-center gap-8 px-5 py-16 sm:px-8 lg:grid-cols-[0.58fr_0.42fr] lg:px-10">
             <div>
               <h1 className="font-editorial max-w-[46rem] text-[3.25rem] leading-[0.94] tracking-[-0.05em] text-slate-950 sm:text-[5.1rem] sm:tracking-[-0.06em]">
-                Request a site, location, or robot workflow.
+                Request the site-specific world model your robot team needs.
               </h1>
               <p className="mt-5 max-w-[38rem] text-base leading-8 text-slate-600">
-                Tell Blueprint what place or task you need. We route it to a package, hosted review, new capture, or site-access answer.
+                Name the place, workflow, robot stack, or site class. Blueprint routes the request to package access, hosted review, new capture, or a site-access answer without treating the form as payment, rights clearance, provider execution, or fulfillment.
               </p>
+              <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                <a
+                  href="#contact-intake"
+                  className="inline-flex items-center justify-center bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                >
+                  Request world model
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </a>
+                <a
+                  href="/proof"
+                  className="inline-flex items-center justify-center border border-black/10 bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-50"
+                >
+                  Inspect proof
+                </a>
+              </div>
 
               <form className="mt-8" onSubmit={submitRequest}>
                 <label
@@ -345,10 +360,10 @@ export default function Contact() {
                       </div>
                       <div>
                         <p className="text-sm font-semibold text-slate-950">
-                          No scanned package for this exact place yet.
+                          No exact-site package in the catalog yet.
                         </p>
                         <p className="mt-2 text-sm leading-6 text-slate-600">
-                          Send it as a request. Blueprint will review the site, workflow, capture path, and proof needed before claiming access or hosted availability.
+                          Send it as a capture request. Blueprint will review the site, workflow, capture path, and proof needed before claiming package access or hosted availability.
                         </p>
                         <a
                           href={requestHref}
@@ -417,7 +432,7 @@ export default function Contact() {
                 Add contact details and send the request.
               </h2>
               <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600">
-                This is an intake record, not access, payment, fulfillment, provider execution, or hosted-session launch.
+                This creates an intake record only. Access, payment, rights clearance, provider execution, fulfillment, and hosted-session launch stay request-specific until the owning proof exists.
               </p>
             </div>
 

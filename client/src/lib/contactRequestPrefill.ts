@@ -58,15 +58,15 @@ export const CONTACT_REQUEST_PATH_OPTIONS: Array<{
   {
     value: "world-model",
     label: "World model package",
-    description: "Package access or a package path for one site.",
-    cta: "Request this location",
+    description: "Package access or the right package path for one site.",
+    cta: "Request world model",
     buyerType: "robot_team",
     commercialRequestPath: "world_model",
   },
   {
     value: "hosted-review",
     label: "Hosted review",
-    description: "Review one workflow in a hosted Blueprint path.",
+    description: "Review one exact-site workflow in a hosted Blueprint path.",
     cta: "Request hosted review",
     buyerType: "robot_team",
     commercialRequestPath: "hosted_evaluation",
@@ -74,7 +74,7 @@ export const CONTACT_REQUEST_PATH_OPTIONS: Array<{
   {
     value: "new-capture",
     label: "New capture request",
-    description: "Ask Blueprint to review capture for an unscanned place.",
+    description: "Name an unscanned site or workflow for capture review.",
     cta: "Request this location",
     buyerType: "robot_team",
     commercialRequestPath: "capture_access",

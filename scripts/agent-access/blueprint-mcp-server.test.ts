@@ -15,6 +15,7 @@ describe("Blueprint MCP server", () => {
       "blueprint.commerce.checkoutDryRun",
       "blueprint.commerce.order.get",
       "blueprint.commerce.entitlement.get",
+      "blueprint.commerce.entitlementReadiness",
       "blueprint.session.create",
       "blueprint.session.reset",
       "blueprint.session.step",
@@ -32,6 +33,10 @@ describe("Blueprint MCP server", () => {
     ]);
     expect(BLUEPRINT_MCP_TOOLS.find((tool) => tool.name === "blueprint.siteWorld.search")?.inputSchema.properties).toHaveProperty("q");
     expect(BLUEPRINT_MCP_TOOLS.find((tool) => tool.name === "blueprint.siteWorld.search")?.inputSchema.properties).toHaveProperty("objectTags");
+    expect(BLUEPRINT_MCP_TOOLS.find((tool) => tool.name === "blueprint.commerce.entitlementReadiness")?.inputSchema.required).toEqual([
+      "siteWorldId",
+      "entitlementId",
+    ]);
   });
 
   it("routes tool calls through the same API client and returns JSON text content", async () => {
@@ -159,6 +164,42 @@ describe("Blueprint MCP server", () => {
     );
     expect(JSON.parse(checkout.content[0].text)).toMatchObject({
       entitlement: { id: "dry-ent-1" },
+    });
+  });
+
+  it("routes entitlement readiness through the dry-run agent-access endpoint", async () => {
+    const fetchMock = vi.fn(async () =>
+      new Response(JSON.stringify({
+        mode: "dry_run",
+        entitled: true,
+        launchable: true,
+      }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+
+    const result = await callBlueprintMcpTool(
+      "blueprint.commerce.entitlementReadiness",
+      {
+        siteWorldId: "sw-chi-01",
+        entitlementId: "dry-ent-1",
+        buyerUserId: "agent-dry-run-buyer",
+      },
+      {
+        env: { BLUEPRINT_API_BASE_URL: "https://agent.example" },
+        fetchImpl: fetchMock,
+      },
+    );
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://agent.example/api/agent-access/commerce/entitlement-readiness?siteWorldId=sw-chi-01&entitlementId=dry-ent-1&buyerUserId=agent-dry-run-buyer",
+      expect.objectContaining({ method: "GET" }),
+    );
+    expect(JSON.parse(result.content[0].text)).toMatchObject({
+      mode: "dry_run",
+      entitled: true,
+      launchable: true,
     });
   });
 });

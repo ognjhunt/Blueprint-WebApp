@@ -41,6 +41,7 @@ const goalCloseoutFields = [
 const goalCloseoutInstructionSnippets = [
   "Goal-style Codex runs",
   "State claimed must be exactly one of: `done`, `blocked`, or `awaiting_human_decision`.",
+  "Repo-side closeout packets do not require a live Paperclip API or localhost:3100.",
   "Blocked closeouts must name the earliest hard stop, owner, and retry/resume condition.",
   "Awaiting-human closeouts must name the blocker/decision id, routing surface, watcher owner, and resume condition.",
   "Do not claim native `/goal` status unless Codex CLI state or run artifacts prove it.",
@@ -230,6 +231,17 @@ describe("Blueprint Paperclip agent instruction guards", () => {
       expect(agent?.adapter?.type, `${slug} must stay on Codex for goal-style runs`).toBe("codex_local");
       const instructionsPath = path.resolve(`ops/paperclip/blueprint-company/agents/${slug}/AGENTS.md`);
       const instructions = await fs.readFile(instructionsPath, "utf8");
+      const timeoutSec = agent?.adapter?.config?.timeoutSec;
+      const budgetMonthlyCents = agent?.budgetMonthlyCents;
+      expect(typeof timeoutSec, `${slug} must declare an adapter timeoutSec for goal-style budget/timeout context`).toBe(
+        "number",
+      );
+      expect(Number(timeoutSec), `${slug} timeoutSec must be positive`).toBeGreaterThan(0);
+      expect(
+        typeof budgetMonthlyCents,
+        `${slug} must declare budgetMonthlyCents for goal-style budget/timeout context`,
+      ).toBe("number");
+      expect(Number(budgetMonthlyCents), `${slug} budgetMonthlyCents must be positive`).toBeGreaterThan(0);
       for (const field of goalCloseoutFields) {
         expect(instructions, `${slug} instructions must preserve ${field}`).toContain(field);
       }

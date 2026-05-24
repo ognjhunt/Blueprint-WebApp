@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-15T16:09:24.481Z",
+  "generatedAt": "2026-05-24T01:53:10.932Z",
   "baseUrl": "http://127.0.0.1:4173",
   "routeResults": [
     {
@@ -17,7 +17,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "7192 visible text characters"
+          "detail": "10134 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -37,7 +37,7 @@
         {
           "name": "SEO title",
           "status": "pass",
-          "detail": "Blueprint | Site-Specific World Models For Robot Training And Evaluation"
+          "detail": "Blueprint | Indoor World Models For Robot Teams"
         },
         {
           "name": "SEO description",
@@ -126,7 +126,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "6690 visible text characters"
+          "detail": "9877 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -146,7 +146,7 @@
         {
           "name": "SEO title",
           "status": "pass",
-          "detail": "Blueprint | Site-Specific World Models For Robot Training And Evaluation"
+          "detail": "Blueprint | Indoor World Models For Robot Teams"
         },
         {
           "name": "SEO description",
@@ -201,7 +201,7 @@
         {
           "name": "CTA: Request world model",
           "status": "pass",
-          "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-hero-primary&utm_source=homepage&utm_medium=website&utm_campaign=home_robot_team_conversion_v1&utm_content=proof_pack%3Ahome-hero-primary"
+          "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-hero-primary&utm_source=homepage&utm_medium=website&utm_campaign=home_robot_team_conversion_v1&utm_content=outdoor_street_view%3Ahome-hero-primary"
         },
         {
           "name": "CTA: Browse world models",
@@ -235,7 +235,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "4624 visible text characters"
+          "detail": "6331 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -344,7 +344,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "3816 visible text characters"
+          "detail": "5754 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -453,7 +453,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "24507 visible text characters"
+          "detail": "8331 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -562,7 +562,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "24405 visible text characters"
+          "detail": "7994 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -637,12 +637,230 @@
         {
           "name": "CTA: Request world model",
           "status": "pass",
-          "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=world-models-hero"
+          "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=site-worlds-hero"
         },
         {
           "name": "CTA: Jump to catalog",
           "status": "pass",
           "detail": "hrefs=#catalog"
+        },
+        {
+          "name": "Console health",
+          "status": "pass",
+          "detail": "No console/page errors"
+        },
+        {
+          "name": "Critical asset responses",
+          "status": "pass",
+          "detail": "No critical document/script/style/image/font failures"
+        }
+      ]
+    },
+    {
+      "routeLabel": "Agents",
+      "routePath": "/agents",
+      "viewportName": "desktop",
+      "screenshotPath": "output/qa/brand-polish/latest/screenshots/agents-desktop.png",
+      "status": "pass",
+      "checks": [
+        {
+          "name": "HTTP document status",
+          "status": "pass",
+          "detail": "200 OK"
+        },
+        {
+          "name": "Nonblank body",
+          "status": "pass",
+          "detail": "8393 visible text characters"
+        },
+        {
+          "name": "No framework error overlay",
+          "status": "pass",
+          "detail": "No overlay detected"
+        },
+        {
+          "name": "Visible H1 exists",
+          "status": "pass",
+          "detail": "Robot-team agent access."
+        },
+        {
+          "name": "Expected route heading",
+          "status": "pass",
+          "detail": "Expected \"Robot-team agent access.\", saw \"Robot-team agent access.\""
+        },
+        {
+          "name": "SEO title",
+          "status": "pass",
+          "detail": "Robot-Team Agent Access | Blueprint"
+        },
+        {
+          "name": "SEO description",
+          "status": "pass",
+          "detail": "118 chars"
+        },
+        {
+          "name": "Canonical URL",
+          "status": "pass",
+          "detail": "https://tryblueprint.io/agents"
+        },
+        {
+          "name": "Robots indexable",
+          "status": "pass",
+          "detail": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+        },
+        {
+          "name": "No horizontal overflow",
+          "status": "pass",
+          "detail": "0px overflow"
+        },
+        {
+          "name": "Visible images carry alt attributes",
+          "status": "pass",
+          "detail": "All visible images have alt attributes"
+        },
+        {
+          "name": "Visible images load",
+          "status": "pass",
+          "detail": "All visible images decoded"
+        },
+        {
+          "name": "Interactive controls have names",
+          "status": "pass",
+          "detail": "All visible controls have names"
+        },
+        {
+          "name": "Visible form controls are labeled",
+          "status": "pass",
+          "detail": "All visible form controls are labeled"
+        },
+        {
+          "name": "No placeholder residue",
+          "status": "pass",
+          "detail": "No placeholder markers found"
+        },
+        {
+          "name": "Public launch posture",
+          "status": "pass",
+          "detail": "No broad prelaunch or apology language found"
+        },
+        {
+          "name": "CTA: Request agent access",
+          "status": "pass",
+          "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=agents-hero&requestedOutputs=OpenAPI%2C%20CLI%2C%20MCP%2C%20and%20hosted-session%20access&message=Robot-team%20agent%20access%20request"
+        },
+        {
+          "name": "CTA: Open contract",
+          "status": "pass",
+          "detail": "hrefs=/agent-access.openapi.json"
+        },
+        {
+          "name": "Console health",
+          "status": "pass",
+          "detail": "No console/page errors"
+        },
+        {
+          "name": "Critical asset responses",
+          "status": "pass",
+          "detail": "No critical document/script/style/image/font failures"
+        }
+      ]
+    },
+    {
+      "routeLabel": "Agents",
+      "routePath": "/agents",
+      "viewportName": "mobile",
+      "screenshotPath": "output/qa/brand-polish/latest/screenshots/agents-mobile.png",
+      "status": "pass",
+      "checks": [
+        {
+          "name": "HTTP document status",
+          "status": "pass",
+          "detail": "200 OK"
+        },
+        {
+          "name": "Nonblank body",
+          "status": "pass",
+          "detail": "8318 visible text characters"
+        },
+        {
+          "name": "No framework error overlay",
+          "status": "pass",
+          "detail": "No overlay detected"
+        },
+        {
+          "name": "Visible H1 exists",
+          "status": "pass",
+          "detail": "Robot-team agent access."
+        },
+        {
+          "name": "Expected route heading",
+          "status": "pass",
+          "detail": "Expected \"Robot-team agent access.\", saw \"Robot-team agent access.\""
+        },
+        {
+          "name": "SEO title",
+          "status": "pass",
+          "detail": "Robot-Team Agent Access | Blueprint"
+        },
+        {
+          "name": "SEO description",
+          "status": "pass",
+          "detail": "118 chars"
+        },
+        {
+          "name": "Canonical URL",
+          "status": "pass",
+          "detail": "https://tryblueprint.io/agents"
+        },
+        {
+          "name": "Robots indexable",
+          "status": "pass",
+          "detail": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+        },
+        {
+          "name": "No horizontal overflow",
+          "status": "pass",
+          "detail": "0px overflow"
+        },
+        {
+          "name": "Visible images carry alt attributes",
+          "status": "pass",
+          "detail": "All visible images have alt attributes"
+        },
+        {
+          "name": "Visible images load",
+          "status": "pass",
+          "detail": "All visible images decoded"
+        },
+        {
+          "name": "Interactive controls have names",
+          "status": "pass",
+          "detail": "All visible controls have names"
+        },
+        {
+          "name": "Visible form controls are labeled",
+          "status": "pass",
+          "detail": "All visible form controls are labeled"
+        },
+        {
+          "name": "No placeholder residue",
+          "status": "pass",
+          "detail": "No placeholder markers found"
+        },
+        {
+          "name": "Public launch posture",
+          "status": "pass",
+          "detail": "No broad prelaunch or apology language found"
+        },
+        {
+          "name": "CTA: Request agent access",
+          "status": "pass",
+          "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=agents-hero&requestedOutputs=OpenAPI%2C%20CLI%2C%20MCP%2C%20and%20hosted-session%20access&message=Robot-team%20agent%20access%20request"
+        },
+        {
+          "name": "CTA: Open contract",
+          "status": "pass",
+          "detail": "hrefs=/agent-access.openapi.json"
         },
         {
           "name": "Console health",
@@ -671,7 +889,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "4653 visible text characters"
+          "detail": "6240 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -780,7 +998,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "4590 visible text characters"
+          "detail": "6165 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -889,7 +1107,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "8486 visible text characters"
+          "detail": "9363 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -998,7 +1216,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "8423 visible text characters"
+          "detail": "9288 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -1107,7 +1325,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "3080 visible text characters"
+          "detail": "4320 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -1117,12 +1335,12 @@
         {
           "name": "Visible H1 exists",
           "status": "pass",
-          "detail": "Get paid to capture real places robots need to understand."
+          "detail": "Get paid to capture indoor places robots need to understand."
         },
         {
           "name": "Expected route heading",
           "status": "pass",
-          "detail": "Expected \"Get paid to capture real places robots need to understand.\", saw \"Get paid to capture real places robots need to understand.\""
+          "detail": "Expected \"Get paid to capture indoor places robots need to understand.\", saw \"Get paid to capture indoor places robots need to understand.\""
         },
         {
           "name": "SEO title",
@@ -1182,10 +1400,10 @@
         {
           "name": "CTA: Check capture access",
           "status": "pass",
-          "detail": "hrefs=/capture-app/launch-access?role=capturer&source=capture-hero"
+          "detail": "hrefs=/capture-app/launch-access?role=capturer&source=header"
         },
         {
-          "name": "CTA: Apply to capture",
+          "name": "CTA: Apply for approved capture assignments",
           "status": "pass",
           "detail": "hrefs=/signup/capturer"
         },
@@ -1216,7 +1434,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "3017 visible text characters"
+          "detail": "4244 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -1226,12 +1444,12 @@
         {
           "name": "Visible H1 exists",
           "status": "pass",
-          "detail": "Get paid to capture real places robots need to understand."
+          "detail": "Get paid to capture indoor places robots need to understand."
         },
         {
           "name": "Expected route heading",
           "status": "pass",
-          "detail": "Expected \"Get paid to capture real places robots need to understand.\", saw \"Get paid to capture real places robots need to understand.\""
+          "detail": "Expected \"Get paid to capture indoor places robots need to understand.\", saw \"Get paid to capture indoor places robots need to understand.\""
         },
         {
           "name": "SEO title",
@@ -1294,7 +1512,7 @@
           "detail": "hrefs=/capture-app/launch-access?role=capturer&source=capture-hero"
         },
         {
-          "name": "CTA: Apply to capture",
+          "name": "CTA: Apply for approved capture assignments",
           "status": "pass",
           "detail": "hrefs=/signup/capturer"
         },
@@ -1325,7 +1543,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "3356 visible text characters"
+          "detail": "3377 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -1345,7 +1563,7 @@
         {
           "name": "SEO title",
           "status": "pass",
-          "detail": "Request A World Model | Blueprint"
+          "detail": "Request A Site Or Hosted Review | Blueprint"
         },
         {
           "name": "SEO description",
@@ -1434,7 +1652,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "3293 visible text characters"
+          "detail": "3302 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -1454,7 +1672,7 @@
         {
           "name": "SEO title",
           "status": "pass",
-          "detail": "Request A World Model | Blueprint"
+          "detail": "Request A Site Or Hosted Review | Blueprint"
         },
         {
           "name": "SEO description",
@@ -1543,7 +1761,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "7786 visible text characters"
+          "detail": "7898 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -1652,7 +1870,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "7723 visible text characters"
+          "detail": "7823 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -1761,7 +1979,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "3137 visible text characters"
+          "detail": "3249 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -1865,7 +2083,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "3074 visible text characters"
+          "detail": "3174 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -1969,7 +2187,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "2206 visible text characters"
+          "detail": "2318 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -2078,7 +2296,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "2050 visible text characters"
+          "detail": "2150 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -2187,7 +2405,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "1772 visible text characters"
+          "detail": "3353 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -2296,7 +2514,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "1709 visible text characters"
+          "detail": "3278 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -2399,6 +2617,7 @@
       "sourceRoutes": [
         "/",
         "/about",
+        "/agents",
         "/capture",
         "/careers",
         "/contact",
@@ -2417,6 +2636,34 @@
       "sourceRoutes": [
         "/",
         "/about",
+        "/agents",
+        "/capture",
+        "/careers",
+        "/contact",
+        "/faq",
+        "/pricing",
+        "/product",
+        "/proof",
+        "/updates",
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/agent-access.openapi.json",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/agents"
+      ]
+    },
+    {
+      "href": "/agents",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/",
+        "/about",
+        "/agents",
         "/capture",
         "/careers",
         "/contact",
@@ -2435,6 +2682,7 @@
       "sourceRoutes": [
         "/",
         "/about",
+        "/agents",
         "/capture",
         "/careers",
         "/contact",
@@ -2455,7 +2703,23 @@
       ]
     },
     {
+      "href": "/capture-app/launch-access?role=capturer&source=header",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/capture"
+      ]
+    },
+    {
       "href": "/capture-app/launch-access?role=capturer&source=home-persona-capturer",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/"
+      ]
+    },
+    {
+      "href": "/capture-app/launch-access?role=capturer&source=home-top-persona",
       "status": "pass",
       "httpStatus": 200,
       "sourceRoutes": [
@@ -2469,6 +2733,7 @@
       "sourceRoutes": [
         "/",
         "/about",
+        "/agents",
         "/capture",
         "/careers",
         "/contact",
@@ -2493,7 +2758,18 @@
       "status": "pass",
       "httpStatus": 200,
       "sourceRoutes": [
-        "/"
+        "/",
+        "/about",
+        "/agents",
+        "/capture",
+        "/careers",
+        "/contact",
+        "/faq",
+        "/pricing",
+        "/product",
+        "/proof",
+        "/updates",
+        "/world-models"
       ]
     },
     {
@@ -2607,6 +2883,7 @@
       "sourceRoutes": [
         "/",
         "/about",
+        "/agents",
         "/capture",
         "/careers",
         "/contact",
@@ -2619,19 +2896,11 @@
       ]
     },
     {
-      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=contact-fast-path",
+      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=custom-scope&path=world-model&source=pricing-custom-table",
       "status": "pass",
       "httpStatus": 200,
       "sourceRoutes": [
-        "/contact"
-      ]
-    },
-    {
-      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=contact-fast-path",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/contact"
+        "/pricing"
       ]
     },
     {
@@ -2644,6 +2913,14 @@
     },
     {
       "href": "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=pricing-hero",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/pricing"
+      ]
+    },
+    {
+      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=pricing-hosted-table",
       "status": "pass",
       "httpStatus": 200,
       "sourceRoutes": [
@@ -2707,11 +2984,11 @@
       ]
     },
     {
-      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=contact-fast-path",
+      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=agents-hero&requestedOutputs=OpenAPI%2C%20CLI%2C%20MCP%2C%20and%20hosted-session%20access&message=Robot-team%20agent%20access%20request",
       "status": "pass",
       "httpStatus": 200,
       "sourceRoutes": [
-        "/contact"
+        "/agents"
       ]
     },
     {
@@ -2737,7 +3014,6 @@
       "sourceRoutes": [
         "/",
         "/about",
-        "/capture",
         "/careers",
         "/contact",
         "/faq",
@@ -2749,7 +3025,7 @@
       ]
     },
     {
-      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-bottom&utm_source=homepage&utm_medium=website&utm_campaign=home_robot_team_conversion_v1&utm_content=proof_pack%3Ahome-bottom",
+      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-bottom&utm_source=homepage&utm_medium=website&utm_campaign=home_robot_team_conversion_v1&utm_content=outdoor_street_view%3Ahome-bottom",
       "status": "pass",
       "httpStatus": 200,
       "sourceRoutes": [
@@ -2757,7 +3033,7 @@
       ]
     },
     {
-      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-decision-path&utm_source=homepage&utm_medium=website&utm_campaign=home_robot_team_conversion_v1&utm_content=proof_pack%3Ahome-decision-path",
+      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-decision-path&utm_source=homepage&utm_medium=website&utm_campaign=home_robot_team_conversion_v1&utm_content=outdoor_street_view%3Ahome-decision-path",
       "status": "pass",
       "httpStatus": 200,
       "sourceRoutes": [
@@ -2765,7 +3041,7 @@
       ]
     },
     {
-      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-hero-primary&utm_source=homepage&utm_medium=website&utm_campaign=home_robot_team_conversion_v1&utm_content=proof_pack%3Ahome-hero-primary",
+      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-hero-primary&utm_source=homepage&utm_medium=website&utm_campaign=home_robot_team_conversion_v1&utm_content=outdoor_street_view%3Ahome-hero-primary",
       "status": "pass",
       "httpStatus": 200,
       "sourceRoutes": [
@@ -2805,6 +3081,22 @@
       ]
     },
     {
+      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=pricing-package-table",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/pricing"
+      ]
+    },
+    {
+      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=product-hero",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/product"
+      ]
+    },
+    {
       "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=site-worlds",
       "status": "pass",
       "httpStatus": 200,
@@ -2813,15 +3105,7 @@
       ]
     },
     {
-      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=world-models-hero",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/world-models"
-      ]
-    },
-    {
-      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=world-models-section",
+      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=site-worlds-hero",
       "status": "pass",
       "httpStatus": 200,
       "sourceRoutes": [
@@ -2835,6 +3119,26 @@
       "sourceRoutes": [
         "/",
         "/about",
+        "/agents",
+        "/capture",
+        "/careers",
+        "/contact",
+        "/faq",
+        "/pricing",
+        "/product",
+        "/proof",
+        "/updates",
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/for-robot-teams",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/",
+        "/about",
+        "/agents",
         "/capture",
         "/careers",
         "/contact",
@@ -2853,6 +3157,7 @@
       "sourceRoutes": [
         "/",
         "/about",
+        "/agents",
         "/capture",
         "/careers",
         "/contact",
@@ -2871,6 +3176,26 @@
       "sourceRoutes": [
         "/",
         "/about",
+        "/agents",
+        "/capture",
+        "/careers",
+        "/contact",
+        "/faq",
+        "/pricing",
+        "/product",
+        "/proof",
+        "/updates",
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/how-it-works",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/",
+        "/about",
+        "/agents",
         "/capture",
         "/careers",
         "/contact",
@@ -2889,6 +3214,7 @@
       "sourceRoutes": [
         "/",
         "/about",
+        "/agents",
         "/capture",
         "/careers",
         "/contact",
@@ -2907,6 +3233,7 @@
       "sourceRoutes": [
         "/",
         "/about",
+        "/agents",
         "/capture",
         "/careers",
         "/contact",
@@ -2925,6 +3252,7 @@
       "sourceRoutes": [
         "/",
         "/about",
+        "/agents",
         "/capture",
         "/careers",
         "/contact",
@@ -2943,6 +3271,26 @@
       "sourceRoutes": [
         "/",
         "/about",
+        "/agents",
+        "/capture",
+        "/careers",
+        "/contact",
+        "/faq",
+        "/pricing",
+        "/product",
+        "/proof",
+        "/updates",
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/sample-deliverables",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/",
+        "/about",
+        "/agents",
         "/capture",
         "/careers",
         "/contact",
@@ -2977,6 +3325,7 @@
       "sourceRoutes": [
         "/",
         "/about",
+        "/agents",
         "/capture",
         "/careers",
         "/contact",
@@ -2995,6 +3344,7 @@
       "sourceRoutes": [
         "/",
         "/about",
+        "/agents",
         "/capture",
         "/careers",
         "/contact",
@@ -3013,6 +3363,7 @@
       "sourceRoutes": [
         "/",
         "/about",
+        "/agents",
         "/capture",
         "/careers",
         "/contact",
@@ -3039,6 +3390,7 @@
       "status": "pass",
       "httpStatus": 200,
       "sourceRoutes": [
+        "/agents",
         "/world-models"
       ]
     },

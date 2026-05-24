@@ -384,12 +384,37 @@ function readAgentKey(run: AgentTelemetryRun) {
   );
 }
 
+type ModelPricing = {
+  cacheHitInput: number;
+  cacheMissInput: number;
+  output: number;
+};
+
+function deepSeekPricingForModel(model: string): ModelPricing | null {
+  const normalized = model.trim().toLowerCase();
+  if (normalized.includes("deepseek-v4-pro")) {
+    return {
+      cacheHitInput: 0.003625,
+      cacheMissInput: 0.435,
+      output: 0.87,
+    };
+  }
+  if (normalized.includes("deepseek-v4-flash")) {
+    return {
+      cacheHitInput: 0.0028,
+      cacheMissInput: 0.14,
+      output: 0.28,
+    };
+  }
+  return null;
+}
+
 function estimateCostPerMillionTokens(model: string) {
   const normalized = model.trim().toLowerCase();
   if (!normalized || normalized === "unknown") return 0;
   if (normalized.includes(":free")) return 0;
-  if (normalized.includes("deepseek-v4-pro")) return 0.75;
-  if (normalized.includes("deepseek-v4-flash")) return 0.13;
+  const deepSeekPricing = deepSeekPricingForModel(normalized);
+  if (deepSeekPricing) return deepSeekPricing.output;
   if (normalized.includes("gemini-3-flash")) return 0.6;
   if (normalized.includes("gpt-5.4-mini")) return 0.3;
   if (normalized.includes("gpt-5.4")) return 0.4;
@@ -397,14 +422,34 @@ function estimateCostPerMillionTokens(model: string) {
   return 0.3;
 }
 
+function estimateUsageCostUsd(row: Omit<AgentTelemetrySummaryRow, "cache_hit_ratio">) {
+  const pricing = deepSeekPricingForModel(row.model);
+  if (!pricing) {
+    const totalTokens =
+      row.total_tokens || row.prompt_tokens + row.completion_tokens + row.reasoning_tokens;
+    return Number(
+      ((totalTokens / 1_000_000) * estimateCostPerMillionTokens(row.model)).toFixed(12),
+    );
+  }
+
+  const cachedInputTokens = Math.max(0, Math.min(row.cached_tokens, row.prompt_tokens));
+  const cacheMissInputTokens = Math.max(0, row.prompt_tokens - cachedInputTokens);
+  const outputTokens = Math.max(row.completion_tokens, row.reasoning_tokens);
+  return Number(
+    (
+      (cachedInputTokens / 1_000_000) * pricing.cacheHitInput
+      + (cacheMissInputTokens / 1_000_000) * pricing.cacheMissInput
+      + (outputTokens / 1_000_000) * pricing.output
+    ).toFixed(12),
+  );
+}
+
 export function extractAgentCostTelemetry(run: AgentTelemetryRun): AgentCostTelemetryRecord {
   const artifacts = asRecord(run.artifacts) || {};
   const row = readUsageArtifacts(run);
   const totalTokens =
     row.total_tokens || row.prompt_tokens + row.completion_tokens + row.reasoning_tokens;
-  const costEstimateUsd = Number(
-    ((totalTokens / 1_000_000) * estimateCostPerMillionTokens(row.model)).toFixed(12),
-  );
+  const costEstimateUsd = estimateUsageCostUsd(row);
   const costUsd = Number(row.cost_usd.toFixed(12));
   return {
     run_id: asNullableString(run.id),

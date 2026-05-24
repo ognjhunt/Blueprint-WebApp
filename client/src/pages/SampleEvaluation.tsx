@@ -10,6 +10,7 @@ import {
   RouteTraceOverlay,
 } from "@/components/site/editorial";
 import { siteWorldCards } from "@/data/siteWorlds";
+import { buildContactRequestUrl } from "@/lib/contactRequestPrefill";
 import { editorialGeneratedAssets } from "@/lib/editorialGeneratedAssets";
 import { mediaRoomSampleEvaluation, sampleExportTree, sampleHostedRunRows } from "@/lib/proofEvidence";
 import { publicDemoHref } from "@/lib/marketingProof";
@@ -38,6 +39,23 @@ const sampleMetrics = [
     detail: "Example material. Not a customer result or deployment guarantee.",
   },
 ];
+
+const sampleCaptureRequestHref = buildContactRequestUrl({
+  requestPath: "new-capture",
+  buyerType: "robot_team",
+  source: "sample-evaluation",
+  siteWorldId: demoSite.id,
+  siteName: mediaRoomSampleEvaluation.siteName,
+  siteLocation: demoSite.siteAddress,
+  targetSiteType: "Indoor media room or robot review route",
+  workflow: mediaRoomSampleEvaluation.workflowLane,
+  taskStatement: mediaRoomSampleEvaluation.buyerQuestion,
+  targetRobotTeam: "Robot deployment or evaluation team",
+  requestedOutputs: "Capture-backed package, hosted review path, artifact list, and explicit proof boundaries.",
+  message:
+    "I inspected the sample evaluation. I want Blueprint to review what exact site or workflow should be captured for a buyer-specific package or hosted review.",
+  proofPathPreference: "exact_site_required",
+});
 
 const packetSteps = [
   {
@@ -144,10 +162,10 @@ export default function SampleEvaluation() {
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </a>
                     <a
-                      href="/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&source=sample-evaluation&path=request-capture&siteName=Media%20Room%20Demo%20Walkthrough"
+                      href={sampleCaptureRequestHref}
                       className="inline-flex items-center justify-center border border-white/15 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
                     >
-                      Request capture
+                      Request exact-site capture
                     </a>
                   </div>
                 </div>
@@ -278,8 +296,8 @@ export default function SampleEvaluation() {
             imageAlt="Sample evaluation proof board"
             primaryHref={publicDemoHref}
             primaryLabel="Open sample world model"
-            secondaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&source=sample-evaluation&path=request-capture&siteName=Media%20Room%20Demo%20Walkthrough"
-            secondaryLabel="Request capture"
+            secondaryHref={sampleCaptureRequestHref}
+            secondaryLabel="Request exact-site capture"
           />
         </section>
       </div>

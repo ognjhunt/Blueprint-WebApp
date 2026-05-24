@@ -40,6 +40,8 @@ Supported `path` values: `world-model`, `hosted-review`, `new-capture`, and `sit
 
 For search, robot-team agents should prefer `GET /api/site-worlds/search` or MCP tool `blueprint.siteWorld.search`. Queries like `Whole Foods near Durham`, `store`, `supermarket`, `retail aisle`, and `warehouse tote` return ranked close matches, `matchSemantics`, and a `requestCandidate` when no exact scanned package exists.
 
+No-credential mock proof: `npm run smoke:agent-headless` exercises public discovery, `/api/agent-access`, `blueprint.siteWorld.search`, dry-run quote/order/entitlement readiness, truth labels, and a mock public-demo hosted session without a bearer token. MCP commerce tools are `blueprint.commerce.quote`, `blueprint.commerce.checkoutDryRun`, `blueprint.commerce.order.get`, `blueprint.commerce.entitlement.get`, and `blueprint.commerce.entitlementReadiness`; all are dry-run/local proof surfaces, not live Stripe or fulfillment.
+
 ## Full Machine-Readable Overview
 
 - [llms-full.txt](https://tryblueprint.io/llms-full.txt): longer public overview, page map, query themes, and answer guidance.

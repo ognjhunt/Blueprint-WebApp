@@ -10924,6 +10924,11 @@ const MODEL_COST_ESTIMATES: Record<string, number> = {
   "claude-sonnet-4-6": 0.25,
   "gpt-5.4": 0.40,
   "gpt-5.4-mini": 0.30,
+  "deepseek-v4-pro": 0.02,
+  "deepseek-v4-pro[1m]": 0.02,
+  "deepseek/deepseek-v4-pro": 0.02,
+  "deepseek-v4-flash": 0.01,
+  "deepseek/deepseek-v4-flash": 0.01,
   default: 0.30,
 };
 

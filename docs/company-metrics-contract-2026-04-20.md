@@ -95,6 +95,18 @@ These surfaces must converge on this contract:
 
 Repo-local reports may add context, but they may not silently redefine the metric.
 
+## Founder/operator visibility checklist
+
+Founder-facing WebApp surfaces that render this contract must make five lanes visible instead of flattening them into one health score:
+
+- repo truth: doctrine, definitions, and claim rules from `AGENTS.md`, `AUTONOMOUS_ORG.md`, this contract, and the source-of-truth map
+- Paperclip execution state: issue/routine/run ownership, next action, blocker id, owner, and proof-bearing closeout path
+- Notion visibility: mirrored review or workspace breadcrumb only, never the execution record by itself
+- Firestore/Stripe/Render runtime truth: request, entitlement, payment, payout, deployment, and hosted-session facts from the systems that own them
+- human-gated blockers: founder or approved-human decision packets with durable blocker ids, exact asks, and resume ownership
+
+The admin company-metrics screen may show confident operating posture, but it must not claim Operational Launch Ready from local tests, screenshots, generated summaries, or graph output alone. If one of the five lanes is missing, the surface should say `blocked` or `partial` rather than silently converting absence into zero, success, or launch readiness.
+
 ## Phase 0 success criteria
 
 This contract is successful only when:

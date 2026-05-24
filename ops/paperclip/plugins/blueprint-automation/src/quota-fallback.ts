@@ -42,10 +42,10 @@ export type WorkspaceAdapterCooldownRecord = {
 
 export type WorkspaceAdapterCooldownState = Record<string, WorkspaceAdapterCooldownRecord>;
 
-export const DEFAULT_HERMES_FALLBACK_MODEL = "deepseek/deepseek-v4-flash";
+export const DEFAULT_HERMES_FALLBACK_MODEL = "deepseek-v4-pro[1m]";
 export const DEFAULT_HERMES_FALLBACK_MODELS = [
-  "deepseek/deepseek-v4-flash",
-  "deepseek/deepseek-v4-pro",
+  "deepseek-v4-pro[1m]",
+  "deepseek-v4-flash",
 ] as const;
 export const LEGACY_OPENROUTER_HERMES_FALLBACK_MODELS = [
   "nvidia/nemotron-3-super-120b-a12b:free",

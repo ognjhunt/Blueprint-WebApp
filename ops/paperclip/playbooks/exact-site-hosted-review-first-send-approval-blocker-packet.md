@@ -6,7 +6,7 @@ Exact-Site first-send batch needs founder/operator approval and reply durability
 
 `human-blocker:exact-site-first-send-approval:2026-05-09`
 
-Stable existing blocker id retained for reply correlation. Current evidence was refreshed on `2026-05-19T02:33Z`.
+Stable existing blocker id retained for reply correlation. Current evidence was refreshed on `2026-05-24T01:55:29.162Z`.
 
 # Why This Is Blocked
 
@@ -43,6 +43,7 @@ Review `ops/paperclip/playbooks/exact-site-hosted-review-first-send-approval.tem
 Default recommendation: approve only rows where all of the following are true:
 
 - the recipient email and evidence source are acceptable for a first touch
+- the proposed subject and body are acceptable for that exact recipient and target
 - the draft angle matches the row track
 - the CTA points to either inspecting a labeled review or naming a site/workflow to capture
 - the landing-page handoff matches the CTA
@@ -59,6 +60,8 @@ The refreshed approval template contains:
 - approval rows: 30
 - approvals recorded: 0
 - decisions left null: 30
+- rows with proposed subject/body: 30
+- demand-sourced rows with prefilled `/contact` handoff URLs: 27
 - proof-ready outreach approval rows: 3
 - demand-sourced capture approval rows: 27
 - rows flagged as public/general inbox: 28
@@ -76,6 +79,8 @@ Output:
 - `approval_rows: 30`
 - `approvals_recorded: 0`
 - `live_send_status: blocked until founder decisions are recorded and reply durability passes`
+- `proposedSubject` and `proposedBody` are present on all 30 rows
+- `landingPage` carries row-specific `/sample-evaluation` or prefilled `/contact` handoff context
 
 # Sender And Reply Blockers
 
@@ -128,6 +133,8 @@ For each reviewed row in `ops/paperclip/playbooks/exact-site-hosted-review-first
 - `recipientRole`
 - `recipientEvidenceSource`
 - `recipientEvidenceType`
+- `proposedSubject`
+- `proposedBody`
 - `draftAngle`
 - `cta`
 - `landingPage`
@@ -169,9 +176,10 @@ If the send dry run reaches the durability gate, stop again unless `npm run huma
 
 ```bash
 npm run gtm:hosted-review:audit
-npm run gtm:send -- --dry-run --allow-blocked
-npm run human-replies:audit-durability -- --allow-not-ready
+npm run gtm:hosted-review:buyer-loop -- --allow-blocked
 npm run gtm:first-send-approval:template -- --write
+npm run gtm:first-send-approval:template
+npm run gtm:send -- --dry-run --allow-blocked
 ```
 
 # Do Not Run Without Explicit Live Authorization
@@ -213,9 +221,10 @@ Approval does not authorize pricing, legal, privacy, rights, permission, paid sp
 Current command evidence:
 
 - `npm run gtm:hosted-review:audit` reported `ready_with_warnings`, 30 targets, 30 recipient-backed targets, 30 approval-needed targets, 30 founder approval needed targets, 0 human-approved targets, 0 sent targets, 0 replies, and 0 hosted-review starts.
+- `npm run gtm:hosted-review:buyer-loop -- --allow-blocked` reported `loop_status: decision_due`, `durability_status: blocked`, 30 recipient-backed targets, 30 founder approval needed targets, 0 sent touches, 0 replies, 0 hosted-review starts, 0 qualified calls, 12 open blockers, and 100-touch decision gap.
 - `npm run gtm:send -- --dry-run --allow-blocked` reported `eligible: 0`, `sent: 0`, `dry_run_receipts: 0`, `skipped_approval: 30`, `skipped_no_recipient: 0`, `skipped_no_message: 0`, `skipped_already_sent: 0`, and `failed: 1` because all 30 drafts lack founder/operator approval.
-- `npm run human-replies:audit-durability -- --allow-not-ready` reported `ok: false` with blockers for sender/domain verification, explicit approved reply identity, and Gmail OAuth production credentials.
-- `npm run gtm:first-send-approval:template -- --write` refreshed the approval template at `2026-05-19T02:33:45.032Z` with 30 approval rows and 0 recorded approvals.
+- `npm run gtm:first-send-approval:template` reported 30 approval rows, 0 recorded approvals, and live send blocked until founder decisions and reply durability pass.
+- `npm run gtm:first-send-approval:template -- --write` refreshed the approval template at `2026-05-24T01:55:29.162Z` with 30 approval rows, 30 proposed subjects, 30 proposed bodies, 27 prefilled demand handoff URLs, and 0 recorded approvals.
 
 # Non-Scope
 

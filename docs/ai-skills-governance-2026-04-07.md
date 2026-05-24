@@ -184,7 +184,7 @@ They are not authoritative for:
 - provenance
 - package/runtime truth
 
-Hermes-backed agents operating in this repo use DeepSeek V4 Flash through the official DeepSeek endpoint by default, and must still anchor decisions in repo files, Paperclip state, Notion state where applicable, and the live system evidence.
+Hermes-backed agents operating in this repo use DeepSeek V4 Pro through the official DeepSeek endpoint by default, and must still anchor decisions in repo files, Paperclip state, Notion state where applicable, and the live system evidence.
 
 Hermes-backed agents must not assume direct image-generation capability just because Codex supports it.
 

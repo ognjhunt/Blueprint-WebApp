@@ -501,11 +501,26 @@ export default function SiteWorlds() {
             <div className="absolute inset-x-0 bottom-0 mx-auto max-w-[88rem] px-5 pb-8 sm:px-8 lg:px-10 lg:pb-10">
               <div className="max-w-[52rem]">
                 <h1 className="font-editorial text-[3.15rem] leading-[0.94] tracking-[-0.04em] text-white sm:text-[5.1rem] sm:tracking-[-0.06em]">
-                  Find the indoor world model your robot team needs.
+                  Browse exact-site world models.
                 </h1>
                 <p className="mt-4 max-w-[40rem] text-base leading-7 text-white/85 sm:text-lg sm:leading-8">
                   Search by address, site, city, category, workflow, or robot task. If Blueprint has not scanned the exact place yet, request it without turning a match into an access claim.
                 </p>
+                <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                  <a
+                    href="/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=site-worlds-hero"
+                    className="inline-flex w-full items-center justify-center bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100 sm:w-auto"
+                  >
+                    Request world model
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </a>
+                  <a
+                    href="#catalog"
+                    className="inline-flex w-full items-center justify-center border border-white/20 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10 sm:w-auto"
+                  >
+                    Jump to catalog
+                  </a>
+                </div>
               </div>
 
               <div className="mt-7 border border-white/18 bg-white/95 p-4 text-slate-950 shadow-[0_32px_90px_-52px_rgba(0,0,0,0.62)] backdrop-blur sm:p-5">

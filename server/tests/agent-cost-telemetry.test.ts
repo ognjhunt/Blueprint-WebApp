@@ -214,6 +214,7 @@ describe("agent cost telemetry", () => {
       cost_usd: 0,
     });
     expect(telemetry.cost_estimate_usd).toBeGreaterThan(0);
+    expect(telemetry.cost_estimate_usd).toBeCloseTo(0.004002, 6);
   });
 
   it("summarizes rolling 15m/hour/day spend and classifies warn/stop thresholds", () => {

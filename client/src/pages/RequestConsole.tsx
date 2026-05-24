@@ -140,6 +140,29 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
       return response.json();
     },
   });
+  const loadedRequest = requestQuery.data;
+
+  useEffect(() => {
+    if (!loadedRequest) {
+      return;
+    }
+
+    const trackingKey = `${loadedRequest.requestId}:${section}`;
+    if (lastTrackedSectionRef.current === trackingKey) {
+      return;
+    }
+
+    const reviewDemandAttribution = getDemandAttributionFromContext(loadedRequest.context);
+    lastTrackedSectionRef.current = trackingKey;
+    analyticsEvents.buyerReviewViewed({
+      section,
+      buyerType: loadedRequest.request.buyerType,
+      requestedLaneCount: loadedRequest.request.requestedLanes.length,
+      demandAttribution: hasDemandAttribution(reviewDemandAttribution)
+        ? reviewDemandAttribution
+        : undefined,
+    });
+  }, [loadedRequest, section]);
 
   const tabs = useMemo(
     () => [
@@ -239,7 +262,7 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
     );
   }
 
-  if (requestQuery.isError || !requestQuery.data) {
+  if (requestQuery.isError || !loadedRequest) {
     return (
       <SurfacePage>
         <SEO title="Buyer Review | Blueprint" description="Private buyer review workspace." noIndex />
@@ -277,8 +300,7 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
     );
   }
 
-  const request = requestQuery.data;
-  const reviewDemandAttribution = getDemandAttributionFromContext(request.context);
+  const request = loadedRequest;
   const readiness = request.deployment_readiness;
   const ops = request.ops;
   const structuredIntake = request.structured_intake;
@@ -292,23 +314,6 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
   const displayMetadata = request.request.displayCaptureMetadata;
   const displayHintLabels =
     displayMetadata?.allowedAdvisoryHints?.map((hint) => DISPLAY_ADVISORY_SCAN_HINT_LABELS[hint]) || [];
-
-  useEffect(() => {
-    const trackingKey = `${request.requestId}:${section}`;
-    if (lastTrackedSectionRef.current === trackingKey) {
-      return;
-    }
-
-    lastTrackedSectionRef.current = trackingKey;
-    analyticsEvents.buyerReviewViewed({
-      section,
-      buyerType: request.request.buyerType,
-      requestedLaneCount: request.request.requestedLanes.length,
-      demandAttribution: hasDemandAttribution(reviewDemandAttribution)
-        ? reviewDemandAttribution
-        : undefined,
-    });
-  }, [request, reviewDemandAttribution, section]);
 
   const sectionTitle =
     section === "evidence"
@@ -381,6 +386,44 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
                   {tab.label}
                 </a>
               ))}
+            </div>
+
+            <div className="mt-6 rounded-[1.6rem] border border-black/10 bg-white p-5">
+              <div className="grid gap-4 lg:grid-cols-[0.72fr_1.28fr]">
+                <div>
+                  <SurfaceMiniLabel>Private review truth map</SurfaceMiniLabel>
+                  <p className="mt-2 text-sm leading-7 text-black/60">
+                    This room reads the protected request record and attached review state. It does
+                    not turn tests, previews, or queued records into operational launch proof.
+                  </p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-[1.15rem] border border-black/10 bg-[#faf6ef] p-4">
+                    <p className="text-sm font-semibold text-[#111110]">Firestore request record</p>
+                    <p className="mt-1 text-sm leading-6 text-black/60">
+                      {REQUEST_STATUS_LABELS[request.qualification_state]} / {REQUEST_CAPTURE_STATUS_LABELS[ops?.capture_status || "not_requested"]}
+                    </p>
+                  </div>
+                  <div className="rounded-[1.15rem] border border-black/10 bg-[#faf6ef] p-4">
+                    <p className="text-sm font-semibold text-[#111110]">Paperclip next action</p>
+                    <p className="mt-1 text-sm leading-6 text-black/60">
+                      {structuredIntake?.owner_lane || "Owner pending"}: {structuredIntake?.next_action || ops?.next_step || "No next action projected"}
+                    </p>
+                  </div>
+                  <div className="rounded-[1.15rem] border border-black/10 bg-[#faf6ef] p-4">
+                    <p className="text-sm font-semibold text-[#111110]">Provider preview state</p>
+                    <p className="mt-1 text-sm leading-6 text-black/60">
+                      {previewRun?.provider_name || "No provider"} / {String(readiness?.preview_status || "not requested").replaceAll("_", " ")}
+                    </p>
+                  </div>
+                  <div className="rounded-[1.15rem] border border-black/10 bg-[#faf6ef] p-4">
+                    <p className="text-sm font-semibold text-[#111110]">Stripe, Render, fulfillment</p>
+                    <p className="mt-1 text-sm leading-6 text-black/60">
+                      Package access stays blocked until entitlement, hosted-session, payment, and backing runtime records support them.
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div className="mt-6 grid gap-5 xl:grid-cols-[1.02fr_0.98fr]">

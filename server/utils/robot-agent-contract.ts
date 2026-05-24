@@ -1,5 +1,112 @@
 export const ROBOT_AGENT_CONTRACT_VERSION = "2026-05-21";
 export const ROBOT_AGENT_PUBLIC_DEMO_SITE_WORLD_ID = "siteworld-f5fd54898cfb";
+export const ROBOT_AGENT_TRUTH_LABELS = [
+  "capture_grounded",
+  "provider_derived",
+  "generated",
+  "sample_demo",
+  "public_demo_eligible",
+  "request_gated",
+  "protected_robot_team",
+  "dry_run_order",
+] as const;
+
+export function buildRobotAgentAccessManifest() {
+  return {
+    name: "Blueprint Robot-Team Agent Access",
+    docs: "/agents",
+    openapi: "/api/agent-access/openapi.json",
+    staticOpenapi: "/agent-access.openapi.json",
+    llms: "/llms.txt",
+    llmsFull: "/llms-full.txt",
+    preferredTool: "blueprint.siteWorld.search",
+    compatibilityTool: "blueprint.catalog.search",
+    publicDemoSiteWorldId: ROBOT_AGENT_PUBLIC_DEMO_SITE_WORLD_ID,
+    env: {
+      apiBaseUrl: "BLUEPRINT_API_BASE_URL",
+      bearerToken: "BLUEPRINT_AGENT_AUTH_TOKEN",
+    },
+    credentiallessWorkflow: {
+      requiredCredentials: false,
+      summary:
+        "A headless robot-team agent can discover Blueprint, search site worlds, quote dry-run commerce, create dry-run entitlement proof, and create a public-demo hosted session without credentials.",
+      smokeCommand: "npm run smoke:agent-headless",
+      cliCommands: [
+        "npx tsx scripts/agent-access/blueprint-agent-cli.ts discover",
+        "npx tsx scripts/agent-access/blueprint-agent-cli.ts site-world search --q \"Whole Foods near Durham\" --limit 5",
+        "npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce quote --site-world-id siteworld-f5fd54898cfb --product hosted-session-rental --session-hours 1",
+        "npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce checkout --site-world-id siteworld-f5fd54898cfb --product hosted-session-rental --mode dry_run",
+        "npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce entitlement-readiness --site-world-id siteworld-f5fd54898cfb --entitlement-id <dry-entitlement-id>",
+        "npx tsx scripts/agent-access/blueprint-agent-cli.ts session create --site-world-id siteworld-f5fd54898cfb --session-mode runtime_only --robot-profile-id other_sample --task-id sw-chi-01-task-1 --scenario-id sw-chi-01-scenario-1 --start-state-id sw-chi-01-start-1",
+      ],
+    },
+    siteWorldSearch: {
+      endpoint: "/api/site-worlds/search",
+      mcpTool: "blueprint.siteWorld.search",
+      publicReadOnly: true,
+      requestCandidateIntakeOnly: true,
+      truth:
+        "Search returns public ranked matches and request candidates. It never grants entitlement, payment, rights clearance, provider execution, fulfillment, private artifact access, or hosted-session access.",
+    },
+    requestCandidate: {
+      source: "site-worlds",
+      buyerType: "robot_team",
+      requestPath: "new-capture",
+      intakeOnly: true,
+      grantsAccess: false,
+      grantsPayment: false,
+      grantsEntitlement: false,
+      grantsHostedSession: false,
+      truth:
+        "requestCandidate records intake interest only and stays separate from quote, order, entitlement, rights, provider execution, and fulfillment state.",
+    },
+    dryRunCommerce: {
+      mode: "dry_run",
+      liveStripeTouched: false,
+      createsLivePayment: false,
+      grantsLivePackageAccess: false,
+      endpoints: {
+        quote: "/api/agent-access/commerce/quote",
+        dryRunCheckout: "/api/agent-access/commerce/dry-run-checkout",
+        order: "/api/agent-access/commerce/orders/{orderId}",
+        entitlement: "/api/agent-access/commerce/entitlements/{entitlementId}",
+        entitlementReadiness: "/api/agent-access/commerce/entitlement-readiness",
+      },
+      tools: [
+        "blueprint.commerce.quote",
+        "blueprint.commerce.checkoutDryRun",
+        "blueprint.commerce.order.get",
+        "blueprint.commerce.entitlement.get",
+        "blueprint.commerce.entitlementReadiness",
+      ],
+      truth:
+        "Dry-run commerce reuses quote, order, receipt, and entitlement shapes for local/test proof only. It never calls live Stripe or proves fulfillment.",
+    },
+    publicDemo: {
+      canRunWithoutCredentials: true,
+      siteWorldId: ROBOT_AGENT_PUBLIC_DEMO_SITE_WORLD_ID,
+      sessionCreateEndpoint: "/api/site-worlds/sessions",
+      sessionMode: "runtime_only",
+      truth:
+        "Credential-free hosted-session creation is limited to public-demo eligible site worlds and remains sample/demo only.",
+    },
+    protectedFlow: {
+      requiresBearer: true,
+      authModel: "Firebase robot_team or admin bearer token",
+      accessModel: "session ownership, admin access, or matching provisioned hosted-session entitlement",
+      livePaymentPath: "/api/create-checkout-session",
+      truth:
+        "Protected robot-team hosted sessions preserve Firebase, entitlement, session ownership, rights, runtime, and launch-readiness checks. Dry-run commerce is separate from live Stripe/payment/fulfillment.",
+    },
+    tools: {
+      cli: "scripts/agent-access/blueprint-agent-cli.ts",
+      mcp: "scripts/agent-access/blueprint-mcp-server.ts",
+    },
+    truthLabels: ROBOT_AGENT_TRUTH_LABELS,
+    truth:
+      "Public demo endpoints are sample/demo only. Protected site worlds require Firebase robot-team/admin bearer auth and current launch readiness. Dry-run commerce never substitutes for live Stripe, rights, provider, package-access, or fulfillment proof.",
+  };
+}
 
 const jsonResponse = (schemaRef: string, description = "JSON response") => ({
   description,
@@ -48,6 +155,19 @@ export function buildRobotAgentOpenApiContract() {
       { name: "Hosted sessions", description: "Session lifecycle, rollout, render, and export endpoints." },
     ],
     paths: {
+      "/api/agent-access": {
+        get: {
+          tags: ["Discovery"],
+          operationId: "discoverAgentAccess",
+          summary: "Discover the robot-team agent access manifest.",
+          description:
+            "Credential-free discovery manifest for headless robot-team agents. It names blueprint.siteWorld.search as the first-class search tool, keeps requestCandidate intake-only, lists dry-run commerce endpoints, documents truth labels, and explains the mock/public-demo hosted-session path without credentials.",
+          security: [{}],
+          responses: {
+            "200": jsonResponse("#/components/schemas/AgentAccessManifest"),
+          },
+        },
+      },
       "/api/site-content": {
         get: {
           tags: ["Discovery"],
@@ -379,16 +499,7 @@ export function buildRobotAgentOpenApiContract() {
       },
       schemas: buildSchemas(),
     },
-    "x-blueprint-truth-labels": [
-      "capture_grounded",
-      "provider_derived",
-      "generated",
-      "sample_demo",
-      "public_demo_eligible",
-      "request_gated",
-      "protected_robot_team",
-      "dry_run_order",
-    ],
+    "x-blueprint-truth-labels": ROBOT_AGENT_TRUTH_LABELS,
   } as const;
 }
 
@@ -469,6 +580,52 @@ function buildSchemas() {
         path: { type: "string" },
         title: { type: "string" },
         description: { type: "string" },
+      },
+    },
+    AgentAccessManifest: {
+      type: "object",
+      required: [
+        "name",
+        "preferredTool",
+        "compatibilityTool",
+        "credentiallessWorkflow",
+        "siteWorldSearch",
+        "requestCandidate",
+        "dryRunCommerce",
+        "publicDemo",
+        "protectedFlow",
+        "truthLabels",
+      ],
+      additionalProperties: true,
+      properties: {
+        name: { type: "string" },
+        docs: { type: "string" },
+        openapi: { type: "string" },
+        staticOpenapi: { type: "string" },
+        llms: { type: "string" },
+        llmsFull: { type: "string" },
+        preferredTool: { type: "string", enum: ["blueprint.siteWorld.search"] },
+        compatibilityTool: { type: "string", enum: ["blueprint.catalog.search"] },
+        publicDemoSiteWorldId: { type: "string" },
+        credentiallessWorkflow: {
+          type: "object",
+          required: ["requiredCredentials", "summary", "smokeCommand", "cliCommands"],
+          additionalProperties: true,
+          properties: {
+            requiredCredentials: { type: "boolean" },
+            summary: { type: "string" },
+            smokeCommand: { type: "string" },
+            cliCommands: { type: "array", items: { type: "string" } },
+          },
+        },
+        siteWorldSearch: { type: "object", additionalProperties: true },
+        requestCandidate: { type: "object", additionalProperties: true },
+        dryRunCommerce: { type: "object", additionalProperties: true },
+        publicDemo: { type: "object", additionalProperties: true },
+        protectedFlow: { type: "object", additionalProperties: true },
+        tools: { type: "object", additionalProperties: true },
+        truthLabels: { type: "array", items: { $ref: "#/components/schemas/TruthLabel" } },
+        truth: { type: "string" },
       },
     },
     SiteWorldListResponse: {

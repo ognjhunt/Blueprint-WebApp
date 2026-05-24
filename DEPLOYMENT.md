@@ -101,7 +101,9 @@ Launch-critical note:
   - `BLUEPRINT_STRUCTURED_AUTOMATION_PROVIDER`
   - `BLUEPRINT_STRUCTURED_AUTOMATION_FALLBACK_PROVIDER`
 - Optional: `DEEPSEEK_BASE_URL`, `DEEPSEEK_DEFAULT_MODEL`, `DEEPSEEK_MAX_TOKENS`, `DEEPSEEK_REASONING_EFFORT`, `DEEPSEEK_THINKING`
+  - Default structured-agent model: `deepseek-v4-pro` through the official DeepSeek API.
 - Optional for Anthropic-compatible DeepSeek clients: `ANTHROPIC_BASE_URL=https://api.deepseek.com/anthropic`, `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_MODEL`, `CLAUDE_CODE_SUBAGENT_MODEL`, `CLAUDE_CODE_EFFORT_LEVEL=max`
+  - Default Hermes model: `deepseek-v4-pro[1m]` with `deepseek-v4-flash` as the next ladder fallback.
 - Optional: `OPENAI_DEFAULT_MODEL`
 - Optional: `ANTHROPIC_DEFAULT_MODEL`
 - Optional: `ACP_DEFAULT_HARNESS`

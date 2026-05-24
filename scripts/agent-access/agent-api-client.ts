@@ -201,6 +201,14 @@ export class BlueprintAgentApiClient {
     return this.requestJson("/api/site-content");
   }
 
+  agentAccess() {
+    return this.requestJson("/api/agent-access");
+  }
+
+  openApiContract() {
+    return this.requestJson("/api/agent-access/openapi.json");
+  }
+
   listCatalog(limit = 24) {
     return this.requestJson(appendQuery("/api/site-worlds", { limit }));
   }

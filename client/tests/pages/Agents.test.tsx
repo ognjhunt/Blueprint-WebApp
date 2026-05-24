@@ -17,6 +17,8 @@ describe("Agents page", () => {
     expect(screen.getAllByText(/blueprint\.commerce\.checkoutDryRun/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/dry_run_order/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/blueprint\.session\.runBatch/i)).toBeInTheDocument();
+    expect(screen.getByText(/No-credential mock proof/i)).toBeInTheDocument();
+    expect(screen.getByText(/npm run smoke:agent-headless/i)).toBeInTheDocument();
     expect(screen.getByText(/capture_grounded/i)).toBeInTheDocument();
     expect(screen.getByText(/provider_derived/i)).toBeInTheDocument();
     expect(screen.getByText(/403 forbidden/i)).toBeInTheDocument();

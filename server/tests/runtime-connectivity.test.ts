@@ -81,7 +81,6 @@ describe("runtime connectivity", () => {
 
   it("prefers DeepSeek when a DeepSeek key is configured", async () => {
     process.env.DEEPSEEK_API_KEY = "deepseek-key";
-    process.env.DEEPSEEK_DEFAULT_MODEL = "deepseek-v4-flash";
 
     const { getAgentRuntimeConnectionMetadata } = await import(
       "../agents/runtime-connectivity"
@@ -90,7 +89,7 @@ describe("runtime connectivity", () => {
     expect(getAgentRuntimeConnectionMetadata()).toMatchObject({
       provider: "deepseek_chat",
       configured: true,
-      default_model: "deepseek-v4-flash",
+      default_model: "deepseek-v4-pro",
     });
   });
 

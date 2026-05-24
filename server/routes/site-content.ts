@@ -148,6 +148,8 @@ const queryThemes = [
   "robot-team agent API",
   "robot agent dry-run commerce",
   "hosted-session entitlement proof",
+  "agent site-world catalog search",
+  "no-credential robot-agent mock proof",
   "headless hosted-session rollout",
   "Blueprint MCP server",
 ];

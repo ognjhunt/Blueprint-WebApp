@@ -16,6 +16,8 @@ export type HeadlessSmokeResult = {
   sessionId: string | null;
   orderId?: string;
   entitlementId?: string;
+  truthLabels: string[];
+  searchRequestCandidateIntakeOnly: boolean;
   steps: SmokeStep[];
 };
 
@@ -36,12 +38,89 @@ function json(payload: unknown, status = 200) {
   });
 }
 
+function arrayOfStrings(value: unknown) {
+  return Array.isArray(value) ? value.map(String).filter(Boolean) : [];
+}
+
+function hasAuthorizationHeader(init?: RequestInit) {
+  const headers = init?.headers || {};
+  if (headers instanceof Headers) {
+    return headers.has("authorization");
+  }
+  if (Array.isArray(headers)) {
+    return headers.some(([key]) => String(key).toLowerCase() === "authorization");
+  }
+  return Object.keys(headers).some((key) => key.toLowerCase() === "authorization");
+}
+
 function createMockFetch(): FetchLike {
   return (async (input: string | URL | Request, init?: RequestInit) => {
     const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url);
     const method = String(init?.method || "GET").toUpperCase();
     const path = url.pathname;
 
+    if (method === "GET" && path === "/api/site-content") {
+      return json({
+        summary: "Blueprint public agent discovery",
+        machineReadableFiles: {
+          llms: "/llms.txt",
+          llmsFull: "/llms-full.txt",
+          agentAccessOpenApi: "/agent-access.openapi.json",
+          agentAccessApi: "/api/agent-access/openapi.json",
+        },
+      });
+    }
+    if (method === "GET" && path === "/api/agent-access") {
+      return json({
+        preferredTool: "blueprint.siteWorld.search",
+        compatibilityTool: "blueprint.catalog.search",
+        publicDemo: {
+          canRunWithoutCredentials: true,
+          siteWorldId: "siteworld-f5fd54898cfb",
+        },
+        dryRunCommerce: {
+          mode: "dry_run",
+          liveStripeTouched: false,
+          endpoints: {
+            quote: "/api/agent-access/commerce/quote",
+            dryRunCheckout: "/api/agent-access/commerce/dry-run-checkout",
+            entitlementReadiness: "/api/agent-access/commerce/entitlement-readiness",
+          },
+        },
+        requestCandidate: {
+          intakeOnly: true,
+          grantsAccess: false,
+          grantsEntitlement: false,
+          grantsHostedSession: false,
+        },
+        truthLabels: [
+          "capture_grounded",
+          "provider_derived",
+          "generated",
+          "sample_demo",
+          "public_demo_eligible",
+          "request_gated",
+          "protected_robot_team",
+          "dry_run_order",
+        ],
+      });
+    }
+    if (method === "GET" && path === "/api/agent-access/openapi.json") {
+      return json({
+        openapi: "3.1.0",
+        info: { title: "Blueprint Robot-Team Agent API" },
+        "x-blueprint-truth-labels": [
+          "capture_grounded",
+          "provider_derived",
+          "generated",
+          "sample_demo",
+          "public_demo_eligible",
+          "request_gated",
+          "protected_robot_team",
+          "dry_run_order",
+        ],
+      });
+    }
     if (method === "GET" && path === "/api/site-worlds") {
       return json({
         items: [{ id: "siteworld-f5fd54898cfb", siteName: "Public demo site world" }],
@@ -64,6 +143,24 @@ function createMockFetch(): FetchLike {
           ],
           parsed: { q: "whole foods", aliases: [{ alias: "whole foods", mapsTo: "whole foods -> grocery retail" }] },
           appliedFilters: {},
+          matchSemantics: {
+            exactMatch: false,
+            noExactScannedPackage: true,
+            message: "No scanned package for this exact place yet.",
+            truthBoundary: "Search and requestCandidate are intake-only.",
+          },
+          requestCandidate: {
+            buyerType: "robot_team",
+            source: "site-worlds",
+            requestPath: "new-capture",
+            requestUrl: "/contact?source=site-worlds&buyerType=robot_team&path=new-capture",
+            inboundRequestDraft: {
+              buyerType: "robot_team",
+              commercialRequestPath: "capture_access",
+              requestedLanes: ["deeper_evaluation"],
+              context: { buyerChannelSourceRaw: "site-worlds" },
+            },
+          },
           warnings: ["embeddings_unavailable: mock smoke uses deterministic lexical and alias ranking"],
           meta: { backend: "static-fallback", usedEmbeddings: false },
         });
@@ -82,6 +179,24 @@ function createMockFetch(): FetchLike {
           ],
           parsed: { q: "store", aliases: [{ alias: "store", mapsTo: "store -> grocery retail" }] },
           appliedFilters: {},
+          matchSemantics: {
+            exactMatch: false,
+            noExactScannedPackage: true,
+            message: "No scanned package for this exact place yet.",
+            truthBoundary: "Search and requestCandidate are intake-only.",
+          },
+          requestCandidate: {
+            buyerType: "robot_team",
+            source: "site-worlds",
+            requestPath: "new-capture",
+            requestUrl: "/contact?source=site-worlds&buyerType=robot_team&path=new-capture",
+            inboundRequestDraft: {
+              buyerType: "robot_team",
+              commercialRequestPath: "capture_access",
+              requestedLanes: ["deeper_evaluation"],
+              context: { buyerChannelSourceRaw: "site-worlds" },
+            },
+          },
           warnings: ["embeddings_unavailable: mock smoke uses deterministic lexical and alias ranking"],
           meta: { backend: "static-fallback", usedEmbeddings: false },
         });
@@ -136,6 +251,9 @@ function createMockFetch(): FetchLike {
       });
     }
     if (method === "POST" && path === "/api/site-worlds/sessions") {
+      if (hasAuthorizationHeader(init)) {
+        return json({ error: "Mock demo session creation must run without credentials" }, 400);
+      }
       return json({ sessionId: mockSessionId, status: "ready", workspaceUrl: `/world-models/siteworld-f5fd54898cfb/workspace?sessionId=${mockSessionId}` }, 201);
     }
     if (method === "POST" && path === `/api/site-worlds/sessions/${mockSessionId}/reset`) {
@@ -192,7 +310,31 @@ export async function runHeadlessAgentSmoke(options: SmokeOptions = {}): Promise
     fetchImpl: options.fetchImpl || (mode === "mock" ? createMockFetch() : undefined),
   });
 
+  await runStep(steps, "discover", () => client.discover());
+  const agentAccess = await runStep(steps, "agentAccess.manifest", () => client.agentAccess()) as Record<string, unknown>;
+  const openApi = await runStep(steps, "agentAccess.openapi", () => client.openApiContract()) as Record<string, unknown>;
   await runStep(steps, "catalog", () => client.listCatalog(1));
+  const search = await runStep(steps, "siteWorld.search", () =>
+    client.searchSiteWorlds({ q: "Whole Foods near Durham", limit: 5 }),
+  ) as Record<string, unknown>;
+  const requestCandidate =
+    search.requestCandidate && typeof search.requestCandidate === "object"
+      ? search.requestCandidate as Record<string, unknown>
+      : {};
+  const inboundDraft =
+    requestCandidate.inboundRequestDraft && typeof requestCandidate.inboundRequestDraft === "object"
+      ? requestCandidate.inboundRequestDraft as Record<string, unknown>
+      : {};
+  const searchRequestCandidateIntakeOnly =
+    requestCandidate.source === "site-worlds" &&
+    requestCandidate.buyerType === "robot_team" &&
+    !("entitlementId" in inboundDraft) &&
+    !("paymentStatus" in inboundDraft) &&
+    !("providerRunId" in inboundDraft) &&
+    !("hostedSessionId" in inboundDraft);
+  if (!searchRequestCandidateIntakeOnly) {
+    throw new Error("Smoke site-world search requestCandidate is not intake-only.");
+  }
   await runStep(steps, "commerce.quote", () =>
     client.quoteCommerce({ siteWorldId: "siteworld-f5fd54898cfb", product: "hosted_session_rental", sessionHours: 1 }),
   );
@@ -260,6 +402,11 @@ export async function runHeadlessAgentSmoke(options: SmokeOptions = {}): Promise
     sessionId,
     orderId,
     entitlementId,
+    truthLabels: Array.from(new Set([
+      ...arrayOfStrings(agentAccess.truthLabels),
+      ...arrayOfStrings(openApi["x-blueprint-truth-labels"]),
+    ])),
+    searchRequestCandidateIntakeOnly,
     steps,
   };
   stdout(JSON.stringify(result, null, 2));

@@ -50,8 +50,18 @@ const commands = [
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce quote --site-world-id siteworld-f5fd54898cfb --product hosted-session-rental --session-hours 1",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce checkout --site-world-id siteworld-f5fd54898cfb --product hosted-session-rental --mode dry_run",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce entitlement <dry-entitlement-id>",
+  "npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce entitlement-readiness --site-world-id siteworld-f5fd54898cfb --entitlement-id <dry-entitlement-id>",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts session create --site-world-id siteworld-f5fd54898cfb --entitlement-id <dry-entitlement-id> --order-id <dry-order-id> --commerce-mode dry_run --robot-profile-id other_sample --task-id sw-chi-01-task-1 --scenario-id sw-chi-01-scenario-1 --start-state-id sw-chi-01-start-1",
 ];
+
+const noCredentialCommands = [
+  "unset BLUEPRINT_AGENT_AUTH_TOKEN",
+  "npm run smoke:agent-headless",
+  "npx tsx scripts/agent-access/blueprint-agent-cli.ts session create --site-world-id siteworld-f5fd54898cfb --session-mode runtime_only --robot-profile-id other_sample --task-id sw-chi-01-task-1 --scenario-id sw-chi-01-scenario-1 --start-state-id sw-chi-01-start-1",
+];
+
+const agentAccessRequestHref =
+  "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=agents-hero&requestedOutputs=OpenAPI%2C%20CLI%2C%20MCP%2C%20and%20hosted-session%20access&message=Robot-team%20agent%20access%20request";
 
 function CodeBlock({ children }: { children: string }) {
   return (
@@ -66,7 +76,7 @@ export default function Agents() {
     <>
       <SEO
         title="Robot-Team Agent Access | Blueprint"
-        description="Blueprint's headless agent access path for searching capture-backed site worlds, quoting dry-run hosted-session rentals, proving entitlements, creating hosted sessions, rendering explorer frames, and exporting datasets."
+        description="Blueprint's headless agent access path for searching capture-backed site worlds, quoting dry-run hosted-session rentals, proving entitlements, requesting eligible hosted sessions, rendering explorer frames, and exporting datasets."
         canonical="/agents"
       />
 
@@ -88,7 +98,7 @@ export default function Agents() {
                     Robot-team agent access.
                   </h1>
                   <p className="mt-6 max-w-[42rem] text-base leading-8 text-white/78">
-                    Search capture-backed site worlds in agent language, quote hosted-session rentals, create dry-run orders and entitlement proof, open eligible hosted sessions, manipulate scenarios and start states, run headless rollouts, render explorer frames, and export dataset artifacts without a human click.
+                    Search capture-backed site worlds in agent language, quote hosted-session rentals, create dry-run orders and entitlement proof, request eligible hosted sessions, manipulate scenarios and start states, run headless rollouts, render explorer frames, and export dataset artifacts without weakening auth, rights, or entitlement gates.
                   </p>
                   <div className="mt-7 flex flex-wrap gap-2">
                     <ProofChip light>Public demo path</ProofChip>
@@ -98,8 +108,15 @@ export default function Agents() {
                   </div>
                   <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                     <a
-                      href="/agent-access.openapi.json"
+                      href={agentAccessRequestHref}
                       className="inline-flex items-center justify-center border border-white bg-white px-5 py-3 text-sm font-semibold text-[#15130f] transition hover:bg-[#f5f1e8]"
+                    >
+                      Request agent access
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </a>
+                    <a
+                      href="/agent-access.openapi.json"
+                      className="inline-flex items-center justify-center border border-white/25 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
                     >
                       Open contract
                       <FileJson className="ml-2 h-4 w-4" />
@@ -137,6 +154,15 @@ export default function Agents() {
               <p className="text-sm leading-7 text-slate-600">
                 Public demo commands omit the token when the demo site world is enabled. Site-world search returns ranked close matches plus no-exact scanned-package semantics and requestCandidate URLs/drafts for intake. Dry-run checkout creates no live Stripe session or charge. Protected worlds keep Firebase, session ownership, and provisioned-entitlement checks in place.
               </p>
+              <div className="border border-black/10 bg-[#f5f1e8] p-4">
+                <h2 className="text-sm font-semibold text-slate-950">No-credential mock proof</h2>
+                <p className="mt-2 text-sm leading-7 text-slate-600">
+                  This local smoke path proves discovery, first-class site-world search, dry-run quote/order/entitlement readiness, truth labels, and a mock public-demo hosted session without a bearer token.
+                </p>
+                <div className="mt-3">
+                  <CodeBlock>{noCredentialCommands.join("\n")}</CodeBlock>
+                </div>
+              </div>
             </div>
           </div>
         </section>
@@ -161,7 +187,7 @@ export default function Agents() {
               <EditorialSectionIntro
                 eyebrow="Auth model"
                 title="Public demo is narrow. Protected access stays gated."
-                description="Blueprint does not expose private supply or package access because an agent can send HTTP. Public demo sessions are sample/demo only. Protected robot-team flows require bearer auth that resolves through Firebase Admin and then require either session ownership, admin access, or a matching provisioned hosted-session entitlement."
+                description="Blueprint does not expose private supply or package access because an agent can send HTTP. Public demo sessions stay sample-scoped. Protected robot-team flows require bearer auth that resolves through Firebase Admin and then require either session ownership, admin access, or a matching provisioned hosted-session entitlement."
                 light
               />
               <div className="mt-6 grid min-w-0 gap-3 sm:grid-cols-2">

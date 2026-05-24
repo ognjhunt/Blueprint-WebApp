@@ -124,7 +124,7 @@ describe("GTM send executor", () => {
     expect(result.errors.join("\n")).toContain("npm run gtm:first-send-approval:template -- --write");
     expect(result.errors.join("\n")).toContain("npm run gtm:first-send-approval:apply -- --write");
     expect(result.errors.join("\n")).toContain(
-      "recipient evidence/draft angle/CTA/proof source/objection plan/blocked claims",
+      "recipient evidence/proposed subject/proposed body/draft angle/CTA/proof source/objection plan/blocked claims",
     );
   });
 

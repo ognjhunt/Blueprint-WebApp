@@ -6,7 +6,7 @@ import type { AgentResult, AgentTaskKind, NormalizedAgentTask } from "../types";
 
 const DEFAULT_DEEPSEEK_BASE_URL = "https://api.deepseek.com";
 const OPENROUTER_BASE_URL_PATTERN = /openrouter\.ai/i;
-const DEFAULT_DEEPSEEK_MODEL = "deepseek-v4-flash";
+const DEFAULT_DEEPSEEK_MODEL = "deepseek-v4-pro";
 const DEFAULT_DEEPSEEK_MAX_TOKENS = 2000;
 const DEFAULT_OPENROUTER_PROVIDER_ORDER = [
   "deepseek",
@@ -351,7 +351,9 @@ export async function runDeepSeekChatTask<TInput, TOutput>(
       model: task.model,
       base_url: deepSeekBaseUrl,
       route: inferRoute(task.model),
-      response_cache_policy: "not_enabled_for_live_runtime",
+      response_cache_policy: isOpenRouterRoute()
+        ? "openrouter_response_cache_not_enabled_for_live_runtime"
+        : "deepseek_context_cache_enabled_by_provider_prefix_reuse",
       max_tokens: deepSeekMaxTokens,
       thinking: deepSeekThinkingType(task.kind),
       reasoning_effort: deepSeekReasoningEffort(task.kind),
@@ -522,7 +524,16 @@ export async function runDeepSeekChatTask<TInput, TOutput>(
       tool_iterations: toolIterations,
       response_cache: {
         enabled: false,
-        reason: "X-OpenRouter-Cache is intentionally not enabled for live structured-agent runs.",
+        reason: route === "deepseek_via_openrouter"
+          ? "X-OpenRouter-Cache is intentionally not enabled for live structured-agent runs."
+          : "DeepSeek context caching is provider-managed and reported through prompt cache hit/miss tokens.",
+      },
+      context_cache: {
+        enabled: route === "deepseek_official_direct",
+        mode: route === "deepseek_official_direct" ? "deepseek_provider_default_prefix_cache" : "provider_dependent",
+        prompt_cache_hit_tokens: aggregate.prompt_cache_hit_tokens ?? finalUsage?.prompt_cache_hit_tokens ?? null,
+        prompt_cache_miss_tokens:
+          aggregate.prompt_cache_miss_tokens ?? finalUsage?.prompt_cache_miss_tokens ?? null,
       },
     },
     logs: traceLogs,

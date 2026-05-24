@@ -36,6 +36,35 @@ afterEach(async () => {
 });
 
 describe("robot agent dry-run commerce", () => {
+  it("publishes a credential-free agent discovery manifest with search, dry-run commerce, and truth labels", async () => {
+    const { server, baseUrl } = await startServer();
+    try {
+      const response = await fetch(`${baseUrl}/api/agent-access`);
+      expect(response.status).toBe(200);
+      await expect(response.json()).resolves.toMatchObject({
+        preferredTool: "blueprint.siteWorld.search",
+        compatibilityTool: "blueprint.catalog.search",
+        publicDemo: {
+          canRunWithoutCredentials: true,
+        },
+        dryRunCommerce: {
+          liveStripeTouched: false,
+          endpoints: expect.objectContaining({
+            quote: "/api/agent-access/commerce/quote",
+            dryRunCheckout: "/api/agent-access/commerce/dry-run-checkout",
+            entitlementReadiness: "/api/agent-access/commerce/entitlement-readiness",
+          }),
+        },
+        requestCandidate: {
+          grantsAccess: false,
+        },
+        truthLabels: expect.arrayContaining(["capture_grounded", "request_gated", "dry_run_order"]),
+      });
+    } finally {
+      await stopServer(server);
+    }
+  });
+
   it("quotes a hosted-session rental and creates a dry-run order with a provisioned entitlement", async () => {
     const { server, baseUrl } = await startServer();
     try {

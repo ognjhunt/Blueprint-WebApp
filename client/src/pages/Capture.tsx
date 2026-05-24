@@ -117,7 +117,7 @@ export default function Capture() {
                   href="/capture-app/launch-access?role=capturer&source=capture-hero"
                   className="inline-flex items-center justify-center bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                 >
-                  Check capture city
+                  Check capture access
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </a>
                 <a

@@ -35,6 +35,31 @@
     }
   ],
   "paths": {
+    "/api/agent-access": {
+      "get": {
+        "tags": [
+          "Discovery"
+        ],
+        "operationId": "discoverAgentAccess",
+        "summary": "Discover the robot-team agent access manifest.",
+        "description": "Credential-free discovery manifest for headless robot-team agents. It names blueprint.siteWorld.search as the first-class search tool, keeps requestCandidate intake-only, lists dry-run commerce endpoints, documents truth labels, and explains the mock/public-demo hosted-session path without credentials.",
+        "security": [
+          {}
+        ],
+        "responses": {
+          "200": {
+            "description": "JSON response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentAccessManifest"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/site-content": {
       "get": {
         "tags": [
@@ -1760,6 +1785,117 @@
             "type": "string"
           },
           "description": {
+            "type": "string"
+          }
+        }
+      },
+      "AgentAccessManifest": {
+        "type": "object",
+        "required": [
+          "name",
+          "preferredTool",
+          "compatibilityTool",
+          "credentiallessWorkflow",
+          "siteWorldSearch",
+          "requestCandidate",
+          "dryRunCommerce",
+          "publicDemo",
+          "protectedFlow",
+          "truthLabels"
+        ],
+        "additionalProperties": true,
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "docs": {
+            "type": "string"
+          },
+          "openapi": {
+            "type": "string"
+          },
+          "staticOpenapi": {
+            "type": "string"
+          },
+          "llms": {
+            "type": "string"
+          },
+          "llmsFull": {
+            "type": "string"
+          },
+          "preferredTool": {
+            "type": "string",
+            "enum": [
+              "blueprint.siteWorld.search"
+            ]
+          },
+          "compatibilityTool": {
+            "type": "string",
+            "enum": [
+              "blueprint.catalog.search"
+            ]
+          },
+          "publicDemoSiteWorldId": {
+            "type": "string"
+          },
+          "credentiallessWorkflow": {
+            "type": "object",
+            "required": [
+              "requiredCredentials",
+              "summary",
+              "smokeCommand",
+              "cliCommands"
+            ],
+            "additionalProperties": true,
+            "properties": {
+              "requiredCredentials": {
+                "type": "boolean"
+              },
+              "summary": {
+                "type": "string"
+              },
+              "smokeCommand": {
+                "type": "string"
+              },
+              "cliCommands": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "siteWorldSearch": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "requestCandidate": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "dryRunCommerce": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "publicDemo": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "protectedFlow": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "tools": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "truthLabels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TruthLabel"
+            }
+          },
+          "truth": {
             "type": "string"
           }
         }

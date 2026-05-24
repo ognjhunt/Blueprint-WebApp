@@ -144,7 +144,7 @@ const requestPathCopy: Record<
     taskLabel: "What should the hosted review help your team answer?",
     taskPlaceholder:
       "Describe the robot task, scenario, pass/fail question, or review workflow this hosted review should support.*",
-    taskHelper: "Hosted review is confirmed after site, entitlement, and runtime availability are checked.",
+    taskHelper: "Hosted review is confirmed after site, entitlement, proof, and runtime availability are checked.",
     submitLabel: "Request hosted review",
     nextStep:
       "Blueprint checks the site, task, entitlement, and hosted-path readiness before confirming whether a hosted evaluation can move forward.",
@@ -157,7 +157,7 @@ const requestPathCopy: Record<
     taskLabel: "What site or workflow should Blueprint capture for your team?",
     taskPlaceholder:
       "Name the site, workflow, or site class your team wants captured before package or hosted-review work.*",
-    taskHelper: "Capture access is reviewed against site availability, lawful access, rights, and operational fit.",
+    taskHelper: "Capture access is reviewed against site specificity, lawful access, rights, and operational fit.",
     submitLabel: "Request capture access",
     nextStep:
       "Blueprint checks whether this needs a new capture, an existing package, a hosted evaluation, or an access follow-up before making commitments.",
@@ -741,7 +741,7 @@ export function ContactForm() {
 
       {commercialRequestPath === "hosted_evaluation" ? (
         <div className="border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700">
-          You are requesting a hosted evaluation. Blueprint will still confirm entitlement, site fit, and hosted-path availability before promising access.
+          You are requesting a hosted review. Blueprint will still confirm entitlement, site fit, proof state, and hosted-path availability before promising access.
           {siteName ? ` Site: ${siteName}.` : ""}
           {siteLocation ? ` Location: ${siteLocation}.` : ""}
         </div>

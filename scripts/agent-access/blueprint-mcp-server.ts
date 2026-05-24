@@ -148,6 +148,21 @@ export const BLUEPRINT_MCP_TOOLS: BlueprintMcpTool[] = [
     },
   },
   {
+    name: "blueprint.commerce.entitlementReadiness",
+    description: "Check whether dry-run entitlement proof links to a hosted-session launch candidate. This proves commerce linkage only and does not call live Stripe.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        siteWorldId: stringProp("Site-world id."),
+        entitlementId: stringProp("Dry-run entitlement id."),
+        buyerUserId: stringProp("Optional dry-run buyer uid. Defaults to agent-dry-run-buyer."),
+        product: { type: "string", enum: ["site_world_package", "hosted_session_rental"], default: "hosted_session_rental" },
+      },
+      required: ["siteWorldId", "entitlementId"],
+      additionalProperties: false,
+    },
+  },
+  {
     name: "blueprint.session.create",
     description: "Create a public-demo or protected robot-team hosted session.",
     inputSchema: {
@@ -361,6 +376,14 @@ export async function callBlueprintMcpTool(name: string, args: Record<string, un
       break;
     case "blueprint.commerce.entitlement.get":
       payload = await client.getCommerceEntitlement(requireArg(args, "entitlementId"));
+      break;
+    case "blueprint.commerce.entitlementReadiness":
+      payload = await client.entitlementReadiness({
+        siteWorldId: requireArg(args, "siteWorldId"),
+        entitlementId: requireArg(args, "entitlementId"),
+        buyerUserId: typeof args.buyerUserId === "string" ? args.buyerUserId : undefined,
+        product: typeof args.product === "string" ? args.product : undefined,
+      });
       break;
     case "blueprint.session.create":
       payload = await client.createSession({

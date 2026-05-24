@@ -675,7 +675,7 @@ function defaultModelForProvider(provider: AgentProvider) {
     case "codex_local":
       return process.env.CODEX_DEFAULT_MODEL?.trim() || "gpt-5.4-mini";
     case "deepseek_chat":
-      return process.env.DEEPSEEK_DEFAULT_MODEL?.trim() || "deepseek-v4-flash";
+      return process.env.DEEPSEEK_DEFAULT_MODEL?.trim() || "deepseek-v4-pro";
     case "openai_responses":
       return process.env.OPENAI_DEFAULT_MODEL?.trim() || "gpt-5.4";
     case "anthropic_agent_sdk":

@@ -39,6 +39,13 @@ describe("Blueprint agent CLI", () => {
         sessionHours: 2,
       },
     });
+    expect(parseAgentCliArgs(["commerce", "entitlement-readiness", "--site-world-id", "sw-chi-01", "--entitlement-id", "dry-ent-1"])).toMatchObject({
+      command: "commerce:entitlement-readiness",
+      options: {
+        siteWorldId: "sw-chi-01",
+        entitlementId: "dry-ent-1",
+      },
+    });
   });
 
   it("uses BLUEPRINT_API_BASE_URL and bearer auth when fetching protected flows", async () => {
@@ -156,6 +163,91 @@ describe("Blueprint agent CLI", () => {
       }),
     );
     expect(writes.join("\n")).toContain("dry-ent-1");
+  });
+
+  it("routes entitlement readiness through the dry-run agent-access commerce endpoint", async () => {
+    const fetchMock = vi.fn(async () =>
+      new Response(JSON.stringify({
+        mode: "dry_run",
+        entitled: true,
+        launchable: true,
+        truth: "Entitlement readiness proves commerce linkage only.",
+      }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    const writes: string[] = [];
+
+    await runAgentCli(
+      [
+        "commerce",
+        "entitlement-readiness",
+        "--site-world-id",
+        "sw-chi-01",
+        "--entitlement-id",
+        "dry-ent-1",
+        "--buyer-user-id",
+        "agent-dry-run-buyer",
+      ],
+      {
+        env: { BLUEPRINT_API_BASE_URL: "https://agent.example" },
+        fetchImpl: fetchMock,
+        stdout: (line) => writes.push(line),
+      },
+    );
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://agent.example/api/agent-access/commerce/entitlement-readiness?siteWorldId=sw-chi-01&entitlementId=dry-ent-1&buyerUserId=agent-dry-run-buyer",
+      expect.objectContaining({ method: "GET" }),
+    );
+    expect(JSON.parse(writes.join("\n"))).toMatchObject({
+      mode: "dry_run",
+      entitled: true,
+      launchable: true,
+    });
+  });
+
+  it("discovers the agent access manifest alongside public site content", async () => {
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      const path = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url).pathname;
+      const payload =
+        path === "/api/agent-access"
+          ? {
+              preferredTool: "blueprint.siteWorld.search",
+              publicDemo: { canRunWithoutCredentials: true },
+              truthLabels: ["capture_grounded", "dry_run_order"],
+            }
+          : {
+              summary: "Blueprint public site content",
+              machineReadableFiles: { llms: "/llms.txt" },
+            };
+      return new Response(JSON.stringify(payload), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    });
+    const writes: string[] = [];
+
+    await runAgentCli(["discover"], {
+      env: { BLUEPRINT_API_BASE_URL: "https://agent.example" },
+      fetchImpl: fetchMock,
+      stdout: (line) => writes.push(line),
+    });
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "https://agent.example/api/site-content",
+      expect.objectContaining({ method: "GET" }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "https://agent.example/api/agent-access",
+      expect.objectContaining({ method: "GET" }),
+    );
+    const payload = JSON.parse(writes.join("\n"));
+    expect(payload.agentAccess.preferredTool).toBe("blueprint.siteWorld.search");
+    expect(payload.agentAccess.publicDemo.canRunWithoutCredentials).toBe(true);
   });
 
   it("calls the public site-world search endpoint with query params", async () => {

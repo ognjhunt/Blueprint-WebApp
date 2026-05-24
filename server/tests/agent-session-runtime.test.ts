@@ -28,7 +28,7 @@ const runDeepSeekChatTask = vi.hoisted(() =>
     status: "completed",
     provider: "deepseek_chat",
     runtime: "deepseek_chat",
-    model: "deepseek-v4-flash",
+    model: "deepseek-v4-pro",
     tool_mode: "mixed",
     output: {
       reply: "Managed profile completed.",
@@ -291,7 +291,7 @@ describe("agent session runtime", () => {
       task_kind: "operator_thread",
       provider: "deepseek_chat",
       runtime: "deepseek_chat",
-      model: "deepseek-v4-flash",
+      model: "deepseek-v4-pro",
       status: "running",
       dispatch_mode: "collect",
       input: {
@@ -299,7 +299,7 @@ describe("agent session runtime", () => {
         input: repeatedInput,
         provider: "deepseek_chat",
         runtime: "deepseek_chat",
-        model: "deepseek-v4-flash",
+        model: "deepseek-v4-pro",
         session_key: "session:dedupe",
         session_policy: {
           dispatch_mode: "collect",

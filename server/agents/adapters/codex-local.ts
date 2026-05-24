@@ -111,6 +111,8 @@ export async function runCodexLocalTask<TInput, TOutput>(
         summary: "Attached Paperclip goal closeout contract to Codex prompt",
         issue_run_context: issueRunContext.summary,
         budget_timeout_context: budgetTimeoutContext,
+        requires_live_paperclip: false,
+        requires_localhost_3100: false,
       });
     }
     traceLogs.push({
@@ -183,6 +185,9 @@ export async function runCodexLocalTask<TInput, TOutput>(
                 enabled: true,
                 objective: goalObjective,
                 stageReached,
+                issueId: issueRunContext.issueId,
+                runId: issueRunContext.runId,
+                missingContext: issueRunContext.missingContext,
                 issueRunContext: issueRunContext.summary,
                 budgetTimeoutContext,
               }),
@@ -232,6 +237,9 @@ export async function runCodexLocalTask<TInput, TOutput>(
                 enabled: true,
                 objective: goalObjective,
                 stageReached,
+                issueId: issueRunContext.issueId,
+                runId: issueRunContext.runId,
+                missingContext: issueRunContext.missingContext,
                 issueRunContext: issueRunContext.summary,
                 budgetTimeoutContext,
               }),

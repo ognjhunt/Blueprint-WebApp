@@ -106,10 +106,11 @@ Production retention guardrail added on `2026-04-17`:
 - `prune-paperclip-runtime.sh` still supports `BLUEPRINT_PAPERCLIP_RESTART_MODE=systemd` for explicit manual recovery when an operator wants cleanup plus a managed restart in the same step
 - this is required on the VPS because the Paperclip embedded backup path can otherwise fill `/Users/nijelhunt_1/workspace/.paperclip-blueprint/instances/default/data/backups` and strand queued runs behind repeated service restarts
 
-Hermes-backed Blueprint agents are expected to use Codex OAuth only on this host. Install and configure Hermes locally before running reconcile or verify:
+Hermes-backed Blueprint agents use DeepSeek V4 Pro through the official DeepSeek Anthropic-compatible endpoint by default on this host. Install and configure Hermes locally before running reconcile or verify:
 
-- `hermes model` → choose the Codex provider
-- pin auxiliary/compression paths to Codex in `~/.hermes/config.yaml` if you want strict no-OpenRouter behavior
+- `hermes model` -> choose the Anthropic-compatible provider that points at `https://api.deepseek.com/anthropic`
+- set the primary model to `deepseek-v4-pro[1m]` and keep `deepseek-v4-flash` as the lower-cost ladder fallback
+- keep Codex available as the execution fallback for implementation work when the Hermes/DeepSeek lane is unavailable
 
 Run-family triage workflow:
 

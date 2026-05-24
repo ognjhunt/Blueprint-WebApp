@@ -12,6 +12,7 @@ import {
   getCityLaunchSenderStatus,
   sendEmail,
 } from "./email";
+import { buildExactSiteFirstTouchReview } from "./exactSiteHostedReviewFirstTouch";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const DEFAULT_SEND_LEDGER_ROOT = path.join(REPO_ROOT, "ops/paperclip/reports/gtm-send-ledger");
@@ -46,16 +47,13 @@ function receiptDir() {
 
 function emailBodyForTarget(target: ExactSiteGtmTarget) {
   if (target.outbound.messagePath) {
-    return `Blueprint GTM approved draft for ${target.organizationName} is recorded at ${target.outbound.messagePath}.\n\n${target.workflowNeed}`;
+    return buildExactSiteFirstTouchReview(target).proposedBody;
   }
   return "";
 }
 
 function emailSubjectForTarget(target: ExactSiteGtmTarget) {
-  if (target.track === "proof_ready_outreach") {
-    return `Exact-site hosted review for ${target.buyerSegment}`;
-  }
-  return `Which ${target.buyerSegment} site should Blueprint capture next?`;
+  return buildExactSiteFirstTouchReview(target).proposedSubject;
 }
 
 function markDailySend(ledger: ExactSiteGtmPilotLedger) {
@@ -142,7 +140,7 @@ function noEligibleSendNextActions(summary: GtmSendExecutionResult["summary"]) {
   const actions: string[] = [];
   if (summary.skippedApproval > 0) {
     actions.push(
-      "First-send approval next action: run npm run gtm:first-send-approval:template -- --write, review recipient evidence/draft angle/CTA/proof source/objection plan/blocked claims in the generated packet, then apply only explicit approve/edit/reject decisions with npm run gtm:first-send-approval:apply -- --write before rerunning the send dry-run.",
+      "First-send approval next action: run npm run gtm:first-send-approval:template -- --write, review recipient evidence/proposed subject/proposed body/draft angle/CTA/proof source/objection plan/blocked claims in the generated packet, then apply only explicit approve/edit/reject decisions with npm run gtm:first-send-approval:apply -- --write before rerunning the send dry-run.",
     );
   }
   if (summary.skippedNoRecipient > 0) {

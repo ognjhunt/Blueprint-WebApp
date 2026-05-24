@@ -37,7 +37,7 @@ const TASK_MODEL_SUFFIXES: Partial<Record<AgentTaskKind, string>> = {
 };
 
 const DEFAULT_MODELS: Record<StructuredProvider, string> = {
-  deepseek_chat: "deepseek-v4-flash",
+  deepseek_chat: "deepseek-v4-pro",
   openai_responses: "gpt-5.4",
   anthropic_agent_sdk: "claude-sonnet-4-5",
   acp_harness: "codex",

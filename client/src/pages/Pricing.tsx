@@ -25,7 +25,7 @@ const packageBullets = [
 ];
 
 const hostedBullets = [
-  "Browser access to the hosted exact-site environment",
+  "Managed browser review when the site and entitlement path are confirmed",
   "Scoped route replay and scenario variation",
   "Observation frames from hosted evaluation",
   "Sharable session notes and result exports",
@@ -212,7 +212,7 @@ export default function Pricing() {
                   Choose the first step for one real site.
                 </h1>
                 <p className="mt-6 text-lg leading-8 text-slate-900 sm:text-slate-700">
-                  Start with files, a managed buyer room, or custom scope. Blueprint keeps proof, rights, and access review tied to the indoor exact site.
+                  Robot teams can start with files, a managed buyer room, or custom scope. Blueprint keeps proof, rights, price range, and access review tied to the indoor exact site before anything becomes payment, fulfillment, or hosted access.
                 </p>
                 <div className="mt-8 flex flex-wrap gap-3">
                   <a

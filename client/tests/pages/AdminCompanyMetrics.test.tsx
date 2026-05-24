@@ -58,7 +58,14 @@ describe("AdminCompanyMetrics", () => {
                 blockers: [],
                 waitingActions: [],
               },
-              needsFounder: [],
+              needsFounder: [
+                {
+                  id: "founder-blocker-1",
+                  title: "Approve first buyer proof packet",
+                  reason: "Needs founder decision before any external commitment.",
+                  source: "humanBlockerThreads/founder-blocker-1",
+                },
+              ],
               nextAutonomousActions: [],
               recentChangeSummary: {
                 operatingGraphEvents: 2,
@@ -156,10 +163,20 @@ describe("AdminCompanyMetrics", () => {
     renderPage();
 
     expect(await screen.findByText("Capture To Hosted Review")).toBeInTheDocument();
+    expect(screen.getByText(/Founder\/operator truth map/i)).toBeInTheDocument();
+    expect(screen.getByText("Repo doctrine")).toBeInTheDocument();
+    expect(screen.getByText("Paperclip execution")).toBeInTheDocument();
+    expect(screen.getByText("Notion visibility")).toBeInTheDocument();
+    expect(screen.getByText("Firestore, Stripe, Render runtime")).toBeInTheDocument();
+    expect(screen.getByText(/Local checks do not prove Operational Launch Ready/i)).toBeInTheDocument();
     expect(screen.getByText("cap-austin-1")).toBeInTheDocument();
     expect(screen.getByText("hosted_review_started")).toBeInTheDocument();
+    expect(screen.getByText(/Source repos: BlueprintCapture, Blueprint-WebApp/i)).toBeInTheDocument();
     expect(screen.getByText("operatingGraphEvents/review-austin-start")).toBeInTheDocument();
     expect(screen.getByText("cap-sf-1")).toBeInTheDocument();
     expect(screen.getByText(/pipeline_packaging/)).toBeInTheDocument();
+    expect(screen.getByText(/Human-gated blockers/i)).toBeInTheDocument();
+    expect(screen.getByText(/Approve first buyer proof packet/i)).toBeInTheDocument();
+    expect(screen.getByText(/humanBlockerThreads\/founder-blocker-1/i)).toBeInTheDocument();
   });
 });

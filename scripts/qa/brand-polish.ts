@@ -166,6 +166,16 @@ export const publicQaRoutes: PublicQaRoute[] = [
     ],
   },
   {
+    label: "Agents",
+    path: "/agents",
+    canonicalPath: "/agents",
+    expectedHeading: "Robot-team agent access.",
+    requiredCtas: [
+      { label: "Request agent access", hrefStartsWith: "/contact" },
+      { label: "Open contract", hrefStartsWith: "/agent-access.openapi.json" },
+    ],
+  },
+  {
     label: "Pricing",
     path: "/pricing",
     canonicalPath: "/pricing",
@@ -189,7 +199,7 @@ export const publicQaRoutes: PublicQaRoute[] = [
     label: "Capture",
     path: "/capture",
     canonicalPath: "/capture",
-    expectedHeading: "Get paid to capture real places robots need to understand.",
+    expectedHeading: "Get paid to capture indoor places robots need to understand.",
     requiredCtas: [
       { label: "Check capture access", hrefStartsWith: "/capture-app/launch-access" },
       { label: "Apply for approved capture assignments", hrefStartsWith: "/signup/capturer" },

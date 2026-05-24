@@ -25,6 +25,7 @@ type AgentCliCommand =
   | "commerce:checkout"
   | "commerce:order:get"
   | "commerce:entitlement:get"
+  | "commerce:entitlement-readiness"
   | "world:get"
   | "readiness"
   | "session:create"
@@ -157,6 +158,9 @@ export function parseAgentCliArgs(argv: string[]): ParsedAgentCliArgs {
     if (secondaryOrId === "entitlement" || secondaryOrId === "entitlement:get") {
       return { command: "commerce:entitlement:get", options, sessionId: String(positionals[0] || options.entitlementId || "").trim(), format };
     }
+    if (secondaryOrId === "entitlement-readiness" || secondaryOrId === "entitlement:readiness") {
+      return { command: "commerce:entitlement-readiness", options, format };
+    }
   }
   if (primary === "readiness") {
     return { command: "readiness", siteWorldId: String(options.siteWorldId || positionals[0] || "").trim(), options, format };
@@ -277,19 +281,28 @@ function checkoutInput(options: Record<string, unknown>): AgentDryRunCheckoutInp
   };
 }
 
+function entitlementReadinessInput(options: Record<string, unknown>) {
+  return {
+    siteWorldId: requireString(options, "siteWorldId"),
+    entitlementId: requireString(options, "entitlementId"),
+    buyerUserId: typeof options.buyerUserId === "string" ? options.buyerUserId : undefined,
+    product: typeof options.product === "string" ? normalizeCommerceProduct(options.product) : undefined,
+  };
+}
+
 async function execute(parsed: ParsedAgentCliArgs, client: BlueprintAgentApiClient) {
   switch (parsed.command) {
     case "discover":
-      return {
-        ...(await client.discover() as Record<string, unknown>),
-        agentAccess: {
-          docs: "/agents",
-          openapi: "/agent-access.openapi.json",
-          api: "/api/agent-access/openapi.json",
-          cli: "scripts/agent-access/blueprint-agent-cli.ts",
-          mcp: "scripts/agent-access/blueprint-mcp-server.ts",
-        },
-      };
+      {
+        const [siteContent, agentAccess] = await Promise.all([
+          client.discover(),
+          client.agentAccess(),
+        ]);
+        return {
+          ...(siteContent as Record<string, unknown>),
+          agentAccess,
+        };
+      }
     case "catalog:list":
       return client.listCatalog(Number(parsed.options.limit || 24));
     case "catalog:search":
@@ -303,6 +316,8 @@ async function execute(parsed: ParsedAgentCliArgs, client: BlueprintAgentApiClie
       return client.getCommerceOrder(parsed.sessionId || requireString(parsed.options, "orderId"));
     case "commerce:entitlement:get":
       return client.getCommerceEntitlement(parsed.sessionId || requireString(parsed.options, "entitlementId"));
+    case "commerce:entitlement-readiness":
+      return client.entitlementReadiness(entitlementReadinessInput(parsed.options));
     case "world:get":
       return client.getSiteWorld(parsed.siteWorldId || requireString(parsed.options, "siteWorldId"));
     case "readiness":

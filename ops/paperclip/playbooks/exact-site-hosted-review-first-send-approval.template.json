@@ -1,9 +1,9 @@
 {
   "schema": "blueprint/exact-site-hosted-review-first-send-approval-template/v1",
-  "generatedAt": "2026-05-19T02:33:45.032Z",
+  "generatedAt": "2026-05-24T01:55:29.162Z",
   "ledgerPath": "ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json",
   "instructions": [
-    "Review recipient evidence, draft angle, CTA, landing-page handoff, objection plan, and review flags before setting a decision.",
+    "Review recipient evidence, proposed subject/body, draft angle, CTA, landing-page handoff, objection plan, and review flags before setting a decision.",
     "Set decision to approve, edit, or reject only for rows the founder/operator has actually reviewed.",
     "Do not approve pricing, legal, privacy, permission, rights, readiness, live spend, sender durability, or live dispatch from this packet.",
     "Live sends remain blocked until decisions are applied, npm run gtm:send -- --dry-run --allow-blocked is rerun, npm run human-replies:audit-durability passes, and live dispatch is explicitly authorized.",
@@ -11,7 +11,7 @@
   ],
   "reviewChecklist": [
     "Recipient email and evidence source are acceptable for a first touch.",
-    "Message asks one clear thing and stays aligned to the row track.",
+    "Proposed subject and body ask one clear thing and stay aligned to the row track.",
     "Proof source matches the CTA and does not overstate what exists.",
     "Proof-ready rows link to a labeled review/sample without claiming customer traction.",
     "Demand-sourced rows ask for the site/workflow to capture and do not imply a hosted review exists.",
@@ -43,6 +43,8 @@
       "hostedReviewPath": "/sample-evaluation",
       "siteWorldId": "sample-public-capture-cedar-market-aisle-loop",
       "proofSource": "Labeled hosted-review proof at client/public/samples/sample-hosted-review-report.md. Hosted review handoff: /sample-evaluation. Site-world id: sample-public-capture-cedar-market-aisle-loop. Use as representative proof shape only; do not claim recipient/customer-specific proof.",
+      "proposedSubject": "Labeled exact-site review for Retail shelf-scanning robotics team",
+      "proposedBody": "Hi,\n\nI am building Blueprint, a capture-backed way for robot teams to inspect real sites before committing people, simulation time, or deployment planning.\n\nFor Simbe Robotics, I saw this signal: Company publicly sells retail shelf-intelligence robots that operate in grocery and store aisles.\nThe closest current artifact is /sample-evaluation. It is representative proof shape, not Simbe Robotics' site, not a customer result, and not deployment proof.\n\nWould it be useful to inspect it and tell me what exact site or workflow would make the review relevant for your retail shelf-scanning robotics team?\n\n/sample-evaluation\n\nNijel",
       "draftAngle": "Invite the recipient to inspect a labeled exact-site hosted review, then ask what site or workflow would make the review more relevant.",
       "cta": "Inspect the review, then name the more relevant site or workflow.",
       "landingPage": "/sample-evaluation",
@@ -56,7 +58,7 @@
       "reviewFlags": [
         "public/general inbox; expect routing friction"
       ],
-      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
+      "reviewerPrompt": "Approve, edit, or reject this exact first-touch copy. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -79,6 +81,8 @@
       "hostedReviewPath": "/sample-evaluation",
       "siteWorldId": "sample-public-capture-cedar-market-aisle-loop",
       "proofSource": "Labeled hosted-review proof at client/public/samples/sample-hosted-review-report.md. Hosted review handoff: /sample-evaluation. Site-world id: sample-public-capture-cedar-market-aisle-loop. Use as representative proof shape only; do not claim recipient/customer-specific proof.",
+      "proposedSubject": "Labeled exact-site review for Retail and commercial service robotics team",
+      "proposedBody": "Hi,\n\nI am building Blueprint, a capture-backed way for robot teams to inspect real sites before committing people, simulation time, or deployment planning.\n\nFor Brain Corp, I saw this signal: Company publicly presents autonomous robots for commercial spaces including retail environments.\nThe closest current artifact is /sample-evaluation. It is representative proof shape, not Brain Corp's site, not a customer result, and not deployment proof.\n\nWould it be useful to inspect it and tell me what exact site or workflow would make the review relevant for your retail and commercial service robotics team?\n\n/sample-evaluation\n\nNijel",
       "draftAngle": "Invite the recipient to inspect a labeled exact-site hosted review, then ask what site or workflow would make the review more relevant.",
       "cta": "Inspect the review, then name the more relevant site or workflow.",
       "landingPage": "/sample-evaluation",
@@ -92,7 +96,7 @@
       "reviewFlags": [
         "public/general inbox; expect routing friction"
       ],
-      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
+      "reviewerPrompt": "Approve, edit, or reject this exact first-touch copy. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -115,6 +119,8 @@
       "hostedReviewPath": "/sample-evaluation?workflow=warehouse-amr",
       "siteWorldId": "sample-warehouse-tote-pick-lane",
       "proofSource": "Labeled hosted-review proof at client/public/samples/sample-warehouse-amr-hosted-review-report.md. Hosted review handoff: /sample-evaluation?workflow=warehouse-amr. Site-world id: sample-warehouse-tote-pick-lane. Use as representative proof shape only; do not claim recipient/customer-specific proof.",
+      "proposedSubject": "Labeled exact-site review for Warehouse humanoid deployment team",
+      "proposedBody": "Hi,\n\nI am building Blueprint, a capture-backed way for robot teams to inspect real sites before committing people, simulation time, or deployment planning.\n\nFor Agility Robotics, I saw this signal: Company publicly positions Digit for logistics and warehouse work.\nThe closest current artifact is /sample-evaluation?workflow=warehouse-amr. It is representative proof shape, not Agility Robotics' site, not a customer result, and not deployment proof.\n\nWould it be useful to inspect it and tell me what exact site or workflow would make the review relevant for your warehouse humanoid deployment team?\n\n/sample-evaluation?workflow=warehouse-amr\n\nNijel",
       "draftAngle": "Invite the recipient to inspect a labeled exact-site hosted review, then ask what site or workflow would make the review more relevant.",
       "cta": "Inspect the review, then name the more relevant site or workflow.",
       "landingPage": "/sample-evaluation?workflow=warehouse-amr",
@@ -128,7 +134,7 @@
       "reviewFlags": [
         "public/general inbox; expect routing friction"
       ],
-      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
+      "reviewerPrompt": "Approve, edit, or reject this exact first-touch copy. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -151,9 +157,11 @@
       "hostedReviewPath": null,
       "siteWorldId": null,
       "proofSource": "Draft opportunity brief at ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md. No hosted review or site-world package exists for this target yet. Use only to ask which site/workflow should be captured first.",
+      "proposedSubject": "What exact Warehouse case-handling robotics team site should Blueprint capture next?",
+      "proposedBody": "Hi,\n\nI am building Blueprint, a capture-backed way for robot teams to turn real sites into site-specific world-model packages and hosted review sessions.\n\nFor Boston Dynamics, I do not want to guess the wrong environment. If Blueprint captured one warehouse trailer, dock, pallet, or case-handling workflow for your team first, what exact site or workflow should we start with?\n\nThe request path is prefilled here: /contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch&proofPathPreference=exact_site_required&query=Which+warehouse+handling+site+would+make+a+hosted+exact-site+review+useful%3F&siteName=warehouse+trailer%2C+dock%2C+pallet%2C+or+case-handling+workflow&targetSiteType=warehouse+trailer%2C+dock%2C+pallet%2C+or+case-handling+workflow&workflow=Which+warehouse+handling+site+would+make+a+hosted+exact-site+review+useful%3F&taskStatement=Which+warehouse+handling+site+would+make+a+hosted+exact-site+review+useful%3F&targetRobotTeam=Warehouse+case-handling+robotics+team&message=GTM+target%3A+gtm-004-boston-dynamics-stretch-warehouse%0AOrganization%3A+Boston+Dynamics%0AUse+this+path+only+to+ask+which+exact+site+or+workflow+should+be+captured+first.%0ADo+not+imply+that+a+hosted+review%2C+package%2C+or+capture+evidence+already+exists+for+this+target.\n\nDo not imply a hosted review exists yet; this row is only asking which exact site or workflow should be captured first.\n\nThis is a capture ask only. No hosted review, site-world package, package access, or capture evidence exists for this target yet, and I will not claim availability before the site is captured and reviewed.\n\nNijel",
       "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
       "cta": "Name the site or workflow worth capturing first.",
-      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
+      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch&proofPathPreference=exact_site_required&query=Which+warehouse+handling+site+would+make+a+hosted+exact-site+review+useful%3F&siteName=warehouse+trailer%2C+dock%2C+pallet%2C+or+case-handling+workflow&targetSiteType=warehouse+trailer%2C+dock%2C+pallet%2C+or+case-handling+workflow&workflow=Which+warehouse+handling+site+would+make+a+hosted+exact-site+review+useful%3F&taskStatement=Which+warehouse+handling+site+would+make+a+hosted+exact-site+review+useful%3F&targetRobotTeam=Warehouse+case-handling+robotics+team&message=GTM+target%3A+gtm-004-boston-dynamics-stretch-warehouse%0AOrganization%3A+Boston+Dynamics%0AUse+this+path+only+to+ask+which+exact+site+or+workflow+should+be+captured+first.%0ADo+not+imply+that+a+hosted+review%2C+package%2C+or+capture+evidence+already+exists+for+this+target.",
       "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
       "blockedClaims": [
         "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
@@ -166,7 +174,7 @@
         "artifact is a draft opportunity brief",
         "public/general inbox; expect routing friction"
       ],
-      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
+      "reviewerPrompt": "Approve, edit, or reject this exact first-touch copy. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -189,9 +197,11 @@
       "hostedReviewPath": null,
       "siteWorldId": null,
       "proofSource": "Draft opportunity brief at ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md. No hosted review or site-world package exists for this target yet. Use only to ask which site/workflow should be captured first.",
+      "proposedSubject": "What exact Fulfillment AMR deployment team site should Blueprint capture next?",
+      "proposedBody": "Hi,\n\nI am building Blueprint, a capture-backed way for robot teams to turn real sites into site-specific world-model packages and hosted review sessions.\n\nFor Locus Robotics, I do not want to guess the wrong environment. If Blueprint captured one fulfillment pick aisle, induction, replenishment, or returns workflow for your team first, what exact site or workflow should we start with?\n\nThe request path is prefilled here: /contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch&proofPathPreference=exact_site_required&query=Which+fulfillment+workflow+should+Blueprint+capture+first+to+make+a+hosted+review+worth+inspecting%3F&siteName=fulfillment+pick+aisle%2C+induction%2C+replenishment%2C+or+returns+workflow&targetSiteType=fulfillment+pick+aisle%2C+induction%2C+replenishment%2C+or+returns+workflow&workflow=Which+fulfillment+workflow+should+Blueprint+capture+first+to+make+a+hosted+review+worth+inspecting%3F&taskStatement=Which+fulfillment+workflow+should+Blueprint+capture+first+to+make+a+hosted+review+worth+inspecting%3F&targetRobotTeam=Fulfillment+AMR+deployment+team&message=GTM+target%3A+gtm-005-locus-fulfillment-amr%0AOrganization%3A+Locus+Robotics%0AUse+this+path+only+to+ask+which+exact+site+or+workflow+should+be+captured+first.%0ADo+not+imply+that+a+hosted+review%2C+package%2C+or+capture+evidence+already+exists+for+this+target.\n\nDo not imply a hosted review exists yet; this row is only asking which exact site or workflow should be captured first.\n\nThis is a capture ask only. No hosted review, site-world package, package access, or capture evidence exists for this target yet, and I will not claim availability before the site is captured and reviewed.\n\nNijel",
       "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
       "cta": "Name the site or workflow worth capturing first.",
-      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
+      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch&proofPathPreference=exact_site_required&query=Which+fulfillment+workflow+should+Blueprint+capture+first+to+make+a+hosted+review+worth+inspecting%3F&siteName=fulfillment+pick+aisle%2C+induction%2C+replenishment%2C+or+returns+workflow&targetSiteType=fulfillment+pick+aisle%2C+induction%2C+replenishment%2C+or+returns+workflow&workflow=Which+fulfillment+workflow+should+Blueprint+capture+first+to+make+a+hosted+review+worth+inspecting%3F&taskStatement=Which+fulfillment+workflow+should+Blueprint+capture+first+to+make+a+hosted+review+worth+inspecting%3F&targetRobotTeam=Fulfillment+AMR+deployment+team&message=GTM+target%3A+gtm-005-locus-fulfillment-amr%0AOrganization%3A+Locus+Robotics%0AUse+this+path+only+to+ask+which+exact+site+or+workflow+should+be+captured+first.%0ADo+not+imply+that+a+hosted+review%2C+package%2C+or+capture+evidence+already+exists+for+this+target.",
       "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
       "blockedClaims": [
         "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
@@ -204,7 +214,7 @@
         "artifact is a draft opportunity brief",
         "public/general inbox; expect routing friction"
       ],
-      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
+      "reviewerPrompt": "Approve, edit, or reject this exact first-touch copy. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -227,9 +237,11 @@
       "hostedReviewPath": null,
       "siteWorldId": null,
       "proofSource": "Draft opportunity brief at ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md. No hosted review or site-world package exists for this target yet. Use only to ask which site/workflow should be captured first.",
+      "proposedSubject": "What exact Autonomous industrial vehicle team site should Blueprint capture next?",
+      "proposedBody": "Hi,\n\nI am building Blueprint, a capture-backed way for robot teams to turn real sites into site-specific world-model packages and hosted review sessions.\n\nFor Seegrid, I do not want to guess the wrong environment. If Blueprint captured one material-movement route, staging lane, or dock-to-line workflow for your team first, what exact site or workflow should we start with?\n\nThe request path is prefilled here: /contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch&proofPathPreference=exact_site_required&query=Which+site+route+would+help+your+team+judge+whether+exact-site+hosted+review+is+useful%3F&siteName=material-movement+route%2C+staging+lane%2C+or+dock-to-line+workflow&targetSiteType=material-movement+route%2C+staging+lane%2C+or+dock-to-line+workflow&workflow=Which+site+route+would+help+your+team+judge+whether+exact-site+hosted+review+is+useful%3F&taskStatement=Which+site+route+would+help+your+team+judge+whether+exact-site+hosted+review+is+useful%3F&targetRobotTeam=Autonomous+industrial+vehicle+team&message=GTM+target%3A+gtm-006-seegrid-warehouse-amr%0AOrganization%3A+Seegrid%0AUse+this+path+only+to+ask+which+exact+site+or+workflow+should+be+captured+first.%0ADo+not+imply+that+a+hosted+review%2C+package%2C+or+capture+evidence+already+exists+for+this+target.\n\nDo not imply a hosted review exists yet; this row is only asking which exact site or workflow should be captured first.\n\nThis is a capture ask only. No hosted review, site-world package, package access, or capture evidence exists for this target yet, and I will not claim availability before the site is captured and reviewed.\n\nNijel",
       "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
       "cta": "Name the site or workflow worth capturing first.",
-      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
+      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch&proofPathPreference=exact_site_required&query=Which+site+route+would+help+your+team+judge+whether+exact-site+hosted+review+is+useful%3F&siteName=material-movement+route%2C+staging+lane%2C+or+dock-to-line+workflow&targetSiteType=material-movement+route%2C+staging+lane%2C+or+dock-to-line+workflow&workflow=Which+site+route+would+help+your+team+judge+whether+exact-site+hosted+review+is+useful%3F&taskStatement=Which+site+route+would+help+your+team+judge+whether+exact-site+hosted+review+is+useful%3F&targetRobotTeam=Autonomous+industrial+vehicle+team&message=GTM+target%3A+gtm-006-seegrid-warehouse-amr%0AOrganization%3A+Seegrid%0AUse+this+path+only+to+ask+which+exact+site+or+workflow+should+be+captured+first.%0ADo+not+imply+that+a+hosted+review%2C+package%2C+or+capture+evidence+already+exists+for+this+target.",
       "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
       "blockedClaims": [
         "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
@@ -242,7 +254,7 @@
         "artifact is a draft opportunity brief",
         "public/general inbox; expect routing friction"
       ],
-      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
+      "reviewerPrompt": "Approve, edit, or reject this exact first-touch copy. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -265,9 +277,11 @@
       "hostedReviewPath": null,
       "siteWorldId": null,
       "proofSource": "Draft opportunity brief at ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md. No hosted review or site-world package exists for this target yet. Use only to ask which site/workflow should be captured first.",
+      "proposedSubject": "What exact Warehouse automation and orchestration team site should Blueprint capture next?",
+      "proposedBody": "Hi,\n\nI am building Blueprint, a capture-backed way for robot teams to turn real sites into site-specific world-model packages and hosted review sessions.\n\nFor Vecna Robotics, I do not want to guess the wrong environment. If Blueprint captured one warehouse route or fleet-coordination workflow for your team first, what exact site or workflow should we start with?\n\nThe request path is prefilled here: /contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch&proofPathPreference=exact_site_required&query=Which+site+workflow+would+be+worth+reviewing+before+deeper+integration+work%3F&siteName=warehouse+route+or+fleet-coordination+workflow&targetSiteType=warehouse+route+or+fleet-coordination+workflow&workflow=Which+site+workflow+would+be+worth+reviewing+before+deeper+integration+work%3F&taskStatement=Which+site+workflow+would+be+worth+reviewing+before+deeper+integration+work%3F&targetRobotTeam=Warehouse+automation+and+orchestration+team&message=GTM+target%3A+gtm-007-vecna-robotics-warehouse-orchestration%0AOrganization%3A+Vecna+Robotics%0AUse+this+path+only+to+ask+which+exact+site+or+workflow+should+be+captured+first.%0ADo+not+imply+that+a+hosted+review%2C+package%2C+or+capture+evidence+already+exists+for+this+target.\n\nDo not imply a hosted review exists yet; this row is only asking which exact site or workflow should be captured first.\n\nThis is a capture ask only. No hosted review, site-world package, package access, or capture evidence exists for this target yet, and I will not claim availability before the site is captured and reviewed.\n\nNijel",
       "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
       "cta": "Name the site or workflow worth capturing first.",
-      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
+      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch&proofPathPreference=exact_site_required&query=Which+site+workflow+would+be+worth+reviewing+before+deeper+integration+work%3F&siteName=warehouse+route+or+fleet-coordination+workflow&targetSiteType=warehouse+route+or+fleet-coordination+workflow&workflow=Which+site+workflow+would+be+worth+reviewing+before+deeper+integration+work%3F&taskStatement=Which+site+workflow+would+be+worth+reviewing+before+deeper+integration+work%3F&targetRobotTeam=Warehouse+automation+and+orchestration+team&message=GTM+target%3A+gtm-007-vecna-robotics-warehouse-orchestration%0AOrganization%3A+Vecna+Robotics%0AUse+this+path+only+to+ask+which+exact+site+or+workflow+should+be+captured+first.%0ADo+not+imply+that+a+hosted+review%2C+package%2C+or+capture+evidence+already+exists+for+this+target.",
       "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
       "blockedClaims": [
         "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
@@ -280,7 +294,7 @@
         "artifact is a draft opportunity brief",
         "public/general inbox; expect routing friction"
       ],
-      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
+      "reviewerPrompt": "Approve, edit, or reject this exact first-touch copy. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -303,9 +317,11 @@
       "hostedReviewPath": null,
       "siteWorldId": null,
       "proofSource": "Draft opportunity brief at ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md. No hosted review or site-world package exists for this target yet. Use only to ask which site/workflow should be captured first.",
+      "proposedSubject": "What exact Autonomous forklift deployment team site should Blueprint capture next?",
+      "proposedBody": "Hi,\n\nI am building Blueprint, a capture-backed way for robot teams to turn real sites into site-specific world-model packages and hosted review sessions.\n\nFor Fox Robotics, I do not want to guess the wrong environment. If Blueprint captured one warehouse dock, trailer, or pallet movement workflow for your team first, what exact site or workflow should we start with?\n\nThe request path is prefilled here: /contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch&proofPathPreference=exact_site_required&query=Which+dock+workflow+would+make+an+exact-site+hosted+review+worth+opening%3F&siteName=warehouse+dock%2C+trailer%2C+or+pallet+movement+workflow&targetSiteType=warehouse+dock%2C+trailer%2C+or+pallet+movement+workflow&workflow=Which+dock+workflow+would+make+an+exact-site+hosted+review+worth+opening%3F&taskStatement=Which+dock+workflow+would+make+an+exact-site+hosted+review+worth+opening%3F&targetRobotTeam=Autonomous+forklift+deployment+team&message=GTM+target%3A+gtm-008-fox-robotics-forklift-dock%0AOrganization%3A+Fox+Robotics%0AUse+this+path+only+to+ask+which+exact+site+or+workflow+should+be+captured+first.%0ADo+not+imply+that+a+hosted+review%2C+package%2C+or+capture+evidence+already+exists+for+this+target.\n\nDo not imply a hosted review exists yet; this row is only asking which exact site or workflow should be captured first.\n\nThis is a capture ask only. No hosted review, site-world package, package access, or capture evidence exists for this target yet, and I will not claim availability before the site is captured and reviewed.\n\nNijel",
       "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
       "cta": "Name the site or workflow worth capturing first.",
-      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
+      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch&proofPathPreference=exact_site_required&query=Which+dock+workflow+would+make+an+exact-site+hosted+review+worth+opening%3F&siteName=warehouse+dock%2C+trailer%2C+or+pallet+movement+workflow&targetSiteType=warehouse+dock%2C+trailer%2C+or+pallet+movement+workflow&workflow=Which+dock+workflow+would+make+an+exact-site+hosted+review+worth+opening%3F&taskStatement=Which+dock+workflow+would+make+an+exact-site+hosted+review+worth+opening%3F&targetRobotTeam=Autonomous+forklift+deployment+team&message=GTM+target%3A+gtm-008-fox-robotics-forklift-dock%0AOrganization%3A+Fox+Robotics%0AUse+this+path+only+to+ask+which+exact+site+or+workflow+should+be+captured+first.%0ADo+not+imply+that+a+hosted+review%2C+package%2C+or+capture+evidence+already+exists+for+this+target.",
       "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
       "blockedClaims": [
         "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
@@ -318,7 +334,7 @@
         "artifact is a draft opportunity brief",
         "public/general inbox; expect routing friction"
       ],
-      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
+      "reviewerPrompt": "Approve, edit, or reject this exact first-touch copy. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -341,9 +357,11 @@
       "hostedReviewPath": null,
       "siteWorldId": null,
       "proofSource": "Draft opportunity brief at ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md. No hosted review or site-world package exists for this target yet. Use only to ask which site/workflow should be captured first.",
+      "proposedSubject": "What exact Healthcare service robot deployment team site should Blueprint capture next?",
+      "proposedBody": "Hi,\n\nI am building Blueprint, a capture-backed way for robot teams to turn real sites into site-specific world-model packages and hosted review sessions.\n\nFor Diligent Robotics, I do not want to guess the wrong environment. If Blueprint captured one hospital supply, hallway, or nursing-unit support route for your team first, what exact site or workflow should we start with?\n\nThe request path is prefilled here: /contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch&proofPathPreference=exact_site_required&query=Which+privacy-safe+healthcare+route+would+be+useful+enough+to+scope+first%3F&siteName=hospital+supply%2C+hallway%2C+or+nursing-unit+support+route&targetSiteType=hospital+supply%2C+hallway%2C+or+nursing-unit+support+route&workflow=Which+privacy-safe+healthcare+route+would+be+useful+enough+to+scope+first%3F&taskStatement=Which+privacy-safe+healthcare+route+would+be+useful+enough+to+scope+first%3F&targetRobotTeam=Healthcare+service+robot+deployment+team&message=GTM+target%3A+gtm-009-diligent-healthcare-service-route%0AOrganization%3A+Diligent+Robotics%0AUse+this+path+only+to+ask+which+exact+site+or+workflow+should+be+captured+first.%0ADo+not+imply+that+a+hosted+review%2C+package%2C+or+capture+evidence+already+exists+for+this+target.\n\nDo not imply a hosted review exists yet; this row is only asking which exact site or workflow should be captured first.\n\nThis is a capture ask only. No hosted review, site-world package, package access, or capture evidence exists for this target yet, and I will not claim availability before the site is captured and reviewed.\n\nNijel",
       "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
       "cta": "Name the site or workflow worth capturing first.",
-      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
+      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch&proofPathPreference=exact_site_required&query=Which+privacy-safe+healthcare+route+would+be+useful+enough+to+scope+first%3F&siteName=hospital+supply%2C+hallway%2C+or+nursing-unit+support+route&targetSiteType=hospital+supply%2C+hallway%2C+or+nursing-unit+support+route&workflow=Which+privacy-safe+healthcare+route+would+be+useful+enough+to+scope+first%3F&taskStatement=Which+privacy-safe+healthcare+route+would+be+useful+enough+to+scope+first%3F&targetRobotTeam=Healthcare+service+robot+deployment+team&message=GTM+target%3A+gtm-009-diligent-healthcare-service-route%0AOrganization%3A+Diligent+Robotics%0AUse+this+path+only+to+ask+which+exact+site+or+workflow+should+be+captured+first.%0ADo+not+imply+that+a+hosted+review%2C+package%2C+or+capture+evidence+already+exists+for+this+target.",
       "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
       "blockedClaims": [
         "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
@@ -356,7 +374,7 @@
         "artifact is a draft opportunity brief",
         "public/general inbox; expect routing friction"
       ],
-      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
+      "reviewerPrompt": "Approve, edit, or reject this exact first-touch copy. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -379,9 +397,11 @@
       "hostedReviewPath": null,
       "siteWorldId": null,
       "proofSource": "Draft opportunity brief at ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md. No hosted review or site-world package exists for this target yet. Use only to ask which site/workflow should be captured first.",
+      "proposedSubject": "What exact Industrial inspection robotics team site should Blueprint capture next?",
+      "proposedBody": "Hi,\n\nI am building Blueprint, a capture-backed way for robot teams to turn real sites into site-specific world-model packages and hosted review sessions.\n\nFor Gecko Robotics, I do not want to guess the wrong environment. If Blueprint captured one industrial inspection route or facility type for your team first, what exact site or workflow should we start with?\n\nThe request path is prefilled here: /contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch&proofPathPreference=exact_site_required&query=Which+inspection+route+would+help+validate+whether+exact-site+hosted+review+fits+your+workflow%3F&siteName=industrial+inspection+route+or+facility+type&targetSiteType=industrial+inspection+route+or+facility+type&workflow=Which+inspection+route+would+help+validate+whether+exact-site+hosted+review+fits+your+workflow%3F&taskStatement=Which+inspection+route+would+help+validate+whether+exact-site+hosted+review+fits+your+workflow%3F&targetRobotTeam=Industrial+inspection+robotics+team&message=GTM+target%3A+gtm-010-gecko-industrial-inspection%0AOrganization%3A+Gecko+Robotics%0AUse+this+path+only+to+ask+which+exact+site+or+workflow+should+be+captured+first.%0ADo+not+imply+that+a+hosted+review%2C+package%2C+or+capture+evidence+already+exists+for+this+target.\n\nDo not imply a hosted review exists yet; this row is only asking which exact site or workflow should be captured first.\n\nThis is a capture ask only. No hosted review, site-world package, package access, or capture evidence exists for this target yet, and I will not claim availability before the site is captured and reviewed.\n\nNijel",
       "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
       "cta": "Name the site or workflow worth capturing first.",
-      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
+      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch&proofPathPreference=exact_site_required&query=Which+inspection+route+would+help+validate+whether+exact-site+hosted+review+fits+your+workflow%3F&siteName=industrial+inspection+route+or+facility+type&targetSiteType=industrial+inspection+route+or+facility+type&workflow=Which+inspection+route+would+help+validate+whether+exact-site+hosted+review+fits+your+workflow%3F&taskStatement=Which+inspection+route+would+help+validate+whether+exact-site+hosted+review+fits+your+workflow%3F&targetRobotTeam=Industrial+inspection+robotics+team&message=GTM+target%3A+gtm-010-gecko-industrial-inspection%0AOrganization%3A+Gecko+Robotics%0AUse+this+path+only+to+ask+which+exact+site+or+workflow+should+be+captured+first.%0ADo+not+imply+that+a+hosted+review%2C+package%2C+or+capture+evidence+already+exists+for+this+target.",
       "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
       "blockedClaims": [
         "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
@@ -394,7 +414,7 @@
         "artifact is a draft opportunity brief",
         "public/general inbox; expect routing friction"
       ],
-      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
+      "reviewerPrompt": "Approve, edit, or reject this exact first-touch copy. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -417,9 +437,11 @@
       "hostedReviewPath": null,
       "siteWorldId": null,
       "proofSource": "Draft opportunity brief at ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md. No hosted review or site-world package exists for this target yet. Use only to ask which site/workflow should be captured first.",
+      "proposedSubject": "What exact Autonomous industrial inspection team site should Blueprint capture next?",
+      "proposedBody": "Hi,\n\nI am building Blueprint, a capture-backed way for robot teams to turn real sites into site-specific world-model packages and hosted review sessions.\n\nFor ANYbotics, I do not want to guess the wrong environment. If Blueprint captured one industrial inspection route or facility type for your team first, what exact site or workflow should we start with?\n\nThe request path is prefilled here: /contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch&proofPathPreference=exact_site_required&query=Which+inspection+route+would+be+most+useful+to+capture+and+review+first%3F&siteName=industrial+inspection+route+or+facility+type&targetSiteType=industrial+inspection+route+or+facility+type&workflow=Which+inspection+route+would+be+most+useful+to+capture+and+review+first%3F&taskStatement=Which+inspection+route+would+be+most+useful+to+capture+and+review+first%3F&targetRobotTeam=Autonomous+industrial+inspection+team&message=GTM+target%3A+gtm-011-anybotics-industrial-inspection%0AOrganization%3A+ANYbotics%0AUse+this+path+only+to+ask+which+exact+site+or+workflow+should+be+captured+first.%0ADo+not+imply+that+a+hosted+review%2C+package%2C+or+capture+evidence+already+exists+for+this+target.\n\nDo not imply a hosted review exists yet; this row is only asking which exact site or workflow should be captured first.\n\nThis is a capture ask only. No hosted review, site-world package, package access, or capture evidence exists for this target yet, and I will not claim availability before the site is captured and reviewed.\n\nNijel",
       "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
       "cta": "Name the site or workflow worth capturing first.",
-      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
+      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch&proofPathPreference=exact_site_required&query=Which+inspection+route+would+be+most+useful+to+capture+and+review+first%3F&siteName=industrial+inspection+route+or+facility+type&targetSiteType=industrial+inspection+route+or+facility+type&workflow=Which+inspection+route+would+be+most+useful+to+capture+and+review+first%3F&taskStatement=Which+inspection+route+would+be+most+useful+to+capture+and+review+first%3F&targetRobotTeam=Autonomous+industrial+inspection+team&message=GTM+target%3A+gtm-011-anybotics-industrial-inspection%0AOrganization%3A+ANYbotics%0AUse+this+path+only+to+ask+which+exact+site+or+workflow+should+be+captured+first.%0ADo+not+imply+that+a+hosted+review%2C+package%2C+or+capture+evidence+already+exists+for+this+target.",
       "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
       "blockedClaims": [
         "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
@@ -432,7 +454,7 @@
         "artifact is a draft opportunity brief",
         "public/general inbox; expect routing friction"
       ],
-      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
+      "reviewerPrompt": "Approve, edit, or reject this exact first-touch copy. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -455,9 +477,11 @@
       "hostedReviewPath": null,
       "siteWorldId": null,
       "proofSource": "Draft opportunity brief at ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md. No hosted review or site-world package exists for this target yet. Use only to ask which site/workflow should be captured first.",
+      "proposedSubject": "What exact Autonomous yard operations team site should Blueprint capture next?",
+      "proposedBody": "Hi,\n\nI am building Blueprint, a capture-backed way for robot teams to turn real sites into site-specific world-model packages and hosted review sessions.\n\nFor Outrider, I do not want to guess the wrong environment. If Blueprint captured one yard, trailer movement, or distribution-center route for your team first, what exact site or workflow should we start with?\n\nThe request path is prefilled here: /contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch&proofPathPreference=exact_site_required&query=Which+yard+workflow+would+make+a+hosted+exact-site+review+useful+enough+to+inspect%3F&siteName=yard%2C+trailer+movement%2C+or+distribution-center+route&targetSiteType=yard%2C+trailer+movement%2C+or+distribution-center+route&workflow=Which+yard+workflow+would+make+a+hosted+exact-site+review+useful+enough+to+inspect%3F&taskStatement=Which+yard+workflow+would+make+a+hosted+exact-site+review+useful+enough+to+inspect%3F&targetRobotTeam=Autonomous+yard+operations+team&message=GTM+target%3A+gtm-012-outrider-yard-automation%0AOrganization%3A+Outrider%0AUse+this+path+only+to+ask+which+exact+site+or+workflow+should+be+captured+first.%0ADo+not+imply+that+a+hosted+review%2C+package%2C+or+capture+evidence+already+exists+for+this+target.\n\nDo not imply a hosted review exists yet; this row is only asking which exact site or workflow should be captured first.\n\nThis is a capture ask only. No hosted review, site-world package, package access, or capture evidence exists for this target yet, and I will not claim availability before the site is captured and reviewed.\n\nNijel",
       "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
       "cta": "Name the site or workflow worth capturing first.",
-      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
+      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch&proofPathPreference=exact_site_required&query=Which+yard+workflow+would+make+a+hosted+exact-site+review+useful+enough+to+inspect%3F&siteName=yard%2C+trailer+movement%2C+or+distribution-center+route&targetSiteType=yard%2C+trailer+movement%2C+or+distribution-center+route&workflow=Which+yard+workflow+would+make+a+hosted+exact-site+review+useful+enough+to+inspect%3F&taskStatement=Which+yard+workflow+would+make+a+hosted+exact-site+review+useful+enough+to+inspect%3F&targetRobotTeam=Autonomous+yard+operations+team&message=GTM+target%3A+gtm-012-outrider-yard-automation%0AOrganization%3A+Outrider%0AUse+this+path+only+to+ask+which+exact+site+or+workflow+should+be+captured+first.%0ADo+not+imply+that+a+hosted+review%2C+package%2C+or+capture+evidence+already+exists+for+this+target.",
       "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
       "blockedClaims": [
         "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
@@ -470,7 +494,7 @@
         "artifact is a draft opportunity brief",
         "public/general inbox; expect routing friction"
       ],
-      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
+      "reviewerPrompt": "Approve, edit, or reject this exact first-touch copy. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -493,9 +517,11 @@
       "hostedReviewPath": null,
       "siteWorldId": null,
       "proofSource": "Draft opportunity brief at ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md. No hosted review or site-world package exists for this target yet. Use only to ask which site/workflow should be captured first.",
+      "proposedSubject": "What exact Warehouse AI robotics team site should Blueprint capture next?",
+      "proposedBody": "Hi,\n\nI am building Blueprint, a capture-backed way for robot teams to turn real sites into site-specific world-model packages and hosted review sessions.\n\nFor Covariant, I do not want to guess the wrong environment. If Blueprint captured one warehouse item-picking cell for your team first, what exact site or workflow should we start with?\n\nThe request path is prefilled here: /contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch&proofPathPreference=exact_site_required&query=Which+bin-picking+or+item-handling+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+first%3F&siteName=warehouse+item-picking+cell&targetSiteType=warehouse+item-picking+cell&workflow=Which+bin-picking+or+item-handling+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+first%3F&taskStatement=Which+bin-picking+or+item-handling+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+first%3F&targetRobotTeam=Warehouse+AI+robotics+team&message=GTM+target%3A+gtm-covariant-identify-a-bin-picking-induction-or-item-handling-workflow-worth-capturi%0AOrganization%3A+Covariant%0AUse+this+path+only+to+ask+which+exact+site+or+workflow+should+be+captured+first.%0ADo+not+imply+that+a+hosted+review%2C+package%2C+or+capture+evidence+already+exists+for+this+target.\n\nDo not imply a hosted review exists yet; this row is only asking which exact site or workflow should be captured first.\n\nThis is a capture ask only. No hosted review, site-world package, package access, or capture evidence exists for this target yet, and I will not claim availability before the site is captured and reviewed.\n\nNijel",
       "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
       "cta": "Name the site or workflow worth capturing first.",
-      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
+      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch&proofPathPreference=exact_site_required&query=Which+bin-picking+or+item-handling+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+first%3F&siteName=warehouse+item-picking+cell&targetSiteType=warehouse+item-picking+cell&workflow=Which+bin-picking+or+item-handling+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+first%3F&taskStatement=Which+bin-picking+or+item-handling+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+first%3F&targetRobotTeam=Warehouse+AI+robotics+team&message=GTM+target%3A+gtm-covariant-identify-a-bin-picking-induction-or-item-handling-workflow-worth-capturi%0AOrganization%3A+Covariant%0AUse+this+path+only+to+ask+which+exact+site+or+workflow+should+be+captured+first.%0ADo+not+imply+that+a+hosted+review%2C+package%2C+or+capture+evidence+already+exists+for+this+target.",
       "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
       "blockedClaims": [
         "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
@@ -508,7 +534,7 @@
         "artifact is a draft opportunity brief",
         "public/general inbox; expect routing friction"
       ],
-      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
+      "reviewerPrompt": "Approve, edit, or reject this exact first-touch copy. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -531,9 +557,11 @@
       "hostedReviewPath": null,
       "siteWorldId": null,
       "proofSource": "Draft opportunity brief at ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md. No hosted review or site-world package exists for this target yet. Use only to ask which site/workflow should be captured first.",
+      "proposedSubject": "What exact Cube storage and fulfillment automation team site should Blueprint capture next?",
+      "proposedBody": "Hi,\n\nI am building Blueprint, a capture-backed way for robot teams to turn real sites into site-specific world-model packages and hosted review sessions.\n\nFor AutoStore, I do not want to guess the wrong environment. If Blueprint captured one goods-to-person fulfillment port for your team first, what exact site or workflow should we start with?\n\nThe request path is prefilled here: /contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch&proofPathPreference=exact_site_required&query=Which+port%2C+tote%2C+or+replenishment+workflow+should+Blueprint+capture+and+host+first%3F&siteName=goods-to-person+fulfillment+port&targetSiteType=goods-to-person+fulfillment+port&workflow=Which+port%2C+tote%2C+or+replenishment+workflow+should+Blueprint+capture+and+host+first%3F&taskStatement=Which+port%2C+tote%2C+or+replenishment+workflow+should+Blueprint+capture+and+host+first%3F&targetRobotTeam=Cube+storage+and+fulfillment+automation+team&message=GTM+target%3A+gtm-autostore-identify-a-goods-to-person-port-or-tote-flow-workflow-worth-capturing-fo%0AOrganization%3A+AutoStore%0AUse+this+path+only+to+ask+which+exact+site+or+workflow+should+be+captured+first.%0ADo+not+imply+that+a+hosted+review%2C+package%2C+or+capture+evidence+already+exists+for+this+target.\n\nDo not imply a hosted review exists yet; this row is only asking which exact site or workflow should be captured first.\n\nThis is a capture ask only. No hosted review, site-world package, package access, or capture evidence exists for this target yet, and I will not claim availability before the site is captured and reviewed.\n\nNijel",
       "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
       "cta": "Name the site or workflow worth capturing first.",
-      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
+      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch&proofPathPreference=exact_site_required&query=Which+port%2C+tote%2C+or+replenishment+workflow+should+Blueprint+capture+and+host+first%3F&siteName=goods-to-person+fulfillment+port&targetSiteType=goods-to-person+fulfillment+port&workflow=Which+port%2C+tote%2C+or+replenishment+workflow+should+Blueprint+capture+and+host+first%3F&taskStatement=Which+port%2C+tote%2C+or+replenishment+workflow+should+Blueprint+capture+and+host+first%3F&targetRobotTeam=Cube+storage+and+fulfillment+automation+team&message=GTM+target%3A+gtm-autostore-identify-a-goods-to-person-port-or-tote-flow-workflow-worth-capturing-fo%0AOrganization%3A+AutoStore%0AUse+this+path+only+to+ask+which+exact+site+or+workflow+should+be+captured+first.%0ADo+not+imply+that+a+hosted+review%2C+package%2C+or+capture+evidence+already+exists+for+this+target.",
       "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
       "blockedClaims": [
         "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
@@ -543,9 +571,10 @@
       ],
       "reviewFlags": [
         "capture ask only; no hosted-review claim",
-        "artifact is a draft opportunity brief"
+        "artifact is a draft opportunity brief",
+        "recipient-backed address; still first-send approval gated"
       ],
-      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
+      "reviewerPrompt": "Approve, edit, or reject this exact first-touch copy. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -568,9 +597,11 @@
       "hostedReviewPath": null,
       "siteWorldId": null,
       "proofSource": "Draft opportunity brief at ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md. No hosted review or site-world package exists for this target yet. Use only to ask which site/workflow should be captured first.",
+      "proposedSubject": "What exact Fulfillment orchestration robotics team site should Blueprint capture next?",
+      "proposedBody": "Hi,\n\nI am building Blueprint, a capture-backed way for robot teams to turn real sites into site-specific world-model packages and hosted review sessions.\n\nFor GreyOrange, I do not want to guess the wrong environment. If Blueprint captured one warehouse fulfillment orchestration lane for your team first, what exact site or workflow should we start with?\n\nThe request path is prefilled here: /contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch&proofPathPreference=exact_site_required&query=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&siteName=warehouse+fulfillment+orchestration+lane&targetSiteType=warehouse+fulfillment+orchestration+lane&workflow=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&taskStatement=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&targetRobotTeam=Fulfillment+orchestration+robotics+team&message=GTM+target%3A+gtm-greyorange-identify-a-fulfillment-picking-or-sortation-workflow-worth-capturing-for%0AOrganization%3A+GreyOrange%0AUse+this+path+only+to+ask+which+exact+site+or+workflow+should+be+captured+first.%0ADo+not+imply+that+a+hosted+review%2C+package%2C+or+capture+evidence+already+exists+for+this+target.\n\nDo not imply a hosted review exists yet; this row is only asking which exact site or workflow should be captured first.\n\nThis is a capture ask only. No hosted review, site-world package, package access, or capture evidence exists for this target yet, and I will not claim availability before the site is captured and reviewed.\n\nNijel",
       "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
       "cta": "Name the site or workflow worth capturing first.",
-      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
+      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch&proofPathPreference=exact_site_required&query=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&siteName=warehouse+fulfillment+orchestration+lane&targetSiteType=warehouse+fulfillment+orchestration+lane&workflow=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&taskStatement=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&targetRobotTeam=Fulfillment+orchestration+robotics+team&message=GTM+target%3A+gtm-greyorange-identify-a-fulfillment-picking-or-sortation-workflow-worth-capturing-for%0AOrganization%3A+GreyOrange%0AUse+this+path+only+to+ask+which+exact+site+or+workflow+should+be+captured+first.%0ADo+not+imply+that+a+hosted+review%2C+package%2C+or+capture+evidence+already+exists+for+this+target.",
       "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
       "blockedClaims": [
         "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
@@ -583,7 +614,7 @@
         "artifact is a draft opportunity brief",
         "public/general inbox; expect routing friction"
       ],
-      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
+      "reviewerPrompt": "Approve, edit, or reject this exact first-touch copy. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -606,9 +637,11 @@
       "hostedReviewPath": null,
       "siteWorldId": null,
       "proofSource": "Draft opportunity brief at ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md. No hosted review or site-world package exists for this target yet. Use only to ask which site/workflow should be captured first.",
+      "proposedSubject": "What exact Skypod warehouse robotics team site should Blueprint capture next?",
+      "proposedBody": "Hi,\n\nI am building Blueprint, a capture-backed way for robot teams to turn real sites into site-specific world-model packages and hosted review sessions.\n\nFor Exotec, I do not want to guess the wrong environment. If Blueprint captured one goods-to-person picking station for your team first, what exact site or workflow should we start with?\n\nThe request path is prefilled here: /contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch&proofPathPreference=exact_site_required&query=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&siteName=goods-to-person+picking+station&targetSiteType=goods-to-person+picking+station&workflow=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&taskStatement=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&targetRobotTeam=Skypod+warehouse+robotics+team&message=GTM+target%3A+gtm-exotec-identify-a-goods-to-person-picking-or-storage-workflow-worth-capturing-f%0AOrganization%3A+Exotec%0AUse+this+path+only+to+ask+which+exact+site+or+workflow+should+be+captured+first.%0ADo+not+imply+that+a+hosted+review%2C+package%2C+or+capture+evidence+already+exists+for+this+target.\n\nDo not imply a hosted review exists yet; this row is only asking which exact site or workflow should be captured first.\n\nThis is a capture ask only. No hosted review, site-world package, package access, or capture evidence exists for this target yet, and I will not claim availability before the site is captured and reviewed.\n\nNijel",
       "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
       "cta": "Name the site or workflow worth capturing first.",
-      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
+      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch&proofPathPreference=exact_site_required&query=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&siteName=goods-to-person+picking+station&targetSiteType=goods-to-person+picking+station&workflow=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&taskStatement=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&targetRobotTeam=Skypod+warehouse+robotics+team&message=GTM+target%3A+gtm-exotec-identify-a-goods-to-person-picking-or-storage-workflow-worth-capturing-f%0AOrganization%3A+Exotec%0AUse+this+path+only+to+ask+which+exact+site+or+workflow+should+be+captured+first.%0ADo+not+imply+that+a+hosted+review%2C+package%2C+or+capture+evidence+already+exists+for+this+target.",
       "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
       "blockedClaims": [
         "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
@@ -621,7 +654,7 @@
         "artifact is a draft opportunity brief",
         "public/general inbox; expect routing friction"
       ],
-      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
+      "reviewerPrompt": "Approve, edit, or reject this exact first-touch copy. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -644,9 +677,11 @@
       "hostedReviewPath": null,
       "siteWorldId": null,
       "proofSource": "Draft opportunity brief at ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md. No hosted review or site-world package exists for this target yet. Use only to ask which site/workflow should be captured first.",
+      "proposedSubject": "What exact Warehouse automation systems team site should Blueprint capture next?",
+      "proposedBody": "Hi,\n\nI am building Blueprint, a capture-backed way for robot teams to turn real sites into site-specific world-model packages and hosted review sessions.\n\nFor Symbotic, I do not want to guess the wrong environment. If Blueprint captured one distribution-center case-handling lane for your team first, what exact site or workflow should we start with?\n\nThe request path is prefilled here: /contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch&proofPathPreference=exact_site_required&query=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&siteName=distribution-center+case-handling+lane&targetSiteType=distribution-center+case-handling+lane&workflow=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&taskStatement=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&targetRobotTeam=Warehouse+automation+systems+team&message=GTM+target%3A+gtm-symbotic-identify-a-case-handling-palletizing-or-distribution-center-workflow-wor%0AOrganization%3A+Symbotic%0AUse+this+path+only+to+ask+which+exact+site+or+workflow+should+be+captured+first.%0ADo+not+imply+that+a+hosted+review%2C+package%2C+or+capture+evidence+already+exists+for+this+target.\n\nDo not imply a hosted review exists yet; this row is only asking which exact site or workflow should be captured first.\n\nThis is a capture ask only. No hosted review, site-world package, package access, or capture evidence exists for this target yet, and I will not claim availability before the site is captured and reviewed.\n\nNijel",
       "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
       "cta": "Name the site or workflow worth capturing first.",
-      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
+      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch&proofPathPreference=exact_site_required&query=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&siteName=distribution-center+case-handling+lane&targetSiteType=distribution-center+case-handling+lane&workflow=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&taskStatement=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&targetRobotTeam=Warehouse+automation+systems+team&message=GTM+target%3A+gtm-symbotic-identify-a-case-handling-palletizing-or-distribution-center-workflow-wor%0AOrganization%3A+Symbotic%0AUse+this+path+only+to+ask+which+exact+site+or+workflow+should+be+captured+first.%0ADo+not+imply+that+a+hosted+review%2C+package%2C+or+capture+evidence+already+exists+for+this+target.",
       "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
       "blockedClaims": [
         "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
@@ -659,7 +694,7 @@
         "artifact is a draft opportunity brief",
         "public/general inbox; expect routing friction"
       ],
-      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
+      "reviewerPrompt": "Approve, edit, or reject this exact first-touch copy. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -682,9 +717,11 @@
       "hostedReviewPath": null,
       "siteWorldId": null,
       "proofSource": "Draft opportunity brief at ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md. No hosted review or site-world package exists for this target yet. Use only to ask which site/workflow should be captured first.",
+      "proposedSubject": "What exact Grocery fulfillment robotics team site should Blueprint capture next?",
+      "proposedBody": "Hi,\n\nI am building Blueprint, a capture-backed way for robot teams to turn real sites into site-specific world-model packages and hosted review sessions.\n\nFor Ocado Technology, I do not want to guess the wrong environment. If Blueprint captured one grocery fulfillment pick workflow for your team first, what exact site or workflow should we start with?\n\nThe request path is prefilled here: /contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch&proofPathPreference=exact_site_required&query=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&siteName=grocery+fulfillment+pick+workflow&targetSiteType=grocery+fulfillment+pick+workflow&workflow=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&taskStatement=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&targetRobotTeam=Grocery+fulfillment+robotics+team&message=GTM+target%3A+gtm-ocado-technology-identify-an-online-grocery-fulfillment-or-robotic-picking-workflow-worth%0AOrganization%3A+Ocado+Technology%0AUse+this+path+only+to+ask+which+exact+site+or+workflow+should+be+captured+first.%0ADo+not+imply+that+a+hosted+review%2C+package%2C+or+capture+evidence+already+exists+for+this+target.\n\nDo not imply a hosted review exists yet; this row is only asking which exact site or workflow should be captured first.\n\nThis is a capture ask only. No hosted review, site-world package, package access, or capture evidence exists for this target yet, and I will not claim availability before the site is captured and reviewed.\n\nNijel",
       "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
       "cta": "Name the site or workflow worth capturing first.",
-      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
+      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch&proofPathPreference=exact_site_required&query=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&siteName=grocery+fulfillment+pick+workflow&targetSiteType=grocery+fulfillment+pick+workflow&workflow=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&taskStatement=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&targetRobotTeam=Grocery+fulfillment+robotics+team&message=GTM+target%3A+gtm-ocado-technology-identify-an-online-grocery-fulfillment-or-robotic-picking-workflow-worth%0AOrganization%3A+Ocado+Technology%0AUse+this+path+only+to+ask+which+exact+site+or+workflow+should+be+captured+first.%0ADo+not+imply+that+a+hosted+review%2C+package%2C+or+capture+evidence+already+exists+for+this+target.",
       "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
       "blockedClaims": [
         "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
@@ -694,9 +731,10 @@
       ],
       "reviewFlags": [
         "capture ask only; no hosted-review claim",
-        "artifact is a draft opportunity brief"
+        "artifact is a draft opportunity brief",
+        "recipient-backed address; still first-send approval gated"
       ],
-      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
+      "reviewerPrompt": "Approve, edit, or reject this exact first-touch copy. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -719,9 +757,11 @@
       "hostedReviewPath": null,
       "siteWorldId": null,
       "proofSource": "Draft opportunity brief at ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md. No hosted review or site-world package exists for this target yet. Use only to ask which site/workflow should be captured first.",
+      "proposedSubject": "What exact Robotic package handling team site should Blueprint capture next?",
+      "proposedBody": "Hi,\n\nI am building Blueprint, a capture-backed way for robot teams to turn real sites into site-specific world-model packages and hosted review sessions.\n\nFor Berkshire Grey, I do not want to guess the wrong environment. If Blueprint captured one package sortation or fulfillment cell for your team first, what exact site or workflow should we start with?\n\nThe request path is prefilled here: /contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch&proofPathPreference=exact_site_required&query=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&siteName=package+sortation+or+fulfillment+cell&targetSiteType=package+sortation+or+fulfillment+cell&workflow=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&taskStatement=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&targetRobotTeam=Robotic+package+handling+team&message=GTM+target%3A+gtm-berkshire-grey-identify-a-package-handling-sortation-or-fulfillment-workflow-worth-capt%0AOrganization%3A+Berkshire+Grey%0AUse+this+path+only+to+ask+which+exact+site+or+workflow+should+be+captured+first.%0ADo+not+imply+that+a+hosted+review%2C+package%2C+or+capture+evidence+already+exists+for+this+target.\n\nDo not imply a hosted review exists yet; this row is only asking which exact site or workflow should be captured first.\n\nThis is a capture ask only. No hosted review, site-world package, package access, or capture evidence exists for this target yet, and I will not claim availability before the site is captured and reviewed.\n\nNijel",
       "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
       "cta": "Name the site or workflow worth capturing first.",
-      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
+      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch&proofPathPreference=exact_site_required&query=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&siteName=package+sortation+or+fulfillment+cell&targetSiteType=package+sortation+or+fulfillment+cell&workflow=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&taskStatement=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&targetRobotTeam=Robotic+package+handling+team&message=GTM+target%3A+gtm-berkshire-grey-identify-a-package-handling-sortation-or-fulfillment-workflow-worth-capt%0AOrganization%3A+Berkshire+Grey%0AUse+this+path+only+to+ask+which+exact+site+or+workflow+should+be+captured+first.%0ADo+not+imply+that+a+hosted+review%2C+package%2C+or+capture+evidence+already+exists+for+this+target.",
       "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
       "blockedClaims": [
         "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
@@ -734,7 +774,7 @@
         "artifact is a draft opportunity brief",
         "public/general inbox; expect routing friction"
       ],
-      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
+      "reviewerPrompt": "Approve, edit, or reject this exact first-touch copy. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -757,9 +797,11 @@
       "hostedReviewPath": null,
       "siteWorldId": null,
       "proofSource": "Draft opportunity brief at ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md. No hosted review or site-world package exists for this target yet. Use only to ask which site/workflow should be captured first.",
+      "proposedSubject": "What exact Piece-picking robotics team site should Blueprint capture next?",
+      "proposedBody": "Hi,\n\nI am building Blueprint, a capture-backed way for robot teams to turn real sites into site-specific world-model packages and hosted review sessions.\n\nFor RightHand Robotics, I do not want to guess the wrong environment. If Blueprint captured one piece-picking workcell for your team first, what exact site or workflow should we start with?\n\nThe request path is prefilled here: /contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch&proofPathPreference=exact_site_required&query=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&siteName=piece-picking+workcell&targetSiteType=piece-picking+workcell&workflow=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&taskStatement=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&targetRobotTeam=Piece-picking+robotics+team&message=GTM+target%3A+gtm-righthand-robotics-identify-a-piece-picking-or-order-fulfillment-cell-worth-capturing-for-e%0AOrganization%3A+RightHand+Robotics%0AUse+this+path+only+to+ask+which+exact+site+or+workflow+should+be+captured+first.%0ADo+not+imply+that+a+hosted+review%2C+package%2C+or+capture+evidence+already+exists+for+this+target.\n\nDo not imply a hosted review exists yet; this row is only asking which exact site or workflow should be captured first.\n\nThis is a capture ask only. No hosted review, site-world package, package access, or capture evidence exists for this target yet, and I will not claim availability before the site is captured and reviewed.\n\nNijel",
       "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
       "cta": "Name the site or workflow worth capturing first.",
-      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
+      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch&proofPathPreference=exact_site_required&query=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&siteName=piece-picking+workcell&targetSiteType=piece-picking+workcell&workflow=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&taskStatement=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&targetRobotTeam=Piece-picking+robotics+team&message=GTM+target%3A+gtm-righthand-robotics-identify-a-piece-picking-or-order-fulfillment-cell-worth-capturing-for-e%0AOrganization%3A+RightHand+Robotics%0AUse+this+path+only+to+ask+which+exact+site+or+workflow+should+be+captured+first.%0ADo+not+imply+that+a+hosted+review%2C+package%2C+or+capture+evidence+already+exists+for+this+target.",
       "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
       "blockedClaims": [
         "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
@@ -772,7 +814,7 @@
         "artifact is a draft opportunity brief",
         "public/general inbox; expect routing friction"
       ],
-      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
+      "reviewerPrompt": "Approve, edit, or reject this exact first-touch copy. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -795,9 +837,11 @@
       "hostedReviewPath": null,
       "siteWorldId": null,
       "proofSource": "Draft opportunity brief at ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md. No hosted review or site-world package exists for this target yet. Use only to ask which site/workflow should be captured first.",
+      "proposedSubject": "What exact Industrial robotics and truck unloading team site should Blueprint capture next?",
+      "proposedBody": "Hi,\n\nI am building Blueprint, a capture-backed way for robot teams to turn real sites into site-specific world-model packages and hosted review sessions.\n\nFor Mujin, I do not want to guess the wrong environment. If Blueprint captured one truck unloading or depalletizing workflow for your team first, what exact site or workflow should we start with?\n\nThe request path is prefilled here: /contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch&proofPathPreference=exact_site_required&query=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&siteName=truck+unloading+or+depalletizing+workflow&targetSiteType=truck+unloading+or+depalletizing+workflow&workflow=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&taskStatement=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&targetRobotTeam=Industrial+robotics+and+truck+unloading+team&message=GTM+target%3A+gtm-mujin-identify-a-depalletizing-truck-unloading-or-material-handling-workflow-w%0AOrganization%3A+Mujin%0AUse+this+path+only+to+ask+which+exact+site+or+workflow+should+be+captured+first.%0ADo+not+imply+that+a+hosted+review%2C+package%2C+or+capture+evidence+already+exists+for+this+target.\n\nDo not imply a hosted review exists yet; this row is only asking which exact site or workflow should be captured first.\n\nThis is a capture ask only. No hosted review, site-world package, package access, or capture evidence exists for this target yet, and I will not claim availability before the site is captured and reviewed.\n\nNijel",
       "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
       "cta": "Name the site or workflow worth capturing first.",
-      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
+      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch&proofPathPreference=exact_site_required&query=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&siteName=truck+unloading+or+depalletizing+workflow&targetSiteType=truck+unloading+or+depalletizing+workflow&workflow=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&taskStatement=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&targetRobotTeam=Industrial+robotics+and+truck+unloading+team&message=GTM+target%3A+gtm-mujin-identify-a-depalletizing-truck-unloading-or-material-handling-workflow-w%0AOrganization%3A+Mujin%0AUse+this+path+only+to+ask+which+exact+site+or+workflow+should+be+captured+first.%0ADo+not+imply+that+a+hosted+review%2C+package%2C+or+capture+evidence+already+exists+for+this+target.",
       "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
       "blockedClaims": [
         "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
@@ -810,7 +854,7 @@
         "artifact is a draft opportunity brief",
         "public/general inbox; expect routing friction"
       ],
-      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
+      "reviewerPrompt": "Approve, edit, or reject this exact first-touch copy. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -833,9 +877,11 @@
       "hostedReviewPath": null,
       "siteWorldId": null,
       "proofSource": "Draft opportunity brief at ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md. No hosted review or site-world package exists for this target yet. Use only to ask which site/workflow should be captured first.",
+      "proposedSubject": "What exact Warehouse manipulation robotics team site should Blueprint capture next?",
+      "proposedBody": "Hi,\n\nI am building Blueprint, a capture-backed way for robot teams to turn real sites into site-specific world-model packages and hosted review sessions.\n\nFor Dexterity, I do not want to guess the wrong environment. If Blueprint captured one warehouse manipulation workflow for your team first, what exact site or workflow should we start with?\n\nThe request path is prefilled here: /contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch&proofPathPreference=exact_site_required&query=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&siteName=warehouse+manipulation+workflow&targetSiteType=warehouse+manipulation+workflow&workflow=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&taskStatement=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&targetRobotTeam=Warehouse+manipulation+robotics+team&message=GTM+target%3A+gtm-dexterity-identify-a-truck-loading-palletizing-or-warehouse-manipulation-workflow-%0AOrganization%3A+Dexterity%0AUse+this+path+only+to+ask+which+exact+site+or+workflow+should+be+captured+first.%0ADo+not+imply+that+a+hosted+review%2C+package%2C+or+capture+evidence+already+exists+for+this+target.\n\nDo not imply a hosted review exists yet; this row is only asking which exact site or workflow should be captured first.\n\nThis is a capture ask only. No hosted review, site-world package, package access, or capture evidence exists for this target yet, and I will not claim availability before the site is captured and reviewed.\n\nNijel",
       "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
       "cta": "Name the site or workflow worth capturing first.",
-      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
+      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch&proofPathPreference=exact_site_required&query=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&siteName=warehouse+manipulation+workflow&targetSiteType=warehouse+manipulation+workflow&workflow=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&taskStatement=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&targetRobotTeam=Warehouse+manipulation+robotics+team&message=GTM+target%3A+gtm-dexterity-identify-a-truck-loading-palletizing-or-warehouse-manipulation-workflow-%0AOrganization%3A+Dexterity%0AUse+this+path+only+to+ask+which+exact+site+or+workflow+should+be+captured+first.%0ADo+not+imply+that+a+hosted+review%2C+package%2C+or+capture+evidence+already+exists+for+this+target.",
       "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
       "blockedClaims": [
         "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
@@ -848,7 +894,7 @@
         "artifact is a draft opportunity brief",
         "public/general inbox; expect routing friction"
       ],
-      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
+      "reviewerPrompt": "Approve, edit, or reject this exact first-touch copy. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -871,9 +917,11 @@
       "hostedReviewPath": null,
       "siteWorldId": null,
       "proofSource": "Draft opportunity brief at ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md. No hosted review or site-world package exists for this target yet. Use only to ask which site/workflow should be captured first.",
+      "proposedSubject": "What exact Collaborative mobile robotics team site should Blueprint capture next?",
+      "proposedBody": "Hi,\n\nI am building Blueprint, a capture-backed way for robot teams to turn real sites into site-specific world-model packages and hosted review sessions.\n\nFor Robust.AI, I do not want to guess the wrong environment. If Blueprint captured one collaborative warehouse cart workflow for your team first, what exact site or workflow should we start with?\n\nThe request path is prefilled here: /contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch&proofPathPreference=exact_site_required&query=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&siteName=collaborative+warehouse+cart+workflow&targetSiteType=collaborative+warehouse+cart+workflow&workflow=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&taskStatement=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&targetRobotTeam=Collaborative+mobile+robotics+team&message=GTM+target%3A+gtm-robust-ai-identify-a-warehouse-cart-tote-or-collaborative-material-movement-workfl%0AOrganization%3A+Robust.AI%0AUse+this+path+only+to+ask+which+exact+site+or+workflow+should+be+captured+first.%0ADo+not+imply+that+a+hosted+review%2C+package%2C+or+capture+evidence+already+exists+for+this+target.\n\nDo not imply a hosted review exists yet; this row is only asking which exact site or workflow should be captured first.\n\nThis is a capture ask only. No hosted review, site-world package, package access, or capture evidence exists for this target yet, and I will not claim availability before the site is captured and reviewed.\n\nNijel",
       "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
       "cta": "Name the site or workflow worth capturing first.",
-      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
+      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch&proofPathPreference=exact_site_required&query=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&siteName=collaborative+warehouse+cart+workflow&targetSiteType=collaborative+warehouse+cart+workflow&workflow=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&taskStatement=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&targetRobotTeam=Collaborative+mobile+robotics+team&message=GTM+target%3A+gtm-robust-ai-identify-a-warehouse-cart-tote-or-collaborative-material-movement-workfl%0AOrganization%3A+Robust.AI%0AUse+this+path+only+to+ask+which+exact+site+or+workflow+should+be+captured+first.%0ADo+not+imply+that+a+hosted+review%2C+package%2C+or+capture+evidence+already+exists+for+this+target.",
       "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
       "blockedClaims": [
         "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
@@ -886,7 +934,7 @@
         "artifact is a draft opportunity brief",
         "public/general inbox; expect routing friction"
       ],
-      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
+      "reviewerPrompt": "Approve, edit, or reject this exact first-touch copy. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -909,9 +957,11 @@
       "hostedReviewPath": null,
       "siteWorldId": null,
       "proofSource": "Draft opportunity brief at ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md. No hosted review or site-world package exists for this target yet. Use only to ask which site/workflow should be captured first.",
+      "proposedSubject": "What exact Warehouse AMR automation team site should Blueprint capture next?",
+      "proposedBody": "Hi,\n\nI am building Blueprint, a capture-backed way for robot teams to turn real sites into site-specific world-model packages and hosted review sessions.\n\nFor Zebra Robotics Automation, I do not want to guess the wrong environment. If Blueprint captured one warehouse AMR workflow for your team first, what exact site or workflow should we start with?\n\nThe request path is prefilled here: /contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch&proofPathPreference=exact_site_required&query=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&siteName=warehouse+AMR+workflow&targetSiteType=warehouse+AMR+workflow&workflow=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&taskStatement=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&targetRobotTeam=Warehouse+AMR+automation+team&message=GTM+target%3A+gtm-zebra-robotics-automation-identify-a-picking-replenishment-or-fulfillment-amr-workflow-worth-captu%0AOrganization%3A+Zebra+Robotics+Automation%0AUse+this+path+only+to+ask+which+exact+site+or+workflow+should+be+captured+first.%0ADo+not+imply+that+a+hosted+review%2C+package%2C+or+capture+evidence+already+exists+for+this+target.\n\nDo not imply a hosted review exists yet; this row is only asking which exact site or workflow should be captured first.\n\nThis is a capture ask only. No hosted review, site-world package, package access, or capture evidence exists for this target yet, and I will not claim availability before the site is captured and reviewed.\n\nNijel",
       "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
       "cta": "Name the site or workflow worth capturing first.",
-      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
+      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch&proofPathPreference=exact_site_required&query=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&siteName=warehouse+AMR+workflow&targetSiteType=warehouse+AMR+workflow&workflow=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&taskStatement=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&targetRobotTeam=Warehouse+AMR+automation+team&message=GTM+target%3A+gtm-zebra-robotics-automation-identify-a-picking-replenishment-or-fulfillment-amr-workflow-worth-captu%0AOrganization%3A+Zebra+Robotics+Automation%0AUse+this+path+only+to+ask+which+exact+site+or+workflow+should+be+captured+first.%0ADo+not+imply+that+a+hosted+review%2C+package%2C+or+capture+evidence+already+exists+for+this+target.",
       "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
       "blockedClaims": [
         "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
@@ -924,7 +974,7 @@
         "artifact is a draft opportunity brief",
         "public/general inbox; expect routing friction"
       ],
-      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
+      "reviewerPrompt": "Approve, edit, or reject this exact first-touch copy. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -947,9 +997,11 @@
       "hostedReviewPath": null,
       "siteWorldId": null,
       "proofSource": "Draft opportunity brief at ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md. No hosted review or site-world package exists for this target yet. Use only to ask which site/workflow should be captured first.",
+      "proposedSubject": "What exact Autonomous inspection drone team site should Blueprint capture next?",
+      "proposedBody": "Hi,\n\nI am building Blueprint, a capture-backed way for robot teams to turn real sites into site-specific world-model packages and hosted review sessions.\n\nFor Skydio, I do not want to guess the wrong environment. If Blueprint captured one industrial inspection route for your team first, what exact site or workflow should we start with?\n\nThe request path is prefilled here: /contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch&proofPathPreference=exact_site_required&query=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&siteName=industrial+inspection+route&targetSiteType=industrial+inspection+route&workflow=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&taskStatement=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&targetRobotTeam=Autonomous+inspection+drone+team&message=GTM+target%3A+gtm-skydio-identify-an-industrial-inspection-route-or-facility-workflow-worth-captu%0AOrganization%3A+Skydio%0AUse+this+path+only+to+ask+which+exact+site+or+workflow+should+be+captured+first.%0ADo+not+imply+that+a+hosted+review%2C+package%2C+or+capture+evidence+already+exists+for+this+target.\n\nDo not imply a hosted review exists yet; this row is only asking which exact site or workflow should be captured first.\n\nThis is a capture ask only. No hosted review, site-world package, package access, or capture evidence exists for this target yet, and I will not claim availability before the site is captured and reviewed.\n\nNijel",
       "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
       "cta": "Name the site or workflow worth capturing first.",
-      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
+      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch&proofPathPreference=exact_site_required&query=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&siteName=industrial+inspection+route&targetSiteType=industrial+inspection+route&workflow=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&taskStatement=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&targetRobotTeam=Autonomous+inspection+drone+team&message=GTM+target%3A+gtm-skydio-identify-an-industrial-inspection-route-or-facility-workflow-worth-captu%0AOrganization%3A+Skydio%0AUse+this+path+only+to+ask+which+exact+site+or+workflow+should+be+captured+first.%0ADo+not+imply+that+a+hosted+review%2C+package%2C+or+capture+evidence+already+exists+for+this+target.",
       "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
       "blockedClaims": [
         "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
@@ -962,7 +1014,7 @@
         "artifact is a draft opportunity brief",
         "public/general inbox; expect routing friction"
       ],
-      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
+      "reviewerPrompt": "Approve, edit, or reject this exact first-touch copy. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -985,9 +1037,11 @@
       "hostedReviewPath": null,
       "siteWorldId": null,
       "proofSource": "Draft opportunity brief at ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md. No hosted review or site-world package exists for this target yet. Use only to ask which site/workflow should be captured first.",
+      "proposedSubject": "What exact Autonomous delivery operations team site should Blueprint capture next?",
+      "proposedBody": "Hi,\n\nI am building Blueprint, a capture-backed way for robot teams to turn real sites into site-specific world-model packages and hosted review sessions.\n\nFor Zipline, I do not want to guess the wrong environment. If Blueprint captured one autonomous delivery dispatch workflow for your team first, what exact site or workflow should we start with?\n\nThe request path is prefilled here: /contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch&proofPathPreference=exact_site_required&query=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&siteName=autonomous+delivery+dispatch+workflow&targetSiteType=autonomous+delivery+dispatch+workflow&workflow=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&taskStatement=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&targetRobotTeam=Autonomous+delivery+operations+team&message=GTM+target%3A+gtm-zipline-identify-a-loading-dispatch-or-delivery-operations-workflow-worth-captur%0AOrganization%3A+Zipline%0AUse+this+path+only+to+ask+which+exact+site+or+workflow+should+be+captured+first.%0ADo+not+imply+that+a+hosted+review%2C+package%2C+or+capture+evidence+already+exists+for+this+target.\n\nDo not imply a hosted review exists yet; this row is only asking which exact site or workflow should be captured first.\n\nThis is a capture ask only. No hosted review, site-world package, package access, or capture evidence exists for this target yet, and I will not claim availability before the site is captured and reviewed.\n\nNijel",
       "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
       "cta": "Name the site or workflow worth capturing first.",
-      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
+      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch&proofPathPreference=exact_site_required&query=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&siteName=autonomous+delivery+dispatch+workflow&targetSiteType=autonomous+delivery+dispatch+workflow&workflow=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&taskStatement=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&targetRobotTeam=Autonomous+delivery+operations+team&message=GTM+target%3A+gtm-zipline-identify-a-loading-dispatch-or-delivery-operations-workflow-worth-captur%0AOrganization%3A+Zipline%0AUse+this+path+only+to+ask+which+exact+site+or+workflow+should+be+captured+first.%0ADo+not+imply+that+a+hosted+review%2C+package%2C+or+capture+evidence+already+exists+for+this+target.",
       "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
       "blockedClaims": [
         "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
@@ -1000,7 +1054,7 @@
         "artifact is a draft opportunity brief",
         "public/general inbox; expect routing friction"
       ],
-      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
+      "reviewerPrompt": "Approve, edit, or reject this exact first-touch copy. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -1023,9 +1077,11 @@
       "hostedReviewPath": null,
       "siteWorldId": null,
       "proofSource": "Draft opportunity brief at ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md. No hosted review or site-world package exists for this target yet. Use only to ask which site/workflow should be captured first.",
+      "proposedSubject": "What exact Sidewalk delivery robotics team site should Blueprint capture next?",
+      "proposedBody": "Hi,\n\nI am building Blueprint, a capture-backed way for robot teams to turn real sites into site-specific world-model packages and hosted review sessions.\n\nFor Serve Robotics, I do not want to guess the wrong environment. If Blueprint captured one restaurant-to-sidewalk delivery handoff for your team first, what exact site or workflow should we start with?\n\nThe request path is prefilled here: /contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch&proofPathPreference=exact_site_required&query=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&siteName=restaurant-to-sidewalk+delivery+handoff&targetSiteType=restaurant-to-sidewalk+delivery+handoff&workflow=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&taskStatement=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&targetRobotTeam=Sidewalk+delivery+robotics+team&message=GTM+target%3A+gtm-serve-robotics-identify-a-restaurant-handoff-sidewalk-route-or-curbside-delivery-workfl%0AOrganization%3A+Serve+Robotics%0AUse+this+path+only+to+ask+which+exact+site+or+workflow+should+be+captured+first.%0ADo+not+imply+that+a+hosted+review%2C+package%2C+or+capture+evidence+already+exists+for+this+target.\n\nDo not imply a hosted review exists yet; this row is only asking which exact site or workflow should be captured first.\n\nThis is a capture ask only. No hosted review, site-world package, package access, or capture evidence exists for this target yet, and I will not claim availability before the site is captured and reviewed.\n\nNijel",
       "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
       "cta": "Name the site or workflow worth capturing first.",
-      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
+      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch&proofPathPreference=exact_site_required&query=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&siteName=restaurant-to-sidewalk+delivery+handoff&targetSiteType=restaurant-to-sidewalk+delivery+handoff&workflow=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&taskStatement=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&targetRobotTeam=Sidewalk+delivery+robotics+team&message=GTM+target%3A+gtm-serve-robotics-identify-a-restaurant-handoff-sidewalk-route-or-curbside-delivery-workfl%0AOrganization%3A+Serve+Robotics%0AUse+this+path+only+to+ask+which+exact+site+or+workflow+should+be+captured+first.%0ADo+not+imply+that+a+hosted+review%2C+package%2C+or+capture+evidence+already+exists+for+this+target.",
       "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
       "blockedClaims": [
         "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
@@ -1038,7 +1094,7 @@
         "artifact is a draft opportunity brief",
         "public/general inbox; expect routing friction"
       ],
-      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
+      "reviewerPrompt": "Approve, edit, or reject this exact first-touch copy. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -1061,9 +1117,11 @@
       "hostedReviewPath": null,
       "siteWorldId": null,
       "proofSource": "Draft opportunity brief at ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md. No hosted review or site-world package exists for this target yet. Use only to ask which site/workflow should be captured first.",
+      "proposedSubject": "What exact Autonomous goods delivery team site should Blueprint capture next?",
+      "proposedBody": "Hi,\n\nI am building Blueprint, a capture-backed way for robot teams to turn real sites into site-specific world-model packages and hosted review sessions.\n\nFor Nuro, I do not want to guess the wrong environment. If Blueprint captured one curbside goods handoff workflow for your team first, what exact site or workflow should we start with?\n\nThe request path is prefilled here: /contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch&proofPathPreference=exact_site_required&query=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&siteName=curbside+goods+handoff+workflow&targetSiteType=curbside+goods+handoff+workflow&workflow=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&taskStatement=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&targetRobotTeam=Autonomous+goods+delivery+team&message=GTM+target%3A+gtm-nuro-identify-a-curbside-pickup-delivery-staging-or-goods-handoff-workflow-wo%0AOrganization%3A+Nuro%0AUse+this+path+only+to+ask+which+exact+site+or+workflow+should+be+captured+first.%0ADo+not+imply+that+a+hosted+review%2C+package%2C+or+capture+evidence+already+exists+for+this+target.\n\nDo not imply a hosted review exists yet; this row is only asking which exact site or workflow should be captured first.\n\nThis is a capture ask only. No hosted review, site-world package, package access, or capture evidence exists for this target yet, and I will not claim availability before the site is captured and reviewed.\n\nNijel",
       "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
       "cta": "Name the site or workflow worth capturing first.",
-      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
+      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch&proofPathPreference=exact_site_required&query=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&siteName=curbside+goods+handoff+workflow&targetSiteType=curbside+goods+handoff+workflow&workflow=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&taskStatement=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&targetRobotTeam=Autonomous+goods+delivery+team&message=GTM+target%3A+gtm-nuro-identify-a-curbside-pickup-delivery-staging-or-goods-handoff-workflow-wo%0AOrganization%3A+Nuro%0AUse+this+path+only+to+ask+which+exact+site+or+workflow+should+be+captured+first.%0ADo+not+imply+that+a+hosted+review%2C+package%2C+or+capture+evidence+already+exists+for+this+target.",
       "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
       "blockedClaims": [
         "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
@@ -1076,7 +1134,7 @@
         "artifact is a draft opportunity brief",
         "public/general inbox; expect routing friction"
       ],
-      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
+      "reviewerPrompt": "Approve, edit, or reject this exact first-touch copy. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -1099,9 +1157,11 @@
       "hostedReviewPath": null,
       "siteWorldId": null,
       "proofSource": "Draft opportunity brief at ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md. No hosted review or site-world package exists for this target yet. Use only to ask which site/workflow should be captured first.",
+      "proposedSubject": "What exact Autonomous sidewalk delivery team site should Blueprint capture next?",
+      "proposedBody": "Hi,\n\nI am building Blueprint, a capture-backed way for robot teams to turn real sites into site-specific world-model packages and hosted review sessions.\n\nFor Starship Technologies, I do not want to guess the wrong environment. If Blueprint captured one campus or retail delivery route for your team first, what exact site or workflow should we start with?\n\nThe request path is prefilled here: /contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch&proofPathPreference=exact_site_required&query=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&siteName=campus+or+retail+delivery+route&targetSiteType=campus+or+retail+delivery+route&workflow=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&taskStatement=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&targetRobotTeam=Autonomous+sidewalk+delivery+team&message=GTM+target%3A+gtm-starship-technologies-identify-a-campus-retail-or-sidewalk-delivery-workflow-worth-capturing-f%0AOrganization%3A+Starship+Technologies%0AUse+this+path+only+to+ask+which+exact+site+or+workflow+should+be+captured+first.%0ADo+not+imply+that+a+hosted+review%2C+package%2C+or+capture+evidence+already+exists+for+this+target.\n\nDo not imply a hosted review exists yet; this row is only asking which exact site or workflow should be captured first.\n\nThis is a capture ask only. No hosted review, site-world package, package access, or capture evidence exists for this target yet, and I will not claim availability before the site is captured and reviewed.\n\nNijel",
       "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
       "cta": "Name the site or workflow worth capturing first.",
-      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
+      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch&proofPathPreference=exact_site_required&query=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&siteName=campus+or+retail+delivery+route&targetSiteType=campus+or+retail+delivery+route&workflow=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&taskStatement=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&targetRobotTeam=Autonomous+sidewalk+delivery+team&message=GTM+target%3A+gtm-starship-technologies-identify-a-campus-retail-or-sidewalk-delivery-workflow-worth-capturing-f%0AOrganization%3A+Starship+Technologies%0AUse+this+path+only+to+ask+which+exact+site+or+workflow+should+be+captured+first.%0ADo+not+imply+that+a+hosted+review%2C+package%2C+or+capture+evidence+already+exists+for+this+target.",
       "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
       "blockedClaims": [
         "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
@@ -1114,7 +1174,7 @@
         "artifact is a draft opportunity brief",
         "public/general inbox; expect routing friction"
       ],
-      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
+      "reviewerPrompt": "Approve, edit, or reject this exact first-touch copy. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null
@@ -1137,9 +1197,11 @@
       "hostedReviewPath": null,
       "siteWorldId": null,
       "proofSource": "Draft opportunity brief at ops/paperclip/playbooks/exact-site-hosted-review-first-target-brief.md. No hosted review or site-world package exists for this target yet. Use only to ask which site/workflow should be captured first.",
+      "proposedSubject": "What exact Autonomous security robot team site should Blueprint capture next?",
+      "proposedBody": "Hi,\n\nI am building Blueprint, a capture-backed way for robot teams to turn real sites into site-specific world-model packages and hosted review sessions.\n\nFor Knightscope, I do not want to guess the wrong environment. If Blueprint captured one security patrol route for your team first, what exact site or workflow should we start with?\n\nThe request path is prefilled here: /contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch&proofPathPreference=exact_site_required&query=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&siteName=security+patrol+route&targetSiteType=security+patrol+route&workflow=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&taskStatement=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&targetRobotTeam=Autonomous+security+robot+team&message=GTM+target%3A+gtm-knightscope-identify-a-patrol-route-lobby-parking-or-facility-security-workflow-wort%0AOrganization%3A+Knightscope%0AUse+this+path+only+to+ask+which+exact+site+or+workflow+should+be+captured+first.%0ADo+not+imply+that+a+hosted+review%2C+package%2C+or+capture+evidence+already+exists+for+this+target.\n\nDo not imply a hosted review exists yet; this row is only asking which exact site or workflow should be captured first.\n\nThis is a capture ask only. No hosted review, site-world package, package access, or capture evidence exists for this target yet, and I will not claim availability before the site is captured and reviewed.\n\nNijel",
       "draftAngle": "Ask which site or workflow Blueprint should capture first; do not imply that a hosted review already exists for this row.",
       "cta": "Name the site or workflow worth capturing first.",
-      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch",
+      "landingPage": "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch&proofPathPreference=exact_site_required&query=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&siteName=security+patrol+route&targetSiteType=security+patrol+route&workflow=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&taskStatement=Which+exact+site+or+workflow+would+be+useful+enough+for+Blueprint+to+capture+and+host+next%3F&targetRobotTeam=Autonomous+security+robot+team&message=GTM+target%3A+gtm-knightscope-identify-a-patrol-route-lobby-parking-or-facility-security-workflow-wort%0AOrganization%3A+Knightscope%0AUse+this+path+only+to+ask+which+exact+site+or+workflow+should+be+captured+first.%0ADo+not+imply+that+a+hosted+review%2C+package%2C+or+capture+evidence+already+exists+for+this+target.",
       "objectionPlan": "If they ask for a hosted review first, offer only labeled sample proof or state that a new capture is needed before a buyer-specific review exists.",
       "blockedClaims": [
         "No live send, reply, hosted-review start, qualified call, customer traction, paid spend, sender durability, or dispatch authorization is approved by this packet.",
@@ -1152,7 +1214,7 @@
         "artifact is a draft opportunity brief",
         "public/general inbox; expect routing friction"
       ],
-      "reviewerPrompt": "Approve, edit, or reject this first-send draft. Approval here does not authorize live dispatch.",
+      "reviewerPrompt": "Approve, edit, or reject this exact first-touch copy. Approval here does not authorize live dispatch.",
       "decision": null,
       "approvedBy": null,
       "approvalNote": null

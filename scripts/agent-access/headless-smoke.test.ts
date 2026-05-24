@@ -9,7 +9,11 @@ describe("headless hosted-session smoke", () => {
     expect(result.mode).toBe("mock");
     expect(result.ok).toBe(true);
     expect(result.steps.map((step) => step.name)).toEqual([
+      "discover",
+      "agentAccess.manifest",
+      "agentAccess.openapi",
       "catalog",
+      "siteWorld.search",
       "commerce.quote",
       "commerce.checkoutDryRun",
       "commerce.entitlement",
@@ -23,5 +27,16 @@ describe("headless hosted-session smoke", () => {
       "session.export",
     ]);
     expect(result.sessionId).toBe("mock-session-1");
+    expect(result.truthLabels).toEqual(
+      expect.arrayContaining([
+        "capture_grounded",
+        "sample_demo",
+        "public_demo_eligible",
+        "request_gated",
+        "protected_robot_team",
+        "dry_run_order",
+      ]),
+    );
+    expect(result.searchRequestCandidateIntakeOnly).toBe(true);
   });
 });

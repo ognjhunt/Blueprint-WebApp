@@ -8,6 +8,7 @@ describe("robot agent OpenAPI contract", () => {
 
     expect(contract.openapi).toBe("3.1.0");
     expect(contract.info.title).toContain("Blueprint Robot-Team Agent API");
+    expect(contract.paths).toHaveProperty("/api/agent-access");
     expect(contract.paths).toHaveProperty("/api/site-worlds");
     expect(contract.paths).toHaveProperty("/api/site-worlds/search");
     expect(contract.paths).toHaveProperty("/api/site-worlds/{siteWorldId}");
@@ -35,6 +36,7 @@ describe("robot agent OpenAPI contract", () => {
     expect(contract.components.schemas).toHaveProperty("AgentDryRunCheckoutRequest");
     expect(contract.components.schemas).toHaveProperty("AgentDryRunOrderResponse");
     expect(contract.components.schemas).toHaveProperty("AgentEntitlementReadiness");
+    expect(contract.components.schemas).toHaveProperty("AgentAccessManifest");
     expect(contract.components.schemas).toHaveProperty("TruthLabel");
     expect(contract.components.schemas).toHaveProperty("StatusLabel");
     expect(contract.components.securitySchemes).toHaveProperty("BlueprintBearer");
@@ -81,5 +83,27 @@ describe("robot agent OpenAPI contract", () => {
     expect(JSON.stringify(contract)).toContain("dry_run_order");
     expect(JSON.stringify(contract)).toContain("hosted_session_rental");
     expect(JSON.stringify(contract)).toContain("site_world_package");
+  });
+
+  it("documents the credential-free discovery/search/mock-demo path and all truth labels", () => {
+    const contract = buildRobotAgentOpenApiContract();
+    const discoveryOperation = contract.paths["/api/agent-access"].get;
+
+    expect(discoveryOperation.security).toEqual([{}]);
+    expect(discoveryOperation.operationId).toBe("discoverAgentAccess");
+    expect(JSON.stringify(discoveryOperation)).toContain("blueprint.siteWorld.search");
+    expect(JSON.stringify(discoveryOperation)).toContain("without credentials");
+    expect(JSON.stringify(contract.components.schemas.AgentAccessManifest)).toContain("publicDemo");
+    expect(JSON.stringify(contract.components.schemas.AgentAccessManifest)).toContain("credentiallessWorkflow");
+    expect(contract["x-blueprint-truth-labels"]).toEqual([
+      "capture_grounded",
+      "provider_derived",
+      "generated",
+      "sample_demo",
+      "public_demo_eligible",
+      "request_gated",
+      "protected_robot_team",
+      "dry_run_order",
+    ]);
   });
 });

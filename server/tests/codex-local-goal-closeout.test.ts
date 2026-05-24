@@ -114,14 +114,21 @@ describe("Codex local goal closeout contract", () => {
     expect(prompt).toContain("State claimed must be exactly one of: done, blocked, awaiting_human_decision.");
     expect(prompt).toContain("Issue/run context: issue=BLU-123; run=run-456");
     expect(prompt).toContain("Budget/timeout context: 45000ms timeout");
+    expect(prompt).toContain("Repo-side closeout packets do not require a live Paperclip API or localhost:3100.");
     expect(result.artifacts).toMatchObject({
       codex_timeout_ms: 45000,
       paperclip_goal_closeout_contract: {
         enabled: true,
+        repo_safe_packet: true,
+        requires_live_paperclip: false,
+        requires_localhost_3100: false,
         goal_objective: "Tighten WebApp closeouts.",
         stage_reached: "operator_thread",
+        issue_id: "BLU-123",
+        run_id: "run-456",
         issue_run_context: "issue=BLU-123; run=run-456",
         budget_timeout_context: "45000ms timeout",
+        missing_context: [],
         required_fields: [
           "Goal objective:",
           "Issue/run id:",
@@ -214,11 +221,114 @@ describe("Codex local goal closeout contract", () => {
       codex_timeout_ms: 30000,
       paperclip_goal_closeout_contract: {
         enabled: true,
+        repo_safe_packet: true,
+        requires_live_paperclip: false,
+        requires_localhost_3100: false,
         goal_objective: "Tighten WebApp closeouts.",
         stage_reached: "operator_thread",
+        issue_id: "BLU-124",
+        run_id: "run-789",
         issue_run_context: "issue=BLU-124; run=run-789",
         budget_timeout_context: "30000ms timeout",
+        missing_context: [],
       },
     });
+  });
+
+  it("keeps goal-style packets repo-safe when Paperclip ids are not injected", async () => {
+    process.env.CODEX_LOCAL_COMMAND = "codex-test";
+    process.env.CODEX_LOCAL_WORKDIR = process.cwd();
+    process.env.CODEX_TIMEOUT_MS = "60000";
+
+    execFileMock.mockImplementation(
+      (
+        _command: string,
+        args: string[],
+        _options: Record<string, unknown>,
+        callback: (error: ExecFileException | null) => void,
+      ) => {
+        const outputFile = args[args.indexOf("--output-last-message") + 1];
+        fs.writeFile(
+          outputFile,
+          JSON.stringify({
+            reply: "State: blocked",
+            summary: "Blocked with missing live context called out.",
+            suggested_actions: [],
+            requires_human_review: true,
+          }),
+        ).then(() => callback(null), callback);
+      },
+    );
+
+    const { runCodexLocalTask } = await import("../agents/adapters/codex-local");
+    const { operatorThreadTask } = await import("../agents/tasks/operator-thread");
+
+    const result = await runCodexLocalTask({
+      kind: "operator_thread",
+      input: {
+        message: "Goal: tighten WebApp closeouts without live Paperclip",
+      },
+      provider: "codex_local",
+      runtime: "codex_local",
+      model: "gpt-5.4-mini",
+      metadata: {
+        paperclipGoalPromptEnabled: true,
+      },
+      tool_policy: {
+        mode: "mixed",
+        prefer_direct_api: true,
+        browser_fallback_allowed: false,
+        isolated_runtime_required: false,
+        allowed_mcp_servers: [],
+        allowed_domains: [],
+        allowed_actions: [],
+      },
+      approval_policy: {
+        require_human_approval: false,
+        sensitive_actions: [],
+        allow_preapproval: false,
+      },
+      session_policy: {
+        dispatch_mode: "collect",
+        lane: "session",
+        max_concurrent: 1,
+      },
+      outcome_contract: {
+        objective: "Tighten WebApp closeouts without live Paperclip.",
+        success_criteria: ["Repo-safe packets carry missing context explicitly."],
+        self_checks: ["Check no localhost requirement is introduced."],
+        proof_requirements: ["Contract artifact records missing ids without probing Paperclip."],
+        pass_threshold: 0.8,
+      },
+      definition: operatorThreadTask,
+    });
+
+    const args = execFileMock.mock.calls[0][1] as string[];
+    const prompt = args.at(-1) || "";
+
+    expect(prompt).toContain("Issue/run context: issue=unknown; run=unknown");
+    expect(prompt).toContain("Budget/timeout context: 60000ms timeout");
+    expect(prompt).toContain("Repo-side closeout packets do not require a live Paperclip API or localhost:3100.");
+    expect(prompt).toContain("If an issue id, run id, or budget is unavailable, state that gap in the packet instead of probing live Paperclip only to fill the label.");
+    expect(result.artifacts).toMatchObject({
+      paperclip_goal_closeout_contract: {
+        enabled: true,
+        repo_safe_packet: true,
+        requires_live_paperclip: false,
+        requires_localhost_3100: false,
+        issue_id: "unknown",
+        run_id: "unknown",
+        issue_run_context: "issue=unknown; run=unknown",
+        budget_timeout_context: "60000ms timeout",
+        missing_context: ["paperclip issue id", "paperclip run id"],
+      },
+    });
+    expect(result.logs).toContainEqual(
+      expect.objectContaining({
+        event_type: "provider.goal_closeout_contract.attached",
+        requires_live_paperclip: false,
+        requires_localhost_3100: false,
+      }),
+    );
   });
 });

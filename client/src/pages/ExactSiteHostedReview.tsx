@@ -180,7 +180,7 @@ export default function ExactSiteHostedReview() {
                     Blueprint product
                   </p>
                   <h1 className="font-editorial mt-5 max-w-[42rem] text-[2.85rem] leading-[0.98] tracking-normal text-white sm:text-[4.65rem] lg:text-[5.45rem] lg:leading-[0.94]">
-                    Turn the indoor site into a decision-ready world model.
+                    Turn the exact site into a decision-ready world model.
                   </h1>
                   <p className="mt-5 max-w-[35rem] text-base leading-7 text-white/82 sm:leading-8">
                     Street View grounds outdoor worlds. Blueprint packages indoor capture, world-model output, hosted review, and buyer proof around one site so robot teams can decide before field time.
@@ -192,8 +192,15 @@ export default function ExactSiteHostedReview() {
                   </div>
                   <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                     <a
-                      href="/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=product"
+                      href="/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=product-hero"
                       className="inline-flex w-full items-center justify-center border border-white bg-white px-6 py-3 text-sm font-semibold text-[#15130f] transition hover:bg-[#f5f1e8] sm:w-auto"
+                    >
+                      Request world model
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </a>
+                    <a
+                      href="/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=product"
+                      className="inline-flex w-full items-center justify-center border border-white/25 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10 sm:w-auto"
                     >
                       Request hosted review
                       <ArrowRight className="ml-2 h-4 w-4" />

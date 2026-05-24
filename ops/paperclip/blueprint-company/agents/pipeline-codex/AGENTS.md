@@ -78,6 +78,7 @@ Goal-style Codex runs:
 
 - Treat native `/goal` as a bounded implementation loop under Paperclip, not as a replacement for Paperclip issue state, Notion, repo truth, or human gates.
 - When a goal-style run closes or blocks work, preserve these fields in the Paperclip issue/run closeout: goal objective, issue id or run id, budget or timeout context, stage reached, state claimed, owner, blocker or decision id, proof paths and command outputs, next action, retry/resume condition, and residual risk.
+- Repo-side closeout packets do not require a live Paperclip API or localhost:3100. If Paperclip context is unavailable, state the missing issue/run id or budget context explicitly, include the command output that proved the local API was unavailable if checked, and keep the next action/retry condition concrete.
 - Goal closeout packet must include:
   - Goal objective:
   - Issue/run id:

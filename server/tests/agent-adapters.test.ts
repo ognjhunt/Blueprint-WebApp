@@ -130,7 +130,7 @@ describe("agent adapters", () => {
       input: { message: "Status?" },
       provider: "deepseek_chat",
       runtime: "deepseek_chat",
-      model: "deepseek-v4-flash",
+      model: "deepseek-v4-pro",
       tool_policy: {
         mode: "mixed",
         prefer_direct_api: true,
@@ -155,7 +155,7 @@ describe("agent adapters", () => {
 
     expect(deepSeekChatCreate).toHaveBeenCalledWith(
       expect.objectContaining({
-        model: "deepseek-v4-flash",
+        model: "deepseek-v4-pro",
         response_format: { type: "json_object" },
         reasoning_effort: "max",
         extra_body: { thinking: { type: "enabled" } },
@@ -168,7 +168,7 @@ describe("agent adapters", () => {
     });
     expect(result.artifacts).toMatchObject({
       provider: "deepseek_chat",
-      model: "deepseek-v4-flash",
+      model: "deepseek-v4-pro",
       deepseek_response_id: "deepseek-response-1",
       prompt_tokens: 100,
       completion_tokens: 20,
@@ -186,7 +186,7 @@ describe("agent adapters", () => {
     deepSeekChatCreate
       .mockResolvedValueOnce({
         id: "gen-initial",
-        model: "deepseek/deepseek-v4-flash",
+        model: "deepseek/deepseek-v4-pro",
         provider: "DeepSeek",
         usage: {
           prompt_tokens: 1000,
@@ -224,7 +224,7 @@ describe("agent adapters", () => {
       })
       .mockResolvedValueOnce({
         id: "gen-final",
-        model: "deepseek/deepseek-v4-flash",
+        model: "deepseek/deepseek-v4-pro",
         provider: "DeepSeek",
         provider_routing: {
           order: ["DeepSeek"],
@@ -263,7 +263,7 @@ describe("agent adapters", () => {
       input: { message: "Check runtime", context: { workspace: "Blueprint" } },
       provider: "deepseek_chat",
       runtime: "deepseek_chat",
-      model: "deepseek/deepseek-v4-flash",
+      model: "deepseek/deepseek-v4-pro",
       tool_policy: {
         mode: "mixed",
         prefer_direct_api: true,
@@ -290,14 +290,14 @@ describe("agent adapters", () => {
     expect(deepSeekChatCreate).toHaveBeenNthCalledWith(
       1,
       expect.objectContaining({
-        model: "deepseek/deepseek-v4-flash",
+        model: "deepseek/deepseek-v4-pro",
         provider: expectedOpenRouterProviderPreferences,
       }),
     );
     expect(deepSeekChatCreate).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({
-        model: "deepseek/deepseek-v4-flash",
+        model: "deepseek/deepseek-v4-pro",
         provider: expectedOpenRouterProviderPreferences,
       }),
     );
@@ -305,7 +305,7 @@ describe("agent adapters", () => {
       route: "deepseek_via_openrouter",
       generation_id: "gen-final",
       openrouter_generation_id: "gen-final",
-      openrouter_model: "deepseek/deepseek-v4-flash",
+      openrouter_model: "deepseek/deepseek-v4-pro",
       openrouter_provider: "DeepSeek",
       prompt_tokens: 2200,
       completion_tokens: 120,

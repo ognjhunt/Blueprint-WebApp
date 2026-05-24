@@ -168,7 +168,7 @@ const homeVariantContent: Record<
   }
 > = {
   outdoor_street_view: {
-    title: "Outdoor worlds have Street View. Indoor robot sites need Blueprint.",
+    title: "Site-specific world models from real capture.",
     description:
       <>
         Google's{" "}
@@ -180,9 +180,9 @@ const homeVariantContent: Record<
         >
           Street View-grounded Genie
         </a>{" "}
-        makes real-place world models easier to understand. Blueprint focuses on
-        unscanned indoor spaces: capture, provenance, rights limits, and hosted
-        review for the exact facility before field time.
+        makes real-place world models easier to understand. Blueprint gives robot
+        teams the indoor layer: capture-backed packages, provenance, rights limits,
+        and hosted review for the exact facility before field time.
       </>,
     primaryLabel: "Request world model",
     primaryPath: "world-model",
@@ -193,7 +193,7 @@ const homeVariantContent: Record<
       "Name one indoor site, robot task, and review path. Proof stays attached before access expands.",
   },
   street_view_grounds: {
-    title: "Street View grounds the outside world. Blueprint captures the indoor sites robots need.",
+    title: "Site-specific world models from real capture.",
     description:
       <>
         Google's{" "}
@@ -205,9 +205,9 @@ const homeVariantContent: Record<
         >
           Street View-grounded Genie
         </a>{" "}
-        makes real-place world models easier to understand. Blueprint focuses on
-        unscanned indoor spaces: capture, provenance, rights limits, and hosted
-        review for the exact facility before field time.
+        makes real-place world models easier to understand. Blueprint gives robot
+        teams the indoor layer: capture-backed packages, provenance, rights limits,
+        and hosted review for the exact facility before field time.
       </>,
     primaryLabel: "Request world model",
     primaryPath: "world-model",
@@ -215,7 +215,7 @@ const homeVariantContent: Record<
     secondaryHref: "/world-models",
     panelTitle: "Start here",
     panelBody:
-      "Browse what exists, request what is missing, or ask for the proof packet your team needs.",
+      "Name one indoor site, robot task, and review path. Blueprint routes the request without treating sample proof as approved output.",
   },
 };
 

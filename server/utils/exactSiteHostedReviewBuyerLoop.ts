@@ -8,6 +8,7 @@ import {
   hasExactSiteRecipientBackedEvidence,
 } from "./exactSiteHostedReviewGtmPilot";
 import type { OutboundReplyDurabilityStatus } from "./outbound-reply-durability";
+import { buildExactSiteFirstTouchReview } from "./exactSiteHostedReviewFirstTouch";
 
 export type ExactSiteBuyerLoopSummary = {
   city: string | null;
@@ -119,53 +120,19 @@ function cleanTableValue(value: string | undefined | null) {
 }
 
 function targetDraftAngle(target: ExactSiteGtmTarget) {
-  if (target.track === "proof_ready_outreach") {
-    const reviewLabel = target.artifact.hostedReviewPath || target.artifact.path || "the labeled hosted-review sample";
-    return `Offer ${reviewLabel} as inspectable proof shape, then ask what exact site or workflow would be more useful.`;
-  }
-
-  return `Ask the buyer to name the site or workflow behind this need: ${target.workflowNeed} Do not imply a hosted review exists yet.`;
+  return buildExactSiteFirstTouchReview(target).draftAngle;
 }
 
 function targetCta(target: ExactSiteGtmTarget) {
-  if (target.track === "proof_ready_outreach") {
-    return "Inspect the review, then name the more relevant site or workflow.";
-  }
-
-  return "Name the site or workflow worth capturing first.";
+  return buildExactSiteFirstTouchReview(target).cta;
 }
 
 function targetLandingPage(target: ExactSiteGtmTarget) {
-  if (target.track === "proof_ready_outreach") {
-    return target.artifact.hostedReviewPath || "/product";
-  }
-
-  return "/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=request-capture&source=gtm-first-touch";
+  return buildExactSiteFirstTouchReview(target).landingPage;
 }
 
 function targetReviewFlag(target: ExactSiteGtmTarget) {
-  const flags: string[] = [];
-  const recipientRole = String(target.recipient?.role || "").toLowerCase();
-  const recipientEmail = String(target.recipient?.email || "").toLowerCase();
-
-  if (target.track === "demand_sourced_capture") {
-    flags.push("capture ask only");
-  }
-  if (target.artifact.status === "draft") {
-    flags.push("artifact is a draft brief");
-  }
-  if (
-    recipientRole.includes("general")
-    || recipientRole.includes("support")
-    || recipientRole.includes("public inbox")
-    || recipientEmail.startsWith("info@")
-    || recipientEmail.startsWith("support@")
-    || recipientEmail.startsWith("contact@")
-    || recipientEmail.startsWith("community@")
-  ) {
-    flags.push("public/general inbox");
-  }
-
+  const flags = buildExactSiteFirstTouchReview(target).reviewFlags;
   return flags.length > 0 ? flags.join("; ") : "standard first-send review";
 }
 
@@ -173,11 +140,7 @@ function targetObjectionPlan(target: ExactSiteGtmTarget) {
   if (hasText(target.sales?.objection)) {
     return `Recorded objection: ${target.sales?.objection}`;
   }
-  if (target.track === "proof_ready_outreach") {
-    return "If the sample is not close enough, ask for the exact site/workflow to capture next; do not call the sample a customer result.";
-  }
-
-  return "If they ask for a review before naming a workflow, share only labeled sample proof or state that a new capture is needed.";
+  return buildExactSiteFirstTouchReview(target).objectionPlan;
 }
 
 function targetApprovalMarkdownLine(target: ExactSiteGtmTarget) {
@@ -197,6 +160,24 @@ function targetObjectionMarkdownLine(target: ExactSiteGtmTarget) {
     cleanTableValue(targetObjectionPlan(target)),
     cleanTableValue("Answer from the ledger row, linked artifact, and public page only; route pricing, rights, privacy, or capability exceptions back to human review."),
   ].join(" | ");
+}
+
+function targetCopyPreviewMarkdown(target: ExactSiteGtmTarget) {
+  const review = buildExactSiteFirstTouchReview(target);
+  const body = review.proposedBody
+    .split("\n")
+    .map((line) => `> ${cleanTableValue(line)}`)
+    .join("\n");
+  return [
+    `### ${target.id}: ${target.organizationName}`,
+    "",
+    `- recipient: ${target.recipient?.email || "missing"}`,
+    `- subject: ${review.proposedSubject}`,
+    `- landing_page: ${review.landingPage}`,
+    `- review_flags: ${review.reviewFlags.length > 0 ? review.reviewFlags.join("; ") : "none"}`,
+    "",
+    body,
+  ].join("\n");
 }
 
 function isOpenBlocker(blocker: ExactSiteGtmBlocker) {
@@ -399,6 +380,12 @@ export function buildExactSiteHostedReviewBuyerLoopReport(input: {
     "- Apply decisions with `npm run gtm:first-send-approval:apply -- --write --allow-blocked`, then rerun audit and dry-run send checks.",
     "- A successful approval apply still does not permit a live send until reply durability passes and live dispatch is separately authorized.",
     "- Rows marked edit or reject should keep a specific next action in the ledger before requesting approval again.",
+    "",
+    "## Founder Approval Copy Preview",
+    "",
+    ...(founderApprovalQueue.length > 0
+      ? founderApprovalQueue.slice(0, 30).map(targetCopyPreviewMarkdown)
+      : ["- no recipient-backed drafts are ready for founder approval yet"]),
     "",
     "## Objection Handling",
     "",

@@ -32,6 +32,7 @@ describe("brand polish QA harness contract", () => {
       "/",
       "/product",
       "/world-models",
+      "/agents",
       "/pricing",
       "/proof",
       "/capture",
@@ -41,6 +42,15 @@ describe("brand polish QA harness contract", () => {
       "/about",
       "/updates",
     ]);
+
+    const agentsRoute = harness.publicQaRoutes.find((route: { path: string }) => route.path === "/agents");
+    expect(agentsRoute).toMatchObject({
+      expectedHeading: "Robot-team agent access.",
+      requiredCtas: expect.arrayContaining([
+        { label: "Request agent access", hrefStartsWith: "/contact" },
+        { label: "Open contract", hrefStartsWith: "/agent-access.openapi.json" },
+      ]),
+    });
 
     const notionChecklist = harness.buildNotionLayoutChecklistMarkdown({
       generatedAt: "2026-05-14T00:00:00.000Z",

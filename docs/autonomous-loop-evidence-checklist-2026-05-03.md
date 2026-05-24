@@ -17,15 +17,20 @@ The operating graph vocabulary remains defined in [Autonomous Org Cross-Repo Ope
 Every closeout comment, report, manifest, or issue update must include:
 
 1. Objective: the issue or run objective in one sentence.
-2. Stage reached: the lifecycle stage or repo-local phase actually reached.
-3. State claimed: exactly one of `done`, `blocked`, or `awaiting_human_decision` for the branch being closed.
-4. Durable evidence: exact file paths, ledger keys, issue ids, run ids, hosted-session ids, package ids, capture ids, or artifact URIs that prove the claim.
-5. Verification: commands, checks, or manual inspections run, with observed result.
-6. Coverage: explicit mapping from each acceptance criterion or evidence requirement to the evidence above.
-7. Next action: owner, target repo or lane, and retry/resume condition.
-8. Residual risk: what remains unverified or outside the current lane.
+2. Issue/run id: Paperclip issue id, run id, repo issue id, local session id, or `unknown` with the missing context named.
+3. Budget/timeout context: token budget, agent budget envelope, timeout, or `not supplied` with the gap named.
+4. Stage reached: the lifecycle stage or repo-local phase actually reached.
+5. State claimed: exactly one of `done`, `blocked`, or `awaiting_human_decision` for the branch being closed.
+6. Durable evidence / proof paths: exact file paths, ledger keys, issue ids, run ids, hosted-session ids, package ids, capture ids, or artifact URIs that prove the claim.
+7. Command outputs: commands, checks, manual inspections, or runtime reads attempted, with observed result.
+8. Coverage: explicit mapping from each acceptance criterion or evidence requirement to the evidence above.
+9. Next action: owner, target repo or lane, and concrete next step.
+10. Retry/resume condition: exact condition that allows safe retry, resume, or no-op suppression.
+11. Residual risk: what remains unverified or outside the current lane.
 
 Adapter success, a green status badge, a passing test suite, or a closed issue is not enough by itself. It only counts when it is tied to the objective and evidence requirements.
+
+For repo-side `/goal` packets, the packet itself must not require a live Paperclip API or `localhost:3100`. If Paperclip is unavailable, keep the packet, set unknown issue/run context explicitly, include any local health-check output that was actually run, and make live Paperclip availability the retry condition or residual risk instead of omitting the closeout.
 
 ## `done`
 
@@ -42,13 +47,16 @@ Required `done` proof:
 ```text
 State: done
 Objective:
+Issue/run id:
+Budget/timeout context:
 Stage reached:
-Durable outputs:
-Verification:
+Proof paths:
+Command outputs:
 Requirement coverage:
 Operating graph or Paperclip update:
 Remaining risk:
 Next action:
+Retry/resume condition:
 ```
 
 ## `blocked`
@@ -70,14 +78,18 @@ Required `blocked` proof format:
 ```text
 State: blocked
 Objective:
+Issue/run id:
+Budget/timeout context:
 Stage reached:
 Earliest hard stop:
-Evidence:
+Proof paths:
+Command outputs:
 Why no reversible work remains:
 Next required input:
 Owner:
 Retry/resume condition:
 Linked follow-up:
+Residual risk:
 ```
 
 ## `awaiting_human_decision`
@@ -101,16 +113,20 @@ Required `awaiting_human_decision` proof format:
 ```text
 State: awaiting_human_decision
 Objective:
+Issue/run id:
+Budget/timeout context:
 Stage reached:
 Gate category:
 Decision requested:
 Recommendation:
 Evidence packet:
+Command outputs:
 Blocker id:
 Routing surface:
 Watcher/owner:
 Resume condition:
 Deadline:
+Residual risk:
 ```
 
 ## Repo-Specific Evidence Anchors

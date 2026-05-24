@@ -119,6 +119,25 @@ type CompanyMetricsResponse = {
   };
 };
 
+const truthBoundaryCards = [
+  {
+    label: "Repo doctrine",
+    detail: "Defines product meaning, org contracts, metric definitions, and claim rules.",
+  },
+  {
+    label: "Paperclip execution",
+    detail: "Owns issue state, routine movement, blocker ownership, and proof-bearing closeouts.",
+  },
+  {
+    label: "Notion visibility",
+    detail: "Mirrors workspace review and operator visibility; it is not the execution record.",
+  },
+  {
+    label: "Firestore, Stripe, Render runtime",
+    detail: "Own live request, entitlement, payment, deployment, and hosted-session facts.",
+  },
+];
+
 function formatDate(value: string | null | undefined) {
   if (!value) return "unknown";
   const parsed = new Date(value);
@@ -141,6 +160,22 @@ function metricValue(metric: CompanyMetricResult) {
   if (metric.value === null) return "blocked";
   if (metric.value <= 1 && metric.value >= 0) return `${Math.round(metric.value * 100)}%`;
   return Number.isInteger(metric.value) ? String(metric.value) : metric.value.toFixed(2);
+}
+
+function metricAuthority(metricKey: string) {
+  if (metricKey.includes("blocker") || metricKey.includes("human_interrupt")) {
+    return "Paperclip and founder inbox projection";
+  }
+  if (metricKey.includes("hosted_review") || metricKey.includes("package")) {
+    return "Firestore operating graph and hosted-session records";
+  }
+  if (metricKey.includes("city_launch")) {
+    return "WebApp city-launch ledgers and spend artifacts";
+  }
+  if (metricKey.includes("buyer") || metricKey.includes("commercial")) {
+    return "WebApp buyer outcome and Paperclip next-action projection";
+  }
+  return "Capture, Pipeline, and WebApp operating graph projection";
 }
 
 function lifecycleStageClass(stage: string) {
@@ -215,6 +250,26 @@ export default function AdminCompanyMetrics() {
           </div>
         ) : (
           <>
+            <section className="grid gap-4 border border-stone-300 bg-white/70 p-5 md:p-6 lg:grid-cols-[0.8fr_1.2fr]">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">
+                  Founder/operator truth map
+                </p>
+                <p className="mt-3 max-w-md text-sm leading-6 text-stone-600">
+                  Local checks do not prove Operational Launch Ready. This screen separates
+                  repo definitions, Paperclip execution state, Notion visibility, and live runtime truth.
+                </p>
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                {truthBoundaryCards.map((card) => (
+                  <div key={card.label} className="border-t border-stone-300 pt-3">
+                    <p className="text-sm font-semibold text-stone-950">{card.label}</p>
+                    <p className="mt-1 text-sm leading-6 text-stone-600">{card.detail}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+
             <section className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
               <div className="bg-stone-950 p-6 text-white md:p-8">
                 <p className="text-sm uppercase tracking-[0.24em] text-stone-400">Active city</p>
@@ -258,6 +313,51 @@ export default function AdminCompanyMetrics() {
                   {screen.lifecycleStop.blockers.length === 0 && (
                     <p className="text-stone-600">No active blocker projected for the current city.</p>
                   )}
+                </div>
+              </div>
+            </section>
+
+            <section className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
+              <div className="border border-stone-300 bg-white/70 p-6">
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">
+                  Human-gated blockers
+                </p>
+                <div className="mt-5 space-y-4">
+                  {screen.needsFounder.slice(0, 5).map((item) => (
+                    <div key={item.id} className="border-t border-stone-300 pt-4">
+                      <p className="font-semibold text-stone-950">{item.title || item.id}</p>
+                      <p className="mt-1 text-sm leading-6 text-stone-600">{item.reason}</p>
+                      <p className="mt-2 break-all text-xs text-stone-500">
+                        Source: {item.source || "founder inbox projection"}
+                      </p>
+                    </div>
+                  ))}
+                  {screen.needsFounder.length === 0 && (
+                    <p className="border-t border-stone-300 pt-4 text-sm text-stone-600">
+                      No founder-only decision is projected from the current founder-inbox window.
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className="border border-stone-300 bg-white/70 p-6">
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">
+                  Blocked or partial metrics
+                </p>
+                <div className="mt-5 grid gap-4 md:grid-cols-2">
+                  <div>
+                    <p className="text-sm font-semibold text-rose-700">Blocked</p>
+                    <p className="mt-2 text-3xl font-semibold">{screen.metricHealth.weekly.blocked}</p>
+                    <p className="mt-1 text-sm text-stone-600">
+                      Missing source or projection path; no trustworthy number is claimed.
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-amber-700">Partial</p>
+                    <p className="mt-2 text-3xl font-semibold">{screen.metricHealth.weekly.partial}</p>
+                    <p className="mt-1 text-sm text-stone-600">
+                      Evidence exists, with coverage gaps disclosed instead of smoothed over.
+                    </p>
+                  </div>
                 </div>
               </div>
             </section>
@@ -308,6 +408,9 @@ export default function AdminCompanyMetrics() {
                     <div>
                       <p className="font-medium">{metric.label}</p>
                       <p className="mt-1 text-sm text-stone-600">{metric.note}</p>
+                      <p className="mt-1 text-xs text-stone-500">
+                        Authority: {metricAuthority(metric.key)}
+                      </p>
                     </div>
                     <div className="text-right">
                       <p className={`text-sm font-semibold ${statusClass(metric.status)}`}>{metric.status}</p>
@@ -366,6 +469,9 @@ export default function AdminCompanyMetrics() {
                       <p className="text-sm text-stone-700">{row.completedStages.join(" -> ")}</p>
                       <p className="mt-1 text-sm text-stone-500">
                         Latest {formatDate(row.latestEvidenceAtIso)}
+                      </p>
+                      <p className="mt-1 text-xs text-stone-500">
+                        Source repos: {row.sourceRepos.length ? row.sourceRepos.join(", ") : "unknown"}
                       </p>
                     </div>
                     <div>
