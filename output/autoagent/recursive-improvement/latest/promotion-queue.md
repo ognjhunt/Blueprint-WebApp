@@ -1,7 +1,7 @@
 # AutoResearch Promotion Queue
 
 - Scope: Repo-local candidate queue only. Does not mutate Paperclip, Hermes, providers, Firebase, Notion, Stripe, Render, or production behavior.
-- Generated at: 2026-05-29T21:31:23.463Z
+- Generated at: 2026-05-29T21:57:11.149Z
 - Queued items: 5
 
 Each item is a candidate for the next repo-local AutoAgent eval, prompt patch, policy patch, or closeout-rule patch. The queue does not authorize live sends, provider calls, production Paperclip mutation, Notion writes, Stripe/Firebase/Render changes, or operational launch claims.

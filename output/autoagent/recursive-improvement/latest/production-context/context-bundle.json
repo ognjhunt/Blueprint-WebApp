@@ -1,6 +1,6 @@
 {
   "schema": "blueprint/autoagent-production-context-bundle/v1",
-  "generated_at": "2026-05-29T21:31:23.467Z",
+  "generated_at": "2026-05-29T21:57:11.151Z",
   "default_mode": "dry_run",
   "production_action_registry_path": "server/agents/autoagent-production-action-registry.ts",
   "allowed_live_action_types": [

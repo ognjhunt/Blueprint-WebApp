@@ -25,6 +25,7 @@
     "autoagent:promotion-gate": "tsx scripts/autoagent/prompt-policy-promotion-gate.ts",
     "autoagent:canary-promotion": "tsx scripts/autoagent/run-canary-promotion.ts",
     "autoagent:canary-rollback": "tsx scripts/autoagent/monitor-canary-rollback.ts",
+    "autoagent:shadow:compare": "tsx scripts/autoagent/write-support-triage-shadow-comparison.ts",
     "autoagent:recursive-improve": "tsx scripts/autoagent/run-recursive-improvement-loop.ts",
     "paperclip:backfill-legacy-inbound-request-states": "tsx scripts/paperclip/backfill-legacy-inbound-request-states.ts",
     "smoke:launch": "node scripts/launch-smoke.mjs",

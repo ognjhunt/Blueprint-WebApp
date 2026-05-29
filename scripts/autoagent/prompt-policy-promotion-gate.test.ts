@@ -328,6 +328,61 @@ describe("central AutoAgent promotion policy", () => {
     expect(result.blockedClaims).toEqual([]);
   });
 
+  it("holds support_triage when the clean shadow summary is missing", () => {
+    const result = evaluateAutoPromotionEligibility(
+      centralCandidate(),
+      passingOfflineEval,
+      null,
+    );
+
+    expect(result.decision).toBe("hold");
+    expect(result.checks.shadowEvidencePassed).toBe(false);
+    expect(result.checks.noRegressionWindowPassed).toBe(false);
+    expect(result.reasons).toContain("clean shadow comparison summary is missing");
+  });
+
+  it.each([
+    {
+      name: "wrong lane",
+      shadow: cleanWaitlistShadow,
+      reason: /shadow comparison is for waitlist_triage, not support_triage/,
+    },
+    {
+      name: "sample count below threshold",
+      shadow: { ...cleanSupportShadow, sampleCount: 19, cleanSampleCount: 19 },
+      reason: /shadow sample count 19 is below 20/,
+    },
+    {
+      name: "regression count above zero",
+      shadow: { ...cleanSupportShadow, regressionCount: 1 },
+      reason: /shadow comparison has regressions: 1/,
+    },
+    {
+      name: "safety blocker present",
+      shadow: { ...cleanSupportShadow, safetyBlockers: ["shadow_drops_human_review"] },
+      reason: /shadow safety blockers: shadow_drops_human_review/,
+    },
+    {
+      name: "mismatched decision fields present",
+      shadow: { ...cleanSupportShadow, mismatchedDecisionFields: ["queue"] },
+      reason: /shadow decision fields mismatch: queue/,
+    },
+    {
+      name: "no-regression window below threshold",
+      shadow: { ...cleanSupportShadow, noRegressionWindowDays: 13 },
+      reason: /no-regression window 13d is below 14d/,
+    },
+  ])("holds support_triage when shadow evidence has $name", ({ shadow, reason }) => {
+    const result = evaluateAutoPromotionEligibility(
+      centralCandidate({ requestedDecision: "promote" }),
+      passingOfflineEval,
+      shadow,
+    );
+
+    expect(result.decision).toBe("hold");
+    expect(result.reasons.join("\n")).toMatch(reason);
+  });
+
   it("keeps waitlist triage human/policy gated even with clean local evidence", () => {
     const result = evaluateAutoPromotionEligibility(
       centralCandidate({

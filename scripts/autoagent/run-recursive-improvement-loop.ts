@@ -291,6 +291,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
+function asString(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
 function stringList(value: unknown) {
   if (!Array.isArray(value)) {
     return [];
@@ -486,6 +490,21 @@ function scopeCandidateToLane(rawCandidate: unknown, lane: string | null) {
     requiredLanes: [lane],
     lanes: [lane],
   };
+}
+
+function shadowSourcePathFromCandidate(rawCandidate: unknown, cwd: string) {
+  const record = isRecord(rawCandidate) ? rawCandidate : {};
+  const shadowSummary = isRecord(record.shadowSummary) ? record.shadowSummary : {};
+  const sourcePath = asString(
+    shadowSummary.records_path
+      ?? shadowSummary.recordsPath
+      ?? shadowSummary.shadow_records_path
+      ?? shadowSummary.shadowRecordsPath,
+  );
+  if (!sourcePath) {
+    return null;
+  }
+  return path.isAbsolute(sourcePath) ? sourcePath : path.resolve(cwd, sourcePath);
 }
 
 function offlineEvalSummary(
@@ -1244,6 +1263,7 @@ export async function runRecursiveImprovementLoop(
 
   const rawCandidate = await readJsonFile(candidatePath);
   const scopedCandidate = scopeCandidateToLane(rawCandidate, requestedLane);
+  const candidateShadowSourcePath = shadowSourcePathFromCandidate(scopedCandidate, cwd);
   const candidateForGatePath = requestedLane
     ? path.join(outputDir, `promotion-candidate-${requestedLane}.json`)
     : candidatePath;
@@ -1254,6 +1274,12 @@ export async function runRecursiveImprovementLoop(
   if (candidateForGatePath !== candidatePath) {
     stageOutputs.proofPaths.push(candidateForGatePath);
     stageOutputs.commandOutputs.push(`recursive-improvement lane scope: lane=${requestedLane}`);
+  }
+  if (candidateShadowSourcePath) {
+    stageOutputs.proofPaths.push(candidateShadowSourcePath);
+    stageOutputs.commandOutputs.push(
+      `recursive-improvement shadow source: path=${candidateShadowSourcePath}`,
+    );
   }
   const highRiskBlockers = unique([
     ...detectHighRiskCandidate(scopedCandidate),
@@ -1632,7 +1658,7 @@ export async function runRecursiveImprovementLoop(
     canaryPlanPath: canaryResult.planJsonPath,
     shadowSourcePath: options.shadowSourcePath
       ? path.resolve(cwd, options.shadowSourcePath)
-      : undefined,
+      : candidateShadowSourcePath ?? undefined,
     outputDir: rollbackOutputDir,
     offlineEvalSummary: pipelineResult.localEval,
     applyRollback: options.applyRollback === true || applyRequested,

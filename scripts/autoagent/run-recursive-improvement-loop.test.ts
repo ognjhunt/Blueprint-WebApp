@@ -465,6 +465,38 @@ describe("recursive AutoResearch improvement loop", () => {
     expect(audit.execution.result).toBe("canary_committed");
   });
 
+  it("uses a candidate-attached shadow records path when rollback monitor input is not passed", async () => {
+    const root = await makeTempDir();
+    const candidateShadowPath = path.join(root, "candidate-shadow-records.json");
+    await writeJson(candidateShadowPath, { records: [cleanShadowRecord()] });
+    const candidate = buildCandidate() as PromptPolicyPromotionCandidate & {
+      shadowSummary: NonNullable<PromptPolicyPromotionCandidate["shadowSummary"]> & {
+        records_path: string;
+      };
+    };
+    candidate.shadowSummary.records_path = "candidate-shadow-records.json";
+
+    const result = await runLoop(root, {
+      candidate,
+      options: {
+        shadowSourcePath: undefined,
+        productionContext: true,
+        aiProductionProposal: true,
+        executeProductionCanary: true,
+        aiProductionProposalEnv: {},
+        aiProductionProposalInvoker: validProductionProposalInvoker(),
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.summary.rollback_decision).toBe("keep_canary");
+    expect(result.summary.production_canary_attempted).toBe(true);
+    expect(result.summary.production_canary_result).toBe("canary_committed");
+    expect(result.summary.command_outputs.join("\n")).toContain(
+      `recursive-improvement shadow source: path=${candidateShadowPath}`,
+    );
+  });
+
   it("rolls back an allowlisted production canary when a stop condition trips", async () => {
     const root = await makeTempDir();
     const result = await runLoop(root, {

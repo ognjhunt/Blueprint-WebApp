@@ -1,9 +1,9 @@
 # Recursive AutoResearch Improvement Loop
 
-Generated: 2026-05-29T21:31:23.463Z
-Status: promotion_held
+Generated: 2026-05-29T21:57:11.149Z
+Status: dry_run_completed
 Dry run: false
-Live mutation attempted: false
+Live mutation attempted: true
 
 ## Selected Candidate
 
@@ -14,7 +14,7 @@ Queue item: autoresearch:autoagent_eval:human_gate_or_reply_durability_blocker
 
 Offline eval: passed
 Negative controls blocked: true
-Promotion decision: hold
+Promotion decision: canary
 Policy tier: repo_local_canary
 AI classifier: not_requested
 AI fixture drafter: not_requested
@@ -24,18 +24,18 @@ AI production proposal used: true
 Production proposal status: validated_live_allowed
 Production action type: paperclip_hermes_internal_metadata_update
 Production target system: paperclip_hermes
-Production canary attempted: false
-Production canary result: not_requested
-Production idempotency key: autoagent-prod-canary-recursive-agent-improvement-loop-20260529T213123Z
-Audit event path: none
+Production canary attempted: true
+Production canary result: canary_committed
+Production idempotency key: autoagent-canary-recursive-agent-improvement-loop-20260529-metadata
+Audit event path: /Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/latest/production-canary/audit-event.json
 Rollback snapshot path: /Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/latest/production-context/rollback-snapshot.json
-Canary decision: not_run_promotion_hold
-Rollback decision: not_run
+Canary decision: dry_run
+Rollback decision: keep_canary
 Auto-apply attempted: false
 Auto-apply result: not_requested
-Rollback monitor result: not_run
+Rollback monitor result: keep_canary
 Rollback applied: false
-Live mutation committed: false
+Live mutation committed: true
 
 ## Production Action Registry
 
@@ -115,10 +115,20 @@ Reason: not_proposed: AI patch proposal stage wrote a no-op report because no AI
 - /Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/latest/promotion-queue.md
 - /Users/nijelhunt_1/workspace/Blueprint-WebApp/labs/autoagent/promotion-candidates/autoagent-to-paperclip-hermes-2026-05-28.json
 - /Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/latest/promotion-candidate-support_triage.json
+- /Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/shadow-comparison/latest/support-triage-shadow-records.json
 - /Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/latest/offline-eval-summary.json
 - /Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/latest/promotion-gate/promotion-packet.md
 - /Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/latest/proposed_patch_summary.json
 - /Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/latest/proposed_patch_report.md
+- /Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/latest/canary/canary-plan.json
+- /Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/latest/canary/canary-plan.md
+- /Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/latest/rollback/rollback-decision.json
+- /Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/latest/rollback/rollback-decision.md
+- /Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/latest/production-canary/audit-event.json
+- /Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/latest/production-canary/execution.json
+- /Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/latest/production-canary/execution-report.md
+- /Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/latest/production-canary/mutation-record.json
+- /Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/latest/production-canary/idempotency-ledger.json
 
 ## Command Outputs
 
@@ -128,14 +138,18 @@ Reason: not_proposed: AI patch proposal stage wrote a no-op report because no AI
 - autoresearch-promotion-queue(local): queued=5
 - write-autoresearch-fixture: status=skipped reason=Requested family human_gate_or_reply_durability_blocker is already covered or was not supplied.
 - recursive-improvement lane scope: lane=support_triage
+- recursive-improvement shadow source: path=/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/shadow-comparison/latest/support-triage-shadow-records.json
 - offline AutoAgent eval runPipeline(exportLive=false,sample=3): cases=4 failed=0 negative_controls_blocked=6/6
-- prompt-policy-promotion-gate: decision=hold
-- prompt-policy-promotion-gate reason=clean shadow comparison summary is missing
+- prompt-policy-promotion-gate: decision=canary
 - ai-patch-proposal: status=not_proposed ai_used=false proposal=none
+- autoagent-canary-promotion: status=dry_run mode=dry_run
+- autoagent-rollback-monitor: status=keep_canary
+- autoagent-rollback-monitor reason=Canary evidence is clean against rollback thresholds.
+- production-canary: result=canary_committed action=paperclip_hermes_internal_metadata_update idempotency=autoagent-canary-recursive-agent-improvement-loop-20260529-metadata
 
 ## Next
 
-Next action: collect_required_promotion_evidence
-Next autonomous action: collect_required_promotion_evidence
-Retry condition: Retry after the promotion gate has required offline, closeout, shadow, and rollback evidence.
-Residual risk: clean shadow comparison summary is missing
+Next action: manual_review_or_next_shadow_canary_packet
+Next autonomous action: manual_review_or_next_shadow_canary_packet
+Retry condition: Retry when new observer evidence appears or when applying an explicitly approved repo-local canary/rollback artifact.
+Residual risk: This dry-run proves the repo-local loop only; it does not prove live Paperclip/Hermes mutation, provider recovery, hosted-session fulfillment, sends, payments, rights/legal decisions, city-live state, or production automation quality.

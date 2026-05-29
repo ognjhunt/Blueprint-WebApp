@@ -6,7 +6,7 @@ Candidate id: autoagent-to-paperclip-hermes-prompt-policy-gate-2026-05-28
 Source: AutoAgent offline lab
 Target runtime: Paperclip/Hermes
 Live Paperclip mutation: not attempted
-Generated at: 2026-05-29T18:48:03.570Z
+Generated at: 2026-05-29T21:51:44.662Z
 
 ## Gate Checks
 
@@ -14,8 +14,8 @@ Generated at: 2026-05-29T18:48:03.570Z
 - negative_controls_remain_blocked: true
 - required_lane_coverage_present: true
 - closeout_proof_present: true
-- shadow_evidence_passed: false
-- no_regression_window_passed: false
+- shadow_evidence_passed: true
+- no_regression_window_passed: true
 - rollback_condition_present: true
 - blocked_claims_absent: true
 - live_paperclip_mutation_attempted: false
@@ -26,7 +26,6 @@ Generated at: 2026-05-29T18:48:03.570Z
 - waitlist_triage requires explicit human/policy gate before canary or promotion
 - waitlist_triage remains shadow-only
 - preview_diagnosis remains shadow-only
-- clean shadow comparison summary is missing
 
 ## Blocked Claims
 
@@ -37,7 +36,6 @@ Generated at: 2026-05-29T18:48:03.570Z
 - waitlist_triage can continue in shadow only until an explicit policy change names the allowed canary/apply path and owner-system proof requirements.
 - waitlist_triage needs stronger hosted-session proof and provider/runtime boundary evidence before canary.
 - preview_diagnosis needs stronger hosted-session proof and provider/runtime boundary evidence before canary.
-- Attach clean shadow comparison evidence before canary.
 
 ## Offline Eval Summary
 
@@ -74,15 +72,14 @@ offline_evals_passed=true
 negative_controls_remain_blocked=true
 required_lane_coverage_present=true
 closeout_proof_present=true
-shadow_evidence_passed=false
-no_regression_window_passed=false
+shadow_evidence_passed=true
+no_regression_window_passed=true
 rollback_condition_present=true
 blocked_claims_absent=true
 policy_tier=human_policy_gated
 reason=waitlist_triage requires explicit human/policy gate before canary or promotion
 reason=waitlist_triage remains shadow-only
 reason=preview_diagnosis remains shadow-only
-reason=clean shadow comparison summary is missing
 ```
 
 ## Changed Paths Under Review
@@ -111,15 +108,15 @@ reason=clean shadow comparison summary is missing
 Goal objective: Build the prompt-policy promotion gate from AutoAgent to Paperclip/Hermes.
 Issue/run id: local-goal-2026-05-28-prompt-policy-promotion-gate
 Budget/timeout context: Codex desktop goal run; no Paperclip issue/run budget supplied in local context.
-Stage reached: repo-local promotion packet gate implemented; live Paperclip mutation intentionally not attempted
+Stage reached: repo-local promotion packet gate implemented; clean support_triage shadow comparison attached; live Paperclip mutation intentionally not attempted
 State claimed: done
 Owner: webapp-codex
 Blocker/decision id: none
-Proof paths: package.json; scripts/autoagent/prompt-policy-promotion-gate.ts; scripts/autoagent/prompt-policy-promotion-gate.test.ts; labs/autoagent/promotion-candidates/autoagent-to-paperclip-hermes-2026-05-28.json; output/autoagent/prompt-policy-promotion/latest/promotion-packet.md
-Command outputs: npm exec -- vitest run scripts/autoagent/prompt-policy-promotion-gate.test.ts scripts/autoagent/run-pipeline.test.ts scripts/autoagent/seed-canonical-cases.test.ts; npm run autoagent:promotion-gate -- --candidate labs/autoagent/promotion-candidates/autoagent-to-paperclip-hermes-2026-05-28.json --sample 3
-Next action: Use the generated packet for manual review before any Paperclip/Hermes prompt, policy, or orchestration promotion.
-Retry/resume condition: Retry only after offline evals pass, all negative controls remain blocked, and this closeout proof packet validates with required labels.
-Residual risk: The gate proves repo-local promotion readiness only; live Paperclip/Hermes sync, runtime behavior, and provider availability remain outside this no-mutation packet.
+Proof paths: package.json; scripts/autoagent/prompt-policy-promotion-gate.ts; scripts/autoagent/prompt-policy-promotion-gate.test.ts; scripts/autoagent/write-support-triage-shadow-comparison.ts; scripts/autoagent/write-support-triage-shadow-comparison.test.ts; labs/autoagent/promotion-candidates/autoagent-to-paperclip-hermes-2026-05-28.json; output/autoagent/prompt-policy-promotion/latest/promotion-packet.md; output/autoagent/shadow-comparison/latest/support-triage-shadow-records.json; output/autoagent/shadow-comparison/latest/support-triage-shadow-summary.json; output/autoagent/shadow-comparison/latest/support-triage-shadow-report.md
+Command outputs: npm exec -- vitest run scripts/autoagent/prompt-policy-promotion-gate.test.ts scripts/autoagent/run-pipeline.test.ts scripts/autoagent/seed-canonical-cases.test.ts; npm exec -- vitest run scripts/autoagent/write-support-triage-shadow-comparison.test.ts scripts/autoagent/prompt-policy-promotion-gate.test.ts; npm run autoagent:shadow:compare -- --sample-count 20 --no-regression-window-days 14; npm run autoagent:promotion-gate -- --candidate labs/autoagent/promotion-candidates/autoagent-to-paperclip-hermes-2026-05-28.json --sample 3
+Next action: Use the generated packet and clean support_triage shadow comparison proof only for the explicit allowlisted Paperclip/Hermes production canary path.
+Retry/resume condition: Retry only after offline evals pass, all negative controls remain blocked, clean support_triage shadow comparison evidence remains attached, and this closeout proof packet validates with required labels.
+Residual risk: The gate proves repo-local promotion readiness only; live Paperclip/Hermes sync, runtime behavior, provider availability, sends, payments, payouts, hosted-session fulfillment, rights/legal decisions, city-live state, customer claims, Firestore export, and Notion writes remain outside this packet.
 ```
 
 ## Rollback Condition
