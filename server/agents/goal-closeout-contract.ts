@@ -19,6 +19,28 @@ export const PAPERCLIP_GOAL_CLOSEOUT_REQUIRED_FIELDS = [
   "Residual risk:",
 ] as const;
 
+export type PaperclipGoalCloseoutAllowedState = (typeof PAPERCLIP_GOAL_CLOSEOUT_ALLOWED_STATES)[number];
+export type PaperclipGoalCloseoutRequiredField = (typeof PAPERCLIP_GOAL_CLOSEOUT_REQUIRED_FIELDS)[number];
+
+export type PaperclipGoalCloseoutValidationIssueCode =
+  | "missing_required_field"
+  | "invalid_state_claim"
+  | "ambiguous_state_claim";
+
+export interface PaperclipGoalCloseoutValidationIssue {
+  code: PaperclipGoalCloseoutValidationIssueCode;
+  field?: PaperclipGoalCloseoutRequiredField;
+  value?: string;
+  message: string;
+}
+
+export interface PaperclipGoalCloseoutValidationResult {
+  valid: boolean;
+  stateClaimed?: PaperclipGoalCloseoutAllowedState;
+  missingRequiredFields: PaperclipGoalCloseoutRequiredField[];
+  errors: PaperclipGoalCloseoutValidationIssue[];
+}
+
 function cleanValue(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
@@ -38,6 +60,82 @@ function valueFromRecord(record: Record<string, unknown> | null, keys: string[])
     }
   }
   return "";
+}
+
+function escapeRegex(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function requiredFieldRegex(field: PaperclipGoalCloseoutRequiredField) {
+  return new RegExp(`^\\s*(?:[-*]\\s*)?(?:\\d+[.)]\\s*)?${escapeRegex(field)}(?:\\s|$)`, "im");
+}
+
+function stateClaimLineRegex() {
+  return new RegExp(
+    `^\\s*(?:[-*]\\s*)?(?:\\d+[.)]\\s*)?${escapeRegex("State claimed:")}\\s*(.*?)\\s*$`,
+    "gim",
+  );
+}
+
+function cleanStateClaimValue(value: string) {
+  return value
+    .trim()
+    .replace(/^`+/, "")
+    .replace(/`+$/, "")
+    .trim();
+}
+
+function collectStateClaimValues(packet: string) {
+  const claims: string[] = [];
+  const regex = stateClaimLineRegex();
+  let match = regex.exec(packet);
+  while (match) {
+    claims.push(cleanStateClaimValue(match[1] || ""));
+    match = regex.exec(packet);
+  }
+  return claims;
+}
+
+export function validatePaperclipGoalCloseoutPacket(packet: string): PaperclipGoalCloseoutValidationResult {
+  const text = typeof packet === "string" ? packet : "";
+  const missingRequiredFields = PAPERCLIP_GOAL_CLOSEOUT_REQUIRED_FIELDS.filter(
+    (field) => !requiredFieldRegex(field).test(text),
+  );
+  const errors: PaperclipGoalCloseoutValidationIssue[] = missingRequiredFields.map((field) => ({
+    code: "missing_required_field",
+    field,
+    message: `Missing required Paperclip goal closeout label: ${field}`,
+  }));
+  const stateClaims = collectStateClaimValues(text);
+  let stateClaimed: PaperclipGoalCloseoutAllowedState | undefined;
+
+  if (stateClaims.length > 1) {
+    errors.push({
+      code: "ambiguous_state_claim",
+      field: "State claimed:",
+      value: stateClaims.join(", "),
+      message: "Paperclip goal closeout packet must include exactly one State claimed value.",
+    });
+  } else if (stateClaims.length === 1) {
+    const [stateClaim] = stateClaims;
+    if ((PAPERCLIP_GOAL_CLOSEOUT_ALLOWED_STATES as readonly string[]).includes(stateClaim)) {
+      stateClaimed = stateClaim as PaperclipGoalCloseoutAllowedState;
+    } else {
+      errors.push({
+        code: "invalid_state_claim",
+        field: "State claimed:",
+        value: stateClaim,
+        message: `State claimed must be exactly one of: ${PAPERCLIP_GOAL_CLOSEOUT_ALLOWED_STATES.join(", ")}.`,
+      });
+    }
+  }
+
+  return {
+    valid: errors.length === 0,
+    stateClaimed,
+    missingRequiredFields,
+    errors,
+  };
 }
 
 export function readPaperclipGoalCloseoutMetadata(value: unknown) {

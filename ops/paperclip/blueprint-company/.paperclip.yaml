@@ -161,6 +161,7 @@ agents:
           desiredSkills:
             - platform-doctrine
             - webapp-repo-operations
+            - goal-autoresearch
             - humanizer
             - gh-cli
             - plan-eng-review
@@ -192,6 +193,7 @@ agents:
           desiredSkills:
             - platform-doctrine
             - webapp-repo-operations
+            - goal-autoresearch
             - gh-cli
             - investigate
             - review
@@ -575,10 +577,12 @@ agents:
       type: codex_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
+        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/conversion-agent/AGENTS.md
         model: gpt-5.4-mini
         modelReasoningEffort: medium
         timeoutSec: 1800
         dangerouslyBypassApprovalsAndSandbox: true
+        paperclipGoalPromptEnabled: true
         paperclipSkillSync:
           desiredSkills:
             - platform-doctrine
@@ -1372,15 +1376,20 @@ agents:
       type: codex_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
+        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/docs-agent/AGENTS.md
         model: gpt-5.4-mini
         modelReasoningEffort: medium
         timeoutSec: 1200
         dangerouslyBypassApprovalsAndSandbox: true
+        paperclipGoalPromptEnabled: true
         paperclipSkillSync:
           desiredSkills:
             - platform-doctrine
             - autonomy-safety
             - cross-repo-operations
+            - goal-autoresearch
+            - writing-plans
+            - verification-before-completion
     budgetMonthlyCents: 2000
 projects:
   blueprint-executive-ops:
@@ -1541,6 +1550,10 @@ tasks:
   webapp-autonomy-loop:
     status: active
     priority: high
+    projectWorkspaceKey: blueprint-webapp
+  recursive-agent-improvement-loop:
+    status: active
+    priority: medium
     projectWorkspaceKey: blueprint-webapp
   webapp-review-loop:
     status: active
@@ -1807,6 +1820,15 @@ routines:
     triggers:
       - kind: schedule
         cronExpression: 15 11 * * 1-5
+        timezone: America/New_York
+  recursive-agent-improvement-loop:
+    agent: webapp-codex
+    priority: medium
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
+    triggers:
+      - kind: schedule
+        cronExpression: 25 6 * * *
         timezone: America/New_York
   webapp-review-loop:
     priority: medium

@@ -1,0 +1,12 @@
+{
+  "requestId": "seed-preview-3",
+  "siteWorldId": "demo-site-world",
+  "preview_status": "sample_demo_available",
+  "provider_name": "demo_viewer",
+  "provider_model": null,
+  "provider_run_id": null,
+  "failure_reason": "Only sample/demo copy and a runtime-adjacent route exist; no entitlement, runtime session, or provider artifact proves hosted-session fulfillment.",
+  "preview_manifest_uri": null,
+  "worldlabs_operation_manifest_uri": null,
+  "worldlabs_world_manifest_uri": null
+}

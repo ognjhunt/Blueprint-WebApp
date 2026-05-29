@@ -1,0 +1,4 @@
+{
+  "origin": "negative_control_seed",
+  "rationale": "Covers repeated Blueprint goal failure mode where no-change churn is mislabeled as completed movement."
+}

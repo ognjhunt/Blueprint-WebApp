@@ -220,6 +220,8 @@ describe("Blueprint Paperclip agent instruction guards", () => {
     expect(enabled).toEqual([
       "capture-codex",
       "capture-review",
+      "conversion-agent",
+      "docs-agent",
       "pipeline-codex",
       "pipeline-review",
       "webapp-codex",
@@ -252,14 +254,12 @@ describe("Blueprint Paperclip agent instruction guards", () => {
 
     const intentionallyDisabled = [
       "blueprint-cto",
-      "conversion-agent",
       "beta-launch-commander",
-      "docs-agent",
     ];
     for (const slug of intentionallyDisabled) {
       expect(
         agents[slug]?.adapter?.config?.paperclipGoalPromptEnabled,
-        `${slug} is intentionally not /goal-enabled because it is strategy, release orchestration, growth experimentation, or docs freshness work`,
+        `${slug} is intentionally not /goal-enabled because it is strategy, release orchestration, or architecture control work`,
       ).not.toBe(true);
     }
   });

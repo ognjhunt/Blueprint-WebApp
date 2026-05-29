@@ -2,6 +2,7 @@
 import { describe, expect, it } from "vitest";
 import {
   auditExactSiteHostedReviewGtmLedger,
+  renderExactSiteHostedReviewGtmAuditMarkdown,
   renderExactSiteHostedReviewGtmFounderReviewMarkdown,
   type ExactSiteGtmPilotLedger,
 } from "../utils/exactSiteHostedReviewGtmPilot";
@@ -543,6 +544,109 @@ describe("Exact-Site Hosted Review GTM pilot ledger audit", () => {
     expect(result.summary.targetsMissingClosureState).toBe(0);
     expect(result.findings.map((finding) => finding.message)).toContain(
       "Active pilot has target rows but no recipient-backed contacts; live sends remain blocked on explicit contact evidence.",
+    );
+  });
+
+  it("separates approval-ready recipient-backed drafts from reply-durability blockers and stale projections", () => {
+    const result = auditExactSiteHostedReviewGtmLedger(baseLedger({
+      targets: [
+        {
+          id: "target-1",
+          track: "proof_ready_outreach",
+          organizationName: "Robot Team",
+          buyerSegment: "Deployment team",
+          workflowNeed: "Inspect one exact public site before picking a deployment workflow.",
+          intentSignals: ["Public product positioning references deployment-site evaluation."],
+          evidence: { summary: "Real exact-site buying signal." },
+          artifact: {
+            type: "exact_site_hosted_review",
+            status: "review_ready",
+            path: "client/public/samples/sample-hosted-review-report.md",
+            siteWorldId: "sample-public-capture-cedar-market-aisle-loop",
+          },
+          recipient: {
+            email: "buyer@robotteam.co",
+            evidenceSource: "Human-supplied target sheet with explicit recipient evidence.",
+            evidenceType: "human_supplied",
+          },
+          enrichment: {
+            status: "contact_found",
+            providerRuns: [
+              {
+                providerKey: "manual_human_supplied",
+                status: "contact_found",
+                searchedAt: "2026-05-09T18:33:20.099Z",
+                candidateCount: 1,
+              },
+            ],
+            selectedRecipientEvidence: {
+              providerKey: "manual_human_supplied",
+              selectedAt: "2026-05-09T18:33:20.240Z",
+              evidenceSource: "Human-supplied target sheet with explicit recipient evidence.",
+            },
+          },
+          outbound: {
+            status: "draft_ready",
+            approvalState: "pending_first_send_approval",
+            messagePath: "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
+          },
+          sales: {
+            nextAction: "Find explicit recipient-backed contact evidence before founder first-send approval.",
+            nextActionOwner: "growth-lead",
+          },
+          blockers: [
+            {
+              id: "gtm-blocker-contact-discovery-allowlist",
+              status: "resolved",
+              summary: "Recipient-backed evidence has been recorded for this target.",
+              owner: "growth-lead",
+              nextAction: "Route this recipient-backed draft to founder first-send approval.",
+              paperclipIssueIdentifier: "BLU-5392",
+              resolvedAt: "2026-05-09T18:33:20.240Z",
+            },
+            {
+              id: "gtm-blocker-buyer-reply-durability",
+              status: "blocked",
+              summary: "Buyer sends and replies cannot be treated as production-durable.",
+              owner: "growth-lead",
+              nextAction: "Set sender verification and Gmail watcher credentials before counting live replies as durable.",
+              paperclipIssueIdentifier: "BLU-5393",
+            },
+          ],
+          paperclipIssues: [
+            {
+              identifier: "BLU-5392",
+              status: "blocked",
+              blockerIds: ["gtm-blocker-contact-discovery-allowlist"],
+            },
+            {
+              identifier: "BLU-5393",
+              status: "blocked",
+              blockerIds: ["gtm-blocker-buyer-reply-durability"],
+            },
+          ],
+        },
+      ],
+    }));
+    const markdown = renderExactSiteHostedReviewGtmAuditMarkdown(
+      result,
+      "/repo/ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json",
+    );
+
+    expect(result.summary.approvalReadyTargets).toBe(1);
+    expect(result.summary.founderApprovalNeededTargets).toBe(1);
+    expect(result.summary.replyDurabilityBlockedTargets).toBe(1);
+    expect(result.summary.staleNextActionTargets).toBe(1);
+    expect(result.summary.staleBlockerProjectionTargets).toBe(1);
+    expect(markdown).toContain("- approval-ready targets: 1");
+    expect(markdown).toContain("- reply-durability blocked targets: 1");
+    expect(markdown).toContain("- stale next-action targets: 1");
+    expect(markdown).toContain("- stale blocker projection targets: 1");
+    expect(result.findings.map((finding) => finding.message)).toEqual(
+      expect.arrayContaining([
+        "Recipient-backed approval-ready target still has a stale recipient-evidence next action.",
+        "Resolved blocker still points at a non-resolved Paperclip issue projection.",
+      ]),
     );
   });
 });

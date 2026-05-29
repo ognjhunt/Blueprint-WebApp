@@ -1,244 +1,102 @@
 # Blocker Title
 
-Exact-Site first-send batch needs founder/operator approval and reply durability before any live buyer sends.
+Exact-Site first-send batch needs row-level founder/operator approval before any live buyer sends.
 
 # Blocker Id
 
 `human-blocker:exact-site-first-send-approval:2026-05-09`
 
-Stable existing blocker id retained for reply correlation. Current evidence was refreshed on `2026-05-24T01:55:29.162Z`.
+Repo-local no-send packet generated at `2026-05-28T19:58:17.300Z`.
 
 # Why This Is Blocked
 
-The Exact-Site Hosted Review GTM ledger is target-ready but not send-ready.
-
-Current safe audit results:
+The Exact-Site Hosted Review GTM ledger is recipient-backed and approval-ready, but it is not send-ready.
 
 - target rows: 30
-- proof-ready outreach rows: 3
-- demand-sourced capture rows: 27
-- proof artifacts or capture asks: 30
 - recipient-backed targets: 30
-- draft-ready targets: 30
-- approval-needed targets: 30
+- approval-ready targets: 30
 - founder/operator approval needed targets: 30
+- reply-durability blocked targets: 12
+- stale next-action targets: 0
+- stale blocker projection targets: 0
 - human-approved targets: 0
-- eligible sends: 0
 - sent targets: 0
 - replies: 0
 - hosted-review starts: 0
 - qualified calls: 0
-- decision touch goal: 100
-- decision touch gap: 100
-- open blockers: 12
 
-The send dry run found `skipped_approval=30`, `eligible=0`, `sent=0`, and `dry_run_receipts=0`. Proceeding would bypass the documented first-send human gate for external buyer outreach.
+Proceeding without row-level decisions would bypass the documented first-send human gate for external buyer outreach. Reply durability remains a separate downstream live-send gate and approval alone does not authorize dispatch.
 
-Sender and reply durability are also blocked downstream. First-send approval is the earliest GTM hard stop, but approval alone does not authorize dispatch.
+# Local Dry-Run Gate Summary
+
+- recipient-backed targets: 30
+- approval rows: 30
+- proof-ready outreach rows: 3
+- demand-sourced capture rows: 27
+- proof-source rows: 30
+- blocked-claim rows: 30
+- approval blockers: 30
+- reply-durability blockers: 12
+
+These are local approval and dry-run facts only. They do not prove founder approval, real dispatch, Gmail or SendGrid watcher durability, hosted-review starts, buyer replies, or operational launch readiness.
 
 # Recommended Answer
 
-Review `ops/paperclip/playbooks/exact-site-hosted-review-first-send-approval.template.json` and approve, edit, or reject the first-send rows that should move forward.
+Review `ops/paperclip/playbooks/exact-site-hosted-review-first-send-approval.template.json` and approve, edit, or reject each reviewed row.
 
-Default recommendation: approve only rows where all of the following are true:
-
-- the recipient email and evidence source are acceptable for a first touch
-- the proposed subject and body are acceptable for that exact recipient and target
-- the draft angle matches the row track
-- the CTA points to either inspecting a labeled review or naming a site/workflow to capture
-- the landing-page handoff matches the CTA
-- the proof source does not overstate recipient-specific proof
-- the objection plan can be answered from ledger evidence and public pages without inventing proof
-- blocked claims remain preserved in the final draft
-
-Leave public/general inboxes as `edit` if the ask should be narrowed before first send. Reject any row that should not receive outbound.
+Default recommendation: approve only rows where recipient evidence, proposed subject/body, draft angle, CTA, landing-page handoff, objection plan, proof source, and blocked claims are acceptable without inventing pricing, rights, readiness, traction, hosted-review starts, or reply proof.
 
 # Approval Rows
 
-The refreshed approval template contains:
-
 - approval rows: 30
 - approvals recorded: 0
-- decisions left null: 30
-- rows with proposed subject/body: 30
-- demand-sourced rows with prefilled `/contact` handoff URLs: 27
-- proof-ready outreach approval rows: 3
-- demand-sourced capture approval rows: 27
-- rows flagged as public/general inbox: 28
-- rows flagged as capture ask only, no hosted-review claim: 27
-- rows flagged as draft opportunity brief: 27
-
-The approval packet was refreshed with:
-
-```bash
-npm run gtm:first-send-approval:template -- --write
-```
-
-Output:
-
-- `approval_rows: 30`
-- `approvals_recorded: 0`
-- `live_send_status: blocked until founder decisions are recorded and reply durability passes`
-- `proposedSubject` and `proposedBody` are present on all 30 rows
-- `landingPage` carries row-specific `/sample-evaluation` or prefilled `/contact` handoff context
-
-# Sender And Reply Blockers
-
-Current durability status is `blocked`.
-
-## Sender/domain verification
-
-- blocker id: `human-blocker:city-launch-sender-verification`
-- owner: `blueprint-chief-of-staff`
-- current transport: SendGrid configured
-- current from address: `ohstnhunt@gmail.com`
-- current reply-to: `ohstnhunt@gmail.com`
-- current verification status: `unknown`
-- exact input needed: confirm the active provider sender/domain is verified and set `BLUEPRINT_CITY_LAUNCH_SENDER_VERIFICATION=verified` in the live WebApp environment
-- safe proof command: `npm run human-replies:audit-durability -- --allow-not-ready`
-- retry condition: rerun the safe audit after provider verification is complete and the live env has the verified flag
-- disallowed workaround: do not treat configured SendGrid/SMTP credentials, Slack updates, dry-run sends, first-send approvals, or outbound delivery as sender/domain proof
-
-## Approved reply identity
-
-- blocker id: `human-blocker:approved-reply-identity`
-- owner: `blueprint-chief-of-staff`
-- current state: reply identity is relying on the code default
-- exact input needed: set `BLUEPRINT_HUMAN_REPLY_APPROVED_EMAIL=ohstnhunt@gmail.com` in the live environment
-- safe proof command: `npm run human-replies:audit-durability -- --allow-not-ready`
-- retry condition: rerun the safe audit after the live env explicitly names the approved mailbox
-- disallowed workaround: do not rely on code defaults, alternate Gmail connectors, Slack mirrors, or `hlfabhunt@gmail.com`
-
-## Gmail OAuth reply watcher
-
-- blocker id: `human-blocker:gmail-oauth-missing_config`
-- owner: `blueprint-chief-of-staff`
-- current watcher gate: scheduler enabled
-- current Gmail OAuth state: not configured
-- current OAuth publishing status: `unknown`
-- exact inputs needed:
-  - `BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_ID`
-  - `BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_SECRET`
-  - `BLUEPRINT_HUMAN_REPLY_GMAIL_REFRESH_TOKEN` for `ohstnhunt@gmail.com`
-  - `BLUEPRINT_HUMAN_REPLY_GMAIL_OAUTH_PUBLISHING_STATUS=production`
-- safe proof command: `npm run human-replies:audit-durability -- --allow-not-ready`
-- retry condition: rerun the safe audit after OAuth credentials resolve the mailbox as `ohstnhunt@gmail.com` and publishing status is production
-- disallowed workaround: do not poll `hlfabhunt@gmail.com`, use browser cookies, scrape Gmail, or treat outbound email delivery as proof that replies can resume agents
+- proof-ready outreach rows: 3
+- demand-sourced capture rows: 27
+- rows with public/general inbox review flags: 28
+- rows with prefilled contact handoff URLs: 27
 
 # Exact Response Needed
 
-For each reviewed row in `ops/paperclip/playbooks/exact-site-hosted-review-first-send-approval.template.json`, inspect:
-
-- `recipientEmail`
-- `recipientRole`
-- `recipientEvidenceSource`
-- `recipientEvidenceType`
-- `proposedSubject`
-- `proposedBody`
-- `draftAngle`
-- `cta`
-- `landingPage`
-- `proofSource`
-- `objectionPlan`
-- `blockedClaims`
-- `reviewFlags`
-
-Then set:
-
-- `decision`: `approve`, `edit`, or `reject`
-- `approvedBy`: required for `approve`
-- `approvalNote`: required for edits or rejection; recommended for approvals with review flags
-
-Leave unreviewed rows at `decision=null`.
+For each reviewed row, set `decision` to `approve`, `edit`, or `reject`. `approvedBy` is required for approvals. `approvalNote` is required for edits or rejection and recommended for approvals with review flags. Leave unreviewed rows at `decision=null`.
 
 # Execution Owner After Reply
 
-`growth-lead` owns applying explicit first-send decisions to the GTM ledger.
-
-`webapp-codex` owns repo validation and send preflight after the reply is recorded.
-
-`blueprint-chief-of-staff` owns reply correlation, watcher durability, and resume routing.
+`growth-lead` owns applying explicit first-send decisions to the GTM ledger. `webapp-codex` owns repo validation after the reply is recorded. `blueprint-chief-of-staff` owns reply correlation and resume routing.
 
 # Immediate Next Action After Reply
 
-Only after explicit first-send decisions are recorded with this blocker id, run:
+Only after explicit decisions are recorded with this blocker id, apply the approval packet and rerun local audit/report checks. Do not send email, poll Gmail, mutate live Paperclip, call providers, or touch payment setup from this packet.
 
 ```bash
 npm run gtm:first-send-approval:apply -- --write --allow-blocked
 npm run gtm:hosted-review:audit
-npm run gtm:send -- --dry-run --allow-blocked
+npm run gtm:hosted-review:buyer-loop -- --write --allow-blocked
 npm run human-replies:audit-durability -- --allow-not-ready
-```
-
-If the send dry run reaches the durability gate, stop again unless `npm run human-replies:audit-durability -- --allow-not-ready` reports ready and live dispatch is separately authorized.
-
-# Safe Proof Commands Run In This Refresh
-
-```bash
-npm run gtm:hosted-review:audit
-npm run gtm:hosted-review:buyer-loop -- --allow-blocked
-npm run gtm:first-send-approval:template -- --write
-npm run gtm:first-send-approval:template
-npm run gtm:send -- --dry-run --allow-blocked
 ```
 
 # Do Not Run Without Explicit Live Authorization
 
-Do not run:
-
 ```bash
-npm run gtm:first-send-approval:apply -- --write --allow-blocked
 npm run gtm:send -- --write --dry-run 0
 npm run human-replies:poll
 npm run human-replies:send-test-blocker
 npm run human-replies:prove-production
 ```
 
-# Alternatives
-
-- Keep all 30 rows draft-only while message copy, recipient fit, or proof framing is reviewed.
-- Approve a smaller first batch by target id, then rerun send preflight for only those target ids.
-- Mark broad public inbox rows as `edit` and request named buyer, partnerships, deployment, or field-operations contacts with explicit source evidence.
-- Reject demand-sourced rows if they should not ask for capture/workflow input.
-
-# Downside / Risk
-
-Approving public or general inboxes may produce low reply rates or route to support/community teams instead of deployment buyers.
-
-Approval does not authorize pricing, legal, privacy, rights, permission, paid spend, readiness claims, hosted-review starts, reply claims, or live sends before sender and reply durability pass.
-
 # Evidence
 
 - `ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json`
 - `ops/paperclip/playbooks/exact-site-hosted-review-first-send-approval.template.json`
-- `ops/paperclip/playbooks/exact-site-hosted-review-human-recipient-evidence.public-inboxes.json`
-- `ops/paperclip/programs/exact-site-hosted-review-gtm-pilot-program.md`
-- `ops/paperclip/blueprint-company/tasks/exact-site-hosted-review-gtm-pilot/TASK.md`
-- `ops/paperclip/blueprint-company/tasks/exact-site-hosted-review-buyer-loop/TASK.md`
 - `ops/paperclip/programs/human-blocker-packet-standard.md`
 - `ops/paperclip/programs/human-reply-handling-contract.md`
 
-Current command evidence:
-
-- `npm run gtm:hosted-review:audit` reported `ready_with_warnings`, 30 targets, 30 recipient-backed targets, 30 approval-needed targets, 30 founder approval needed targets, 0 human-approved targets, 0 sent targets, 0 replies, and 0 hosted-review starts.
-- `npm run gtm:hosted-review:buyer-loop -- --allow-blocked` reported `loop_status: decision_due`, `durability_status: blocked`, 30 recipient-backed targets, 30 founder approval needed targets, 0 sent touches, 0 replies, 0 hosted-review starts, 0 qualified calls, 12 open blockers, and 100-touch decision gap.
-- `npm run gtm:send -- --dry-run --allow-blocked` reported `eligible: 0`, `sent: 0`, `dry_run_receipts: 0`, `skipped_approval: 30`, `skipped_no_recipient: 0`, `skipped_no_message: 0`, `skipped_already_sent: 0`, and `failed: 1` because all 30 drafts lack founder/operator approval.
-- `npm run gtm:first-send-approval:template` reported 30 approval rows, 0 recorded approvals, and live send blocked until founder decisions and reply durability pass.
-- `npm run gtm:first-send-approval:template -- --write` refreshed the approval template at `2026-05-24T01:55:29.162Z` with 30 approval rows, 30 proposed subjects, 30 proposed bodies, 27 prefilled demand handoff URLs, and 0 recorded approvals.
-
 # Non-Scope
 
-This packet does not authorize fake contacts, inferred emails, live sends, reply claims, hosted-review starts, city readiness claims, paid spend, pricing commitments, rights/privacy commitments, generated buyer proof, or applying approvals without explicit row-level decisions.
+This packet does not authorize fake contacts, inferred emails, live sends, reply claims, hosted-review starts, city readiness claims, paid spend, pricing commitments, rights/privacy commitments, generated buyer proof, provider calls, Stripe changes, Gmail polling, or live Paperclip mutation.
 
 # Channel Target
 
-Repo-local no-send artifact until the approved org-facing sender and reply watcher path are production-ready.
-
-When live human-gate dispatch is configured, use Slack DM to `Nijel Hunt` for speed and email to `ohstnhunt@gmail.com` for a durable trail. Never use `hlfabhunt@gmail.com`.
-
-# Routing Surface
-
-Repo-local no-send artifact plus the owning Paperclip issue or buyer-loop report. Email or Slack dispatch should only happen after the approved org-facing sender and reply watcher path are configured.
+Repo-local no-send artifact. When live human-gate dispatch is configured, use Slack DM to `Nijel Hunt` for speed and email to `ohstnhunt@gmail.com` for a durable trail. Never use `hlfabhunt@gmail.com`.
 
 # Watcher / Resume Owner
 

@@ -1,0 +1,51 @@
+{
+  "schema": "blueprint/autoagent-recursive-improvement-summary/v1",
+  "generated_at": "2026-05-29T15:10:51.359Z",
+  "dry_run": false,
+  "status": "promotion_held",
+  "selected_failure_family": "human_gate_or_reply_durability_blocker",
+  "selected_queue_item_id": "autoresearch:autoagent_eval:human_gate_or_reply_durability_blocker",
+  "generated_fixture_paths": [],
+  "offline_eval_result": {
+    "status": "passed",
+    "fixture_root": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/labs/autoagent/tasks",
+    "harbor_root": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/labs/autoagent/harbor",
+    "lanes": [
+      "support_triage"
+    ],
+    "total_cases": 4,
+    "total_failed": 0,
+    "negative_controls_blocked_count": 6,
+    "negative_controls_total": 6,
+    "generated_fixture_included": false,
+    "summary_path": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/latest/offline-eval-summary.json"
+  },
+  "negative_controls_blocked": true,
+  "promotion_decision": "hold",
+  "canary_decision": "not_run_promotion_hold",
+  "rollback_decision": "not_run",
+  "live_mutation_attempted": false,
+  "next_autonomous_action": "collect_required_promotion_evidence",
+  "retry_condition": "Retry after the promotion gate has required offline, closeout, shadow, and rollback evidence.",
+  "residual_risk": "clean shadow comparison summary is missing",
+  "high_risk_blockers": [],
+  "proof_paths": [
+    "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/latest/observer/summary.json",
+    "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/latest/observer/report.md",
+    "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/latest/promotion-queue.json",
+    "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/latest/promotion-queue.md",
+    "/Users/nijelhunt_1/workspace/Blueprint-WebApp/labs/autoagent/promotion-candidates/autoagent-to-paperclip-hermes-2026-05-28.json",
+    "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/latest/promotion-candidate-support_triage.json",
+    "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/latest/offline-eval-summary.json",
+    "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/latest/promotion-gate/promotion-packet.md"
+  ],
+  "command_outputs": [
+    "agent-improvement-observer(local-files): scanned=1500 candidates=8",
+    "autoresearch-promotion-queue(local): queued=5",
+    "write-autoresearch-fixture: status=skipped reason=Requested family human_gate_or_reply_durability_blocker is already covered or was not supplied.",
+    "recursive-improvement lane scope: lane=support_triage",
+    "offline AutoAgent eval runPipeline(exportLive=false,sample=3): cases=4 failed=0 negative_controls_blocked=6/6",
+    "prompt-policy-promotion-gate: decision=hold",
+    "prompt-policy-promotion-gate reason=clean shadow comparison summary is missing"
+  ]
+}

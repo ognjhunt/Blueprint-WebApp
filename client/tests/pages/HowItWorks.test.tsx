@@ -8,25 +8,25 @@ describe("HowItWorks", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Capture to world model\./i,
+        name: /Indoor capture to world model\./i,
       }),
     ).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /^Capture$/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /^Package$/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /^Run$/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /^Deliver$/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Review$/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Decide$/i })).toBeInTheDocument();
     expect(screen.getByText(/Real site\. Real route\. Real package\./i)).toBeInTheDocument();
-    expect(screen.getByText(/See the exact site before you start the sales motion\./i)).toBeInTheDocument();
+    expect(screen.getByText(/See the indoor site before field time\./i)).toBeInTheDocument();
     expect(
       screen
         .getAllByRole("link", { name: /Open sample world model/i })
         .some((link) => link.getAttribute("href") === "/world-models/siteworld-f5fd54898cfb"),
     ).toBe(true);
-    expect(screen.getByRole("link", { name: /View sample deliverables/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Request world model/i })).toHaveAttribute(
       "href",
-      "/proof",
+      expect.stringContaining("/contact?persona=robot-team"),
     );
-    expect(screen.queryByText(/What teams train and ship with this/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/Teams, robot agents, and Blueprint agents have different jobs\./i)).toBeInTheDocument();
     expect(screen.queryByText(/Proof stories/i)).not.toBeInTheDocument();
   });
 });

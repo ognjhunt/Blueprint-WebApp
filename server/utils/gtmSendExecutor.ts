@@ -5,6 +5,7 @@ import {
   auditExactSiteHostedReviewGtmLedger,
   hasExactSiteRecipientBackedEvidence,
   type ExactSiteGtmPilotLedger,
+  type ExactSiteGtmAuditResult,
   type ExactSiteGtmTarget,
 } from "./exactSiteHostedReviewGtmPilot";
 import { buildOutboundReplyDurabilityStatus } from "./outbound-reply-durability";
@@ -16,6 +17,18 @@ import { buildExactSiteFirstTouchReview } from "./exactSiteHostedReviewFirstTouc
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const DEFAULT_SEND_LEDGER_ROOT = path.join(REPO_ROOT, "ops/paperclip/reports/gtm-send-ledger");
+
+export type GtmSendGateSummary = {
+  recipientBackedTargets: number;
+  proofReadyOutreachTargets: number;
+  demandSourcedCaptureTargets: number;
+  proofArtifactsOrCaptureAsks: number;
+  approvalReadyTargets: number;
+  approvalBlockers: number;
+  replyDurabilityBlockedTargets: number;
+  staleNextActionTargets: number;
+  staleBlockerProjectionTargets: number;
+};
 
 export type GtmSendExecutionResult = {
   ledger: ExactSiteGtmPilotLedger;
@@ -29,6 +42,7 @@ export type GtmSendExecutionResult = {
     skippedAlreadySent: number;
     failed: number;
   };
+  gateSummary: GtmSendGateSummary;
   receipts: string[];
   errors: string[];
 };
@@ -156,6 +170,20 @@ function noEligibleSendNextActions(summary: GtmSendExecutionResult["summary"]) {
   return actions;
 }
 
+function buildGateSummary(audit: ExactSiteGtmAuditResult): GtmSendGateSummary {
+  return {
+    recipientBackedTargets: audit.summary.recipientBackedTargets,
+    proofReadyOutreachTargets: audit.summary.proofReadyTargets,
+    demandSourcedCaptureTargets: audit.summary.demandSourcedTargets,
+    proofArtifactsOrCaptureAsks: audit.summary.proofArtifactsOrCaptureAsks,
+    approvalReadyTargets: audit.summary.approvalReadyTargets,
+    approvalBlockers: audit.summary.founderApprovalNeededTargets,
+    replyDurabilityBlockedTargets: audit.summary.replyDurabilityBlockedTargets,
+    staleNextActionTargets: audit.summary.staleNextActionTargets,
+    staleBlockerProjectionTargets: audit.summary.staleBlockerProjectionTargets,
+  };
+}
+
 export async function executeGtmSends(input: {
   ledger: ExactSiteGtmPilotLedger;
   dryRun?: boolean;
@@ -191,6 +219,7 @@ export async function executeGtmSends(input: {
   };
 
   const audit = auditExactSiteHostedReviewGtmLedger(input.ledger);
+  const gateSummary = buildGateSummary(audit);
   if (!audit.ok) {
     return {
       ledger: input.ledger,
@@ -198,6 +227,7 @@ export async function executeGtmSends(input: {
         ...summary,
         failed: 1,
       },
+      gateSummary,
       receipts,
       errors: [
         "GTM ledger audit has errors; sends are blocked until audit passes.",
@@ -215,6 +245,7 @@ export async function executeGtmSends(input: {
         ...summary,
         failed: 1,
       },
+      gateSummary,
       receipts,
       errors: [
         `No eligible GTM sends: ${noEligibleSendReason(summary)}.`,
@@ -232,6 +263,7 @@ export async function executeGtmSends(input: {
           ...summary,
           failed: 1,
         },
+        gateSummary,
         receipts: [],
         errors: [
           "Outbound reply durability is blocked; run npm run human-replies:audit-durability for exact env gaps.",
@@ -293,6 +325,7 @@ export async function executeGtmSends(input: {
   return {
     ledger: input.ledger,
     summary,
+    gateSummary,
     receipts,
     errors,
   };

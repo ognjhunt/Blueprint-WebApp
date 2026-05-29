@@ -20,6 +20,7 @@ export type ExactSiteBuyerLoopSummary = {
   enrichmentContactFoundTargets: number;
   approvalReadyTargets: number;
   founderApprovalNeededTargets: number;
+  replyDurabilityBlockedTargets: number;
   sentTargets: number;
   replies: number;
   hostedReviewStarts: number;
@@ -35,7 +36,7 @@ export type ExactSiteBuyerLoopSummary = {
   daysElapsed: number;
   daysRemaining: number;
   dailyTouchTargetMin: number;
-  loopStatus: "blocked" | "warming" | "learning" | "decision_due";
+  loopStatus: "blocked" | "warming" | "approval_ready" | "reply_durability_blocked" | "learning" | "decision_due";
   durabilityStatus: "ready" | "blocked" | "unknown";
 };
 
@@ -184,6 +185,23 @@ function isOpenBlocker(blocker: ExactSiteGtmBlocker) {
   return blocker.status !== "resolved";
 }
 
+function isReplyDurabilityBlocker(blocker: ExactSiteGtmBlocker) {
+  if (!isOpenBlocker(blocker)) return false;
+  const haystack = [
+    blocker.id,
+    blocker.summary,
+    blocker.nextAction,
+  ].join(" ").toLowerCase();
+  return haystack.includes("reply-durability")
+    || haystack.includes("reply durability")
+    || haystack.includes("durable replies")
+    || haystack.includes("live replies");
+}
+
+function targetHasReplyDurabilityBlocker(target: ExactSiteGtmTarget) {
+  return (target.blockers ?? []).some(isReplyDurabilityBlocker);
+}
+
 function paperclipIssueLabel(
   blocker: ExactSiteGtmBlocker,
   paperclipIssues: ExactSiteGtmPaperclipIssueRef[] | undefined,
@@ -260,6 +278,7 @@ export function buildExactSiteHostedReviewBuyerLoopReport(input: {
   const enrichmentCandidateTargets = targets.filter((target) => (target.enrichment?.recipientCandidates ?? []).length > 0).length;
   const enrichmentContactFoundTargets = targets.filter((target) => target.enrichment?.status === "contact_found").length;
   const approvalReadyTargets = founderApprovalQueue.length;
+  const replyDurabilityBlockedTargets = targets.filter(targetHasReplyDurabilityBlocker).length;
   const paperclipLinkedBlockers = blockerQueue.filter((row) => row.paperclipIssue !== "missing").length;
   const daysElapsed = daysBetween(input.ledger.pilot.startDate, reportDate);
   const daysRemaining = Math.max(0, daysBetween(reportDate, input.ledger.pilot.endDate));
@@ -275,6 +294,10 @@ export function buildExactSiteHostedReviewBuyerLoopReport(input: {
       ? "decision_due"
       : organicSignal > 0
         ? "learning"
+        : approvalReadyTargets > 0
+          ? "approval_ready"
+          : replyDurabilityBlockedTargets > 0
+            ? "reply_durability_blocked"
         : recipientBackedTargets > 0
           ? "warming"
           : "blocked";
@@ -289,6 +312,7 @@ export function buildExactSiteHostedReviewBuyerLoopReport(input: {
     enrichmentContactFoundTargets,
     approvalReadyTargets,
     founderApprovalNeededTargets: founderApprovalQueue.length,
+    replyDurabilityBlockedTargets,
     sentTargets,
     replies,
     hostedReviewStarts,
@@ -333,7 +357,9 @@ export function buildExactSiteHostedReviewBuyerLoopReport(input: {
     `| Enrichment attempted targets | ${summary.enrichmentAttemptedTargets} |`,
     `| Enrichment candidate targets | ${summary.enrichmentCandidateTargets} |`,
     `| Enrichment contact-found targets | ${summary.enrichmentContactFoundTargets} |`,
+    `| Approval-ready targets | ${summary.approvalReadyTargets} |`,
     `| Founder approval needed | ${summary.founderApprovalNeededTargets} |`,
+    `| Reply-durability blocked targets | ${summary.replyDurabilityBlockedTargets} |`,
     `| Sent touches | ${summary.sentTargets} |`,
     `| Replies | ${summary.replies} |`,
     `| Hosted-review starts | ${summary.hostedReviewStarts} |`,
@@ -360,6 +386,18 @@ export function buildExactSiteHostedReviewBuyerLoopReport(input: {
     ...(contactQueue.length > 0
       ? contactQueue.slice(0, 30).map(targetListLine)
       : ["- no missing recipient-backed target rows in this view"]),
+    "",
+    "## Approval And Reply Gate Classification",
+    "",
+    `- classification: ${summary.loopStatus}`,
+    `- approval_ready_targets: ${summary.approvalReadyTargets}`,
+    `- reply_durability_blocked_targets: ${summary.replyDurabilityBlockedTargets}`,
+    summary.approvalReadyTargets > 0
+      ? "- approval_ready means recipient-backed drafts are waiting on explicit founder approve/edit/reject decisions; it does not authorize live sends."
+      : "- approval_ready means no recipient-backed drafts are currently waiting on founder first-send decisions.",
+    summary.replyDurabilityBlockedTargets > 0
+      ? "- reply_durability_blocked means first-send approval is recorded, but live send/reply durability is still blocked; target-level live reply/sender blockers also use this classification."
+      : "- reply_durability_blocked means no target-level live reply/sender blocker is projected in this view.",
     "",
     "## Founder First Send Batch",
     "",

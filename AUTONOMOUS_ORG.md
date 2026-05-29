@@ -1213,10 +1213,12 @@ Operator submission does not require a meeting, but private access, rights, priv
 |-------|-------|
 | **Department** | Growth |
 | **Reports to** | Growth Lead |
-| **Model** | Claude |
+| **Model** | Codex local |
 | **Status** | New |
 
 **Purpose:** Runs an autoresearch-style experiment loop on the webapp and capture app. Tests CTAs, onboarding flows, signup copy, pricing page layout, and any measurable surface.
+
+**Repo-side `/goal` posture:** Enabled only for bounded Blueprint-WebApp CRO work with an explicit page or flow, hypothesis, target metric, guardrail, rollback path, browser-verification target, and proof-bearing closeout. It must stop on missing baselines or sample-size plans, live analytics needs, deployment approval, payment/rights/privacy surfaces, unsupported public claims, or generated-visual execution that belongs with `webapp-codex`.
 
 **Autoresearch loop:**
 ```
@@ -1634,10 +1636,12 @@ Operator submission does not require a meeting, but private access, rights, priv
 |-------|-------|
 | **Department** | Engineering |
 | **Reports to** | CTO |
-| **Model** | Claude |
+| **Model** | Codex local |
 | **Status** | New |
 
 **Purpose:** Cross-repo documentation owner. Monitors code changes across all three repos and keeps capture guides, API docs, onboarding materials, PLATFORM_CONTEXT, AUTONOMOUS_ORG, and internal architecture docs in sync with reality. Every update is minimal and accuracy-focused.
+
+**Repo-side `/goal` posture:** Enabled only for bounded documentation accuracy work with an explicit target repo, doc path, section, and verification source. It can close from repo-local proof without live Paperclip, but must stop on unmerged behavior, ambiguous proof, unclear doc ownership, Notion mutation, live Paperclip repair, provider work, payment work, send work, or credential setup.
 
 **Why this is an agent (not just a PR checklist):** Docs drift silently. When capture-claude ships a new upload flow, docs-agent reads the diff, identifies which guides are affected, and makes the minimal accurate change. That requires understanding what changed, which audiences it affects, and what docs describe that behavior. Cross-repo reasoning over messy inputs.
 

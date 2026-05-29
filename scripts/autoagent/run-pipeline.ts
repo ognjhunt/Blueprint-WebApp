@@ -5,7 +5,12 @@ import { runBuild } from "./build-harbor-tasks.ts";
 import { evaluateLocalFixtures, type LocalEvalSummary } from "./local-evaluator.ts";
 import { seedCanonicalCases } from "./seed-canonical-cases.ts";
 
-type ExportLane = "waitlist_triage" | "support_triage" | "preview_diagnosis";
+type ExportLane =
+  | "waitlist_triage"
+  | "support_triage"
+  | "preview_diagnosis"
+  | "agent_failure_promotion";
+type LiveExportLane = Exclude<ExportLane, "agent_failure_promotion">;
 type DatasetSplit = "dev" | "holdout" | "shadow";
 type ExportMode = "offline_seed" | "live_export";
 
@@ -38,7 +43,7 @@ const DEFAULT_HARBOR_ROOT = path.resolve(
 
 function parseArgs(argv: string[]): PipelineOptions {
   const options: PipelineOptions = {
-    lanes: ["waitlist_triage", "support_triage", "preview_diagnosis"],
+    lanes: ["waitlist_triage", "support_triage", "preview_diagnosis", "agent_failure_promotion"],
     fixtureRoot: DEFAULT_FIXTURE_ROOT,
     harborRoot: DEFAULT_HARBOR_ROOT,
     maxPerLane: 250,
@@ -65,6 +70,7 @@ function parseArgs(argv: string[]): PipelineOptions {
               entry === "waitlist_triage"
               || entry === "support_triage"
               || entry === "preview_diagnosis"
+              || entry === "agent_failure_promotion"
             ) {
               return entry;
             }
@@ -120,6 +126,8 @@ function parseArgs(argv: string[]): PipelineOptions {
 
 function laneToFixtureDir(lane: ExportLane) {
   switch (lane) {
+    case "agent_failure_promotion":
+      return "agent-failure-promotion";
     case "waitlist_triage":
       return "waitlist-triage";
     case "support_triage":
@@ -194,15 +202,29 @@ export async function runPipeline(options: PipelineOptions) {
 
   if (options.exportLive) {
     const { runExport } = await import("./export-historical-cases.ts");
-    exportSummaries.push(
-      ...(await runExport({
-        lanes: options.lanes,
-        outputRoot: options.fixtureRoot,
-        maxPerLane: options.maxPerLane,
-        overwrite: options.overwrite,
-        since: options.since ?? null,
-      })),
-    );
+    const liveExportLanes = options.lanes.filter((lane): lane is LiveExportLane => lane !== "agent_failure_promotion");
+    if (liveExportLanes.length > 0) {
+      exportSummaries.push(
+        ...(await runExport({
+          lanes: liveExportLanes,
+          outputRoot: options.fixtureRoot,
+          maxPerLane: options.maxPerLane,
+          overwrite: options.overwrite,
+          since: options.since ?? null,
+        })),
+      );
+    }
+    if (options.lanes.includes("agent_failure_promotion")) {
+      exportSummaries.push({
+        lane: "agent_failure_promotion",
+        scanned: 0,
+        exported: 0,
+        skipped: 0,
+        skipReasons: {
+          live_export_skipped_offline_autoresearch_lane: 1,
+        },
+      });
+    }
   } else {
     for (const lane of options.lanes) {
       exportSummaries.push({
@@ -301,6 +323,17 @@ function printLocalEvalSummary(summary: LocalEvalSummary) {
       const penalties = failure.penalties.map((item) => item.reason).join(",");
       console.log(
         `  - failed ${failure.split}/${failure.caseId}: reward=${failure.reward.toFixed(2)} fields=${fields || "none"} penalties=${penalties || "none"}${schema}`,
+      );
+    }
+    for (const failure of laneSummary.negativeControlFailures.slice(0, 3)) {
+      const schema = failure.schemaErrors.length > 0
+        ? ` schema_errors=${failure.schemaErrors.join("; ")}`
+        : "";
+      const fields = failure.failures.map((item) => item.field).join(",");
+      const penalties = failure.penalties.map((item) => item.reason).join(",");
+      const description = failure.description ? ` description=${failure.description}` : "";
+      console.log(
+        `  - negative control passed unexpectedly ${failure.split}/${failure.caseId}/${failure.controlId}: reward=${failure.reward.toFixed(2)} fields=${fields || "none"} penalties=${penalties || "none"}${schema}${description}`,
       );
     }
   }

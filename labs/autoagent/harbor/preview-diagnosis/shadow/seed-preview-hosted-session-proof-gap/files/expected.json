@@ -1,0 +1,13 @@
+{
+  "automation_status": "blocked",
+  "block_reason_code": "hosted_session_proof_missing",
+  "retryable": false,
+  "queue": "hosted_session_proof_review",
+  "confidence": 0.89,
+  "requires_human_review": true,
+  "retry_recommended": false,
+  "disposition": "blocked_release_risk",
+  "next_action": "Require entitlement, runtime-session, or provider artifact evidence before claiming hosted-session fulfillment.",
+  "rationale": "Sample/demo text and runtime-adjacent routes are not hosted-session proof. Operational availability needs owning-system artifacts.",
+  "internal_summary": "Hosted-session proof cannot be inferred from public sample/demo material or route adjacency."
+}

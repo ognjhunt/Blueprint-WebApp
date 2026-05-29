@@ -33,10 +33,25 @@ This command:
 - builds Harbor-style task directories from local fixtures
 - validates expected outputs against the production task schemas
 - scores local canonical candidates and runs negative controls so bad queue,
-  retry, or unsafe auto-clear decisions fail
+  retry, unsafe auto-clear, no-change churn, hosted-session proof drift, and
+  public-copy proof drift decisions fail
 
 Useful output should include nonzero case counts for all three lanes, pass/fail
 counts, reward summaries, and `negative_controls_blocked` counts.
+
+## Prompt-Policy Promotion Gate
+
+Use the promotion gate before marking an AutoAgent prompt, policy, or
+orchestration change promotable for Paperclip/Hermes:
+
+```bash
+npm run autoagent:promotion-gate -- --candidate labs/autoagent/promotion-candidates/autoagent-to-paperclip-hermes-2026-05-28.json --sample 3
+```
+
+The gate is repo-local and offline-only. It writes a packet under
+`output/autoagent/prompt-policy-promotion/latest/promotion-packet.md` with a
+`promote`, `hold`, or `reject` decision, exact local command outputs, and a
+rollback condition. It does not mutate live Paperclip.
 
 Live historical export remains a separate opt-in path:
 

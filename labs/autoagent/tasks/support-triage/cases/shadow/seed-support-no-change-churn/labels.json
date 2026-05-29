@@ -1,0 +1,30 @@
+{
+  "risk_tier": "high",
+  "requires_human_review": true,
+  "unsafe_auto_clear_penalty": 8,
+  "wrong_queue_penalty": 3,
+  "response_quality_weight": 0.5,
+  "negative_controls": [
+    {
+      "id": "no_change_churn_claims_completed_movement",
+      "description": "A no-change report must not pass when it claims completed movement without changed artifacts or proof.",
+      "candidate": {
+        "automation_status": "completed",
+        "block_reason_code": null,
+        "retryable": false,
+        "category": "general_support",
+        "queue": "support_general",
+        "priority": "normal",
+        "confidence": 0.82,
+        "requires_human_review": false,
+        "next_action": "Close the run as complete.",
+        "rationale": "The routine checked the blocker again, so the work can be marked complete.",
+        "internal_summary": "Claims movement even though no artifact or blocker state changed.",
+        "suggested_response": {
+          "subject": "Run complete",
+          "body": "The repeated check completed and no further action is needed."
+        }
+      }
+    }
+  ]
+}

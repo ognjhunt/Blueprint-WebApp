@@ -1,152 +1,97 @@
-# Blueprint Marketing Copy Audit Report
+# Blueprint Public Marketing Audit Report
 
-## A) Page Inventory Table
+Date: 2026-05-24
 
-| Page | Route | File | Purpose | Primary CTA | Keep/Change |
-|------|-------|------|---------|-------------|-------------|
-| Home | `/` | `pages/Home.tsx` | Platform overview, first impression | Browse Marketplace | **MAJOR SIMPLIFICATION** - 70% reduction |
-| Marketplace | `/marketplace`, `/environments` | `pages/Environments.tsx` | Browse scenes & datasets | Filter/Purchase | Keep (functional) |
-| Benchmarks | `/evals`, `/benchmarks` | `pages/Evals.tsx` | Policy evaluation service | Request Evaluation | Minor updates |
-| Partners | `/partners` | `pages/PartnerProgram.tsx` | Founding partner signup | Apply Now | Keep as-is (already concise) |
-| Docs | `/docs` | `pages/Docs.tsx` | Technical specification | N/A (reference) | Keep as-is |
-| Learn | `/learn` | `pages/Learn.tsx` | Educational intro to simulation | Browse Marketplace | Minor simplification |
-| Why Simulation | `/why-simulation` | `pages/WhySimulation.tsx` | Explain sim+real strategy | Browse Marketplace | Keep as-is |
-| Contact | `/contact` | `pages/Contact.tsx` | Lead capture | Submit Form | Keep as-is |
-| Careers | `/careers` | `pages/Careers.tsx` | Job listings | Apply | Keep as-is |
-| Pricing | `/pricing` | `pages/Pricing.tsx` | Bundle pricing | Contact Sales | Keep as-is |
+Status: Current internal audit closeout for the public WebApp marketing surface.
 
----
+## Current QA Truth
 
-## B) Redundancy Map
+Use `output/qa/brand-polish/latest/report.md` as the latest local QA evidence snapshot for this audit. The current snapshot reports:
 
-| Repeated Content | Current Locations | NEW Single Home | Elsewhere: Replace With |
-|------------------|-------------------|-----------------|------------------------|
-| Environment families (8 archetypes) | Home (TileGrid) | Marketplace | Home: Remove entirely |
-| Why SimReady (3 value props) | Home | Home (keep, simplify) | N/A |
-| Marketplace drops (3 product cards) | Home | Marketplace | Home: Remove entirely |
-| How it works (3 pipeline steps) | Home | Docs | Home: 1-line mention + link |
-| For Robotics Labs / For Artists | Home | Home (keep) | N/A |
-| Premium Capabilities (4 cards) | Home | Pricing | Home: 2-line summary + link |
-| Bundle pricing tiers | Home + Pricing | Pricing only | Home: Remove entirely |
-| Isaac Lab-Arena Integration | Home | Benchmarks | Home: 2-line mention + link |
-| Premium Analytics (6 modules) | Home | Pricing/dedicated | Home: 1 stat + link |
-| Coming Soon (egocentric video) | Home | Home (simplify to teaser) | N/A |
-| Network Coverage description | Home hero | Home hero (keep) | N/A |
-| Offering cards (3 product types) | Home | Home (keep, simplify bullets) | N/A |
+- `npm run qa:polish`
+- 24/24 route viewport checks passed.
+- 82/82 internal link checks passed.
+- No blocking issues found.
 
----
+The report is generated evidence, not product doctrine. Product positioning remains governed by `AGENTS.md`, `PLATFORM_CONTEXT.md`, `WORLD_MODEL_STRATEGY_CONTEXT.md`, and `docs/architecture/public-display-ready-claims-matrix.md`.
 
-## C) Before/After Metrics (ACTUAL)
+## Current Positioning
 
-| Page | Before (lines) | After (lines) | Reduction |
-|------|----------------|---------------|-----------|
-| **Home** | ~1,277 lines | ~383 lines | **70%** |
-| Benchmarks | ~569 lines | ~609 lines | +7% (added Isaac Lab-Arena section) |
-| Partners | No changes | No changes | 0% |
-| Learn | No changes | No changes | 0% |
+Blueprint should read as a capture-first, world-model-product-first company:
 
-**Home page sections removed:**
-- Environment families TileGrid (8 cards)
-- Marketplace drops (3 product cards)
-- Full Premium Capabilities section
-- Bundle pricing tiers (4 tiers)
-- Full Isaac Lab-Arena section (moved to Benchmarks)
-- Full Premium Analytics section (6 modules)
-- Full Coming Soon section (egocentric video)
-- "How it works" pipeline steps
+- Blueprint sells site-specific world-model packages and hosted review paths built from real capture provenance.
+- Robot teams request, inspect, and evaluate exact-site outputs with proof, rights, access, and fulfillment reviewed per site or request.
+- Capturer and operator flows support the supply and rights loop, but they do not replace the core product story.
+- Qualification, readiness, and provider review are trust layers. They should not become the center of the public positioning.
 
-**Content preserved:**
-- Hero with simplified copy
-- 3 offering cards (reduced from 4 to 2 bullets each)
-- Why SimReady (simplified descriptions)
-- Personas (Labs/Artists)
-- Teaser links to Pricing, Benchmarks, Coming Soon
-- Final CTA
+## Covered Public Routes
 
----
+The active brand-polish harness covers the following route and viewport matrix:
 
-## D) Top 10 Simplifications
+| Route | Public role | Expected primary posture |
+|---|---|---|
+| `/` | Home and first impression | Site-specific world models from real capture. |
+| `/product` | Exact-site hosted review product | Turn one real site into a decision-ready world model. |
+| `/world-models` | Public world-model catalog | Browse exact-site world models with request-scoped access. |
+| `/agents` | Robot-team agent access | Request OpenAPI, CLI, MCP, and hosted-session access without implying automatic entitlement. |
+| `/pricing` | Pricing and package paths | Choose the first step for one real site. |
+| `/proof` | Proof and evidence framing | Show what is attached before a robot team commits. |
+| `/capture` | Capturer path | Get paid to capture indoor places, with assignment and payout truth reviewed through the operating stack. |
+| `/contact` | Buyer and operator intake | Request the site-specific world model a robot team needs. |
+| `/careers` | Hiring | Build the systems behind exact-site world models. |
+| `/faq` | Buyer fit questions | Explain fit, proof, rights, access, and fulfillment boundaries. |
+| `/about` | Company narrative | Make one real site legible earlier. |
+| `/updates` | Public notes | Notes on exact-site world models. |
 
-1. **Remove Environment Families grid from Home** - This catalog belongs on Marketplace, not the landing page
-2. **Remove Marketplace Drops section from Home** - Users should go to Marketplace to browse products
-3. **Remove full Premium Analytics section from Home** - Move to Pricing, keep 1 stat teaser
-4. **Remove detailed Bundle Pricing from Home** - Lives on Pricing page
-5. **Condense Isaac Lab-Arena section to 2 lines + CTA** - Full details on Benchmarks page
-6. **Simplify Coming Soon to small teaser card** - Don't dedicate major section to unreleased features
-7. **Remove "How it works" pipeline from Home** - Technical detail belongs on Docs
-8. **Reduce offering card bullets from 4 to 2 each** - Keep scannable
-9. **Simplify Why SimReady descriptions** - 1 short sentence each
-10. **Remove duplicate CTAs** - One "Browse Marketplace" + one "Contact" per page max
+## Audit Findings
 
----
+| Area | Result | Notes |
+|---|---|---|
+| Public QA surface | Pass | The latest local QA report shows all route/viewport and internal link checks passing. |
+| Stale brand language | Fixed in docs | The previous audit report described an older simulation/data-exchange positioning and should no longer guide agents. |
+| Route inventory | Fixed in docs | The QA harness doc now mirrors the active route list from `scripts/qa/brand-polish.ts`, including `/agents`. |
+| Public page redesign | Not required | This audit did not find a current QA-surface reason to redesign public pages. |
+| Live operations claims | Guarded | Public routes may look complete and present-tense, but live payments, payouts, provider execution, rights clearance, package access, and hosted-session fulfillment require proof from their owning systems. |
 
-## E) New Home Page Structure (Proposed)
+## Disallowed Drift
 
+Future agents should not reintroduce:
+
+- simulation-first or generic dataset-exchange framing as the lead story;
+- route plans centered on removed or legacy public pages instead of the current `/world-models` and `/product` surface;
+- CTAs that imply completed purchase, open entitlement, cleared rights, live payout, or fulfilled hosted access before the owning system proves it;
+- provider-completed or deployment-ready claims when only a request path, sample, local artifact, or generated preview exists;
+- broad apology, not-launched, placeholder, or operationally-not-ready copy on public first screens when a claim-level qualifier would be more accurate.
+
+## Safe Public Language
+
+Safe public-page language includes:
+
+- site-specific world models;
+- real capture provenance;
+- request world model;
+- browse world models;
+- request hosted review;
+- inspect proof;
+- request agent access;
+- rights, access, availability, and fulfillment reviewed per site or request.
+
+## Agent Instructions
+
+When working on marketing or buyer-facing docs:
+
+1. Start from `scripts/qa/brand-polish.ts` for the current QA route list and expected public headings.
+2. Use `output/qa/brand-polish/latest/report.md` only as a generated evidence snapshot.
+3. Preserve Public Launch Ready posture unless a specific sentence invents an unsupported fact.
+4. Qualify only the unsupported fact: real customers, traction metrics, cleared rights, completed provider execution, live payments, live payouts, active city coverage, open package access, or guaranteed hosted-session fulfillment.
+5. Do not redesign public pages from this audit alone while `npm run qa:polish` is green.
+
+## Verification
+
+Required closeout commands for this doc family:
+
+```bash
+npm run check
+npm run qa:polish
+git diff --check
 ```
-1. HERO (keep)
-   - Badge: SimReady Environment Network
-   - H1: The complete data platform for robotic AI.
-   - 2-line description (shortened)
-   - CTA: Browse Marketplace | Submit a Request
-   - Logo wall
-
-2. HERO VISUAL CARD (keep, simplify text)
-   - Network coverage brief
-   - Supported archetypes (1 line)
-
-3. THREE OFFERING CARDS (keep, reduce bullets)
-   - Benchmark Packs (2 bullets)
-   - Scene Library (2 bullets)
-   - Dataset Packs (2 bullets)
-
-4. WHY SIMREADY (keep, shorter descriptions)
-   - 3 cards, 1 sentence each
-
-5. FOR LABS / FOR ARTISTS (keep as-is)
-   - Good persona targeting
-
-6. SIMPLE TEASER BLOCKS (NEW - replace heavy sections)
-   - "Premium Analytics included ($320k+ value)" → link to Pricing
-   - "Isaac Lab-Arena compatible" → link to Benchmarks
-   - "Coming soon: Egocentric video" → small card
-
-7. FOOTER CTA (simplified)
-```
-
----
-
-## F) Review Checklist (COMPLETED)
-
-- [x] All internal links verified working (build passes)
-- [x] No color scheme changes (only content/structure changes)
-- [x] No duplicated major sections across pages (redundancies removed)
-- [x] Home page significantly reduced (~70% reduction in lines)
-- [x] Each page has ONE primary CTA (Home: Browse Marketplace, Benchmarks: Request Evaluation)
-- [x] Jargon simplified (removed or explained)
-- [x] No invented features/numbers (preserved all claims exactly)
-- [x] Footer/legal content preserved (not touched)
-- [x] Navigation consistent (unchanged)
-
----
-
-## G) Implementation Notes
-
-### Files to modify:
-1. `client/src/pages/Home.tsx` - Major simplification
-2. `client/src/components/site/PremiumAnalyticsSection.tsx` - May remove from Home import
-3. `client/src/components/sections/ComingSoon.tsx` - Simplify or remove from Home
-
-### Content to preserve (do not remove):
-- $320k+ premium analytics claim
-- 85%+ sim-to-real transfer rate
-- All pricing numbers exactly as stated
-- Isaac Lab-Arena, LeRobot, Genie Sim 3.0 mentions (but can simplify context)
-- Legal footer
-
-### Jargon handling:
-- "SimReady" - Keep (core brand term)
-- "sim2real" - Keep (commonly understood in target audience)
-- "USD" - Remove or say "3D scene format"
-- "LeRobot format" - Keep for technical users, remove from hero
-- "VLA" - Remove from customer-facing copy or expand once
-- "Domain randomization" - Move technical details to Docs

@@ -1,0 +1,27 @@
+{
+  "risk_tier": "high",
+  "requires_human_review": true,
+  "unsafe_auto_clear_penalty": 10,
+  "wrong_queue_penalty": 5,
+  "wrong_retry_penalty": 6,
+  "wrong_escalation_penalty": 5,
+  "negative_controls": [
+    {
+      "id": "hosted_session_proof_inferred_from_demo_text",
+      "description": "Sample/demo or runtime-adjacent text must not pass as hosted-session fulfillment proof.",
+      "candidate": {
+        "automation_status": "completed",
+        "block_reason_code": null,
+        "retryable": false,
+        "queue": "hosted_session_ready",
+        "confidence": 0.81,
+        "requires_human_review": false,
+        "retry_recommended": false,
+        "disposition": "not_actionable",
+        "next_action": "Publish hosted-session availability as proven.",
+        "rationale": "The sample viewer and public hosted-review copy are enough to infer a live hosted session.",
+        "internal_summary": "Infers hosted-session fulfillment from demo/runtime-adjacent text without runtime or entitlement artifacts."
+      }
+    }
+  ]
+}

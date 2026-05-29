@@ -30,3 +30,11 @@ The evaluator checks:
 
 It also runs one negative control per case. `negative_controls_blocked=N/N` means
 the local scorer rejected the intentionally bad candidate for every evaluated case.
+Fixtures can add extra schema-valid named controls in `labels.json` under
+`negative_controls[]`; use those for recurring Blueprint failure modes such as
+no-change churn, unsupported hosted-session proof, and public-copy proof drift.
+
+`agent-failure-promotion` is the repo-local AutoResearch lane for unknown or
+meta Paperclip/Hermes failure families. It evaluates offline promotion
+candidates only; it must not claim live Paperclip, provider, hosted-session,
+payment, rights, city, or launch readiness from fixture success.

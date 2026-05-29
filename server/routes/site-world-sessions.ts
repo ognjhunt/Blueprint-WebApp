@@ -12,7 +12,6 @@ import type {
   CreateHostedSessionRequest,
   HostedBatchSummary,
   HostedEpisodeSummary,
-  HostedSessionFailureDiagnostic,
   HostedSessionFailureOperation,
   HostedSessionMode,
   HostedSessionPendingOperation,
@@ -62,6 +61,15 @@ import {
   buildPresentationDemoReadiness,
   buildPresentationLaunchState,
 } from "../utils/hosted-session-launch-readiness";
+import {
+  appendCanonicalPackageMismatch,
+  buildFailureDiagnostic,
+  hostedAccessStatus,
+  hostedRuntimeEntitlementIds,
+  hostedSessionEntitlementIds,
+  isHostedAccessError,
+  selectLaunchReadinessBlockerCode,
+} from "../utils/hosted-session-route-helpers";
 
 const protectedRouter = Router();
 export const publicSiteWorldSessionsRouter = Router();
@@ -153,17 +161,6 @@ type HostedSessionLaunchAccess = HostedSessionAccessUser & {
   blockers: string[];
 };
 
-function isHostedAccessError(error: unknown) {
-  if (!(error instanceof HostedSessionRuntimeError)) {
-    return false;
-  }
-  return ["unauthorized", "forbidden", "entitlement_required", "session_access_denied"].includes(error.code);
-}
-
-function hostedAccessStatus(error: HostedSessionRuntimeError) {
-  return error.code === "unauthorized" ? 401 : 403;
-}
-
 function sendHostedAccessError(res: Response, error: unknown) {
   if (!isHostedAccessError(error)) {
     return false;
@@ -204,31 +201,6 @@ async function ensureRobotTeamOrAdminAccess(res: Response): Promise<HostedSessio
     email: firebaseUser.email || null,
     admin: false,
   };
-}
-
-function hostedSessionEntitlementIds(session: HostedSessionRecord | null | undefined) {
-  if (!session) {
-    return [];
-  }
-  return [
-    session.site.siteWorldId,
-    session.site.scene_id,
-    session.site.capture_id,
-    session.site.site_submission_id,
-    session.siteModel?.siteWorldId,
-    session.siteModel?.sceneId,
-    session.siteModel?.captureId,
-  ];
-}
-
-function hostedRuntimeEntitlementIds(runtime: Awaited<ReturnType<typeof resolveHostedRuntime>>, requestedSiteWorldId?: string | null) {
-  return [
-    requestedSiteWorldId,
-    runtime.siteWorldId,
-    runtime.scene_id,
-    runtime.capture_id,
-    runtime.site_submission_id,
-  ];
 }
 
 async function ensureLaunchAccess(
@@ -630,87 +602,6 @@ function buildSessionCreateResponse(record: HostedSessionRecord) {
     uiReady: record.presentationRuntime?.status === "live",
     uiMode: record.presentationRuntime?.status === "live" ? "embedded" : "redirect",
     workspaceUrl: buildWorkspaceUrl(record.site.siteWorldId, record.sessionId),
-  };
-}
-
-function summarizeDiagnosticText(detail: string) {
-  const firstLine = detail
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .find(Boolean);
-  return firstLine || detail.trim() || "Runtime request failed.";
-}
-
-function extractTraceback(detail?: string | null) {
-  const text = String(detail || "").trim();
-  const marker = text.indexOf("Traceback");
-  return marker >= 0 ? text.slice(marker).trim() : null;
-}
-
-function extractExitCode(detail?: string | null) {
-  const match = String(detail || "").match(/exit code\s+(\d+)/i);
-  return match ? Number(match[1]) : null;
-}
-
-function buildFailureDiagnostic(params: {
-  source: HostedSessionFailureDiagnostic["source"];
-  operation: HostedSessionFailureOperation;
-  error: unknown;
-  fallbackCode: string;
-  fallbackSummary: string;
-  statusCode?: number | null;
-}): HostedSessionFailureDiagnostic {
-  const knownError = params.error as
-    | (Error & { code?: string; detail?: string | null; statusCode?: number | null })
-    | undefined;
-  const detail = String(knownError?.detail || knownError?.message || params.fallbackSummary).trim();
-  return {
-    source: params.source,
-    operation: params.operation,
-    code: String(knownError?.code || params.fallbackCode),
-    summary: summarizeDiagnosticText(detail) || params.fallbackSummary,
-    detail,
-    traceback: extractTraceback(detail),
-    rawDetail: detail,
-    exitCode: extractExitCode(detail),
-    statusCode: knownError?.statusCode ?? params.statusCode ?? null,
-    occurredAt: nowIso(),
-  };
-}
-
-function buildCanonicalPackageMismatchDetail(session: HostedSessionRecord | null | undefined) {
-  const registered = String(
-    session?.siteModel?.registeredCanonicalPackageUri
-      || session?.launchContext.registeredCanonicalPackageUri
-      || "",
-  ).trim();
-  const resolved = String(
-    session?.siteModel?.resolvedArtifactCanonicalUri
-      || session?.launchContext.resolvedArtifactCanonicalUri
-      || "",
-  ).trim();
-
-  if (!registered || !resolved || registered === resolved) {
-    return null;
-  }
-
-  return `Canonical package mismatch detected. runtime_registered=${registered} resolved_artifact=${resolved}`;
-}
-
-function appendCanonicalPackageMismatch(
-  diagnostic: HostedSessionFailureDiagnostic,
-  session: HostedSessionRecord | null | undefined,
-) {
-  const mismatchDetail = buildCanonicalPackageMismatchDetail(session);
-  if (!mismatchDetail) {
-    return diagnostic;
-  }
-
-  const detail = [diagnostic.detail, mismatchDetail].filter(Boolean).join("\n");
-  return {
-    ...diagnostic,
-    detail,
-    rawDetail: detail,
   };
 }
 
@@ -2225,10 +2116,10 @@ publicSiteWorldSessionsRouter.post("/", async (req, res, next) => {
     const selectedReadiness =
       sessionMode === "presentation_demo" ? readiness.presentation_demo : readiness.runtime_only;
     if (!selectedReadiness.launchable) {
-      const primaryCode =
-        selectedReadiness.blocker_details.find((item) =>
-          sessionMode === "runtime_only" ? item.code === "runtime_handle_missing" : true,
-        )?.code || selectedReadiness.blocker_details[0]?.code || "session_not_launchable";
+      const primaryCode = selectLaunchReadinessBlockerCode({
+        sessionMode,
+        blockerDetails: selectedReadiness.blocker_details,
+      });
       return res.status(409).json({
         error: selectedReadiness.blockers.join(", "),
         code: primaryCode,
@@ -2894,10 +2785,10 @@ protectedRouter.post("/", async (req: Request, res: Response) => {
     const selectedReadiness =
       sessionMode === "presentation_demo" ? readiness.presentation_demo : readiness.runtime_only;
     if (!selectedReadiness.launchable) {
-      const primaryCode =
-        selectedReadiness.blocker_details.find((item) =>
-          sessionMode === "runtime_only" ? item.code === "runtime_handle_missing" : true,
-        )?.code || selectedReadiness.blocker_details[0]?.code || "session_not_launchable";
+      const primaryCode = selectLaunchReadinessBlockerCode({
+        sessionMode,
+        blockerDetails: selectedReadiness.blocker_details,
+      });
       return res.status(409).json({
         error: selectedReadiness.blockers.join(", "),
         code: primaryCode,

@@ -1,0 +1,17 @@
+{
+  "automation_status": "blocked",
+  "block_reason_code": "no_change_churn",
+  "retryable": true,
+  "category": "technical_issue",
+  "queue": "goal_closeout_review",
+  "priority": "high",
+  "confidence": 0.88,
+  "requires_human_review": true,
+  "next_action": "Classify as no_change and require proof before any completed movement claim.",
+  "rationale": "The closeout describes no changed artifact, no resolved blocker, and no new proof path, so it must not be treated as completed movement.",
+  "internal_summary": "No-change churn should be reported as unchanged work with a retry condition, not as progress.",
+  "suggested_response": {
+    "subject": "No-change closeout needs proof",
+    "body": "This closeout does not show completed movement. Keep it classified as no_change until a changed artifact or owning proof path exists."
+  }
+}

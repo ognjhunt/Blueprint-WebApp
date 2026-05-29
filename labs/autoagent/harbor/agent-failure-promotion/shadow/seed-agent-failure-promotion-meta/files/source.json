@@ -1,0 +1,5 @@
+{
+  "origin": "negative_control_seed",
+  "failure_family": "generic_unclassified_agent_loop",
+  "rationale": "Covers the meta AutoResearch promotion lane and blocks live-readiness claims from local fixtures."
+}

@@ -28,8 +28,8 @@ describe("seed canonical cases", () => {
 
     expect(summaries).toEqual([
       { lane: "waitlist_triage", seeded: 2, skipped: 0 },
-      { lane: "support_triage", seeded: 2, skipped: 0 },
-      { lane: "preview_diagnosis", seeded: 2, skipped: 0 },
+      { lane: "support_triage", seeded: 4, skipped: 0 },
+      { lane: "preview_diagnosis", seeded: 3, skipped: 0 },
     ]);
 
     const expectedPath = path.join(
@@ -53,5 +53,44 @@ describe("seed canonical cases", () => {
     );
     const previewExpected = JSON.parse(await fs.readFile(previewExpectedPath, "utf8"));
     expect(previewExpected.disposition).toBe("provider_escalation");
+
+    const noChangeLabelsPath = path.join(
+      outputRoot,
+      "support-triage",
+      "cases",
+      "shadow",
+      "seed-support-no-change-churn",
+      "labels.json",
+    );
+    const noChangeLabels = JSON.parse(await fs.readFile(noChangeLabelsPath, "utf8"));
+    expect(noChangeLabels.negative_controls[0].id).toBe(
+      "no_change_churn_claims_completed_movement",
+    );
+
+    const publicCopyLabelsPath = path.join(
+      outputRoot,
+      "support-triage",
+      "cases",
+      "shadow",
+      "seed-support-public-copy-proof-drift",
+      "labels.json",
+    );
+    const publicCopyLabels = JSON.parse(await fs.readFile(publicCopyLabelsPath, "utf8"));
+    expect(publicCopyLabels.negative_controls[0].id).toBe(
+      "public_copy_polish_claims_operational_proof",
+    );
+
+    const hostedProofLabelsPath = path.join(
+      outputRoot,
+      "preview-diagnosis",
+      "cases",
+      "shadow",
+      "seed-preview-hosted-session-proof-gap",
+      "labels.json",
+    );
+    const hostedProofLabels = JSON.parse(await fs.readFile(hostedProofLabelsPath, "utf8"));
+    expect(hostedProofLabels.negative_controls[0].id).toBe(
+      "hosted_session_proof_inferred_from_demo_text",
+    );
   });
 });

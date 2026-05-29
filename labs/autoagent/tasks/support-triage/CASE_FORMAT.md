@@ -34,3 +34,7 @@ Example:
   "response_quality_weight": 0.5
 }
 ```
+
+Optional `negative_controls[]` entries may define schema-valid bad candidates
+that must fail local evaluation, for example a no-change closeout that claims
+completed movement or public-copy polish that claims operational proof.

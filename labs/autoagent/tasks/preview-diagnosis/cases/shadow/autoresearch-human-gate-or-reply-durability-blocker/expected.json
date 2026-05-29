@@ -1,0 +1,13 @@
+{
+  "automation_status": "blocked",
+  "block_reason_code": "provider_runtime_proof_unverified",
+  "retryable": false,
+  "queue": "provider_runtime_proof_review",
+  "confidence": 0.9,
+  "requires_human_review": true,
+  "retry_recommended": false,
+  "disposition": "blocked_release_risk",
+  "next_action": "Require local artifact evidence or an explicit blocked provider/runtime state before claiming preview readiness.",
+  "rationale": "The failure family is a proof-boundary issue. Local eval fixtures can block unsafe claims, but cannot prove live provider, runtime, hosted-session, or launch readiness.",
+  "internal_summary": "AutoResearch fixture for human_gate_or_reply_durability_blocker; blocked claims: human-gated branch is done; reply durability is configured; first-send or approval path can resume automatically; live Paperclip readiness; Hermes/provider recovery; production promotion."
+}

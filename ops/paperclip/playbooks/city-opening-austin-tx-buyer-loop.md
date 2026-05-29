@@ -1,6 +1,6 @@
 # Exact-Site Hosted Review Buyer Loop
 
-- report_date: 2026-05-16
+- report_date: 2026-05-27
 - city: Austin, TX
 - ledger: ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json
 - loop_status: decision_due
@@ -16,7 +16,9 @@
 | Enrichment attempted targets | 1 |
 | Enrichment candidate targets | 1 |
 | Enrichment contact-found targets | 1 |
+| Approval-ready targets | 1 |
 | Founder approval needed | 1 |
+| Reply-durability blocked targets | 1 |
 | Sent touches | 0 |
 | Replies | 0 |
 | Hosted-review starts | 0 |
@@ -42,6 +44,14 @@
 
 - no missing recipient-backed target rows in this view
 
+## Approval And Reply Gate Classification
+
+- classification: decision_due
+- approval_ready_targets: 1
+- reply_durability_blocked_targets: 1
+- approval_ready means recipient-backed drafts are waiting on explicit founder approve/edit/reject decisions; it does not authorize live sends.
+- reply_durability_blocked means first-send approval is recorded, but live send/reply durability is still blocked; target-level live reply/sender blockers also use this classification.
+
 ## Founder First Send Batch
 
 - Founder action: approve, edit, or reject these recipient-backed drafts. This does not authorize live sends, pricing, rights, privacy, legal, permission, paid spend, or readiness claims.
@@ -49,7 +59,7 @@
 
 | Target | Recipient | Draft angle | CTA | Landing page | Review flag |
 | --- | --- | --- | --- | --- | --- |
-| gtm-001-simbe-retail-aisle-review: Simbe Robotics | sales@simberobotics.com | Offer /sample-evaluation as inspectable proof shape, then ask what exact site or workflow would be more useful. | Inspect the review, then name the more relevant site or workflow. | /sample-evaluation | public/general inbox |
+| gtm-001-simbe-retail-aisle-review: Simbe Robotics | sales@simberobotics.com | Invite the recipient to inspect a labeled exact-site hosted review, then ask what site or workflow would make the review more relevant. | Inspect the review, then name the more relevant site or workflow. | /sample-evaluation | public/general inbox; expect routing friction |
 
 ## First-Send Review Workflow
 
@@ -58,11 +68,33 @@
 - A successful approval apply still does not permit a live send until reply durability passes and live dispatch is separately authorized.
 - Rows marked edit or reject should keep a specific next action in the ledger before requesting approval again.
 
+## Founder Approval Copy Preview
+
+### gtm-001-simbe-retail-aisle-review: Simbe Robotics
+
+- recipient: sales@simberobotics.com
+- subject: Labeled exact-site review for Retail shelf-scanning robotics team
+- landing_page: /sample-evaluation
+- review_flags: public/general inbox; expect routing friction
+
+> Hi,
+> 
+> I am building Blueprint, a capture-backed way for robot teams to inspect real sites before committing people, simulation time, or deployment planning.
+> 
+> For Simbe Robotics, I saw this signal: Company publicly sells retail shelf-intelligence robots that operate in grocery and store aisles.
+> The closest current artifact is /sample-evaluation. It is representative proof shape, not Simbe Robotics' site, not a customer result, and not deployment proof.
+> 
+> Would it be useful to inspect it and tell me what exact site or workflow would make the review relevant for your retail shelf-scanning robotics team?
+> 
+> /sample-evaluation
+> 
+> Nijel
+
 ## Objection Handling
 
 | Target | Likely objection or review question | Evidence-safe response boundary |
 | --- | --- | --- |
-| gtm-001-simbe-retail-aisle-review: Simbe Robotics | If the sample is not close enough, ask for the exact site/workflow to capture next; do not call the sample a customer result. | Answer from the ledger row, linked artifact, and public page only; route pricing, rights, privacy, or capability exceptions back to human review. |
+| gtm-001-simbe-retail-aisle-review: Simbe Robotics | If they say the sample is not their site, ask for the exact workflow to capture next and keep the sample labeled as representative proof shape. | Answer from the ledger row, linked artifact, and public page only; route pricing, rights, privacy, or capability exceptions back to human review. |
 
 ## Proof Artifact Queue
 

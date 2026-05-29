@@ -24,7 +24,7 @@ describe("Proof page", () => {
       screen.getByRole("heading", { name: /See what is attached before your team commits\./i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/Blueprint proof keeps capture provenance, rights posture, package scope, hosted outputs/i),
+      screen.getByText(/Blueprint proof gives robot teams a concrete packet to inspect: indoor capture provenance, rights posture, package scope, hosted outputs/i),
     ).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Proof is a product capability\./i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /The public packet teaches the workflow\. The request packet proves one site\./i })).toBeInTheDocument();
@@ -67,7 +67,7 @@ describe("Proof page", () => {
     expect(screen.queryByText(/Austin, TX/i)).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /See what is attached before your team commits\./i })).toBeInTheDocument();
     expect(
-      screen.getByText(/Blueprint proof keeps capture provenance, rights posture, package scope, hosted outputs/i),
+      screen.getByText(/Blueprint proof gives robot teams a concrete packet to inspect: indoor capture provenance, rights posture, package scope, hosted outputs/i),
     ).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /Request world model/i })[0]).toHaveAttribute(
       "href",
@@ -83,7 +83,7 @@ describe("Proof page", () => {
     expect(screen.queryByText(/San Francisco, CA/i)).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /See what is attached before your team commits\./i })).toBeInTheDocument();
     expect(
-      screen.getByText(/Blueprint proof keeps capture provenance, rights posture, package scope, hosted outputs/i),
+      screen.getByText(/Blueprint proof gives robot teams a concrete packet to inspect: indoor capture provenance, rights posture, package scope, hosted outputs/i),
     ).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /Request world model/i })[0]).toHaveAttribute(
       "href",

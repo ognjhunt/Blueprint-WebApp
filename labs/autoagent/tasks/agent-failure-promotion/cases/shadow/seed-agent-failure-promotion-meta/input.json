@@ -1,0 +1,21 @@
+{
+  "case_id": "seed-agent-failure-promotion-meta",
+  "classified_cluster": {
+    "signature": {
+      "key": "generic_unclassified_agent_loop",
+      "title": "Unclassified recurring agent loop",
+      "category": "unknown"
+    },
+    "count": 2,
+    "agentKeys": [
+      "webapp-codex"
+    ],
+    "runIds": [
+      "run-seed-1",
+      "run-seed-2"
+    ],
+    "issueIdentifiers": [
+      "BLU-SEED"
+    ]
+  }
+}

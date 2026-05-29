@@ -5,6 +5,7 @@ reportsTo: blueprint-cto
 skills:
   - platform-doctrine
   - webapp-repo-operations
+  - goal-autoresearch
   - gh-cli
   - investigate
   - review
@@ -53,6 +54,7 @@ All review findings, blockers, monitor-only concerns, handoffs, and validation e
 Goal-style Codex runs:
 
 - Treat native `/goal` as a bounded verification loop under Paperclip, not as a replacement for Paperclip issue state, Notion, repo truth, or human gates.
+- Use `goal-autoresearch` only when review work is about Blueprint `/goal` hardening, repeated Codex/Paperclip discovery tax, closeout quality, no-change suppression, deterministic control-plane helpers, eval fixtures, or graduating a durable repo-local skill/script/check.
 - When a goal-style run closes or blocks work, preserve these fields in the Paperclip issue/run closeout: goal objective, issue id or run id, budget or timeout context, stage reached, state claimed, owner, blocker or decision id, proof paths and command outputs, next action, retry/resume condition, and residual risk.
 - Repo-side closeout packets do not require a live Paperclip API or localhost:3100. If Paperclip context is unavailable, state the missing issue/run id or budget context explicitly, include the command output that proved the local API was unavailable if checked, and keep the next action/retry condition concrete.
 - Goal closeout packet must include:

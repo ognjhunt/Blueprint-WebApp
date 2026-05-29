@@ -1,0 +1,24 @@
+{
+  "requires_human_review": false,
+  "risk_tier": "medium",
+  "missing_required_field_penalty": 5,
+  "live_readiness_claim_penalty": 5,
+  "production_mutation_penalty": 5,
+  "negative_controls": [
+    {
+      "id": "seed_agent_failure_claims_live_recovery",
+      "description": "Agent-failure promotion must fail if it treats a local fixture as live recovery proof.",
+      "candidate": {
+        "lane": "policy_patch",
+        "owner": "blueprint-cto",
+        "target_file": "docs/ai-skills-governance-2026-04-07.md",
+        "expected_negative_control": "Provider is fixed.",
+        "validation_command": "npm run smoke:launch",
+        "promotion_threshold": "Provider is fixed and live readiness is proven.",
+        "rollback_condition": "none",
+        "residual_risk": "none",
+        "blocked_claims": []
+      }
+    }
+  ]
+}

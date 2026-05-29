@@ -25,7 +25,7 @@ Run this when the control room changes:
 npm run paperclip:control-room:inventory
 ```
 
-The command parses the authored company package and renders adapter counts, goal eligibility, active/paused routines, routine cadence, declared monthly agent budget, unresolved desired-skill references after scanning company/repo/global/plugin skill roots, and local no-change/duplicate suppression surfaces. It is an inspection command only.
+The command parses the authored company package and renders adapter counts, goal eligibility, active/paused routines, routine cadence, declared monthly agent budget, desired-skill resolution after scanning company/repo/global/plugin skill roots, intentional non-local desired-skill deferrals, true missing desired skills, and local no-change/duplicate suppression surfaces. It is an inspection command only.
 
 Current authored inventory from `ops/paperclip/blueprint-company/.paperclip.yaml`:
 
@@ -34,13 +34,47 @@ Current authored inventory from `ops/paperclip/blueprint-company/.paperclip.yaml
 | Agents | 46 |
 | Hermes agents | 36 |
 | Codex agents | 10 |
+| Codex `/goal` enabled agents | 8 |
+| Codex `/goal` disabled agents | 2 |
 | Declared monthly agent budget | $1,115.00 |
-| Routines | 61 |
-| Active routines | 61 |
+| Routines | 62 |
+| Active routines | 62 |
 | Paused routines | 0 |
 | Routine concurrency policy | `coalesce_if_active` on all authored routines |
 | Routine catch-up policy | `skip_missed` on all authored routines |
 | Agents without `desiredSkills` | 0 |
+| Ambiguous desired-skill candidate gaps | 0 |
+| True missing desired skills | 0 |
+| Recursive improvement routine | `recursive-agent-improvement-loop` daily dry-run/report-only |
+
+## Desired Skill Resolution Policy
+
+The local inventory must not require live Paperclip to be useful. It classifies every desired skill reference into one of these buckets:
+
+| Bucket | Meaning | Action |
+|---|---|---|
+| Local repo/global/plugin skill | A scanned `SKILL.md` or skill markdown file exists under the company package, repo skill roots, user skill roots, or plugin cache. | Treat as locally resolved. |
+| Local alias mapping | The authored desired skill is a Blueprint/Paperclip alias for a scanned local/plugin skill. | Keep the alias mapping explicit in inventory output. |
+| Intentional company-library skill | The skill is assigned from the Paperclip company library and is not expected to exist as a repo-local `SKILL.md`. | Do not report as a gap in local inventory. Verify against live Paperclip only in a live sync/import task. |
+| Intentional runtime/tooling contract | The skill name refers to a slash-command/tooling behavior used by agent instructions, not a package skill file. | Keep it separate from company-library skills; only treat as blocked if a runtime execution task proves the command/tool is unavailable. |
+| True missing skill | The desired skill is neither local, mapped, company-library, nor intentional runtime/tooling. | Add a repo skill, add an alias mapping, classify it intentionally, or remove it from `.paperclip.yaml` and agent frontmatter. |
+
+Current local alias mappings:
+
+| Authored desired skill | Local/plugin skill |
+|---|---|
+| `browse` | `browser` |
+| `vercel-react-best-practices` | `react-best-practices` |
+
+Current intentional company-library desired skills:
+
+`ab-testing`, `ad-creative`, `ads`, `ai-seo`, `analytics`, `churn-prevention`, `co-marketing`, `cold-email`, `community-marketing`, `competitor-profiling`, `competitors`, `content-strategy`, `copy-editing`, `copywriting`, `cro`, `customer-research`, `directory-submissions`, `emails`, `launch`, `marketing-ideas`, `marketing-psychology`, `onboarding`, `paywalls`, `popups`, `pricing`, `product-marketing`, `programmatic-seo`, `referrals`, `revops`, `sales-enablement`, `schema`, `seo-audit`, `signup`, `site-architecture`, `social`, `web-design-guidelines`.
+
+Current intentional runtime/tooling desired skills:
+
+`benchmark`, `careful`, `cso`, `design-review`, `find-skills`, `gh-cli`, `investigate`, `land-and-deploy`, `office-hours`, `plan-ceo-review`, `plan-eng-review`, `qa`, `retro`, `review`, `ship`.
+
+These classifications make the control-room report actionable without weakening the source-of-truth boundary: local inventory can prove repo/plugin resolution and highlight true missing skills, while live Paperclip remains the authority for company-library import state.
 
 ## Control Paths
 
@@ -100,7 +134,7 @@ Control work should prefer repo-safe inspection first. Live sends, production Pa
 
 ## Goal Eligibility
 
-`paperclipGoalPromptEnabled` is reserved for bounded Codex implementation or verification lanes with proof-bearing closeout instructions.
+`paperclipGoalPromptEnabled` is reserved for bounded Codex implementation, verification, documentation accuracy, or CRO measurement/reversible page-flow lanes with proof-bearing closeout instructions. It is not a general authority flag for strategy, release orchestration, live Paperclip mutation, provider work, payment work, sends, or approval-gated production changes.
 
 | Agent | Adapter | `/goal` | Reason |
 |---|---|---:|---|
@@ -110,11 +144,13 @@ Control work should prefer repo-safe inspection first. Live sends, production Pa
 | `pipeline-review` | Codex | yes | Bounded Pipeline review and verification |
 | `capture-codex` | Codex | yes | Bounded Capture implementation and validation |
 | `capture-review` | Codex | yes | Bounded Capture review and verification |
+| `docs-agent` | Codex | yes | Bounded documentation accuracy work with explicit repo, doc path, section, and proof source; repo-side closeout does not require live Paperclip |
+| `conversion-agent` | Codex | yes | Bounded repo-local CRO measurement, instrumentation, and reversible page/flow work with explicit hypothesis, metric, guardrail, rollback, and browser proof; blocks on live analytics, approvals, payment, rights/privacy, or unsupported claim risk |
 | `blueprint-cto` | Codex | no | Broad strategy/delegation/architecture control lane |
-| `conversion-agent` | Codex | no | Growth experimentation and CRO ownership can cross strategy, analytics, design, and human-review boundaries |
 | `beta-launch-commander` | Codex | no | Release orchestration and go/hold recommendations, not an implementation worker |
-| `docs-agent` | Codex | no | Cross-repo documentation freshness sweeps, not a bounded proof loop by default |
 | Hermes lanes | Hermes | no | Strategy, research, ops, growth, buyer, rights, and workspace lanes stay Paperclip-routine controlled unless separately scoped and approved |
+
+`blueprint-cto` and `beta-launch-commander` remain conservative because their authority is broad by design: cross-repo architecture/delegation and release go/hold judgment cannot be reduced to a narrow repo-local stop rule without moving approval and ownership boundaries.
 
 Guardrail tests now assert that every goal-enabled lane is Codex, has the standard closeout labels, names the allowed states, and says adapter success is not completion.
 
@@ -141,6 +177,7 @@ Observed or estimated spend and waste signals live in code/runtime surfaces:
 
 - `npm run agent:cost-cache-report` summarizes cache hit ratio, estimated cost, no-change completed work, and duplicate suppression.
 - `server/utils/agentCostTelemetry.ts` emits `low_cache_high_prompt`, `no_change_completed`, and `duplicate_suppressed` waste signals.
+- `recursive-agent-improvement-loop` runs `npm run autoagent:recursive-improve -- --dry-run`, writes `output/autoagent/recursive-improvement/latest/report.md`, and classifies repeat no-change output as `no_change_report_only` instead of opening duplicate follow-ups.
 - `server/agents/runtime.ts` suppresses duplicate active session messages with `duplicate_active_run`.
 - `ops/paperclip/plugins/blueprint-automation/src/worker.ts` merges duplicate blocker follow-ups.
 - All authored routines use `coalesce_if_active` and `skip_missed`, so the package is designed to suppress overlapping routine churn.

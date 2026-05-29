@@ -33,6 +33,9 @@ if (firehoseConfig) {
 
 const app = express();
 const isProduction = process.env.NODE_ENV === "production";
+const disableOpsAutomationScheduler =
+  process.env.BLUEPRINT_DISABLE_OPS_AUTOMATION_SCHEDULER === "1" ||
+  process.env.VITE_BLUEPRINT_OPERATOR_QA_FAKE_AUTH === "1";
 
 const noIndexPathPatterns = [
   /^\/admin(?:\/|$)/,
@@ -401,7 +404,15 @@ app.use((req, res, next) => {
   }
 
   const PORT = env.PORT;
-  const stopOpsAutomationScheduler = startOpsAutomationScheduler();
+  const stopOpsAutomationScheduler = disableOpsAutomationScheduler
+    ? () => undefined
+    : startOpsAutomationScheduler();
+  if (disableOpsAutomationScheduler) {
+    logger.info(
+      attachRequestMeta({ route: "ops-automation-scheduler" }),
+      "Ops automation scheduler disabled for local QA",
+    );
+  }
   server.on("close", () => {
     stopOpsAutomationScheduler();
   });

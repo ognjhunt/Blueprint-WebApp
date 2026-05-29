@@ -34,3 +34,7 @@ Example:
   "wrong_escalation_penalty": 5.0
 }
 ```
+
+Optional `negative_controls[]` entries may define schema-valid bad candidates
+that must fail local evaluation, for example inferring hosted-session proof from
+sample/demo copy or runtime-adjacent text without entitlement/runtime artifacts.

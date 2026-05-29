@@ -95,6 +95,22 @@ function ledger(): ExactSiteGtmPilotLedger {
 describe("Exact-Site Hosted Review buyer loop report", () => {
   it("turns the GTM ledger into the daily city-launch buyer dashboard", () => {
     const pilotLedger = ledger();
+    pilotLedger.targets[0].blockers = [
+      {
+        id: "gtm-blocker-buyer-reply-durability",
+        status: "blocked",
+        summary: "Buyer sends and replies cannot be treated as production-durable.",
+        owner: "growth-lead",
+        nextAction: "Set sender verification and Gmail watcher credentials before counting live replies as durable.",
+        paperclipIssueIdentifier: "BLU-5393",
+      },
+    ];
+    pilotLedger.targets[0].paperclipIssues = [
+      {
+        identifier: "BLU-5393",
+        blockerIds: ["gtm-blocker-buyer-reply-durability"],
+      },
+    ];
     const audit = auditExactSiteHostedReviewGtmLedger(pilotLedger);
     const report = buildExactSiteHostedReviewBuyerLoopReport({
       ledger: pilotLedger,
@@ -108,11 +124,17 @@ describe("Exact-Site Hosted Review buyer loop report", () => {
     expect(report.summary.targetRows).toBe(2);
     expect(report.summary.recipientBackedTargets).toBe(1);
     expect(report.summary.founderApprovalNeededTargets).toBe(1);
+    expect(report.summary.approvalReadyTargets).toBe(1);
+    expect(report.summary.replyDurabilityBlockedTargets).toBe(1);
     expect(report.summary.captureAsks).toBe(1);
-    expect(report.summary.openBlockers).toBe(1);
-    expect(report.summary.paperclipLinkedBlockers).toBe(1);
+    expect(report.summary.openBlockers).toBe(2);
+    expect(report.summary.paperclipLinkedBlockers).toBe(2);
     expect(report.summary.decisionTouchGap).toBe(100);
+    expect(report.summary.loopStatus).toBe("approval_ready");
     expect(report.markdown).toContain("## Founder First Send Batch");
+    expect(report.markdown).toContain("## Approval And Reply Gate Classification");
+    expect(report.markdown).toContain("approval_ready_targets: 1");
+    expect(report.markdown).toContain("reply_durability_blocked_targets: 1");
     expect(report.markdown).toContain("## First-Send Review Workflow");
     expect(report.markdown).toContain("## Objection Handling");
     expect(report.markdown).toContain("Landing page");
@@ -122,6 +144,53 @@ describe("Exact-Site Hosted Review buyer loop report", () => {
     expect(report.markdown).toContain("Founder approves, edits, or rejects this recipient-backed draft before any live send.");
     expect(report.markdown).toContain("Robot-team pages should drive exactly two buyer actions");
     expect(report.markdown).toContain("After 100 touches or at day 14");
+  });
+
+  it("classifies approved recipient-backed rows as reply-durability-blocked instead of approval-ready", () => {
+    const pilotLedger = ledger();
+    pilotLedger.targets[0].outbound = {
+      status: "human_approved",
+      approvalState: "approved",
+      approvedBy: "Nijel Hunt",
+      approvedAt: "2026-04-28T15:00:00.000Z",
+      messagePath: "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md",
+    };
+    pilotLedger.targets[0].sales = {
+      nextAction: "Run GTM send preflight only after reply durability passes.",
+      nextActionOwner: "growth-lead",
+    };
+    pilotLedger.targets[0].blockers = [
+      {
+        id: "gtm-blocker-buyer-reply-durability",
+        status: "blocked",
+        summary: "Buyer sends and replies cannot be treated as production-durable.",
+        owner: "growth-lead",
+        nextAction: "Set sender verification and Gmail watcher credentials before counting live replies as durable.",
+        paperclipIssueIdentifier: "BLU-5393",
+      },
+    ];
+    pilotLedger.targets[0].paperclipIssues = [
+      {
+        identifier: "BLU-5393",
+        blockerIds: ["gtm-blocker-buyer-reply-durability"],
+      },
+    ];
+    const audit = auditExactSiteHostedReviewGtmLedger(pilotLedger);
+    const report = buildExactSiteHostedReviewBuyerLoopReport({
+      ledger: pilotLedger,
+      audit,
+      ledgerPath: "/repo/ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json",
+      city: "Durham, NC",
+      reportDate: "2026-04-28",
+      durability: null,
+    });
+
+    expect(report.summary.approvalReadyTargets).toBe(0);
+    expect(report.summary.founderApprovalNeededTargets).toBe(0);
+    expect(report.summary.replyDurabilityBlockedTargets).toBe(1);
+    expect(report.summary.loopStatus).toBe("reply_durability_blocked");
+    expect(report.markdown).toContain("- classification: reply_durability_blocked");
+    expect(report.markdown).toContain("first-send approval is recorded, but live send/reply durability is still blocked");
   });
 
   it("keeps invalid or unevidenced emails out of recipient-backed and founder approval counts", () => {

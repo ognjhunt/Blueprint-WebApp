@@ -1,0 +1,23 @@
+{
+  "requestId": "autoresearch-human-gate-or-reply-durability-blocker",
+  "siteWorldId": "classified-runtime-family",
+  "preview_status": "blocked_proof_review",
+  "provider_name": "classified_provider_or_runtime",
+  "provider_model": null,
+  "provider_run_id": null,
+  "failure_reason": "Classified failure family human_gate_or_reply_durability_blocker: Add a human-gate closeout check that requires blocker id, routing surface, watcher owner, and exact resume condition before claiming blocked or awaiting-human.. Do not infer human-gated branch is done, reply durability is configured, first-send or approval path can resume automatically, live Paperclip readiness, Hermes/provider recovery, production promotion from local reports without owning runtime/provider artifacts.",
+  "preview_manifest_uri": null,
+  "worldlabs_operation_manifest_uri": null,
+  "worldlabs_world_manifest_uri": null,
+  "autoresearch_context": {
+    "failure_family": "human_gate_or_reply_durability_blocker",
+    "blocked_claims": [
+      "human-gated branch is done",
+      "reply durability is configured",
+      "first-send or approval path can resume automatically",
+      "live Paperclip readiness",
+      "Hermes/provider recovery",
+      "production promotion"
+    ]
+  }
+}

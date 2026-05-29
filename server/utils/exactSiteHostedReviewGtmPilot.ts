@@ -209,7 +209,11 @@ export interface ExactSiteGtmAuditResult {
     enrichmentBlockedTargets: number;
     staleEnrichmentTargets: number;
     approvalNeededTargets: number;
+    approvalReadyTargets: number;
     founderApprovalNeededTargets: number;
+    replyDurabilityBlockedTargets: number;
+    staleNextActionTargets: number;
+    staleBlockerProjectionTargets: number;
     sentTargets: number;
     explicitNextActionTargets: number;
     closureStateTargets: number;
@@ -375,6 +379,66 @@ function targetHasExplicitBlocker(target: ExactSiteGtmTarget): boolean {
       && hasMeaningfulString(blocker.summary)
       && hasMeaningfulString(blocker.nextAction),
   );
+}
+
+function isRecipientBackedApprovalReadyTarget(target: ExactSiteGtmTarget): boolean {
+  return target.outbound?.status === "draft_ready"
+    && target.outbound.approvalState === "pending_first_send_approval"
+    && hasExactSiteRecipientBackedEvidence(target);
+}
+
+function isReplyDurabilityBlocker(blocker: ExactSiteGtmBlocker): boolean {
+  if (!isOpenBlocker(blocker)) return false;
+  const haystack = [
+    blocker.id,
+    blocker.summary,
+    blocker.nextAction,
+  ].join(" ").toLowerCase();
+  return haystack.includes("reply-durability")
+    || haystack.includes("reply durability")
+    || haystack.includes("durable replies")
+    || haystack.includes("live replies");
+}
+
+function targetHasReplyDurabilityBlocker(target: ExactSiteGtmTarget): boolean {
+  return (target.blockers ?? []).some(isReplyDurabilityBlocker);
+}
+
+function targetHasStaleRecipientEvidenceNextAction(target: ExactSiteGtmTarget): boolean {
+  if (!hasExactSiteRecipientBackedEvidence(target)) return false;
+  const nextAction = asString(target.sales?.nextAction).toLowerCase();
+  return nextAction.includes("find explicit recipient-backed contact evidence")
+    || nextAction.includes("run the gtm enrichment waterfall to find explicit recipient-backed contact evidence");
+}
+
+function isResolvedPaperclipIssueStatus(value: unknown): boolean {
+  const status = asString(value).toLowerCase();
+  return ["resolved", "closed", "done", "completed"].includes(status);
+}
+
+function matchingPaperclipIssueForBlocker(
+  blocker: ExactSiteGtmBlocker,
+  paperclipIssues: ExactSiteGtmPaperclipIssueRef[] | undefined,
+): ExactSiteGtmPaperclipIssueRef | undefined {
+  return (paperclipIssues ?? []).find((issue) => {
+    if ((issue.blockerIds ?? []).includes(blocker.id)) return true;
+    if (hasMeaningfulString(blocker.paperclipIssueIdentifier) && issue.identifier === blocker.paperclipIssueIdentifier) {
+      return true;
+    }
+    if (hasMeaningfulString(blocker.paperclipIssueId) && issue.id === blocker.paperclipIssueId) {
+      return true;
+    }
+    return false;
+  });
+}
+
+function targetHasStaleBlockerProjection(target: ExactSiteGtmTarget): boolean {
+  return (target.blockers ?? []).some((blocker) => {
+    if (isOpenBlocker(blocker)) return false;
+    const issue = matchingPaperclipIssueForBlocker(blocker, target.paperclipIssues);
+    if (!issue || !hasMeaningfulString(issue.status)) return false;
+    return !isResolvedPaperclipIssueStatus(issue.status);
+  });
 }
 
 function targetHasClosureState(target: ExactSiteGtmTarget): boolean {
@@ -827,6 +891,23 @@ export function auditExactSiteHostedReviewGtmLedger(
     openTargetBlockers += targetBlockers.open;
     paperclipLinkedTargetBlockers += targetBlockers.paperclipLinked;
 
+    if (targetHasStaleRecipientEvidenceNextAction(target)) {
+      addFinding(
+        findings,
+        "warning",
+        `${basePath}.sales.nextAction`,
+        "Recipient-backed approval-ready target still has a stale recipient-evidence next action.",
+      );
+    }
+    if (targetHasStaleBlockerProjection(target)) {
+      addFinding(
+        findings,
+        "warning",
+        `${basePath}.paperclipIssues`,
+        "Resolved blocker still points at a non-resolved Paperclip issue projection.",
+      );
+    }
+
     for (const [contentIndex, content] of (target.contentLoop ?? []).entries()) {
       if (!hasMeaningfulString(content.draftPath)) {
         addFinding(findings, "error", `${basePath}.contentLoop[${contentIndex}].draftPath`, "Content draft path is required.");
@@ -940,11 +1021,15 @@ export function auditExactSiteHostedReviewGtmLedger(
   const approvalNeededTargets = targets.filter((target) =>
     target.outbound?.status === "draft_ready" && hasExactSiteRecipientBackedEvidence(target),
   ).length;
+  const approvalReadyTargets = targets.filter(isRecipientBackedApprovalReadyTarget).length;
   const founderApprovalNeededTargets = targets.filter((target) =>
     target.outbound?.status === "draft_ready"
     && hasExactSiteRecipientBackedEvidence(target)
     && target.outbound.approvalState !== "approved",
   ).length;
+  const replyDurabilityBlockedTargets = targets.filter(targetHasReplyDurabilityBlocker).length;
+  const staleNextActionTargets = targets.filter(targetHasStaleRecipientEvidenceNextAction).length;
+  const staleBlockerProjectionTargets = targets.filter(targetHasStaleBlockerProjection).length;
   const sentTargets = targets.filter((target) =>
     ["sent", "replied", "hosted_review_started", "closed"].includes(target.outbound?.status),
   ).length;
@@ -985,7 +1070,11 @@ export function auditExactSiteHostedReviewGtmLedger(
     enrichmentBlockedTargets,
     staleEnrichmentTargets,
     approvalNeededTargets,
+    approvalReadyTargets,
     founderApprovalNeededTargets,
+    replyDurabilityBlockedTargets,
+    staleNextActionTargets,
+    staleBlockerProjectionTargets,
     sentTargets,
     explicitNextActionTargets,
     closureStateTargets,
@@ -1129,7 +1218,11 @@ export function renderExactSiteHostedReviewGtmAuditMarkdown(
     `- enrichment blocked/exhausted targets: ${result.summary.enrichmentBlockedTargets}`,
     `- stale enrichment targets: ${result.summary.staleEnrichmentTargets}`,
     `- approval-needed targets: ${result.summary.approvalNeededTargets}`,
+    `- approval-ready targets: ${result.summary.approvalReadyTargets}`,
     `- founder approval needed targets: ${result.summary.founderApprovalNeededTargets}`,
+    `- reply-durability blocked targets: ${result.summary.replyDurabilityBlockedTargets}`,
+    `- stale next-action targets: ${result.summary.staleNextActionTargets}`,
+    `- stale blocker projection targets: ${result.summary.staleBlockerProjectionTargets}`,
     `- sent targets: ${result.summary.sentTargets}`,
     `- explicit next-action targets: ${result.summary.explicitNextActionTargets}`,
     `- closure-state targets: ${result.summary.closureStateTargets}`,

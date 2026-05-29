@@ -9,6 +9,7 @@ function usage() {
       "Usage:",
       "  npm run alpha:env",
       "  npm run alpha:env -- <env-file>",
+      "  npm run alpha:env -- --require-ready",
       "",
       "Examples:",
       "  npm run alpha:env",
@@ -20,8 +21,14 @@ function usage() {
 
 function parseArgs(argv) {
   let envFile = null;
+  let requireReady = false;
 
   for (const arg of argv) {
+    if (arg === "--require-ready") {
+      requireReady = true;
+      continue;
+    }
+
     if (!arg.startsWith("-") && !envFile) {
       envFile = path.resolve(process.cwd(), arg);
       continue;
@@ -30,7 +37,7 @@ function parseArgs(argv) {
     throw new Error(`Unknown argument: ${arg}`);
   }
 
-  return { envFile };
+  return { envFile, requireReady };
 }
 
 function stripWrappingQuotes(value) {
@@ -118,8 +125,8 @@ const checks = [
   },
   {
     label: "Structured runtime provider",
-    ok: hasAny("OPENAI_API_KEY", "ANTHROPIC_API_KEY", "ACP_HARNESS_URL"),
-    required: ["OPENAI_API_KEY | ANTHROPIC_API_KEY | ACP_HARNESS_URL"],
+    ok: hasAny("DEEPSEEK_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "ACP_HARNESS_URL"),
+    required: ["DEEPSEEK_API_KEY | OPENAI_API_KEY | ANTHROPIC_API_KEY | ACP_HARNESS_URL"],
   },
   {
     label: "Stripe checkout + payout wiring",
@@ -224,8 +231,61 @@ const recommendedChecks = [
   },
 ];
 
+function configuredProviderKeys() {
+  return [
+    "DEEPSEEK_API_KEY",
+    "OPENAI_API_KEY",
+    "ANTHROPIC_API_KEY",
+    "ACP_HARNESS_URL",
+    "OPENROUTER_API_KEY",
+    "ELEVENLABS_API_KEY",
+    "TWILIO_ACCOUNT_SID",
+    "HIGGSFIELD_API_KEY",
+  ].filter((key) => Boolean(envValue(key)));
+}
+
+function buildNeedsHumanChecks() {
+  const needsHuman = [];
+  const senderEmail = envValue("BLUEPRINT_CITY_LAUNCH_FROM_EMAIL", "SENDGRID_FROM_EMAIL");
+  const senderVerification = envValue("BLUEPRINT_CITY_LAUNCH_SENDER_VERIFICATION").toLowerCase();
+  if (senderEmail && senderVerification !== "verified") {
+    needsHuman.push({
+      label: "City-launch sender verification",
+      detail:
+        "Sender env is present, but local env cannot prove provider-side domain/sender verification. Confirm in the mail provider and set BLUEPRINT_CITY_LAUNCH_SENDER_VERIFICATION=verified.",
+    });
+  }
+
+  const providerKeys = configuredProviderKeys();
+  if (providerKeys.length > 0) {
+    needsHuman.push({
+      label: "Provider billing/OAuth/live-call verification",
+      detail:
+        `Configured provider env detected (${providerKeys.join(", ")}). This local audit does not call paid providers; verify account, billing, OAuth, and quota state in the owning provider before claiming Operational Launch Ready.`,
+    });
+  }
+
+  return needsHuman;
+}
+
+function renderChecklistRows(rows) {
+  if (rows.length === 0) {
+    console.log("- none");
+    return;
+  }
+  for (const row of rows) {
+    console.log(`- ${row.label}`);
+    if (row.required?.length) {
+      console.log(`  Env: ${row.required.join(", ")}`);
+    }
+    if (row.detail) {
+      console.log(`  Detail: ${row.detail}`);
+    }
+  }
+}
+
 function main() {
-  const { envFile } = parseArgs(process.argv.slice(2));
+  const { envFile, requireReady } = parseArgs(process.argv.slice(2));
 
   if (envFile) {
     const loadedCount = loadEnvFileIntoProcess(envFile);
@@ -233,27 +293,35 @@ function main() {
     console.log("");
   }
 
-console.log("Autonomous alpha env audit");
-console.log("");
-console.log("Required");
-for (const check of checks) {
-  console.log(`- [${check.ok ? "x" : " "}] ${check.label}`);
-  if (!check.ok) {
-    console.log(`  Missing: ${check.required.join(", ")}`);
-  }
-}
+  const requiredReady = checks.filter((check) => check.ok);
+  const blockedByEnv = checks.filter((check) => !check.ok);
+  const recommendedMissing = recommendedChecks.filter((check) => !check.ok);
+  const needsHuman = buildNeedsHumanChecks();
 
-console.log("");
-console.log("Recommended");
-for (const check of recommendedChecks) {
-  console.log(`- [${check.ok ? "x" : " "}] ${check.label}`);
-  if (!check.ok) {
-    console.log(`  Missing: ${check.required.join(", ")}`);
-  }
-}
+  console.log("Autonomous alpha env audit");
+  console.log("Operator provider readiness report");
+  console.log("");
+  console.log("Scope: local env/config inspection only. This report does not configure providers, call paid APIs, deploy, send, or mutate live systems.");
+  console.log("");
+  console.log("Required-ready");
+  renderChecklistRows(requiredReady);
+  console.log("");
+  console.log("Blocked-by-env");
+  renderChecklistRows(blockedByEnv);
+  console.log("");
+  console.log("Recommended-missing");
+  renderChecklistRows(recommendedMissing);
+  console.log("");
+  console.log("Needs-human");
+  renderChecklistRows(needsHuman);
 
-const missingRequired = checks.filter((check) => !check.ok).length;
-process.exit(missingRequired === 0 ? 0 : 1);
+  if (requireReady && blockedByEnv.length > 0) {
+    console.log("");
+    console.log("Hard gate: failing because required runtime readiness is blocked by local env.");
+    process.exit(1);
+  }
+
+  process.exit(0);
 }
 
 try {

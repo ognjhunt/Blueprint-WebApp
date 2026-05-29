@@ -9,9 +9,11 @@ import yaml from "js-yaml";
 const DEFAULT_COMPANY_CONFIG = path.resolve("ops/paperclip/blueprint-company/.paperclip.yaml");
 const DEFAULT_COMPANY_SKILLS_ROOT = path.resolve("ops/paperclip/blueprint-company/skills");
 const DEFAULT_REPO_SKILLS_ROOT = path.resolve("ops/paperclip/skills");
+const DEFAULT_REPO_AGENT_SKILLS_ROOT = path.resolve(".agents/skills");
 const DEFAULT_GLOBAL_SKILL_ROOTS = [
   path.join(os.homedir(), ".agents/skills"),
   path.join(os.homedir(), ".codex/skills"),
+  path.join(os.homedir(), ".claude/skills"),
 ];
 const DEFAULT_PLUGIN_SKILL_ROOTS = [
   path.join(os.homedir(), ".codex/plugins/cache/openai-curated"),
@@ -19,6 +21,137 @@ const DEFAULT_PLUGIN_SKILL_ROOTS = [
   path.join(os.homedir(), ".codex/plugins/cache/openai-primary-runtime"),
 ];
 const MAX_SKILL_SCAN_DEPTH = 8;
+const DESIRED_SKILL_RESOLUTION_POLICY_EVIDENCE = "ops/paperclip/control-room-map.md#desired-skill-resolution-policy";
+const COMPANY_LIBRARY_REASON =
+  "Intentional Paperclip company-library skill. The local inventory records the assignment without requiring live Paperclip verification.";
+const RUNTIME_COMMAND_REASON =
+  "Intentional non-local runtime/tooling command used by agent instructions. Keep it classified separately from repo/plugin SKILL.md files.";
+const READINESS_CLASSES = [
+  "blocked-by-env",
+  "needs-human",
+  "recommended-missing",
+  "required-ready",
+] as const;
+
+type OperatorReadinessClass = typeof READINESS_CLASSES[number];
+
+const DESIRED_SKILL_ALIASES = {
+  browse: {
+    resolvedAs: "browser",
+    source: "local-skill-alias",
+    evidence: "Browser plugin exposes the local skill as browser; Paperclip frontmatter uses the shorter browse verb.",
+  },
+  "vercel-react-best-practices": {
+    resolvedAs: "react-best-practices",
+    source: "plugin-skill-alias",
+    evidence: "Vercel plugin cache exposes react-best-practices; Blueprint keeps a provider-qualified desiredSkill alias.",
+  },
+} as const;
+
+const COMPANY_LIBRARY_DESIRED_SKILLS = new Set([
+  "ab-testing",
+  "ad-creative",
+  "ads",
+  "ai-seo",
+  "analytics",
+  "churn-prevention",
+  "co-marketing",
+  "cold-email",
+  "community-marketing",
+  "competitor-profiling",
+  "competitors",
+  "content-strategy",
+  "copy-editing",
+  "copywriting",
+  "cro",
+  "customer-research",
+  "directory-submissions",
+  "emails",
+  "launch",
+  "marketing-ideas",
+  "marketing-psychology",
+  "onboarding",
+  "paywalls",
+  "popups",
+  "pricing",
+  "product-marketing",
+  "programmatic-seo",
+  "referrals",
+  "revops",
+  "sales-enablement",
+  "schema",
+  "seo-audit",
+  "signup",
+  "site-architecture",
+  "social",
+  "web-design-guidelines",
+]);
+
+const RUNTIME_TOOLING_DESIRED_SKILLS: Record<string, {
+  category: "runtime-command" | "tooling-contract";
+  reason: string;
+}> = {
+  benchmark: {
+    category: "runtime-command",
+    reason: RUNTIME_COMMAND_REASON,
+  },
+  careful: {
+    category: "runtime-command",
+    reason: RUNTIME_COMMAND_REASON,
+  },
+  cso: {
+    category: "runtime-command",
+    reason: RUNTIME_COMMAND_REASON,
+  },
+  "design-review": {
+    category: "runtime-command",
+    reason: RUNTIME_COMMAND_REASON,
+  },
+  "find-skills": {
+    category: "tooling-contract",
+    reason: "Intentional Paperclip skill-discovery helper; preserve separately from company-library skills and local SKILL.md files.",
+  },
+  "gh-cli": {
+    category: "tooling-contract",
+    reason: "Intentional GitHub CLI/tooling contract for agents that diagnose issues and CI without requiring a SKILL.md file.",
+  },
+  investigate: {
+    category: "runtime-command",
+    reason: RUNTIME_COMMAND_REASON,
+  },
+  "land-and-deploy": {
+    category: "runtime-command",
+    reason: RUNTIME_COMMAND_REASON,
+  },
+  "office-hours": {
+    category: "runtime-command",
+    reason: RUNTIME_COMMAND_REASON,
+  },
+  "plan-ceo-review": {
+    category: "runtime-command",
+    reason: RUNTIME_COMMAND_REASON,
+  },
+  "plan-eng-review": {
+    category: "runtime-command",
+    reason: RUNTIME_COMMAND_REASON,
+  },
+  qa: {
+    category: "runtime-command",
+    reason: RUNTIME_COMMAND_REASON,
+  },
+  retro: {
+    category: "runtime-command",
+    reason: RUNTIME_COMMAND_REASON,
+  },
+  review: {
+    category: "runtime-command",
+    reason: RUNTIME_COMMAND_REASON,
+  },
+  ship: {
+    category: "runtime-command",
+    reason: RUNTIME_COMMAND_REASON,
+  },
+};
 
 type PaperclipAgentConfig = {
   role?: string;
@@ -65,7 +198,42 @@ export type ControlRoomInventory = {
   codexGoalEnabledAgents: string[];
   codexGoalDisabledAgents: string[];
   agentsWithoutDesiredSkills: string[];
+  desiredSkillAliasMappings: Array<{
+    skill: string;
+    resolvedAs: string;
+    source: string;
+    count: number;
+    agents: string[];
+    evidence: string;
+  }>;
+  intentionalDesiredSkillDeferrals: Array<{
+    skill: string;
+    category: "company-library" | "runtime-command" | "tooling-contract";
+    count: number;
+    agents: string[];
+    reason: string;
+    evidence: string;
+  }>;
+  trueMissingDesiredSkills: Array<{
+    skill: string;
+    count: number;
+    agents: string[];
+    nextAction: string;
+  }>;
   desiredSkillCandidateGaps: string[];
+  readinessClassCounts: Record<OperatorReadinessClass, number>;
+  routineReadinessRows: Array<{
+    slug: string;
+    agent: string;
+    readinessClass: OperatorReadinessClass;
+    detail: string;
+    cadence: string;
+  }>;
+  workerReadinessFindings: Array<{
+    label: string;
+    readinessClass: OperatorReadinessClass;
+    detail: string;
+  }>;
   routineCount: number;
   routineStatusCounts: Record<string, number>;
   routineConcurrencyCounts: Record<string, number>;
@@ -101,6 +269,21 @@ function countBy<T extends string>(values: T[]) {
   }, {});
 }
 
+function emptyReadinessClassCounts() {
+  return READINESS_CLASSES.reduce<Record<OperatorReadinessClass, number>>((acc, value) => {
+    acc[value] = 0;
+    return acc;
+  }, {} as Record<OperatorReadinessClass, number>);
+}
+
+function countReadinessClasses(values: OperatorReadinessClass[]) {
+  const counts = emptyReadinessClassCounts();
+  for (const value of values) {
+    counts[value] += 1;
+  }
+  return counts;
+}
+
 function readYamlConfig(configPath: string): PaperclipCompanyConfig {
   return yaml.load(fs.readFileSync(configPath, "utf8")) as PaperclipCompanyConfig;
 }
@@ -119,14 +302,6 @@ function formatCadence(routine: PaperclipRoutineConfig) {
 
 function isRoutinePaused(routine: PaperclipRoutineConfig) {
   return routine.paused === true || routine.enabled === false;
-}
-
-function addSkillSlugAliases(slugs: Set<string>) {
-  // `.paperclip.yaml` keeps a few Paperclip-facing skill names that map to
-  // provider/plugin skill packages with shorter local directory names.
-  if (slugs.has("react-best-practices")) {
-    slugs.add("vercel-react-best-practices");
-  }
 }
 
 function collectSkillSlugsFromRoot(root: string, slugs: Set<string>, depth = 0) {
@@ -162,8 +337,18 @@ function listLocalSkillSlugs(skillRoots: string[]) {
     collectSkillSlugsFromRoot(root, slugs);
   }
 
-  addSkillSlugAliases(slugs);
   return slugs;
+}
+
+function desiredSkillReferenceRows(
+  counts: Map<string, number>,
+  agentsBySkill: Map<string, string[]>,
+) {
+  return [...counts.keys()].sort().map((skill) => ({
+    skill,
+    count: counts.get(skill) ?? 0,
+    agents: (agentsBySkill.get(skill) ?? []).sort(),
+  }));
 }
 
 export function buildControlRoomInventory(options: {
@@ -176,10 +361,12 @@ export function buildControlRoomInventory(options: {
   const localSkills = listLocalSkillSlugs(options.skillRoots ?? [
     DEFAULT_COMPANY_SKILLS_ROOT,
     DEFAULT_REPO_SKILLS_ROOT,
+    DEFAULT_REPO_AGENT_SKILLS_ROOT,
     ...DEFAULT_GLOBAL_SKILL_ROOTS,
     ...DEFAULT_PLUGIN_SKILL_ROOTS,
   ]);
   const desiredSkillCounts = new Map<string, number>();
+  const agentsByDesiredSkill = new Map<string, string[]>();
   const agentsWithoutDesiredSkills: string[] = [];
   const agentRows = Object.entries(agents)
     .map(([slug, agent]) => {
@@ -190,6 +377,10 @@ export function buildControlRoomInventory(options: {
       }
       for (const skill of desiredSkills) {
         desiredSkillCounts.set(skill, (desiredSkillCounts.get(skill) ?? 0) + 1);
+        if (!agentsByDesiredSkill.has(skill)) {
+          agentsByDesiredSkill.set(skill, []);
+        }
+        agentsByDesiredSkill.get(skill)?.push(slug);
       }
       return {
         slug,
@@ -218,9 +409,80 @@ export function buildControlRoomInventory(options: {
     })
     .sort((left, right) => left.slug.localeCompare(right.slug));
 
-  const desiredSkillCandidateGaps = [...desiredSkillCounts.keys()]
-    .filter((skill) => !localSkills.has(skill))
-    .sort();
+  const desiredSkillAliasMappings: ControlRoomInventory["desiredSkillAliasMappings"] = [];
+  const intentionalDesiredSkillDeferrals: ControlRoomInventory["intentionalDesiredSkillDeferrals"] = [];
+  const trueMissingDesiredSkills: ControlRoomInventory["trueMissingDesiredSkills"] = [];
+
+  for (const reference of desiredSkillReferenceRows(desiredSkillCounts, agentsByDesiredSkill)) {
+    if (localSkills.has(reference.skill)) continue;
+
+    const alias = DESIRED_SKILL_ALIASES[reference.skill as keyof typeof DESIRED_SKILL_ALIASES];
+    if (alias && localSkills.has(alias.resolvedAs)) {
+      desiredSkillAliasMappings.push({
+        ...reference,
+        resolvedAs: alias.resolvedAs,
+        source: alias.source,
+        evidence: alias.evidence,
+      });
+      continue;
+    }
+
+    if (COMPANY_LIBRARY_DESIRED_SKILLS.has(reference.skill)) {
+      intentionalDesiredSkillDeferrals.push({
+        ...reference,
+        category: "company-library",
+        reason: COMPANY_LIBRARY_REASON,
+        evidence: DESIRED_SKILL_RESOLUTION_POLICY_EVIDENCE,
+      });
+      continue;
+    }
+
+    const runtimeDeferral = RUNTIME_TOOLING_DESIRED_SKILLS[reference.skill];
+    if (runtimeDeferral) {
+      intentionalDesiredSkillDeferrals.push({
+        ...reference,
+        category: runtimeDeferral.category,
+        reason: runtimeDeferral.reason,
+        evidence: DESIRED_SKILL_RESOLUTION_POLICY_EVIDENCE,
+      });
+      continue;
+    }
+
+    trueMissingDesiredSkills.push({
+      ...reference,
+      nextAction:
+        "Add a repo skill, map it to a local/plugin alias, or explicitly classify it as an intentional company-library/runtime deferral.",
+    });
+  }
+
+  const desiredSkillCandidateGaps: string[] = [];
+  const routineReadinessRows = routineRows.map((row) => ({
+    slug: row.slug,
+    agent: row.agent,
+    readinessClass: row.status === "active"
+      ? ("required-ready" as const)
+      : ("blocked-by-env" as const),
+    detail: row.status === "active"
+      ? "active in local Paperclip config"
+      : "paused or disabled in local Paperclip config",
+    cadence: row.cadence,
+  }));
+  const workerReadinessFindings: ControlRoomInventory["workerReadinessFindings"] = [
+    ...agentsWithoutDesiredSkills.sort().map((agent) => ({
+      label: agent,
+      readinessClass: "recommended-missing" as const,
+      detail: "agent has no desiredSkills in local Paperclip config",
+    })),
+    ...trueMissingDesiredSkills.map((missing) => ({
+      label: missing.skill,
+      readinessClass: "needs-human" as const,
+      detail: missing.nextAction,
+    })),
+  ].sort((left, right) => left.label.localeCompare(right.label));
+  const readinessClassCounts = countReadinessClasses([
+    ...routineReadinessRows.map((row) => row.readinessClass),
+    ...workerReadinessFindings.map((finding) => finding.readinessClass),
+  ]);
 
   return {
     agentCount: agentRows.length,
@@ -233,7 +495,13 @@ export function buildControlRoomInventory(options: {
       .filter((row) => row.adapter === "codex_local" && !row.goalEnabled)
       .map((row) => row.slug),
     agentsWithoutDesiredSkills: agentsWithoutDesiredSkills.sort(),
+    desiredSkillAliasMappings,
+    intentionalDesiredSkillDeferrals,
+    trueMissingDesiredSkills,
     desiredSkillCandidateGaps,
+    readinessClassCounts,
+    routineReadinessRows,
+    workerReadinessFindings,
     routineCount: routineRows.length,
     routineStatusCounts: countBy(routineRows.map((row) => row.status)),
     routineConcurrencyCounts: countBy(routineRows.map((row) => row.concurrencyPolicy)),
@@ -256,6 +524,10 @@ export function buildControlRoomInventory(options: {
       {
         signal: "no_change and duplicate_suppressed waste signals",
         evidence: "server/utils/agentCostTelemetry.ts summarizeAgentCostWaste",
+      },
+      {
+        signal: "recursive improvement no-change repeat suppression",
+        evidence: "ops/paperclip/blueprint-company/tasks/recursive-agent-improvement-loop/TASK.md no_change_report_only closeout rule",
       },
       {
         signal: "blocked follow-up duplicate merge",
@@ -290,6 +562,10 @@ export function renderControlRoomInventoryMarkdown(inventory: ControlRoomInvento
     `- Codex /goal enabled: ${inventory.codexGoalEnabledAgents.join(", ") || "none"}`,
     `- Codex /goal disabled: ${inventory.codexGoalDisabledAgents.join(", ") || "none"}`,
     `- Agents missing desiredSkills: ${inventory.agentsWithoutDesiredSkills.join(", ") || "none"}`,
+    `- Desired skill aliases resolved locally: ${inventory.desiredSkillAliasMappings.length}`,
+    `- Intentional non-local desiredSkills: ${inventory.intentionalDesiredSkillDeferrals.length}`,
+    `- True missing desiredSkills: ${inventory.trueMissingDesiredSkills.length}`,
+    `- Ambiguous desired-skill candidate gaps: ${inventory.desiredSkillCandidateGaps.length || "none"}`,
     "",
     "## Goal-Enabled Codex Lanes",
     "",
@@ -301,6 +577,31 @@ export function renderControlRoomInventoryMarkdown(inventory: ControlRoomInvento
     lines.push(
       `| ${row.slug} | ${row.adapter} | ${row.cwd || "n/a"} | ${formatUsd(row.budgetMonthlyCents)} | ${row.goalEnabled ? "yes" : "no"} | ${row.desiredSkillCount} |`,
     );
+  }
+
+  lines.push(
+    "",
+    "## Operator Worker Readiness",
+    "",
+    "Local-only classification from the checked-in Paperclip company config. This does not prove a routine has run or that live Paperclip is healthy.",
+    "",
+    `Readiness classes: ${renderCounts(inventory.readinessClassCounts)}`,
+    "",
+    "| routine | agent | readiness | detail | cadence |",
+    "|---|---|---|---|---|",
+  );
+
+  for (const row of inventory.routineReadinessRows) {
+    lines.push(`| ${row.slug} | ${row.agent} | ${row.readinessClass} | ${row.detail} | ${row.cadence} |`);
+  }
+
+  lines.push("", "### Worker Follow-Up Classifications", "");
+  if (inventory.workerReadinessFindings.length === 0) {
+    lines.push("No worker readiness follow-ups are classified from local config.");
+  } else {
+    for (const finding of inventory.workerReadinessFindings) {
+      lines.push(`- ${finding.label}: ${finding.readinessClass} - ${finding.detail}`);
+    }
   }
 
   lines.push(
@@ -317,13 +618,61 @@ export function renderControlRoomInventoryMarkdown(inventory: ControlRoomInvento
     );
   }
 
-  lines.push("", "## Desired Skill Candidate Gaps", "");
-  if (inventory.desiredSkillCandidateGaps.length === 0) {
-    lines.push("No unresolved desiredSkill references detected in the scanned local skill roots.");
+  lines.push(
+    "",
+    "## Desired Skill Resolution",
+    "",
+    inventory.desiredSkillCandidateGaps.length === 0
+      ? "No ambiguous desiredSkill candidate gaps."
+      : "Ambiguous desiredSkill candidate gaps need classification.",
+    "",
+    "### Local Alias Mappings",
+    "",
+  );
+  if (inventory.desiredSkillAliasMappings.length === 0) {
+    lines.push("No desiredSkill aliases were needed for the scanned local skill roots.");
+  } else {
+    lines.push("| desiredSkill | resolves to | source | assignments | agents | evidence |");
+    lines.push("|---|---|---|---:|---|---|");
+    for (const mapping of inventory.desiredSkillAliasMappings) {
+      lines.push(
+        `| ${mapping.skill} | ${mapping.resolvedAs} | ${mapping.source} | ${mapping.count} | ${mapping.agents.join(", ")} | ${mapping.evidence} |`,
+      );
+    }
+  }
+
+  lines.push("", "### Intentional Non-Local Desired Skills", "");
+  if (inventory.intentionalDesiredSkillDeferrals.length === 0) {
+    lines.push("No intentional company-library or runtime/tooling desiredSkills are deferred from local SKILL.md scanning.");
   } else {
     lines.push(
-      "These desiredSkills did not resolve to a scanned company, repo, global, or plugin skill file. They may still be valid Paperclip company-library skills, but they need live company-library verification before treating them as present.",
+      `These are documented in ${DESIRED_SKILL_RESOLUTION_POLICY_EVIDENCE}; live company-library verification is intentionally outside this local inventory command.`,
+      "",
+      "| desiredSkill | category | assignments | agents |",
+      "|---|---|---:|---|",
     );
+    for (const deferral of inventory.intentionalDesiredSkillDeferrals) {
+      lines.push(
+        `| ${deferral.skill} | ${deferral.category} | ${deferral.count} | ${deferral.agents.join(", ")} |`,
+      );
+    }
+  }
+
+  lines.push("", "### True Missing Desired Skills", "");
+  if (inventory.trueMissingDesiredSkills.length === 0) {
+    lines.push("No true missing desiredSkills remain.");
+  } else {
+    lines.push("| desiredSkill | assignments | agents | next action |");
+    lines.push("|---|---:|---|---|");
+    for (const missing of inventory.trueMissingDesiredSkills) {
+      lines.push(
+        `| ${missing.skill} | ${missing.count} | ${missing.agents.join(", ")} | ${missing.nextAction} |`,
+      );
+    }
+  }
+
+  if (inventory.desiredSkillCandidateGaps.length > 0) {
+    lines.push("", "### Ambiguous Candidate Gaps", "");
     for (const skill of inventory.desiredSkillCandidateGaps) {
       lines.push(`- ${skill}`);
     }

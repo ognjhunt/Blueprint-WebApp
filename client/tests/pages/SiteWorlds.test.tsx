@@ -9,7 +9,7 @@ describe("SiteWorlds", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Find the indoor world model your robot team needs\./i,
+        name: /Browse exact-site world models\./i,
       }),
     ).toBeInTheDocument();
     expect(
@@ -78,8 +78,9 @@ describe("SiteWorlds", () => {
     const href = requestLinks[0].getAttribute("href") || "";
     const url = new URL(href, "https://tryblueprint.local");
     expect(href).toContain("buyerType=robot_team");
+    expect(href).toContain("interest=capture-access");
     expect(href).toContain("source=site-worlds");
-    expect(href).toContain("path=request-capture");
+    expect(href).toContain("path=new-capture");
     expect(url.searchParams.get("siteLocation")).toBe("123 New Robot Ave, Austin, TX");
     expect(url.searchParams.get("taskStatement")).toContain("Request an exact-site world model");
   });

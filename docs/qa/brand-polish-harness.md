@@ -26,6 +26,7 @@ The output directory is generated evidence. Use it for local review and issue pr
 - `/`
 - `/product`
 - `/world-models`
+- `/agents`
 - `/pricing`
 - `/proof`
 - `/capture`

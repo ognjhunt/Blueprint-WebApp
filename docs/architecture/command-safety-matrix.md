@@ -11,10 +11,13 @@ Purpose: make local checks and side-effect boundaries explicit before engineers 
 | `npm run check` | local read/compile only | Runs `tsc -p tsconfig.full.json --noEmit`. Safe default verification for TypeScript contracts. |
 | `npm run audit:assets` | local read only | Scans repo/public assets for root screenshot dumps, oversized files, and unreferenced public image/thumbnail assets. It can fail on generated or stale local files. |
 | `npm run qa:polish` | local browser automation + output artifacts | Starts the Playwright local dev server, checks public routes at desktop/mobile sizes, writes screenshots and reports under `output/qa/brand-polish/latest/`, and does not call live sends, providers, payments, deploys, or Notion writes. |
+| `npm run qa:operator` | local browser automation + mocked API fixtures | Starts the Playwright local dev server with local fake auth and the ops automation scheduler disabled, checks internal/private operator surfaces at desktop/mobile sizes, intercepts `/api/**`, writes screenshots and reports under `output/qa/operator-surfaces/latest/`, and does not call live Firebase, Stripe, Notion, Paperclip, Render, Redis, providers, Slack/email, payments, payouts, or sends. |
 | `npm run smoke:launch:local` | local server write-light | Starts/bundles local production server and runs launch smoke against `127.0.0.1`. It strips several live provider env vars and uses local smoke values, but it can still exercise local Firebase/admin code if env is present. |
 | `npm run gtm:hosted-review:audit` | local file-backed | Audits the canonical GTM ledger; does not send outreach. |
 | `npm run gtm:recipient-evidence:validate -- --human-recipient-evidence-path <path>` | local validation | Validates human-supplied recipient evidence without mutating the ledger. |
 | `npm run gtm:recipient-evidence:template` | local file write | Writes a template artifact. Safe if the output path is expected. |
+| `npm run autoagent:recursive-improve -- --dry-run` | local eval/report artifacts | Runs the recursive AutoResearch observer, fixture writer, offline eval, promotion gate, canary dry-run, and rollback monitor with live mutation off. Writes under `output/autoagent/recursive-improvement/latest/`; does not mutate live Paperclip/Hermes state, Notion, providers, sends, payments, rights/legal, city-live, or hosted-session fulfillment. |
+| `npm run autoagent:canary-rollback -- --canary-plan <path> --shadow-summary <path> --apply-rollback` | repo-local rollback artifact | Restores only the repo-local active AutoAgent canary config from the stored rollback snapshot when the monitor finds a rollback trigger. It does not mutate live Paperclip/Hermes state, Notion, providers, sends, payments, rights/legal, city-live, or hosted-session fulfillment. |
 | `npm run city-launch:preflight -- --city "<city>"` | local/reporting | Runs launch readiness checks and writes/reads report artifacts. Does not by itself send real outreach. |
 | `npm run city-launch:verify-closeout` | local/reporting | Verifies readiness closeout artifacts. |
 | `npm run alpha:env` | local env audit | Reads env or a supplied env file and reports missing launch config. Do not paste secrets into logs. |
@@ -66,6 +69,20 @@ Safe local audit. It reads source and `client/public/`, ignores `dist`, `coverag
 ### `npm run qa:polish`
 
 Safe local browser QA. It uses Playwright against the local dev server from `playwright.config.ts`, captures desktop/mobile screenshots, checks route identity, CTAs, same-origin links, basic accessibility, basic SEO, mobile overflow, visible image health, and writes a Notion layout checklist under `output/qa/brand-polish/latest/`.
+
+### `npm run qa:operator`
+
+Safe local browser QA for internal/private operator surfaces. It sets `VITE_BLUEPRINT_OPERATOR_QA_FAKE_AUTH=1`, disables the ops automation scheduler, uses mocked API fixtures, fails on unmocked `/api/**` calls, captures desktop/mobile screenshots, and writes `output/qa/operator-surfaces/latest/report.md`. It proves local UI rendering only, not live operational readiness.
+
+### `npm run autoagent:recursive-improve -- --dry-run`
+
+Safe local recursive-improvement report path. It observes local failure artifacts, writes `summary.json` and `report.md` under `output/autoagent/recursive-improvement/latest/`, keeps `exportLive=false`, and runs canary/rollback in dry-run mode. Apply flags such as `--apply-canary` or `--apply-rollback` are outside the safe default and require an explicit bound issue plus central policy approval.
+
+`npm run autoagent:recursive-improve -- --apply-canary --lane support_triage` is the only currently enabled repo-local auto-apply lane. It can write a scoped support-triage canary config under the AutoAgent output directory only when the promotion gate returns `promote`, central policy allows `support_triage`, a rollback snapshot exists, the canary remains observation-only, and the rollback monitor is configured. It still must not send, pay, launch providers, clear rights/privacy/legal claims, fulfill hosted sessions, make customer claims, or claim operational launch readiness.
+
+### `npm run autoagent:canary-rollback`
+
+Repo-local rollback monitor/apply path. It reads a canary plan, offline eval evidence, and local shadow summary, then restores the previous repo-local canary config from the stored snapshot only when rollback triggers fire. It is not a live Paperclip/Hermes rollback mechanism and must not be used to mutate production services.
 
 ### `npm run test:coverage`
 

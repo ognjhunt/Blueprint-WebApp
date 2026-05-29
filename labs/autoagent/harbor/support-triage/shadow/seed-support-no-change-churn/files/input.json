@@ -1,0 +1,12 @@
+{
+  "id": "seed-support-3",
+  "requestSource": "goal_closeout_review",
+  "requesterName": "Blueprint Operator",
+  "email": "ops@example.com",
+  "company": "Blueprint",
+  "city": "Austin",
+  "state": "TX",
+  "companyWebsite": "https://tryblueprint.io",
+  "message": "Routine checked the same blocker again, found no new proof, and still marked the run complete. Need the closeout classified without claiming movement.",
+  "summary": "No-change closeout churn with unsupported completion language."
+}

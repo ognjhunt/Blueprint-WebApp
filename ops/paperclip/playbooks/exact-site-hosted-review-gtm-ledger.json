@@ -96,7 +96,7 @@
         "approvalState": "pending_first_send_approval"
       },
       "sales": {
-        "nextAction": "Find explicit recipient-backed contact evidence before founder first-send approval.",
+        "nextAction": "Route this recipient-backed draft to founder first-send approval; do not send until row-level approval is recorded and reply durability passes.",
         "nextActionOwner": "growth-lead"
       },
       "enrichment": {
@@ -659,7 +659,7 @@
           "id": "036c744b-b0ec-4d74-b119-e2ba5243eb02",
           "identifier": "BLU-5392",
           "title": "Exact-Site GTM blocker: governed recipient contact discovery is not configured",
-          "status": "blocked",
+          "status": "resolved",
           "blockerIds": [
             "gtm-blocker-contact-discovery-allowlist"
           ]
@@ -713,7 +713,7 @@
         "approvalState": "pending_first_send_approval"
       },
       "sales": {
-        "nextAction": "Find explicit recipient-backed contact evidence before founder first-send approval.",
+        "nextAction": "Route this recipient-backed draft to founder first-send approval; do not send until row-level approval is recorded and reply durability passes.",
         "nextActionOwner": "growth-lead"
       },
       "enrichment": {
@@ -1276,7 +1276,7 @@
           "id": "036c744b-b0ec-4d74-b119-e2ba5243eb02",
           "identifier": "BLU-5392",
           "title": "Exact-Site GTM blocker: governed recipient contact discovery is not configured",
-          "status": "blocked",
+          "status": "resolved",
           "blockerIds": [
             "gtm-blocker-contact-discovery-allowlist"
           ]
@@ -1336,7 +1336,7 @@
         "approvalState": "pending_first_send_approval"
       },
       "sales": {
-        "nextAction": "Find explicit recipient-backed contact evidence before founder first-send approval.",
+        "nextAction": "Route this recipient-backed draft to founder first-send approval; do not send until row-level approval is recorded and reply durability passes.",
         "nextActionOwner": "growth-lead"
       },
       "enrichment": {
@@ -1899,7 +1899,7 @@
           "id": "036c744b-b0ec-4d74-b119-e2ba5243eb02",
           "identifier": "BLU-5392",
           "title": "Exact-Site GTM blocker: governed recipient contact discovery is not configured",
-          "status": "blocked",
+          "status": "resolved",
           "blockerIds": [
             "gtm-blocker-contact-discovery-allowlist"
           ]
@@ -1956,7 +1956,7 @@
         "approvalState": "pending_first_send_approval"
       },
       "sales": {
-        "nextAction": "Find explicit recipient-backed contact evidence before founder first-send approval.",
+        "nextAction": "Route this recipient-backed draft to founder first-send approval; do not send until row-level approval is recorded and reply durability passes.",
         "nextActionOwner": "growth-lead"
       },
       "enrichment": {
@@ -2519,7 +2519,7 @@
           "id": "036c744b-b0ec-4d74-b119-e2ba5243eb02",
           "identifier": "BLU-5392",
           "title": "Exact-Site GTM blocker: governed recipient contact discovery is not configured",
-          "status": "blocked",
+          "status": "resolved",
           "blockerIds": [
             "gtm-blocker-contact-discovery-allowlist"
           ]
@@ -2576,7 +2576,7 @@
         "approvalState": "pending_first_send_approval"
       },
       "sales": {
-        "nextAction": "Find explicit recipient-backed contact evidence before founder first-send approval.",
+        "nextAction": "Route this recipient-backed draft to founder first-send approval; do not send until row-level approval is recorded and reply durability passes.",
         "nextActionOwner": "growth-lead"
       },
       "enrichment": {
@@ -3139,7 +3139,7 @@
           "id": "036c744b-b0ec-4d74-b119-e2ba5243eb02",
           "identifier": "BLU-5392",
           "title": "Exact-Site GTM blocker: governed recipient contact discovery is not configured",
-          "status": "blocked",
+          "status": "resolved",
           "blockerIds": [
             "gtm-blocker-contact-discovery-allowlist"
           ]
@@ -3196,7 +3196,7 @@
         "approvalState": "pending_first_send_approval"
       },
       "sales": {
-        "nextAction": "Find explicit recipient-backed contact evidence before founder first-send approval.",
+        "nextAction": "Route this recipient-backed draft to founder first-send approval; do not send until row-level approval is recorded and reply durability passes.",
         "nextActionOwner": "growth-lead"
       },
       "enrichment": {
@@ -3759,7 +3759,7 @@
           "id": "036c744b-b0ec-4d74-b119-e2ba5243eb02",
           "identifier": "BLU-5392",
           "title": "Exact-Site GTM blocker: governed recipient contact discovery is not configured",
-          "status": "blocked",
+          "status": "resolved",
           "blockerIds": [
             "gtm-blocker-contact-discovery-allowlist"
           ]
@@ -3816,7 +3816,7 @@
         "approvalState": "pending_first_send_approval"
       },
       "sales": {
-        "nextAction": "Find explicit recipient-backed contact evidence before founder first-send approval.",
+        "nextAction": "Route this recipient-backed draft to founder first-send approval; do not send until row-level approval is recorded and reply durability passes.",
         "nextActionOwner": "growth-lead"
       },
       "enrichment": {
@@ -4379,7 +4379,7 @@
           "id": "036c744b-b0ec-4d74-b119-e2ba5243eb02",
           "identifier": "BLU-5392",
           "title": "Exact-Site GTM blocker: governed recipient contact discovery is not configured",
-          "status": "blocked",
+          "status": "resolved",
           "blockerIds": [
             "gtm-blocker-contact-discovery-allowlist"
           ]
@@ -4436,7 +4436,7 @@
         "approvalState": "pending_first_send_approval"
       },
       "sales": {
-        "nextAction": "Find explicit recipient-backed contact evidence before founder first-send approval.",
+        "nextAction": "Route this recipient-backed draft to founder first-send approval; do not send until row-level approval is recorded and reply durability passes.",
         "nextActionOwner": "growth-lead"
       },
       "enrichment": {
@@ -4999,7 +4999,7 @@
           "id": "036c744b-b0ec-4d74-b119-e2ba5243eb02",
           "identifier": "BLU-5392",
           "title": "Exact-Site GTM blocker: governed recipient contact discovery is not configured",
-          "status": "blocked",
+          "status": "resolved",
           "blockerIds": [
             "gtm-blocker-contact-discovery-allowlist"
           ]
@@ -5056,7 +5056,7 @@
         "approvalState": "pending_first_send_approval"
       },
       "sales": {
-        "nextAction": "Find explicit recipient-backed contact evidence before founder first-send approval.",
+        "nextAction": "Route this recipient-backed draft to founder first-send approval; do not send until row-level approval is recorded and reply durability passes.",
         "nextActionOwner": "growth-lead"
       },
       "enrichment": {
@@ -5619,7 +5619,7 @@
           "id": "036c744b-b0ec-4d74-b119-e2ba5243eb02",
           "identifier": "BLU-5392",
           "title": "Exact-Site GTM blocker: governed recipient contact discovery is not configured",
-          "status": "blocked",
+          "status": "resolved",
           "blockerIds": [
             "gtm-blocker-contact-discovery-allowlist"
           ]
@@ -5676,7 +5676,7 @@
         "approvalState": "pending_first_send_approval"
       },
       "sales": {
-        "nextAction": "Find explicit recipient-backed contact evidence before founder first-send approval.",
+        "nextAction": "Route this recipient-backed draft to founder first-send approval; do not send until row-level approval is recorded and reply durability passes.",
         "nextActionOwner": "growth-lead"
       },
       "enrichment": {
@@ -6239,7 +6239,7 @@
           "id": "036c744b-b0ec-4d74-b119-e2ba5243eb02",
           "identifier": "BLU-5392",
           "title": "Exact-Site GTM blocker: governed recipient contact discovery is not configured",
-          "status": "blocked",
+          "status": "resolved",
           "blockerIds": [
             "gtm-blocker-contact-discovery-allowlist"
           ]
@@ -6296,7 +6296,7 @@
         "approvalState": "pending_first_send_approval"
       },
       "sales": {
-        "nextAction": "Find explicit recipient-backed contact evidence before founder first-send approval.",
+        "nextAction": "Route this recipient-backed draft to founder first-send approval; do not send until row-level approval is recorded and reply durability passes.",
         "nextActionOwner": "growth-lead"
       },
       "enrichment": {
@@ -6859,7 +6859,7 @@
           "id": "036c744b-b0ec-4d74-b119-e2ba5243eb02",
           "identifier": "BLU-5392",
           "title": "Exact-Site GTM blocker: governed recipient contact discovery is not configured",
-          "status": "blocked",
+          "status": "resolved",
           "blockerIds": [
             "gtm-blocker-contact-discovery-allowlist"
           ]
@@ -6916,7 +6916,7 @@
         "approvalState": "pending_first_send_approval"
       },
       "sales": {
-        "nextAction": "Find explicit recipient-backed contact evidence before founder first-send approval.",
+        "nextAction": "Route this recipient-backed draft to founder first-send approval; do not send until row-level approval is recorded and reply durability passes.",
         "nextActionOwner": "growth-lead"
       },
       "enrichment": {
@@ -7479,7 +7479,7 @@
           "id": "036c744b-b0ec-4d74-b119-e2ba5243eb02",
           "identifier": "BLU-5392",
           "title": "Exact-Site GTM blocker: governed recipient contact discovery is not configured",
-          "status": "blocked",
+          "status": "resolved",
           "blockerIds": [
             "gtm-blocker-contact-discovery-allowlist"
           ]
@@ -7768,7 +7768,7 @@
         "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md"
       },
       "sales": {
-        "nextAction": "Run the GTM enrichment waterfall to find explicit recipient-backed contact evidence.",
+        "nextAction": "Route this recipient-backed draft to founder first-send approval; do not send until row-level approval is recorded and reply durability passes.",
         "nextActionOwner": "growth-lead"
       },
       "recipient": {
@@ -8046,7 +8046,7 @@
         "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md"
       },
       "sales": {
-        "nextAction": "Run the GTM enrichment waterfall to find explicit recipient-backed contact evidence.",
+        "nextAction": "Route this recipient-backed draft to founder first-send approval; do not send until row-level approval is recorded and reply durability passes.",
         "nextActionOwner": "growth-lead"
       },
       "recipient": {
@@ -8324,7 +8324,7 @@
         "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md"
       },
       "sales": {
-        "nextAction": "Run the GTM enrichment waterfall to find explicit recipient-backed contact evidence.",
+        "nextAction": "Route this recipient-backed draft to founder first-send approval; do not send until row-level approval is recorded and reply durability passes.",
         "nextActionOwner": "growth-lead"
       },
       "recipient": {
@@ -8601,7 +8601,7 @@
         "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md"
       },
       "sales": {
-        "nextAction": "Run the GTM enrichment waterfall to find explicit recipient-backed contact evidence.",
+        "nextAction": "Route this recipient-backed draft to founder first-send approval; do not send until row-level approval is recorded and reply durability passes.",
         "nextActionOwner": "growth-lead"
       },
       "recipient": {
@@ -8878,7 +8878,7 @@
         "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md"
       },
       "sales": {
-        "nextAction": "Run the GTM enrichment waterfall to find explicit recipient-backed contact evidence.",
+        "nextAction": "Route this recipient-backed draft to founder first-send approval; do not send until row-level approval is recorded and reply durability passes.",
         "nextActionOwner": "growth-lead"
       },
       "recipient": {
@@ -9155,7 +9155,7 @@
         "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md"
       },
       "sales": {
-        "nextAction": "Run the GTM enrichment waterfall to find explicit recipient-backed contact evidence.",
+        "nextAction": "Route this recipient-backed draft to founder first-send approval; do not send until row-level approval is recorded and reply durability passes.",
         "nextActionOwner": "growth-lead"
       },
       "recipient": {
@@ -9432,7 +9432,7 @@
         "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md"
       },
       "sales": {
-        "nextAction": "Run the GTM enrichment waterfall to find explicit recipient-backed contact evidence.",
+        "nextAction": "Route this recipient-backed draft to founder first-send approval; do not send until row-level approval is recorded and reply durability passes.",
         "nextActionOwner": "growth-lead"
       },
       "recipient": {
@@ -9709,7 +9709,7 @@
         "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md"
       },
       "sales": {
-        "nextAction": "Run the GTM enrichment waterfall to find explicit recipient-backed contact evidence.",
+        "nextAction": "Route this recipient-backed draft to founder first-send approval; do not send until row-level approval is recorded and reply durability passes.",
         "nextActionOwner": "growth-lead"
       },
       "recipient": {
@@ -9986,7 +9986,7 @@
         "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md"
       },
       "sales": {
-        "nextAction": "Run the GTM enrichment waterfall to find explicit recipient-backed contact evidence.",
+        "nextAction": "Route this recipient-backed draft to founder first-send approval; do not send until row-level approval is recorded and reply durability passes.",
         "nextActionOwner": "growth-lead"
       },
       "recipient": {
@@ -10263,7 +10263,7 @@
         "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md"
       },
       "sales": {
-        "nextAction": "Run the GTM enrichment waterfall to find explicit recipient-backed contact evidence.",
+        "nextAction": "Route this recipient-backed draft to founder first-send approval; do not send until row-level approval is recorded and reply durability passes.",
         "nextActionOwner": "growth-lead"
       },
       "recipient": {
@@ -10540,7 +10540,7 @@
         "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md"
       },
       "sales": {
-        "nextAction": "Run the GTM enrichment waterfall to find explicit recipient-backed contact evidence.",
+        "nextAction": "Route this recipient-backed draft to founder first-send approval; do not send until row-level approval is recorded and reply durability passes.",
         "nextActionOwner": "growth-lead"
       },
       "recipient": {
@@ -10817,7 +10817,7 @@
         "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md"
       },
       "sales": {
-        "nextAction": "Run the GTM enrichment waterfall to find explicit recipient-backed contact evidence.",
+        "nextAction": "Route this recipient-backed draft to founder first-send approval; do not send until row-level approval is recorded and reply durability passes.",
         "nextActionOwner": "growth-lead"
       },
       "recipient": {
@@ -11094,7 +11094,7 @@
         "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md"
       },
       "sales": {
-        "nextAction": "Run the GTM enrichment waterfall to find explicit recipient-backed contact evidence.",
+        "nextAction": "Route this recipient-backed draft to founder first-send approval; do not send until row-level approval is recorded and reply durability passes.",
         "nextActionOwner": "growth-lead"
       },
       "recipient": {
@@ -11371,7 +11371,7 @@
         "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md"
       },
       "sales": {
-        "nextAction": "Run the GTM enrichment waterfall to find explicit recipient-backed contact evidence.",
+        "nextAction": "Route this recipient-backed draft to founder first-send approval; do not send until row-level approval is recorded and reply durability passes.",
         "nextActionOwner": "growth-lead"
       },
       "recipient": {
@@ -11648,7 +11648,7 @@
         "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md"
       },
       "sales": {
-        "nextAction": "Run the GTM enrichment waterfall to find explicit recipient-backed contact evidence.",
+        "nextAction": "Route this recipient-backed draft to founder first-send approval; do not send until row-level approval is recorded and reply durability passes.",
         "nextActionOwner": "growth-lead"
       },
       "recipient": {
@@ -11925,7 +11925,7 @@
         "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md"
       },
       "sales": {
-        "nextAction": "Run the GTM enrichment waterfall to find explicit recipient-backed contact evidence.",
+        "nextAction": "Route this recipient-backed draft to founder first-send approval; do not send until row-level approval is recorded and reply durability passes.",
         "nextActionOwner": "growth-lead"
       },
       "recipient": {
@@ -12202,7 +12202,7 @@
         "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md"
       },
       "sales": {
-        "nextAction": "Run the GTM enrichment waterfall to find explicit recipient-backed contact evidence.",
+        "nextAction": "Route this recipient-backed draft to founder first-send approval; do not send until row-level approval is recorded and reply durability passes.",
         "nextActionOwner": "growth-lead"
       },
       "recipient": {
@@ -12479,7 +12479,7 @@
         "messagePath": "ops/paperclip/playbooks/exact-site-hosted-review-first-touch-drafts.md"
       },
       "sales": {
-        "nextAction": "Run the GTM enrichment waterfall to find explicit recipient-backed contact evidence.",
+        "nextAction": "Route this recipient-backed draft to founder first-send approval; do not send until row-level approval is recorded and reply durability passes.",
         "nextActionOwner": "growth-lead"
       },
       "recipient": {

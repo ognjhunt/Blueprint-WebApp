@@ -1,0 +1,17 @@
+{
+  "automation_status": "blocked",
+  "block_reason_code": "operational_proof_not_verified",
+  "retryable": false,
+  "category": "qualification_follow_up",
+  "queue": "public_copy_claim_review",
+  "priority": "high",
+  "confidence": 0.9,
+  "requires_human_review": true,
+  "next_action": "Keep public copy as Public Launch Ready only and require owning-system evidence for operational claims.",
+  "rationale": "Polished public copy can be present-tense, but it does not prove customers, payment, fulfillment, rights, or hosted-session availability.",
+  "internal_summary": "Public-copy polish must not be promoted into Operational Launch Ready proof.",
+  "suggested_response": {
+    "subject": "Operational proof still needs owning-system evidence",
+    "body": "The public copy can stay polished, but operational claims need current proof from the system that owns the claim."
+  }
+}

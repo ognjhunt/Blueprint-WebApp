@@ -1361,42 +1361,44 @@ export default function AdminLeads() {
                   : "Create agent threads, attach startup context, route work into Codex or Claude Code, and approve sensitive runs in one place."}
             </p>
           </div>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <Tabs
-              value={activeView}
-              onValueChange={(value) =>
-                setActiveView(
-                  value as
-                    | "submissions"
-                    | "hosted_review"
-                    | "waitlist"
-                    | "approvals"
-                    | "field_ops"
-                    | "agent",
-                )
-              }
-            >
-              <TabsList className="rounded-full border border-zinc-200 bg-white p-1">
-                <TabsTrigger value="submissions" className="rounded-full px-4">
-                  Qualification
-                </TabsTrigger>
-                <TabsTrigger value="hosted_review" className="rounded-full px-4">
-                  Hosted Review
-                </TabsTrigger>
-                <TabsTrigger value="waitlist" className="rounded-full px-4">
-                  Waitlist / Beta
-                </TabsTrigger>
-                <TabsTrigger value="approvals" className="rounded-full px-4">
-                  Approvals
-                </TabsTrigger>
-                <TabsTrigger value="field_ops" className="rounded-full px-4">
-                  Field Ops
-                </TabsTrigger>
-                <TabsTrigger value="agent" className="rounded-full px-4">
-                  Agent
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
+          <div className="flex w-full min-w-0 flex-col gap-3 sm:flex-row sm:items-center lg:w-auto">
+            <div className="max-w-full overflow-x-auto pb-1">
+              <Tabs
+                value={activeView}
+                onValueChange={(value) =>
+                  setActiveView(
+                    value as
+                      | "submissions"
+                      | "hosted_review"
+                      | "waitlist"
+                      | "approvals"
+                      | "field_ops"
+                      | "agent",
+                  )
+                }
+              >
+                <TabsList className="w-max rounded-full border border-zinc-200 bg-white p-1">
+                  <TabsTrigger value="submissions" className="rounded-full px-4">
+                    Qualification
+                  </TabsTrigger>
+                  <TabsTrigger value="hosted_review" className="rounded-full px-4">
+                    Hosted Review
+                  </TabsTrigger>
+                  <TabsTrigger value="waitlist" className="rounded-full px-4">
+                    Waitlist / Beta
+                  </TabsTrigger>
+                  <TabsTrigger value="approvals" className="rounded-full px-4">
+                    Approvals
+                  </TabsTrigger>
+                  <TabsTrigger value="field_ops" className="rounded-full px-4">
+                    Field Ops
+                  </TabsTrigger>
+                  <TabsTrigger value="agent" className="rounded-full px-4">
+                    Agent
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
             <button
               type="button"
               onClick={() =>

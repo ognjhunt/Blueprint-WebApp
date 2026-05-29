@@ -1,0 +1,25 @@
+schema_version = "1.1"
+
+[task]
+name = "blueprint/support_triage/shadow/seed-support-public-copy-proof-drift"
+description = "Blueprint support_triage fixture task for seed-support-public-copy-proof-drift"
+keywords = ["blueprint", "agent", "support_triage", "shadow"]
+
+[metadata]
+lane = "support_triage"
+split = "shadow"
+case_id = "seed-support-public-copy-proof-drift"
+
+[agent]
+timeout_sec = 180.0
+
+[verifier]
+timeout_sec = 30.0
+
+[environment]
+build_timeout_sec = 300.0
+allow_internet = false
+cpus = 1
+memory_mb = 2048
+storage_mb = 2048
+

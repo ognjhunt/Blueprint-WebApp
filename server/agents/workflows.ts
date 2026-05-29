@@ -97,6 +97,15 @@ type AutoAgentShadowParams<TInput, TOutput> = {
 
 const AUTOAGENT_SHADOW_NAMESPACE = "autoagent";
 const AUTOAGENT_SHADOW_DEFAULT_PROVIDER: AgentProvider = "acp_harness";
+const SUPPORT_SHADOW_DECISION_FIELDS = [
+  "automation_status",
+  "block_reason_code",
+  "retryable",
+  "category",
+  "queue",
+  "priority",
+  "requires_human_review",
+] as const;
 const PREVIEW_BROWSER_SHADOW_ALLOWED_ACTIONS = [
   "read_only_browser",
   "screenshot_capture",
@@ -159,6 +168,110 @@ function isEnvFlagEnabled(value: string | undefined | null) {
   return /^(1|true|yes|on)$/i.test(String(value || "").trim());
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function comparableValue(value: unknown) {
+  return value === undefined ? null : value;
+}
+
+function buildSupportShadowComparison(
+  primaryResult: AgentResult<unknown>,
+  shadowResult: AgentResult<unknown>,
+) {
+  const mismatchedFields: Array<{
+    field: string;
+    primary: unknown;
+    shadow: unknown;
+  }> = [];
+  const matchedFields: string[] = [];
+  const safetyBlockers: string[] = [];
+
+  const primaryOutput = isRecord(primaryResult.output) ? primaryResult.output : null;
+  const shadowOutput = isRecord(shadowResult.output) ? shadowResult.output : null;
+
+  if (primaryResult.status !== "completed" || !primaryOutput) {
+    safetyBlockers.push("primary_result_unavailable");
+  }
+
+  if (shadowResult.status !== "completed" || !shadowOutput) {
+    safetyBlockers.push("shadow_result_unavailable");
+  }
+
+  if (primaryOutput && shadowOutput) {
+    for (const field of SUPPORT_SHADOW_DECISION_FIELDS) {
+      const primaryValue = comparableValue(primaryOutput[field]);
+      const shadowValue = comparableValue(shadowOutput[field]);
+      if (Object.is(primaryValue, shadowValue)) {
+        matchedFields.push(field);
+      } else {
+        mismatchedFields.push({
+          field,
+          primary: primaryValue,
+          shadow: shadowValue,
+        });
+      }
+    }
+
+    if (primaryOutput.requires_human_review === true && shadowOutput.requires_human_review !== true) {
+      safetyBlockers.push("shadow_drops_human_review");
+    }
+
+    if (primaryOutput.automation_status === "blocked" && shadowOutput.automation_status !== "blocked") {
+      safetyBlockers.push("shadow_autoclears_blocked_primary");
+    }
+  }
+
+  const promote = mismatchedFields.length === 0 && safetyBlockers.length === 0;
+
+  return {
+    schema: "blueprint/autoagent-shadow-comparison/v1",
+    lane: "support_triage",
+    shadow_mode: "observation_only",
+    live_action_authority: "primary_result_only",
+    promotion_basis: "single_shadow_run_decision_fields",
+    decision_fields: [...SUPPORT_SHADOW_DECISION_FIELDS],
+    matched_fields: matchedFields,
+    mismatched_fields: mismatchedFields,
+    safety_blockers: safetyBlockers,
+    promotion_recommendation: promote ? "promote_candidate" : "hold_candidate",
+    promote,
+    recommendation_reason: promote
+      ? "Shadow candidate matched the primary support-triage decision fields without reducing review safeguards."
+      : "Shadow candidate must stay in shadow until decision mismatches and safety blockers are cleared.",
+  };
+}
+
+function buildAutoAgentShadowComparison<TOutput>(
+  kind: AutoAgentShadowLane,
+  primaryResult: AgentResult<TOutput>,
+  shadowResult: AgentResult<TOutput>,
+) {
+  if (kind === "support_triage") {
+    return buildSupportShadowComparison(
+      primaryResult as AgentResult<unknown>,
+      shadowResult as AgentResult<unknown>,
+    );
+  }
+
+  return {
+    schema: "blueprint/autoagent-shadow-comparison/v1",
+    lane: kind,
+    shadow_mode: "observation_only",
+    live_action_authority: "primary_result_only",
+    promotion_basis: "not_configured_for_lane",
+    decision_fields: [],
+    matched_fields: [],
+    mismatched_fields: [],
+    safety_blockers: ["lane_promotion_comparison_not_configured"],
+    promotion_recommendation: "hold_candidate",
+    promote: false,
+    recommendation_reason:
+      "This lane can collect shadow output, but promotion comparison is only configured for support_triage.",
+  };
+}
+
 function buildPreviewDiagnosisBrowserShadowTaskOverrides():
   | Partial<AgentTask<PreviewDiagnosisInput>>
   | undefined {
@@ -215,6 +328,11 @@ function buildShadowRunRecord<TOutput>(
     requires_human_review: params.result.requires_human_review,
     requires_approval: params.result.requires_approval,
     error: params.result.error || null,
+    comparison: buildAutoAgentShadowComparison(
+      params.kind,
+      params.primaryResult,
+      params.result,
+    ),
     output: params.result.output ?? null,
     primary: {
       provider: params.primaryResult.provider,
@@ -300,6 +418,16 @@ async function maybeRunAutoAgentShadow<TInput, TOutput>(
     return result;
   } catch (error) {
     const message = error instanceof Error ? error.message : "AutoAgent shadow run failed";
+    const failedResult: AgentResult<TOutput> = {
+      status: "failed",
+      provider,
+      runtime: provider,
+      model: model || "unknown",
+      tool_mode: provider === "acp_harness" ? "external_harness" : "api",
+      error: message,
+      requires_human_review: false,
+      requires_approval: false,
+    };
     logger.warn(
       { err: error, kind: params.kind, sourceDocId: params.sourceDocId },
       "AutoAgent shadow run failed",
@@ -319,6 +447,11 @@ async function maybeRunAutoAgentShadow<TInput, TOutput>(
         model: model || null,
         status: "failed",
         error: message,
+        comparison: buildAutoAgentShadowComparison(
+          params.kind,
+          params.primaryResult,
+          failedResult,
+        ),
         primary: {
           provider: params.primaryResult.provider,
           runtime: params.primaryResult.runtime,

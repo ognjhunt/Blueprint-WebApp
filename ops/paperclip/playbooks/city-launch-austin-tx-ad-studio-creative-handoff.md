@@ -18,5 +18,5 @@ Generated creative is marketing material, not ground truth.
 Generated images and videos cannot substitute for capture provenance, rights clearance, proof-pack delivery, hosted-review evidence, recipient-backed sends, or ad performance.
 
 ## Scorecard Linkage
-- gtm_contract: /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/approval-packet-city-launch-harness-s5EH7A/austin-tx/2026-05-16T01-50-50.151Z/city-launch-austin-tx-gtm-72h-contract.md
-- checkpoint_manifest: /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/approval-packet-city-launch-harness-s5EH7A/austin-tx/2026-05-16T01-50-50.151Z/city-launch-austin-tx-scorecard-windows.json
+- gtm_contract: /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/approval-packet-city-launch-harness-BSL8kt/austin-tx/2026-05-27T02-51-34.084Z/city-launch-austin-tx-gtm-72h-contract.md
+- checkpoint_manifest: /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/approval-packet-city-launch-harness-BSL8kt/austin-tx/2026-05-27T02-51-34.084Z/city-launch-austin-tx-scorecard-windows.json

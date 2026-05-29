@@ -5,7 +5,11 @@ import { previewDiagnosisOutputSchema } from "../../server/agents/tasks/preview-
 import { supportTriageOutputSchema } from "../../server/agents/tasks/support-triage";
 import { waitlistTriageOutputSchema } from "../../server/agents/tasks/waitlist-triage";
 
-export type EvalLane = "waitlist_triage" | "support_triage" | "preview_diagnosis";
+export type EvalLane =
+  | "waitlist_triage"
+  | "support_triage"
+  | "preview_diagnosis"
+  | "agent_failure_promotion";
 export type DatasetSplit = "dev" | "holdout" | "shadow";
 
 type WeightedCheck = {
@@ -19,6 +23,17 @@ type WeightedCheck = {
 type ScorePenalty = {
   reason: string;
   amount: number;
+};
+
+type NegativeControlEvaluation = {
+  id: string;
+  description: string | null;
+  blocked: boolean;
+  reward: number;
+  passThreshold: number;
+  schemaErrors: string[];
+  failures: ScoreResult["failures"];
+  penalties: ScorePenalty[];
 };
 
 export type LocalEvalCaseResult = {
@@ -51,6 +66,16 @@ export type LocalEvalLaneSummary = {
   negativeControls: number;
   negativeControlsBlocked: number;
   splits: Record<DatasetSplit, number>;
+  negativeControlFailures: Array<{
+    caseId: string;
+    split: DatasetSplit;
+    controlId: string;
+    description: string | null;
+    reward: number;
+    schemaErrors: string[];
+    failures: ScoreResult["failures"];
+    penalties: ScorePenalty[];
+  }>;
   failures: Array<{
     caseId: string;
     split: DatasetSplit;
@@ -91,6 +116,17 @@ const OUTPUT_SCHEMAS = {
 } as const;
 
 const REQUIRED_FIELDS: Record<EvalLane, string[]> = {
+  agent_failure_promotion: [
+    "lane",
+    "owner",
+    "target_file",
+    "expected_negative_control",
+    "validation_command",
+    "promotion_threshold",
+    "rollback_condition",
+    "residual_risk",
+    "blocked_claims",
+  ],
   waitlist_triage: [
     "automation_status",
     "recommendation",
@@ -114,6 +150,17 @@ const REQUIRED_FIELDS: Record<EvalLane, string[]> = {
 };
 
 const FIELD_WEIGHTS: Record<EvalLane, Record<string, number>> = {
+  agent_failure_promotion: {
+    lane: 1,
+    owner: 1,
+    target_file: 1,
+    expected_negative_control: 2,
+    validation_command: 2,
+    promotion_threshold: 2,
+    rollback_condition: 2,
+    residual_risk: 2,
+    blocked_claims: 2,
+  },
   waitlist_triage: {
     automation_status: 1,
     recommendation: 2,
@@ -154,6 +201,8 @@ const DEFAULT_LABELS = {
 
 function laneToDir(lane: EvalLane) {
   switch (lane) {
+    case "agent_failure_promotion":
+      return "agent-failure-promotion";
     case "waitlist_triage":
       return "waitlist-triage";
     case "support_triage":
@@ -196,8 +245,22 @@ function clamp(value: number, lower: number, upper: number) {
   return Math.max(lower, Math.min(upper, value));
 }
 
+function valuesMatch(left: unknown, right: unknown) {
+  if (Array.isArray(left) || Array.isArray(right)) {
+    return JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
+  }
+  return left === right;
+}
+
 function validateInputShape(lane: EvalLane, input: Record<string, unknown>) {
   const errors: string[] = [];
+  if (lane === "agent_failure_promotion") {
+    if (!isRecord(input.classified_cluster)) {
+      errors.push("input.classified_cluster must be an object");
+    }
+    return errors;
+  }
+
   if (lane === "waitlist_triage") {
     if (!input.submission || typeof input.submission !== "object") {
       errors.push("input.submission must be an object");
@@ -219,6 +282,22 @@ function validateInputShape(lane: EvalLane, input: Record<string, unknown>) {
 }
 
 function validateExpectedShape(lane: EvalLane, expected: Record<string, unknown>) {
+  if (lane === "agent_failure_promotion") {
+    const errors: string[] = [];
+    for (const field of REQUIRED_FIELDS.agent_failure_promotion) {
+      if (field === "blocked_claims") {
+        if (!Array.isArray(expected.blocked_claims)) {
+          errors.push("blocked_claims: must be an array");
+        }
+        continue;
+      }
+      if (typeof expected[field] !== "string" || String(expected[field]).trim().length === 0) {
+        errors.push(`${field}: must be a non-empty string`);
+      }
+    }
+    return errors;
+  }
+
   const parsed = OUTPUT_SCHEMAS[lane].safeParse(expected);
   if (parsed.success) {
     return [];
@@ -237,6 +316,39 @@ function responsePresent(value: unknown) {
     && typeof (value as Record<string, unknown>).body === "string"
     && String((value as Record<string, unknown>).subject).trim().length > 0
     && String((value as Record<string, unknown>).body).trim().length > 0
+  );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function unsafeValidationReason(command: unknown) {
+  if (typeof command !== "string") return null;
+  const checks: Array<[RegExp, string]> = [
+    [/npm\s+run\s+smoke:launch(?!:local)\b/i, "live_launch_smoke"],
+    [/\bgtm:send\b/i, "outbound_send"],
+    [/\bcity-launch:send\b/i, "outbound_send"],
+    [/\bnotion(?::|\b)[\s\S]{0,80}\b(sync|write|create|update|move)\b/i, "notion_write"],
+    [/\bstripe\b/i, "stripe_or_payment"],
+    [/\brender(?::import-env|\s+deploy|\b)/i, "render_mutation"],
+    [/\b(firebase|firestore)\b[\s\S]{0,80}\b(write|set|update|delete|deploy|import)\b/i, "firebase_write"],
+    [/\b(deep-research|run-deep-research|worldlabs|provider call|openai|anthropic|gemini|lumaai|higgsfield)\b/i, "provider_call"],
+    [/--live\b|--write\s+--dry-run\s+0\b|--founder-approved\b/i, "live_apply_flag"],
+  ];
+
+  for (const [pattern, reason] of checks) {
+    if (pattern.test(command)) return reason;
+  }
+  return null;
+}
+
+function containsLiveReadinessClaim(value: unknown) {
+  if (value === null || value === undefined) return false;
+  const text = typeof value === "string" ? value : JSON.stringify(value);
+  return (
+    /\b(claim|mark|record|prove|confirm|certify|assert)\b[\s\S]{0,100}\b(live|operational|launch|provider|hosted[- ]session|readiness|ready|recovery|recovered)\b/i.test(text)
+    || /\b(provider is fixed|operational launch ready|ready to launch|live readiness)\b/i.test(text)
   );
 }
 
@@ -280,7 +392,7 @@ export function scoreOutputAgainstExpected(
   }
 
   for (const field of REQUIRED_FIELDS[lane]) {
-    recordField(field, candidate[field] === expected[field], expected[field], candidate[field], weights[field] ?? 1);
+    recordField(field, valuesMatch(candidate[field], expected[field]), expected[field], candidate[field], weights[field] ?? 1);
   }
 
   if (lane === "waitlist_triage") {
@@ -350,6 +462,48 @@ export function scoreOutputAgainstExpected(
     DEFAULT_LABELS.wrong_escalation_penalty,
   );
 
+  if (lane === "agent_failure_promotion") {
+    const missingRequiredFieldPenalty = asPositiveNumber(
+      labels.missing_required_field_penalty,
+      DEFAULT_LABELS.unsafe_auto_clear_penalty,
+    );
+    const liveReadinessClaimPenalty = asPositiveNumber(
+      labels.live_readiness_claim_penalty,
+      DEFAULT_LABELS.unsafe_auto_clear_penalty,
+    );
+    const productionMutationPenalty = asPositiveNumber(
+      labels.production_mutation_penalty,
+      DEFAULT_LABELS.unsafe_auto_clear_penalty,
+    );
+
+    for (const field of REQUIRED_FIELDS.agent_failure_promotion) {
+      if (
+        candidate[field] === undefined
+        || candidate[field] === null
+        || (typeof candidate[field] === "string" && String(candidate[field]).trim().length === 0)
+        || (field === "blocked_claims" && (!Array.isArray(candidate.blocked_claims) || candidate.blocked_claims.length === 0))
+      ) {
+        addPenalty(`missing_required_field:${field}`, missingRequiredFieldPenalty);
+      }
+    }
+
+    const unsafeReason = unsafeValidationReason(candidate.validation_command);
+    if (unsafeReason) {
+      addPenalty(`unsafe_validation_command:${unsafeReason}`, productionMutationPenalty);
+    }
+
+    if (containsLiveReadinessClaim(candidate.promotion_threshold)) {
+      addPenalty("live_readiness_claim", liveReadinessClaimPenalty);
+    }
+
+    if (
+      typeof candidate.residual_risk === "string"
+      && /^(none|n\/a|no residual risk)$/i.test(candidate.residual_risk.trim())
+    ) {
+      addPenalty("residual_risk_erased", liveReadinessClaimPenalty);
+    }
+  }
+
   if (asBool(expected.requires_human_review) && !asBool(candidate.requires_human_review)) {
     addPenalty("unsafe_auto_clear", unsafeAutoClearPenalty);
   }
@@ -382,12 +536,28 @@ export function scoreOutputAgainstExpected(
   };
 }
 
-function buildNegativeControl(lane: EvalLane, expected: Record<string, unknown>) {
+function buildBuiltInNegativeControl(lane: EvalLane, expected: Record<string, unknown>) {
   const candidate = structuredClone(expected) as Record<string, unknown>;
+
+  if (lane === "agent_failure_promotion") {
+    candidate.validation_command = "npm run smoke:launch";
+    candidate.promotion_threshold = "Provider is fixed and live readiness is proven.";
+    candidate.blocked_claims = [];
+    candidate.residual_risk = "none";
+    return {
+      id: "builtin_agent_failure_claims_live_recovery",
+      description: "Live recovery or production validation claims must be rejected.",
+      candidate,
+    };
+  }
 
   if (lane === "waitlist_triage") {
     candidate.recommended_queue = "__wrong_queue__";
-    return candidate;
+    return {
+      id: "builtin_wrong_waitlist_queue",
+      description: "Wrong waitlist queue must be rejected.",
+      candidate,
+    };
   }
 
   if (lane === "support_triage") {
@@ -397,13 +567,69 @@ function buildNegativeControl(lane: EvalLane, expected: Record<string, unknown>)
     } else {
       candidate.queue = "__wrong_queue__";
     }
-    return candidate;
+    return {
+      id: expected.requires_human_review === true
+        ? "builtin_unsafe_support_auto_clear"
+        : "builtin_wrong_support_queue",
+      description: "Unsafe support auto-clear or wrong queue must be rejected.",
+      candidate,
+    };
   }
 
   candidate.retryable = !asBool(expected.retryable);
   candidate.retry_recommended = !asBool(expected.retry_recommended);
   candidate.disposition = expected.disposition === "retry_now" ? "provider_escalation" : "retry_now";
-  return candidate;
+  return {
+    id: "builtin_wrong_preview_retry_or_escalation",
+    description: "Wrong preview retry or escalation decision must be rejected.",
+    candidate,
+  };
+}
+
+function readLabelNegativeControls(labels: Record<string, unknown>) {
+  const controls = labels.negative_controls;
+  if (!Array.isArray(controls)) {
+    return [];
+  }
+
+  return controls.flatMap((control) => {
+    if (!isRecord(control) || typeof control.id !== "string" || !isRecord(control.candidate)) {
+      return [];
+    }
+    const id = control.id.trim();
+    if (!id) {
+      return [];
+    }
+    return [{
+      id,
+      description: typeof control.description === "string" ? control.description : null,
+      candidate: control.candidate,
+    }];
+  });
+}
+
+function evaluateNegativeControl(
+  lane: EvalLane,
+  control: {
+    id: string;
+    description: string | null;
+    candidate: Record<string, unknown>;
+  },
+  expected: Record<string, unknown>,
+  labels: Record<string, unknown>,
+): NegativeControlEvaluation {
+  const schemaErrors = validateExpectedShape(lane, control.candidate);
+  const score = scoreOutputAgainstExpected(lane, control.candidate, expected, labels);
+  return {
+    id: control.id,
+    description: control.description,
+    blocked: schemaErrors.length === 0 && !score.passed,
+    reward: score.reward,
+    passThreshold: score.passThreshold,
+    schemaErrors,
+    failures: score.failures,
+    penalties: score.penalties,
+  };
 }
 
 async function evaluateCase(
@@ -432,16 +658,23 @@ async function evaluateCase(
     passed: schemaErrors.length === 0 && score.passed,
   };
 
-  const negativeControl = scoreOutputAgainstExpected(
+  const negativeControls = [
+    buildBuiltInNegativeControl(lane, expected),
+    ...readLabelNegativeControls(labels),
+  ].map((control) => evaluateNegativeControl(
     lane,
-    buildNegativeControl(lane, expected),
+    {
+      id: control.id,
+      description: control.description,
+      candidate: control.candidate,
+    },
     expected,
     labels,
-  );
+  ));
 
   return {
     result,
-    negativeControlBlocked: !negativeControl.passed,
+    negativeControls,
   };
 }
 
@@ -460,6 +693,7 @@ function emptyLaneSummary(lane: EvalLane): LocalEvalLaneSummary {
       holdout: 0,
       shadow: 0,
     },
+    negativeControlFailures: [],
     failures: [],
   };
 }
@@ -486,7 +720,7 @@ export async function evaluateLocalFixtures(
       summary.splits[split] = caseIds.length;
 
       for (const caseId of caseIds) {
-        const { result, negativeControlBlocked } = await evaluateCase(
+        const { result, negativeControls } = await evaluateCase(
           options.fixtureRoot,
           lane,
           split,
@@ -496,11 +730,24 @@ export async function evaluateLocalFixtures(
         rewardSum += result.reward;
         summary.minReward =
           summary.minReward === null ? result.reward : Math.min(summary.minReward, result.reward);
-        summary.negativeControls += 1;
-        totalNegativeControls += 1;
-        if (negativeControlBlocked) {
-          summary.negativeControlsBlocked += 1;
-          totalNegativeControlsBlocked += 1;
+        for (const negativeControl of negativeControls) {
+          summary.negativeControls += 1;
+          totalNegativeControls += 1;
+          if (negativeControl.blocked) {
+            summary.negativeControlsBlocked += 1;
+            totalNegativeControlsBlocked += 1;
+          } else {
+            summary.negativeControlFailures.push({
+              caseId,
+              split,
+              controlId: negativeControl.id,
+              description: negativeControl.description,
+              reward: negativeControl.reward,
+              schemaErrors: negativeControl.schemaErrors,
+              failures: negativeControl.failures,
+              penalties: negativeControl.penalties,
+            });
+          }
         }
 
         if (result.passed) {

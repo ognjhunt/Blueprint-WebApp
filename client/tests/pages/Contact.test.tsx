@@ -71,7 +71,7 @@ describe("Contact page", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Request a site, location, or robot workflow\./i,
+        name: /Request the site-specific world model your robot team needs\./i,
       }),
     ).toBeInTheDocument();
     expect(
@@ -81,10 +81,10 @@ describe("Contact page", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/Human and agent friendly/i)).toBeInTheDocument();
     expect(screen.getByText(/Add contact details and send the request/i)).toBeInTheDocument();
-    expect(screen.getByText(/This is an intake record, not access, payment/i)).toBeInTheDocument();
+    expect(screen.getByText(/This creates an intake record only/i)).toBeInTheDocument();
     expect(screen.queryByText(/Buyer type/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Requested lanes/i)).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Request this location/i })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /Request world model/i }).length).toBeGreaterThan(0);
     expect(screen.getByRole("radio", { name: /World model package/i })).toBeChecked();
     expect(screen.getByRole("radio", { name: /Hosted review/i })).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: /New capture request/i })).toBeInTheDocument();
@@ -129,7 +129,7 @@ describe("Contact page", () => {
     render(<Contact />);
 
     expect(
-      screen.getByRole("heading", { name: /Request a site, location, or robot workflow\./i }),
+      screen.getByRole("heading", { name: /Request the site-specific world model your robot team needs\./i }),
     ).toBeInTheDocument();
     expect(screen.getAllByDisplayValue("Harborview Grocery Distribution Annex").length).toBeGreaterThan(0);
     expect(screen.getByDisplayValue("Walk to shelf staging and pick the blue tote")).toBeInTheDocument();
@@ -170,7 +170,8 @@ describe("Contact page", () => {
     fireEvent.change(screen.getByRole("textbox", { name: /What should this world model help your team evaluate\?/i }), {
       target: { value: "Compare shelf-staging behavior before field travel." },
     });
-    fireEvent.click(screen.getByRole("button", { name: /Request world model/i }));
+    const submitButtons = screen.getAllByRole("button", { name: /Request world model/i });
+    fireEvent.click(submitButtons[submitButtons.length - 1]);
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
@@ -199,7 +200,7 @@ describe("Contact page", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Request a site, location, or robot workflow\./i,
+        name: /Request the site-specific world model your robot team needs\./i,
       }),
     ).toBeInTheDocument();
     expect(
@@ -217,7 +218,7 @@ describe("Contact page", () => {
     render(<Contact />);
 
     expect(
-      screen.getByText(/No scanned package for this exact place yet\./i),
+      screen.getByText(/No exact-site package in the catalog yet\./i),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("textbox", {
@@ -260,7 +261,8 @@ describe("Contact page", () => {
     fireEvent.change(screen.getByRole("textbox", { name: /Site or facility/i }), {
       target: { value: "Warehouse in Chicago" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /Request world model/i }));
+    const submitButtons = screen.getAllByRole("button", { name: /Request world model/i });
+    fireEvent.click(submitButtons[submitButtons.length - 1]);
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
@@ -422,7 +424,8 @@ describe("Contact page", () => {
   it("tracks a validation failure when required contact fields are missing", async () => {
     render(<Contact />);
 
-    fireEvent.click(screen.getByRole("button", { name: /Request world model/i }));
+    const submitButtons = screen.getAllByRole("button", { name: /Request world model/i });
+    fireEvent.click(submitButtons[submitButtons.length - 1]);
 
     expect(screen.getByText(/keeps the request routeable before any call or human review/i)).toBeInTheDocument();
     expect(analyticsEventsMock.contactRequestFailed).toHaveBeenCalledWith({

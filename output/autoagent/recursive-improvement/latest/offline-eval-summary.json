@@ -1,0 +1,221 @@
+{
+  "fixtureRoot": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/labs/autoagent/tasks",
+  "lanes": [
+    "support_triage"
+  ],
+  "totalCases": 4,
+  "totalPassed": 4,
+  "totalFailed": 0,
+  "totalNegativeControls": 6,
+  "totalNegativeControlsBlocked": 6,
+  "laneSummaries": {
+    "support_triage": {
+      "lane": "support_triage",
+      "totalCases": 4,
+      "passed": 4,
+      "failed": 0,
+      "minReward": 1,
+      "averageReward": 1,
+      "negativeControls": 6,
+      "negativeControlsBlocked": 6,
+      "splits": {
+        "dev": 1,
+        "holdout": 1,
+        "shadow": 2
+      },
+      "negativeControlFailures": [],
+      "failures": []
+    }
+  },
+  "samples": [
+    {
+      "lane": "support_triage",
+      "split": "dev",
+      "caseId": "seed-support-general",
+      "candidateSource": "expected.json",
+      "riskTier": "low",
+      "schemaErrors": [],
+      "passed": true,
+      "reward": 1,
+      "passThreshold": 0.8,
+      "weightedChecks": [
+        {
+          "field": "automation_status",
+          "matched": true,
+          "expected": "completed",
+          "actual": "completed",
+          "weight": 1
+        },
+        {
+          "field": "category",
+          "matched": true,
+          "expected": "general_support",
+          "actual": "general_support",
+          "weight": 2
+        },
+        {
+          "field": "queue",
+          "matched": true,
+          "expected": "support_general",
+          "actual": "support_general",
+          "weight": 2
+        },
+        {
+          "field": "priority",
+          "matched": true,
+          "expected": "normal",
+          "actual": "normal",
+          "weight": 1
+        },
+        {
+          "field": "requires_human_review",
+          "matched": true,
+          "expected": false,
+          "actual": false,
+          "weight": 2
+        },
+        {
+          "field": "suggested_response",
+          "matched": true,
+          "expected": {
+            "subject": "Thanks for reaching out",
+            "body": "We received your message and will follow up shortly with the next step."
+          },
+          "actual": {
+            "subject": "Thanks for reaching out",
+            "body": "We received your message and will follow up shortly with the next step."
+          },
+          "weight": 0.5
+        }
+      ],
+      "penalties": [],
+      "failures": []
+    },
+    {
+      "lane": "support_triage",
+      "split": "holdout",
+      "caseId": "seed-support-billing-blocked",
+      "candidateSource": "expected.json",
+      "riskTier": "high",
+      "schemaErrors": [],
+      "passed": true,
+      "reward": 1,
+      "passThreshold": 0.8,
+      "weightedChecks": [
+        {
+          "field": "automation_status",
+          "matched": true,
+          "expected": "blocked",
+          "actual": "blocked",
+          "weight": 1
+        },
+        {
+          "field": "category",
+          "matched": true,
+          "expected": "billing_question",
+          "actual": "billing_question",
+          "weight": 2
+        },
+        {
+          "field": "queue",
+          "matched": true,
+          "expected": "finance_review",
+          "actual": "finance_review",
+          "weight": 2
+        },
+        {
+          "field": "priority",
+          "matched": true,
+          "expected": "high",
+          "actual": "high",
+          "weight": 1
+        },
+        {
+          "field": "requires_human_review",
+          "matched": true,
+          "expected": true,
+          "actual": true,
+          "weight": 2
+        },
+        {
+          "field": "suggested_response",
+          "matched": true,
+          "expected": {
+            "subject": "Your billing request is under review",
+            "body": "We received your billing request and routed it to the team for manual review."
+          },
+          "actual": {
+            "subject": "Your billing request is under review",
+            "body": "We received your billing request and routed it to the team for manual review."
+          },
+          "weight": 0.5
+        }
+      ],
+      "penalties": [],
+      "failures": []
+    },
+    {
+      "lane": "support_triage",
+      "split": "shadow",
+      "caseId": "seed-support-no-change-churn",
+      "candidateSource": "expected.json",
+      "riskTier": "high",
+      "schemaErrors": [],
+      "passed": true,
+      "reward": 1,
+      "passThreshold": 0.8,
+      "weightedChecks": [
+        {
+          "field": "automation_status",
+          "matched": true,
+          "expected": "blocked",
+          "actual": "blocked",
+          "weight": 1
+        },
+        {
+          "field": "category",
+          "matched": true,
+          "expected": "technical_issue",
+          "actual": "technical_issue",
+          "weight": 2
+        },
+        {
+          "field": "queue",
+          "matched": true,
+          "expected": "goal_closeout_review",
+          "actual": "goal_closeout_review",
+          "weight": 2
+        },
+        {
+          "field": "priority",
+          "matched": true,
+          "expected": "high",
+          "actual": "high",
+          "weight": 1
+        },
+        {
+          "field": "requires_human_review",
+          "matched": true,
+          "expected": true,
+          "actual": true,
+          "weight": 2
+        },
+        {
+          "field": "suggested_response",
+          "matched": true,
+          "expected": {
+            "subject": "No-change closeout needs proof",
+            "body": "This closeout does not show completed movement. Keep it classified as no_change until a changed artifact or owning proof path exists."
+          },
+          "actual": {
+            "subject": "No-change closeout needs proof",
+            "body": "This closeout does not show completed movement. Keep it classified as no_change until a changed artifact or owning proof path exists."
+          },
+          "weight": 0.5
+        }
+      ],
+      "penalties": [],
+      "failures": []
+    }
+  ]
+}

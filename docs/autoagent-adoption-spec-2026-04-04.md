@@ -67,6 +67,11 @@ Each case needs:
 - `labels.json`
   Risk weights and review expectations
 
+`labels.json` may also carry schema-valid named `negative_controls[]` candidates.
+Use those when a recurring Blueprint failure mode needs explicit rejection
+evidence instead of being hidden inside a generic wrong-queue or unsafe-clear
+count.
+
 Example common fields:
 
 ```json

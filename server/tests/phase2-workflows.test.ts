@@ -210,7 +210,7 @@ describe("Phase 2 workflow execution", () => {
           priority: "normal",
           confidence: 0.92,
           requires_human_review: false,
-          next_action: "Send reply",
+          next_action: "Send primary reply",
           rationale: "Routine support request.",
           internal_summary: "Safe support reply.",
           suggested_response: {
@@ -236,12 +236,12 @@ describe("Phase 2 workflow execution", () => {
           priority: "normal",
           confidence: 0.88,
           requires_human_review: false,
-          next_action: "Send reply",
+          next_action: "Shadow-only reply",
           rationale: "Shadow support request.",
           internal_summary: "Shadow support reply.",
           suggested_response: {
-            subject: "Thanks for reaching out",
-            body: "We received your message and will follow up shortly with the next step.",
+            subject: "Shadow response",
+            body: "This candidate output must not drive live support action.",
           },
         },
       });
@@ -271,11 +271,112 @@ describe("Phase 2 workflow execution", () => {
               kind: "support_triage",
               provider: "acp_harness",
               status: "completed",
+              comparison: expect.objectContaining({
+                lane: "support_triage",
+                shadow_mode: "observation_only",
+                live_action_authority: "primary_result_only",
+                promotion_recommendation: "promote_candidate",
+                promote: true,
+                mismatched_fields: [],
+                safety_blockers: [],
+              }),
             }),
           }),
         }),
       }),
       expect.objectContaining({ merge: true }),
+    );
+    expect(executePhase2WorkflowActions).toHaveBeenCalledWith(
+      expect.objectContaining({
+        draftOutput: expect.objectContaining({
+          next_action: "Send primary reply",
+          rationale: "Routine support request.",
+          suggested_response: expect.objectContaining({
+            subject: "Thanks for reaching out",
+          }),
+        }),
+      }),
+    );
+    expect(executePhase2WorkflowActions).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        draftOutput: expect.objectContaining({
+          next_action: "Shadow-only reply",
+          suggested_response: expect.objectContaining({
+            subject: "Shadow response",
+          }),
+        }),
+      }),
+    );
+  }, 15_000);
+
+  it("records a hold recommendation when the support shadow pass fails", async () => {
+    vi.stubEnv("BLUEPRINT_AUTOAGENT_SHADOW_ENABLED", "1");
+    vi.stubEnv("BLUEPRINT_AUTOAGENT_SHADOW_LANES", "support_triage");
+    vi.stubEnv("BLUEPRINT_AUTOAGENT_SHADOW_PROVIDER", "acp_harness");
+
+    runAgentTask
+      .mockResolvedValueOnce({
+        status: "completed",
+        provider: "openclaw",
+        runtime: "openclaw",
+        model: "openai/gpt-5.4",
+        tool_mode: "api",
+        output: {
+          automation_status: "completed",
+          block_reason_code: null,
+          retryable: false,
+          category: "general_support",
+          queue: "support_general",
+          priority: "normal",
+          confidence: 0.92,
+          requires_human_review: false,
+          next_action: "Send primary reply",
+          rationale: "Routine support request.",
+          internal_summary: "Safe support reply.",
+          suggested_response: {
+            subject: "Thanks for reaching out",
+            body: "We received your message and will follow up shortly with the next step.",
+          },
+        },
+      })
+      .mockRejectedValueOnce(new Error("Hermes candidate unavailable"));
+    executePhase2WorkflowActions.mockResolvedValue({
+      records: [],
+      lastResult: null,
+      lastState: "sent",
+    });
+
+    const { runSupportTriageLoop } = await import("../agents/workflows");
+    await runSupportTriageLoop({ limit: 1 });
+
+    expect(docSet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ops_automation: expect.objectContaining({
+          shadow_runs: expect.objectContaining({
+            autoagent: expect.objectContaining({
+              kind: "support_triage",
+              status: "failed",
+              error: "Hermes candidate unavailable",
+              comparison: expect.objectContaining({
+                lane: "support_triage",
+                shadow_mode: "observation_only",
+                live_action_authority: "primary_result_only",
+                promotion_recommendation: "hold_candidate",
+                promote: false,
+                safety_blockers: expect.arrayContaining(["shadow_result_unavailable"]),
+              }),
+            }),
+          }),
+        }),
+      }),
+      expect.objectContaining({ merge: true }),
+    );
+    expect(executePhase2WorkflowActions).toHaveBeenCalledWith(
+      expect.objectContaining({
+        draftOutput: expect.objectContaining({
+          next_action: "Send primary reply",
+        }),
+      }),
     );
   }, 15_000);
 

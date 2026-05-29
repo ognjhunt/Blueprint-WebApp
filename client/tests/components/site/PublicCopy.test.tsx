@@ -39,7 +39,7 @@ describe("public capture and world-model copy", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Site-specific world models for robot teams, built from real capture\./i,
+        name: /Site-specific world models from real capture\./i,
       }),
     ).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /Request world model/i }).length).toBeGreaterThan(0);

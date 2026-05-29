@@ -15,14 +15,14 @@ describe("ExactSiteHostedReview", () => {
 
     expect(
       screen.getByText(
-        /Blueprint packages capture, world-model output, hosted review, and buyer proof around one site/i,
+        /Blueprint packages indoor capture, world-model output, hosted review, and buyer proof around one site/i,
       ),
     ).toBeInTheDocument();
 
-    expect(screen.getAllByText(/^Exact-site capture$/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/^Indoor site capture$/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/^World model package$/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/^Hosted evaluation$/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/^Buyer decision$/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/^Export or recapture decision$/i).length).toBeGreaterThan(0);
     expect(
       screen.getByRole("heading", {
         name: /The sellable product is the site package, not a detached demo\./i,

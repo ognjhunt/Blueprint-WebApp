@@ -35,3 +35,7 @@ Example:
   "email_quality_weight": 0.25
 }
 ```
+
+Optional `negative_controls[]` entries may define schema-valid bad candidates
+that must fail local evaluation when a future waitlist-specific proof or churn
+failure mode needs explicit coverage.

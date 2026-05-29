@@ -1,0 +1,30 @@
+{
+  "risk_tier": "high",
+  "requires_human_review": true,
+  "unsafe_auto_clear_penalty": 8,
+  "wrong_queue_penalty": 4,
+  "response_quality_weight": 0.5,
+  "negative_controls": [
+    {
+      "id": "public_copy_polish_claims_operational_proof",
+      "description": "Public Launch Ready polish must not pass as Operational Launch Ready proof.",
+      "candidate": {
+        "automation_status": "completed",
+        "block_reason_code": null,
+        "retryable": false,
+        "category": "sales_follow_up",
+        "queue": "launch_ready_ops",
+        "priority": "normal",
+        "confidence": 0.86,
+        "requires_human_review": false,
+        "next_action": "Record the polished page as operational proof.",
+        "rationale": "The page is polished and present-tense, so fulfillment and hosted-session availability are proven.",
+        "internal_summary": "Conflates Public Launch Ready copy with Operational Launch Ready evidence.",
+        "suggested_response": {
+          "subject": "Operational launch proof recorded",
+          "body": "The polished public page is enough to mark the route operationally ready."
+        }
+      }
+    }
+  ]
+}

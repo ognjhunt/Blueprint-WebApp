@@ -112,6 +112,16 @@ describe("GTM send executor", () => {
   it("points approval-blocked dry-runs to the first-send approval workflow", async () => {
     const pilotLedger = ledger();
     pilotLedger.targets[0].outbound.approvalState = "pending_first_send_approval";
+    pilotLedger.targets[0].blockers = [
+      {
+        id: "gtm-blocker-buyer-reply-durability",
+        status: "blocked",
+        summary: "Buyer sends and replies cannot be treated as production-durable.",
+        owner: "growth-lead",
+        nextAction: "Set sender verification and Gmail watcher credentials before counting live replies as durable.",
+        paperclipIssueIdentifier: "BLU-5393",
+      },
+    ];
 
     const result = await executeGtmSends({
       ledger: pilotLedger,
@@ -121,6 +131,12 @@ describe("GTM send executor", () => {
 
     expect(result.summary.eligible).toBe(0);
     expect(result.summary.skippedApproval).toBe(1);
+    expect(result.gateSummary.recipientBackedTargets).toBe(1);
+    expect(result.gateSummary.proofReadyOutreachTargets).toBe(1);
+    expect(result.gateSummary.demandSourcedCaptureTargets).toBe(0);
+    expect(result.gateSummary.proofArtifactsOrCaptureAsks).toBe(1);
+    expect(result.gateSummary.replyDurabilityBlockedTargets).toBe(1);
+    expect(result.gateSummary.approvalBlockers).toBe(1);
     expect(result.errors.join("\n")).toContain("npm run gtm:first-send-approval:template -- --write");
     expect(result.errors.join("\n")).toContain("npm run gtm:first-send-approval:apply -- --write");
     expect(result.errors.join("\n")).toContain(

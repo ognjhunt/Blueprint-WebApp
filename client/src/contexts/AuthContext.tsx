@@ -7,6 +7,7 @@ import {
 } from "firebase/auth";
 import { IdTokenResult, User as FirebaseUser } from "firebase/auth";
 import type { UserData } from "@/lib/firebase";
+import { resolveOperatorQaAuth } from "@/lib/operatorQaAuth";
 
 interface AuthContextType {
   currentUser: FirebaseUser | null;
@@ -53,9 +54,12 @@ export function useAuth() {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  // VITE_BLUEPRINT_OPERATOR_QA_FAKE_AUTH is a dev-only bypass for local operator QA.
+  const operatorQaAuth = React.useMemo(() => resolveOperatorQaAuth(viteEnv), []);
+
   // Set persistence to LOCAL
   React.useEffect(() => {
-    if (typeof window === "undefined") {
+    if (typeof window === "undefined" || operatorQaAuth.enabled) {
       return;
     }
 
@@ -68,13 +72,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     };
     initPersistence();
-  }, []);
+  }, [operatorQaAuth.enabled]);
   const [currentUser, setCurrentUser] = React.useState<FirebaseUser | null>(
-    null,
+    operatorQaAuth.enabled ? (operatorQaAuth.currentUser as FirebaseUser) : null,
   );
-  const [userData, setUserData] = React.useState<UserData | null>(null);
-  const [tokenClaims, setTokenClaims] = React.useState<IdTokenResult["claims"] | null>(null);
-  const [loading, setLoading] = React.useState(typeof window !== "undefined");
+  const [userData, setUserData] = React.useState<UserData | null>(
+    operatorQaAuth.enabled ? operatorQaAuth.userData : null,
+  );
+  const [tokenClaims, setTokenClaims] = React.useState<IdTokenResult["claims"] | null>(
+    operatorQaAuth.enabled ? operatorQaAuth.tokenClaims : null,
+  );
+  const [loading, setLoading] = React.useState(
+    operatorQaAuth.enabled ? false : typeof window !== "undefined",
+  );
   const [, setLocation] = useLocation();
 
   const normalizeUserData = React.useCallback((data: UserData | null) => {
@@ -195,6 +205,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   React.useEffect(() => {
+    if (operatorQaAuth.enabled) {
+      setCurrentUser(operatorQaAuth.currentUser as FirebaseUser);
+      setUserData(normalizeUserData(operatorQaAuth.userData));
+      setTokenClaims(operatorQaAuth.tokenClaims);
+      setLoading(false);
+      return;
+    }
+
     if (typeof window === "undefined") {
       setLoading(false);
       return;
@@ -266,10 +284,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       clearFallbackTimeout();
       unsubscribe();
     };
-  }, []);
+  }, [normalizeUserData, operatorQaAuth]);
 
   async function signIn(email: string, password: string) {
     try {
+      if (operatorQaAuth.enabled) {
+        const normalizedUserData = normalizeUserData(operatorQaAuth.userData);
+        setCurrentUser(operatorQaAuth.currentUser as FirebaseUser);
+        setUserData(normalizedUserData);
+        setTokenClaims(operatorQaAuth.tokenClaims);
+        return navigateAfterAuth(normalizedUserData);
+      }
+
       const firebase = await loadFirebaseClientModule();
       const user = await firebase.loginWithEmailAndPassword(email, password);
       console.log("User signed in successfully:", user.uid);
@@ -306,6 +332,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function signUp(email: string, password: string, name?: string) {
     try {
+      if (operatorQaAuth.enabled) {
+        const normalizedUserData = normalizeUserData(operatorQaAuth.userData);
+        setCurrentUser(operatorQaAuth.currentUser as FirebaseUser);
+        setUserData(normalizedUserData);
+        setTokenClaims(operatorQaAuth.tokenClaims);
+        return navigateAfterAuth(normalizedUserData);
+      }
+
       const firebase = await loadFirebaseClientModule();
       const user = await firebase.registerWithEmailAndPassword(email, password, name);
       console.log("User registered successfully:", user.uid);
@@ -345,6 +379,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function signInWithGoogle() {
     try {
+      if (operatorQaAuth.enabled) {
+        const normalizedUserData = normalizeUserData(operatorQaAuth.userData);
+        setCurrentUser(operatorQaAuth.currentUser as FirebaseUser);
+        setUserData(normalizedUserData);
+        setTokenClaims(operatorQaAuth.tokenClaims);
+        return navigateAfterAuth(normalizedUserData);
+      }
+
       const firebase = await loadFirebaseClientModule();
       const user = await firebase.signInWithGoogle();
       console.log("User signed in with Google successfully:", user.uid);
@@ -423,6 +465,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function logout() {
     try {
+      if (operatorQaAuth.enabled) {
+        setCurrentUser(operatorQaAuth.currentUser as FirebaseUser);
+        setUserData(normalizeUserData(operatorQaAuth.userData));
+        setTokenClaims(operatorQaAuth.tokenClaims);
+        return;
+      }
+
       const firebase = await loadFirebaseClientModule();
       await firebase.logOut();
       setUserData(null);

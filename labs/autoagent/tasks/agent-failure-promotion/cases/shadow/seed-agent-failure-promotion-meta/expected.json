@@ -1,0 +1,15 @@
+{
+  "lane": "autoagent_eval",
+  "owner": "webapp-codex",
+  "target_file": "labs/autoagent/tasks/agent-failure-promotion/CASE_FORMAT.md",
+  "expected_negative_control": "A schema-valid candidate that claims live recovery or omits offline proof gates must fail.",
+  "validation_command": "npm exec -- vitest run scripts/autoagent/write-autoresearch-fixture.test.ts scripts/paperclip/autoresearch-promotion-queue.test.ts",
+  "promotion_threshold": "Promote only after offline fixtures prove the unsafe candidate is blocked with no service calls.",
+  "rollback_condition": "Rollback if the fixture accepts live readiness claims, production mutation, or missing proof gates.",
+  "residual_risk": "The fixture proves local promotion discipline only; it does not prove Paperclip, Hermes, provider, hosted-session, or launch readiness.",
+  "blocked_claims": [
+    "live Paperclip readiness",
+    "Hermes/provider recovery",
+    "production promotion"
+  ]
+}

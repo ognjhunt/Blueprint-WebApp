@@ -47,12 +47,12 @@ describe("Home", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Site-specific world models for robot teams, built from real capture\./i,
+        name: /Site-specific world models from real capture\./i,
       }),
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        /Name one facility or route\. Blueprint packages the capture, proof, rights limits, and hosted review path/i,
+        /Blueprint gives robot teams the indoor layer: capture-backed packages, provenance, rights limits, and hosted review/i,
       ),
     ).toBeInTheDocument();
     expect(
@@ -65,17 +65,17 @@ describe("Home", () => {
       Array.from(container.querySelectorAll("[data-home-section]"))
         .map((node) => node.getAttribute("data-home-section"))
         .slice(0, 3),
-    ).toEqual(["hero", "exact-site-preview", "first-route"]);
+    ).toEqual(["hero", "exact-site-preview", "category-validation"]);
     expect(
-      screen.getByRole("heading", { name: /Real capture route to explorable site preview\./i }),
+      screen.getByRole("heading", { name: /Choose a site task\. Inspect the route\./i }),
     ).toBeInTheDocument();
-    expect(screen.getAllByText(/Sample\/generated preview fallback/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Task-conditioned sample path/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Request exact-site preview/i })).toHaveAttribute(
       "href",
       expect.stringContaining("/contact?persona=robot-team"),
     );
-    expect(screen.getByRole("heading", { name: /Blueprint sells exact-site products, not generic demos\./i })).toBeInTheDocument();
-    expect(screen.getByText(/Blueprint turns real capture into site-specific packages/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Blueprint sells indoor exact-site products, not generic demos\./i })).toBeInTheDocument();
+    expect(screen.getByText(/Blueprint turns indoor capture into site-specific packages/i)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Site Package Access/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /^Hosted Review$/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Buyer Request Path/i })).toBeInTheDocument();
@@ -111,14 +111,14 @@ describe("Home", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
-        name: /Exact-site capture turns vague simulation demand into a buyer-ready package\./i,
+        name: /Indoor capture turns vague simulation demand into a buyer-ready package\./i,
       }),
     ).toBeInTheDocument();
     expect(screen.getAllByText(/Samples and demo worlds are labeled/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Approved listings keep capture basis/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Cedar Market Aisle Loop/i)).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /Request one exact-site world model\./i }),
+      screen.getByRole("heading", { name: /Request one indoor exact-site world model\./i }),
     ).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /See hosted workflow/i })[0]).toHaveAttribute("href", "/product");
   });
