@@ -31,7 +31,7 @@ When these files disagree with older reports, generated summaries, graph output,
 - Hosted-session truth starts in `server/routes/site-world-sessions.ts`, `server/types/hosted-session.ts`, and `client/src/types/hostedSession.ts`.
 - Inbound request and pipeline bridge truth starts in `server/types/inbound-request.ts`, `client/src/types/inbound-request.ts`, `server/routes/inbound-request.ts`, `server/routes/internal-pipeline.ts`, and `server/utils/pipelineStateMachine.ts`.
 - Stripe/entitlement truth starts in `server/routes/stripe.ts`, `server/routes/stripe-webhooks.ts`, `server/routes/marketplace.ts`, `server/routes/marketplace-entitlements.ts`, and relevant tests.
-- Agent runtime truth starts in `server/agents/`, `server/routes/admin-agent.ts`, `server/routes/paperclip-relay.ts`, and the Paperclip package under `ops/paperclip/`.
+- Agent runtime truth starts in `server/agents/`, `server/routes/admin-agent.ts`, `server/routes/paperclip-relay.ts`, and the Paperclip package under `ops/paperclip/`. AutoAgent/AutoResearch live action authority is specifically gated by `server/agents/autoagent-production-action-registry.ts`, which defaults to dry-run and allowlists only named production action types.
 - Employee/onboarding policy truth starts in `docs/company/` and `docs/onboarding/`, with legal/HR/payroll/benefits terms remaining draft until counsel/PEO-reviewed documents and live HR/payroll systems adopt them.
 
 For cross-repo contracts, verify the corresponding `BlueprintCapture` and `BlueprintCapturePipeline` docs/artifacts before assuming WebApp alone proves readiness.

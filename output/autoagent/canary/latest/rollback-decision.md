@@ -1,7 +1,7 @@
 # AutoAgent Canary Rollback Decision
 
 Status: insufficient_evidence
-Generated at: 2026-05-29T14:10:17.039Z
+Generated at: 2026-05-29T19:02:43.959Z
 Candidate id: autoagent-to-paperclip-hermes-prompt-policy-gate-2026-05-28
 Canary lane: unknown
 Dry run: true
@@ -40,9 +40,9 @@ status=rejected
 exit_code: 0
 ```text
 export_mode=offline_seed
-cases=9
+cases=10
 failed=0
-negative_controls_blocked=12/12
+negative_controls_blocked=14/14
 ```
 
 ### read local AutoAgent shadow summary /Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/canary/latest/shadow-summary.json

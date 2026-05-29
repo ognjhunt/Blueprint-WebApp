@@ -12,6 +12,11 @@ import {
   type AutoAgentShadowSummary,
 } from "../../server/agents/autoagent-promotion-policy.ts";
 import {
+  AUTOAGENT_PRODUCTION_ACTION_REGISTRY,
+  evaluateAutoAgentProductionAction,
+  type AutoAgentProductionActionRequest,
+} from "../../server/agents/autoagent-production-action-registry.ts";
+import {
   evaluatePromotionGate,
   runPromptPolicyPromotionGate,
   validatePromotionCandidate,
@@ -488,5 +493,190 @@ describe("central AutoAgent promotion policy", () => {
 
     expect(result.decision).toBe("hold");
     expect(result.requiredNextEvidence.join("\n")).toMatch(/rollback condition/i);
+  });
+});
+
+describe("AutoAgent production action registry", () => {
+  async function productionActionFixture(
+    overrides: Partial<AutoAgentProductionActionRequest> = {},
+  ): Promise<{
+    request: AutoAgentProductionActionRequest;
+    proofPath: string;
+    rollbackPath: string;
+  }> {
+    const root = await makeTempDir();
+    const proofPath = path.join(root, "proof.json");
+    const rollbackPath = path.join(root, "rollback.json");
+    await fs.writeFile(
+      proofPath,
+      `${JSON.stringify({ source: "paperclip_hermes", status: "verified" }, null, 2)}\n`,
+      "utf8",
+    );
+    await fs.writeFile(
+      rollbackPath,
+      `${JSON.stringify({ restore: "previous_metadata_snapshot" }, null, 2)}\n`,
+      "utf8",
+    );
+
+    const request: AutoAgentProductionActionRequest = {
+      actionType: "paperclip_hermes_internal_metadata_update",
+      ownerSystem: "paperclip_hermes",
+      targetRecordId: "recursive-agent-improvement-loop",
+      targetField: "metadata.autoagent.production_decision_loop",
+      proofSource: "paperclip_issue_metadata_snapshot",
+      proofPath,
+      idempotencyKey: "paperclip-hermes-metadata:issue-123:policy-tier",
+      rollbackStrategy: "restore_previous_metadata_snapshot",
+      rollbackPath,
+      dryRun: true,
+      canaryMode: true,
+      canaryLimit: {
+        maxActions: 1,
+        window: "per_run",
+      },
+      liveMutationEnabled: false,
+      auditEvent: {
+        schema: "blueprint/autoagent-production-action-audit/v1",
+        actionType: "paperclip_hermes_internal_metadata_update",
+        actionTier: "internal_metadata_update",
+        ownerSystem: "paperclip_hermes",
+        targetRecordId: "recursive-agent-improvement-loop",
+        targetField: "metadata.autoagent.production_decision_loop",
+        idempotencyKey: "paperclip-hermes-metadata:issue-123:policy-tier",
+        proofPath,
+        rollbackPath,
+        dryRun: true,
+        canaryMode: true,
+        liveMutationEnabled: false,
+      },
+      ...overrides,
+    };
+
+    return { request, proofPath, rollbackPath };
+  }
+
+  it("rejects unregistered live actions", async () => {
+    const { request } = await productionActionFixture({
+      actionType: "unregistered_live_mutation",
+      auditEvent: {
+        schema: "blueprint/autoagent-production-action-audit/v1",
+        actionType: "unregistered_live_mutation",
+        actionTier: "internal_metadata_update",
+        ownerSystem: "paperclip_hermes",
+        targetRecordId: "recursive-agent-improvement-loop",
+        targetField: "metadata.autoagent.production_decision_loop",
+        idempotencyKey: "paperclip-hermes-metadata:issue-123:policy-tier",
+        proofPath: "unused",
+        rollbackPath: "unused",
+        dryRun: true,
+        canaryMode: true,
+        liveMutationEnabled: false,
+      },
+    });
+
+    const result = evaluateAutoAgentProductionAction(request);
+
+    expect(result.decision).toBe("reject");
+    expect(result.reasons.join("\n")).toMatch(/unregistered production action/i);
+  });
+
+  it("rejects an allowed action when proof is missing", async () => {
+    const { request } = await productionActionFixture({
+      proofPath: "/tmp/blueprint-missing-production-proof.json",
+    });
+
+    const result = evaluateAutoAgentProductionAction(request);
+
+    expect(result.decision).toBe("reject");
+    expect(result.checks.proofPathExists).toBe(false);
+    expect(result.reasons.join("\n")).toMatch(/proof path/i);
+  });
+
+  it("rejects an allowed action when rollback is missing", async () => {
+    const { request } = await productionActionFixture({
+      rollbackPath: "/tmp/blueprint-missing-production-rollback.json",
+    });
+
+    const result = evaluateAutoAgentProductionAction(request);
+
+    expect(result.decision).toBe("reject");
+    expect(result.checks.rollbackPathExists).toBe(false);
+    expect(result.reasons.join("\n")).toMatch(/rollback path/i);
+  });
+
+  it("rejects duplicate idempotency keys", async () => {
+    const { request } = await productionActionFixture();
+
+    const result = evaluateAutoAgentProductionAction(request, {
+      usedIdempotencyKeys: new Set([request.idempotencyKey]),
+    });
+
+    expect(result.decision).toBe("reject");
+    expect(result.checks.idempotencyKeyIsUnique).toBe(false);
+    expect(result.reasons.join("\n")).toMatch(/duplicate idempotency key/i);
+  });
+
+  it("keeps external sends, payments, providers, and hosted sessions blocked", async () => {
+    const blockedActionTypes = [
+      "external_send",
+      "payment_or_entitlement",
+      "provider_execution",
+      "hosted_session_fulfillment",
+    ] as const;
+
+    for (const actionType of blockedActionTypes) {
+      const entry = AUTOAGENT_PRODUCTION_ACTION_REGISTRY[actionType];
+      const fixture = await productionActionFixture();
+      const request: AutoAgentProductionActionRequest = {
+        ...fixture.request,
+        actionType,
+        ownerSystem: entry.ownerSystem,
+        targetField: entry.allowedTargetFields[0] ?? "metadata.autoagent.production_decision_loop",
+        proofSource: entry.proofSource,
+        idempotencyKey: `${actionType}:blocked-test`,
+        liveMutationEnabled: true,
+        dryRun: false,
+        auditEvent: {
+          schema: "blueprint/autoagent-production-action-audit/v1",
+          actionType,
+          actionTier: entry.actionTier,
+          ownerSystem: entry.ownerSystem,
+          targetRecordId: "recursive-agent-improvement-loop",
+          targetField: entry.allowedTargetFields[0] ?? "metadata.autoagent.production_decision_loop",
+          idempotencyKey: `${actionType}:blocked-test`,
+          proofPath: fixture.proofPath,
+          rollbackPath: fixture.rollbackPath,
+          dryRun: false,
+          canaryMode: true,
+          liveMutationEnabled: true,
+        },
+      };
+
+      const result = evaluateAutoAgentProductionAction(request);
+
+      expect(result.decision).toBe("reject");
+      expect(result.actionEntry?.liveMutationAllowed).toBe(false);
+      expect(result.blockedActionTypes).toContain(actionType);
+    }
+  });
+
+  it("allows the Paperclip/Hermes internal metadata action in dry-run mode", async () => {
+    const { request } = await productionActionFixture();
+
+    const result = evaluateAutoAgentProductionAction(request);
+
+    expect(result.decision).toBe("dry_run_allowed");
+    expect(result.actionEntry?.actionTier).toBe("internal_metadata_update");
+    expect(result.actionEntry?.liveMutationAllowed).toBe(true);
+    expect(result.checks).toMatchObject({
+      ownerSystemNamed: true,
+      proofPathExists: true,
+      idempotencyKeyPresent: true,
+      idempotencyKeyIsUnique: true,
+      rollbackPathExists: true,
+      canaryLimitPresent: true,
+      auditEventSchemaPresent: true,
+      liveMutationFlagExplicit: true,
+    });
   });
 });

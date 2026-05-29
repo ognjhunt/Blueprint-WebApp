@@ -1,0 +1,17 @@
+{
+  "schema": "blueprint/autoagent-production-context-proof/v1",
+  "generated_at": "2026-05-29T21:21:49.899Z",
+  "owner_system": "paperclip_hermes",
+  "proof_source": "paperclip_issue_metadata_snapshot",
+  "target_record_id": "recursive-agent-improvement-loop",
+  "candidate_path": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/labs/autoagent/promotion-candidates/autoagent-to-paperclip-hermes-2026-05-28.json",
+  "paperclip_config_path": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/.paperclip.yaml",
+  "evidence_class": "deterministic repo-local owner-system snapshot for allowlisted production canary validation",
+  "current_metadata": {
+    "metadata.autoagent.production_decision_loop": "previous_or_unset",
+    "metadata.autoagent.latest_production_report_pointer": null
+  },
+  "first_live_lane_proof_path": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/latest/production-canary/execution.json",
+  "first_live_lane_proven": false,
+  "live_provider_or_send_proof": false
+}

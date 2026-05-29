@@ -1,8 +1,43 @@
 {
   "schema": "blueprint/autoagent-recursive-improvement-summary/v1",
-  "generated_at": "2026-05-29T17:56:25.589Z",
+  "generated_at": "2026-05-29T21:21:49.897Z",
   "dry_run": true,
-  "status": "no_change_report_only",
+  "status": "promotion_held",
+  "production_action_registry": {
+    "registry_path": "server/agents/autoagent-production-action-registry.ts",
+    "default_mode": "dry_run",
+    "allowed_live_action_types": [
+      "paperclip_hermes_internal_metadata_update"
+    ],
+    "registered_live_action_types": [
+      "paperclip_hermes_internal_metadata_update",
+      "paperclip_internal_report_pointer_update"
+    ],
+    "gated_live_action_types": [
+      "paperclip_internal_report_pointer_update"
+    ],
+    "blocked_action_types": [
+      "queue_state_update",
+      "internal_note_or_report_write",
+      "external_send",
+      "payment_or_entitlement",
+      "provider_execution",
+      "hosted_session_fulfillment",
+      "rights_privacy_legal",
+      "city_launch"
+    ],
+    "required_checks": [
+      "owner system named",
+      "proof path exists",
+      "idempotency key present and unique",
+      "rollback path exists",
+      "canary limit exists",
+      "audit event schema exists",
+      "target record id and target field are allowed",
+      "live mutation flag explicit"
+    ],
+    "live_mutation_enabled_by_default": false
+  },
   "selected_failure_family": "human_gate_or_reply_durability_blocker",
   "selected_queue_item_id": "autoresearch:autoagent_eval:human_gate_or_reply_durability_blocker",
   "generated_fixture_paths": [],
@@ -35,7 +70,7 @@
   "blocked_fixture_attempts": [],
   "ai_patch_proposal": {
     "schema": "blueprint/autoagent-patch-proposal-summary/v1",
-    "generated_at": "2026-05-29T17:56:27.992Z",
+    "generated_at": "2026-05-29T21:21:51.479Z",
     "status": "not_proposed",
     "ai_used": false,
     "proposal_id": null,
@@ -50,40 +85,38 @@
     "deterministic_gate_reason": "not_proposed: AI patch proposal stage wrote a no-op report because no AI proposer was requested",
     "reasons": []
   },
-  "canary_decision": "not_run_no_change_report_only",
+  "production_context_built": true,
+  "ai_production_proposal_used": false,
+  "production_proposal_status": "fallback_ai_unavailable",
+  "production_action_type": null,
+  "production_target_system": null,
+  "production_canary_attempted": false,
+  "production_canary_result": "not_attempted",
+  "idempotency_key": null,
+  "audit_event_path": null,
+  "rollback_snapshot_path": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/latest/production-context/rollback-snapshot.json",
+  "canary_decision": "not_run_promotion_hold",
   "rollback_decision": "not_run",
   "auto_apply_attempted": false,
   "auto_apply_result": "not_requested",
   "rollback_monitor_result": "not_run",
   "rollback_applied": false,
   "live_mutation_attempted": false,
-  "next_action": "close routine issue with this report path; do not create duplicate follow-up",
-  "next_autonomous_action": "close routine issue with this report path; do not create duplicate follow-up",
-  "retry_condition": "Retry only after a new failure family, new proof path, generated fixture, changed candidate, or changed held reason appears.",
-  "residual_risk": "No-change suppression only prevents duplicate routine/report follow-up churn; it does not prove live Paperclip/Hermes mutation, provider recovery, hosted-session fulfillment, sends, payments, rights/legal decisions, city-live state, customer claims, or operational launch readiness.",
+  "live_mutation_committed": false,
+  "next_action": "collect_required_promotion_evidence",
+  "next_autonomous_action": "collect_required_promotion_evidence",
+  "retry_condition": "Retry after the promotion gate has required offline, closeout, shadow, and rollback evidence.",
+  "residual_risk": "waitlist_triage requires explicit human/policy gate before canary or promotion; waitlist_triage remains shadow-only; preview_diagnosis remains shadow-only; clean shadow comparison summary is missing",
   "high_risk_blockers": [],
-  "no_change_classification": {
-    "classification": "no_change_report_only",
-    "no_new_family": true,
-    "no_new_proof": true,
-    "no_generated_fixture": true,
-    "same_held_reason": true,
-    "same_candidate": true,
-    "duplicate_follow_up_created": false,
-    "previous_status": "no_change_report_only",
-    "selected_proof_paths": "runs=ops/paperclip/reports/autonomous-buyer-loop-blocker-closeout-2026-05-05.md:55, ops/paperclip/reports/autonomy-lane-status-and-human-blocker-adoption-2026-04-12.md:82, ops/paperclip/reports/growth-lead-daily-2026-04-23.md:22, ops/paperclip/reports/human-blocker-exact-site-recipient-evidence-2026-05-05.md:11, ops/paperclip/reports/human-reply-handling-implementation-2026-04-12.md:19, ops/paperclip/reports/gtm-send-executor/2026-05-24/send-executor-manifest.json:19, ops/paperclip/reports/gtm-send-executor/2026-05-24/send-executor.md:22, ops/paperclip/reports/autonomous-growth-blockers/durham-nc/2026-04-24T15-01-51-741Z/blocker-status.json:54; issues=none; source=repo-local agent-improvement-observer",
-    "held_reason": "waitlist_triage requires explicit human/policy gate before canary or promotion; waitlist_triage remains shadow-only; preview_diagnosis remains shadow-only; clean shadow comparison summary is missing",
-    "fixture_result": "skipped: Requested family human_gate_or_reply_durability_blocker is already covered or was not supplied.",
-    "reasons": [
-      "no new failure family",
-      "no new proof path",
-      "no generated fixture",
-      "same held reason",
-      "same selected candidate",
-      "duplicate follow-up suppressed"
-    ]
-  },
+  "no_change_classification": null,
   "proof_paths": [
+    "server/agents/autoagent-production-action-registry.ts",
+    "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/latest/production-context/context-bundle.json",
+    "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/latest/production-context/context-bundle.md",
+    "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/latest/production-context/paperclip-issue-metadata-snapshot.json",
+    "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/latest/production-context/rollback-snapshot.json",
+    "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/latest/production-proposal-summary.json",
+    "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/latest/production-proposal-prompt.txt",
     "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/latest/observer/summary.json",
     "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/latest/observer/report.md",
     "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/latest/promotion-queue.json",
@@ -95,6 +128,8 @@
     "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/latest/proposed_patch_report.md"
   ],
   "command_outputs": [
+    "production-context-bundle: built=true path=/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/latest/production-context/context-bundle.json",
+    "ai-production-change-proposer: status=fallback_ai_unavailable ai_used=false action=none",
     "agent-improvement-observer(local-files): scanned=1500 candidates=8",
     "autoresearch-promotion-queue(local): queued=5",
     "write-autoresearch-fixture: status=skipped reason=Requested family human_gate_or_reply_durability_blocker is already covered or was not supplied.",
@@ -104,7 +139,6 @@
     "prompt-policy-promotion-gate reason=waitlist_triage remains shadow-only",
     "prompt-policy-promotion-gate reason=preview_diagnosis remains shadow-only",
     "prompt-policy-promotion-gate reason=clean shadow comparison summary is missing",
-    "ai-patch-proposal: status=not_proposed ai_used=false proposal=none",
-    "recursive-improvement no-change: status=no_change_report_only duplicate_follow_up_created=false"
+    "ai-patch-proposal: status=not_proposed ai_used=false proposal=none"
   ]
 }

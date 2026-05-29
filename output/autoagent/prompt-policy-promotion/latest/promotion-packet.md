@@ -6,11 +6,11 @@ Candidate id: autoagent-to-paperclip-hermes-prompt-policy-gate-2026-05-28
 Source: AutoAgent offline lab
 Target runtime: Paperclip/Hermes
 Live Paperclip mutation: not attempted
-Generated at: 2026-05-29T13:54:25.818Z
+Generated at: 2026-05-29T18:48:03.570Z
 
 ## Gate Checks
 
-- offline_evals_passed: false
+- offline_evals_passed: true
 - negative_controls_remain_blocked: true
 - required_lane_coverage_present: true
 - closeout_proof_present: true
@@ -19,11 +19,13 @@ Generated at: 2026-05-29T13:54:25.818Z
 - rollback_condition_present: true
 - blocked_claims_absent: true
 - live_paperclip_mutation_attempted: false
+- policy_tier: human_policy_gated
 
 ## Decision Reasons
 
+- waitlist_triage requires explicit human/policy gate before canary or promotion
+- waitlist_triage remains shadow-only
 - preview_diagnosis remains shadow-only
-- waitlist_triage offline eval needs at least 3 cases; saw 2
 - clean shadow comparison summary is missing
 
 ## Blocked Claims
@@ -32,17 +34,18 @@ Generated at: 2026-05-29T13:54:25.818Z
 
 ## Required Next Evidence
 
+- waitlist_triage can continue in shadow only until an explicit policy change names the allowed canary/apply path and owner-system proof requirements.
+- waitlist_triage needs stronger hosted-session proof and provider/runtime boundary evidence before canary.
 - preview_diagnosis needs stronger hosted-session proof and provider/runtime boundary evidence before canary.
-- Add more waitlist_triage offline eval cases.
 - Attach clean shadow comparison evidence before canary.
 
 ## Offline Eval Summary
 
 ```text
-Local eval overall: cases=9 pass=9 fail=0 negative_controls_blocked=12/12
+Local eval overall: cases=10 pass=10 fail=0 negative_controls_blocked=14/14
 waitlist_triage: cases=2 pass=2 fail=0 negative_controls_blocked=2/2 splits dev=1 holdout=1 shadow=0
 support_triage: cases=4 pass=4 fail=0 negative_controls_blocked=6/6 splits dev=1 holdout=1 shadow=2
-preview_diagnosis: cases=3 pass=3 fail=0 negative_controls_blocked=4/4 splits dev=1 holdout=1 shadow=1
+preview_diagnosis: cases=4 pass=4 fail=0 negative_controls_blocked=6/6 splits dev=1 holdout=1 shadow=2
 ```
 
 ## Command Outputs
@@ -57,17 +60,17 @@ candidate_valid=true
 exit_code: 0
 ```text
 export_mode=offline_seed
-Local eval overall: cases=9 pass=9 fail=0 negative_controls_blocked=12/12
+Local eval overall: cases=10 pass=10 fail=0 negative_controls_blocked=14/14
 waitlist_triage: cases=2 pass=2 fail=0 negative_controls_blocked=2/2 splits dev=1 holdout=1 shadow=0
 support_triage: cases=4 pass=4 fail=0 negative_controls_blocked=6/6 splits dev=1 holdout=1 shadow=2
-preview_diagnosis: cases=3 pass=3 fail=0 negative_controls_blocked=4/4 splits dev=1 holdout=1 shadow=1
+preview_diagnosis: cases=4 pass=4 fail=0 negative_controls_blocked=6/6 splits dev=1 holdout=1 shadow=2
 ```
 
 ### prompt-policy promotion decision
 exit_code: 1
 ```text
 decision=hold
-offline_evals_passed=false
+offline_evals_passed=true
 negative_controls_remain_blocked=true
 required_lane_coverage_present=true
 closeout_proof_present=true
@@ -75,8 +78,10 @@ shadow_evidence_passed=false
 no_regression_window_passed=false
 rollback_condition_present=true
 blocked_claims_absent=true
+policy_tier=human_policy_gated
+reason=waitlist_triage requires explicit human/policy gate before canary or promotion
+reason=waitlist_triage remains shadow-only
 reason=preview_diagnosis remains shadow-only
-reason=waitlist_triage offline eval needs at least 3 cases; saw 2
 reason=clean shadow comparison summary is missing
 ```
 

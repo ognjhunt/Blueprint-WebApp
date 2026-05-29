@@ -1,6 +1,6 @@
 {
   "schema": "blueprint/autoagent-canary-promotion-plan/v1",
-  "generatedAt": "2026-05-29T13:54:25.755Z",
+  "generatedAt": "2026-05-29T18:48:03.498Z",
   "status": "rejected",
   "mode": "dry_run",
   "candidate": {
@@ -35,7 +35,7 @@
   "gate": {
     "decision": "hold",
     "checks": {
-      "offlineEvalPassed": false,
+      "offlineEvalPassed": true,
       "negativeControlsBlocked": true,
       "closeoutProofPresent": true,
       "requiredLaneCoveragePresent": true,
@@ -46,8 +46,9 @@
       "livePaperclipMutationAttempted": false
     },
     "reasons": [
+      "waitlist_triage requires explicit human/policy gate before canary or promotion",
+      "waitlist_triage remains shadow-only",
       "preview_diagnosis remains shadow-only",
-      "waitlist_triage offline eval needs at least 3 cases; saw 2",
       "clean shadow comparison summary is missing"
     ],
     "packetPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/prompt-policy-promotion/latest/promotion-packet.md"
@@ -59,8 +60,14 @@
       "support_triage": "low",
       "preview_diagnosis": "shadow_only"
     },
+    "policyTiers": {
+      "waitlist_triage": "human_policy_gated",
+      "support_triage": "repo_local_canary",
+      "preview_diagnosis": "shadow_only"
+    },
+    "policyTier": "human_policy_gated",
     "checks": {
-      "offlineEvalPassed": false,
+      "offlineEvalPassed": true,
       "negativeControlsBlocked": true,
       "shadowEvidencePassed": false,
       "noRegressionWindowPassed": false,
@@ -69,14 +76,16 @@
       "blockedClaimsAbsent": true
     },
     "reasons": [
+      "waitlist_triage requires explicit human/policy gate before canary or promotion",
+      "waitlist_triage remains shadow-only",
       "preview_diagnosis remains shadow-only",
-      "waitlist_triage offline eval needs at least 3 cases; saw 2",
       "clean shadow comparison summary is missing"
     ],
     "blockedClaims": [],
     "requiredNextEvidence": [
+      "waitlist_triage can continue in shadow only until an explicit policy change names the allowed canary/apply path and owner-system proof requirements.",
+      "waitlist_triage needs stronger hosted-session proof and provider/runtime boundary evidence before canary.",
       "preview_diagnosis needs stronger hosted-session proof and provider/runtime boundary evidence before canary.",
-      "Add more waitlist_triage offline eval cases.",
       "Attach clean shadow comparison evidence before canary."
     ],
     "rollbackTriggers": [
@@ -101,6 +110,10 @@
     "canaryOutputStorage": "ops_automation.shadow_runs.autoagent",
     "sampleCount": 20,
     "percentage": null,
+    "scopeCap": {
+      "maxSampleCount": 50,
+      "maxPercentage": 5
+    },
     "stopCondition": [
       "If any promoted Paperclip/Hermes prompt, policy, or orchestration change causes offline AutoAgent eval failures, allows any built-in or named negative control to pass, drops required Paperclip goal closeout labels, or live runtime evidence contradicts this packet, revert the promoted prompt/policy/orchestration diff and restore the prior Paperclip/Hermes config before further live delegation.",
       "Any waitlist_triage negative control passes.",
@@ -142,13 +155,13 @@
   ],
   "rollback": {
     "previousConfigSnapshot": {
-      "capturedAt": "2026-05-29T13:54:25.755Z",
+      "capturedAt": "2026-05-29T18:48:03.498Z",
       "livePaperclipConfigMutation": false,
       "paperclipConfig": {
         "path": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/.paperclip.yaml",
         "exists": true,
-        "sha256": "a15880c106657df20a26746a753265abe2ded8adc1127e3d7a1994576252ddf0",
-        "sizeBytes": 78863
+        "sha256": "10a0505185a9d51199647ad939b50c31f81273aa48e6b164392cb62195ba632c",
+        "sizeBytes": 79242
       },
       "existingRepoLocalCanaryConfig": {
         "path": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/canary/latest/canary-config.json",
@@ -165,7 +178,7 @@
       }
     },
     "snapshotPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/canary/latest/rollback-snapshot.json",
-    "command": "npm run autoagent:canary-promotion -- --rollback autoagent-to-paperclip-hermes-prompt-policy-gate-2026-05-28 --output-dir /Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/canary/latest",
+    "command": "npm run autoagent:canary-rollback -- --canary-plan /Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/canary/latest/canary-plan.json --shadow-summary /Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/canary/latest/shadow-summary.json --output-dir /Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/canary/latest/rollback --apply-rollback",
     "condition": "If any promoted Paperclip/Hermes prompt, policy, or orchestration change causes offline AutoAgent eval failures, allows any built-in or named negative control to pass, drops required Paperclip goal closeout labels, or live runtime evidence contradicts this packet, revert the promoted prompt/policy/orchestration diff and restore the prior Paperclip/Hermes config before further live delegation.",
     "stopCondition": [
       "If any promoted Paperclip/Hermes prompt, policy, or orchestration change causes offline AutoAgent eval failures, allows any built-in or named negative control to pass, drops required Paperclip goal closeout labels, or live runtime evidence contradicts this packet, revert the promoted prompt/policy/orchestration diff and restore the prior Paperclip/Hermes config before further live delegation.",
@@ -196,7 +209,7 @@
     "Canary output is observation-only and compare-only.",
     "Primary support_triage output remains authoritative.",
     "Canary output must not drive sends, payments, provider jobs, rights/legal decisions, city-live claims, hosted-session fulfillment, customer claims, or operational launch readiness.",
-    "Disallowed live side effects remain blocked: live_send, payment, payout, rights_privacy_legal, provider_execution, city_live_claim, customer_claim, operational_launch_readiness"
+    "Disallowed live side effects remain blocked: live_send, payment, payout, rights_privacy_legal, provider_execution, city_live_claim, customer_claim, hosted_session_fulfillment, operational_launch_readiness, firestore_export, notion_write, live_paperclip_mutation"
   ],
   "validationErrors": [
     "initial canary supports support_triage only; saw waitlist_triage, support_triage, preview_diagnosis",

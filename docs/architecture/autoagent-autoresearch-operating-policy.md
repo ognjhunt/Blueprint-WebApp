@@ -4,13 +4,13 @@ Date: 2026-05-29
 
 Status: Active repo-authoritative policy for the recursive improvement system.
 
-Scope: `server/agents/autoagent-promotion-policy.ts`, `scripts/autoagent/*`, and the Paperclip recursive-agent-improvement routine. This policy governs what AutoAgent and AutoResearch may do without a human, what requires deterministic proof, and what is outside autonomous authority.
+Scope: `server/agents/autoagent-promotion-policy.ts`, `server/agents/autoagent-production-action-registry.ts`, `scripts/autoagent/*`, and the Paperclip recursive-agent-improvement routine. This policy governs what AutoAgent and AutoResearch may do without a human, what requires deterministic proof, and what is outside autonomous authority.
 
 ## Core Rule
 
-AutoAgent and AutoResearch may improve Blueprint only through repo-local, deterministic, reversible evidence paths by default. They must not turn local evals, generated summaries, public polish, or shadow outputs into production automation quality claims, operational launch readiness, hosted-session fulfillment, rights clearance, customer proof, payments, payouts, provider execution, live sends, Firestore exports, Notion writes, or live Paperclip/Hermes mutation.
+AutoAgent and AutoResearch may improve Blueprint only through repo-local, deterministic, reversible evidence paths by default. They must not turn local evals, generated summaries, public polish, or shadow outputs into production automation quality claims, operational launch readiness, hosted-session fulfillment, rights clearance, customer proof, payments, payouts, provider execution, live sends, Firestore exports, Notion writes, or live Paperclip/Hermes mutation outside the explicit production action registry.
 
-The central enforcement point is `server/agents/autoagent-promotion-policy.ts`. Runner scripts and Paperclip routines must treat that file as the machine-readable policy and this document as the human-readable policy.
+The central promotion enforcement point is `server/agents/autoagent-promotion-policy.ts`. The production action allowlist is `server/agents/autoagent-production-action-registry.ts`. Runner scripts and Paperclip routines must treat those files as machine-readable policy and this document as the human-readable policy.
 
 ## Policy Tiers
 
@@ -86,6 +86,76 @@ Requires an explicit policy update and owner-system proof before canary or promo
 
 Human/policy-gated does not mean "safe once an AI says so." It means a deterministic policy change must name the allowed action, proof source, rollback path, and owner before automation can proceed.
 
+### Production Action Registry
+
+Production mutation is blocked unless an action is explicitly registered in `server/agents/autoagent-production-action-registry.ts` and the request passes the registry validator. The default mode remains dry-run. The recursive improvement loop may report the registry and validate action packets, but it must not use local evals or canary evidence as authority to mutate live systems.
+
+The production decision harness is split into deterministic stages:
+
+- `scripts/autoagent/build-production-context-bundle.ts` writes the owner-system context bundle, proof path, and rollback snapshot.
+- `scripts/autoagent/ai-production-change-proposer.ts` may ask a configured AI proposer for one action packet, but the packet is only input to deterministic validation.
+- `scripts/autoagent/execute-production-canary.ts` is the only execution harness, and it may commit only after registry validation, offline evals, promotion gate, canary dry-run, rollback monitor, idempotency, audit, and rollback snapshot checks pass.
+
+Safe dry-run:
+
+```bash
+npm run autoagent:recursive-improve -- --production-context --ai-production-proposal --dry-run
+```
+
+Explicit production canary mode:
+
+```bash
+npm run autoagent:recursive-improve -- --production-context --ai-production-proposal --execute-production-canary
+```
+
+Production canary mode is not a routine default and requires a separate bound issue. AI never executes directly.
+
+Current action tiers:
+
+| Tier | Initial posture |
+|---|---|
+| `read_only_snapshot` | Allowed as non-mutating evidence collection. |
+| `internal_metadata_update` | `paperclip_hermes_internal_metadata_update` is the first allowlisted live mutation, and only with explicit live flag, dry-run disabled, canary mode, idempotency, proof, audit, and rollback. |
+| `internal_report_pointer_update` | `paperclip_internal_report_pointer_update` is the next safest live lane. It is gated until the first metadata lane has committed execution proof, then may update only `metadata.autoagent.latest_production_report_pointer`. |
+| `queue_state_update` | Blocked. |
+| `internal_note_or_report_write` | Blocked for production writes; repo-local reports remain allowed in the fully autonomous tier. |
+| `external_send` | Blocked. |
+| `payment_or_entitlement` | Blocked. |
+| `provider_execution` | Blocked. |
+| `hosted_session_fulfillment` | Blocked. |
+| `rights_privacy_legal` | Blocked. |
+| `city_launch` | Blocked. |
+
+Every production action request must include:
+
+- owner system named and matching the registry entry
+- proof source and proof path from the owning system, with the proof path present locally when evaluated
+- idempotency key, unique for the evaluation context
+- rollback strategy and rollback path, with the rollback path present locally when evaluated
+- dry-run mode and canary mode stated explicitly
+- canary limit
+- audit event using schema `blueprint/autoagent-production-action-audit/v1`
+- target record id and target field, with the field matching the registry entry
+- explicit `liveMutationEnabled` flag
+
+The first live lane is intentionally narrow: Paperclip/Hermes internal metadata update only. It is for owner-system metadata such as policy tier or routine bookkeeping, not issue status closure, queue movement, live sends, provider dispatch, entitlement changes, rights/legal decisions, hosted-session fulfillment, city-launch activation, or customer/operational readiness claims.
+
+The selected next lane is `paperclip_internal_report_pointer_update`.
+
+- Owner system: `paperclip_hermes`.
+- Proof source: `paperclip_issue_metadata_snapshot`, with the context proof and rollback snapshot written by `scripts/autoagent/build-production-context-bundle.ts`.
+- Mutation surface: `paperclip_hermes.internal_report_pointer`, limited to `metadata.autoagent.latest_production_report_pointer`.
+- Canary limit: one action per run.
+- Stop conditions: missing first-lane execution proof, missing owner-system proof path, report pointer outside `output/autoagent/`, duplicate idempotency key, rollback monitor trigger, or explicit stop condition.
+- Rollback path: `restore_previous_report_pointer_snapshot` from `output/autoagent/recursive-improvement/latest/production-context/rollback-snapshot.json`.
+- Execution proof: `output/autoagent/recursive-improvement/latest/production-canary/execution.json` and `execution-report.md`.
+
+This lane can only point Paperclip/Hermes at an internal AutoAgent report and summary. It cannot write report content, close issues, annotate queue state, change support triage outputs, send messages, update customer-facing claims, or mutate rights, payments, providers, city launch, hosted sessions, Firestore export, Notion, or Render/VPS state.
+
+Recursive-loop production summaries must include `production_context_built`, `ai_production_proposal_used`, `production_proposal_status`, `production_action_type`, `production_target_system`, `production_canary_attempted`, `production_canary_result`, `idempotency_key`, `audit_event_path`, `rollback_snapshot_path`, `rollback_applied`, `live_mutation_attempted`, and `live_mutation_committed`.
+
+Duplicate idempotency keys are a no-change production decision and must suppress duplicate action attempts. Stop conditions must write audit proof and roll back automatically from the stored snapshot.
+
 ### Permanently Blocked For This Loop
 
 The recursive improvement loop must reject these actions, even if a candidate manifest, model output, or generated report recommends them:
@@ -105,6 +175,8 @@ These may still be worked by other explicit issues with the owning systems, appr
 - Offline eval proof must include cases, zero failures for the requested lane, and all negative controls blocked.
 - Shadow proof must include clean comparison evidence for the requested lane and must preserve human-review safeguards.
 - Canary proof must include a rollback condition, rollback triggers, a previous-config snapshot, and repo-local mutation only.
+- Production registry proof must include the owning-system proof path, rollback snapshot path, target record id, target field, idempotency key, audit event, execution artifact, and action-specific mutation surface.
+- `paperclip_internal_report_pointer_update` additionally requires committed `paperclip_hermes_internal_metadata_update` execution proof before it appears in the production context allowed-action list.
 - Hosted-session proof must come from entitlement, runtime/session artifacts, and request-specific availability in the owning system.
 - Operational launch readiness must come from the relevant owner systems: Stripe, provider/runtime artifacts, capture/provenance records, rights/privacy records, Paperclip, Firestore, Render, Redis, and city-launch artifacts.
 - Public Launch Ready copy is not operational proof.
@@ -119,8 +191,10 @@ These may still be worked by other explicit issues with the owning systems, appr
 | `support_triage` | repo_local_canary | observation-only repo-local canary |
 | `waitlist_triage` | human_policy_gated | shadow only until explicit policy change |
 | `preview_diagnosis` | shadow_only | shadow only |
-| live sends, payments, payouts, rights/privacy/legal, providers, city launch, customer claims, hosted-session fulfillment, operational launch readiness, Firestore export, Notion writes, live Paperclip mutation | permanently_blocked | reject |
+| `paperclip_hermes_internal_metadata_update` | production_action_registry | dry-run by default; first allowlisted live action only when explicit live flag, canary, proof, idempotency, audit, and rollback pass |
+| `paperclip_internal_report_pointer_update` | production_action_registry | dry-run by default; allowed only after first-lane execution proof exists, limited to one internal report pointer metadata field, and reversible from rollback snapshot |
+| live sends, payments, payouts, rights/privacy/legal, providers, city launch, customer claims, hosted-session fulfillment, operational launch readiness, Firestore export, Notion writes, broad live Paperclip mutation | permanently_blocked | reject |
 
 ## Closeout Rule
 
-Recursive-loop reports must include the policy tier that decided the run, the proof paths, command outputs, next autonomous action, retry condition, and residual risk. A green local loop is not a production automation quality claim.
+Recursive-loop reports must include the policy tier that decided the run, the production action registry path, the proof paths, command outputs, next autonomous action, retry condition, and residual risk. A green local loop is not a production automation quality claim.

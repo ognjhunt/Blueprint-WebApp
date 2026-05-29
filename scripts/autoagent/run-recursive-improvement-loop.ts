@@ -31,6 +31,21 @@ import {
   type AiPatchProposalInvoker,
   type AiPatchProposalSummary,
 } from "./ai-patch-proposal.ts";
+import {
+  buildProductionContextBundle,
+  type BuildProductionContextBundleResult,
+} from "./build-production-context-bundle.ts";
+import {
+  runAiProductionChangeProposal,
+  type AiProductionChangeProposal,
+  type AiProductionChangeProposalInvoker,
+  type AiProductionChangeProposalSummary,
+} from "./ai-production-change-proposer.ts";
+import {
+  executeProductionCanary,
+  readProductionIdempotencyKeys,
+  type ProductionCanaryResult,
+} from "./execute-production-canary.ts";
 import { runPipeline } from "./run-pipeline.ts";
 import { type EvalLane, type LocalEvalSummary } from "./local-evaluator.ts";
 import { runPromptPolicyPromotionGate } from "./prompt-policy-promotion-gate.ts";
@@ -44,6 +59,14 @@ import {
   type AutoAgentOperatingPolicyTier,
   type AutoAgentPromotionLane,
 } from "../../server/agents/autoagent-promotion-policy.ts";
+import {
+  AUTOAGENT_BLOCKED_PRODUCTION_ACTION_TYPES,
+  AUTOAGENT_INITIAL_LIVE_PRODUCTION_ACTION_TYPES,
+  AUTOAGENT_NEXT_LIVE_PRODUCTION_ACTION_TYPES,
+  AUTOAGENT_PRODUCTION_ACTION_DEFAULT_MODE,
+  AUTOAGENT_PRODUCTION_ACTION_REGISTRY_PATH,
+  AUTOAGENT_REGISTERED_LIVE_PRODUCTION_ACTION_TYPES,
+} from "../../server/agents/autoagent-production-action-registry.ts";
 
 type RecursiveLoopStatus =
   | "dry_run_completed"
@@ -102,11 +125,23 @@ type NoChangeClassification = {
   reasons: string[];
 };
 
+type ProductionActionRegistrySummary = {
+  registry_path: string;
+  default_mode: typeof AUTOAGENT_PRODUCTION_ACTION_DEFAULT_MODE;
+  allowed_live_action_types: string[];
+  registered_live_action_types: string[];
+  gated_live_action_types: string[];
+  blocked_action_types: string[];
+  required_checks: string[];
+  live_mutation_enabled_by_default: false;
+};
+
 export type RecursiveImprovementSummary = {
   schema: "blueprint/autoagent-recursive-improvement-summary/v1";
   generated_at: string;
   dry_run: boolean;
   status: RecursiveLoopStatus;
+  production_action_registry: ProductionActionRegistrySummary;
   selected_failure_family: string | null;
   selected_queue_item_id: string | null;
   generated_fixture_paths: string[];
@@ -119,6 +154,16 @@ export type RecursiveImprovementSummary = {
   ai_fixture_drafter: AiFixtureDrafterSummary | null;
   blocked_fixture_attempts: AiFixtureDrafterSummary["blocked_attempts"];
   ai_patch_proposal: AiPatchProposalSummary | null;
+  production_context_built: boolean;
+  ai_production_proposal_used: boolean;
+  production_proposal_status: string;
+  production_action_type: string | null;
+  production_target_system: string | null;
+  production_canary_attempted: boolean;
+  production_canary_result: ProductionCanaryResult;
+  idempotency_key: string | null;
+  audit_event_path: string | null;
+  rollback_snapshot_path: string | null;
   canary_decision: string;
   rollback_decision: string;
   auto_apply_attempted: boolean;
@@ -126,6 +171,7 @@ export type RecursiveImprovementSummary = {
   rollback_monitor_result: RollbackMonitorResult;
   rollback_applied: boolean;
   live_mutation_attempted: boolean;
+  live_mutation_committed: boolean;
   next_action: string;
   next_autonomous_action: string;
   retry_condition: string;
@@ -171,6 +217,11 @@ export type RecursiveImprovementLoopOptions = {
   aiPatchProposalArtifacts?: string[];
   aiPatchProposalInvoker?: AiPatchProposalInvoker;
   aiPatchProposalEnv?: Record<string, string | undefined>;
+  productionContext?: boolean;
+  aiProductionProposal?: boolean;
+  aiProductionProposalInvoker?: AiProductionChangeProposalInvoker;
+  aiProductionProposalEnv?: Record<string, string | undefined>;
+  executeProductionCanary?: boolean;
   autoApplyLowRisk?: boolean;
   applyCanary?: boolean;
   applyRollback?: boolean;
@@ -182,6 +233,22 @@ type StageOutputs = {
   proofPaths: string[];
   commandOutputs: string[];
 };
+
+type ProductionDecisionFields = Pick<
+  RecursiveImprovementSummary,
+  | "production_context_built"
+  | "ai_production_proposal_used"
+  | "production_proposal_status"
+  | "production_action_type"
+  | "production_target_system"
+  | "production_canary_attempted"
+  | "production_canary_result"
+  | "idempotency_key"
+  | "audit_event_path"
+  | "rollback_snapshot_path"
+  | "live_mutation_attempted"
+  | "live_mutation_committed"
+>;
 
 const DEFAULT_OUTPUT_DIR = path.resolve("output/autoagent/recursive-improvement/latest");
 const DEFAULT_FIXTURE_ROOT = path.resolve("labs/autoagent/tasks");
@@ -202,6 +269,23 @@ const ALL_EVAL_LANES: EvalLane[] = [
 
 const HIGH_RISK_LANES = new Set<string>(AUTOAGENT_PERMANENTLY_BLOCKED_LANES);
 const DISALLOWED_SIDE_EFFECTS = new Set<string>(AUTOAGENT_DISALLOWED_LIVE_SIDE_EFFECTS);
+
+function defaultProductionDecisionFields(): ProductionDecisionFields {
+  return {
+    production_context_built: false,
+    ai_production_proposal_used: false,
+    production_proposal_status: "not_requested",
+    production_action_type: null,
+    production_target_system: null,
+    production_canary_attempted: false,
+    production_canary_result: "not_requested",
+    idempotency_key: null,
+    audit_event_path: null,
+    rollback_snapshot_path: null,
+    live_mutation_attempted: false,
+    live_mutation_committed: false,
+  };
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -470,6 +554,7 @@ function baseSummary(params: {
   aiClassifier?: AiFailureFamilyClassifierSummary | null;
   aiFixtureDrafter?: AiFixtureDrafterSummary | null;
   aiPatchProposal?: AiPatchProposalSummary | null;
+  productionDecision?: ProductionDecisionFields;
   canaryDecision?: string;
   rollbackDecision?: string;
   autoApplyAttempted?: boolean;
@@ -491,11 +576,13 @@ function baseSummary(params: {
     generatedFixturePaths: [],
     summaryPath: null,
   });
+  const productionDecision = params.productionDecision ?? defaultProductionDecisionFields();
   return {
     schema: "blueprint/autoagent-recursive-improvement-summary/v1",
     generated_at: params.generatedAt,
     dry_run: params.dryRun,
     status: params.status,
+    production_action_registry: productionActionRegistrySummary(),
     selected_failure_family: params.selectedFailureFamily ?? null,
     selected_queue_item_id: params.selectedQueueItemId ?? null,
     generated_fixture_paths: params.generatedFixturePaths ?? [],
@@ -509,6 +596,16 @@ function baseSummary(params: {
     ai_fixture_drafter: params.aiFixtureDrafter ?? null,
     blocked_fixture_attempts: params.aiFixtureDrafter?.blocked_attempts ?? [],
     ai_patch_proposal: params.aiPatchProposal ?? null,
+    production_context_built: productionDecision.production_context_built,
+    ai_production_proposal_used: productionDecision.ai_production_proposal_used,
+    production_proposal_status: productionDecision.production_proposal_status,
+    production_action_type: productionDecision.production_action_type,
+    production_target_system: productionDecision.production_target_system,
+    production_canary_attempted: productionDecision.production_canary_attempted,
+    production_canary_result: productionDecision.production_canary_result,
+    idempotency_key: productionDecision.idempotency_key,
+    audit_event_path: productionDecision.audit_event_path,
+    rollback_snapshot_path: productionDecision.rollback_snapshot_path,
     canary_decision: params.canaryDecision ?? "not_run",
     rollback_decision: params.rollbackDecision ?? "not_run",
     auto_apply_attempted: params.autoApplyAttempted ?? false,
@@ -518,15 +615,41 @@ function baseSummary(params: {
       ?? (params.rollbackDecision as RollbackMonitorResult | undefined)
       ?? "not_run",
     rollback_applied: params.rollbackApplied ?? params.rollbackDecision === "rolled_back",
-    live_mutation_attempted: false,
+    live_mutation_attempted: productionDecision.live_mutation_attempted,
+    live_mutation_committed: productionDecision.live_mutation_committed,
     next_action: params.nextAutonomousAction,
     next_autonomous_action: params.nextAutonomousAction,
     retry_condition: params.retryCondition,
     residual_risk: params.residualRisk,
     high_risk_blockers: params.highRiskBlockers ?? [],
     no_change_classification: params.noChangeClassification ?? null,
-    proof_paths: unique(params.proofPaths ?? []),
+    proof_paths: unique([
+      AUTOAGENT_PRODUCTION_ACTION_REGISTRY_PATH,
+      ...(params.proofPaths ?? []),
+    ]),
     command_outputs: params.commandOutputs ?? [],
+  };
+}
+
+function productionActionRegistrySummary(): ProductionActionRegistrySummary {
+  return {
+    registry_path: AUTOAGENT_PRODUCTION_ACTION_REGISTRY_PATH,
+    default_mode: AUTOAGENT_PRODUCTION_ACTION_DEFAULT_MODE,
+    allowed_live_action_types: [...AUTOAGENT_INITIAL_LIVE_PRODUCTION_ACTION_TYPES],
+    registered_live_action_types: [...AUTOAGENT_REGISTERED_LIVE_PRODUCTION_ACTION_TYPES],
+    gated_live_action_types: [...AUTOAGENT_NEXT_LIVE_PRODUCTION_ACTION_TYPES],
+    blocked_action_types: [...AUTOAGENT_BLOCKED_PRODUCTION_ACTION_TYPES],
+    required_checks: [
+      "owner system named",
+      "proof path exists",
+      "idempotency key present and unique",
+      "rollback path exists",
+      "canary limit exists",
+      "audit event schema exists",
+      "target record id and target field are allowed",
+      "live mutation flag explicit",
+    ],
+    live_mutation_enabled_by_default: false,
   };
 }
 
@@ -702,12 +825,49 @@ function renderReport(summary: RecursiveImprovementSummary) {
     `AI classifier: ${summary.ai_classifier ? `${summary.ai_classifier.status} (used=${summary.ai_classifier.ai_used})` : "not_requested"}`,
     `AI fixture drafter: ${summary.ai_fixture_drafter ? `${summary.ai_fixture_drafter.status} (used=${summary.ai_fixture_drafter.ai_used})` : "not_requested"}`,
     `AI patch proposal: ${summary.ai_patch_proposal ? `${summary.ai_patch_proposal.status} (used=${summary.ai_patch_proposal.ai_used})` : "not_requested"}`,
+    `Production context built: ${summary.production_context_built}`,
+    `AI production proposal used: ${summary.ai_production_proposal_used}`,
+    `Production proposal status: ${summary.production_proposal_status}`,
+    `Production action type: ${summary.production_action_type ?? "none"}`,
+    `Production target system: ${summary.production_target_system ?? "none"}`,
+    `Production canary attempted: ${summary.production_canary_attempted}`,
+    `Production canary result: ${summary.production_canary_result}`,
+    `Production idempotency key: ${summary.idempotency_key ?? "none"}`,
+    `Audit event path: ${summary.audit_event_path ?? "none"}`,
+    `Rollback snapshot path: ${summary.rollback_snapshot_path ?? "none"}`,
     `Canary decision: ${summary.canary_decision}`,
     `Rollback decision: ${summary.rollback_decision}`,
     `Auto-apply attempted: ${summary.auto_apply_attempted}`,
     `Auto-apply result: ${summary.auto_apply_result}`,
     `Rollback monitor result: ${summary.rollback_monitor_result}`,
     `Rollback applied: ${summary.rollback_applied}`,
+    `Live mutation committed: ${summary.live_mutation_committed}`,
+    "",
+    "## Production Action Registry",
+    "",
+    `Production registry: ${summary.production_action_registry.registry_path}`,
+    `Default mode: ${summary.production_action_registry.default_mode}`,
+    `Live mutation enabled by default: ${summary.production_action_registry.live_mutation_enabled_by_default}`,
+    "",
+    "Allowed live action types",
+    "",
+    list(summary.production_action_registry.allowed_live_action_types),
+    "",
+    "Registered live action types",
+    "",
+    list(summary.production_action_registry.registered_live_action_types),
+    "",
+    "Gated live action types",
+    "",
+    list(summary.production_action_registry.gated_live_action_types),
+    "",
+    "Blocked action types",
+    "",
+    list(summary.production_action_registry.blocked_action_types),
+    "",
+    "Required checks",
+    "",
+    list(summary.production_action_registry.required_checks),
     "",
     "## No-Change Classification",
     "",
@@ -809,12 +969,107 @@ export async function runRecursiveImprovementLoop(
     ? options.lane.trim()
     : null;
   const applyRequested = options.applyCanary === true || options.autoApplyLowRisk === true;
-  const dryRun = options.dryRun ?? !(applyRequested || options.applyRollback);
+  const productionContextRequested = Boolean(
+    options.productionContext
+      || options.aiProductionProposal
+      || options.executeProductionCanary,
+  );
+  const productionCanaryOutputDir = path.join(outputDir, "production-canary");
+  const productionExecuteRequested = options.executeProductionCanary === true;
+  const dryRun = options.dryRun ?? !(applyRequested || options.applyRollback || productionExecuteRequested);
+  const productionExecutionAllowed = productionExecuteRequested && !dryRun;
   const writeArtifacts = options.writeArtifacts !== false;
   const generatedAt = (options.now ?? new Date()).toISOString();
   const stageOutputs: StageOutputs = { proofPaths: [], commandOutputs: [] };
   const blockedAutoApplyResult: AutoApplyResult = applyRequested ? "blocked" : "not_requested";
   const previousSummary = await readPreviousSummary(outputDir);
+  const productionDecision = defaultProductionDecisionFields();
+  let productionContextResult: BuildProductionContextBundleResult | null = null;
+  let productionProposalSummary: AiProductionChangeProposalSummary | null = null;
+  let productionProposal: AiProductionChangeProposal | null = null;
+
+  if (productionContextRequested) {
+    productionContextResult = await buildProductionContextBundle({
+      cwd,
+      outputDir: path.join(outputDir, "production-context"),
+      candidatePath,
+      paperclipConfigPath,
+      writeArtifacts,
+      now: options.now,
+    });
+    productionDecision.production_context_built = true;
+    productionDecision.rollback_snapshot_path = productionContextResult.rollbackSnapshotPath;
+    stageOutputs.proofPaths.push(
+      productionContextResult.bundlePath,
+      productionContextResult.bundleMarkdownPath,
+      productionContextResult.proofPath,
+      productionContextResult.rollbackSnapshotPath,
+    );
+    stageOutputs.commandOutputs.push(
+      `production-context-bundle: built=true path=${productionContextResult.bundlePath}`,
+    );
+
+    if (options.aiProductionProposal === true) {
+      const usedIdempotencyKeys = await readProductionIdempotencyKeys({
+        cwd,
+        outputDir: productionCanaryOutputDir,
+      });
+      const productionProposalResult = await runAiProductionChangeProposal({
+        cwd,
+        enabled: true,
+        contextBundle: productionContextResult.bundle,
+        executeRequested: productionExecutionAllowed,
+        invoker: options.aiProductionProposalInvoker,
+        env: options.aiProductionProposalEnv,
+        usedIdempotencyKeys,
+        now: options.now,
+      });
+      productionProposalSummary = productionProposalResult.summary;
+      productionProposal = productionProposalResult.proposal;
+      const productionProposalSummaryPath = path.join(
+        outputDir,
+        "production-proposal-summary.json",
+      );
+      const productionProposalPromptPath = path.join(
+        outputDir,
+        "production-proposal-prompt.txt",
+      );
+      if (writeArtifacts) {
+        await writeJson(productionProposalSummaryPath, productionProposalSummary);
+        await writeText(productionProposalPromptPath, productionProposalResult.prompt);
+      }
+      productionDecision.ai_production_proposal_used =
+        productionProposalSummary.ai_used;
+      productionDecision.production_proposal_status =
+        productionProposalSummary.status;
+      productionDecision.production_action_type =
+        productionProposalSummary.action_type;
+      productionDecision.production_target_system =
+        productionProposalSummary.target_system;
+      productionDecision.idempotency_key =
+        productionProposalSummary.idempotency_key;
+      if (productionProposalSummary.status === "fallback_ai_unavailable") {
+        productionDecision.production_canary_result = "not_attempted";
+      } else if (["blocked", "rejected"].includes(productionProposalSummary.status)) {
+        productionDecision.production_canary_result = "not_attempted_validator_rejected";
+      } else if (productionProposalSummary.status === "duplicate_idempotency") {
+        productionDecision.production_canary_result = "duplicate_idempotency_suppressed";
+      }
+      stageOutputs.proofPaths.push(productionProposalSummaryPath, productionProposalPromptPath);
+      stageOutputs.commandOutputs.push(
+        `ai-production-change-proposer: status=${productionProposalSummary.status} ai_used=${productionProposalSummary.ai_used} action=${productionProposalSummary.action_type ?? "none"}`,
+        ...productionProposalSummary.reasons.map((reason) =>
+          `ai-production-change-proposer reason=${reason}`
+        ),
+      );
+    }
+  }
+
+  const makeSummary = (params: Parameters<typeof baseSummary>[0]) =>
+    baseSummary({
+      ...params,
+      productionDecision: params.productionDecision ?? productionDecision,
+    });
 
   const observerOutputDir = path.join(outputDir, "observer");
   let observerSummary = await analyzeAgentImprovementArtifacts({
@@ -902,7 +1157,7 @@ export async function runRecursiveImprovementLoop(
 
   const selected = queue.find(eligibleQueueItem) ?? null;
   if (!selected) {
-    const summary = baseSummary({
+    const summary = makeSummary({
       generatedAt,
       dryRun,
       status: "insufficient_evidence",
@@ -961,7 +1216,7 @@ export async function runRecursiveImprovementLoop(
   }
 
   if (fixtureResult.status === "rejected") {
-    const summary = baseSummary({
+    const summary = makeSummary({
       generatedAt,
       dryRun,
       status: "fixture_rejected",
@@ -1044,7 +1299,7 @@ export async function runRecursiveImprovementLoop(
   });
 
   if (fixtureResult.status === "written" && !offline.generated_fixture_included) {
-    const summary = baseSummary({
+    const summary = makeSummary({
       generatedAt,
       dryRun,
       status: "fixture_rejected",
@@ -1139,7 +1394,7 @@ export async function runRecursiveImprovementLoop(
     stageOutputs.commandOutputs.push(
       `high-risk-blocker-packet: path=${blockerPacketPath} routing=repo-local-no-send`,
     );
-    const summary = baseSummary({
+    const summary = makeSummary({
       generatedAt,
       dryRun,
       status: "high_risk_blocked",
@@ -1182,8 +1437,8 @@ export async function runRecursiveImprovementLoop(
     generatedFixturePaths: fixturePaths,
     heldReason: gateHeldReason,
   });
-  if (noChangeClassification) {
-    const summary = baseSummary({
+  if (noChangeClassification && !productionContextRequested) {
+    const summary = makeSummary({
       generatedAt,
       dryRun,
       status: "no_change_report_only",
@@ -1221,7 +1476,7 @@ export async function runRecursiveImprovementLoop(
   }
 
   if (gateResult.evaluation.decision === "reject") {
-    const summary = baseSummary({
+    const summary = makeSummary({
       generatedAt,
       dryRun,
       status: "promotion_rejected",
@@ -1253,7 +1508,7 @@ export async function runRecursiveImprovementLoop(
   }
 
   if (gateResult.evaluation.decision === "hold") {
-    const summary = baseSummary({
+    const summary = makeSummary({
       generatedAt,
       dryRun,
       status: "promotion_held",
@@ -1285,7 +1540,7 @@ export async function runRecursiveImprovementLoop(
   }
 
   if (patchProposalSummary.status === "rejected") {
-    const summary = baseSummary({
+    const summary = makeSummary({
       generatedAt,
       dryRun,
       status: "patch_proposal_rejected",
@@ -1341,7 +1596,7 @@ export async function runRecursiveImprovementLoop(
   );
 
   if (canaryResult.plan.status === "rejected") {
-    const summary = baseSummary({
+    const summary = makeSummary({
       generatedAt,
       dryRun,
       status: "canary_rejected",
@@ -1391,7 +1646,7 @@ export async function runRecursiveImprovementLoop(
   );
 
   if (rollbackResult.decision.status === "rollback_required") {
-    const summary = baseSummary({
+    const summary = makeSummary({
       generatedAt,
       dryRun,
       status: "rollback_required",
@@ -1423,7 +1678,7 @@ export async function runRecursiveImprovementLoop(
   }
 
   if (rollbackResult.decision.status === "rolled_back") {
-    const summary = baseSummary({
+    const summary = makeSummary({
       generatedAt,
       dryRun,
       status: "rollback_applied",
@@ -1456,7 +1711,7 @@ export async function runRecursiveImprovementLoop(
   }
 
   if (rollbackResult.decision.status === "insufficient_evidence") {
-    const summary = baseSummary({
+    const summary = makeSummary({
       generatedAt,
       dryRun,
       status: "insufficient_evidence",
@@ -1488,7 +1743,49 @@ export async function runRecursiveImprovementLoop(
     return { ok: false, summary, summaryPath: paths.summaryPath, reportPath: paths.reportPath };
   }
 
-  const summary = baseSummary({
+  if (productionContextRequested && productionProposalSummary) {
+    if (productionProposalSummary.status === "duplicate_idempotency") {
+      productionDecision.production_canary_attempted = false;
+      productionDecision.production_canary_result = "duplicate_idempotency_suppressed";
+      stageOutputs.commandOutputs.push(
+        `production-canary: duplicate idempotency key suppressed ${productionProposalSummary.idempotency_key ?? "unknown"}`,
+      );
+    } else if (
+      ["blocked", "rejected", "fallback_ai_unavailable", "not_requested"].includes(
+        productionProposalSummary.status,
+      )
+    ) {
+      productionDecision.production_canary_attempted = false;
+      productionDecision.production_canary_result =
+        productionDecision.production_canary_result === "not_requested"
+          ? "not_attempted"
+          : productionDecision.production_canary_result;
+    } else {
+      const productionCanary = await executeProductionCanary({
+        cwd,
+        outputDir: productionCanaryOutputDir,
+        execute: productionExecutionAllowed,
+        proposalSummary: productionProposalSummary,
+        proposal: productionProposal,
+        validation: productionProposalSummary.validation,
+        writeArtifacts,
+        now: options.now,
+      });
+      productionDecision.production_canary_attempted = productionCanary.attempted;
+      productionDecision.production_canary_result = productionCanary.result;
+      productionDecision.audit_event_path = productionCanary.auditEventPath;
+      productionDecision.rollback_snapshot_path =
+        productionCanary.rollbackSnapshotPath ?? productionDecision.rollback_snapshot_path;
+      productionDecision.live_mutation_attempted = productionCanary.liveMutationAttempted;
+      productionDecision.live_mutation_committed = productionCanary.liveMutationCommitted;
+      stageOutputs.proofPaths.push(...productionCanary.proofPaths);
+      stageOutputs.commandOutputs.push(...productionCanary.commandOutputs);
+    }
+  } else if (productionContextRequested) {
+    productionDecision.production_canary_result = "not_attempted";
+  }
+
+  const summary = makeSummary({
     generatedAt,
     dryRun,
     status: applyRequested ? "canary_applied" : "dry_run_completed",
@@ -1504,7 +1801,7 @@ export async function runRecursiveImprovementLoop(
     autoApplyAttempted: applyRequested,
     autoApplyResult: applyRequested ? "applied" : "not_requested",
     rollbackMonitorResult: rollbackResult.decision.status,
-    rollbackApplied: false,
+    rollbackApplied: productionDecision.production_canary_result === "rolled_back",
     nextAutonomousAction: applyRequested
       ? "monitor_support_triage_canary"
       : "manual_review_or_next_shadow_canary_packet",
@@ -1519,6 +1816,7 @@ export async function runRecursiveImprovementLoop(
     aiClassifier: aiClassifierSummary,
     aiFixtureDrafter: aiFixtureDrafterSummary,
     aiPatchProposal: patchProposalSummary,
+    productionDecision,
     proofPaths: stageOutputs.proofPaths,
     commandOutputs: stageOutputs.commandOutputs,
   });
@@ -1565,6 +1863,18 @@ export function parseRecursiveImprovementArgs(argv: string[]): RecursiveImprovem
         if (!next) throw new Error("--ai-patch-proposal-artifact requires a path");
         options.aiPatchProposalArtifacts = [...(options.aiPatchProposalArtifacts ?? []), next];
         index += 1;
+        break;
+      case "--production-context":
+        options.productionContext = true;
+        break;
+      case "--ai-production-proposal":
+        options.aiProductionProposal = true;
+        options.productionContext = true;
+        break;
+      case "--execute-production-canary":
+        options.executeProductionCanary = true;
+        options.productionContext = true;
+        options.dryRun = false;
         break;
       case "--observer-input":
         if (!next) throw new Error("--observer-input requires a path");

@@ -1,0 +1,17 @@
+{
+  "schema": "blueprint/autoagent-production-change-proposal-summary/v1",
+  "generated_at": "2026-05-29T21:21:49.901Z",
+  "status": "fallback_ai_unavailable",
+  "ai_used": false,
+  "proposal_id": null,
+  "action_type": null,
+  "target_system": null,
+  "target_record_id": null,
+  "target_field": null,
+  "idempotency_key": null,
+  "stop_condition": null,
+  "deterministic_gate_reason": "fallback_ai_unavailable: no AI production proposal command or session was configured",
+  "reasons": [],
+  "request": null,
+  "validation": null
+}

@@ -154,6 +154,7 @@ const LIVE_SIDE_EFFECT_VALIDATION_PATTERNS: Array<{
   { label: "generic apply mutation flag", pattern: /(^|\s)--apply(\s|$)/i },
   { label: "live execution flag", pattern: /(^|\s)--live(\s|$)/i },
   { label: "founder-approved live execution flag", pattern: /(^|\s)--founder-approved(\s|$)/i },
+  { label: "live launch smoke", pattern: /\bnpm\s+run\s+smoke:launch\b/i },
   { label: "GTM send executor", pattern: /\bnpm\s+run\s+gtm:send\b/i },
   { label: "city-launch send executor", pattern: /\bnpm\s+run\s+city-launch:send\b/i },
   { label: "city-launch broad runner", pattern: /\bnpm\s+run\s+city-launch:run\b/i },
@@ -905,6 +906,17 @@ export function parseCanaryPromotionArgs(argv: string[]): Partial<CanaryPromotio
   return options;
 }
 
+export function formatCanaryPromotionConsoleLines(result: CanaryPromotionResult) {
+  return [
+    `[autoagent-canary-promotion] status=${result.plan.status} plan=${result.planJsonPath} markdown=${result.planMarkdownPath}`,
+    ...result.plan.mutationPlan.map(
+      (mutation) =>
+        `[autoagent-canary-promotion] mutation=${mutation.order} ${mutation.action} -> ${mutation.path} (${mutation.sideEffectClass})`,
+    ),
+    ...result.plan.validationErrors.map((error) => `[autoagent-canary-promotion] error=${error}`),
+  ];
+}
+
 export async function main(argv = process.argv.slice(2)) {
   const options = parseCanaryPromotionArgs(argv);
 
@@ -920,13 +932,8 @@ export async function main(argv = process.argv.slice(2)) {
   }
 
   const result = await runCanaryPromotion(options);
-  console.log(
-    `[autoagent-canary-promotion] status=${result.plan.status} plan=${result.planJsonPath} markdown=${result.planMarkdownPath}`,
-  );
-  if (result.plan.validationErrors.length > 0) {
-    for (const error of result.plan.validationErrors) {
-      console.log(`[autoagent-canary-promotion] error=${error}`);
-    }
+  for (const line of formatCanaryPromotionConsoleLines(result)) {
+    console.log(line);
   }
   process.exitCode = result.ok ? 0 : 1;
 }

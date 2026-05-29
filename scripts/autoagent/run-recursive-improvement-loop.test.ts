@@ -10,6 +10,7 @@ import {
   type RecursiveImprovementLoopOptions,
 } from "./run-recursive-improvement-loop.ts";
 import { type AiPatchProposalInvoker } from "./ai-patch-proposal.ts";
+import { type AiProductionChangeProposalInvoker } from "./ai-production-change-proposer.ts";
 import { type PromptPolicyPromotionCandidate } from "./prompt-policy-promotion-gate.ts";
 import { type ShadowSourceRecord } from "./monitor-canary-rollback.ts";
 
@@ -136,6 +137,52 @@ function cleanShadowRecord(
   };
 }
 
+function validProductionProposalInvoker(
+  overrides: Record<string, unknown> = {},
+): AiProductionChangeProposalInvoker {
+  return async () =>
+    JSON.stringify({
+      proposal_id: "paperclip-hermes-policy-tier-canary",
+      action_type: "paperclip_hermes_internal_metadata_update",
+      target_system: "paperclip_hermes",
+      target_record_id: "recursive-agent-improvement-loop",
+      target_field: "metadata.autoagent.production_decision_loop",
+      proposed_value: "canary_verified",
+      reason:
+        "Record a narrow internal metadata canary only after deterministic registry, eval, and rollback checks pass.",
+      idempotency_key:
+        "paperclip-hermes-metadata:recursive-agent-improvement-loop:production-decision-loop",
+      stop_condition: "rollback if monitor_stop_condition is triggered",
+      ...overrides,
+    });
+}
+
+function validReportPointerProductionProposalInvoker(
+  overrides: Record<string, unknown> = {},
+): AiProductionChangeProposalInvoker {
+  return async () =>
+    JSON.stringify({
+      proposal_id: "paperclip-report-pointer-canary",
+      action_type: "paperclip_internal_report_pointer_update",
+      target_system: "paperclip_hermes",
+      target_record_id: "recursive-agent-improvement-loop",
+      target_field: "metadata.autoagent.latest_production_report_pointer",
+      proposed_value: {
+        report_path:
+          "output/autoagent/recursive-improvement/latest/report.md",
+        summary_path:
+          "output/autoagent/recursive-improvement/latest/summary.json",
+        report_kind: "recursive_improvement_closeout",
+      },
+      reason:
+        "Update the internal report pointer after the first production metadata lane has proven the canary executor.",
+      idempotency_key:
+        "paperclip-report-pointer:recursive-agent-improvement-loop:latest-production-report",
+      stop_condition: "rollback if report pointer proof or monitor stop condition fails",
+      ...overrides,
+    });
+}
+
 async function writeCandidate(root: string, candidate: unknown) {
   const candidatePath = path.join(root, "candidate.json");
   await writeJson(candidatePath, candidate);
@@ -259,6 +306,19 @@ describe("recursive AutoResearch improvement loop", () => {
     expect(options.aiPatchProposalArtifacts).toEqual(["observer-artifacts"]);
   });
 
+  it("parses production context, AI production proposal, and explicit production canary flags", () => {
+    const options = parseRecursiveImprovementArgs([
+      "--production-context",
+      "--ai-production-proposal",
+      "--execute-production-canary",
+    ]);
+
+    expect(options.productionContext).toBe(true);
+    expect(options.aiProductionProposal).toBe(true);
+    expect(options.executeProductionCanary).toBe(true);
+    expect(options.dryRun).toBe(false);
+  });
+
   it("runs the full repo-local dry-run loop from fixture observer input", async () => {
     const root = await makeTempDir();
     const result = await runLoop(root);
@@ -278,6 +338,29 @@ describe("recursive AutoResearch improvement loop", () => {
     expect(result.summary.rollback_monitor_result).toBe("keep_canary");
     expect(result.summary.rollback_applied).toBe(false);
     expect(result.summary.live_mutation_attempted).toBe(false);
+    expect(result.summary.live_mutation_committed).toBe(false);
+    expect(result.summary.production_context_built).toBe(false);
+    expect(result.summary.ai_production_proposal_used).toBe(false);
+    expect(result.summary.production_proposal_status).toBe("not_requested");
+    expect(result.summary.production_action_type).toBeNull();
+    expect(result.summary.production_target_system).toBeNull();
+    expect(result.summary.production_canary_attempted).toBe(false);
+    expect(result.summary.production_canary_result).toBe("not_requested");
+    expect(result.summary.idempotency_key).toBeNull();
+    expect(result.summary.audit_event_path).toBeNull();
+    expect(result.summary.rollback_snapshot_path).toBeNull();
+    expect(result.summary.production_action_registry).toMatchObject({
+      registry_path: "server/agents/autoagent-production-action-registry.ts",
+      default_mode: "dry_run",
+      allowed_live_action_types: ["paperclip_hermes_internal_metadata_update"],
+      blocked_action_types: expect.arrayContaining([
+        "external_send",
+        "payment_or_entitlement",
+        "provider_execution",
+        "hosted_session_fulfillment",
+      ]),
+      live_mutation_enabled_by_default: false,
+    });
 
     await expect(fs.stat(result.summaryPath)).resolves.toBeTruthy();
     await expect(fs.stat(result.reportPath)).resolves.toBeTruthy();
@@ -298,6 +381,349 @@ describe("recursive AutoResearch improvement loop", () => {
     await expect(
       fs.stat(path.join(root, "recursive", "latest", "canary", "canary-config.json")),
     ).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  it("builds production context and falls back cleanly when AI production proposal is unavailable", async () => {
+    const root = await makeTempDir();
+    const result = await runLoop(root, {
+      options: {
+        productionContext: true,
+        aiProductionProposal: true,
+        aiProductionProposalEnv: {},
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.summary.production_context_built).toBe(true);
+    expect(result.summary.ai_production_proposal_used).toBe(false);
+    expect(result.summary.production_proposal_status).toBe("fallback_ai_unavailable");
+    expect(result.summary.production_canary_attempted).toBe(false);
+    expect(result.summary.production_canary_result).toBe("not_attempted");
+    expect(result.summary.live_mutation_attempted).toBe(false);
+    expect(result.summary.live_mutation_committed).toBe(false);
+    expect(result.summary.audit_event_path).toBeNull();
+    expect(result.summary.rollback_snapshot_path).toMatch(/production-context/);
+    expect(result.summary.command_outputs.join("\n")).toContain(
+      "ai-production-change-proposer: status=fallback_ai_unavailable",
+    );
+  });
+
+  it("validates a strong AI production proposal but does not mutate without the execute flag", async () => {
+    const root = await makeTempDir();
+    const result = await runLoop(root, {
+      options: {
+        productionContext: true,
+        aiProductionProposal: true,
+        aiProductionProposalEnv: {},
+        aiProductionProposalInvoker: validProductionProposalInvoker(),
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.summary.production_context_built).toBe(true);
+    expect(result.summary.ai_production_proposal_used).toBe(true);
+    expect(result.summary.production_proposal_status).toBe("validated_dry_run_allowed");
+    expect(result.summary.production_action_type).toBe(
+      "paperclip_hermes_internal_metadata_update",
+    );
+    expect(result.summary.production_target_system).toBe("paperclip_hermes");
+    expect(result.summary.idempotency_key).toBe(
+      "paperclip-hermes-metadata:recursive-agent-improvement-loop:production-decision-loop",
+    );
+    expect(result.summary.production_canary_attempted).toBe(false);
+    expect(result.summary.production_canary_result).toBe("not_attempted_execute_flag_missing");
+    expect(result.summary.live_mutation_attempted).toBe(false);
+    expect(result.summary.live_mutation_committed).toBe(false);
+    expect(result.summary.audit_event_path).toBeNull();
+    await expect(fs.stat(result.summary.rollback_snapshot_path!)).resolves.toBeTruthy();
+  });
+
+  it("executes a valid allowlisted AI production proposal only with the explicit canary flag", async () => {
+    const root = await makeTempDir();
+    const result = await runLoop(root, {
+      options: {
+        productionContext: true,
+        aiProductionProposal: true,
+        executeProductionCanary: true,
+        aiProductionProposalEnv: {},
+        aiProductionProposalInvoker: validProductionProposalInvoker(),
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.summary.dry_run).toBe(false);
+    expect(result.summary.production_proposal_status).toBe("validated_live_allowed");
+    expect(result.summary.production_canary_attempted).toBe(true);
+    expect(result.summary.production_canary_result).toBe("canary_committed");
+    expect(result.summary.live_mutation_attempted).toBe(true);
+    expect(result.summary.live_mutation_committed).toBe(true);
+    expect(result.summary.audit_event_path).toMatch(/production-canary\/audit-event\.json$/);
+    expect(result.summary.rollback_snapshot_path).toMatch(/production-context\/rollback-snapshot\.json$/);
+
+    const audit = JSON.parse(await fs.readFile(result.summary.audit_event_path!, "utf8"));
+    expect(audit.request.actionType).toBe("paperclip_hermes_internal_metadata_update");
+    expect(audit.execution.result).toBe("canary_committed");
+  });
+
+  it("rolls back an allowlisted production canary when a stop condition trips", async () => {
+    const root = await makeTempDir();
+    const result = await runLoop(root, {
+      options: {
+        productionContext: true,
+        aiProductionProposal: true,
+        executeProductionCanary: true,
+        aiProductionProposalEnv: {},
+        aiProductionProposalInvoker: validProductionProposalInvoker({
+          stop_condition: "force_rollback_for_test",
+        }),
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.summary.production_canary_attempted).toBe(true);
+    expect(result.summary.production_canary_result).toBe("rolled_back");
+    expect(result.summary.live_mutation_attempted).toBe(true);
+    expect(result.summary.live_mutation_committed).toBe(false);
+    expect(result.summary.rollback_applied).toBe(true);
+
+    const audit = JSON.parse(await fs.readFile(result.summary.audit_event_path!, "utf8"));
+    expect(audit.execution.result).toBe("rolled_back");
+    expect(audit.rollback.applied).toBe(true);
+  });
+
+  it("blocks unsafe production proposals before mutation", async () => {
+    const root = await makeTempDir();
+    const result = await runLoop(root, {
+      options: {
+        productionContext: true,
+        aiProductionProposal: true,
+        executeProductionCanary: true,
+        aiProductionProposalEnv: {},
+        aiProductionProposalInvoker: validProductionProposalInvoker({
+          action_type: "external_send",
+          target_system: "gmail_slack_sendgrid",
+        }),
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.summary.production_proposal_status).toBe("blocked");
+    expect(result.summary.production_action_type).toBe("external_send");
+    expect(result.summary.production_target_system).toBe("gmail_slack_sendgrid");
+    expect(result.summary.production_canary_attempted).toBe(false);
+    expect(result.summary.production_canary_result).toBe("not_attempted_validator_rejected");
+    expect(result.summary.live_mutation_attempted).toBe(false);
+    expect(result.summary.live_mutation_committed).toBe(false);
+  });
+
+  it("suppresses duplicate production idempotency keys without a duplicate action", async () => {
+    const root = await makeTempDir();
+    const first = await runLoop(root, {
+      options: {
+        productionContext: true,
+        aiProductionProposal: true,
+        executeProductionCanary: true,
+        aiProductionProposalEnv: {},
+        aiProductionProposalInvoker: validProductionProposalInvoker(),
+      },
+    });
+    expect(first.summary.production_canary_result).toBe("canary_committed");
+
+    const second = await runLoop(root, {
+      options: {
+        productionContext: true,
+        aiProductionProposal: true,
+        executeProductionCanary: true,
+        aiProductionProposalEnv: {},
+        aiProductionProposalInvoker: validProductionProposalInvoker(),
+      },
+    });
+
+    expect(second.ok).toBe(true);
+    expect(second.summary.production_proposal_status).toBe("duplicate_idempotency");
+    expect(second.summary.production_canary_attempted).toBe(false);
+    expect(second.summary.production_canary_result).toBe("duplicate_idempotency_suppressed");
+    expect(second.summary.live_mutation_attempted).toBe(false);
+    expect(second.summary.live_mutation_committed).toBe(false);
+
+    const ledger = JSON.parse(await fs.readFile(
+      path.join(root, "recursive", "latest", "production-canary", "idempotency-ledger.json"),
+      "utf8",
+    ));
+    expect(ledger.entries.filter((entry: { idempotencyKey: string }) =>
+      entry.idempotencyKey ===
+        "paperclip-hermes-metadata:recursive-agent-improvement-loop:production-decision-loop",
+    )).toHaveLength(1);
+  });
+
+  it("blocks the internal report pointer production lane until the first live lane has execution proof", async () => {
+    const root = await makeTempDir();
+    const result = await runLoop(root, {
+      options: {
+        productionContext: true,
+        aiProductionProposal: true,
+        executeProductionCanary: true,
+        aiProductionProposalEnv: {},
+        aiProductionProposalInvoker: validReportPointerProductionProposalInvoker(),
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.summary.production_proposal_status).toBe("blocked");
+    expect(result.summary.production_action_type).toBe(
+      "paperclip_internal_report_pointer_update",
+    );
+    expect(result.summary.production_canary_attempted).toBe(false);
+    expect(result.summary.production_canary_result).toBe(
+      "not_attempted_validator_rejected",
+    );
+    expect(result.summary.live_mutation_attempted).toBe(false);
+    expect(result.summary.live_mutation_committed).toBe(false);
+    expect(result.summary.command_outputs.join("\n")).toContain(
+      "first live production lane proof is missing",
+    );
+  });
+
+  it("executes the internal report pointer lane after first-lane execution proof exists", async () => {
+    const root = await makeTempDir();
+    const first = await runLoop(root, {
+      options: {
+        productionContext: true,
+        aiProductionProposal: true,
+        executeProductionCanary: true,
+        aiProductionProposalEnv: {},
+        aiProductionProposalInvoker: validProductionProposalInvoker(),
+      },
+    });
+    expect(first.summary.production_canary_result).toBe("canary_committed");
+
+    const second = await runLoop(root, {
+      options: {
+        productionContext: true,
+        aiProductionProposal: true,
+        executeProductionCanary: true,
+        aiProductionProposalEnv: {},
+        aiProductionProposalInvoker: validReportPointerProductionProposalInvoker(),
+      },
+    });
+
+    expect(second.ok).toBe(true);
+    expect(second.summary.production_proposal_status).toBe("validated_live_allowed");
+    expect(second.summary.production_action_type).toBe(
+      "paperclip_internal_report_pointer_update",
+    );
+    expect(second.summary.production_canary_attempted).toBe(true);
+    expect(second.summary.production_canary_result).toBe("canary_committed");
+    expect(second.summary.live_mutation_attempted).toBe(true);
+    expect(second.summary.live_mutation_committed).toBe(true);
+
+    const executionPath = path.join(
+      root,
+      "recursive",
+      "latest",
+      "production-canary",
+      "execution.json",
+    );
+    const execution = JSON.parse(await fs.readFile(executionPath, "utf8"));
+    expect(execution.action.action_type).toBe(
+      "paperclip_internal_report_pointer_update",
+    );
+    expect(execution.mutation.surface).toBe(
+      "paperclip_hermes.internal_report_pointer",
+    );
+    expect(execution.rollback.snapshot_path).toMatch(/production-context\/rollback-snapshot\.json$/);
+  });
+
+  it("rolls back the internal report pointer lane when a stop condition trips", async () => {
+    const root = await makeTempDir();
+    const first = await runLoop(root, {
+      options: {
+        productionContext: true,
+        aiProductionProposal: true,
+        executeProductionCanary: true,
+        aiProductionProposalEnv: {},
+        aiProductionProposalInvoker: validProductionProposalInvoker(),
+      },
+    });
+    expect(first.summary.production_canary_result).toBe("canary_committed");
+
+    const second = await runLoop(root, {
+      options: {
+        productionContext: true,
+        aiProductionProposal: true,
+        executeProductionCanary: true,
+        aiProductionProposalEnv: {},
+        aiProductionProposalInvoker: validReportPointerProductionProposalInvoker({
+          stop_condition: "force_rollback_for_test",
+        }),
+      },
+    });
+
+    expect(second.ok).toBe(true);
+    expect(second.summary.production_canary_attempted).toBe(true);
+    expect(second.summary.production_canary_result).toBe("rolled_back");
+    expect(second.summary.live_mutation_attempted).toBe(true);
+    expect(second.summary.live_mutation_committed).toBe(false);
+    expect(second.summary.rollback_applied).toBe(true);
+
+    const rollback = JSON.parse(await fs.readFile(
+      path.join(root, "recursive", "latest", "production-canary", "rollback-applied.json"),
+      "utf8",
+    ));
+    expect(rollback.action_type).toBe("paperclip_internal_report_pointer_update");
+    expect(rollback.rollback_strategy).toBe("restore_previous_report_pointer_snapshot");
+  });
+
+  it("suppresses duplicate internal report pointer idempotency keys", async () => {
+    const root = await makeTempDir();
+    const first = await runLoop(root, {
+      options: {
+        productionContext: true,
+        aiProductionProposal: true,
+        executeProductionCanary: true,
+        aiProductionProposalEnv: {},
+        aiProductionProposalInvoker: validProductionProposalInvoker(),
+      },
+    });
+    expect(first.summary.production_canary_result).toBe("canary_committed");
+
+    const second = await runLoop(root, {
+      options: {
+        productionContext: true,
+        aiProductionProposal: true,
+        executeProductionCanary: true,
+        aiProductionProposalEnv: {},
+        aiProductionProposalInvoker: validReportPointerProductionProposalInvoker(),
+      },
+    });
+    expect(second.summary.production_canary_result).toBe("canary_committed");
+
+    const third = await runLoop(root, {
+      options: {
+        productionContext: true,
+        aiProductionProposal: true,
+        executeProductionCanary: true,
+        aiProductionProposalEnv: {},
+        aiProductionProposalInvoker: validReportPointerProductionProposalInvoker(),
+      },
+    });
+
+    expect(third.summary.production_proposal_status).toBe("duplicate_idempotency");
+    expect(third.summary.production_canary_attempted).toBe(false);
+    expect(third.summary.production_canary_result).toBe(
+      "duplicate_idempotency_suppressed",
+    );
+    expect(third.summary.live_mutation_attempted).toBe(false);
+    expect(third.summary.live_mutation_committed).toBe(false);
+
+    const ledger = JSON.parse(await fs.readFile(
+      path.join(root, "recursive", "latest", "production-canary", "idempotency-ledger.json"),
+      "utf8",
+    ));
+    expect(ledger.entries.filter((entry: { idempotencyKey: string }) =>
+      entry.idempotencyKey ===
+        "paperclip-report-pointer:recursive-agent-improvement-loop:latest-production-report",
+    )).toHaveLength(1);
   });
 
   it("falls back to deterministic local observer behavior when AI is unavailable", async () => {
@@ -797,6 +1223,9 @@ describe("recursive AutoResearch improvement loop", () => {
 
     const report = await fs.readFile(result.reportPath, "utf8");
     expect(report).toContain("Policy tier: repo_local_canary");
+    expect(report).toContain("Production registry: server/agents/autoagent-production-action-registry.ts");
+    expect(report).toContain("Allowed live action types");
+    expect(report).toContain("paperclip_hermes_internal_metadata_update");
 
     await expect(
       fs.stat(path.join(root, "recursive", "latest", "canary", "canary-config.json")),

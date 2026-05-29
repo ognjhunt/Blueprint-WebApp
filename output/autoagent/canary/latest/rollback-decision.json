@@ -1,6 +1,6 @@
 {
   "schema": "blueprint/autoagent-canary-rollback-decision/v1",
-  "generatedAt": "2026-05-29T14:10:17.039Z",
+  "generatedAt": "2026-05-29T19:02:43.959Z",
   "status": "insufficient_evidence",
   "dryRun": true,
   "applyRollbackRequested": false,
@@ -28,9 +28,9 @@
       "exitCode": 0,
       "output": [
         "export_mode=offline_seed",
-        "cases=9",
+        "cases=10",
         "failed=0",
-        "negative_controls_blocked=12/12"
+        "negative_controls_blocked=14/14"
       ]
     },
     {

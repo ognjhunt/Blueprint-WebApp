@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import {
   findLiveSideEffectValidationCommands,
+  formatCanaryPromotionConsoleLines,
   parseCanaryPromotionArgs,
   runCanaryPromotion,
   validateCanaryPlanForApply,
@@ -155,6 +156,22 @@ describe("AutoAgent canary promotion controller", () => {
     await expect(fs.stat(result.activeConfigPath)).rejects.toMatchObject({ code: "ENOENT" });
   });
 
+  it("formats the exact dry-run mutation plan for CLI output", async () => {
+    const root = await makeTempDir();
+    const result = await runWithCandidate(root, buildCandidate());
+
+    const lines = formatCanaryPromotionConsoleLines(result);
+
+    expect(lines).toContain(
+      `[autoagent-canary-promotion] status=dry_run plan=${result.planJsonPath} markdown=${result.planMarkdownPath}`,
+    );
+    expect(lines).toContain(
+      `[autoagent-canary-promotion] mutation=1 write_rollback_snapshot -> ${result.rollbackSnapshotPath} (repo_local_artifact)`,
+    );
+    expect(lines.join("\n")).toContain("write_canary_plan_json");
+    expect(lines.join("\n")).not.toContain("write_active_canary_config");
+  });
+
   it("rejects candidates when the promotion gate holds", async () => {
     const root = await makeTempDir();
     const result = await runWithCandidate(root, buildCandidate({ shadowSummary: null }));
@@ -217,6 +234,19 @@ describe("AutoAgent canary promotion controller", () => {
     expect(
       findLiveSideEffectValidationCommands(["npm run gtm:send -- --write --dry-run 0"]),
     ).toHaveLength(1);
+  });
+
+  it("rejects live launch smoke validation commands", async () => {
+    const findings = findLiveSideEffectValidationCommands([
+      "npm run smoke:launch -- --base-url https://blueprint.example",
+    ]);
+
+    expect(findings).toEqual([
+      {
+        command: "npm run smoke:launch -- --base-url https://blueprint.example",
+        label: "live launch smoke",
+      },
+    ]);
   });
 
   it("requires the explicit apply flag for apply mode", async () => {
