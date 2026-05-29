@@ -1,6 +1,6 @@
 # AutoAgent Production Context Bundle
 
-Generated: 2026-05-29T21:21:49.899Z
+Generated: 2026-05-29T21:31:23.467Z
 Default mode: dry_run
 Registry: server/agents/autoagent-production-action-registry.ts
 Owner system: paperclip_hermes
@@ -18,6 +18,18 @@ Candidate path: /Users/nijelhunt_1/workspace/Blueprint-WebApp/labs/autoagent/pro
 
 - paperclip_hermes_internal_metadata_update
 - paperclip_internal_report_pointer_update
+
+## Action Constraints
+
+### paperclip_hermes_internal_metadata_update
+
+Owner system: paperclip_hermes
+Proof source: paperclip_issue_metadata_snapshot
+Rollback strategy: restore_previous_metadata_snapshot
+Mutation surface: paperclip_hermes.internal_metadata
+Requires prior live action proof: none
+Allowed target fields:
+- metadata.autoagent.production_decision_loop
 
 ## Proven Live Action Types
 

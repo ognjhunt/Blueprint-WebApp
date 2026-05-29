@@ -6,6 +6,7 @@ import {
   AUTOAGENT_INITIAL_LIVE_PRODUCTION_ACTION_TYPES,
   AUTOAGENT_NEXT_LIVE_PRODUCTION_ACTION_TYPES,
   AUTOAGENT_PRODUCTION_ACTION_DEFAULT_MODE,
+  AUTOAGENT_PRODUCTION_ACTION_REGISTRY,
   AUTOAGENT_PRODUCTION_ACTION_REGISTRY_PATH,
   AUTOAGENT_REGISTERED_LIVE_PRODUCTION_ACTION_TYPES,
 } from "../../server/agents/autoagent-production-action-registry.ts";
@@ -17,6 +18,14 @@ export type ProductionContextBundle = {
   production_action_registry_path: typeof AUTOAGENT_PRODUCTION_ACTION_REGISTRY_PATH;
   allowed_live_action_types: string[];
   registered_live_action_types: string[];
+  action_constraints: Record<string, {
+    owner_system: string;
+    proof_source: string;
+    rollback_strategy: string;
+    allowed_target_fields: string[];
+    mutation_surface: string;
+    requires_prior_live_action_proof: string | null;
+  }>;
   proven_live_action_types: string[];
   first_live_lane_proof_path: string;
   first_live_lane_proven: boolean;
@@ -108,6 +117,20 @@ function renderMarkdown(bundle: ProductionContextBundle) {
     "",
     list(bundle.registered_live_action_types),
     "",
+    "## Action Constraints",
+    "",
+    ...Object.entries(bundle.action_constraints).flatMap(([actionType, constraints]) => [
+      `### ${actionType}`,
+      "",
+      `Owner system: ${constraints.owner_system}`,
+      `Proof source: ${constraints.proof_source}`,
+      `Rollback strategy: ${constraints.rollback_strategy}`,
+      `Mutation surface: ${constraints.mutation_surface}`,
+      `Requires prior live action proof: ${constraints.requires_prior_live_action_proof ?? "none"}`,
+      "Allowed target fields:",
+      list(constraints.allowed_target_fields),
+      "",
+    ]),
     "## Proven Live Action Types",
     "",
     list(bundle.proven_live_action_types),
@@ -154,6 +177,21 @@ export async function buildProductionContextBundle(
       ...AUTOAGENT_NEXT_LIVE_PRODUCTION_ACTION_TYPES,
     ]
     : [...AUTOAGENT_INITIAL_LIVE_PRODUCTION_ACTION_TYPES];
+  const actionConstraints = Object.fromEntries(
+    allowedLiveActionTypes.map((actionType) => {
+      const entry = AUTOAGENT_PRODUCTION_ACTION_REGISTRY[
+        actionType as keyof typeof AUTOAGENT_PRODUCTION_ACTION_REGISTRY
+      ];
+      return [actionType, {
+        owner_system: entry.ownerSystem,
+        proof_source: entry.proofSource,
+        rollback_strategy: entry.rollbackStrategy,
+        allowed_target_fields: [...entry.allowedTargetFields],
+        mutation_surface: entry.mutationSurface,
+        requires_prior_live_action_proof: entry.requiresPriorLiveActionProof,
+      }];
+    }),
+  );
   const candidatePath = options.candidatePath
     ? path.resolve(cwd, options.candidatePath)
     : null;
@@ -204,6 +242,7 @@ export async function buildProductionContextBundle(
     registered_live_action_types: [
       ...AUTOAGENT_REGISTERED_LIVE_PRODUCTION_ACTION_TYPES,
     ],
+    action_constraints: actionConstraints,
     proven_live_action_types: provenLiveActionTypes,
     first_live_lane_proof_path: firstLiveLaneProofPath,
     first_live_lane_proven: firstLiveLaneProven,

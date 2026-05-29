@@ -1,24 +1,9 @@
 {
-  "built_at": "2026-05-29T21:21:56.810Z",
+  "built_at": "2026-05-29T21:31:48.820Z",
   "summaries": [
-    {
-      "lane": "waitlist_triage",
-      "generated": 2,
-      "skipped": 0
-    },
     {
       "lane": "support_triage",
       "generated": 4,
-      "skipped": 0
-    },
-    {
-      "lane": "preview_diagnosis",
-      "generated": 4,
-      "skipped": 0
-    },
-    {
-      "lane": "agent_failure_promotion",
-      "generated": 1,
       "skipped": 0
     }
   ]

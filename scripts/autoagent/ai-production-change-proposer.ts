@@ -127,6 +127,23 @@ function buildPrompt(contextBundle: ProductionContextBundle, executeRequested: b
     "Allowed live action types for this context:",
     ...contextBundle.allowed_live_action_types.map((actionType) => `- ${actionType}`),
     "",
+    "Allowed action constraints:",
+    ...contextBundle.allowed_live_action_types.flatMap((actionType) => {
+      const constraints = contextBundle.action_constraints[actionType];
+      if (!constraints) {
+        return [`- ${actionType}: no constraints supplied; do not propose this action`];
+      }
+      return [
+        `- ${actionType}:`,
+        `  owner_system=${constraints.owner_system}`,
+        `  proof_source=${constraints.proof_source}`,
+        `  rollback_strategy=${constraints.rollback_strategy}`,
+        `  mutation_surface=${constraints.mutation_surface}`,
+        `  requires_prior_live_action_proof=${constraints.requires_prior_live_action_proof ?? "none"}`,
+        `  allowed_target_fields=${constraints.allowed_target_fields.join(", ") || "none"}`,
+      ];
+    }),
+    "",
     "Registered but currently gated live action types:",
     ...(gatedLiveActionTypes.length > 0
       ? gatedLiveActionTypes.map((actionType) => `- ${actionType}`)

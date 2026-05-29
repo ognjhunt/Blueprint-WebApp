@@ -1,17 +1,104 @@
 {
   "schema": "blueprint/autoagent-production-change-proposal-summary/v1",
-  "generated_at": "2026-05-29T21:21:49.901Z",
-  "status": "fallback_ai_unavailable",
-  "ai_used": false,
-  "proposal_id": null,
-  "action_type": null,
-  "target_system": null,
-  "target_record_id": null,
-  "target_field": null,
-  "idempotency_key": null,
-  "stop_condition": null,
-  "deterministic_gate_reason": "fallback_ai_unavailable: no AI production proposal command or session was configured",
+  "generated_at": "2026-05-29T21:31:23.472Z",
+  "status": "validated_live_allowed",
+  "ai_used": true,
+  "proposal_id": "autoagent-prod-canary-20260529",
+  "action_type": "paperclip_hermes_internal_metadata_update",
+  "target_system": "paperclip_hermes",
+  "target_record_id": "recursive-agent-improvement-loop",
+  "target_field": "metadata.autoagent.production_decision_loop",
+  "idempotency_key": "autoagent-prod-canary-recursive-agent-improvement-loop-20260529T213123Z",
+  "stop_condition": "Stop before execution if rollback snapshot is missing, validator rejects the proposal, target field differs from registry allowance, or execution lacks --execute-production-canary.",
+  "deterministic_gate_reason": "validated_live_allowed: registry validation passed; execution remains controlled by the deterministic canary harness",
   "reasons": [],
-  "request": null,
-  "validation": null
+  "request": {
+    "actionType": "paperclip_hermes_internal_metadata_update",
+    "ownerSystem": "paperclip_hermes",
+    "targetRecordId": "recursive-agent-improvement-loop",
+    "targetField": "metadata.autoagent.production_decision_loop",
+    "proofSource": "paperclip_issue_metadata_snapshot",
+    "proofPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/latest/production-context/paperclip-issue-metadata-snapshot.json",
+    "idempotencyKey": "autoagent-prod-canary-recursive-agent-improvement-loop-20260529T213123Z",
+    "rollbackStrategy": "restore_previous_metadata_snapshot",
+    "rollbackPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/latest/production-context/rollback-snapshot.json",
+    "dryRun": false,
+    "canaryMode": true,
+    "canaryLimit": {
+      "maxActions": 1,
+      "window": "per_run"
+    },
+    "liveMutationEnabled": true,
+    "auditEvent": {
+      "schema": "blueprint/autoagent-production-action-audit/v1",
+      "actionType": "paperclip_hermes_internal_metadata_update",
+      "actionTier": "internal_metadata_update",
+      "ownerSystem": "paperclip_hermes",
+      "targetRecordId": "recursive-agent-improvement-loop",
+      "targetField": "metadata.autoagent.production_decision_loop",
+      "idempotencyKey": "autoagent-prod-canary-recursive-agent-improvement-loop-20260529T213123Z",
+      "proofPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/latest/production-context/paperclip-issue-metadata-snapshot.json",
+      "rollbackPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/latest/production-context/rollback-snapshot.json",
+      "dryRun": false,
+      "canaryMode": true,
+      "liveMutationEnabled": true
+    }
+  },
+  "validation": {
+    "decision": "live_allowed",
+    "actionEntry": {
+      "actionType": "paperclip_hermes_internal_metadata_update",
+      "actionTier": "internal_metadata_update",
+      "ownerSystem": "paperclip_hermes",
+      "proofSource": "paperclip_issue_metadata_snapshot",
+      "rollbackStrategy": "restore_previous_metadata_snapshot",
+      "liveMutationAllowed": true,
+      "mutationSurface": "paperclip_hermes.internal_metadata",
+      "allowedTargetFields": [
+        "metadata.autoagent.production_decision_loop"
+      ],
+      "deterministicProofRequirements": [
+        "paperclip issue metadata snapshot exists",
+        "rollback snapshot includes previous metadata value",
+        "idempotency key is unique for the target metadata field",
+        "audit event matches action, owner, target, proof, rollback, dry-run, canary, and live flags"
+      ],
+      "stopConditions": [
+        "metadata proof path is missing",
+        "rollback snapshot is missing",
+        "duplicate idempotency key is detected",
+        "rollback monitor or stop condition requests rollback"
+      ],
+      "auditEventSchema": "blueprint/autoagent-production-action-audit/v1",
+      "defaultDryRun": true,
+      "requiresCanaryMode": true,
+      "canaryLimit": {
+        "maxActions": 1,
+        "window": "per_run"
+      },
+      "blockedReason": null,
+      "requiresPriorLiveActionProof": null
+    },
+    "reasons": [],
+    "blockedActionTypes": [],
+    "checks": {
+      "registeredActionType": true,
+      "ownerSystemNamed": true,
+      "proofSourceNamed": true,
+      "proofPathExists": true,
+      "idempotencyKeyPresent": true,
+      "idempotencyKeyIsUnique": true,
+      "rollbackStrategyNamed": true,
+      "rollbackPathExists": true,
+      "dryRunModeExplicit": true,
+      "canaryModeExplicit": true,
+      "canaryLimitPresent": true,
+      "targetRecordNamed": true,
+      "targetFieldAllowed": true,
+      "auditEventSchemaPresent": true,
+      "auditEventMatchesRequest": true,
+      "liveMutationFlagExplicit": true,
+      "actionTypeAllowed": true
+    }
+  }
 }

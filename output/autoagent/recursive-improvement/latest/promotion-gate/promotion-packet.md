@@ -6,7 +6,7 @@ Candidate id: autoagent-to-paperclip-hermes-prompt-policy-gate-2026-05-28
 Source: AutoAgent offline lab
 Target runtime: Paperclip/Hermes
 Live Paperclip mutation: not attempted
-Generated at: 2026-05-29T21:21:51.479Z
+Generated at: 2026-05-29T21:31:48.825Z
 
 ## Gate Checks
 
@@ -19,13 +19,10 @@ Generated at: 2026-05-29T21:21:51.479Z
 - rollback_condition_present: true
 - blocked_claims_absent: true
 - live_paperclip_mutation_attempted: false
-- policy_tier: human_policy_gated
+- policy_tier: repo_local_canary
 
 ## Decision Reasons
 
-- waitlist_triage requires explicit human/policy gate before canary or promotion
-- waitlist_triage remains shadow-only
-- preview_diagnosis remains shadow-only
 - clean shadow comparison summary is missing
 
 ## Blocked Claims
@@ -34,23 +31,18 @@ Generated at: 2026-05-29T21:21:51.479Z
 
 ## Required Next Evidence
 
-- waitlist_triage can continue in shadow only until an explicit policy change names the allowed canary/apply path and owner-system proof requirements.
-- waitlist_triage needs stronger hosted-session proof and provider/runtime boundary evidence before canary.
-- preview_diagnosis needs stronger hosted-session proof and provider/runtime boundary evidence before canary.
 - Attach clean shadow comparison evidence before canary.
 
 ## Offline Eval Summary
 
 ```text
-Local eval overall: cases=10 pass=10 fail=0 negative_controls_blocked=14/14
-waitlist_triage: cases=2 pass=2 fail=0 negative_controls_blocked=2/2 splits dev=1 holdout=1 shadow=0
+Local eval overall: cases=4 pass=4 fail=0 negative_controls_blocked=6/6
 support_triage: cases=4 pass=4 fail=0 negative_controls_blocked=6/6 splits dev=1 holdout=1 shadow=2
-preview_diagnosis: cases=4 pass=4 fail=0 negative_controls_blocked=6/6 splits dev=1 holdout=1 shadow=2
 ```
 
 ## Command Outputs
 
-### read candidate manifest /Users/nijelhunt_1/workspace/Blueprint-WebApp/labs/autoagent/promotion-candidates/autoagent-to-paperclip-hermes-2026-05-28.json
+### read candidate manifest /Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/latest/promotion-candidate-support_triage.json
 exit_code: 0
 ```text
 candidate_valid=true
@@ -60,10 +52,8 @@ candidate_valid=true
 exit_code: 0
 ```text
 export_mode=offline_seed
-Local eval overall: cases=10 pass=10 fail=0 negative_controls_blocked=14/14
-waitlist_triage: cases=2 pass=2 fail=0 negative_controls_blocked=2/2 splits dev=1 holdout=1 shadow=0
+Local eval overall: cases=4 pass=4 fail=0 negative_controls_blocked=6/6
 support_triage: cases=4 pass=4 fail=0 negative_controls_blocked=6/6 splits dev=1 holdout=1 shadow=2
-preview_diagnosis: cases=4 pass=4 fail=0 negative_controls_blocked=6/6 splits dev=1 holdout=1 shadow=2
 ```
 
 ### prompt-policy promotion decision
@@ -78,10 +68,7 @@ shadow_evidence_passed=false
 no_regression_window_passed=false
 rollback_condition_present=true
 blocked_claims_absent=true
-policy_tier=human_policy_gated
-reason=waitlist_triage requires explicit human/policy gate before canary or promotion
-reason=waitlist_triage remains shadow-only
-reason=preview_diagnosis remains shadow-only
+policy_tier=repo_local_canary
 reason=clean shadow comparison summary is missing
 ```
 
@@ -128,21 +115,14 @@ If any promoted Paperclip/Hermes prompt, policy, or orchestration change causes 
 
 ## Rollback Triggers
 
-- Any waitlist_triage negative control passes.
-- Candidate recommends invite/access movement without the required review posture.
-- Shadow comparison diverges on recommendation, queue, status, or human-review fields.
-- A canary attempts external sends, access-code issuance, rights/privacy/legal decisions, city-live claims, or customer claims.
 - Any support_triage negative control passes.
 - Shadow or canary output drops a human-review safeguard.
 - Support queue/category/priority regression appears in clean comparison fields.
 - A canary attempts live sends, payments, provider execution, rights/privacy/legal decisions, city-live claims, or customer claims.
-- Preview diagnosis infers hosted-session proof from demo text or public copy.
-- Preview diagnosis retries provider/runtime failures that should fail closed.
-- Preview diagnosis claims provider execution, hosted fulfillment, or operational launch readiness from local fixtures.
 
 ## Packet Metadata
 
-- candidate_manifest: /Users/nijelhunt_1/workspace/Blueprint-WebApp/labs/autoagent/promotion-candidates/autoagent-to-paperclip-hermes-2026-05-28.json
+- candidate_manifest: /Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/latest/promotion-candidate-support_triage.json
 - packet_output: /Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/latest/promotion-gate/promotion-packet.md
 - repo_local_only: true
 - requires_live_paperclip: false

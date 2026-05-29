@@ -1,8 +1,8 @@
 # Recursive AutoResearch Improvement Loop
 
-Generated: 2026-05-29T21:21:49.897Z
+Generated: 2026-05-29T21:31:23.463Z
 Status: promotion_held
-Dry run: true
+Dry run: false
 Live mutation attempted: false
 
 ## Selected Candidate
@@ -15,18 +15,18 @@ Queue item: autoresearch:autoagent_eval:human_gate_or_reply_durability_blocker
 Offline eval: passed
 Negative controls blocked: true
 Promotion decision: hold
-Policy tier: human_policy_gated
+Policy tier: repo_local_canary
 AI classifier: not_requested
 AI fixture drafter: not_requested
 AI patch proposal: not_proposed (used=false)
 Production context built: true
-AI production proposal used: false
-Production proposal status: fallback_ai_unavailable
-Production action type: none
-Production target system: none
+AI production proposal used: true
+Production proposal status: validated_live_allowed
+Production action type: paperclip_hermes_internal_metadata_update
+Production target system: paperclip_hermes
 Production canary attempted: false
-Production canary result: not_attempted
-Production idempotency key: none
+Production canary result: not_requested
+Production idempotency key: autoagent-prod-canary-recursive-agent-improvement-loop-20260529T213123Z
 Audit event path: none
 Rollback snapshot path: /Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/latest/production-context/rollback-snapshot.json
 Canary decision: not_run_promotion_hold
@@ -114,6 +114,7 @@ Reason: not_proposed: AI patch proposal stage wrote a no-op report because no AI
 - /Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/latest/promotion-queue.json
 - /Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/latest/promotion-queue.md
 - /Users/nijelhunt_1/workspace/Blueprint-WebApp/labs/autoagent/promotion-candidates/autoagent-to-paperclip-hermes-2026-05-28.json
+- /Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/latest/promotion-candidate-support_triage.json
 - /Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/latest/offline-eval-summary.json
 - /Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/latest/promotion-gate/promotion-packet.md
 - /Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/latest/proposed_patch_summary.json
@@ -122,15 +123,13 @@ Reason: not_proposed: AI patch proposal stage wrote a no-op report because no AI
 ## Command Outputs
 
 - production-context-bundle: built=true path=/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/latest/production-context/context-bundle.json
-- ai-production-change-proposer: status=fallback_ai_unavailable ai_used=false action=none
+- ai-production-change-proposer: status=validated_live_allowed ai_used=true action=paperclip_hermes_internal_metadata_update
 - agent-improvement-observer(local-files): scanned=1500 candidates=8
 - autoresearch-promotion-queue(local): queued=5
 - write-autoresearch-fixture: status=skipped reason=Requested family human_gate_or_reply_durability_blocker is already covered or was not supplied.
-- offline AutoAgent eval runPipeline(exportLive=false,sample=3): cases=10 failed=0 negative_controls_blocked=14/14
+- recursive-improvement lane scope: lane=support_triage
+- offline AutoAgent eval runPipeline(exportLive=false,sample=3): cases=4 failed=0 negative_controls_blocked=6/6
 - prompt-policy-promotion-gate: decision=hold
-- prompt-policy-promotion-gate reason=waitlist_triage requires explicit human/policy gate before canary or promotion
-- prompt-policy-promotion-gate reason=waitlist_triage remains shadow-only
-- prompt-policy-promotion-gate reason=preview_diagnosis remains shadow-only
 - prompt-policy-promotion-gate reason=clean shadow comparison summary is missing
 - ai-patch-proposal: status=not_proposed ai_used=false proposal=none
 
@@ -139,4 +138,4 @@ Reason: not_proposed: AI patch proposal stage wrote a no-op report because no AI
 Next action: collect_required_promotion_evidence
 Next autonomous action: collect_required_promotion_evidence
 Retry condition: Retry after the promotion gate has required offline, closeout, shadow, and rollback evidence.
-Residual risk: waitlist_triage requires explicit human/policy gate before canary or promotion; waitlist_triage remains shadow-only; preview_diagnosis remains shadow-only; clean shadow comparison summary is missing
+Residual risk: clean shadow comparison summary is missing
