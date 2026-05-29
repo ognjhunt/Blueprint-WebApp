@@ -228,8 +228,35 @@ const passingOfflineEval: AutoAgentOfflineEvalSummary = {
   },
 };
 
+const passingWaitlistOfflineEval: AutoAgentOfflineEvalSummary = {
+  totalCases: 12,
+  totalFailed: 0,
+  totalNegativeControls: 6,
+  totalNegativeControlsBlocked: 6,
+  laneSummaries: {
+    waitlist_triage: {
+      totalCases: 12,
+      failed: 0,
+      averageReward: 0.97,
+      negativeControls: 6,
+      negativeControlsBlocked: 6,
+      shadowSamples: 4,
+    },
+  },
+};
+
 const cleanSupportShadow: AutoAgentShadowSummary = {
   lane: "support_triage",
+  sampleCount: 25,
+  cleanSampleCount: 25,
+  regressionCount: 0,
+  safetyBlockers: [],
+  mismatchedDecisionFields: [],
+  noRegressionWindowDays: 14,
+};
+
+const cleanWaitlistShadow: AutoAgentShadowSummary = {
+  lane: "waitlist_triage",
   sampleCount: 25,
   cleanSampleCount: 25,
   regressionCount: 0,
@@ -263,6 +290,7 @@ describe("central AutoAgent promotion policy", () => {
     );
 
     expect(eligible.decision).toBe("canary");
+    expect(eligible.policyTiers.support_triage).toBe("repo_local_canary");
     expect(eligible.blockedClaims).toEqual([]);
     expect(eligible.rollbackCondition).toContain("Revert the support_triage prompt policy");
 
@@ -288,15 +316,65 @@ describe("central AutoAgent promotion policy", () => {
     );
 
     expect(result.decision).toBe("promote");
+    expect(result.policyTiers.support_triage).toBe("repo_local_canary");
     expect(result.checks.offlineEvalPassed).toBe(true);
     expect(result.checks.negativeControlsBlocked).toBe(true);
     expect(result.checks.shadowEvidencePassed).toBe(true);
     expect(result.blockedClaims).toEqual([]);
   });
 
+  it("keeps waitlist triage human/policy gated even with clean local evidence", () => {
+    const result = evaluateAutoPromotionEligibility(
+      centralCandidate({
+        lanes: ["waitlist_triage"],
+        changedPaths: ["server/agents/tasks/waitlist-triage.ts"],
+        requestedDecision: "promote",
+      }),
+      passingWaitlistOfflineEval,
+      cleanWaitlistShadow,
+    );
+
+    expect(result.decision).toBe("hold");
+    expect(result.policyTiers.waitlist_triage).toBe("human_policy_gated");
+    expect(result.requiredNextEvidence.join("\n")).toMatch(/explicit policy change/i);
+  });
+
+  it("keeps preview diagnosis shadow-only without hosted-session and provider/runtime proof", () => {
+    const result = evaluateAutoPromotionEligibility(
+      centralCandidate({
+        lanes: ["preview_diagnosis"],
+        changedPaths: ["server/agents/tasks/preview-diagnosis.ts"],
+        requestedDecision: "promote",
+      }),
+      {
+        totalCases: 12,
+        totalFailed: 0,
+        totalNegativeControls: 6,
+        totalNegativeControlsBlocked: 6,
+        laneSummaries: {
+          preview_diagnosis: {
+            totalCases: 12,
+            failed: 0,
+            averageReward: 0.98,
+            negativeControls: 6,
+            negativeControlsBlocked: 6,
+            shadowSamples: 4,
+          },
+        },
+      },
+      null,
+    );
+
+    expect(result.decision).toBe("hold");
+    expect(result.policyTiers.preview_diagnosis).toBe("shadow_only");
+    expect(result.requiredNextEvidence.join("\n")).toMatch(/hosted-session proof/i);
+  });
+
   it("rejects hosted-session proof drift instead of auto-promoting it", () => {
     const result = evaluateAutoPromotionEligibility(
       centralCandidate({
+        lanes: ["hosted_session_fulfillment"],
+        riskDomains: ["hosted_session_fulfillment"],
         claims: [
           {
             claimType: "hosted_session_proof",
@@ -310,7 +388,9 @@ describe("central AutoAgent promotion policy", () => {
     );
 
     expect(result.decision).toBe("reject");
+    expect(result.policyTiers.hosted_session_fulfillment).toBe("permanently_blocked");
     expect(result.blockedClaims).toContain("hosted_session_proof");
+    expect(result.blockedClaims).toContain("hosted_session_fulfillment");
   });
 
   it("rejects public-copy proof drift into operational proof", () => {
@@ -329,6 +409,51 @@ describe("central AutoAgent promotion policy", () => {
     );
 
     expect(result.decision).toBe("reject");
+    expect(result.blockedClaims).toContain("public_copy_to_operational_proof");
+  });
+
+  it("rejects operational launch readiness without owner-system proof", () => {
+    const result = evaluateAutoPromotionEligibility(
+      centralCandidate({
+        lanes: ["operational_launch_readiness"],
+        riskDomains: ["operational_launch_readiness"],
+        claims: [
+          {
+            claimType: "operational_launch_readiness",
+            description:
+              "Local eval and polished public copy are being treated as launch readiness.",
+          },
+        ],
+      }),
+      passingOfflineEval,
+      cleanSupportShadow,
+    );
+
+    expect(result.decision).toBe("reject");
+    expect(result.policyTiers.operational_launch_readiness).toBe("permanently_blocked");
+    expect(result.blockedClaims).toContain("operational_launch_readiness");
+    expect(result.requiredNextEvidence.join("\n")).toMatch(/source-system proof/i);
+  });
+
+  it("rejects AI-generated claims as policy proof overrides", () => {
+    const result = evaluateAutoPromotionEligibility(
+      centralCandidate({
+        claims: [
+          {
+            claimType: "public_copy",
+            targetClaimType: "operational_launch_readiness",
+            evidenceSource: "ai_generated",
+            description:
+              "AI-generated summary says the polished public page proves operational launch readiness.",
+          },
+        ],
+      }),
+      passingOfflineEval,
+      cleanSupportShadow,
+    );
+
+    expect(result.decision).toBe("reject");
+    expect(result.blockedClaims).toContain("ai_generated_claim_to_policy");
     expect(result.blockedClaims).toContain("public_copy_to_operational_proof");
   });
 

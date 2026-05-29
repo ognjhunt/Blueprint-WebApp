@@ -6,7 +6,7 @@ Candidate id: autoagent-to-paperclip-hermes-prompt-policy-gate-2026-05-28
 Source: AutoAgent offline lab
 Target runtime: Paperclip/Hermes
 Live Paperclip mutation: not attempted
-Generated at: 2026-05-29T17:56:27.992Z
+Generated at: 2026-05-29T16:14:32.374Z
 
 ## Gate Checks
 
@@ -143,6 +143,6 @@ If any promoted Paperclip/Hermes prompt, policy, or orchestration change causes 
 ## Packet Metadata
 
 - candidate_manifest: /Users/nijelhunt_1/workspace/Blueprint-WebApp/labs/autoagent/promotion-candidates/autoagent-to-paperclip-hermes-2026-05-28.json
-- packet_output: /Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/latest/promotion-gate/promotion-packet.md
+- packet_output: /Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/ai-classifier-fallback-proof/promotion-gate/promotion-packet.md
 - repo_local_only: true
 - requires_live_paperclip: false

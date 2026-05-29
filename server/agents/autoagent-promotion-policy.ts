@@ -22,6 +22,13 @@ export type AutoAgentRiskTier =
   | "shadow_only"
   | "permanently_blocked";
 
+export type AutoAgentOperatingPolicyTier =
+  | "fully_autonomous"
+  | "repo_local_canary"
+  | "shadow_only"
+  | "human_policy_gated"
+  | "permanently_blocked";
+
 export type AutoAgentPromotionDecision = "promote" | "canary" | "hold" | "reject";
 
 export type AutoAgentChangeType =
@@ -38,7 +45,11 @@ export type AutoAgentLiveSideEffect =
   | "provider_execution"
   | "city_live_claim"
   | "customer_claim"
-  | "operational_launch_readiness";
+  | "hosted_session_fulfillment"
+  | "operational_launch_readiness"
+  | "firestore_export"
+  | "notion_write"
+  | "live_paperclip_mutation";
 
 export type AutoAgentClaimType =
   | "public_copy"
@@ -54,6 +65,12 @@ export type AutoAgentClaimType =
 export type AutoAgentClaim = {
   claimType: AutoAgentClaimType;
   targetClaimType?: AutoAgentClaimType | "public_launch_ready";
+  evidenceSource?:
+    | "owner_system"
+    | "deterministic_policy"
+    | "repo_local_eval"
+    | "ai_generated"
+    | "unknown";
   description?: string;
 };
 
@@ -106,6 +123,7 @@ export type AutoAgentShadowSummary = {
 export type AutoAgentLanePromotionPolicy = {
   lane: AutoAgentPromotionLane;
   riskTier: AutoAgentRiskTier;
+  policyTier: AutoAgentOperatingPolicyTier;
   maxAutomaticDecision: "canary" | "shadow_only" | "blocked";
   allowedChangeTypes: AutoAgentChangeType[];
   requiredOffline: {
@@ -130,6 +148,8 @@ export type AutoAgentPromotionEligibility = {
   rollbackCondition: string;
   rollbackTriggers: string[];
   riskTiers: Partial<Record<AutoAgentPromotionLane, AutoAgentRiskTier>>;
+  policyTiers: Partial<Record<AutoAgentPromotionLane, AutoAgentOperatingPolicyTier>>;
+  policyTier: AutoAgentOperatingPolicyTier;
   checks: {
     offlineEvalPassed: boolean;
     negativeControlsBlocked: boolean;
@@ -144,6 +164,8 @@ export type AutoAgentPromotionEligibility = {
 export const AUTOAGENT_ALLOWED_AUTO_PROMOTION_LANES = [
   "support_triage",
 ] as const;
+
+export const AUTOAGENT_HUMAN_POLICY_GATED_LANES = ["waitlist_triage"] as const;
 
 export const AUTOAGENT_SHADOW_ONLY_LANES = ["preview_diagnosis"] as const;
 
@@ -167,8 +189,52 @@ export const AUTOAGENT_DISALLOWED_LIVE_SIDE_EFFECTS = [
   "provider_execution",
   "city_live_claim",
   "customer_claim",
+  "hosted_session_fulfillment",
   "operational_launch_readiness",
+  "firestore_export",
+  "notion_write",
+  "live_paperclip_mutation",
 ] as const satisfies readonly AutoAgentLiveSideEffect[];
+
+export const AUTOAGENT_OPERATING_POLICY_DOC_PATH =
+  "docs/architecture/autoagent-autoresearch-operating-policy.md";
+
+export const AUTOAGENT_FULLY_AUTONOMOUS_ALLOWED_ACTIONS = [
+  "read repo-local failure artifacts",
+  "classify recurring failure families",
+  "write deterministic local fixtures",
+  "run offline AutoAgent evals with exportLive=false",
+  "write AI patch-proposal reports without applying patches",
+  "write local promotion packets and recursive-improvement reports",
+] as const;
+
+export const AUTOAGENT_REPO_LOCAL_CANARY_ALLOWED_ACTIONS = [
+  "write observation-only support_triage canary plans",
+  "write repo-local support_triage canary config artifacts",
+  "monitor local shadow comparison and rollback artifacts",
+] as const;
+
+export const AUTOAGENT_SHADOW_ONLY_ACTIONS = [
+  "collect waitlist_triage shadow outputs",
+  "collect preview_diagnosis shadow outputs",
+  "compare shadow outputs without action authority",
+] as const;
+
+export const AUTOAGENT_HUMAN_POLICY_GATED_ACTIONS = [
+  "waitlist invite or access movement",
+  "policy changes that widen canary/apply authority",
+  "new lane promotion beyond support_triage",
+] as const;
+
+export const AUTOAGENT_PERMANENTLY_BLOCKED_ACTIONS = [
+  "live sends or outreach",
+  "payments, payouts, refunds, or entitlement grants",
+  "provider jobs or paid runtime execution",
+  "rights, privacy, legal, city-live, or customer claims",
+  "hosted-session fulfillment",
+  "operational launch readiness claims",
+  "Firestore export, Notion writes, or live Paperclip mutation",
+] as const;
 
 export const AUTOAGENT_PROOF_REQUIREMENTS_BY_CLAIM_TYPE: Record<
   AutoAgentClaimType,
@@ -212,6 +278,7 @@ export const AUTOAGENT_LANE_POLICIES: Record<
   support_triage: {
     lane: "support_triage",
     riskTier: "low",
+    policyTier: "repo_local_canary",
     maxAutomaticDecision: "canary",
     allowedChangeTypes: ["prompt", "policy", "orchestration", "prompt_policy_orchestration"],
     requiredOffline: {
@@ -235,7 +302,8 @@ export const AUTOAGENT_LANE_POLICIES: Record<
   waitlist_triage: {
     lane: "waitlist_triage",
     riskTier: "guarded_low",
-    maxAutomaticDecision: "canary",
+    policyTier: "human_policy_gated",
+    maxAutomaticDecision: "shadow_only",
     allowedChangeTypes: ["prompt", "policy", "orchestration", "prompt_policy_orchestration"],
     requiredOffline: {
       minCases: 3,
@@ -258,6 +326,7 @@ export const AUTOAGENT_LANE_POLICIES: Record<
   preview_diagnosis: {
     lane: "preview_diagnosis",
     riskTier: "shadow_only",
+    policyTier: "shadow_only",
     maxAutomaticDecision: "shadow_only",
     allowedChangeTypes: ["prompt", "policy", "orchestration", "prompt_policy_orchestration"],
     requiredOffline: {
@@ -292,6 +361,7 @@ function blockedLanePolicy(lane: AutoAgentHighRiskLane): AutoAgentLanePromotionP
   return {
     lane,
     riskTier: "permanently_blocked",
+    policyTier: "permanently_blocked",
     maxAutomaticDecision: "blocked",
     allowedChangeTypes: [],
     requiredOffline: {
@@ -336,6 +406,22 @@ function rate(numerator: number, denominator: number) {
     return 0;
   }
   return numerator / denominator;
+}
+
+const POLICY_TIER_PRECEDENCE: AutoAgentOperatingPolicyTier[] = [
+  "fully_autonomous",
+  "repo_local_canary",
+  "shadow_only",
+  "human_policy_gated",
+  "permanently_blocked",
+];
+
+function strongestPolicyTier(tiers: AutoAgentOperatingPolicyTier[]) {
+  return tiers.reduce<AutoAgentOperatingPolicyTier>((strongest, tier) =>
+    POLICY_TIER_PRECEDENCE.indexOf(tier) > POLICY_TIER_PRECEDENCE.indexOf(strongest)
+      ? tier
+      : strongest,
+  "fully_autonomous");
 }
 
 function evaluateOfflineEvidence(
@@ -540,6 +626,22 @@ function blockedClaimsFor(candidate: AutoAgentPromotionCandidate) {
   }
 
   for (const claim of candidate.claims ?? []) {
+    const aiGeneratedPolicyOverride =
+      claim.evidenceSource === "ai_generated"
+      && (
+        claim.targetClaimType === "operational_launch_readiness"
+        || claim.claimType === "operational_launch_readiness"
+        || claim.claimType === "hosted_session_proof"
+        || claim.claimType === "payment"
+        || claim.claimType === "payout"
+        || claim.claimType === "rights_privacy_legal"
+        || claim.claimType === "provider_execution"
+        || claim.claimType === "city_live_claim"
+        || claim.claimType === "customer_claim"
+      );
+    if (aiGeneratedPolicyOverride) {
+      blockedClaims.push("ai_generated_claim_to_policy");
+    }
     if (claim.claimType === "public_copy" && claim.targetClaimType === "operational_launch_readiness") {
       blockedClaims.push("public_copy_to_operational_proof");
       continue;
@@ -579,6 +681,7 @@ export function evaluateAutoPromotionEligibility(
   const reasons: string[] = [];
   const requiredNextEvidence: string[] = [];
   const riskTiers: Partial<Record<AutoAgentPromotionLane, AutoAgentRiskTier>> = {};
+  const policyTiers: Partial<Record<AutoAgentPromotionLane, AutoAgentOperatingPolicyTier>> = {};
   const rollbackCondition = String(candidate.rollbackCondition || "").trim();
   const rollbackTriggers: string[] = [];
 
@@ -590,9 +693,16 @@ export function evaluateAutoPromotionEligibility(
   for (const lane of lanes) {
     const policy = AUTOAGENT_LANE_POLICIES[lane];
     riskTiers[lane] = policy.riskTier;
+    policyTiers[lane] = policy.policyTier;
     rollbackTriggers.push(...policy.rollbackTriggers);
     if (policy.maxAutomaticDecision === "blocked") {
       reasons.push(`${lane} is permanently human/policy-gated`);
+    }
+    if (policy.policyTier === "human_policy_gated") {
+      reasons.push(`${lane} requires explicit human/policy gate before canary or promotion`);
+      requiredNextEvidence.push(
+        `${lane} can continue in shadow only until an explicit policy change names the allowed canary/apply path and owner-system proof requirements.`,
+      );
     }
     if (policy.maxAutomaticDecision === "shadow_only") {
       reasons.push(`${lane} remains shadow-only`);
@@ -672,6 +782,13 @@ export function evaluateAutoPromotionEligibility(
     rollbackCondition: rollbackCondition || "Missing rollback condition.",
     rollbackTriggers: unique(rollbackTriggers),
     riskTiers,
+    policyTiers,
+    policyTier: strongestPolicyTier(
+      unique([
+        ...Object.values(policyTiers),
+        ...(uniqueBlockedClaims.length > 0 && hasBlockedLane ? ["permanently_blocked" as const] : []),
+      ]) as AutoAgentOperatingPolicyTier[],
+    ),
     checks: {
       offlineEvalPassed: offline.offlineEvalPassed,
       negativeControlsBlocked: offline.negativeControlsBlocked,

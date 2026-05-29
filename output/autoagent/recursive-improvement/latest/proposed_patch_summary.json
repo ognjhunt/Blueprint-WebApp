@@ -1,0 +1,17 @@
+{
+  "schema": "blueprint/autoagent-patch-proposal-summary/v1",
+  "generated_at": "2026-05-29T17:56:27.992Z",
+  "status": "not_proposed",
+  "ai_used": false,
+  "proposal_id": null,
+  "lane": null,
+  "risk_tier": null,
+  "changed_files": [],
+  "intended_behavior": null,
+  "failure_family_addressed": null,
+  "expected_eval_improvement": null,
+  "rollback_plan": null,
+  "required_validation_commands": [],
+  "deterministic_gate_reason": "not_proposed: AI patch proposal stage wrote a no-op report because no AI proposer was requested",
+  "reasons": []
+}

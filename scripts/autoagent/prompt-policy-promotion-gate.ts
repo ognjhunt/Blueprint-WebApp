@@ -79,6 +79,8 @@ export type PromotionGateEvaluation = {
   requiredNextEvidence: string[];
   rollbackCondition: string;
   rollbackTriggers: string[];
+  policyTiers: Record<string, string>;
+  policyTier: string;
 };
 
 type GateOptions = {
@@ -148,6 +150,7 @@ function claimList(value: unknown): AutoAgentClaim[] {
       return {
         claimType: claimType as AutoAgentClaim["claimType"],
         targetClaimType: asString(record.targetClaimType) as AutoAgentClaim["targetClaimType"],
+        evidenceSource: asString(record.evidenceSource) as AutoAgentClaim["evidenceSource"],
         description: asString(record.description),
       };
     })
@@ -413,6 +416,8 @@ export function evaluatePromotionGate(params: {
       ?? params.candidateValidation.candidate?.rollbackCondition
       ?? "Missing rollback condition.",
     rollbackTriggers: centralEvaluation?.rollbackTriggers ?? [],
+    policyTiers: centralEvaluation?.policyTiers ?? {},
+    policyTier: centralEvaluation?.policyTier ?? "fully_autonomous",
   };
 }
 
@@ -486,6 +491,7 @@ export function renderPromotionPacket(params: {
     `- rollback_condition_present: ${params.evaluation.checks.rollbackConditionPresent}`,
     `- blocked_claims_absent: ${params.evaluation.checks.blockedClaimsAbsent}`,
     `- live_paperclip_mutation_attempted: ${params.evaluation.checks.livePaperclipMutationAttempted}`,
+    `- policy_tier: ${params.evaluation.policyTier}`,
     "",
     "## Decision Reasons",
     "",
@@ -675,6 +681,7 @@ export async function runPromptPolicyPromotionGate(options: GateOptions) {
       `no_regression_window_passed=${evaluation.checks.noRegressionWindowPassed}`,
       `rollback_condition_present=${evaluation.checks.rollbackConditionPresent}`,
       `blocked_claims_absent=${evaluation.checks.blockedClaimsAbsent}`,
+      `policy_tier=${evaluation.policyTier}`,
       ...evaluation.reasons.map((reason) => `reason=${reason}`),
     ],
   });

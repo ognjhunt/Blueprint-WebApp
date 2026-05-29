@@ -1,7 +1,7 @@
 # AutoResearch Promotion Queue
 
 - Scope: Repo-local candidate queue only. Does not mutate Paperclip, Hermes, providers, Firebase, Notion, Stripe, Render, or production behavior.
-- Generated at: 2026-05-29T17:56:25.589Z
+- Generated at: 2026-05-29T16:14:30.344Z
 - Queued items: 5
 
 Each item is a candidate for the next repo-local AutoAgent eval, prompt patch, policy patch, or closeout-rule patch. The queue does not authorize live sends, provider calls, production Paperclip mutation, Notion writes, Stripe/Firebase/Render changes, or operational launch claims.
@@ -52,9 +52,9 @@ Each item is a candidate for the next repo-local AutoAgent eval, prompt patch, p
 - Lane: autoagent_eval
 - Owner: webapp-codex
 - Target file: `labs/autoagent/tasks/agent-failure-promotion/CASE_FORMAT.md`
-- Observed count: 122
+- Observed count: 121
 - Observed agents: local-artifact-observer
-- Proof paths: runs=labs/autoagent/README.md:68, labs/autoagent/tasks/agent-failure-promotion/CASE_FORMAT.md:53, ops/paperclip/reports/autonomous-buyer-loop-blocker-closeout-2026-05-05.md:42, ops/paperclip/reports/human-blocker-exact-site-recipient-evidence-2026-05-05.md:115, ops/paperclip/reports/autonomous-growth-blockers/durham-nc/2026-04-24T15-01-51-741Z/blocker-status.json:80, ops/paperclip/reports/autonomous-growth-blockers/durham-nc/2026-04-24T15-01-51-741Z/blocker-status.md:91, ops/paperclip/reports/autonomous-growth-blockers/durham-nc/2026-04-25T01-36-09-729Z/blocker-status.json:81, ops/paperclip/reports/autonomous-growth-blockers/durham-nc/2026-04-25T01-36-09-729Z/blocker-status.md:92; issues=none; source=repo-local agent-improvement-observer
+- Proof paths: runs=labs/autoagent/tasks/agent-failure-promotion/CASE_FORMAT.md:53, ops/paperclip/reports/autonomous-buyer-loop-blocker-closeout-2026-05-05.md:42, ops/paperclip/reports/human-blocker-exact-site-recipient-evidence-2026-05-05.md:115, ops/paperclip/reports/autonomous-growth-blockers/durham-nc/2026-04-24T15-01-51-741Z/blocker-status.json:80, ops/paperclip/reports/autonomous-growth-blockers/durham-nc/2026-04-24T15-01-51-741Z/blocker-status.md:91, ops/paperclip/reports/autonomous-growth-blockers/durham-nc/2026-04-25T01-36-09-729Z/blocker-status.json:81, ops/paperclip/reports/autonomous-growth-blockers/durham-nc/2026-04-25T01-36-09-729Z/blocker-status.md:92, ops/paperclip/reports/autonomous-growth-blockers/durham-nc/2026-04-26T17-38-04-423Z/blocker-status.json:81; issues=none; source=repo-local agent-improvement-observer
 - Expected negative control: A schema-valid candidate that omits owner, target file, negative control, validation command, promotion threshold, rollback condition, or residual risk must be rejected.
 - Validation command: `npm exec -- vitest run scripts/paperclip/autoresearch-promotion-queue.test.ts`
 - Promotion threshold: Promote only after a local fixture proves the unsafe candidate is blocked and the expected queue item remains repo-local with every required field present.

@@ -3,9 +3,15 @@ import path from "node:path";
 
 import {
   analyzeAgentImprovementArtifacts,
+  mergeAiClassifierResultIntoObserverSummary,
   writeObserverOutputs,
   type AgentImprovementObserverSummary,
 } from "../paperclip/agent-improvement-observer.ts";
+import {
+  runAiFailureFamilyClassifier,
+  type AiFailureFamilyClassifierInvoker,
+  type AiFailureFamilyClassifierSummary,
+} from "../paperclip/ai-failure-family-classifier.ts";
 import {
   buildAutoResearchPromotionQueue,
   buildAutoResearchPromotionQueueMarkdown,
@@ -15,23 +21,40 @@ import {
   writeAutoResearchFixture,
   type WriteAutoResearchFixtureResult,
 } from "./write-autoresearch-fixture.ts";
+import {
+  type AiFixtureDrafterInvoker,
+  type AiFixtureDrafterSummary,
+} from "./ai-fixture-drafter.ts";
+import {
+  renderAiPatchProposalReport,
+  runAiPatchProposal,
+  type AiPatchProposalInvoker,
+  type AiPatchProposalSummary,
+} from "./ai-patch-proposal.ts";
 import { runPipeline } from "./run-pipeline.ts";
 import { type EvalLane, type LocalEvalSummary } from "./local-evaluator.ts";
 import { runPromptPolicyPromotionGate } from "./prompt-policy-promotion-gate.ts";
 import { runCanaryPromotion } from "./run-canary-promotion.ts";
 import { monitorCanaryRollback } from "./monitor-canary-rollback.ts";
 import {
+  AUTOAGENT_ALLOWED_AUTO_PROMOTION_LANES,
   AUTOAGENT_DISALLOWED_LIVE_SIDE_EFFECTS,
+  AUTOAGENT_LANE_POLICIES,
   AUTOAGENT_PERMANENTLY_BLOCKED_LANES,
+  type AutoAgentOperatingPolicyTier,
+  type AutoAgentPromotionLane,
 } from "../../server/agents/autoagent-promotion-policy.ts";
 
 type RecursiveLoopStatus =
   | "dry_run_completed"
+  | "no_change_report_only"
   | "canary_applied"
   | "rollback_applied"
   | "insufficient_evidence"
   | "promotion_rejected"
   | "promotion_held"
+  | "fixture_rejected"
+  | "patch_proposal_rejected"
   | "high_risk_blocked"
   | "canary_rejected"
   | "rollback_required";
@@ -49,6 +72,36 @@ type OfflineEvalResultSummary = {
   summary_path: string | null;
 };
 
+type AutoApplyResult =
+  | "not_requested"
+  | "blocked"
+  | "rejected"
+  | "dry_run"
+  | "applied"
+  | "rolled_back";
+
+type RollbackMonitorResult =
+  | "not_run"
+  | "keep_canary"
+  | "rollback_required"
+  | "rolled_back"
+  | "insufficient_evidence";
+
+type NoChangeClassification = {
+  classification: "no_change_report_only";
+  no_new_family: boolean;
+  no_new_proof: boolean;
+  no_generated_fixture: boolean;
+  same_held_reason: boolean;
+  same_candidate: boolean;
+  duplicate_follow_up_created: false;
+  previous_status: string | null;
+  selected_proof_paths: string;
+  held_reason: string;
+  fixture_result: string;
+  reasons: string[];
+};
+
 export type RecursiveImprovementSummary = {
   schema: "blueprint/autoagent-recursive-improvement-summary/v1";
   generated_at: string;
@@ -60,13 +113,25 @@ export type RecursiveImprovementSummary = {
   offline_eval_result: OfflineEvalResultSummary;
   negative_controls_blocked: boolean;
   promotion_decision: string;
+  policy_tier: AutoAgentOperatingPolicyTier;
+  policy_tiers: Partial<Record<string, AutoAgentOperatingPolicyTier>>;
+  ai_classifier: AiFailureFamilyClassifierSummary | null;
+  ai_fixture_drafter: AiFixtureDrafterSummary | null;
+  blocked_fixture_attempts: AiFixtureDrafterSummary["blocked_attempts"];
+  ai_patch_proposal: AiPatchProposalSummary | null;
   canary_decision: string;
   rollback_decision: string;
+  auto_apply_attempted: boolean;
+  auto_apply_result: AutoApplyResult;
+  rollback_monitor_result: RollbackMonitorResult;
+  rollback_applied: boolean;
   live_mutation_attempted: boolean;
+  next_action: string;
   next_autonomous_action: string;
   retry_condition: string;
   residual_risk: string;
   high_risk_blockers: string[];
+  no_change_classification: NoChangeClassification | null;
   proof_paths: string[];
   command_outputs: string[];
 };
@@ -94,6 +159,19 @@ export type RecursiveImprovementLoopOptions = {
   sampleCount?: number;
   lane?: string;
   dryRun?: boolean;
+  aiClassifier?: boolean;
+  aiClassifierArtifacts?: string[];
+  aiClassifierInvoker?: AiFailureFamilyClassifierInvoker;
+  aiClassifierEnv?: Record<string, string | undefined>;
+  aiFixtureDrafter?: boolean;
+  aiFixtureDrafterArtifacts?: string[];
+  aiFixtureDrafterInvoker?: AiFixtureDrafterInvoker;
+  aiFixtureDrafterEnv?: Record<string, string | undefined>;
+  aiPatchProposal?: boolean;
+  aiPatchProposalArtifacts?: string[];
+  aiPatchProposalInvoker?: AiPatchProposalInvoker;
+  aiPatchProposalEnv?: Record<string, string | undefined>;
+  autoApplyLowRisk?: boolean;
   applyCanary?: boolean;
   applyRollback?: boolean;
   writeArtifacts?: boolean;
@@ -115,8 +193,6 @@ const DEFAULT_PAPERCLIP_CONFIG_PATH = path.resolve(
   "ops/paperclip/blueprint-company/.paperclip.yaml",
 );
 const DEFAULT_SAMPLE_COUNT = 3;
-const AUTO_APPLY_CANARY_LANE = "support_triage";
-
 const ALL_EVAL_LANES: EvalLane[] = [
   "waitlist_triage",
   "support_triage",
@@ -147,6 +223,15 @@ async function readJsonFile(filePath: string) {
   return JSON.parse(raw) as unknown;
 }
 
+async function readPreviousSummary(outputDir: string) {
+  try {
+    const value = await readJsonFile(path.join(outputDir, "summary.json"));
+    return isRecord(value) ? (value as Partial<RecursiveImprovementSummary>) : null;
+  } catch {
+    return null;
+  }
+}
+
 async function writeJson(filePath: string, value: unknown) {
   await fs.mkdir(path.dirname(filePath), { recursive: true });
   await fs.writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
@@ -163,6 +248,11 @@ function titleForFamily(family: string) {
     .replace(/\s+/g, " ")
     .trim()
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function slugForId(value: string) {
+  return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")
+    || "unknown";
 }
 
 function observerCandidateClusters(summary: AgentImprovementObserverSummary) {
@@ -248,15 +338,57 @@ function detectHighRiskCandidate(rawCandidate: unknown) {
   ]);
 }
 
-function laneApplyBlockers(requestedLane: string | null, applyCanary: boolean) {
-  if (!applyCanary) {
+function knownPromotionLane(lane: string): lane is AutoAgentPromotionLane {
+  return lane in AUTOAGENT_LANE_POLICIES;
+}
+
+function candidateDeclaredPromotionLanes(rawCandidate: unknown) {
+  const record = isRecord(rawCandidate) ? rawCandidate : {};
+  return unique([
+    ...stringList(record.requiredLanes),
+    ...stringList(record.lanes),
+  ]);
+}
+
+function laneIsCentralPolicyApprovedLowRisk(lane: string) {
+  if (!knownPromotionLane(lane)) {
+    return false;
+  }
+  const policy = AUTOAGENT_LANE_POLICIES[lane];
+  return (
+    (AUTOAGENT_ALLOWED_AUTO_PROMOTION_LANES as readonly string[]).includes(lane)
+    && policy.riskTier === "low"
+    && policy.policyTier === "repo_local_canary"
+    && policy.maxAutomaticDecision === "canary"
+  );
+}
+
+function laneApplyBlockers(params: {
+  requestedLane: string | null;
+  scopedCandidate: unknown;
+  applyRequested: boolean;
+  autoApplyLowRisk: boolean;
+}) {
+  if (!params.applyRequested) {
     return [];
   }
-  if (!requestedLane) {
-    return ["apply-canary requires explicit --lane support_triage"];
+
+  if (!params.autoApplyLowRisk && !params.requestedLane) {
+    return ["apply-canary requires explicit --lane support_triage or --auto-apply-low-risk"];
   }
-  if (requestedLane !== AUTO_APPLY_CANARY_LANE) {
-    return [`lane is not enabled for auto-apply: ${requestedLane}`];
+
+  const declaredLanes = params.requestedLane
+    ? [params.requestedLane]
+    : candidateDeclaredPromotionLanes(params.scopedCandidate);
+  if (declaredLanes.length !== 1) {
+    return [
+      `auto-apply requires exactly one central-policy-approved low-risk lane; saw ${declaredLanes.join(", ") || "none"}`,
+    ];
+  }
+
+  const [lane] = declaredLanes;
+  if (!laneIsCentralPolicyApprovedLowRisk(lane)) {
+    return [`lane is not enabled for central-policy-approved low-risk auto-apply: ${lane}`];
   }
   return [];
 }
@@ -333,12 +465,22 @@ function baseSummary(params: {
   offlineEvalResult?: OfflineEvalResultSummary;
   negativeControlsBlocked?: boolean;
   promotionDecision?: string;
+  policyTier?: AutoAgentOperatingPolicyTier;
+  policyTiers?: Partial<Record<string, AutoAgentOperatingPolicyTier>>;
+  aiClassifier?: AiFailureFamilyClassifierSummary | null;
+  aiFixtureDrafter?: AiFixtureDrafterSummary | null;
+  aiPatchProposal?: AiPatchProposalSummary | null;
   canaryDecision?: string;
   rollbackDecision?: string;
+  autoApplyAttempted?: boolean;
+  autoApplyResult?: AutoApplyResult;
+  rollbackMonitorResult?: RollbackMonitorResult;
+  rollbackApplied?: boolean;
   nextAutonomousAction: string;
   retryCondition: string;
   residualRisk: string;
   highRiskBlockers?: string[];
+  noChangeClassification?: NoChangeClassification | null;
   proofPaths?: string[];
   commandOutputs?: string[];
 }): RecursiveImprovementSummary {
@@ -361,16 +503,177 @@ function baseSummary(params: {
     negative_controls_blocked:
       params.negativeControlsBlocked ?? negativeControlsBlocked(offline),
     promotion_decision: params.promotionDecision ?? "not_run",
+    policy_tier: params.policyTier ?? "fully_autonomous",
+    policy_tiers: params.policyTiers ?? {},
+    ai_classifier: params.aiClassifier ?? null,
+    ai_fixture_drafter: params.aiFixtureDrafter ?? null,
+    blocked_fixture_attempts: params.aiFixtureDrafter?.blocked_attempts ?? [],
+    ai_patch_proposal: params.aiPatchProposal ?? null,
     canary_decision: params.canaryDecision ?? "not_run",
     rollback_decision: params.rollbackDecision ?? "not_run",
+    auto_apply_attempted: params.autoApplyAttempted ?? false,
+    auto_apply_result: params.autoApplyResult ?? "not_requested",
+    rollback_monitor_result:
+      params.rollbackMonitorResult
+      ?? (params.rollbackDecision as RollbackMonitorResult | undefined)
+      ?? "not_run",
+    rollback_applied: params.rollbackApplied ?? params.rollbackDecision === "rolled_back",
     live_mutation_attempted: false,
+    next_action: params.nextAutonomousAction,
     next_autonomous_action: params.nextAutonomousAction,
     retry_condition: params.retryCondition,
     residual_risk: params.residualRisk,
     high_risk_blockers: params.highRiskBlockers ?? [],
+    no_change_classification: params.noChangeClassification ?? null,
     proof_paths: unique(params.proofPaths ?? []),
     command_outputs: params.commandOutputs ?? [],
   };
+}
+
+function readPreviousNoChangeClassification(
+  previousSummary: Partial<RecursiveImprovementSummary> | null,
+) {
+  const classification = previousSummary?.no_change_classification;
+  return isRecord(classification) ? classification : null;
+}
+
+function heldReasonForGate(decision: string, reasons: string[]) {
+  return reasons.length > 0 ? reasons.join("; ") : decision;
+}
+
+function classifyNoChangeReportOnly(params: {
+  previousSummary: Partial<RecursiveImprovementSummary> | null;
+  applyRequested: boolean;
+  selected: AutoResearchPromotionQueueItem;
+  fixtureResult: WriteAutoResearchFixtureResult;
+  generatedFixturePaths: string[];
+  heldReason: string;
+}) {
+  if (params.applyRequested || !params.previousSummary) {
+    return null;
+  }
+
+  const previousNoChange = readPreviousNoChangeClassification(params.previousSummary);
+  const previousHeldReason = typeof previousNoChange?.held_reason === "string"
+    ? previousNoChange.held_reason
+    : typeof params.previousSummary.residual_risk === "string"
+      ? params.previousSummary.residual_risk
+      : "";
+  const previousProofPaths = typeof previousNoChange?.selected_proof_paths === "string"
+    ? previousNoChange.selected_proof_paths
+    : "";
+
+  const noNewFamily =
+    params.previousSummary.selected_failure_family === params.selected.sourceFailureFamily;
+  const sameCandidate =
+    params.previousSummary.selected_queue_item_id === params.selected.id;
+  const noGeneratedFixture =
+    params.fixtureResult.status !== "written" && params.generatedFixturePaths.length === 0;
+  const sameHeldReason =
+    previousHeldReason.length > 0 && previousHeldReason === params.heldReason;
+  const noNewProof =
+    previousProofPaths.length > 0
+      ? previousProofPaths === params.selected.proofPaths
+      : noNewFamily && sameCandidate && noGeneratedFixture;
+
+  const classification: NoChangeClassification = {
+    classification: "no_change_report_only",
+    no_new_family: noNewFamily,
+    no_new_proof: noNewProof,
+    no_generated_fixture: noGeneratedFixture,
+    same_held_reason: sameHeldReason,
+    same_candidate: sameCandidate,
+    duplicate_follow_up_created: false,
+    previous_status:
+      typeof params.previousSummary.status === "string" ? params.previousSummary.status : null,
+    selected_proof_paths: params.selected.proofPaths,
+    held_reason: params.heldReason,
+    fixture_result: params.fixtureResult.status === "written"
+      ? "written"
+      : `${params.fixtureResult.status}: ${params.fixtureResult.reason}`,
+    reasons: [
+      "no new failure family",
+      "no new proof path",
+      "no generated fixture",
+      "same held reason",
+      "same selected candidate",
+      "duplicate follow-up suppressed",
+    ],
+  };
+
+  return noNewFamily && noNewProof && noGeneratedFixture && sameHeldReason && sameCandidate
+    ? classification
+    : null;
+}
+
+function renderHighRiskBlockerPacket(params: {
+  generatedAt: string;
+  selected: AutoResearchPromotionQueueItem;
+  highRiskBlockers: string[];
+  gateReasons: string[];
+}) {
+  const blockerId = `autoagent-high-risk:${slugForId(params.selected.id)}`;
+  return [
+    "# AutoAgent High-Risk Candidate Blocker Packet",
+    "",
+    "## 1. Blocker Title",
+    "",
+    `High-risk AutoAgent candidate blocked before canary: ${params.selected.sourceFailureFamily}`,
+    "",
+    "## 1a. Blocker Id",
+    "",
+    blockerId,
+    "",
+    "## 2. Why This Is Blocked",
+    "",
+    "The recursive improvement loop found a candidate that crosses central AutoAgent policy boundaries. It cannot safely continue as an unattended routine because the requested lane or side effect requires owner-system proof, explicit policy approval, or human review outside this repo-local loop.",
+    "",
+    "## 3. Recommended Answer",
+    "",
+    "Keep the candidate blocked in repo-local report mode. Do not apply a canary or create live Paperclip/Hermes changes from this routine.",
+    "",
+    "## 4. Alternatives",
+    "",
+    "- Replace the candidate with a central-policy-approved low-risk `support_triage` canary candidate.",
+    "- Open a separate policy issue that names the owner-system proof, rollback path, and human approval needed for this lane.",
+    "- Keep the evidence as an offline negative control only.",
+    "",
+    "## 5. Downside / Risk",
+    "",
+    "Approving this candidate without a separate policy path could mutate or imply authority over live sends, payments, provider jobs, rights/privacy/legal posture, customer claims, hosted-session fulfillment, city-live state, operational launch readiness, Firestore export, Notion writes, or live Paperclip/Hermes state.",
+    "",
+    "## 6. Exact Response Needed",
+    "",
+    "Approve a separate bounded policy issue, or replace the candidate with an approved low-risk repo-local canary. No approval is requested or sent by this report.",
+    "",
+    "## 7. Execution Owner After Reply",
+    "",
+    "`webapp-codex` for repo-local policy/test changes; owning specialist lane for any live/system-specific proof.",
+    "",
+    "## 8. Immediate Next Action After Reply",
+    "",
+    "If approved in a separate issue, update `server/agents/autoagent-promotion-policy.ts` and add focused tests before any apply run. Otherwise leave this candidate blocked.",
+    "",
+    "## 9. Deadline / Checkpoint",
+    "",
+    "Revisit only when the owning issue supplies explicit policy approval and proof requirements.",
+    "",
+    "## 10. Evidence",
+    "",
+    `- Generated at: ${params.generatedAt}`,
+    `- Queue item: ${params.selected.id}`,
+    `- Failure family: ${params.selected.sourceFailureFamily}`,
+    `- Proof paths: ${params.selected.proofPaths}`,
+    ...params.highRiskBlockers.map((blocker) => `- Blocker: ${blocker}`),
+    ...params.gateReasons.map((reason) => `- Gate reason: ${reason}`),
+    "",
+    "## 11. Non-Scope",
+    "",
+    "This repo-local no-send packet does not authorize external sends, payments, payouts, provider execution, rights/privacy/legal decisions, city-live work, customer claims, hosted-session fulfillment, operational launch readiness claims, Notion writes, Firestore export, production Paperclip reconcile/repair/import/bootstrap, or live Paperclip/Hermes mutation.",
+    "",
+    "Routing surface: repo-local no-send.",
+    "",
+  ].join("\n");
 }
 
 function renderReport(summary: RecursiveImprovementSummary) {
@@ -395,8 +698,26 @@ function renderReport(summary: RecursiveImprovementSummary) {
     `Offline eval: ${summary.offline_eval_result.status}`,
     `Negative controls blocked: ${summary.negative_controls_blocked}`,
     `Promotion decision: ${summary.promotion_decision}`,
+    `Policy tier: ${summary.policy_tier}`,
+    `AI classifier: ${summary.ai_classifier ? `${summary.ai_classifier.status} (used=${summary.ai_classifier.ai_used})` : "not_requested"}`,
+    `AI fixture drafter: ${summary.ai_fixture_drafter ? `${summary.ai_fixture_drafter.status} (used=${summary.ai_fixture_drafter.ai_used})` : "not_requested"}`,
+    `AI patch proposal: ${summary.ai_patch_proposal ? `${summary.ai_patch_proposal.status} (used=${summary.ai_patch_proposal.ai_used})` : "not_requested"}`,
     `Canary decision: ${summary.canary_decision}`,
     `Rollback decision: ${summary.rollback_decision}`,
+    `Auto-apply attempted: ${summary.auto_apply_attempted}`,
+    `Auto-apply result: ${summary.auto_apply_result}`,
+    `Rollback monitor result: ${summary.rollback_monitor_result}`,
+    `Rollback applied: ${summary.rollback_applied}`,
+    "",
+    "## No-Change Classification",
+    "",
+    summary.no_change_classification
+      ? [
+          `No-change classification: ${summary.no_change_classification.classification}`,
+          `Duplicate follow-up created: ${summary.no_change_classification.duplicate_follow_up_created}`,
+          ...summary.no_change_classification.reasons.map((reason) => `- ${reason}`),
+        ].join("\n")
+      : "not_applicable",
     "",
     "## Generated Fixtures",
     "",
@@ -405,6 +726,22 @@ function renderReport(summary: RecursiveImprovementSummary) {
     "## High-Risk Blockers",
     "",
     list(summary.high_risk_blockers),
+    "",
+    "## Blocked Fixture Attempts",
+    "",
+    list(summary.blocked_fixture_attempts.flatMap((attempt) =>
+      attempt.reasons.map((reason) => `${attempt.failure_family}/${attempt.fixture_id ?? "unknown"}: ${reason}`),
+    )),
+    "",
+    "## Proposed Patch",
+    "",
+    summary.ai_patch_proposal
+      ? [
+          `Status: ${summary.ai_patch_proposal.status}`,
+          `Proposal: ${summary.ai_patch_proposal.proposal_id ?? "none"}`,
+          `Reason: ${summary.ai_patch_proposal.deterministic_gate_reason}`,
+        ].join("\n")
+      : "not_requested",
     "",
     "## Proof Paths",
     "",
@@ -416,6 +753,7 @@ function renderReport(summary: RecursiveImprovementSummary) {
     "",
     "## Next",
     "",
+    `Next action: ${summary.next_action}`,
     `Next autonomous action: ${summary.next_autonomous_action}`,
     `Retry condition: ${summary.retry_condition}`,
     `Residual risk: ${summary.residual_risk}`,
@@ -440,6 +778,7 @@ async function writeConsolidatedOutputs(
 function resultStatus(summary: RecursiveImprovementSummary) {
   return [
     "dry_run_completed",
+    "no_change_report_only",
     "canary_applied",
     "rollback_applied",
   ].includes(summary.status);
@@ -469,13 +808,16 @@ export async function runRecursiveImprovementLoop(
   const requestedLane = typeof options.lane === "string" && options.lane.trim()
     ? options.lane.trim()
     : null;
-  const dryRun = options.dryRun ?? !(options.applyCanary || options.applyRollback);
+  const applyRequested = options.applyCanary === true || options.autoApplyLowRisk === true;
+  const dryRun = options.dryRun ?? !(applyRequested || options.applyRollback);
   const writeArtifacts = options.writeArtifacts !== false;
   const generatedAt = (options.now ?? new Date()).toISOString();
   const stageOutputs: StageOutputs = { proofPaths: [], commandOutputs: [] };
+  const blockedAutoApplyResult: AutoApplyResult = applyRequested ? "blocked" : "not_requested";
+  const previousSummary = await readPreviousSummary(outputDir);
 
   const observerOutputDir = path.join(outputDir, "observer");
-  const observerSummary = await analyzeAgentImprovementArtifacts({
+  let observerSummary = await analyzeAgentImprovementArtifacts({
     cwd,
     inputRoots: options.observerInputRoots,
     maxFiles: options.observerMaxFiles,
@@ -483,6 +825,44 @@ export async function runRecursiveImprovementLoop(
     top: 5,
     now: options.now,
   });
+  let aiClassifierSummary: AiFailureFamilyClassifierSummary | null = null;
+
+  if (options.aiClassifier === true) {
+    const aiClassifierResult = await runAiFailureFamilyClassifier({
+      cwd,
+      artifactPaths: options.aiClassifierArtifacts
+        ?? options.observerInputRoots
+        ?? [
+          "labs/autoagent",
+          "ops/paperclip/reports",
+          "ops/paperclip/playbooks",
+          "output",
+        ],
+      existingFamilyIds: observerSummary.improvement_candidates.map((candidate) => candidate.failure_family),
+      invoker: options.aiClassifierInvoker,
+      env: options.aiClassifierEnv,
+    });
+    aiClassifierSummary = aiClassifierResult.summary;
+    observerSummary = mergeAiClassifierResultIntoObserverSummary(
+      observerSummary,
+      aiClassifierResult,
+    );
+    const aiClassifierOutputPath = path.join(outputDir, "ai-classifier", "summary.json");
+    if (writeArtifacts) {
+      await writeJson(aiClassifierOutputPath, {
+        summary: aiClassifierResult.summary,
+        artifact_paths: aiClassifierResult.artifact_paths,
+        accepted: aiClassifierResult.accepted,
+        rejected: aiClassifierResult.rejected,
+        raw_output: aiClassifierResult.raw_output,
+      });
+    }
+    stageOutputs.proofPaths.push(aiClassifierOutputPath);
+    stageOutputs.commandOutputs.push(
+      `ai-failure-family-classifier: status=${aiClassifierResult.summary.status} ai_used=${aiClassifierResult.summary.ai_used} accepted=${aiClassifierResult.summary.accepted_count} rejected=${aiClassifierResult.summary.rejected_count} report_only=${aiClassifierResult.summary.report_only_count}`,
+    );
+  }
+
   const observerOutputs = writeArtifacts
     ? await writeObserverOutputs({ outputDir: observerOutputDir, summary: observerSummary })
     : { jsonPath: path.join(observerOutputDir, "summary.json"), reportPath: path.join(observerOutputDir, "report.md") };
@@ -531,6 +911,11 @@ export async function runRecursiveImprovementLoop(
         "Retry after local observer evidence contains a classified recurring failure family.",
       residualRisk:
         "No queue item was selected, so no fixture, offline eval, promotion, canary, or rollback decision can prove movement.",
+      aiClassifier: aiClassifierSummary,
+      autoApplyAttempted: applyRequested,
+      autoApplyResult: blockedAutoApplyResult,
+      rollbackMonitorResult: "not_run",
+      rollbackApplied: false,
       proofPaths: stageOutputs.proofPaths,
       commandOutputs: stageOutputs.commandOutputs,
     });
@@ -548,15 +933,59 @@ export async function runRecursiveImprovementLoop(
     },
     family: selected.sourceFailureFamily,
     outputRoot: fixtureRoot,
+    cwd,
+    aiFixtureDrafter: options.aiFixtureDrafter === true
+      ? {
+          enabled: true,
+          artifactPaths: options.aiFixtureDrafterArtifacts,
+          invoker: options.aiFixtureDrafterInvoker,
+          env: options.aiFixtureDrafterEnv,
+        }
+      : null,
     now: options.now,
   });
   const fixturePaths = generatedFixturePaths(fixtureResult);
+  const aiFixtureDrafterSummary = "aiFixtureDrafter" in fixtureResult
+    ? fixtureResult.aiFixtureDrafter ?? null
+    : null;
   stageOutputs.proofPaths.push(...fixturePaths);
   stageOutputs.commandOutputs.push(
     fixtureResult.status === "written"
       ? `write-autoresearch-fixture: status=written family=${fixtureResult.failureFamily} lane=${fixtureResult.laneDir}`
-      : `write-autoresearch-fixture: status=skipped reason=${fixtureResult.reason}`,
+      : `write-autoresearch-fixture: status=${fixtureResult.status} reason=${fixtureResult.reason}`,
   );
+  if (aiFixtureDrafterSummary) {
+    stageOutputs.commandOutputs.push(
+      `ai-fixture-drafter: status=${aiFixtureDrafterSummary.status} ai_used=${aiFixtureDrafterSummary.ai_used} accepted=${aiFixtureDrafterSummary.accepted_fixture_id ?? "none"} rejected=${aiFixtureDrafterSummary.rejected_count}`,
+    );
+  }
+
+  if (fixtureResult.status === "rejected") {
+    const summary = baseSummary({
+      generatedAt,
+      dryRun,
+      status: "fixture_rejected",
+      selectedFailureFamily: selected.sourceFailureFamily,
+      selectedQueueItemId: selected.id,
+      generatedFixturePaths: [],
+      canaryDecision: "not_run_fixture_rejected",
+      nextAutonomousAction: "repair_ai_fixture_draft_before_offline_eval",
+      retryCondition:
+        "Retry after the AI fixture draft passes deterministic validation or run without --ai-fixture-drafter for deterministic fixture generation.",
+      residualRisk:
+        fixtureResult.reason || "AI fixture drafter output was rejected before offline eval or promotion gate.",
+      aiClassifier: aiClassifierSummary,
+      aiFixtureDrafter: aiFixtureDrafterSummary,
+      autoApplyAttempted: applyRequested,
+      autoApplyResult: blockedAutoApplyResult,
+      rollbackMonitorResult: "not_run",
+      rollbackApplied: false,
+      proofPaths: stageOutputs.proofPaths,
+      commandOutputs: stageOutputs.commandOutputs,
+    });
+    const paths = await writeConsolidatedOutputs(outputDir, summary, writeArtifacts);
+    return { ok: false, summary, summaryPath: paths.summaryPath, reportPath: paths.reportPath };
+  }
 
   const rawCandidate = await readJsonFile(candidatePath);
   const scopedCandidate = scopeCandidateToLane(rawCandidate, requestedLane);
@@ -573,7 +1002,12 @@ export async function runRecursiveImprovementLoop(
   }
   const highRiskBlockers = unique([
     ...detectHighRiskCandidate(scopedCandidate),
-    ...laneApplyBlockers(requestedLane, options.applyCanary === true),
+    ...laneApplyBlockers({
+      requestedLane,
+      scopedCandidate,
+      applyRequested,
+      autoApplyLowRisk: options.autoApplyLowRisk === true,
+    }),
   ]);
   const generatedLane = laneFromFixture(fixtureResult);
   const candidateEvalLanes = evalLanesFromRawCandidate(scopedCandidate);
@@ -609,6 +1043,34 @@ export async function runRecursiveImprovementLoop(
     summaryPath: offlineSummaryPath,
   });
 
+  if (fixtureResult.status === "written" && !offline.generated_fixture_included) {
+    const summary = baseSummary({
+      generatedAt,
+      dryRun,
+      status: "fixture_rejected",
+      selectedFailureFamily: selected.sourceFailureFamily,
+      selectedQueueItemId: selected.id,
+      generatedFixturePaths: fixturePaths,
+      offlineEvalResult: offline,
+      canaryDecision: "not_run_fixture_not_evaluated",
+      nextAutonomousAction: "repair_fixture_eval_routing_before_promotion_gate",
+      retryCondition:
+        "Retry after the generated fixture path is included in the offline evaluator lane set.",
+      residualRisk:
+        "The generated fixture was not included in offline eval, so the promotion gate was not run.",
+      aiClassifier: aiClassifierSummary,
+      aiFixtureDrafter: aiFixtureDrafterSummary,
+      autoApplyAttempted: applyRequested,
+      autoApplyResult: blockedAutoApplyResult,
+      rollbackMonitorResult: "not_run",
+      rollbackApplied: false,
+      proofPaths: stageOutputs.proofPaths,
+      commandOutputs: stageOutputs.commandOutputs,
+    });
+    const paths = await writeConsolidatedOutputs(outputDir, summary, writeArtifacts);
+    return { ok: false, summary, summaryPath: paths.summaryPath, reportPath: paths.reportPath };
+  }
+
   const gateResult = await runPromptPolicyPromotionGate({
     candidatePath: candidateForGatePath,
     fixtureRoot,
@@ -622,8 +1084,61 @@ export async function runRecursiveImprovementLoop(
     `prompt-policy-promotion-gate: decision=${gateResult.evaluation.decision}`,
     ...gateResult.evaluation.reasons.map((reason) => `prompt-policy-promotion-gate reason=${reason}`),
   );
+  const gatePolicyTier = gateResult.evaluation.policyTier as AutoAgentOperatingPolicyTier;
+  const gatePolicyTiers = gateResult.evaluation.policyTiers as Partial<
+    Record<string, AutoAgentOperatingPolicyTier>
+  >;
+  const gateHeldReason = heldReasonForGate(
+    gateResult.evaluation.decision,
+    gateResult.evaluation.reasons,
+  );
+
+  const patchProposalResult = await runAiPatchProposal({
+    cwd,
+    enabled: options.aiPatchProposal === true,
+    failureFamily: selected.sourceFailureFamily,
+    generatedFixturePaths: fixturePaths,
+    offlineEval: {
+      status: offline.status,
+      total_failed: offline.total_failed,
+      negative_controls_blocked: negativeControlsBlocked(offline),
+    },
+    promotionGate: gateResult.evaluation,
+    sampleCount,
+    invoker: options.aiPatchProposalInvoker,
+    env: options.aiPatchProposalEnv,
+    now: options.now,
+  });
+  const patchProposalSummary = patchProposalResult.summary;
+  const patchProposalSummaryPath = path.join(outputDir, "proposed_patch_summary.json");
+  const patchProposalReportPath = path.join(outputDir, "proposed_patch_report.md");
+  if (writeArtifacts) {
+    await writeJson(patchProposalSummaryPath, patchProposalSummary);
+    await writeText(patchProposalReportPath, renderAiPatchProposalReport(patchProposalSummary));
+  }
+  stageOutputs.proofPaths.push(patchProposalSummaryPath, patchProposalReportPath);
+  stageOutputs.commandOutputs.push(
+    `ai-patch-proposal: status=${patchProposalSummary.status} ai_used=${patchProposalSummary.ai_used} proposal=${patchProposalSummary.proposal_id ?? "none"}`,
+    ...patchProposalSummary.reasons.map((reason) => `ai-patch-proposal reason=${reason}`),
+  );
 
   if (highRiskBlockers.length > 0) {
+    const blockerPacketPath = path.join(outputDir, "high-risk-blocker-packet.md");
+    if (writeArtifacts) {
+      await writeText(
+        blockerPacketPath,
+        renderHighRiskBlockerPacket({
+          generatedAt,
+          selected,
+          highRiskBlockers,
+          gateReasons: gateResult.evaluation.reasons,
+        }),
+      );
+    }
+    stageOutputs.proofPaths.push(blockerPacketPath);
+    stageOutputs.commandOutputs.push(
+      `high-risk-blocker-packet: path=${blockerPacketPath} routing=repo-local-no-send`,
+    );
     const summary = baseSummary({
       generatedAt,
       dryRun,
@@ -633,18 +1148,76 @@ export async function runRecursiveImprovementLoop(
       generatedFixturePaths: fixturePaths,
       offlineEvalResult: offline,
       promotionDecision: gateResult.evaluation.decision,
+      policyTier: "permanently_blocked",
+      policyTiers: {
+        ...gatePolicyTiers,
+        high_risk_candidate: "permanently_blocked",
+      },
       canaryDecision: "not_run_high_risk",
+      autoApplyAttempted: applyRequested,
+      autoApplyResult: blockedAutoApplyResult,
+      rollbackMonitorResult: "not_run",
+      rollbackApplied: false,
       nextAutonomousAction: "route_high_risk_candidate_to_policy_gate",
       retryCondition:
         "Retry only with a low-risk candidate or explicit human/policy approval outside this repo-local loop.",
       residualRisk:
         `High-risk candidate blocked before canary: ${highRiskBlockers.join("; ")}.`,
+      aiClassifier: aiClassifierSummary,
+      aiFixtureDrafter: aiFixtureDrafterSummary,
+      aiPatchProposal: patchProposalSummary,
       highRiskBlockers,
       proofPaths: stageOutputs.proofPaths,
       commandOutputs: stageOutputs.commandOutputs,
     });
     const paths = await writeConsolidatedOutputs(outputDir, summary, writeArtifacts);
     return { ok: false, summary, summaryPath: paths.summaryPath, reportPath: paths.reportPath };
+  }
+
+  const noChangeClassification = classifyNoChangeReportOnly({
+    previousSummary,
+    applyRequested,
+    selected,
+    fixtureResult,
+    generatedFixturePaths: fixturePaths,
+    heldReason: gateHeldReason,
+  });
+  if (noChangeClassification) {
+    const summary = baseSummary({
+      generatedAt,
+      dryRun,
+      status: "no_change_report_only",
+      selectedFailureFamily: selected.sourceFailureFamily,
+      selectedQueueItemId: selected.id,
+      generatedFixturePaths: fixturePaths,
+      offlineEvalResult: offline,
+      promotionDecision: gateResult.evaluation.decision,
+      policyTier: gatePolicyTier,
+      policyTiers: gatePolicyTiers,
+      canaryDecision: "not_run_no_change_report_only",
+      rollbackDecision: "not_run",
+      autoApplyAttempted: false,
+      autoApplyResult: "not_requested",
+      rollbackMonitorResult: "not_run",
+      rollbackApplied: false,
+      nextAutonomousAction:
+        "close routine issue with this report path; do not create duplicate follow-up",
+      retryCondition:
+        "Retry only after a new failure family, new proof path, generated fixture, changed candidate, or changed held reason appears.",
+      residualRisk:
+        "No-change suppression only prevents duplicate routine/report follow-up churn; it does not prove live Paperclip/Hermes mutation, provider recovery, hosted-session fulfillment, sends, payments, rights/legal decisions, city-live state, customer claims, or operational launch readiness.",
+      aiClassifier: aiClassifierSummary,
+      aiFixtureDrafter: aiFixtureDrafterSummary,
+      aiPatchProposal: patchProposalSummary,
+      noChangeClassification,
+      proofPaths: stageOutputs.proofPaths,
+      commandOutputs: [
+        ...stageOutputs.commandOutputs,
+        "recursive-improvement no-change: status=no_change_report_only duplicate_follow_up_created=false",
+      ],
+    });
+    const paths = await writeConsolidatedOutputs(outputDir, summary, writeArtifacts);
+    return { ok: true, summary, summaryPath: paths.summaryPath, reportPath: paths.reportPath };
   }
 
   if (gateResult.evaluation.decision === "reject") {
@@ -657,12 +1230,21 @@ export async function runRecursiveImprovementLoop(
       generatedFixturePaths: fixturePaths,
       offlineEvalResult: offline,
       promotionDecision: "reject",
+      policyTier: gatePolicyTier,
+      policyTiers: gatePolicyTiers,
       canaryDecision: "not_run_promotion_reject",
+      autoApplyAttempted: applyRequested,
+      autoApplyResult: blockedAutoApplyResult,
+      rollbackMonitorResult: "not_run",
+      rollbackApplied: false,
       nextAutonomousAction: "repair_promotion_candidate_before_canary",
       retryCondition:
         "Retry after the promotion gate no longer rejects and all blocked claims are removed or routed to owning proof gates.",
       residualRisk:
         gateResult.evaluation.reasons.join("; ") || "Promotion gate rejected the candidate.",
+      aiClassifier: aiClassifierSummary,
+      aiFixtureDrafter: aiFixtureDrafterSummary,
+      aiPatchProposal: patchProposalSummary,
       proofPaths: stageOutputs.proofPaths,
       commandOutputs: stageOutputs.commandOutputs,
     });
@@ -680,12 +1262,53 @@ export async function runRecursiveImprovementLoop(
       generatedFixturePaths: fixturePaths,
       offlineEvalResult: offline,
       promotionDecision: "hold",
+      policyTier: gatePolicyTier,
+      policyTiers: gatePolicyTiers,
       canaryDecision: "not_run_promotion_hold",
+      autoApplyAttempted: applyRequested,
+      autoApplyResult: blockedAutoApplyResult,
+      rollbackMonitorResult: "not_run",
+      rollbackApplied: false,
       nextAutonomousAction: "collect_required_promotion_evidence",
       retryCondition:
         "Retry after the promotion gate has required offline, closeout, shadow, and rollback evidence.",
       residualRisk:
         gateResult.evaluation.reasons.join("; ") || "Promotion gate held the candidate.",
+      aiClassifier: aiClassifierSummary,
+      aiFixtureDrafter: aiFixtureDrafterSummary,
+      aiPatchProposal: patchProposalSummary,
+      proofPaths: stageOutputs.proofPaths,
+      commandOutputs: stageOutputs.commandOutputs,
+    });
+    const paths = await writeConsolidatedOutputs(outputDir, summary, writeArtifacts);
+    return { ok: false, summary, summaryPath: paths.summaryPath, reportPath: paths.reportPath };
+  }
+
+  if (patchProposalSummary.status === "rejected") {
+    const summary = baseSummary({
+      generatedAt,
+      dryRun,
+      status: "patch_proposal_rejected",
+      selectedFailureFamily: selected.sourceFailureFamily,
+      selectedQueueItemId: selected.id,
+      generatedFixturePaths: fixturePaths,
+      offlineEvalResult: offline,
+      promotionDecision: gateResult.evaluation.decision,
+      policyTier: gatePolicyTier,
+      policyTiers: gatePolicyTiers,
+      aiClassifier: aiClassifierSummary,
+      aiFixtureDrafter: aiFixtureDrafterSummary,
+      aiPatchProposal: patchProposalSummary,
+      canaryDecision: "not_run_patch_proposal_rejected",
+      autoApplyAttempted: applyRequested,
+      autoApplyResult: blockedAutoApplyResult,
+      rollbackMonitorResult: "not_run",
+      rollbackApplied: false,
+      nextAutonomousAction: "repair_or_drop_ai_patch_proposal_before_canary",
+      retryCondition:
+        "Retry after the AI patch proposal stays inside the low-risk allowlist and deterministic eval/promotion gates pass.",
+      residualRisk:
+        patchProposalSummary.deterministic_gate_reason || "AI patch proposal was rejected before canary.",
       proofPaths: stageOutputs.proofPaths,
       commandOutputs: stageOutputs.commandOutputs,
     });
@@ -703,8 +1326,8 @@ export async function runRecursiveImprovementLoop(
     gateSampleCount: sampleCount,
     canarySampleCount: 20,
     canaryPercentage: null,
-    applyCanary: options.applyCanary === true,
-    requestedMode: options.applyCanary === true ? "apply" : "dry_run",
+    applyCanary: applyRequested,
+    requestedMode: applyRequested ? "apply" : "dry_run",
     writeArtifacts,
     now: options.now,
   });
@@ -727,12 +1350,21 @@ export async function runRecursiveImprovementLoop(
       generatedFixturePaths: fixturePaths,
       offlineEvalResult: offline,
       promotionDecision: gateResult.evaluation.decision,
+      policyTier: gatePolicyTier,
+      policyTiers: gatePolicyTiers,
       canaryDecision: "rejected",
+      autoApplyAttempted: applyRequested,
+      autoApplyResult: applyRequested ? "rejected" : "not_requested",
+      rollbackMonitorResult: "not_run",
+      rollbackApplied: false,
       nextAutonomousAction: "repair_canary_plan_before_rollback_monitor",
       retryCondition:
         "Retry after the canary dry-run accepts the candidate under central policy.",
       residualRisk:
         canaryResult.plan.validationErrors.join("; ") || "Canary dry-run rejected the candidate.",
+      aiClassifier: aiClassifierSummary,
+      aiFixtureDrafter: aiFixtureDrafterSummary,
+      aiPatchProposal: patchProposalSummary,
       proofPaths: stageOutputs.proofPaths,
       commandOutputs: stageOutputs.commandOutputs,
     });
@@ -748,7 +1380,7 @@ export async function runRecursiveImprovementLoop(
       : undefined,
     outputDir: rollbackOutputDir,
     offlineEvalSummary: pipelineResult.localEval,
-    applyRollback: options.applyRollback === true || options.applyCanary === true,
+    applyRollback: options.applyRollback === true || applyRequested,
     writeArtifacts,
     now: options.now,
   });
@@ -768,12 +1400,21 @@ export async function runRecursiveImprovementLoop(
       generatedFixturePaths: fixturePaths,
       offlineEvalResult: offline,
       promotionDecision: gateResult.evaluation.decision,
+      policyTier: gatePolicyTier,
+      policyTiers: gatePolicyTiers,
       canaryDecision: canaryResult.plan.status,
       rollbackDecision: "rollback_required",
+      autoApplyAttempted: applyRequested,
+      autoApplyResult: applyRequested ? "blocked" : "not_requested",
+      rollbackMonitorResult: "rollback_required",
+      rollbackApplied: false,
       nextAutonomousAction: "rollback_required_before_promotion",
       retryCondition:
         "Retry only after rollback triggers are cleared and the monitor returns keep_canary.",
       residualRisk: rollbackResult.decision.reasons.join("; "),
+      aiClassifier: aiClassifierSummary,
+      aiFixtureDrafter: aiFixtureDrafterSummary,
+      aiPatchProposal: patchProposalSummary,
       proofPaths: stageOutputs.proofPaths,
       commandOutputs: stageOutputs.commandOutputs,
     });
@@ -791,13 +1432,22 @@ export async function runRecursiveImprovementLoop(
       generatedFixturePaths: fixturePaths,
       offlineEvalResult: offline,
       promotionDecision: gateResult.evaluation.decision,
+      policyTier: gatePolicyTier,
+      policyTiers: gatePolicyTiers,
       canaryDecision: canaryResult.plan.status,
       rollbackDecision: "rolled_back",
+      autoApplyAttempted: applyRequested,
+      autoApplyResult: applyRequested ? "rolled_back" : "not_requested",
+      rollbackMonitorResult: "rolled_back",
+      rollbackApplied: true,
       nextAutonomousAction: "support_triage_canary_rolled_back",
       retryCondition:
         "Retry only after rollback triggers are cleared and a fresh promote gate packet exists.",
       residualRisk:
         rollbackResult.decision.reasons.join("; ") || "Applied support_triage canary was rolled back.",
+      aiClassifier: aiClassifierSummary,
+      aiFixtureDrafter: aiFixtureDrafterSummary,
+      aiPatchProposal: patchProposalSummary,
       proofPaths: stageOutputs.proofPaths,
       commandOutputs: stageOutputs.commandOutputs,
     });
@@ -815,13 +1465,22 @@ export async function runRecursiveImprovementLoop(
       generatedFixturePaths: fixturePaths,
       offlineEvalResult: offline,
       promotionDecision: gateResult.evaluation.decision,
+      policyTier: gatePolicyTier,
+      policyTiers: gatePolicyTiers,
       canaryDecision: canaryResult.plan.status,
       rollbackDecision: "insufficient_evidence",
+      autoApplyAttempted: applyRequested,
+      autoApplyResult: applyRequested ? "blocked" : "not_requested",
+      rollbackMonitorResult: "insufficient_evidence",
+      rollbackApplied: false,
       nextAutonomousAction: "collect_canary_shadow_evidence",
       retryCondition:
         "Retry after a local AutoAgent shadow summary is present for rollback monitoring.",
       residualRisk:
         rollbackResult.decision.reasons.join("; ") || "Rollback monitor had insufficient evidence.",
+      aiClassifier: aiClassifierSummary,
+      aiFixtureDrafter: aiFixtureDrafterSummary,
+      aiPatchProposal: patchProposalSummary,
       proofPaths: stageOutputs.proofPaths,
       commandOutputs: stageOutputs.commandOutputs,
     });
@@ -832,25 +1491,34 @@ export async function runRecursiveImprovementLoop(
   const summary = baseSummary({
     generatedAt,
     dryRun,
-    status: options.applyCanary === true ? "canary_applied" : "dry_run_completed",
+    status: applyRequested ? "canary_applied" : "dry_run_completed",
     selectedFailureFamily: selected.sourceFailureFamily,
     selectedQueueItemId: selected.id,
     generatedFixturePaths: fixturePaths,
     offlineEvalResult: offline,
     promotionDecision: gateResult.evaluation.decision,
+    policyTier: gatePolicyTier,
+    policyTiers: gatePolicyTiers,
     canaryDecision: canaryResult.plan.status,
     rollbackDecision: rollbackResult.decision.status,
-    nextAutonomousAction: options.applyCanary === true
+    autoApplyAttempted: applyRequested,
+    autoApplyResult: applyRequested ? "applied" : "not_requested",
+    rollbackMonitorResult: rollbackResult.decision.status,
+    rollbackApplied: false,
+    nextAutonomousAction: applyRequested
       ? "monitor_support_triage_canary"
       : "manual_review_or_next_shadow_canary_packet",
     retryCondition:
-      options.applyCanary === true
+      applyRequested
         ? "Rollback monitor remains configured; rollback automatically when it returns rollback_required."
         : "Retry when new observer evidence appears or when applying an explicitly approved repo-local canary/rollback artifact.",
     residualRisk:
-      options.applyCanary === true
+      applyRequested
         ? "This applied repo-local support_triage canary remains observation-only; it does not prove live sends, provider recovery, hosted-session fulfillment, payments, rights/legal decisions, city-live state, customer claims, or operational launch readiness."
         : "This dry-run proves the repo-local loop only; it does not prove live Paperclip/Hermes mutation, provider recovery, hosted-session fulfillment, sends, payments, rights/legal decisions, city-live state, or production automation quality.",
+    aiClassifier: aiClassifierSummary,
+    aiFixtureDrafter: aiFixtureDrafterSummary,
+    aiPatchProposal: patchProposalSummary,
     proofPaths: stageOutputs.proofPaths,
     commandOutputs: stageOutputs.commandOutputs,
   });
@@ -868,6 +1536,35 @@ export function parseRecursiveImprovementArgs(argv: string[]): RecursiveImprovem
     switch (arg) {
       case "--dry-run":
         options.dryRun = true;
+        break;
+      case "--auto-apply-low-risk":
+        options.autoApplyLowRisk = true;
+        options.applyCanary = true;
+        options.dryRun = false;
+        break;
+      case "--ai-classifier":
+        options.aiClassifier = true;
+        break;
+      case "--ai-classifier-artifact":
+        if (!next) throw new Error("--ai-classifier-artifact requires a path");
+        options.aiClassifierArtifacts = [...(options.aiClassifierArtifacts ?? []), next];
+        index += 1;
+        break;
+      case "--ai-fixture-drafter":
+        options.aiFixtureDrafter = true;
+        break;
+      case "--ai-fixture-drafter-artifact":
+        if (!next) throw new Error("--ai-fixture-drafter-artifact requires a path");
+        options.aiFixtureDrafterArtifacts = [...(options.aiFixtureDrafterArtifacts ?? []), next];
+        index += 1;
+        break;
+      case "--ai-patch-proposal":
+        options.aiPatchProposal = true;
+        break;
+      case "--ai-patch-proposal-artifact":
+        if (!next) throw new Error("--ai-patch-proposal-artifact requires a path");
+        options.aiPatchProposalArtifacts = [...(options.aiPatchProposalArtifacts ?? []), next];
+        index += 1;
         break;
       case "--observer-input":
         if (!next) throw new Error("--observer-input requires a path");

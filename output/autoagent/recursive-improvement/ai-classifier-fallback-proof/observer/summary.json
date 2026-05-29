@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-29T17:56:27.894Z",
+  "generated_at": "2026-05-29T16:14:32.091Z",
   "analyzer": "blueprint_recursive_agent_improvement_observer",
   "mode": "read_only_local_files",
   "input_roots": [
@@ -66,9 +66,8 @@
     {
       "failure_family": "live_side_effect_boundary_risk",
       "severity": "critical",
-      "recurrence_count": 122,
+      "recurrence_count": 121,
       "evidence_paths": [
-        "labs/autoagent/README.md:68",
         "labs/autoagent/tasks/agent-failure-promotion/CASE_FORMAT.md:53",
         "ops/paperclip/reports/autonomous-buyer-loop-blocker-closeout-2026-05-05.md:42",
         "ops/paperclip/reports/human-blocker-exact-site-recipient-evidence-2026-05-05.md:115",
@@ -79,7 +78,8 @@
         "ops/paperclip/reports/autonomous-growth-blockers/durham-nc/2026-04-26T17-38-04-423Z/blocker-status.json:81",
         "ops/paperclip/reports/autonomous-growth-blockers/durham-nc/2026-04-26T17-38-04-423Z/blocker-status.md:92",
         "ops/paperclip/reports/autonomous-growth-blockers/durham-nc/2026-04-27T00-51-01-396Z/blocker-status.json:81",
-        "ops/paperclip/reports/autonomous-growth-blockers/durham-nc/2026-04-27T00-51-01-396Z/blocker-status.md:92"
+        "ops/paperclip/reports/autonomous-growth-blockers/durham-nc/2026-04-27T00-51-01-396Z/blocker-status.md:92",
+        "ops/paperclip/reports/autonomous-growth-blockers/durham-nc/2026-05-05T22-33-42-341Z/blocker-status.json:79"
       ],
       "recommended_eval_or_policy_change": "Add a side-effect gate eval that fails any recursive-improvement lane attempting live sends, provider calls, payments, Notion writes, or Paperclip mutation.",
       "blocked_claims": [
@@ -228,9 +228,8 @@
     {
       "failure_family": "live_side_effect_boundary_risk",
       "severity": "critical",
-      "recurrence_count": 122,
+      "recurrence_count": 121,
       "evidence_paths": [
-        "labs/autoagent/README.md:68",
         "labs/autoagent/tasks/agent-failure-promotion/CASE_FORMAT.md:53",
         "ops/paperclip/reports/autonomous-buyer-loop-blocker-closeout-2026-05-05.md:42",
         "ops/paperclip/reports/human-blocker-exact-site-recipient-evidence-2026-05-05.md:115",
@@ -241,7 +240,8 @@
         "ops/paperclip/reports/autonomous-growth-blockers/durham-nc/2026-04-26T17-38-04-423Z/blocker-status.json:81",
         "ops/paperclip/reports/autonomous-growth-blockers/durham-nc/2026-04-26T17-38-04-423Z/blocker-status.md:92",
         "ops/paperclip/reports/autonomous-growth-blockers/durham-nc/2026-04-27T00-51-01-396Z/blocker-status.json:81",
-        "ops/paperclip/reports/autonomous-growth-blockers/durham-nc/2026-04-27T00-51-01-396Z/blocker-status.md:92"
+        "ops/paperclip/reports/autonomous-growth-blockers/durham-nc/2026-04-27T00-51-01-396Z/blocker-status.md:92",
+        "ops/paperclip/reports/autonomous-growth-blockers/durham-nc/2026-05-05T22-33-42-341Z/blocker-status.json:79"
       ],
       "recommended_eval_or_policy_change": "Add a side-effect gate eval that fails any recursive-improvement lane attempting live sends, provider calls, payments, Notion writes, or Paperclip mutation.",
       "blocked_claims": [
@@ -288,5 +288,16 @@
       ],
       "source": "deterministic_observer"
     }
-  ]
+  ],
+  "ai_classifier": {
+    "status": "fallback_no_ai",
+    "ai_used": false,
+    "accepted_count": 0,
+    "rejected_count": 0,
+    "report_only_count": 0,
+    "accepted_families": [],
+    "report_only_families": [],
+    "rejected": [],
+    "fallback_reason": "No AI classifier command or session was configured."
+  }
 }

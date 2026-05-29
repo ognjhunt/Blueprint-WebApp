@@ -53,6 +53,22 @@ The gate is repo-local and offline-only. It writes a packet under
 `promote`, `hold`, or `reject` decision, exact local command outputs, and a
 rollback condition. It does not mutate live Paperclip.
 
+## Recursive Improvement Patch Proposals
+
+`npm run autoagent:recursive-improve -- --dry-run` writes a patch-proposal
+status report when the loop reaches the post-fixture promotion gate:
+
+- `output/autoagent/recursive-improvement/latest/proposed_patch_summary.json`
+- `output/autoagent/recursive-improvement/latest/proposed_patch_report.md`
+
+By default the status is `not_proposed`. If `--ai-patch-proposal` is used with
+a configured local proposer, the proposal is accepted only when it stays inside
+low-risk AutoAgent fixture/evaluator/recursive-loop/docs scope and the offline
+eval plus promotion gate have already passed. The loop never applies the patch;
+unsafe scopes such as payments, payouts, providers, live Paperclip mutation,
+city launch, rights/privacy/legal, hosted-session fulfillment, customer claims,
+and production deployment config are rejected with an exact reason.
+
 Live historical export remains a separate opt-in path:
 
 ```bash

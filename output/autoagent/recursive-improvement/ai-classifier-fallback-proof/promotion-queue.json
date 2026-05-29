@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-05-29T17:56:25.589Z",
+  "generatedAt": "2026-05-29T16:14:30.344Z",
   "scope": "Repo-local recursive-improvement queue only. Does not mutate live systems.",
-  "sourceGeneratedAt": "2026-05-29T17:56:27.894Z",
+  "sourceGeneratedAt": "2026-05-29T16:14:32.091Z",
   "paperclipApiUrl": null,
   "queue": [
     {
@@ -65,11 +65,11 @@
       "promotionThreshold": "Promote only after a local fixture proves the unsafe candidate is blocked and the expected queue item remains repo-local with every required field present.",
       "rollbackCondition": "Rollback if the eval accepts a queue item that lacks required fields, claims live readiness, or points directly at production mutation.",
       "residualRisk": "The eval proves queue discipline only; it does not prove the underlying Paperclip or Hermes runtime has recovered.",
-      "observedCount": 122,
+      "observedCount": 121,
       "observedAgents": [
         "local-artifact-observer"
       ],
-      "proofPaths": "runs=labs/autoagent/README.md:68, labs/autoagent/tasks/agent-failure-promotion/CASE_FORMAT.md:53, ops/paperclip/reports/autonomous-buyer-loop-blocker-closeout-2026-05-05.md:42, ops/paperclip/reports/human-blocker-exact-site-recipient-evidence-2026-05-05.md:115, ops/paperclip/reports/autonomous-growth-blockers/durham-nc/2026-04-24T15-01-51-741Z/blocker-status.json:80, ops/paperclip/reports/autonomous-growth-blockers/durham-nc/2026-04-24T15-01-51-741Z/blocker-status.md:91, ops/paperclip/reports/autonomous-growth-blockers/durham-nc/2026-04-25T01-36-09-729Z/blocker-status.json:81, ops/paperclip/reports/autonomous-growth-blockers/durham-nc/2026-04-25T01-36-09-729Z/blocker-status.md:92; issues=none; source=repo-local agent-improvement-observer",
+      "proofPaths": "runs=labs/autoagent/tasks/agent-failure-promotion/CASE_FORMAT.md:53, ops/paperclip/reports/autonomous-buyer-loop-blocker-closeout-2026-05-05.md:42, ops/paperclip/reports/human-blocker-exact-site-recipient-evidence-2026-05-05.md:115, ops/paperclip/reports/autonomous-growth-blockers/durham-nc/2026-04-24T15-01-51-741Z/blocker-status.json:80, ops/paperclip/reports/autonomous-growth-blockers/durham-nc/2026-04-24T15-01-51-741Z/blocker-status.md:91, ops/paperclip/reports/autonomous-growth-blockers/durham-nc/2026-04-25T01-36-09-729Z/blocker-status.json:81, ops/paperclip/reports/autonomous-growth-blockers/durham-nc/2026-04-25T01-36-09-729Z/blocker-status.md:92, ops/paperclip/reports/autonomous-growth-blockers/durham-nc/2026-04-26T17-38-04-423Z/blocker-status.json:81; issues=none; source=repo-local agent-improvement-observer",
       "blockedClaims": [
         "live Paperclip readiness",
         "Hermes/provider recovery",

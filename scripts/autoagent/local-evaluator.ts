@@ -12,6 +12,15 @@ export type EvalLane =
   | "agent_failure_promotion";
 export type DatasetSplit = "dev" | "holdout" | "shadow";
 
+export const AUTOAGENT_EVAL_LANES: EvalLane[] = [
+  "waitlist_triage",
+  "support_triage",
+  "preview_diagnosis",
+  "agent_failure_promotion",
+];
+
+export const AUTOAGENT_DATASET_SPLITS: DatasetSplit[] = ["dev", "holdout", "shadow"];
+
 type WeightedCheck = {
   field: string;
   matched: boolean;
@@ -148,6 +157,18 @@ const REQUIRED_FIELDS: Record<EvalLane, string[]> = {
     "requires_human_review",
   ],
 };
+
+export function requiredFieldsForLane(lane: EvalLane) {
+  return [...REQUIRED_FIELDS[lane]];
+}
+
+export function isEvalLane(value: unknown): value is EvalLane {
+  return typeof value === "string" && AUTOAGENT_EVAL_LANES.includes(value as EvalLane);
+}
+
+export function isDatasetSplit(value: unknown): value is DatasetSplit {
+  return typeof value === "string" && AUTOAGENT_DATASET_SPLITS.includes(value as DatasetSplit);
+}
 
 const FIELD_WEIGHTS: Record<EvalLane, Record<string, number>> = {
   agent_failure_promotion: {

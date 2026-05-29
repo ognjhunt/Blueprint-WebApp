@@ -2,6 +2,11 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
+import {
+  type AiFailureFamilyClassifierResult,
+  type ValidatedAiFailureFamilyClassification,
+} from "./ai-failure-family-classifier.ts";
+
 export type ImprovementSeverity = "critical" | "high" | "medium" | "low";
 
 export type ImprovementCandidate = {
@@ -11,6 +16,11 @@ export type ImprovementCandidate = {
   evidence_paths: string[];
   recommended_eval_or_policy_change: string;
   blocked_claims: string[];
+  source?: "deterministic_observer" | "ai_classifier";
+  affected_lane?: string;
+  risk_tier?: string;
+  report_only?: boolean;
+  validation_reasons?: string[];
 };
 
 type FamilyDefinition = {
@@ -36,6 +46,7 @@ export type AgentImprovementObserverSummary = {
   skipped_roots: string[];
   improvement_candidates: ImprovementCandidate[];
   top_5: ImprovementCandidate[];
+  ai_classifier?: AiFailureFamilyClassifierResult["summary"];
 };
 
 export type AnalyzeAgentImprovementArtifactsOptions = {
@@ -614,9 +625,14 @@ function buildCandidates(observations: Observation[]) {
       evidence_paths: uniqueStrings(familyObservations.map((observation) => observation.evidencePath)).slice(0, 12),
       recommended_eval_or_policy_change: family.recommended_eval_or_policy_change,
       blocked_claims: family.blocked_claims,
+      source: "deterministic_observer",
     });
   }
 
+  return sortCandidates(candidates);
+}
+
+function sortCandidates(candidates: ImprovementCandidate[]) {
   return candidates.sort((left, right) => {
     const severityDelta = severityRank(right.severity) - severityRank(left.severity);
     if (severityDelta !== 0) return severityDelta;
@@ -625,6 +641,51 @@ function buildCandidates(observations: Observation[]) {
     }
     return left.failure_family.localeCompare(right.failure_family);
   });
+}
+
+function severityForAiClassification(classification: ValidatedAiFailureFamilyClassification) {
+  if (classification.risk_tier === "shadow_only") return "high";
+  if (classification.risk_tier === "guarded_low") return "medium";
+  if (classification.confidence >= 0.85) return "medium";
+  return "low";
+}
+
+function aiClassificationToCandidate(
+  classification: ValidatedAiFailureFamilyClassification,
+): ImprovementCandidate {
+  return {
+    failure_family: classification.family_id,
+    severity: severityForAiClassification(classification),
+    recurrence_count: classification.evidence_paths.length,
+    evidence_paths: classification.evidence_paths,
+    recommended_eval_or_policy_change: classification.suggested_eval_intent,
+    blocked_claims: classification.disallowed_claims,
+    source: "ai_classifier",
+    affected_lane: classification.affected_lane,
+    risk_tier: classification.risk_tier,
+    report_only: classification.report_only,
+    validation_reasons: classification.validation_reasons,
+  };
+}
+
+export function mergeAiClassifierResultIntoObserverSummary(
+  summary: AgentImprovementObserverSummary,
+  aiClassifierResult: AiFailureFamilyClassifierResult,
+): AgentImprovementObserverSummary {
+  const aiCandidates = aiClassifierResult.accepted
+    .filter((classification) => !classification.report_only)
+    .map(aiClassificationToCandidate);
+  const combinedCandidates = sortCandidates([
+    ...summary.improvement_candidates,
+    ...aiCandidates,
+  ]);
+
+  return {
+    ...summary,
+    ai_classifier: aiClassifierResult.summary,
+    improvement_candidates: combinedCandidates,
+    top_5: combinedCandidates.slice(0, summary.top_5.length || 5),
+  };
 }
 
 export async function analyzeAgentImprovementArtifacts(
@@ -687,6 +748,11 @@ export function renderAgentImprovementReport(summary: AgentImprovementObserverSu
 
   if (summary.skipped_roots.length > 0) {
     lines.push(`Skipped missing roots: ${summary.skipped_roots.join(", ")}`);
+  }
+  if (summary.ai_classifier) {
+    lines.push(
+      `AI classifier: ${summary.ai_classifier.status} (used=${summary.ai_classifier.ai_used}, accepted=${summary.ai_classifier.accepted_count}, rejected=${summary.ai_classifier.rejected_count}, report_only=${summary.ai_classifier.report_only_count})`,
+    );
   }
 
   lines.push("");

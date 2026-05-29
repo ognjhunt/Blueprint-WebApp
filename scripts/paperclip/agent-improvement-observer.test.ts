@@ -9,6 +9,10 @@ import {
   renderAgentImprovementReport,
   writeObserverOutputs,
 } from "./agent-improvement-observer.ts";
+import {
+  AI_FAILURE_FAMILY_CLASSIFICATION_SCHEMA,
+  validateAiFailureFamilyClassifications,
+} from "./ai-failure-family-classifier.ts";
 
 const tempRoots: string[] = [];
 
@@ -62,6 +66,234 @@ async function makeFixtureRoot() {
 }
 
 describe("recursive agent improvement observer", () => {
+  it("accepts strict, evidence-backed AI failure-family classifications", async () => {
+    const root = await makeFixtureRoot();
+    const evidencePath = path.join(root, "artifacts", "codex", "run-2.log");
+    const result = await validateAiFailureFamilyClassifications({
+      cwd: root,
+      rawJson: {
+        failure_families: [
+          {
+            family_id: "codex_usage_limit_adapter_unavailable",
+            title: "Codex usage limit adapter unavailable",
+            failure_mode:
+              "Codex local adapter repeatedly failed because usage limits were exhausted.",
+            evidence_paths: ["artifacts/codex/run-2.log"],
+            affected_lane: "support_triage",
+            risk_tier: "low",
+            suggested_eval_intent:
+              "Add a local adapter-capacity negative control before issue execution.",
+            suggested_negative_controls: [
+              "usage-limit evidence must block execution-ready claims",
+            ],
+            disallowed_claims: ["Codex issue execution is available"],
+            confidence: 0.84,
+            reasons: [
+              "The evidence names Codex usage-limit exhaustion and adapter unavailability.",
+            ],
+          },
+        ],
+      },
+    });
+
+    expect(AI_FAILURE_FAMILY_CLASSIFICATION_SCHEMA.required).toEqual([
+      "family_id",
+      "title",
+      "failure_mode",
+      "evidence_paths",
+      "affected_lane",
+      "risk_tier",
+      "suggested_eval_intent",
+      "suggested_negative_controls",
+      "disallowed_claims",
+      "confidence",
+      "reasons",
+    ]);
+    expect(result.accepted).toHaveLength(1);
+    expect(result.rejected).toHaveLength(0);
+    expect(result.accepted[0]).toMatchObject({
+      family_id: "codex_usage_limit_adapter_unavailable",
+      affected_lane: "support_triage",
+      risk_tier: "low",
+      report_only: false,
+    });
+    expect(result.accepted[0].resolved_evidence_paths).toEqual([evidencePath]);
+  });
+
+  it("rejects missing evidence paths, duplicate family ids, and high-risk AI classifications", async () => {
+    const root = await makeFixtureRoot();
+    const result = await validateAiFailureFamilyClassifications({
+      cwd: root,
+      rawJson: {
+        failure_families: [
+          {
+            family_id: "missing_evidence_family",
+            title: "Missing evidence family",
+            failure_mode:
+              "The classifier references evidence that does not exist locally.",
+            evidence_paths: ["artifacts/missing/run.log"],
+            affected_lane: "support_triage",
+            risk_tier: "low",
+            suggested_eval_intent:
+              "Add a deterministic fixture after local evidence exists.",
+            suggested_negative_controls: ["missing evidence must fail validation"],
+            disallowed_claims: ["local evidence exists"],
+            confidence: 0.71,
+            reasons: ["The proposed evidence path is absent from disk."],
+          },
+          {
+            family_id: "payments_policy_bypass",
+            title: "Payments policy bypass",
+            failure_mode:
+              "The classifier tries to promote a payment lane without owner-system proof.",
+            evidence_paths: ["artifacts/codex/run-2.log"],
+            affected_lane: "payments",
+            risk_tier: "permanently_blocked",
+            suggested_eval_intent:
+              "Promote a payment automation candidate from local artifacts.",
+            suggested_negative_controls: ["payment mutation must stay blocked"],
+            disallowed_claims: ["payment automation can be promoted"],
+            confidence: 0.8,
+            reasons: ["The evidence mentions local adapter failure, not payment proof."],
+          },
+          {
+            family_id: "payments_policy_bypass",
+            title: "Duplicate payments policy bypass",
+            failure_mode:
+              "The duplicate family id should be rejected deterministically.",
+            evidence_paths: ["artifacts/codex/run-2.log"],
+            affected_lane: "payments",
+            risk_tier: "permanently_blocked",
+            suggested_eval_intent:
+              "Promote a duplicate payment automation candidate from local artifacts.",
+            suggested_negative_controls: ["duplicates must fail validation"],
+            disallowed_claims: ["duplicate classifications are usable"],
+            confidence: 0.8,
+            reasons: ["The family id repeats a previous AI classification."],
+          },
+        ],
+      },
+    });
+
+    expect(result.accepted).toHaveLength(0);
+    expect(result.rejected.map((entry) => entry.family_id)).toEqual([
+      "missing_evidence_family",
+      "payments_policy_bypass",
+      "payments_policy_bypass",
+    ]);
+    expect(result.rejected.flatMap((entry) => entry.reasons).join(" ")).toMatch(
+      /evidence path does not exist|high-risk lane cannot be promoted|duplicate family_id/i,
+    );
+  });
+
+  it("keeps no-change churn report-only unless local evidence shows real movement", async () => {
+    const root = await makeFixtureRoot();
+    const result = await validateAiFailureFamilyClassifications({
+      cwd: root,
+      rawJson: {
+        failure_families: [
+          {
+            family_id: "no_change_closeout_churn",
+            title: "No-change closeout churn",
+            failure_mode:
+              "The run claimed completion while producing no changed artifact and no new proof.",
+            evidence_paths: ["artifacts/autoagent/no-change.md"],
+            affected_lane: "support_triage",
+            risk_tier: "low",
+            suggested_eval_intent:
+              "Report no-change churn without promoting a patch until there is real movement.",
+            suggested_negative_controls: [
+              "no-change closeout must remain report-only without changed artifacts",
+            ],
+            disallowed_claims: ["run produced durable movement"],
+            confidence: 0.9,
+            reasons: ["The evidence explicitly says there is no changed artifact."],
+          },
+        ],
+      },
+    });
+
+    expect(result.accepted).toHaveLength(1);
+    expect(result.accepted[0].report_only).toBe(true);
+    expect(result.accepted[0].validation_reasons).toContain(
+      "no-change churn is report-only without local evidence of real movement",
+    );
+  });
+
+  it("rejects hosted-session proof inferred from sample/demo/runtime-adjacent text", async () => {
+    const root = await makeFixtureRoot();
+    await fs.writeFile(
+      path.join(root, "artifacts", "hosted-session", "demo-copy.md"),
+      "Sample/demo runtime-adjacent copy says a hosted-session proof is available, but there is no entitlement, runtime session artifact, or package manifest.",
+      "utf8",
+    );
+
+    const result = await validateAiFailureFamilyClassifications({
+      cwd: root,
+      rawJson: {
+        failure_families: [
+          {
+            family_id: "hosted_session_sample_proof_inference",
+            title: "Hosted-session sample proof inference",
+            failure_mode:
+              "The classifier infers hosted-session fulfillment from sample/demo runtime-adjacent text.",
+            evidence_paths: ["artifacts/hosted-session/demo-copy.md"],
+            affected_lane: "preview_diagnosis",
+            risk_tier: "shadow_only",
+            suggested_eval_intent:
+              "Use sample demo copy as hosted-session fulfillment proof.",
+            suggested_negative_controls: [
+              "sample/demo text must not become hosted-session proof",
+            ],
+            disallowed_claims: ["hosted-session fulfillment completed"],
+            confidence: 0.82,
+            reasons: ["The evidence is sample/demo runtime-adjacent copy."],
+          },
+        ],
+      },
+    });
+
+    expect(result.accepted).toHaveLength(0);
+    expect(result.rejected[0].reasons.join(" ")).toMatch(/hosted-session proof/i);
+  });
+
+  it("rejects public-copy polish that becomes operational proof", async () => {
+    const root = await makeFixtureRoot();
+    await fs.writeFile(
+      path.join(root, "artifacts", "autoagent", "public-copy.md"),
+      "Public-copy polish claims operational launch readiness from a polished buyer page.",
+      "utf8",
+    );
+
+    const result = await validateAiFailureFamilyClassifications({
+      cwd: root,
+      rawJson: {
+        failure_families: [
+          {
+            family_id: "public_copy_operational_proof",
+            title: "Public copy operational proof",
+            failure_mode:
+              "Public-copy polish is being converted into operational launch readiness proof.",
+            evidence_paths: ["artifacts/autoagent/public-copy.md"],
+            affected_lane: "support_triage",
+            risk_tier: "low",
+            suggested_eval_intent:
+              "Treat public copy polish as operational launch readiness proof.",
+            suggested_negative_controls: [
+              "public-copy polish must not become operational proof",
+            ],
+            disallowed_claims: ["operational launch readiness"],
+            confidence: 0.76,
+            reasons: ["The evidence only references polished public copy."],
+          },
+        ],
+      },
+    });
+
+    expect(result.accepted).toHaveLength(0);
+    expect(result.rejected[0].reasons.join(" ")).toMatch(/public-copy polish/i);
+  });
+
   it("classifies recurring local artifact failures into ranked improvement candidates", async () => {
     const root = await makeFixtureRoot();
     const summary = await analyzeAgentImprovementArtifacts({

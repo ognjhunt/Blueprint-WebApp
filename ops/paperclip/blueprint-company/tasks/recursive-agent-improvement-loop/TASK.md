@@ -9,6 +9,11 @@ Run the scheduled recursive AutoResearch improvement loop for Blueprint.
 
 This routine is dry-run/report-only by default. It observes local failure artifacts, evaluates low-risk candidates, and writes repo-local evidence for review without mutating live Paperclip/Hermes behavior, Notion, providers, payments, rights, city launch, hosted-session fulfillment, or external messages.
 
+Authoritative policy:
+
+- Human-readable tiers: `docs/architecture/autoagent-autoresearch-operating-policy.md`
+- Machine enforcement: `server/agents/autoagent-promotion-policy.ts`
+
 Default command:
 
 ```bash
@@ -20,21 +25,26 @@ Required repo-local outputs:
 - `output/autoagent/recursive-improvement/latest/summary.json`
 - `output/autoagent/recursive-improvement/latest/report.md`
 
+`summary.json` must include `status`, `proof_paths`, `next_action`, `retry_condition`, and `residual_risk` for every terminal branch.
+
 Each run must:
 
 - start from the bound Paperclip routine issue context and `git status --short`
 - run the default command from `/Users/nijelhunt_1/workspace/Blueprint-WebApp`
 - inspect `output/autoagent/recursive-improvement/latest/summary.json` and `output/autoagent/recursive-improvement/latest/report.md`
 - require `summary.live_mutation_attempted` to remain `false`
+- require `summary.policy_tier` to be present and to match the central policy tier that decided the run
 - keep the report local unless an explicit issue instruction asks for a Paperclip summary after the repo report exists
-- classify repeat no-change output as `no_change_report_only` when there is no new failure family, no new proof path, no changed candidate, or only repeated no-change closeout churn
+- classify repeat no-change output as `no_change_report_only` when there is no new failure family, no new proof path, no generated fixture, the same held reason, and the same selected candidate
 - when classified `no_change_report_only`, close the routine issue with the report path and do not create duplicate follow-up issues
 - when a low-risk candidate is found, leave the report path and the smallest next bounded issue instead of applying changes directly
 
 Apply mode is off by default:
 
-- Do not run `--apply-canary` or `--apply-rollback` unless a separate bound issue explicitly requests apply mode.
+- Do not run `--auto-apply-low-risk`, `--apply-canary`, or `--apply-rollback` unless a separate bound issue explicitly requests apply mode.
 - Apply mode must remain limited to central-policy-approved low-risk AutoAgent lanes from `server/agents/autoagent-promotion-policy.ts`.
+- The only current repo-local canary lane is `support_triage`; `waitlist_triage` is human/policy-gated and `preview_diagnosis` is shadow-only unless the policy file changes explicitly.
+- Prefer `--auto-apply-low-risk` for approved repo-local apply issues so the loop derives eligibility from central policy and writes `auto_apply_*`, `rollback_monitor_result`, `rollback_applied`, and `live_mutation_attempted=false` summary fields.
 - Apply mode still cannot perform live sends, payments, payouts, provider execution, rights/privacy/legal decisions, city-live work, customer claims, operational launch readiness claims, or hosted-session fulfillment.
 - If the allowed-lane policy, promotion gate, canary plan, or rollback monitor rejects the candidate, stop and close as blocked with the earliest hard stop.
 

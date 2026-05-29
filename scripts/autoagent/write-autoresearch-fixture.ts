@@ -1,6 +1,14 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
+import {
+  runAiFixtureDrafter,
+  type AiFixtureDrafterInvoker,
+  type AiFixtureDrafterSummary,
+  type AiFixtureDraft,
+  type AiFixtureDraftFailureFamily,
+} from "./ai-fixture-drafter.ts";
+
 export type AutoResearchFailureSeverity = "critical" | "high" | "medium" | "low";
 
 export type AutoResearchObserverCandidate = {
@@ -75,12 +83,20 @@ type WriteAutoResearchFixtureOptions = {
   queuePath?: string | null;
   family?: string | null;
   outputRoot?: string;
+  cwd?: string;
+  aiFixtureDrafter?: {
+    enabled?: boolean;
+    artifactPaths?: string[];
+    invoker?: AiFixtureDrafterInvoker;
+    env?: Record<string, string | undefined>;
+  } | null;
   now?: Date;
 };
 
 export type WriteAutoResearchFixtureResult =
   | {
       status: "written";
+      draftedBy: "deterministic_fixture_writer" | "ai_fixture_drafter";
       failureFamily: string;
       laneDir: FixtureLaneDir;
       caseId: string;
@@ -91,11 +107,19 @@ export type WriteAutoResearchFixtureResult =
         labels: string;
         source: string;
       };
+      aiFixtureDrafter?: AiFixtureDrafterSummary | null;
     }
   | {
       status: "skipped";
       reason: string;
       failureFamily?: string;
+      aiFixtureDrafter?: AiFixtureDrafterSummary | null;
+    }
+  | {
+      status: "rejected";
+      reason: string;
+      failureFamily: string;
+      aiFixtureDrafter: AiFixtureDrafterSummary;
     };
 
 const DEFAULT_OUTPUT_ROOT = path.resolve(
@@ -415,6 +439,51 @@ function validationCommandForLane(laneDir: FixtureLaneDir) {
   return laneDir === "agent-failure-promotion"
     ? AGENT_FAILURE_VALIDATION_COMMAND
     : SAFE_LANE_VALIDATION_COMMAND;
+}
+
+function laneDirForEvalLane(lane: AiFixtureDraft["lane"]): FixtureLaneDir {
+  switch (lane) {
+    case "agent_failure_promotion":
+      return "agent-failure-promotion";
+    case "waitlist_triage":
+      return "waitlist-triage";
+    case "support_triage":
+      return "support-triage";
+    case "preview_diagnosis":
+      return "preview-diagnosis";
+  }
+}
+
+function expandEvidencePath(value: string) {
+  if (!value.includes("=") && !value.includes(";")) {
+    return [value];
+  }
+  return value
+    .split(";")
+    .map((entry) => entry.trim())
+    .flatMap((entry) => {
+      const candidate = entry.includes("=") ? entry.split("=").slice(1).join("=").trim() : entry;
+      return /\.[a-z0-9]+(?::\d+)?$/i.test(candidate) || candidate.includes("/") ? [candidate] : [];
+    });
+}
+
+function aiFixtureFailureFamily(
+  candidate: FixtureCandidate,
+  artifactPaths: string[] = [],
+): AiFixtureDraftFailureFamily {
+  return {
+    failure_family: candidate.failureFamily,
+    severity: candidate.severity,
+    recurrence_count: candidate.recurrenceCount,
+    evidence_paths: uniqueStrings([
+      ...candidate.evidencePaths.flatMap(expandEvidencePath),
+      ...artifactPaths,
+    ]),
+    recommended_eval_or_policy_change: candidate.recommendedChange,
+    blocked_claims: candidate.blockedClaims,
+    affected_lane: candidate.queueItem?.lane,
+    source: candidate.queueItem ? "autoresearch_promotion_queue" : "agent_improvement_observer",
+  };
 }
 
 function commonSource(
@@ -791,6 +860,20 @@ function buildFixture(candidate: FixtureCandidate, laneDir: FixtureLaneDir, vali
   return { caseId, ...agentFailureFixture(candidate, caseId, validationCommand) };
 }
 
+function buildAiFixturePayload(draft: AiFixtureDraft) {
+  return {
+    caseId: draft.fixture_id,
+    input: draft.input,
+    expected: draft.expected,
+    labels: {
+      ...draft.labels,
+      negative_controls: draft.negative_controls,
+      proof_requirements: draft.proof_requirements,
+      disallowed_claims: draft.disallowed_claims,
+    },
+  };
+}
+
 async function writeJson(pathname: string, payload: unknown) {
   await fs.writeFile(pathname, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
 }
@@ -806,6 +889,7 @@ async function loadInputs(options: WriteAutoResearchFixtureOptions) {
 export async function writeAutoResearchFixture(
   options: WriteAutoResearchFixtureOptions,
 ): Promise<WriteAutoResearchFixtureResult> {
+  const cwd = path.resolve(options.cwd ?? process.cwd());
   const outputRoot = path.resolve(options.outputRoot ?? DEFAULT_OUTPUT_ROOT);
   const { observerSummary, queueJson } = await loadInputs(options);
   const candidates = mergeCandidates(observerSummary, queueJson);
@@ -821,24 +905,77 @@ export async function writeAutoResearchFixture(
   });
 
   if (!candidate) {
+    const duplicateFamily = requestedFamily
+      ?? candidates.find((entry) => covered.has(entry.failureFamily))?.failureFamily;
     return {
       status: "skipped",
       reason: requestedFamily
         ? `Requested family ${requestedFamily} is already covered or was not supplied.`
         : "All supplied failure families are already covered by existing fixtures.",
-      failureFamily: requestedFamily ?? undefined,
+      failureFamily: duplicateFamily ?? undefined,
     };
   }
 
   assertCandidateDoesNotRelyOnLiveProof(candidate);
 
-  const laneDir = chooseLane(candidate);
-  const validationCommand = validationCommandForLane(laneDir);
-  assertSafeValidationCommand(validationCommand);
+  let aiFixtureDrafterSummary: AiFixtureDrafterSummary | null = null;
+  let laneDir = chooseLane(candidate);
+  let validationCommand = validationCommandForLane(laneDir);
+  let fixture: ReturnType<typeof buildFixture> | ReturnType<typeof buildAiFixturePayload>;
+  let draftedBy: "deterministic_fixture_writer" | "ai_fixture_drafter" =
+    "deterministic_fixture_writer";
 
-  const fixture = buildFixture(candidate, laneDir, validationCommand);
+  if (options.aiFixtureDrafter?.enabled === true) {
+    const aiResult = await runAiFixtureDrafter({
+      cwd,
+      failureFamily: aiFixtureFailureFamily(
+        candidate,
+        options.aiFixtureDrafter.artifactPaths ?? [],
+      ),
+      invoker: options.aiFixtureDrafter.invoker,
+      env: options.aiFixtureDrafter.env,
+    });
+    aiFixtureDrafterSummary = aiResult.summary;
+
+    if (aiResult.summary.status === "rejected") {
+      return {
+        status: "rejected",
+        reason: aiResult.summary.blocked_attempts
+          .flatMap((attempt) => attempt.reasons)
+          .join("; ") || "AI fixture draft rejected by deterministic validator.",
+        failureFamily: candidate.failureFamily,
+        aiFixtureDrafter: aiResult.summary,
+      };
+    }
+
+    if (aiResult.draft && aiResult.summary.status === "accepted") {
+      laneDir = laneDirForEvalLane(aiResult.draft.lane);
+      validationCommand = validationCommandForLane(laneDir);
+      fixture = buildAiFixturePayload(aiResult.draft);
+      draftedBy = "ai_fixture_drafter";
+    } else {
+      assertSafeValidationCommand(validationCommand);
+      fixture = buildFixture(candidate, laneDir, validationCommand);
+    }
+  } else {
+    assertSafeValidationCommand(validationCommand);
+    fixture = buildFixture(candidate, laneDir, validationCommand);
+  }
+
   const caseDir = path.join(outputRoot, laneDir, "cases", "shadow", fixture.caseId);
   const source = commonSource(candidate, laneDir, fixture.caseId, validationCommand, options.now ?? new Date());
+  const sourceWithAiDraft = aiFixtureDrafterSummary
+    ? {
+        ...source,
+        ai_fixture_drafter: {
+          status: aiFixtureDrafterSummary.status,
+          ai_used: aiFixtureDrafterSummary.ai_used,
+          accepted_fixture_id: aiFixtureDrafterSummary.accepted_fixture_id,
+          blocked_attempts: aiFixtureDrafterSummary.blocked_attempts,
+          fallback_reason: aiFixtureDrafterSummary.fallback_reason ?? null,
+        },
+      }
+    : source;
 
   await fs.mkdir(caseDir, { recursive: true });
   const files = {
@@ -851,15 +988,17 @@ export async function writeAutoResearchFixture(
   await writeJson(files.input, fixture.input);
   await writeJson(files.expected, fixture.expected);
   await writeJson(files.labels, fixture.labels);
-  await writeJson(files.source, source);
+  await writeJson(files.source, sourceWithAiDraft);
 
   return {
     status: "written",
+    draftedBy,
     failureFamily: candidate.failureFamily,
     laneDir,
     caseId: fixture.caseId,
     caseDir,
     files,
+    aiFixtureDrafter: aiFixtureDrafterSummary,
   };
 }
 

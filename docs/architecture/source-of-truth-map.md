@@ -17,6 +17,7 @@ Treat these as repo-authoritative definitions unless a newer explicit doctrine u
 - `CLAUDE.md`: shared AI guidance despite the filename.
 - `docs/ai-tooling-adoption-implementation-2026-04-07.md`: approved AI-tooling adoption posture.
 - `docs/ai-skills-governance-2026-04-07.md`: allowed/disallowed AI-tooling and skill rules.
+- `docs/architecture/autoagent-autoresearch-operating-policy.md`: repo-authoritative near-zero-human AutoAgent/AutoResearch operating tiers and blocked autonomous actions.
 - `docs/architecture/public-display-ready-claims-matrix.md`: Public Display Ready vs Operational Launch Ready claim rules for docs, agents, and buyer pages.
 - `docs/company/`: repo-canonical employee handbook and policy drafts until counsel/PEO-approved systems adopt final versions.
 - `docs/onboarding/`: repo-canonical onboarding journeys for humans, managers, AI agents, role scorecards, and Notion IA.

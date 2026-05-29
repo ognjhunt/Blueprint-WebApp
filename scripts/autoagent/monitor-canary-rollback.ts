@@ -67,6 +67,8 @@ export type CanaryRollbackPlan = {
   policy: {
     decision: string;
     riskTiers: Record<string, string>;
+    policyTiers?: Record<string, string>;
+    policyTier?: string;
     checks: Record<string, unknown>;
     reasons: string[];
     blockedClaims: string[];

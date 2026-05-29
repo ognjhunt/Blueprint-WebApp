@@ -85,6 +85,8 @@ export type CanaryPromotionPlan = {
   policy: {
     decision: string;
     riskTiers: Record<string, string>;
+    policyTiers: Record<string, string>;
+    policyTier: string;
     checks: Record<string, boolean>;
     reasons: string[];
     blockedClaims: string[];
@@ -310,7 +312,8 @@ function canaryLaneErrors(declaredLanes: string[]) {
   const supportAllowedByCentralPolicy =
     (AUTOAGENT_ALLOWED_AUTO_PROMOTION_LANES as readonly string[]).includes("support_triage")
     && lane.maxAutomaticDecision === "canary"
-    && lane.riskTier === "low";
+    && lane.riskTier === "low"
+    && lane.policyTier === "repo_local_canary";
   if (!supportAllowedByCentralPolicy) {
     errors.push("central policy does not currently allow support_triage canary");
   }
@@ -480,6 +483,7 @@ function renderCanaryPlanMarkdown(plan: CanaryPromotionPlan) {
     "## Central Policy",
     "",
     `Decision: ${plan.policy.decision}`,
+    `Policy tier: ${plan.policy.policyTier}`,
     "",
     "Reasons:",
     list(plan.policy.reasons),
@@ -696,6 +700,8 @@ export async function runCanaryPromotion(
     policy: {
       decision: centralEvaluation?.decision ?? "reject",
       riskTiers: centralEvaluation?.riskTiers ?? {},
+      policyTiers: centralEvaluation?.policyTiers ?? {},
+      policyTier: centralEvaluation?.policyTier ?? "fully_autonomous",
       checks: centralEvaluation?.checks ?? {
         offlineEvalPassed: false,
         negativeControlsBlocked: false,

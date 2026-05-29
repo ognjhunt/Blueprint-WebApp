@@ -225,8 +225,13 @@ describe("Paperclip control-room inventory", () => {
     });
     expect(task).toContain("npm run autoagent:recursive-improve -- --dry-run");
     expect(task).toContain("output/autoagent/recursive-improvement/latest/report.md");
+    expect(task).toContain("`status`, `proof_paths`, `next_action`, `retry_condition`, and `residual_risk`");
     expect(task).toContain("no_change_report_only");
-    expect(task).toContain("Do not run `--apply-canary` or `--apply-rollback`");
+    expect(task).toContain("no new failure family, no new proof path, no generated fixture, the same held reason, and the same selected candidate");
+    expect(task).toContain(
+      "Do not run `--auto-apply-low-risk`, `--apply-canary`, or `--apply-rollback`",
+    );
+    expect(task).toContain("central-policy-approved low-risk AutoAgent lanes");
     expect(routineConfig).toContain("cronExpression: 25 6 * * *");
 
     const disallowedLiveCommands = [

@@ -271,6 +271,9 @@ describe("AutoAgent canary promotion controller", () => {
     expect(result.plan.mutationPlan.every((item) => item.sideEffectClass === "repo_local_artifact")).toBe(true);
     expect(result.plan.gate.decision).toBe("promote");
     expect(result.plan.policy.decision).toBe("promote");
+    expect(result.plan.policy.policyTiers).toEqual({
+      support_triage: "repo_local_canary",
+    });
     expect(result.plan.canary.scopeCap).toEqual({
       maxSampleCount: 50,
       maxPercentage: 5,
