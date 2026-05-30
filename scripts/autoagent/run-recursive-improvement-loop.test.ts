@@ -38,6 +38,46 @@ async function writeObserverArtifact(root: string, text: string) {
   return observerRoot;
 }
 
+async function writePaperclipFailureSweep(root: string, text: string) {
+  const sweepPath = path.join(root, "paperclip-failure-sweep.json");
+  await writeJson(sweepPath, {
+    generatedAt: "2026-05-30T12:00:00.000Z",
+    paperclipApiUrl: "https://paperclip.tryblueprint.io",
+    paperclipApiUrlSource: "cli --live-host",
+    companyId: "company-1",
+    inspectedRuns: 25,
+    candidateRuns: 2,
+    suppressedRecoveredRuns: 0,
+    clusters: [
+      {
+        signature: {
+          key: "paperclip_fake_progress_without_artifact",
+          title: "Fake progress closeout",
+          category: "agent_logic",
+          fixLayer: "goal closeout contract",
+          matchedBy: "test sweep",
+        },
+        count: 2,
+        failedCount: 2,
+        agentKeys: ["blueprint-chief-of-staff"],
+        runIds: ["run-fake-progress-1", "run-fake-progress-2"],
+        issueIdentifiers: ["BLU-101"],
+        examples: [
+          {
+            runId: "run-fake-progress-1",
+            status: "failed",
+            agent: "Blueprint Chief of Staff",
+            issueIdentifiers: ["BLU-101"],
+            bestText: text,
+          },
+        ],
+      },
+    ],
+    suppressedRecoveredClusters: [],
+  });
+  return sweepPath;
+}
+
 function buildCandidate(
   overrides: Partial<PromptPolicyPromotionCandidate> = {},
 ): PromptPolicyPromotionCandidate {
@@ -294,6 +334,18 @@ describe("recursive AutoResearch improvement loop", () => {
     expect(options.aiFixtureDrafterArtifacts).toEqual(["observer-artifacts"]);
   });
 
+  it("parses Paperclip failure sweep artifacts as local fixture queue inputs", () => {
+    const options = parseRecursiveImprovementArgs([
+      "--dry-run",
+      "--paperclip-failure-sweep",
+      "output/paperclip-failures.json",
+    ]);
+
+    expect(options.paperclipFailureSweepPaths).toEqual([
+      "output/paperclip-failures.json",
+    ]);
+  });
+
   it("parses the optional AI patch proposal flag and local artifact paths", () => {
     const options = parseRecursiveImprovementArgs([
       "--dry-run",
@@ -370,6 +422,70 @@ describe("recursive AutoResearch improvement loop", () => {
     await expect(
       fs.stat(path.join(root, "recursive", "latest", "proposed_patch_report.md")),
     ).resolves.toBeTruthy();
+  });
+
+  it("turns Paperclip failure sweep clusters into local fixture queue artifacts and offline evals", async () => {
+    const root = await makeTempDir();
+    const sweepPath = await writePaperclipFailureSweep(
+      root,
+      "False progress: completed movement was claimed without changed artifact or owner-system proof.",
+    );
+
+    const result = await runLoop(root, {
+      observerText: "No local observer failure family is present in this artifact.",
+      options: {
+        paperclipFailureSweepPaths: [sweepPath],
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.summary.selected_failure_family).toBe("fake_progress_closeout");
+    expect(result.summary.generated_fixture_paths).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("autoresearch-fake-progress-closeout/input.json"),
+        expect.stringContaining("autoresearch-fake-progress-closeout/expected.json"),
+        expect.stringContaining("autoresearch-fake-progress-closeout/labels.json"),
+        expect.stringContaining("autoresearch-fake-progress-closeout/source.json"),
+      ]),
+    );
+    expect(result.summary.offline_eval_result.status).toBe("passed");
+    expect(result.summary.negative_controls_blocked).toBe(true);
+    expect(result.summary.live_mutation_attempted).toBe(false);
+    expect(result.summary.live_mutation_committed).toBe(false);
+    expect(result.summary.command_outputs.join("\n")).toContain(
+      "paperclip-failure-fixture-ingestion: sweeps=1 queued=1 families=fake_progress no_live_mutation=true",
+    );
+    expect(result.summary.proof_paths).toEqual(
+      expect.arrayContaining([
+        sweepPath,
+        expect.stringContaining("paperclip-failure-fixture-queue.json"),
+        expect.stringContaining("paperclip-failure-fixture-queue.md"),
+      ]),
+    );
+
+    await expect(
+      fs.stat(
+        path.join(
+          root,
+          "harbor",
+          "support-triage",
+          "shadow",
+          "autoresearch-fake-progress-closeout",
+        ),
+      ),
+    ).resolves.toBeTruthy();
+
+    const queueArtifact = JSON.parse(
+      await fs.readFile(
+        path.join(root, "recursive", "latest", "paperclip-failure-fixture-queue.json"),
+        "utf8",
+      ),
+    );
+    expect(queueArtifact).toMatchObject({
+      no_live_mutation: true,
+      suppressed_recovered_clusters_queued: false,
+      ingestion_families: ["fake_progress"],
+    });
   });
 
   it("does not write live or active canary mutation artifacts by default", async () => {
@@ -612,7 +728,7 @@ describe("recursive AutoResearch improvement loop", () => {
     expect(result.summary.live_mutation_attempted).toBe(false);
     expect(result.summary.live_mutation_committed).toBe(false);
     expect(result.summary.command_outputs.join("\n")).toContain(
-      "first live production lane proof is missing",
+      "prior live action proof is missing for paperclip_internal_report_pointer_update",
     );
   });
 

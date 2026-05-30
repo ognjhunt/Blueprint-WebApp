@@ -107,6 +107,7 @@ export type AutoAgentProductionActionEvaluation = {
     canaryLimitPresent: boolean;
     targetRecordNamed: boolean;
     targetFieldAllowed: boolean;
+    priorLiveActionProofSatisfied: boolean;
     auditEventSchemaPresent: boolean;
     auditEventMatchesRequest: boolean;
     liveMutationFlagExplicit: boolean;
@@ -117,6 +118,7 @@ export type AutoAgentProductionActionEvaluation = {
 export type AutoAgentProductionActionEvaluationOptions = {
   cwd?: string;
   usedIdempotencyKeys?: ReadonlySet<string> | readonly string[];
+  provenLiveActionTypes?: ReadonlySet<string> | readonly string[];
 };
 
 export const AUTOAGENT_PRODUCTION_ACTION_DEFAULT_MODE = "dry_run" as const;
@@ -380,6 +382,19 @@ function idempotencyKeyIsUnique(
   return !(usedIdempotencyKeys as ReadonlySet<string>).has(key);
 }
 
+function listIncludes(
+  values: AutoAgentProductionActionEvaluationOptions["provenLiveActionTypes"],
+  value: string,
+) {
+  if (!values) {
+    return false;
+  }
+  if (Array.isArray(values)) {
+    return values.includes(value);
+  }
+  return (values as ReadonlySet<string>).has(value);
+}
+
 function auditEventMatchesRequest(
   request: AutoAgentProductionActionRequest,
   entry: AutoAgentProductionActionRegistryEntry,
@@ -463,6 +478,13 @@ export function evaluateAutoAgentProductionAction(
           || actionEntry.allowedTargetFields.includes(request.targetField)
         ),
     ),
+    priorLiveActionProofSatisfied: Boolean(
+      !actionEntry?.requiresPriorLiveActionProof
+        || listIncludes(
+          options.provenLiveActionTypes,
+          actionEntry.requiresPriorLiveActionProof,
+        ),
+    ),
     auditEventSchemaPresent: Boolean(
       actionEntry
         && request.auditEvent
@@ -518,6 +540,11 @@ export function evaluateAutoAgentProductionAction(
   if (!checks.targetFieldAllowed) {
     reasons.push("target field is missing or is not allowed for this action");
   }
+  if (!checks.priorLiveActionProofSatisfied && actionEntry?.requiresPriorLiveActionProof) {
+    reasons.push(
+      `prior live action proof is missing for ${request.actionType}; requires ${actionEntry.requiresPriorLiveActionProof}`,
+    );
+  }
   if (!checks.auditEventSchemaPresent) {
     reasons.push("audit event schema is missing or unregistered");
   }
@@ -537,7 +564,10 @@ export function evaluateAutoAgentProductionAction(
     reasons.push(`production action is currently blocked: ${actionEntry.actionType}`);
   }
 
-  const blockedActionTypes = actionEntry && !checks.actionTypeAllowed
+  const blockedActionTypes = actionEntry && (
+    !checks.actionTypeAllowed
+      || !checks.priorLiveActionProofSatisfied
+  )
     ? [actionEntry.actionType]
     : [];
   const deterministicChecksPassed = Object.values(checks).every(Boolean);

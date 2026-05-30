@@ -368,11 +368,11 @@ function chooseLane(candidate: FixtureCandidate): FixtureLaneDir {
     return "waitlist-triage";
   }
 
-  if (/(^|[^a-z0-9])(no[_\s-]?change|public[_\s-]?copy|public claim|proof drift|operational proof)([^a-z0-9]|$)/.test(text)) {
+  if (/(^|[^a-z0-9])(no[_\s-]?change|fake[_\s-]?progress|false[_\s-]?progress|blocked[_\s-]?lane|public[_\s-]?copy|public claim|copy[_\/\s-]?proof|proof drift|operational proof|unsupported proof)([^a-z0-9]|$)/.test(text)) {
     return "support-triage";
   }
 
-  if (/(^|[^a-z0-9])(hosted[_\s-]?session|provider|runtime|preview|worldlabs|model|quota|timeout|process[_\s-]?loss|paperclip_runtime)([^a-z0-9]|$)/.test(text)) {
+  if (/(^|[^a-z0-9])(hosted[_\s-]?session|provider|runtime|preview|worldlabs|model|quota|rate[_\s-]?limit|retry[_\s-]?loop|cooldown|timeout|process[_\s-]?loss|paperclip_runtime)([^a-z0-9]|$)/.test(text)) {
     return "preview-diagnosis";
   }
 

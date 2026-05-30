@@ -1,0 +1,108 @@
+{
+  "schema": "blueprint/autoagent-production-change-proposal-summary/v1",
+  "generated_at": "2026-05-30T15:28:56.822Z",
+  "status": "validated_live_allowed",
+  "ai_used": true,
+  "proposal_id": "paperclip-report-pointer-20260530",
+  "action_type": "paperclip_internal_report_pointer_update",
+  "target_system": "paperclip_hermes",
+  "target_record_id": "recursive-agent-improvement-loop",
+  "target_field": "metadata.autoagent.latest_production_report_pointer",
+  "idempotency_key": "paperclip-report-pointer:recursive-agent-improvement-loop:2026-05-30",
+  "stop_condition": "rollback if report pointer proof or rollback monitor stop condition fails",
+  "deterministic_gate_reason": "validated_live_allowed: registry validation passed; execution remains controlled by the deterministic canary harness",
+  "reasons": [],
+  "request": {
+    "actionType": "paperclip_internal_report_pointer_update",
+    "ownerSystem": "paperclip_hermes",
+    "targetRecordId": "recursive-agent-improvement-loop",
+    "targetField": "metadata.autoagent.latest_production_report_pointer",
+    "proofSource": "paperclip_issue_metadata_snapshot",
+    "proofPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/report-pointer-production-canary-2026-05-30/production-context/paperclip-issue-metadata-snapshot.json",
+    "idempotencyKey": "paperclip-report-pointer:recursive-agent-improvement-loop:2026-05-30",
+    "rollbackStrategy": "restore_previous_report_pointer_snapshot",
+    "rollbackPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/report-pointer-production-canary-2026-05-30/production-context/rollback-snapshot.json",
+    "dryRun": false,
+    "canaryMode": true,
+    "canaryLimit": {
+      "maxActions": 1,
+      "window": "per_run"
+    },
+    "liveMutationEnabled": true,
+    "auditEvent": {
+      "schema": "blueprint/autoagent-production-action-audit/v1",
+      "actionType": "paperclip_internal_report_pointer_update",
+      "actionTier": "internal_report_pointer_update",
+      "ownerSystem": "paperclip_hermes",
+      "targetRecordId": "recursive-agent-improvement-loop",
+      "targetField": "metadata.autoagent.latest_production_report_pointer",
+      "idempotencyKey": "paperclip-report-pointer:recursive-agent-improvement-loop:2026-05-30",
+      "proofPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/report-pointer-production-canary-2026-05-30/production-context/paperclip-issue-metadata-snapshot.json",
+      "rollbackPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/report-pointer-production-canary-2026-05-30/production-context/rollback-snapshot.json",
+      "dryRun": false,
+      "canaryMode": true,
+      "liveMutationEnabled": true
+    }
+  },
+  "validation": {
+    "decision": "live_allowed",
+    "actionEntry": {
+      "actionType": "paperclip_internal_report_pointer_update",
+      "actionTier": "internal_report_pointer_update",
+      "ownerSystem": "paperclip_hermes",
+      "proofSource": "paperclip_issue_metadata_snapshot",
+      "rollbackStrategy": "restore_previous_report_pointer_snapshot",
+      "liveMutationAllowed": true,
+      "mutationSurface": "paperclip_hermes.internal_report_pointer",
+      "allowedTargetFields": [
+        "metadata.autoagent.latest_production_report_pointer"
+      ],
+      "requiresPriorLiveActionProof": "paperclip_hermes_internal_metadata_update",
+      "deterministicProofRequirements": [
+        "first live metadata lane execution proof exists and committed",
+        "paperclip issue metadata snapshot exists",
+        "report pointer value names repo-local report and summary paths only",
+        "rollback snapshot includes previous report pointer value",
+        "idempotency key is unique for the report pointer target",
+        "audit event matches action, owner, target, proof, rollback, dry-run, canary, and live flags"
+      ],
+      "stopConditions": [
+        "first live metadata lane execution proof is missing or rolled back",
+        "report pointer proof path is missing",
+        "report pointer value leaves repo-local output paths",
+        "duplicate idempotency key is detected",
+        "rollback monitor or stop condition requests rollback"
+      ],
+      "auditEventSchema": "blueprint/autoagent-production-action-audit/v1",
+      "defaultDryRun": true,
+      "requiresCanaryMode": true,
+      "canaryLimit": {
+        "maxActions": 1,
+        "window": "per_run"
+      },
+      "blockedReason": null
+    },
+    "reasons": [],
+    "blockedActionTypes": [],
+    "checks": {
+      "registeredActionType": true,
+      "ownerSystemNamed": true,
+      "proofSourceNamed": true,
+      "proofPathExists": true,
+      "idempotencyKeyPresent": true,
+      "idempotencyKeyIsUnique": true,
+      "rollbackStrategyNamed": true,
+      "rollbackPathExists": true,
+      "dryRunModeExplicit": true,
+      "canaryModeExplicit": true,
+      "canaryLimitPresent": true,
+      "targetRecordNamed": true,
+      "targetFieldAllowed": true,
+      "priorLiveActionProofSatisfied": true,
+      "auditEventSchemaPresent": true,
+      "auditEventMatchesRequest": true,
+      "liveMutationFlagExplicit": true,
+      "actionTypeAllowed": true
+    }
+  }
+}

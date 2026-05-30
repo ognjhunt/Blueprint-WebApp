@@ -22,7 +22,9 @@ async function writeFixture() {
   const skillsRoot = path.join(root, "skills");
   const pluginRoot = path.join(root, "plugins");
   await fs.mkdir(path.join(skillsRoot, "platform-doctrine"), { recursive: true });
-  await fs.mkdir(path.join(skillsRoot, "browser"), { recursive: true });
+  await fs.mkdir(path.join(pluginRoot, "browser", "bundle", "skills", "control-in-app-browser"), {
+    recursive: true,
+  });
   await fs.mkdir(path.join(pluginRoot, "stripe", "bundle", "skills", "stripe-best-practices"), {
     recursive: true,
   });
@@ -30,7 +32,10 @@ async function writeFixture() {
     recursive: true,
   });
   await fs.writeFile(path.join(skillsRoot, "platform-doctrine", "SKILL.md"), "# Platform doctrine\n");
-  await fs.writeFile(path.join(skillsRoot, "browser", "SKILL.md"), "# Browser\n");
+  await fs.writeFile(
+    path.join(pluginRoot, "browser", "bundle", "skills", "control-in-app-browser", "SKILL.md"),
+    "# Control in-app browser\n",
+  );
   await fs.writeFile(
     path.join(pluginRoot, "stripe", "bundle", "skills", "stripe-best-practices", "SKILL.md"),
     "# Stripe best practices\n",
@@ -81,6 +86,10 @@ async function writeFixture() {
       "    agent: growth-lead",
       "    enabled: false",
       "    triggers: []",
+      "  status-paused-sweep:",
+      "    agent: growth-lead",
+      "    status: paused",
+      "    triggers: []",
       "",
     ].join("\n"),
   );
@@ -96,11 +105,11 @@ describe("Paperclip control-room inventory", () => {
     expect(inventory.adapterCounts).toEqual({ codex_local: 1, hermes_local: 1 });
     expect(inventory.totalAgentBudgetCents).toBe(4000);
     expect(inventory.codexGoalEnabledAgents).toEqual(["webapp-codex"]);
-    expect(inventory.routineStatusCounts).toEqual({ active: 1, paused: 1 });
+    expect(inventory.routineStatusCounts).toEqual({ active: 1, paused: 2 });
     expect(inventory.routineConcurrencyCounts).toMatchObject({ coalesce_if_active: 1 });
     expect(inventory.routineCatchUpCounts).toMatchObject({ skip_missed: 1 });
     expect(inventory.readinessClassCounts).toEqual({
-      "blocked-by-env": 1,
+      "blocked-by-env": 2,
       "needs-human": 1,
       "recommended-missing": 0,
       "required-ready": 1,
@@ -108,6 +117,10 @@ describe("Paperclip control-room inventory", () => {
     expect(inventory.routineReadinessRows).toEqual([
       expect.objectContaining({
         slug: "paused-sweep",
+        readinessClass: "blocked-by-env",
+      }),
+      expect.objectContaining({
+        slug: "status-paused-sweep",
         readinessClass: "blocked-by-env",
       }),
       expect.objectContaining({
@@ -119,7 +132,7 @@ describe("Paperclip control-room inventory", () => {
     expect(inventory.desiredSkillAliasMappings).toMatchObject([
       {
         skill: "browse",
-        resolvedAs: "browser",
+        resolvedAs: "control-in-app-browser",
         source: "local-skill-alias",
       },
       {
@@ -147,13 +160,14 @@ describe("Paperclip control-room inventory", () => {
     const markdown = renderControlRoomInventoryMarkdown(inventory);
     expect(markdown).toContain("Declared monthly agent budget: $40.00");
     expect(markdown).toContain("## Operator Worker Readiness");
-    expect(markdown).toContain("Readiness classes: blocked-by-env: 1, needs-human: 1, recommended-missing: 0, required-ready: 1");
+    expect(markdown).toContain("Readiness classes: blocked-by-env: 2, needs-human: 1, recommended-missing: 0, required-ready: 1");
     expect(markdown).toContain("| paused-sweep | growth-lead | blocked-by-env | paused or disabled in local Paperclip config");
+    expect(markdown).toContain("| status-paused-sweep | growth-lead | blocked-by-env | paused or disabled in local Paperclip config");
     expect(markdown).toContain("- missing-skill: needs-human");
     expect(markdown).toContain("| webapp-codex | codex_local | /tmp/webapp | $30.00 | yes | 6 |");
     expect(markdown).toContain("coalesce_if_active");
     expect(markdown).toContain("No ambiguous desiredSkill candidate gaps.");
-    expect(markdown).toContain("| browse | browser | local-skill-alias |");
+    expect(markdown).toContain("| browse | control-in-app-browser | local-skill-alias |");
     expect(markdown).toContain("| product-marketing | company-library |");
     expect(markdown).toContain("| missing-skill | 1 | webapp-codex |");
   });
@@ -177,6 +191,17 @@ describe("Paperclip control-room inventory", () => {
     ]);
     expect(inventory.desiredSkillCandidateGaps).toEqual([]);
     expect(inventory.trueMissingDesiredSkills).toEqual([]);
+    expect(inventory.routineCount).toBe(62);
+    expect(inventory.routineStatusCounts).toEqual({ active: 36, paused: 26 });
+    expect(inventory.desiredSkillAliasMappings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          skill: "browse",
+          resolvedAs: "control-in-app-browser",
+          source: "local-skill-alias",
+        }),
+      ]),
+    );
     expect(inventory.intentionalDesiredSkillDeferrals.map((entry) => entry.skill)).toContain(
       "product-marketing",
     );

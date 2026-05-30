@@ -1,0 +1,16 @@
+{
+  "schema": "blueprint/autoagent-production-canary-mutation/v1",
+  "generated_at": "2026-05-30T15:28:58.589Z",
+  "action_type": "paperclip_internal_report_pointer_update",
+  "target_system": "paperclip_hermes",
+  "target_record_id": "recursive-agent-improvement-loop",
+  "target_field": "metadata.autoagent.latest_production_report_pointer",
+  "mutation_surface": "paperclip_hermes.internal_report_pointer",
+  "proposed_value": {
+    "report_path": "output/autoagent/recursive-improvement/report-pointer-production-canary-2026-05-30/report.md",
+    "summary_path": "output/autoagent/recursive-improvement/report-pointer-production-canary-2026-05-30/summary.json",
+    "report_kind": "recursive_improvement_report_pointer_canary"
+  },
+  "proof_path": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/report-pointer-production-canary-2026-05-30/production-context/paperclip-issue-metadata-snapshot.json",
+  "rollback_snapshot_path": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/recursive-improvement/report-pointer-production-canary-2026-05-30/production-context/rollback-snapshot.json"
+}

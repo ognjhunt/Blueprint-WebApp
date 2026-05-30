@@ -150,7 +150,7 @@ If live Paperclip is unavailable, the closeout should record the health/read com
 **Purpose:** Runs the continuous managerial loop. Watches issue state, routine health, queue changes, and agent activity; decides what finished, what stalled, and what needs a next action; routes or closes work in Paperclip; and turns missing policy or missing evidence into explicit blockers instead of vague escalation.
 
 **Triggers:**
-- `*/5 * * * *` — Continuous manager loop
+- `*/30 8-18 * * 1-5` — Weekday business-hours manager loop (America/New_York in the Paperclip package)
 - Event wakeups from issue create/update, routine activity, queue intake, and agent failures via the Blueprint automation plugin
 
 **Inputs:** `blueprint-manager-state`, Blueprint automation recent events, active issues, routine health, queue sync state, and repo/plugin evidence.

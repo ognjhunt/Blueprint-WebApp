@@ -1,0 +1,440 @@
+{
+  "schema": "blueprint/autonomous-org-readiness-audit/v1",
+  "generated_at": "2026-05-30T16:14:18Z",
+  "cwd": "/Users/nijelhunt_1/workspace/Blueprint-WebApp",
+  "final_status": "blocked_owner_system_proof_missing",
+  "completion_refused": true,
+  "operational_launch_ready": false,
+  "public_launch_ready_posture": "Public Launch Ready remains separate from Operational Launch Ready. Public surfaces may stay polished, but specific proof-bound claims still need owner-system evidence or qualification.",
+  "hard_constraints_observed": [
+    "Started with git status --short --branch in Blueprint-WebApp, paperclip, BlueprintCapture, and BlueprintCapturePipeline.",
+    "No live sends, payments, providers, rights/legal changes, city launch, hosted-session fulfillment, Notion writes, or Firestore export were performed.",
+    "Completion was not inferred from tests alone.",
+    "Public Launch Ready and Operational Launch Ready were kept separate."
+  ],
+  "earliest_hard_stop": {
+    "blocker_id": "owner-proof-missing.final-autonomous-org-readiness",
+    "blocker": "Blueprint does not yet have enough owner-system proof to authorize broad autonomous-org completion. Missing proof spans live KPI sources, claims guard cleanup, Paperclip/Hermes runtime health, Notion Manager durability, hosted-session runtime starts, Stripe payments and payouts, rights/privacy/legal clearance, city-launch sends/replies, Capture real-device release proof, and Pipeline/manual marketplace evidence.",
+    "owner": "blueprint-chief-of-staff coordinating analytics-agent, paperclip-runtime-owner, stripe-finance-owner, rights-provenance-agent, city-launch-agent, Capture owner, and Pipeline owner",
+    "retry_condition": "Rerun this audit only after the listed owner systems produce fresh proof artifacts and the deterministic gates that currently fail or hold are green without relying on local fixtures alone.",
+    "next_action": "Open owner-proof blocker packets or follow-up goals for the blocked live systems; do not broaden production autonomy beyond the current support_triage policy lane."
+  },
+  "requirement_matrix_source": [
+    "README.md",
+    "PLATFORM_CONTEXT.md",
+    "WORLD_MODEL_STRATEGY_CONTEXT.md",
+    "AUTONOMOUS_ORG.md",
+    "DEPLOYMENT.md",
+    "docs/architecture/source-of-truth-map.md",
+    "docs/architecture/command-safety-matrix.md",
+    "docs/architecture/public-display-ready-claims-matrix.md",
+    "docs/architecture/ai-onboarding-map.md",
+    "docs/ai-tooling-adoption-implementation-2026-04-07.md",
+    "docs/ai-skills-governance-2026-04-07.md",
+    "docs/autonomous-loop-evidence-checklist-2026-05-03.md",
+    "docs/architecture/autoagent-autoresearch-operating-policy.md",
+    "docs/architecture/autonomous-kpi-live-source-contract.md",
+    "server/agents/autoagent-production-action-registry.ts",
+    "BlueprintCapture README, platform/world context, raw contract, and release validators",
+    "BlueprintCapturePipeline README, READINESS_MATRIX, same-capture lineage, and launch gate validators",
+    "Paperclip AGENTS, GOAL, product/spec docs, and live health surface",
+    "Notion read-only visibility surfaces"
+  ],
+  "worktree_baseline": [
+    {
+      "repo": "Blueprint-WebApp",
+      "path": "/Users/nijelhunt_1/workspace/Blueprint-WebApp",
+      "branch": "main...origin/main",
+      "dirty": true,
+      "status_summary": "Tracked and untracked WebApp, AutoAgent, Paperclip, KPI, claims, Firestore, docs, and output changes already present; new readiness artifacts were written under output/autonomous-org/readiness/latest."
+    },
+    {
+      "repo": "paperclip",
+      "path": "/Users/nijelhunt_1/workspace/paperclip",
+      "branch": "master...origin/master",
+      "dirty": true,
+      "status_summary": "Many adapter, server, UI, and test changes plus untracked package-lock/test files; no changes were made by this audit."
+    },
+    {
+      "repo": "BlueprintCapture",
+      "path": "/Users/nijelhunt_1/workspace/BlueprintCapture",
+      "branch": "main...origin/main",
+      "dirty": true,
+      "status_summary": "Stripe, Android XR, public-copy, launch-readiness docs/scripts/tests are dirty or untracked; no changes were made by this audit."
+    },
+    {
+      "repo": "BlueprintCapturePipeline",
+      "path": "/Users/nijelhunt_1/workspace/BlueprintCapturePipeline",
+      "branch": "codex/site-swm-grounding",
+      "dirty": true,
+      "status_summary": "Same-capture lineage, site-reference, modality, orchestrator, retrieval, and readiness changes are dirty or untracked; no changes were made by this audit."
+    }
+  ],
+  "deterministic_gates": [
+    {
+      "gate": "Paperclip control-room inventory",
+      "command": "npm run paperclip:control-room:inventory",
+      "cwd": "/Users/nijelhunt_1/workspace/Blueprint-WebApp",
+      "exit_code": 0,
+      "result": "partial",
+      "evidence": "Agents=46, adapters codex_local=10 hermes_local=36, routines=62, active=36, paused=26, missing desiredSkills=0, readiness required-ready=36 blocked-by-env=26.",
+      "owner_proof_effect": "Local inventory passes, but blocked-by-env lanes remain and this does not prove live Paperclip/Hermes runtime health."
+    },
+    {
+      "gate": "Paperclip agent kit validation",
+      "command": "scripts/paperclip/validate-agent-kits.sh",
+      "cwd": "/Users/nijelhunt_1/workspace/Blueprint-WebApp",
+      "exit_code": 0,
+      "result": "complete",
+      "evidence": "Agent kit validation passed.",
+      "owner_proof_effect": "Local kit contracts are valid."
+    },
+    {
+      "gate": "Paperclip live health",
+      "command": "curl -fsS --max-time 5 http://localhost:3100/api/health",
+      "cwd": "/Users/nijelhunt_1/workspace/paperclip",
+      "exit_code": 7,
+      "result": "blocked",
+      "evidence": "Could not connect to localhost:3100.",
+      "owner_proof_effect": "Live Paperclip/Hermes runtime health is unproven in this shell."
+    },
+    {
+      "gate": "Agent cost cache report",
+      "command": "npm run agent:cost-cache-report",
+      "cwd": "/Users/nijelhunt_1/workspace/Blueprint-WebApp",
+      "exit_code": 0,
+      "result": "partial",
+      "evidence": "Scanned 4 fixture runs from server/tests/fixtures/agent-cost-cache-runs.json; total prompt tokens 5100, cached 1180, cost $0.053047; waste signals low_cache_high_prompt=2, no_change_completed=1, duplicate_suppressed=1.",
+      "owner_proof_effect": "Cost reporting works against local fixture fallback, not live Firestore."
+    },
+    {
+      "gate": "KPI source contracts",
+      "command": "npm run autonomy:kpi-source-status -- --out-dir output/autonomous-org/readiness/latest/kpi-source-status",
+      "cwd": "/Users/nijelhunt_1/workspace/Blueprint-WebApp",
+      "exit_code": 0,
+      "result": "blocked",
+      "evidence": "4 sourced rows and 4 Source needed rows across 8 KPI rows.",
+      "owner_proof_effect": "Hosted starts, sends/replies/calls, CI failures, and revenue/payments remain blocked on live owner sources."
+    },
+    {
+      "gate": "Claims guard",
+      "command": "npm run claims:guard -- --output output/autonomous-org/readiness/latest/claims-guard",
+      "cwd": "/Users/nijelhunt_1/workspace/Blueprint-WebApp",
+      "exit_code": 1,
+      "result": "blocked",
+      "evidence": "421 files scanned; 29 findings: rights_cleared_claim=12, payment_or_payout_claim=11, unsupported_hosted_session_proof=5, provider_execution_claim=1.",
+      "owner_proof_effect": "Proof-sensitive public/knowledge/output claims still need cleanup or owner evidence."
+    },
+    {
+      "gate": "AutoAgent sample run",
+      "command": "npm run autoagent:run -- --sample 3",
+      "cwd": "/Users/nijelhunt_1/workspace/Blueprint-WebApp",
+      "exit_code": 0,
+      "result": "shadow_only",
+      "evidence": "Offline seed export; 11 cases passed, 0 failed, negative controls blocked 16/16.",
+      "owner_proof_effect": "Offline AutoAgent truth surface is healthy but not live proof."
+    },
+    {
+      "gate": "AutoAgent recursive improvement",
+      "command": "npm run autoagent:recursive-improve -- --dry-run --output-dir output/autonomous-org/readiness/latest/autoagent-recursive-improvement",
+      "cwd": "/Users/nijelhunt_1/workspace/Blueprint-WebApp",
+      "exit_code": 0,
+      "result": "human_policy_gated",
+      "evidence": "status=promotion_held, selected_failure_family=human_gate_or_reply_durability_blocker, promotion_decision=hold, canary_decision=not_run_promotion_hold, rollback_decision=not_run, live_mutation_attempted=false.",
+      "owner_proof_effect": "AutoAgent correctly refuses promotion outside the approved lane."
+    },
+    {
+      "gate": "WebApp typecheck",
+      "command": "npm run check",
+      "cwd": "/Users/nijelhunt_1/workspace/Blueprint-WebApp",
+      "exit_code": 0,
+      "result": "complete",
+      "evidence": "Typecheck completed with no reported errors.",
+      "owner_proof_effect": "Build-time code health passed; this is not operational proof."
+    },
+    {
+      "gate": "Capture launch readiness tests",
+      "command": "python3 scripts/validate_launch_readiness_tests.py",
+      "cwd": "/Users/nijelhunt_1/workspace/BlueprintCapture",
+      "exit_code": 0,
+      "result": "complete",
+      "evidence": "23 tests OK.",
+      "owner_proof_effect": "Local readiness validator tests pass."
+    },
+    {
+      "gate": "Capture Android XR no-hardware packet tests",
+      "command": "python3 scripts/android_xr_hardware_packet_validator_tests.py",
+      "cwd": "/Users/nijelhunt_1/workspace/BlueprintCapture",
+      "exit_code": 0,
+      "result": "complete",
+      "evidence": "7 tests OK.",
+      "owner_proof_effect": "No-hardware packet validation passes without claiming hardware proof."
+    },
+    {
+      "gate": "Capture iOS external alpha config",
+      "command": "./scripts/archive_external_alpha.sh --validate-config-only",
+      "cwd": "/Users/nijelhunt_1/workspace/BlueprintCapture",
+      "exit_code": 1,
+      "result": "blocked",
+      "evidence": "Stage release_config_blocked; next input is to set BLUEPRINT_PAYOUT_PROVIDER in BlueprintCapture.release.xcconfig.",
+      "owner_proof_effect": "External iOS alpha/release proof is blocked by owner config."
+    },
+    {
+      "gate": "Capture Android external alpha config",
+      "command": "./scripts/android_alpha_readiness.sh --validate-config-only",
+      "cwd": "/Users/nijelhunt_1/workspace/BlueprintCapture",
+      "exit_code": 1,
+      "result": "blocked",
+      "evidence": "Stage android_release_config_blocked; BLUEPRINT_BACKEND_BASE_URL must be set for Android external alpha builds.",
+      "owner_proof_effect": "Android remains internal-only until backend config, unit tests, release build, device smoke, and App Distribution evidence exist."
+    },
+    {
+      "gate": "Pipeline lineage and launch tests",
+      "command": "pytest tests/test_same_capture_lineage.py tests/test_site_reference_database_local_fixture.py tests/test_webapp_sync.py tests/test_launch_bundle.py tests/test_privacy_processing.py -q",
+      "cwd": "/Users/nijelhunt_1/workspace/BlueprintCapturePipeline",
+      "exit_code": 0,
+      "result": "complete",
+      "evidence": "37 passed.",
+      "owner_proof_effect": "Repo-local lineage, site reference, WebApp sync, launch bundle, and privacy tests pass."
+    },
+    {
+      "gate": "Pipeline paid marketplace launch gate",
+      "command": "python3 scripts/run_paid_marketplace_launch_gate.py --json-out /Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autonomous-org/readiness/latest/pipeline-paid-marketplace-launch-gate.json --markdown-out /Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autonomous-org/readiness/latest/pipeline-paid-marketplace-launch-gate.md",
+      "cwd": "/Users/nijelhunt_1/workspace/BlueprintCapturePipeline",
+      "exit_code": 0,
+      "result": "partial",
+      "evidence": "overall_status=automated_contracts_passed_manual_ops_required.",
+      "owner_proof_effect": "Automated repository contracts pass, but live Stripe, payout, identity/KYC, background check, real-device capture, buyer artifact access, and finance-owner evidence remain open."
+    },
+    {
+      "gate": "Notion visibility read-only check",
+      "command": "Notion connector search/fetch only",
+      "cwd": "connector",
+      "exit_code": 0,
+      "result": "partial",
+      "evidence": "KPI Dashboard still shows multiple Source needed rows; Notion Manager Agent latest run status is Failed with error summary 'Process lost -- server may have restarted'.",
+      "owner_proof_effect": "Notion surfaces are visible but do not prove a durable Notion Manager loop."
+    }
+  ],
+  "lanes": [
+    {
+      "lane": "AutoAgent autonomy loop",
+      "classification": "human_policy_gated",
+      "owner": "autoagent-owner / paperclip-runtime-owner",
+      "proof_paths": [
+        "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autonomous-org/readiness/latest/autoagent-recursive-improvement/summary.json",
+        "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autonomous-org/readiness/latest/autoagent-recursive-improvement/report.md",
+        "/Users/nijelhunt_1/workspace/Blueprint-WebApp/server/agents/autoagent-production-action-registry.ts"
+      ],
+      "owner_proof": "Offline eval and negative controls pass; recursive loop holds promotion and avoids live mutation.",
+      "blocker": "Selected failure family human_gate_or_reply_durability_blocker is human_policy_gated; waitlist_triage and preview_diagnosis remain shadow-only.",
+      "retry_condition": "Promotion gate has required offline, closeout, clean shadow, rollback, and policy evidence for the approved lane.",
+      "next_action": "Collect required promotion evidence; do not expand beyond support_triage.",
+      "residual_risk": "Broad autonomy is not authorized."
+    },
+    {
+      "lane": "Paperclip and Hermes runtime",
+      "classification": "blocked",
+      "owner": "paperclip-runtime-owner",
+      "proof_paths": [
+        "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autonomous-org/readiness/latest/report.md"
+      ],
+      "owner_proof": "Control-room inventory and agent-kit validation pass locally.",
+      "blocker": "localhost:3100 health check failed with curl exit 7; Notion Manager latest run failed; Paperclip repo is dirty.",
+      "retry_condition": "Live Paperclip/Hermes health endpoint responds and current runs/issues show durable watcher ownership.",
+      "next_action": "Restore or point at the live Paperclip runtime, then rerun health and issue/watch visibility checks.",
+      "residual_risk": "Autonomous dispatch and runtime state cannot be trusted from local inventory alone."
+    },
+    {
+      "lane": "KPI and metrics source contracts",
+      "classification": "blocked",
+      "owner": "analytics-agent with Firestore, Stripe, GitHub, Paperclip, hosted-session owners",
+      "proof_paths": [
+        "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autonomous-org/readiness/latest/kpi-source-status/kpi-source-status.json",
+        "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autonomous-org/readiness/latest/kpi-source-status/kpi-source-status.md"
+      ],
+      "owner_proof": "4 of 8 KPI rows are sourced from repo-local snapshot contracts.",
+      "blocker": "Hosted starts, sends/replies/calls, CI failures, and revenue/payments are Source needed.",
+      "retry_condition": "Fresh owner-system evidence exists for hostedSessions, operatingGraph hosted starts, humanReplyEvents/calls, GitHub/Paperclip CI mapping, and Stripe checkout/webhook/payment events.",
+      "next_action": "Attach safe read artifacts or live-source snapshots through approved read-only contracts.",
+      "residual_risk": "Metrics and Notion KPI rows can drift or overclaim if values are published without source proof."
+    },
+    {
+      "lane": "Claims and public/marketing proof boundaries",
+      "classification": "blocked",
+      "owner": "public-copy-owner / rights-provenance-agent / stripe-finance-owner / hosted-session-owner",
+      "proof_paths": [
+        "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autonomous-org/readiness/latest/claims-guard/claims-guard-report.json",
+        "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autonomous-org/readiness/latest/claims-guard/claims-guard-report.md"
+      ],
+      "owner_proof": "Claims guard scanned 421 files.",
+      "blocker": "29 proof-sensitive findings remain across rights-cleared, payment/payout, hosted-session, and provider-execution claims.",
+      "retry_condition": "Claims are either backed by owner proof or qualified so they do not invent unsupported facts.",
+      "next_action": "Triage findings by current public route vs knowledge/output artifact, then clean or attach proof.",
+      "residual_risk": "Public Launch Ready remains allowed, but unsupported Operational Launch Ready claims are not allowed."
+    },
+    {
+      "lane": "Hosted-session proof",
+      "classification": "blocked",
+      "owner": "hosted-session-owner / WebApp runtime owner",
+      "proof_paths": [
+        "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autonomous-org/readiness/latest/kpi-source-status/kpi-source-status.json",
+        "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autonomous-org/readiness/latest/claims-guard/claims-guard-report.json",
+        "/Users/nijelhunt_1/workspace/Blueprint-WebApp/graphify-out/GRAPH_REPORT.md"
+      ],
+      "owner_proof": "Hosted-session code and graph hotspots exist.",
+      "blocker": "No fresh hostedSessions runtime/session evidence and no correlated hosted_review_started operatingGraph event were proven.",
+      "retry_condition": "A real hosted session has fresh runtime evidence, entitlement/access proof, and operatingGraph correlation.",
+      "next_action": "Run only approved read-only hosted-session proof collection or file a blocker packet.",
+      "residual_risk": "Hosted-review copy or KPI starts would be proof drift without runtime evidence."
+    },
+    {
+      "lane": "Payments, entitlements, payouts, and finance ops",
+      "classification": "blocked",
+      "owner": "stripe-finance-owner",
+      "proof_paths": [
+        "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autonomous-org/readiness/latest/pipeline-paid-marketplace-launch-gate.json",
+        "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autonomous-org/readiness/latest/pipeline-paid-marketplace-launch-gate.md"
+      ],
+      "owner_proof": "Repo contract tests for marketplace fulfillment and payout-state transitions are included in the paid-marketplace gate.",
+      "blocker": "Live Stripe buyer payment, Stripe Connect payout settlement/readiness, payout exception monitor, finance owner, and buyer artifact access remain manual/live evidence required.",
+      "retry_condition": "Live Stripe and finance-owner artifacts are attached and match the WebApp/Capture/Pipeline ledgers.",
+      "next_action": "Collect live read-only Stripe/account/payment proof under an explicit action contract; no payments or payouts in this audit.",
+      "residual_risk": "Money movement and post-purchase access are not operationally proven."
+    },
+    {
+      "lane": "Rights, privacy, legal, KYC, and background checks",
+      "classification": "human_policy_gated",
+      "owner": "rights-provenance-agent / legal-owner / finance-owner",
+      "proof_paths": [
+        "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autonomous-org/readiness/latest/claims-guard/claims-guard-report.json",
+        "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autonomous-org/readiness/latest/pipeline-paid-marketplace-launch-gate.json"
+      ],
+      "owner_proof": "Privacy and launch-bundle tests pass in Pipeline, but live/legal owner records were not changed or verified.",
+      "blocker": "Rights-cleared claim findings remain; KYC/background provider decisions remain manual decision required.",
+      "retry_condition": "Owner-approved rights/privacy clearance records and provider decisions are attached.",
+      "next_action": "Prepare blocker packet for legal/finance review; do not auto-resolve legal or KYC decisions.",
+      "residual_risk": "Automated tests cannot substitute for counsel/provider decision proof."
+    },
+    {
+      "lane": "City launch and GTM execution",
+      "classification": "human_policy_gated",
+      "owner": "city-launch-agent / demand-intel-owner / Paperclip runtime owner",
+      "proof_paths": [
+        "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks",
+        "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autonomous-org/readiness/latest/kpi-source-status/kpi-source-status.json"
+      ],
+      "owner_proof": "City playbooks, ledgers, and harness code exist.",
+      "blocker": "No live send/reply/call owner proof was collected; KPI sends/replies/calls remains Source needed.",
+      "retry_condition": "Recipient-backed sends, replies, calls, and city state transitions are proven by owner systems.",
+      "next_action": "Run a city-specific approved read-only status audit or execution contract; do not send from this readiness audit.",
+      "residual_risk": "A city can be artifact-complete but motion-empty."
+    },
+    {
+      "lane": "Capture release and real-device proof",
+      "classification": "blocked",
+      "owner": "Capture owner",
+      "proof_paths": [
+        "/Users/nijelhunt_1/workspace/BlueprintCapture/scripts/validate_launch_readiness_tests.py",
+        "/Users/nijelhunt_1/workspace/BlueprintCapture/scripts/android_xr_hardware_packet_validator_tests.py"
+      ],
+      "owner_proof": "23 launch-readiness tests and 7 Android XR packet tests passed locally.",
+      "blocker": "iOS external alpha config is missing BLUEPRINT_PAYOUT_PROVIDER; Android external alpha config is missing BLUEPRINT_BACKEND_BASE_URL; real-device capture flows remain manual evidence required.",
+      "retry_condition": "Release config is set and real-device discovery, reservation, upload, capture_job_id continuity, and distribution smoke proof are attached.",
+      "next_action": "Capture owner sets config and runs external alpha/device evidence workflow.",
+      "residual_risk": "Capture can be contract-ready while not externally release-ready."
+    },
+    {
+      "lane": "Pipeline lineage, package, and marketplace launch gate",
+      "classification": "partial",
+      "owner": "Pipeline owner",
+      "proof_paths": [
+        "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autonomous-org/readiness/latest/pipeline-paid-marketplace-launch-gate.json",
+        "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autonomous-org/readiness/latest/pipeline-paid-marketplace-launch-gate.md"
+      ],
+      "owner_proof": "Targeted Pipeline tests passed and paid marketplace gate returned automated_contracts_passed_manual_ops_required.",
+      "blocker": "Manual/live evidence remains for real devices, buyer payment, payout, identity/KYC, background checks, finance ownership, and buyer artifact access.",
+      "retry_condition": "Manual/live evidence IDs listed by the launch gate are closed with owner artifacts.",
+      "next_action": "Attach real-device and marketplace owner evidence; do not treat automated contracts as live launch proof.",
+      "residual_risk": "Automated package proof does not prove paid marketplace operations."
+    },
+    {
+      "lane": "Firebase/Firestore docs, rules, and exports",
+      "classification": "partial",
+      "owner": "Firestore/runtime owner",
+      "proof_paths": [
+        "/Users/nijelhunt_1/workspace/Blueprint-WebApp/firestore.rules",
+        "/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/architecture/source-of-truth-map.md",
+        "/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/architecture/autonomous-kpi-live-source-contract.md"
+      ],
+      "owner_proof": "Docs and rules describe owner-system boundaries; no Firestore export was performed.",
+      "blocker": "Live Firestore evidence for KPI, hostedSessions, human replies, and runtime state was not collected under an explicit action contract.",
+      "retry_condition": "Approved read-only Firestore export or owner-system snapshot is attached.",
+      "next_action": "Request explicit read/export contract for needed collections if live proof is required.",
+      "residual_risk": "Repo-local fixtures can validate contracts but not current production state."
+    },
+    {
+      "lane": "Notion visibility surfaces",
+      "classification": "partial",
+      "owner": "Notion Manager owner",
+      "proof_paths": [
+        "Notion KPI Dashboard page 31f80154-161d-8113-a5c2-e8ed412bd47f",
+        "Notion Manager Agent page 33d80154-161d-817e-8adf-e3337ff24125",
+        "Notion latest failed run 33d80154-161d-81b6-b713-d6c319910b42"
+      ],
+      "owner_proof": "Read-only Notion pages are visible.",
+      "blocker": "KPI Dashboard still contains Source needed rows and Notion Manager latest run is Failed with 'Process lost -- server may have restarted'.",
+      "retry_condition": "Notion Manager run succeeds and mirrors repo-local KPI/readiness artifacts without Source needed drift.",
+      "next_action": "Fix Notion Manager durability after Paperclip runtime health is proven; no Notion writes in this audit.",
+      "residual_risk": "Visibility can be stale or incomplete."
+    },
+    {
+      "lane": "Production mutation registry, canary, and rollback",
+      "classification": "partial",
+      "owner": "autoagent-owner / production-runtime-owner",
+      "proof_paths": [
+        "/Users/nijelhunt_1/workspace/Blueprint-WebApp/server/agents/autoagent-production-action-registry.ts",
+        "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autoagent/shadow-comparison/latest/support-triage-shadow-records.json",
+        "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autonomous-org/readiness/latest/autoagent-recursive-improvement/summary.json"
+      ],
+      "owner_proof": "Registry remains fail-closed; recursive run attempted no live mutation and held promotion.",
+      "blocker": "Broad production mutation remains blocked; only the prior support_triage/paperclip_hermes_internal_metadata_update path has clean-shadow/canary precedent, and current Paperclip runtime health is unproven.",
+      "retry_condition": "Canonical canary, rollback, runtime, and owner evidence exists for each proposed action type before expansion.",
+      "next_action": "Keep broad live mutations blocked; only evaluate central-policy-approved low-risk lanes.",
+      "residual_risk": "Expanding action types without live runtime proof could create unsupported production authority."
+    }
+  ],
+  "blocked_live_systems": [
+    "Paperclip/Hermes live runtime health",
+    "Notion Manager durable run loop",
+    "Firestore hostedSessions runtime/session evidence",
+    "Firestore humanReplyEvents and call ledger evidence",
+    "GitHub workflow polling and Paperclip managed CI issue/source mapping snapshots",
+    "Stripe checkout, webhook, payment, connected account, and payout evidence",
+    "Buyer artifact access after purchase",
+    "Rights/privacy/legal clearance records",
+    "KYC/background-check provider decision",
+    "City-launch sends, replies, calls, and response routing evidence",
+    "Capture iOS external alpha config and real-device proof",
+    "Capture Android external alpha config, Android toolchain proof, and real-device proof",
+    "Pipeline/manual paid-marketplace live evidence"
+  ],
+  "proof_paths": [
+    "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autonomous-org/readiness/latest/summary.json",
+    "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autonomous-org/readiness/latest/report.md",
+    "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autonomous-org/readiness/latest/kpi-source-status/kpi-source-status.json",
+    "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autonomous-org/readiness/latest/kpi-source-status/kpi-source-status.md",
+    "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autonomous-org/readiness/latest/claims-guard/claims-guard-report.json",
+    "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autonomous-org/readiness/latest/claims-guard/claims-guard-report.md",
+    "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autonomous-org/readiness/latest/autoagent-recursive-improvement/summary.json",
+    "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autonomous-org/readiness/latest/autoagent-recursive-improvement/report.md",
+    "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autonomous-org/readiness/latest/pipeline-paid-marketplace-launch-gate.json",
+    "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/autonomous-org/readiness/latest/pipeline-paid-marketplace-launch-gate.md"
+  ],
+  "residual_risk": [
+    "This audit used local tests, repo artifacts, read-only connector visibility, and safe health checks. It intentionally did not perform live writes or external side effects.",
+    "Several passing gates are contract or fixture evidence, not owner-system proof.",
+    "The worktrees in all four repos are dirty. The dirty state was preserved and may include unrelated user/generated work.",
+    "A future audit could flip some lanes only after owner systems provide current proof; no lane should be promoted from these results alone."
+  ]
+}

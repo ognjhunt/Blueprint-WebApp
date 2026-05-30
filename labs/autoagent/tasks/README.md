@@ -38,3 +38,11 @@ no-change churn, unsupported hosted-session proof, and public-copy proof drift.
 meta Paperclip/Hermes failure families. It evaluates offline promotion
 candidates only; it must not claim live Paperclip, provider, hosted-session,
 payment, rights, city, or launch readiness from fixture success.
+
+Paperclip/Hermes run-failure sweep JSON can also seed fixture candidates through
+the recursive-improvement loop's `--paperclip-failure-sweep` input. The
+ingestion artifact normalizes repeated failures, no-change churn, fake
+progress, unsupported proof, copy/proof drift, retry loops, and blocked-lane
+overreach into local fixture candidates. AI may draft a candidate fixture when
+configured, but deterministic validation, duplicate suppression, negative
+controls, and local evaluator scoring decide whether it enters this task tree.

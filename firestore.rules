@@ -53,6 +53,44 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // KPI/live-source collections are server-owned. Admin SDK routes, not
+    // client Firestore reads, provide any approved operational access.
+    match /action_ledger/{id} {
+      allow read, write: if false;
+    }
+
+    match /hostedSessions/{id} {
+      allow read, write: if false;
+    }
+
+    match /capture_submissions/{id} {
+      allow read, write: if false;
+    }
+
+    match /operatingGraphEvents/{id} {
+      allow read, write: if false;
+    }
+
+    match /operatingGraphState/{id} {
+      allow read, write: if false;
+    }
+
+    match /buyerOutcomes/{id} {
+      allow read, write: if false;
+    }
+
+    match /humanBlockerThreads/{id} {
+      allow read, write: if false;
+    }
+
+    match /humanBlockerDispatches/{id} {
+      allow read, write: if false;
+    }
+
+    match /humanReplyEvents/{id} {
+      allow read, write: if false;
+    }
+
     match /scenes/{id} {
       allow create: if isAuthenticated() && hasValidSceneCreatePayload();
       allow read: if isAuthenticated();

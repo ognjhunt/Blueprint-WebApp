@@ -519,6 +519,7 @@ export async function runAiProductionChangeProposal(
   const validation = evaluateAutoAgentProductionAction(request, {
     cwd,
     usedIdempotencyKeys: options.usedIdempotencyKeys,
+    provenLiveActionTypes: options.contextBundle.proven_live_action_types,
   });
   const contextAllowsAction = options.contextBundle.allowed_live_action_types.includes(
     parsedProposal.proposal.action_type,

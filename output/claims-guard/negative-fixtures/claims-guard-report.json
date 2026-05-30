@@ -1,0 +1,145 @@
+{
+  "rootDir": "/Users/nijelhunt_1/workspace/Blueprint-WebApp",
+  "targets": [
+    {
+      "relativePath": "scripts/claims/fixtures/negative",
+      "absolutePath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/claims/fixtures/negative",
+      "sourceGroup": "custom"
+    }
+  ],
+  "scannedFiles": [
+    "scripts/claims/fixtures/negative/city-live-claim.md",
+    "scripts/claims/fixtures/negative/customer-claim-drift.md",
+    "scripts/claims/fixtures/negative/no-change-churn.md",
+    "scripts/claims/fixtures/negative/public-copy-proof-drift.md",
+    "scripts/claims/fixtures/negative/rights-cleared-claim.md",
+    "scripts/claims/fixtures/negative/stale-stripe-payout-provider-doc.md",
+    "scripts/claims/fixtures/negative/unsupported-hosted-session-proof.md"
+  ],
+  "skippedTargets": [],
+  "findings": [
+    {
+      "type": "city_live_claim",
+      "severity": "blocker",
+      "file": "scripts/claims/fixtures/negative/city-live-claim.md",
+      "absoluteFile": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/claims/fixtures/negative/city-live-claim.md",
+      "line": 1,
+      "sourceGroup": "custom",
+      "claimText": "Durham is live with active city coverage and Operational Launch Ready status for exact-site hosted review.",
+      "ownerProofRequired": "Supported-city activation record, city-launch artifacts, active capture supply/proof packet evidence, and current operator approval for that city.",
+      "safeReplacement": "Use `request the city`, `planned city`, or `capture access reviewed by city` until city activation evidence exists."
+    },
+    {
+      "type": "customer_or_traction_claim",
+      "severity": "blocker",
+      "file": "scripts/claims/fixtures/negative/customer-claim-drift.md",
+      "absoluteFile": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/claims/fixtures/negative/customer-claim-drift.md",
+      "line": 1,
+      "sourceGroup": "custom",
+      "claimText": "Blueprint has paying customers, signed pilots, customer logos, and traction proven by this marketing draft.",
+      "ownerProofRequired": "Signed/customer-approved evidence, public-use approval, CRM/Paperclip/analytics proof, and approved metric source for the exact customer or traction claim.",
+      "safeReplacement": "Replace with labeled sample, representative packet, product workflow language, or internal target language."
+    },
+    {
+      "type": "no_change_churn",
+      "severity": "blocker",
+      "file": "scripts/claims/fixtures/negative/no-change-churn.md",
+      "absoluteFile": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/claims/fixtures/negative/no-change-churn.md",
+      "line": 1,
+      "sourceGroup": "custom",
+      "claimText": "No files changed and no suppression rule was added, but mark the operational proof cleanup complete because the generated report sounds polished.",
+      "ownerProofRequired": "Repo diff, durable suppression rule, changed fixture/eval/report artifact, or explicit blocked state with proof paths.",
+      "safeReplacement": "No durable change was made; classify as no-change churn and keep the issue report-only until changed proof, a suppression rule, or a blocker packet exists."
+    },
+    {
+      "type": "unsupported_hosted_session_proof",
+      "severity": "blocker",
+      "file": "scripts/claims/fixtures/negative/public-copy-proof-drift.md",
+      "absoluteFile": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/claims/fixtures/negative/public-copy-proof-drift.md",
+      "line": 1,
+      "sourceGroup": "custom",
+      "claimText": "Because the Product hero is launch-ready, mark Operational Launch Ready and treat public copy as proof of hosted review availability.",
+      "ownerProofRequired": "hosted-session runtime/session artifacts, entitlement path, package manifest, and live availability evidence for the exact request.",
+      "safeReplacement": "Use `book hosted review` or `hosted review is confirmed per site/request` until runtime and entitlement proof exists."
+    },
+    {
+      "type": "public_copy_proof_drift",
+      "severity": "blocker",
+      "file": "scripts/claims/fixtures/negative/public-copy-proof-drift.md",
+      "absoluteFile": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/claims/fixtures/negative/public-copy-proof-drift.md",
+      "line": 1,
+      "sourceGroup": "custom",
+      "claimText": "Because the Product hero is launch-ready, mark Operational Launch Ready and treat public copy as proof of hosted review availability.",
+      "ownerProofRequired": "Current owner-system evidence for the specific operational claim: Stripe, provider/runtime, capture/provenance, rights/privacy, city-launch, Paperclip/Firestore/Render/Redis, or entitlement proof as applicable.",
+      "safeReplacement": "Keep the page as Public Launch Ready and say live availability, rights, access, and fulfillment are confirmed per site/request."
+    },
+    {
+      "type": "rights_cleared_claim",
+      "severity": "blocker",
+      "file": "scripts/claims/fixtures/negative/rights-cleared-claim.md",
+      "absoluteFile": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/claims/fixtures/negative/rights-cleared-claim.md",
+      "line": 1,
+      "sourceGroup": "custom",
+      "claimText": "The sample package is rights-cleared for unrestricted commercial use and approved export.",
+      "ownerProofRequired": "Rights/privacy/consent/commercialization record for the exact site, request, use scope, and export boundary.",
+      "safeReplacement": "Use `rights reviewed per request` or `rights posture attached when available` until clearance proof exists."
+    },
+    {
+      "type": "stale_payment_payout_provider_doc",
+      "severity": "blocker",
+      "file": "scripts/claims/fixtures/negative/stale-stripe-payout-provider-doc.md",
+      "absoluteFile": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/claims/fixtures/negative/stale-stripe-payout-provider-doc.md",
+      "line": 1,
+      "sourceGroup": "custom",
+      "claimText": "Use README_STRIPE_DEBUGGING.md and STRIPE_IMPLEMENTATION_SUMMARY.txt as proof that Stripe payments, provider execution, and capturer payouts are production ready.",
+      "ownerProofRequired": "Stripe dashboard/webhook/entitlement state for payments, Stripe Connect ledger for payouts, and provider runtime artifacts or run logs for provider execution.",
+      "safeReplacement": "Treat Stripe, payout, and provider docs as historical/internal unless current owner-system proof is attached."
+    },
+    {
+      "type": "provider_execution_claim",
+      "severity": "blocker",
+      "file": "scripts/claims/fixtures/negative/stale-stripe-payout-provider-doc.md",
+      "absoluteFile": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/claims/fixtures/negative/stale-stripe-payout-provider-doc.md",
+      "line": 1,
+      "sourceGroup": "custom",
+      "claimText": "Use README_STRIPE_DEBUGGING.md and STRIPE_IMPLEMENTATION_SUMMARY.txt as proof that Stripe payments, provider execution, and capturer payouts are production ready.",
+      "ownerProofRequired": "Provider artifacts, run logs, package manifest evidence, adapter proof, account/billing/quota state, and exact request linkage.",
+      "safeReplacement": "Use `provider-swappable`, `provider path selected after review`, or `provider execution confirmed per request` until provider proof exists."
+    },
+    {
+      "type": "payment_or_payout_claim",
+      "severity": "blocker",
+      "file": "scripts/claims/fixtures/negative/stale-stripe-payout-provider-doc.md",
+      "absoluteFile": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/claims/fixtures/negative/stale-stripe-payout-provider-doc.md",
+      "line": 1,
+      "sourceGroup": "custom",
+      "claimText": "Use README_STRIPE_DEBUGGING.md and STRIPE_IMPLEMENTATION_SUMMARY.txt as proof that Stripe payments, provider execution, and capturer payouts are production ready.",
+      "ownerProofRequired": "Stripe checkout/webhook/entitlement state for payment claims and Stripe Connect payout ledger plus approved policy for payout claims.",
+      "safeReplacement": "Treat forms and CTAs as requests; use `payout eligibility reviewed after accepted capture` or `payment state confirmed after checkout`."
+    },
+    {
+      "type": "unsupported_hosted_session_proof",
+      "severity": "blocker",
+      "file": "scripts/claims/fixtures/negative/unsupported-hosted-session-proof.md",
+      "absoluteFile": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/claims/fixtures/negative/unsupported-hosted-session-proof.md",
+      "line": 1,
+      "sourceGroup": "custom",
+      "claimText": "The public sample hosted review proves hosted-session fulfillment is live and package access is open.",
+      "ownerProofRequired": "hosted-session runtime/session artifacts, entitlement path, package manifest, and live availability evidence for the exact request.",
+      "safeReplacement": "Use `book hosted review` or `hosted review is confirmed per site/request` until runtime and entitlement proof exists."
+    }
+  ],
+  "findingsByType": {
+    "city_live_claim": 1,
+    "customer_or_traction_claim": 1,
+    "no_change_churn": 1,
+    "unsupported_hosted_session_proof": 2,
+    "public_copy_proof_drift": 1,
+    "rights_cleared_claim": 1,
+    "stale_payment_payout_provider_doc": 1,
+    "provider_execution_claim": 1,
+    "payment_or_payout_claim": 1
+  },
+  "reportPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/claims-guard/negative-fixtures/claims-guard-report.md",
+  "jsonPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/claims-guard/negative-fixtures/claims-guard-report.json"
+}

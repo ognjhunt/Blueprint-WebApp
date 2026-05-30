@@ -277,6 +277,41 @@ Durable action-level execution log for Phase 2 autonomous ops.
 
 **Used by:** Ops Lead, waitlist/inbound/support workflows, post-signup workflows, field ops automation
 
+### `hostedSessions`
+Hosted-session runtime/session records created by [site-world-sessions.ts](/Users/nijelhunt_1/workspace/Blueprint-WebApp/server/routes/site-world-sessions.ts).
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `sessionId` | string | Stable hosted-session id |
+| `status` | string | Session state such as `creating`, `ready`, `running`, `stopped`, or `failed` |
+| `sessionMode` | string | `runtime_only` or `presentation_demo` |
+| `site` | object | Site-world, scene, capture, and package reference metadata |
+| `createdBy` | object | Creating account metadata |
+| `runtimeHandle` | object or null | Runtime base URL, websocket URL, and backend/session handle when present |
+| `presentationRuntime` | object or null | Presentation runtime status, UI URL, instance id, start/expiry/error fields |
+| `latestEpisode` | object or null | Latest runtime episode/task/step evidence when the runtime has produced one |
+| `latestRuntimeFailure` | object or null | Latest runtime or presentation launch failure detail |
+| `createdAt` | timestamp or string | Session creation time |
+| `updatedAt` | timestamp or string | Session update time |
+
+**Used by:** Buyer Success Agent, Ops Lead, Analytics Agent, hosted-session routes
+
+`hostedSessions` is hosted runtime/session evidence. It is not part of the current autonomous-org ops queue set. A KPI row for hosted starts must not be sourced from sample text or an uncorrelated `hosted_review_started` event; it needs a fresh `hostedSessions` record with runtime/session evidence such as `runtimeHandle.runtime_base_url`, `presentationRuntime.status=live`, `presentationRuntime.uiBaseUrl`, or `latestEpisode.episodeId`.
+
+### Company metrics projection collections
+
+These collections support the company metrics and KPI source-status surfaces. They are server/Admin-SDK owned and should be consumed through routes, deterministic scripts, or repo-local snapshots unless a task explicitly authorizes live export.
+
+| Collection | Purpose | KPI/source-status use |
+|---|---|---|
+| `capture_submissions` | Capture lifecycle projection from Capture/Pipeline/WebApp sync | Captures, capture-to-upload, upload-to-package |
+| `operatingGraphEvents` | Append-only lifecycle events across city, package, hosted-review, buyer-outcome, blocker, and next-action stages | Proof packages, hosted-review readiness/start, CI/blocker context when projected |
+| `operatingGraphState` | Latest projected operating graph state by entity | Scoreboard and city/lifecycle closure views |
+| `buyerOutcomes` | Explicit buyer outcome records | Buyer outcome conversion and commercial follow-up truth |
+| `humanBlockerThreads` | Founder/human gate thread records | Human interrupt and blocker visibility |
+| `humanBlockerDispatches` | Dispatch attempts for blocker packets | Blocker recurrence |
+| `humanReplyEvents` | Founder/human reply events correlated to blocker ids or threads | Replies in GTM/support KPI source status |
+
 ## Important Notes
 
 - Low-risk reversible actions route through `action_ledger` before hitting email, calendar, Slack, or internal Firestore updates.
@@ -288,6 +323,9 @@ Durable action-level execution log for Phase 2 autonomous ops.
 - Stripe webhook exceptions are routed into Paperclip issues by the Blueprint automation plugin. They are not persisted here as a repo-owned `stripe_events` collection today.
 - Buyer hosted-session state is stored in `hostedSessions`, but that collection is not part of the current autonomous-org ops queue set.
 - Public Help-page reschedule submissions first try to resolve a real booking by email and business name. Unmatched requests fall back into `contactRequests` for support review.
+- KPI source-status output is governed by [autonomous-kpi-live-source-contract.md](/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/architecture/autonomous-kpi-live-source-contract.md). Missing, stale, or unsupported sources remain `Source needed`; repo-local fixtures do not prove live Firestore, Stripe, GitHub, Notion, or hosted-runtime readiness.
+- Firestore security rules intentionally keep `action_ledger`, `hostedSessions`, company metrics projection collections, and human-reply collections server-only. The current client rules either explicitly deny them or fall through to the deny-all catch-all; Admin SDK routes remain the write/read path.
+- Blueprint automation plugin paths can mirror visibility into Notion later, but `ops/paperclip/plugins/blueprint-automation/src/worker.ts` Notion tools are not KPI source truth. `metricsReporterReport`, `notionUpsertKnowledge`, `notionUpsertWorkQueue`, and `runOpsQueueScanJob` should cite the repo-local source-status artifact rather than inventing values.
 
 ## PII Notes
 
@@ -301,3 +339,5 @@ Collections that contain direct or indirect personal data:
 - `creatorPayouts`
 - `capture_jobs`
 - `site_access_contacts`
+- `hostedSessions`
+- `humanReplyEvents`

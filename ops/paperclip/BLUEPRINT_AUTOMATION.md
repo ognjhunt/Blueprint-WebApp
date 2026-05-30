@@ -44,7 +44,7 @@ For Paperclip automation, these contracts mean:
 ### Company package
 
 - `ceo-daily-review` is the executive prioritization loop.
-- `chief-of-staff-continuous-loop` is the 24/7 managerial loop.
+- `chief-of-staff-continuous-loop` is the weekday business-hours managerial loop (`*/30 8-18 * * 1-5` in the authored package), with event wakeups handling issue/routine/failure signals outside that scheduled cadence.
 - `cto-cross-repo-triage` is the cross-repo technical orchestration loop.
 - Repo implementation and review loops are instructed to work from actual Paperclip issues, create blocker follow-up issues, and close or reprioritize issues explicitly.
 - `blueprint-executive-ops` is the cross-repo / operator project for executive and blocker work.

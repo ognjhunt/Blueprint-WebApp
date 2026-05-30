@@ -39,6 +39,7 @@
     "operating-graph:project": "tsx scripts/autonomy/project-operating-graph.ts --limit=500",
     "autonomy:closure-drill": "tsx scripts/autonomy/run-city-closure-drill.ts",
     "autonomy:growth-blockers": "tsx scripts/autonomy/audit-autonomous-growth-blockers.ts",
+    "autonomy:kpi-source-status": "tsx scripts/autonomy/generate-kpi-source-status.ts",
     "audit:assets": "tsx scripts/audit-assets.ts",
     "qa:polish": "playwright test e2e/brand-polish.spec.ts --reporter=line",
     "qa:operator": "tsx scripts/qa/run-operator-surfaces.ts",
@@ -77,6 +78,7 @@
     "alpha:check": "node scripts/alpha-check.mjs",
     "alpha:preflight": "node scripts/launch-preflight.mjs",
     "alpha:env": "node scripts/launch-env-audit.mjs",
+    "claims:guard": "tsx scripts/claims/cross-source-claims-guard.ts",
     "render:import-env": "node scripts/render/import-render-env.mjs",
     "gtm:first-send-approval:template": "tsx scripts/gtm/write-first-send-approval-template.ts",
     "gtm:first-send-approval:apply": "tsx scripts/gtm/apply-first-send-approvals.ts"

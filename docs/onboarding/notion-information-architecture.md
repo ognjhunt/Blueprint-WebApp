@@ -105,6 +105,8 @@ Hiring should link the same path and explain that role/hiring work starts there.
 
 KPI Dashboard already uses `Source needed` for missing live sources. Keep that posture. Do not add invented KPI values during onboarding work.
 
+For autonomous KPI source status, use `docs/architecture/autonomous-kpi-live-source-contract.md` and the repo-local generator output under `output/autonomous-org/kpi-source-status-latest/` as the mirror-ready artifact. Notion Manager may mirror that artifact later, but it must not turn missing Firestore, hosted-session, Stripe, GitHub, reply, call, or action-ledger evidence into a KPI value.
+
 ## Maintenance Rule
 
 Repo changes to onboarding/policy docs should be mirrored into Notion by the Notion Manager Agent or an authorized Notion run. Notion edits that change doctrine or policy should be reconciled back into repo docs before they are treated as canonical.

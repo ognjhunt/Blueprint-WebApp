@@ -288,6 +288,25 @@ const FAMILY_DEFINITIONS: FamilyDefinition[] = [
     ],
   },
   {
+    failure_family: "fake_progress_closeout",
+    baseSeverity: 4,
+    patterns: [
+      /fake progress/i,
+      /false progress/i,
+      /(?:claims?|claimed|mislabeled|marked|reported|treated as)[\s\S]{0,120}completed movement[\s\S]{0,160}(?:without|no)\s+(?:proof|changed artifact|owner-system evidence)/i,
+      /completed movement[\s\S]{0,80}(?:claimed|mislabeled|marked|reported|treated as)[\s\S]{0,160}(?:without|no)\s+(?:proof|changed artifact|owner-system evidence)/i,
+      /marked (?:done|complete|completed|succeeded)[\s\S]{0,160}(?:without|no)\s+(?:proof|changed artifact|owner-system evidence)/i,
+      /adapter success[\s\S]{0,120}(?:treated as|used as|standing in for)[\s\S]{0,80}(?:completion|done|proof)/i,
+    ],
+    recommended_eval_or_policy_change:
+      "Add a fake-progress closeout fixture that rejects status-only completion, adapter-success completion, or completed-movement claims without changed proof.",
+    blocked_claims: [
+      "status-only completion proves done",
+      "adapter success equals completion",
+      "completed movement exists without changed proof",
+    ],
+  },
+  {
     failure_family: "closeout_evidence_contract_gap",
     baseSeverity: 4,
     patterns: [
@@ -304,6 +323,24 @@ const FAMILY_DEFINITIONS: FamilyDefinition[] = [
       "done state is evidence-grade",
       "blocked state names earliest hard stop",
       "awaiting-human state has durable blocker ownership",
+    ],
+  },
+  {
+    failure_family: "unsupported_proof_claim",
+    baseSeverity: 4,
+    patterns: [
+      /unsupported proof/i,
+      /unsupported hosted-session proof/i,
+      /owning-system proof/i,
+      /proof claim[\s\S]{0,120}(?:unsupported|not verified|missing)/i,
+      /claimed[\s\S]{0,120}proof[\s\S]{0,120}(?:without|no)\s+(?:owner-system|runtime|provider|artifact|evidence)/i,
+    ],
+    recommended_eval_or_policy_change:
+      "Add an unsupported-proof fixture that rejects proof, readiness, or fulfillment claims unless the owning system evidence is named.",
+    blocked_claims: [
+      "owner-system proof exists",
+      "operational proof is verified",
+      "local report text proves fulfillment",
     ],
   },
   {
@@ -379,6 +416,23 @@ const FAMILY_DEFINITIONS: FamilyDefinition[] = [
     ],
   },
   {
+    failure_family: "retry_loop_without_cooldown",
+    baseSeverity: 3,
+    patterns: [
+      /retry loop/i,
+      /repeated retr(?:y|ies)/i,
+      /retrying the same (?:issue|run|lane)[\s\S]{0,120}(?:without|no)\s+(?:cooldown|reroute|fresh proof)/i,
+      /cooldown[\s\S]{0,120}(?:missing|required|not applied)/i,
+    ],
+    recommended_eval_or_policy_change:
+      "Add a retry-loop fixture that requires cooldown, reroute, or fresh same-scope proof before repeated provider/runtime retries can continue.",
+    blocked_claims: [
+      "same retry can continue without cooldown",
+      "repeated failure proves task logic",
+      "retry loop is safe without reroute evidence",
+    ],
+  },
+  {
     failure_family: "runtime_context_or_output_limit",
     baseSeverity: 2,
     patterns: [
@@ -411,6 +465,24 @@ const FAMILY_DEFINITIONS: FamilyDefinition[] = [
       "observer run is read-only",
       "artifact was safe to execute without approval",
       "live operational state remained untouched",
+    ],
+  },
+  {
+    failure_family: "blocked_lane_overreach",
+    baseSeverity: 4,
+    patterns: [
+      /blocked-lane overreach/i,
+      /blocked lane overreach/i,
+      /high-risk candidate[\s\S]{0,160}blocked before canary/i,
+      /auto-apply[\s\S]{0,160}outside[\s\S]{0,80}support_triage/i,
+      /permanently[_\s-]?blocked[\s\S]{0,160}(?:apply|canary|mutation)/i,
+    ],
+    recommended_eval_or_policy_change:
+      "Add a blocked-lane overreach fixture that keeps permanently blocked or human/policy-gated lanes out of unattended fixture, canary, or apply paths.",
+    blocked_claims: [
+      "blocked lane can auto-apply",
+      "high-risk candidate can continue unattended",
+      "policy-gated lane is eligible for live mutation",
     ],
   },
   {

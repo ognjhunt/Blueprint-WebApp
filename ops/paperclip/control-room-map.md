@@ -1,6 +1,6 @@
 # Blueprint Paperclip Control-Room Map
 
-Date: 2026-05-18
+Date: 2026-05-30
 
 Status: Active repo-side control-room map for the Blueprint Paperclip company package.
 
@@ -38,8 +38,8 @@ Current authored inventory from `ops/paperclip/blueprint-company/.paperclip.yaml
 | Codex `/goal` disabled agents | 2 |
 | Declared monthly agent budget | $1,115.00 |
 | Routines | 62 |
-| Active routines | 62 |
-| Paused routines | 0 |
+| Active routines | 36 |
+| Paused routines | 26 |
 | Routine concurrency policy | `coalesce_if_active` on all authored routines |
 | Routine catch-up policy | `skip_missed` on all authored routines |
 | Agents without `desiredSkills` | 0 |
@@ -63,7 +63,7 @@ Current local alias mappings:
 
 | Authored desired skill | Local/plugin skill |
 |---|---|
-| `browse` | `browser` |
+| `browse` | `control-in-app-browser` |
 | `vercel-react-best-practices` | `react-best-practices` |
 
 Current intentional company-library desired skills:

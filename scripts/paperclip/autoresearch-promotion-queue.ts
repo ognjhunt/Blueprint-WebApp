@@ -162,6 +162,8 @@ function ruleForSignature(signature: FailureSignature): QueueRule {
 
   if (
     key.includes("marked_succeeded")
+    || key.includes("fake_progress")
+    || key.includes("no_change_closeout_churn")
     || key.includes("exit_zero_provider_logical_failure")
     || key.includes("codex_local_exec_tooling_unavailable")
     || key.includes("stalled_run_without_output")
@@ -173,6 +175,7 @@ function ruleForSignature(signature: FailureSignature): QueueRule {
     key.includes("paperclip_runs_probe")
     || key.includes("invalid_jq")
     || key.includes("issue_bound_wake_widened_scope")
+    || key.includes("blocked_lane_overreach")
   ) {
     return DEFAULT_RULES.prompt_patch;
   }
@@ -186,8 +189,18 @@ function ruleForSignature(signature: FailureSignature): QueueRule {
     || key.includes("process_loss")
     || key.includes("runtime_context_or_output_limit")
     || key.includes("provider_model_contract_failure")
+    || key.includes("retry_loop_without_cooldown")
   ) {
     return DEFAULT_RULES.policy_patch;
+  }
+
+  if (
+    key.includes("unsupported_proof_claim")
+    || key.includes("public_copy_proof_drift")
+    || key.includes("hosted_session_proof_gap")
+    || key.includes("repeated_paperclip_hermes_failure")
+  ) {
+    return DEFAULT_RULES.autoagent_eval;
   }
 
   if (signature.category === "shared_prompt_guardrail" || signature.category === "route_contract") {

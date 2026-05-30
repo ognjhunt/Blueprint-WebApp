@@ -1,0 +1,285 @@
+{
+  "fixtureRoot": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/labs/autoagent/tasks",
+  "lanes": [
+    "waitlist_triage",
+    "support_triage",
+    "preview_diagnosis"
+  ],
+  "totalCases": 10,
+  "totalPassed": 10,
+  "totalFailed": 0,
+  "totalNegativeControls": 14,
+  "totalNegativeControlsBlocked": 14,
+  "laneSummaries": {
+    "waitlist_triage": {
+      "lane": "waitlist_triage",
+      "totalCases": 2,
+      "passed": 2,
+      "failed": 0,
+      "minReward": 1,
+      "averageReward": 1,
+      "negativeControls": 2,
+      "negativeControlsBlocked": 2,
+      "splits": {
+        "dev": 1,
+        "holdout": 1,
+        "shadow": 0
+      },
+      "negativeControlFailures": [],
+      "failures": []
+    },
+    "support_triage": {
+      "lane": "support_triage",
+      "totalCases": 4,
+      "passed": 4,
+      "failed": 0,
+      "minReward": 1,
+      "averageReward": 1,
+      "negativeControls": 6,
+      "negativeControlsBlocked": 6,
+      "splits": {
+        "dev": 1,
+        "holdout": 1,
+        "shadow": 2
+      },
+      "negativeControlFailures": [],
+      "failures": []
+    },
+    "preview_diagnosis": {
+      "lane": "preview_diagnosis",
+      "totalCases": 4,
+      "passed": 4,
+      "failed": 0,
+      "minReward": 1,
+      "averageReward": 1,
+      "negativeControls": 6,
+      "negativeControlsBlocked": 6,
+      "splits": {
+        "dev": 1,
+        "holdout": 1,
+        "shadow": 2
+      },
+      "negativeControlFailures": [],
+      "failures": []
+    }
+  },
+  "samples": [
+    {
+      "lane": "waitlist_triage",
+      "split": "dev",
+      "caseId": "seed-waitlist-strong-fit",
+      "candidateSource": "expected.json",
+      "riskTier": "low",
+      "schemaErrors": [],
+      "passed": true,
+      "reward": 1,
+      "passThreshold": 0.8,
+      "weightedChecks": [
+        {
+          "field": "automation_status",
+          "matched": true,
+          "expected": "completed",
+          "actual": "completed",
+          "weight": 1
+        },
+        {
+          "field": "recommendation",
+          "matched": true,
+          "expected": "invite_now",
+          "actual": "invite_now",
+          "weight": 2
+        },
+        {
+          "field": "recommended_queue",
+          "matched": true,
+          "expected": "capturer_beta_invite_review",
+          "actual": "capturer_beta_invite_review",
+          "weight": 2
+        },
+        {
+          "field": "requires_human_review",
+          "matched": true,
+          "expected": false,
+          "actual": false,
+          "weight": 2
+        },
+        {
+          "field": "market_fit_score",
+          "matched": true,
+          "expected": 88,
+          "actual": 88,
+          "weight": 0.25
+        },
+        {
+          "field": "device_fit_score",
+          "matched": true,
+          "expected": 93,
+          "actual": 93,
+          "weight": 0.25
+        },
+        {
+          "field": "invite_readiness_score",
+          "matched": true,
+          "expected": 90,
+          "actual": 90,
+          "weight": 0.5
+        },
+        {
+          "field": "draft_email",
+          "matched": true,
+          "expected": {
+            "subject": "Invite",
+            "body": "Welcome"
+          },
+          "actual": {
+            "subject": "Invite",
+            "body": "Welcome"
+          },
+          "weight": 0.25
+        }
+      ],
+      "penalties": [],
+      "failures": []
+    },
+    {
+      "lane": "waitlist_triage",
+      "split": "holdout",
+      "caseId": "seed-waitlist-follow-up-needed",
+      "candidateSource": "expected.json",
+      "riskTier": "medium",
+      "schemaErrors": [],
+      "passed": true,
+      "reward": 1,
+      "passThreshold": 0.8,
+      "weightedChecks": [
+        {
+          "field": "automation_status",
+          "matched": true,
+          "expected": "blocked",
+          "actual": "blocked",
+          "weight": 1
+        },
+        {
+          "field": "recommendation",
+          "matched": true,
+          "expected": "request_follow_up",
+          "actual": "request_follow_up",
+          "weight": 2
+        },
+        {
+          "field": "recommended_queue",
+          "matched": true,
+          "expected": "capturer_beta_follow_up",
+          "actual": "capturer_beta_follow_up",
+          "weight": 2
+        },
+        {
+          "field": "requires_human_review",
+          "matched": true,
+          "expected": false,
+          "actual": false,
+          "weight": 2
+        },
+        {
+          "field": "market_fit_score",
+          "matched": true,
+          "expected": 15,
+          "actual": 15,
+          "weight": 0.25
+        },
+        {
+          "field": "device_fit_score",
+          "matched": true,
+          "expected": 20,
+          "actual": 20,
+          "weight": 0.25
+        },
+        {
+          "field": "invite_readiness_score",
+          "matched": true,
+          "expected": 18,
+          "actual": 18,
+          "weight": 0.5
+        },
+        {
+          "field": "draft_email",
+          "matched": true,
+          "expected": {
+            "subject": "A few details needed",
+            "body": "Please reply with your city, device details, and intended capture workflow."
+          },
+          "actual": {
+            "subject": "A few details needed",
+            "body": "Please reply with your city, device details, and intended capture workflow."
+          },
+          "weight": 0.25
+        }
+      ],
+      "penalties": [],
+      "failures": []
+    },
+    {
+      "lane": "support_triage",
+      "split": "dev",
+      "caseId": "seed-support-general",
+      "candidateSource": "expected.json",
+      "riskTier": "low",
+      "schemaErrors": [],
+      "passed": true,
+      "reward": 1,
+      "passThreshold": 0.8,
+      "weightedChecks": [
+        {
+          "field": "automation_status",
+          "matched": true,
+          "expected": "completed",
+          "actual": "completed",
+          "weight": 1
+        },
+        {
+          "field": "category",
+          "matched": true,
+          "expected": "general_support",
+          "actual": "general_support",
+          "weight": 2
+        },
+        {
+          "field": "queue",
+          "matched": true,
+          "expected": "support_general",
+          "actual": "support_general",
+          "weight": 2
+        },
+        {
+          "field": "priority",
+          "matched": true,
+          "expected": "normal",
+          "actual": "normal",
+          "weight": 1
+        },
+        {
+          "field": "requires_human_review",
+          "matched": true,
+          "expected": false,
+          "actual": false,
+          "weight": 2
+        },
+        {
+          "field": "suggested_response",
+          "matched": true,
+          "expected": {
+            "subject": "Thanks for reaching out",
+            "body": "We received your message and will follow up shortly with the next step."
+          },
+          "actual": {
+            "subject": "Thanks for reaching out",
+            "body": "We received your message and will follow up shortly with the next step."
+          },
+          "weight": 0.5
+        }
+      ],
+      "penalties": [],
+      "failures": []
+    }
+  ]
+}

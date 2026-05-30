@@ -18,6 +18,7 @@ Treat these as repo-authoritative definitions unless a newer explicit doctrine u
 - `docs/ai-tooling-adoption-implementation-2026-04-07.md`: approved AI-tooling adoption posture.
 - `docs/ai-skills-governance-2026-04-07.md`: allowed/disallowed AI-tooling and skill rules.
 - `docs/architecture/autoagent-autoresearch-operating-policy.md`: repo-authoritative near-zero-human AutoAgent/AutoResearch operating tiers and blocked autonomous actions.
+- `docs/architecture/autonomous-kpi-live-source-contract.md`: repo-local live-source contracts for KPI rows that must stay `Source needed` until owner-system evidence exists.
 - `docs/architecture/public-display-ready-claims-matrix.md`: Public Display Ready vs Operational Launch Ready claim rules for docs, agents, and buyer pages.
 - `docs/company/`: repo-canonical employee handbook and policy drafts until counsel/PEO-approved systems adopt final versions.
 - `docs/onboarding/`: repo-canonical onboarding journeys for humans, managers, AI agents, role scorecards, and Notion IA.
@@ -32,6 +33,7 @@ When these files disagree with older reports, generated summaries, graph output,
 - Inbound request and pipeline bridge truth starts in `server/types/inbound-request.ts`, `client/src/types/inbound-request.ts`, `server/routes/inbound-request.ts`, `server/routes/internal-pipeline.ts`, and `server/utils/pipelineStateMachine.ts`.
 - Stripe/entitlement truth starts in `server/routes/stripe.ts`, `server/routes/stripe-webhooks.ts`, `server/routes/marketplace.ts`, `server/routes/marketplace-entitlements.ts`, and relevant tests.
 - Agent runtime truth starts in `server/agents/`, `server/routes/admin-agent.ts`, `server/routes/paperclip-relay.ts`, and the Paperclip package under `ops/paperclip/`. AutoAgent/AutoResearch live action authority is specifically gated by `server/agents/autoagent-production-action-registry.ts`, which defaults to dry-run and allowlists only named production action types.
+- Autonomous KPI source-status truth starts in `docs/architecture/autonomous-kpi-live-source-contract.md`, `server/utils/kpiLiveSourceStatus.ts`, and repo-local snapshots consumed by `scripts/autonomy/generate-kpi-source-status.ts`. Notion KPI rows may mirror these artifacts later, but missing live owner-system evidence remains `Source needed`.
 - Employee/onboarding policy truth starts in `docs/company/` and `docs/onboarding/`, with legal/HR/payroll/benefits terms remaining draft until counsel/PEO-reviewed documents and live HR/payroll systems adopt them.
 
 For cross-repo contracts, verify the corresponding `BlueprintCapture` and `BlueprintCapturePipeline` docs/artifacts before assuming WebApp alone proves readiness.

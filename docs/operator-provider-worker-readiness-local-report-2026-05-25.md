@@ -1,7 +1,7 @@
 # Local Operator Provider And Worker Readiness
 
 Generated: 2026-05-25
-Refreshed: 2026-05-28 after `conversion-agent` and `docs-agent` were enabled for bounded repo-side `/goal` work.
+Refreshed: 2026-05-30 after routine `status: paused` handling and the `browse` desired-skill alias were reconciled against local config.
 
 Scope: local env/config inspection only. This report did not configure providers, call paid APIs, deploy, send, write Notion/Firebase/Stripe/Paperclip state, or mutate live systems.
 
@@ -41,13 +41,13 @@ Command: `npm run paperclip:control-room:inventory`
 
 - Agents: 46.
 - Adapters: 10 `codex_local`, 36 `hermes_local`.
-- Routines: 61.
-- Routine status: 61 active, 0 paused.
-- Routine readiness classes: 61 `required-ready`, 0 `blocked-by-env`, 0 `recommended-missing`, 0 `needs-human`.
-- Routine concurrency/catch-up: all 61 use `coalesce_if_active` and `skip_missed`.
+- Routines: 62.
+- Routine status: 36 active, 26 paused.
+- Routine readiness classes: 36 `required-ready`, 26 `blocked-by-env`, 0 `recommended-missing`, 0 `needs-human`.
+- Routine concurrency/catch-up: all 62 use `coalesce_if_active` and `skip_missed`.
 - Codex `/goal` enabled lanes: `capture-codex`, `capture-review`, `conversion-agent`, `docs-agent`, `pipeline-codex`, `pipeline-review`, `webapp-codex`, `webapp-review`.
 - Codex `/goal` disabled lanes: `beta-launch-commander`, `blueprint-cto`.
-- Desired skills: 2 local alias mappings, 51 intentional non-local company-library/runtime/tooling deferrals, 0 true missing desiredSkills, 0 ambiguous candidate gaps.
+- Desired skills: 2 local alias mappings (`browse` -> `control-in-app-browser`, `vercel-react-best-practices` -> `react-best-practices`), 51 intentional non-local company-library/runtime/tooling deferrals, 0 true missing desiredSkills, 0 ambiguous candidate gaps.
 
 ## Truth Boundary
 

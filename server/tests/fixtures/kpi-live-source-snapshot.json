@@ -1,0 +1,160 @@
+{
+  "generatedAt": "2026-05-30T12:00:00.000Z",
+  "rows": [
+    {
+      "key": "captures",
+      "label": "Captures",
+      "claimedValue": 1,
+      "asOfIso": "2026-05-30T11:00:00.000Z"
+    },
+    {
+      "key": "proof_packages",
+      "label": "Proof packages",
+      "claimedValue": 1,
+      "asOfIso": "2026-05-30T11:00:00.000Z"
+    },
+    {
+      "key": "hosted_starts",
+      "label": "Hosted starts",
+      "claimedValue": 1,
+      "claimText": "Sample hosted review started from buyer copy",
+      "asOfIso": "2026-05-30T11:00:00.000Z"
+    },
+    {
+      "key": "contacts",
+      "label": "Contacts",
+      "claimedValue": 2,
+      "asOfIso": "2026-05-30T11:00:00.000Z"
+    },
+    {
+      "key": "sends_replies_calls",
+      "label": "Sends / replies / calls",
+      "claimedValue": 3,
+      "asOfIso": "2026-05-30T11:00:00.000Z"
+    },
+    {
+      "key": "buyer_support",
+      "label": "Buyer support",
+      "claimedValue": 1,
+      "asOfIso": "2026-05-30T11:00:00.000Z"
+    },
+    {
+      "key": "ci_failures",
+      "label": "CI failures",
+      "claimedValue": 1,
+      "asOfIso": "2026-05-30T11:00:00.000Z"
+    },
+    {
+      "key": "revenue_payments",
+      "label": "Revenue / payments",
+      "claimedValue": "$500",
+      "asOfIso": "2026-05-30T11:00:00.000Z"
+    }
+  ],
+  "sources": {
+    "capture_submissions": [
+      {
+        "id": "cap-fixture-1",
+        "updatedAtIso": "2026-05-30T10:30:00.000Z",
+        "fields": {
+          "capture_id": "cap-fixture-1",
+          "site_submission_id": "site-fixture-1",
+          "buyer_request_id": "buyer-fixture-1",
+          "lifecycle": {
+            "capture_uploaded_at": "2026-05-30T10:10:00.000Z"
+          },
+          "operational_state": {
+            "upload_state": "uploaded"
+          }
+        }
+      }
+    ],
+    "operatingGraphEvents": [
+      {
+        "id": "package-fixture-1",
+        "updatedAtIso": "2026-05-30T10:45:00.000Z",
+        "fields": {
+          "entity_type": "package_run",
+          "entity_id": "package_run:cap-fixture-1",
+          "stage": "package_ready",
+          "source_repo": "Blueprint-WebApp",
+          "source_kind": "pipeline_sync",
+          "recorded_at_iso": "2026-05-30T10:45:00.000Z",
+          "metadata": {
+            "capture_id": "cap-fixture-1",
+            "site_submission_id": "site-fixture-1",
+            "buyer_request_id": "buyer-fixture-1",
+            "package_id": "package-fixture-1"
+          }
+        }
+      },
+      {
+        "id": "hosted-start-claim-without-session",
+        "updatedAtIso": "2026-05-30T11:00:00.000Z",
+        "fields": {
+          "entity_type": "hosted_review_run",
+          "entity_id": "hosted_review_run:buyer-fixture-1",
+          "stage": "hosted_review_started",
+          "source_kind": "sample_text",
+          "recorded_at_iso": "2026-05-30T11:00:00.000Z",
+          "summary": "Sample text says the hosted review started.",
+          "metadata": {
+            "package_id": "package-fixture-1"
+          }
+        }
+      }
+    ],
+    "inboundRequests": [
+      {
+        "id": "buyer-fixture-1",
+        "updatedAtIso": "2026-05-30T09:30:00.000Z",
+        "fields": {
+          "requestId": "buyer-fixture-1",
+          "status": "in_review",
+          "qualification_state": "qualified_ready",
+          "contact": {
+            "email_normalized": "buyer@example.test",
+            "company": "Example Robotics"
+          },
+          "createdAt": "2026-05-30T09:00:00.000Z"
+        }
+      }
+    ],
+    "contactRequests": [
+      {
+        "id": "support-fixture-1",
+        "updatedAtIso": "2026-05-30T09:45:00.000Z",
+        "fields": {
+          "requestSource": "contact_form",
+          "company": "Example Robotics",
+          "email_normalized": "buyer@example.test",
+          "summary": "Buyer asks about package access.",
+          "queue": "support_triage",
+          "priority": "medium",
+          "ops_automation": {
+            "intent": "support_triage",
+            "status": "completed",
+            "processed_at": "2026-05-30T09:45:00.000Z"
+          },
+          "createdAt": "2026-05-30T09:40:00.000Z"
+        }
+      }
+    ],
+    "action_ledger": [
+      {
+        "id": "send-fixture-1",
+        "updatedAtIso": "2026-05-30T08:45:00.000Z",
+        "fields": {
+          "idempotency_key": "gtm:fixture:first-send",
+          "lane": "gtm",
+          "action_type": "send_email",
+          "source_collection": "inboundRequests",
+          "source_doc_id": "buyer-fixture-1",
+          "status": "sent",
+          "provider_reference": "send-fixture-1",
+          "created_at": "2026-05-30T08:40:00.000Z"
+        }
+      }
+    ]
+  }
+}

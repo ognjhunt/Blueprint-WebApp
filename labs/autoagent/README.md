@@ -78,6 +78,24 @@ npm run autoagent:export
 
 Only use live export when Firebase Admin credentials are intentionally available.
 
+## Paperclip/Hermes Failure Fixture Queue
+
+Read-only Paperclip run-failure sweeps can be saved as JSON and passed into the
+recursive improvement loop without allowing fixture generation to mutate live
+state:
+
+```bash
+npm run paperclip:sweep:run-failures -- --live-host --json --limit 250 > output/autoagent/paperclip-failures.json
+npm run autoagent:recursive-improve -- --dry-run --paperclip-failure-sweep output/autoagent/paperclip-failures.json
+```
+
+The loop writes `paperclip-failure-fixture-queue.json` and `.md` under the
+recursive-improvement output directory, normalizes repeated failures,
+no-change churn, fake progress, unsupported proof, copy/proof drift, retry
+loops, and blocked-lane overreach, then feeds accepted fixture drafts through
+the same offline evaluator and Harbor task builder. Suppressed recovered runs
+are recorded in the source summary but are not queued for fixture drafting.
+
 ## Structure
 
 ```text

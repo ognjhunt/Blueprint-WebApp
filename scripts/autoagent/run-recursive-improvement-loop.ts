@@ -18,6 +18,11 @@ import {
   type AutoResearchPromotionQueueItem,
 } from "../paperclip/autoresearch-promotion-queue.ts";
 import {
+  buildPaperclipFailureFixtureQueueArtifact,
+  renderPaperclipFailureFixtureQueueMarkdown,
+  type PaperclipFailureSweep,
+} from "../paperclip/paperclip-failure-fixture-ingestion.ts";
+import {
   writeAutoResearchFixture,
   type WriteAutoResearchFixtureResult,
 } from "./write-autoresearch-fixture.ts";
@@ -192,6 +197,7 @@ export type RecursiveImprovementLoopResult = {
 export type RecursiveImprovementLoopOptions = {
   cwd?: string;
   observerInputRoots?: string[];
+  paperclipFailureSweepPaths?: string[];
   observerMaxFiles?: number;
   observerMaxBytesPerFile?: number;
   candidatePath?: string;
@@ -357,6 +363,37 @@ function observerCandidateClusters(summary: AgentImprovementObserverSummary) {
     runIds: candidate.evidence_paths,
     issueIdentifiers: [],
   })) as Parameters<typeof buildAutoResearchPromotionQueue>[0]["clusters"];
+}
+
+function mergeAutoResearchQueues(...queues: AutoResearchPromotionQueueItem[][]) {
+  const merged = new Map<string, AutoResearchPromotionQueueItem>();
+  for (const queue of queues) {
+    for (const item of queue) {
+      const key = item.id || `${item.lane}:${item.sourceFailureFamily}`;
+      if (!merged.has(key)) {
+        merged.set(key, item);
+      }
+    }
+  }
+  return [...merged.values()].map((item, index) => ({
+    ...item,
+    priority: index + 1,
+  }));
+}
+
+async function readPaperclipFailureSweeps(paths: string[], cwd: string) {
+  const resolvedPaths = paths.map((filePath) =>
+    path.isAbsolute(filePath) ? filePath : path.resolve(cwd, filePath),
+  );
+  const sweeps: PaperclipFailureSweep[] = [];
+  for (const filePath of resolvedPaths) {
+    const value = await readJsonFile(filePath);
+    if (!isRecord(value)) {
+      throw new Error(`Paperclip failure sweep must be a JSON object: ${filePath}`);
+    }
+    sweeps.push(value as PaperclipFailureSweep);
+  }
+  return { resolvedPaths, sweeps };
 }
 
 function eligibleQueueItem(item: AutoResearchPromotionQueueItem) {
@@ -666,6 +703,7 @@ function productionActionRegistrySummary(): ProductionActionRegistrySummary {
       "canary limit exists",
       "audit event schema exists",
       "target record id and target field are allowed",
+      "prior live action proof exists for gated action types",
       "live mutation flag explicit",
     ],
     live_mutation_enabled_by_default: false,
@@ -1146,11 +1184,54 @@ export async function runRecursiveImprovementLoop(
   );
 
   const clusters = observerCandidateClusters(observerSummary);
-  const queue = buildAutoResearchPromotionQueue({
+  const observerQueue = buildAutoResearchPromotionQueue({
     clusters,
     paperclipApiUrl: "repo-local agent-improvement-observer",
     maxItems: 5,
   });
+  let paperclipFailureFixtureQueue: ReturnType<typeof buildPaperclipFailureFixtureQueueArtifact> | null = null;
+  let paperclipFailureFixtureQueueJsonPath: string | null = null;
+  let paperclipFailureFixtureQueueMarkdownPath: string | null = null;
+
+  if ((options.paperclipFailureSweepPaths ?? []).length > 0) {
+    const { resolvedPaths, sweeps } = await readPaperclipFailureSweeps(
+      options.paperclipFailureSweepPaths ?? [],
+      cwd,
+    );
+    paperclipFailureFixtureQueue = buildPaperclipFailureFixtureQueueArtifact({
+      generatedAt,
+      sweeps,
+      maxItems: 5,
+    });
+    paperclipFailureFixtureQueueJsonPath = path.join(
+      outputDir,
+      "paperclip-failure-fixture-queue.json",
+    );
+    paperclipFailureFixtureQueueMarkdownPath = path.join(
+      outputDir,
+      "paperclip-failure-fixture-queue.md",
+    );
+    if (writeArtifacts) {
+      await writeJson(paperclipFailureFixtureQueueJsonPath, paperclipFailureFixtureQueue);
+      await writeText(
+        paperclipFailureFixtureQueueMarkdownPath,
+        renderPaperclipFailureFixtureQueueMarkdown(paperclipFailureFixtureQueue),
+      );
+    }
+    stageOutputs.proofPaths.push(
+      ...resolvedPaths,
+      paperclipFailureFixtureQueueJsonPath,
+      paperclipFailureFixtureQueueMarkdownPath,
+    );
+    stageOutputs.commandOutputs.push(
+      `paperclip-failure-fixture-ingestion: sweeps=${sweeps.length} queued=${paperclipFailureFixtureQueue.queue.length} families=${paperclipFailureFixtureQueue.ingestion_families.join(",") || "none"} no_live_mutation=${paperclipFailureFixtureQueue.no_live_mutation}`,
+    );
+  }
+
+  const queue = mergeAutoResearchQueues(
+    paperclipFailureFixtureQueue?.queue ?? [],
+    observerQueue,
+  );
   const queueJsonPath = path.join(outputDir, "promotion-queue.json");
   const queueMarkdownPath = path.join(outputDir, "promotion-queue.md");
   if (writeArtifacts) {
@@ -1159,6 +1240,17 @@ export async function runRecursiveImprovementLoop(
       scope:
         "Repo-local recursive-improvement queue only. Does not mutate live systems.",
       sourceGeneratedAt: observerSummary.generated_at,
+      paperclipFailureFixtureQueue: paperclipFailureFixtureQueue
+        ? {
+            schema: paperclipFailureFixtureQueue.schema,
+            sourceSweeps: paperclipFailureFixtureQueue.source_sweeps,
+            ingestionFamilies: paperclipFailureFixtureQueue.ingestion_families,
+            normalizedClusters: paperclipFailureFixtureQueue.normalized_clusters,
+            suppressedRecoveredClustersQueued:
+              paperclipFailureFixtureQueue.suppressed_recovered_clusters_queued,
+            noLiveMutation: paperclipFailureFixtureQueue.no_live_mutation,
+          }
+        : null,
       paperclipApiUrl: null,
       queue,
     });
@@ -1172,7 +1264,9 @@ export async function runRecursiveImprovementLoop(
     );
   }
   stageOutputs.proofPaths.push(queueJsonPath, queueMarkdownPath);
-  stageOutputs.commandOutputs.push(`autoresearch-promotion-queue(local): queued=${queue.length}`);
+  stageOutputs.commandOutputs.push(
+    `autoresearch-promotion-queue(local): observer_queued=${observerQueue.length} merged_queued=${queue.length}`,
+  );
 
   const selected = queue.find(eligibleQueueItem) ?? null;
   if (!selected) {
@@ -1211,7 +1305,10 @@ export async function runRecursiveImprovementLoop(
     aiFixtureDrafter: options.aiFixtureDrafter === true
       ? {
           enabled: true,
-          artifactPaths: options.aiFixtureDrafterArtifacts,
+          artifactPaths: unique([
+            ...(options.aiFixtureDrafterArtifacts ?? []),
+            ...(paperclipFailureFixtureQueueJsonPath ? [paperclipFailureFixtureQueueJsonPath] : []),
+          ]),
           invoker: options.aiFixtureDrafterInvoker,
           env: options.aiFixtureDrafterEnv,
         }
@@ -1905,6 +2002,14 @@ export function parseRecursiveImprovementArgs(argv: string[]): RecursiveImprovem
       case "--observer-input":
         if (!next) throw new Error("--observer-input requires a path");
         options.observerInputRoots = [...(options.observerInputRoots ?? []), next];
+        index += 1;
+        break;
+      case "--paperclip-failure-sweep":
+        if (!next) throw new Error("--paperclip-failure-sweep requires a path");
+        options.paperclipFailureSweepPaths = [
+          ...(options.paperclipFailureSweepPaths ?? []),
+          next,
+        ];
         index += 1;
         break;
       case "--candidate":

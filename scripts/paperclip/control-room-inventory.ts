@@ -34,19 +34,24 @@ const READINESS_CLASSES = [
 ] as const;
 
 type OperatorReadinessClass = typeof READINESS_CLASSES[number];
+type DesiredSkillAliasDefinition = {
+  resolvedAs: readonly string[];
+  source: string;
+  evidence: string;
+};
 
 const DESIRED_SKILL_ALIASES = {
   browse: {
-    resolvedAs: "browser",
+    resolvedAs: ["control-in-app-browser", "browser"],
     source: "local-skill-alias",
-    evidence: "Browser plugin exposes the local skill as browser; Paperclip frontmatter uses the shorter browse verb.",
+    evidence: "Browser plugin exposes control-in-app-browser; Paperclip frontmatter uses the shorter browse verb.",
   },
   "vercel-react-best-practices": {
-    resolvedAs: "react-best-practices",
+    resolvedAs: ["react-best-practices"],
     source: "plugin-skill-alias",
     evidence: "Vercel plugin cache exposes react-best-practices; Blueprint keeps a provider-qualified desiredSkill alias.",
   },
-} as const;
+} satisfies Record<string, DesiredSkillAliasDefinition>;
 
 const COMPANY_LIBRARY_DESIRED_SKILLS = new Set([
   "ab-testing",
@@ -174,6 +179,7 @@ type PaperclipAgentConfig = {
 
 type PaperclipRoutineConfig = {
   agent?: string;
+  status?: string;
   priority?: string;
   paused?: boolean;
   enabled?: boolean;
@@ -301,7 +307,7 @@ function formatCadence(routine: PaperclipRoutineConfig) {
 }
 
 function isRoutinePaused(routine: PaperclipRoutineConfig) {
-  return routine.paused === true || routine.enabled === false;
+  return routine.status === "paused" || routine.paused === true || routine.enabled === false;
 }
 
 function collectSkillSlugsFromRoot(root: string, slugs: Set<string>, depth = 0) {
@@ -349,6 +355,20 @@ function desiredSkillReferenceRows(
     count: counts.get(skill) ?? 0,
     agents: (agentsBySkill.get(skill) ?? []).sort(),
   }));
+}
+
+function resolveDesiredSkillAlias(skill: string, localSkills: Set<string>) {
+  const alias = DESIRED_SKILL_ALIASES[skill];
+  if (!alias) return null;
+
+  const resolvedAs = alias.resolvedAs.find((candidate) => localSkills.has(candidate));
+  if (!resolvedAs) return null;
+
+  return {
+    resolvedAs,
+    source: alias.source,
+    evidence: alias.evidence,
+  };
 }
 
 export function buildControlRoomInventory(options: {
@@ -416,8 +436,8 @@ export function buildControlRoomInventory(options: {
   for (const reference of desiredSkillReferenceRows(desiredSkillCounts, agentsByDesiredSkill)) {
     if (localSkills.has(reference.skill)) continue;
 
-    const alias = DESIRED_SKILL_ALIASES[reference.skill as keyof typeof DESIRED_SKILL_ALIASES];
-    if (alias && localSkills.has(alias.resolvedAs)) {
+    const alias = resolveDesiredSkillAlias(reference.skill, localSkills);
+    if (alias) {
       desiredSkillAliasMappings.push({
         ...reference,
         resolvedAs: alias.resolvedAs,

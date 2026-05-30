@@ -610,6 +610,75 @@ describe("AutoAgent production action registry", () => {
     return { request, proofPath, rollbackPath };
   }
 
+  async function reportPointerProductionActionFixture(
+    overrides: Partial<AutoAgentProductionActionRequest> = {},
+  ): Promise<{
+    request: AutoAgentProductionActionRequest;
+    proofPath: string;
+    rollbackPath: string;
+  }> {
+    const root = await makeTempDir();
+    const proofPath = path.join(root, "paperclip-issue-metadata-snapshot.json");
+    const rollbackPath = path.join(root, "rollback-snapshot.json");
+    await fs.writeFile(
+      proofPath,
+      `${JSON.stringify({
+        source: "paperclip_hermes",
+        target_record_id: "recursive-agent-improvement-loop",
+        first_live_lane_proven: true,
+      }, null, 2)}\n`,
+      "utf8",
+    );
+    await fs.writeFile(
+      rollbackPath,
+      `${JSON.stringify({
+        restore: "previous_report_pointer_snapshot",
+        previous_metadata: {
+          "metadata.autoagent.latest_production_report_pointer": null,
+        },
+      }, null, 2)}\n`,
+      "utf8",
+    );
+
+    const request: AutoAgentProductionActionRequest = {
+      actionType: "paperclip_internal_report_pointer_update",
+      ownerSystem: "paperclip_hermes",
+      targetRecordId: "recursive-agent-improvement-loop",
+      targetField: "metadata.autoagent.latest_production_report_pointer",
+      proofSource: "paperclip_issue_metadata_snapshot",
+      proofPath,
+      idempotencyKey:
+        "paperclip-report-pointer:recursive-agent-improvement-loop:latest-production-report",
+      rollbackStrategy: "restore_previous_report_pointer_snapshot",
+      rollbackPath,
+      dryRun: false,
+      canaryMode: true,
+      canaryLimit: {
+        maxActions: 1,
+        window: "per_run",
+      },
+      liveMutationEnabled: true,
+      auditEvent: {
+        schema: "blueprint/autoagent-production-action-audit/v1",
+        actionType: "paperclip_internal_report_pointer_update",
+        actionTier: "internal_report_pointer_update",
+        ownerSystem: "paperclip_hermes",
+        targetRecordId: "recursive-agent-improvement-loop",
+        targetField: "metadata.autoagent.latest_production_report_pointer",
+        idempotencyKey:
+          "paperclip-report-pointer:recursive-agent-improvement-loop:latest-production-report",
+        proofPath,
+        rollbackPath,
+        dryRun: false,
+        canaryMode: true,
+        liveMutationEnabled: true,
+      },
+      ...overrides,
+    };
+
+    return { request, proofPath, rollbackPath };
+  }
+
   it("rejects unregistered live actions", async () => {
     const { request } = await productionActionFixture({
       actionType: "unregistered_live_mutation",
@@ -671,12 +740,106 @@ describe("AutoAgent production action registry", () => {
     expect(result.reasons.join("\n")).toMatch(/duplicate idempotency key/i);
   });
 
+  it("rejects the report pointer lane until prior metadata execution proof is supplied", async () => {
+    const { request } = await reportPointerProductionActionFixture();
+
+    const result = evaluateAutoAgentProductionAction(request);
+
+    expect(result.decision).toBe("reject");
+    expect(result.checks.priorLiveActionProofSatisfied).toBe(false);
+    expect(result.reasons.join("\n")).toMatch(/prior live action proof/i);
+    expect(result.blockedActionTypes).toContain("paperclip_internal_report_pointer_update");
+  });
+
+  it("allows the report pointer lane only for the exact internal report pointer field after prior proof", async () => {
+    const { request } = await reportPointerProductionActionFixture();
+
+    const result = evaluateAutoAgentProductionAction(request, {
+      provenLiveActionTypes: ["paperclip_hermes_internal_metadata_update"],
+    });
+
+    expect(result.decision).toBe("live_allowed");
+    expect(result.actionEntry?.mutationSurface).toBe(
+      "paperclip_hermes.internal_report_pointer",
+    );
+    expect(result.actionEntry?.allowedTargetFields).toEqual([
+      "metadata.autoagent.latest_production_report_pointer",
+    ]);
+    expect(result.checks.targetFieldAllowed).toBe(true);
+    expect(result.checks.priorLiveActionProofSatisfied).toBe(true);
+  });
+
+  it("rejects report pointer target fields outside the allowlisted metadata pointer", async () => {
+    const { request } = await reportPointerProductionActionFixture({
+      targetField: "metadata.autoagent.production_decision_loop",
+      auditEvent: {
+        schema: "blueprint/autoagent-production-action-audit/v1",
+        actionType: "paperclip_internal_report_pointer_update",
+        actionTier: "internal_report_pointer_update",
+        ownerSystem: "paperclip_hermes",
+        targetRecordId: "recursive-agent-improvement-loop",
+        targetField: "metadata.autoagent.production_decision_loop",
+        idempotencyKey:
+          "paperclip-report-pointer:recursive-agent-improvement-loop:latest-production-report",
+        proofPath: "unused",
+        rollbackPath: "unused",
+        dryRun: false,
+        canaryMode: true,
+        liveMutationEnabled: true,
+      },
+    });
+    request.auditEvent.proofPath = request.proofPath;
+    request.auditEvent.rollbackPath = request.rollbackPath;
+
+    const result = evaluateAutoAgentProductionAction(request, {
+      provenLiveActionTypes: ["paperclip_hermes_internal_metadata_update"],
+    });
+
+    expect(result.decision).toBe("reject");
+    expect(result.checks.targetFieldAllowed).toBe(false);
+    expect(result.reasons.join("\n")).toMatch(/target field/i);
+  });
+
+  it("rejects report pointer actions with missing owner proof", async () => {
+    const { request } = await reportPointerProductionActionFixture({
+      proofPath: "/tmp/blueprint-missing-report-pointer-proof.json",
+    });
+    request.auditEvent.proofPath = request.proofPath;
+
+    const result = evaluateAutoAgentProductionAction(request, {
+      provenLiveActionTypes: ["paperclip_hermes_internal_metadata_update"],
+    });
+
+    expect(result.decision).toBe("reject");
+    expect(result.checks.proofPathExists).toBe(false);
+    expect(result.reasons.join("\n")).toMatch(/proof path/i);
+  });
+
+  it("rejects report pointer actions with missing rollback proof", async () => {
+    const { request } = await reportPointerProductionActionFixture({
+      rollbackPath: "/tmp/blueprint-missing-report-pointer-rollback.json",
+    });
+    request.auditEvent.rollbackPath = request.rollbackPath;
+
+    const result = evaluateAutoAgentProductionAction(request, {
+      provenLiveActionTypes: ["paperclip_hermes_internal_metadata_update"],
+    });
+
+    expect(result.decision).toBe("reject");
+    expect(result.checks.rollbackPathExists).toBe(false);
+    expect(result.reasons.join("\n")).toMatch(/rollback path/i);
+  });
+
   it("keeps external sends, payments, providers, and hosted sessions blocked", async () => {
     const blockedActionTypes = [
+      "queue_state_update",
+      "internal_note_or_report_write",
       "external_send",
       "payment_or_entitlement",
       "provider_execution",
       "hosted_session_fulfillment",
+      "rights_privacy_legal",
+      "city_launch",
     ] as const;
 
     for (const actionType of blockedActionTypes) {
