@@ -4,7 +4,7 @@ export type AgentClientEnv = Partial<Record<string, string | undefined>>;
 
 export type AgentClientOptions = {
   baseUrl?: string;
-  authToken?: string;
+  authToken?: string | null;
   env?: AgentClientEnv;
   fetchImpl?: FetchLike;
 };
@@ -145,9 +145,15 @@ export class BlueprintAgentApiClient {
     this.baseUrl = normalizeBlueprintApiBaseUrl(
       options.baseUrl || envValue(env, "BLUEPRINT_API_BASE_URL"),
     );
-    this.authToken = String(
-      options.authToken || envValue(env, "BLUEPRINT_AGENT_AUTH_TOKEN") || envValue(env, "BLUEPRINT_FIREBASE_ID_TOKEN") || "",
-    ).trim();
+    this.authToken =
+      options.authToken === null
+        ? ""
+        : String(
+            options.authToken ||
+              envValue(env, "BLUEPRINT_AGENT_AUTH_TOKEN") ||
+              envValue(env, "BLUEPRINT_FIREBASE_ID_TOKEN") ||
+              "",
+          ).trim();
     this.fetchImpl = options.fetchImpl || fetch;
   }
 

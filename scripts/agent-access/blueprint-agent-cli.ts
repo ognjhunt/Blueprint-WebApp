@@ -4,6 +4,7 @@ import { pathToFileURL } from "node:url";
 import {
   BlueprintAgentApiClient,
   BlueprintAgentApiError,
+  normalizeBlueprintApiBaseUrl,
   type AgentClientEnv,
   type AgentCommerceInput,
   type AgentDryRunCheckoutInput,
@@ -15,12 +16,25 @@ import {
   type SearchSiteWorldsInput,
   type StepSessionInput,
 } from "./agent-api-client";
+import {
+  buildAgentRequestLocationDraft,
+  type AgentRequestLocationDraftInput,
+} from "./request-location-draft";
+import {
+  planAgentJourney,
+  type AgentJourneyPlanInput,
+} from "./agent-journey-planner";
 
 type AgentCliCommand =
+  | "help"
+  | "doctor"
+  | "setup-auth"
+  | "plan"
   | "discover"
   | "catalog:list"
   | "catalog:search"
   | "site-world:search"
+  | "request:location"
   | "commerce:quote"
   | "commerce:checkout"
   | "commerce:order:get"
@@ -37,12 +51,14 @@ type AgentCliCommand =
   | "explorer-render"
   | "export";
 
+type AgentCliFormat = "json" | "ndjson" | "text";
+
 export type ParsedAgentCliArgs = {
   command: AgentCliCommand;
   sessionId?: string;
   siteWorldId?: string;
   options: Record<string, unknown>;
-  format: "json" | "text";
+  format: AgentCliFormat;
 };
 
 export type RunAgentCliOptions = {
@@ -51,6 +67,24 @@ export type RunAgentCliOptions = {
   stdout?: (line: string) => void;
   stderr?: (line: string) => void;
 };
+
+export const AGENT_CLI_EXIT_CODES = {
+  ok: 0,
+  unexpected: 1,
+  usage: 2,
+  setup: 3,
+  api: 4,
+} as const;
+
+class AgentCliUsageError extends Error {
+  readonly exitCode = AGENT_CLI_EXIT_CODES.usage;
+  readonly code = "usage_error";
+
+  constructor(message: string) {
+    super(message);
+    this.name = "AgentCliUsageError";
+  }
+}
 
 function toCamelCase(value: string) {
   return value.replace(/-([a-z])/g, (_match, letter: string) => letter.toUpperCase());
@@ -61,6 +95,49 @@ function parseScalar(value: string) {
   if (value === "false") return false;
   if (/^-?\d+(\.\d+)?$/.test(value)) return Number(value);
   return value;
+}
+
+function isAgentCliFormat(value: unknown): value is AgentCliFormat {
+  return value === "json" || value === "ndjson" || value === "text";
+}
+
+function normalizeFormat(value: unknown): AgentCliFormat {
+  if (value === undefined || value === null || value === "") return "json";
+  if (isAgentCliFormat(value)) return value;
+  throw new AgentCliUsageError(`Unsupported --format ${String(value)}. Use json, ndjson, or text.`);
+}
+
+function compactArgs(args: Array<string | undefined>) {
+  return args.filter((arg): arg is string => Boolean(arg));
+}
+
+function extractGlobalCliOptions(argv: string[]) {
+  const args: string[] = [];
+  let format: AgentCliFormat = "json";
+  let help = false;
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+    if (arg === "--help" || arg === "-h") {
+      help = true;
+      continue;
+    }
+    if (arg === "--format") {
+      if (argv[index + 1] === undefined) {
+        throw new AgentCliUsageError("Missing --format value. Use json, ndjson, or text.");
+      }
+      format = normalizeFormat(argv[index + 1]);
+      index += 1;
+      continue;
+    }
+    if (arg.startsWith("--format=")) {
+      format = normalizeFormat(arg.slice("--format=".length));
+      continue;
+    }
+    args.push(arg);
+  }
+
+  return { args, format, help };
 }
 
 function parseFlags(args: string[]) {
@@ -93,20 +170,63 @@ function parseJsonOption(value: unknown, fallback: unknown) {
   try {
     return JSON.parse(value);
   } catch {
-    throw new Error(`Invalid JSON option: ${value}`);
+    throw new AgentCliUsageError(`Invalid JSON option: ${value}`);
   }
 }
 
 function requireString(options: Record<string, unknown>, key: string) {
   const value = String(options[key] || "").trim();
   if (!value) {
-    throw new Error(`Missing required --${key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}`);
+    throw new AgentCliUsageError(`Missing required --${key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}`);
   }
   return value;
 }
 
 export function parseAgentCliArgs(argv: string[]): ParsedAgentCliArgs {
-  const [primary = "discover", secondaryOrId, ...rest] = argv;
+  const global = extractGlobalCliOptions(argv);
+  const helpTopic = global.args.filter((arg) => !arg.startsWith("--")).join(" ").trim();
+  if (global.help) {
+    return { command: "help", options: { topic: helpTopic }, format: global.format };
+  }
+
+  const [primary = "discover", secondaryOrId, ...rest] = global.args;
+  if (primary === "help") {
+    return {
+      command: "help",
+      options: { topic: compactArgs([secondaryOrId, ...rest]).join(" ").trim() },
+      format: global.format,
+    };
+  }
+
+  if (primary === "doctor") {
+    const hasCheck = Boolean(secondaryOrId && !secondaryOrId.startsWith("--"));
+    const check = hasCheck ? String(secondaryOrId) : "setup";
+    const checkArgs = hasCheck ? rest : compactArgs([secondaryOrId, ...rest]);
+    if (check !== "setup" && check !== "setup-auth" && check !== "auth") {
+      throw new AgentCliUsageError(`Unknown Blueprint agent doctor check: ${check}`);
+    }
+    const { options } = parseFlags(checkArgs);
+    return {
+      command: "doctor",
+      options: { ...options, check: check === "auth" ? "setup-auth" : check },
+      format: global.format,
+    };
+  }
+
+  if (primary === "setup-auth") {
+    const { options } = parseFlags(compactArgs([secondaryOrId, ...rest]));
+    return { command: "setup-auth", options: { ...options, check: "setup-auth" }, format: global.format };
+  }
+
+  if (primary === "plan") {
+    const { options } = parseFlags(compactArgs([secondaryOrId, ...rest]));
+    return {
+      command: "plan",
+      options: { ...options, limit: Number(options.limit || 5) },
+      format: global.format,
+    };
+  }
+
   const scopedArgs =
     primary === "catalog" || primary === "world" || primary === "site-world" || primary === "siteworld" || primary === "session" || primary === "commerce"
       ? rest
@@ -114,8 +234,7 @@ export function parseAgentCliArgs(argv: string[]): ParsedAgentCliArgs {
         ? [secondaryOrId, ...rest]
         : rest;
   const { options, positionals } = parseFlags(scopedArgs);
-  const format = options.format === "text" ? "text" : "json";
-  delete options.format;
+  const format = global.format;
 
   if (primary === "catalog" && secondaryOrId === "list") {
     return { command: "catalog:list", options: { limit: Number(options.limit || 24) }, format };
@@ -125,6 +244,15 @@ export function parseAgentCliArgs(argv: string[]): ParsedAgentCliArgs {
   }
   if ((primary === "site-world" || primary === "siteworld") && secondaryOrId === "search") {
     return { command: "site-world:search", options: { ...options, limit: Number(options.limit || 10) }, format };
+  }
+  if (
+    (primary === "request" && (secondaryOrId === "location" || secondaryOrId === "location-draft")) ||
+    primary === "request-location" ||
+    primary === "location-draft"
+  ) {
+    const requestArgs = primary === "request" ? rest : compactArgs([secondaryOrId, ...rest]);
+    const parsedRequest = parseFlags(requestArgs);
+    return { command: "request:location", options: parsedRequest.options, format };
   }
   if (primary === "world" && secondaryOrId === "get") {
     return {
@@ -174,7 +302,7 @@ export function parseAgentCliArgs(argv: string[]): ParsedAgentCliArgs {
   if (primary === "discover") {
     return { command: "discover", options, format };
   }
-  throw new Error(`Unknown Blueprint agent command: ${argv.join(" ")}`);
+  throw new AgentCliUsageError(`Unknown Blueprint agent command: ${argv.join(" ")}`);
 }
 
 function createSessionInput(options: Record<string, unknown>): CreateSessionInput {
@@ -290,8 +418,185 @@ function entitlementReadinessInput(options: Record<string, unknown>) {
   };
 }
 
-async function execute(parsed: ParsedAgentCliArgs, client: BlueprintAgentApiClient) {
+function envValue(env: AgentClientEnv | undefined, key: string) {
+  return env?.[key] ?? process.env[key];
+}
+
+function buildHelpPayload(topic: unknown) {
+  const selectedTopic = String(topic || "").trim() || "overview";
+  return {
+    name: "blueprint-agent-cli",
+    topic: selectedTopic,
+    summary:
+      "Headless Blueprint access for robot-team agents: discovery, site-world search, dry-run commerce proof, hosted-session setup, rollout, render, and export.",
+    usage: "npm run agent:cli -- <command> [options] [--format json|ndjson|text]",
+    globalOptions: [
+      { flag: "--format json", description: "Default machine-readable JSON payload." },
+      { flag: "--format ndjson", description: "One JSON event per line for harness log streams." },
+      { flag: "--format text", description: "Short human terminal output." },
+      { flag: "--help, -h", description: "Print this help payload without calling Blueprint APIs." },
+    ],
+    setupChecks: [
+      { command: "doctor", description: "Local no-network setup check for base URL, credentialless public flow, auth env, output formats, and safe dry-run defaults." },
+      { command: "setup-auth", description: "Focused auth setup check. Add --require-auth when a protected robot-team/admin bearer token is mandatory." },
+    ],
+    commands: [
+      { command: "help", description: "Print machine-readable CLI usage, setup, exit-code, and truth-boundary guidance." },
+      { command: "doctor", description: "Run the local setup doctor without calling Blueprint APIs." },
+      { command: "setup-auth", description: "Check optional protected-flow bearer auth setup; --require-auth makes missing auth fail." },
+      { command: "plan", description: "Plan the next safe robot-team action for a query: exact match, request candidate, dry-run commerce, entitlement readiness, or demo/protected session path." },
+      { command: "discover", description: "Fetch public site-content and agent-access manifests." },
+      { command: "catalog list", description: "List public site-world catalog entries." },
+      { command: "catalog search", description: "Search public site-worlds by query and filters." },
+      { command: "site-world search", description: "First-class site-world search alias for robot-team agents." },
+      { command: "request location", description: "Build a local intake-only new-site-scan draft and contact URL. Does not submit or write." },
+      { command: "world get <siteWorldId>", description: "Fetch one public site-world detail payload." },
+      { command: "commerce quote", description: "Return a dry-run quote. Does not call Stripe." },
+      { command: "commerce checkout", description: "Create dry-run order, receipt, and entitlement proof. Does not create a live payment." },
+      { command: "commerce order <orderId>", description: "Read a dry-run commerce order." },
+      { command: "commerce entitlement <entitlementId>", description: "Read a dry-run entitlement." },
+      { command: "commerce entitlement-readiness", description: "Check dry-run entitlement linkage for hosted-session launch." },
+      { command: "readiness", description: "Read launch-readiness for a site world." },
+      { command: "session create|get|reset|step|batch|control", description: "Operate eligible hosted sessions through existing APIs." },
+      { command: "explorer-render", description: "Render an explorer frame for an existing session." },
+      { command: "export", description: "Export dataset/session artifacts through the existing session API." },
+    ],
+    environment: {
+      BLUEPRINT_API_BASE_URL: "Optional. Defaults to http://localhost:5000.",
+      BLUEPRINT_AGENT_AUTH_TOKEN: "Optional for public discovery/demo and dry-run commerce; required for protected robot-team/admin flows.",
+      BLUEPRINT_FIREBASE_ID_TOKEN: "Fallback bearer token env var for protected flows.",
+    },
+    examples: [
+      "npm run agent:cli -- help --format json",
+      "npm run agent:cli -- doctor --format json",
+      "npm run agent:cli -- setup-auth --require-auth --format ndjson",
+      "npm run agent:cli -- plan --q \"Whole Foods near Durham\" --want hosted-review",
+      "npm run agent:cli -- discover --format ndjson",
+      "npm run agent:cli -- site-world search --q \"Whole Foods near Durham\" --limit 5",
+      "npm run agent:cli -- request location --location \"Whole Foods near Durham\" --site-class grocery --workflow \"shelf restocking\"",
+      "npm run agent:cli -- commerce checkout --site-world-id siteworld-f5fd54898cfb --product hosted-session-rental --mode dry_run",
+    ],
+    exitCodes: AGENT_CLI_EXIT_CODES,
+    truthBoundaries: [
+      "Public discovery, public search, and dry-run commerce never grant package access, live payment, rights clearance, provider execution, or hosted-session fulfillment proof.",
+      "Credential-free hosted-session creation is limited to public-demo eligible site worlds and remains sample/demo only.",
+      "Protected flows require existing Firebase robot_team/admin bearer auth plus session ownership or a matching provisioned entitlement.",
+    ],
+  };
+}
+
+function buildDoctorPayload(parsed: ParsedAgentCliArgs, env: AgentClientEnv | undefined) {
+  const baseUrlRaw = envValue(env, "BLUEPRINT_API_BASE_URL");
+  const baseUrl = normalizeBlueprintApiBaseUrl(baseUrlRaw);
+  const token = String(envValue(env, "BLUEPRINT_AGENT_AUTH_TOKEN") || envValue(env, "BLUEPRINT_FIREBASE_ID_TOKEN") || "").trim();
+  const requireAuth = parsed.options.requireAuth === true;
+  const authOnly = parsed.command === "setup-auth" || parsed.options.check === "setup-auth";
+  const checks: Array<{
+    id: string;
+    ok: boolean;
+    level: "pass" | "warning" | "fail";
+    message: string;
+    value?: string | boolean;
+  }> = [];
+
+  try {
+    const url = new URL(baseUrl);
+    checks.push({
+      id: "api_base_url",
+      ok: true,
+      level: baseUrlRaw ? "pass" : "warning",
+      message: baseUrlRaw
+        ? "BLUEPRINT_API_BASE_URL is configured and parseable."
+        : "BLUEPRINT_API_BASE_URL is not set; the CLI will default to the local dev server.",
+      value: url.toString().replace(/\/$/, ""),
+    });
+  } catch {
+    checks.push({
+      id: "api_base_url",
+      ok: false,
+      level: "fail",
+      message: "BLUEPRINT_API_BASE_URL must be an absolute http(s) URL.",
+      value: baseUrl,
+    });
+  }
+
+  checks.push({
+    id: "credentialless_public_flow",
+    ok: true,
+    level: "pass",
+    message: "Public discovery, catalog search, dry-run commerce, and mock smoke can run without credentials.",
+    value: true,
+  });
+
+  checks.push({
+    id: "protected_bearer_auth",
+    ok: Boolean(token) || !requireAuth,
+    level: token ? "pass" : requireAuth ? "fail" : "warning",
+    message: token
+      ? "Protected-flow bearer auth env is present."
+      : requireAuth
+        ? "Protected-flow bearer auth is required but BLUEPRINT_AGENT_AUTH_TOKEN or BLUEPRINT_FIREBASE_ID_TOKEN is missing."
+        : "Protected-flow bearer auth is not set; protected non-demo session calls will fail until a token is provided.",
+    value: Boolean(token),
+  });
+
+  if (!authOnly) {
+    checks.push(
+      {
+        id: "output_formats",
+        ok: true,
+        level: "pass",
+        message: "The CLI supports --format json, --format ndjson, and --format text.",
+        value: true,
+      },
+      {
+        id: "safe_commerce_default",
+        ok: true,
+        level: "pass",
+        message: "Agent commerce checkout is pinned to dry_run and does not call live Stripe.",
+        value: "dry_run",
+      },
+      {
+        id: "headless_smoke",
+        ok: true,
+        level: "pass",
+        message: "Use npm run smoke:agent-headless for the local mock catalog-to-session proof path.",
+        value: "npm run smoke:agent-headless",
+      },
+    );
+  }
+
+  const ok = checks.every((check) => check.ok);
+  return {
+    command: parsed.command,
+    check: authOnly ? "setup-auth" : "setup",
+    ok,
+    exitCode: ok ? AGENT_CLI_EXIT_CODES.ok : AGENT_CLI_EXIT_CODES.setup,
+    checks,
+    nextCommands: authOnly
+      ? [
+          "export BLUEPRINT_AGENT_AUTH_TOKEN=<firebase-id-token>",
+          "npm run agent:cli -- setup-auth --require-auth --format json",
+        ]
+      : [
+          "npm run agent:cli -- help --format json",
+          "npm run agent:cli -- discover --format ndjson",
+          "npm run smoke:agent-headless",
+        ],
+    truthBoundary:
+      "Doctor and setup-auth are local setup checks only. They do not call Stripe, providers, Firebase writes, Paperclip mutation, payment, payout, or hosted-session fulfillment paths.",
+  };
+}
+
+async function execute(parsed: ParsedAgentCliArgs, client: BlueprintAgentApiClient, env?: AgentClientEnv) {
   switch (parsed.command) {
+    case "help":
+      return buildHelpPayload(parsed.options.topic);
+    case "doctor":
+    case "setup-auth":
+      return buildDoctorPayload(parsed, env);
+    case "plan":
+      return planAgentJourney(parsed.options as AgentJourneyPlanInput, client, env);
     case "discover":
       {
         const [siteContent, agentAccess] = await Promise.all([
@@ -308,6 +613,8 @@ async function execute(parsed: ParsedAgentCliArgs, client: BlueprintAgentApiClie
     case "catalog:search":
     case "site-world:search":
       return client.searchSiteWorlds(siteWorldSearchInput(parsed.options));
+    case "request:location":
+      return buildAgentRequestLocationDraft(parsed.options as AgentRequestLocationDraftInput);
     case "commerce:quote":
       return client.quoteCommerce(commerceInput(parsed.options));
     case "commerce:checkout":
@@ -345,6 +652,54 @@ async function execute(parsed: ParsedAgentCliArgs, client: BlueprintAgentApiClie
 }
 
 function toTextOutput(command: AgentCliCommand, payload: unknown) {
+  if (command === "help" && payload && typeof payload === "object") {
+    const help = payload as ReturnType<typeof buildHelpPayload>;
+    return [
+      `${help.name}: ${help.summary}`,
+      "",
+      `Usage: ${help.usage}`,
+      "",
+      "Setup:",
+      ...help.setupChecks.map((check) => `  ${check.command} - ${check.description}`),
+      "",
+      "Commands:",
+      ...help.commands.map((commandHelp) => `  ${commandHelp.command} - ${commandHelp.description}`),
+      "",
+      `Exit codes: ok=${AGENT_CLI_EXIT_CODES.ok}, usage=${AGENT_CLI_EXIT_CODES.usage}, setup=${AGENT_CLI_EXIT_CODES.setup}, api=${AGENT_CLI_EXIT_CODES.api}, unexpected=${AGENT_CLI_EXIT_CODES.unexpected}`,
+    ].join("\n");
+  }
+  if ((command === "doctor" || command === "setup-auth") && payload && typeof payload === "object") {
+    const doctor = payload as ReturnType<typeof buildDoctorPayload>;
+    const lines = [
+      `${command}: ${doctor.ok ? "ok" : "failed"} (exit ${doctor.exitCode})`,
+      ...doctor.checks.map((check) => `  ${check.level}: ${check.id} - ${check.message}`),
+    ];
+    return lines.join("\n");
+  }
+  if (command === "plan" && payload && typeof payload === "object") {
+    const plan = payload as {
+      nextAction?: { kind?: unknown; siteWorldId?: unknown; command?: unknown };
+      blockers?: unknown[];
+    };
+    const action = plan.nextAction || {};
+    const blockerCount = Array.isArray(plan.blockers) ? plan.blockers.length : 0;
+    return [
+      `plan: ${String(action.kind || "unknown")}${action.siteWorldId ? ` for ${String(action.siteWorldId)}` : ""}`,
+      `blockers: ${blockerCount}`,
+      action.command ? `next: ${String(action.command)}` : "",
+    ].filter(Boolean).join("\n");
+  }
+  if (command === "request:location" && payload && typeof payload === "object") {
+    const draft = payload as ReturnType<typeof buildAgentRequestLocationDraft>;
+    const missing = draft.missingRequiredFields.length
+      ? draft.missingRequiredFields.join(", ")
+      : "none";
+    return [
+      `request location: ${draft.contactUrl}`,
+      `missing required fields: ${missing}`,
+      draft.truthBoundaries[0],
+    ].join("\n");
+  }
   if (payload && typeof payload === "object" && "sessionId" in payload) {
     return `${command}: ${(payload as { sessionId: string }).sessionId}`;
   }
@@ -354,38 +709,116 @@ function toTextOutput(command: AgentCliCommand, payload: unknown) {
   return `${command}: ok`;
 }
 
+function toNdjsonOutput(command: AgentCliCommand, payload: unknown) {
+  const ok = payload && typeof payload === "object" && "ok" in payload
+    ? Boolean((payload as { ok: unknown }).ok)
+    : true;
+  return JSON.stringify({
+    type: "result",
+    command,
+    ok,
+    exitCode: payload && typeof payload === "object" && "exitCode" in payload
+      ? (payload as { exitCode: unknown }).exitCode
+      : AGENT_CLI_EXIT_CODES.ok,
+    payload,
+  });
+}
+
+function toMachineOutput(format: AgentCliFormat, command: AgentCliCommand, payload: unknown) {
+  if (format === "text") return toTextOutput(command, payload);
+  if (format === "ndjson") return toNdjsonOutput(command, payload);
+  return JSON.stringify(payload, null, 2);
+}
+
+function buildErrorPayload(error: unknown) {
+  if (error instanceof BlueprintAgentApiError) {
+    return {
+      ok: false,
+      error: error.message,
+      code: error.code || "api_error",
+      status: error.status,
+      exitCode: AGENT_CLI_EXIT_CODES.api,
+      payload: error.payload,
+    };
+  }
+  if (error instanceof AgentCliUsageError) {
+    return {
+      ok: false,
+      error: error.message,
+      code: error.code,
+      exitCode: error.exitCode,
+    };
+  }
+  if (error instanceof TypeError) {
+    return {
+      ok: false,
+      error: error.message,
+      code: "api_request_failed",
+      exitCode: AGENT_CLI_EXIT_CODES.api,
+    };
+  }
+  return {
+    ok: false,
+    error: error instanceof Error ? error.message : String(error),
+    code: "unexpected_error",
+    exitCode: AGENT_CLI_EXIT_CODES.unexpected,
+  };
+}
+
+function safeRequestedFormat(argv: string[]): AgentCliFormat {
+  try {
+    return extractGlobalCliOptions(argv).format;
+  } catch {
+    return "json";
+  }
+}
+
+export function getAgentCliExitCode(error: unknown) {
+  return Number(buildErrorPayload(error).exitCode || AGENT_CLI_EXIT_CODES.unexpected);
+}
+
+function writeCliError(error: unknown, format: AgentCliFormat, stderr: (line: string) => void) {
+  const payload = buildErrorPayload(error);
+  if (format === "text") {
+    stderr(`${payload.code}: ${payload.error}`);
+    return;
+  }
+  if (format === "ndjson") {
+    stderr(JSON.stringify({ type: "error", ...payload }));
+    return;
+  }
+  stderr(JSON.stringify(payload, null, 2));
+}
+
 export async function runAgentCli(argv = process.argv.slice(2), options: RunAgentCliOptions = {}) {
-  const parsed = parseAgentCliArgs(argv);
   const stdout = options.stdout || ((line: string) => process.stdout.write(`${line}\n`));
   const stderr = options.stderr || ((line: string) => process.stderr.write(`${line}\n`));
-  const client = new BlueprintAgentApiClient({
-    env: options.env,
-    fetchImpl: options.fetchImpl,
-  });
+  let parsed: ParsedAgentCliArgs | null = null;
 
   try {
-    const payload = await execute(parsed, client);
-    stdout(parsed.format === "text" ? toTextOutput(parsed.command, payload) : JSON.stringify(payload, null, 2));
+    parsed = parseAgentCliArgs(argv);
+    const client = new BlueprintAgentApiClient({
+      env: options.env,
+      fetchImpl: options.fetchImpl,
+    });
+    const payload = await execute(parsed, client, options.env);
+    stdout(toMachineOutput(parsed.format, parsed.command, payload));
     return payload;
   } catch (error) {
-    if (error instanceof BlueprintAgentApiError) {
-      const payload = {
-        error: error.message,
-        code: error.code,
-        status: error.status,
-        payload: error.payload,
-      };
-      stderr(JSON.stringify(payload, null, 2));
-      throw error;
-    }
-    stderr(error instanceof Error ? error.message : String(error));
+    writeCliError(error, parsed?.format || safeRequestedFormat(argv), stderr);
     throw error;
   }
 }
 
 const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : "";
 if (invokedPath && import.meta.url === pathToFileURL(invokedPath).href) {
-  runAgentCli().catch(() => {
-    process.exitCode = 1;
-  });
+  runAgentCli()
+    .then((payload) => {
+      process.exitCode = payload && typeof payload === "object" && "exitCode" in payload
+        ? Number((payload as { exitCode: unknown }).exitCode || AGENT_CLI_EXIT_CODES.ok)
+        : AGENT_CLI_EXIT_CODES.ok;
+    })
+    .catch((error) => {
+      process.exitCode = getAgentCliExitCode(error);
+    });
 }

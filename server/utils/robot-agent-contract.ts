@@ -1,4 +1,4 @@
-export const ROBOT_AGENT_CONTRACT_VERSION = "2026-05-21";
+export const ROBOT_AGENT_CONTRACT_VERSION = "2026-05-31";
 export const ROBOT_AGENT_PUBLIC_DEMO_SITE_WORLD_ID = "siteworld-f5fd54898cfb";
 export const ROBOT_AGENT_TRUTH_LABELS = [
   "capture_grounded",
@@ -9,6 +9,38 @@ export const ROBOT_AGENT_TRUTH_LABELS = [
   "request_gated",
   "protected_robot_team",
   "dry_run_order",
+] as const;
+export const ROBOT_AGENT_MCP_TOOL_NAMES = [
+  "blueprint.siteWorld.search",
+  "blueprint.catalog.search",
+  "blueprint.request.locationDraft",
+  "blueprint.siteWorld.get",
+  "blueprint.siteWorld.launchReadiness",
+  "blueprint.commerce.quote",
+  "blueprint.commerce.checkoutDryRun",
+  "blueprint.commerce.order.get",
+  "blueprint.commerce.entitlement.get",
+  "blueprint.commerce.entitlementReadiness",
+  "blueprint.session.create",
+  "blueprint.session.reset",
+  "blueprint.session.step",
+  "blueprint.session.runBatch",
+  "blueprint.session.control",
+  "blueprint.session.renderExplorer",
+  "blueprint.session.export",
+] as const;
+export const ROBOT_AGENT_CLI_COMMANDS = [
+  "npx tsx scripts/agent-access/blueprint-agent-cli.ts help --format json",
+  "npx tsx scripts/agent-access/blueprint-agent-cli.ts doctor --format json",
+  "npx tsx scripts/agent-access/blueprint-agent-cli.ts setup-auth --format json",
+  "npx tsx scripts/agent-access/blueprint-agent-cli.ts plan --q \"Whole Foods near Durham\" --want hosted-review",
+  "npx tsx scripts/agent-access/blueprint-agent-cli.ts discover",
+  "npx tsx scripts/agent-access/blueprint-agent-cli.ts site-world search --q \"Whole Foods near Durham\" --limit 5",
+  "npx tsx scripts/agent-access/blueprint-agent-cli.ts request location --location \"Whole Foods near Durham\" --site-class grocery --workflow \"shelf restocking\"",
+  "npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce quote --site-world-id siteworld-f5fd54898cfb --product hosted-session-rental --session-hours 1",
+  "npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce checkout --site-world-id siteworld-f5fd54898cfb --product hosted-session-rental --mode dry_run",
+  "npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce entitlement-readiness --site-world-id siteworld-f5fd54898cfb --entitlement-id <dry-entitlement-id>",
+  "npx tsx scripts/agent-access/blueprint-agent-cli.ts session create --site-world-id siteworld-f5fd54898cfb --session-mode runtime_only --robot-profile-id other_sample --task-id sw-chi-01-task-1 --scenario-id sw-chi-01-scenario-1 --start-state-id sw-chi-01-start-1",
 ] as const;
 
 export function buildRobotAgentAccessManifest() {
@@ -21,6 +53,7 @@ export function buildRobotAgentAccessManifest() {
     llmsFull: "/llms-full.txt",
     preferredTool: "blueprint.siteWorld.search",
     compatibilityTool: "blueprint.catalog.search",
+    mcpToolNames: ROBOT_AGENT_MCP_TOOL_NAMES,
     publicDemoSiteWorldId: ROBOT_AGENT_PUBLIC_DEMO_SITE_WORLD_ID,
     env: {
       apiBaseUrl: "BLUEPRINT_API_BASE_URL",
@@ -29,16 +62,9 @@ export function buildRobotAgentAccessManifest() {
     credentiallessWorkflow: {
       requiredCredentials: false,
       summary:
-        "A headless robot-team agent can discover Blueprint, search site worlds, quote dry-run commerce, create dry-run entitlement proof, and create a public-demo hosted session without credentials.",
+        "A headless robot-team agent can discover Blueprint, plan the next safe journey action, search site worlds, draft a new-location intake request, quote dry-run commerce, create dry-run entitlement proof, and create a public-demo hosted session without credentials.",
       smokeCommand: "npm run smoke:agent-headless",
-      cliCommands: [
-        "npx tsx scripts/agent-access/blueprint-agent-cli.ts discover",
-        "npx tsx scripts/agent-access/blueprint-agent-cli.ts site-world search --q \"Whole Foods near Durham\" --limit 5",
-        "npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce quote --site-world-id siteworld-f5fd54898cfb --product hosted-session-rental --session-hours 1",
-        "npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce checkout --site-world-id siteworld-f5fd54898cfb --product hosted-session-rental --mode dry_run",
-        "npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce entitlement-readiness --site-world-id siteworld-f5fd54898cfb --entitlement-id <dry-entitlement-id>",
-        "npx tsx scripts/agent-access/blueprint-agent-cli.ts session create --site-world-id siteworld-f5fd54898cfb --session-mode runtime_only --robot-profile-id other_sample --task-id sw-chi-01-task-1 --scenario-id sw-chi-01-scenario-1 --start-state-id sw-chi-01-start-1",
-      ],
+      cliCommands: ROBOT_AGENT_CLI_COMMANDS,
     },
     siteWorldSearch: {
       endpoint: "/api/site-worlds/search",
@@ -47,6 +73,26 @@ export function buildRobotAgentAccessManifest() {
       requestCandidateIntakeOnly: true,
       truth:
         "Search returns public ranked matches and request candidates. It never grants entitlement, payment, rights clearance, provider execution, fulfillment, private artifact access, or hosted-session access.",
+    },
+    journeyPlanner: {
+      cliCommand:
+        "npx tsx scripts/agent-access/blueprint-agent-cli.ts plan --q \"Whole Foods near Durham\" --want hosted-review",
+      defaultMode: "read_or_dry_run",
+      returnsCompactJson: true,
+      nextActions: [
+        "exact_catalog_match",
+        "request_candidate",
+        "dry_run_quote_order",
+        "entitlement_readiness",
+        "public_demo_session_path",
+        "blocked_protected_session_path",
+      ],
+      livePayment: false,
+      privateAccess: false,
+      providerExecution: false,
+      hostedSessionCreatedByPlanner: false,
+      truth:
+        "The planner reads public search and may call dry-run agent commerce/readiness endpoints only. It returns the next safe machine action and structured blockers without creating live payment, private access, provider execution, or hosted-session fulfillment.",
     },
     requestCandidate: {
       source: "site-worlds",
@@ -59,6 +105,36 @@ export function buildRobotAgentAccessManifest() {
       grantsHostedSession: false,
       truth:
         "requestCandidate records intake interest only and stays separate from quote, order, entitlement, rights, provider execution, and fulfillment state.",
+    },
+    requestLocationDraft: {
+      cliCommand:
+        "npx tsx scripts/agent-access/blueprint-agent-cli.ts request location --location \"Whole Foods near Durham\" --site-class grocery --workflow \"shelf restocking\"",
+      mcpTool: "blueprint.request.locationDraft",
+      intakeOnly: true,
+      defaultWrites: false,
+      scrapesContactPage: false,
+      contactUrlPattern: "/contact?source=agent-request-location&buyerType=robot_team&path=new-capture",
+      returns: [
+        "contactUrl",
+        "inboundRequestDraft",
+        "missingRequiredFields",
+        "truthBoundaries",
+        "submitInstructions",
+      ],
+      requiredSubmitFields: [
+        "requestId",
+        "firstName",
+        "lastName",
+        "company",
+        "roleTitle",
+        "email",
+        "budgetBucket",
+        "taskStatement",
+        "targetSiteTypeOrSiteNameOrLocation",
+        "proofPathPreference",
+      ],
+      truth:
+        "request location / blueprint.request.locationDraft builds a local draft for new site scan intake only. It does not write, scrape /contact, grant entitlement, prove payment, clear rights, run providers, fulfill hosted sessions, or open package access.",
     },
     dryRunCommerce: {
       mode: "dry_run",
@@ -101,6 +177,7 @@ export function buildRobotAgentAccessManifest() {
     tools: {
       cli: "scripts/agent-access/blueprint-agent-cli.ts",
       mcp: "scripts/agent-access/blueprint-mcp-server.ts",
+      mcpToolNames: ROBOT_AGENT_MCP_TOOL_NAMES,
     },
     truthLabels: ROBOT_AGENT_TRUTH_LABELS,
     truth:
@@ -588,9 +665,12 @@ function buildSchemas() {
         "name",
         "preferredTool",
         "compatibilityTool",
+        "mcpToolNames",
         "credentiallessWorkflow",
         "siteWorldSearch",
+        "journeyPlanner",
         "requestCandidate",
+        "requestLocationDraft",
         "dryRunCommerce",
         "publicDemo",
         "protectedFlow",
@@ -606,6 +686,10 @@ function buildSchemas() {
         llmsFull: { type: "string" },
         preferredTool: { type: "string", enum: ["blueprint.siteWorld.search"] },
         compatibilityTool: { type: "string", enum: ["blueprint.catalog.search"] },
+        mcpToolNames: {
+          type: "array",
+          items: { type: "string", enum: [...ROBOT_AGENT_MCP_TOOL_NAMES] },
+        },
         publicDemoSiteWorldId: { type: "string" },
         credentiallessWorkflow: {
           type: "object",
@@ -619,7 +703,9 @@ function buildSchemas() {
           },
         },
         siteWorldSearch: { type: "object", additionalProperties: true },
+        journeyPlanner: { type: "object", additionalProperties: true },
         requestCandidate: { type: "object", additionalProperties: true },
+        requestLocationDraft: { type: "object", additionalProperties: true },
         dryRunCommerce: { type: "object", additionalProperties: true },
         publicDemo: { type: "object", additionalProperties: true },
         protectedFlow: { type: "object", additionalProperties: true },

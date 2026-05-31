@@ -32,13 +32,21 @@ Blueprint turns indoor real-site capture into site-specific world-model products
 
 ## Agent Request Pattern
 
-Robot-team agents may construct request URLs without scraping the UI:
+Robot-team agents may construct request URLs without scraping the UI, or use CLI `request location` / MCP `blueprint.request.locationDraft` to receive a dry-run draft packet with `contactUrl`, `inboundRequestDraft`, `missingRequiredFields`, `truthBoundaries`, and `submitInstructions`:
 
 `/contact?source=site-worlds&buyerType=robot_team&path=hosted-review&location=123%20Unknown%20St&workflow=warehouse%20tote&message=Need%20a%20hosted%20review`
 
-Supported `path` values: `world-model`, `hosted-review`, `new-capture`, and `site-question`. Supported request fields include `source`, `buyerType`, `siteName`, `location`, `address`, `siteLocation`, `siteClass`, `targetSiteType`, `workflow`, `category`, `targetRobotTeam`, and `message`. A request URL or `/api/inbound-request` submission records intake only; it does not grant entitlement, package access, rights clearance, payment, provider execution, fulfillment, or hosted-session availability.
+Supported `path` values: `world-model`, `hosted-review`, `new-capture`, and `site-question`. Supported request fields include `source`, `buyerType`, `siteName`, `location`, `address`, `siteLocation`, `siteClass`, `targetSiteType`, `workflow`, `category`, `targetRobotTeam`, and `message`. A request URL, location draft, or `/api/inbound-request` submission records intake only; it does not grant entitlement, package access, rights clearance, payment, provider execution, fulfillment, or hosted-session availability. The CLI/MCP location draft does not submit by default and does not write.
 
 For search, robot-team agents should prefer `GET /api/site-worlds/search` or MCP tool `blueprint.siteWorld.search`. Queries like `Whole Foods near Durham`, `store`, `supermarket`, `retail aisle`, and `warehouse tote` return ranked close matches, `matchSemantics`, and a `requestCandidate` when no exact scanned package exists.
+
+For one-command journey planning, use `npm run agent:cli -- plan --q "Whole Foods near Durham" --want hosted-review`. It returns compact JSON for the next safe action: exact catalog match, request candidate, dry-run quote/order, entitlement readiness, public-demo session path, or a blocked protected-session path with structured blockers. It does not create live payment, private access, provider execution, or hosted-session fulfillment.
+
+The request/commerce/session lifecycle is: request intake through `requestCandidate` or `blueprint.request.locationDraft`, dry-run commerce through quote/checkout/order/entitlement/readiness tools, then hosted-session lifecycle commands for create/reset/step/runBatch/control/renderExplorer/export when public-demo eligibility or protected auth allows it.
+
+Agent access truth labels: `capture_grounded`, `provider_derived`, `generated`, `sample_demo`, `public_demo_eligible`, `request_gated`, `protected_robot_team`, and `dry_run_order`.
+
+Current MCP tool names: `blueprint.siteWorld.search`, `blueprint.catalog.search`, `blueprint.request.locationDraft`, `blueprint.siteWorld.get`, `blueprint.siteWorld.launchReadiness`, `blueprint.commerce.quote`, `blueprint.commerce.checkoutDryRun`, `blueprint.commerce.order.get`, `blueprint.commerce.entitlement.get`, `blueprint.commerce.entitlementReadiness`, `blueprint.session.create`, `blueprint.session.reset`, `blueprint.session.step`, `blueprint.session.runBatch`, `blueprint.session.control`, `blueprint.session.renderExplorer`, and `blueprint.session.export`.
 
 No-credential mock proof: `npm run smoke:agent-headless` exercises public discovery, `/api/agent-access`, `blueprint.siteWorld.search`, dry-run quote/order/entitlement readiness, truth labels, and a mock public-demo hosted session without a bearer token. MCP commerce tools are `blueprint.commerce.quote`, `blueprint.commerce.checkoutDryRun`, `blueprint.commerce.order.get`, `blueprint.commerce.entitlement.get`, and `blueprint.commerce.entitlementReadiness`; all are dry-run/local proof surfaces, not live Stripe or fulfillment.
 

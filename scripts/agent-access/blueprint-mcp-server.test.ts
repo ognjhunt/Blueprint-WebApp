@@ -2,6 +2,15 @@
 import { describe, expect, it, vi } from "vitest";
 import { BLUEPRINT_MCP_TOOLS, callBlueprintMcpTool } from "./blueprint-mcp-server";
 
+function collectObjectKeys(value: unknown, keys = new Set<string>()) {
+  if (!value || typeof value !== "object") return keys;
+  Object.keys(value as Record<string, unknown>).forEach((key) => keys.add(key));
+  Object.values(value as Record<string, unknown>).forEach((entry) => {
+    if (entry && typeof entry === "object") collectObjectKeys(entry, keys);
+  });
+  return keys;
+}
+
 describe("Blueprint MCP server", () => {
   it("publishes stable tool schemas for the headless workflow", () => {
     const toolNames = BLUEPRINT_MCP_TOOLS.map((tool) => tool.name);
@@ -9,6 +18,7 @@ describe("Blueprint MCP server", () => {
     expect(toolNames).toEqual([
       "blueprint.siteWorld.search",
       "blueprint.catalog.search",
+      "blueprint.request.locationDraft",
       "blueprint.siteWorld.get",
       "blueprint.siteWorld.launchReadiness",
       "blueprint.commerce.quote",
@@ -33,6 +43,8 @@ describe("Blueprint MCP server", () => {
     ]);
     expect(BLUEPRINT_MCP_TOOLS.find((tool) => tool.name === "blueprint.siteWorld.search")?.inputSchema.properties).toHaveProperty("q");
     expect(BLUEPRINT_MCP_TOOLS.find((tool) => tool.name === "blueprint.siteWorld.search")?.inputSchema.properties).toHaveProperty("objectTags");
+    expect(BLUEPRINT_MCP_TOOLS.find((tool) => tool.name === "blueprint.request.locationDraft")?.inputSchema.properties).toHaveProperty("location");
+    expect(BLUEPRINT_MCP_TOOLS.find((tool) => tool.name === "blueprint.request.locationDraft")?.description).toContain("intake-only");
     expect(BLUEPRINT_MCP_TOOLS.find((tool) => tool.name === "blueprint.commerce.entitlementReadiness")?.inputSchema.required).toEqual([
       "siteWorldId",
       "entitlementId",
@@ -129,6 +141,54 @@ describe("Blueprint MCP server", () => {
     expect(payload.requestCandidate.inboundRequestDraft).not.toHaveProperty("entitlementId");
     expect(payload.requestCandidate.inboundRequestDraft).not.toHaveProperty("paymentStatus");
     expect(payload.requestCandidate.inboundRequestDraft).not.toHaveProperty("hostedSessionId");
+  });
+
+  it("builds a request-location draft locally without access, payment, provider, or hosted proof fields", async () => {
+    const fetchMock = vi.fn();
+
+    const result = await callBlueprintMcpTool(
+      "blueprint.request.locationDraft",
+      {
+        location: "Whole Foods near Durham",
+        siteClass: "grocery retail",
+        workflow: "shelf restocking",
+        message: "Need a new scan request, not access.",
+      },
+      {
+        env: { BLUEPRINT_API_BASE_URL: "https://agent.example" },
+        fetchImpl: fetchMock,
+      },
+    );
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    const payload = JSON.parse(result.content[0].text);
+    expect(payload).toMatchObject({
+      mode: "dry_run",
+      action: "request_location_draft",
+      contactUrl: expect.stringContaining("/contact?"),
+      inboundRequestDraft: {
+        buyerType: "robot_team",
+        commercialRequestPath: "capture_access",
+        requestedLanes: ["deeper_evaluation"],
+        siteLocation: "Whole Foods near Durham",
+        targetSiteType: "grocery retail",
+        proofPathPreference: "exact_site_required",
+      },
+      missingRequiredFields: expect.arrayContaining(["firstName", "lastName", "company", "roleTitle", "email", "budgetBucket"]),
+      submitInstructions: {
+        explicitSubmitRequired: true,
+        defaultWrites: false,
+      },
+    });
+    const contactUrl = new URL(payload.contactUrl, "https://tryblueprint.io");
+    expect(contactUrl.searchParams.get("path")).toBe("new-capture");
+    expect(contactUrl.searchParams.get("buyerType")).toBe("robot_team");
+    expect([...contactUrl.searchParams.keys()]).not.toEqual(
+      expect.arrayContaining(["entitlementId", "paymentStatus", "providerRunId", "hostedSessionId"]),
+    );
+    expect([...collectObjectKeys(payload)]).not.toEqual(
+      expect.arrayContaining(["entitlementId", "paymentStatus", "providerRunId", "hostedSessionId"]),
+    );
   });
 
   it("routes commerce tools through quote and dry-run checkout client methods", async () => {

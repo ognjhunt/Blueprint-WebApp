@@ -19,15 +19,21 @@ export BLUEPRINT_API_BASE_URL=https://tryblueprint.io
 export BLUEPRINT_AGENT_AUTH_TOKEN=<firebase-id-token>
 
 npm run agent:cli -- discover
+npm run agent:cli -- help --format json
+npm run agent:cli -- doctor --format json
+npm run agent:cli -- setup-auth --format json
+npm run agent:cli -- plan --q "Whole Foods near Durham" --want hosted-review
 npm run agent:cli -- catalog list --limit 3
 npm run agent:cli -- catalog search --q "whole foods" --limit 5
 npm run agent:cli -- site-world search --q "Whole Foods near Durham" --limit 5
+npm run agent:cli -- request location --location "Whole Foods near Durham" --site-class grocery --workflow "shelf restocking"
 npm run agent:cli -- catalog search --q "warehouse tote" --limit 5
 npm run agent:cli -- world get siteworld-f5fd54898cfb
 npm run agent:cli -- commerce quote --site-world-id siteworld-f5fd54898cfb --product hosted-session-rental --session-hours 1
 npm run agent:cli -- commerce checkout --site-world-id siteworld-f5fd54898cfb --product hosted-session-rental --mode dry_run
 npm run agent:cli -- commerce order <dry-order-id>
 npm run agent:cli -- commerce entitlement <dry-entitlement-id>
+npm run agent:cli -- commerce entitlement-readiness --site-world-id siteworld-f5fd54898cfb --entitlement-id <dry-entitlement-id>
 npm run agent:cli -- readiness --site-world-id siteworld-f5fd54898cfb
 npm run agent:cli -- session create \
   --site-world-id siteworld-f5fd54898cfb \
@@ -40,7 +46,43 @@ npm run agent:cli -- session create \
   --start-state-id sw-chi-01-start-1
 ```
 
-JSON is the default output. Add `--format text` only for human terminal output.
+JSON is the default output. Add `--format ndjson` for harness logs that expect one JSON event per line. Add `--format text` only for human terminal output.
+
+`help`, `doctor`, and `setup-auth` are local setup commands:
+
+- `npm run agent:cli -- help --format json` prints command usage, env vars, examples, exit codes, and truth boundaries without calling Blueprint APIs.
+- `npm run agent:cli -- doctor --format json` checks local setup, output formats, credentialless public/demo support, optional protected auth env, and dry-run commerce defaults without calling live services.
+- `npm run agent:cli -- setup-auth --require-auth --format ndjson` fails predictably when a protected robot-team/admin bearer token is required but neither `BLUEPRINT_AGENT_AUTH_TOKEN` nor `BLUEPRINT_FIREBASE_ID_TOKEN` is present.
+
+Predictable CLI exit codes:
+
+| Code | Meaning |
+|---:|---|
+| `0` | Command or setup check succeeded. |
+| `1` | Unexpected local CLI error. |
+| `2` | Usage error, unknown command, invalid option, or missing required flag. |
+| `3` | Setup/auth doctor failed, such as malformed `BLUEPRINT_API_BASE_URL` or missing required bearer auth. |
+| `4` | Blueprint API request failed or could not be reached. |
+
+The CLI setup checks do not call Stripe, providers, Firebase writes, Paperclip mutation, payment, payout, or hosted-session fulfillment paths. Protected non-demo hosted-session flows still require existing Firebase robot-team/admin bearer auth plus session ownership or a matching provisioned entitlement.
+
+## Agent Journey Planner
+
+Use `plan` when a robot-team agent has a natural-language query and needs the next safe machine action in one compact JSON response:
+
+```bash
+npm run agent:cli -- plan --q "Whole Foods near Durham" --want hosted-review
+```
+
+Planner actions are read/dry-run by default: `exact_catalog_match`, `request_candidate`, `dry_run_quote_order`, `entitlement_readiness`, `public_demo_session_path`, or `blocked_protected_session_path`. Blockers are returned as structured objects with `code`, `severity`, `ownerSystem`, `message`, and `retryAction`. The planner does not create live payment, private access, provider execution, or hosted-session fulfillment.
+
+## Request/Commerce/Session Lifecycle
+
+The request/commerce/session lifecycle is intentionally split so robot-team agents cannot mistake intake, dry-run commerce, or hosted-session lifecycle proof for the same thing:
+
+- `request intake`: use `requestCandidate` from search or `blueprint.request.locationDraft` to produce a contact URL and inbound-request draft. This does not submit, write, grant package access, or create entitlement.
+- `dry-run commerce`: use quote, dry-run checkout, order, entitlement, and entitlement-readiness tools to prove the commerce shape without live Stripe, package delivery, rights clearance, provider execution, or hosted fulfillment.
+- `hosted-session lifecycle`: use create/reset/step/runBatch/control/renderExplorer/export only after public-demo eligibility or protected Firebase robot-team/admin auth plus entitlement/session ownership gates allow it.
 
 ## MCP Stdio Config
 
@@ -77,6 +119,21 @@ npm run agent:cli -- site-world search --q "Whole Foods near Durham" --limit 5
 
 The returned request candidate records interest only. It does not grant package access, entitlement, payment, rights clearance, provider execution, fulfillment, live hosted-session availability, private artifact access, or admin access.
 
+## Request Location Draft
+
+Use `request location` or MCP tool `blueprint.request.locationDraft` when an agent already knows the requested site or nearby place and needs a first-class intake draft without scraping `/contact`.
+
+Example:
+
+```bash
+npm run agent:cli -- request location \
+  --location "Whole Foods near Durham" \
+  --site-class grocery \
+  --workflow "shelf restocking"
+```
+
+The default response is a local dry-run packet with `contactUrl`, `inboundRequestDraft`, `missingRequiredFields`, `truthBoundaries`, and `submitInstructions`. It does not write to `/api/inbound-request`, call Stripe, run a provider, create a hosted session, grant package access, or clear rights. Direct submit is not implemented in this CLI/MCP draft tool; submit only by explicitly posting complete contact fields to `/api/inbound-request` or routing a human through `contactUrl`.
+
 ## Dry-Run Agent Commerce
 
 Agent commerce is repo-safe by default:
@@ -93,12 +150,14 @@ The dry-run path never creates a live Stripe Checkout Session, payment intent, c
 
 - `blueprint.siteWorld.search`
 - `blueprint.catalog.search` (backward-compatible alias; prefer `blueprint.siteWorld.search`)
+- `blueprint.request.locationDraft`
 - `blueprint.siteWorld.get`
 - `blueprint.siteWorld.launchReadiness`
 - `blueprint.commerce.quote`
 - `blueprint.commerce.checkoutDryRun`
 - `blueprint.commerce.order.get`
 - `blueprint.commerce.entitlement.get`
+- `blueprint.commerce.entitlementReadiness`
 - `blueprint.session.create`
 - `blueprint.session.reset`
 - `blueprint.session.step`
@@ -125,6 +184,7 @@ Use `tsx scripts/agent-access/headless-hosted-session-smoke.ts --mode public-dem
 - `provider_derived` means a runtime/provider/adapter produced the output from the package path.
 - `generated` means the artifact was produced by a hosted run or render request.
 - `sample_demo` means public demo shape, not customer proof.
+- `public_demo_eligible` means the public sample can exercise credential-free demo paths without representing protected customer access.
 - `request_gated` means access, rights, export, or hosted availability still depends on review.
 - `dry_run_order` means local/test quote, order, receipt, and entitlement proof with no live Stripe charge or live package access.
 - `protected_robot_team` means protected hosted-session access requires robot-team/admin auth plus session ownership or a matching provisioned entitlement.

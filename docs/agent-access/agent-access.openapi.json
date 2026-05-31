@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Blueprint Robot-Team Agent API",
-    "version": "2026-05-21",
+    "version": "2026-05-31",
     "summary": "Headless catalog, site-world, dry-run commerce, hosted-session, explorer-render, and export contract for robot-team agents.",
     "description": "Blueprint exposes capture-backed site-world catalog, dry-run quote/order/entitlement proof, and hosted-session endpoints for robot-team agents. Public demo calls may run without privileged credentials only when a demo site world is enabled. Protected robot-team flows use the existing Firebase bearer path and require robot_team/admin outer auth plus session ownership or a matching provisioned entitlement."
   },
@@ -1795,9 +1795,12 @@
           "name",
           "preferredTool",
           "compatibilityTool",
+          "mcpToolNames",
           "credentiallessWorkflow",
           "siteWorldSearch",
+          "journeyPlanner",
           "requestCandidate",
+          "requestLocationDraft",
           "dryRunCommerce",
           "publicDemo",
           "protectedFlow",
@@ -1835,6 +1838,31 @@
               "blueprint.catalog.search"
             ]
           },
+          "mcpToolNames": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "blueprint.siteWorld.search",
+                "blueprint.catalog.search",
+                "blueprint.request.locationDraft",
+                "blueprint.siteWorld.get",
+                "blueprint.siteWorld.launchReadiness",
+                "blueprint.commerce.quote",
+                "blueprint.commerce.checkoutDryRun",
+                "blueprint.commerce.order.get",
+                "blueprint.commerce.entitlement.get",
+                "blueprint.commerce.entitlementReadiness",
+                "blueprint.session.create",
+                "blueprint.session.reset",
+                "blueprint.session.step",
+                "blueprint.session.runBatch",
+                "blueprint.session.control",
+                "blueprint.session.renderExplorer",
+                "blueprint.session.export"
+              ]
+            }
+          },
           "publicDemoSiteWorldId": {
             "type": "string"
           },
@@ -1869,7 +1897,15 @@
             "type": "object",
             "additionalProperties": true
           },
+          "journeyPlanner": {
+            "type": "object",
+            "additionalProperties": true
+          },
           "requestCandidate": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "requestLocationDraft": {
             "type": "object",
             "additionalProperties": true
           },

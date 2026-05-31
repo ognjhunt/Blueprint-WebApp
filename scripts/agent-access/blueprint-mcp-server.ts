@@ -10,6 +10,10 @@ import {
   type FetchLike,
   type SearchSiteWorldsInput,
 } from "./agent-api-client";
+import {
+  buildAgentRequestLocationDraft,
+  type AgentRequestLocationDraftInput,
+} from "./request-location-draft";
 
 type JsonRpcRequest = {
   jsonrpc?: "2.0";
@@ -59,6 +63,33 @@ const siteWorldSearchInputSchema: BlueprintMcpTool["inputSchema"] = {
   additionalProperties: false,
 };
 
+const requestLocationDraftInputSchema: BlueprintMcpTool["inputSchema"] = {
+  type: "object",
+  properties: {
+    location: stringProp("Requested site, address, city, or nearby-location phrase for the new scan intake draft."),
+    siteName: stringProp("Optional human-readable site/place name."),
+    address: stringProp("Optional street address or location label."),
+    city: stringProp("Optional city for the requested location."),
+    siteClass: stringProp("Optional site class alias, for example grocery retail, warehouse aisle, hospital supply, or lab."),
+    targetSiteType: stringProp("Optional normalized target site type."),
+    workflow: stringProp("Robot workflow or task context for the requested scan."),
+    taskStatement: stringProp("Optional explicit task statement. Inferred from workflow/location when omitted."),
+    requestedOutputs: stringProp("Optional requested outputs, such as site-specific world model package and hosted review scoping."),
+    targetRobotTeam: stringProp("Optional robot-team or robot profile context."),
+    message: stringProp("Optional note for intake reviewers."),
+    source: stringProp("Optional attribution source. Defaults to agent-request-location."),
+    sourcePageUrl: stringProp("Optional source URL to place in the draft context."),
+    requestId: stringProp("Optional inbound request id if preparing an explicit POST outside this draft tool."),
+    firstName: stringProp("Optional contact first name for submit-readiness validation."),
+    lastName: stringProp("Optional contact last name for submit-readiness validation."),
+    company: stringProp("Optional company for submit-readiness validation."),
+    roleTitle: stringProp("Optional role title for submit-readiness validation."),
+    email: stringProp("Optional work email for submit-readiness validation."),
+    budgetBucket: { type: "string", enum: ["<$50K", "$50K-$300K", "$300K-$1M", ">$1M", "Undecided/Unsure"], description: "Optional budget bucket for submit-readiness validation." },
+  },
+  additionalProperties: false,
+};
+
 export const BLUEPRINT_MCP_TOOLS: BlueprintMcpTool[] = [
   {
     name: "blueprint.siteWorld.search",
@@ -69,6 +100,11 @@ export const BLUEPRINT_MCP_TOOLS: BlueprintMcpTool[] = [
     name: "blueprint.catalog.search",
     description: "Backward-compatible catalog search/list alias. Prefer blueprint.siteWorld.search for site-world search because it always uses the ranked search endpoint and request-candidate semantics.",
     inputSchema: siteWorldSearchInputSchema,
+  },
+  {
+    name: "blueprint.request.locationDraft",
+    description: "Build an intake-only request-location draft for a new site scan. Returns a contact URL, inbound request draft, missing required fields, truth boundaries, and submit instructions without scraping /contact, writing data, granting access, taking payment, clearing rights, running providers, or fulfilling hosted sessions.",
+    inputSchema: requestLocationDraftInputSchema,
   },
   {
     name: "blueprint.siteWorld.get",
@@ -346,6 +382,9 @@ export async function callBlueprintMcpTool(name: string, args: Record<string, un
       payload = hasSearchArgs(args)
         ? await client.searchSiteWorlds(searchArgs(args))
         : await client.listCatalog(Number(args.limit || 24));
+      break;
+    case "blueprint.request.locationDraft":
+      payload = buildAgentRequestLocationDraft(args as AgentRequestLocationDraftInput);
       break;
     case "blueprint.siteWorld.get":
       payload = await client.getSiteWorld(requireArg(args, "siteWorldId"));

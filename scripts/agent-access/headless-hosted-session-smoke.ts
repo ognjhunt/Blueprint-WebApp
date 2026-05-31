@@ -27,6 +27,14 @@ type SmokeOptions = {
   fetchImpl?: FetchLike;
 };
 
+const publicDemoSiteWorldId = "siteworld-f5fd54898cfb";
+const publicDemoSessionFallback = {
+  siteWorldId: publicDemoSiteWorldId,
+  robotProfileId: "mobile_manipulator_rgb_v1",
+  taskId: "9483414B-8776-4F68-AC80-D3B3BA774A90",
+  scenarioId: "scenario_default",
+  startStateId: "start_default_start_state",
+};
 const mockSessionId = "mock-session-1";
 const mockOrderId = "dry-order-1";
 const mockEntitlementId = "dry-entitlement-1";
@@ -40,6 +48,52 @@ function json(payload: unknown, status = 200) {
 
 function arrayOfStrings(value: unknown) {
   return Array.isArray(value) ? value.map(String).filter(Boolean) : [];
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
+
+function firstRecordFromArray(value: unknown): Record<string, unknown> | null {
+  return Array.isArray(value) ? asRecord(value[0]) : null;
+}
+
+function firstString(...values: unknown[]) {
+  for (const value of values) {
+    const normalized = String(value || "").trim();
+    if (normalized) return normalized;
+  }
+  return "";
+}
+
+function publicDemoIdFromManifest(agentAccess: Record<string, unknown>) {
+  const publicDemo = asRecord(agentAccess.publicDemo);
+  return firstString(
+    agentAccess.publicDemoSiteWorldId,
+    publicDemo?.siteWorldId,
+    publicDemoSessionFallback.siteWorldId,
+  );
+}
+
+function buildPublicDemoSessionDefaults(
+  agentAccess: Record<string, unknown>,
+  siteWorldPayload: unknown,
+) {
+  const siteWorld = asRecord(siteWorldPayload) || {};
+  const sampleRobotProfile = asRecord(siteWorld.sampleRobotProfile);
+  const robotProfile = firstRecordFromArray(siteWorld.robotProfiles);
+  const task = firstRecordFromArray(siteWorld.taskCatalog);
+  const scenario = firstRecordFromArray(siteWorld.scenarioCatalog);
+  const startState = firstRecordFromArray(siteWorld.startStateCatalog);
+  return {
+    siteWorldId: firstString(siteWorld.id, publicDemoIdFromManifest(agentAccess)),
+    robotProfileId: firstString(robotProfile?.id, sampleRobotProfile?.id, publicDemoSessionFallback.robotProfileId),
+    taskId: firstString(task?.id, task?.taskId, publicDemoSessionFallback.taskId),
+    scenarioId: firstString(scenario?.id, publicDemoSessionFallback.scenarioId),
+    startStateId: firstString(startState?.id, publicDemoSessionFallback.startStateId),
+  };
 }
 
 function hasAuthorizationHeader(init?: RequestInit) {
@@ -123,8 +177,19 @@ function createMockFetch(): FetchLike {
     }
     if (method === "GET" && path === "/api/site-worlds") {
       return json({
-        items: [{ id: "siteworld-f5fd54898cfb", siteName: "Public demo site world" }],
+        items: [{ id: publicDemoSiteWorldId, siteName: "Public demo site world" }],
         count: 1,
+      });
+    }
+    if (method === "GET" && path === `/api/site-worlds/${publicDemoSiteWorldId}`) {
+      return json({
+        id: publicDemoSiteWorldId,
+        siteName: "Public demo site world",
+        robotProfiles: [{ id: publicDemoSessionFallback.robotProfileId }],
+        sampleRobotProfile: { id: publicDemoSessionFallback.robotProfileId },
+        taskCatalog: [{ id: publicDemoSessionFallback.taskId, taskId: publicDemoSessionFallback.taskId }],
+        scenarioCatalog: [{ id: publicDemoSessionFallback.scenarioId }],
+        startStateCatalog: [{ id: publicDemoSessionFallback.startStateId }],
       });
     }
     if (method === "GET" && path === "/api/site-worlds/search") {
@@ -217,8 +282,8 @@ function createMockFetch(): FetchLike {
         quote: {
           mode: "dry_run",
           product: "hosted_session_rental",
-          siteWorldId: "siteworld-f5fd54898cfb",
-          sku: "hosted-session-siteworld-f5fd54898cfb",
+          siteWorldId: publicDemoSiteWorldId,
+          sku: `hosted-session-${publicDemoSiteWorldId}`,
         },
       });
     }
@@ -228,17 +293,24 @@ function createMockFetch(): FetchLike {
         entitlement: {
           id: mockEntitlementId,
           access_state: "provisioned",
-          sku: "hosted-session-siteworld-f5fd54898cfb",
+          sku: `hosted-session-${publicDemoSiteWorldId}`,
         },
         receipt: { mode: "dry_run", liveStripeTouched: false },
       }, 201);
+    }
+    if (method === "GET" && path === `/api/agent-access/commerce/orders/${mockOrderId}`) {
+      return json({
+        order: { id: mockOrderId, status: "fulfilled" },
+        entitlement: { id: mockEntitlementId, access_state: "provisioned" },
+        receipt: { mode: "dry_run", liveStripeTouched: false },
+      });
     }
     if (method === "GET" && path === `/api/agent-access/commerce/entitlements/${mockEntitlementId}`) {
       return json({
         entitlement: {
           id: mockEntitlementId,
           access_state: "provisioned",
-          sku: "hosted-session-siteworld-f5fd54898cfb",
+          sku: `hosted-session-${publicDemoSiteWorldId}`,
         },
       });
     }
@@ -254,7 +326,7 @@ function createMockFetch(): FetchLike {
       if (hasAuthorizationHeader(init)) {
         return json({ error: "Mock demo session creation must run without credentials" }, 400);
       }
-      return json({ sessionId: mockSessionId, status: "ready", workspaceUrl: `/world-models/siteworld-f5fd54898cfb/workspace?sessionId=${mockSessionId}` }, 201);
+      return json({ sessionId: mockSessionId, status: "ready", workspaceUrl: `/world-models/${publicDemoSiteWorldId}/workspace?sessionId=${mockSessionId}` }, 201);
     }
     if (method === "POST" && path === `/api/site-worlds/sessions/${mockSessionId}/reset`) {
       return json({ episode: { episodeId: "episode-1", status: "running", stepIndex: 0 } });
@@ -307,6 +379,7 @@ export async function runHeadlessAgentSmoke(options: SmokeOptions = {}): Promise
   const steps: SmokeStep[] = [];
   const client = new BlueprintAgentApiClient({
     baseUrl: mode === "mock" ? "https://mock.tryblueprint.local" : undefined,
+    authToken: null,
     fetchImpl: options.fetchImpl || (mode === "mock" ? createMockFetch() : undefined),
   });
 
@@ -314,6 +387,10 @@ export async function runHeadlessAgentSmoke(options: SmokeOptions = {}): Promise
   const agentAccess = await runStep(steps, "agentAccess.manifest", () => client.agentAccess()) as Record<string, unknown>;
   const openApi = await runStep(steps, "agentAccess.openapi", () => client.openApiContract()) as Record<string, unknown>;
   await runStep(steps, "catalog", () => client.listCatalog(1));
+  const sessionDefaults = buildPublicDemoSessionDefaults(
+    agentAccess,
+    await runStep(steps, "siteWorld.publicDemo", () => client.getSiteWorld(publicDemoIdFromManifest(agentAccess))),
+  );
   const search = await runStep(steps, "siteWorld.search", () =>
     client.searchSiteWorlds({ q: "Whole Foods near Durham", limit: 5 }),
   ) as Record<string, unknown>;
@@ -336,20 +413,21 @@ export async function runHeadlessAgentSmoke(options: SmokeOptions = {}): Promise
     throw new Error("Smoke site-world search requestCandidate is not intake-only.");
   }
   await runStep(steps, "commerce.quote", () =>
-    client.quoteCommerce({ siteWorldId: "siteworld-f5fd54898cfb", product: "hosted_session_rental", sessionHours: 1 }),
+    client.quoteCommerce({ siteWorldId: sessionDefaults.siteWorldId, product: "hosted_session_rental", sessionHours: 1 }),
   );
   const checkout = await runStep(steps, "commerce.checkoutDryRun", () =>
-    client.createDryRunCheckout({ siteWorldId: "siteworld-f5fd54898cfb", product: "hosted_session_rental", sessionHours: 1 }),
+    client.createDryRunCheckout({ siteWorldId: sessionDefaults.siteWorldId, product: "hosted_session_rental", sessionHours: 1 }),
   ) as { order?: { id?: string }; entitlement?: { id?: string } };
   const orderId = String(checkout.order?.id || "");
   const entitlementId = String(checkout.entitlement?.id || "");
   if (!orderId || !entitlementId) {
     throw new Error("Smoke dry-run checkout did not return order and entitlement ids.");
   }
+  await runStep(steps, "commerce.order", () => client.getCommerceOrder(orderId));
   await runStep(steps, "commerce.entitlement", () => client.getCommerceEntitlement(entitlementId));
   await runStep(steps, "commerce.entitlementReadiness", () =>
     client.entitlementReadiness({
-      siteWorldId: "siteworld-f5fd54898cfb",
+      siteWorldId: sessionDefaults.siteWorldId,
       entitlementId,
       buyerUserId: "agent-dry-run-buyer",
       product: "hosted_session_rental",
@@ -357,15 +435,15 @@ export async function runHeadlessAgentSmoke(options: SmokeOptions = {}): Promise
   );
   const created = await runStep(steps, "session.create", () =>
     client.createSession({
-      siteWorldId: "siteworld-f5fd54898cfb",
+      siteWorldId: sessionDefaults.siteWorldId,
       entitlementId,
       orderId,
       commerceMode: "dry_run",
       sessionMode: "runtime_only",
-      robotProfileId: "other_sample",
-      taskId: "sw-chi-01-task-1",
-      scenarioId: "sw-chi-01-scenario-1",
-      startStateId: "sw-chi-01-start-1",
+      robotProfileId: sessionDefaults.robotProfileId,
+      taskId: sessionDefaults.taskId,
+      scenarioId: sessionDefaults.scenarioId,
+      startStateId: sessionDefaults.startStateId,
       requestedOutputs: ["observation_frames", "action_trace", "export_bundle"],
     }),
   ) as { sessionId?: string };
@@ -375,9 +453,9 @@ export async function runHeadlessAgentSmoke(options: SmokeOptions = {}): Promise
   }
   await runStep(steps, "session.reset", () =>
     client.resetSession(sessionId, {
-      taskId: "sw-chi-01-task-1",
-      scenarioId: "sw-chi-01-scenario-1",
-      startStateId: "sw-chi-01-start-1",
+      taskId: sessionDefaults.taskId,
+      scenarioId: sessionDefaults.scenarioId,
+      startStateId: sessionDefaults.startStateId,
       seed: 17,
     }),
   );
@@ -385,9 +463,9 @@ export async function runHeadlessAgentSmoke(options: SmokeOptions = {}): Promise
   await runStep(steps, "session.runBatch", () =>
     client.runBatch(sessionId, {
       numEpisodes: 1,
-      taskId: "sw-chi-01-task-1",
-      scenarioId: "sw-chi-01-scenario-1",
-      startStateId: "sw-chi-01-start-1",
+      taskId: sessionDefaults.taskId,
+      scenarioId: sessionDefaults.scenarioId,
+      startStateId: sessionDefaults.startStateId,
       seed: 17,
       maxSteps: 2,
     }),

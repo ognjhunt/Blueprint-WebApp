@@ -20,9 +20,9 @@ import {
 
 const lifecycle = [
   ["Discover", "Read /llms.txt, /api/site-content, call blueprint.siteWorld.search for store or warehouse language, and inspect the OpenAPI contract before loading a specific site-world id."],
-  ["Quote", "Ask for a site-world package or hosted-session rental quote. The quote is a planning artifact, not a live Stripe checkout."],
-  ["Dry-run order", "Create a dry-run order, receipt, and provisioned entitlement so an agent can prove the commerce link without charging a card."],
-  ["Run", "Create an entitlement-gated hosted session, reset to a known start state, step, batch, send controls, render explorer frames, and export artifacts."],
+  ["Request", "The request/commerce/session lifecycle starts with request intake: use requestCandidate or blueprint.request.locationDraft to produce a contact URL and inbound-request draft without writing or granting access."],
+  ["Commerce", "Use dry-run commerce for quote, checkout, order, entitlement, and entitlement-readiness proof. These planning artifacts do not call live Stripe or deliver package access."],
+  ["Session", "Use the hosted-session lifecycle only when public-demo eligibility or protected auth allows it: create, reset, step, runBatch, control, renderExplorer, and export."],
 ];
 
 const truthLabels = [
@@ -30,9 +30,10 @@ const truthLabels = [
   ["provider_derived", "World-model/runtime outputs produced from a provider or adapter path and tied back to the package."],
   ["generated", "Rollout frames, summaries, and artifacts created during the hosted session."],
   ["sample_demo", "Public sample shape for integration work, not customer proof or deployment evidence."],
+  ["public_demo_eligible", "Credential-free sample path eligibility, not protected customer access or provider success."],
   ["request_gated", "Protected package, rights, export, or hosted access still needs account/request review."],
-  ["dry_run_order", "A repo-safe test order, receipt, and entitlement proof that does not touch live Stripe or grant live package access."],
   ["protected_robot_team", "Protected hosted-session operations require robot-team/admin auth plus session ownership or a matching provisioned entitlement."],
+  ["dry_run_order", "A repo-safe test order, receipt, and entitlement proof that does not touch live Stripe or grant live package access."],
 ];
 
 const errorRows = [
@@ -44,9 +45,14 @@ const errorRows = [
 ];
 
 const commands = [
+  "npx tsx scripts/agent-access/blueprint-agent-cli.ts help --format json",
+  "npx tsx scripts/agent-access/blueprint-agent-cli.ts doctor --format json",
+  "npx tsx scripts/agent-access/blueprint-agent-cli.ts setup-auth --format json",
+  "npx tsx scripts/agent-access/blueprint-agent-cli.ts plan --q \"Whole Foods near Durham\" --want hosted-review",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts discover",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts catalog list --limit 3",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts site-world search --q \"Whole Foods near Durham\" --limit 5",
+  "npx tsx scripts/agent-access/blueprint-agent-cli.ts request location --location \"Whole Foods near Durham\" --site-class grocery --workflow \"shelf restocking\"",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce quote --site-world-id siteworld-f5fd54898cfb --product hosted-session-rental --session-hours 1",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce checkout --site-world-id siteworld-f5fd54898cfb --product hosted-session-rental --mode dry_run",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce entitlement <dry-entitlement-id>",
@@ -264,15 +270,21 @@ export default function Agents() {
               <div className="mt-6 flex flex-wrap gap-2">
                 <ProofChip>blueprint.siteWorld.search</ProofChip>
                 <ProofChip>blueprint.catalog.search</ProofChip>
+                <ProofChip>blueprint.request.locationDraft</ProofChip>
                 <ProofChip>blueprint.siteWorld.get</ProofChip>
                 <ProofChip>blueprint.siteWorld.launchReadiness</ProofChip>
                 <ProofChip>blueprint.commerce.quote</ProofChip>
                 <ProofChip>blueprint.commerce.checkoutDryRun</ProofChip>
                 <ProofChip>blueprint.commerce.order.get</ProofChip>
                 <ProofChip>blueprint.commerce.entitlement.get</ProofChip>
+                <ProofChip>blueprint.commerce.entitlementReadiness</ProofChip>
                 <ProofChip>blueprint.session.create</ProofChip>
+                <ProofChip>blueprint.session.reset</ProofChip>
+                <ProofChip>blueprint.session.step</ProofChip>
                 <ProofChip>blueprint.session.control</ProofChip>
                 <ProofChip>blueprint.session.runBatch</ProofChip>
+                <ProofChip>blueprint.session.renderExplorer</ProofChip>
+                <ProofChip>blueprint.session.export</ProofChip>
               </div>
             </div>
             <CodeBlock>
