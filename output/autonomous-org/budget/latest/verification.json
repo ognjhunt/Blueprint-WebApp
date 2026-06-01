@@ -1,6 +1,6 @@
 {
   "schema": "blueprint/autonomous-org-budget-verification/v1",
-  "generated_at": "2026-06-01T05:49:28.049Z",
+  "generated_at": "2026-06-01T14:44:24.095Z",
   "pass": true,
   "errors": [],
   "warnings": [],
@@ -29,7 +29,12 @@
     "live_proof_intake_validation_missing_items": 12,
     "live_proof_intake_validation_rejected_items": 0,
     "next_goal_queue_items": 5,
-    "next_goal_queue_live_mutation_allowed_items": 0
+    "next_goal_queue_live_mutation_allowed_items": 0,
+    "budget_delegation_work_orders": 5,
+    "budget_delegation_spend_without_approval_items": 0,
+    "live_action_gate_blocker_count": 5,
+    "live_action_allowed": false,
+    "budget_control_status_live_spend_allowed": false
   },
   "checked_paths": {
     "company_config": "ops/paperclip/blueprint-company/.paperclip.yaml",
@@ -57,6 +62,14 @@
     "live_proof_intake_validation_md": "output/autonomous-org/budget/latest/live-proof-intake-validation.md",
     "next_goal_queue_json": "output/autonomous-org/budget/latest/next-goal-queue.json",
     "next_goal_queue_md": "output/autonomous-org/budget/latest/next-goal-queue.md",
+    "budget_delegation_packet_json": "output/autonomous-org/budget/latest/budget-delegation-packet.json",
+    "budget_delegation_packet_md": "output/autonomous-org/budget/latest/budget-delegation-packet.md",
+    "live_action_gate_json": "output/autonomous-org/budget/latest/live-action-gate.json",
+    "live_action_gate_md": "output/autonomous-org/budget/latest/live-action-gate.md",
+    "control_status_json": "output/autonomous-org/budget/latest/control-status.json",
+    "control_status_md": "output/autonomous-org/budget/latest/control-status.md",
+    "launch_now_approval_packet_json": "output/autonomous-org/budget/latest/launch-now-approval-packet.json",
+    "launch_now_approval_packet_md": "output/autonomous-org/budget/latest/launch-now-approval-packet.md",
     "human_blocker_packet_json": "output/autonomous-org/budget/latest/human-blocker-packet.json",
     "human_blocker_packet_md": "output/autonomous-org/budget/latest/human-blocker-packet.md",
     "openai_api_costs_proof": "output/autonomous-org/budget/spend-snapshots/keychain-live-read-2026-06-01/latest.json"

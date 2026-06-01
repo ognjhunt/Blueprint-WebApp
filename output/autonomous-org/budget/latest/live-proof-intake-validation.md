@@ -1,6 +1,6 @@
 # Live Proof Intake Validation
 
-Generated: 2026-06-01T05:46:55.628Z
+Generated: 2026-06-01T14:43:49.596Z
 State: `awaiting_human_decision`
 Blocker id: `autonomous-org-budget-live-proof-20260601`
 

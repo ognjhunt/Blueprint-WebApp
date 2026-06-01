@@ -1,0 +1,426 @@
+{
+  "schema": "blueprint/autonomous-budget-delegation-packet/v1",
+  "generated_at": "2026-06-01T14:43:51.733Z",
+  "state": "awaiting_human_decision",
+  "budget_cap_usd": 500,
+  "target_total_usd": 500,
+  "paperclip_declared_envelope_usd": 173,
+  "active_routines": 26,
+  "paused_routines": 36,
+  "codex_oauth_pro_excluded_from_budget": true,
+  "openai_api_target_usd": 0,
+  "no_live_mutation_authorized": true,
+  "live_billing_verified": false,
+  "allocator": {
+    "recommendation_count": 1,
+    "spend_affecting_recommendation_count": 0,
+    "recommendation_state": "no_reallocation_improve_proof_first",
+    "projected_target_total_usd": 500,
+    "human_approval_required": false,
+    "live_mutation_attempted": false
+  },
+  "proof_gate": {
+    "proof_ready_to_count_as_live_billing": false,
+    "total_items": 12,
+    "accepted_for_manual_review": 0,
+    "missing_submission": 12,
+    "rejected": 0
+  },
+  "budget_line_delegations": [
+    {
+      "budget_line": "Paperclip agent/runtime envelope",
+      "target_usd": 173,
+      "owner": "blueprint-chief-of-staff",
+      "lane": "paperclip-cadence-control",
+      "authority": "repo_local_execution_only",
+      "proof_level": "repo-local",
+      "spend_release_status": "repo_local_budget_target",
+      "required_before_spend": [
+        "Keep action inside repo-local config or report artifacts.",
+        "Do not mutate live Paperclip without separate approval."
+      ]
+    },
+    {
+      "budget_line": "Codex OAuth / Pro subscription seat",
+      "target_usd": 0,
+      "owner": "blueprint-chief-of-staff",
+      "lane": "budget-control",
+      "authority": "observe_and_report",
+      "proof_level": "estimate",
+      "spend_release_status": "not_spendable",
+      "required_before_spend": [
+        "Codex OAuth/Pro subscription usage is excluded from the $500 launch/growth budget and is not a spendable budget line."
+      ]
+    },
+    {
+      "budget_line": "OpenAI API costs (approval-only guardrail)",
+      "target_usd": 0,
+      "owner": "finance-support-agent",
+      "lane": "model-spend-control",
+      "authority": "observe_and_report",
+      "proof_level": "live-verified",
+      "spend_release_status": "not_spendable",
+      "required_before_spend": [
+        "Explicit human approval artifact before any nonzero OpenAI API target."
+      ]
+    },
+    {
+      "budget_line": "DeepSeek direct model reserve",
+      "target_usd": 80,
+      "owner": "finance-support-agent",
+      "lane": "model-spend-control",
+      "authority": "prepare_approval_packet",
+      "proof_level": "estimate",
+      "spend_release_status": "approval_packet_only",
+      "required_before_spend": [
+        "Owner-system billing/export proof accepted for manual review.",
+        "Human approval before live spend movement."
+      ]
+    },
+    {
+      "budget_line": "Render WebApp hosting",
+      "target_usd": 25,
+      "owner": "blueprint-cto",
+      "lane": "runtime-hosting-cost-control",
+      "authority": "prepare_approval_packet",
+      "proof_level": "estimate",
+      "spend_release_status": "approval_packet_only",
+      "required_before_spend": [
+        "Owner-system billing/export proof accepted for manual review.",
+        "Human approval before live spend movement."
+      ]
+    },
+    {
+      "budget_line": "Paperclip VPS / tunnel",
+      "target_usd": 30,
+      "owner": "blueprint-cto",
+      "lane": "runtime-hosting-cost-control",
+      "authority": "prepare_approval_packet",
+      "proof_level": "estimate",
+      "spend_release_status": "approval_packet_only",
+      "required_before_spend": [
+        "Owner-system billing/export proof accepted for manual review.",
+        "Human approval before live spend movement."
+      ]
+    },
+    {
+      "budget_line": "Firebase / Firestore / storage",
+      "target_usd": 25,
+      "owner": "blueprint-cto",
+      "lane": "runtime-hosting-cost-control",
+      "authority": "prepare_approval_packet",
+      "proof_level": "estimate",
+      "spend_release_status": "approval_packet_only",
+      "required_before_spend": [
+        "Owner-system billing/export proof accepted for manual review.",
+        "Human approval before live spend movement."
+      ]
+    },
+    {
+      "budget_line": "Redis / cache",
+      "target_usd": 10,
+      "owner": "blueprint-cto",
+      "lane": "runtime-hosting-cost-control",
+      "authority": "prepare_approval_packet",
+      "proof_level": "estimate",
+      "spend_release_status": "approval_packet_only",
+      "required_before_spend": [
+        "Owner-system billing/export proof accepted for manual review.",
+        "Human approval before live spend movement."
+      ]
+    },
+    {
+      "budget_line": "Email / human reply / Slack",
+      "target_usd": 7,
+      "owner": "blueprint-chief-of-staff",
+      "lane": "sender-readiness-and-human-reply-cost",
+      "authority": "prepare_approval_packet",
+      "proof_level": "estimate",
+      "spend_release_status": "approval_packet_only",
+      "required_before_spend": [
+        "Owner-system billing/export proof accepted for manual review.",
+        "Human approval before live spend movement."
+      ]
+    },
+    {
+      "budget_line": "Analytics",
+      "target_usd": 0,
+      "owner": "analytics-agent",
+      "lane": "outcome-proof",
+      "authority": "blocked_until_proof",
+      "proof_level": "estimate",
+      "spend_release_status": "not_spendable",
+      "required_before_spend": [
+        "Attach source-system proof before counting this line as live budget truth."
+      ]
+    },
+    {
+      "budget_line": "Search / research APIs",
+      "target_usd": 45,
+      "owner": "growth-lead",
+      "lane": "exact-site-hosted-review-growth",
+      "authority": "prepare_approval_packet",
+      "proof_level": "estimate",
+      "spend_release_status": "approval_packet_only",
+      "required_before_spend": [
+        "Owner-system billing/export proof accepted for manual review.",
+        "Human approval before live spend movement."
+      ]
+    },
+    {
+      "budget_line": "Recipient evidence enrichment",
+      "target_usd": 35,
+      "owner": "growth-lead",
+      "lane": "exact-site-hosted-review-growth",
+      "authority": "prepare_approval_packet",
+      "proof_level": "estimate",
+      "spend_release_status": "approval_packet_only",
+      "required_before_spend": [
+        "Owner-system billing/export proof accepted for manual review.",
+        "Human approval before live spend movement."
+      ]
+    },
+    {
+      "budget_line": "Profiles, listings, and owned growth ops",
+      "target_usd": 20,
+      "owner": "growth-lead",
+      "lane": "exact-site-hosted-review-growth",
+      "authority": "prepare_approval_packet",
+      "proof_level": "estimate",
+      "spend_release_status": "approval_packet_only",
+      "required_before_spend": [
+        "Owner-system billing/export proof accepted for manual review.",
+        "Human approval before live spend movement."
+      ]
+    },
+    {
+      "budget_line": "Paid city/launch experiments",
+      "target_usd": 50,
+      "owner": "city-launch-agent",
+      "lane": "paid-city-experiment-approval",
+      "authority": "prepare_approval_packet",
+      "proof_level": "estimate",
+      "spend_release_status": "approval_packet_only",
+      "required_before_spend": [
+        "Owner-system billing/export proof accepted for manual review.",
+        "Human approval before live spend movement."
+      ]
+    }
+  ],
+  "work_orders": [
+    {
+      "rank": 1,
+      "owner": "finance-support-agent",
+      "lane": "billing-proof",
+      "goal_command": "/goal Build a live-billing evidence packet for the $500 budget without mutating providers",
+      "budget_boundary_usd": 500,
+      "authorization_scope": "repo_local_proof_planning_or_review_only",
+      "safe_commands": [
+        "npm run autonomy:spend:snapshot",
+        "npm run autonomy:spend:snapshot:keychain -- --live-read --out-dir output/autonomous-org/budget/spend-snapshots/keychain-live-read-2026-06-01",
+        "npm run autonomy:budget:live-proof:reconcile",
+        "npm run autonomy:budget:live-proof:template",
+        "npm run autonomy:budget:live-proof:validate -- --require-complete",
+        "npm run autonomy:budget:control-suite"
+      ],
+      "success_criteria": [
+        "Owner-system exports or explicit no-spend confirmations are attached for each live-proof backlog line.",
+        "The strict intake validator passes for the filled proof packet.",
+        "The budget verifier still shows Codex OAuth/Pro excluded and OpenAI API target $0."
+      ],
+      "blocked_claims": [
+        "Does not authorize spend movement.",
+        "Does not claim live billing complete until owner-system proof is accepted and reconciled.",
+        "Does not claim Operational Launch Ready."
+      ],
+      "required_checks": [
+        "npm run autonomy:budget:verify",
+        "npm run autonomy:budget:control-suite",
+        "npm run autonomy:budget:delegate",
+        "npm run autonomy:budget:live-action-gate -- --require-live-action-ready"
+      ],
+      "can_start_without_live_approval": true,
+      "can_spend_without_human_approval": false,
+      "can_mutate_live_systems": false,
+      "requires_human_approval_before_live_action": true,
+      "live_mutation_allowed": false
+    },
+    {
+      "rank": 2,
+      "owner": "growth-lead",
+      "lane": "exact-site-hosted-review",
+      "goal_command": "/goal Produce the Exact-Site Hosted Review first-send approval packet with no sends",
+      "budget_boundary_usd": 0,
+      "authorization_scope": "repo_local_proof_planning_or_review_only",
+      "safe_commands": [
+        "npm run gtm:hosted-review:audit",
+        "npm run gtm:recipient-evidence:validate -- --human-recipient-evidence-path <local-proof.json>",
+        "npm run autonomy:outcomes:snapshot",
+        "npm run autonomy:budget:recommend"
+      ],
+      "success_criteria": [
+        "Recipient evidence, send copy, target list, and approval asks are packaged without sending.",
+        "Hosted-review outcome proof source is ready for future allocator scoring.",
+        "Human approval requirements are explicit before any outreach."
+      ],
+      "blocked_claims": [
+        "No outreach sent.",
+        "No reply durability claimed.",
+        "No customer traction or hosted-session fulfillment claimed."
+      ],
+      "required_checks": [
+        "npm run autonomy:budget:verify",
+        "npm run autonomy:budget:control-suite",
+        "npm run autonomy:budget:delegate",
+        "npm run autonomy:budget:live-action-gate -- --require-live-action-ready"
+      ],
+      "can_start_without_live_approval": true,
+      "can_spend_without_human_approval": false,
+      "can_mutate_live_systems": false,
+      "requires_human_approval_before_live_action": true,
+      "live_mutation_allowed": false
+    },
+    {
+      "rank": 3,
+      "owner": "city-launch-agent",
+      "lane": "city-launch-proof",
+      "goal_command": "/goal Build the one-city launch proof packet under a $10 paid-test ceiling",
+      "budget_boundary_usd": 10,
+      "authorization_scope": "repo_local_proof_planning_or_review_only",
+      "safe_commands": [
+        "npm run city-launch:preflight -- --city \"<city>\"",
+        "npm run city-launch:coverage:plan -- --city \"<city>\"",
+        "npm run autonomy:budget:recommend"
+      ],
+      "success_criteria": [
+        "City blockers, targets, proof artifacts, and optional paid-test request are packaged.",
+        "Any paid-test proposal is capped at $10 and requires approval.",
+        "No activation or ad launch happens in the packet."
+      ],
+      "blocked_claims": [
+        "No city-live claim.",
+        "No ad activation claim.",
+        "No active coverage or customer traction claim."
+      ],
+      "required_checks": [
+        "npm run autonomy:budget:verify",
+        "npm run autonomy:budget:control-suite",
+        "npm run autonomy:budget:delegate",
+        "npm run autonomy:budget:live-action-gate -- --require-live-action-ready"
+      ],
+      "can_start_without_live_approval": true,
+      "can_spend_without_human_approval": false,
+      "can_mutate_live_systems": false,
+      "requires_human_approval_before_live_action": true,
+      "live_mutation_allowed": false
+    },
+    {
+      "rank": 4,
+      "owner": "support_triage canary owner",
+      "lane": "support-triage-cost-control",
+      "goal_command": "/goal Harden support_triage cost/cadence proof from cache and no-change suppression",
+      "budget_boundary_usd": 0,
+      "authorization_scope": "repo_local_proof_planning_or_review_only",
+      "safe_commands": [
+        "npm run agent:cost-cache-report",
+        "npm run autoagent:run -- --sample 3",
+        "npm run autoagent:recursive-improve -- --dry-run"
+      ],
+      "success_criteria": [
+        "Support triage cost/cache proof is current and separated from live billing proof.",
+        "No-change suppression is explicit for repeated support-triage runs.",
+        "Flash-first or deterministic routine paths are preserved."
+      ],
+      "blocked_claims": [
+        "No live Paperclip/Hermes mutation.",
+        "No broad automation quality claim from fixture proof.",
+        "No production support readiness claim."
+      ],
+      "required_checks": [
+        "npm run autonomy:budget:verify",
+        "npm run autonomy:budget:control-suite",
+        "npm run autonomy:budget:delegate",
+        "npm run autonomy:budget:live-action-gate -- --require-live-action-ready"
+      ],
+      "can_start_without_live_approval": true,
+      "can_spend_without_human_approval": false,
+      "can_mutate_live_systems": false,
+      "requires_human_approval_before_live_action": true,
+      "live_mutation_allowed": false
+    },
+    {
+      "rank": 5,
+      "owner": "webapp-review",
+      "lane": "public-launch-ready-conversion",
+      "goal_command": "/goal Run a Public Launch Ready conversion audit for the world-model buyer route",
+      "budget_boundary_usd": 0,
+      "authorization_scope": "repo_local_proof_planning_or_review_only",
+      "safe_commands": [
+        "npm run qa:polish",
+        "npm run smoke:launch:local",
+        "npm run autonomy:budget:control-suite"
+      ],
+      "success_criteria": [
+        "Public Launch Ready copy remains polished and conversion-oriented.",
+        "Unsupported operational claims are blocked or scoped precisely.",
+        "Buyer route findings are tied back to world-model-product-first doctrine."
+      ],
+      "blocked_claims": [
+        "No customer, payment, rights, hosted-session fulfillment, or Operational Launch Ready claim.",
+        "No broad not-launched/apology language added only because live ops are gated.",
+        "No live production smoke or provider mutation."
+      ],
+      "required_checks": [
+        "npm run autonomy:budget:verify",
+        "npm run autonomy:budget:control-suite",
+        "npm run autonomy:budget:delegate",
+        "npm run autonomy:budget:live-action-gate -- --require-live-action-ready"
+      ],
+      "can_start_without_live_approval": true,
+      "can_spend_without_human_approval": false,
+      "can_mutate_live_systems": false,
+      "requires_human_approval_before_live_action": true,
+      "live_mutation_allowed": false
+    }
+  ],
+  "required_checks_before_any_live_action": [
+    "npm run autonomy:budget:live-proof:validate -- --require-complete",
+    "npm run autonomy:budget:recommend",
+    "npm run autonomy:budget:dynamic:verify",
+    "npm run autonomy:budget:delegate",
+    "npm run autonomy:budget:live-action-gate -- --require-live-action-ready",
+    "npm run autonomy:budget:control-suite"
+  ],
+  "live_delegation_blockers": [
+    "DeepSeek direct usage export and OpenRouter billing if used",
+    "Render billing",
+    "DigitalOcean/Cloudflare billing",
+    "Firebase/Firestore/GCS billing",
+    "Redis billing",
+    "SendGrid/Gmail/Slack billing and sender readiness",
+    "Analytics billing and KPI owner-system proof",
+    "Search/research API billing",
+    "Recipient evidence enrichment receipts or provider exports",
+    "Profiles/listings receipts or provider exports",
+    "Ad account spend and paused-draft proof",
+    "Live Paperclip routine execution after repo config propagation",
+    "live billing or owner-system export proof for actual spend",
+    "paperclip_routine_cost_cache_telemetry: stale outcome proof",
+    "paperclip_routine_cost_cache_telemetry: proof is advisory only",
+    "operating_graph_events: missing outcome proof",
+    "analytics_posthog_export: missing outcome proof",
+    "ad_spend_export: missing outcome proof",
+    "deepseek-openrouter-usage-export: missing_submission",
+    "render-billing-export: missing_submission",
+    "digitalocean-cloudflare-billing: missing_submission",
+    "firebase-gcp-billing-export: missing_submission",
+    "redis-upstash-billing: missing_submission",
+    "email-human-reply-slack-billing-readiness: missing_submission",
+    "analytics-billing-kpi-proof: missing_submission",
+    "search-research-api-billing: missing_submission",
+    "recipient-evidence-enrichment-receipts: missing_submission",
+    "profiles-listings-receipts: missing_submission",
+    "ad-spend-paused-draft-proof: missing_submission",
+    "live-paperclip-routine-propagation: missing_submission"
+  ]
+}

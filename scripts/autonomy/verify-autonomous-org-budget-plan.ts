@@ -29,6 +29,14 @@ const DEFAULT_LIVE_PROOF_INTAKE_VALIDATION_JSON = "output/autonomous-org/budget/
 const DEFAULT_LIVE_PROOF_INTAKE_VALIDATION_MD = "output/autonomous-org/budget/latest/live-proof-intake-validation.md";
 const DEFAULT_NEXT_GOAL_QUEUE_JSON = "output/autonomous-org/budget/latest/next-goal-queue.json";
 const DEFAULT_NEXT_GOAL_QUEUE_MD = "output/autonomous-org/budget/latest/next-goal-queue.md";
+const DEFAULT_BUDGET_DELEGATION_PACKET_JSON = "output/autonomous-org/budget/latest/budget-delegation-packet.json";
+const DEFAULT_BUDGET_DELEGATION_PACKET_MD = "output/autonomous-org/budget/latest/budget-delegation-packet.md";
+const DEFAULT_LIVE_ACTION_GATE_JSON = "output/autonomous-org/budget/latest/live-action-gate.json";
+const DEFAULT_LIVE_ACTION_GATE_MD = "output/autonomous-org/budget/latest/live-action-gate.md";
+const DEFAULT_CONTROL_STATUS_JSON = "output/autonomous-org/budget/latest/control-status.json";
+const DEFAULT_CONTROL_STATUS_MD = "output/autonomous-org/budget/latest/control-status.md";
+const DEFAULT_LAUNCH_NOW_APPROVAL_PACKET_JSON = "output/autonomous-org/budget/latest/launch-now-approval-packet.json";
+const DEFAULT_LAUNCH_NOW_APPROVAL_PACKET_MD = "output/autonomous-org/budget/latest/launch-now-approval-packet.md";
 const DEFAULT_HUMAN_BLOCKER_PACKET_JSON = "output/autonomous-org/budget/latest/human-blocker-packet.json";
 const DEFAULT_HUMAN_BLOCKER_PACKET_MD = "output/autonomous-org/budget/latest/human-blocker-packet.md";
 const DEFAULT_OUT_DIR = "output/autonomous-org/budget/latest";
@@ -372,6 +380,123 @@ type NextGoalQueue = {
   }>;
 };
 
+type BudgetDelegationPacket = {
+  schema: string;
+  state: string;
+  budget_cap_usd: number;
+  target_total_usd: number;
+  paperclip_declared_envelope_usd: number;
+  active_routines: number;
+  paused_routines: number;
+  codex_oauth_pro_excluded_from_budget: boolean;
+  openai_api_target_usd: number;
+  no_live_mutation_authorized: boolean;
+  live_billing_verified: boolean;
+  allocator: {
+    recommendation_count: number;
+    spend_affecting_recommendation_count: number;
+    recommendation_state: string;
+    projected_target_total_usd: number;
+    human_approval_required: boolean;
+    live_mutation_attempted: boolean;
+  };
+  proof_gate: {
+    proof_ready_to_count_as_live_billing: boolean;
+    total_items: number;
+    accepted_for_manual_review: number;
+    missing_submission: number;
+    rejected: number;
+  };
+  budget_line_delegations: Array<{
+    budget_line: string;
+    target_usd: number;
+    owner: string;
+    lane: string;
+    authority: string;
+    spend_release_status: string;
+    required_before_spend: string[];
+  }>;
+  work_orders: Array<{
+    rank: number;
+    owner: string;
+    lane: string;
+    goal_command: string;
+    safe_commands: string[];
+    success_criteria: string[];
+    blocked_claims: string[];
+    required_checks: string[];
+    can_start_without_live_approval: boolean;
+    can_spend_without_human_approval: boolean;
+    can_mutate_live_systems: boolean;
+    requires_human_approval_before_live_action: boolean;
+    live_mutation_allowed: boolean;
+  }>;
+  required_checks_before_any_live_action: string[];
+  live_delegation_blockers: string[];
+};
+
+type LiveActionGate = {
+  schema: string;
+  state: string;
+  validation_pass: boolean;
+  live_action_allowed: boolean;
+  repo_local_work_allowed: boolean;
+  mode: {
+    no_live_provider_calls_made: boolean;
+    no_live_mutation_attempted: boolean;
+    secrets_persisted: boolean;
+    strict_live_action_ready_required: boolean;
+  };
+  budget_cap_usd: number;
+  codex_oauth_pro_excluded_from_budget: boolean;
+  openai_api_target_usd: number;
+  blocker_count: number;
+  error_count: number;
+  checks: Array<{
+    id: string;
+    pass: boolean;
+    severity: string;
+    evidence: string;
+  }>;
+  blockers: string[];
+  errors: string[];
+  required_before_live_action: string[];
+};
+
+type BudgetControlStatus = {
+  schema: string;
+  state: string;
+  validation_pass: boolean;
+  budget_cap_usd: number;
+  target_total_usd: number;
+  can_allocate_repo_local: boolean;
+  can_delegate_repo_local: boolean;
+  can_mutate_live_spend: boolean;
+  can_claim_live_budget_complete: boolean;
+  can_claim_operational_launch_ready: boolean;
+  codex_oauth_pro_excluded_from_budget: boolean;
+  openai_api_target_usd: number;
+  paperclip_declared_envelope_usd: number;
+  active_routines: number;
+  paused_routines: number;
+  next_goal_queue_items: number;
+  delegation_work_orders: number;
+  delegation_spend_without_approval_items: number;
+  delegation_live_mutation_allowed_items: number;
+  live_action_gate_blockers: number;
+  live_proof_gaps: string[];
+  required_before_live_action: string[];
+  next_safe_agent_actions: string[];
+  errors: string[];
+  blockers: string[];
+  mode: {
+    no_live_provider_calls_made: boolean;
+    no_live_mutation_attempted: boolean;
+    secrets_persisted: boolean;
+    strict_live_action_ready_required: boolean;
+  };
+};
+
 type BudgetSummary = {
   schema: string;
   state_claimed: string;
@@ -399,10 +524,50 @@ type BudgetSummary = {
   live_proof_intake_template_path: string;
   live_proof_intake_validation_path: string;
   next_goal_queue_path: string;
+  budget_delegation_packet_path: string;
+  live_action_gate_path: string;
+  control_status_path: string;
+  launch_now_approval_packet_path: string;
   control_suite_path: string;
   human_blocker_packet_path: string;
   next_goal_queue: string[];
   live_proof_gaps: string[];
+};
+
+type LaunchNowApprovalPacket = {
+  schema: string;
+  state: string;
+  approval_effective: boolean;
+  no_live_mutation_attempted: boolean;
+  no_provider_calls_made: boolean;
+  secrets_persisted: boolean;
+  budget_cap_usd: number;
+  repo_local_paperclip_envelope_usd: number;
+  requested_live_spend_ceiling_usd: number;
+  combined_budget_ceiling_usd: number;
+  codex_oauth_pro_excluded_from_budget: boolean;
+  openai_api_target_usd: number;
+  control_status: {
+    can_mutate_live_spend: boolean;
+    can_claim_live_budget_complete: boolean;
+    can_claim_operational_launch_ready: boolean;
+  };
+  approval_capture: {
+    human_approved: boolean;
+    approver: string | null;
+    approved_at: string | null;
+    source: string | null;
+    exact_text_received: string | null;
+  };
+  approval_items: Array<{
+    budget_line: string;
+    max_usd: number;
+  }>;
+  non_spend_guardrails: Array<{
+    budget_line: string;
+    max_usd: number;
+  }>;
+  exact_human_approval_text: string;
 };
 
 type CompletionAudit = {
@@ -485,6 +650,51 @@ type CompletionAudit = {
       codex_oauth_pro_excluded_from_budget: boolean;
       openai_api_target_usd: number;
     };
+    budget_delegation_packet?: {
+      result: string;
+      json_path: string;
+      markdown_path: string;
+      work_orders: number;
+      budget_line_delegations: number;
+      live_mutation_allowed: boolean;
+      can_spend_without_human_approval: boolean;
+    };
+    live_action_gate?: {
+      result: string;
+      json_path: string;
+      markdown_path: string;
+      state: string;
+      validation_pass: boolean;
+      live_action_allowed: boolean;
+      repo_local_work_allowed: boolean;
+      blocker_count: number;
+      error_count: number;
+    };
+    budget_control_status?: {
+      result: string;
+      json_path: string;
+      markdown_path: string;
+      state: string;
+      validation_pass: boolean;
+      can_allocate_repo_local: boolean;
+      can_delegate_repo_local: boolean;
+      can_mutate_live_spend: boolean;
+      can_claim_live_budget_complete: boolean;
+      live_action_gate_blockers: number;
+    };
+    launch_now_approval_packet?: {
+      result: string;
+      json_path: string;
+      markdown_path: string;
+      state: string;
+      approval_effective: boolean;
+      requested_live_spend_ceiling_usd: number;
+      repo_local_paperclip_envelope_usd: number;
+      combined_budget_ceiling_usd: number;
+      openai_api_target_usd: number;
+      codex_oauth_pro_excluded_from_budget: boolean;
+      live_mutation_allowed: boolean;
+    };
     control_suite?: {
       result: string;
       json_path: string;
@@ -556,6 +766,11 @@ type VerificationResult = {
     live_proof_intake_validation_rejected_items: number;
     next_goal_queue_items: number;
     next_goal_queue_live_mutation_allowed_items: number;
+    budget_delegation_work_orders: number;
+    budget_delegation_spend_without_approval_items: number;
+    live_action_gate_blocker_count: number;
+    live_action_allowed: boolean;
+    budget_control_status_live_spend_allowed: boolean;
   };
   checked_paths: {
     company_config: string;
@@ -583,6 +798,14 @@ type VerificationResult = {
     live_proof_intake_validation_md: string;
     next_goal_queue_json: string;
     next_goal_queue_md: string;
+    budget_delegation_packet_json: string;
+    budget_delegation_packet_md: string;
+    live_action_gate_json: string;
+    live_action_gate_md: string;
+    control_status_json: string;
+    control_status_md: string;
+    launch_now_approval_packet_json: string;
+    launch_now_approval_packet_md: string;
     human_blocker_packet_json: string;
     human_blocker_packet_md: string;
     openai_api_costs_proof: string;
@@ -680,6 +903,11 @@ function renderMarkdown(result: VerificationResult) {
     `- Live-proof intake validation: ${result.computed.live_proof_intake_validation_accepted_items} accepted, ${result.computed.live_proof_intake_validation_missing_items} missing, ${result.computed.live_proof_intake_validation_rejected_items} rejected`,
     `- Next-goal queue items: ${result.computed.next_goal_queue_items}`,
     `- Next-goal queue live-mutation allowed items: ${result.computed.next_goal_queue_live_mutation_allowed_items}`,
+    `- Budget delegation work orders: ${result.computed.budget_delegation_work_orders}`,
+    `- Budget delegation spend-without-approval items: ${result.computed.budget_delegation_spend_without_approval_items}`,
+    `- Live-action gate blockers: ${result.computed.live_action_gate_blocker_count}`,
+    `- Live action allowed: ${result.computed.live_action_allowed ? "yes" : "no"}`,
+    `- Control status live spend allowed: ${result.computed.budget_control_status_live_spend_allowed ? "yes" : "no"}`,
     "",
     "## Proof Boundary",
     "",
@@ -726,6 +954,14 @@ function renderMarkdown(result: VerificationResult) {
     `- ${result.checked_paths.live_proof_intake_validation_md}`,
     `- ${result.checked_paths.next_goal_queue_json}`,
     `- ${result.checked_paths.next_goal_queue_md}`,
+    `- ${result.checked_paths.budget_delegation_packet_json}`,
+    `- ${result.checked_paths.budget_delegation_packet_md}`,
+    `- ${result.checked_paths.live_action_gate_json}`,
+    `- ${result.checked_paths.live_action_gate_md}`,
+    `- ${result.checked_paths.control_status_json}`,
+    `- ${result.checked_paths.control_status_md}`,
+    `- ${result.checked_paths.launch_now_approval_packet_json}`,
+    `- ${result.checked_paths.launch_now_approval_packet_md}`,
     `- ${result.checked_paths.human_blocker_packet_json}`,
     `- ${result.checked_paths.human_blocker_packet_md}`,
     `- ${result.checked_paths.openai_api_costs_proof}`,
@@ -760,6 +996,14 @@ function verify() {
   const liveProofIntakeValidationMdPath = readArg("--live-proof-intake-validation-md") || DEFAULT_LIVE_PROOF_INTAKE_VALIDATION_MD;
   const nextGoalQueueJsonPath = readArg("--next-goal-queue") || DEFAULT_NEXT_GOAL_QUEUE_JSON;
   const nextGoalQueueMdPath = readArg("--next-goal-queue-md") || DEFAULT_NEXT_GOAL_QUEUE_MD;
+  const budgetDelegationPacketJsonPath = readArg("--budget-delegation-packet") || DEFAULT_BUDGET_DELEGATION_PACKET_JSON;
+  const budgetDelegationPacketMdPath = readArg("--budget-delegation-packet-md") || DEFAULT_BUDGET_DELEGATION_PACKET_MD;
+  const liveActionGateJsonPath = readArg("--live-action-gate") || DEFAULT_LIVE_ACTION_GATE_JSON;
+  const liveActionGateMdPath = readArg("--live-action-gate-md") || DEFAULT_LIVE_ACTION_GATE_MD;
+  const controlStatusJsonPath = readArg("--control-status") || DEFAULT_CONTROL_STATUS_JSON;
+  const controlStatusMdPath = readArg("--control-status-md") || DEFAULT_CONTROL_STATUS_MD;
+  const launchNowApprovalPacketJsonPath = readArg("--launch-now-approval-packet") || DEFAULT_LAUNCH_NOW_APPROVAL_PACKET_JSON;
+  const launchNowApprovalPacketMdPath = readArg("--launch-now-approval-packet-md") || DEFAULT_LAUNCH_NOW_APPROVAL_PACKET_MD;
   const humanBlockerPacketJsonPath = readArg("--human-blocker-packet") || DEFAULT_HUMAN_BLOCKER_PACKET_JSON;
   const humanBlockerPacketMdPath = readArg("--human-blocker-packet-md") || DEFAULT_HUMAN_BLOCKER_PACKET_MD;
   const outDir = readArg("--out-dir") || DEFAULT_OUT_DIR;
@@ -795,6 +1039,14 @@ function verify() {
   const liveProofIntakeValidationMd = fs.readFileSync(liveProofIntakeValidationMdPath, "utf8");
   const nextGoalQueue = readJson<NextGoalQueue>(nextGoalQueueJsonPath);
   const nextGoalQueueMd = fs.readFileSync(nextGoalQueueMdPath, "utf8");
+  const budgetDelegationPacket = readJson<BudgetDelegationPacket>(budgetDelegationPacketJsonPath);
+  const budgetDelegationPacketMd = fs.readFileSync(budgetDelegationPacketMdPath, "utf8");
+  const liveActionGate = readJson<LiveActionGate>(liveActionGateJsonPath);
+  const liveActionGateMd = fs.readFileSync(liveActionGateMdPath, "utf8");
+  const controlStatus = readJson<BudgetControlStatus>(controlStatusJsonPath);
+  const controlStatusMd = fs.readFileSync(controlStatusMdPath, "utf8");
+  const launchNowApprovalPacket = readJson<LaunchNowApprovalPacket>(launchNowApprovalPacketJsonPath);
+  const launchNowApprovalPacketMd = fs.readFileSync(launchNowApprovalPacketMdPath, "utf8");
   const humanBlockerPacket = readJson<HumanBlockerPacket>(humanBlockerPacketJsonPath);
   const humanBlockerPacketMd = fs.readFileSync(humanBlockerPacketMdPath, "utf8");
   const openAiProofSnapshot = readJson<SpendProofSnapshot>(liveProofBacklog.openai_api_guardrail.proof_path);
@@ -843,6 +1095,16 @@ function verify() {
     return totals;
   }, new Map<string, number>());
   const openAiLedgerLine = summary.budget_ledger.find((line) => line.line === "OpenAI API costs (approval-only guardrail)") ?? null;
+  const launchApprovalTargetUsd = summary.budget_ledger
+    .filter((line) => line.target_usd > 0)
+    .filter((line) => !line.line.includes("Paperclip agent/runtime"))
+    .filter((line) => !line.line.includes("Codex OAuth"))
+    .filter((line) => !line.line.includes("OpenAI API"))
+    .reduce((sum, line) => sum + line.target_usd, 0);
+  const launchApprovalItemTotalUsd = launchNowApprovalPacket.approval_items.reduce(
+    (sum, item) => sum + item.max_usd,
+    0,
+  );
   const dynamicSpendAffectingRecommendations = dynamicRecommendations.recommendations.filter(
     (recommendation) => SPEND_AFFECTING_DYNAMIC_ACTIONS.has(recommendation.action),
   );
@@ -857,6 +1119,11 @@ function verify() {
   );
   const nextGoalCommands = nextGoalQueue.queue.map((item) => item.goal_command);
   const nextGoalLiveMutationAllowedItems = nextGoalQueue.queue.filter((item) => item.live_mutation_allowed);
+  const delegationSpendWithoutApprovalItems = budgetDelegationPacket.work_orders.filter((item) => item.can_spend_without_human_approval);
+  const delegationLiveMutationAllowedItems = budgetDelegationPacket.work_orders.filter((item) => item.live_mutation_allowed || item.can_mutate_live_systems);
+  const delegationByBudgetLine = new Map(budgetDelegationPacket.budget_line_delegations.map((item) => [item.budget_line, item]));
+  const delegationWorkOrdersByGoal = new Map(budgetDelegationPacket.work_orders.map((item) => [item.goal_command, item]));
+  const liveActionGateChecksById = new Map(liveActionGate.checks.map((item) => [item.id, item]));
 
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -875,6 +1142,10 @@ function verify() {
   assertCondition(errors, liveProofIntakeTemplate.schema === "blueprint/autonomous-budget-live-proof-intake-template/v1", "live proof intake template schema mismatch");
   assertCondition(errors, liveProofIntakeValidation.schema === "blueprint/autonomous-budget-live-proof-intake-validation/v1", "live proof intake validation schema mismatch");
   assertCondition(errors, nextGoalQueue.schema === "blueprint/autonomous-budget-next-goal-queue/v1", "next goal queue schema mismatch");
+  assertCondition(errors, budgetDelegationPacket.schema === "blueprint/autonomous-budget-delegation-packet/v1", "budget delegation packet schema mismatch");
+  assertCondition(errors, liveActionGate.schema === "blueprint/autonomous-budget-live-action-gate/v1", "live action gate schema mismatch");
+  assertCondition(errors, controlStatus.schema === "blueprint/autonomous-budget-control-status/v1", "budget control status schema mismatch");
+  assertCondition(errors, launchNowApprovalPacket.schema === "blueprint/autonomous-budget-launch-now-approval-packet/v1", "launch-now approval packet schema mismatch");
   assertCondition(errors, humanBlockerPacket.schema === "blueprint/autonomous-org-budget-human-blocker-packet/v1", "human blocker packet schema mismatch");
   assertCondition(errors, spendSources.length > 0, "spend source registry must list sources");
   assertCondition(errors, (outcomeSourceRegistry.sources ?? []).length > 0, "outcome source registry must list sources");
@@ -973,7 +1244,30 @@ function verify() {
   assertCondition(errors, summary.live_proof_intake_template_path === liveProofIntakeTemplateJsonPath, "summary live_proof_intake_template_path must point at the checked intake template path");
   assertCondition(errors, summary.live_proof_intake_validation_path === liveProofIntakeValidationJsonPath, "summary live_proof_intake_validation_path must point at the checked intake validation path");
   assertCondition(errors, summary.next_goal_queue_path === nextGoalQueueJsonPath, "summary next_goal_queue_path must point at the checked next-goal queue path");
+  assertCondition(errors, summary.budget_delegation_packet_path === budgetDelegationPacketJsonPath, "summary budget_delegation_packet_path must point at the checked delegation packet path");
+  assertCondition(errors, summary.live_action_gate_path === liveActionGateJsonPath, "summary live_action_gate_path must point at the checked live action gate path");
+  assertCondition(errors, summary.control_status_path === controlStatusJsonPath, "summary control_status_path must point at the checked control status path");
+  assertCondition(errors, summary.launch_now_approval_packet_path === launchNowApprovalPacketJsonPath, "summary launch_now_approval_packet_path must point at the checked launch approval path");
   assertCondition(errors, summary.human_blocker_packet_path === humanBlockerPacketJsonPath, "summary human_blocker_packet_path must point at the checked packet path");
+  assertCondition(errors, launchNowApprovalPacket.state === "pending_human_signature", "launch-now approval packet must remain pending human signature");
+  assertCondition(errors, launchNowApprovalPacket.approval_effective === false, "launch-now approval packet must not be effective by default");
+  assertCondition(errors, launchNowApprovalPacket.no_live_mutation_attempted === true, "launch-now approval packet must not claim live mutation");
+  assertCondition(errors, launchNowApprovalPacket.no_provider_calls_made === true, "launch-now approval packet must not make provider calls");
+  assertCondition(errors, launchNowApprovalPacket.secrets_persisted === false, "launch-now approval packet must not persist secrets");
+  assertCondition(errors, launchNowApprovalPacket.budget_cap_usd === summary.budget_cap_usd, "launch-now approval packet budget cap must match summary");
+  assertCondition(errors, launchNowApprovalPacket.repo_local_paperclip_envelope_usd === declaredAgentBudgetUsd, "launch-now approval packet Paperclip envelope must match implemented budget");
+  assertCondition(errors, moneyEquals(launchNowApprovalPacket.requested_live_spend_ceiling_usd, launchApprovalTargetUsd), "launch-now approval live ceiling must match eligible live launch/growth ledger targets");
+  assertCondition(errors, moneyEquals(launchApprovalItemTotalUsd, launchNowApprovalPacket.requested_live_spend_ceiling_usd), "launch-now approval item totals must match requested live ceiling");
+  assertCondition(errors, launchNowApprovalPacket.combined_budget_ceiling_usd === summary.budget_cap_usd, "launch-now approval combined ceiling must remain $500");
+  assertCondition(errors, launchNowApprovalPacket.codex_oauth_pro_excluded_from_budget === true, "launch-now approval must exclude Codex OAuth/Pro from the $500 budget");
+  assertCondition(errors, launchNowApprovalPacket.openai_api_target_usd === 0, "launch-now approval must keep OpenAI API target at $0");
+  assertCondition(errors, launchNowApprovalPacket.control_status.can_mutate_live_spend === false, "launch-now approval control status must keep live spend blocked");
+  assertCondition(errors, launchNowApprovalPacket.control_status.can_claim_live_budget_complete === false, "launch-now approval control status must not claim live billing complete");
+  assertCondition(errors, launchNowApprovalPacket.control_status.can_claim_operational_launch_ready === false, "launch-now approval control status must not claim Operational Launch Ready");
+  assertCondition(errors, launchNowApprovalPacket.approval_capture.human_approved === false, "launch-now approval capture must remain unset until exact approval is recorded");
+  assertCondition(errors, launchNowApprovalPacket.exact_human_approval_text.includes("$327.00 in live launch/growth spend"), "launch-now approval text must include the $327 live ceiling");
+  assertCondition(errors, launchNowApprovalPacket.exact_human_approval_text.includes("OpenAI API spend remains $0.00"), "launch-now approval text must keep OpenAI API spend at $0");
+  assertCondition(errors, launchNowApprovalPacketMd.includes("Approval effective: no"), "launch-now approval markdown must show approval is not effective");
   assertCondition(errors, liveProofBacklog.state === "awaiting_human_decision", "live proof backlog state must remain awaiting_human_decision");
   assertCondition(errors, liveProofBacklog.blocker_id === "autonomous-org-budget-live-proof-20260601", "live proof backlog must keep the durable blocker id");
   assertCondition(errors, liveProofBacklog.no_live_mutation_attempted === true, "live proof backlog must not claim live mutation");
@@ -1176,6 +1470,109 @@ function verify() {
     assertCondition(errors, item.codex_oauth_pro_budget_treatment === "excluded_from_500_budget", `${item.goal_command} must preserve Codex OAuth/Pro exclusion`);
     assertCondition(errors, item.openai_api_budget_treatment === "target_zero_unless_approved", `${item.goal_command} must preserve OpenAI API $0 guardrail`);
   }
+  assertCondition(errors, budgetDelegationPacket.state === "awaiting_human_decision", "budget delegation packet state must remain awaiting_human_decision");
+  assertCondition(errors, budgetDelegationPacket.budget_cap_usd === 500, "budget delegation packet budget cap must be $500");
+  assertCondition(errors, budgetDelegationPacket.target_total_usd === 500, "budget delegation packet target total must be $500");
+  assertCondition(errors, budgetDelegationPacket.paperclip_declared_envelope_usd === declaredAgentBudgetUsd, "budget delegation packet Paperclip envelope must match implemented budget");
+  assertCondition(errors, budgetDelegationPacket.active_routines === activeRoutines, "budget delegation packet active routine count must match .paperclip.yaml");
+  assertCondition(errors, budgetDelegationPacket.paused_routines === pausedRoutines, "budget delegation packet paused routine count must match .paperclip.yaml");
+  assertCondition(errors, budgetDelegationPacket.codex_oauth_pro_excluded_from_budget === true, "budget delegation packet must exclude Codex OAuth/Pro from the $500 budget");
+  assertCondition(errors, budgetDelegationPacket.openai_api_target_usd === 0, "budget delegation packet must keep OpenAI API target at $0");
+  assertCondition(errors, budgetDelegationPacket.no_live_mutation_authorized === true, "budget delegation packet must not authorize live mutation");
+  assertCondition(errors, budgetDelegationPacket.live_billing_verified === false, "budget delegation packet must not mark live billing verified");
+  assertCondition(errors, budgetDelegationPacket.allocator.recommendation_count === dynamicRecommendations.recommendations.length, "budget delegation packet recommendation count must match dynamic recommendations");
+  assertCondition(errors, budgetDelegationPacket.allocator.spend_affecting_recommendation_count === dynamicSpendAffectingRecommendations.length, "budget delegation packet spend-affecting count must match dynamic recommendations");
+  assertCondition(errors, budgetDelegationPacket.allocator.projected_target_total_usd === dynamicRecommendations.projected_target_total_usd, "budget delegation packet projected target total must match dynamic recommendations");
+  assertCondition(errors, budgetDelegationPacket.allocator.human_approval_required === dynamicRecommendations.human_approval_required, "budget delegation packet approval flag must match dynamic recommendations");
+  assertCondition(errors, budgetDelegationPacket.allocator.live_mutation_attempted === false, "budget delegation packet allocator state must not show live mutation");
+  assertCondition(errors, budgetDelegationPacket.proof_gate.proof_ready_to_count_as_live_billing === liveProofIntakeValidation.proof_ready_to_count_as_live_billing, "budget delegation packet proof gate must match intake validation");
+  assertCondition(errors, budgetDelegationPacket.proof_gate.total_items === liveProofIntakeValidation.totals.total_items, "budget delegation packet proof total must match intake validation");
+  assertCondition(errors, budgetDelegationPacket.proof_gate.missing_submission === liveProofIntakeValidation.totals.missing_submission, "budget delegation packet missing proof count must match intake validation");
+  assertCondition(errors, budgetDelegationPacket.budget_line_delegations.length === summary.budget_ledger.length, "budget delegation packet must include every budget ledger line");
+  assertCondition(errors, budgetDelegationPacket.work_orders.length === nextGoalQueue.queue.length, "budget delegation packet work orders must match next-goal queue count");
+  assertCondition(errors, delegationSpendWithoutApprovalItems.length === 0, "budget delegation packet must not allow spend without human approval");
+  assertCondition(errors, delegationLiveMutationAllowedItems.length === 0, "budget delegation packet must not allow live mutation");
+  assertCondition(errors, budgetDelegationPacket.live_delegation_blockers.length > 0, "budget delegation packet must list live delegation blockers while proof is incomplete");
+  assertCondition(errors, budgetDelegationPacket.required_checks_before_any_live_action.includes("npm run autonomy:budget:control-suite"), "budget delegation packet must require the control suite before live action");
+  assertCondition(errors, budgetDelegationPacket.required_checks_before_any_live_action.includes("npm run autonomy:budget:delegate"), "budget delegation packet must require delegation packet refresh before live action");
+  assertCondition(errors, budgetDelegationPacket.required_checks_before_any_live_action.includes("npm run autonomy:budget:live-action-gate -- --require-live-action-ready"), "budget delegation packet must require strict live-action gate before live action");
+  for (const line of summary.budget_ledger) {
+    const delegatedLine = delegationByBudgetLine.get(line.line);
+    assertCondition(errors, Boolean(delegatedLine), `budget delegation packet missing budget line ${line.line}`);
+    assertCondition(errors, delegatedLine?.target_usd === line.target_usd, `${line.line} delegation target must match summary ledger`);
+    assertCondition(errors, (delegatedLine?.required_before_spend.length ?? 0) > 0, `${line.line} delegation must include required_before_spend`);
+    if (line.line === "Codex OAuth / Pro subscription seat") {
+      assertCondition(errors, delegatedLine?.spend_release_status === "not_spendable", "Codex OAuth/Pro delegation must remain not spendable because it is excluded from the budget");
+    }
+    if (line.line === "OpenAI API costs (approval-only guardrail)") {
+      assertCondition(errors, delegatedLine?.spend_release_status === "not_spendable", "OpenAI API delegation must remain not spendable without approval");
+    }
+  }
+  for (const item of nextGoalQueue.queue) {
+    const workOrder = delegationWorkOrdersByGoal.get(item.goal_command);
+    assertCondition(errors, Boolean(workOrder), `budget delegation packet missing work order ${item.goal_command}`);
+    assertCondition(errors, workOrder?.owner === item.owner, `${item.goal_command} work order owner must match next-goal queue`);
+    assertCondition(errors, workOrder?.lane === item.lane, `${item.goal_command} work order lane must match next-goal queue`);
+    assertCondition(errors, workOrder?.can_start_without_live_approval === true, `${item.goal_command} work order should allow safe local start`);
+    assertCondition(errors, workOrder?.can_spend_without_human_approval === false, `${item.goal_command} work order must not allow spend without approval`);
+    assertCondition(errors, workOrder?.can_mutate_live_systems === false, `${item.goal_command} work order must not allow live mutation`);
+    assertCondition(errors, workOrder?.live_mutation_allowed === false, `${item.goal_command} work order must keep live mutation false`);
+    assertCondition(errors, workOrder?.required_checks.includes("npm run autonomy:budget:verify") === true, `${item.goal_command} work order must include budget verifier`);
+    assertCondition(errors, workOrder?.required_checks.includes("npm run autonomy:budget:control-suite") === true, `${item.goal_command} work order must include control suite`);
+    assertCondition(errors, workOrder?.required_checks.includes("npm run autonomy:budget:live-action-gate -- --require-live-action-ready") === true, `${item.goal_command} work order must include strict live-action gate`);
+  }
+  assertCondition(errors, budgetDelegationPacketMd.includes("does not authorize live spend"), "budget delegation markdown must block live spend");
+  assertCondition(errors, budgetDelegationPacketMd.includes("Required Checks Before Any Live Action"), "budget delegation markdown must list required live-action checks");
+  assertCondition(errors, liveActionGate.state === "live_action_blocked", "live action gate must block live action while proof is incomplete");
+  assertCondition(errors, liveActionGate.validation_pass === true, "live action gate validation must pass");
+  assertCondition(errors, liveActionGate.live_action_allowed === false, "live action gate must not allow live action");
+  assertCondition(errors, liveActionGate.repo_local_work_allowed === true, "live action gate must allow repo-local work");
+  assertCondition(errors, liveActionGate.mode.no_live_provider_calls_made === true, "live action gate must not make provider calls");
+  assertCondition(errors, liveActionGate.mode.no_live_mutation_attempted === true, "live action gate must not attempt live mutation");
+  assertCondition(errors, liveActionGate.mode.secrets_persisted === false, "live action gate must not persist secrets");
+  assertCondition(errors, liveActionGate.budget_cap_usd === 500, "live action gate budget cap must be $500");
+  assertCondition(errors, liveActionGate.codex_oauth_pro_excluded_from_budget === true, "live action gate must exclude Codex OAuth/Pro from the $500 budget");
+  assertCondition(errors, liveActionGate.openai_api_target_usd === 0, "live action gate must keep OpenAI API target at $0");
+  assertCondition(errors, liveActionGate.blocker_count > 0, "live action gate must list blockers until live proof and approval are complete");
+  assertCondition(errors, liveActionGate.error_count === 0, "live action gate must have no local-control errors");
+  assertCondition(errors, liveActionGateChecksById.get("live_billing_verified")?.pass === false, "live action gate must require live billing verification");
+  assertCondition(errors, liveActionGateChecksById.get("approval_artifact_required")?.pass === false, "live action gate must require explicit human approval before live action");
+  assertCondition(errors, liveActionGate.required_before_live_action.includes("npm run autonomy:budget:control-suite"), "live action gate must require the control suite before live action");
+  assertCondition(errors, liveActionGate.required_before_live_action.includes("npm run autonomy:budget:delegate"), "live action gate must require delegation packet refresh before live action");
+  assertCondition(errors, liveActionGate.required_before_live_action.includes("npm run autonomy:budget:live-action-gate -- --require-live-action-ready"), "live action gate must require strict mode before live action");
+  assertCondition(errors, liveActionGateMd.includes("Live action allowed: no"), "live action gate markdown must show live action blocked");
+  assertCondition(errors, liveActionGateMd.includes("--require-live-action-ready"), "live action gate markdown must document strict fail-closed mode");
+  assertCondition(errors, controlStatus.state === "repo_local_controls_ready_live_action_blocked", "budget control status must show repo-local controls ready and live action blocked");
+  assertCondition(errors, controlStatus.validation_pass === true, "budget control status validation must pass");
+  assertCondition(errors, controlStatus.budget_cap_usd === 500, "budget control status budget cap must be $500");
+  assertCondition(errors, controlStatus.target_total_usd === 500, "budget control status target total must be $500");
+  assertCondition(errors, controlStatus.can_allocate_repo_local === true, "budget control status must allow repo-local allocation work");
+  assertCondition(errors, controlStatus.can_delegate_repo_local === true, "budget control status must allow repo-local delegation work");
+  assertCondition(errors, controlStatus.can_mutate_live_spend === false, "budget control status must block live spend mutation");
+  assertCondition(errors, controlStatus.can_claim_live_budget_complete === false, "budget control status must block live budget completion claims");
+  assertCondition(errors, controlStatus.can_claim_operational_launch_ready === false, "budget control status must block Operational Launch Ready claims");
+  assertCondition(errors, controlStatus.codex_oauth_pro_excluded_from_budget === true, "budget control status must exclude Codex OAuth/Pro from the $500 budget");
+  assertCondition(errors, controlStatus.openai_api_target_usd === 0, "budget control status must keep OpenAI API target at $0");
+  assertCondition(errors, controlStatus.paperclip_declared_envelope_usd === declaredAgentBudgetUsd, "budget control status Paperclip envelope must match .paperclip.yaml");
+  assertCondition(errors, controlStatus.active_routines === activeRoutines, "budget control status active routine count must match .paperclip.yaml");
+  assertCondition(errors, controlStatus.paused_routines === pausedRoutines, "budget control status paused routine count must match .paperclip.yaml");
+  assertCondition(errors, controlStatus.next_goal_queue_items === nextGoalQueue.queue.length, "budget control status next-goal count must match queue");
+  assertCondition(errors, controlStatus.delegation_work_orders === budgetDelegationPacket.work_orders.length, "budget control status work-order count must match delegation packet");
+  assertCondition(errors, controlStatus.delegation_spend_without_approval_items === 0, "budget control status must show no spend-without-approval delegation items");
+  assertCondition(errors, controlStatus.delegation_live_mutation_allowed_items === 0, "budget control status must show no live-mutation delegation items");
+  assertCondition(errors, controlStatus.live_action_gate_blockers === liveActionGate.blocker_count, "budget control status blocker count must match live-action gate");
+  assertCondition(errors, controlStatus.live_proof_gaps.length === summary.live_proof_gaps.length, "budget control status live proof gaps must match summary");
+  assertCondition(errors, controlStatus.required_before_live_action.includes("npm run autonomy:budget:live-action-gate -- --require-live-action-ready"), "budget control status must require strict live-action gate before live action");
+  assertCondition(errors, controlStatus.next_safe_agent_actions.includes("npm run autonomy:budget:control-suite"), "budget control status must list control suite as a next safe action");
+  assertCondition(errors, controlStatus.next_safe_agent_actions.includes("npm run autonomy:budget:verify"), "budget control status must list verifier as a next safe action");
+  assertCondition(errors, controlStatus.errors.length === 0, "budget control status must have no local-control errors");
+  assertCondition(errors, controlStatus.blockers.length > 0, "budget control status must keep live-action blockers while proof is incomplete");
+  assertCondition(errors, controlStatus.mode.no_live_provider_calls_made === true, "budget control status must not make provider calls");
+  assertCondition(errors, controlStatus.mode.no_live_mutation_attempted === true, "budget control status must not attempt live mutation");
+  assertCondition(errors, controlStatus.mode.secrets_persisted === false, "budget control status must not persist secrets");
+  assertCondition(errors, controlStatusMd.includes("Repo-local allocation allowed: yes"), "budget control status markdown must answer repo-local allocation state");
+  assertCondition(errors, controlStatusMd.includes("Live spend mutation allowed: no"), "budget control status markdown must answer live spend mutation state");
+  assertCondition(errors, controlStatusMd.includes("Operational Launch Ready claim allowed: no"), "budget control status markdown must block Operational Launch Ready claims");
   assertCondition(errors, audit.current_state_evidence.live_proof_backlog?.result === "written", "audit must mark live proof backlog written");
   assertCondition(errors, audit.current_state_evidence.live_proof_backlog?.json_path === liveProofBacklogJsonPath, "audit must reference checked live proof backlog JSON");
   assertCondition(errors, audit.current_state_evidence.live_proof_backlog?.markdown_path === liveProofBacklogMdPath, "audit must reference checked live proof backlog markdown");
@@ -1215,8 +1612,45 @@ function verify() {
   assertCondition(errors, audit.current_state_evidence.next_goal_queue?.live_mutation_allowed === false, "audit next goal queue must not allow live mutation");
   assertCondition(errors, audit.current_state_evidence.next_goal_queue?.codex_oauth_pro_excluded_from_budget === true, "audit next goal queue must preserve Codex OAuth/Pro exclusion");
   assertCondition(errors, audit.current_state_evidence.next_goal_queue?.openai_api_target_usd === 0, "audit next goal queue must preserve OpenAI API $0 guardrail");
-  assertCondition(errors, audit.current_state_evidence.control_suite?.command_count === 9, "audit control suite command count must include next-goal generation and tests");
-  assertCondition(errors, audit.current_state_evidence.control_suite?.passed_count === 9, "audit control suite passed count must include next-goal generation and tests");
+  assertCondition(errors, audit.current_state_evidence.budget_delegation_packet?.result === "written", "audit must mark budget delegation packet written");
+  assertCondition(errors, audit.current_state_evidence.budget_delegation_packet?.json_path === budgetDelegationPacketJsonPath, "audit must reference checked budget delegation packet JSON");
+  assertCondition(errors, audit.current_state_evidence.budget_delegation_packet?.markdown_path === budgetDelegationPacketMdPath, "audit must reference checked budget delegation packet markdown");
+  assertCondition(errors, audit.current_state_evidence.budget_delegation_packet?.work_orders === budgetDelegationPacket.work_orders.length, "audit budget delegation work order count must match packet");
+  assertCondition(errors, audit.current_state_evidence.budget_delegation_packet?.budget_line_delegations === budgetDelegationPacket.budget_line_delegations.length, "audit budget line delegation count must match packet");
+  assertCondition(errors, audit.current_state_evidence.budget_delegation_packet?.live_mutation_allowed === false, "audit budget delegation packet must not allow live mutation");
+  assertCondition(errors, audit.current_state_evidence.budget_delegation_packet?.can_spend_without_human_approval === false, "audit budget delegation packet must not allow spend without approval");
+  assertCondition(errors, audit.current_state_evidence.live_action_gate?.result === "written", "audit must mark live action gate written");
+  assertCondition(errors, audit.current_state_evidence.live_action_gate?.json_path === liveActionGateJsonPath, "audit must reference checked live action gate JSON");
+  assertCondition(errors, audit.current_state_evidence.live_action_gate?.markdown_path === liveActionGateMdPath, "audit must reference checked live action gate markdown");
+  assertCondition(errors, audit.current_state_evidence.live_action_gate?.state === liveActionGate.state, "audit live action gate state must match canonical gate");
+  assertCondition(errors, audit.current_state_evidence.live_action_gate?.validation_pass === liveActionGate.validation_pass, "audit live action gate validation state must match canonical gate");
+  assertCondition(errors, audit.current_state_evidence.live_action_gate?.live_action_allowed === liveActionGate.live_action_allowed, "audit live action gate live-action state must match canonical gate");
+  assertCondition(errors, audit.current_state_evidence.live_action_gate?.repo_local_work_allowed === liveActionGate.repo_local_work_allowed, "audit live action gate repo-local state must match canonical gate");
+  assertCondition(errors, audit.current_state_evidence.live_action_gate?.blocker_count === liveActionGate.blocker_count, "audit live action gate blocker count must match canonical gate");
+  assertCondition(errors, audit.current_state_evidence.live_action_gate?.error_count === liveActionGate.error_count, "audit live action gate error count must match canonical gate");
+  assertCondition(errors, audit.current_state_evidence.budget_control_status?.result === "written", "audit must mark budget control status written");
+  assertCondition(errors, audit.current_state_evidence.budget_control_status?.json_path === controlStatusJsonPath, "audit must reference checked budget control status JSON");
+  assertCondition(errors, audit.current_state_evidence.budget_control_status?.markdown_path === controlStatusMdPath, "audit must reference checked budget control status markdown");
+  assertCondition(errors, audit.current_state_evidence.budget_control_status?.state === controlStatus.state, "audit budget control status state must match canonical status");
+  assertCondition(errors, audit.current_state_evidence.budget_control_status?.validation_pass === controlStatus.validation_pass, "audit budget control status validation must match canonical status");
+  assertCondition(errors, audit.current_state_evidence.budget_control_status?.can_allocate_repo_local === controlStatus.can_allocate_repo_local, "audit budget control status repo-local allocation state must match canonical status");
+  assertCondition(errors, audit.current_state_evidence.budget_control_status?.can_delegate_repo_local === controlStatus.can_delegate_repo_local, "audit budget control status delegation state must match canonical status");
+  assertCondition(errors, audit.current_state_evidence.budget_control_status?.can_mutate_live_spend === controlStatus.can_mutate_live_spend, "audit budget control status live-spend state must match canonical status");
+  assertCondition(errors, audit.current_state_evidence.budget_control_status?.can_claim_live_budget_complete === controlStatus.can_claim_live_budget_complete, "audit budget control status live-budget claim state must match canonical status");
+  assertCondition(errors, audit.current_state_evidence.budget_control_status?.live_action_gate_blockers === controlStatus.live_action_gate_blockers, "audit budget control status blocker count must match canonical status");
+  assertCondition(errors, audit.current_state_evidence.launch_now_approval_packet?.result === "written", "audit must mark launch-now approval packet written");
+  assertCondition(errors, audit.current_state_evidence.launch_now_approval_packet?.json_path === launchNowApprovalPacketJsonPath, "audit must reference checked launch-now approval packet JSON");
+  assertCondition(errors, audit.current_state_evidence.launch_now_approval_packet?.markdown_path === launchNowApprovalPacketMdPath, "audit must reference checked launch-now approval packet markdown");
+  assertCondition(errors, audit.current_state_evidence.launch_now_approval_packet?.state === launchNowApprovalPacket.state, "audit launch-now approval state must match canonical packet");
+  assertCondition(errors, audit.current_state_evidence.launch_now_approval_packet?.approval_effective === launchNowApprovalPacket.approval_effective, "audit launch-now approval effective flag must match canonical packet");
+  assertCondition(errors, audit.current_state_evidence.launch_now_approval_packet?.requested_live_spend_ceiling_usd === launchNowApprovalPacket.requested_live_spend_ceiling_usd, "audit launch-now approval live ceiling must match canonical packet");
+  assertCondition(errors, audit.current_state_evidence.launch_now_approval_packet?.repo_local_paperclip_envelope_usd === launchNowApprovalPacket.repo_local_paperclip_envelope_usd, "audit launch-now approval Paperclip envelope must match canonical packet");
+  assertCondition(errors, audit.current_state_evidence.launch_now_approval_packet?.combined_budget_ceiling_usd === launchNowApprovalPacket.combined_budget_ceiling_usd, "audit launch-now approval combined ceiling must match canonical packet");
+  assertCondition(errors, audit.current_state_evidence.launch_now_approval_packet?.openai_api_target_usd === launchNowApprovalPacket.openai_api_target_usd, "audit launch-now approval OpenAI target must match canonical packet");
+  assertCondition(errors, audit.current_state_evidence.launch_now_approval_packet?.codex_oauth_pro_excluded_from_budget === launchNowApprovalPacket.codex_oauth_pro_excluded_from_budget, "audit launch-now approval Codex exclusion must match canonical packet");
+  assertCondition(errors, audit.current_state_evidence.launch_now_approval_packet?.live_mutation_allowed === false, "audit launch-now approval packet must not allow live mutation");
+  assertCondition(errors, audit.current_state_evidence.control_suite?.command_count === 17, "audit control suite command count must include launch approval generation and tests");
+  assertCondition(errors, audit.current_state_evidence.control_suite?.passed_count === 17, "audit control suite passed count must include launch approval generation and tests");
   assertCondition(errors, audit.current_state_evidence.control_suite?.failed_count === 0, "audit control suite failed count must remain zero");
   assertCondition(errors, humanBlockerPacket.state === "awaiting_human_decision", "human blocker packet state must remain awaiting_human_decision");
   assertCondition(errors, humanBlockerPacket.blocker_id === liveProofBacklog.blocker_id, "human blocker packet blocker id must match live proof backlog");
@@ -1265,6 +1699,10 @@ function verify() {
   assertCondition(errors, planDoc.includes(liveProofIntakeTemplateJsonPath), "plan doc must reference the live proof intake template");
   assertCondition(errors, planDoc.includes(liveProofIntakeValidationJsonPath), "plan doc must reference the live proof intake validation");
   assertCondition(errors, planDoc.includes(nextGoalQueueJsonPath), "plan doc must reference the next goal queue artifact");
+  assertCondition(errors, planDoc.includes(budgetDelegationPacketJsonPath), "plan doc must reference the budget delegation packet artifact");
+  assertCondition(errors, planDoc.includes(liveActionGateJsonPath), "plan doc must reference the live action gate artifact");
+  assertCondition(errors, planDoc.includes(controlStatusJsonPath), "plan doc must reference the budget control status artifact");
+  assertCondition(errors, planDoc.includes(launchNowApprovalPacketJsonPath), "plan doc must reference the launch-now approval packet artifact");
   assertCondition(errors, planDoc.includes(humanBlockerPacketJsonPath), "plan doc must reference the human blocker packet");
   assertCondition(errors, planDoc.includes("State claimed for live budget truth: `awaiting_human_decision`"), "plan doc must keep live budget state human-gated");
   assertCondition(errors, planDoc.includes("Codex Pro/OAuth is treated as pre-existing tooling outside the $500 launch/growth cash envelope"), "plan doc must exclude Codex Pro/OAuth from the $500 cash envelope");
@@ -1297,6 +1735,10 @@ function verify() {
   assertCondition(errors, closeoutMd.includes(liveProofIntakeTemplateJsonPath), "closeout must reference the live proof intake template JSON");
   assertCondition(errors, closeoutMd.includes(liveProofIntakeValidationJsonPath), "closeout must reference the live proof intake validation JSON");
   assertCondition(errors, closeoutMd.includes(nextGoalQueueJsonPath), "closeout must reference the next goal queue JSON");
+  assertCondition(errors, closeoutMd.includes(budgetDelegationPacketJsonPath), "closeout must reference the budget delegation packet JSON");
+  assertCondition(errors, closeoutMd.includes(liveActionGateJsonPath), "closeout must reference the live action gate JSON");
+  assertCondition(errors, closeoutMd.includes(controlStatusJsonPath), "closeout must reference the budget control status JSON");
+  assertCondition(errors, closeoutMd.includes(launchNowApprovalPacketJsonPath), "closeout must reference the launch-now approval packet JSON");
   assertCondition(errors, closeoutMd.includes(humanBlockerPacketJsonPath), "closeout must reference the human blocker packet JSON");
   assertCondition(errors, closeoutMd.includes("This packet does not claim Operational Launch Ready"), "closeout must reject Operational Launch Ready claim");
   assertCondition(errors, liveProofBacklogMd.includes("State: `awaiting_human_decision`"), "live proof backlog markdown must keep awaiting_human_decision state");
@@ -1356,6 +1798,11 @@ function verify() {
       live_proof_intake_validation_rejected_items: liveProofIntakeValidation.totals.rejected,
       next_goal_queue_items: nextGoalQueue.queue.length,
       next_goal_queue_live_mutation_allowed_items: nextGoalLiveMutationAllowedItems.length,
+      budget_delegation_work_orders: budgetDelegationPacket.work_orders.length,
+      budget_delegation_spend_without_approval_items: delegationSpendWithoutApprovalItems.length,
+      live_action_gate_blocker_count: liveActionGate.blocker_count,
+      live_action_allowed: liveActionGate.live_action_allowed,
+      budget_control_status_live_spend_allowed: controlStatus.can_mutate_live_spend,
     },
     checked_paths: {
       company_config: companyConfigPath,
@@ -1383,6 +1830,14 @@ function verify() {
       live_proof_intake_validation_md: liveProofIntakeValidationMdPath,
       next_goal_queue_json: nextGoalQueueJsonPath,
       next_goal_queue_md: nextGoalQueueMdPath,
+      budget_delegation_packet_json: budgetDelegationPacketJsonPath,
+      budget_delegation_packet_md: budgetDelegationPacketMdPath,
+      live_action_gate_json: liveActionGateJsonPath,
+      live_action_gate_md: liveActionGateMdPath,
+      control_status_json: controlStatusJsonPath,
+      control_status_md: controlStatusMdPath,
+      launch_now_approval_packet_json: launchNowApprovalPacketJsonPath,
+      launch_now_approval_packet_md: launchNowApprovalPacketMdPath,
       human_blocker_packet_json: humanBlockerPacketJsonPath,
       human_blocker_packet_md: humanBlockerPacketMdPath,
       openai_api_costs_proof: liveProofBacklog.openai_api_guardrail.proof_path,

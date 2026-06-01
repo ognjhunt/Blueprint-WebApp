@@ -80,6 +80,14 @@
         "output/autonomous-org/budget/latest/live-proof-intake-validation.md",
         "output/autonomous-org/budget/latest/next-goal-queue.json",
         "output/autonomous-org/budget/latest/next-goal-queue.md",
+        "output/autonomous-org/budget/latest/budget-delegation-packet.json",
+        "output/autonomous-org/budget/latest/budget-delegation-packet.md",
+        "output/autonomous-org/budget/latest/live-action-gate.json",
+        "output/autonomous-org/budget/latest/live-action-gate.md",
+        "output/autonomous-org/budget/latest/control-status.json",
+        "output/autonomous-org/budget/latest/control-status.md",
+        "output/autonomous-org/budget/latest/launch-now-approval-packet.json",
+        "output/autonomous-org/budget/latest/launch-now-approval-packet.md",
         "output/autonomous-org/budget/control-suite/latest/summary.json",
         "output/autonomous-org/budget/control-suite/latest/summary.md",
         "output/autonomous-org/budget/latest/human-blocker-packet.json",
@@ -112,9 +120,17 @@
         "npm run autonomy:budget:recommend",
         "npm run autonomy:budget:dynamic:verify",
         "npm run autonomy:budget:next-goals",
+        "npm run autonomy:budget:delegate",
+        "npm run autonomy:budget:live-action-gate",
+        "npm run autonomy:budget:status",
+        "npm run autonomy:budget:launch-approval",
         "npx vitest run scripts/autonomy/validate-live-proof-intake.test.ts",
         "npx vitest run scripts/autonomy/dynamic-budget-allocator-core.test.ts",
-        "npx vitest run scripts/autonomy/generate-budget-next-goal-queue.test.ts"
+        "npx vitest run scripts/autonomy/generate-budget-next-goal-queue.test.ts",
+        "npx vitest run scripts/autonomy/generate-budget-delegation-packet.test.ts",
+        "npx vitest run scripts/autonomy/verify-budget-live-action-gate.test.ts",
+        "npx vitest run scripts/autonomy/summarize-budget-control-status.test.ts",
+        "npx vitest run scripts/autonomy/generate-launch-now-approval-packet.test.ts"
       ],
       "result": "passed",
       "recommendation_state": "no_reallocation_improve_proof_first",
@@ -129,7 +145,11 @@
         "output/autonomous-org/budget/dynamic/latest/recommendations.json",
         "output/autonomous-org/budget/dynamic/latest/human-approval-packet.md",
         "output/autonomous-org/budget/dynamic/latest/proposed-repo-local-budget-diff.patch",
-        "output/autonomous-org/budget/dynamic/latest/verification.json"
+        "output/autonomous-org/budget/dynamic/latest/verification.json",
+        "output/autonomous-org/budget/latest/budget-delegation-packet.json",
+        "output/autonomous-org/budget/latest/live-action-gate.json",
+        "output/autonomous-org/budget/latest/control-status.json",
+        "output/autonomous-org/budget/latest/launch-now-approval-packet.json"
       ],
       "boundary": "The loop can recommend a repo-local budget diff only from fresh allocation-grade proof, and every spend-affecting move requires human approval before any live-system owner acts."
     },
@@ -187,15 +207,64 @@
       "openai_api_target_usd": 0,
       "conclusion": "The ranked follow-up /goal queue is now a machine-readable handoff artifact with owners, safe commands, success criteria, blocked claims, budget guardrails, and no-live-mutation gates."
     },
+    "budget_delegation_packet": {
+      "result": "written",
+      "json_path": "output/autonomous-org/budget/latest/budget-delegation-packet.json",
+      "markdown_path": "output/autonomous-org/budget/latest/budget-delegation-packet.md",
+      "work_orders": 5,
+      "budget_line_delegations": 14,
+      "live_mutation_allowed": false,
+      "can_spend_without_human_approval": false,
+      "conclusion": "The allocator-to-owner handoff is now one machine-readable delegation packet: it assigns budget lines and next /goal work orders to owners while allowing only repo-local proof, planning, and review work until proof and approval gates pass."
+    },
+    "live_action_gate": {
+      "result": "written",
+      "json_path": "output/autonomous-org/budget/latest/live-action-gate.json",
+      "markdown_path": "output/autonomous-org/budget/latest/live-action-gate.md",
+      "state": "live_action_blocked",
+      "validation_pass": true,
+      "live_action_allowed": false,
+      "repo_local_work_allowed": true,
+      "blocker_count": 5,
+      "error_count": 0,
+      "conclusion": "The strict live-action gate now gives agents one local check for whether budget delegation may mutate live spend. Current state passes local validation, permits repo-local work, and blocks live action until live billing proof and explicit human approval are attached."
+    },
+    "budget_control_status": {
+      "result": "written",
+      "json_path": "output/autonomous-org/budget/latest/control-status.json",
+      "markdown_path": "output/autonomous-org/budget/latest/control-status.md",
+      "state": "repo_local_controls_ready_live_action_blocked",
+      "validation_pass": true,
+      "can_allocate_repo_local": true,
+      "can_delegate_repo_local": true,
+      "can_mutate_live_spend": false,
+      "can_claim_live_budget_complete": false,
+      "live_action_gate_blockers": 5,
+      "conclusion": "The budget control status artifact is the compact pre-action answer for agents: repo-local allocation and delegation are allowed, live spend mutation and live-budget-complete claims remain blocked."
+    },
+    "launch_now_approval_packet": {
+      "result": "written",
+      "json_path": "output/autonomous-org/budget/latest/launch-now-approval-packet.json",
+      "markdown_path": "output/autonomous-org/budget/latest/launch-now-approval-packet.md",
+      "state": "pending_human_signature",
+      "approval_effective": false,
+      "requested_live_spend_ceiling_usd": 327,
+      "repo_local_paperclip_envelope_usd": 173,
+      "combined_budget_ceiling_usd": 500,
+      "openai_api_target_usd": 0,
+      "codex_oauth_pro_excluded_from_budget": true,
+      "live_mutation_allowed": false,
+      "conclusion": "The launch-now approval packet gives the human exact bounded approval text for the $500 plan, but stays pending and does not authorize live action until captured approval and owner-system proof gates pass."
+    },
     "control_suite": {
       "result": "passed",
       "json_path": "output/autonomous-org/budget/control-suite/latest/summary.json",
       "markdown_path": "output/autonomous-org/budget/control-suite/latest/summary.md",
-      "command_count": 9,
-      "passed_count": 9,
+      "command_count": 17,
+      "passed_count": 17,
       "failed_count": 0,
       "live_mutation_allowed": false,
-      "conclusion": "The safe local budget control suite runs proof reconciliation, proof template generation, proof validation, next-goal queue generation, dynamic verification, focused tests, and packet verification without requesting live provider calls."
+      "conclusion": "The safe local budget control suite runs proof reconciliation, proof template generation, proof validation, next-goal queue generation, budget delegation packet generation, live-action gate generation, budget status generation, launch-now approval packet generation, dynamic verification, focused tests, and packet verification without requesting live provider calls."
     },
     "human_blocker_packet": {
       "result": "written",
@@ -297,6 +366,26 @@
       "evidence": "The ranked queue is present in the architecture doc, summary.json, and output/autonomous-org/budget/latest/next-goal-queue.json."
     },
     {
+      "requirement": "Delegate the budget plan to owners without authorizing live spend.",
+      "status": "complete_for_repo_local_work",
+      "evidence": "output/autonomous-org/budget/latest/budget-delegation-packet.json and .md map the current budget lines and next /goal work orders to owners, require approval before live action, and set live_mutation_allowed=false and can_spend_without_human_approval=false."
+    },
+    {
+      "requirement": "Fail closed before any future live spend or live-system budget mutation.",
+      "status": "complete_for_repo_local_work",
+      "evidence": "npm run autonomy:budget:live-action-gate passed and wrote output/autonomous-org/budget/latest/live-action-gate.json plus .md with validation_pass=true, live_action_allowed=false, repo_local_work_allowed=true, blocker_count=5, error_count=0, and strict --require-live-action-ready mode documented for future live action."
+    },
+    {
+      "requirement": "Give agents one compact pre-action budget status answer.",
+      "status": "complete_for_repo_local_work",
+      "evidence": "npm run autonomy:budget:status passed and wrote output/autonomous-org/budget/latest/control-status.json plus .md with can_allocate_repo_local=true, can_delegate_repo_local=true, can_mutate_live_spend=false, can_claim_live_budget_complete=false, and no live side effects."
+    },
+    {
+      "requirement": "Provide an exact bounded launch-now approval packet without live side effects.",
+      "status": "complete_for_repo_local_work",
+      "evidence": "npm run autonomy:budget:launch-approval passed and wrote output/autonomous-org/budget/latest/launch-now-approval-packet.json plus .md with a $327 live launch/growth ceiling, $173 repo-local Paperclip envelope, OpenAI API $0, Codex OAuth/Pro excluded, approval_effective=false, and no live side effects."
+    },
+    {
       "requirement": "Add a dynamic allocator that can decide whether to recommend moving budget based on what is working, without autonomously spending.",
       "status": "complete_for_repo_local_work",
       "evidence": "config/autonomy/budget-allocation-policy.yaml, config/autonomy/outcome-sources.yaml, scripts/autonomy/collect-outcome-snapshot.ts, scripts/autonomy/recommend-budget-reallocation.ts, scripts/autonomy/dynamic-budget-allocator-core.ts, and scripts/autonomy/verify-dynamic-budget-allocator.ts implement observe -> outcome snapshot -> score -> recommend -> human approval packet -> proposed repo-local diff. npm run autonomy:budget:dynamic:verify passed, and the current recommendation is no_reallocation_improve_proof_first because current proof does not clear allocation thresholds."
@@ -334,7 +423,7 @@
     {
       "requirement": "Provide a one-command repo-local suite for budget control verification.",
       "status": "complete_for_repo_local_work",
-      "evidence": "npm run autonomy:budget:control-suite passed 9 safe local commands and wrote output/autonomous-org/budget/control-suite/latest/summary.json plus .md with no live provider calls requested and no live mutation attempted."
+      "evidence": "npm run autonomy:budget:control-suite passed 17 safe local commands and wrote output/autonomous-org/budget/control-suite/latest/summary.json plus .md with no live provider calls requested and no live mutation attempted."
     },
     {
       "requirement": "Regression-test proof-intake validation behavior.",
@@ -345,6 +434,26 @@
       "requirement": "Regression-test the next-goal handoff queue guardrails.",
       "status": "complete_for_repo_local_work",
       "evidence": "npx vitest run scripts/autonomy/generate-budget-next-goal-queue.test.ts passed 2 tests covering five ranked /goal items, safe commands, success criteria, blocked claims, no-live-mutation gates, Codex OAuth/Pro exclusion, and OpenAI API $0."
+    },
+    {
+      "requirement": "Regression-test the owner delegation packet guardrails.",
+      "status": "complete_for_repo_local_work",
+      "evidence": "npx vitest run scripts/autonomy/generate-budget-delegation-packet.test.ts passed 3 tests covering owner work orders, budget-line delegation, blocked spend release, required checks, and no-live-mutation gates."
+    },
+    {
+      "requirement": "Regression-test the live-action gate guardrails.",
+      "status": "complete_for_repo_local_work",
+      "evidence": "npx vitest run scripts/autonomy/verify-budget-live-action-gate.test.ts passed 3 tests covering blocked default mode, strict fail-closed mode, and unsafe work-order rejection."
+    },
+    {
+      "requirement": "Regression-test the budget control status answer.",
+      "status": "complete_for_repo_local_work",
+      "evidence": "npx vitest run scripts/autonomy/summarize-budget-control-status.test.ts passed 4 tests covering repo-local allowed/live-spend blocked status, strict fail-closed mode, unsafe delegation rejection, and markdown operational answers."
+    },
+    {
+      "requirement": "Regression-test the launch-now approval packet guardrails.",
+      "status": "complete_for_repo_local_work",
+      "evidence": "npx vitest run scripts/autonomy/generate-launch-now-approval-packet.test.ts passed 4 tests covering the $327 live ceiling plus $173 Paperclip envelope, excluded Codex/OpenAI/analytics lines, pending approval state, and fail-closed drift checks."
     },
     {
       "requirement": "When the remaining blocker is human-gated, use the Human Blocker Packet Standard.",
@@ -376,7 +485,7 @@
     "Ad account spend and paused-draft proof",
     "Live Paperclip routine execution after repo config propagation"
   ],
-  "resume_condition": "Attach current billing exports, dashboard proof, read-only account proof, or explicit no-spend confirmations for the live proof gaps, using output/autonomous-org/budget/latest/live-proof-intake-template.json where useful, excluding the Codex OAuth/Pro subscription seat from the $500 launch/growth envelope, then rerun the local budget reconciliation, proof-intake validation, next-goal queue generation, and budget verifier without live mutation.",
+  "resume_condition": "Attach current billing exports, dashboard proof, read-only account proof, or explicit no-spend confirmations for the live proof gaps, using output/autonomous-org/budget/latest/live-proof-intake-template.json where useful, excluding the Codex OAuth/Pro subscription seat from the $500 launch/growth envelope; capture the exact text from output/autonomous-org/budget/latest/launch-now-approval-packet.json with approver, timestamp, and source metadata; then rerun the local budget reconciliation, proof-intake validation, next-goal queue generation, budget delegation packet generation, live-action gate, budget control status, launch approval packet, and budget verifier without live mutation.",
   "do_not_claim": [
     "live billing verified",
     "Operational Launch Ready",

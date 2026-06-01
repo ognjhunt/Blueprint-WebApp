@@ -1,0 +1,300 @@
+{
+  "schema": "blueprint/autonomous-budget-launch-now-approval-packet/v1",
+  "generated_at": "2026-06-01T14:43:55.249Z",
+  "state": "pending_human_signature",
+  "approval_effective": false,
+  "no_live_mutation_attempted": true,
+  "no_provider_calls_made": true,
+  "secrets_persisted": false,
+  "budget_cap_usd": 500,
+  "repo_local_paperclip_envelope_usd": 173,
+  "requested_live_spend_ceiling_usd": 327,
+  "combined_budget_ceiling_usd": 500,
+  "codex_oauth_pro_excluded_from_budget": true,
+  "openai_api_target_usd": 0,
+  "control_status": {
+    "state": "repo_local_controls_ready_live_action_blocked",
+    "can_allocate_repo_local": true,
+    "can_delegate_repo_local": true,
+    "can_mutate_live_spend": false,
+    "can_claim_live_budget_complete": false,
+    "can_claim_operational_launch_ready": false
+  },
+  "approval_capture": {
+    "human_approved": false,
+    "approver": null,
+    "approved_at": null,
+    "source": null,
+    "exact_text_received": null
+  },
+  "approval_items": [
+    {
+      "id": "deepseek-direct-model-reserve",
+      "budget_line": "DeepSeek direct model reserve",
+      "owner_system": "DeepSeek API account",
+      "max_usd": 80,
+      "purpose": "Billable model reserve for launch/growth synthesis, cached reasoning, and high-value triage through the DeepSeek lane.",
+      "expires_on": "2026-07-01",
+      "allowed_actions": [
+        "Prepare owner-system work under this exact line cap.",
+        "Record receipts, dashboard proof, usage exports, or no-spend confirmations back into the budget proof packet.",
+        "Use the line only for the stated launch/growth purpose."
+      ],
+      "blocked_actions": [
+        "Do not exceed the line cap or the combined $500 monthly budget.",
+        "Do not send live outreach, launch ads, start provider jobs, mutate production infrastructure, or claim Operational Launch Ready from this approval alone.",
+        "Do not move OpenAI API spend above $0 or count Codex OAuth/Pro inside this budget."
+      ],
+      "proof_required_before_reporting_actuals": [
+        "Owner-system billing export, receipt, dashboard proof, read-only billing snapshot, or explicit no-spend confirmation.",
+        "Updated live-proof intake validation and reconciliation artifacts.",
+        "Strict live-action gate rerun before any spend-affecting live mutation."
+      ]
+    },
+    {
+      "id": "render-webapp-hosting",
+      "budget_line": "Render WebApp hosting",
+      "owner_system": "Render",
+      "max_usd": 25,
+      "purpose": "Keep the WebApp hosting path available for launch traffic while billing proof is collected.",
+      "expires_on": "2026-07-01",
+      "allowed_actions": [
+        "Prepare owner-system work under this exact line cap.",
+        "Record receipts, dashboard proof, usage exports, or no-spend confirmations back into the budget proof packet.",
+        "Use the line only for the stated launch/growth purpose."
+      ],
+      "blocked_actions": [
+        "Do not exceed the line cap or the combined $500 monthly budget.",
+        "Do not send live outreach, launch ads, start provider jobs, mutate production infrastructure, or claim Operational Launch Ready from this approval alone.",
+        "Do not move OpenAI API spend above $0 or count Codex OAuth/Pro inside this budget."
+      ],
+      "proof_required_before_reporting_actuals": [
+        "Owner-system billing export, receipt, dashboard proof, read-only billing snapshot, or explicit no-spend confirmation.",
+        "Updated live-proof intake validation and reconciliation artifacts.",
+        "Strict live-action gate rerun before any spend-affecting live mutation."
+      ]
+    },
+    {
+      "id": "paperclip-vps-tunnel",
+      "budget_line": "Paperclip VPS / tunnel",
+      "owner_system": "DigitalOcean / Cloudflare / Paperclip host",
+      "max_usd": 30,
+      "purpose": "Keep the Paperclip host/tunnel path available for control-room and agent runtime proof.",
+      "expires_on": "2026-07-01",
+      "allowed_actions": [
+        "Prepare owner-system work under this exact line cap.",
+        "Record receipts, dashboard proof, usage exports, or no-spend confirmations back into the budget proof packet.",
+        "Use the line only for the stated launch/growth purpose."
+      ],
+      "blocked_actions": [
+        "Do not exceed the line cap or the combined $500 monthly budget.",
+        "Do not send live outreach, launch ads, start provider jobs, mutate production infrastructure, or claim Operational Launch Ready from this approval alone.",
+        "Do not move OpenAI API spend above $0 or count Codex OAuth/Pro inside this budget."
+      ],
+      "proof_required_before_reporting_actuals": [
+        "Owner-system billing export, receipt, dashboard proof, read-only billing snapshot, or explicit no-spend confirmation.",
+        "Updated live-proof intake validation and reconciliation artifacts.",
+        "Strict live-action gate rerun before any spend-affecting live mutation."
+      ]
+    },
+    {
+      "id": "firebase-firestore-storage",
+      "budget_line": "Firebase / Firestore / storage",
+      "owner_system": "Firebase / Firestore / GCS",
+      "max_usd": 25,
+      "purpose": "Cover Firebase, Firestore, storage, and related launch telemetry/data needs within the cap.",
+      "expires_on": "2026-07-01",
+      "allowed_actions": [
+        "Prepare owner-system work under this exact line cap.",
+        "Record receipts, dashboard proof, usage exports, or no-spend confirmations back into the budget proof packet.",
+        "Use the line only for the stated launch/growth purpose."
+      ],
+      "blocked_actions": [
+        "Do not exceed the line cap or the combined $500 monthly budget.",
+        "Do not send live outreach, launch ads, start provider jobs, mutate production infrastructure, or claim Operational Launch Ready from this approval alone.",
+        "Do not move OpenAI API spend above $0 or count Codex OAuth/Pro inside this budget."
+      ],
+      "proof_required_before_reporting_actuals": [
+        "Owner-system billing export, receipt, dashboard proof, read-only billing snapshot, or explicit no-spend confirmation.",
+        "Updated live-proof intake validation and reconciliation artifacts.",
+        "Strict live-action gate rerun before any spend-affecting live mutation."
+      ]
+    },
+    {
+      "id": "redis-cache",
+      "budget_line": "Redis / cache",
+      "owner_system": "Redis / Upstash",
+      "max_usd": 10,
+      "purpose": "Cover cache/runtime support for launch flows within the cap.",
+      "expires_on": "2026-07-01",
+      "allowed_actions": [
+        "Prepare owner-system work under this exact line cap.",
+        "Record receipts, dashboard proof, usage exports, or no-spend confirmations back into the budget proof packet.",
+        "Use the line only for the stated launch/growth purpose."
+      ],
+      "blocked_actions": [
+        "Do not exceed the line cap or the combined $500 monthly budget.",
+        "Do not send live outreach, launch ads, start provider jobs, mutate production infrastructure, or claim Operational Launch Ready from this approval alone.",
+        "Do not move OpenAI API spend above $0 or count Codex OAuth/Pro inside this budget."
+      ],
+      "proof_required_before_reporting_actuals": [
+        "Owner-system billing export, receipt, dashboard proof, read-only billing snapshot, or explicit no-spend confirmation.",
+        "Updated live-proof intake validation and reconciliation artifacts.",
+        "Strict live-action gate rerun before any spend-affecting live mutation."
+      ]
+    },
+    {
+      "id": "email-human-reply-slack",
+      "budget_line": "Email / human reply / Slack",
+      "owner_system": "SendGrid, Gmail, Slack",
+      "max_usd": 7,
+      "purpose": "Cover sender readiness, human reply path, and Slack/Gmail/SendGrid support costs without authorizing live sends.",
+      "expires_on": "2026-07-01",
+      "allowed_actions": [
+        "Prepare owner-system work under this exact line cap.",
+        "Record receipts, dashboard proof, usage exports, or no-spend confirmations back into the budget proof packet.",
+        "Use the line only for the stated launch/growth purpose."
+      ],
+      "blocked_actions": [
+        "Do not exceed the line cap or the combined $500 monthly budget.",
+        "Do not send live outreach, launch ads, start provider jobs, mutate production infrastructure, or claim Operational Launch Ready from this approval alone.",
+        "Do not move OpenAI API spend above $0 or count Codex OAuth/Pro inside this budget."
+      ],
+      "proof_required_before_reporting_actuals": [
+        "Owner-system billing export, receipt, dashboard proof, read-only billing snapshot, or explicit no-spend confirmation.",
+        "Updated live-proof intake validation and reconciliation artifacts.",
+        "Strict live-action gate rerun before any spend-affecting live mutation."
+      ]
+    },
+    {
+      "id": "search-research-apis",
+      "budget_line": "Search / research APIs",
+      "owner_system": "Parallel Search MCP / configured search",
+      "max_usd": 45,
+      "purpose": "Cover search/research API usage for proof-backed GTM and city-launch research.",
+      "expires_on": "2026-07-01",
+      "allowed_actions": [
+        "Prepare owner-system work under this exact line cap.",
+        "Record receipts, dashboard proof, usage exports, or no-spend confirmations back into the budget proof packet.",
+        "Use the line only for the stated launch/growth purpose."
+      ],
+      "blocked_actions": [
+        "Do not exceed the line cap or the combined $500 monthly budget.",
+        "Do not send live outreach, launch ads, start provider jobs, mutate production infrastructure, or claim Operational Launch Ready from this approval alone.",
+        "Do not move OpenAI API spend above $0 or count Codex OAuth/Pro inside this budget."
+      ],
+      "proof_required_before_reporting_actuals": [
+        "Owner-system billing export, receipt, dashboard proof, read-only billing snapshot, or explicit no-spend confirmation.",
+        "Updated live-proof intake validation and reconciliation artifacts.",
+        "Strict live-action gate rerun before any spend-affecting live mutation."
+      ]
+    },
+    {
+      "id": "recipient-evidence-enrichment",
+      "budget_line": "Recipient evidence enrichment",
+      "owner_system": "GTM evidence / enrichment providers",
+      "max_usd": 35,
+      "purpose": "Cover recipient evidence enrichment for the Exact-Site Hosted Review wedge.",
+      "expires_on": "2026-07-01",
+      "allowed_actions": [
+        "Prepare owner-system work under this exact line cap.",
+        "Record receipts, dashboard proof, usage exports, or no-spend confirmations back into the budget proof packet.",
+        "Use the line only for the stated launch/growth purpose."
+      ],
+      "blocked_actions": [
+        "Do not exceed the line cap or the combined $500 monthly budget.",
+        "Do not send live outreach, launch ads, start provider jobs, mutate production infrastructure, or claim Operational Launch Ready from this approval alone.",
+        "Do not move OpenAI API spend above $0 or count Codex OAuth/Pro inside this budget."
+      ],
+      "proof_required_before_reporting_actuals": [
+        "Owner-system billing export, receipt, dashboard proof, read-only billing snapshot, or explicit no-spend confirmation.",
+        "Updated live-proof intake validation and reconciliation artifacts.",
+        "Strict live-action gate rerun before any spend-affecting live mutation."
+      ]
+    },
+    {
+      "id": "profiles-listings-and-owned-growth-ops",
+      "budget_line": "Profiles, listings, and owned growth ops",
+      "owner_system": "Repo docs / Paperclip growth lanes",
+      "max_usd": 20,
+      "purpose": "Cover owned growth profiles, listings, and launch profile operations.",
+      "expires_on": "2026-07-01",
+      "allowed_actions": [
+        "Prepare owner-system work under this exact line cap.",
+        "Record receipts, dashboard proof, usage exports, or no-spend confirmations back into the budget proof packet.",
+        "Use the line only for the stated launch/growth purpose."
+      ],
+      "blocked_actions": [
+        "Do not exceed the line cap or the combined $500 monthly budget.",
+        "Do not send live outreach, launch ads, start provider jobs, mutate production infrastructure, or claim Operational Launch Ready from this approval alone.",
+        "Do not move OpenAI API spend above $0 or count Codex OAuth/Pro inside this budget."
+      ],
+      "proof_required_before_reporting_actuals": [
+        "Owner-system billing export, receipt, dashboard proof, read-only billing snapshot, or explicit no-spend confirmation.",
+        "Updated live-proof intake validation and reconciliation artifacts.",
+        "Strict live-action gate rerun before any spend-affecting live mutation."
+      ]
+    },
+    {
+      "id": "paid-city-launch-experiments",
+      "budget_line": "Paid city/launch experiments",
+      "owner_system": "Meta/ads/provider accounts",
+      "max_usd": 50,
+      "purpose": "Cover tightly capped paid city/launch experiments; ad launch still needs the ad-system approval trail.",
+      "expires_on": "2026-07-01",
+      "allowed_actions": [
+        "Prepare owner-system work under this exact line cap.",
+        "Record receipts, dashboard proof, usage exports, or no-spend confirmations back into the budget proof packet.",
+        "Use the line only for the stated launch/growth purpose."
+      ],
+      "blocked_actions": [
+        "Do not exceed the line cap or the combined $500 monthly budget.",
+        "Do not send live outreach, launch ads, start provider jobs, mutate production infrastructure, or claim Operational Launch Ready from this approval alone.",
+        "Do not move OpenAI API spend above $0 or count Codex OAuth/Pro inside this budget."
+      ],
+      "proof_required_before_reporting_actuals": [
+        "Owner-system billing export, receipt, dashboard proof, read-only billing snapshot, or explicit no-spend confirmation.",
+        "Updated live-proof intake validation and reconciliation artifacts.",
+        "Strict live-action gate rerun before any spend-affecting live mutation."
+      ]
+    }
+  ],
+  "non_spend_guardrails": [
+    {
+      "budget_line": "Codex OAuth / Pro subscription seat",
+      "max_usd": 0,
+      "rule": "Excluded from the $500 launch/growth envelope."
+    },
+    {
+      "budget_line": "OpenAI API costs (approval-only guardrail)",
+      "max_usd": 0,
+      "rule": "Target remains $0 unless a separate explicit OpenAI API approval artifact exists."
+    },
+    {
+      "budget_line": "Analytics",
+      "max_usd": 0,
+      "rule": "Use free/native analytics until an owner-system billing proof and approval exists."
+    }
+  ],
+  "live_proof_gaps_still_required": [
+    "DeepSeek direct usage export and OpenRouter billing if used",
+    "Render billing",
+    "DigitalOcean/Cloudflare billing",
+    "Firebase/Firestore/GCS billing",
+    "Redis billing",
+    "SendGrid/Gmail/Slack billing and sender readiness",
+    "Analytics billing and KPI owner-system proof",
+    "Search/research API billing",
+    "Recipient evidence enrichment receipts or provider exports",
+    "Profiles/listings receipts or provider exports",
+    "Ad account spend and paused-draft proof",
+    "Live Paperclip routine execution after repo config propagation"
+  ],
+  "exact_human_approval_text": "I, Nijel Hunt, approve the Blueprint launch-now bounded spend caps in output/autonomous-org/budget/latest/launch-now-approval-packet.json generated at 2026-06-01T14:43:55.249Z. This approval is capped at $327.00 in live launch/growth spend plus the existing $173.00 repo-local Paperclip envelope, for a combined ceiling of $500.00 through 2026-07-01. OpenAI API spend remains $0.00 and Codex OAuth/Pro remains excluded from the $500 budget. This approval does not by itself authorize live sends, ad launch, provider jobs, production infrastructure mutation, hosted-session fulfillment, rights/legal clearance, customer/traction claims, or Operational Launch Ready claims without the separate owner-system proof and gates listed in the packet.",
+  "activation_instructions": [
+    "Have the human approver send or commit the exact_human_approval_text without editing caps, dates, or guardrails.",
+    "Record the received text, approver, timestamp, and source in a separate approval-capture artifact before treating this packet as effective.",
+    "Rerun npm run autonomy:budget:live-proof:validate -- --require-complete, npm run autonomy:budget:live-action-gate -- --require-live-action-ready, npm run autonomy:budget:status -- --require-live-action-ready, and npm run autonomy:budget:control-suite.",
+    "Do not use this pending packet to execute live sends, launch ads, start provider jobs, mutate production infrastructure, or claim Operational Launch Ready."
+  ]
+}

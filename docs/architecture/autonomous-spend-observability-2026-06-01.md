@@ -11,9 +11,9 @@ Give Blueprint a repeatable way to see which parts of the `$500/month` autonomou
 
 Spend observability now feeds a repo-local allocator:
 
-`observe -> outcome snapshot -> score -> recommend -> human approval packet -> proof reconciliation -> proof intake template -> proof intake validation -> next-goal queue -> suite verification -> approved repo-local diff -> live system handled separately`
+`observe -> outcome snapshot -> score -> recommend -> human approval packet -> proof reconciliation -> proof intake template -> proof intake validation -> next-goal queue -> owner delegation packet -> live-action gate -> control status -> pending launch approval packet -> suite verification -> approved repo-local diff -> live system handled separately`
 
-The spend snapshot answers what budget proof exists. The outcome snapshot answers what worked, what did not, and what is still missing proof. The recommendation step joins both with `config/autonomy/budget-allocation-policy.yaml` and emits an advisory packet under `output/autonomous-org/budget/dynamic/latest/`. The reconciliation step then compares the live-proof backlog to the current redacted spend snapshot and keeps partial proof blocking until owner-system billing/export proof exists. The intake-template step gives humans and source-system owners one fillable, no-secret artifact shape for attaching that proof. The validation step checks filled intake rows locally and accepts them only for manual review; it does not count them as live billing proof. The next-goal step writes the ranked `/goal` queue as a machine-readable handoff artifact so future Codex sessions inherit the same budget boundaries.
+The spend snapshot answers what budget proof exists. The outcome snapshot answers what worked, what did not, and what is still missing proof. The recommendation step joins both with `config/autonomy/budget-allocation-policy.yaml` and emits an advisory packet under `output/autonomous-org/budget/dynamic/latest/`. The reconciliation step then compares the live-proof backlog to the current redacted spend snapshot and keeps partial proof blocking until owner-system billing/export proof exists. The intake-template step gives humans and source-system owners one fillable, no-secret artifact shape for attaching that proof. The validation step checks filled intake rows locally and accepts them only for manual review; it does not count them as live billing proof. The next-goal step writes the ranked `/goal` queue as a machine-readable handoff artifact so future Codex sessions inherit the same budget boundaries. The delegation step turns the budget ledger and queue into owner work orders without granting spend authority. The live-action gate is the fail-closed check future agents must run before any spend-affecting live action; current output allows repo-local work and blocks live mutation. The status step gives agents one compact answer before acting: repo-local allocation and delegation are allowed, live spend mutation is not. The launch-approval step produces exact bounded approval text for the current `$500/month` plan, but keeps `approval_effective=false` until that text is captured with source metadata and the proof gates pass.
 
 Commands:
 
@@ -24,6 +24,10 @@ Commands:
 - `npm run autonomy:budget:live-proof:template`
 - `npm run autonomy:budget:live-proof:validate`
 - `npm run autonomy:budget:next-goals`
+- `npm run autonomy:budget:delegate`
+- `npm run autonomy:budget:live-action-gate`
+- `npm run autonomy:budget:status`
+- `npm run autonomy:budget:launch-approval`
 - `npm run autonomy:budget:control-suite`
 
 Allocation-grade outcome proof is limited to fresh `repo-local-export` or `live-performance` evidence named by policy. Missing, stale, fixture-only, unsupported, or `repo-local-config` proof can only produce advisory holds such as `no reallocation, improve proof first`. Repo-local exports can support a recommendation, but they are not live billing or live performance proof unless the owner system actually produced the export and the proof level says so.
@@ -54,6 +58,14 @@ Every spend-affecting recommendation remains human-approval required. The approv
   - Same local validation, but exits non-zero when any proof row is missing or rejected. Use this only after a filled intake packet is expected.
 - `npm run autonomy:budget:next-goals`
   - Writes the canonical five-item `/goal` handoff queue with owners, safe commands, success criteria, blocked claims, Codex OAuth/Pro exclusion, OpenAI API `$0` guardrail, and no-live-mutation gates.
+- `npm run autonomy:budget:delegate`
+  - Writes an owner-by-owner delegation packet that maps budget lines and queued work to owners while authorizing only repo-local proof, planning, and review work.
+- `npm run autonomy:budget:live-action-gate`
+  - Writes the fail-closed live-action gate. Default mode reports `live_action_allowed=false` while proof/approval is missing; `-- --require-live-action-ready` exits non-zero until all live-action gates clear.
+- `npm run autonomy:budget:status`
+  - Writes the compact pre-action status. Current state reports repo-local allocation/delegation allowed, live spend mutation blocked, live budget completion claim blocked, and Operational Launch Ready claim blocked.
+- `npm run autonomy:budget:launch-approval`
+  - Writes `output/autonomous-org/budget/latest/launch-now-approval-packet.json` and `.md` with exact bounded approval text. This is a pending approval artifact only; it makes no provider calls and does not authorize live action by itself.
 - `npm run autonomy:budget:control-suite`
   - Runs the default safe local budget control suite and writes `output/autonomous-org/budget/control-suite/latest/summary.json` plus `.md`.
 - `npm run autonomy:budget:control-suite -- --include-check --include-graphify`
@@ -71,6 +83,12 @@ Outputs:
 - `output/autonomous-org/budget/latest/live-proof-intake-validation.md`
 - `output/autonomous-org/budget/latest/next-goal-queue.json`
 - `output/autonomous-org/budget/latest/next-goal-queue.md`
+- `output/autonomous-org/budget/latest/budget-delegation-packet.json`
+- `output/autonomous-org/budget/latest/budget-delegation-packet.md`
+- `output/autonomous-org/budget/latest/live-action-gate.json`
+- `output/autonomous-org/budget/latest/live-action-gate.md`
+- `output/autonomous-org/budget/latest/control-status.json`
+- `output/autonomous-org/budget/latest/control-status.md`
 - `output/autonomous-org/budget/control-suite/latest/summary.json`
 - `output/autonomous-org/budget/control-suite/latest/summary.md`
 

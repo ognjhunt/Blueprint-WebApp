@@ -1,6 +1,6 @@
 {
   "schema": "blueprint/autonomous-budget-next-goal-queue/v1",
-  "generated_at": "2026-06-01T05:46:56.336Z",
+  "generated_at": "2026-06-01T14:43:50.681Z",
   "state": "awaiting_human_decision",
   "budget_cap_usd": 500,
   "paperclip_declared_envelope_usd": 173,

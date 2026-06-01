@@ -1,6 +1,6 @@
 {
   "schema": "blueprint/autonomous-budget-live-proof-reconciliation/v1",
-  "generated_at": "2026-06-01T05:46:54.209Z",
+  "generated_at": "2026-06-01T14:43:47.476Z",
   "state": "awaiting_human_decision",
   "blocker_id": "autonomous-org-budget-live-proof-20260601",
   "backlog_path": "output/autonomous-org/budget/latest/live-proof-backlog.json",

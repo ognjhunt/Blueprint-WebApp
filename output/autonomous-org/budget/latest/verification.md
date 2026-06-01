@@ -1,6 +1,6 @@
 # Autonomous Org Budget Verification
 
-Generated: 2026-06-01T05:49:28.049Z
+Generated: 2026-06-01T14:44:24.095Z
 Status: pass
 
 ## Computed State
@@ -24,6 +24,11 @@ Status: pass
 - Live-proof intake validation: 0 accepted, 12 missing, 0 rejected
 - Next-goal queue items: 5
 - Next-goal queue live-mutation allowed items: 0
+- Budget delegation work orders: 5
+- Budget delegation spend-without-approval items: 0
+- Live-action gate blockers: 5
+- Live action allowed: no
+- Control status live spend allowed: no
 
 ## Proof Boundary
 
@@ -59,6 +64,14 @@ Status: pass
 - output/autonomous-org/budget/latest/live-proof-intake-validation.md
 - output/autonomous-org/budget/latest/next-goal-queue.json
 - output/autonomous-org/budget/latest/next-goal-queue.md
+- output/autonomous-org/budget/latest/budget-delegation-packet.json
+- output/autonomous-org/budget/latest/budget-delegation-packet.md
+- output/autonomous-org/budget/latest/live-action-gate.json
+- output/autonomous-org/budget/latest/live-action-gate.md
+- output/autonomous-org/budget/latest/control-status.json
+- output/autonomous-org/budget/latest/control-status.md
+- output/autonomous-org/budget/latest/launch-now-approval-packet.json
+- output/autonomous-org/budget/latest/launch-now-approval-packet.md
 - output/autonomous-org/budget/latest/human-blocker-packet.json
 - output/autonomous-org/budget/latest/human-blocker-packet.md
 - output/autonomous-org/budget/spend-snapshots/keychain-live-read-2026-06-01/latest.json

@@ -30,6 +30,10 @@
   "live_proof_intake_template_path": "output/autonomous-org/budget/latest/live-proof-intake-template.json",
   "live_proof_intake_validation_path": "output/autonomous-org/budget/latest/live-proof-intake-validation.json",
   "next_goal_queue_path": "output/autonomous-org/budget/latest/next-goal-queue.json",
+  "budget_delegation_packet_path": "output/autonomous-org/budget/latest/budget-delegation-packet.json",
+  "live_action_gate_path": "output/autonomous-org/budget/latest/live-action-gate.json",
+  "control_status_path": "output/autonomous-org/budget/latest/control-status.json",
+  "launch_now_approval_packet_path": "output/autonomous-org/budget/latest/launch-now-approval-packet.json",
   "control_suite_path": "output/autonomous-org/budget/control-suite/latest/summary.json",
   "human_blocker_packet_path": "output/autonomous-org/budget/latest/human-blocker-packet.json",
   "verification_artifacts": {
@@ -278,8 +282,24 @@
       "result": "passed; wrote next-goal-queue.json and .md as the canonical five-item /goal handoff queue with budget guardrails and no-live-mutation gates"
     },
     {
+      "command": "npm run autonomy:budget:delegate",
+      "result": "passed; wrote budget-delegation-packet.json and .md as the owner-by-owner work-order handoff with no live spend or live mutation authorized"
+    },
+    {
+      "command": "npm run autonomy:budget:live-action-gate",
+      "result": "passed; wrote live-action-gate.json and .md with validation_pass=true, live_action_allowed=false, repo_local_work_allowed=true, and no provider calls or live mutation"
+    },
+    {
+      "command": "npm run autonomy:budget:status",
+      "result": "passed; wrote control-status.json and .md with can_allocate_repo_local=true, can_delegate_repo_local=true, can_mutate_live_spend=false, and no provider calls or live mutation"
+    },
+    {
+      "command": "npm run autonomy:budget:launch-approval",
+      "result": "passed; wrote launch-now-approval-packet.json and .md with a $327 live launch/growth ceiling, $173 repo-local Paperclip envelope, OpenAI API $0 guardrail, approval_effective=false, and no provider calls or live mutation"
+    },
+    {
       "command": "npm run autonomy:budget:control-suite",
-      "result": "passed 9 safe local commands and wrote output/autonomous-org/budget/control-suite/latest/summary.json plus .md"
+      "result": "passed 17 safe local commands and wrote output/autonomous-org/budget/control-suite/latest/summary.json plus .md"
     },
     {
       "command": "npx vitest run scripts/autonomy/validate-live-proof-intake.test.ts",
@@ -294,8 +314,24 @@
       "result": "passed 2 tests covering the five-item queue, budget guardrails, no-live-mutation gates, Codex OAuth/Pro exclusion, and OpenAI API $0 guardrail"
     },
     {
+      "command": "npx vitest run scripts/autonomy/generate-budget-delegation-packet.test.ts",
+      "result": "passed 3 tests covering owner work orders, budget-line delegation, blocked spend release, and no-live-mutation gates"
+    },
+    {
+      "command": "npx vitest run scripts/autonomy/verify-budget-live-action-gate.test.ts",
+      "result": "passed 3 tests covering blocked default mode, strict fail-closed mode, and unsafe work-order rejection"
+    },
+    {
+      "command": "npx vitest run scripts/autonomy/summarize-budget-control-status.test.ts",
+      "result": "passed 4 tests covering repo-local allowed/live-spend blocked status, strict fail-closed mode, unsafe delegation rejection, and markdown operational answers"
+    },
+    {
+      "command": "npx vitest run scripts/autonomy/generate-launch-now-approval-packet.test.ts",
+      "result": "passed 4 tests covering bounded $327 live ceiling plus $173 Paperclip envelope, excluded Codex/OpenAI/analytics lines, pending approval state, and fail-closed drift checks"
+    },
+    {
       "command": "npm run check",
-      "result": "passed after adding the deterministic verifier, spend snapshot collector, outcome snapshot collector, dynamic allocator, live-proof reconciliation, live-proof intake template, and live-proof intake validator scripts"
+      "result": "passed after adding the launch-now approval packet generator and control-suite integration"
     },
     {
       "command": "bash scripts/graphify/run-webapp-architecture-pilot.sh --no-viz",
@@ -323,5 +359,5 @@
     "Ad account spend and paused-draft proof",
     "Live Paperclip routine execution after repo config propagation"
   ],
-  "resume_condition": "Attach current billing exports or account proof for budget ledger lines using the live-proof intake template where useful, excluding the Codex OAuth/Pro subscription seat from the $500 launch/growth envelope, then rerun the spend snapshot, outcome snapshot, dynamic recommendation, live-proof reconciliation, intake-template refresh, intake validation, next-goal queue generation, and budget verifier without live mutation."
+  "resume_condition": "Attach current billing exports or account proof for budget ledger lines using the live-proof intake template where useful, excluding the Codex OAuth/Pro subscription seat from the $500 launch/growth envelope, then rerun the spend snapshot, outcome snapshot, dynamic recommendation, live-proof reconciliation, intake-template refresh, intake validation, next-goal queue generation, budget delegation packet generation, live-action gate, budget control status, and budget verifier without live mutation."
 }
