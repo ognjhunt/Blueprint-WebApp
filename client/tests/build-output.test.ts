@@ -210,13 +210,16 @@ describe("build output", () => {
       "utf8",
     );
 
-    expect(llms).toContain("site-specific world-model products");
+    expect(llms).toContain("site-specific world-model packages");
+    expect(llms).toContain("Ground-truth boundary");
     expect(llms).toContain("https://tryblueprint.io/agents");
     expect(llms).toContain("https://tryblueprint.io/product");
     expect(llms).toContain("https://tryblueprint.io/updates");
     expect(llms).not.toContain("https://tryblueprint.io/exact-site-hosted-review");
     expect(llms).not.toContain("https://tryblueprint.io/solutions");
     expect(llmsFull).toContain("hosted robot evaluation");
+    expect(llmsFull).toContain("Ground truth means raw capture evidence");
+    expect(llmsFull).toContain("Samples, generated previews, dry-run commerce, catalog matches, and request drafts are support signals");
     expect(llmsFull).toMatch(/robot-team agent access/i);
     expect(llmsFull).toContain("Do not invent customer results");
   });

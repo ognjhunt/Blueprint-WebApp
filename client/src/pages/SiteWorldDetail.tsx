@@ -392,7 +392,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
   ];
   const visibleNowRows = [
     ["Visible now", isPublicSample ? "Sample route, reference stills, sample files, and hosted request path." : "Site metadata, workflow, pricing frame, trust fields, and request path."],
-    ["Gated", "Package files, raw exports, live hosted sessions, and listing-specific commercial proof open through request review and hosted-access checks."],
+    ["Gated", "Package files, raw exports, hosted review, and listing-specific commercial proof are confirmed per site/request through request review and hosted-access checks."],
     ["Why gated", "Rights, privacy, freshness, and buyer context need to remain attached before access expands."],
     ["Proof label", buyerFlowDisclosure.proofLabel],
     ["Package path", buyerFlowDisclosure.packageAccess],
@@ -406,14 +406,14 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
     <>
       <SEO
         title={`${site.siteName} | World Models | Blueprint`}
-        description={`${site.siteName} is a capture-backed site-specific world model listing for buyer review, hosted evaluation, package access, and provenance checks.`}
+        description={`${site.siteName} is a capture-grounded site-specific world model listing for buyer review, hosted evaluation, package access, and provenance checks.`}
         canonical={`/world-models/${site.id}`}
         type="product"
         jsonLd={[
           webPageJsonLd({
             path: `/world-models/${site.id}`,
             name: `${site.siteName} world model`,
-            description: `${site.siteName} is a site-specific world model listing for buyer review, hosted evaluation, package access, and provenance checks.`,
+            description: `${site.siteName} is a capture-grounded site-specific world model listing for buyer review, hosted evaluation, package access, and provenance checks.`,
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },
@@ -1038,7 +1038,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
               <p className="mt-4 text-sm leading-7 text-slate-700">
                 {hostedPackage?.summary
                   || "Use the hosted request path when the team wants reruns, review, and exports on the same site before moving the package."}{" "}
-                The next screen verifies account access, entitlement, and hosted-session availability before
+                The next screen verifies account access, entitlement, and hosted-review availability status before
                 anything launches.
               </p>
               <div className="mt-6 grid gap-3 sm:grid-cols-2">

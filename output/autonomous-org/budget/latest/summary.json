@@ -25,6 +25,13 @@
     "control_room_map_path": "ops/paperclip/control-room-map.md"
   },
   "completion_audit_path": "output/autonomous-org/budget/latest/completion-audit.json",
+  "live_proof_backlog_path": "output/autonomous-org/budget/latest/live-proof-backlog.json",
+  "live_proof_reconciliation_path": "output/autonomous-org/budget/latest/live-proof-reconciliation.json",
+  "live_proof_intake_template_path": "output/autonomous-org/budget/latest/live-proof-intake-template.json",
+  "live_proof_intake_validation_path": "output/autonomous-org/budget/latest/live-proof-intake-validation.json",
+  "next_goal_queue_path": "output/autonomous-org/budget/latest/next-goal-queue.json",
+  "control_suite_path": "output/autonomous-org/budget/control-suite/latest/summary.json",
+  "human_blocker_packet_path": "output/autonomous-org/budget/latest/human-blocker-packet.json",
   "verification_artifacts": {
     "command": "npm run autonomy:budget:verify",
     "json_path": "output/autonomous-org/budget/latest/verification.json",
@@ -200,7 +207,7 @@
   "commands_run": [
     {
       "command": "git status --short",
-      "result": "completed; broad pre-existing dirty tree observed"
+      "result": "completed; current dirty tree is limited to this budget packet, local autonomy scripts/tests, generated budget/spend/outcome/control-suite artifacts, and required AutoAgent dry-run artifacts"
     },
     {
       "command": "npm run paperclip:control-room:inventory",
@@ -228,11 +235,15 @@
     },
     {
       "command": "npm run autonomy:spend:snapshot",
-      "result": "passed in local-inventory mode; wrote spend-snapshots/latest.json and latest.md with Codex OAuth/Pro marked outside_budget_excluded and no live mutation"
+      "result": "passed in local-inventory mode before the live-read refresh; Codex OAuth/Pro was marked outside_budget_excluded and no live mutation was attempted"
+    },
+    {
+      "command": "npm run autonomy:spend:snapshot:keychain -- --live-read",
+      "result": "passed; refreshed spend-snapshots/latest.json and latest.md through read-only provider queries, loaded 20 Keychain values, verified OpenAI API Costs at $0.00, marked Codex OAuth/Pro outside_budget_excluded, and attempted no live mutation or secret persistence"
     },
     {
       "command": "npm run autonomy:spend:snapshot:keychain -- --live-read --out-dir output/autonomous-org/budget/spend-snapshots/keychain-live-read-2026-06-01",
-      "result": "passed; read-only provider queries loaded 20 Keychain values, verified OpenAI API Costs at $0.00, marked Codex OAuth/Pro outside_budget_excluded, and attempted no live mutation or secret persistence"
+      "result": "passed; refreshed the dated proof directory through read-only provider queries, loaded 20 Keychain values, verified OpenAI API Costs at $0.00, marked Codex OAuth/Pro outside_budget_excluded, and attempted no live mutation or secret persistence"
     },
     {
       "command": "npm run autonomy:kpi-source-status",
@@ -251,12 +262,40 @@
       "result": "passed with warning: no reallocation emitted; proof improvement is the next action"
     },
     {
+      "command": "npm run autonomy:budget:live-proof:reconcile",
+      "result": "passed; wrote live-proof-reconciliation.json and .md from the existing backlog and redacted spend snapshot with no provider calls, no live mutation, 0 closed items, 8 partial source proof items, and 12 open/blocking items"
+    },
+    {
+      "command": "npm run autonomy:budget:live-proof:template",
+      "result": "passed; wrote live-proof-intake-template.json and .md from the existing backlog and reconciliation artifacts with no provider calls, no live mutation, and no secret persistence"
+    },
+    {
+      "command": "npm run autonomy:budget:live-proof:validate",
+      "result": "passed; wrote live-proof-intake-validation.json and .md from the blank default intake template with 0 accepted rows, 12 missing submissions, 0 rejected rows, no provider calls, no live mutation, and no secret persistence"
+    },
+    {
+      "command": "npm run autonomy:budget:next-goals",
+      "result": "passed; wrote next-goal-queue.json and .md as the canonical five-item /goal handoff queue with budget guardrails and no-live-mutation gates"
+    },
+    {
+      "command": "npm run autonomy:budget:control-suite",
+      "result": "passed 9 safe local commands and wrote output/autonomous-org/budget/control-suite/latest/summary.json plus .md"
+    },
+    {
+      "command": "npx vitest run scripts/autonomy/validate-live-proof-intake.test.ts",
+      "result": "passed 3 tests covering blank-row default behavior, complete-row manual-review acceptance, strict-mode exit code, and secret-like artifact path rejection"
+    },
+    {
       "command": "npx vitest run scripts/autonomy/dynamic-budget-allocator-core.test.ts",
       "result": "passed 8 tests covering bounded reallocations, missing/stale proof holds, OpenAI API $0, paid city/ad approval gates, no live mutation, P0 protection, and fixture-proof rejection"
     },
     {
+      "command": "npx vitest run scripts/autonomy/generate-budget-next-goal-queue.test.ts",
+      "result": "passed 2 tests covering the five-item queue, budget guardrails, no-live-mutation gates, Codex OAuth/Pro exclusion, and OpenAI API $0 guardrail"
+    },
+    {
       "command": "npm run check",
-      "result": "passed after adding the deterministic verifier, spend snapshot collector, outcome snapshot collector, and dynamic allocator scripts"
+      "result": "passed after adding the deterministic verifier, spend snapshot collector, outcome snapshot collector, dynamic allocator, live-proof reconciliation, live-proof intake template, and live-proof intake validator scripts"
     },
     {
       "command": "bash scripts/graphify/run-webapp-architecture-pilot.sh --no-viz",
@@ -284,5 +323,5 @@
     "Ad account spend and paused-draft proof",
     "Live Paperclip routine execution after repo config propagation"
   ],
-  "resume_condition": "Attach current billing exports or account proof for budget ledger lines, excluding the Codex OAuth/Pro subscription seat from the $500 launch/growth envelope, then rerun the local ledger reconciliation without live mutation."
+  "resume_condition": "Attach current billing exports or account proof for budget ledger lines using the live-proof intake template where useful, excluding the Codex OAuth/Pro subscription seat from the $500 launch/growth envelope, then rerun the spend snapshot, outcome snapshot, dynamic recommendation, live-proof reconciliation, intake-template refresh, intake validation, next-goal queue generation, and budget verifier without live mutation."
 }

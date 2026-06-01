@@ -111,9 +111,10 @@ describe("Home", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
-        name: /Indoor capture turns vague simulation demand into a buyer-ready package\./i,
+        name: /Indoor capture turns vague simulation demand into a buyer-review package\./i,
       }),
     ).toBeInTheDocument();
+    expect(screen.getAllByText(/Ground truth means raw capture evidence/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Samples and demo worlds are labeled/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Approved listings keep capture basis/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Cedar Market Aisle Loop/i)).toBeInTheDocument();

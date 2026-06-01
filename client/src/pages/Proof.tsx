@@ -1,4 +1,5 @@
 import { SEO } from "@/components/SEO";
+import { captureGroundedPublicCopy } from "@/lib/captureGroundedLanguage";
 import {
   mediaRoomSampleEvaluation,
   proofEvidencePacket,
@@ -285,7 +286,7 @@ export default function Proof() {
     <>
       <SEO
         title="Proof System | Blueprint"
-        description="Blueprint's proof system shows the capture provenance, rights posture, hosted outputs, and sample-vs-live boundaries attached to an indoor site-specific world model before purchase or hosted evaluation."
+        description="Blueprint's proof system shows capture provenance, rights posture, hosted outputs, and sample-vs-operational boundaries attached to an indoor site-specific world model before purchase or hosted evaluation."
         canonical="/proof"
       />
 
@@ -305,7 +306,7 @@ export default function Proof() {
                 See what is attached before your team commits.
               </h1>
               <p className="mt-5 max-w-[36rem] text-base leading-7 text-white/80 sm:leading-8">
-                Outdoor world models make real-place simulation legible. Blueprint proof gives robot teams a concrete packet to inspect: indoor capture provenance, rights posture, package scope, hosted outputs, and the next buyer decision in one place.
+                Outdoor world models make real-place grounding legible. Blueprint proof gives robot teams a concrete packet to inspect: indoor capture provenance, rights posture, package scope, hosted outputs, and the next buyer decision in one place.
               </p>
               <div className="mt-8 flex flex-wrap gap-2">
                 <StatusBadge tone="attached">Capture provenance</StatusBadge>
@@ -427,10 +428,10 @@ export default function Proof() {
                 The public packet teaches the workflow. The request packet proves one site.
               </h2>
               <p className="mt-4 text-sm leading-7 text-slate-600">
-                Blueprint can show a polished sample without pretending it is a customer result. For a buyer, the proof becomes operational only when it points to a concrete site, request, package, rights posture, and hosted-evaluation path.
+                Blueprint can show a polished sample without pretending it is a customer result. For a buyer, the proof becomes owner-system backed only when it points to a concrete site, request, package, rights posture, and hosted-evaluation path.
               </p>
               <div className="mt-5 border border-black/10 bg-white px-4 py-3 text-sm font-semibold leading-6 text-slate-800">
-                This is the launch-ready public surface and buyer workflow. Live availability, rights, and fulfillment are confirmed per site/request.
+                {captureGroundedPublicCopy.publicLaunchReadyBoundary}
               </div>
               <div className="mt-7 border-y border-black/10">
                 {boundaryRows.map((row) => (
@@ -579,7 +580,7 @@ export default function Proof() {
                 A proof packet should make the next decision obvious.
               </h2>
               <p className="mt-4 text-sm leading-7 text-slate-600">
-                The page sells the intended product path without pretending every path is live today. The buyer sees the strongest supported move and the exact reason a different move may be blocked.
+                The page sells the intended product path without treating every request path as already fulfilled. The buyer sees the strongest supported move and the exact reason a different move may be blocked.
               </p>
               <div className="mt-7 grid gap-px bg-black/10">
                 {decisionFrames.map((item) => (

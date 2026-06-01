@@ -1,4 +1,5 @@
 import type { JsonLdValue } from "@/components/SEO";
+import { captureGroundedPublicCopy } from "./captureGroundedLanguage";
 
 const BASE_URL = "https://tryblueprint.io";
 const ORGANIZATION_ID = `${BASE_URL}/#organization`;
@@ -31,8 +32,7 @@ export function organizationJsonLd(): JsonLdValue {
     url: `${BASE_URL}/`,
     logo: `${BASE_URL}/gradientBPLogo.png`,
     sameAs: ["https://www.linkedin.com/company/blueprintsim/"],
-    description:
-      "Blueprint turns lawful real-site capture into site-specific world models robot teams can train on, evaluate, request, and review before deployment work.",
+    description: captureGroundedPublicCopy.seoDescription,
   };
 }
 

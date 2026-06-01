@@ -35,7 +35,7 @@ describe("Proof page", () => {
     expect(screen.getAllByText(/Capture provenance/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Rights posture/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Hosted review context/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/launch-ready public surface and buyer workflow/i)).toBeInTheDocument();
+    expect(screen.getByText(/Public pages can stay polished and present-tense/i)).toBeInTheDocument();
     expect(screen.getAllByText(/Capture-grounded/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Model-inferred/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Review before export/i)).toBeInTheDocument();

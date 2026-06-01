@@ -33,6 +33,7 @@ import {
 } from "@/lib/siteWorldCommercialStatus";
 import { fetchSiteWorldCatalog, searchSiteWorldCatalog } from "@/lib/siteWorldsApi";
 import { publicDemoHref } from "@/lib/marketingProof";
+import { captureGroundedPublicCopy } from "@/lib/captureGroundedLanguage";
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 import {
   ArrowRight,
@@ -471,14 +472,14 @@ export default function SiteWorlds() {
     <>
       <SEO
         title="World Models | Blueprint"
-        description="Search Blueprint's indoor exact-site world-model catalog by address, city, site type, workflow, robot fit, and request locations that are not scanned yet."
+        description="Search Blueprint's indoor exact-site world-model catalog by address, city, site type, workflow, robot fit, proof posture, and request locations that are not scanned yet."
         canonical="/world-models"
         jsonLd={[
           webPageJsonLd({
             path: "/world-models",
             name: "Blueprint World Models",
             description:
-              "Search-first indoor exact-site world-model catalog with package requests, hosted review paths, proof, access, freshness, and provenance labels.",
+              "Search-first indoor exact-site world-model catalog with capture-grounded proof, request-gated package paths, hosted review checks, access, freshness, and provenance labels.",
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },
@@ -621,7 +622,7 @@ export default function SiteWorlds() {
               ["Exact catalog match", searchClassification.exactMatches.length || "Ask"],
               ["Nearby/closest match", searchClassification.nearbyMatches.length || "Compare"],
               ["Category/workflow match", searchClassification.categoryMatches.length || "Browse"],
-              ["Request candidate", requestCandidate ? "Ready" : "Available"],
+              ["Request candidate", requestCandidate ? "Draft" : "Ask"],
             ].map(([label, value]) => (
               <div key={label} className="bg-[#f8f6f1] px-5 py-4">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">{label}</p>
@@ -779,7 +780,7 @@ export default function SiteWorlds() {
                 No exact-site profile matches this view.
               </h3>
               <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-600">
-                Request the site, workflow, and robot class you need. Blueprint can route it through capture, package review, hosted evaluation, and rights/privacy checks before access is represented as available.
+                Request the site, workflow, and robot class you need. Blueprint can route it through capture, package review, hosted evaluation, and rights/privacy checks before access is represented as supported.
               </p>
               <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <a
@@ -806,7 +807,7 @@ export default function SiteWorlds() {
             <EditorialSectionIntro
               eyebrow="Truth labels"
               title="Proof stays visible. Details open when needed."
-              description="Catalog cards stay short, but status, proof visibility, freshness, package access, hosted review, and planned/sample labels remain inspectable before a buyer treats anything as available."
+              description={captureGroundedPublicCopy.catalogBoundary}
             />
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {siteWorldStatusLegend.map((item) => (

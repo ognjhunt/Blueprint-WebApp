@@ -11,6 +11,7 @@ import {
 } from "@/components/site/editorial";
 import { siteWorldCards } from "@/data/siteWorlds";
 import { editorialGeneratedAssets } from "@/lib/editorialGeneratedAssets";
+import { captureGroundedPublicCopy } from "@/lib/captureGroundedLanguage";
 import {
   publicDemoHref,
   publicDemoPlyPreviewSrc,
@@ -118,6 +119,7 @@ const categoryValidationItems = [
 
 const proofItems = [
   "Samples and demo worlds are labeled inside the proof flow.",
+  captureGroundedPublicCopy.groundTruthDefinition,
   "Approved listings keep capture basis, freshness, rights, restrictions, and package scope attached.",
   "Hosted access and exports open after site-specific review confirms the path.",
 ];
@@ -125,8 +127,7 @@ const proofItems = [
 const homeDirectAnswers = [
   {
     question: "What does Blueprint sell?",
-    answer:
-      "Blueprint sells capture-backed indoor world-model packages, hosted evaluation paths, and buyer review workflows for robot teams evaluating real operating environments.",
+    answer: captureGroundedPublicCopy.productSummary,
   },
   {
     question: "Why does exact-site capture matter?",
@@ -136,7 +137,7 @@ const homeDirectAnswers = [
   {
     question: "What proof is attached?",
     answer:
-      "Public examples show the proof shape. Approved listings can attach capture provenance, site and capture ids, restrictions, freshness, package scope, and hosted-review notes when available.",
+      `${captureGroundedPublicCopy.groundTruthDefinition} Public examples show the proof shape without replacing that source record.`,
   },
   {
     question: "What should a buyer request next?",
@@ -225,7 +226,7 @@ const robotTeamDecisionSteps = [
     body: "Start from the facility, route, workflow, and public-facing or permissioned capture path with provenance and limits attached.",
   },
   {
-    title: "Ground the world model",
+    title: "Attach capture ground truth",
     body: "Turn capture into a site package with manifest, route context, rights notes, freshness, exports, and hosted review context.",
   },
   {
@@ -237,7 +238,7 @@ const robotTeamDecisionSteps = [
 const firstScreenDefinitions = [
   {
     term: "World model",
-    definition: "A capture-backed indoor environment for one real site and robot workflow.",
+    definition: "A capture-grounded indoor environment for one real site and robot workflow.",
   },
   {
     term: "Site package",
@@ -854,7 +855,7 @@ export default function Home() {
           <div className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10">
             <EditorialSectionIntro
               eyebrow="Why capture matters"
-              title="Indoor capture turns vague simulation demand into a buyer-ready package."
+              title="Indoor capture turns vague simulation demand into a buyer-review package."
               description="The useful details are local: aisle width, signage, occlusions, access boundaries, restricted areas, and the robot task a team is actually deciding on."
               className="max-w-3xl"
             />

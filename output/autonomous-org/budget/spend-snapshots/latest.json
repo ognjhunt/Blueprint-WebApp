@@ -1,20 +1,63 @@
 {
   "schema": "blueprint/autonomous-spend-snapshot/v1",
-  "generated_at": "2026-06-01T04:09:18.455Z",
+  "generated_at": "2026-06-01T04:37:00.505Z",
   "registry_path": "config/autonomy/spend-sources.yaml",
   "window": {
     "key": "month_to_date",
     "start_iso": "2026-06-01T00:00:00.000Z",
-    "end_iso": "2026-06-01T04:09:18.455Z",
+    "end_iso": "2026-06-01T04:37:00.505Z",
     "start_unix": 1780272000,
-    "end_unix": 1780286958
+    "end_unix": 1780288620
   },
   "mode": {
-    "live_read_enabled": false,
-    "keychain_enabled": false,
-    "keychain_service": null,
-    "keychain_loaded_env": [],
-    "keychain_missing_env": [],
+    "live_read_enabled": true,
+    "keychain_enabled": true,
+    "keychain_service": "Blueprint-WebApp autonomous-spend",
+    "keychain_loaded_env": [
+      "BACKBLAZE_B2_APPLICATION_KEY",
+      "BACKBLAZE_B2_KEY_ID",
+      "DIGITALOCEAN_TOKEN",
+      "FIREBASE_APP_ID",
+      "FIREBASE_AUTH_DOMAIN",
+      "FIREBASE_DATABASE_URL",
+      "FIREBASE_MEASUREMENT_ID",
+      "FIREBASE_MESSAGING_SENDER_ID",
+      "FIREBASE_PROJECT_ID",
+      "FIREBASE_PROJECT_NUMBER",
+      "FIREBASE_STORAGE_BUCKET",
+      "FIREBASE_WEB_API_KEY",
+      "GITHUB_BILLING_OWNER",
+      "GITHUB_BILLING_OWNER_TYPE",
+      "GITHUB_CLASSIC_TOKEN",
+      "GITHUB_TOKEN",
+      "OPENAI_ADMIN_KEY",
+      "OPENAI_API_KEY",
+      "RENDER_API_KEY",
+      "WORLDLABS_API_KEY"
+    ],
+    "keychain_missing_env": [
+      "CLOUDFLARE_ACCOUNT_ID",
+      "CLOUDFLARE_API_TOKEN",
+      "GCP_BILLING_EXPORT_JSON",
+      "GOOGLE_ADS_CLIENT_ID",
+      "GOOGLE_ADS_CLIENT_SECRET",
+      "GOOGLE_ADS_CUSTOMER_ID",
+      "GOOGLE_ADS_DEVELOPER_TOKEN",
+      "GOOGLE_ADS_REFRESH_TOKEN",
+      "META_ACCESS_TOKEN",
+      "META_AD_ACCOUNT_ID",
+      "PARALLEL_API_KEY",
+      "PARALLEL_SEARCH_API_KEY",
+      "PERPLEXITY_API_KEY",
+      "POSTHOG_HOST",
+      "POSTHOG_PERSONAL_API_KEY",
+      "POSTHOG_PROJECT_ID",
+      "SERPAPI_API_KEY",
+      "SLACK_BOT_TOKEN",
+      "TAVILY_API_KEY",
+      "UPSTASH_API_KEY",
+      "UPSTASH_EMAIL"
+    ],
     "live_mutation_attempted": false,
     "secrets_persisted": false,
     "output_redacts_secret_values": true
@@ -22,8 +65,8 @@
   "totals": {
     "target_usd": 500,
     "live_billing_verified_usd": 0,
-    "live_credit_balance_sources": 0,
-    "live_usage_only_sources": 0,
+    "live_credit_balance_sources": 2,
+    "live_usage_only_sources": 3,
     "missing_or_unverified_target_usd": 500
   },
   "sources": [
@@ -54,7 +97,7 @@
       "credit_balance_usd": null,
       "total_usage_usd": null,
       "account_reference": "ops/paperclip/blueprint-company/.paperclip.yaml",
-      "observed_at": "2026-06-01T04:09:18.424Z",
+      "observed_at": "2026-06-01T04:36:55.127Z",
       "stale_after_hours": 168,
       "endpoint_host": null,
       "summary": {
@@ -82,35 +125,38 @@
       "adapter": "openai_costs",
       "target_usd": 0,
       "proof_kind": "live_billing_when_admin_key_is_available",
-      "status": "missing_credentials",
-      "proof_level": "missing",
-      "can_count_toward_budget_actuals": false,
-      "live_read_attempted": false,
+      "status": "live_billing_verified",
+      "proof_level": "live-billing",
+      "can_count_toward_budget_actuals": true,
+      "live_read_attempted": true,
       "live_mutation_attempted": false,
       "credential_check": {
         "required_env": [
           "OPENAI_ADMIN_KEY"
         ],
-        "missing_required_env": [
+        "missing_required_env": [],
+        "present_required_env": [
           "OPENAI_ADMIN_KEY"
         ],
-        "present_required_env": [],
         "one_of_env": [],
         "missing_one_of_env": [],
         "satisfied_one_of_env": [],
-        "alternate_env_present": []
+        "alternate_env_present": [
+          "OPENAI_API_KEY"
+        ]
       },
-      "amount_usd_current_period": null,
+      "amount_usd_current_period": 0,
       "credit_balance_usd": null,
       "total_usage_usd": null,
       "account_reference": null,
-      "observed_at": "2026-06-01T04:09:18.451Z",
+      "observed_at": "2026-06-01T04:36:55.139Z",
       "stale_after_hours": 24,
-      "endpoint_host": null,
-      "summary": {},
-      "missing_to_verify": [
-        "OPENAI_ADMIN_KEY"
-      ],
+      "endpoint_host": "api.openai.com",
+      "summary": {
+        "bucket_count": 1,
+        "amount_usd_current_period": 0
+      },
+      "missing_to_verify": [],
       "notes": [
         "OpenAI project API keys are not enough for organization Costs; use an admin key for billing reconciliation.",
         "OpenAI API model spend is not part of the default autonomous-org allocation; keep this line at $0 unless a human approves API usage."
@@ -144,7 +190,7 @@
       "credit_balance_usd": null,
       "total_usage_usd": null,
       "account_reference": null,
-      "observed_at": "2026-06-01T04:09:18.451Z",
+      "observed_at": "2026-06-01T04:36:57.734Z",
       "stale_after_hours": 720,
       "endpoint_host": null,
       "summary": {
@@ -168,10 +214,10 @@
       "adapter": "openrouter_credits",
       "target_usd": 0,
       "proof_kind": "live_credit_balance_not_month_to_date_spend",
-      "status": "configured_not_queried",
-      "proof_level": "repo-local-config",
+      "status": "live_read_error",
+      "proof_level": "missing",
       "can_count_toward_budget_actuals": false,
-      "live_read_attempted": false,
+      "live_read_attempted": true,
       "live_mutation_attempted": false,
       "credential_check": {
         "required_env": [
@@ -190,18 +236,18 @@
       "credit_balance_usd": null,
       "total_usage_usd": null,
       "account_reference": null,
-      "observed_at": "2026-06-01T04:09:18.451Z",
+      "observed_at": "2026-06-01T04:36:57.734Z",
       "stale_after_hours": 6,
       "endpoint_host": null,
       "summary": {},
       "missing_to_verify": [
-        "rerun with --live-read for read-only provider query"
+        "successful read-only provider response"
       ],
       "notes": [
         "OpenRouter credits prove remaining credit and total usage, not a line-item monthly invoice by themselves.",
         "Default DeepSeek/OpenRouter model usage is budgeted through the Paperclip agent/runtime envelope unless a separate human-approved top-up is created."
       ],
-      "error": null
+      "error": "HTTP 401 Unauthorized: {\"error\":{\"message\":\"User not found.\",\"code\":401}}"
     },
     {
       "id": "deepseek_balance",
@@ -212,10 +258,10 @@
       "adapter": "deepseek_balance",
       "target_usd": 80,
       "proof_kind": "live_credit_balance_not_month_to_date_spend",
-      "status": "configured_not_queried",
-      "proof_level": "repo-local-config",
+      "status": "live_credit_balance_verified",
+      "proof_level": "live-credit-balance",
       "can_count_toward_budget_actuals": false,
-      "live_read_attempted": false,
+      "live_read_attempted": true,
       "live_mutation_attempted": false,
       "credential_check": {
         "required_env": [
@@ -231,15 +277,21 @@
         "alternate_env_present": []
       },
       "amount_usd_current_period": null,
-      "credit_balance_usd": null,
+      "credit_balance_usd": 4.22,
       "total_usage_usd": null,
       "account_reference": null,
-      "observed_at": "2026-06-01T04:09:18.451Z",
+      "observed_at": "2026-06-01T04:36:57.848Z",
       "stale_after_hours": 6,
-      "endpoint_host": null,
-      "summary": {},
+      "endpoint_host": "api.deepseek.com",
+      "summary": {
+        "is_available": true,
+        "currencies": [
+          "USD"
+        ],
+        "usd_total_balance": 4.22
+      },
       "missing_to_verify": [
-        "rerun with --live-read for read-only provider query"
+        "DeepSeek monthly usage or invoice export"
       ],
       "notes": [
         "Direct DeepSeek balance proves available credit; monthly spend still needs usage/export reconciliation.",
@@ -257,19 +309,19 @@
       "adapter": "digitalocean_billing",
       "target_usd": 30,
       "proof_kind": "live_billing_invoice_preview",
-      "status": "missing_credentials",
-      "proof_level": "missing",
+      "status": "live_usage_verified",
+      "proof_level": "live-usage",
       "can_count_toward_budget_actuals": false,
-      "live_read_attempted": false,
+      "live_read_attempted": true,
       "live_mutation_attempted": false,
       "credential_check": {
         "required_env": [
           "DIGITALOCEAN_TOKEN"
         ],
-        "missing_required_env": [
+        "missing_required_env": [],
+        "present_required_env": [
           "DIGITALOCEAN_TOKEN"
         ],
-        "present_required_env": [],
         "one_of_env": [],
         "missing_one_of_env": [],
         "satisfied_one_of_env": [],
@@ -279,12 +331,17 @@
       "credit_balance_usd": null,
       "total_usage_usd": null,
       "account_reference": null,
-      "observed_at": "2026-06-01T04:09:18.451Z",
+      "observed_at": "2026-06-01T04:36:58.223Z",
       "stale_after_hours": 24,
-      "endpoint_host": null,
-      "summary": {},
+      "endpoint_host": "api.digitalocean.com",
+      "summary": {
+        "account_balance": "0.00",
+        "generated_at": "2026-06-01T00:00:00Z",
+        "invoice_preview_amount_usd": null,
+        "invoice_preview_period": null
+      },
       "missing_to_verify": [
-        "DIGITALOCEAN_TOKEN"
+        "DigitalOcean invoice preview amount"
       ],
       "notes": [
         "Uses read-only billing endpoints for balance and invoice preview."
@@ -300,19 +357,19 @@
       "adapter": "render_inventory",
       "target_usd": 25,
       "proof_kind": "live_usage_inventory_not_billing",
-      "status": "missing_credentials",
-      "proof_level": "missing",
+      "status": "live_usage_verified",
+      "proof_level": "live-usage",
       "can_count_toward_budget_actuals": false,
-      "live_read_attempted": false,
+      "live_read_attempted": true,
       "live_mutation_attempted": false,
       "credential_check": {
         "required_env": [
           "RENDER_API_KEY"
         ],
-        "missing_required_env": [
+        "missing_required_env": [],
+        "present_required_env": [
           "RENDER_API_KEY"
         ],
-        "present_required_env": [],
         "one_of_env": [],
         "missing_one_of_env": [],
         "satisfied_one_of_env": [],
@@ -322,12 +379,17 @@
       "credit_balance_usd": null,
       "total_usage_usd": null,
       "account_reference": null,
-      "observed_at": "2026-06-01T04:09:18.451Z",
+      "observed_at": "2026-06-01T04:36:59.236Z",
       "stale_after_hours": 24,
-      "endpoint_host": null,
-      "summary": {},
+      "endpoint_host": "api.render.com",
+      "summary": {
+        "service_count": 5,
+        "service_types": [
+          "web_service"
+        ]
+      },
       "missing_to_verify": [
-        "RENDER_API_KEY"
+        "Render billing endpoint, invoice export, or dashboard proof"
       ],
       "notes": [
         "Render API service inventory is not billing proof until a billing or invoice export endpoint is attached."
@@ -343,10 +405,10 @@
       "adapter": "sendgrid_credits",
       "target_usd": 7,
       "proof_kind": "live_credit_balance_not_invoice",
-      "status": "configured_not_queried",
-      "proof_level": "repo-local-config",
+      "status": "live_credit_balance_verified",
+      "proof_level": "live-credit-balance",
       "can_count_toward_budget_actuals": false,
-      "live_read_attempted": false,
+      "live_read_attempted": true,
       "live_mutation_attempted": false,
       "credential_check": {
         "required_env": [
@@ -365,12 +427,16 @@
       "credit_balance_usd": null,
       "total_usage_usd": null,
       "account_reference": null,
-      "observed_at": "2026-06-01T04:09:18.451Z",
+      "observed_at": "2026-06-01T04:36:59.550Z",
       "stale_after_hours": 24,
-      "endpoint_host": null,
-      "summary": {},
+      "endpoint_host": "api.sendgrid.com",
+      "summary": {
+        "remaining_credits": 100,
+        "used_credits": 0,
+        "reset_frequency": "daily"
+      },
       "missing_to_verify": [
-        "rerun with --live-read for read-only provider query"
+        "SendGrid plan cost or billing export"
       ],
       "notes": [
         "Credit balance proves email credit state; plan and invoice spend may still need dashboard/export proof."
@@ -386,54 +452,52 @@
       "adapter": "github_billing_usage",
       "target_usd": 0,
       "proof_kind": "live_billing_if_owner_and_token_are_authorized",
-      "status": "missing_credentials",
+      "status": "live_read_error",
       "proof_level": "missing",
       "can_count_toward_budget_actuals": false,
-      "live_read_attempted": false,
+      "live_read_attempted": true,
       "live_mutation_attempted": false,
       "credential_check": {
         "required_env": [
           "GITHUB_BILLING_OWNER",
           "GITHUB_BILLING_OWNER_TYPE"
         ],
-        "missing_required_env": [
+        "missing_required_env": [],
+        "present_required_env": [
           "GITHUB_BILLING_OWNER",
           "GITHUB_BILLING_OWNER_TYPE"
         ],
-        "present_required_env": [],
         "one_of_env": [
           [
             "GITHUB_TOKEN",
             "GITHUB_CLASSIC_TOKEN"
           ]
         ],
-        "missing_one_of_env": [
+        "missing_one_of_env": [],
+        "satisfied_one_of_env": [
           [
             "GITHUB_TOKEN",
             "GITHUB_CLASSIC_TOKEN"
           ]
         ],
-        "satisfied_one_of_env": [],
         "alternate_env_present": []
       },
       "amount_usd_current_period": null,
       "credit_balance_usd": null,
       "total_usage_usd": null,
       "account_reference": null,
-      "observed_at": "2026-06-01T04:09:18.453Z",
+      "observed_at": "2026-06-01T04:36:59.891Z",
       "stale_after_hours": 24,
       "endpoint_host": null,
       "summary": {},
       "missing_to_verify": [
-        "GITHUB_BILLING_OWNER",
-        "GITHUB_BILLING_OWNER_TYPE",
-        "one of: GITHUB_TOKEN, GITHUB_CLASSIC_TOKEN"
+        "successful read-only provider response"
       ],
       "notes": [
         "GITHUB_BILLING_OWNER_TYPE must be user or organization.",
         "Fine-grained tokens may not work for every billing endpoint; classic PATs often have broader billing support."
       ],
-      "error": null
+      "error": "HTTP 401 Unauthorized: {\"message\":\"Bad credentials\",\"documentation_url\":\"https://docs.github.com/rest\",\"status\":\"401\"}"
     },
     {
       "id": "backblaze_b2_account",
@@ -444,21 +508,21 @@
       "adapter": "backblaze_b2_authorize",
       "target_usd": 0,
       "proof_kind": "live_account_access_not_billing",
-      "status": "missing_credentials",
-      "proof_level": "missing",
+      "status": "live_usage_verified",
+      "proof_level": "live-usage",
       "can_count_toward_budget_actuals": false,
-      "live_read_attempted": false,
+      "live_read_attempted": true,
       "live_mutation_attempted": false,
       "credential_check": {
         "required_env": [
           "BACKBLAZE_B2_KEY_ID",
           "BACKBLAZE_B2_APPLICATION_KEY"
         ],
-        "missing_required_env": [
+        "missing_required_env": [],
+        "present_required_env": [
           "BACKBLAZE_B2_KEY_ID",
           "BACKBLAZE_B2_APPLICATION_KEY"
         ],
-        "present_required_env": [],
         "one_of_env": [],
         "missing_one_of_env": [],
         "satisfied_one_of_env": [],
@@ -467,14 +531,17 @@
       "amount_usd_current_period": null,
       "credit_balance_usd": null,
       "total_usage_usd": null,
-      "account_reference": null,
-      "observed_at": "2026-06-01T04:09:18.453Z",
+      "account_reference": "50218f765395",
+      "observed_at": "2026-06-01T04:37:00.068Z",
       "stale_after_hours": 24,
-      "endpoint_host": null,
-      "summary": {},
+      "endpoint_host": "api.backblazeb2.com",
+      "summary": {
+        "account_authorized": true,
+        "allowed_capabilities": null,
+        "api_url_present": false
+      },
       "missing_to_verify": [
-        "BACKBLAZE_B2_KEY_ID",
-        "BACKBLAZE_B2_APPLICATION_KEY"
+        "Backblaze billing export or B2 usage pricing reconciliation"
       ],
       "notes": [
         "B2 authorization proves account access only; monthly B2 spend still needs billing export or usage pricing reconciliation."
@@ -512,7 +579,7 @@
       "credit_balance_usd": null,
       "total_usage_usd": null,
       "account_reference": null,
-      "observed_at": "2026-06-01T04:09:18.454Z",
+      "observed_at": "2026-06-01T04:37:00.504Z",
       "stale_after_hours": 24,
       "endpoint_host": null,
       "summary": {},
@@ -533,8 +600,8 @@
       "adapter": "credential_presence",
       "target_usd": 0,
       "proof_kind": "account_config_only_not_billing",
-      "status": "missing_credentials",
-      "proof_level": "missing",
+      "status": "credential_presence_only",
+      "proof_level": "repo-local-config",
       "can_count_toward_budget_actuals": false,
       "live_read_attempted": false,
       "live_mutation_attempted": false,
@@ -550,7 +617,8 @@
           "FIREBASE_APP_ID",
           "FIREBASE_MEASUREMENT_ID"
         ],
-        "missing_required_env": [
+        "missing_required_env": [],
+        "present_required_env": [
           "FIREBASE_PROJECT_ID",
           "FIREBASE_PROJECT_NUMBER",
           "FIREBASE_WEB_API_KEY",
@@ -561,7 +629,6 @@
           "FIREBASE_APP_ID",
           "FIREBASE_MEASUREMENT_ID"
         ],
-        "present_required_env": [],
         "one_of_env": [],
         "missing_one_of_env": [],
         "satisfied_one_of_env": [],
@@ -571,20 +638,12 @@
       "credit_balance_usd": null,
       "total_usage_usd": null,
       "account_reference": null,
-      "observed_at": "2026-06-01T04:09:18.454Z",
+      "observed_at": "2026-06-01T04:37:00.504Z",
       "stale_after_hours": 168,
       "endpoint_host": null,
       "summary": {},
       "missing_to_verify": [
-        "FIREBASE_PROJECT_ID",
-        "FIREBASE_PROJECT_NUMBER",
-        "FIREBASE_WEB_API_KEY",
-        "FIREBASE_AUTH_DOMAIN",
-        "FIREBASE_DATABASE_URL",
-        "FIREBASE_STORAGE_BUCKET",
-        "FIREBASE_MESSAGING_SENDER_ID",
-        "FIREBASE_APP_ID",
-        "FIREBASE_MEASUREMENT_ID"
+        "live billing or usage adapter"
       ],
       "notes": [
         "Firebase web config identifies the project and client app, but it is not Cloud Billing proof."
@@ -624,7 +683,7 @@
       "credit_balance_usd": null,
       "total_usage_usd": null,
       "account_reference": null,
-      "observed_at": "2026-06-01T04:09:18.454Z",
+      "observed_at": "2026-06-01T04:37:00.504Z",
       "stale_after_hours": 24,
       "endpoint_host": null,
       "summary": {},
@@ -670,7 +729,7 @@
       "credit_balance_usd": null,
       "total_usage_usd": null,
       "account_reference": null,
-      "observed_at": "2026-06-01T04:09:18.454Z",
+      "observed_at": "2026-06-01T04:37:00.504Z",
       "stale_after_hours": 24,
       "endpoint_host": null,
       "summary": {},
@@ -718,7 +777,7 @@
       "credit_balance_usd": null,
       "total_usage_usd": null,
       "account_reference": null,
-      "observed_at": "2026-06-01T04:09:18.454Z",
+      "observed_at": "2026-06-01T04:37:00.504Z",
       "stale_after_hours": 24,
       "endpoint_host": null,
       "summary": {},
@@ -775,7 +834,7 @@
       "credit_balance_usd": null,
       "total_usage_usd": null,
       "account_reference": null,
-      "observed_at": "2026-06-01T04:09:18.454Z",
+      "observed_at": "2026-06-01T04:37:00.504Z",
       "stale_after_hours": 24,
       "endpoint_host": null,
       "summary": {},
@@ -797,7 +856,7 @@
       "adapter": "credential_presence",
       "target_usd": 35,
       "proof_kind": "manual_receipt_or_export_required",
-      "status": "configured_not_queried",
+      "status": "credential_presence_only",
       "proof_level": "repo-local-config",
       "can_count_toward_budget_actuals": false,
       "live_read_attempted": false,
@@ -815,12 +874,12 @@
       "credit_balance_usd": null,
       "total_usage_usd": null,
       "account_reference": null,
-      "observed_at": "2026-06-01T04:09:18.454Z",
+      "observed_at": "2026-06-01T04:37:00.504Z",
       "stale_after_hours": 168,
       "endpoint_host": null,
       "summary": {},
       "missing_to_verify": [
-        "rerun with --live-read for read-only provider query"
+        "live billing or usage adapter"
       ],
       "notes": [
         "Funds recipient-backed contact evidence and exact-site hosted-review proof enrichment.",
@@ -837,7 +896,7 @@
       "adapter": "credential_presence",
       "target_usd": 20,
       "proof_kind": "manual_receipt_or_export_required",
-      "status": "configured_not_queried",
+      "status": "credential_presence_only",
       "proof_level": "repo-local-config",
       "can_count_toward_budget_actuals": false,
       "live_read_attempted": false,
@@ -855,12 +914,12 @@
       "credit_balance_usd": null,
       "total_usage_usd": null,
       "account_reference": null,
-      "observed_at": "2026-06-01T04:09:18.454Z",
+      "observed_at": "2026-06-01T04:37:00.504Z",
       "stale_after_hours": 168,
       "endpoint_host": null,
       "summary": {},
       "missing_to_verify": [
-        "rerun with --live-read for read-only provider query"
+        "live billing or usage adapter"
       ],
       "notes": [
         "Mostly organic work; any paid profile/listing spend needs receipt or provider export before counting as actual."
@@ -900,7 +959,7 @@
       "credit_balance_usd": null,
       "total_usage_usd": null,
       "account_reference": null,
-      "observed_at": "2026-06-01T04:09:18.454Z",
+      "observed_at": "2026-06-01T04:37:00.504Z",
       "stale_after_hours": 6,
       "endpoint_host": null,
       "summary": {},
@@ -952,7 +1011,7 @@
       "credit_balance_usd": null,
       "total_usage_usd": null,
       "account_reference": null,
-      "observed_at": "2026-06-01T04:09:18.454Z",
+      "observed_at": "2026-06-01T04:37:00.504Z",
       "stale_after_hours": 24,
       "endpoint_host": null,
       "summary": {},
@@ -977,7 +1036,7 @@
       "adapter": "credential_presence",
       "target_usd": 0,
       "proof_kind": "credential_presence_only",
-      "status": "configured_not_queried",
+      "status": "credential_presence_only",
       "proof_level": "repo-local-config",
       "can_count_toward_budget_actuals": false,
       "live_read_attempted": false,
@@ -999,12 +1058,12 @@
       "credit_balance_usd": null,
       "total_usage_usd": null,
       "account_reference": null,
-      "observed_at": "2026-06-01T04:09:18.454Z",
+      "observed_at": "2026-06-01T04:37:00.504Z",
       "stale_after_hours": 24,
       "endpoint_host": null,
       "summary": {},
       "missing_to_verify": [
-        "rerun with --live-read for read-only provider query"
+        "live billing or usage adapter"
       ],
       "notes": [
         "Current registry records credential presence only; no read-only credit balance endpoint is wired."
@@ -1020,8 +1079,8 @@
       "adapter": "credential_presence",
       "target_usd": 0,
       "proof_kind": "credential_presence_only",
-      "status": "missing_credentials",
-      "proof_level": "missing",
+      "status": "credential_presence_only",
+      "proof_level": "repo-local-config",
       "can_count_toward_budget_actuals": false,
       "live_read_attempted": false,
       "live_mutation_attempted": false,
@@ -1029,10 +1088,10 @@
         "required_env": [
           "WORLDLABS_API_KEY"
         ],
-        "missing_required_env": [
+        "missing_required_env": [],
+        "present_required_env": [
           "WORLDLABS_API_KEY"
         ],
-        "present_required_env": [],
         "one_of_env": [],
         "missing_one_of_env": [],
         "satisfied_one_of_env": [],
@@ -1042,12 +1101,12 @@
       "credit_balance_usd": null,
       "total_usage_usd": null,
       "account_reference": null,
-      "observed_at": "2026-06-01T04:09:18.454Z",
+      "observed_at": "2026-06-01T04:37:00.504Z",
       "stale_after_hours": 24,
       "endpoint_host": null,
       "summary": {},
       "missing_to_verify": [
-        "WORLDLABS_API_KEY"
+        "live billing or usage adapter"
       ],
       "notes": [
         "API billing uses credits, but this collector needs a balance/export endpoint before counting spend."
@@ -1085,7 +1144,7 @@
       "credit_balance_usd": null,
       "total_usage_usd": null,
       "account_reference": null,
-      "observed_at": "2026-06-01T04:09:18.454Z",
+      "observed_at": "2026-06-01T04:37:00.504Z",
       "stale_after_hours": 24,
       "endpoint_host": null,
       "summary": {},
@@ -1100,79 +1159,10 @@
   ],
   "missing_inputs": [
     {
-      "source_id": "openai_api_costs",
-      "label": "OpenAI API costs",
-      "missing_required_env": [
-        "OPENAI_ADMIN_KEY"
-      ],
-      "missing_one_of_env": [],
-      "missing_configuration": []
-    },
-    {
-      "source_id": "digitalocean_billing",
-      "label": "DigitalOcean / Paperclip host billing",
-      "missing_required_env": [
-        "DIGITALOCEAN_TOKEN"
-      ],
-      "missing_one_of_env": [],
-      "missing_configuration": []
-    },
-    {
-      "source_id": "render_inventory",
-      "label": "Render service inventory",
-      "missing_required_env": [
-        "RENDER_API_KEY"
-      ],
-      "missing_one_of_env": [],
-      "missing_configuration": []
-    },
-    {
-      "source_id": "github_billing_usage",
-      "label": "GitHub billing usage",
-      "missing_required_env": [
-        "GITHUB_BILLING_OWNER",
-        "GITHUB_BILLING_OWNER_TYPE"
-      ],
-      "missing_one_of_env": [
-        [
-          "GITHUB_TOKEN",
-          "GITHUB_CLASSIC_TOKEN"
-        ]
-      ],
-      "missing_configuration": []
-    },
-    {
-      "source_id": "backblaze_b2_account",
-      "label": "Backblaze B2 account access",
-      "missing_required_env": [
-        "BACKBLAZE_B2_KEY_ID",
-        "BACKBLAZE_B2_APPLICATION_KEY"
-      ],
-      "missing_one_of_env": [],
-      "missing_configuration": []
-    },
-    {
       "source_id": "gcp_firebase_billing_export",
       "label": "Firebase / GCP billing export",
       "missing_required_env": [
         "GCP_BILLING_EXPORT_JSON"
-      ],
-      "missing_one_of_env": [],
-      "missing_configuration": []
-    },
-    {
-      "source_id": "firebase_project_config",
-      "label": "Firebase project config",
-      "missing_required_env": [
-        "FIREBASE_PROJECT_ID",
-        "FIREBASE_PROJECT_NUMBER",
-        "FIREBASE_WEB_API_KEY",
-        "FIREBASE_AUTH_DOMAIN",
-        "FIREBASE_DATABASE_URL",
-        "FIREBASE_STORAGE_BUCKET",
-        "FIREBASE_MESSAGING_SENDER_ID",
-        "FIREBASE_APP_ID",
-        "FIREBASE_MEASUREMENT_ID"
       ],
       "missing_one_of_env": [],
       "missing_configuration": []
@@ -1242,15 +1232,6 @@
         "GOOGLE_ADS_REFRESH_TOKEN",
         "GOOGLE_ADS_CLIENT_ID",
         "GOOGLE_ADS_CLIENT_SECRET"
-      ],
-      "missing_one_of_env": [],
-      "missing_configuration": []
-    },
-    {
-      "source_id": "worldlabs_api_credits",
-      "label": "World Labs API credits",
-      "missing_required_env": [
-        "WORLDLABS_API_KEY"
       ],
       "missing_one_of_env": [],
       "missing_configuration": []

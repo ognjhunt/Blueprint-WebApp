@@ -21,6 +21,7 @@ describe("SiteWorlds", () => {
     expect(screen.getByText(/Nearby\/closest match/i)).toBeInTheDocument();
     expect(screen.getByText(/Category\/workflow match/i)).toBeInTheDocument();
     expect(screen.getByText(/Request candidate/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/operational truth stays with capture provenance/i).length).toBeGreaterThan(0);
 
     for (const example of ["Whole Foods", "grocery store", "warehouse tote", "hospital supply", "lab", "Atlanta", "Chicago"]) {
       expect(screen.getByRole("button", { name: example })).toBeInTheDocument();

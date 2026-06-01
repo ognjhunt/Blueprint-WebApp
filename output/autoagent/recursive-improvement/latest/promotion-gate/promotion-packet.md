@@ -6,7 +6,7 @@ Candidate id: autoagent-to-paperclip-hermes-prompt-policy-gate-2026-05-28
 Source: AutoAgent offline lab
 Target runtime: Paperclip/Hermes
 Live Paperclip mutation: not attempted
-Generated at: 2026-06-01T04:08:23.345Z
+Generated at: 2026-06-01T04:44:12.340Z
 
 ## Gate Checks
 

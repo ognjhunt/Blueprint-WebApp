@@ -4,11 +4,13 @@ This file is a public, non-sensitive map of Blueprint's website for AI assistant
 
 ## Product Summary
 
-Blueprint is capture-first and world-model-product-first. Blueprint captures indoor real sites, preserves rights, privacy, and provenance metadata, packages those captures into site-specific world-model products, and gives robot teams hosted access or exportable site packages when the evidence and rights path support it.
+Blueprint is capture-first and world-model-product-first. Blueprint turns lawful indoor capture into site-specific world-model packages, hosted review paths, and buyer decision workflows for robot teams while preserving rights, privacy, and provenance metadata.
 
 Google Genie and Street View make real-place world models legible outdoors, while Waymo-style world models show why autonomy teams care about rare, replayable, and counterfactual scenarios before field exposure. Blueprint uses those as category validation only. Blueprint's wedge is the indoor layer: unscanned facilities, public-facing indoor routes, access-sensitive operating spaces, provenance, rights boundaries, hosted review, and export or recapture decisions for robot teams.
 
 Blueprint is not qualification-first, not model-checkpoint-first, and not a generic simulated benchmark library. Qualification, readiness, and hosted review can support the product, but they do not replace raw capture truth, rights state, provenance, or buyer-visible package boundaries.
+
+Ground truth means raw capture evidence, timestamps, poses, device metadata, rights and privacy records, provenance, and package artifacts or runtime artifacts when they exist. Samples, generated previews, dry-run commerce, catalog matches, and request drafts are support signals. They do not prove customer results, rights clearance, provider execution, payment, package access, hosted fulfillment, deployment readiness, or city-live coverage.
 
 ## Buyer-Facing Definitions
 
@@ -93,6 +95,7 @@ Blueprint pages are most relevant to these themes:
 - Do not treat public demo agent flows as protected customer access, provider success, rights clearance, or deployment proof.
 - Do not treat dry-run agent commerce as a live payment, live package delivery, rights clearance, provider execution, or guaranteed hosted fulfillment.
 - Do not invent customer results, prices, ratings, reviews, availability, providers, rights state, or capture provenance.
+- Treat Public Launch Ready copy as buyer-facing posture. Live availability, rights, payment, provider execution, package access, and fulfillment are confirmed per site/request.
 
 ## Private Or Noindex Surfaces
 

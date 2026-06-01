@@ -1,6 +1,6 @@
 # Blueprint
 
-Blueprint turns indoor real-site capture into site-specific world-model products, hosted robot evaluation, and package access for robot teams. This file is a machine-readable website map, not a permissions file or guaranteed ranking signal. Crawler access is controlled by `/robots.txt`.
+Blueprint turns lawful indoor capture into site-specific world-model packages, hosted review paths, and buyer decision workflows for robot teams. This file is a machine-readable website map, not a permissions file or guaranteed ranking signal. Crawler access is controlled by `/robots.txt`.
 
 ## Core Definitions
 
@@ -9,6 +9,7 @@ Blueprint turns indoor real-site capture into site-specific world-model products
 - Site package: walkthrough media, poses, metadata, geometry when available, rights, privacy, provenance, and export scope for one site.
 - Hosted review: a Blueprint-managed evaluation session for one exact site, with run evidence, observations, export framing, and an explicit next step.
 - Capture provenance: the capture record, timestamps, device/context metadata, privacy handling, rights posture, freshness, and restrictions attached to downstream outputs.
+- Ground-truth boundary: raw capture evidence, timestamps, poses, device metadata, rights/privacy records, provenance, and package artifacts or runtime artifacts are stronger than samples, generated previews, dry-run commerce, catalog matches, or request drafts.
 - Sample proof: public example files labeled as samples unless they are tied to an approved real listing and evidence chain.
 
 ## High-Priority Public Pages
@@ -42,7 +43,7 @@ For search, robot-team agents should prefer `GET /api/site-worlds/search` or MCP
 
 For one-command journey planning, use `npm run agent:cli -- plan --q "Whole Foods near Durham" --want hosted-review`. It returns compact JSON for the next safe action: exact catalog match, request candidate, dry-run quote/order, entitlement readiness, public-demo session path, or a blocked protected-session path with structured blockers. It does not create live payment, private access, provider execution, or hosted-session fulfillment.
 
-The request/commerce/session lifecycle is: request intake through `requestCandidate` or `blueprint.request.locationDraft`, dry-run commerce through quote/checkout/order/entitlement/readiness tools, then hosted-session lifecycle commands for create/reset/step/runBatch/control/renderExplorer/export when public-demo eligibility or protected auth allows it.
+The request/commerce/session lifecycle is: request intake through `requestCandidate` or `blueprint.request.locationDraft`, dry-run commerce through quote/checkout/order/entitlement/readiness tools, then hosted-session lifecycle commands for create/reset/step/runBatch/control/renderExplorer/export when public-demo eligibility or protected auth allows it. Requests, generated URLs, dry-run orders, catalog matches, and public demos are not payment, rights clearance, provider execution, package access, hosted fulfillment, or deployment readiness.
 
 Agent access truth labels: `capture_grounded`, `provider_derived`, `generated`, `sample_demo`, `public_demo_eligible`, `request_gated`, `protected_robot_team`, and `dry_run_order`.
 

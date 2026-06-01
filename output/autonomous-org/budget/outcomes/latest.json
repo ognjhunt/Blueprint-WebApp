@@ -1,6 +1,6 @@
 {
   "schema": "blueprint/autonomous-outcome-snapshot/v1",
-  "generated_at": "2026-06-01T04:09:18.442Z",
+  "generated_at": "2026-06-01T04:36:47.226Z",
   "registry_path": "config/autonomy/outcome-sources.yaml",
   "mode": {
     "default_local_only": true,
@@ -42,7 +42,7 @@
       "proof_level": "repo-local-export",
       "proof_status": "current",
       "can_affect_allocation": false,
-      "observed_at": "2026-06-01T03:58:00.519Z",
+      "observed_at": "2026-06-01T04:09:18.455Z",
       "stale_after_hours": 24,
       "evidence_refs": [
         "output/autonomous-org/budget/spend-snapshots/latest.json#spend_snapshot_output"
@@ -233,7 +233,7 @@
       "proof_level": "repo-local-export",
       "proof_status": "current",
       "can_affect_allocation": false,
-      "observed_at": "2026-06-01T03:58:00.519Z",
+      "observed_at": "2026-06-01T04:09:18.455Z",
       "stale_after_hours": 24,
       "confidence": 0.55,
       "score": 0,

@@ -1,4 +1,5 @@
 import type { PublicSiteWorldRecord } from "@/types/inbound-request";
+import { captureGroundedPublicCopy } from "./captureGroundedLanguage";
 
 export const PUBLIC_SAMPLE_SITE_WORLD_ID = "siteworld-f5fd54898cfb";
 export const COMMERCIAL_EXEMPLAR_SITE_WORLD_ID = "sw-chi-01";
@@ -313,7 +314,9 @@ export function getSiteWorldStatusBadges(site: PublicSiteWorldRecord): SiteWorld
 
 export function getSiteWorldReadinessDisclosure(site: PublicSiteWorldRecord) {
   const parts = [
-    "This public listing proves what Blueprint is ready to show a buyer now.",
+    "This public listing shows what Blueprint is ready to show a buyer now.",
+    "Public listing copy is buyer-facing posture, not operational ground truth.",
+    captureGroundedPublicCopy.catalogBoundary,
     "It is not a deployment guarantee and does not claim site-operator blanket approval or unrestricted rights.",
     "Hosted launch is checked separately against entitlement, account type, hosted-session availability, and production configuration.",
   ];

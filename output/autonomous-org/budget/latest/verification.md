@@ -1,6 +1,6 @@
 # Autonomous Org Budget Verification
 
-Generated: 2026-06-01T04:20:46.097Z
+Generated: 2026-06-01T05:49:28.049Z
 Status: pass
 
 ## Computed State
@@ -18,6 +18,12 @@ Status: pass
 - Dynamic projected target total: $500.00
 - Dynamic recommendations: 1
 - Dynamic spend-affecting recommendations: 0
+- Live-proof backlog items: 12
+- Live-proof reconciliation: 0 closed, 8 partial, 12 open/blocking
+- Live-proof intake template items: 12
+- Live-proof intake validation: 0 accepted, 12 missing, 0 rejected
+- Next-goal queue items: 5
+- Next-goal queue live-mutation allowed items: 0
 
 ## Proof Boundary
 
@@ -35,6 +41,7 @@ Status: pass
 - config/autonomy/outcome-sources.yaml
 - config/autonomy/budget-allocation-policy.yaml
 - output/autonomous-org/budget/outcomes/latest.json
+- output/autonomous-org/budget/spend-snapshots/latest.json
 - output/autonomous-org/budget/dynamic/latest/recommendations.json
 - output/autonomous-org/budget/dynamic/latest/verification.json
 - output/autonomous-org/budget/dynamic/latest/human-approval-packet.md
@@ -42,3 +49,16 @@ Status: pass
 - output/autonomous-org/budget/latest/summary.json
 - output/autonomous-org/budget/latest/completion-audit.json
 - output/autonomous-org/budget/latest/closeout.md
+- output/autonomous-org/budget/latest/live-proof-backlog.json
+- output/autonomous-org/budget/latest/live-proof-backlog.md
+- output/autonomous-org/budget/latest/live-proof-reconciliation.json
+- output/autonomous-org/budget/latest/live-proof-reconciliation.md
+- output/autonomous-org/budget/latest/live-proof-intake-template.json
+- output/autonomous-org/budget/latest/live-proof-intake-template.md
+- output/autonomous-org/budget/latest/live-proof-intake-validation.json
+- output/autonomous-org/budget/latest/live-proof-intake-validation.md
+- output/autonomous-org/budget/latest/next-goal-queue.json
+- output/autonomous-org/budget/latest/next-goal-queue.md
+- output/autonomous-org/budget/latest/human-blocker-packet.json
+- output/autonomous-org/budget/latest/human-blocker-packet.md
+- output/autonomous-org/budget/spend-snapshots/keychain-live-read-2026-06-01/latest.json

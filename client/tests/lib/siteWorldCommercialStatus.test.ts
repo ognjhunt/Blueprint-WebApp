@@ -25,7 +25,9 @@ describe("siteWorldCommercialStatus", () => {
       label: "Public sample packet",
       proofBacked: true,
     });
-    expect(getSiteWorldReadinessDisclosure(site!)).toContain("public listing proves");
+    expect(getSiteWorldReadinessDisclosure(site!)).toContain("public listing shows");
+    expect(getSiteWorldReadinessDisclosure(site!)).toContain("not operational ground truth");
+    expect(getSiteWorldReadinessDisclosure(site!)).toContain("operational truth stays with capture provenance");
     expect(getSiteWorldBuyerFlowDisclosure(site!)).toMatchObject({
       proofLabel: "Sample-backed package",
     });
@@ -42,6 +44,7 @@ describe("siteWorldCommercialStatus", () => {
     });
     expect(getSiteWorldReadinessDisclosure(site!)).toContain("not a deployment guarantee");
     expect(getSiteWorldReadinessDisclosure(site!)).toContain("Hosted launch is checked separately");
+    expect(getSiteWorldReadinessDisclosure(site!)).toContain("not operational ground truth");
     expect(getSiteWorldVisualDisclosure(site!)).toMatchObject({
       label: "Listing proof preview",
       proofBacked: true,

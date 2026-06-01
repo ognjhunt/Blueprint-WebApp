@@ -1,12 +1,12 @@
 import { Router, Request, Response } from "express";
+import { captureGroundedPublicCopy } from "../../client/src/lib/captureGroundedLanguage";
 
 const router = Router();
 
 const definitions = [
   {
     term: "Blueprint",
-    definition:
-      "Blueprint turns indoor real-site capture into site-specific world-model products, hosted robot evaluation, and package access for robot teams.",
+    definition: captureGroundedPublicCopy.productSummary,
   },
   {
     term: "Exact-site world model",
@@ -37,6 +37,11 @@ const definitions = [
     term: "Capture provenance",
     definition:
       "The capture record, timestamps, device/context metadata, privacy handling, rights posture, freshness, and restrictions attached to downstream outputs.",
+  },
+  {
+    term: "Ground-truth boundary",
+    definition:
+      `${captureGroundedPublicCopy.groundTruthDefinition} ${captureGroundedPublicCopy.supportSignalBoundary}`,
   },
 ];
 
@@ -173,14 +178,12 @@ const privateOrNoindex = [
 
 router.get("/", (_req: Request, res: Response) => {
   res.status(200).json({
-    summary:
-      "Blueprint captures real sites, packages them into site-specific world models, and provides hosted robot evaluation or site package access for robot teams.",
+    summary: captureGroundedPublicCopy.productSummary,
     definitions,
     pages,
     queryThemes,
     privateOrNoindex,
-    safety:
-      "This endpoint only returns public, non-sensitive summaries. Do not infer customer results, ratings, prices, live payment state, package availability, hosted fulfillment, rights state, capture provenance, or deployment proof beyond what public pages explicitly say.",
+    safety: captureGroundedPublicCopy.apiSafety,
     machineReadableFiles: {
       llms: "/llms.txt",
       llmsFull: "/llms-full.txt",

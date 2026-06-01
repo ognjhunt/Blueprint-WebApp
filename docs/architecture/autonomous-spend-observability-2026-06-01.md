@@ -11,15 +11,20 @@ Give Blueprint a repeatable way to see which parts of the `$500/month` autonomou
 
 Spend observability now feeds a repo-local allocator:
 
-`observe -> outcome snapshot -> score -> recommend -> human approval packet -> approved repo-local diff -> live system handled separately`
+`observe -> outcome snapshot -> score -> recommend -> human approval packet -> proof reconciliation -> proof intake template -> proof intake validation -> next-goal queue -> suite verification -> approved repo-local diff -> live system handled separately`
 
-The spend snapshot answers what budget proof exists. The outcome snapshot answers what worked, what did not, and what is still missing proof. The recommendation step joins both with `config/autonomy/budget-allocation-policy.yaml` and emits an advisory packet under `output/autonomous-org/budget/dynamic/latest/`.
+The spend snapshot answers what budget proof exists. The outcome snapshot answers what worked, what did not, and what is still missing proof. The recommendation step joins both with `config/autonomy/budget-allocation-policy.yaml` and emits an advisory packet under `output/autonomous-org/budget/dynamic/latest/`. The reconciliation step then compares the live-proof backlog to the current redacted spend snapshot and keeps partial proof blocking until owner-system billing/export proof exists. The intake-template step gives humans and source-system owners one fillable, no-secret artifact shape for attaching that proof. The validation step checks filled intake rows locally and accepts them only for manual review; it does not count them as live billing proof. The next-goal step writes the ranked `/goal` queue as a machine-readable handoff artifact so future Codex sessions inherit the same budget boundaries.
 
 Commands:
 
 - `npm run autonomy:outcomes:snapshot`
 - `npm run autonomy:budget:recommend`
 - `npm run autonomy:budget:dynamic:verify`
+- `npm run autonomy:budget:live-proof:reconcile`
+- `npm run autonomy:budget:live-proof:template`
+- `npm run autonomy:budget:live-proof:validate`
+- `npm run autonomy:budget:next-goals`
+- `npm run autonomy:budget:control-suite`
 
 Allocation-grade outcome proof is limited to fresh `repo-local-export` or `live-performance` evidence named by policy. Missing, stale, fixture-only, unsupported, or `repo-local-config` proof can only produce advisory holds such as `no reallocation, improve proof first`. Repo-local exports can support a recommendation, but they are not live billing or live performance proof unless the owner system actually produced the export and the proof level says so.
 
@@ -39,11 +44,35 @@ Every spend-affecting recommendation remains human-approval required. The approv
   - Loads credentials from macOS Keychain and calls configured read-only provider endpoints.
 - `npm run autonomy:spend:snapshot -- --only digitalocean_billing,deepseek_balance --live-read`
   - Limits a live read to named source ids.
+- `npm run autonomy:budget:live-proof:reconcile`
+  - Reads the current live-proof backlog and redacted spend snapshot, writes a local reconciliation artifact, and makes no provider calls.
+- `npm run autonomy:budget:live-proof:template`
+  - Reads the current live-proof backlog and reconciliation artifact, writes a fillable proof intake template, and makes no provider calls.
+- `npm run autonomy:budget:live-proof:validate`
+  - Validates filled intake fields locally, reports missing or rejected proof rows, and still does not count artifacts as live billing proof.
+- `npm run autonomy:budget:live-proof:validate -- --require-complete`
+  - Same local validation, but exits non-zero when any proof row is missing or rejected. Use this only after a filled intake packet is expected.
+- `npm run autonomy:budget:next-goals`
+  - Writes the canonical five-item `/goal` handoff queue with owners, safe commands, success criteria, blocked claims, Codex OAuth/Pro exclusion, OpenAI API `$0` guardrail, and no-live-mutation gates.
+- `npm run autonomy:budget:control-suite`
+  - Runs the default safe local budget control suite and writes `output/autonomous-org/budget/control-suite/latest/summary.json` plus `.md`.
+- `npm run autonomy:budget:control-suite -- --include-check --include-graphify`
+  - Adds TypeScript and graphify refresh to the local suite. These remain local-only checks.
 
 Outputs:
 
 - `output/autonomous-org/budget/spend-snapshots/latest.json`
 - `output/autonomous-org/budget/spend-snapshots/latest.md`
+- `output/autonomous-org/budget/latest/live-proof-reconciliation.json`
+- `output/autonomous-org/budget/latest/live-proof-reconciliation.md`
+- `output/autonomous-org/budget/latest/live-proof-intake-template.json`
+- `output/autonomous-org/budget/latest/live-proof-intake-template.md`
+- `output/autonomous-org/budget/latest/live-proof-intake-validation.json`
+- `output/autonomous-org/budget/latest/live-proof-intake-validation.md`
+- `output/autonomous-org/budget/latest/next-goal-queue.json`
+- `output/autonomous-org/budget/latest/next-goal-queue.md`
+- `output/autonomous-org/budget/control-suite/latest/summary.json`
+- `output/autonomous-org/budget/control-suite/latest/summary.md`
 
 The output includes env var names and proof state, never secret values.
 

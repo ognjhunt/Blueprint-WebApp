@@ -1,9 +1,9 @@
 {
   "schema": "blueprint/dynamic-budget-recommendations/v1",
-  "generated_at": "2026-06-01T04:09:33.606Z",
+  "generated_at": "2026-06-01T04:37:31.375Z",
   "mode": {
     "default_local_only": true,
-    "live_read_enabled": false,
+    "live_read_enabled": true,
     "live_mutation_attempted": false,
     "repo_local_diff_only": true
   },

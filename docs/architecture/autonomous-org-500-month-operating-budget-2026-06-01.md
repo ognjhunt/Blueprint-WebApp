@@ -11,19 +11,27 @@ Keep Blueprint's autonomous organization inside a $500/month all-in launch and g
 
 Commands run:
 
-- `git status --short`: dirty tree was already broad; this change stayed in repo-local Paperclip config, docs, and budget output.
+- `git status --short`: current dirty tree is limited to this budget packet, local autonomy scripts/tests, generated budget/spend/outcome/control-suite artifacts, and required AutoAgent dry-run artifacts; no unrelated dirty or untracked work was observed at closeout.
 - `npm run paperclip:control-room:inventory`: before compression, 46 agents, 62 routines, 36 active routines, 26 paused routines, and `$1,115.00` declared monthly agent budget.
 - `npm run paperclip:control-room:inventory | sed -n '1,70p'`: after compression, 46 agents, 62 routines, 26 active routines, 36 paused routines, and `$173.00` declared monthly agent budget.
 - `npm run agent:cost-cache-report`: Firestore was not configured, so the report used local fixture fallback and estimated `$0.053047` across 4 fixture runs; live billing remains unverified.
 - `scripts/paperclip/validate-agent-kits.sh`: passed before and after budget edits.
 - `npm run autoagent:recursive-improve -- --dry-run`: local dry-run completed with `status=no_change_report_only`, selected `human_gate_or_reply_durability_blocker`, promotion `hold`, no live mutation.
 - `npm run autonomy:budget:verify`: passed; wrote `output/autonomous-org/budget/latest/verification.json` and `verification.md` proving the local YAML, control-room map, plan doc, spend-source registry, summary JSON, and completion audit agree on `$173.00` declared Paperclip budget, `26` active routines, `36` paused routines, `$500.00` ledger target, `$0.00` Codex OAuth/Pro target, `$0.00` OpenAI API target, and `$80.00` DeepSeek direct model reserve.
-- `npm run autonomy:spend:snapshot`: passed in local-inventory mode; wrote `output/autonomous-org/budget/spend-snapshots/latest.json` and `.md`.
-- `npm run autonomy:spend:snapshot:keychain -- --live-read --out-dir output/autonomous-org/budget/spend-snapshots/keychain-live-read-2026-06-01`: passed read-only provider queries, verified OpenAI API Costs at `$0.00`, marked Codex OAuth/Pro `outside_budget_excluded`, and attempted no live mutation or secret persistence.
+- `npm run autonomy:spend:snapshot`: passed in local-inventory mode before the live-read refresh; Codex OAuth/Pro was marked `outside_budget_excluded` and no live mutation was attempted.
+- `npm run autonomy:spend:snapshot:keychain -- --live-read`: passed read-only provider queries and refreshed `output/autonomous-org/budget/spend-snapshots/latest.json`; verified OpenAI API Costs at `$0.00`, marked Codex OAuth/Pro `outside_budget_excluded`, and attempted no live mutation or secret persistence.
+- `npm run autonomy:spend:snapshot:keychain -- --live-read --out-dir output/autonomous-org/budget/spend-snapshots/keychain-live-read-2026-06-01`: passed the same read-only provider query path into the dated proof directory.
 - `npm run autonomy:outcomes:snapshot`: passed; wrote `output/autonomous-org/budget/outcomes/latest.json` and `.md`.
 - `npm run autonomy:budget:recommend`: passed; wrote dynamic recommendations, approval packet, and proposed repo-local diff artifacts with no reallocation because current outcome proof does not clear allocation thresholds.
 - `npm run autonomy:budget:dynamic:verify`: passed with a warning that no reallocation was emitted and proof improvement is the next action.
+- `npm run autonomy:budget:live-proof:reconcile`: passed; read the existing backlog and redacted spend snapshot only, wrote `output/autonomous-org/budget/latest/live-proof-reconciliation.json` and `.md`, and reported 0 closed items, 8 partial source proof items, 12 open/blocking items, no provider calls, no live mutation, and no secret persistence.
+- `npm run autonomy:budget:live-proof:template`: passed; wrote `output/autonomous-org/budget/latest/live-proof-intake-template.json` and `.md` as a fillable owner-system proof handoff template with no provider calls, no live mutation, and no secret persistence.
+- `npm run autonomy:budget:live-proof:validate`: passed; wrote `output/autonomous-org/budget/latest/live-proof-intake-validation.json` and `.md` from the blank default intake template, reporting 0 accepted rows, 12 missing submissions, 0 rejected rows, no provider calls, no live mutation, and no secret persistence.
+- `npm run autonomy:budget:next-goals`: passed; wrote `output/autonomous-org/budget/latest/next-goal-queue.json` and `.md` as the canonical five-item `/goal` handoff queue.
+- `npm run autonomy:budget:control-suite`: passed; ran 9 safe local commands and wrote `output/autonomous-org/budget/control-suite/latest/summary.json` and `.md`.
+- `npx vitest run scripts/autonomy/validate-live-proof-intake.test.ts`: passed 3 tests covering blank-row default behavior, complete-row manual-review acceptance, strict-mode exit code, and secret-like artifact path rejection.
 - `npx vitest run scripts/autonomy/dynamic-budget-allocator-core.test.ts`: passed 8 tests covering bounded moves, missing/stale proof holds, OpenAI API `$0`, paid city/ad approval gates, no live mutation, P0 protection, and fixture-proof rejection.
+- `npx vitest run scripts/autonomy/generate-budget-next-goal-queue.test.ts`: passed 2 tests covering the five-item queue, budget guardrails, no-live-mutation gates, Codex OAuth/Pro exclusion, and OpenAI API `$0` guardrail.
 - `npm run check`: passed after adding the deterministic verifier, spend snapshot collector, outcome snapshot collector, and dynamic allocator scripts.
 - `bash scripts/graphify/run-webapp-architecture-pilot.sh --no-viz`: passed and republished canonical `graphify-out/` after the code-file change.
 
@@ -52,8 +60,15 @@ Follow-up setup added:
 
 - `config/autonomy/spend-sources.yaml`: registry for read-only billing, credit, usage, repo-local, and manual-export sources across the `$500/month` budget.
 - `npm run autonomy:spend:snapshot`: local inventory by default; `-- --live-read` calls only read-only provider endpoints.
-- `output/autonomous-org/budget/spend-snapshots/latest.json`: full `$500.00` local-inventory snapshot.
-- `output/autonomous-org/budget/spend-snapshots/keychain-live-read-2026-06-01/latest.json`: read-only provider snapshot proving OpenAI API Costs at `$0.00`, DeepSeek credit balance as credit proof, SendGrid credit proof, and Render/DigitalOcean/Backblaze account or usage proof that is not full billing proof.
+- `output/autonomous-org/budget/spend-snapshots/latest.json`: current full `$500.00` Keychain-backed read-only snapshot. It proves OpenAI API Costs at `$0.00`, keeps Codex OAuth/Pro outside the budget, and still leaves most target dollars unverified because credit/account/usage proof is not billing proof.
+- `output/autonomous-org/budget/spend-snapshots/keychain-live-read-2026-06-01/latest.json`: dated read-only provider snapshot proving OpenAI API Costs at `$0.00`, DeepSeek credit balance as credit proof, SendGrid credit proof, and Render/DigitalOcean/Backblaze account or usage proof that is not full billing proof.
+- `output/autonomous-org/budget/latest/live-proof-backlog.json`: machine-readable backlog for each remaining live/source-system proof gap, with owner system, exact missing input, safe proof command, approval requirement, and disallowed workaround.
+- `output/autonomous-org/budget/latest/live-proof-reconciliation.json`: deterministic local reconciliation of the backlog against the current redacted spend snapshot. It closes no items in the current packet because partial proof is still not owner-system spend proof.
+- `output/autonomous-org/budget/latest/live-proof-intake-template.json`: fillable owner-system proof intake template for current billing exports, receipts, dashboard proof, read-only snapshots, or explicit no-spend confirmations.
+- `output/autonomous-org/budget/latest/live-proof-intake-validation.json`: local validation report for filled proof-intake rows. The current blank template has 12 missing submissions and does not count as live billing proof.
+- `output/autonomous-org/budget/latest/next-goal-queue.json`: canonical ranked `/goal` handoff queue with owners, safe commands, success criteria, blocked claims, budget boundaries, Codex OAuth/Pro exclusion, OpenAI API `$0` guardrail, and no-live-mutation gates.
+- `output/autonomous-org/budget/control-suite/latest/summary.json`: one-command safe local control-suite report for proof reconciliation, intake, validation, next-goal generation, dynamic verification, focused tests, and packet verification.
+- `output/autonomous-org/budget/latest/human-blocker-packet.json`: repo-local no-send human blocker packet for the remaining owner-system billing proof gap, following the Human Blocker Packet Standard.
 - `docs/architecture/autonomous-spend-observability-2026-06-01.md`: setup, proof levels, credential map, missing inputs, and boundaries.
 
 This setup does not change the closeout state by itself. It improves the path from estimate to owner-system proof, but lines stay unverified unless the snapshot has `live-billing` or a suitable `repo-local-export` proof level.
@@ -62,7 +77,7 @@ This setup does not change the closeout state by itself. It improves the path fr
 
 The dynamic allocator is a repo-local control loop:
 
-`observe -> outcome snapshot -> score -> recommend -> human approval packet -> approved repo-local diff -> live system handled separately`
+`observe -> outcome snapshot -> score -> recommend -> human approval packet -> proof reconciliation -> proof intake template -> proof intake validation -> next-goal queue -> suite verification -> approved repo-local diff -> live system handled separately`
 
 New control surfaces:
 
@@ -71,10 +86,16 @@ New control surfaces:
 - `npm run autonomy:outcomes:snapshot`: writes `output/autonomous-org/budget/outcomes/latest.json` and `.md` from repo-local exports/fixtures only.
 - `npm run autonomy:budget:recommend`: writes `output/autonomous-org/budget/dynamic/latest/recommendations.json`, `.md`, `human-approval-packet.md`, and `proposed-repo-local-budget-diff.patch`.
 - `npm run autonomy:budget:dynamic:verify`: verifies caps, proof boundaries, approval requirements, generated outputs, OpenAI API `$0`, Paperclip subcap, and live mutation flags.
+- `npm run autonomy:budget:live-proof:reconcile`: checks which live-proof backlog items are closed, partial, or still open using only the existing redacted spend snapshot and backlog artifacts.
+- `npm run autonomy:budget:live-proof:template`: generates the fillable proof intake template that source-system owners can use to attach exports without weakening proof boundaries.
+- `npm run autonomy:budget:live-proof:validate`: validates filled intake rows locally, marks blank rows missing, and keeps accepted rows as manual-review inputs rather than live billing proof.
+- `npm run autonomy:budget:live-proof:validate -- --require-complete`: optional strict mode for future handoffs where missing or rejected proof rows should fail automation.
+- `npm run autonomy:budget:next-goals`: writes the canonical five-item `/goal` queue for launch/growth/billing follow-up with no-live-mutation gates.
+- `npm run autonomy:budget:control-suite`: one-command local suite for the safe proof/control path; default mode avoids live reads, live mutation, TypeScript, and graphify unless optional flags are supplied.
 
 The allocator may recommend bounded changes such as moving `$40` from a low-proof P1/P2 line to a higher-performing line only when fresh allocation-grade evidence clears policy. Every spend-affecting recommendation is still `approval_required`; the generated packet is a decision artifact, not approval and not execution.
 
-Current repo-local run state: `npm run autonomy:outcomes:snapshot`, `npm run autonomy:budget:recommend`, and `npm run autonomy:budget:dynamic:verify` completed without live mutation. Current evidence did not clear the performance threshold for a move, so the recommendation is no reallocation and improved proof first. Fixture tests cover the positive case where current Exact-Site Hosted Review evidence can recommend a bounded move from `Search / research APIs` to `Recipient evidence enrichment`.
+Current repo-local run state: `npm run autonomy:outcomes:snapshot`, `npm run autonomy:budget:recommend`, `npm run autonomy:budget:dynamic:verify`, `npm run autonomy:budget:live-proof:reconcile`, `npm run autonomy:budget:live-proof:template`, `npm run autonomy:budget:live-proof:validate`, `npm run autonomy:budget:next-goals`, and `npm run autonomy:budget:control-suite` completed without live mutation. Current evidence did not clear the performance threshold for a move, so the recommendation is no reallocation and improved proof first. The live-proof reconciliation closes 0 items and keeps all 12 backlog items blocking until owner-system billing/export proof is attached. The intake validation has 0 accepted rows and 12 missing submissions because no billing exports or no-spend confirmations have been attached. Fixture tests cover the positive case where current Exact-Site Hosted Review evidence can recommend a bounded move from `Search / research APIs` to `Recipient evidence enrichment`.
 
 Hard boundary: this loop never mutates live spend, ads, sends, providers, Stripe, Render, Firebase, Notion, Paperclip production state, hosted sessions, rights/legal state, city activation, or customer/traction claims. If a human approves a recommendation, the live-system owner must handle any live change separately with owner-system proof and the applicable approval trail.
 
@@ -147,10 +168,12 @@ Codex should not become the company strategy lane, and the Codex/OAuth lane shou
 
 ## Next 5 `/goal` Queue
 
+Canonical artifact: `output/autonomous-org/budget/latest/next-goal-queue.json`.
+
 1. `/goal Build a live-billing evidence packet for the $500 budget without mutating providers`
-   - Safe commands: `npm run agent:cost-cache-report -- --from-json <billing-export>`, local ledger diff.
-   - Success: billing export rows mapped to the budget ledger.
-   - Blocked claims: no live spend is verified until owner-system billing evidence is attached.
+   - Safe commands: `npm run autonomy:spend:snapshot`, `npm run autonomy:spend:snapshot:keychain -- --live-read --out-dir output/autonomous-org/budget/spend-snapshots/keychain-live-read-2026-06-01`, `npm run autonomy:budget:live-proof:reconcile`, `npm run autonomy:budget:live-proof:template`, `npm run autonomy:budget:live-proof:validate -- --require-complete`, `npm run autonomy:budget:control-suite`.
+   - Success: owner-system exports or explicit no-spend confirmations are attached and validated for manual review.
+   - Blocked claims: no live spend is verified until owner-system billing evidence is accepted and reconciled.
 
 2. `/goal Produce the Exact-Site Hosted Review first-send approval packet with no sends`
    - Safe commands: `npm run gtm:hosted-review:audit`, `npm run gtm:recipient-evidence:template`, `npm run gtm:recipient-evidence:validate -- --human-recipient-evidence-path <path>`.
@@ -180,6 +203,16 @@ Reason: repo-local controls are implemented, but current billing cannot be fully
 
 Repo-local verification artifact: `output/autonomous-org/budget/latest/verification.md`.
 
-Resume condition: attach billing exports or screenshots with dates/account names redacted as needed, then rerun the budget ledger reconciliation without live mutations.
+Live-proof reconciliation artifact: `output/autonomous-org/budget/latest/live-proof-reconciliation.json`.
+
+Proof intake template: `output/autonomous-org/budget/latest/live-proof-intake-template.json`.
+
+Proof intake validation artifact: `output/autonomous-org/budget/latest/live-proof-intake-validation.json`.
+
+Next-goal queue artifact: `output/autonomous-org/budget/latest/next-goal-queue.json`.
+
+Control-suite artifact: `output/autonomous-org/budget/control-suite/latest/summary.json`.
+
+Resume condition: fill or attach billing exports, receipts, read-only snapshots, dashboard proof, or explicit no-spend confirmations with dates/account names redacted as needed; then rerun the spend snapshot, outcome snapshot, dynamic recommendation, live-proof reconciliation, proof intake template, proof intake validation, budget verifier, and control suite without live mutations.
 
 Residual risk: this plan proves repo-local declared envelope and cadence control only. It does not prove actual vendor spend, live routine execution, live sender readiness, ad account spend, city activation, hosted-session fulfillment, payments, payouts, rights clearance, customer traction, or Operational Launch Ready status.
