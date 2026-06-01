@@ -8,8 +8,16 @@ const DEFAULT_COMPANY_CONFIG = "ops/paperclip/blueprint-company/.paperclip.yaml"
 const DEFAULT_CONTROL_ROOM_MAP = "ops/paperclip/control-room-map.md";
 const DEFAULT_PLAN_DOC = "docs/architecture/autonomous-org-500-month-operating-budget-2026-06-01.md";
 const DEFAULT_SPEND_SOURCES = "config/autonomy/spend-sources.yaml";
+const DEFAULT_OUTCOME_SOURCES = "config/autonomy/outcome-sources.yaml";
+const DEFAULT_ALLOCATION_POLICY = "config/autonomy/budget-allocation-policy.yaml";
+const DEFAULT_OUTCOME_SNAPSHOT = "output/autonomous-org/budget/outcomes/latest.json";
+const DEFAULT_DYNAMIC_RECOMMENDATIONS = "output/autonomous-org/budget/dynamic/latest/recommendations.json";
+const DEFAULT_DYNAMIC_VERIFICATION = "output/autonomous-org/budget/dynamic/latest/verification.json";
+const DEFAULT_DYNAMIC_APPROVAL_PACKET = "output/autonomous-org/budget/dynamic/latest/human-approval-packet.md";
+const DEFAULT_DYNAMIC_PROPOSED_DIFF = "output/autonomous-org/budget/dynamic/latest/proposed-repo-local-budget-diff.patch";
 const DEFAULT_SUMMARY_JSON = "output/autonomous-org/budget/latest/summary.json";
 const DEFAULT_AUDIT_JSON = "output/autonomous-org/budget/latest/completion-audit.json";
+const DEFAULT_CLOSEOUT_MD = "output/autonomous-org/budget/latest/closeout.md";
 const DEFAULT_OUT_DIR = "output/autonomous-org/budget/latest";
 
 type PaperclipConfig = {
@@ -47,6 +55,63 @@ type SpendSource = {
 type SpendSourceRegistry = {
   schema: string;
   sources?: SpendSource[];
+};
+
+type OutcomeSourceRegistry = {
+  schema: string;
+  sources?: Array<{ id: string; budgetLine: string; canAffectAllocation?: boolean }>;
+};
+
+type AllocationPolicy = {
+  schema: string;
+  budget_cap_usd: number;
+  paperclip_declared_subcap_usd: number;
+  openai_api_target_usd: number;
+  max_single_move_usd: number;
+  budget_lines?: Array<{ budget_line: string; target_usd: number }>;
+};
+
+type OutcomeSnapshot = {
+  schema: string;
+  mode: {
+    live_mutation_attempted: boolean;
+  };
+  outcomes?: Array<{
+    source_id: string;
+    proof_level: string;
+    proof_status: string;
+    can_affect_allocation: boolean;
+  }>;
+};
+
+type DynamicRecommendation = {
+  id: string;
+  action: string;
+  from_budget_line: string | null;
+  to_budget_line: string | null;
+  amount_usd: number;
+  approval_required: boolean;
+  proof_level: string;
+  evidence_refs: string[];
+  live_mutation_attempted: boolean;
+};
+
+type DynamicRecommendations = {
+  schema: string;
+  mode: {
+    repo_local_diff_only: boolean;
+    live_mutation_attempted: boolean;
+  };
+  budget_cap_usd: number;
+  projected_target_total_usd: number;
+  projected_budget_lines: Record<string, number>;
+  recommendations: DynamicRecommendation[];
+};
+
+type DynamicVerification = {
+  schema: string;
+  pass: boolean;
+  errors: string[];
 };
 
 type BudgetSummary = {
@@ -97,6 +162,14 @@ type CompletionAudit = {
       checked: string[];
       live_money_status: string;
     };
+    dynamic_allocation_loop?: {
+      result: string;
+      recommendation_state: string;
+      human_approval_required: boolean;
+      projected_target_total_usd: number;
+      live_mutation_attempted: boolean;
+      artifacts: string[];
+    };
   };
   requirement_audit: Array<{
     requirement: string;
@@ -124,14 +197,25 @@ type VerificationResult = {
     codex_oauth_pro_target_usd: number;
     openai_api_target_usd: number;
     deepseek_direct_target_usd: number;
+    dynamic_projected_target_total_usd: number;
+    dynamic_recommendation_count: number;
+    dynamic_spend_affecting_recommendation_count: number;
   };
   checked_paths: {
     company_config: string;
     control_room_map: string;
     plan_doc: string;
     spend_sources: string;
+    outcome_sources: string;
+    allocation_policy: string;
+    outcome_snapshot: string;
+    dynamic_recommendations: string;
+    dynamic_verification: string;
+    dynamic_approval_packet: string;
+    dynamic_proposed_diff: string;
     summary_json: string;
     completion_audit_json: string;
+    closeout_md: string;
   };
   proof_boundary: {
     repo_local_controls_verified: boolean;
@@ -183,6 +267,10 @@ function assertCondition(errors: string[], condition: boolean, message: string) 
   }
 }
 
+function includesEvery(body: string, needles: string[]) {
+  return needles.every((needle) => body.includes(needle));
+}
+
 const EXPECTED_SPEND_CONTROL_SURFACES = [
   "docs/agentic-spend-control-plane-2026-04-30.md",
   "ops/paperclip/plugins/blueprint-automation/src/agent-spend-tool.ts",
@@ -191,6 +279,8 @@ const EXPECTED_SPEND_CONTROL_SURFACES = [
   "server/utils/agentSpendProviders.ts",
   "server/utils/agentSpendLedger.ts",
 ] as const;
+
+const SPEND_AFFECTING_DYNAMIC_ACTIONS = new Set(["reallocate", "increase", "reduce"]);
 
 function renderMarkdown(result: VerificationResult) {
   const lines = [
@@ -211,6 +301,9 @@ function renderMarkdown(result: VerificationResult) {
     `- Codex OAuth / Pro target: ${formatUsd(result.computed.codex_oauth_pro_target_usd)}`,
     `- OpenAI API target: ${formatUsd(result.computed.openai_api_target_usd)}`,
     `- DeepSeek direct model reserve target: ${formatUsd(result.computed.deepseek_direct_target_usd)}`,
+    `- Dynamic projected target total: ${formatUsd(result.computed.dynamic_projected_target_total_usd)}`,
+    `- Dynamic recommendations: ${result.computed.dynamic_recommendation_count}`,
+    `- Dynamic spend-affecting recommendations: ${result.computed.dynamic_spend_affecting_recommendation_count}`,
     "",
     "## Proof Boundary",
     "",
@@ -236,9 +329,16 @@ function renderMarkdown(result: VerificationResult) {
     `- ${result.checked_paths.control_room_map}`,
     `- ${result.checked_paths.plan_doc}`,
     `- ${result.checked_paths.spend_sources}`,
+    `- ${result.checked_paths.outcome_sources}`,
+    `- ${result.checked_paths.allocation_policy}`,
+    `- ${result.checked_paths.outcome_snapshot}`,
+    `- ${result.checked_paths.dynamic_recommendations}`,
+    `- ${result.checked_paths.dynamic_verification}`,
+    `- ${result.checked_paths.dynamic_approval_packet}`,
+    `- ${result.checked_paths.dynamic_proposed_diff}`,
     `- ${result.checked_paths.summary_json}`,
     `- ${result.checked_paths.completion_audit_json}`,
-    "",
+    `- ${result.checked_paths.closeout_md}`,
   );
 
   return lines.join("\n");
@@ -249,8 +349,16 @@ function verify() {
   const controlRoomMapPath = readArg("--control-room-map") || DEFAULT_CONTROL_ROOM_MAP;
   const planDocPath = readArg("--plan-doc") || DEFAULT_PLAN_DOC;
   const spendSourcesPath = readArg("--spend-sources") || DEFAULT_SPEND_SOURCES;
+  const outcomeSourcesPath = readArg("--outcome-sources") || DEFAULT_OUTCOME_SOURCES;
+  const allocationPolicyPath = readArg("--allocation-policy") || DEFAULT_ALLOCATION_POLICY;
+  const outcomeSnapshotPath = readArg("--outcome-snapshot") || DEFAULT_OUTCOME_SNAPSHOT;
+  const dynamicRecommendationsPath = readArg("--dynamic-recommendations") || DEFAULT_DYNAMIC_RECOMMENDATIONS;
+  const dynamicVerificationPath = readArg("--dynamic-verification") || DEFAULT_DYNAMIC_VERIFICATION;
+  const dynamicApprovalPacketPath = readArg("--dynamic-approval-packet") || DEFAULT_DYNAMIC_APPROVAL_PACKET;
+  const dynamicProposedDiffPath = readArg("--dynamic-proposed-diff") || DEFAULT_DYNAMIC_PROPOSED_DIFF;
   const summaryJsonPath = readArg("--summary") || DEFAULT_SUMMARY_JSON;
   const auditJsonPath = readArg("--audit") || DEFAULT_AUDIT_JSON;
+  const closeoutMdPath = readArg("--closeout") || DEFAULT_CLOSEOUT_MD;
   const outDir = readArg("--out-dir") || DEFAULT_OUT_DIR;
 
   const config = yaml.load(fs.readFileSync(companyConfigPath, "utf8")) as PaperclipConfig;
@@ -259,8 +367,20 @@ function verify() {
   const spendSourceRegistry = yaml.load(
     fs.readFileSync(spendSourcesPath, "utf8"),
   ) as SpendSourceRegistry;
+  const outcomeSourceRegistry = yaml.load(
+    fs.readFileSync(outcomeSourcesPath, "utf8"),
+  ) as OutcomeSourceRegistry;
+  const allocationPolicy = yaml.load(
+    fs.readFileSync(allocationPolicyPath, "utf8"),
+  ) as AllocationPolicy;
+  const outcomeSnapshot = readJson<OutcomeSnapshot>(outcomeSnapshotPath);
+  const dynamicRecommendations = readJson<DynamicRecommendations>(dynamicRecommendationsPath);
+  const dynamicVerification = readJson<DynamicVerification>(dynamicVerificationPath);
+  const dynamicApprovalPacket = fs.readFileSync(dynamicApprovalPacketPath, "utf8");
+  const dynamicProposedDiff = fs.readFileSync(dynamicProposedDiffPath, "utf8");
   const summary = readJson<BudgetSummary>(summaryJsonPath);
   const audit = readJson<CompletionAudit>(auditJsonPath);
+  const closeoutMd = fs.readFileSync(closeoutMdPath, "utf8");
 
   const declaredAgentBudgetUsd = sumBudgetCents(config) / 100;
   const routineCounts = countRoutines(config);
@@ -288,6 +408,9 @@ function verify() {
     totals.set(source.id, source.targetUsd ?? 0);
     return totals;
   }, new Map<string, number>());
+  const dynamicSpendAffectingRecommendations = dynamicRecommendations.recommendations.filter(
+    (recommendation) => SPEND_AFFECTING_DYNAMIC_ACTIONS.has(recommendation.action),
+  );
 
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -295,9 +418,19 @@ function verify() {
   assertCondition(errors, summary.schema === "blueprint/autonomous-org-budget-summary/v1", "summary schema mismatch");
   assertCondition(errors, audit.schema === "blueprint/autonomous-org-budget-completion-audit/v1", "completion audit schema mismatch");
   assertCondition(errors, spendSourceRegistry.schema === "blueprint/autonomous-spend-sources/v1", "spend source registry schema mismatch");
+  assertCondition(errors, outcomeSourceRegistry.schema === "blueprint/autonomous-outcome-sources/v1", "outcome source registry schema mismatch");
+  assertCondition(errors, allocationPolicy.schema === "blueprint/dynamic-budget-allocation-policy/v1", "allocation policy schema mismatch");
+  assertCondition(errors, outcomeSnapshot.schema === "blueprint/autonomous-outcome-snapshot/v1", "outcome snapshot schema mismatch");
+  assertCondition(errors, dynamicRecommendations.schema === "blueprint/dynamic-budget-recommendations/v1", "dynamic recommendations schema mismatch");
+  assertCondition(errors, dynamicVerification.schema === "blueprint/dynamic-budget-allocator-verification/v1", "dynamic verifier schema mismatch");
   assertCondition(errors, spendSources.length > 0, "spend source registry must list sources");
+  assertCondition(errors, (outcomeSourceRegistry.sources ?? []).length > 0, "outcome source registry must list sources");
   assertCondition(errors, summary.budget_cap_usd === 500, "summary budget cap must be $500");
   assertCondition(errors, summary.target_total_usd === 500, "summary target total must be $500");
+  assertCondition(errors, allocationPolicy.budget_cap_usd === 500, "allocation policy budget cap must be $500");
+  assertCondition(errors, allocationPolicy.paperclip_declared_subcap_usd === declaredAgentBudgetUsd, "allocation policy Paperclip subcap must match implemented $173 cap");
+  assertCondition(errors, allocationPolicy.openai_api_target_usd === 0, "allocation policy must keep OpenAI API target at $0");
+  assertCondition(errors, allocationPolicy.max_single_move_usd <= 40, "allocation policy max single move must stay at or below $40");
   assertCondition(errors, moneyEquals(ledgerTargetTotal, summary.target_total_usd), "budget ledger targets must sum to target_total_usd");
   assertCondition(errors, moneyEquals(spendSourceTargetTotal, summary.target_total_usd), "spend source targets must sum to summary target_total_usd");
   assertCondition(errors, moneyEquals(spendSourceTargetTotal, ledgerTargetTotal), "spend source targets must match budget ledger targets");
@@ -320,6 +453,25 @@ function verify() {
   assertCondition(errors, targetBySourceId.get("codex_oauth_pro_seat") === 0, "Codex OAuth / Pro subscription target must stay $0 and outside the $500 cap");
   assertCondition(errors, targetBySourceId.get("openai_api_costs") === 0, "OpenAI API costs target must stay $0 unless human-approved");
   assertCondition(errors, targetBySourceId.get("deepseek_balance") === 80, "DeepSeek direct model reserve target must remain $80 in the current $500 allocation");
+  assertCondition(errors, dynamicRecommendations.budget_cap_usd === 500, "dynamic recommendations budget cap must be $500");
+  assertCondition(errors, dynamicRecommendations.projected_target_total_usd <= 500, "dynamic projected total must stay under the $500 cap");
+  assertCondition(errors, moneyEquals(dynamicRecommendations.projected_target_total_usd, 500), "dynamic projected total must preserve the $500 target envelope");
+  assertCondition(errors, dynamicRecommendations.projected_budget_lines["OpenAI API costs (approval-only guardrail)"] === 0, "dynamic recommendations must keep OpenAI API target at $0");
+  assertCondition(errors, dynamicRecommendations.projected_budget_lines["Paperclip agent/runtime envelope"] === declaredAgentBudgetUsd, "dynamic recommendations must preserve the implemented Paperclip envelope");
+  assertCondition(errors, dynamicRecommendations.mode.repo_local_diff_only === true, "dynamic recommendations must remain repo-local diff only");
+  assertCondition(errors, dynamicRecommendations.mode.live_mutation_attempted === false, "dynamic recommendations must not attempt live mutation");
+  assertCondition(errors, outcomeSnapshot.mode.live_mutation_attempted === false, "outcome snapshot must not attempt live mutation");
+  assertCondition(errors, dynamicVerification.pass === true, "dynamic allocator verification must pass");
+  assertCondition(errors, dynamicVerification.errors.length === 0, "dynamic allocator verification must have no errors");
+  for (const recommendation of dynamicRecommendations.recommendations) {
+    assertCondition(errors, recommendation.live_mutation_attempted === false, `${recommendation.id} must not attempt live mutation`);
+    assertCondition(errors, recommendation.amount_usd <= allocationPolicy.max_single_move_usd, `${recommendation.id} must stay within max single move`);
+    if (SPEND_AFFECTING_DYNAMIC_ACTIONS.has(recommendation.action)) {
+      assertCondition(errors, recommendation.approval_required === true, `${recommendation.id} must require human approval`);
+      assertCondition(errors, recommendation.evidence_refs.length > 0, `${recommendation.id} must cite evidence refs`);
+      assertCondition(errors, !["missing", "stale", "fixture", "unsupported", "repo-local-config"].includes(recommendation.proof_level), `${recommendation.id} must not use weak proof for spend-affecting allocation`);
+    }
+  }
   assertCondition(errors, declaredAgentBudgetUsd === summary.paperclip_compression.declared_agent_budget_after_usd, "summary Paperclip budget must match .paperclip.yaml");
   assertCondition(errors, declaredAgentBudgetUsd === audit.current_state_evidence.paperclip_inventory_current.declared_monthly_agent_budget_usd, "audit Paperclip budget must match .paperclip.yaml");
   assertCondition(errors, declaredAgentBudgetUsd <= summary.paperclip_compression.declared_agent_budget_target_usd, "declared Paperclip budget must stay under its sub-budget target");
@@ -345,6 +497,7 @@ function verify() {
   assertCondition(errors, planDoc.includes("## Repo Spend-Control Surfaces Inspected"), "plan doc must include inspected spend-control surfaces");
   assertCondition(errors, planDoc.includes("## Routine Classification"), "plan doc must include routine classification");
   assertCondition(errors, planDoc.includes("## Model Ladder"), "plan doc must include model ladder");
+  assertCondition(errors, planDoc.includes("## Dynamic Allocation Loop"), "plan doc must include dynamic allocation loop");
   assertCondition(errors, planDoc.includes("## Next 5 `/goal` Queue"), "plan doc must include the next 5 goal queue");
   assertCondition(errors, planDoc.includes("State claimed for live budget truth: `awaiting_human_decision`"), "plan doc must keep live budget state human-gated");
   assertCondition(errors, planDoc.includes("Codex Pro/OAuth is treated as pre-existing tooling outside the $500 launch/growth cash envelope"), "plan doc must exclude Codex Pro/OAuth from the $500 cash envelope");
@@ -357,6 +510,22 @@ function verify() {
   assertCondition(errors, summary.repo_spend_control_surfaces.length === EXPECTED_SPEND_CONTROL_SURFACES.length, "summary must list all expected repo spend-control surfaces");
   assertCondition(errors, audit.current_state_evidence.repo_spend_control_surfaces?.result === "inspected", "audit must mark repo spend-control surfaces inspected");
   assertCondition(errors, audit.current_state_evidence.repo_spend_control_surfaces?.live_money_status === "disabled or fail-closed", "audit must keep spend-control live money disabled or fail-closed");
+  assertCondition(errors, fs.existsSync(dynamicApprovalPacketPath), "dynamic human approval packet must exist");
+  assertCondition(errors, fs.existsSync(dynamicProposedDiffPath), "dynamic proposed repo-local diff artifact must exist");
+  assertCondition(errors, includesEvery(dynamicApprovalPacket, [
+    "No live spend was moved.",
+    "No ads were created or launched.",
+    "No sends were made.",
+    "No provider jobs were started.",
+    "No Stripe, Render, Firebase, Notion, or Paperclip production state was mutated.",
+  ]), "dynamic approval packet must include hard no-live-mutation boundaries");
+  assertCondition(errors, dynamicProposedDiff.includes("No repo-local budget diff proposed.") || dynamicProposedDiff.includes("Proposed repo-local budget target changes."), "dynamic proposed diff artifact must state whether a diff is proposed");
+  assertCondition(errors, audit.current_state_evidence.dynamic_allocation_loop?.result === "passed", "audit must mark dynamic allocation loop passed");
+  assertCondition(errors, audit.current_state_evidence.dynamic_allocation_loop?.live_mutation_attempted === false, "audit dynamic allocation loop must not attempt live mutation");
+  assertCondition(errors, closeoutMd.includes("State: `awaiting_human_decision`"), "closeout must keep awaiting_human_decision state");
+  assertCondition(errors, closeoutMd.includes("Blocker id: `autonomous-org-budget-live-proof-20260601`"), "closeout must include durable blocker id");
+  assertCondition(errors, closeoutMd.includes("Codex OAuth/Pro"), "closeout must preserve Codex OAuth/Pro budget exclusion");
+  assertCondition(errors, closeoutMd.includes("This packet does not claim Operational Launch Ready"), "closeout must reject Operational Launch Ready claim");
   for (const spendControlPath of EXPECTED_SPEND_CONTROL_SURFACES) {
     const summaryEntry = summary.repo_spend_control_surfaces.find((entry) => entry.path === spendControlPath);
     assertCondition(errors, Boolean(summaryEntry), `summary missing spend-control surface ${spendControlPath}`);
@@ -392,14 +561,25 @@ function verify() {
       codex_oauth_pro_target_usd: targetBySourceId.get("codex_oauth_pro_seat") ?? 0,
       openai_api_target_usd: targetBySourceId.get("openai_api_costs") ?? 0,
       deepseek_direct_target_usd: targetBySourceId.get("deepseek_balance") ?? 0,
+      dynamic_projected_target_total_usd: dynamicRecommendations.projected_target_total_usd,
+      dynamic_recommendation_count: dynamicRecommendations.recommendations.length,
+      dynamic_spend_affecting_recommendation_count: dynamicSpendAffectingRecommendations.length,
     },
     checked_paths: {
       company_config: companyConfigPath,
       control_room_map: controlRoomMapPath,
       plan_doc: planDocPath,
       spend_sources: spendSourcesPath,
+      outcome_sources: outcomeSourcesPath,
+      allocation_policy: allocationPolicyPath,
+      outcome_snapshot: outcomeSnapshotPath,
+      dynamic_recommendations: dynamicRecommendationsPath,
+      dynamic_verification: dynamicVerificationPath,
+      dynamic_approval_packet: dynamicApprovalPacketPath,
+      dynamic_proposed_diff: dynamicProposedDiffPath,
       summary_json: summaryJsonPath,
       completion_audit_json: auditJsonPath,
+      closeout_md: closeoutMdPath,
     },
     proof_boundary: {
       repo_local_controls_verified:

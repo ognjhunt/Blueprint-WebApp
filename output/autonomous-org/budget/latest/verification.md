@@ -1,6 +1,6 @@
 # Autonomous Org Budget Verification
 
-Generated: 2026-06-01T04:13:43.880Z
+Generated: 2026-06-01T04:20:46.097Z
 Status: pass
 
 ## Computed State
@@ -15,6 +15,9 @@ Status: pass
 - Codex OAuth / Pro target: $0.00
 - OpenAI API target: $0.00
 - DeepSeek direct model reserve target: $80.00
+- Dynamic projected target total: $500.00
+- Dynamic recommendations: 1
+- Dynamic spend-affecting recommendations: 0
 
 ## Proof Boundary
 
@@ -29,5 +32,13 @@ Status: pass
 - ops/paperclip/control-room-map.md
 - docs/architecture/autonomous-org-500-month-operating-budget-2026-06-01.md
 - config/autonomy/spend-sources.yaml
+- config/autonomy/outcome-sources.yaml
+- config/autonomy/budget-allocation-policy.yaml
+- output/autonomous-org/budget/outcomes/latest.json
+- output/autonomous-org/budget/dynamic/latest/recommendations.json
+- output/autonomous-org/budget/dynamic/latest/verification.json
+- output/autonomous-org/budget/dynamic/latest/human-approval-packet.md
+- output/autonomous-org/budget/dynamic/latest/proposed-repo-local-budget-diff.patch
 - output/autonomous-org/budget/latest/summary.json
 - output/autonomous-org/budget/latest/completion-audit.json
+- output/autonomous-org/budget/latest/closeout.md
