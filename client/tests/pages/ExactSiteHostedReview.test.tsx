@@ -53,7 +53,7 @@ describe("ExactSiteHostedReview", () => {
     );
     expect(
       screen
-        .getAllByRole("link", { name: /Request hosted review/i })
+        .getAllByRole("link", { name: /Book hosted review/i })
         .some(
           (link) =>
             link.getAttribute("href")

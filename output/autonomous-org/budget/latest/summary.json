@@ -1,0 +1,288 @@
+{
+  "schema": "blueprint/autonomous-org-budget-summary/v1",
+  "date": "2026-06-01",
+  "state_claimed": "awaiting_human_decision",
+  "objective": "Optimize Blueprint-WebApp autonomous-org and operating budget for a $500/month all-in launch/growth cap with repo-local proof and no live side effects.",
+  "budget_cap_usd": 500,
+  "target_total_usd": 500,
+  "proof_scope": {
+    "repo_local_controls_implemented": true,
+    "live_billing_verified": false,
+    "live_mutation_attempted": false,
+    "operational_launch_ready_claimed": false
+  },
+  "paperclip_compression": {
+    "declared_agent_budget_before_usd": 1115,
+    "declared_agent_budget_after_usd": 173,
+    "declared_agent_budget_target_usd": 175,
+    "declared_agent_budget_variance_usd": -942,
+    "routines_total": 62,
+    "active_routines_before": 36,
+    "active_routines_after": 26,
+    "paused_routines_before": 26,
+    "paused_routines_after": 36,
+    "config_path": "ops/paperclip/blueprint-company/.paperclip.yaml",
+    "control_room_map_path": "ops/paperclip/control-room-map.md"
+  },
+  "completion_audit_path": "output/autonomous-org/budget/latest/completion-audit.json",
+  "verification_artifacts": {
+    "command": "npm run autonomy:budget:verify",
+    "json_path": "output/autonomous-org/budget/latest/verification.json",
+    "markdown_path": "output/autonomous-org/budget/latest/verification.md",
+    "latest_result": "pass"
+  },
+  "repo_spend_control_surfaces": [
+    {
+      "path": "docs/agentic-spend-control-plane-2026-04-30.md",
+      "role": "Agentic spend ADR; implemented as sandbox/manual scaffold with live money disabled.",
+      "proof_level": "repo-local",
+      "live_money_status": "disabled"
+    },
+    {
+      "path": "ops/paperclip/plugins/blueprint-automation/src/agent-spend-tool.ts",
+      "role": "Paperclip spend request parser and credential-safe tool response builder.",
+      "proof_level": "repo-local",
+      "live_money_status": "no credentials returned"
+    },
+    {
+      "path": "ops/paperclip/plugins/blueprint-automation/src/server-agent-spend-ledger.ts",
+      "role": "Paperclip-to-server ledger wrapper for governed spend requests.",
+      "proof_level": "repo-local",
+      "live_money_status": "requires database availability"
+    },
+    {
+      "path": "server/utils/agentSpendPolicy.ts",
+      "role": "Deterministic budget policy; live Stripe Issuing provider is denied until preconditions are verified.",
+      "proof_level": "repo-local",
+      "live_money_status": "live provider denied"
+    },
+    {
+      "path": "server/utils/agentSpendProviders.ts",
+      "role": "Manual ledger-only provider, disabled-by-default test/sandbox adapters, and fail-closed live provider.",
+      "proof_level": "repo-local",
+      "live_money_status": "fail-closed"
+    },
+    {
+      "path": "server/utils/agentSpendLedger.ts",
+      "role": "Firestore-backed spend request ledger; not current billing proof in this run.",
+      "proof_level": "repo-local",
+      "live_money_status": "not queried for billing"
+    }
+  ],
+  "budget_ledger": [
+    {
+      "line": "Paperclip agent/runtime envelope",
+      "current_usd": 1115,
+      "target_usd": 173,
+      "variance_usd": -942,
+      "owner_system": "Paperclip company config",
+      "proof_source": "ops/paperclip/blueprint-company/.paperclip.yaml and npm run paperclip:control-room:inventory",
+      "proof_level": "repo-local"
+    },
+    {
+      "line": "Codex OAuth / Pro subscription seat",
+      "current_usd": null,
+      "target_usd": 0,
+      "variance_usd": null,
+      "owner_system": "Human OpenAI subscription billing",
+      "proof_source": "user-provided budget policy clarification; excluded from launch/growth envelope",
+      "proof_level": "estimate"
+    },
+    {
+      "line": "OpenAI API costs (approval-only guardrail)",
+      "current_usd": 0,
+      "target_usd": 0,
+      "variance_usd": 0,
+      "owner_system": "OpenAI organization billing",
+      "proof_source": "output/autonomous-org/budget/spend-snapshots/keychain-live-read-2026-06-01/latest.json",
+      "proof_level": "live-verified"
+    },
+    {
+      "line": "DeepSeek direct model reserve",
+      "current_usd": null,
+      "target_usd": 80,
+      "variance_usd": null,
+      "owner_system": "DeepSeek API account",
+      "proof_source": "DEEPSEEK_API_KEY read-only balance and future usage export",
+      "proof_level": "estimate"
+    },
+    {
+      "line": "Render WebApp hosting",
+      "current_usd": null,
+      "target_usd": 25,
+      "variance_usd": null,
+      "owner_system": "Render",
+      "proof_source": "DEPLOYMENT.md",
+      "proof_level": "estimate"
+    },
+    {
+      "line": "Paperclip VPS / tunnel",
+      "current_usd": null,
+      "target_usd": 30,
+      "variance_usd": null,
+      "owner_system": "DigitalOcean / Cloudflare / Paperclip host",
+      "proof_source": "ops/paperclip/README.md",
+      "proof_level": "estimate"
+    },
+    {
+      "line": "Firebase / Firestore / storage",
+      "current_usd": null,
+      "target_usd": 25,
+      "variance_usd": null,
+      "owner_system": "Firebase / Firestore / GCS",
+      "proof_source": "DEPLOYMENT.md",
+      "proof_level": "estimate"
+    },
+    {
+      "line": "Redis / cache",
+      "current_usd": null,
+      "target_usd": 10,
+      "variance_usd": null,
+      "owner_system": "Redis / Upstash",
+      "proof_source": "DEPLOYMENT.md",
+      "proof_level": "estimate"
+    },
+    {
+      "line": "Email / human reply / Slack",
+      "current_usd": null,
+      "target_usd": 7,
+      "variance_usd": null,
+      "owner_system": "SendGrid, Gmail, Slack",
+      "proof_source": "DEPLOYMENT.md and command safety matrix",
+      "proof_level": "estimate"
+    },
+    {
+      "line": "Analytics",
+      "current_usd": null,
+      "target_usd": 0,
+      "variance_usd": null,
+      "owner_system": "PostHog / GA4 / Firestore mirror",
+      "proof_source": "DEPLOYMENT.md",
+      "proof_level": "estimate"
+    },
+    {
+      "line": "Search / research APIs",
+      "current_usd": null,
+      "target_usd": 45,
+      "variance_usd": null,
+      "owner_system": "Parallel Search MCP / configured search",
+      "proof_source": "DEPLOYMENT.md",
+      "proof_level": "estimate"
+    },
+    {
+      "line": "Recipient evidence enrichment",
+      "current_usd": null,
+      "target_usd": 35,
+      "variance_usd": null,
+      "owner_system": "GTM evidence / enrichment providers",
+      "proof_source": "recipient evidence artifacts and provider exports",
+      "proof_level": "estimate"
+    },
+    {
+      "line": "Profiles, listings, and owned growth ops",
+      "current_usd": null,
+      "target_usd": 20,
+      "variance_usd": null,
+      "owner_system": "Repo docs / Paperclip growth lanes",
+      "proof_source": "AUTONOMOUS_ORG.md",
+      "proof_level": "estimate"
+    },
+    {
+      "line": "Paid city/launch experiments",
+      "current_usd": null,
+      "target_usd": 50,
+      "variance_usd": null,
+      "owner_system": "Meta/ads/provider accounts",
+      "proof_source": "DEPLOYMENT.md and command safety matrix",
+      "proof_level": "estimate"
+    }
+  ],
+  "commands_run": [
+    {
+      "command": "git status --short",
+      "result": "completed; broad pre-existing dirty tree observed"
+    },
+    {
+      "command": "npm run paperclip:control-room:inventory",
+      "result": "completed before edits; reported 46 agents, 62 routines, 36 active, 26 paused, $1115 declared budget"
+    },
+    {
+      "command": "npm run paperclip:control-room:inventory | sed -n '1,70p'",
+      "result": "completed after edits; reported 46 agents, 62 routines, 26 active, 36 paused, $173 declared budget"
+    },
+    {
+      "command": "npm run agent:cost-cache-report",
+      "result": "completed; used local fixture fallback because Firestore is not configured; estimated fixture cost $0.053047"
+    },
+    {
+      "command": "scripts/paperclip/validate-agent-kits.sh",
+      "result": "passed before and after edits"
+    },
+    {
+      "command": "npm run autoagent:recursive-improve -- --dry-run",
+      "result": "completed; status=no_change_report_only; promotion=hold; no live mutation"
+    },
+    {
+      "command": "npm run autonomy:budget:verify",
+      "result": "passed; wrote verification.json and verification.md with matching $173 Paperclip budget, 26 active routines, 36 paused routines, $500 ledger target, $500 spend-source registry target, $0 Codex OAuth/Pro target, $0 OpenAI API target, and $80 DeepSeek direct reserve target"
+    },
+    {
+      "command": "npm run autonomy:spend:snapshot",
+      "result": "passed in local-inventory mode; wrote spend-snapshots/latest.json and latest.md with Codex OAuth/Pro marked outside_budget_excluded and no live mutation"
+    },
+    {
+      "command": "npm run autonomy:spend:snapshot:keychain -- --live-read --out-dir output/autonomous-org/budget/spend-snapshots/keychain-live-read-2026-06-01",
+      "result": "passed; read-only provider queries loaded 20 Keychain values, verified OpenAI API Costs at $0.00, marked Codex OAuth/Pro outside_budget_excluded, and attempted no live mutation or secret persistence"
+    },
+    {
+      "command": "npm run autonomy:kpi-source-status",
+      "result": "passed; wrote kpi-source-status artifacts with 4 sourced rows, 4 source-needed rows, and blocked live-source gaps preserved"
+    },
+    {
+      "command": "npm run autonomy:outcomes:snapshot",
+      "result": "passed; wrote outcome snapshot artifacts from repo-local sources only, with no live mutation"
+    },
+    {
+      "command": "npm run autonomy:budget:recommend",
+      "result": "passed; wrote dynamic recommendations, human approval packet, and proposed repo-local diff; emitted no reallocation because current proof did not clear allocation thresholds"
+    },
+    {
+      "command": "npm run autonomy:budget:dynamic:verify",
+      "result": "passed with warning: no reallocation emitted; proof improvement is the next action"
+    },
+    {
+      "command": "npx vitest run scripts/autonomy/dynamic-budget-allocator-core.test.ts",
+      "result": "passed 8 tests covering bounded reallocations, missing/stale proof holds, OpenAI API $0, paid city/ad approval gates, no live mutation, P0 protection, and fixture-proof rejection"
+    },
+    {
+      "command": "npm run check",
+      "result": "passed after adding the deterministic verifier, spend snapshot collector, outcome snapshot collector, and dynamic allocator scripts"
+    },
+    {
+      "command": "bash scripts/graphify/run-webapp-architecture-pilot.sh --no-viz",
+      "result": "passed and republished canonical graphify-out outputs after the code-file change"
+    }
+  ],
+  "next_goal_queue": [
+    "/goal Build a live-billing evidence packet for the $500 budget without mutating providers",
+    "/goal Produce the Exact-Site Hosted Review first-send approval packet with no sends",
+    "/goal Build the one-city launch proof packet under a $10 paid-test ceiling",
+    "/goal Harden support_triage cost/cadence proof from cache and no-change suppression",
+    "/goal Run a Public Launch Ready conversion audit for the world-model buyer route"
+  ],
+  "live_proof_gaps": [
+    "DeepSeek direct usage export and OpenRouter billing if used",
+    "Render billing",
+    "DigitalOcean/Cloudflare billing",
+    "Firebase/Firestore/GCS billing",
+    "Redis billing",
+    "SendGrid/Gmail/Slack billing and sender readiness",
+    "Analytics billing and KPI owner-system proof",
+    "Search/research API billing",
+    "Recipient evidence enrichment receipts or provider exports",
+    "Profiles/listings receipts or provider exports",
+    "Ad account spend and paused-draft proof",
+    "Live Paperclip routine execution after repo config propagation"
+  ],
+  "resume_condition": "Attach current billing exports or account proof for budget ledger lines, excluding the Codex OAuth/Pro subscription seat from the $500 launch/growth envelope, then rerun the local ledger reconciliation without live mutation."
+}

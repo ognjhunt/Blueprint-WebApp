@@ -670,7 +670,7 @@ describe("pipeline integration routes", () => {
     }
   });
 
-  it("writes a hosted-review-run event when buyer review access starts the hosted review", async () => {
+  it("records buyer review access without claiming hosted runtime start", async () => {
     state.docData = {
       requestId: "req-1",
       site_submission_id: "submission-1",
@@ -708,9 +708,9 @@ describe("pipeline integration routes", () => {
     try {
       const response = await fetch(`${baseUrl}/req-1?access=valid`);
       expect(response.status).toBe(200);
-      expect(state.docUpdate).toHaveBeenCalledWith(
+      expect(state.docUpdate).not.toHaveBeenCalledWith(
         expect.objectContaining({
-          "ops.proof_path.hosted_review_started_at": "SERVER_TIMESTAMP",
+          "ops.proof_path.hosted_review_started_at": expect.anything(),
         }),
       );
 
@@ -718,15 +718,25 @@ describe("pipeline integration routes", () => {
         expect.arrayContaining([
           expect.objectContaining({
             payload: expect.objectContaining({
-              entity_type: "hosted_review_run",
-              stage: "hosted_review_started",
+              entity_type: "package_run",
+              stage: "buyer_review_opened",
+              source_kind: "buyer_review_access",
               metadata: expect.objectContaining({
-                hosted_review_run_id: "req-1",
                 buyer_request_id: "buyer-request-12",
                 site_submission_id: "submission-1",
                 capture_id: "cap-1",
                 scene_id: "scene-1",
               }),
+            }),
+          }),
+        ]),
+      );
+      expect(findCollectionWrites("operatingGraphEvents")).not.toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            payload: expect.objectContaining({
+              entity_type: "hosted_review_run",
+              stage: "hosted_review_started",
             }),
           }),
         ]),

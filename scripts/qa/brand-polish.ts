@@ -151,7 +151,7 @@ export const publicQaRoutes: PublicQaRoute[] = [
     canonicalPath: "/product",
     expectedHeading: "Turn the exact site into a decision-ready world model.",
     requiredCtas: [
-      { label: "Request hosted review", hrefStartsWith: "/contact" },
+      { label: "Book hosted review", hrefStartsWith: "/contact" },
       { label: "Inspect proof", hrefStartsWith: "/proof" },
     ],
   },

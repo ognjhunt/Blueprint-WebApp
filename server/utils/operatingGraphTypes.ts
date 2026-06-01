@@ -7,6 +7,7 @@ export type OperatingGraphStage =
   | "pipeline_packaging"
   | "package_ready"
   | "hosted_review_ready"
+  | "buyer_review_opened"
   | "hosted_review_started"
   | "buyer_follow_up_in_progress"
   | "buyer_outcome_recorded"

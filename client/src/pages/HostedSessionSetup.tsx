@@ -360,6 +360,12 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
     !checkingReadiness
     && !presentationReadiness?.launchable
     && Boolean(runtimeReadiness?.launchable);
+  const estimatedRunTimeLabel =
+    launchBlocked && runtimeLaunchBlocked
+      ? "After launch checks pass"
+      : launchBlocked || runtimeLaunchBlocked
+        ? "Launch-path dependent"
+        : "45–60 min";
   const previewFrames = [
     { label: "01 Staging area", objectPosition: "object-left" },
     { label: "02 Mechanical room entry", objectPosition: "object-center" },
@@ -446,7 +452,7 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
                           <Clock3 className="mr-2 h-4 w-4" />
                           Estimated run time
                         </span>
-                        <span>45–60 min</span>
+                        <span>{estimatedRunTimeLabel}</span>
                       </div>
                     </div>
                   </div>

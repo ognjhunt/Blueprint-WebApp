@@ -28,6 +28,7 @@ const STAGE_ORDER: Record<OperatingGraphStage, number> = {
   pipeline_packaging: 6,
   package_ready: 7,
   hosted_review_ready: 8,
+  buyer_review_opened: 8.5,
   hosted_review_started: 9,
   buyer_follow_up_in_progress: 10,
   buyer_outcome_recorded: 11,

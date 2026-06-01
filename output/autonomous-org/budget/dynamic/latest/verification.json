@@ -1,0 +1,9 @@
+{
+  "schema": "blueprint/dynamic-budget-allocator-verification/v1",
+  "generated_at": "2026-06-01T04:09:42.969Z",
+  "pass": true,
+  "errors": [],
+  "warnings": [
+    "No reallocation emitted; proof improvement is the next action."
+  ]
+}

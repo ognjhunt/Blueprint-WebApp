@@ -1,0 +1,6 @@
+- Real customer logos, testimonials, revenue, conversion, or traction metrics were not provided.
+- Live Stripe payments, checkout success, payouts, or settled entitlements were not verified.
+- Rights-cleared commercial use for any specific external site was not verified.
+- Hosted-session fulfillment for a specific buyer/site was not verified.
+- Active city coverage and capturer availability were not verified.
+- Final raise amount, valuation, runway, and committed use-of-funds budget were not provided.

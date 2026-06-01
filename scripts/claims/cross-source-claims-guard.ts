@@ -12,7 +12,8 @@ export type ClaimType =
   | "customer_or_traction_claim"
   | "rights_cleared_claim"
   | "provider_execution_claim"
-  | "payment_or_payout_claim";
+  | "payment_or_payout_claim"
+  | "support_guarantee_claim";
 
 export type ScanTarget = {
   relativePath: string;
@@ -130,6 +131,7 @@ const guardrailPatterns = [
   /\bwithout\b/i,
   /\bnot proof\b/i,
   /\bnot a proof\b/i,
+  /\bnot\b[\s\S]{0,180}\bproof\b/i,
   /\bnot current\b/i,
   /\bnot submitted\b/i,
   /\bnot a live\b/i,
@@ -158,7 +160,7 @@ const guardrailPatterns = [
   /\bquestion\b/i,
   /\bwhich\b/i,
   /\bverify\b/i,
-  /\bconfirm\b/i,
+  /\bconfirm(?:ed|ing|s)?\b/i,
   /\bsafe replacement\b/i,
   /\bowner proof\b/i,
   /\brequires?\b/i,
@@ -351,6 +353,22 @@ const rules: ClaimRule[] = [
       || /\bsetup\b/i.test(line)
       || /\bsensitive zones\b/i.test(line)
       || /\bblockedClaims\b/i.test(line),
+  },
+  {
+    type: "support_guarantee_claim",
+    ownerProofRequired:
+      "Current support-loop, SLA, Paperclip/Firestore/reply-durability, and human-review policy evidence for the exact support outcome being claimed.",
+    safeReplacement:
+      "Use `support reviewed per request` or `routed for operator review`; keep refunds, access, hosted-session, and support-outcome guarantees human/proof gated.",
+    matches: (line) =>
+      /\b(support|support request|buyer request|refund|billing|account[- ]access|hosted access|hosted[- ]session)\b/i.test(line)
+      && (
+        /\b(guarantee|guaranteed|same[- ]day|resolution|resolved|auto[- ]clos(?:e|ed)|automatically close|without human review|no human review)\b/i.test(line)
+        || /\bsla\b[\s\S]{0,80}\b(guarantee|guaranteed|commitment|committed|resolution|resolved)\b/i.test(line)
+      ),
+    allowed: (line) =>
+      (hasGuardrailContext(line) && !/\b(without human review|no human review)\b/i.test(line))
+      || /\breviewed per request\b/i.test(line),
   },
 ];
 

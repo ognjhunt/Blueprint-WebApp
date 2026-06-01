@@ -2,7 +2,6 @@ import { Request, Response, Router } from "express";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { decryptInboundRequestForAdmin } from "../utils/field-encryption";
 import type { InboundRequest, InboundRequestStored } from "../types/inbound-request";
-import admin from "../../client/src/lib/firebaseAdmin";
 import {
   getRequestReviewCookieName,
   verifyRequestReviewToken,
@@ -12,12 +11,11 @@ import { parseCookies } from "../utils/hosted-session-ui-auth";
 import { logGrowthEvent } from "../utils/growth-events";
 import {
   appendOperatingGraphEvent,
-  buildHostedReviewRunId,
+  buildPackageRunId,
 } from "../utils/operatingGraph";
 import {
   buildBuyerOperatingGraphMetadata,
   deriveCityContext,
-  deriveStableHostedReviewRunId,
   deriveStablePackageId,
   deriveStableBuyerAccountId,
 } from "../utils/buyerOutcomes";
@@ -168,10 +166,6 @@ router.get("/:requestId", async (req: Request, res: Response) => {
       decrypted.request?.buyerType === "robot_team"
       && !normalizeTimestamp(decrypted.ops?.proof_path?.hosted_review_started_at)
     ) {
-      const hostedReviewRunId = deriveStableHostedReviewRunId({
-        requestId: req.params.requestId,
-        buyerRequestId: decrypted.buyer_request_id || decrypted.requestId,
-      });
       const packageId = deriveStablePackageId({
         captureId: decrypted.pipeline?.capture_id || null,
         sceneId: decrypted.pipeline?.scene_id || null,
@@ -189,20 +183,15 @@ router.get("/:requestId", async (req: Request, res: Response) => {
       });
       const recordedAtIso = new Date().toISOString();
 
-      await db.collection("inboundRequests").doc(req.params.requestId).update({
-        "ops.proof_path.hosted_review_started_at":
-          admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-
       await logGrowthEvent({
-        event: "hosted_review_started",
+        event: "buyer_review_viewed",
         source: "server:request_console",
         properties: {
           request_id: req.params.requestId,
           city: decrypted.context?.demandCity || null,
           buyer_segment: decrypted.contact?.roleTitle || null,
           hosted_mode: "buyer_review_console",
+          proof_boundary: "buyer_review_access_not_hosted_runtime",
         },
         attribution: {
           demandCity: decrypted.context?.demandCity || null,
@@ -216,17 +205,17 @@ router.get("/:requestId", async (req: Request, res: Response) => {
         },
       }).catch(() => null);
 
-      if (cityContext.city && cityContext.citySlug && hostedReviewRunId) {
+      if (cityContext.city && cityContext.citySlug && packageId) {
         await appendOperatingGraphEvent({
-          eventKey: `hosted_review_started:${req.params.requestId}:${hostedReviewRunId}`,
-          entityType: "hosted_review_run",
-          entityId: buildHostedReviewRunId({
-            hostedReviewRunId,
+          eventKey: `buyer_review_opened:${req.params.requestId}:${packageId}`,
+          entityType: "package_run",
+          entityId: buildPackageRunId({
+            packageId,
           }),
           city: cityContext.city,
           citySlug: cityContext.citySlug,
-          stage: "hosted_review_started",
-          summary: "Hosted review started from buyer review access.",
+          stage: "buyer_review_opened",
+          summary: "Buyer review access opened; hosted-session runtime has not started.",
           sourceRepo: "Blueprint-WebApp",
           sourceKind: "buyer_review_access",
           origin: {
@@ -244,16 +233,10 @@ router.get("/:requestId", async (req: Request, res: Response) => {
             buyerRequestId: decrypted.buyer_request_id || decrypted.requestId,
             captureJobId: decrypted.pipeline?.capture_job_id || null,
             packageId,
-            hostedReviewRunId,
             buyerAccountId,
           }),
           recordedAtIso,
         }).catch(() => null);
-      }
-
-      if (decrypted.ops?.proof_path && typeof decrypted.ops.proof_path === "object") {
-        decrypted.ops.proof_path.hosted_review_started_at =
-          new Date().toISOString() as never;
       }
     }
 

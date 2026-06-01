@@ -1,0 +1,137 @@
+{
+  "schema": "blueprint/dynamic-budget-allocation-policy/v1",
+  "budget_cap_usd": 500,
+  "paperclip_declared_subcap_usd": 173,
+  "openai_api_target_usd": 0,
+  "openai_api_requires_approval_artifact": true,
+  "max_single_move_usd": 40,
+  "minimum_confidence": 0.7,
+  "high_performance_score": 0.72,
+  "low_performance_score": 0.35,
+  "allocation_grade_proof_levels": [
+    "repo-local-export",
+    "live-performance"
+  ],
+  "protected_lines": [
+    {
+      "budget_line": "Paperclip agent/runtime envelope",
+      "minimum_usd": 173,
+      "tier": "P0",
+      "reason": "product/proof/intake/support/reliability routines"
+    },
+    {
+      "budget_line": "Firebase / Firestore / storage",
+      "minimum_usd": 25,
+      "tier": "P0",
+      "reason": "request, entitlement, and operating graph durability"
+    },
+    {
+      "budget_line": "Email / human reply / Slack",
+      "minimum_usd": 7,
+      "tier": "P0",
+      "reason": "support and human blocker reply durability"
+    }
+  ],
+  "budget_lines": [
+    {
+      "budget_line": "Paperclip agent/runtime envelope",
+      "target_usd": 173,
+      "tier": "P0",
+      "channel_id": "paperclip_runtime",
+      "minimum_usd": 173
+    },
+    {
+      "budget_line": "OpenAI API costs (approval-only guardrail)",
+      "target_usd": 0,
+      "tier": "P0",
+      "channel_id": "openai_api",
+      "minimum_usd": 0
+    },
+    {
+      "budget_line": "DeepSeek direct model reserve",
+      "target_usd": 80,
+      "tier": "P1",
+      "channel_id": "deepseek_model_reserve",
+      "minimum_usd": 40
+    },
+    {
+      "budget_line": "Render WebApp hosting",
+      "target_usd": 25,
+      "tier": "P0",
+      "channel_id": "webapp_hosting",
+      "minimum_usd": 25
+    },
+    {
+      "budget_line": "Paperclip VPS / tunnel",
+      "target_usd": 30,
+      "tier": "P0",
+      "channel_id": "paperclip_host",
+      "minimum_usd": 30
+    },
+    {
+      "budget_line": "Firebase / Firestore / storage",
+      "target_usd": 25,
+      "tier": "P0",
+      "channel_id": "firebase_storage",
+      "minimum_usd": 25
+    },
+    {
+      "budget_line": "Redis / cache",
+      "target_usd": 10,
+      "tier": "P0",
+      "channel_id": "redis_cache",
+      "minimum_usd": 10
+    },
+    {
+      "budget_line": "Email / human reply / Slack",
+      "target_usd": 7,
+      "tier": "P0",
+      "channel_id": "support_reply_durability",
+      "minimum_usd": 7
+    },
+    {
+      "budget_line": "Analytics",
+      "target_usd": 0,
+      "tier": "P2",
+      "channel_id": "analytics",
+      "minimum_usd": 0
+    },
+    {
+      "budget_line": "Search / research APIs",
+      "target_usd": 45,
+      "tier": "P2",
+      "channel_id": "search_research",
+      "minimum_usd": 5
+    },
+    {
+      "budget_line": "Recipient evidence enrichment",
+      "target_usd": 35,
+      "tier": "P1",
+      "channel_id": "exact_site_hosted_review",
+      "minimum_usd": 20
+    },
+    {
+      "budget_line": "Profiles, listings, and owned growth ops",
+      "target_usd": 20,
+      "tier": "P2",
+      "channel_id": "owned_growth_profiles",
+      "minimum_usd": 0
+    },
+    {
+      "budget_line": "Paid city/launch experiments",
+      "target_usd": 50,
+      "tier": "P1",
+      "channel_id": "paid_city_ads",
+      "minimum_usd": 0,
+      "experiment_cap_usd": 50
+    }
+  ],
+  "human_approval_required_for": [
+    "live_spend",
+    "ads",
+    "sends",
+    "provider_jobs",
+    "city_activation",
+    "vendor_budget_change"
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "schema": "blueprint/autonomous-outcome-snapshot/v1",
+  "generated_at": "2026-06-01T12:00:00.000Z",
+  "mode": {
+    "default_local_only": true,
+    "live_read_enabled": false,
+    "live_mutation_attempted": false
+  },
+  "outcomes": [
+    {
+      "channel_id": "paperclip_runtime",
+      "budget_line": "Paperclip agent/runtime envelope",
+      "source_id": "paperclip_routine_cost_cache_telemetry",
+      "proof_level": "repo-local-export",
+      "proof_status": "current",
+      "can_affect_allocation": true,
+      "confidence": 0.3,
+      "score": 0.1,
+      "evidence_refs": [
+        "scripts/autonomy/fixtures/dynamic-budget/outcomes-p0-low-proof.json#paperclip_runtime"
+      ],
+      "metrics": {
+        "no_change_runs": 4
+      }
+    },
+    {
+      "channel_id": "exact_site_hosted_review",
+      "budget_line": "Recipient evidence enrichment",
+      "source_id": "exact_site_hosted_review_gtm_ledger",
+      "proof_level": "repo-local-export",
+      "proof_status": "current",
+      "can_affect_allocation": true,
+      "confidence": 0.85,
+      "score": 0.88,
+      "evidence_refs": [
+        "scripts/autonomy/fixtures/dynamic-budget/outcomes-p0-low-proof.json#exact_site_hosted_review"
+      ],
+      "metrics": {
+        "hosted_review_starts": 2
+      }
+    }
+  ]
+}

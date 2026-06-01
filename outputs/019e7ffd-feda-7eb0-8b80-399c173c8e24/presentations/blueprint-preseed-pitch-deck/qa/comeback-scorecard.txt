@@ -1,0 +1,14 @@
+Blueprint pre-seed deck comeback scorecard
+Generated: 2026-05-31
+
+1. Narrative: PASS - why now, exact-site problem, product wedge, market, GTM, moat, operating system, and raise frame are present.
+2. Repo truth: PASS - product claims are tied to BlueprintCapture, Pipeline, WebApp, Paperclip, pricing, GTM doctrine, and public/operational readiness boundaries.
+3. Evidence: PASS - source IDs appear in footers and speaker notes; ledger maps each ID to evidence use and claim boundary.
+4. Editability: PASS - deck is exported as PPTX with editable text, shapes, charts/diagrams, and speaker notes.
+5. Visual QA: PASS - 14 native slide previews and imported-PPTX previews render; contact sheets are retained for review.
+6. Mechanical QA: PASS - PPTX imports, zip test passes, 14 slide XML parts, 14 notes XML parts, no empty media.
+7. Blocked claims: PASS - customer traction, payments, rights-cleared named sites, hosted fulfillment, city coverage, and final financing terms remain blocked.
+
+Verification report: /Users/nijelhunt_1/workspace/Blueprint-WebApp/outputs/019e7ffd-feda-7eb0-8b80-399c173c8e24/presentations/blueprint-preseed-pitch-deck/output/blueprint-preseed-verification.md
+Source ledger: /Users/nijelhunt_1/workspace/Blueprint-WebApp/outputs/019e7ffd-feda-7eb0-8b80-399c173c8e24/presentations/blueprint-preseed-pitch-deck/output/blueprint-preseed-source-ledger.md
+PPTX: /Users/nijelhunt_1/workspace/Blueprint-WebApp/outputs/019e7ffd-feda-7eb0-8b80-399c173c8e24/presentations/blueprint-preseed-pitch-deck/output/blueprint-preseed-pitch-deck.pptx

@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-29T21:57:33.224Z",
+  "generated_at": "2026-06-01T04:08:23.174Z",
   "analyzer": "blueprint_recursive_agent_improvement_observer",
   "mode": "read_only_local_files",
   "input_roots": [
@@ -14,7 +14,7 @@
     {
       "failure_family": "human_gate_or_reply_durability_blocker",
       "severity": "critical",
-      "recurrence_count": 182,
+      "recurrence_count": 179,
       "evidence_paths": [
         "ops/paperclip/reports/autonomous-buyer-loop-blocker-closeout-2026-05-05.md:55",
         "ops/paperclip/reports/autonomy-lane-status-and-human-blocker-adoption-2026-04-12.md:82",
@@ -111,6 +111,43 @@
       "source": "deterministic_observer"
     },
     {
+      "failure_family": "unsupported_proof_claim",
+      "severity": "critical",
+      "recurrence_count": 6,
+      "evidence_paths": [
+        "labs/autoagent/README.md:94",
+        "labs/autoagent/tasks/README.md:45",
+        "labs/autoagent/harbor/preview-diagnosis/shadow/seed-preview-hosted-session-proof-gap/files/source.json:3",
+        "labs/autoagent/tasks/preview-diagnosis/cases/shadow/seed-preview-hosted-session-proof-gap/source.json:3",
+        "ops/paperclip/playbooks/security-procurement-evidence-factory.md:141",
+        "output/audits/robot-team-agent-monetization-audit-2026-05-21.md:23"
+      ],
+      "recommended_eval_or_policy_change": "Add an unsupported-proof fixture that rejects proof, readiness, or fulfillment claims unless the owning system evidence is named.",
+      "blocked_claims": [
+        "owner-system proof exists",
+        "operational proof is verified",
+        "local report text proves fulfillment"
+      ],
+      "source": "deterministic_observer"
+    },
+    {
+      "failure_family": "fake_progress_closeout",
+      "severity": "critical",
+      "recurrence_count": 3,
+      "evidence_paths": [
+        "labs/autoagent/README.md:94",
+        "labs/autoagent/harbor/support-triage/shadow/seed-support-no-change-churn/files/labels.json:9",
+        "labs/autoagent/tasks/support-triage/cases/shadow/seed-support-no-change-churn/labels.json:9"
+      ],
+      "recommended_eval_or_policy_change": "Add a fake-progress closeout fixture that rejects status-only completion, adapter-success completion, or completed-movement claims without changed proof.",
+      "blocked_claims": [
+        "status-only completion proves done",
+        "adapter success equals completion",
+        "completed movement exists without changed proof"
+      ],
+      "source": "deterministic_observer"
+    },
+    {
       "failure_family": "hosted_session_proof_gap",
       "severity": "high",
       "recurrence_count": 2,
@@ -123,6 +160,21 @@
         "hosted-session fulfillment completed",
         "package access is already open",
         "runtime/provider artifacts prove operational launch readiness"
+      ],
+      "source": "deterministic_observer"
+    },
+    {
+      "failure_family": "blocked_lane_overreach",
+      "severity": "high",
+      "recurrence_count": 1,
+      "evidence_paths": [
+        "labs/autoagent/README.md:95"
+      ],
+      "recommended_eval_or_policy_change": "Add a blocked-lane overreach fixture that keeps permanently blocked or human/policy-gated lanes out of unattended fixture, canary, or apply paths.",
+      "blocked_claims": [
+        "blocked lane can auto-apply",
+        "high-risk candidate can continue unattended",
+        "policy-gated lane is eligible for live mutation"
       ],
       "source": "deterministic_observer"
     },
@@ -170,13 +222,43 @@
         "manual queue discovery is safe evidence"
       ],
       "source": "deterministic_observer"
+    },
+    {
+      "failure_family": "process_loss_or_service_restart",
+      "severity": "medium",
+      "recurrence_count": 1,
+      "evidence_paths": [
+        "output/autonomous-org/cross-repo-autonomous-org-status-2026-05-30.md:69"
+      ],
+      "recommended_eval_or_policy_change": "Add a runner-stability failure family that routes process loss to host/runtime remediation instead of repeating agent-level retries.",
+      "blocked_claims": [
+        "agent logic caused the failure",
+        "same run can be trusted as complete",
+        "runtime host was stable during execution"
+      ],
+      "source": "deterministic_observer"
+    },
+    {
+      "failure_family": "retry_loop_without_cooldown",
+      "severity": "medium",
+      "recurrence_count": 1,
+      "evidence_paths": [
+        "labs/autoagent/tasks/README.md:45"
+      ],
+      "recommended_eval_or_policy_change": "Add a retry-loop fixture that requires cooldown, reroute, or fresh same-scope proof before repeated provider/runtime retries can continue.",
+      "blocked_claims": [
+        "same retry can continue without cooldown",
+        "repeated failure proves task logic",
+        "retry loop is safe without reroute evidence"
+      ],
+      "source": "deterministic_observer"
     }
   ],
   "top_5": [
     {
       "failure_family": "human_gate_or_reply_durability_blocker",
       "severity": "critical",
-      "recurrence_count": 182,
+      "recurrence_count": 179,
       "evidence_paths": [
         "ops/paperclip/reports/autonomous-buyer-loop-blocker-closeout-2026-05-05.md:55",
         "ops/paperclip/reports/autonomy-lane-status-and-human-blocker-adoption-2026-04-12.md:82",
@@ -273,18 +355,22 @@
       "source": "deterministic_observer"
     },
     {
-      "failure_family": "hosted_session_proof_gap",
-      "severity": "high",
-      "recurrence_count": 2,
+      "failure_family": "unsupported_proof_claim",
+      "severity": "critical",
+      "recurrence_count": 6,
       "evidence_paths": [
-        "labs/autoagent/harbor/preview-diagnosis/shadow/seed-preview-hosted-session-proof-gap/files/input.json:8",
-        "labs/autoagent/tasks/preview-diagnosis/cases/shadow/seed-preview-hosted-session-proof-gap/input.json:8"
+        "labs/autoagent/README.md:94",
+        "labs/autoagent/tasks/README.md:45",
+        "labs/autoagent/harbor/preview-diagnosis/shadow/seed-preview-hosted-session-proof-gap/files/source.json:3",
+        "labs/autoagent/tasks/preview-diagnosis/cases/shadow/seed-preview-hosted-session-proof-gap/source.json:3",
+        "ops/paperclip/playbooks/security-procurement-evidence-factory.md:141",
+        "output/audits/robot-team-agent-monetization-audit-2026-05-21.md:23"
       ],
-      "recommended_eval_or_policy_change": "Add a hosted-session proof negative control that blocks fulfillment claims unless entitlement, runtime-session, and provider/package artifacts are present.",
+      "recommended_eval_or_policy_change": "Add an unsupported-proof fixture that rejects proof, readiness, or fulfillment claims unless the owning system evidence is named.",
       "blocked_claims": [
-        "hosted-session fulfillment completed",
-        "package access is already open",
-        "runtime/provider artifacts prove operational launch readiness"
+        "owner-system proof exists",
+        "operational proof is verified",
+        "local report text proves fulfillment"
       ],
       "source": "deterministic_observer"
     }

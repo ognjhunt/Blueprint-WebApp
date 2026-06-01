@@ -1,0 +1,40 @@
+{
+  "schema": "blueprint/autonomous-outcome-snapshot/v1",
+  "generated_at": "2026-06-01T12:00:00.000Z",
+  "mode": {
+    "default_local_only": true,
+    "live_read_enabled": false,
+    "live_mutation_attempted": false
+  },
+  "outcomes": [
+    {
+      "channel_id": "paid_city_ads",
+      "budget_line": "Paid city/launch experiments",
+      "source_id": "city_launch_scorecards_preflight",
+      "proof_level": "repo-local-export",
+      "proof_status": "current",
+      "can_affect_allocation": true,
+      "confidence": 0.78,
+      "score": 0.8,
+      "evidence_refs": [
+        "scripts/autonomy/fixtures/dynamic-budget/outcomes-paid-city-ads-current.json#paid_city_ads"
+      ],
+      "metrics": {
+        "reply_conversions": 2,
+        "micro_test_ready": 1
+      }
+    },
+    {
+      "channel_id": "search_research",
+      "budget_line": "Search / research APIs",
+      "source_id": "search_research_api_spend",
+      "proof_level": "missing",
+      "proof_status": "missing",
+      "can_affect_allocation": false,
+      "confidence": 0.1,
+      "score": 0.1,
+      "evidence_refs": [],
+      "metrics": {}
+    }
+  ]
+}

@@ -1,0 +1,235 @@
+{
+  "schema": "blueprint/autonomous-org-budget-completion-audit/v1",
+  "date": "2026-06-01",
+  "objective": "Optimize Blueprint-WebApp's autonomous org and operating budget for a $500/month all-in launch/growth budget by auditing current repo/runtime truth, then implementing a repo-local, proof-bearing budget-and-cadence control plan with no live side effects.",
+  "state_claimed_for_repo_local_work": "done",
+  "state_claimed_for_live_budget_truth": "awaiting_human_decision",
+  "live_mutation_attempted": false,
+  "completion_summary": {
+    "repo_local_budget_controls_complete": true,
+    "live_billing_truth_complete": false,
+    "goal_can_be_marked_complete_without_billing_exports": false
+  },
+  "current_state_evidence": {
+    "git_status": "dirty tree remains broad; budget work touched only Paperclip config, control-room map, budget doc, and budget output artifacts",
+    "paperclip_inventory_current": {
+      "command": "npm run paperclip:control-room:inventory",
+      "declared_monthly_agent_budget_usd": 173,
+      "agents": 46,
+      "routines": 62,
+      "active_routines": 26,
+      "paused_routines": 36,
+      "true_missing_desired_skills": 0,
+      "proof_level": "repo-local"
+    },
+    "cost_cache_current": {
+      "command": "npm run agent:cost-cache-report",
+      "source": "local fixture fallback",
+      "runs_scanned": 4,
+      "estimated_reportable_cost_usd": 0.053047,
+      "live_billing_verified": false,
+      "blocker": "Firestore is not configured; pass --from-json to report on exported runs."
+    },
+    "agent_kits_current": {
+      "command": "scripts/paperclip/validate-agent-kits.sh",
+      "result": "passed"
+    },
+    "recursive_improvement_current": {
+      "command": "npm run autoagent:recursive-improve -- --dry-run",
+      "status": "no_change_report_only",
+      "selected": "human_gate_or_reply_durability_blocker",
+      "promotion": "hold",
+      "canary": "not_run_no_change_report_only",
+      "rollback": "not_run",
+      "live_mutation_attempted": false
+    },
+    "config_summary_consistency_check": {
+      "command": "node --input-type=module <inline yaml/json consistency check>",
+      "result": "passed",
+      "checked": [
+        "summary Paperclip budget matches .paperclip.yaml",
+        "summary active routine count matches .paperclip.yaml",
+        "summary paused routine count matches .paperclip.yaml",
+        "summary budget cap is $500",
+        "summary asserts no live mutation attempted"
+      ]
+    },
+    "deterministic_budget_verifier": {
+      "command": "npm run autonomy:budget:verify",
+      "result": "passed",
+      "verification_json_path": "output/autonomous-org/budget/latest/verification.json",
+      "verification_markdown_path": "output/autonomous-org/budget/latest/verification.md",
+      "checked": [
+        ".paperclip.yaml",
+        "ops/paperclip/control-room-map.md",
+        "docs/architecture/autonomous-org-500-month-operating-budget-2026-06-01.md",
+        "config/autonomy/spend-sources.yaml",
+        "output/autonomous-org/budget/latest/summary.json",
+        "output/autonomous-org/budget/latest/completion-audit.json"
+      ]
+    },
+    "dynamic_allocation_loop": {
+      "commands": [
+        "npm run autonomy:kpi-source-status",
+        "npm run autonomy:outcomes:snapshot",
+        "npm run autonomy:budget:recommend",
+        "npm run autonomy:budget:dynamic:verify",
+        "npx vitest run scripts/autonomy/dynamic-budget-allocator-core.test.ts"
+      ],
+      "result": "passed",
+      "recommendation_state": "no_reallocation_improve_proof_first",
+      "human_approval_required": false,
+      "projected_target_total_usd": 500,
+      "live_mutation_attempted": false,
+      "artifacts": [
+        "config/autonomy/outcome-sources.yaml",
+        "config/autonomy/budget-allocation-policy.yaml",
+        "output/autonomous-org/budget/outcomes/latest.json",
+        "output/autonomous-org/budget/dynamic/latest/recommendations.json",
+        "output/autonomous-org/budget/dynamic/latest/human-approval-packet.md",
+        "output/autonomous-org/budget/dynamic/latest/proposed-repo-local-budget-diff.patch",
+        "output/autonomous-org/budget/dynamic/latest/verification.json"
+      ],
+      "boundary": "The loop can recommend a repo-local budget diff only from fresh allocation-grade proof, and every spend-affecting move requires human approval before any live-system owner acts."
+    },
+    "repo_spend_control_surfaces": {
+      "result": "inspected",
+      "conclusion": "Repo has a deterministic/manual spend-control surface, but this run did not treat it as live billing proof or issue any spend request.",
+      "checked": [
+        "docs/agentic-spend-control-plane-2026-04-30.md",
+        "ops/paperclip/plugins/blueprint-automation/src/agent-spend-tool.ts",
+        "ops/paperclip/plugins/blueprint-automation/src/server-agent-spend-ledger.ts",
+        "server/utils/agentSpendPolicy.ts",
+        "server/utils/agentSpendProviders.ts",
+        "server/utils/agentSpendLedger.ts"
+      ],
+      "live_money_status": "disabled or fail-closed"
+    },
+    "typescript_check": {
+      "command": "npm run check",
+      "result": "passed"
+    },
+    "graphify_refresh": {
+      "command": "bash scripts/graphify/run-webapp-architecture-pilot.sh --no-viz",
+      "result": "passed",
+      "published_output": "graphify-out/"
+    }
+  },
+  "requirement_audit": [
+    {
+      "requirement": "Snapshot current repo state and preserve unrelated dirty/untracked work.",
+      "status": "complete",
+      "evidence": "git status --short shows a broad dirty tree; budget edits stayed in ops/paperclip/blueprint-company/.paperclip.yaml, ops/paperclip/control-room-map.md, docs/architecture/autonomous-org-500-month-operating-budget-2026-06-01.md, and output/autonomous-org/budget/latest/."
+    },
+    {
+      "requirement": "Recompute local truth with control-room inventory.",
+      "status": "complete",
+      "evidence": "npm run paperclip:control-room:inventory reports $173 declared agent budget, 26 active routines, 36 paused routines, and 0 true missing desired skills."
+    },
+    {
+      "requirement": "Recompute local truth with agent cost/cache report.",
+      "status": "complete_with_live_gap",
+      "evidence": "npm run agent:cost-cache-report ran and reported fixture-backed cost/cache data; Firestore was not configured, so live spend remains unverified."
+    },
+    {
+      "requirement": "Validate Paperclip agent kits.",
+      "status": "complete",
+      "evidence": "scripts/paperclip/validate-agent-kits.sh passed."
+    },
+    {
+      "requirement": "Run AutoAgent recursive improvement dry-run.",
+      "status": "complete",
+      "evidence": "npm run autoagent:recursive-improve -- --dry-run completed as no_change_report_only with no canary, no rollback, and no live mutation."
+    },
+    {
+      "requirement": "Build a budget ledger with current, target, variance, owner system, proof source, and proof level.",
+      "status": "complete",
+      "evidence": "docs/architecture/autonomous-org-500-month-operating-budget-2026-06-01.md and output/autonomous-org/budget/latest/summary.json include the ledger."
+    },
+    {
+      "requirement": "Classify routines and agents into P0 keep, P1 reduce cadence, and P2 pause/event-trigger.",
+      "status": "complete",
+      "evidence": "docs/architecture/autonomous-org-500-month-operating-budget-2026-06-01.md includes P0/P1/P2 classification; .paperclip.yaml implements the cadence compression."
+    },
+    {
+      "requirement": "Produce a model ladder: deterministic scripts, DeepSeek V4 Flash, DeepSeek V4 Pro, Codex.",
+      "status": "complete",
+      "evidence": "docs/architecture/autonomous-org-500-month-operating-budget-2026-06-01.md includes the model ladder and authority boundaries."
+    },
+    {
+      "requirement": "Implement only safe local repo changes with no live side effects.",
+      "status": "complete",
+      "evidence": "Only repo files and local output artifacts were edited; no live send, Notion write, Stripe/payment/payout, Render/Firebase production mutation, provider job, rights/privacy/legal claim, hosted-session fulfillment claim, city activation claim, customer/traction claim, or Operational Launch Ready claim was made."
+    },
+    {
+      "requirement": "Bring declared active monthly agent envelope under the target sub-budget.",
+      "status": "complete",
+      "evidence": ".paperclip.yaml now declares $173/month across all agents, below the $175 Paperclip sub-budget used by the $500 all-in plan."
+    },
+    {
+      "requirement": "Produce docs/architecture/autonomous-org-500-month-operating-budget-2026-06-01.md.",
+      "status": "complete",
+      "evidence": "File exists with budget ledger, compression plan, routine classification, model ladder, next goal queue, and closeout state."
+    },
+    {
+      "requirement": "Produce output/autonomous-org/budget/latest/summary.json.",
+      "status": "complete",
+      "evidence": "File exists, parses as valid JSON, and matches .paperclip.yaml for Paperclip budget and routine counts."
+    },
+    {
+      "requirement": "Produce a ranked queue of the next 5 /goal commands.",
+      "status": "complete",
+      "evidence": "The ranked queue is present in both the architecture doc and summary.json."
+    },
+    {
+      "requirement": "Add a dynamic allocator that can decide whether to recommend moving budget based on what is working, without autonomously spending.",
+      "status": "complete_for_repo_local_work",
+      "evidence": "config/autonomy/budget-allocation-policy.yaml, config/autonomy/outcome-sources.yaml, scripts/autonomy/collect-outcome-snapshot.ts, scripts/autonomy/recommend-budget-reallocation.ts, scripts/autonomy/dynamic-budget-allocator-core.ts, and scripts/autonomy/verify-dynamic-budget-allocator.ts implement observe -> outcome snapshot -> score -> recommend -> human approval packet -> proposed repo-local diff. npm run autonomy:budget:dynamic:verify passed, and the current recommendation is no_reallocation_improve_proof_first because current proof does not clear allocation thresholds."
+    },
+    {
+      "requirement": "Close using docs/autonomous-loop-evidence-checklist-2026-05-03.md.",
+      "status": "complete_for_repo_local_work",
+      "evidence": "The architecture doc, completion audit JSON, and closeout markdown include objective, proof paths, command outputs, requirement coverage, next action, retry/resume condition, and residual risk."
+    },
+    {
+      "requirement": "Verify current billing locally or stop when it cannot be verified locally.",
+      "status": "awaiting_human_decision",
+      "evidence": "OpenAI API Costs are live-verified at $0.00 in output/autonomous-org/budget/spend-snapshots/keychain-live-read-2026-06-01/latest.json. Other provider billing exports were not supplied or are usage/credit/account proof only, so live billing remains incomplete overall."
+    },
+    {
+      "requirement": "Provide a repeatable local verifier for the repo-local budget/cadence packet.",
+      "status": "complete",
+      "evidence": "npm run autonomy:budget:verify passed and wrote output/autonomous-org/budget/latest/verification.json plus verification.md."
+    },
+    {
+      "requirement": "Inspect repo-native spend-control surfaces before proposing city/ad spend.",
+      "status": "complete_with_live_gap",
+      "evidence": "docs/agentic-spend-control-plane-2026-04-30.md, blueprint-request-spend helpers, agentSpendPolicy, agentSpendProviders, and agentSpendLedger were inspected. They provide deterministic/manual spend request control, but not current vendor billing proof."
+    }
+  ],
+  "live_proof_gaps": [
+    "DeepSeek direct usage export and OpenRouter billing if used",
+    "Render billing",
+    "DigitalOcean/Cloudflare billing",
+    "Firebase/Firestore/GCS billing",
+    "Redis billing",
+    "SendGrid/Gmail/Slack billing and sender readiness",
+    "Analytics billing and KPI owner-system proof",
+    "Search/research API billing",
+    "Recipient evidence enrichment receipts or provider exports",
+    "Profiles/listings receipts or provider exports",
+    "Ad account spend and paused-draft proof",
+    "Live Paperclip routine execution after repo config propagation"
+  ],
+  "resume_condition": "Attach current billing exports or dashboard proof for the live proof gaps, excluding the Codex OAuth/Pro subscription seat from the $500 launch/growth envelope, then rerun the local budget reconciliation without live mutation.",
+  "do_not_claim": [
+    "live billing verified",
+    "Operational Launch Ready",
+    "live Paperclip runtime updated",
+    "live sends configured or sent",
+    "hosted-session fulfillment",
+    "rights/privacy/legal clearance",
+    "city activation",
+    "customer traction"
+  ]
+}

@@ -1,6 +1,6 @@
 # Blueprint Brand Polish QA Report
 
-Generated: 2026-05-28T19:48:26.557Z
+Generated: 2026-06-01T00:01:19.795Z
 Base URL: http://127.0.0.1:4173
 Command: `npm run qa:polish`
 Boundary: local Playwright dev server only. No live sends, provider calls, payments, deploys, or Notion writes.
@@ -89,9 +89,9 @@ Boundary: local Playwright dev server only. No live sends, provider calls, payme
 | /contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=faq-bottom | pass | 200 | /faq |
 | /contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=faq-hero | pass | 200 | /faq |
 | /contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=header | pass | 200 | /, /about, /careers, /contact, /faq, /pricing, /product, /proof, /updates, /world-models |
-| /contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-bottom&utm_source=homepage&utm_medium=website&utm_campaign=home_robot_team_conversion_v1&utm_content=street_view_grounds%3Ahome-bottom | pass | 200 | / |
-| /contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-decision-path&utm_source=homepage&utm_medium=website&utm_campaign=home_robot_team_conversion_v1&utm_content=street_view_grounds%3Ahome-decision-path | pass | 200 | / |
-| /contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-hero-primary&utm_source=homepage&utm_medium=website&utm_campaign=home_robot_team_conversion_v1&utm_content=street_view_grounds%3Ahome-hero-primary | pass | 200 | / |
+| /contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-bottom&utm_source=homepage&utm_medium=website&utm_campaign=home_robot_team_conversion_v1&utm_content=outdoor_street_view%3Ahome-bottom | pass | 200 | / |
+| /contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-decision-path&utm_source=homepage&utm_medium=website&utm_campaign=home_robot_team_conversion_v1&utm_content=outdoor_street_view%3Ahome-decision-path | pass | 200 | / |
+| /contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-hero-primary&utm_source=homepage&utm_medium=website&utm_campaign=home_robot_team_conversion_v1&utm_content=outdoor_street_view%3Ahome-hero-primary | pass | 200 | / |
 | /contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-persona-robot-team | pass | 200 | / |
 | /contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-product-review | pass | 200 | / |
 | /contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=pricing | pass | 200 | /pricing |

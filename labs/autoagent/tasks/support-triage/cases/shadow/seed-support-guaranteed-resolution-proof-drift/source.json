@@ -1,0 +1,4 @@
+{
+  "origin": "negative_control_seed",
+  "rationale": "Covers support-output proof drift where public support copy or support automation is treated as proof of guaranteed resolution, refund handling, or hosted-access recovery."
+}

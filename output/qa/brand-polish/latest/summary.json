@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-28T19:48:26.557Z",
+  "generatedAt": "2026-06-01T00:01:19.795Z",
   "baseUrl": "http://127.0.0.1:4173",
   "routeResults": [
     {
@@ -17,7 +17,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "10169 visible text characters"
+          "detail": "10134 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -126,7 +126,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "9877 visible text characters"
+          "detail": "9615 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -235,7 +235,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "6331 visible text characters"
+          "detail": "6318 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -308,7 +308,7 @@
           "detail": "No broad prelaunch or apology language found"
         },
         {
-          "name": "CTA: Request hosted review",
+          "name": "CTA: Book hosted review",
           "status": "pass",
           "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=product"
         },
@@ -344,7 +344,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "6016 visible text characters"
+          "detail": "5741 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -417,7 +417,7 @@
           "detail": "No broad prelaunch or apology language found"
         },
         {
-          "name": "CTA: Request hosted review",
+          "name": "CTA: Book hosted review",
           "status": "pass",
           "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=product"
         },
@@ -562,7 +562,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "8256 visible text characters"
+          "detail": "7994 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -671,7 +671,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "9355 visible text characters"
+          "detail": "10018 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -780,7 +780,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "9018 visible text characters"
+          "detail": "9943 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -820,7 +820,7 @@
         {
           "name": "No horizontal overflow",
           "status": "pass",
-          "detail": "0px overflow"
+          "detail": "2px overflow"
         },
         {
           "name": "Visible images carry alt attributes",
@@ -889,7 +889,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "6502 visible text characters"
+          "detail": "6240 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -1107,7 +1107,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "9625 visible text characters"
+          "detail": "9363 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -1325,7 +1325,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "4635 visible text characters"
+          "detail": "4373 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -1434,7 +1434,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "4559 visible text characters"
+          "detail": "4297 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -1543,7 +1543,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "3754 visible text characters"
+          "detail": "3473 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -1652,7 +1652,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "3417 visible text characters"
+          "detail": "3398 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -1761,7 +1761,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "8160 visible text characters"
+          "detail": "7898 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -2405,7 +2405,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "3615 visible text characters"
+          "detail": "3353 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -2514,7 +2514,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "3540 visible text characters"
+          "detail": "3278 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -3025,7 +3025,7 @@
       ]
     },
     {
-      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-bottom&utm_source=homepage&utm_medium=website&utm_campaign=home_robot_team_conversion_v1&utm_content=street_view_grounds%3Ahome-bottom",
+      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-bottom&utm_source=homepage&utm_medium=website&utm_campaign=home_robot_team_conversion_v1&utm_content=outdoor_street_view%3Ahome-bottom",
       "status": "pass",
       "httpStatus": 200,
       "sourceRoutes": [
@@ -3033,7 +3033,7 @@
       ]
     },
     {
-      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-decision-path&utm_source=homepage&utm_medium=website&utm_campaign=home_robot_team_conversion_v1&utm_content=street_view_grounds%3Ahome-decision-path",
+      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-decision-path&utm_source=homepage&utm_medium=website&utm_campaign=home_robot_team_conversion_v1&utm_content=outdoor_street_view%3Ahome-decision-path",
       "status": "pass",
       "httpStatus": 200,
       "sourceRoutes": [
@@ -3041,7 +3041,7 @@
       ]
     },
     {
-      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-hero-primary&utm_source=homepage&utm_medium=website&utm_campaign=home_robot_team_conversion_v1&utm_content=street_view_grounds%3Ahome-hero-primary",
+      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-hero-primary&utm_source=homepage&utm_medium=website&utm_campaign=home_robot_team_conversion_v1&utm_content=outdoor_street_view%3Ahome-hero-primary",
       "status": "pass",
       "httpStatus": 200,
       "sourceRoutes": [

@@ -1,0 +1,17 @@
+{
+  "automation_status": "blocked",
+  "block_reason_code": "support_guarantee_proof_not_verified",
+  "retryable": false,
+  "category": "technical_issue",
+  "queue": "support_claim_review",
+  "priority": "high",
+  "confidence": 0.9,
+  "requires_human_review": true,
+  "next_action": "Require support-loop/SLA evidence and operator review before any guaranteed-resolution, refund, hosted-access, or no-human-review claim.",
+  "rationale": "Public support copy and local support automation output do not prove guaranteed resolution, refund authority, hosted-access recovery, or permission to bypass human review.",
+  "internal_summary": "Support guarantees must stay proof-gated; refund, account-access, and hosted-access claims require owning-system evidence and human review.",
+  "suggested_response": {
+    "subject": "Support guarantee claim needs proof",
+    "body": "Keep the request in review. Public support copy does not prove guaranteed resolution, refund authority, hosted-access recovery, or no-human-review support outcomes."
+  }
+}

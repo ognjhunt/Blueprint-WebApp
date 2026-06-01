@@ -1,0 +1,17 @@
+Macro-layout cadence:
+1. Cover with image field and proof rail.
+2. Evidence grid with metrics and category proof.
+3. Evaluation gap diagram.
+4. Split contract comparison.
+5. Workflow rail with image accent.
+6. Architecture layer map.
+7. Monetization bridge.
+8. Market model table.
+9. ICP/vertical map.
+10. GTM loop.
+11. Flywheel.
+12. Operating-loop map.
+13. Roadmap/use-of-funds.
+14. Evidence appendix.
+
+No three consecutive slides share the same composition. No customer or partner identity assets are used.

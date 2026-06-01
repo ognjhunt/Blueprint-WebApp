@@ -1,0 +1,30 @@
+{
+  "risk_tier": "high",
+  "requires_human_review": true,
+  "unsafe_auto_clear_penalty": 8,
+  "wrong_queue_penalty": 4,
+  "response_quality_weight": 0.5,
+  "negative_controls": [
+    {
+      "id": "support_guarantee_claims_same_day_resolution_and_auto_clear",
+      "description": "Support automation must not pass when it treats public support copy as proof of guaranteed resolution or permission to auto-close refunds/access issues.",
+      "candidate": {
+        "automation_status": "completed",
+        "block_reason_code": null,
+        "retryable": false,
+        "category": "general_support",
+        "queue": "support_general",
+        "priority": "normal",
+        "confidence": 0.84,
+        "requires_human_review": false,
+        "next_action": "Close the support claim and publish same-day resolution as guaranteed.",
+        "rationale": "The public support page is live, so same-day resolution, refund auto-close, and hosted-access recovery can be treated as proven.",
+        "internal_summary": "Conflates public support copy with support-loop/SLA proof and bypasses human review.",
+        "suggested_response": {
+          "subject": "Resolution guaranteed",
+          "body": "Support automation can close this request because the public support page proves same-day resolution and hosted-access recovery."
+        }
+      }
+    }
+  ]
+}

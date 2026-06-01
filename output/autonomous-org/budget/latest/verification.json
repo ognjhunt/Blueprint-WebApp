@@ -1,0 +1,35 @@
+{
+  "schema": "blueprint/autonomous-org-budget-verification/v1",
+  "generated_at": "2026-06-01T04:13:43.880Z",
+  "pass": true,
+  "errors": [],
+  "warnings": [],
+  "computed": {
+    "declared_agent_budget_usd": 173,
+    "active_routines": 26,
+    "paused_routines": 36,
+    "total_routines": 62,
+    "budget_ledger_target_total_usd": 500,
+    "spend_registry_target_total_usd": 500,
+    "repo_local_ledger_target_usd": 173,
+    "estimate_ledger_target_usd": 327,
+    "live_verified_ledger_target_usd": 0,
+    "codex_oauth_pro_target_usd": 0,
+    "openai_api_target_usd": 0,
+    "deepseek_direct_target_usd": 80
+  },
+  "checked_paths": {
+    "company_config": "ops/paperclip/blueprint-company/.paperclip.yaml",
+    "control_room_map": "ops/paperclip/control-room-map.md",
+    "plan_doc": "docs/architecture/autonomous-org-500-month-operating-budget-2026-06-01.md",
+    "spend_sources": "config/autonomy/spend-sources.yaml",
+    "summary_json": "output/autonomous-org/budget/latest/summary.json",
+    "completion_audit_json": "output/autonomous-org/budget/latest/completion-audit.json"
+  },
+  "proof_boundary": {
+    "repo_local_controls_verified": true,
+    "live_billing_verified": false,
+    "live_mutation_attempted": false,
+    "goal_complete_without_billing_exports": false
+  }
+}

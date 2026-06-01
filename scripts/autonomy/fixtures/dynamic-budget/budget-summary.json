@@ -1,0 +1,15 @@
+{
+  "schema": "blueprint/autonomous-org-budget-summary/v1",
+  "budget_cap_usd": 500,
+  "target_total_usd": 500,
+  "proof_scope": {
+    "repo_local_controls_implemented": true,
+    "live_billing_verified": false,
+    "live_mutation_attempted": false,
+    "operational_launch_ready_claimed": false
+  },
+  "paperclip_compression": {
+    "declared_agent_budget_after_usd": 173,
+    "declared_agent_budget_target_usd": 175
+  }
+}

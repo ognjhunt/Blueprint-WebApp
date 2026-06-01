@@ -4,7 +4,7 @@ test('world models page exposes hosted access and package paths', async ({ page 
   await page.goto('/world-models', { waitUntil: 'domcontentloaded' });
 
   await expect(
-    page.getByRole('heading', { name: /Find the indoor world model your robot team needs\./i }),
+    page.getByRole('heading', { name: /Browse exact-site world models\./i }),
   ).toBeVisible();
   const search = page.getByPlaceholder(/Search an address, site, city, store type, workflow, or robot task/i);
   await expect(search).toBeVisible();

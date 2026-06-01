@@ -36,10 +36,10 @@ Current authored inventory from `ops/paperclip/blueprint-company/.paperclip.yaml
 | Codex agents | 10 |
 | Codex `/goal` enabled agents | 8 |
 | Codex `/goal` disabled agents | 2 |
-| Declared monthly agent budget | $1,115.00 |
+| Declared monthly agent budget | $173.00 |
 | Routines | 62 |
-| Active routines | 36 |
-| Paused routines | 26 |
+| Active routines | 26 |
+| Paused routines | 36 |
 | Routine concurrency policy | `coalesce_if_active` on all authored routines |
 | Routine catch-up policy | `skip_missed` on all authored routines |
 | Agents without `desiredSkills` | 0 |
@@ -171,7 +171,7 @@ Default fast path for true founder blockers remains Slack DM to `Nijel Hunt`. De
 
 ## Cost And Routine Visibility
 
-The package-level budget is declared on agents as `budgetMonthlyCents`; current total is $1,115.00/month. This is a budget envelope, not observed spend.
+The package-level budget is declared on agents as `budgetMonthlyCents`; current total is $173.00/month. This is a budget envelope, not observed spend.
 
 Observed or estimated spend and waste signals live in code/runtime surfaces:
 
@@ -183,6 +183,26 @@ Observed or estimated spend and waste signals live in code/runtime surfaces:
 - All authored routines use `coalesce_if_active` and `skip_missed`, so the package is designed to suppress overlapping routine churn.
 
 Do not solve cost by blindly downgrading models. First inspect cache churn, duplicate suppression, no-change closeouts, routine cadence, and whether an issue needs a direct specialist or orchestrated path.
+
+## Dynamic Allocation Loop
+
+The budget allocator runs as a repo-local recommendation loop, not a spending routine:
+
+`observe -> outcome snapshot -> score -> recommend -> human approval packet -> approved repo-local diff -> live system handled separately`
+
+Ownership:
+
+- `finance-support-agent`: spend snapshot, budget cap, vendor proof gaps, and human approval packet finance posture.
+- `growth-lead`: Exact-Site Hosted Review, channel, city, ads, and demand outcome interpretation.
+- `blueprint-chief-of-staff`: blocker id, human packet routing, reply correlation, and resume handoff after approval.
+
+Local commands:
+
+- `npm run autonomy:outcomes:snapshot`
+- `npm run autonomy:budget:recommend`
+- `npm run autonomy:budget:dynamic:verify`
+
+The loop can recommend a bounded repo-local move such as "move `$40` from low-proof channel X to high-performing channel Y" only when fresh allocation-grade evidence clears `config/autonomy/budget-allocation-policy.yaml`. Every paid or live-system recommendation is `approval_required`. The loop must not mutate live spend, ads, sends, providers, Stripe, Render, Firebase, Notion, Paperclip production state, hosted sessions, rights/legal state, city activation, or customer/traction claims.
 
 ## Specialist Responsibility Boundaries
 

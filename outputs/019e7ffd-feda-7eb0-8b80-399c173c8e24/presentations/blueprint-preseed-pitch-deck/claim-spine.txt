@@ -1,0 +1,19 @@
+Thesis: Blueprint is the site-data and hosted-evaluation layer for indoor physical AI: capture-backed exact-site world-model packages, rights/provenance, and buyer review before robots enter the field.
+Audience: Pre-seed investors evaluating category timing, product wedge, market shape, and proof discipline.
+Arc: why now -> exact-site problem -> Blueprint product system -> market and wedge economics -> GTM loop -> moat -> raise frame -> evidence boundaries.
+
+Slide list:
+1. Blueprint turns exact indoor sites into world-model products. Proof: wedge/product/boundary rail. Sources: R1 R2 R7.
+2. Robots are moving into places that need site-specific proof. Proof: robotics/world-model evidence grid. Sources: W1 W2 W3 W8 W9 W10 W11.
+3. The missing layer is not another demo; it is exact-site decision evidence. Proof: evaluation gap diagram. Sources: R1 R4 R7 W7.
+4. Model backends can swap; site truth compounds. Proof: swappable/stable contract split. Sources: R2 R5 W10.
+5. Exact-Site Hosted Review is the wedge. Proof: capture -> package -> hosted review -> export/recapture workflow. Sources: R4 R5.
+6. Blueprint is already shaped as a multi-repo product system. Proof: platform architecture map. Sources: R1 R2 R8.
+7. The first monetization path is package access plus hosted review. Proof: pricing bridge. Sources: R3 R7.
+8. The serviceable market is modeled from exact-site package demand, not robot hardware. Proof: TAM/SAM/SOM table. Sources: M1 W3 W4 W12 W13 W14 W15.
+9. Start where site specificity is already expensive. Proof: ICP/vertical map and evidence rail. Sources: W2 W3 W4 W5 W11.
+10. GTM is one site, one workflow, one proof artifact, one next step. Proof: two-track GTM loop. Sources: R6.
+11. The moat is the capture -> package -> buyer usage -> more capture flywheel. Proof: flywheel diagram. Sources: R1 R2 R5.
+12. The operating system turns the wedge into repeatable proof. Proof: product/proof, demand/sales, reliability loops. Sources: R6 R8.
+13. The pre-seed raise should fund wedge proof into repeatability. Proof: roadmap and use-of-funds lanes. Sources: R2 R6.
+14. Evidence boundaries are explicit before this deck leaves the repo. Proof: blocked claims + source ledger. Sources: R7 plus source ledger.

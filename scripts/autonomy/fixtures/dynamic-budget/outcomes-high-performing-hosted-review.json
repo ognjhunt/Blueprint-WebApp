@@ -1,0 +1,45 @@
+{
+  "schema": "blueprint/autonomous-outcome-snapshot/v1",
+  "generated_at": "2026-06-01T12:00:00.000Z",
+  "mode": {
+    "default_local_only": true,
+    "live_read_enabled": false,
+    "live_mutation_attempted": false
+  },
+  "outcomes": [
+    {
+      "channel_id": "exact_site_hosted_review",
+      "budget_line": "Recipient evidence enrichment",
+      "source_id": "exact_site_hosted_review_gtm_ledger",
+      "proof_level": "repo-local-export",
+      "proof_status": "current",
+      "can_affect_allocation": true,
+      "observed_at": "2026-06-01T10:00:00.000Z",
+      "stale_after_hours": 168,
+      "confidence": 0.82,
+      "score": 0.86,
+      "evidence_refs": [
+        "scripts/autonomy/fixtures/dynamic-budget/outcomes-high-performing-hosted-review.json#exact_site_hosted_review"
+      ],
+      "metrics": {
+        "recipient_backed_targets": 30,
+        "approval_ready_targets": 30,
+        "proof_ready_artifacts": 3,
+        "hosted_review_starts": 2,
+        "qualified_calls": 1
+      }
+    },
+    {
+      "channel_id": "search_research",
+      "budget_line": "Search / research APIs",
+      "source_id": "search_research_api_spend",
+      "proof_level": "missing",
+      "proof_status": "missing",
+      "can_affect_allocation": false,
+      "confidence": 0.2,
+      "score": 0.2,
+      "evidence_refs": [],
+      "metrics": {}
+    }
+  ]
+}

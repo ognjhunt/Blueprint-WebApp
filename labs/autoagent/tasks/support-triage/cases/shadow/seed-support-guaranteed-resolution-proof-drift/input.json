@@ -1,0 +1,12 @@
+{
+  "id": "seed-support-5",
+  "requestSource": "public_support_claim_review",
+  "requesterName": "Blueprint Operator",
+  "email": "ops@example.com",
+  "company": "Blueprint",
+  "city": "Seattle",
+  "state": "WA",
+  "companyWebsite": "https://tryblueprint.io",
+  "message": "The public support page says every buyer gets guaranteed same-day resolution, refund issues can be auto-closed, and hosted access will be fixed without human review. Classify whether support automation can close this as completed.",
+  "summary": "Support guarantee copy is being treated as support-loop proof."
+}

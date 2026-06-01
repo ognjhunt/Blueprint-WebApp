@@ -1,0 +1,411 @@
+{
+  "schema": "blueprint/autonomous-outcome-snapshot/v1",
+  "generated_at": "2026-06-01T04:09:18.442Z",
+  "registry_path": "config/autonomy/outcome-sources.yaml",
+  "mode": {
+    "default_local_only": true,
+    "live_read_enabled": false,
+    "live_mutation_attempted": false
+  },
+  "sources": [
+    {
+      "id": "paperclip_routine_cost_cache_telemetry",
+      "label": "Paperclip routine, cost, and cache telemetry",
+      "channel_id": "paperclip_runtime",
+      "budget_line": "Paperclip agent/runtime envelope",
+      "owner_system": "Paperclip routine output and repo cost fixtures",
+      "adapter": "agent_cost_cache_report",
+      "local_path": "server/tests/fixtures/agent-cost-cache-runs.json",
+      "status": "stale",
+      "proof_level": "fixture",
+      "proof_status": "stale",
+      "can_affect_allocation": false,
+      "observed_at": "2026-05-15T02:22:40.898Z",
+      "stale_after_hours": 168,
+      "evidence_refs": [
+        "server/tests/fixtures/agent-cost-cache-runs.json#paperclip_routine_cost_cache_telemetry"
+      ],
+      "missing_inputs": [],
+      "notes": [
+        "Fixture telemetry can identify repeated no-change/cache waste, but cannot justify live spend changes."
+      ]
+    },
+    {
+      "id": "spend_snapshot_output",
+      "label": "Autonomous spend snapshot output",
+      "channel_id": "spend_observability",
+      "budget_line": "Search / research APIs",
+      "owner_system": "repo-local spend snapshot collector",
+      "adapter": "spend_snapshot",
+      "local_path": "output/autonomous-org/budget/spend-snapshots/latest.json",
+      "status": "loaded",
+      "proof_level": "repo-local-export",
+      "proof_status": "current",
+      "can_affect_allocation": false,
+      "observed_at": "2026-06-01T03:58:00.519Z",
+      "stale_after_hours": 24,
+      "evidence_refs": [
+        "output/autonomous-org/budget/spend-snapshots/latest.json#spend_snapshot_output"
+      ],
+      "missing_inputs": [],
+      "notes": [
+        "Spend snapshots constrain the allocator; they are not outcome performance by themselves."
+      ]
+    },
+    {
+      "id": "kpi_source_status",
+      "label": "KPI source status",
+      "channel_id": "product_proof_intake_support_reliability",
+      "budget_line": "Paperclip agent/runtime envelope",
+      "owner_system": "WebApp KPI source-status contract",
+      "adapter": "kpi_source_status",
+      "local_path": "output/autonomous-org/readiness/latest/kpi-source-status/kpi-source-status.json",
+      "status": "loaded",
+      "proof_level": "repo-local-export",
+      "proof_status": "current",
+      "can_affect_allocation": true,
+      "observed_at": "2026-05-30T12:00:00.000Z",
+      "stale_after_hours": 168,
+      "evidence_refs": [
+        "output/autonomous-org/readiness/latest/kpi-source-status/kpi-source-status.json#kpi_source_status"
+      ],
+      "missing_inputs": [],
+      "notes": [
+        "KPI rows can protect P0 reliability and proof lines, but Source needed rows cannot justify spend increases."
+      ]
+    },
+    {
+      "id": "operating_graph_events",
+      "label": "Operating graph events and buyer outcomes",
+      "channel_id": "product_proof_intake_support_reliability",
+      "budget_line": "Paperclip agent/runtime envelope",
+      "owner_system": "WebApp operating graph projection",
+      "adapter": "operating_graph_events",
+      "local_path": "output/autonomous-org/operating-graph/latest/events.json",
+      "status": "missing",
+      "proof_level": "missing",
+      "proof_status": "missing",
+      "can_affect_allocation": false,
+      "observed_at": null,
+      "stale_after_hours": 72,
+      "evidence_refs": [],
+      "missing_inputs": [
+        "Local operating graph event export with buyer outcome stages"
+      ],
+      "notes": [
+        "Missing operating graph events keep buyer-outcome performance advisory only."
+      ]
+    },
+    {
+      "id": "exact_site_hosted_review_gtm_ledger",
+      "label": "Exact-Site Hosted Review GTM ledger and buyer loop",
+      "channel_id": "exact_site_hosted_review",
+      "budget_line": "Recipient evidence enrichment",
+      "owner_system": "Paperclip GTM ledger and buyer-loop reports",
+      "adapter": "exact_site_hosted_review_buyer_loop",
+      "local_path": "ops/paperclip/reports/exact-site-hosted-review-buyer-loop/global/2026-05-28/buyer-loop-manifest.json",
+      "status": "loaded",
+      "proof_level": "repo-local-export",
+      "proof_status": "current",
+      "can_affect_allocation": true,
+      "observed_at": "2026-05-28T00:00:00.000Z",
+      "stale_after_hours": 168,
+      "evidence_refs": [
+        "ops/paperclip/reports/exact-site-hosted-review-buyer-loop/global/2026-05-28/buyer-loop-manifest.json#exact_site_hosted_review_gtm_ledger"
+      ],
+      "missing_inputs": [],
+      "notes": [
+        "Target and approval readiness can justify proof work; actual money movement still requires human approval."
+      ]
+    },
+    {
+      "id": "city_launch_scorecards_preflight",
+      "label": "City-launch scorecards and preflight outputs",
+      "channel_id": "paid_city_ads",
+      "budget_line": "Paid city/launch experiments",
+      "owner_system": "city-launch scorecard/preflight artifacts",
+      "adapter": "city_launch_scorecards",
+      "local_path": "ops/paperclip/playbooks/city-launch-durham-nc-scorecard-windows.json",
+      "status": "loaded",
+      "proof_level": "repo-local-export",
+      "proof_status": "current",
+      "can_affect_allocation": true,
+      "observed_at": "2026-05-27T02:51:38.061Z",
+      "stale_after_hours": 168,
+      "evidence_refs": [
+        "ops/paperclip/playbooks/city-launch-durham-nc-scorecard-windows.json#city_launch_scorecards_preflight"
+      ],
+      "missing_inputs": [],
+      "notes": [
+        "City-launch scorecards can request a human approval packet; they must not activate a city or launch ads."
+      ]
+    },
+    {
+      "id": "analytics_posthog_export",
+      "label": "Analytics / PostHog export or manual fixture",
+      "channel_id": "analytics",
+      "budget_line": "Analytics",
+      "owner_system": "PostHog, GA4, or Firestore analytics mirror export",
+      "adapter": "manual_outcome_export",
+      "local_path": "output/autonomous-org/budget/outcome-exports/posthog/latest.json",
+      "status": "missing",
+      "proof_level": "missing",
+      "proof_status": "missing",
+      "can_affect_allocation": false,
+      "observed_at": null,
+      "stale_after_hours": 24,
+      "evidence_refs": [],
+      "missing_inputs": [
+        "Local PostHog, GA4, or Firestore analytics export"
+      ],
+      "notes": [
+        "Missing analytics export keeps paid analytics at $0."
+      ]
+    },
+    {
+      "id": "ad_spend_export",
+      "label": "Ad spend and ad outcome export",
+      "channel_id": "paid_city_ads",
+      "budget_line": "Paid city/launch experiments",
+      "owner_system": "Meta Ads, Google Ads, or approved ad export",
+      "adapter": "manual_outcome_export",
+      "local_path": "output/autonomous-org/budget/outcome-exports/ads/latest.json",
+      "status": "missing",
+      "proof_level": "missing",
+      "proof_status": "missing",
+      "can_affect_allocation": false,
+      "observed_at": null,
+      "stale_after_hours": 24,
+      "evidence_refs": [],
+      "missing_inputs": [
+        "Read-only ad spend/outcome export",
+        "Human approval before any ad launch or budget change"
+      ],
+      "notes": [
+        "This source must never create, edit, or launch ads."
+      ]
+    },
+    {
+      "id": "support_intake_volume_artifacts",
+      "label": "Support and intake volume artifacts",
+      "channel_id": "support_reply_durability",
+      "budget_line": "Email / human reply / Slack",
+      "owner_system": "inbound request, support triage, and human-reply artifacts",
+      "adapter": "support_intake_volume",
+      "local_path": "output/autonomous-org/kpi-source-status-latest/kpi-source-status.json",
+      "status": "loaded",
+      "proof_level": "repo-local-export",
+      "proof_status": "current",
+      "can_affect_allocation": true,
+      "observed_at": "2026-05-30T12:00:00.000Z",
+      "stale_after_hours": 168,
+      "evidence_refs": [
+        "output/autonomous-org/kpi-source-status-latest/kpi-source-status.json#support_intake_volume_artifacts"
+      ],
+      "missing_inputs": [],
+      "notes": [
+        "Support and intake evidence protects P0 reply durability; live sends remain disallowed."
+      ]
+    }
+  ],
+  "outcomes": [
+    {
+      "channel_id": "paperclip_runtime",
+      "budget_line": "Paperclip agent/runtime envelope",
+      "source_id": "paperclip_routine_cost_cache_telemetry",
+      "proof_level": "fixture",
+      "proof_status": "stale",
+      "can_affect_allocation": false,
+      "observed_at": "2026-05-15T02:22:40.898Z",
+      "stale_after_hours": 168,
+      "confidence": 0,
+      "score": 0,
+      "evidence_refs": [
+        "server/tests/fixtures/agent-cost-cache-runs.json#paperclip_routine_cost_cache_telemetry"
+      ],
+      "metrics": {},
+      "missing_inputs": []
+    },
+    {
+      "channel_id": "spend_observability",
+      "budget_line": "Search / research APIs",
+      "source_id": "spend_snapshot_output",
+      "proof_level": "repo-local-export",
+      "proof_status": "current",
+      "can_affect_allocation": false,
+      "observed_at": "2026-06-01T03:58:00.519Z",
+      "stale_after_hours": 24,
+      "confidence": 0.55,
+      "score": 0,
+      "evidence_refs": [
+        "output/autonomous-org/budget/spend-snapshots/latest.json#spend_snapshot_output"
+      ],
+      "metrics": {
+        "target_usd": 500,
+        "live_billing_verified_usd": 0,
+        "missing_or_unverified_target_usd": 500
+      },
+      "missing_inputs": []
+    },
+    {
+      "channel_id": "product_proof_intake_support_reliability",
+      "budget_line": "Paperclip agent/runtime envelope",
+      "source_id": "kpi_source_status",
+      "proof_level": "repo-local-export",
+      "proof_status": "current",
+      "can_affect_allocation": true,
+      "observed_at": "2026-05-30T12:00:00.000Z",
+      "stale_after_hours": 168,
+      "confidence": 0.65,
+      "score": 0.5,
+      "evidence_refs": [
+        "output/autonomous-org/readiness/latest/kpi-source-status/kpi-source-status.json#kpi_source_status"
+      ],
+      "metrics": {
+        "sourced_rows": 4,
+        "source_needed_rows": 4,
+        "total_rows": 8
+      },
+      "missing_inputs": []
+    },
+    {
+      "channel_id": "product_proof_intake_support_reliability",
+      "budget_line": "Paperclip agent/runtime envelope",
+      "source_id": "operating_graph_events",
+      "proof_level": "missing",
+      "proof_status": "missing",
+      "can_affect_allocation": false,
+      "observed_at": null,
+      "stale_after_hours": 72,
+      "confidence": 0,
+      "score": 0,
+      "evidence_refs": [],
+      "metrics": {},
+      "missing_inputs": [
+        "Local operating graph event export with buyer outcome stages"
+      ]
+    },
+    {
+      "channel_id": "exact_site_hosted_review",
+      "budget_line": "Recipient evidence enrichment",
+      "source_id": "exact_site_hosted_review_gtm_ledger",
+      "proof_level": "repo-local-export",
+      "proof_status": "current",
+      "can_affect_allocation": true,
+      "observed_at": "2026-05-28T00:00:00.000Z",
+      "stale_after_hours": 168,
+      "confidence": 0.68,
+      "score": 0.62,
+      "evidence_refs": [
+        "ops/paperclip/reports/exact-site-hosted-review-buyer-loop/global/2026-05-28/buyer-loop-manifest.json#exact_site_hosted_review_gtm_ledger"
+      ],
+      "metrics": {
+        "replies": 0,
+        "hosted_review_starts": 0,
+        "qualified_calls": 0,
+        "approval_ready_targets": 30,
+        "proof_ready_artifacts": 3,
+        "recipient_backed_targets": 30
+      },
+      "missing_inputs": []
+    },
+    {
+      "channel_id": "paid_city_ads",
+      "budget_line": "Paid city/launch experiments",
+      "source_id": "city_launch_scorecards_preflight",
+      "proof_level": "repo-local-export",
+      "proof_status": "current",
+      "can_affect_allocation": true,
+      "observed_at": "2026-05-27T02:51:38.061Z",
+      "stale_after_hours": 168,
+      "confidence": 0.45,
+      "score": 0.25,
+      "evidence_refs": [
+        "ops/paperclip/playbooks/city-launch-durham-nc-scorecard-windows.json#city_launch_scorecards_preflight"
+      ],
+      "metrics": {
+        "scorecard_windows": 3,
+        "completed_windows": 0,
+        "status": "scheduled_not_due"
+      },
+      "missing_inputs": []
+    },
+    {
+      "channel_id": "analytics",
+      "budget_line": "Analytics",
+      "source_id": "analytics_posthog_export",
+      "proof_level": "missing",
+      "proof_status": "missing",
+      "can_affect_allocation": false,
+      "observed_at": null,
+      "stale_after_hours": 24,
+      "confidence": 0,
+      "score": 0,
+      "evidence_refs": [],
+      "metrics": {},
+      "missing_inputs": [
+        "Local PostHog, GA4, or Firestore analytics export"
+      ]
+    },
+    {
+      "channel_id": "paid_city_ads",
+      "budget_line": "Paid city/launch experiments",
+      "source_id": "ad_spend_export",
+      "proof_level": "missing",
+      "proof_status": "missing",
+      "can_affect_allocation": false,
+      "observed_at": null,
+      "stale_after_hours": 24,
+      "confidence": 0,
+      "score": 0,
+      "evidence_refs": [],
+      "metrics": {},
+      "missing_inputs": [
+        "Read-only ad spend/outcome export",
+        "Human approval before any ad launch or budget change"
+      ]
+    },
+    {
+      "channel_id": "support_reply_durability",
+      "budget_line": "Email / human reply / Slack",
+      "source_id": "support_intake_volume_artifacts",
+      "proof_level": "repo-local-export",
+      "proof_status": "current",
+      "can_affect_allocation": true,
+      "observed_at": "2026-05-30T12:00:00.000Z",
+      "stale_after_hours": 168,
+      "confidence": 0.65,
+      "score": 0.5,
+      "evidence_refs": [
+        "output/autonomous-org/kpi-source-status-latest/kpi-source-status.json#support_intake_volume_artifacts"
+      ],
+      "metrics": {
+        "sourced_rows": 4,
+        "source_needed_rows": 4,
+        "total_rows": 8
+      },
+      "missing_inputs": []
+    }
+  ],
+  "missing_inputs": [
+    {
+      "source_id": "operating_graph_events",
+      "missing_inputs": [
+        "Local operating graph event export with buyer outcome stages"
+      ]
+    },
+    {
+      "source_id": "analytics_posthog_export",
+      "missing_inputs": [
+        "Local PostHog, GA4, or Firestore analytics export"
+      ]
+    },
+    {
+      "source_id": "ad_spend_export",
+      "missing_inputs": [
+        "Read-only ad spend/outcome export",
+        "Human approval before any ad launch or budget change"
+      ]
+    }
+  ]
+}

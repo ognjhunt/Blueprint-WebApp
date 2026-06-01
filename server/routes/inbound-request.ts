@@ -593,7 +593,7 @@ function confirmationNextSteps(commercialRequestPath: CommercialRequestPath): st
   if (commercialRequestPath === "hosted_evaluation") {
     return [
       "We route the request as a hosted-evaluation path tied to the submitted site, task, robot, and requested outputs.",
-      "We check proof, entitlement, rights, package readiness, and hosted-session availability before confirming any launch path.",
+      "We check proof, entitlement, rights, package readiness, and hosted-session availability before we confirm a launch path.",
       "If the record is blocked, we reply with the first missing proof, access, runtime, or buyer-scope detail instead of implying live availability.",
     ];
   }

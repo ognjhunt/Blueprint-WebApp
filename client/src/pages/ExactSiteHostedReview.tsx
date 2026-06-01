@@ -111,7 +111,7 @@ const whatYouReceiveRows = [
     receives:
       "Blueprint-run review room, scoped tasks, observations, run notes, output links, and export decision context.",
     definition: "Hosted review means Blueprint runs the site model for inspection before file handoff.",
-    firstAction: "Request a hosted evaluation path.",
+    firstAction: "Book a hosted review path.",
   },
   {
     path: "Custom scope",
@@ -202,7 +202,7 @@ export default function ExactSiteHostedReview() {
                       href="/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=product"
                       className="inline-flex w-full items-center justify-center border border-white/25 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10 sm:w-auto"
                     >
-                      Request hosted review
+                      Book hosted review
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </a>
                     <a
@@ -489,7 +489,7 @@ export default function ExactSiteHostedReview() {
                 href="/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=product-bottom"
                 className="inline-flex items-center justify-center border border-white bg-white px-6 py-3 text-sm font-semibold text-[#15130f] transition hover:bg-[#f5f1e8]"
               >
-                Request hosted review
+                Book hosted review
                 <ArrowRight className="ml-2 h-4 w-4" />
               </a>
               <a

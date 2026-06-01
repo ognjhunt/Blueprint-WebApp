@@ -694,7 +694,7 @@ export function ContactForm() {
             ],
             [
               "Next proof",
-              "Blueprint replies with the available path or the first missing proof, rights, entitlement, or runtime detail.",
+              "Blueprint replies with the supported request path or the first missing proof, rights, entitlement, or runtime detail.",
             ],
           ].map(([label, body]) => (
             <div key={label} className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
@@ -1171,8 +1171,8 @@ export function ContactForm() {
 
       <div className="flex flex-col gap-3 border-t border-black/10 pt-6 sm:flex-row sm:items-center sm:justify-between">
         <p className="max-w-md text-xs leading-5 text-slate-500">
-          Submitting this form records a request. It does not claim buyer fit, rights clearance,
-          payment, provider execution, fulfillment, or a live hosted session.
+          Submitting this form records a request only. No payment, provider execution,
+          fulfillment, or live hosted session starts from this form.
         </p>
         <button
           type="submit"

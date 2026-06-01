@@ -1,0 +1,72 @@
+{
+  "schema": "blueprint/dynamic-budget-recommendations/v1",
+  "generated_at": "2026-06-01T04:09:33.606Z",
+  "mode": {
+    "default_local_only": true,
+    "live_read_enabled": false,
+    "live_mutation_attempted": false,
+    "repo_local_diff_only": true
+  },
+  "budget_cap_usd": 500,
+  "projected_target_total_usd": 500,
+  "current_budget_lines": {
+    "Paperclip agent/runtime envelope": 173,
+    "OpenAI API costs (approval-only guardrail)": 0,
+    "DeepSeek direct model reserve": 80,
+    "Render WebApp hosting": 25,
+    "Paperclip VPS / tunnel": 30,
+    "Firebase / Firestore / storage": 25,
+    "Redis / cache": 10,
+    "Email / human reply / Slack": 7,
+    "Analytics": 0,
+    "Search / research APIs": 45,
+    "Recipient evidence enrichment": 35,
+    "Profiles, listings, and owned growth ops": 20,
+    "Paid city/launch experiments": 50
+  },
+  "projected_budget_lines": {
+    "Paperclip agent/runtime envelope": 173,
+    "OpenAI API costs (approval-only guardrail)": 0,
+    "DeepSeek direct model reserve": 80,
+    "Render WebApp hosting": 25,
+    "Paperclip VPS / tunnel": 30,
+    "Firebase / Firestore / storage": 25,
+    "Redis / cache": 10,
+    "Email / human reply / Slack": 7,
+    "Analytics": 0,
+    "Search / research APIs": 45,
+    "Recipient evidence enrichment": 35,
+    "Profiles, listings, and owned growth ops": 20,
+    "Paid city/launch experiments": 50
+  },
+  "recommendations": [
+    {
+      "id": "no_reallocation_improve_proof_first",
+      "action": "no_reallocation",
+      "reason_code": "improve_proof_first",
+      "from_budget_line": null,
+      "to_budget_line": null,
+      "amount_usd": 0,
+      "approval_required": false,
+      "human_gate": null,
+      "proof_level": "missing",
+      "confidence": 0,
+      "evidence_refs": [],
+      "missing_proof": [
+        "fresh allocation-grade outcome evidence"
+      ],
+      "advisory_only": true,
+      "live_mutation_attempted": false,
+      "summary": "No reallocation recommended. Improve proof first rather than inventing performance."
+    }
+  ],
+  "human_approval_required": false,
+  "live_proof_gaps": [
+    "live billing or owner-system export proof for actual spend",
+    "paperclip_routine_cost_cache_telemetry: stale outcome proof",
+    "paperclip_routine_cost_cache_telemetry: proof is advisory only",
+    "operating_graph_events: missing outcome proof",
+    "analytics_posthog_export: missing outcome proof",
+    "ad_spend_export: missing outcome proof"
+  ]
+}

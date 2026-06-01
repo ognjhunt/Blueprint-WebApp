@@ -1,0 +1,29 @@
+{
+  "schema": "blueprint/autonomous-outcome-snapshot/v1",
+  "generated_at": "2026-06-01T12:00:00.000Z",
+  "mode": {
+    "default_local_only": true,
+    "live_read_enabled": false,
+    "live_mutation_attempted": false
+  },
+  "outcomes": [
+    {
+      "channel_id": "exact_site_hosted_review",
+      "budget_line": "Recipient evidence enrichment",
+      "source_id": "exact_site_hosted_review_gtm_ledger",
+      "proof_level": "repo-local-export",
+      "proof_status": "stale",
+      "can_affect_allocation": true,
+      "observed_at": "2026-04-01T10:00:00.000Z",
+      "stale_after_hours": 168,
+      "confidence": 0.83,
+      "score": 0.9,
+      "evidence_refs": [
+        "scripts/autonomy/fixtures/dynamic-budget/outcomes-stale-proof.json#exact_site_hosted_review"
+      ],
+      "metrics": {
+        "hosted_review_starts": 4
+      }
+    }
+  ]
+}

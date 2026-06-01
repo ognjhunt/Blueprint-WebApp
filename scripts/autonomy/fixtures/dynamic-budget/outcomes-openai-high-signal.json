@@ -1,0 +1,27 @@
+{
+  "schema": "blueprint/autonomous-outcome-snapshot/v1",
+  "generated_at": "2026-06-01T12:00:00.000Z",
+  "mode": {
+    "default_local_only": true,
+    "live_read_enabled": false,
+    "live_mutation_attempted": false
+  },
+  "outcomes": [
+    {
+      "channel_id": "openai_api",
+      "budget_line": "OpenAI API costs (approval-only guardrail)",
+      "source_id": "openai_api_costs",
+      "proof_level": "repo-local-export",
+      "proof_status": "current",
+      "can_affect_allocation": true,
+      "confidence": 0.95,
+      "score": 0.98,
+      "evidence_refs": [
+        "scripts/autonomy/fixtures/dynamic-budget/outcomes-openai-high-signal.json#openai_api"
+      ],
+      "metrics": {
+        "model_quality_signal": 1
+      }
+    }
+  ]
+}

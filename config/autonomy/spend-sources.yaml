@@ -1,0 +1,357 @@
+schema: blueprint/autonomous-spend-sources/v1
+date: 2026-06-01
+description: Read-only spend observability sources for the autonomous-org $500/month budget.
+defaultOutputPath: output/autonomous-org/budget/spend-snapshots/latest.json
+defaultWindow: month_to_date
+sources:
+  - id: paperclip_declared_agent_envelope
+    label: Paperclip declared agent/runtime envelope
+    provider: Paperclip
+    ownerSystem: Paperclip company config
+    budgetLine: Paperclip agent/runtime envelope
+    adapter: paperclip_agent_config
+    targetUsd: 173
+    proofKind: repo_local_declared_budget_not_live_billing
+    localPath: ops/paperclip/blueprint-company/.paperclip.yaml
+    staleAfterHours: 168
+    notes:
+      - Reads repo-local declared agent budget from .paperclip.yaml; this is cadence/control proof, not live provider billing.
+
+  - id: openai_api_costs
+    label: OpenAI API costs
+    provider: OpenAI
+    ownerSystem: OpenAI organization billing
+    budgetLine: OpenAI API costs (approval-only guardrail)
+    adapter: openai_costs
+    targetUsd: 0
+    proofKind: live_billing_when_admin_key_is_available
+    requiredEnv:
+      - OPENAI_ADMIN_KEY
+    alternateEnv:
+      - OPENAI_API_KEY
+    staleAfterHours: 24
+    notes:
+      - OpenAI project API keys are not enough for organization Costs; use an admin key for billing reconciliation.
+      - OpenAI API model spend is not part of the default autonomous-org allocation; keep this line at $0 unless a human approves API usage.
+
+  - id: codex_oauth_pro_seat
+    label: Codex OAuth / Pro subscription seat
+    provider: OpenAI
+    ownerSystem: Human OpenAI subscription billing
+    budgetLine: Codex OAuth / Pro subscription seat
+    adapter: credential_presence
+    targetUsd: 0
+    proofKind: outside_launch_growth_budget_not_api_usage
+    staleAfterHours: 720
+    notes:
+      - Codex CLI/OAuth Pro subscription is pre-existing tooling and is not counted against the $500/month launch/growth budget.
+      - This line is not an OpenAI API/model-spend allowance.
+      - Treat Codex Pro usage/tokens as free for this budget; use the harness for implementation/review while keeping billable OpenAI API spend at $0.
+
+  - id: openrouter_credits
+    label: OpenRouter credits and total usage
+    provider: OpenRouter
+    ownerSystem: OpenRouter account credits
+    budgetLine: DeepSeek/OpenRouter billing if used
+    adapter: openrouter_credits
+    targetUsd: 0
+    proofKind: live_credit_balance_not_month_to_date_spend
+    requiredEnv:
+      - OPENROUTER_API_KEY
+    staleAfterHours: 6
+    notes:
+      - OpenRouter credits prove remaining credit and total usage, not a line-item monthly invoice by themselves.
+      - Default DeepSeek/OpenRouter model usage is budgeted through the Paperclip agent/runtime envelope unless a separate human-approved top-up is created.
+
+  - id: deepseek_balance
+    label: DeepSeek direct API balance
+    provider: DeepSeek
+    ownerSystem: DeepSeek API account
+    budgetLine: DeepSeek direct model reserve
+    adapter: deepseek_balance
+    targetUsd: 80
+    proofKind: live_credit_balance_not_month_to_date_spend
+    requiredEnv:
+      - DEEPSEEK_API_KEY
+    staleAfterHours: 6
+    notes:
+      - Direct DeepSeek balance proves available credit; monthly spend still needs usage/export reconciliation.
+      - Default billable model usage should prefer direct DeepSeek through the Codex/Paperclip harness; keep OpenAI API spend at $0 unless explicitly approved.
+      - This reserve funds high-value synthesis, allocation review, and long-context reasoning after deterministic scripts and V4 Flash triage.
+
+  - id: digitalocean_billing
+    label: DigitalOcean / Paperclip host billing
+    provider: DigitalOcean
+    ownerSystem: DigitalOcean billing
+    budgetLine: Paperclip VPS / tunnel
+    adapter: digitalocean_billing
+    targetUsd: 30
+    proofKind: live_billing_invoice_preview
+    requiredEnv:
+      - DIGITALOCEAN_TOKEN
+    staleAfterHours: 24
+    notes:
+      - Uses read-only billing endpoints for balance and invoice preview.
+
+  - id: render_inventory
+    label: Render service inventory
+    provider: Render
+    ownerSystem: Render account
+    budgetLine: Render WebApp hosting
+    adapter: render_inventory
+    targetUsd: 25
+    proofKind: live_usage_inventory_not_billing
+    requiredEnv:
+      - RENDER_API_KEY
+    staleAfterHours: 24
+    notes:
+      - Render API service inventory is not billing proof until a billing or invoice export endpoint is attached.
+
+  - id: sendgrid_credits
+    label: SendGrid email credits
+    provider: SendGrid
+    ownerSystem: Twilio SendGrid account
+    budgetLine: Email / human reply / Slack
+    adapter: sendgrid_credits
+    targetUsd: 7
+    proofKind: live_credit_balance_not_invoice
+    requiredEnv:
+      - SENDGRID_API_KEY
+    staleAfterHours: 24
+    notes:
+      - Credit balance proves email credit state; plan and invoice spend may still need dashboard/export proof.
+
+  - id: github_billing_usage
+    label: GitHub billing usage
+    provider: GitHub
+    ownerSystem: GitHub billing
+    budgetLine: Repo autonomy / GitHub usage if billed
+    adapter: github_billing_usage
+    targetUsd: 0
+    proofKind: live_billing_if_owner_and_token_are_authorized
+    oneOfEnv:
+      - - GITHUB_TOKEN
+        - GITHUB_CLASSIC_TOKEN
+    requiredEnv:
+      - GITHUB_BILLING_OWNER
+      - GITHUB_BILLING_OWNER_TYPE
+    staleAfterHours: 24
+    notes:
+      - GITHUB_BILLING_OWNER_TYPE must be user or organization.
+      - Fine-grained tokens may not work for every billing endpoint; classic PATs often have broader billing support.
+
+  - id: backblaze_b2_account
+    label: Backblaze B2 account access
+    provider: Backblaze
+    ownerSystem: Backblaze B2 account
+    budgetLine: Storage / backup if used
+    adapter: backblaze_b2_authorize
+    targetUsd: 0
+    proofKind: live_account_access_not_billing
+    requiredEnv:
+      - BACKBLAZE_B2_KEY_ID
+      - BACKBLAZE_B2_APPLICATION_KEY
+    staleAfterHours: 24
+    notes:
+      - B2 authorization proves account access only; monthly B2 spend still needs billing export or usage pricing reconciliation.
+
+  - id: gcp_firebase_billing_export
+    label: Firebase / GCP billing export
+    provider: Google Cloud
+    ownerSystem: Cloud Billing BigQuery export
+    budgetLine: Firebase / Firestore / storage
+    adapter: manual_export
+    targetUsd: 25
+    proofKind: billing_export_required
+    requiredEnv:
+      - GCP_BILLING_EXPORT_JSON
+    staleAfterHours: 24
+    notes:
+      - Set GCP_BILLING_EXPORT_JSON to a local exported JSON report until BigQuery query support is wired.
+
+  - id: firebase_project_config
+    label: Firebase project config
+    provider: Firebase
+    ownerSystem: Firebase project settings
+    budgetLine: Firebase / Firestore / storage
+    adapter: credential_presence
+    targetUsd: 0
+    proofKind: account_config_only_not_billing
+    requiredEnv:
+      - FIREBASE_PROJECT_ID
+      - FIREBASE_PROJECT_NUMBER
+      - FIREBASE_WEB_API_KEY
+      - FIREBASE_AUTH_DOMAIN
+      - FIREBASE_DATABASE_URL
+      - FIREBASE_STORAGE_BUCKET
+      - FIREBASE_MESSAGING_SENDER_ID
+      - FIREBASE_APP_ID
+      - FIREBASE_MEASUREMENT_ID
+    staleAfterHours: 168
+    notes:
+      - Firebase web config identifies the project and client app, but it is not Cloud Billing proof.
+
+  - id: upstash_redis_usage
+    label: Upstash Redis usage
+    provider: Upstash
+    ownerSystem: Upstash account
+    budgetLine: Redis / cache
+    adapter: credential_presence
+    targetUsd: 10
+    proofKind: credential_presence_only
+    requiredEnv:
+      - UPSTASH_API_KEY
+      - UPSTASH_EMAIL
+    staleAfterHours: 24
+    notes:
+      - Attach an Upstash API/billing endpoint or exported invoice before counting this as spend proof.
+
+  - id: cloudflare_billing_profile
+    label: Cloudflare billing profile
+    provider: Cloudflare
+    ownerSystem: Cloudflare account
+    budgetLine: Paperclip VPS / tunnel
+    adapter: credential_presence
+    targetUsd: 0
+    proofKind: credential_presence_only
+    requiredEnv:
+      - CLOUDFLARE_API_TOKEN
+      - CLOUDFLARE_ACCOUNT_ID
+    staleAfterHours: 24
+    notes:
+      - Cloudflare account proof is not tunnel spend proof without a billing history/export adapter.
+
+  - id: posthog_usage
+    label: PostHog analytics usage
+    provider: PostHog
+    ownerSystem: PostHog account
+    budgetLine: Analytics
+    adapter: credential_presence
+    targetUsd: 0
+    proofKind: usage_only_until_pricing_reconciliation
+    requiredEnv:
+      - POSTHOG_PERSONAL_API_KEY
+      - POSTHOG_HOST
+      - POSTHOG_PROJECT_ID
+    staleAfterHours: 24
+    notes:
+      - PostHog API can prove usage; dollar spend needs plan/pricing or billing export reconciliation.
+
+  - id: search_research_api_spend
+    label: Search and research API spend
+    provider: Search / research APIs
+    ownerSystem: Search provider account
+    budgetLine: Search / research APIs
+    adapter: credential_presence
+    targetUsd: 45
+    proofKind: credential_presence_only
+    oneOfEnv:
+      - - PARALLEL_API_KEY
+        - PARALLEL_SEARCH_API_KEY
+        - PERPLEXITY_API_KEY
+        - TAVILY_API_KEY
+        - SERPAPI_API_KEY
+    staleAfterHours: 24
+    notes:
+      - Add the exact provider billing adapter or export before counting research spend as live-verified.
+      - Use this for evidence-backed search, demand validation, and allocation/outcome proof, not broad daily scans.
+
+  - id: recipient_evidence_enrichment
+    label: Recipient evidence and enrichment
+    provider: GTM evidence / enrichment providers
+    ownerSystem: Recipient evidence artifacts and provider exports
+    budgetLine: Recipient evidence enrichment
+    adapter: credential_presence
+    targetUsd: 35
+    proofKind: manual_receipt_or_export_required
+    staleAfterHours: 168
+    notes:
+      - Funds recipient-backed contact evidence and exact-site hosted-review proof enrichment.
+      - Paid enrichment still requires receipt, export, or provider proof before it counts as actual spend.
+
+  - id: profiles_owned_growth_ops
+    label: Profiles, listings, and owned growth ops
+    provider: Organic/profile operations
+    ownerSystem: Repo docs / Paperclip growth lanes
+    budgetLine: Profiles, listings, and owned growth ops
+    adapter: credential_presence
+    targetUsd: 20
+    proofKind: manual_receipt_or_export_required
+    staleAfterHours: 168
+    notes:
+      - Mostly organic work; any paid profile/listing spend needs receipt or provider export before counting as actual.
+
+  - id: meta_ads_spend
+    label: Meta Ads spend
+    provider: Meta
+    ownerSystem: Meta Ads account insights
+    budgetLine: Paid city/launch experiments
+    adapter: meta_ads_insights
+    targetUsd: 50
+    proofKind: live_ad_spend_if_ads_read_is_available
+    requiredEnv:
+      - META_ACCESS_TOKEN
+      - META_AD_ACCOUNT_ID
+    staleAfterHours: 6
+    notes:
+      - Read-only insights only; this collector never creates, edits, or launches ads.
+
+  - id: google_ads_billing
+    label: Google Ads billing
+    provider: Google Ads
+    ownerSystem: Google Ads account
+    budgetLine: Paid city/launch experiments
+    adapter: credential_presence
+    targetUsd: 0
+    proofKind: credential_presence_only
+    requiredEnv:
+      - GOOGLE_ADS_CUSTOMER_ID
+      - GOOGLE_ADS_DEVELOPER_TOKEN
+      - GOOGLE_ADS_REFRESH_TOKEN
+      - GOOGLE_ADS_CLIENT_ID
+      - GOOGLE_ADS_CLIENT_SECRET
+    staleAfterHours: 24
+    notes:
+      - Google Ads billing workflows require account-specific setup; this registry records missing config until an adapter is authorized.
+
+  - id: runway_api_credits
+    label: Runway API credits
+    provider: Runway
+    ownerSystem: Runway developer account
+    budgetLine: Provider jobs if used
+    adapter: credential_presence
+    targetUsd: 0
+    proofKind: credential_presence_only
+    requiredEnv:
+      - RUNWAY_API_KEY
+    staleAfterHours: 24
+    notes:
+      - Current registry records credential presence only; no read-only credit balance endpoint is wired.
+
+  - id: worldlabs_api_credits
+    label: World Labs API credits
+    provider: World Labs
+    ownerSystem: World Labs Platform credits
+    budgetLine: Provider jobs if used
+    adapter: credential_presence
+    targetUsd: 0
+    proofKind: credential_presence_only
+    requiredEnv:
+      - WORLDLABS_API_KEY
+    staleAfterHours: 24
+    notes:
+      - API billing uses credits, but this collector needs a balance/export endpoint before counting spend.
+
+  - id: slack_billing
+    label: Slack billing
+    provider: Slack
+    ownerSystem: Slack workspace
+    budgetLine: Email / human reply / Slack
+    adapter: credential_presence
+    targetUsd: 0
+    proofKind: credential_presence_only
+    requiredEnv:
+      - SLACK_BOT_TOKEN
+    staleAfterHours: 24
+    notes:
+      - Slack bot access is not billing proof; keep Slack spend manual unless an admin billing export is attached.

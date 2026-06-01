@@ -1,0 +1,31 @@
+{
+  "schema": "blueprint/autonomous-spend-snapshot/v1",
+  "generated_at": "2026-06-01T12:00:00.000Z",
+  "mode": {
+    "live_read_enabled": false,
+    "live_mutation_attempted": false
+  },
+  "totals": {
+    "target_usd": 500,
+    "live_billing_verified_usd": 0,
+    "missing_or_unverified_target_usd": 500
+  },
+  "sources": [
+    {
+      "id": "paperclip_declared_agent_envelope",
+      "budget_line": "Paperclip agent/runtime envelope",
+      "target_usd": 173,
+      "proof_level": "repo-local-export",
+      "status": "manual_export_loaded",
+      "live_mutation_attempted": false
+    },
+    {
+      "id": "openai_api_costs",
+      "budget_line": "OpenAI API costs (approval-only guardrail)",
+      "target_usd": 0,
+      "proof_level": "missing",
+      "status": "missing_credentials",
+      "live_mutation_attempted": false
+    }
+  ]
+}

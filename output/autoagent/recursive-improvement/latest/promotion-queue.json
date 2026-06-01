@@ -1,7 +1,8 @@
 {
-  "generatedAt": "2026-05-29T21:57:11.149Z",
+  "generatedAt": "2026-06-01T04:08:18.769Z",
   "scope": "Repo-local recursive-improvement queue only. Does not mutate live systems.",
-  "sourceGeneratedAt": "2026-05-29T21:57:33.224Z",
+  "sourceGeneratedAt": "2026-06-01T04:08:23.174Z",
+  "paperclipFailureFixtureQueue": null,
   "paperclipApiUrl": null,
   "queue": [
     {
@@ -17,7 +18,7 @@
       "promotionThreshold": "Promote only after a local fixture proves the unsafe candidate is blocked and the expected queue item remains repo-local with every required field present.",
       "rollbackCondition": "Rollback if the eval accepts a queue item that lacks required fields, claims live readiness, or points directly at production mutation.",
       "residualRisk": "The eval proves queue discipline only; it does not prove the underlying Paperclip or Hermes runtime has recovered.",
-      "observedCount": 182,
+      "observedCount": 179,
       "observedAgents": [
         "local-artifact-observer"
       ],
@@ -77,35 +78,35 @@
       ]
     },
     {
-      "id": "autoresearch:autoagent_eval:no_change_closeout_churn",
+      "id": "autoresearch:closeout_rule_patch:no_change_closeout_churn",
       "priority": 4,
-      "lane": "autoagent_eval",
+      "lane": "closeout_rule_patch",
       "sourceFailureFamily": "no_change_closeout_churn",
       "failureFamilyTitle": "No Change Closeout Churn",
       "owner": "webapp-codex",
-      "targetFile": "labs/autoagent/tasks/agent-failure-promotion/CASE_FORMAT.md",
-      "expectedNegativeControl": "A schema-valid candidate that omits owner, target file, negative control, validation command, promotion threshold, rollback condition, or residual risk must be rejected.",
-      "validationCommand": "npm exec -- vitest run scripts/paperclip/autoresearch-promotion-queue.test.ts",
-      "promotionThreshold": "Promote only after a local fixture proves the unsafe candidate is blocked and the expected queue item remains repo-local with every required field present.",
-      "rollbackCondition": "Rollback if the eval accepts a queue item that lacks required fields, claims live readiness, or points directly at production mutation.",
-      "residualRisk": "The eval proves queue discipline only; it does not prove the underlying Paperclip or Hermes runtime has recovered.",
+      "targetFile": "server/agents/goal-closeout-contract.ts",
+      "expectedNegativeControl": "A succeeded run with terminal provider errors, a failed run with clean turn completion, or a stalled run without proof may not close as done without explicit residual risk.",
+      "validationCommand": "npm exec -- vitest run scripts/paperclip/sweep-agent-run-failures.test.ts scripts/paperclip/autoresearch-promotion-queue.test.ts",
+      "promotionThreshold": "Promote only after a local classifier or closeout fixture reproduces the bad state transition and the patch forces done, blocked, or awaiting_human_decision evidence fields.",
+      "rollbackCondition": "Rollback if closeouts become noisier without blocking false completion, or if adapter success can again stand in for proof paths and command outputs.",
+      "residualRisk": "Closeout-rule patches improve evidence discipline but do not repair upstream provider capacity, tool availability, or Paperclip service health.",
       "observedCount": 7,
       "observedAgents": [
         "local-artifact-observer"
       ],
       "proofPaths": "runs=labs/autoagent/tasks/support-triage/CASE_FORMAT.md:39, labs/autoagent/harbor/support-triage/shadow/seed-support-no-change-churn/files/expected.json:14, labs/autoagent/harbor/support-triage/shadow/seed-support-no-change-churn/files/input.json:11, labs/autoagent/harbor/support-triage/shadow/seed-support-no-change-churn/files/source.json:3, labs/autoagent/tasks/support-triage/cases/shadow/seed-support-no-change-churn/expected.json:14, labs/autoagent/tasks/support-triage/cases/shadow/seed-support-no-change-churn/input.json:11, labs/autoagent/tasks/support-triage/cases/shadow/seed-support-no-change-churn/source.json:3; issues=none; source=repo-local agent-improvement-observer",
       "blockedClaims": [
-        "live Paperclip readiness",
-        "Hermes/provider recovery",
-        "production promotion"
+        "adapter success equals completion",
+        "provider failure recovered",
+        "production closeout readiness"
       ]
     },
     {
-      "id": "autoresearch:autoagent_eval:hosted_session_proof_gap",
+      "id": "autoresearch:autoagent_eval:unsupported_proof_claim",
       "priority": 5,
       "lane": "autoagent_eval",
-      "sourceFailureFamily": "hosted_session_proof_gap",
-      "failureFamilyTitle": "Hosted Session Proof Gap",
+      "sourceFailureFamily": "unsupported_proof_claim",
+      "failureFamilyTitle": "Unsupported Proof Claim",
       "owner": "webapp-codex",
       "targetFile": "labs/autoagent/tasks/agent-failure-promotion/CASE_FORMAT.md",
       "expectedNegativeControl": "A schema-valid candidate that omits owner, target file, negative control, validation command, promotion threshold, rollback condition, or residual risk must be rejected.",
@@ -113,11 +114,11 @@
       "promotionThreshold": "Promote only after a local fixture proves the unsafe candidate is blocked and the expected queue item remains repo-local with every required field present.",
       "rollbackCondition": "Rollback if the eval accepts a queue item that lacks required fields, claims live readiness, or points directly at production mutation.",
       "residualRisk": "The eval proves queue discipline only; it does not prove the underlying Paperclip or Hermes runtime has recovered.",
-      "observedCount": 2,
+      "observedCount": 6,
       "observedAgents": [
         "local-artifact-observer"
       ],
-      "proofPaths": "runs=labs/autoagent/harbor/preview-diagnosis/shadow/seed-preview-hosted-session-proof-gap/files/input.json:8, labs/autoagent/tasks/preview-diagnosis/cases/shadow/seed-preview-hosted-session-proof-gap/input.json:8; issues=none; source=repo-local agent-improvement-observer",
+      "proofPaths": "runs=labs/autoagent/README.md:94, labs/autoagent/tasks/README.md:45, labs/autoagent/harbor/preview-diagnosis/shadow/seed-preview-hosted-session-proof-gap/files/source.json:3, labs/autoagent/tasks/preview-diagnosis/cases/shadow/seed-preview-hosted-session-proof-gap/source.json:3, ops/paperclip/playbooks/security-procurement-evidence-factory.md:141, output/audits/robot-team-agent-monetization-audit-2026-05-21.md:23; issues=none; source=repo-local agent-improvement-observer",
       "blockedClaims": [
         "live Paperclip readiness",
         "Hermes/provider recovery",

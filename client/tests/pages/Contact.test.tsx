@@ -273,6 +273,7 @@ describe("Contact page", () => {
 
     expect(screen.getByText(/World model request received/i)).toBeInTheDocument();
     expect(screen.getByText(/No checkout, provider generation, live hosted launch/i)).toBeInTheDocument();
+    expect(screen.getByText(/supported request path or the first missing proof/i)).toBeInTheDocument();
     expect(analyticsEventsMock.contactRequestSubmitted).toHaveBeenCalledWith({
       persona: "robot_team",
       hostedMode: false,

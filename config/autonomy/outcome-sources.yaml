@@ -1,0 +1,141 @@
+schema: blueprint/autonomous-outcome-sources/v1
+date: 2026-06-01
+description: Repo-local outcome evidence sources for the dynamic autonomous budget allocator.
+defaultOutputPath: output/autonomous-org/budget/outcomes/latest.json
+defaultWindow: rolling_30_days
+sources:
+  - id: paperclip_routine_cost_cache_telemetry
+    label: Paperclip routine, cost, and cache telemetry
+    channelId: paperclip_runtime
+    budgetLine: Paperclip agent/runtime envelope
+    ownerSystem: Paperclip routine output and repo cost fixtures
+    adapter: agent_cost_cache_report
+    localPath: server/tests/fixtures/agent-cost-cache-runs.json
+    proofLevel: fixture
+    staleAfterHours: 168
+    canAffectAllocation: false
+    missingInputs:
+      - Firestore agent run export or live billing-safe cost export
+    notes:
+      - Fixture telemetry can identify repeated no-change/cache waste, but cannot justify live spend changes.
+
+  - id: spend_snapshot_output
+    label: Autonomous spend snapshot output
+    channelId: spend_observability
+    budgetLine: Search / research APIs
+    ownerSystem: repo-local spend snapshot collector
+    adapter: spend_snapshot
+    localPath: output/autonomous-org/budget/spend-snapshots/latest.json
+    proofLevel: repo-local-export
+    staleAfterHours: 24
+    canAffectAllocation: false
+    missingInputs:
+      - Owner-system billing exports for actual spend
+    notes:
+      - Spend snapshots constrain the allocator; they are not outcome performance by themselves.
+
+  - id: kpi_source_status
+    label: KPI source status
+    channelId: product_proof_intake_support_reliability
+    budgetLine: Paperclip agent/runtime envelope
+    ownerSystem: WebApp KPI source-status contract
+    adapter: kpi_source_status
+    localPath: output/autonomous-org/readiness/latest/kpi-source-status/kpi-source-status.json
+    proofLevel: repo-local-export
+    staleAfterHours: 168
+    canAffectAllocation: true
+    missingInputs:
+      - Fresh owner-system KPI source rows for any Source needed metric
+    notes:
+      - KPI rows can protect P0 reliability and proof lines, but Source needed rows cannot justify spend increases.
+
+  - id: operating_graph_events
+    label: Operating graph events and buyer outcomes
+    channelId: product_proof_intake_support_reliability
+    budgetLine: Paperclip agent/runtime envelope
+    ownerSystem: WebApp operating graph projection
+    adapter: operating_graph_events
+    localPath: output/autonomous-org/operating-graph/latest/events.json
+    proofLevel: missing
+    staleAfterHours: 72
+    canAffectAllocation: false
+    missingInputs:
+      - Local operating graph event export with buyer outcome stages
+    notes:
+      - Missing operating graph events keep buyer-outcome performance advisory only.
+
+  - id: exact_site_hosted_review_gtm_ledger
+    label: Exact-Site Hosted Review GTM ledger and buyer loop
+    channelId: exact_site_hosted_review
+    budgetLine: Recipient evidence enrichment
+    ownerSystem: Paperclip GTM ledger and buyer-loop reports
+    adapter: exact_site_hosted_review_buyer_loop
+    localPath: ops/paperclip/reports/exact-site-hosted-review-buyer-loop/global/2026-05-28/buyer-loop-manifest.json
+    proofLevel: repo-local-export
+    staleAfterHours: 168
+    canAffectAllocation: true
+    missingInputs:
+      - Reply durability, sent-target, hosted-review-start, or qualified-call evidence when absent
+    notes:
+      - Target and approval readiness can justify proof work; actual money movement still requires human approval.
+
+  - id: city_launch_scorecards_preflight
+    label: City-launch scorecards and preflight outputs
+    channelId: paid_city_ads
+    budgetLine: Paid city/launch experiments
+    ownerSystem: city-launch scorecard/preflight artifacts
+    adapter: city_launch_scorecards
+    localPath: ops/paperclip/playbooks/city-launch-durham-nc-scorecard-windows.json
+    proofLevel: repo-local-export
+    staleAfterHours: 168
+    canAffectAllocation: true
+    missingInputs:
+      - Founder-approved city posture, live send approval, and ad/spend proof before activation
+    notes:
+      - City-launch scorecards can request a human approval packet; they must not activate a city or launch ads.
+
+  - id: analytics_posthog_export
+    label: Analytics / PostHog export or manual fixture
+    channelId: analytics
+    budgetLine: Analytics
+    ownerSystem: PostHog, GA4, or Firestore analytics mirror export
+    adapter: manual_outcome_export
+    localPath: output/autonomous-org/budget/outcome-exports/posthog/latest.json
+    proofLevel: missing
+    staleAfterHours: 24
+    canAffectAllocation: false
+    missingInputs:
+      - Local PostHog, GA4, or Firestore analytics export
+    notes:
+      - Missing analytics export keeps paid analytics at $0.
+
+  - id: ad_spend_export
+    label: Ad spend and ad outcome export
+    channelId: paid_city_ads
+    budgetLine: Paid city/launch experiments
+    ownerSystem: Meta Ads, Google Ads, or approved ad export
+    adapter: manual_outcome_export
+    localPath: output/autonomous-org/budget/outcome-exports/ads/latest.json
+    proofLevel: missing
+    staleAfterHours: 24
+    canAffectAllocation: false
+    missingInputs:
+      - Read-only ad spend/outcome export
+      - Human approval before any ad launch or budget change
+    notes:
+      - This source must never create, edit, or launch ads.
+
+  - id: support_intake_volume_artifacts
+    label: Support and intake volume artifacts
+    channelId: support_reply_durability
+    budgetLine: Email / human reply / Slack
+    ownerSystem: inbound request, support triage, and human-reply artifacts
+    adapter: support_intake_volume
+    localPath: output/autonomous-org/kpi-source-status-latest/kpi-source-status.json
+    proofLevel: repo-local-export
+    staleAfterHours: 168
+    canAffectAllocation: true
+    missingInputs:
+      - Fresh support/intake volume export with owner-system evidence
+    notes:
+      - Support and intake evidence protects P0 reply durability; live sends remain disallowed.

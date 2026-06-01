@@ -66,6 +66,19 @@ describe("siteWorldCommercialStatus", () => {
     });
   });
 
+  it("keeps pipeline-backed next steps out of hosted availability claims", () => {
+    const site = getSiteWorldById("sw-chi-01");
+    expect(site).not.toBeNull();
+
+    const disclosure = getSiteWorldBuyerFlowDisclosure({
+      ...site!,
+      dataSource: "pipeline",
+    });
+
+    expect(disclosure.nextStep).toContain("supported request path");
+    expect(disclosure.nextStep).not.toContain("available path");
+  });
+
   it("labels static catalog profiles as planned instead of current supply", () => {
     const site = getSiteWorldById("sw-atl-02");
     expect(site).not.toBeNull();

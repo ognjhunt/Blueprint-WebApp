@@ -29,7 +29,7 @@ agents:
             - sales-enablement
     permissions:
       canCreateAgents: true
-    budgetMonthlyCents: 5000
+    budgetMonthlyCents: 200
   blueprint-chief-of-staff:
     role: cto
     icon: target
@@ -61,7 +61,7 @@ agents:
             - verification-before-completion
             - hermes-kb-workflow
             - meeting-action-extractor
-    budgetMonthlyCents: 4000
+    budgetMonthlyCents: 1200
   notion-manager-agent:
     role: engineer
     icon: book-open
@@ -86,7 +86,7 @@ agents:
             - writing-plans
             - verification-before-completion
             - hermes-kb-workflow
-    budgetMonthlyCents: 2200
+    budgetMonthlyCents: 200
   notion-reconciler:
     role: engineer
     icon: database
@@ -111,7 +111,7 @@ agents:
             - writing-plans
             - verification-before-completion
             - hermes-kb-workflow
-    budgetMonthlyCents: 2200
+    budgetMonthlyCents: 100
   blueprint-cto:
     role: cto
     icon: circuit-board
@@ -142,7 +142,7 @@ agents:
             - receiving-code-review
             - verification-before-completion
             - karpathy-guidelines
-    budgetMonthlyCents: 4000
+    budgetMonthlyCents: 300
   webapp-codex:
     role: engineer
     icon: code
@@ -174,7 +174,7 @@ agents:
             - taste-skill
             - site-world-creative-production
             - higgsfield-creative-video
-    budgetMonthlyCents: 3000
+    budgetMonthlyCents: 1200
   webapp-review:
     role: engineer
     icon: search
@@ -204,7 +204,7 @@ agents:
             - verification-before-completion
             - karpathy-guidelines
             - taste-skill
-    budgetMonthlyCents: 3000
+    budgetMonthlyCents: 600
   webapp-ci-watch:
     role: engineer
     icon: activity
@@ -224,7 +224,7 @@ agents:
             - investigate
             - verification-before-completion
             - karpathy-guidelines
-    budgetMonthlyCents: 1200
+    budgetMonthlyCents: 150
   pipeline-codex:
     role: engineer
     icon: cpu
@@ -263,7 +263,7 @@ agents:
             - verification-before-completion
             - finishing-a-development-branch
             - karpathy-guidelines
-    budgetMonthlyCents: 3000
+    budgetMonthlyCents: 900
   pipeline-review:
     role: engineer
     icon: microscope
@@ -298,7 +298,7 @@ agents:
             - receiving-code-review
             - verification-before-completion
             - karpathy-guidelines
-    budgetMonthlyCents: 3000
+    budgetMonthlyCents: 400
   pipeline-ci-watch:
     role: engineer
     icon: activity
@@ -319,7 +319,7 @@ agents:
             - investigate
             - verification-before-completion
             - karpathy-guidelines
-    budgetMonthlyCents: 1200
+    budgetMonthlyCents: 150
   capture-codex:
     role: engineer
     icon: wrench
@@ -358,7 +358,7 @@ agents:
             - verification-before-completion
             - finishing-a-development-branch
             - karpathy-guidelines
-    budgetMonthlyCents: 3000
+    budgetMonthlyCents: 900
   capture-review:
     role: engineer
     icon: eye
@@ -393,7 +393,7 @@ agents:
             - receiving-code-review
             - verification-before-completion
             - karpathy-guidelines
-    budgetMonthlyCents: 3000
+    budgetMonthlyCents: 400
   capture-ci-watch:
     role: engineer
     icon: activity
@@ -414,7 +414,7 @@ agents:
             - investigate
             - verification-before-completion
             - karpathy-guidelines
-    budgetMonthlyCents: 1200
+    budgetMonthlyCents: 150
   ops-lead:
     role: cto
     icon: bullseye
@@ -440,7 +440,7 @@ agents:
             - hermes-kb-workflow
             - meeting-action-extractor
             - revops
-    budgetMonthlyCents: 3000
+    budgetMonthlyCents: 800
   intake-agent:
     role: engineer
     icon: inbox
@@ -460,7 +460,7 @@ agents:
             - product-marketing
             - customer-research
             - revops
-    budgetMonthlyCents: 2000
+    budgetMonthlyCents: 700
   capture-qa-agent:
     role: engineer
     icon: search
@@ -478,7 +478,7 @@ agents:
             - platform-doctrine
             - autonomy-safety
             - pipeline-repo-operations
-    budgetMonthlyCents: 2000
+    budgetMonthlyCents: 500
   field-ops-agent:
     role: engineer
     icon: calendar
@@ -496,7 +496,7 @@ agents:
             - platform-doctrine
             - autonomy-safety
             - capture-repo-operations
-    budgetMonthlyCents: 2000
+    budgetMonthlyCents: 400
   finance-support-agent:
     role: engineer
     icon: dollar-sign
@@ -515,7 +515,7 @@ agents:
             - autonomy-safety
             - stripe-best-practices
             - agent-browser
-    budgetMonthlyCents: 2000
+    budgetMonthlyCents: 400
   growth-lead:
     role: cto
     icon: trending-up
@@ -565,7 +565,7 @@ agents:
             - copywriting
             - copy-editing
             - ab-testing
-    budgetMonthlyCents: 3000
+    budgetMonthlyCents: 800
   conversion-agent:
     role: engineer
     icon: flask-conical
@@ -614,7 +614,7 @@ agents:
             - popups
             - pricing
             - site-architecture
-    budgetMonthlyCents: 3000
+    budgetMonthlyCents: 400
   analytics-agent:
     role: engineer
     icon: bar-chart
@@ -640,7 +640,7 @@ agents:
             - product-marketing
             - growth-experiment-engine
             - ab-testing
-    budgetMonthlyCents: 2000
+    budgetMonthlyCents: 400
   investor-relations-agent:
     role: engineer
     icon: file-text
@@ -672,7 +672,7 @@ agents:
             - copy-editing
             - emails
             - launch
-    budgetMonthlyCents: 2000
+    budgetMonthlyCents: 100
   community-updates-agent:
     role: engineer
     icon: newspaper
@@ -708,7 +708,7 @@ agents:
             - emails
             - community-marketing
             - launch
-    budgetMonthlyCents: 2000
+    budgetMonthlyCents: 100
   metrics-reporter:
     role: engineer
     icon: target
@@ -734,7 +734,7 @@ agents:
             - writing-plans
             - verification-before-completion
             - ab-testing
-    budgetMonthlyCents: 1800
+    budgetMonthlyCents: 100
   workspace-digest-publisher:
     role: engineer
     icon: file-code
@@ -760,7 +760,7 @@ agents:
             - writing-plans
             - verification-before-completion
             - copy-editing
-    budgetMonthlyCents: 1800
+    budgetMonthlyCents: 100
   market-intel-agent:
     role: engineer
     icon: globe
@@ -791,7 +791,7 @@ agents:
             - competitors
             - pricing
             - marketing-ideas
-    budgetMonthlyCents: 2000
+    budgetMonthlyCents: 300
   supply-intel-agent:
     role: engineer
     icon: map
@@ -823,7 +823,7 @@ agents:
             - competitors
             - referrals
             - community-marketing
-    budgetMonthlyCents: 2000
+    budgetMonthlyCents: 100
   capturer-growth-agent:
     role: engineer
     icon: megaphone
@@ -860,7 +860,7 @@ agents:
             - launch
             - ads
             - ad-creative
-    budgetMonthlyCents: 2500
+    budgetMonthlyCents: 100
   public-space-review-agent:
     role: engineer
     icon: target
@@ -882,7 +882,7 @@ agents:
             - autonomy-safety
             - find-skills
             - city-launch-operations
-    budgetMonthlyCents: 1500
+    budgetMonthlyCents: 300
   city-launch-agent:
     role: engineer
     icon: map-pinned
@@ -916,7 +916,7 @@ agents:
             - directory-submissions
             - community-marketing
             - emails
-    budgetMonthlyCents: 2500
+    budgetMonthlyCents: 200
   demand-intel-agent:
     role: engineer
     icon: radar
@@ -950,7 +950,7 @@ agents:
             - pricing
             - sales-enablement
             - revops
-    budgetMonthlyCents: 2000
+    budgetMonthlyCents: 400
   robot-team-growth-agent:
     role: engineer
     icon: bot
@@ -999,7 +999,7 @@ agents:
             - competitors
             - co-marketing
             - ab-testing
-    budgetMonthlyCents: 2500
+    budgetMonthlyCents: 200
   site-operator-partnership-agent:
     role: engineer
     icon: handshake
@@ -1031,7 +1031,7 @@ agents:
             - referrals
             - community-marketing
             - copywriting
-    budgetMonthlyCents: 2000
+    budgetMonthlyCents: 100
   beta-launch-commander:
     role: engineer
     icon: rocket
@@ -1058,7 +1058,7 @@ agents:
             - systematic-debugging
             - verification-before-completion
             - karpathy-guidelines
-    budgetMonthlyCents: 2000
+    budgetMonthlyCents: 150
   buyer-solutions-agent:
     role: engineer
     icon: briefcase
@@ -1090,7 +1090,7 @@ agents:
             - sales-enablement
             - copywriting
             - emails
-    budgetMonthlyCents: 3000
+    budgetMonthlyCents: 800
   solutions-engineering-agent:
     role: engineer
     icon: plug
@@ -1124,7 +1124,7 @@ agents:
             - webapp-repo-operations
             - buyer-package-framing
             - karpathy-guidelines
-    budgetMonthlyCents: 2600
+    budgetMonthlyCents: 500
   rights-provenance-agent:
     role: engineer
     icon: shield
@@ -1142,7 +1142,7 @@ agents:
             - platform-doctrine
             - autonomy-safety
             - pipeline-repo-operations
-    budgetMonthlyCents: 2000
+    budgetMonthlyCents: 500
   security-procurement-agent:
     role: engineer
     icon: lock
@@ -1167,7 +1167,7 @@ agents:
             - cross-repo-operations
             - cso
             - writing-plans
-    budgetMonthlyCents: 2400
+    budgetMonthlyCents: 300
   capturer-success-agent:
     role: engineer
     icon: heart
@@ -1196,7 +1196,7 @@ agents:
             - emails
             - churn-prevention
             - customer-research
-    budgetMonthlyCents: 2500
+    budgetMonthlyCents: 200
   city-demand-agent:
     role: engineer
     icon: compass
@@ -1234,7 +1234,7 @@ agents:
             - revops
             - competitors
             - ab-testing
-    budgetMonthlyCents: 2500
+    budgetMonthlyCents: 500
   site-catalog-agent:
     role: engineer
     icon: package
@@ -1266,7 +1266,7 @@ agents:
             - competitors
             - copywriting
             - copy-editing
-    budgetMonthlyCents: 2000
+    budgetMonthlyCents: 200
   outbound-sales-agent:
     role: engineer
     icon: phone
@@ -1303,7 +1303,7 @@ agents:
             - competitors
             - copywriting
             - copy-editing
-    budgetMonthlyCents: 3000
+    budgetMonthlyCents: 150
   buyer-success-agent:
     role: engineer
     icon: star
@@ -1332,7 +1332,7 @@ agents:
             - churn-prevention
             - customer-research
             - sales-enablement
-    budgetMonthlyCents: 2500
+    budgetMonthlyCents: 150
   revenue-ops-pricing-agent:
     role: engineer
     icon: calculator
@@ -1364,7 +1364,7 @@ agents:
             - revops
             - sales-enablement
             - churn-prevention
-    budgetMonthlyCents: 2400
+    budgetMonthlyCents: 200
   docs-agent:
     role: engineer
     icon: book-open
@@ -1390,7 +1390,7 @@ agents:
             - goal-autoresearch
             - writing-plans
             - verification-before-completion
-    budgetMonthlyCents: 2000
+    budgetMonthlyCents: 300
 projects:
   blueprint-executive-ops:
     status: active
@@ -1789,6 +1789,7 @@ tasks:
     projectWorkspaceKey: blueprint-executive-ops
 routines:
   ceo-daily-review:
+    status: paused
     priority: high
     concurrencyPolicy: coalesce_if_active
     catchUpPolicy: skip_missed
@@ -1803,7 +1804,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: '*/30 8-18 * * 1-5'
+        cronExpression: 0 9,13,17 * * 1-5
         timezone: America/New_York
   cto-cross-repo-triage:
     priority: high
@@ -1811,7 +1812,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: 15 15 * * 1-5
+        cronExpression: 15 15 * * 1,3,5
         timezone: America/New_York
   webapp-autonomy-loop:
     priority: high
@@ -1819,7 +1820,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: 15 11 * * 1-5
+        cronExpression: 15 11 * * 1,3,5
         timezone: America/New_York
   recursive-agent-improvement-loop:
     agent: webapp-codex
@@ -1836,7 +1837,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: 45 11 * * 1-5
+        cronExpression: 45 11 * * 1,3,5
         timezone: America/New_York
   pipeline-autonomy-loop:
     priority: high
@@ -1844,7 +1845,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: 15 12 * * 1-5
+        cronExpression: 15 12 * * 1,3,5
         timezone: America/New_York
   pipeline-review-loop:
     priority: medium
@@ -1852,7 +1853,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: 45 12 * * 1-5
+        cronExpression: 45 12 * * 1,3,5
         timezone: America/New_York
   capture-autonomy-loop:
     priority: high
@@ -1860,7 +1861,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: 15 13 * * 1-5
+        cronExpression: 15 13 * * 1,3,5
         timezone: America/New_York
   capture-review-loop:
     priority: medium
@@ -1868,7 +1869,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: 45 13 * * 1-5
+        cronExpression: 45 13 * * 1,3,5
         timezone: America/New_York
   ops-lead-morning:
     agent: ops-lead
@@ -1881,6 +1882,7 @@ routines:
         timezone: America/New_York
   ops-lead-afternoon:
     agent: ops-lead
+    status: paused
     priority: medium
     concurrencyPolicy: coalesce_if_active
     catchUpPolicy: skip_missed
@@ -1904,7 +1906,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: 20 10 * * 1-5
+        cronExpression: 20 10 * * 1,3,5
         timezone: America/New_York
   field-ops-daily:
     agent: field-ops-agent
@@ -1913,7 +1915,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: 20 7 * * 1-5
+        cronExpression: 20 7 * * 2,4
         timezone: America/New_York
   finance-support-daily:
     agent: finance-support-agent
@@ -1922,10 +1924,11 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: 15 14 * * 1-5
+        cronExpression: 15 14 * * 2,4
         timezone: America/New_York
   growth-lead-daily:
     agent: growth-lead
+    status: paused
     priority: high
     concurrencyPolicy: coalesce_if_active
     catchUpPolicy: skip_missed
@@ -1953,6 +1956,7 @@ routines:
         timezone: America/New_York
   analytics-daily:
     agent: analytics-agent
+    status: paused
     priority: high
     concurrencyPolicy: coalesce_if_active
     catchUpPolicy: skip_missed
@@ -1971,6 +1975,7 @@ routines:
         timezone: America/New_York
   founder-morning-brief:
     agent: blueprint-chief-of-staff
+    status: paused
     priority: high
     concurrencyPolicy: coalesce_if_active
     catchUpPolicy: skip_missed
@@ -1980,6 +1985,7 @@ routines:
         timezone: America/New_York
   founder-daily-accountability-report:
     agent: blueprint-chief-of-staff
+    status: paused
     priority: high
     concurrencyPolicy: coalesce_if_active
     catchUpPolicy: skip_missed
@@ -1989,6 +1995,7 @@ routines:
         timezone: America/New_York
   founder-eod-brief:
     agent: blueprint-chief-of-staff
+    status: paused
     priority: high
     concurrencyPolicy: coalesce_if_active
     catchUpPolicy: skip_missed
@@ -1998,6 +2005,7 @@ routines:
         timezone: America/New_York
   founder-friday-operating-recap:
     agent: blueprint-chief-of-staff
+    status: paused
     priority: high
     concurrencyPolicy: coalesce_if_active
     catchUpPolicy: skip_missed
@@ -2007,6 +2015,7 @@ routines:
         timezone: America/New_York
   founder-weekly-gaps-report:
     agent: blueprint-chief-of-staff
+    status: paused
     priority: high
     concurrencyPolicy: coalesce_if_active
     catchUpPolicy: skip_missed
@@ -2066,6 +2075,7 @@ routines:
         timezone: America/New_York
   investor-relations-monthly:
     agent: investor-relations-agent
+    status: paused
     priority: high
     concurrencyPolicy: coalesce_if_active
     catchUpPolicy: skip_missed
@@ -2218,7 +2228,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: 20 9 * * 1-5
+        cronExpression: 20 9 * * 2,4
         timezone: America/New_York
   city-launch-weekly:
     agent: city-launch-agent
@@ -2362,5 +2372,5 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: 0 10 * * 2,5
+        cronExpression: 0 10 * * 2
         timezone: America/New_York

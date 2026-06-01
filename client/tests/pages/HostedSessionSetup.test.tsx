@@ -82,6 +82,7 @@ describe("HostedSessionSetup", () => {
     expect(screen.getAllByText(/Launch check/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Hosted review room/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Observation frames/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/45.60 min/)).toBeInTheDocument();
     expect(screen.getByText(/does not charge, run a provider job, or start fulfillment/i)).toBeInTheDocument();
   });
 
@@ -127,6 +128,8 @@ describe("HostedSessionSetup", () => {
     expect(
       screen.getByText(/Hosted session is request-gated\. Submit the configuration instead\./i),
     ).toBeInTheDocument();
+    expect(screen.getByText(/Launch-path dependent/i)).toBeInTheDocument();
+    expect(screen.queryByText(/45.60 min/)).not.toBeInTheDocument();
     expect(screen.getByText(/Hosted workspace/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Submit hosted evaluation request/i })).toBeInTheDocument();
   });

@@ -25,6 +25,7 @@ describe("cross-source claims guard", () => {
     expect(result.findingsByType.city_live_claim).toBeGreaterThan(0);
     expect(result.findingsByType.customer_or_traction_claim).toBeGreaterThan(0);
     expect(result.findingsByType.rights_cleared_claim).toBeGreaterThan(0);
+    expect(result.findingsByType.support_guarantee_claim).toBeGreaterThan(0);
   });
 
   it("preserves confident Public Launch Ready copy with request-scoped proof boundaries", async () => {
@@ -35,6 +36,24 @@ describe("cross-source claims guard", () => {
     });
 
     expect(result.findings).toEqual([]);
+  });
+
+  it("allows explicit negative proof-boundary lines that name blocked payment, payout, and provider claims", async () => {
+    const result = await scanClaims({
+      rootDir: repoRoot,
+      targets: ["server/routes/requests.ts"],
+      writeReports: false,
+    });
+
+    expect(result.findings).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          file: "server/routes/requests.ts",
+          line: 27,
+          type: "payment_or_payout_claim",
+        }),
+      ]),
+    );
   });
 
   it("renders exact file and line evidence with proof owners and safe replacements", async () => {
