@@ -57,9 +57,9 @@ export const CONTACT_REQUEST_PATH_OPTIONS: Array<{
 }> = [
   {
     value: "world-model",
-    label: "World model package",
-    description: "Package access or the right package path for one site.",
-    cta: "Request world model",
+    label: "Readiness report",
+    description: "Scope a site/task readiness report backed by one site package.",
+    cta: "Request readiness evaluation",
     buyerType: "robot_team",
     commercialRequestPath: "world_model",
   },

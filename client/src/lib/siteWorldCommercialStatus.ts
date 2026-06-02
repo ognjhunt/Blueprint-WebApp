@@ -513,7 +513,7 @@ export function getSiteWorldBuyerFlowDisclosure(
       hostedAccess:
         "Hosted review starts from setup checks for account access, entitlement, runtime availability, and package readiness.",
       nextStep:
-        "Request package access or hosted evaluation; Blueprint replies with the supported request path or the first blocking proof detail.",
+        "Request a readiness report or hosted evaluation; Blueprint replies with the supported request path or the first blocking proof detail.",
     };
   }
 

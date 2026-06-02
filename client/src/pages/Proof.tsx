@@ -58,16 +58,16 @@ const boundaryRows: LedgerRow[] = [
   },
   {
     label: "What the buyer gets",
-    value: "Decision-ready evidence",
+    value: "Readiness evidence",
     detail:
-      "The buyer can see what is capture-grounded, what is model-inferred, what exports are allowed, and what remains blocked before purchase or hosted review.",
+      "The buyer can see what is capture-grounded, what is model-inferred, what thresholds are being evaluated, and what remains blocked before purchase, hosted review, or pilot protocol.",
   },
 ];
 
 const heroPacketRows = [
   ["Capture", "Source route, freshness, and provenance"],
-  ["Package", "Manifest, model output, and export scope"],
-  ["Review", "Hosted notes and buyer next step"],
+  ["Thresholds", "Success, cycle, intervention, and safety bar"],
+  ["Advisory", "Failure modes, data needs, and next step"],
 ];
 
 const proofPacketExample: IconItem[] = [
@@ -92,14 +92,14 @@ const proofPacketExample: IconItem[] = [
   {
     icon: ClipboardCheck,
     label: "04",
-    title: "Hosted report",
-    body: "Run notes, observations, requested outputs, and unresolved review questions.",
+    title: "Readiness report",
+    body: "Thresholds, site/task scope, failure modes, evidence gaps, and unresolved review questions.",
   },
   {
     icon: PackageCheck,
     label: "05",
-    title: "Export decision",
-    body: "Whether the buyer should proceed, request more capture, narrow the export, or hold.",
+    title: "Pilot decision",
+    body: "Whether the buyer should proceed to a short pilot protocol, request more evidence, modify the site, or hold.",
   },
 ];
 
@@ -128,9 +128,9 @@ const trustSystemCards: IconItem[] = [
   {
     icon: PackageCheck,
     label: "04",
-    title: "Hosted review has a hierarchy",
+    title: "Readiness review has a hierarchy",
     body:
-      "Session notes, observations, exports, and recommendations point back to the same source packet and never become deployment guarantees.",
+      "Readiness observations, hosted notes, exports, and recommendations point back to the same source packet and never become deployment guarantees.",
   },
 ];
 
@@ -159,9 +159,9 @@ const proofHierarchy: IconItem[] = [
   {
     icon: Sparkles,
     label: "Model-inferred",
-    title: "Hosted evaluation output",
+    title: "Readiness observations",
     body:
-      "Run observations, route notes, and recommendations are useful only because they stay attached to the evidence packet.",
+      "Run observations, route notes, and recommendations are useful only because they stay attached to the evidence packet and request thresholds.",
   },
 ];
 
@@ -210,27 +210,27 @@ const hostedHierarchy: IconItem[] = [
   {
     icon: BadgeCheck,
     label: "Decision layer",
-    title: "Buyer recommendation",
+    title: "Readiness recommendation",
     body:
-      "The output ends in a practical next step: proceed, request more capture, narrow the export, or hold until a blocker is resolved.",
+      "The output ends in a practical next step: proceed to short-pilot protocol, request more evidence, modify the site, or hold until a blocker is resolved.",
   },
 ];
 
 const decisionFrames = [
   {
-    title: "Proceed to hosted evaluation",
+    title: "Proceed to short-pilot protocol",
     body:
-      "The packet has enough site-specific evidence, rights posture, and package scope for a buyer to inspect the world model in a browser.",
+      "The packet has enough site-specific evidence, rights posture, threshold scope, and package depth to recommend a bounded pilot protocol.",
   },
   {
-    title: "Request more capture",
+    title: "Request simulator, action-log, or robot-trial evidence",
     body:
-      "Coverage, route shape, lighting, privacy, or workflow evidence is not strong enough for the buyer question yet.",
+      "Capture evidence is useful, but the stronger readiness verdict still needs owner-system proof before deployment confidence can be upgraded.",
   },
   {
-    title: "Hold the purchase",
+    title: "Hold until the proof gap is resolved",
     body:
-      "Rights, export scope, runtime availability, or provenance is missing. Blueprint should block the claim until that evidence exists.",
+      "Rights, export scope, runtime availability, provenance, safety review, or threshold evidence is missing. Blueprint should block the claim until that evidence exists.",
   },
 ];
 
@@ -286,7 +286,7 @@ export default function Proof() {
     <>
       <SEO
         title="Proof System | Blueprint"
-        description="Blueprint's proof system shows capture provenance, rights posture, hosted outputs, and sample-vs-operational boundaries attached to an indoor site-specific world model before purchase or hosted evaluation."
+        description="Blueprint's proof system shows capture provenance, rights posture, thresholds, readiness-report evidence, and sample-vs-operational boundaries before purchase, hosted evaluation, or pilot protocol."
         canonical="/proof"
       />
 
@@ -303,36 +303,36 @@ export default function Proof() {
             <div className="flex min-h-[35rem] flex-col justify-end">
               <p className="text-[11px] font-semibold uppercase tracking-normal text-[#d4b06b]">Blueprint proof</p>
               <h1 className="mt-6 max-w-[43rem] text-5xl font-semibold leading-none tracking-normal text-white sm:text-7xl">
-                See what is attached before your team commits.
+                See what supports the readiness estimate.
               </h1>
               <p className="mt-5 max-w-[36rem] text-base leading-7 text-white/80 sm:leading-8">
-                Outdoor world models make real-place grounding legible. Blueprint proof gives robot teams a concrete packet to inspect: indoor capture provenance, rights posture, package scope, hosted outputs, and the next buyer decision in one place.
+                Blueprint proof gives robot teams a concrete packet to inspect: indoor capture provenance, rights posture, site/task thresholds, package scope, readiness observations, and the next buyer decision in one place.
               </p>
               <div className="mt-8 flex flex-wrap gap-2">
                 <StatusBadge tone="attached">Capture provenance</StatusBadge>
                 <StatusBadge tone="attached">Rights posture</StatusBadge>
-                <StatusBadge tone="sample">Hosted review context</StatusBadge>
+                <StatusBadge tone="sample">Readiness context</StatusBadge>
               </div>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <a
                   href="/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=proof-packet&source=proof-hero"
                   className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-md bg-white px-5 text-sm font-semibold text-slate-950 transition hover:bg-[#f1efe7] sm:w-auto"
                 >
-                  Request world model
+                  Request readiness evaluation
                   <ArrowUpRight className="h-4 w-4" />
                 </a>
                 <a
-                  href="/world-models"
+                  href="/readiness"
                   className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-md border border-white/20 px-5 text-sm font-semibold text-white transition hover:bg-white/10 sm:w-auto"
                 >
-                  Browse world models
+                  See sample readiness report
                 </a>
               </div>
             </div>
 
             <aside className="self-end border border-white/20 bg-black/40 p-5 backdrop-blur-md">
               <div className="flex flex-wrap gap-2">
-                <StatusBadge tone="attached">Buyer proof packet</StatusBadge>
+                <StatusBadge tone="attached">Buyer readiness packet</StatusBadge>
                 <StatusBadge tone="sample">Sample packet view</StatusBadge>
               </div>
               <div className="mt-6 grid gap-px bg-white/10">
@@ -358,7 +358,7 @@ export default function Proof() {
                   One packet, five buyer checks.
                 </h2>
                 <p className="mt-4 text-sm leading-7 text-slate-600">
-                  The public sample makes these checks inspectable without claiming customer proof.
+                  The public sample makes these checks inspectable without claiming customer proof, safety validation, or ready-to-deploy status.
                 </p>
                 <a
                   href="/sample-deliverables"
@@ -385,7 +385,7 @@ export default function Proof() {
                 Proof is a product capability.
               </h2>
               <p className="mt-4 max-w-xl text-sm leading-7 text-slate-600">
-                The trust system is not a footnote after checkout. It is how Blueprint makes exact-site world models inspectable, requestable, and commercially usable without blurring sample assets into live proof.
+                The trust system is not a footnote after checkout. It is how Blueprint makes site/task readiness reports inspectable, requestable, and commercially usable without blurring sample assets into live proof.
               </p>
             </div>
             <div className="grid gap-px bg-black/10 md:grid-cols-2 xl:grid-cols-4">
@@ -428,7 +428,7 @@ export default function Proof() {
                 The public packet teaches the workflow. The request packet proves one site.
               </h2>
               <p className="mt-4 text-sm leading-7 text-slate-600">
-                Blueprint can show a polished sample without pretending it is a customer result. For a buyer, the proof becomes owner-system backed only when it points to a concrete site, request, package, rights posture, and hosted-evaluation path.
+                Blueprint can show a polished sample without pretending it is a customer result or real deployment verdict. For a buyer, the proof becomes owner-system backed only when it points to a concrete site, task, request, package, rights posture, and hosted-evaluation path.
               </p>
               <div className="mt-5 border border-black/10 bg-white px-4 py-3 text-sm font-semibold leading-6 text-slate-800">
                 {captureGroundedPublicCopy.publicLaunchReadyBoundary}
@@ -451,7 +451,7 @@ export default function Proof() {
                   Every output should point back to the source packet.
                 </h2>
                 <p className="mt-4 text-sm leading-7 text-white/70">
-                  Blueprint can use different model providers over time, but the buyer-visible contract stays stable: capture truth, package truth, rights truth, hosted-session truth, and clear labels for model-inferred output.
+                  Blueprint can use different model providers over time, but the buyer-visible contract stays stable: capture truth, package truth, rights truth, threshold truth, hosted-session truth, and clear labels for model-inferred output.
                 </p>
               </div>
               <div className="grid gap-px bg-white/10 md:grid-cols-2 xl:grid-cols-4">
@@ -504,7 +504,7 @@ export default function Proof() {
                   Hosted review is the buyer room, not the proof source.
                 </h2>
                 <p className="mt-4 text-sm leading-7 text-slate-600">
-                  Hosted outputs are strongest when they inherit the packet instead of replacing it. The session helps the buyer inspect, compare, and decide, while the source evidence keeps the result honest.
+                  Hosted outputs are strongest when they inherit the packet instead of replacing it. The session helps the buyer inspect, compare, and decide, while the source evidence and thresholds keep the readiness estimate honest.
                 </p>
               </div>
               <div className="grid gap-px bg-black/10 md:grid-cols-3">
@@ -577,10 +577,10 @@ export default function Proof() {
             <div className="border border-black/10 bg-[#f8f6f1] p-6 lg:p-8">
               <p className="text-[11px] font-semibold uppercase tracking-normal text-slate-500">Buyer decision frame</p>
               <h2 className="mt-4 text-4xl font-semibold leading-tight tracking-normal text-slate-950">
-                A proof packet should make the next decision obvious.
+                A proof packet should make the readiness decision obvious.
               </h2>
               <p className="mt-4 text-sm leading-7 text-slate-600">
-                The page sells the intended product path without treating every request path as already fulfilled. The buyer sees the strongest supported move and the exact reason a different move may be blocked.
+                The page sells the intended readiness workflow without treating every request path as already fulfilled. The buyer sees the strongest supported move and the exact reason a different move may be blocked.
               </p>
               <div className="mt-7 grid gap-px bg-black/10">
                 {decisionFrames.map((item) => (
@@ -599,10 +599,10 @@ export default function Proof() {
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-normal text-[#d4b06b]">Trust before access</p>
               <h2 className="mt-4 max-w-3xl text-4xl font-semibold leading-tight tracking-normal">
-                Ask for the packet when one exact site matters.
+                Ask for the readiness packet when one exact site/task matters.
               </h2>
               <p className="mt-4 max-w-2xl text-sm leading-7 text-white/70">
-                Blueprint can scope the proof path around a sample catalog listing, a site you already know, or a new capture request. The packet stays honest: sample until request-specific evidence exists, with access opened after rights and hosted availability are ready.
+                Blueprint can scope the proof path around a sample catalog listing, a site you already know, or a new capture request. The packet stays honest: advisory until request-specific simulator, action-log, robot-trial, safety, rights, and hosted evidence exists.
               </p>
             </div>
             <div className="flex flex-col justify-end gap-3 sm:flex-row lg:flex-col">
@@ -610,14 +610,14 @@ export default function Proof() {
                 href="/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=proof-packet&source=proof-bottom"
                 className="inline-flex min-h-14 items-center justify-center gap-3 rounded-md bg-white px-6 text-sm font-semibold text-slate-950 transition hover:bg-[#f1efe7]"
               >
-                Request world model
+                Request readiness evaluation
                 <ArrowUpRight className="h-5 w-5" />
               </a>
               <a
                 href="/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=proof-bottom"
                 className="inline-flex min-h-14 items-center justify-center gap-3 rounded-md border border-white/20 px-6 text-sm font-semibold text-white transition hover:bg-white/10"
               >
-                Request hosted review
+                Request hosted evaluation
               </a>
             </div>
           </div>

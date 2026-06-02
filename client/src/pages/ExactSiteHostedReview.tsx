@@ -104,7 +104,7 @@ const whatYouReceiveRows = [
     receives:
       "Manifest, route notes, capture provenance, rights limits, export scope, and package files when approved.",
     definition: "A site package is the substrate for one exact site, task suite, and robot workflow.",
-    firstAction: "Request package access for one site.",
+    firstAction: "Request the readiness report for one site/task.",
   },
   {
     path: "Readiness report",
@@ -361,7 +361,7 @@ export default function ExactSiteHostedReview() {
             <div className="flex flex-col justify-between bg-[#15130f] p-6 text-white sm:p-8">
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#d0ad72]">
-                  World model package
+                  Site package substrate
                 </p>
                 <h2 className="font-editorial mt-4 max-w-[34rem] text-4xl leading-[1] tracking-normal sm:text-[3.2rem]">
                   The site package is the substrate, not a detached demo.

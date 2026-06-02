@@ -14,10 +14,10 @@ export function Footer() {
             <BrandLockup compact />
           </a>
           <p className="text-sm leading-6 text-slate-600">
-            Blueprint turns indoor real-site capture into site-specific world models, hosted review rooms, and package evidence for robot teams.
+            Blueprint turns indoor real-site capture into site-specific robot deployment readiness reports, hosted review rooms, and package evidence for robot teams.
           </p>
           <p className="text-sm leading-6 text-slate-600">
-            Robot teams request worlds. Site operators set access and privacy boundaries. Capturers apply only where capture is open.
+            Robot teams request site/task readiness. Site operators set access and privacy boundaries. Capturers apply only where capture is open.
           </p>
           <div className="flex flex-col gap-2">
             <a
@@ -72,7 +72,7 @@ export function Footer() {
       <div className="border-t border-black/10 bg-white py-4">
         <div className="mx-auto flex max-w-[88rem] flex-col items-start gap-2 px-4 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-10">
           <p>© {new Date().getFullYear()} Blueprint, Inc. All rights reserved.</p>
-          <p>Capture first. Exact-site world-model products.</p>
+          <p>Capture first. Readiness claims stay evidence-backed.</p>
         </div>
       </div>
     </footer>

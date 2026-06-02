@@ -7,6 +7,7 @@ export type ClaimType =
   | "no_change_churn"
   | "unsupported_hosted_session_proof"
   | "public_copy_proof_drift"
+  | "unsupported_robot_readiness_claim"
   | "stale_payment_payout_provider_doc"
   | "city_live_claim"
   | "customer_or_traction_claim"
@@ -267,6 +268,26 @@ const rules: ClaimRule[] = [
       || /\bnot available\b/i.test(line)
       || /\bonly when the evidence supports it\b/i.test(line)
       || /\bplanning ranges\b/i.test(line),
+  },
+  {
+    type: "unsupported_robot_readiness_claim",
+    ownerProofRequired:
+      "Request-scoped owner-system proof for the exact site/task and robot: simulator traces, action logs, robot trials, safety review/signoff, rights/privacy approval, and hosted/runtime artifacts where applicable.",
+    safeReplacement:
+      "Use `deployment readiness advisory`, `pre-pilot readiness estimate`, `readiness report`, `task-specific confidence packet`, or `confirmed after review`; operational readiness requires simulator traces, action logs, robot trials, and safety proof.",
+    matches: (line) =>
+      /\b(ready to deploy|deployment[- ]ready|safety validated|collision validated|contact validated|manipulation validated|ran the buyer'?s actual robot policy|simulator execution completed|real customer deployment result|guaranteed success rate|guaranteed cycle time|guaranteed intervention rate|guaranteed safety threshold|success rate guarantee|cycle time guarantee|intervention rate guarantee|safety threshold guarantee)\b/i.test(line),
+    allowed: (line) =>
+      hasGuardrailContext(line)
+      || /\bdeployment readiness platform\b/i.test(line)
+      || /\bdeployment readiness advisory\b/i.test(line)
+      || /\bpre[- ]pilot readiness estimate\b/i.test(line)
+      || /\breadiness report\b/i.test(line)
+      || /\btask[- ]specific confidence packet\b/i.test(line)
+      || /\bevidence[- ]backed recommendation\b/i.test(line)
+      || /\bconfirmed after review\b/i.test(line)
+      || /\brequires? simulator traces\b/i.test(line)
+      || /\badvisory\b/i.test(line),
   },
   {
     type: "public_copy_proof_drift",

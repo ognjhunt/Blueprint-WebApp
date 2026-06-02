@@ -186,8 +186,8 @@ function SiteCard({
   const packageSummary = getSiteWorldPackageAccessSummary(site);
   const catalogState = getCatalogStateLabel(site);
   const planned = isPlannedCatalogSiteWorld(site);
-  const primaryCta = planned ? "Scope this site" : "Review proof and access";
-  const packageCta = planned ? "Scope package" : "Request package access";
+  const primaryCta = planned ? "Scope this site/task" : "Review readiness inputs";
+  const packageCta = planned ? "Scope site package" : "Request readiness report";
 
   return (
     <article
@@ -198,7 +198,7 @@ function SiteCard({
       <a
         href={`/world-models/${site.id}`}
         className="block bg-[#f5f3ef] p-3 transition group-hover:bg-[#efebe2]"
-        aria-label={`Open ${site.siteName} world model`}
+        aria-label={`Open ${site.siteName} site package`}
       >
         <SiteWorldGraphic site={site} />
       </a>
@@ -230,7 +230,7 @@ function SiteCard({
         <div className="mt-4 grid gap-3 border-y border-black/10 py-4 text-sm leading-5 text-slate-700 sm:grid-cols-2">
           <p>
             <span className="block text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-              Best robot workflow
+              Readiness workflow
             </span>
             <span className="mt-1 block font-medium text-slate-950">{site.taskLane}</span>
           </p>
@@ -287,7 +287,7 @@ function SiteCard({
               href={`/world-models/${site.id}/start`}
               className="inline-flex w-full items-center justify-center border border-black/10 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-slate-100 sm:w-auto"
             >
-              Check hosted review
+              Check hosted evaluation
             </a>
           ) : null}
           <a
@@ -471,19 +471,19 @@ export default function SiteWorlds() {
   return (
     <>
       <SEO
-        title="World Models | Blueprint"
-        description="Search Blueprint's indoor exact-site world-model catalog by address, city, site type, workflow, robot fit, proof posture, and request locations that are not scanned yet."
+        title="Site Packages | Blueprint"
+        description="Search Blueprint's indoor exact-site package catalog by address, city, site type, workflow, robot fit, proof posture, and request locations that need readiness evaluation."
         canonical="/world-models"
         jsonLd={[
           webPageJsonLd({
             path: "/world-models",
-            name: "Blueprint World Models",
+            name: "Blueprint Site Packages",
             description:
-              "Search-first indoor exact-site world-model catalog with capture-grounded proof, request-gated package paths, hosted review checks, access, freshness, and provenance labels.",
+              "Search-first indoor exact-site package catalog with capture-grounded proof, request-gated readiness reports, hosted review checks, access, freshness, and provenance labels.",
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },
-            { name: "World models", path: "/world-models" },
+            { name: "Site packages", path: "/world-models" },
           ]),
         ]}
       />
@@ -502,17 +502,17 @@ export default function SiteWorlds() {
             <div className="absolute inset-x-0 bottom-0 mx-auto max-w-[88rem] px-5 pb-8 sm:px-8 lg:px-10 lg:pb-10">
               <div className="max-w-[52rem]">
                 <h1 className="font-editorial text-[3.15rem] leading-[0.94] tracking-[-0.04em] text-white sm:text-[5.1rem] sm:tracking-[-0.06em]">
-                  Browse exact-site world models.
+                  Browse site packages for readiness evaluation.
                 </h1>
                 <p className="mt-4 max-w-[40rem] text-base leading-7 text-white/85 sm:text-lg sm:leading-8">
-                  Search by address, site, city, category, workflow, or robot task. If Blueprint has not scanned the exact place yet, request it without turning a match into an access claim.
+                  Search by address, site, city, category, workflow, or robot task. If Blueprint has not scanned the exact place yet, request the site/task without turning a match into readiness, rights, or hosted-access proof.
                 </p>
                 <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                   <a
                     href="/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=site-worlds-hero"
                     className="inline-flex w-full items-center justify-center bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100 sm:w-auto"
                   >
-                    Request world model
+                    Request readiness evaluation
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </a>
                   <a
@@ -531,7 +531,7 @@ export default function SiteWorlds() {
                       htmlFor="world-model-catalog-search"
                       className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500"
                     >
-                      Search the catalog
+                      Search site packages
                     </label>
                     <div className="flex min-h-14 items-center gap-3 border border-black/10 bg-[#f8f6f1] px-4">
                       <Search className="h-5 w-5 shrink-0 text-slate-500" />
@@ -673,11 +673,11 @@ export default function SiteWorlds() {
                 href={requestCandidate?.href || "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=site-worlds"}
                 className="inline-flex w-full items-center justify-center bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 sm:w-auto"
               >
-                {requestCandidate ? "Request this location" : "Request world model"}
+                {requestCandidate ? "Request this location" : "Request readiness evaluation"}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </a>
               <p className="text-xs leading-5 text-slate-500">
-                Requests do not charge, clear rights, start providers, or open hosted access.
+                Requests do not charge, clear rights, start providers, validate safety, or open hosted access.
               </p>
             </div>
           </div>
@@ -787,7 +787,7 @@ export default function SiteWorlds() {
                   href={requestCandidate?.href || "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=site-worlds-empty"}
                   className="inline-flex items-center justify-center bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                 >
-                  {requestCandidate ? "Request this location" : "Request world model"}
+                  {requestCandidate ? "Request this location" : "Request readiness evaluation"}
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </a>
                 <button
@@ -849,13 +849,13 @@ export default function SiteWorlds() {
           <EditorialCtaBand
             eyebrow="Need a different place?"
             title="Request the exact site instead of guessing from a dense catalog."
-            description="Start from the public sample for shape, then request package access, hosted evaluation, or a new capture-backed profile when the catalog does not show the site your robot team needs."
+            description="Start from the public sample for shape, then request a readiness report, hosted evaluation, or a new capture-backed profile when the catalog does not show the site/task your robot team needs."
             imageSrc="/generated/editorial/cross-dock.png"
             imageAlt={heroSite.siteName}
             primaryHref={requestCandidate?.href || "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=site-worlds"}
-            primaryLabel={requestCandidate ? "Request this location" : "Request world model"}
+            primaryLabel={requestCandidate ? "Request this location" : "Request readiness evaluation"}
             secondaryHref={publicDemoHref}
-            secondaryLabel="Open sample world model"
+            secondaryLabel="Open sample site package"
           />
         </section>
       </div>

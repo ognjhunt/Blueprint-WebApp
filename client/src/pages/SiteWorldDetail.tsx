@@ -265,7 +265,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
           href="/world-models"
           className="mt-6 inline-flex items-center bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
         >
-          Back to World Models
+          Back to Site Packages
         </a>
       </div>
     );
@@ -405,27 +405,27 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
   return (
     <>
       <SEO
-        title={`${site.siteName} | World Models | Blueprint`}
-        description={`${site.siteName} is a capture-grounded site-specific world model listing for buyer review, hosted evaluation, package access, and provenance checks.`}
+        title={`${site.siteName} | Site Packages | Blueprint`}
+        description={`${site.siteName} is a capture-grounded site package for readiness review, hosted evaluation, package access, and provenance checks.`}
         canonical={`/world-models/${site.id}`}
         type="product"
         jsonLd={[
           webPageJsonLd({
             path: `/world-models/${site.id}`,
-            name: `${site.siteName} world model`,
-            description: `${site.siteName} is a capture-grounded site-specific world model listing for buyer review, hosted evaluation, package access, and provenance checks.`,
+            name: `${site.siteName} site package`,
+            description: `${site.siteName} is a capture-grounded site package for readiness review, hosted evaluation, package access, and provenance checks.`,
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },
-            { name: "World Models", path: "/world-models" },
+            { name: "Site Packages", path: "/world-models" },
             { name: site.siteName, path: `/world-models/${site.id}` },
           ]),
           productJsonLd({
             path: `/world-models/${site.id}`,
-            name: `${site.siteName} site-specific world model`,
+            name: `${site.siteName} site package`,
             description: `${site.summary} ${getSiteWorldPlainEnglishStatus(site)}`,
             image: editorialRefreshAssets.detailHeroWarehouse,
-            category: "Site-specific world model",
+            category: "Site-specific robot deployment readiness input",
             properties: [
               { name: "Site", value: site.siteName },
               { name: "Workflow", value: site.taskLane || site.sampleTask },
@@ -455,7 +455,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                     className="inline-flex items-center gap-2 text-sm font-semibold text-white/70 transition hover:text-white"
                   >
                     <ArrowLeft className="h-4 w-4" />
-                    Back to World Models
+                    Back to Site Packages
                   </a>
                   <p className="mt-6 text-[11px] uppercase tracking-[0.18em] text-white/55">
                     Exact site
@@ -485,14 +485,14 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                       href={scenePackage?.actionHref || "/contact?persona=robot-team"}
                       className="inline-flex items-center justify-center bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
                     >
-                      Request package access
+                      Request readiness report
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </a>
                     <a
                       href={`/world-models/${site.id}/start`}
                       className="inline-flex items-center justify-center border border-white/15 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
                     >
-                      Check hosted review
+                      Check hosted evaluation
                     </a>
                   </div>
                 </div>
@@ -629,7 +629,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
 
             <div className="border border-black/10 p-6 lg:p-8">
               <h2 className="font-editorial text-[2.8rem] leading-[0.94] tracking-[-0.05em] text-slate-950">
-                Tasks in this world model
+                Tasks in this site package
               </h2>
               <p className="mt-2 text-sm leading-7 text-slate-700">
                 Evaluation tasks prepared for hosted review.
@@ -1002,7 +1002,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                 Site package
               </p>
               <h2 className="mt-3 text-[2.1rem] leading-[0.98] tracking-[-0.05em] text-slate-950">
-                Request package access.
+                Request a readiness report.
               </h2>
               <p className="mt-4 text-sm leading-7 text-slate-700">
                 {scenePackage.summary} Package access is request-scoped; checkout, raw exports,
@@ -1058,7 +1058,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                   href={`/world-models/${site.id}/start`}
                   className="inline-flex items-center justify-center bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                 >
-                  Check hosted review
+                  Check hosted evaluation
                 </a>
                 <a
                   href={hostedPackage?.actionHref || "/contact?persona=robot-team"}
@@ -1074,14 +1074,14 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
         <section className="mx-auto max-w-[96rem] px-5 pb-10 sm:px-8 lg:px-10">
           <EditorialCtaBand
             eyebrow="Next step"
-            title="Ready to scope this site?"
+            title="Ready to scope this site/task?"
             description={buyerFlowDisclosure.nextStep}
             imageSrc={editorialRefreshAssets.detailHeroWarehouse}
             imageAlt={site.siteName}
             primaryHref={scenePackage?.actionHref || "/contact?persona=robot-team"}
-            primaryLabel="Request package access"
+            primaryLabel="Request readiness report"
             secondaryHref={`/world-models/${site.id}/start`}
-            secondaryLabel="Check hosted review"
+            secondaryLabel="Check hosted evaluation"
           />
         </section>
       </div>

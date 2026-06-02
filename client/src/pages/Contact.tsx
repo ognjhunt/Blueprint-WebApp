@@ -106,7 +106,7 @@ function buildContactHref(params: {
   const taskStatement =
     params.prefill.taskStatement ||
     workflow ||
-    (query ? `Request a site-specific world model for ${query}.` : "");
+    (query ? `Request a site/task readiness evaluation for ${query}.` : "");
 
   return `${buildContactRequestUrl({
     requestPath: params.selectedPath,
@@ -212,8 +212,8 @@ export default function Contact() {
   return (
     <>
       <SEO
-        title="Request A Site Or Hosted Review | Blueprint"
-        description="Request a Blueprint world-model package, hosted review, new capture, or site/operator access answer by naming a location, workflow, site class, or robot task."
+        title="Request A Readiness Evaluation | Blueprint"
+        description="Request a Blueprint site/task readiness evaluation, hosted review, new capture, or site/operator access answer by naming a facility, robot task, threshold, or pilot timeline."
         canonical={location === "/contact/site-operator" ? "/contact/site-operator" : "/contact"}
       />
 
@@ -222,17 +222,17 @@ export default function Contact() {
           <div className="mx-auto grid min-h-[35rem] max-w-[88rem] items-center gap-8 px-5 py-16 sm:px-8 lg:grid-cols-[0.58fr_0.42fr] lg:px-10">
             <div>
               <h1 className="font-editorial max-w-[46rem] text-[3.25rem] leading-[0.94] tracking-[-0.05em] text-slate-950 sm:text-[5.1rem] sm:tracking-[-0.06em]">
-                Request the site-specific world model your robot team needs.
+                Request a site/task readiness evaluation.
               </h1>
               <p className="mt-5 max-w-[38rem] text-base leading-8 text-slate-600">
-                Name the place, workflow, robot stack, or site class. Blueprint routes the request to package access, hosted review, new capture, or a site-access answer without treating the form as payment, rights clearance, provider execution, or fulfillment.
+                Name the facility, task, robot stack, threshold, or pilot timeline. Blueprint routes the request to a readiness report, hosted review, new capture, or site-access answer without treating the form as payment, rights clearance, provider execution, or fulfillment.
               </p>
               <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <a
                   href="#contact-intake"
                   className="inline-flex items-center justify-center bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                 >
-                  Request world model
+                  Request readiness evaluation
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </a>
                 <a
@@ -248,7 +248,7 @@ export default function Contact() {
                   htmlFor="contact-primary-request"
                   className="mb-2 block text-sm font-semibold text-slate-900"
                 >
-                  What site, location, or robot workflow do you need?
+                  What site, task, or robot workflow do you need evaluated?
                 </label>
                 <div className="grid gap-3 border border-black/10 bg-[#f8f6f1] p-3 sm:grid-cols-[1fr_auto]">
                   <div className="flex min-h-14 items-center gap-3 bg-white px-4">
@@ -260,7 +260,7 @@ export default function Contact() {
                         setPrimaryQuery(event.target.value);
                         setSelectedSuggestion(null);
                       }}
-                      placeholder="What site, location, or robot workflow do you need?"
+                      placeholder="Site, task, robot type, threshold, or pilot workflow"
                       className="min-w-0 flex-1 bg-transparent text-base font-medium text-slate-950 outline-none placeholder:text-slate-500"
                     />
                   </div>
@@ -389,7 +389,7 @@ export default function Contact() {
                   <Bot className="h-5 w-5 text-slate-950" />
                   <p className="mt-4 text-sm font-semibold text-slate-950">Human and agent friendly</p>
                   <p className="mt-2 text-sm leading-6 text-slate-600">
-                    Use a site name, address, city, site class, workflow, or robot task. Google Places is optional; catalog-local matching and free text still work.
+                    Use a site name, address, city, site class, workflow, robot task, or threshold. Google Places is optional; catalog-local matching and free text still work.
                   </p>
                 </div>
               )}

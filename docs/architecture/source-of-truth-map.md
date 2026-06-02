@@ -20,6 +20,7 @@ Treat these as repo-authoritative definitions unless a newer explicit doctrine u
 - `docs/architecture/autoagent-autoresearch-operating-policy.md`: repo-authoritative near-zero-human AutoAgent/AutoResearch operating tiers and blocked autonomous actions.
 - `docs/architecture/autonomous-kpi-live-source-contract.md`: repo-local live-source contracts for KPI rows that must stay `Source needed` until owner-system evidence exists.
 - `docs/architecture/public-display-ready-claims-matrix.md`: Public Display Ready vs Operational Launch Ready claim rules for docs, agents, and buyer pages.
+- `docs/architecture/site-specific-robot-deployment-readiness-wedge-2026-06-02.md`: current WebApp PMF wedge doctrine for public readiness positioning, allowed category claims, deliverables, buyer scope, and blocked unsupported readiness proof.
 - `docs/company/`: repo-canonical employee handbook and policy drafts until counsel/PEO-approved systems adopt final versions.
 - `docs/onboarding/`: repo-canonical onboarding journeys for humans, managers, AI agents, role scorecards, and Notion IA.
 
@@ -28,6 +29,7 @@ When these files disagree with older reports, generated summaries, graph output,
 ## Product And Contract Truth
 
 - Public route truth starts in `client/src/app/routes.tsx`.
+- Public readiness wedge truth starts in `client/src/pages/Home.tsx`, `client/src/pages/ReadinessPack.tsx`, `client/src/pages/ExactSiteHostedReview.tsx`, `client/src/pages/ForRobotIntegrators.tsx`, `client/src/pages/Pricing.tsx`, `client/src/pages/Proof.tsx`, `client/src/pages/Contact.tsx`, `client/src/lib/captureGroundedLanguage.ts`, and `server/routes/site-content.ts`.
 - Public catalog/listing disclosure truth starts in `client/src/lib/siteWorldCommercialStatus.ts`, `client/src/data/siteWorlds.ts`, `server/routes/site-worlds.ts`, and `server/utils/site-worlds.ts`.
 - Hosted-session truth starts in `server/routes/site-world-sessions.ts`, `server/types/hosted-session.ts`, and `client/src/types/hostedSession.ts`.
 - Inbound request and pipeline bridge truth starts in `server/types/inbound-request.ts`, `client/src/types/inbound-request.ts`, `server/routes/inbound-request.ts`, `server/routes/internal-pipeline.ts`, and `server/utils/pipelineStateMachine.ts`.

@@ -20,6 +20,14 @@
 This platform is capture-first and world-model-product-first.
 The bridge materialization contract and GPU compatibility contract are downstream compatibility layers, not sources of capture truth.
 
+### 2026-06-02 WebApp Commercial Wedge Overlay
+
+`Blueprint-WebApp` may lead its public buyer narrative with the first PMF wedge: **a site-specific robot deployment readiness platform**.
+
+That public wedge answers a narrow buyer question: before a costly pilot, how likely is a robot to meet the required success rate, cycle time, intervention rate, and safety threshold on the actual site/task?
+
+This overlay does not make Blueprint qualification-first or detach the product from real capture. The readiness report is a commercial buyer workflow built on capture-grounded site packages, task scope, robot profiles, provenance, rights/privacy boundaries, hosted review, and explicit missing-proof labels. A readiness advisory can be sold confidently as a product category; a claim that a robot is ready to deploy, safety validated, or guaranteed to hit thresholds still requires request-scoped owner-system proof.
+
 ### Product Center of Gravity
 
 The center of gravity is:
@@ -29,6 +37,7 @@ The center of gravity is:
 - site-specific world models and hosted access for robot teams
 - rights, privacy, and commercialization controls
 - buyer-facing product surfaces that make real sites easy to browse, buy, run, and manage
+- public WebApp readiness reports that organize site/task thresholds and pilot decisions around those real-site packages
 
 The center of gravity is not:
 
@@ -36,6 +45,7 @@ The center of gravity is not:
 - qualification/readiness as the main thing Blueprint sells
 - one-off model demos disconnected from real capture
 - a single permanent world-model backend
+- unsupported robot-readiness verdicts, safety validation, or guaranteed threshold claims
 
 ### Market Structure
 
@@ -57,14 +67,15 @@ The platform must support lawful capture and packaging even when a site has not 
 - raw capture, timestamps, poses, device metadata, and provenance are authoritative
 - rights / privacy / consent metadata are authoritative
 - site-specific world-model packages and hosted-session artifacts are the primary sellable downstream products
-- qualification / readiness / review outputs are optional trust layers that can guide buying, commercialization, and deployment decisions
+- the current WebApp commercial wedge can sell readiness reports as a first buyer workflow, while those reports remain grounded in site packages and request-scoped proof
+- qualification / readiness / review outputs can guide buying, commercialization, and deployment decisions, but they must not override capture truth
 - downstream outputs must not rewrite capture truth or provenance truth
 
 ### Product Stack
 
 1. primary product: capture supply and real-site coverage
 2. second product: site-specific world models and hosted access
-3. third product: optional trust / review / readiness outputs
+3. current WebApp wedge: site/task robot deployment readiness reports backed by those packages
 4. fourth product: deeper evaluation, managed tuning, licensing, and deployment support
 
 ### Default Lifecycle
@@ -86,6 +97,6 @@ When changing any Blueprint repo, optimize for:
 5. optional trust / readiness layers that support the product without becoming the product story
 
 Do not assume that every capture must begin with formal site qualification.
-Do not treat qualification/readiness as the universal center of the company.
+Do not treat qualification/readiness as the universal center of the company. The WebApp readiness wedge is specific to pre-pilot robot deployment decisions and does not authorize unsupported operational verdicts.
 Do not overstate world-model quality beyond what capture, privacy, and runtime artifacts support.
 <!-- SHARED_PLATFORM_CONTEXT_END -->

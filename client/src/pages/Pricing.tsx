@@ -10,6 +10,7 @@ import { publicDemoHref } from "@/lib/marketingProof";
 import {
   ArrowRight,
   Boxes,
+  ClipboardCheck,
   CirclePlay,
   Map,
   ScanEye,
@@ -17,70 +18,70 @@ import {
 } from "lucide-react";
 
 const packageBullets = [
-  "Capture manifest, site notes, and provenance",
-  "Geometry/depth assets when the package supports them",
-  "Route graph and workflow paths for the selected site",
-  "Rights sheet, freshness state, and approved export limits",
-  "Offline bundle for your team to run in its own stack",
+  "Site/task scope, robot profile, and readiness question",
+  "Success-rate, cycle-time, intervention-rate, and safety thresholds",
+  "Capture manifest, route evidence, site notes, and provenance",
+  "Failure modes, site modifications, data needs, and short-pilot protocol",
+  "Explicit blockers where simulator, action-log, robot-trial, or safety proof is missing",
 ];
 
 const hostedBullets = [
   "Managed browser review when the site and entitlement path are confirmed",
-  "Scoped route replay and scenario variation",
-  "Observation frames from hosted evaluation",
-  "Sharable session notes and result exports",
-  "Run evidence with package and export limits called out",
+  "Scoped route replay, scenario variation, and readiness observations",
+  "Sharable notes tied to the same site/task readiness report",
+  "Vendor or robot-team comparison when multiple options are in scope",
+  "Run evidence with package, hosted, and export limits called out",
 ];
 
 const enterpriseBullets = [
   "Custom capture and private onboarding",
   "Multi-site rollout planning",
   "Role-based access and audit logs",
-  "Detection and recapture workflows",
-  "SLA, support, and success planning",
+  "Benchmark design across facilities, vendors, or robot releases",
+  "SLA, support, and success planning after request review",
 ];
 
 const comparisonArtifacts = [
-  { label: "Package manifest", detail: "The file-backed access path starts here.", icon: Boxes },
-  { label: "Export bundle", detail: "Files move only when the listing supports that use.", icon: Map },
+  { label: "Readiness report", detail: "The site/task advisory starts here.", icon: ClipboardCheck },
+  { label: "Package manifest", detail: "Capture-backed files keep the advisory grounded.", icon: Boxes },
   { label: "Rights sheet", detail: "Use, sharing, and export limits stay attached.", icon: ShieldCheck },
   { label: "Hosted review", detail: "The managed session path starts in the browser.", icon: CirclePlay },
-  { label: "Observation frames", detail: "Review what the hosted run saw.", icon: ScanEye },
-  { label: "Change state", detail: "Freshness and recapture notes stay visible.", icon: ShieldCheck },
+  { label: "Threshold record", detail: "Success, cycle, intervention, and safety bars stay visible.", icon: ScanEye },
+  { label: "Pilot protocol", detail: "Next field work stays bounded to the evidence.", icon: Map },
 ];
 
 const accessModels = [
   {
-    title: "Package access first",
+    title: "Readiness review first",
     price: "$2,100-$3,400",
-    body: "Use this when your team wants files, manifest, routes, and approved export scope for one exact site.",
-    items: ["Files and manifest", "Export limits", "Optional hosted add-on"],
+    body: "Use this when your team wants a pre-pilot advisory for one exact site/task before committing field time.",
+    items: ["Threshold scope", "Failure modes", "Pilot protocol"],
   },
   {
     title: "Hosted review first",
     price: "$16-$29 / session-hour",
-    body: "Use this when your team wants Blueprint to run a managed buyer room before file handoff or deeper package work.",
-    items: ["Browser session", "Reruns and notes", "Export scope"],
+    body: "Use this when your team wants Blueprint to run a managed buyer room before deeper package work or pilot protocol.",
+    items: ["Browser session", "Reruns and notes", "Readiness limits"],
   },
   {
-    title: "Custom scope first",
+    title: "Multi-site benchmark first",
     price: "Scoped",
-    body: "Use this when the site is private, rights are custom, or the work needs multi-site delivery support.",
-    items: ["Capture plan", "Rights review", "Commercial terms"],
+    body: "Use this when sites, vendors, or robot releases need a private benchmark design across multiple workflows.",
+    items: ["Capture plan", "Vendor comparison", "Commercial terms"],
   },
 ];
 
 const scopeFactors = [
-  "Site size and capture depth",
+  "Site size, task count, and capture depth",
   "Private-site access or custom rights review",
-  "Export format and integration requirements",
-  "Recapture, change detection, or multi-site rollout",
+  "Robot profile, threshold, and evidence requirements",
+  "Recapture, change detection, vendor comparison, or multi-site rollout",
 ];
 
 const trustNotes = [
   {
-    title: "Package access",
-    body: "A package license covers the listed capture-backed artifacts and approved export modes. It does not clear unrelated sites or unsupported uses.",
+    title: "Readiness report",
+    body: "A readiness report is advisory and request-scoped. It does not claim a robot is ready to deploy unless owner-system proof supports that stronger verdict.",
   },
   {
     title: "Hosted evaluation",
@@ -94,33 +95,33 @@ const trustNotes = [
 
 const pricingPathRows = [
   {
-    path: "Site Package Access",
-    bestFor: "Robot teams that want files for one exact site after proof and rights review.",
-    startsWith: "One site, robot workflow, and requested export mode.",
-    receivesFirst: "Manifest, route notes, rights sheet, provenance summary, and package scope.",
-    gatedBy: "Rights/privacy review, freshness, export limits, and buyer scope.",
+    path: "Site/Task Readiness Review",
+    bestFor: "Robot teams or site operators deciding whether one exact task deserves pilot time.",
+    startsWith: "One site, robot task, robot profile, and required success/cycle/intervention/safety threshold.",
+    receivesFirst: "Readiness advisory, failure modes, site modifications, data needs, short-pilot protocol, and package scope.",
+    gatedBy: "Capture/provenance depth, rights/privacy review, freshness, threshold scope, and missing simulator/action/robot/safety proof.",
     priceRange: "$2,100-$3,400",
-    cta: "Request package access",
+    cta: "Request readiness review",
     href: "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=pricing-package-table",
   },
   {
-    path: "Hosted Review",
-    bestFor: "Teams that want Blueprint to run a managed exact-site review before file handoff.",
-    startsWith: "A site package or sample listing plus the task your team wants to inspect.",
-    receivesFirst: "Review room request, scoped run notes, observations, and output decisions.",
-    gatedBy: "Account access, entitlement, package readiness, and hosted-session availability.",
+    path: "Hosted Evaluation",
+    bestFor: "Teams that want Blueprint to run a managed exact-site review before pilot protocol or file handoff.",
+    startsWith: "A site package or sample listing plus the task, threshold, and evidence question your team wants to inspect.",
+    receivesFirst: "Review room request, scoped run notes, readiness observations, limits, and output decisions.",
+    gatedBy: "Account access, entitlement, package readiness, threshold scope, and hosted-session availability.",
     priceRange: "$16-$29 / session-hour",
-    cta: "Request hosted review",
+    cta: "Request hosted evaluation",
     href: "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=pricing-hosted-table",
   },
   {
-    path: "Custom Scope",
-    bestFor: "Private, multi-site, or operator-heavy work where a catalog path is too narrow.",
-    startsWith: "Facility, route, site boundaries, commercialization posture, and delivery goal.",
-    receivesFirst: "Scope brief, capture plan, operator boundary review, and delivery estimate.",
-    gatedBy: "Operator authority, custom rights/privacy terms, delivery capacity, and commercial review.",
+    path: "Custom Multi-Site Benchmark",
+    bestFor: "Private, multi-site, vendor-comparison, or operator-heavy work where one catalog path is too narrow.",
+    startsWith: "Facilities, task suite, site boundaries, commercialization posture, vendors, and pilot decision goal.",
+    receivesFirst: "Benchmark brief, capture plan, operator boundary review, readiness methodology, and delivery estimate.",
+    gatedBy: "Operator authority, custom rights/privacy terms, delivery capacity, evidence requirements, and commercial review.",
     priceRange: "$50,000+ scoped",
-    cta: "Request custom scope",
+    cta: "Request benchmark scope",
     href: "/contact?persona=robot-team&buyerType=robot_team&interest=custom-scope&path=world-model&source=pricing-custom-table",
   },
 ] as const;
@@ -191,7 +192,7 @@ export default function Pricing() {
     <>
       <SEO
         title="Pricing | Blueprint"
-        description="Choose package access, hosted evaluation, or custom private-site scope for an indoor exact site your robot team needs to evaluate."
+        description="Choose a site/task readiness review, hosted evaluation, or custom multi-site benchmark for an indoor exact site your robot team needs to evaluate before a pilot."
         canonical="/pricing"
       />
 
@@ -209,24 +210,24 @@ export default function Pricing() {
               <div className="max-w-[34rem]">
                 <EditorialSectionLabel>Pricing</EditorialSectionLabel>
                 <h1 className="font-editorial mt-6 text-[3.7rem] leading-[0.9] tracking-[-0.06em] text-slate-950 sm:text-[5.1rem]">
-                  Choose the first step for one real site.
+                  Price the readiness question before the pilot.
                 </h1>
                 <p className="mt-6 text-lg leading-8 text-slate-900 sm:text-slate-700">
-                  Robot teams can start with files, a managed buyer room, or custom scope. Blueprint keeps proof, rights, price range, and access review tied to the indoor exact site before anything becomes payment, fulfillment, or hosted access.
+                  Robot teams can start with a site/task readiness advisory, a managed buyer room, or a custom benchmark. Blueprint keeps proof, rights, thresholds, price range, and access review tied to the indoor exact site before anything becomes payment, fulfillment, or hosted access.
                 </p>
                 <div className="mt-8 flex flex-wrap gap-3">
                   <a
                     href="/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=pricing-hero"
                     className="inline-flex items-center justify-center bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                   >
-                    Request world model
+                    Request readiness evaluation
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </a>
                   <a
                     href="/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=pricing-hero"
                     className="inline-flex items-center justify-center border border-black/10 bg-white/75 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-white"
                   >
-                    Request hosted review
+                    Request hosted evaluation
                   </a>
                 </div>
               </div>
@@ -239,7 +240,7 @@ export default function Pricing() {
             <EditorialSectionIntro
               eyebrow="Compare paths"
               title="Pick by the first buyer decision."
-              description="Package access, hosted review, and custom scope are separate starts. Each remains tied to one indoor exact site, request review, and proof boundaries."
+              description="Readiness review, hosted evaluation, and custom benchmark are separate starts. Each remains tied to one indoor exact site, request review, thresholds, and proof boundaries."
               className="max-w-3xl"
             />
             <div className="mt-7 overflow-x-auto border border-black/10">
@@ -284,9 +285,9 @@ export default function Pricing() {
           <PricePanel
             index="01"
             eyebrow="Files and license for your stack."
-            title="Site Package Access"
+            title="Site/Task Readiness Review"
             price="$2,100 – $3,400"
-            body="License the capture-backed package for one exact site: manifest, routes, provenance, rights notes, and the export modes cleared for that listing."
+            body="Scope a readiness report for one exact site/task: site package, robot profile, thresholds, failure modes, site modifications, data requirements, and short-pilot protocol."
             bullets={packageBullets}
             image="/generated/editorial/pricing-hero.png"
             imageAlt="Site package illustration"
@@ -295,18 +296,18 @@ export default function Pricing() {
             <div className="absolute inset-y-0 right-0 flex w-full items-end justify-center p-6 lg:justify-end lg:p-8">
               <div className="grid w-full max-w-[32rem] gap-4 md:grid-cols-[0.52fr_0.48fr]">
                 <div className="rounded-[1.6rem] border border-white/10 bg-black/55 p-5 text-white">
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Blueprint site package</p>
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Blueprint readiness review</p>
                   <p className="mt-5 text-2xl font-semibold">Market Hall Grocery</p>
                   <p className="mt-3 text-sm text-white/60">Sample packet date · Mar 13, 2026</p>
                 </div>
                 <div className="space-y-3">
                   <div className="rounded-[1.2rem] border border-white/10 bg-white/90 p-4">
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Manifest</p>
-                    <p className="mt-2 text-sm text-slate-700">Routes, site notes, rights, freshness, and provenance attached.</p>
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Thresholds</p>
+                    <p className="mt-2 text-sm text-slate-700">Success, cycle, intervention, and safety bars named.</p>
                   </div>
                   <div className="rounded-[1.2rem] border border-white/10 bg-white/90 p-4">
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Coverage map</p>
-                    <p className="mt-2 text-sm text-slate-700">Exact-site path coverage and export boundaries visible.</p>
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Evidence boundary</p>
+                    <p className="mt-2 text-sm text-slate-700">Advisory until owner-system proof supports more.</p>
                   </div>
                 </div>
               </div>
@@ -316,9 +317,9 @@ export default function Pricing() {
           <PricePanel
             index="02"
             eyebrow="Managed session before file handoff."
-            title="Hosted Review"
+            title="Hosted Evaluation"
             price="$16 – $29 / session-hour"
-            body="Blueprint hosts the exact-site world model in a managed buyer room so your team can review configured routes, reruns, observations, and outputs before deciding whether package access should open next."
+            body="Blueprint hosts the exact-site package in a managed buyer room so your team can review configured routes, scenario variations, observations, and readiness limits before deciding whether package access or pilot protocol should open next."
             bullets={hostedBullets}
             image="/generated/editorial/hosted-hero.png"
             imageAlt="Hosted evaluation panel"
@@ -356,9 +357,9 @@ export default function Pricing() {
           <PricePanel
             index="03"
             eyebrow="Private sites, multiple markets, or deeper ops."
-            title="Custom Scope"
+            title="Custom Multi-Site Benchmark"
             price="$50,000+ scoped"
-            body="Use this path when the site is private, the rights model is custom, or your team needs Blueprint-managed support across multiple locations."
+            body="Use this path when the site is private, the rights model is custom, or your team needs Blueprint-managed readiness benchmarking across multiple locations, vendors, or robot releases."
             bullets={enterpriseBullets}
             image="/generated/editorial/manufacturing-plant.png"
             imageAlt="Custom operations view"
@@ -407,7 +408,7 @@ export default function Pricing() {
               <EditorialSectionIntro
                 eyebrow="Access model"
                 title="Choose by the first decision your team needs to make."
-                description="Package access means files and approved exports. Hosted review means managed browser sessions and run evidence. Custom scope is for private or multi-site work."
+                description="Readiness review means advisory evidence for one site/task. Hosted evaluation means managed browser sessions and run notes. Custom benchmark is for private, vendor-comparison, or multi-site work."
               />
               <div className="mt-6 border-t border-black/10 pt-5">
                 <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Scope changes with</p>
@@ -456,7 +457,7 @@ export default function Pricing() {
               <EditorialSectionIntro
                 eyebrow="What you get"
                 title="What each path unlocks first."
-                description="The package path starts with capture-backed files and rights metadata. The hosted path starts with a managed review session tied to the same exact site."
+                description="The readiness path starts with the advisory and its proof boundary. The hosted path starts with a managed review session tied to the same exact site."
                 className="max-w-3xl"
               />
             </div>
@@ -481,20 +482,20 @@ export default function Pricing() {
               href={publicDemoHref}
               className="inline-flex items-center justify-center bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
             >
-              Open sample world model
+              Open sample site package
               <ArrowRight className="ml-2 h-4 w-4" />
             </a>
             <a
               href="/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=pricing"
               className="inline-flex items-center justify-center border border-black/10 bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-50"
             >
-              Request hosted review
+              Request hosted evaluation
             </a>
             <a
               href="/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=pricing"
               className="inline-flex items-center justify-center border border-black/10 px-6 py-3 text-sm font-semibold text-slate-700 transition hover:bg-white"
             >
-              Request world model
+              Request readiness evaluation
             </a>
           </div>
         </section>

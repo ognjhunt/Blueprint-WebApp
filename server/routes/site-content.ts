@@ -11,7 +11,17 @@ const definitions = [
   {
     term: "Exact-site world model",
     definition:
-      "A digital environment tied to one real indoor facility, public-facing place, or workflow, with capture provenance, rights, privacy, and package limits kept attached.",
+      "A digital environment tied to one real indoor facility, public-facing place, or workflow. In the current public story it is a substrate for readiness work, with capture provenance, rights, privacy, and package limits kept attached.",
+  },
+  {
+    term: "Deployment readiness advisory",
+    definition:
+      "A request-scoped pre-pilot estimate for one site/task, robot profile, and threshold set. It can organize success-rate, cycle-time, intervention-rate, safety-threshold, failure-mode, site-modification, data-need, and pilot-protocol questions without claiming the robot is ready to deploy.",
+  },
+  {
+    term: "Readiness report",
+    definition:
+      "A Blueprint deliverable that summarizes site/task scope, capture-backed evidence, robot profile, thresholds, scenario variations, failure modes, site modifications, data requirements, missing owner-system proof, and recommended next step.",
   },
   {
     term: "Category validation",
@@ -21,7 +31,7 @@ const definitions = [
   {
     term: "Site package",
     definition:
-      "Walkthrough media, poses, metadata, geometry when available, rights, privacy, provenance, and export scope for one site.",
+      "Walkthrough media, poses, metadata, geometry when available, rights, privacy, provenance, and export scope for one site. It grounds the readiness report instead of disappearing behind a generic digital-twin claim.",
   },
   {
     term: "Hosted review",
@@ -50,19 +60,25 @@ const pages = [
     path: "/",
     title: "Home",
     description:
-      "Overview of Blueprint's capture-backed site-specific world models, hosted robot evaluation, and site packages.",
+      "Overview of Blueprint's capture-backed site-specific robot deployment readiness platform, readiness reports, hosted robot evaluation, and site packages.",
   },
   {
     path: "/product",
     title: "Product",
     description:
-      "Blueprint's product path for indoor site-specific world models, site packages, hosted review, and provenance boundaries.",
+      "Blueprint's product path from indoor capture to task suite, world-model/site-package assets, readiness report, hosted review, pilot protocol, and provenance boundaries.",
+  },
+  {
+    path: "/readiness",
+    title: "Readiness",
+    description:
+      "Blueprint's first PMF wedge page for site-specific robot deployment readiness reports, threshold scope, failure modes, evidence gaps, and pilot protocol.",
   },
   {
     path: "/for-robot-teams",
     title: "For Robot Teams",
     description:
-      "Robot-team page explaining the indoor workflow from real site to capture provenance, grounded world model, hosted review, and export or recapture decision.",
+      "Robot-team page explaining pre-sales and pre-deployment evaluation from real site to capture provenance, task thresholds, readiness advisory, hosted review, and pilot decision.",
   },
   {
     path: "/how-it-works",
@@ -72,9 +88,9 @@ const pages = [
   },
   {
     path: "/world-models",
-    title: "Catalog",
+    title: "Site Package Catalog",
     description:
-      "Exact-site world-model catalog with proof posture, package paths, hosted-evaluation entry points, and provenance boundaries.",
+      "Exact-site package catalog with proof posture, readiness-report entry points, hosted-evaluation paths, and provenance boundaries.",
   },
   {
     path: "/world-models/siteworld-f5fd54898cfb",
@@ -98,7 +114,7 @@ const pages = [
     path: "/proof",
     title: "Proof",
     description:
-      "Public proof packet example with route capture, provenance, privacy posture, and hosted-review outputs.",
+      "Public proof packet example with route capture, provenance, privacy posture, thresholds, readiness-report boundaries, and hosted-review outputs.",
   },
   {
     path: "/governance",
@@ -110,19 +126,19 @@ const pages = [
     path: "/faq",
     title: "FAQ",
     description:
-      "Direct answers about world models, hosted evaluation, sample proof, buyer outputs, and next steps.",
+      "Direct answers about readiness reports, site packages, hosted evaluation, sample proof, buyer outputs, and next steps.",
   },
   {
     path: "/pricing",
     title: "Pricing",
     description:
-      "Commercial paths for site package, hosted evaluation, and enterprise scope.",
+      "Commercial paths for site/task readiness review, hosted evaluation, and custom multi-site benchmark scope.",
   },
   {
     path: "/contact",
     title: "Enterprise Contact",
     description:
-      "Structured intake for a site, workflow, robot question, rights context, and desired next step.",
+      "Structured intake for a site, workflow, robot profile, thresholds, pilot timeline, evidence needs, rights context, and desired next step.",
   },
   {
     path: "/updates",
@@ -139,9 +155,15 @@ const pages = [
 ];
 
 const queryThemes = [
-  "exact-site world models",
-  "indoor world models for robot teams",
-  "site-specific world models for robotics",
+  "site-specific robot deployment readiness",
+  "robot deployment readiness platform",
+  "pre-pilot robot readiness estimate",
+  "site task readiness report",
+  "warehouse robot readiness evaluation",
+  "factory robot readiness evaluation",
+  "success rate cycle time intervention safety threshold robot task",
+  "exact-site world models as readiness substrate",
+  "indoor site packages for robot readiness",
   "Google Genie Street View indoor world model gap",
   "capture-backed robot evaluation",
   "hosted robot evaluation",

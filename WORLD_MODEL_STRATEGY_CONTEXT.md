@@ -34,8 +34,9 @@ That means:
 
 - real capture supply is the entry point
 - site-specific world models and hosted sessions are the primary sellable outputs
-- qualification / readiness can exist as optional trust layers, especially for high-stakes buyers, commercialization decisions, or deployment review
-- those trust layers should support the product, not define the company
+- `Blueprint-WebApp` can lead the first commercial PMF wedge with site-specific robot deployment readiness reports for pre-pilot buyer decisions
+- those readiness reports must stay grounded in capture-backed site packages, provenance, rights/privacy boundaries, robot profile, task scope, and threshold evidence
+- readiness can be a public buyer workflow without becoming unsupported ready-to-deploy, safety-validated, simulator-completed, or guaranteed-threshold proof
 
 ## Practical Strategic Conclusion
 
@@ -56,8 +57,9 @@ Today, the strongest near-term value comes from:
 1. capturing real indoor spaces at scale
 2. turning those captures into site-specific world models and hosted access
 3. preserving strong rights, privacy, and provenance metadata around those assets
-4. giving robot teams clear buyer surfaces to browse, buy, run, and manage exact-site products
-5. using qualification / readiness outputs only when they materially improve trust, pricing, commercialization, or deployment decisions
+4. giving robot teams clear buyer surfaces to evaluate site/task readiness before expensive pilots
+5. packaging success-rate, cycle-time, intervention-rate, and safety-threshold questions into request-scoped readiness reports
+6. using hosted access, site packages, and model/runtime assets as the substrate for evidence-backed pilot decisions
 
 Native SWM-like interaction remains an important direction, but it is not the only thing customers need in order for the product to be valuable now.
 
@@ -86,6 +88,8 @@ These should be treated as long-lived platform contracts:
 - truth labeling in UI and APIs
 
 Qualification / readiness outputs should stay compatible where they exist, but they should be treated as optional support contracts rather than the only source of product value.
+
+For the current WebApp wedge, a readiness report is a first-class commercial support contract: it is allowed to lead public buyer copy as long as it remains advisory, site/task scoped, and bounded by capture/provenance and missing-proof labels.
 
 ## What Must Remain Swappable
 
@@ -119,7 +123,7 @@ The company should be able to say:
 
 - we do not depend on owning the single best world model
 - we are the best system for turning real sites into site-specific world-model products and hosted experiences
-- we can add trust, review, and readiness layers when they help, without making them the center of the company
+- we can lead specific buyer workflows with trust, review, and readiness layers when they materially improve pre-pilot decisions, without making unsupported qualification the center of the company
 
 ## Build Priorities Right Now
 
@@ -130,9 +134,9 @@ For the current stage, prioritize:
 3. hosted access and buyer usability
 4. rights / privacy / provenance rigor
 5. stable product contracts that survive backend swaps
-6. optional trust / readiness outputs for the cases that need them
+6. site/task readiness reports for pre-pilot robot deployment decisions where thresholds and evidence gaps matter
 
-Do not spend disproportionate time pushing qualification/readiness into the lead product story when the main commercial value comes from capture supply and site-specific world-model access.
+Do not spend disproportionate time pushing generic qualification/readiness into the lead product story. The approved WebApp lead story is narrower: site-specific robot deployment readiness for concrete warehouse, factory, material-handling, inspection, and vendor/site-operator evaluation loops.
 
 ## Data Priority
 

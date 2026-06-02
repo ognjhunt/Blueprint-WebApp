@@ -9,6 +9,7 @@ import {
   MapPin,
   MonitorPlay,
   Package,
+  Gauge,
 } from "lucide-react";
 import { analyticsEvents, getSafeErrorType } from "@/lib/analytics";
 import { withCsrfHeader } from "@/lib/csrf";
@@ -92,9 +93,9 @@ const robotRequestPathOptions: Array<{
 }> = [
   {
     value: "world_model",
-    label: "World model package",
-    description: "Ask for a site-specific package or package path.",
-    Icon: Package,
+    label: "Readiness report",
+    description: "Scope a site/task readiness advisory and package path.",
+    Icon: Gauge,
   },
   {
     value: "hosted_evaluation",
@@ -124,17 +125,17 @@ const requestPathCopy: Record<
   }
 > = {
   world_model: {
-    successTitle: "World model request received",
+    successTitle: "Readiness evaluation request received",
     successBody:
-      "Blueprint now has the buyer, site, and robot context needed to route this toward a package path, hosted evaluation option, or one narrow follow-up. No payment, provider run, or fulfillment action was triggered by this form.",
-    requestSectionTitle: "What should the world model be scoped around?",
-    taskLabel: "What should this world model help your team evaluate?",
+      "Blueprint now has the buyer, site, task, and robot context needed to route this toward a readiness report, package path, hosted evaluation option, or one narrow follow-up. No payment, provider run, robot trial, safety validation, or fulfillment action was triggered by this form.",
+    requestSectionTitle: "What should the readiness report be scoped around?",
+    taskLabel: "What site/task readiness question should Blueprint help answer?",
     taskPlaceholder:
-      "Describe the deployment question, task, site class, or package need you want answered first.*",
-    taskHelper: "One concrete robot workflow converts faster than a broad discovery note.",
-    submitLabel: "Request world model",
+      "Describe the robot task, facility workflow, pass/fail question, or threshold you want answered first.*",
+    taskHelper: "One concrete site/task question converts faster than a broad discovery note.",
+    submitLabel: "Request readiness evaluation",
     nextStep:
-      "Blueprint reviews the site, task, and robot details, then routes the request toward package access, hosted evaluation, capture access, or one missing detail.",
+      "Blueprint reviews the site, task, robot profile, thresholds, and evidence needs, then routes the request toward a readiness report, package access, hosted evaluation, capture access, or one missing detail.",
   },
   hosted_evaluation: {
     successTitle: "Hosted review request received",
@@ -355,6 +356,13 @@ export function ContactForm() {
   const [privacySecurityConstraints, setPrivacySecurityConstraints] = useState("");
   const [commercializationPreference, setCommercializationPreference] = useState("");
   const [humanGateTopics, setHumanGateTopics] = useState("");
+  const [successRateThreshold, setSuccessRateThreshold] = useState("");
+  const [cycleTimeThreshold, setCycleTimeThreshold] = useState("");
+  const [interventionRateThreshold, setInterventionRateThreshold] = useState("");
+  const [safetyThreshold, setSafetyThreshold] = useState("");
+  const [pilotTimeline, setPilotTimeline] = useState("");
+  const [vendorOperatorRole, setVendorOperatorRole] = useState("");
+  const [requiredEvidence, setRequiredEvidence] = useState("");
   const [detailsMessage, setDetailsMessage] = useState("");
   const [honeypot, setHoneypot] = useState("");
 
@@ -538,6 +546,16 @@ export function ContactForm() {
       return;
     }
 
+    const readinessDetails = [
+      successRateThreshold.trim() ? `Success-rate threshold: ${successRateThreshold.trim()}` : "",
+      cycleTimeThreshold.trim() ? `Cycle-time threshold: ${cycleTimeThreshold.trim()}` : "",
+      interventionRateThreshold.trim() ? `Intervention-rate threshold: ${interventionRateThreshold.trim()}` : "",
+      safetyThreshold.trim() ? `Safety threshold: ${safetyThreshold.trim()}` : "",
+      pilotTimeline.trim() ? `Pilot timeline: ${pilotTimeline.trim()}` : "",
+      vendorOperatorRole.trim() ? `Vendor/operator role: ${vendorOperatorRole.trim()}` : "",
+      requiredEvidence.trim() ? `Required evidence: ${requiredEvidence.trim()}` : "",
+      detailsMessage.trim() ? `Notes: ${detailsMessage.trim()}` : "",
+    ].filter(Boolean).join("\n");
     const requestId = generateRequestId();
     const operatorTaskStatement =
       detailsMessage.trim()
@@ -567,7 +585,7 @@ export function ContactForm() {
       privacySecurityConstraints: privacySecurityConstraints.trim() || undefined,
       targetRobotTeam: persona === "robot_team" ? targetRobotTeam.trim() || undefined : undefined,
       derivedScenePermission: persona === "site_operator" ? commercializationPreference.trim() || undefined : undefined,
-      details: detailsMessage.trim() || undefined,
+      details: readinessDetails || undefined,
       context: {
         sourcePageUrl: typeof window !== "undefined" ? window.location.href : "",
         referrer: getReferrer() || undefined,
@@ -741,7 +759,7 @@ export function ContactForm() {
 
       {commercialRequestPath === "hosted_evaluation" ? (
         <div className="border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700">
-          You are requesting a hosted review. Blueprint will still confirm entitlement, site fit, proof state, and hosted-path availability before promising access.
+          You are requesting a hosted review. Blueprint will still confirm entitlement, site fit, proof state, threshold scope, and hosted-path availability before promising access.
           {siteName ? ` Site: ${siteName}.` : ""}
           {siteLocation ? ` Location: ${siteLocation}.` : ""}
         </div>
@@ -936,7 +954,7 @@ export function ContactForm() {
               aria-expanded={showOptionalDetails}
               onClick={() => setShowOptionalDetails((current) => !current)}
             >
-              <span>{showOptionalDetails ? "Hide optional details" : "Add robot, location, budget, or routing details"}</span>
+              <span>{showOptionalDetails ? "Hide optional details" : "Add robot, thresholds, pilot timeline, or evidence needs"}</span>
               <span className="text-xs uppercase tracking-[0.16em] text-slate-500">
                 Optional
               </span>
@@ -959,6 +977,18 @@ export function ContactForm() {
                     placeholder="Robot platform or stack"
                     value={targetRobotTeam}
                     onChange={(event) => setTargetRobotTeam(event.target.value)}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="contact-vendor-role" className={labelClassName}>
+                    Vendor/operator role
+                  </label>
+                  <input
+                    id="contact-vendor-role"
+                    className={inputClassName}
+                    placeholder="Robot vendor, site operator, integrator, or buyer"
+                    value={vendorOperatorRole}
+                    onChange={(event) => setVendorOperatorRole(event.target.value)}
                   />
                 </div>
                 <div>
@@ -995,6 +1025,82 @@ export function ContactForm() {
                     </select>
                   </div>
                 ) : null}
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label htmlFor="contact-success-threshold" className={labelClassName}>
+                    Required success rate
+                  </label>
+                  <input
+                    id="contact-success-threshold"
+                    className={inputClassName}
+                    placeholder="Example: 97% task completion over 200 runs"
+                    value={successRateThreshold}
+                    onChange={(event) => setSuccessRateThreshold(event.target.value)}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="contact-cycle-threshold" className={labelClassName}>
+                    Cycle-time threshold
+                  </label>
+                  <input
+                    id="contact-cycle-threshold"
+                    className={inputClassName}
+                    placeholder="Example: under 45 seconds per tote transfer"
+                    value={cycleTimeThreshold}
+                    onChange={(event) => setCycleTimeThreshold(event.target.value)}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="contact-intervention-threshold" className={labelClassName}>
+                    Intervention-rate threshold
+                  </label>
+                  <input
+                    id="contact-intervention-threshold"
+                    className={inputClassName}
+                    placeholder="Example: fewer than 1 intervention per shift"
+                    value={interventionRateThreshold}
+                    onChange={(event) => setInterventionRateThreshold(event.target.value)}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="contact-safety-threshold" className={labelClassName}>
+                    Safety threshold
+                  </label>
+                  <input
+                    id="contact-safety-threshold"
+                    className={inputClassName}
+                    placeholder="Example: exclusion zones, speed limits, or operator signoff"
+                    value={safetyThreshold}
+                    onChange={(event) => setSafetyThreshold(event.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label htmlFor="contact-pilot-timeline" className={labelClassName}>
+                    Pilot timeline
+                  </label>
+                  <input
+                    id="contact-pilot-timeline"
+                    className={inputClassName}
+                    placeholder="Example: short pilot decision in Q3"
+                    value={pilotTimeline}
+                    onChange={(event) => setPilotTimeline(event.target.value)}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="contact-required-evidence" className={labelClassName}>
+                    Required evidence
+                  </label>
+                  <input
+                    id="contact-required-evidence"
+                    className={inputClassName}
+                    placeholder="Simulator traces, action logs, robot trials, safety review"
+                    value={requiredEvidence}
+                    onChange={(event) => setRequiredEvidence(event.target.value)}
+                  />
+                </div>
               </div>
               {commercialRequestPath !== "hosted_evaluation" ? (
               <div>

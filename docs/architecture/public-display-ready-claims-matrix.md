@@ -1,6 +1,6 @@
 # Public Launch Ready Claims Matrix
 
-Date: 2026-05-15
+Date: 2026-06-02
 
 Status: Active public-display and claims guardrail for `Blueprint-WebApp`.
 
@@ -36,13 +36,14 @@ These are allowed on public pages without requiring Operational Launch Ready pro
 
 | Claim Type | Allowed Language | Guardrail |
 |---|---|---|
-| Product category | Blueprint sells site-specific world-model packages, hosted review paths, and buyer workflows. | Do not imply every package is already fulfilled or live. |
-| Workflow | Request a world model, book hosted review, view pricing, inspect proof, browse world models. | Requests can be confident; fulfillment state is confirmed after review. |
-| Intended buyer value | Robot teams use exact-site packages to evaluate real workflows before field time, export, or integration decisions. | Do not guarantee deployment success, safety certification, or production performance. |
-| Request paths | Forms and CTAs can route buyers to package access, hosted review, capture access, proof packets, or pricing. | A request is not a payment, entitlement grant, provider job, or fulfillment start. |
+| Product category | Blueprint is a site-specific robot deployment readiness platform built on capture-backed site packages, hosted review paths, and buyer workflows. | Category language is allowed; do not imply every package is fulfilled, every hosted path is live, or any robot is ready to deploy. |
+| Workflow | Request readiness evaluation, request a readiness report, book hosted evaluation, view pricing, inspect proof, browse site packages. | Requests can be confident; fulfillment state is confirmed after review. |
+| Intended buyer value | Robot teams and site operators use exact-site packages to estimate whether a robot can hit required success rate, cycle time, intervention rate, and safety thresholds before field time. | Do not guarantee deployment success, safety certification, simulator execution, robot trials, or production performance. |
+| Readiness deliverable | Site/task readiness report, deployment readiness advisory, pre-pilot readiness estimate, task-specific confidence packet, failure-mode report, site modification recommendation, data requirement, short-pilot protocol. | The deliverable is advisory until owner-system proof supports a stronger claim. |
+| Request paths | Forms and CTAs can route buyers to readiness reports, package access, hosted evaluation, capture access, proof packets, or pricing. | A request is not a payment, entitlement grant, provider job, safety validation, robot trial, or fulfillment start. |
 | Demo/sample framing | Public samples and representative packets can show product shape, UI quality, proof structure, and buyer workflow. | Label sample/demo material in proof/detail areas; do not present it as a customer result. |
 | Launch-quality UI language | The site may use polished present-tense interface labels and confident buyer language. | Do not add broad apology copy solely because operations are still request-specific. |
-| Request/access review | Request package access, book hosted review, submit site, apply for capture access, open request console. | Availability, rights, access, payment, payout, and fulfillment are confirmed per site/request. |
+| Request/access review | Request readiness evaluation, request package access, book hosted evaluation, submit site, apply for capture access, open request console. | Availability, rights, access, payment, payout, safety proof, and fulfillment are confirmed per site/request. |
 
 ## Conditional Claims
 
@@ -52,7 +53,10 @@ Use these only when the page, listing, packet, or request has supporting proof. 
 |---|---|---|
 | Available | Current listing, package, entitlement, or request state supports access. | `available after request review`, `request access`, or `availability confirmed per site/request`. |
 | Live hosted session | Runtime/session artifacts, entitlement path, and hosted-session availability support it. | `book hosted review` or `hosted review is confirmed per site/request`. |
-| Ready to deploy | Site-specific technical, rights, support, and runtime proof supports deployment. | `decision-ready`, `review-ready`, or `deployment readiness confirmed after review`. |
+| Ready to deploy | Site-specific simulator traces, action logs, robot trials, safety review/signoff, rights/privacy proof, support path, and runtime proof support deployment. | `deployment readiness advisory`, `pre-pilot readiness estimate`, `readiness report`, `task-specific confidence packet`, or `deployment readiness confirmed after review`. |
+| Safety validated | Safety owner review/signoff, exact-site risk controls, robot-stack evidence, and request-scoped records support the claim. | `safety threshold scoped`, `safety review required`, or `safety posture reviewed per request`. |
+| Simulator execution completed | Provider/runtime artifacts, run logs, scenario manifest, robot policy linkage, and exact request linkage exist. | `simulator traces required`, `hosted evaluation requested`, or `execution confirmed per request`. |
+| Guaranteed success/cycle/intervention threshold | Current exact-site evidence, robot trials or action logs, agreed threshold methodology, and buyer-approved proof support the guarantee. | `threshold scoped`, `advisory estimate`, or `requires simulator traces/action logs/robot trials for operational readiness`. |
 | Rights-cleared | Rights/privacy/consent/commercialization record exists for that exact site and use. | `rights reviewed per request` or `rights posture attached when available`. |
 | Provider-ready | Provider execution path, artifacts, or adapter proof exists for the request. | `provider-swappable`, `provider path selected after review`, or `provider execution confirmed per request`. |
 | City live | Supported-city or city-launch activation truth says the city is live. | `request the city`, `planned city`, or `capture access reviewed by city`. |
@@ -73,6 +77,7 @@ Do not publish or let agents claim these without current proof from the owning s
 | Provider execution completed | Provider artifacts, run logs, or package manifest evidence. | Use provider-swappable or request-scoped provider review. |
 | Payment or fulfillment success | Stripe checkout/webhook/entitlement plus fulfillment record. | Treat the form or CTA as a request, not a completed purchase. |
 | Hosted-session fulfillment | Runtime/session/entitlement artifacts and live state. | Use `book hosted review` and confirm availability per site/request. |
+| This robot is ready to deploy, safety validated, collision/contact/manipulation validated, or guaranteed to hit thresholds | Request-scoped simulator traces, action logs, robot trials, safety review/signoff, rights/privacy proof, hosted/runtime proof, and buyer-approved methodology. | Use readiness advisory language and name the missing proof. |
 
 ## Investor And Demo Interpretation
 
