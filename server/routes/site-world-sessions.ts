@@ -673,7 +673,7 @@ function normalizeRuntimeConfig(
   return {
     scenarioId: String(body.scenarioId),
     startStateId: String(body.startStateId),
-    seed: null,
+    seed: typeof body.seed === "number" && Number.isFinite(body.seed) ? body.seed : null,
     requestedBackend,
   };
 }

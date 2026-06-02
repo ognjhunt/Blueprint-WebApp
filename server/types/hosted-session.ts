@@ -473,6 +473,7 @@ export interface CreateHostedSessionRequest {
   taskId: string;
   scenarioId: string;
   startStateId: string;
+  seed?: number | null;
   requestedBackend?: string | null;
   runtimeSessionConfig?: HostedRuntimeSessionConfig | null;
   requestedOutputs?: string[];
