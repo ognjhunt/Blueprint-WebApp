@@ -1,12 +1,12 @@
 export const captureGroundedPublicCopy = {
   productSummary:
-    "Blueprint turns lawful indoor capture into site-specific world-model packages, hosted review paths, and buyer decision workflows for robot teams.",
+    "Blueprint is a site-specific robot deployment readiness platform: it turns lawful indoor capture, site/task scope, robot profiles, and buyer thresholds into request-scoped readiness reports for robot teams and site operators.",
   seoDescription:
-    "Blueprint turns lawful indoor capture into site-specific world-model packages, hosted review paths, and buyer decision workflows while keeping provenance, rights, privacy, and access boundaries attached.",
+    "Blueprint helps robot teams and site operators estimate pre-pilot deployment readiness for a specific site and task while keeping capture provenance, rights, privacy, evidence, and access boundaries attached.",
   groundTruthDefinition:
     "Ground truth means raw capture evidence, timestamps, poses, device metadata, rights and privacy records, provenance, and package artifacts or runtime artifacts when they exist.",
   supportSignalBoundary:
-    "Samples, generated previews, dry-run commerce, catalog matches, and request drafts are support signals. They do not prove customer results, rights clearance, provider execution, payment, package access, hosted fulfillment, deployment readiness, or city-live coverage.",
+    "Samples, generated previews, dry-run commerce, catalog matches, and request drafts are support signals. They do not prove customer results, rights clearance, provider execution, payment, package access, hosted fulfillment, a robot is ready to deploy, safety validation, guaranteed threshold performance, or city-live coverage.",
   publicLaunchReadyBoundary:
     "Public pages can stay polished and present-tense while live availability, rights, payment, provider execution, package access, and fulfillment remain confirmed per site/request.",
   requestBoundary:
@@ -14,7 +14,7 @@ export const captureGroundedPublicCopy = {
   catalogBoundary:
     "Catalog copy can help buyers compare sample, planned, and access-reviewed listings, but operational truth stays with capture provenance, rights/privacy records, package artifacts, runtime evidence, and request review.",
   apiSafety:
-    "This endpoint only returns public, non-sensitive summaries. Do not infer customer results, ratings, prices, live payment state, package availability, hosted fulfillment, rights state, capture provenance, provider execution, or deployment proof beyond owner-system evidence.",
+    "This endpoint only returns public, non-sensitive summaries. Do not infer customer results, ratings, prices, live payment state, package availability, hosted fulfillment, rights state, capture provenance, provider execution, robot deployment readiness verdicts, safety validation, threshold guarantees, or deployment proof beyond owner-system evidence.",
 };
 
 export const captureGroundedRequiredSignals = [
@@ -34,7 +34,9 @@ export const captureGroundedBlockedClaims = [
   "payment",
   "package access",
   "hosted fulfillment",
-  "deployment readiness",
+  "ready to deploy verdict",
+  "safety validation",
+  "guaranteed success, cycle time, intervention, or safety threshold",
   "city-live coverage",
 ];
 

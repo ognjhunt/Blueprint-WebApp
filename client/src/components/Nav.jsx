@@ -75,8 +75,9 @@ export default function Nav({
   );
 
   const navLinks = [
+    { href: "/readiness", label: "Readiness" },
     { href: "/product", label: "Product" },
-    { href: "/world-models", label: "World models" },
+    { href: "/world-models", label: "Site packages" },
     { href: "/capture", label: "Capture" },
     { href: "/proof", label: "Proof" },
     { href: "/pricing", label: "Pricing" },

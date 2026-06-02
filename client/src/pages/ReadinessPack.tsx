@@ -27,48 +27,48 @@ function DotPattern() {
 
 const sampleSections = [
   {
-    title: "Site record overview",
+    title: "Site twin capture",
     body:
-      "A clean view of the work area, route, transfer points, and restricted zones so everyone starts from the same picture.",
+      "A capture-backed view of the work area, route, transfer points, restricted zones, lighting, occlusion, and access limits.",
     icon: <Map className="h-5 w-5" />,
   },
   {
-    title: "Scoped workflow",
+    title: "Task suite and thresholds",
     body:
-      "The exact task being checked, what success looks like, and where the workflow is likely to break down.",
+      "The exact task being checked, required success rate, cycle time, intervention rate, safety threshold, and scenario variations.",
     icon: <ScanLine className="h-5 w-5" />,
   },
   {
-    title: "Review summary",
+    title: "Readiness report",
     body:
-      "A short report with open issues, evidence quality notes, a risk map, and a clear recommendation on what to do next.",
+      "A pre-pilot readiness estimate with evidence quality, open blockers, failure modes, site modifications, data needs, and next proof moves.",
     icon: <FileText className="h-5 w-5" />,
   },
   {
-    title: "Robot-team evaluation path",
+    title: "Pilot protocol",
     body:
-      "A simple evaluation path that lets robot teams evaluate the site record before anyone burns field time or pilot budget.",
+      "A short-pilot protocol for what to test in the facility next, plus vendor comparison when multiple robots are in scope.",
     icon: <ShieldCheck className="h-5 w-5" />,
   },
 ];
 
 const reportSections = [
-  "Scope: site, workflow, and work area",
-  "Constraints: access rules, restricted zones, and operating limits",
-  "Evidence quality: what is clear and what still needs more proof",
-  "Risk map: where the site is likely to block rollout",
-  "Pass / fail criteria: what a team needs to prove next",
-  "Readiness verdict: ready, risky, or not ready yet",
-  "Recommended next step: fix open issues, gather more evidence, or start team evaluation",
+  "Site and task scope: facility area, workflow lane, start/end states, and restricted zones",
+  "Robot profile: embodiment, sensors, autonomy stack, payload, speed, and integration assumptions",
+  "Thresholds: required success rate, cycle time, intervention rate, and safety threshold",
+  "Scenario variations: lighting, clutter, traffic, route blockage, object state, and schedule changes",
+  "Evidence quality: capture provenance, package state, held-out validation, simulator/action/robot-trial gaps",
+  "Failure-mode report: where the robot is likely to miss the bar and why",
+  "Recommendations: site modifications, training or post-training data needs, and short-pilot protocol",
 ];
 
 export default function ReadinessPack() {
   return (
     <>
       <SEO
-        title="Readiness Review | Blueprint"
-        description="Use Blueprint's readiness review as an optional trust layer for high-stakes deployments, buyer signoff, and blocker review around one real site."
-        canonical="/readiness-pack"
+        title="Robot Deployment Readiness | Blueprint"
+        description="Blueprint produces request-scoped site/task readiness reports for robot teams evaluating success rate, cycle time, intervention rate, and safety thresholds before an on-site pilot."
+        canonical="/readiness"
       />
 
       <div className="relative min-h-screen bg-white font-sans text-slate-900 selection:bg-slate-100 selection:text-slate-900">
@@ -80,40 +80,42 @@ export default function ReadinessPack() {
               <div className="space-y-6">
                 <div className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-medium uppercase tracking-wider text-slate-600">
                   <FileText className="h-3 w-3" />
-                  Optional Trust Layer
+                  Site/task readiness report
                 </div>
                 <h1 className="text-4xl font-bold tracking-tight text-slate-950 sm:text-5xl lg:text-6xl">
-                  Use the readiness review when the deployment decision needs extra proof.
+                  Estimate robot deployment readiness before the expensive pilot.
                 </h1>
                 <p className="max-w-2xl text-lg leading-relaxed text-slate-600">
-                  Most teams start with the site package or hosted evaluation path. The readiness
-                  review is the extra layer for high-stakes deployments, buyer signoff, or
-                  commercialization decisions that need a clear record of open issues, evidence gaps,
-                  and next steps.
+                  Blueprint helps a robot vendor, site operator, or integrator answer the pre-pilot
+                  question: how likely is this robot to meet the required success rate, cycle time,
+                  intervention rate, and safety threshold on this actual facility task? The answer is
+                  advisory and request-scoped until simulator traces, action logs, robot trials,
+                  safety review, rights clearance, and hosted runtime proof support a stronger claim.
                 </p>
 
                 <CTAButtons
-                  primaryHref="/contact?interest=site-review"
-                  primaryLabel="Request readiness review"
-                  secondaryHref="/how-it-works"
-                  secondaryLabel="How it works"
+                  primaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=readiness-hero"
+                  primaryLabel="Request readiness evaluation"
+                  secondaryHref="/proof"
+                  secondaryLabel="Inspect proof boundaries"
                 />
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                 <p className="text-xs font-bold uppercase tracking-widest text-slate-400">
-                  Sample verdict
+                  Sample advisory frame
                 </p>
-                <h2 className="mt-3 text-2xl font-bold text-slate-950">Ready with two open issues</h2>
+                <h2 className="mt-3 text-2xl font-bold text-slate-950">Pre-pilot estimate with two blockers</h2>
                 <p className="mt-3 text-sm leading-relaxed text-slate-600">
-                  The route is workable and the transfer point is clear. The current gaps are a narrow dock
-                  turn and incomplete evidence around a restricted storage aisle.
+                  The route and transfer point look reviewable from current capture evidence. The
+                  current blockers are a narrow dock turn and incomplete evidence around restricted
+                  storage-aisle access. This sample does not claim the robot is ready to deploy.
                 </p>
                 <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
                   <p className="text-sm font-semibold text-slate-900">Next step</p>
                   <p className="mt-2 text-sm text-slate-600">
-                    Fix the dock turn, confirm aisle access rules, then open the site record
-                    for robot-team review.
+                    Confirm aisle access rules, gather action or simulator traces for the named
+                    task, then run a short pilot protocol only after safety and operator review.
                   </p>
                 </div>
               </div>
@@ -125,11 +127,12 @@ export default function ReadinessPack() {
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="max-w-3xl">
               <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
-                The deliverable is simple
+                The deliverable is a readiness packet
               </h2>
               <p className="mt-4 text-slate-600">
-                You are not buying the core product again. You are adding a concise review layer
-                around it so a high-stakes site can move forward with fewer open questions.
+                You are not buying a generic digital twin or an unsupported deployment verdict. You
+                are getting a concrete site/task packet that shows what the robot must prove, what
+                evidence already exists, and what still blocks a stronger operational claim.
               </p>
             </div>
 
@@ -155,18 +158,18 @@ export default function ReadinessPack() {
             <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
               <div className="space-y-5">
                 <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
-                  What the pack covers
+                  What the report covers
                 </h2>
                 <p className="text-slate-600">
-                  Use this when a buyer, operator, or internal deployment lead needs a tighter
-                  review before approving deeper work. Robot teams can use it to understand
-                  open issues without making review the center of the product story.
+                  Use this when a robot vendor, site operator, integrator, or internal deployment
+                  lead needs a tighter review before approving deeper work in warehouses, factories,
+                  material-handling flows, industrial inspection routes, or equipment-state checks.
                 </p>
                 <a
-                  href="/contact?interest=site-review"
+                  href="/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=readiness-report"
                   className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-700"
                 >
-                  Request readiness review
+                  Request readiness evaluation
                   <ArrowRight className="h-4 w-4" />
                 </a>
               </div>

@@ -16,25 +16,25 @@ const buyerFlow = [
   {
     label: "01",
     title: "Indoor site capture",
-    body: "Record the real facility route, timestamps, device context, capture notes, and access boundaries.",
+    body: "Record the real facility route, timestamps, device context, capture notes, access boundaries, and proof limits.",
     icon: Smartphone,
   },
   {
     label: "02",
-    title: "World model package",
-    body: "Package the site into a site-specific product with manifest, media, restrictions, and review artifacts.",
+    title: "Task suite and robot profile",
+    body: "Name the task, scenario variations, robot embodiment, sensors, thresholds, and site-specific blockers before the estimate is written.",
     icon: MapPinned,
   },
   {
     label: "03",
-    title: "Hosted evaluation",
-    body: "Open a buyer room for task runs, route review, observations, and export framing.",
+    title: "Site package and hosted review",
+    body: "Use capture-grounded world-model assets, package manifests, and hosted review to inspect the real site before field time.",
     icon: ShieldCheck,
   },
   {
     label: "04",
-    title: "Export or recapture decision",
-    body: "Approve export, request recapture, scope the next workflow, or leave the package in review.",
+    title: "Readiness report and pilot protocol",
+    body: "Return an evidence-backed advisory, failure-mode report, site modifications, data needs, and the short pilot to run next.",
     icon: UsersRound,
   },
 ];
@@ -51,9 +51,9 @@ const categoryValidationRows = [
       "Autonomous-driving world models show why teams want rare, long-tail, and replayable scenarios before real-world exposure.",
   },
   {
-    title: "Blueprint owns the indoor package layer",
+    title: "Blueprint owns the indoor readiness layer",
     body:
-      "Robot teams still need exact facilities, rights boundaries, provenance, hosted review, and export decisions for spaces public maps do not cover.",
+      "Robot teams still need exact facilities, rights boundaries, provenance, hosted review, task thresholds, and pilot decisions for spaces public maps do not cover.",
   },
 ];
 
@@ -63,12 +63,12 @@ const packageLayers = [
     body: "Raw-bundle pointers, route notes, freshness, and provenance remain attached to the product record.",
   },
   {
-    title: "World output",
-    body: "Model artifacts and previews sit behind stable site-package contracts, not a permanent model backend.",
+    title: "World-model asset",
+    body: "Model artifacts and previews sit behind stable site-package contracts; they inform readiness but do not become ground truth.",
   },
   {
-    title: "Hosted buyer room",
-    body: "Run evidence, observations, limitations, and recommendation notes are reviewed in one evaluation surface.",
+    title: "Readiness report",
+    body: "Task thresholds, scenario variations, failure modes, site modifications, data needs, and recommendation notes live in one evaluation surface.",
   },
   {
     title: "Commercial boundary",
@@ -77,8 +77,8 @@ const packageLayers = [
 ];
 
 const decisionOptions = [
-  "Approve a scoped export",
-  "Request a deeper hosted run",
+  "Proceed to short-pilot protocol",
+  "Request simulator or action-log evidence",
   "Ask for recapture or operator access",
   "Hold until rights or privacy review clears",
 ];
@@ -90,7 +90,7 @@ const proofBoundaries = [
   },
   {
     title: "Hosted access is gated",
-    body: "The page sells the hosted evaluation workflow while confirming session availability and runtime scope per site/request.",
+    body: "The page sells the hosted evaluation workflow while confirming session availability, runtime scope, and stronger readiness claims per site/request.",
   },
   {
     title: "Rights do not disappear",
@@ -103,15 +103,15 @@ const whatYouReceiveRows = [
     path: "Site package access",
     receives:
       "Manifest, route notes, capture provenance, rights limits, export scope, and package files when approved.",
-    definition: "A site package is the deliverable set for one exact site and robot workflow.",
+    definition: "A site package is the substrate for one exact site, task suite, and robot workflow.",
     firstAction: "Request package access for one site.",
   },
   {
-    path: "Hosted review",
+    path: "Readiness report",
     receives:
-      "Blueprint-run review room, scoped tasks, observations, run notes, output links, and export decision context.",
-    definition: "Hosted review means Blueprint runs the site model for inspection before file handoff.",
-    firstAction: "Book a hosted review path.",
+      "Pre-pilot estimate, task thresholds, failure modes, site modifications, data requirements, and short-pilot protocol.",
+    definition: "A readiness report is advisory until owner-system simulator, action, robot, safety, rights, and runtime proof supports a stronger claim.",
+    firstAction: "Request a site/task readiness evaluation.",
   },
   {
     path: "Custom scope",
@@ -131,9 +131,9 @@ export default function ExactSiteHostedReview() {
 
   return (
     <>
-  <SEO
+      <SEO
         title="Product | Blueprint"
-        description="Blueprint turns indoor exact-site capture into site-specific world model packages, hosted evaluation, and buyer decision evidence for robot teams."
+        description="Blueprint turns indoor exact-site capture into site/task readiness reports, site-specific world-model assets, hosted evaluation, and pilot decision evidence for robot teams."
         canonical="/product"
         type="product"
         jsonLd={[
@@ -141,7 +141,7 @@ export default function ExactSiteHostedReview() {
             path: "/product",
             name: "Blueprint Product",
             description:
-              "Indoor exact-site capture, site-specific world model packages, hosted evaluation, and buyer decision evidence for robot teams.",
+              "Indoor exact-site capture, site/task readiness reports, site-specific world-model assets, hosted evaluation, and pilot decision evidence for robot teams.",
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },
@@ -149,15 +149,15 @@ export default function ExactSiteHostedReview() {
           ]),
           productJsonLd({
             path: "/product",
-            name: "Blueprint Site-Specific World Model Packages",
+            name: "Blueprint Site-Specific Robot Deployment Readiness",
             description:
-              "A capture-backed product workflow for indoor exact-site world model packages, hosted evaluation requests, and buyer decisions with proof attached.",
+              "A capture-backed product workflow for indoor exact-site readiness reports, world-model assets, hosted evaluation requests, and buyer decisions with proof attached.",
             image: publicCaptureGeneratedAssets.hostedReviewPublicRoute,
-            category: "Site-specific world-model product",
+            category: "Site-specific robot deployment readiness platform",
             properties: [
               { name: "Capture basis", value: "Indoor exact-site capture with provenance metadata" },
-              { name: "Package", value: "Site manifest, model artifacts, hosted review, and export scope" },
-              { name: "Hosted access", value: "Evaluation path confirmed per request" },
+              { name: "Readiness scope", value: "Task suite, robot profile, success-rate, cycle-time, intervention-rate, and safety thresholds" },
+              { name: "Hosted access", value: "Evaluation path and runtime proof confirmed per request" },
             ],
           }),
         ]}
@@ -180,29 +180,29 @@ export default function ExactSiteHostedReview() {
                     Blueprint product
                   </p>
                   <h1 className="font-editorial mt-5 max-w-[42rem] text-[2.85rem] leading-[0.98] tracking-normal text-white sm:text-[4.65rem] lg:text-[5.45rem] lg:leading-[0.94]">
-                    Turn the exact site into a decision-ready world model.
+                    Turn the exact site into a robot-readiness report.
                   </h1>
                   <p className="mt-5 max-w-[35rem] text-base leading-7 text-white/82 sm:leading-8">
-                    Street View grounds outdoor worlds. Blueprint packages indoor capture, world-model output, hosted review, and buyer proof around one site so robot teams can decide before field time.
+                    Blueprint packages indoor capture, task suites, robot profiles, site-specific world-model assets, hosted review, and buyer proof around one site so teams can estimate pre-pilot readiness before field time.
                   </p>
                   <div className="mt-7 flex flex-wrap gap-2">
                     <ProofChip light>Capture-backed</ProofChip>
-                    <ProofChip light>Site package access</ProofChip>
-                    <ProofChip light>Hosted buyer review</ProofChip>
+                    <ProofChip light>Threshold-scoped</ProofChip>
+                    <ProofChip light>Advisory until proof-backed</ProofChip>
                   </div>
                   <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                     <a
-                      href="/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=product-hero"
+                      href="/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=product-hero"
                       className="inline-flex w-full items-center justify-center border border-white bg-white px-6 py-3 text-sm font-semibold text-[#15130f] transition hover:bg-[#f5f1e8] sm:w-auto"
                     >
-                      Request world model
+                      Request readiness evaluation
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </a>
                     <a
                       href="/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=product"
                       className="inline-flex w-full items-center justify-center border border-white/25 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10 sm:w-auto"
                     >
-                      Book hosted review
+                      See readiness workflow
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </a>
                     <a
@@ -269,11 +269,11 @@ export default function ExactSiteHostedReview() {
         <section className="border-b border-[#15130f]/10 bg-[#f5f1e8]">
           <div className="mx-auto grid max-w-[88rem] gap-8 px-5 py-11 sm:px-8 lg:grid-cols-[0.34fr_0.66fr] lg:px-10 lg:py-14">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#7b6a51]">
-                Buyer workflow
-              </p>
-              <h2 className="font-editorial mt-4 max-w-[24rem] text-4xl leading-[1] tracking-normal text-[#15130f] sm:text-[3.2rem]">
-                One path from capture to decision.
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#7b6a51]">
+                  Buyer workflow
+                </p>
+                <h2 className="font-editorial mt-4 max-w-[24rem] text-4xl leading-[1] tracking-normal text-[#15130f] sm:text-[3.2rem]">
+                One path from capture to readiness advisory.
               </h2>
             </div>
             <div className="grid border border-[#15130f]/10 bg-[#15130f]/10 md:grid-cols-2 xl:grid-cols-4">
@@ -307,7 +307,7 @@ export default function ExactSiteHostedReview() {
               </h2>
               <p className="mt-5 max-w-[28rem] text-sm leading-7 text-[#5c5141]">
                 These are product paths, not generic model checkpoints. Each path starts with one
-                site, one robot workflow, and the proof needed to decide the next step.
+                site, one robot workflow, a pass bar, and the proof needed to decide the next step.
               </p>
             </div>
             <div className="overflow-x-auto border border-[#15130f]/10">
@@ -364,10 +364,10 @@ export default function ExactSiteHostedReview() {
                   World model package
                 </p>
                 <h2 className="font-editorial mt-4 max-w-[34rem] text-4xl leading-[1] tracking-normal sm:text-[3.2rem]">
-                  The sellable product is the site package, not a detached demo.
+                  The site package is the substrate, not a detached demo.
                 </h2>
                 <p className="mt-5 max-w-[34rem] text-sm leading-7 text-white/70">
-                  The package keeps capture proof, model output, hosted review, and commercial limits together. Model providers can change without breaking the buyer workflow.
+                  The package keeps capture proof, model output, hosted review, task thresholds, and commercial limits together. Model providers can change without breaking the readiness workflow.
                 </p>
               </div>
               <div className="mt-8 grid gap-px border border-white/10 bg-white/10 sm:grid-cols-2">
@@ -389,10 +389,10 @@ export default function ExactSiteHostedReview() {
                 Hosted evaluation
               </p>
               <h2 className="font-editorial mt-4 max-w-[32rem] text-4xl leading-[1] tracking-normal text-[#15130f] sm:text-[3.2rem]">
-                A buyer room for runs, limits, and next steps.
+                A buyer room for readiness evidence, limits, and next steps.
               </h2>
               <p className="mt-5 max-w-[30rem] text-sm leading-7 text-[#5c5141]">
-                Hosted evaluation is the managed review layer between a listing and a commercial commitment. It turns the package into evidence a robot team can act on.
+                Hosted evaluation is the managed review layer between a listing and a pilot commitment. It turns the package into evidence a robot team can inspect without claiming the robot is ready to deploy.
               </p>
               <a
                 href="/sample-deliverables"
@@ -443,7 +443,7 @@ export default function ExactSiteHostedReview() {
                 Proof boundary
               </p>
               <h2 className="font-editorial mt-4 max-w-[26rem] text-4xl leading-[1] tracking-normal text-[#15130f] sm:text-[3.2rem]">
-                Commercially confident, proof honest.
+                Commercially confident, verdicts evidence-gated.
               </h2>
             </div>
             <div className="grid gap-5 lg:grid-cols-[0.44fr_0.56fr]">
@@ -478,10 +478,10 @@ export default function ExactSiteHostedReview() {
                 Next step
               </p>
               <h2 className="font-editorial mt-4 max-w-[42rem] text-4xl leading-[1] tracking-normal sm:text-[3.4rem]">
-                Request the review, or name the site to capture next.
+                Request the readiness review, or name the site to capture next.
               </h2>
               <p className="mt-5 max-w-[36rem] text-sm leading-7 text-white/70">
-                The first useful answer is narrow: review a labeled exact-site sample, or tell Blueprint which workflow would make the next capture worth packaging.
+                The first useful answer is narrow: review a labeled exact-site sample, or tell Blueprint which site/task, robot profile, thresholds, and evidence needs would make the next report worth packaging.
               </p>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row lg:justify-end">
@@ -489,7 +489,7 @@ export default function ExactSiteHostedReview() {
                 href="/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=product-bottom"
                 className="inline-flex items-center justify-center border border-white bg-white px-6 py-3 text-sm font-semibold text-[#15130f] transition hover:bg-[#f5f1e8]"
               >
-                Book hosted review
+                Request readiness evaluation
                 <ArrowRight className="ml-2 h-4 w-4" />
               </a>
               <a

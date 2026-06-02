@@ -27,6 +27,7 @@ const Pricing = lazy(() => import("../pages/Pricing"));
 const Contact = lazy(() => import("../pages/Contact"));
 const Support = lazy(() => import("../pages/Support"));
 const ExactSiteHostedReview = lazy(() => import("../pages/ExactSiteHostedReview"));
+const ReadinessPack = lazy(() => import("../pages/ReadinessPack"));
 const ForRobotIntegrators = lazy(() => import("../pages/ForRobotIntegrators"));
 const HowItWorks = lazy(() => import("../pages/HowItWorks"));
 const SampleDeliverables = lazy(() => import("../pages/SampleDeliverables"));
@@ -76,7 +77,7 @@ const LegacySiteWorldsRedirect = () => (
 );
 
 const LegacyReadinessPackRedirect = () => (
-  <MarketingRedirect to="/product" />
+  <MarketingRedirect to="/readiness" />
 );
 
 const LegacySolutionsRedirect = () => (
@@ -150,6 +151,8 @@ export const appRoutes: AppRoute[] = [
 
   // Core pages
   { path: "/product", layout: "public", component: ExactSiteHostedReview },
+  { path: "/readiness", layout: "public", component: ReadinessPack },
+  { path: "/readiness-pack", layout: "public", component: ReadinessPack },
   { path: "/agents", layout: "public", component: Agents },
   { path: "/pricing", layout: "public", component: Pricing },
   { path: "/sample-evaluation", layout: "public", component: LegacyProofStoryRedirect },
@@ -176,7 +179,6 @@ export const appRoutes: AppRoute[] = [
   // Legacy redirects for removed pages
   { path: "/solutions", layout: "public", component: LegacySolutionsRedirect },
   { path: "/quality-standard", layout: "public", component: LegacyReadinessPackRedirect },
-  { path: "/readiness-pack", layout: "public", component: LegacyReadinessPackRedirect },
   { path: "/qualified-opportunities", layout: "public", component: LegacyQualifiedOpportunitiesRedirect },
   { path: "/qualified-opportunities-guide", layout: "public", component: LegacyQualifiedOpportunitiesRedirect },
 
