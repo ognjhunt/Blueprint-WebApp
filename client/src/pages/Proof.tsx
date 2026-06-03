@@ -1,623 +1,244 @@
 import { SEO } from "@/components/SEO";
-import { captureGroundedPublicCopy } from "@/lib/captureGroundedLanguage";
+import { humanoidReadinessAssets } from "@/lib/editorialGeneratedAssets";
 import {
-  mediaRoomSampleEvaluation,
-  proofEvidencePacket,
-  sampleExportTree,
-  sampleHostedRunRows,
-  sampleProofTimeline,
-} from "@/lib/proofEvidence";
-import {
-  ArrowUpRight,
-  BadgeCheck,
-  Binary,
-  Boxes,
-  CheckCircle2,
+  ArrowRight,
   ClipboardCheck,
   FileText,
   Fingerprint,
-  KeyRound,
   LockKeyhole,
-  MapPinned,
   PackageCheck,
   Route,
   ShieldCheck,
-  Sparkles,
-  TriangleAlert,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-const heroImage = "/generated/2026-05-13-brand-system/blueprint-hero-proof-room-gpt-image-2.png";
-const sampleStillImage = "/proof/grocery-aisle-proof-capture.png";
-
-type IconItem = {
+type ProofItem = {
   icon: LucideIcon;
   label: string;
   title: string;
   body: string;
 };
 
-type LedgerRow = {
-  label: string;
-  value: string;
-  detail: string;
-};
+const requestHref =
+  "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=proof-packet&source=proof-kiss";
 
-const boundaryRows: LedgerRow[] = [
+const sampleVsRequest = [
   {
-    label: "Public page state",
-    value: "Sample proof system",
-    detail:
-      "This page shows the shape of a Blueprint proof packet. It is a labeled sample, not proof from a customer site, and it does not imply rights approval for a real site.",
+    label: "Public sample",
+    sample: "Illustrative proof board, sample manifest, sample rights posture, and sample report shape.",
+    request: "Capture record, task scope, robot profile, thresholds, rights/privacy posture, and proof gaps for one site.",
   },
   {
-    label: "Live buyer state",
-    value: "Request-specific proof packet",
-    detail:
-      "A request-specific packet appears only after the site-specific capture, rights/privacy review, package manifest, and hosted-session path exist for that request.",
+    label: "Generated or model-derived output",
+    sample: "Useful support signal when labeled as generated, inferred, or representative.",
+    request: "Owner-system evidence such as provider artifacts, runtime records, simulator traces, action logs, robot trials, and safety review.",
   },
   {
-    label: "What the buyer gets",
-    value: "Readiness evidence",
-    detail:
-      "The buyer can see what is capture-grounded, what is model-inferred, what thresholds are being evaluated, and what remains blocked before purchase, hosted review, or pilot protocol.",
+    label: "Readiness recommendation",
+    sample: "Shows how Blueprint frames proceed, modify site, gather more data, compare vendors, or hold.",
+    request: "A request-scoped advisory tied to the exact facility, task, pass bar, package state, and missing-proof labels.",
   },
 ];
 
-const heroPacketRows = [
-  ["Capture", "Source route, freshness, and provenance"],
-  ["Thresholds", "Success, cycle, intervention, and safety bar"],
-  ["Advisory", "Failure modes, data needs, and next step"],
-];
-
-const proofPacketExample: IconItem[] = [
-  {
-    icon: Route,
-    label: "01",
-    title: "Source capture",
-    body: "Where the route came from, when it was captured, and which public-facing path it covers.",
-  },
-  {
-    icon: FileText,
-    label: "02",
-    title: "Manifest",
-    body: "The site id, capture id, files, route notes, quality checks, and included export modes.",
-  },
-  {
-    icon: ShieldCheck,
-    label: "03",
-    title: "Rights sheet",
-    body: "Use limits, privacy posture, redactions, restricted zones, and sharing boundaries.",
-  },
-  {
-    icon: ClipboardCheck,
-    label: "04",
-    title: "Readiness report",
-    body: "Thresholds, site/task scope, failure modes, evidence gaps, and unresolved review questions.",
-  },
-  {
-    icon: PackageCheck,
-    label: "05",
-    title: "Pilot decision",
-    body: "Whether the buyer should proceed to a short pilot protocol, request more evidence, modify the site, or hold.",
-  },
-];
-
-const trustSystemCards: IconItem[] = [
+const hierarchy: ProofItem[] = [
   {
     icon: Fingerprint,
     label: "01",
-    title: "Capture stays attached",
-    body:
-      "Raw media, timestamps, route notes, device metadata, and package identifiers remain tied to the world model instead of becoming a detached demo.",
-  },
-  {
-    icon: ShieldCheck,
-    label: "02",
-    title: "Rights are visible",
-    body:
-      "Usage scope, sharing limits, privacy review, restricted zones, and export boundaries are buyer-readable before commercial access expands.",
-  },
-  {
-    icon: Binary,
-    label: "03",
-    title: "Model output is labeled",
-    body:
-      "Blueprint separates capture-grounded evidence from model-inferred or provider-generated output, so confidence never depends on vague AI polish.",
-  },
-  {
-    icon: PackageCheck,
-    label: "04",
-    title: "Readiness review has a hierarchy",
-    body:
-      "Readiness observations, hosted notes, exports, and recommendations point back to the same source packet and never become deployment guarantees.",
-  },
-];
-
-const proofHierarchy: IconItem[] = [
-  {
-    icon: Route,
-    label: "Capture-grounded",
-    title: "Source capture record",
-    body:
-      "Walkthrough media, route context, timestamps, poses, device metadata, and source identifiers are the root truth.",
-  },
-  {
-    icon: FileText,
-    label: "Package contract",
-    title: "World-model manifest",
-    body:
-      "The manifest names the site, capture basis, freshness state, proof depth, export types, and known restrictions.",
+    title: "Capture provenance",
+    body: "Raw capture evidence, route context, timestamps, poses, device metadata, freshness, and source identifiers.",
   },
   {
     icon: LockKeyhole,
-    label: "Rights gate",
-    title: "Privacy and use sheet",
-    body:
-      "The rights sheet states what can be viewed, exported, shared, retained, or kept blocked for that exact request.",
+    label: "02",
+    title: "Rights and privacy posture",
+    body: "Use limits, restricted zones, redaction needs, sharing scope, export limits, and commercialization boundaries.",
   },
   {
-    icon: Sparkles,
-    label: "Model-inferred",
-    title: "Readiness observations",
-    body:
-      "Run observations, route notes, and recommendations are useful only because they stay attached to the evidence packet and request thresholds.",
-  },
-];
-
-const rightsRows: LedgerRow[] = [
-  {
-    label: "Access basis",
-    value: "Common-area sample",
-    detail:
-      "The public example uses a common customer-area route. Private, staff-only, or operator-restricted areas require a different review path.",
-  },
-  {
-    label: "Privacy posture",
-    value: "Review before export",
-    detail:
-      "Faces, screens, receipts, payment areas, paperwork, and sensitive zones are redaction or exclusion triggers, not buyer-ready proof.",
-  },
-  {
-    label: "Commercial scope",
-    value: "Request-specific",
-    detail:
-      "Live licensing, sharing, retention, and transfer terms attach to the buyer packet only after the specific site and workflow are approved.",
-  },
-  {
-    label: "Failure mode",
-    value: "Fail closed",
-    detail:
-      "Missing rights, missing provenance, missing hosted runtime, or unsupported export scope blocks the claim instead of being smoothed over.",
-  },
-];
-
-const hostedHierarchy: IconItem[] = [
-  {
-    icon: Boxes,
-    label: "Base layer",
-    title: "Package evidence",
-    body:
-      "Manifest, capture notes, source media references, route context, and allowed files form the durable source for evaluation.",
+    icon: PackageCheck,
+    label: "03",
+    title: "Site package contract",
+    body: "Manifest, included files, geometry where available, proof depth, hosted-review limits, and package access state.",
   },
   {
     icon: ClipboardCheck,
-    label: "Review layer",
-    title: "Hosted session",
-    body:
-      "Blueprint opens a scoped review path when the package and rights posture support it. Public sample pages do not imply live availability.",
-  },
-  {
-    icon: BadgeCheck,
-    label: "Decision layer",
-    title: "Readiness recommendation",
-    body:
-      "The output ends in a practical next step: proceed to short-pilot protocol, request more evidence, modify the site, or hold until a blocker is resolved.",
+    label: "04",
+    title: "Readiness advisory",
+    body: "Task thresholds, failure modes, site modifications, data needs, unresolved proof, and next-step recommendation.",
   },
 ];
 
-const decisionFrames = [
-  {
-    title: "Proceed to short-pilot protocol",
-    body:
-      "The packet has enough site-specific evidence, rights posture, threshold scope, and package depth to recommend a bounded pilot protocol.",
-  },
-  {
-    title: "Request simulator, action-log, or robot-trial evidence",
-    body:
-      "Capture evidence is useful, but the stronger readiness verdict still needs owner-system proof before deployment confidence can be upgraded.",
-  },
-  {
-    title: "Hold until the proof gap is resolved",
-    body:
-      "Rights, export scope, runtime availability, provenance, safety review, or threshold evidence is missing. Blueprint should block the claim until that evidence exists.",
-  },
+const decisions = [
+  "Proceed to a short-pilot protocol",
+  "Modify the site before pilot time",
+  "Gather simulator traces, action logs, or robot-trial evidence",
+  "Compare vendors against the same task and threshold set",
+  "Hold until the proof gap is resolved",
 ];
-
-function StatusBadge({
-  tone,
-  children,
-}: {
-  tone: "sample" | "attached" | "blocked";
-  children: string;
-}) {
-  const toneClass =
-    tone === "sample"
-      ? "border-[#b58d45]/40 bg-[#f7eddc] text-[#5d4520]"
-      : tone === "attached"
-        ? "border-[#2f7d6b]/35 bg-[#e6f3ef] text-[#174f43]"
-        : "border-[#c2410c]/30 bg-[#fff0e8] text-[#7c2d12]";
-
-  return (
-    <span className={`inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-semibold ${toneClass}`}>
-      {tone === "blocked" ? <TriangleAlert className="h-3.5 w-3.5" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
-      {children}
-    </span>
-  );
-}
-
-function LedgerLine({ row }: { row: LedgerRow }) {
-  return (
-    <div className="grid gap-3 border-b border-black/10 py-5 last:border-b-0 md:grid-cols-[0.28fr_0.3fr_0.42fr]">
-      <p className="text-[11px] font-semibold uppercase tracking-normal text-slate-500">{row.label}</p>
-      <p className="text-sm font-semibold leading-6 text-slate-950">{row.value}</p>
-      <p className="text-sm leading-6 text-slate-600">{row.detail}</p>
-    </div>
-  );
-}
-
-function IconPanel({ item }: { item: IconItem }) {
-  const Icon = item.icon;
-
-  return (
-    <div className="border border-black/10 bg-white p-5">
-      <div className="flex items-center justify-between gap-4">
-        <Icon className="h-5 w-5 text-slate-950" />
-        <span className="text-[11px] font-semibold uppercase tracking-normal text-slate-500">{item.label}</span>
-      </div>
-      <h3 className="mt-5 text-xl font-semibold leading-7 tracking-normal text-slate-950">{item.title}</h3>
-      <p className="mt-3 text-sm leading-7 text-slate-600">{item.body}</p>
-    </div>
-  );
-}
 
 export default function Proof() {
   return (
     <>
       <SEO
-        title="Proof System | Blueprint"
-        description="Blueprint's proof system shows capture provenance, rights posture, thresholds, readiness-report evidence, and sample-vs-operational boundaries before purchase, hosted evaluation, or pilot protocol."
+        title="Proof | Blueprint"
+        description="A short Blueprint proof explainer separating public samples from request-specific robot deployment readiness evidence."
         canonical="/proof"
+        image={`https://tryblueprint.io${humanoidReadinessAssets.proofBoard}`}
       />
 
-      <div className="bg-white text-slate-950">
-        <section className="relative overflow-hidden border-b border-black/10 bg-[#171613] text-white">
+      <div className="bg-[#f6f1e8] text-[#111110]">
+        <section className="relative overflow-hidden bg-[#111110] px-4 py-20 text-white sm:px-6 lg:px-10">
           <img
-            src={heroImage}
-            alt="Illustrative Blueprint proof room with sample evidence boards"
-            className="absolute inset-0 h-full w-full object-cover opacity-60"
-            loading="eager"
+            src={humanoidReadinessAssets.proofBoard}
+            alt="Illustrative proof board for robot readiness evidence"
+            className="absolute inset-0 h-full w-full object-cover opacity-36"
           />
-          <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.94)_0%,rgba(0,0,0,0.76)_42%,rgba(0,0,0,0.34)_100%)]" />
-          <div className="relative mx-auto grid min-h-[43rem] max-w-[90rem] gap-10 px-5 py-10 sm:px-8 lg:grid-cols-[0.58fr_0.42fr] lg:px-10 lg:py-14">
-            <div className="flex min-h-[35rem] flex-col justify-end">
-              <p className="text-[11px] font-semibold uppercase tracking-normal text-[#d4b06b]">Blueprint proof</p>
-              <h1 className="mt-6 max-w-[43rem] text-5xl font-semibold leading-none tracking-normal text-white sm:text-7xl">
-                See what supports the readiness estimate.
-              </h1>
-              <p className="mt-5 max-w-[36rem] text-base leading-7 text-white/80 sm:leading-8">
-                Blueprint proof gives robot teams a concrete packet to inspect: indoor capture provenance, rights posture, site/task thresholds, package scope, readiness observations, and the next buyer decision in one place.
-              </p>
-              <div className="mt-8 flex flex-wrap gap-2">
-                <StatusBadge tone="attached">Capture provenance</StatusBadge>
-                <StatusBadge tone="attached">Rights posture</StatusBadge>
-                <StatusBadge tone="sample">Readiness context</StatusBadge>
-              </div>
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-                <a
-                  href="/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=proof-packet&source=proof-hero"
-                  className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-md bg-white px-5 text-sm font-semibold text-slate-950 transition hover:bg-[#f1efe7] sm:w-auto"
-                >
-                  Request readiness evaluation
-                  <ArrowUpRight className="h-4 w-4" />
-                </a>
-                <a
-                  href="/readiness"
-                  className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-md border border-white/20 px-5 text-sm font-semibold text-white transition hover:bg-white/10 sm:w-auto"
-                >
-                  See sample readiness report
-                </a>
-              </div>
-            </div>
-
-            <aside className="self-end border border-white/20 bg-black/40 p-5 backdrop-blur-md">
-              <div className="flex flex-wrap gap-2">
-                <StatusBadge tone="attached">Buyer readiness packet</StatusBadge>
-                <StatusBadge tone="sample">Sample packet view</StatusBadge>
-              </div>
-              <div className="mt-6 grid gap-px bg-white/10">
-                {heroPacketRows.map(([label, value]) => (
-                  <div key={label} className="bg-black/50 p-4">
-                    <p className="text-[11px] font-semibold uppercase tracking-normal text-white/50">{label}</p>
-                    <p className="mt-2 text-sm font-semibold leading-6 text-white">{value}</p>
-                  </div>
-                ))}
-              </div>
-            </aside>
-          </div>
-        </section>
-
-        <section className="border-b border-black/10 bg-white">
-          <div className="mx-auto max-w-[90rem] px-5 py-8 sm:px-8 lg:px-10">
-            <div className="grid gap-6 lg:grid-cols-[0.3fr_0.7fr]">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-normal text-slate-500">
-                  Proof packet example
-                </p>
-                <h2 className="mt-4 text-3xl font-semibold leading-tight tracking-normal text-slate-950">
-                  One packet, five buyer checks.
-                </h2>
-                <p className="mt-4 text-sm leading-7 text-slate-600">
-                  The public sample makes these checks inspectable without claiming customer proof, safety validation, or ready-to-deploy status.
-                </p>
-                <a
-                  href="/sample-deliverables"
-                  className="mt-6 inline-flex items-center rounded-md border border-black/10 bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-                >
-                  Inspect sample package
-                  <ArrowUpRight className="ml-2 h-4 w-4" />
-                </a>
-              </div>
-              <div className="grid gap-px bg-black/10 md:grid-cols-5">
-                {proofPacketExample.map((item) => (
-                  <IconPanel key={item.title} item={item} />
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="border-b border-black/10 bg-[#f4f1ea]">
-          <div className="mx-auto grid max-w-[90rem] gap-6 px-5 py-10 sm:px-8 lg:grid-cols-[0.36fr_0.64fr] lg:px-10 lg:py-12">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-normal text-slate-500">Trust system</p>
-              <h2 className="mt-4 text-4xl font-semibold leading-tight tracking-normal text-slate-950">
-                Proof is a product capability.
-              </h2>
-              <p className="mt-4 max-w-xl text-sm leading-7 text-slate-600">
-                The trust system is not a footnote after checkout. It is how Blueprint makes site/task readiness reports inspectable, requestable, and commercially usable without blurring sample assets into live proof.
-              </p>
-            </div>
-            <div className="grid gap-px bg-black/10 md:grid-cols-2 xl:grid-cols-4">
-              {trustSystemCards.map((item) => (
-                <IconPanel key={item.title} item={item} />
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="border-b border-black/10 bg-white">
-          <div className="mx-auto grid max-w-[90rem] gap-6 px-5 py-10 sm:px-8 lg:grid-cols-[0.48fr_0.52fr] lg:px-10 lg:py-12">
-            <div className="relative min-h-[25rem] overflow-hidden bg-slate-950">
-              <img
-                src={sampleStillImage}
-                alt="Illustrative grocery aisle sample still with route and obstruction labels"
-                className="h-full min-h-[25rem] w-full object-cover"
-              />
-              <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.08)_0%,rgba(0,0,0,0.72)_100%)]" />
-              <div className="absolute left-4 right-4 top-4 flex flex-wrap gap-2">
-                <StatusBadge tone="sample">Sample artifact still</StatusBadge>
-                <StatusBadge tone="blocked">Displayed values are illustrative</StatusBadge>
-              </div>
-              <div className="absolute bottom-0 left-0 right-0 p-5 text-white">
-                <p className="text-[11px] font-semibold uppercase tracking-normal text-white/60">
-                  {proofEvidencePacket.selectedStory.label}
-                </p>
-                <h2 className="mt-3 text-3xl font-semibold leading-tight tracking-normal">
-                  {proofEvidencePacket.selectedStory.locationName}
-                </h2>
-                <p className="mt-3 max-w-2xl text-sm leading-7 text-white/70">
-                  This sample shows how a buyer-facing packet can organize route evidence, not that this exact site is live, rights-approved, or commercially available.
-                </p>
-              </div>
-            </div>
-
-            <div className="border border-black/10 bg-[#f8f6f1] p-6 lg:p-8">
-              <p className="text-[11px] font-semibold uppercase tracking-normal text-slate-500">Sample vs live</p>
-              <h2 className="mt-4 text-4xl font-semibold leading-tight tracking-normal text-slate-950">
-                The public packet teaches the workflow. The request packet proves one site.
-              </h2>
-              <p className="mt-4 text-sm leading-7 text-slate-600">
-                Blueprint can show a polished sample without pretending it is a customer result or real deployment verdict. For a buyer, the proof becomes owner-system backed only when it points to a concrete site, task, request, package, rights posture, and hosted-evaluation path.
-              </p>
-              <div className="mt-5 border border-black/10 bg-white px-4 py-3 text-sm font-semibold leading-6 text-slate-800">
-                {captureGroundedPublicCopy.publicLaunchReadyBoundary}
-              </div>
-              <div className="mt-7 border-y border-black/10">
-                {boundaryRows.map((row) => (
-                  <LedgerLine key={row.label} row={row} />
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="border-b border-black/10 bg-[#171613] text-white">
-          <div className="mx-auto max-w-[90rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
-            <div className="grid gap-8 lg:grid-cols-[0.34fr_0.66fr]">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-normal text-[#d4b06b]">Attached hierarchy</p>
-                <h2 className="mt-4 text-4xl font-semibold leading-tight tracking-normal">
-                  Every output should point back to the source packet.
-                </h2>
-                <p className="mt-4 text-sm leading-7 text-white/70">
-                  Blueprint can use different model providers over time, but the buyer-visible contract stays stable: capture truth, package truth, rights truth, threshold truth, hosted-session truth, and clear labels for model-inferred output.
-                </p>
-              </div>
-              <div className="grid gap-px bg-white/10 md:grid-cols-2 xl:grid-cols-4">
-                {proofHierarchy.map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <div key={item.title} className="bg-[#211f1b] p-5">
-                      <Icon className="h-5 w-5 text-[#d4b06b]" />
-                      <p className="mt-5 text-[11px] font-semibold uppercase tracking-normal text-white/50">{item.label}</p>
-                      <h3 className="mt-3 text-xl font-semibold leading-7 tracking-normal text-white">{item.title}</h3>
-                      <p className="mt-3 text-sm leading-7 text-white/60">{item.body}</p>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="border-b border-black/10 bg-white">
-          <div className="mx-auto grid max-w-[90rem] gap-6 px-5 py-10 sm:px-8 lg:grid-cols-[0.42fr_0.58fr] lg:px-10 lg:py-12">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-normal text-slate-500">Rights and provenance</p>
-              <h2 className="mt-4 text-4xl font-semibold leading-tight tracking-normal text-slate-950">
-                Buyer confidence comes from visible limits.
-              </h2>
-              <p className="mt-4 text-sm leading-7 text-slate-600">
-                The best proof page does not sound less confident because it has boundaries. It sounds more commercial because the buyer can see where the packet is strong, where access is scoped, and where the system will stop.
-              </p>
-              <div className="mt-6 flex flex-wrap gap-2">
-                <StatusBadge tone="attached">Provenance attached</StatusBadge>
-                <StatusBadge tone="attached">Rights posture attached</StatusBadge>
-                <StatusBadge tone="blocked">Claims fail closed</StatusBadge>
-              </div>
-            </div>
-            <div className="border border-black/10 bg-[#f8f6f1] px-5">
-              {rightsRows.map((row) => (
-                <LedgerLine key={row.label} row={row} />
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="border-b border-black/10 bg-[#f4f1ea]">
-          <div className="mx-auto max-w-[90rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
-            <div className="grid gap-6 lg:grid-cols-[0.36fr_0.64fr]">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-normal text-slate-500">Hosted output</p>
-                <h2 className="mt-4 text-4xl font-semibold leading-tight tracking-normal text-slate-950">
-                  Hosted review is the buyer room, not the proof source.
-                </h2>
-                <p className="mt-4 text-sm leading-7 text-slate-600">
-                  Hosted outputs are strongest when they inherit the packet instead of replacing it. The session helps the buyer inspect, compare, and decide, while the source evidence and thresholds keep the readiness estimate honest.
-                </p>
-              </div>
-              <div className="grid gap-px bg-black/10 md:grid-cols-3">
-                {hostedHierarchy.map((item) => (
-                  <IconPanel key={item.title} item={item} />
-                ))}
-              </div>
-            </div>
-
-            <div className="mt-6 grid min-w-0 gap-6 lg:grid-cols-[0.58fr_0.42fr]">
-              <div className="min-w-0 overflow-hidden border border-black/10 bg-white p-5">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-normal text-slate-500">Sample hosted rows</p>
-                    <h3 className="mt-2 text-2xl font-semibold leading-8 tracking-normal text-slate-950">
-                      What a buyer can evaluate in the session.
-                    </h3>
-                  </div>
-                  <StatusBadge tone="sample">Sample rows only</StatusBadge>
-                </div>
-                <div className="mt-5 divide-y divide-black/10">
-                  {sampleHostedRunRows.map((row) => (
-                    <div key={row.run} className="grid gap-3 py-4 md:grid-cols-[0.16fr_0.3fr_0.3fr_0.24fr]">
-                      <p className="text-xs font-semibold uppercase tracking-normal text-slate-500">{row.run}</p>
-                      <p className="text-sm font-semibold leading-6 text-slate-950">{row.scenario}</p>
-                      <p className="text-sm leading-6 text-slate-600">{row.observation}</p>
-                      <p className="text-sm leading-6 text-slate-700">{row.output}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="min-w-0 overflow-hidden border border-black/10 bg-slate-950 p-5 text-white">
-                <p className="text-[11px] font-semibold uppercase tracking-normal text-white/50">Sample export tree</p>
-                <h3 className="mt-2 text-2xl font-semibold leading-8 tracking-normal text-white">
-                  Files stay attached to the packet.
-                </h3>
-                <div className="mt-5 space-y-2 font-mono text-[12px] leading-6 text-white/70">
-                  {sampleExportTree.map((item) => (
-                    <div key={item} className="flex items-start gap-2">
-                      <KeyRound className="mt-1 h-3.5 w-3.5 shrink-0 text-[#d4b06b]" />
-                      <span className="min-w-0 break-all">{item}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="border-b border-black/10 bg-white">
-          <div className="mx-auto grid max-w-[90rem] gap-6 px-5 py-10 sm:px-8 lg:grid-cols-[0.44fr_0.56fr] lg:px-10 lg:py-12">
-            <div className="border border-black/10 bg-slate-950 p-6 text-white lg:p-8">
-              <MapPinned className="h-5 w-5 text-[#d4b06b]" />
-              <p className="mt-5 text-[11px] font-semibold uppercase tracking-normal text-white/50">Representative packet</p>
-              <h2 className="mt-3 text-4xl font-semibold leading-tight tracking-normal">
-                {mediaRoomSampleEvaluation.siteName}
-              </h2>
-              <p className="mt-4 text-sm leading-7 text-white/70">{mediaRoomSampleEvaluation.disclosure}</p>
-              <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                {sampleProofTimeline.map((item) => (
-                  <div key={item.label} className="border border-white/10 bg-white/5 p-4">
-                    <p className="text-[11px] font-semibold uppercase tracking-normal text-white/50">{item.label}</p>
-                    <p className="mt-3 text-sm leading-6 text-white/70">{item.detail}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="border border-black/10 bg-[#f8f6f1] p-6 lg:p-8">
-              <p className="text-[11px] font-semibold uppercase tracking-normal text-slate-500">Buyer decision frame</p>
-              <h2 className="mt-4 text-4xl font-semibold leading-tight tracking-normal text-slate-950">
-                A proof packet should make the readiness decision obvious.
-              </h2>
-              <p className="mt-4 text-sm leading-7 text-slate-600">
-                The page sells the intended readiness workflow without treating every request path as already fulfilled. The buyer sees the strongest supported move and the exact reason a different move may be blocked.
-              </p>
-              <div className="mt-7 grid gap-px bg-black/10">
-                {decisionFrames.map((item) => (
-                  <div key={item.title} className="bg-white p-5">
-                    <h3 className="text-xl font-semibold leading-7 tracking-normal text-slate-950">{item.title}</h3>
-                    <p className="mt-3 text-sm leading-7 text-slate-600">{item.body}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="bg-[#171613] text-white">
-          <div className="mx-auto grid max-w-[90rem] gap-6 px-5 py-10 sm:px-8 lg:grid-cols-[0.62fr_0.38fr] lg:px-10 lg:py-12">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-normal text-[#d4b06b]">Trust before access</p>
-              <h2 className="mt-4 max-w-3xl text-4xl font-semibold leading-tight tracking-normal">
-                Ask for the readiness packet when one exact site/task matters.
-              </h2>
-              <p className="mt-4 max-w-2xl text-sm leading-7 text-white/70">
-                Blueprint can scope the proof path around a sample catalog listing, a site you already know, or a new capture request. The packet stays honest: advisory until request-specific simulator, action-log, robot-trial, safety, rights, and hosted evidence exists.
-              </p>
-            </div>
-            <div className="flex flex-col justify-end gap-3 sm:flex-row lg:flex-col">
+          <div className="absolute inset-0 bg-black/68" />
+          <div className="relative mx-auto max-w-[88rem]">
+            <p className="text-sm font-semibold uppercase tracking-normal text-[#d8bd8d]">
+              Proof
+            </p>
+            <h1 className="mt-4 max-w-4xl text-5xl font-semibold leading-none md:text-7xl">
+              See what supports the readiness estimate.
+            </h1>
+            <p className="mt-6 max-w-2xl text-lg leading-8 text-white/78">
+              Blueprint proof keeps the buyer question grounded: what came from
+              capture, what is inferred, what is still missing, and what claim
+              the evidence can actually support.
+            </p>
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <a
-                href="/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=proof-packet&source=proof-bottom"
-                className="inline-flex min-h-14 items-center justify-center gap-3 rounded-md bg-white px-6 text-sm font-semibold text-slate-950 transition hover:bg-[#f1efe7]"
+                href={requestHref}
+                className="inline-flex min-h-12 items-center justify-center gap-2 bg-[#d8bd8d] px-5 text-sm font-semibold text-[#111110] transition hover:bg-[#e8cfa1]"
               >
-                Request readiness evaluation
-                <ArrowUpRight className="h-5 w-5" />
+                Request readiness review
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </a>
               <a
-                href="/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=proof-bottom"
-                className="inline-flex min-h-14 items-center justify-center gap-3 rounded-md border border-white/20 px-6 text-sm font-semibold text-white transition hover:bg-white/10"
+                href="/pricing"
+                className="inline-flex min-h-12 items-center justify-center border border-white/30 px-5 text-sm font-semibold text-white transition hover:bg-white/10"
               >
-                Request hosted evaluation
+                See pricing
+              </a>
+            </div>
+          </div>
+        </section>
+
+        <section className="px-4 py-14 sm:px-6 lg:px-10">
+          <div className="mx-auto max-w-[88rem]">
+            <div className="max-w-3xl">
+              <p className="text-xs font-semibold uppercase tracking-normal text-[#8b6f42]">
+                Sample vs request
+              </p>
+              <h2 className="mt-3 text-4xl font-semibold leading-tight">
+                The public packet teaches the workflow. The request packet proves one site.
+              </h2>
+            </div>
+            <div className="mt-8 overflow-hidden border border-black/10 bg-white">
+              <div className="grid bg-[#111110] text-sm font-semibold uppercase tracking-normal text-white sm:grid-cols-[0.24fr_0.38fr_0.38fr]">
+                <div className="border-b border-white/15 p-4 sm:border-b-0 sm:border-r">Layer</div>
+                <div className="border-b border-white/15 p-4 sm:border-b-0 sm:border-r">Public sample</div>
+                <div className="p-4">Request-specific proof</div>
+              </div>
+              {sampleVsRequest.map((row) => (
+                <div
+                  key={row.label}
+                  className="grid border-t border-black/10 text-sm leading-6 sm:grid-cols-[0.24fr_0.38fr_0.38fr]"
+                >
+                  <div className="bg-[#f8f4ec] p-4 font-semibold">{row.label}</div>
+                  <div className="border-t border-black/10 p-4 text-[#5f5a53] sm:border-l sm:border-t-0">
+                    {row.sample}
+                  </div>
+                  <div className="border-t border-black/10 p-4 text-[#5f5a53] sm:border-l sm:border-t-0">
+                    {row.request}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="border-y border-black/10 bg-white px-4 py-14 sm:px-6 lg:px-10">
+          <div className="mx-auto grid max-w-[88rem] gap-8 lg:grid-cols-[0.34fr_0.66fr]">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-normal text-[#8b6f42]">
+                Evidence hierarchy
+              </p>
+              <h2 className="mt-3 text-4xl font-semibold leading-tight">
+                Every output should point back to the source packet.
+              </h2>
+              <p className="mt-4 text-base leading-7 text-[#5f5a53]">
+                Repo tests and samples can prove public wording. They do not
+                prove operational robot readiness.
+              </p>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              {hierarchy.map((item) => {
+                const Icon = item.icon;
+
+                return (
+                  <article key={item.title} className="border border-black/10 bg-[#f8f4ec] p-5">
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="text-xs font-semibold uppercase tracking-normal text-[#8b6f42]">
+                        {item.label}
+                      </span>
+                      <Icon className="h-5 w-5 text-[#111110]" aria-hidden="true" />
+                    </div>
+                    <h3 className="mt-5 text-xl font-semibold">{item.title}</h3>
+                    <p className="mt-3 text-sm leading-6 text-[#5f5a53]">{item.body}</p>
+                  </article>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
+        <section className="px-4 py-14 sm:px-6 lg:px-10">
+          <div className="mx-auto grid max-w-[88rem] gap-8 lg:grid-cols-[0.46fr_0.54fr]">
+            <div className="border border-black/10 bg-white p-6">
+              <FileText className="h-8 w-8 text-[#8b6f42]" aria-hidden="true" />
+              <h2 className="mt-5 text-3xl font-semibold leading-tight">
+                A proof packet should make the readiness decision obvious.
+              </h2>
+              <p className="mt-4 text-sm leading-7 text-[#5f5a53]">
+                The buyer should be able to see why Blueprint recommends a short
+                pilot, site modification, more data, vendor comparison, or hold.
+              </p>
+            </div>
+            <div className="grid gap-3">
+              {decisions.map((decision) => (
+                <div key={decision} className="flex gap-3 border border-black/10 bg-white p-4">
+                  <Route className="mt-1 h-5 w-5 flex-none text-[#8b6f42]" aria-hidden="true" />
+                  <p className="text-sm font-semibold leading-6">{decision}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="px-4 pb-14 sm:px-6 lg:px-10">
+          <div className="mx-auto grid max-w-[88rem] gap-6 border border-black/10 bg-[#111110] p-6 text-white md:grid-cols-[0.2fr_0.8fr] md:p-8">
+            <ShieldCheck className="h-10 w-10 text-[#d8bd8d]" aria-hidden="true" />
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-normal text-[#d8bd8d]">
+                Claim boundary
+              </p>
+              <h2 className="mt-3 text-3xl font-semibold">
+                Advisory until stronger proof exists.
+              </h2>
+              <p className="mt-4 max-w-4xl text-sm leading-7 text-white/74">
+                Blueprint can publish polished proof structure, sample packets,
+                and request paths. It must not claim safety validation,
+                simulator execution completed, robot-trial success, cleared
+                rights, hosted-session fulfillment, payment success, or ready to
+                deploy unless the owning systems prove those facts for the
+                request.
+              </p>
+              <a
+                href={requestHref}
+                className="mt-7 inline-flex min-h-11 items-center justify-center gap-2 bg-[#d8bd8d] px-4 text-sm font-semibold text-[#111110] transition hover:bg-[#e8cfa1]"
+              >
+                Request a proof packet
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </a>
             </div>
           </div>

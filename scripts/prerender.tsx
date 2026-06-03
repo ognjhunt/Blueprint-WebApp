@@ -11,32 +11,14 @@ import { queryClient } from "../client/src/lib/queryClient";
 import { AuthProvider } from "../client/src/contexts/AuthContext";
 import { SiteLayout } from "../client/src/components/site/SiteLayout";
 import Home from "../client/src/pages/Home";
-import Capture from "../client/src/pages/Capture";
 import CaptureAppPlaceholder from "../client/src/pages/CaptureAppPlaceholder";
 import CaptureLaunchAccess from "../client/src/pages/CaptureLaunchAccess";
-import SiteWorlds from "../client/src/pages/SiteWorlds";
-import SiteWorldDetail from "../client/src/pages/SiteWorldDetail";
-import HostedSessionSetup from "../client/src/pages/HostedSessionSetup";
 import Pricing from "../client/src/pages/Pricing";
 import Contact from "../client/src/pages/Contact";
-import Support from "../client/src/pages/Support";
-import ExactSiteHostedReview from "../client/src/pages/ExactSiteHostedReview";
-import ForRobotIntegrators from "../client/src/pages/ForRobotIntegrators";
-import HowItWorks from "../client/src/pages/HowItWorks";
-import Agents from "../client/src/pages/Agents";
-import SampleDeliverables from "../client/src/pages/SampleDeliverables";
-import FAQ from "../client/src/pages/FAQ";
-import Governance from "../client/src/pages/Governance";
 import Proof from "../client/src/pages/Proof";
-import About from "../client/src/pages/About";
-import Careers from "../client/src/pages/Careers";
 import Privacy from "../client/src/pages/Privacy";
 import Terms from "../client/src/pages/Terms";
 import Login from "../client/src/pages/Login";
-import Blog from "../client/src/pages/Blog";
-import LaunchMap from "../client/src/pages/LaunchMap";
-import { helpArticles, helpCategories } from "../client/src/data/helpCenter";
-import { siteWorldCards } from "../client/src/data/siteWorlds";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -216,55 +198,20 @@ const PrerenderForgotPassword = () => (
 
 const staticRoutes: StaticRoute[] = [
   { path: "/", component: Home },
-  { path: "/capture", component: Capture },
-  { path: "/product", component: ExactSiteHostedReview },
-  { path: "/for-robot-teams", component: ForRobotIntegrators },
-  { path: "/how-it-works", component: HowItWorks },
-  { path: "/agents", component: Agents },
-  { path: "/world-models", component: SiteWorlds },
   { path: "/capture-app", component: CaptureAppPlaceholder },
   { path: "/capture-app/launch-access", component: CaptureLaunchAccess },
   { path: "/pricing", component: Pricing },
-  { path: "/sample-deliverables", component: SampleDeliverables },
-  { path: "/proof", component: Proof, shell: "bare" },
+  { path: "/proof", component: Proof },
   { path: "/contact", component: Contact },
   { path: "/contact/site-operator", component: Contact },
-  { path: "/help", component: Support },
-  { path: "/help/contact", component: Support },
-  ...helpCategories.map((category) => ({
-    path: `/help/category/${category.slug}`,
-    component: Support,
-    props: { params: { categorySlug: category.slug } },
-  })),
-  ...helpArticles.map((article) => ({
-    path: `/help/article/${article.slug}`,
-    component: Support,
-    props: { params: { articleSlug: article.slug } },
-  })),
-  { path: "/launch-map", component: LaunchMap },
-  { path: "/faq", component: FAQ },
-  { path: "/governance", component: Governance },
-  { path: "/about", component: About },
-  { path: "/updates", component: Blog },
-  { path: "/careers", component: Careers },
   { path: "/sign-in", component: Login },
   { path: "/portal", component: PrerenderPortal, shell: "bare" },
   { path: "/signup", component: PrerenderBusinessSignup, shell: "bare" },
   { path: "/signup/business", component: PrerenderBusinessSignup, shell: "bare" },
   { path: "/signup/capturer", component: PrerenderCapturerSignup, shell: "bare" },
   { path: "/forgot-password", component: PrerenderForgotPassword, shell: "bare" },
-  { path: "/privacy", component: Privacy },
-  { path: "/terms", component: Terms },
-  ...siteWorldCards.map((site) => ({
-    path: `/world-models/${site.id}`,
-    component: SiteWorldDetail,
-    props: { params: { slug: site.id } },
-  })),
-  ...siteWorldCards.map((site) => ({
-    path: `/world-models/${site.id}/start`,
-    component: HostedSessionSetup,
-    props: { params: { slug: site.id } },
-  })),
+  { path: "/privacy", component: Privacy, shell: "bare" },
+  { path: "/terms", component: Terms, shell: "bare" },
 ];
 
 const rootPattern = /<div id="root"><\/div>/;

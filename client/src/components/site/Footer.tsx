@@ -14,10 +14,10 @@ export function Footer() {
             <BrandLockup compact />
           </a>
           <p className="text-sm leading-6 text-slate-600">
-            Blueprint turns indoor real-site capture into site-specific robot deployment readiness reports, hosted review rooms, and package evidence for robot teams.
+            Blueprint turns one real facility, one robot task, and one pass bar into a capture-backed readiness report before an expensive pilot.
           </p>
           <p className="text-sm leading-6 text-slate-600">
-            Robot teams request site/task readiness. Site operators set access and privacy boundaries. Capturers apply only where capture is open.
+            Public samples show the product shape. Request packets prove one site with provenance, rights, thresholds, and proof gaps attached.
           </p>
           <div className="flex flex-col gap-2">
             <a
@@ -48,7 +48,7 @@ export function Footer() {
 
         <nav className="space-y-3 text-sm text-slate-700">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-            Company
+            Contact
           </p>
           {footerCompanyLinks.map((link) => (
             <a key={link.href} href={link.href} className="block transition hover:text-slate-900">
@@ -59,7 +59,7 @@ export function Footer() {
 
         <nav className="space-y-3 text-sm text-slate-700">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-            Support
+            Legal
           </p>
           {footerSupportLinks.map((link) => (
             <a key={link.href} href={link.href} className="block transition hover:text-slate-900">
@@ -72,7 +72,7 @@ export function Footer() {
       <div className="border-t border-black/10 bg-white py-4">
         <div className="mx-auto flex max-w-[88rem] flex-col items-start gap-2 px-4 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-10">
           <p>© {new Date().getFullYear()} Blueprint, Inc. All rights reserved.</p>
-          <p>Capture first. Readiness claims stay evidence-backed.</p>
+          <p>Capture first. Operational claims require owner-system proof.</p>
         </div>
       </div>
     </footer>

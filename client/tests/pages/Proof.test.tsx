@@ -1,93 +1,43 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 import Proof from "@/pages/Proof";
 
-let mockSearch = "";
-
-vi.mock("wouter", async () => {
-  const actual = await vi.importActual<typeof import("wouter")>("wouter");
-  return {
-    ...actual,
-    useSearch: () => mockSearch,
-  };
-});
-
 describe("Proof page", () => {
-  beforeEach(() => {
-    mockSearch = "";
-  });
-
-  it("renders the default proof hub without city-specific copy", () => {
+  it("renders the concise proof explainer", () => {
     render(<Proof />);
 
     expect(
       screen.getByRole("heading", { name: /See what supports the readiness estimate\./i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/Blueprint proof gives robot teams a concrete packet to inspect: indoor capture provenance, rights posture, site\/task thresholds/i),
+      screen.getByText(/what came from capture, what is inferred, what is still missing/i),
     ).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Proof is a product capability\./i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /The public packet teaches the workflow\. The request packet proves one site\./i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Every output should point back to the source packet\./i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Buyer confidence comes from visible limits\./i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Hosted review is the buyer room, not the proof source\./i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /A proof packet should make the readiness decision obvious\./i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", {
+        name: /The public packet teaches the workflow\. The request packet proves one site\./i,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText(/^Public sample$/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/^Request-specific proof$/i)).toBeInTheDocument();
     expect(screen.getAllByText(/Capture provenance/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Rights posture/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Readiness context/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Public pages can stay polished and present-tense/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/Capture-grounded/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Model-inferred/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Review before export/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/Fail closed/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Sample rows only/i)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Proceed to short-pilot protocol/i })).toBeInTheDocument();
+    expect(screen.getByText(/Rights and privacy posture/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Readiness advisory/i).length).toBeGreaterThan(0);
+  });
+
+  it("keeps the claim boundary and request CTA visible", () => {
+    render(<Proof />);
+
+    expect(
+      screen.getByRole("heading", { name: /Advisory until stronger proof exists\./i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/must not claim safety validation/i)).toBeInTheDocument();
     expect(screen.getByText(/Hold until the proof gap is resolved/i)).toBeInTheDocument();
-    expect(screen.queryByText(/Austin, TX/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/San Francisco, CA/i)).not.toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: /Request readiness evaluation/i })[0]).toHaveAttribute(
-      "href",
-      "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=proof-packet&source=proof-hero",
-    );
-    expect(screen.getByRole("link", { name: /See sample readiness report/i })).toHaveAttribute(
-      "href",
-      "/readiness",
-    );
-    expect(screen.getByRole("link", { name: /Request hosted evaluation/i })).toHaveAttribute(
-      "href",
-      "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=proof-bottom",
-    );
-  });
-
-  it("ignores Austin city context and preserves the proof packet CTA", () => {
-    mockSearch = "?city=austin";
-
-    render(<Proof />);
-
-    expect(screen.queryByText(/Austin, TX/i)).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /See what supports the readiness estimate\./i })).toBeInTheDocument();
     expect(
-      screen.getByText(/Blueprint proof gives robot teams a concrete packet to inspect: indoor capture provenance, rights posture, site\/task thresholds/i),
-    ).toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: /Request readiness evaluation/i })[0]).toHaveAttribute(
+      screen.getAllByRole("link", { name: /Request readiness review/i })[0],
+    ).toHaveAttribute("href", expect.stringContaining("/contact?persona=robot-team"));
+    expect(screen.getByRole("link", { name: /Request a proof packet/i })).toHaveAttribute(
       "href",
-      "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=proof-packet&source=proof-hero",
-    );
-  });
-
-  it("ignores San Francisco city context and preserves the proof packet CTA", () => {
-    mockSearch = "?city=san-francisco";
-
-    render(<Proof />);
-
-    expect(screen.queryByText(/San Francisco, CA/i)).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /See what supports the readiness estimate\./i })).toBeInTheDocument();
-    expect(
-      screen.getByText(/Blueprint proof gives robot teams a concrete packet to inspect: indoor capture provenance, rights posture, site\/task thresholds/i),
-    ).toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: /Request readiness evaluation/i })[0]).toHaveAttribute(
-      "href",
-      "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=proof-packet&source=proof-hero",
+      expect.stringContaining("path=proof-packet"),
     );
   });
 });

@@ -1,1055 +1,319 @@
 import { SEO } from "@/components/SEO";
-import { ExactSitePreviewSection } from "@/components/site/ExactSitePreviewSection";
+import { humanoidReadinessAssets } from "@/lib/editorialGeneratedAssets";
 import {
-  EditorialCtaBand,
-  EditorialFaq,
-  EditorialMetricStrip,
-  EditorialSectionIntro,
-  MonochromeMedia,
-  ProofChip,
-  RouteTraceOverlay,
-} from "@/components/site/editorial";
-import { siteWorldCards } from "@/data/siteWorlds";
-import { editorialGeneratedAssets } from "@/lib/editorialGeneratedAssets";
-import { captureGroundedPublicCopy } from "@/lib/captureGroundedLanguage";
-import {
-  publicDemoHref,
-  publicDemoPlyPreviewSrc,
-  publicDemoSiteWorldId,
-  publicDemoSpzPreviewSrc,
-} from "@/lib/marketingProof";
-import { publicCaptureProofStories } from "@/lib/proofEvidence";
-import {
-  getEditorialFeaturedSites,
-  getEditorialSiteLocation,
-} from "@/lib/siteEditorialContent";
-import { fetchSiteWorldDetail } from "@/lib/siteWorldsApi";
-import { analyticsEvents } from "@/lib/analytics";
-import {
-  breadcrumbJsonLd,
-  faqJsonLd,
-  organizationJsonLd,
-  webPageJsonLd,
-  websiteJsonLd,
-} from "@/lib/seoStructuredData";
-import type { PublicSiteWorldRecord } from "@/types/inbound-request";
-import { ArrowRight } from "lucide-react";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+  ArrowRight,
+  Building2,
+  CheckCircle2,
+  ClipboardCheck,
+  Clock,
+  Gauge,
+  PackageCheck,
+  Route,
+  ShieldCheck,
+  Target,
+  TriangleAlert,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
-const productPaths = [
-  {
-    title: "Readiness Report",
-    body: "A site/task confidence packet around success rate, cycle time, intervention rate, safety threshold, failure modes, and required next proof.",
-    href: "/readiness",
-    label: "See readiness report",
-  },
-  {
-    title: "Site Package Substrate",
-    body: "One real place packaged with capture route, manifest, proof notes, rights limits, export scope, and geometry when available.",
-    href: "/world-models",
-    label: "Browse site packages",
-    dark: true,
-  },
-  {
-    title: "Buyer Request Path",
-    body: "Structured intake turns a robot-team question into the next site/task scope, readiness estimate, evidence ask, hosted review, or capture run.",
-    href: "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=home-product-readiness",
-    label: "Evaluate a site/task",
-  },
-];
+const requestHref =
+  "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-kiss";
 
-const personaEntryPoints = [
-  {
-    audience: "Robot team",
-    question: "I need to know if this robot is likely to clear our pilot bar.",
-    title: "Request a site/task readiness evaluation.",
-    body: "Name the facility, task, robot setup, target thresholds, and pilot timeline. Blueprint routes you to a readiness report, site package, new capture request, or hosted evaluation.",
-    primaryHref:
-      "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=home-persona-robot-team",
-    primaryLabel: "Request readiness evaluation",
-    secondaryHref: "/world-models",
-    secondaryLabel: "Browse site packages",
-  },
-  {
-    audience: "Site operator",
-    question: "I control or influence a facility.",
-    title: "Set site boundaries.",
-    body: "Define access rules, privacy constraints, restricted zones, and commercialization terms before a package is released.",
-    primaryHref: "/contact/site-operator",
-    primaryLabel: "Submit or claim a site",
-    secondaryHref: "/governance",
-    secondaryLabel: "Review boundaries",
-  },
-  {
-    audience: "Capturer",
-    question: "I can record real public-facing places.",
-    title: "Apply for capture access.",
-    body: "Capture work remains city- and approval-gated. Open the launch path before recording, routing, or expecting assignment payout.",
-    primaryHref:
-      "/capture-app/launch-access?role=capturer&source=home-persona-capturer",
-    primaryLabel: "Check capture access",
-    secondaryHref: "/capture",
-    secondaryLabel: "How capture works",
-  },
-];
+const hostedHref =
+  "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=home-kiss";
 
-const categoryValidationItems = [
-  {
-    title: "Outdoor worlds are getting grounded",
-    body: "Google's Genie and Street View work make the category legible: agents can explore worlds anchored to real places.",
-  },
-  {
-    title: "Indoor spaces are still missing",
-    body: "Warehouses, stores, labs, hotels, back rooms, and service corridors are rights-sensitive, task-specific, and rarely captured at robot-evaluation depth.",
-  },
-  {
-    title: "Blueprint turns sites into readiness evidence",
-    body: "Blueprint turns those unscanned spaces into capture-backed site/task packages, readiness reports, hosted review paths, proof boundaries, and pilot decisions for robot teams.",
-  },
-];
-
-const proofItems = [
-  "Samples and demo worlds are labeled inside the proof flow.",
-  captureGroundedPublicCopy.groundTruthDefinition,
-  "Approved listings keep capture basis, freshness, rights, restrictions, and package scope attached.",
-  "Readiness estimates stay advisory until simulator traces, action logs, robot trials, safety review, rights clearance, and hosted runtime proof support a stronger claim.",
-];
-
-const homeDirectAnswers = [
-  {
-    question: "What does Blueprint sell?",
-    answer: captureGroundedPublicCopy.productSummary,
-  },
-  {
-    question: "What question does Blueprint answer first?",
-    answer:
-      "Before a team brings a robot into a facility for a long expensive pilot, Blueprint helps structure whether the robot is likely to meet the required success rate, cycle time, intervention rate, and safety threshold on the buyer's actual tasks.",
-  },
-  {
-    question: "What proof is attached?",
-    answer: `${captureGroundedPublicCopy.groundTruthDefinition} Public examples show the proof shape without replacing that source record.`,
-  },
-  {
-    question: "What should a buyer request next?",
-    answer:
-      "Request one exact site, one robot task, the robot profile, the pass/fail thresholds, and the evidence needed for a pre-pilot readiness estimate.",
-  },
-];
-
-const HOME_ROBOT_TEAM_EXPERIMENT_KEY = "home_robot_team_conversion_v1";
-const HOME_ROBOT_TEAM_CONVERSION_GOAL = "structured_robot_team_intake";
-const GOOGLE_GENIE_STREET_VIEW_URL =
-  "https://blog.google/innovation-and-ai/models-and-research/google-deepmind/project-genie-expands/";
-
-const homeRobotTeamVariants = [
-  "outdoor_street_view",
-  "street_view_grounds",
-] as const;
-
-type HomeRobotTeamVariant = (typeof homeRobotTeamVariants)[number];
-
-const homeVariantContent: Record<
-  HomeRobotTeamVariant,
-  {
-    title: string;
-    description: ReactNode;
-    primaryLabel: string;
-    primaryPath: "world-model" | "hosted-evaluation" | "request-capture";
-    secondaryLabel: string;
-    secondaryHref: string;
-    panelTitle: string;
-    panelBody: string;
-  }
-> = {
-  outdoor_street_view: {
-    title: "Site-specific robot deployment readiness.",
-    description: (
-      <>
-        Before a costly on-site pilot, Blueprint helps robot teams estimate
-        whether a robot can meet the required success rate, cycle time,
-        intervention rate, and safety threshold on the actual facility tasks.
-        Capture-grounded site packages and hosted review keep the answer tied to
-        the real place. Google's{" "}
-        <a
-          href={GOOGLE_GENIE_STREET_VIEW_URL}
-          target="_blank"
-          rel="noreferrer"
-          className="!text-white underline decoration-white/70 underline-offset-4 transition visited:!text-white hover:!text-white hover:decoration-white"
-        >
-          Street View-grounded Genie
-        </a>{" "}
-        is category context, not Blueprint proof.
-      </>
-    ),
-    primaryLabel: "Request readiness evaluation",
-    primaryPath: "hosted-evaluation",
-    secondaryLabel: "See sample readiness report",
-    secondaryHref: "/readiness",
-    panelTitle: "Start here",
-    panelBody:
-      "Name one site, one task, one robot profile, and the pass bar. Blueprint turns that into a request-scoped evidence path.",
-  },
-  street_view_grounds: {
-    title: "Site-specific robot deployment readiness.",
-    description: (
-      <>
-        Before a costly on-site pilot, Blueprint helps robot teams estimate
-        whether a robot can meet the required success rate, cycle time,
-        intervention rate, and safety threshold on the actual facility tasks.
-        Capture-grounded site packages and hosted review keep the answer tied to
-        the real place. Google's{" "}
-        <a
-          href={GOOGLE_GENIE_STREET_VIEW_URL}
-          target="_blank"
-          rel="noreferrer"
-          className="!text-white underline decoration-white/70 underline-offset-4 transition visited:!text-white hover:!text-white hover:decoration-white"
-        >
-          Street View-grounded Genie
-        </a>{" "}
-        is category context, not Blueprint proof.
-      </>
-    ),
-    primaryLabel: "Request readiness evaluation",
-    primaryPath: "hosted-evaluation",
-    secondaryLabel: "See sample readiness report",
-    secondaryHref: "/readiness",
-    panelTitle: "Start here",
-    panelBody:
-      "Name one site, one task, one robot profile, and the pass bar. Blueprint routes the request without treating sample proof as approved output.",
-  },
+type IconBlock = {
+  icon: LucideIcon;
+  label: string;
+  title: string;
+  body: string;
 };
 
-const robotTeamDecisionSteps = [
+const buyerBars: IconBlock[] = [
   {
-    title: "Capture the site/task context",
-    body: "Start from the facility, route, workflow, robot profile, public-facing or permissioned capture path, and provenance limits.",
+    icon: Target,
+    label: "Success rate",
+    title: "Can the robot complete the task often enough?",
+    body: "The readiness scope starts with the pass bar the buyer actually needs.",
   },
   {
-    title: "Set the pass bar",
-    body: "Declare success-rate, cycle-time, intervention-rate, and safety-threshold targets before the report makes any recommendation.",
+    icon: Clock,
+    label: "Cycle time",
+    title: "Can it keep up with the site rhythm?",
+    body: "Blueprint frames the task against target timing, bottlenecks, and site drift.",
   },
   {
-    title: "Decide before field time",
-    body: "Use the readiness report, failure-mode notes, site modifications, data requirements, and pilot protocol to decide the next proof move.",
-  },
-];
-
-const firstScreenDefinitions = [
-  {
-    term: "Readiness report",
-    definition:
-      "A request-scoped advisory packet for one site, one task suite, one robot profile, and a named pass bar.",
+    icon: Gauge,
+    label: "Intervention rate",
+    title: "Where will people still need to step in?",
+    body: "The report names likely assist points instead of hiding them behind a score.",
   },
   {
-    term: "Site/task suite",
-    definition:
-      "The actual workflows, thresholds, scenario variations, and failure modes a pilot must clear.",
-  },
-  {
-    term: "Capture substrate",
-    definition:
-      "The manifest, route, proof, rights notes, exports, and files tied to that exact site.",
-  },
-  {
-    term: "Operational proof",
-    definition:
-      "Simulator traces, action logs, robot trials, safety review, rights clearance, and runtime proof when a stronger claim is requested.",
+    icon: ShieldCheck,
+    label: "Safety threshold",
+    title: "What still needs review before field exposure?",
+    body: "Safety stays scoped to the request and does not become a blanket validation claim.",
   },
 ];
 
-function buildRobotTeamContactHref(
-  variantId: HomeRobotTeamVariant,
-  source: string,
-  path: "world-model" | "hosted-evaluation" | "request-capture",
-) {
-  const interest =
-    path === "hosted-evaluation"
-      ? "hosted-evaluation"
-      : path === "request-capture"
-        ? "capture-access"
-        : "world-model";
-  const params = new URLSearchParams({
-    persona: "robot-team",
-    buyerType: "robot_team",
-    interest,
-    path,
-    source,
-    utm_source: "homepage",
-    utm_medium: "website",
-    utm_campaign: HOME_ROBOT_TEAM_EXPERIMENT_KEY,
-    utm_content: `${variantId}:${source}`,
-  });
+const offerItems: IconBlock[] = [
+  {
+    icon: ClipboardCheck,
+    label: "01",
+    title: "Site/task readiness report",
+    body: "One facility, task suite, robot profile, threshold set, failure modes, proof gaps, and next-step recommendation.",
+  },
+  {
+    icon: PackageCheck,
+    label: "02",
+    title: "Capture-backed site package",
+    body: "Walkthrough evidence, route context, provenance, rights posture, manifests, and export boundaries for the site.",
+  },
+  {
+    icon: Route,
+    label: "03",
+    title: "Hosted evaluation",
+    body: "A managed buyer review room when package, entitlement, and runtime proof support that request.",
+  },
+  {
+    icon: Building2,
+    label: "04",
+    title: "Custom benchmark scope",
+    body: "Private, multi-site, vendor-comparison, or operator-heavy work when one site review is too narrow.",
+  },
+];
 
-  return `/contact?${params.toString()}`;
-}
+const workflowSteps = [
+  {
+    title: "Capture or package one real site",
+    body: "Start from a lawful capture, existing site package, or structured request for the facility in question.",
+  },
+  {
+    title: "Define the robot task and pass bar",
+    body: "Name the robot profile, task suite, success rate, cycle time, intervention rate, and safety threshold.",
+  },
+  {
+    title: "Build the readiness packet",
+    body: "Attach capture evidence, route context, scenario notes, missing proof, and package or hosted-review limits.",
+  },
+  {
+    title: "Show what breaks",
+    body: "Call out failure modes, site modifications, data needs, recapture needs, and proof that remains blocked.",
+  },
+  {
+    title: "Decide the next step",
+    body: "Proceed to a short pilot protocol, change the site, gather more evidence, compare vendors, or hold.",
+  },
+];
 
-function HomeSiteCard({
+const pricingPlans = [
+  {
+    name: "Site/Task Readiness Review",
+    price: "$2,100 - $3,400",
+    summary:
+      "One site, one task suite, one robot profile, one threshold set, and a pre-pilot recommendation.",
+    href: requestHref,
+  },
+  {
+    name: "Hosted Evaluation",
+    price: "$16 - $29 / session-hour",
+    summary:
+      "Managed browser review, reruns, observations, export framing, and a direct buyer room when available.",
+    href: hostedHref,
+  },
+  {
+    name: "Custom Multi-Site Benchmark",
+    price: "$50,000+ scoped",
+    summary:
+      "Private capture planning, vendor-neutral benchmark design, custom data package, and operator boundaries.",
+    href: "/contact?persona=robot-team&buyerType=robot_team&interest=custom-scope&path=world-model&source=home-kiss",
+  },
+];
+
+const proofRows = [
+  {
+    sample: "Public samples",
+    request: "Request packets",
+    detail:
+      "Samples show the product shape. Request packets prove one site with provenance, rights, thresholds, and gaps attached.",
+  },
+  {
+    sample: "Generated or model-derived visuals",
+    request: "Owner-system evidence",
+    detail:
+      "Generated outputs can support review, but simulator traces, action logs, robot trials, safety review, rights proof, and runtime artifacts own stronger claims.",
+  },
+  {
+    sample: "Readiness advisory",
+    request: "Operational readiness",
+    detail:
+      "A readiness report is advisory until the missing proof exists for that exact site, robot, task, and threshold set.",
+  },
+];
+
+function SectionHeading({
+  eyebrow,
   title,
-  href,
-  image,
-  location,
+  body,
 }: {
+  eyebrow: string;
   title: string;
-  href: string;
-  image: string;
-  location: string;
+  body: string;
 }) {
   return (
-    <a
-      href={href}
-      className="group relative overflow-hidden rounded-[1.7rem] border border-black/10 bg-slate-950 shadow-[0_24px_60px_-40px_rgba(15,23,42,0.38)]"
-    >
-      <MonochromeMedia
-        src={image}
-        alt={title}
-        className="min-h-[23rem] rounded-none"
-        imageClassName="min-h-[23rem] transition duration-700 group-hover:scale-[1.03]"
-        overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.08),rgba(0,0,0,0.76))]"
-      />
-      <div className="absolute inset-x-0 bottom-0 p-5 text-white">
-        <p className="text-[11px] uppercase tracking-[0.22em] text-white/55">
-          {location}
-        </p>
-        <h3 className="font-editorial mt-3 text-[2rem] leading-[0.95] tracking-[-0.04em]">
-          {title}
-        </h3>
-        <div className="mt-5 inline-flex items-center text-sm font-semibold text-white/80">
-          Explore
-          <ArrowRight className="ml-2 h-4 w-4" />
-        </div>
+    <div className="max-w-3xl">
+      <p className="text-xs font-semibold uppercase tracking-normal text-[#8b6f42]">
+        {eyebrow}
+      </p>
+      <h2 className="mt-3 text-4xl font-semibold leading-tight text-[#111110] md:text-5xl">
+        {title}
+      </h2>
+      <p className="mt-4 text-base leading-7 text-[#4f4a43] md:text-lg">
+        {body}
+      </p>
+    </div>
+  );
+}
+
+function IconCard({ item }: { item: IconBlock }) {
+  const Icon = item.icon;
+
+  return (
+    <article className="border border-black/10 bg-white p-5 shadow-sm">
+      <div className="flex items-center justify-between gap-4">
+        <span className="text-xs font-semibold uppercase tracking-normal text-[#8b6f42]">
+          {item.label}
+        </span>
+        <Icon className="h-5 w-5 text-[#111110]" aria-hidden="true" />
       </div>
-    </a>
+      <h3 className="mt-5 text-xl font-semibold leading-snug text-[#111110]">
+        {item.title}
+      </h3>
+      <p className="mt-3 text-sm leading-6 text-[#5f5a53]">{item.body}</p>
+    </article>
   );
 }
 
 export default function Home() {
-  const featuredSites = useMemo(
-    () => getEditorialFeaturedSites(siteWorldCards, 3),
-    [],
-  );
-  const heroSite = featuredSites[0];
-  const [heroVariant, setHeroVariant] = useState<HomeRobotTeamVariant>(
-    "outdoor_street_view",
-  );
-  const [liveExactSitePreview, setLiveExactSitePreview] =
-    useState<PublicSiteWorldRecord | null>(null);
-  const heroContent = homeVariantContent[heroVariant];
-  const heroPrimaryHref = buildRobotTeamContactHref(
-    heroVariant,
-    "home-hero-primary",
-    heroContent.primaryPath,
-  );
-  const decisionPathHref = buildRobotTeamContactHref(
-    heroVariant,
-    "home-decision-path",
-    "hosted-evaluation",
-  );
-  const bottomCtaHref = buildRobotTeamContactHref(
-    heroVariant,
-    "home-bottom",
-    heroContent.primaryPath,
-  );
-  const exactSitePreviewSeed = useMemo(
-    () =>
-      siteWorldCards.find((site) => site.id === publicDemoSiteWorldId) ||
-      heroSite,
-    [heroSite],
-  );
-  const exactSitePreviewSite = useMemo(() => {
-    const site = liveExactSitePreview || exactSitePreviewSeed || heroSite;
-    if (!site) {
-      return site;
-    }
-
-    const preview = site.worldLabsPreview || { status: "ready" as const };
-    const spzUrls = preview.spzUrls?.length
-      ? preview.spzUrls
-      : [publicDemoSpzPreviewSrc];
-    const previewWithSplat = {
-      ...preview,
-      status: preview.status || "ready",
-      spzUrls,
-      plyUrls: [publicDemoPlyPreviewSrc],
-    };
-
-    return {
-      ...site,
-      worldLabsPreview: previewWithSplat,
-    };
-  }, [exactSitePreviewSeed, heroSite, liveExactSitePreview]);
-
-  const metrics = useMemo(
-    () => [
-      {
-        label: "Buyer question",
-        detail:
-          "Can this robot hit the required success rate, cycle time, intervention rate, and safety threshold on this site/task?",
-      },
-      {
-        label: "Indoor capture",
-        detail:
-          "A walkthrough or site record starts the evidence. Provenance, rights, and limits stay attached.",
-      },
-      {
-        label: "Readiness packet",
-        detail:
-          "Blueprint packages the task suite, robot profile, thresholds, failure modes, data needs, and pilot protocol.",
-      },
-      {
-        label: "Proof boundary",
-        detail:
-          "Advisory estimates can be public-product language; deployment-ready verdicts need owner-system evidence.",
-      },
-    ],
-    [],
-  );
-
-  useEffect(() => {
-    const nextVariant =
-      homeRobotTeamVariants[
-        Math.floor(Math.random() * homeRobotTeamVariants.length)
-      ];
-    setHeroVariant(nextVariant);
-    analyticsEvents.experimentExposure(
-      HOME_ROBOT_TEAM_EXPERIMENT_KEY,
-      nextVariant,
-      "home",
-    );
-    analyticsEvents.homeHeroView({
-      variantId: nextVariant,
-      source: "home",
-      conversionGoal: HOME_ROBOT_TEAM_CONVERSION_GOAL,
-    });
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    fetchSiteWorldDetail(publicDemoSiteWorldId)
-      .then((site) => {
-        if (!cancelled) {
-          setLiveExactSitePreview(site);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setLiveExactSitePreview(null);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined" || !("IntersectionObserver" in window)) {
-      return;
-    }
-
-    const seenSections = new Set<string>();
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (!entry.isIntersecting) return;
-          const section = entry.target.getAttribute("data-home-section");
-          if (!section || seenSections.has(section)) return;
-          seenSections.add(section);
-          analyticsEvents.homeSectionViewed({
-            variantId: heroVariant,
-            section,
-            conversionGoal: HOME_ROBOT_TEAM_CONVERSION_GOAL,
-          });
-        });
-      },
-      { threshold: 0.35 },
-    );
-
-    document
-      .querySelectorAll<HTMLElement>("[data-home-section]")
-      .forEach((node) => {
-        observer.observe(node);
-      });
-
-    return () => observer.disconnect();
-  }, [heroVariant]);
-
-  const trackHomeCtaClick = (
-    ctaId: string,
-    ctaLabel: string,
-    destination: string,
-    source: string,
-  ) => {
-    analyticsEvents.homeConversionCtaClicked({
-      variantId: heroVariant,
-      ctaId,
-      ctaLabel,
-      destination,
-      source,
-      conversionGoal: HOME_ROBOT_TEAM_CONVERSION_GOAL,
-    });
-  };
-
-  if (!heroSite) {
-    return null;
-  }
-
   return (
     <>
       <SEO
-        title="Blueprint | Site-Specific Robot Deployment Readiness"
-        description="Blueprint helps robot teams and site operators estimate pre-pilot deployment readiness for a specific site and task before costly field time."
+        title="Robot Deployment Readiness | Blueprint"
+        description="Blueprint turns one real facility, one robot task, and one pass bar into a capture-backed readiness report before an expensive pilot."
         canonical="/"
-        jsonLd={[
-          organizationJsonLd(),
-          websiteJsonLd(),
-          webPageJsonLd({
-            path: "/",
-            name: "Blueprint",
-            description:
-              "Site-specific robot deployment readiness reports, capture-backed site packages, hosted evaluation, and clear paths for robot teams, site operators, and capturers.",
-          }),
-          breadcrumbJsonLd([{ name: "Home", path: "/" }]),
-          faqJsonLd(homeDirectAnswers),
-        ]}
+        image={`https://tryblueprint.io${humanoidReadinessAssets.warehouseHero}`}
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "WebPage",
+          name: "Blueprint Robot Deployment Readiness",
+          description:
+            "Blueprint turns one real facility, one robot task, and one pass bar into a capture-backed readiness report before an expensive pilot.",
+          url: "https://tryblueprint.io/",
+        }}
       />
 
-      <div className="bg-[#f5f3ef] text-slate-950">
-        <section className="border-b border-black/10" data-home-section="hero">
-          <MonochromeMedia
-            src={editorialGeneratedAssets.warehouseAisle}
-            alt={heroSite.siteName}
-            className="min-h-[39rem] rounded-none sm:min-h-[42rem]"
-            loading="eager"
-            imageClassName="min-h-[39rem] sm:min-h-[42rem]"
-            overlayClassName="bg-[linear-gradient(90deg,rgba(0,0,0,0.92)_0%,rgba(0,0,0,0.72)_34%,rgba(0,0,0,0.2)_82%)]"
-          >
-            <RouteTraceOverlay className="opacity-60" />
-
-            <div className="absolute inset-0">
-              <div className="mx-auto grid h-full max-w-[88rem] gap-10 px-5 py-12 sm:px-8 lg:grid-cols-[0.62fr_0.38fr] lg:px-10 lg:py-16">
-                <div className="flex min-h-[31rem] flex-col justify-end sm:min-h-[34rem]">
-                  <div className="mb-5 flex flex-wrap gap-2">
-                    <ProofChip light>Indoor capture</ProofChip>
-                    <ProofChip light>Site/task readiness</ProofChip>
-                    <ProofChip light>Evidence-backed advisory</ProofChip>
-                  </div>
-                  <h1 className="font-editorial max-w-[40rem] text-[2.85rem] leading-[0.92] tracking-[-0.04em] text-white sm:text-[4.35rem]">
-                    {heroContent.title}
-                  </h1>
-                  <p className="mt-5 max-w-[31rem] text-base leading-7 text-white/90 sm:text-[1.03rem] sm:leading-8">
-                    {heroContent.description}
-                  </p>
-
-                  <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-                    <a
-                      href={heroPrimaryHref}
-                      onClick={() =>
-                        trackHomeCtaClick(
-                          "home_hero_primary",
-                          heroContent.primaryLabel,
-                          heroPrimaryHref,
-                          "home-hero-primary",
-                        )
-                      }
-                      className="inline-flex w-full items-center justify-center bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100 sm:w-auto"
-                    >
-                      {heroContent.primaryLabel}
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </a>
-                    <a
-                      href={heroContent.secondaryHref}
-                      onClick={() =>
-                        trackHomeCtaClick(
-                          "home_hero_secondary",
-                          heroContent.secondaryLabel,
-                          heroContent.secondaryHref,
-                          "home-hero-secondary",
-                        )
-                      }
-                      className="inline-flex w-full items-center justify-center border border-white/15 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10 sm:w-auto"
-                    >
-                      {heroContent.secondaryLabel}
-                    </a>
-                  </div>
-                </div>
-
-                <div className="hidden items-end justify-end lg:flex">
-                  <div className="w-full max-w-[19rem] border border-white/15 bg-black/35 p-5 text-white shadow-[0_24px_60px_-40px_rgba(0,0,0,0.58)] backdrop-blur-sm">
-                    <p className="text-[11px] uppercase tracking-[0.2em] text-white/45">
-                      Robot-team next step
-                    </p>
-                    <h2 className="mt-4 text-lg font-semibold">
-                      {heroContent.panelTitle}
-                    </h2>
-                    <p className="mt-2 text-sm text-white/60">
-                      {heroContent.panelBody}
-                    </p>
-                    <div className="mt-5 border-t border-white/10 pt-4 text-sm text-white/70">
-                      Capture first. Thresholds next. Advisory before pilot
-                      commitment.
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </MonochromeMedia>
-        </section>
-
-        <ExactSitePreviewSection
-          site={exactSitePreviewSite}
-          primaryHref={decisionPathHref}
-          onCtaClick={trackHomeCtaClick}
-        />
-
+      <div className="bg-[#f6f1e8] text-[#111110]">
         <section
-          className="border-b border-black/10 bg-white"
-          data-home-section="category-validation"
+          className="relative min-h-[74vh] overflow-hidden bg-[#111110] text-white"
+          data-home-section="hero"
         >
-          <div className="mx-auto grid max-w-[88rem] gap-px px-5 py-10 sm:px-8 lg:grid-cols-[0.34fr_0.66fr] lg:px-10 lg:py-12">
-            <div className="bg-slate-950 px-6 py-8 text-white lg:px-8 lg:py-10">
-              <EditorialSectionIntro
-                eyebrow="Category signal"
-                title="Robot pilots fail when the site/task bar changes."
-                description="The public category is moving from generic demos toward site-specific proof. Blueprint's wedge is the indoor deployment-readiness layer that public maps and broad benchmarks do not solve."
-                light
-              />
-            </div>
-            <div className="grid gap-px bg-black/10 md:grid-cols-3">
-              {categoryValidationItems.map((item) => (
-                <article key={item.title} className="bg-white p-6">
-                  <h2 className="text-base font-semibold text-slate-950">
-                    {item.title}
-                  </h2>
-                  <p className="mt-3 text-sm leading-7 text-slate-600">
-                    {item.body}
-                  </p>
-                </article>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section
-          className="border-b border-black/10 bg-white"
-          data-home-section="first-route"
-        >
-          <div className="mx-auto grid max-w-[88rem] gap-px px-5 py-8 sm:px-8 lg:grid-cols-[0.34fr_0.66fr] lg:px-10 lg:py-10">
-            <div className="bg-[#f5f3ef] p-5 sm:p-6">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                Choose your path
-              </p>
-              <div className="mt-4 grid gap-2">
-                {[
-                  ["For robot teams", heroPrimaryHref],
-                  ["For site operators", "/contact/site-operator"],
-                  [
-                    "For capturers",
-                    "/capture-app/launch-access?role=capturer&source=home-top-persona",
-                  ],
-                ].map(([label, href]) => (
-                  <a
-                    key={label}
-                    href={href}
-                    className="flex min-h-12 items-center justify-between border border-black/10 bg-white px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-50"
-                  >
-                    {label}
-                    <ArrowRight className="h-4 w-4" />
-                  </a>
-                ))}
-              </div>
-            </div>
-            <div className="grid gap-px bg-black/10 md:grid-cols-4">
-              {firstScreenDefinitions.map((item) => (
-                <div key={item.term} className="bg-white p-5">
-                  <p className="text-sm font-semibold text-slate-950">
-                    {item.term}
-                  </p>
-                  <p className="mt-3 text-sm leading-6 text-slate-600">
-                    {item.definition}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section
-          className="border-b border-black/10 bg-[#101310] text-white"
-          data-home-section="product-stack"
-        >
-          <div className="mx-auto grid max-w-[88rem] gap-10 px-5 py-12 sm:px-8 lg:grid-cols-[0.43fr_0.57fr] lg:px-10 lg:py-14">
-            <div className="max-w-xl">
-              <ProofChip light>Commercial product</ProofChip>
-              <h2 className="font-editorial mt-5 text-[3rem] leading-[0.9] tracking-[-0.05em] sm:text-[4.15rem]">
-                Blueprint sells pre-pilot readiness evidence, not generic demos.
-              </h2>
-              <p className="mt-6 text-base leading-8 text-white/76">
-                Blueprint turns indoor capture into site/task readiness reports,
-                site packages, hosted review paths, and buyer decisions tied to
-                the same facility, route, thresholds, and proof record.
-              </p>
-              <div className="mt-8 flex flex-wrap gap-3">
-                <a
-                  href={decisionPathHref}
-                  onClick={() =>
-                    trackHomeCtaClick(
-                      "home_product_stack_primary",
-                      "Request readiness evaluation",
-                      decisionPathHref,
-                      "home-product-stack",
-                    )
-                  }
-                  className="inline-flex items-center justify-center bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
-                >
-                  Request readiness evaluation
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </a>
-                <a
-                  href="/world-models"
-                  onClick={() =>
-                    trackHomeCtaClick(
-                      "home_product_stack_catalog",
-                      "Browse site packages",
-                      "/world-models",
-                      "home-product-stack",
-                    )
-                  }
-                  className="inline-flex items-center justify-center border border-white/15 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
-                >
-                  Browse site packages
-                </a>
-              </div>
-            </div>
-
-            <div className="grid gap-px bg-white/10 md:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
-              {productPaths.map((path, index) => (
-                <article
-                  key={path.title}
-                  className={
-                    index === 1
-                      ? "bg-[#e8efe8] p-6 text-slate-950"
-                      : "bg-white/[0.06] p-6 text-white"
-                  }
-                >
-                  <p
-                    className={`text-[11px] uppercase tracking-[0.18em] ${index === 1 ? "text-slate-500" : "text-white/45"}`}
-                  >
-                    0{index + 1}
-                  </p>
-                  <h3 className="font-editorial mt-5 text-[2.25rem] leading-[0.92] tracking-[-0.04em]">
-                    {path.title}
-                  </h3>
-                  <p
-                    className={`mt-4 text-sm leading-7 ${index === 1 ? "text-slate-700" : "text-white/68"}`}
-                  >
-                    {path.body}
-                  </p>
-                  <a
-                    href={path.href}
-                    onClick={() =>
-                      trackHomeCtaClick(
-                        `home_product_stack_${path.title.toLowerCase().replace(/\s+/g, "_")}`,
-                        path.label,
-                        path.href,
-                        "home-product-stack",
-                      )
-                    }
-                    className={`mt-7 inline-flex items-center text-sm font-semibold ${index === 1 ? "text-slate-950" : "text-white"}`}
-                  >
-                    {path.label}
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </a>
-                </article>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section
-          className="mx-auto max-w-[88rem] px-5 py-8 sm:px-8 lg:px-10 lg:py-10"
-          data-home-section="metrics"
-        >
-          <EditorialMetricStrip items={metrics} />
-        </section>
-
-        <section
-          className="border-y border-black/10 bg-white"
-          data-home-section="robot-team-path"
-        >
-          <div className="mx-auto grid max-w-[88rem] gap-px px-5 py-10 sm:px-8 lg:grid-cols-[0.35fr_0.65fr] lg:px-10">
-            <div className="bg-[#e8efe8] px-6 py-8 lg:px-8 lg:py-10">
-              <EditorialSectionIntro
-                eyebrow="For robot teams"
-                title="Choose a site task. Set the pass bar."
-                description="A buyer request should name the indoor place, workflow, robot profile, pass thresholds, and pilot timeline. Blueprint then keeps the capture-backed proof, readiness scope, and hosted path together."
-              />
-              <a
-                href={decisionPathHref}
-                onClick={() =>
-                  trackHomeCtaClick(
-                    "home_decision_path",
-                    "Request readiness evaluation",
-                    decisionPathHref,
-                    "home-decision-path",
-                  )
-                }
-                className="mt-7 inline-flex items-center justify-center bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-              >
-                Request readiness evaluation
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </a>
-            </div>
-            <div className="grid gap-px bg-black/10 md:grid-cols-3">
-              {robotTeamDecisionSteps.map((step, index) => (
-                <div
-                  key={step.title}
-                  className={
-                    index === 1
-                      ? "bg-slate-950 p-6 text-white"
-                      : "bg-white p-6 text-slate-950"
-                  }
-                >
-                  <p
-                    className={`text-[11px] uppercase tracking-[0.18em] ${index === 1 ? "text-white/45" : "text-slate-400"}`}
-                  >
-                    0{index + 1}
-                  </p>
-                  <h2 className="font-editorial mt-4 text-[2rem] leading-[0.95] tracking-[-0.04em]">
-                    {step.title}
-                  </h2>
-                  <p
-                    className={`mt-4 text-sm leading-7 ${index === 1 ? "text-white/70" : "text-slate-600"}`}
-                  >
-                    {step.body}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section
-          className="border-y border-black/10 bg-[#f5f3ef]"
-          data-home-section="proof-story"
-        >
-          <div className="mx-auto grid max-w-[88rem] gap-px px-5 py-10 sm:px-8 lg:grid-cols-[0.52fr_0.48fr] lg:px-10 lg:py-12">
-            <MonochromeMedia
-              src={
-                publicCaptureProofStories[0]?.image ||
-                editorialGeneratedAssets.groceryBackroom
-              }
-              alt="Blueprint exact-site proof route"
-              className="min-h-[29rem] rounded-none"
-              imageClassName="min-h-[29rem]"
-              overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.02),rgba(0,0,0,0.18))]"
-            />
-            <div className="bg-white px-6 py-8 lg:px-8 lg:py-10">
-              <EditorialSectionIntro
-                eyebrow="Proof boundary"
-                title="The proof travels with the readiness estimate."
-                description="A polished sample is useful only when it stays honest. Blueprint labels public examples, keeps approved proof attached to the exact site/task, and gates stronger deployment claims until owner evidence exists."
-              />
-              <div className="mt-8 divide-y divide-black/10 border-y border-black/10">
-                {proofItems.map((item) => (
-                  <div
-                    key={item}
-                    className="py-4 text-sm leading-7 text-slate-700"
-                  >
-                    {item}
-                  </div>
-                ))}
-              </div>
-              <div className="mt-8 flex flex-wrap gap-3">
-                <a
-                  href="/proof"
-                  onClick={() =>
-                    trackHomeCtaClick(
-                      "home_proof_primary",
-                      "Inspect proof",
-                      "/proof",
-                      "home-proof-story",
-                    )
-                  }
-                  className="inline-flex items-center justify-center bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-                >
-                  Inspect proof
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </a>
-                <a
-                  href={publicDemoHref}
-                  onClick={() =>
-                    trackHomeCtaClick(
-                      "home_sample_site_secondary",
-                      "Open sample site package",
-                      publicDemoHref,
-                      "home-proof-story",
-                    )
-                  }
-                  className="inline-flex items-center justify-center border border-black/10 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
-                >
-                  Open sample site package
-                </a>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section
-          className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12"
-          data-home-section="catalog"
-        >
-          <EditorialSectionIntro
-            eyebrow="World-model catalog"
-            title="Site packages feed readiness reports."
-            description="Browse public examples to inspect the proof format, then request the exact facility, task suite, or route your team needs when it is not already listed."
-            className="max-w-3xl"
+          <img
+            src={humanoidReadinessAssets.warehouseHero}
+            alt="Humanoid robot in a warehouse aisle used as illustrative readiness imagery"
+            className="absolute inset-0 h-full w-full object-cover"
           />
+          <div className="absolute inset-0 bg-black/62" />
+          <div className="relative mx-auto flex min-h-[74vh] max-w-[88rem] flex-col justify-end px-4 pb-12 pt-24 sm:px-6 lg:px-10">
+            <div className="max-w-4xl">
+              <p className="text-sm font-semibold uppercase tracking-normal text-[#d8bd8d]">
+                Site-specific robot deployment readiness
+              </p>
+              <h1 className="mt-5 text-5xl font-semibold leading-none md:text-7xl">
+                Know what breaks before the robot pilot.
+              </h1>
+              <p className="mt-6 max-w-2xl text-lg leading-8 text-white/82 md:text-xl">
+                Blueprint turns one real facility, one robot task, and one pass
+                bar into a capture-backed readiness report before teams spend
+                months on-site.
+              </p>
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                <a
+                  href={requestHref}
+                  className="inline-flex min-h-12 items-center justify-center gap-2 bg-[#d8bd8d] px-5 text-sm font-semibold text-[#111110] transition hover:bg-[#e8cfa1]"
+                >
+                  Request readiness review
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </a>
+                <a
+                  href="#pricing"
+                  className="inline-flex min-h-12 items-center justify-center border border-white/30 px-5 text-sm font-semibold text-white transition hover:bg-white/10"
+                >
+                  See pricing
+                </a>
+              </div>
+            </div>
+          </div>
+        </section>
 
-          <div className="mt-8 grid gap-4 lg:grid-cols-3">
-            {featuredSites.map((site) => (
-              <HomeSiteCard
-                key={site.id}
-                title={site.siteName}
-                href={`/world-models/${site.id}`}
-                image={
-                  site.id === featuredSites[0]?.id
-                    ? editorialGeneratedAssets.groceryBackroom
-                    : site.id === featuredSites[1]?.id
-                      ? editorialGeneratedAssets.warehouseAisle
-                      : editorialGeneratedAssets.homeHero
-                }
-                location={getEditorialSiteLocation(site)}
-              />
+        <section className="border-b border-black/10 bg-white px-4 py-8 sm:px-6 lg:px-10">
+          <div className="mx-auto grid max-w-[88rem] gap-4 md:grid-cols-4">
+            {buyerBars.map((item) => (
+              <IconCard key={item.label} item={item} />
             ))}
           </div>
         </section>
 
-        <section
-          className="border-y border-black/10 bg-white"
-          data-home-section="capture-examples"
-        >
-          <div className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10">
-            <EditorialSectionIntro
-              eyebrow="Why capture matters"
-              title="Indoor capture turns vague robot-pilot risk into a scoped readiness question."
-              description="The useful details are local: aisle width, signage, occlusions, access boundaries, restricted areas, robot task, threshold bar, failure modes, and the first proof still missing."
-              className="max-w-3xl"
+        <section className="px-4 py-16 sm:px-6 lg:px-10" data-home-section="offer">
+          <div className="mx-auto max-w-[88rem]">
+            <SectionHeading
+              eyebrow="What Blueprint sells"
+              title="A readiness answer for one site, not a giant marketplace."
+              body="The public site now starts with the buyer decision: will this robot work in this facility, on this task, at the thresholds the team needs?"
             />
-            <div className="mt-8 grid gap-4 lg:grid-cols-4">
-              {publicCaptureProofStories.map((story) => (
-                <a
-                  key={story.id}
-                  href="/proof"
-                  className="group overflow-hidden border border-black/10 bg-[#f5f3ef] transition hover:bg-white"
-                >
-                  <MonochromeMedia
-                    src={story.image}
-                    alt={story.locationName}
-                    loading="eager"
-                    className="aspect-[4/3] rounded-none"
-                    imageClassName="aspect-[4/3] transition duration-700 group-hover:scale-[1.03]"
-                    overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.04),rgba(0,0,0,0.32))]"
-                  />
-                  <div className="p-5">
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
-                      {story.label}
-                    </p>
-                    <h2 className="mt-3 text-lg font-semibold leading-tight text-slate-950">
-                      {story.locationName}
-                    </h2>
-                    <p className="mt-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-                      {story.city}
-                    </p>
-                    <p className="mt-3 text-sm leading-6 text-slate-600">
-                      {story.robotQuestion}
-                    </p>
-                  </div>
-                </a>
+            <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              {offerItems.map((item) => (
+                <IconCard key={item.label} item={item} />
               ))}
             </div>
           </div>
         </section>
 
         <section
-          className="border-y border-black/10 bg-[#101310] text-white"
-          data-home-section="persona-paths"
+          id="how-it-works"
+          className="border-y border-black/10 bg-[#111110] px-4 py-16 text-white sm:px-6 lg:px-10"
+          data-home-section="how-it-works"
         >
-          <div className="mx-auto grid max-w-[88rem] gap-px px-5 py-10 sm:px-8 lg:grid-cols-[0.31fr_0.69fr] lg:px-10 lg:py-12">
-            <div className="bg-white/[0.06] px-6 py-8 lg:px-8 lg:py-10">
-              <EditorialSectionIntro
-                eyebrow="Request next"
-                title="Three ways into the same product path."
-                description="Robot teams, site operators, and capturers enter from different sides. The readiness report still resolves around one exact site/task and its proof."
-                light
+          <div className="mx-auto grid max-w-[88rem] gap-10 lg:grid-cols-[0.42fr_0.58fr]">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-normal text-[#d8bd8d]">
+                How it works
+              </p>
+              <h2 className="mt-3 text-4xl font-semibold leading-tight md:text-5xl">
+                Turn pilot risk into an inspectable packet.
+              </h2>
+              <p className="mt-4 text-base leading-7 text-white/72 md:text-lg">
+                Blueprint keeps the workflow compact: site, task, pass bar,
+                evidence, gaps, and the next proof step.
+              </p>
+              <img
+                src={humanoidReadinessAssets.hostedDashboard}
+                alt="Illustrative readiness dashboard for a hosted evaluation"
+                className="mt-8 aspect-[4/3] w-full border border-white/15 object-cover"
               />
             </div>
-            <div className="grid gap-px bg-white/10 md:grid-cols-3">
-              {personaEntryPoints.map((entry, index) => (
+            <div className="grid gap-3">
+              {workflowSteps.map((step, index) => (
                 <article
-                  key={entry.audience}
-                  className={
-                    index === 0
-                      ? "bg-[#e8efe8] p-6 text-slate-950"
-                      : "bg-white/[0.06] p-6 text-white"
-                  }
+                  key={step.title}
+                  className="grid gap-4 border border-white/15 bg-white/[0.04] p-5 sm:grid-cols-[3rem_1fr]"
                 >
-                  <p
-                    className={`text-[11px] uppercase tracking-[0.18em] ${index === 0 ? "text-slate-500" : "text-white/45"}`}
-                  >
-                    {entry.audience}
-                  </p>
-                  <p
-                    className={`mt-3 text-sm leading-6 ${index === 0 ? "text-slate-600" : "text-white/62"}`}
-                  >
-                    {entry.question}
-                  </p>
-                  <h2 className="font-editorial mt-5 text-[2rem] leading-[0.95] tracking-[-0.04em]">
-                    {entry.title}
-                  </h2>
-                  <p
-                    className={`mt-4 text-sm leading-7 ${index === 0 ? "text-slate-700" : "text-white/70"}`}
-                  >
-                    {entry.body}
-                  </p>
-                  <div className="mt-7 flex flex-wrap gap-3">
-                    <a
-                      href={entry.primaryHref}
-                      onClick={() =>
-                        trackHomeCtaClick(
-                          `home_persona_${entry.audience.toLowerCase().replace(/[^a-z0-9]+/g, "_")}_primary`,
-                          entry.primaryLabel,
-                          entry.primaryHref,
-                          "home-persona-paths",
-                        )
-                      }
-                      className={
-                        index === 0
-                          ? "inline-flex items-center justify-center bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-                          : "inline-flex items-center justify-center bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
-                      }
-                    >
-                      {entry.primaryLabel}
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </a>
-                    <a
-                      href={entry.secondaryHref}
-                      onClick={() =>
-                        trackHomeCtaClick(
-                          `home_persona_${entry.audience.toLowerCase().replace(/[^a-z0-9]+/g, "_")}_secondary`,
-                          entry.secondaryLabel,
-                          entry.secondaryHref,
-                          "home-persona-paths",
-                        )
-                      }
-                      className={
-                        index === 0
-                          ? "inline-flex items-center justify-center border border-black/10 bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
-                          : "inline-flex items-center justify-center border border-white/15 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
-                      }
-                    >
-                      {entry.secondaryLabel}
-                    </a>
+                  <span className="flex h-10 w-10 items-center justify-center border border-[#d8bd8d]/50 text-sm font-semibold text-[#d8bd8d]">
+                    {index + 1}
+                  </span>
+                  <div>
+                    <h3 className="text-xl font-semibold">{step.title}</h3>
+                    <p className="mt-2 text-sm leading-6 text-white/68">
+                      {step.body}
+                    </p>
                   </div>
                 </article>
               ))}
@@ -1058,47 +322,152 @@ export default function Home() {
         </section>
 
         <section
-          className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12"
-          data-home-section="direct-answers"
+          id="pricing"
+          className="px-4 py-16 sm:px-6 lg:px-10"
+          data-home-section="pricing"
         >
-          <EditorialFaq
-            title="Buyer answers"
-            description="Short definitions for investors and robot teams comparing readiness reports, exact-site packages, hosted evaluation, provenance, rights, and sample boundaries."
-            items={homeDirectAnswers}
-          />
+          <div className="mx-auto max-w-[88rem]">
+            <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
+              <SectionHeading
+                eyebrow="Planning ranges"
+                title="Three ways to start."
+                body="Pricing is intentionally simple. Public ranges help a buyer pick a path; live availability, rights, payment, and fulfillment are confirmed per request."
+              />
+              <a
+                href="/pricing"
+                className="inline-flex min-h-12 items-center justify-center gap-2 border border-black/15 bg-white px-5 text-sm font-semibold text-[#111110] transition hover:bg-[#f0e7d8]"
+              >
+                Open pricing page
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </a>
+            </div>
+            <div className="mt-8 grid gap-4 lg:grid-cols-3">
+              {pricingPlans.map((plan) => (
+                <article key={plan.name} className="border border-black/10 bg-white p-6">
+                  <h3 className="text-2xl font-semibold text-[#111110]">
+                    {plan.name}
+                  </h3>
+                  <p className="mt-4 text-3xl font-semibold text-[#111110]">
+                    {plan.price}
+                  </p>
+                  <p className="mt-4 min-h-[5rem] text-sm leading-6 text-[#5f5a53]">
+                    {plan.summary}
+                  </p>
+                  <a
+                    href={plan.href}
+                    className="mt-6 inline-flex min-h-11 items-center justify-center gap-2 bg-[#111110] px-4 text-sm font-semibold text-white transition hover:bg-[#2b2925]"
+                  >
+                    Request scope
+                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                  </a>
+                </article>
+              ))}
+            </div>
+          </div>
         </section>
 
         <section
-          className="mx-auto max-w-[88rem] px-5 pb-12 sm:px-8 lg:px-10 lg:pb-14"
-          data-home-section="bottom-cta"
+          id="proof"
+          className="border-y border-black/10 bg-white px-4 py-16 sm:px-6 lg:px-10"
+          data-home-section="proof"
         >
-          <EditorialCtaBand
-            eyebrow="Start"
-            title="Request one site/task readiness evaluation."
-            description="Name the place, workflow, robot setup, target thresholds, evidence needs, and pilot timeline. Blueprint will route the request to a current listing, readiness report, new capture, package access, or hosted evaluation without blurring sample proof into approved output."
-            imageSrc={editorialGeneratedAssets.homeHero}
-            imageAlt="Blueprint hosted evaluation still"
-            primaryHref={bottomCtaHref}
-            primaryLabel={heroContent.primaryLabel}
-            primaryOnClick={() =>
-              trackHomeCtaClick(
-                "home_bottom_primary",
-                heroContent.primaryLabel,
-                bottomCtaHref,
-                "home-bottom",
-              )
-            }
-            secondaryHref={heroContent.secondaryHref}
-            secondaryLabel={heroContent.secondaryLabel}
-            secondaryOnClick={() =>
-              trackHomeCtaClick(
-                "home_bottom_secondary",
-                heroContent.secondaryLabel,
-                heroContent.secondaryHref,
-                "home-bottom",
-              )
-            }
-          />
+          <div className="mx-auto grid max-w-[88rem] gap-10 lg:grid-cols-[0.44fr_0.56fr]">
+            <div>
+              <SectionHeading
+                eyebrow="Proof boundary"
+                title="Public samples show the product shape. Request packets prove one site."
+                body="Blueprint can look ready and polished without pretending a robot has passed deployment, safety, payment, provider, rights, or hosted-session checks that still need owner-system proof."
+              />
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                <a
+                  href="/proof"
+                  className="inline-flex min-h-12 items-center justify-center gap-2 bg-[#111110] px-5 text-sm font-semibold text-white transition hover:bg-[#2b2925]"
+                >
+                  See proof details
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </a>
+                <a
+                  href={requestHref}
+                  className="inline-flex min-h-12 items-center justify-center border border-black/15 px-5 text-sm font-semibold text-[#111110] transition hover:bg-[#f0e7d8]"
+                >
+                  Request readiness review
+                </a>
+              </div>
+            </div>
+            <div className="space-y-3">
+              {proofRows.map((row) => (
+                <article
+                  key={row.sample}
+                  className="border border-black/10 bg-[#f8f4ec] p-5"
+                >
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-normal text-[#8b6f42]">
+                        Sample
+                      </p>
+                      <h3 className="mt-2 text-lg font-semibold">{row.sample}</h3>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-normal text-[#8b6f42]">
+                        Stronger proof
+                      </p>
+                      <h3 className="mt-2 text-lg font-semibold">{row.request}</h3>
+                    </div>
+                  </div>
+                  <p className="mt-4 text-sm leading-6 text-[#5f5a53]">{row.detail}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section
+          id="request"
+          className="px-4 py-16 sm:px-6 lg:px-10"
+          data-home-section="request"
+        >
+          <div className="mx-auto grid max-w-[88rem] gap-8 border border-black/10 bg-[#111110] p-6 text-white md:grid-cols-[0.55fr_0.45fr] md:p-8 lg:p-10">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-normal text-[#d8bd8d]">
+                First request
+              </p>
+              <h2 className="mt-3 text-4xl font-semibold leading-tight md:text-5xl">
+                Ask for one site/task readiness review.
+              </h2>
+              <p className="mt-4 max-w-2xl text-base leading-7 text-white/72 md:text-lg">
+                Bring the facility, task, robot profile, target thresholds,
+                timeline, and proof you already have. Blueprint routes the next
+                step to a readiness report, hosted evaluation, capture ask, or
+                proof blocker.
+              </p>
+              <a
+                href={requestHref}
+                className="mt-8 inline-flex min-h-12 items-center justify-center gap-2 bg-[#d8bd8d] px-5 text-sm font-semibold text-[#111110] transition hover:bg-[#e8cfa1]"
+              >
+                Request readiness review
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </a>
+            </div>
+            <div className="grid content-start gap-3">
+              {[
+                "Requests do not grant package access, rights clearance, payment, fulfillment, or hosted-session availability by themselves.",
+                "Readiness remains advisory until simulator traces, action logs, robot trials, safety review, rights proof, and runtime proof support a stronger claim.",
+                "Generated imagery on the public site is illustrative, not customer or robot-trial proof.",
+              ].map((item) => (
+                <div key={item} className="flex gap-3 border border-white/15 bg-white/[0.04] p-4">
+                  <CheckCircle2 className="mt-1 h-5 w-5 flex-none text-[#d8bd8d]" aria-hidden="true" />
+                  <p className="text-sm leading-6 text-white/76">{item}</p>
+                </div>
+              ))}
+              <div className="flex gap-3 border border-[#d8bd8d]/35 bg-[#d8bd8d]/10 p-4">
+                <TriangleAlert className="mt-1 h-5 w-5 flex-none text-[#d8bd8d]" aria-hidden="true" />
+                <p className="text-sm leading-6 text-white/76">
+                  Public Launch Ready copy is allowed. Operational Launch Ready
+                  claims still require proof from the system that owns them.
+                </p>
+              </div>
+            </div>
+          </div>
         </section>
       </div>
     </>

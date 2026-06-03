@@ -11,35 +11,19 @@ export type AppRoute = {
 };
 
 const Home = lazy(() => import("../pages/Home"));
-const LaunchMap = lazy(() => import("../pages/LaunchMap"));
-const Capture = lazy(() => import("../pages/Capture"));
 const CaptureAppPlaceholder = lazy(() => import("../pages/CaptureAppPlaceholder"));
 const CaptureLaunchAccess = lazy(() => import("../pages/CaptureLaunchAccess"));
 const BusinessSignUpFlow = lazy(() => import("../pages/BusinessSignUpFlow"));
 const CapturerSignUpFlow = lazy(() => import("../pages/CapturerSignUpFlow"));
 const OnboardingChecklist = lazy(() => import("../pages/OnboardingChecklist"));
-const SiteWorlds = lazy(() => import("../pages/SiteWorlds"));
-const Agents = lazy(() => import("../pages/Agents"));
-const SiteWorldDetail = lazy(() => import("../pages/SiteWorldDetail"));
 const HostedSessionSetup = lazy(() => import("../pages/HostedSessionSetup"));
 const HostedSessionWorkspace = lazy(() => import("../pages/HostedSessionWorkspace"));
 const Pricing = lazy(() => import("../pages/Pricing"));
 const Contact = lazy(() => import("../pages/Contact"));
-const Support = lazy(() => import("../pages/Support"));
-const ExactSiteHostedReview = lazy(() => import("../pages/ExactSiteHostedReview"));
-const ReadinessPack = lazy(() => import("../pages/ReadinessPack"));
-const ForRobotIntegrators = lazy(() => import("../pages/ForRobotIntegrators"));
-const HowItWorks = lazy(() => import("../pages/HowItWorks"));
-const SampleDeliverables = lazy(() => import("../pages/SampleDeliverables"));
 const Proof = lazy(() => import("../pages/Proof"));
 const Portal = lazy(() => import("../pages/Portal"));
 const Login = lazy(() => import("../pages/Login"));
 const ForgotPassword = lazy(() => import("../pages/ForgotPassword"));
-const Careers = lazy(() => import("../pages/Careers"));
-const FAQ = lazy(() => import("../pages/FAQ"));
-const Governance = lazy(() => import("../pages/Governance"));
-const About = lazy(() => import("../pages/About"));
-const Blog = lazy(() => import("../pages/Blog"));
 const Privacy = lazy(() => import("../pages/Privacy"));
 const Terms = lazy(() => import("../pages/Terms"));
 const Settings = lazy(() => import("../pages/Settings"));
@@ -52,15 +36,28 @@ const Dashboard = lazy(() => import("../pages/Dashboard"));
 const OffWaitlistSignUpFlow = lazy(() => import("../pages/OffWaitlistSignUpFlow"));
 const RequestConsole = lazy(() => import("../pages/RequestConsole"));
 const NotFound = lazy(() => import("../pages/NotFound"));
-const CityLanding = lazy(() => import("../pages/CityLanding"));
+
+const HomeRedirect = () => <MarketingRedirect to="/" />;
+
+const HowItWorksRedirect = () => <MarketingRedirect to="/#how-it-works" />;
+
+const ProofRedirect = () => <MarketingRedirect to="/proof" />;
+
+const ContactRedirect = () => (
+  <MarketingRedirect to="/contact?persona=robot-team&source=public-route-redirect" />
+);
+
+const CapturerAccessRedirect = () => (
+  <MarketingRedirect to="/capture-app/launch-access?role=capturer&source=public-route-redirect" />
+);
 
 // Legacy redirects
 const LegacyPilotExchangeRedirect = () => (
-  <MarketingRedirect to="/world-models" />
+  <MarketingRedirect to="/proof" />
 );
 
 const LegacyPilotExchangeGuideRedirect = () => (
-  <MarketingRedirect to="/world-models" />
+  <MarketingRedirect to="/proof" />
 );
 
 const LegacyPartnersRedirect = () => (
@@ -68,28 +65,28 @@ const LegacyPartnersRedirect = () => (
 );
 
 const LegacyEnvironmentsRedirect = () => (
-  <MarketingRedirect to="/world-models" />
+  <MarketingRedirect to="/proof" />
 );
 
 // Redirects from old site-worlds paths to new world-models paths
 const LegacySiteWorldsRedirect = () => (
-  <MarketingRedirect to="/world-models" />
+  <MarketingRedirect to="/proof" />
 );
 
 const LegacyReadinessPackRedirect = () => (
-  <MarketingRedirect to="/readiness" />
+  <MarketingRedirect to="/#how-it-works" />
 );
 
 const LegacySolutionsRedirect = () => (
-  <MarketingRedirect to="/product" />
+  <MarketingRedirect to="/#how-it-works" />
 );
 
 const LegacyQualifiedOpportunitiesRedirect = () => (
-  <MarketingRedirect to="/world-models" />
+  <MarketingRedirect to="/proof" />
 );
 
 const LegacyForRobotIntegratorsRedirect = () => (
-  <MarketingRedirect to="/for-robot-teams" />
+  <MarketingRedirect to="/" />
 );
 
 const LegacyForSiteOperatorsRedirect = () => (
@@ -97,7 +94,7 @@ const LegacyForSiteOperatorsRedirect = () => (
 );
 
 const LegacyHostedReviewRedirect = () => (
-  <MarketingRedirect to="/product" />
+  <MarketingRedirect to="/#how-it-works" />
 );
 
 const LegacyProofStoryRedirect = () => (
@@ -109,7 +106,7 @@ const LegacyBookExactSiteReviewRedirect = () => (
 );
 
 const LegacyBlogRedirect = () => (
-  <MarketingRedirect to="/updates" />
+  <MarketingRedirect to="/" />
 );
 
 const LegacyLoginRedirect = () => (
@@ -122,19 +119,19 @@ const LegacyDocsRedirect = () => (
 
 export const appRoutes: AppRoute[] = [
   { path: "/", layout: "public", component: Home },
-  { path: "/launch-map", layout: "public", component: LaunchMap },
+  { path: "/launch-map", layout: "public", component: ContactRedirect },
 
-  // Capture / Earn (new)
-  { path: "/capture", layout: "public", component: Capture },
+  // Capture / Earn direct flows
+  { path: "/capture", layout: "public", component: CapturerAccessRedirect },
   { path: "/capture-app", layout: "public", shell: "bare", component: CaptureAppPlaceholder },
   { path: "/capture-app/launch-access", layout: "public", component: CaptureLaunchAccess },
 
-  // City landing pages (auto-generated from city launch profile)
-  { path: "/city/:citySlug", layout: "public", component: CityLanding },
+  // City landing aliases stay request-first instead of implying open city coverage.
+  { path: "/city/:citySlug", layout: "public", component: ContactRedirect },
 
-  // World Models (renamed from site-worlds)
-  { path: "/world-models", layout: "public", component: SiteWorlds },
-  { path: "/world-models/:slug", layout: "public", component: SiteWorldDetail },
+  // World model catalog URLs remain reachable but no longer lead the public IA.
+  { path: "/world-models", layout: "public", component: ProofRedirect },
+  { path: "/world-models/:slug", layout: "public", component: ProofRedirect },
   { path: "/world-models/:slug/start", layout: "public", component: HostedSessionSetup },
   { path: "/world-models/:slug/workspace", layout: "public", shell: "bare", component: HostedSessionWorkspace },
 
@@ -146,35 +143,35 @@ export const appRoutes: AppRoute[] = [
 
   // Persona pages
   { path: "/for-site-operators", layout: "public", component: LegacyForSiteOperatorsRedirect },
-  { path: "/for-robot-teams", layout: "public", component: ForRobotIntegrators },
+  { path: "/for-robot-teams", layout: "public", component: HomeRedirect },
   { path: "/for-robot-integrators", layout: "public", component: LegacyForRobotIntegratorsRedirect },
 
   // Core pages
-  { path: "/product", layout: "public", component: ExactSiteHostedReview },
-  { path: "/readiness", layout: "public", component: ReadinessPack },
-  { path: "/readiness-pack", layout: "public", component: ReadinessPack },
-  { path: "/agents", layout: "public", component: Agents },
+  { path: "/product", layout: "public", component: HowItWorksRedirect },
+  { path: "/readiness", layout: "public", component: HowItWorksRedirect },
+  { path: "/readiness-pack", layout: "public", component: LegacyReadinessPackRedirect },
+  { path: "/agents", layout: "public", component: ContactRedirect },
   { path: "/pricing", layout: "public", component: Pricing },
   { path: "/sample-evaluation", layout: "public", component: LegacyProofStoryRedirect },
-  { path: "/sample-deliverables", layout: "public", component: SampleDeliverables },
+  { path: "/sample-deliverables", layout: "public", component: ProofRedirect },
   { path: "/case-studies", layout: "public", component: LegacyProofStoryRedirect },
   { path: "/contact", layout: "public", component: Contact },
   { path: "/contact/site-operator", layout: "public", component: Contact },
-  { path: "/help", layout: "public", component: Support },
-  { path: "/help/contact", layout: "public", component: Support },
-  { path: "/help/category/:categorySlug", layout: "public", component: Support },
-  { path: "/help/article/:articleSlug", layout: "public", component: Support },
+  { path: "/help", layout: "public", component: ContactRedirect },
+  { path: "/help/contact", layout: "public", component: ContactRedirect },
+  { path: "/help/category/:categorySlug", layout: "public", component: ContactRedirect },
+  { path: "/help/article/:articleSlug", layout: "public", component: ContactRedirect },
   { path: "/exact-site-hosted-review", layout: "public", component: LegacyHostedReviewRedirect },
   { path: "/book-exact-site-review", layout: "public", component: LegacyBookExactSiteReviewRedirect },
-  { path: "/how-it-works", layout: "public", component: HowItWorks },
+  { path: "/how-it-works", layout: "public", component: HowItWorksRedirect },
   { path: "/proof", layout: "public", component: Proof },
-  { path: "/faq", layout: "public", component: FAQ },
-  { path: "/governance", layout: "public", component: Governance },
-  { path: "/about", layout: "public", component: About },
+  { path: "/faq", layout: "public", component: ProofRedirect },
+  { path: "/governance", layout: "public", component: ProofRedirect },
+  { path: "/about", layout: "public", component: HomeRedirect },
   { path: "/docs", layout: "public", component: LegacyDocsRedirect },
-  { path: "/updates", layout: "public", component: Blog },
+  { path: "/updates", layout: "public", component: HomeRedirect },
   { path: "/blog", layout: "public", component: LegacyBlogRedirect },
-  { path: "/careers", layout: "public", component: Careers },
+  { path: "/careers", layout: "public", component: ContactRedirect },
 
   // Legacy redirects for removed pages
   { path: "/solutions", layout: "public", component: LegacySolutionsRedirect },

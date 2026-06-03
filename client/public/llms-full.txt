@@ -4,122 +4,95 @@ This file is a public, non-sensitive map of Blueprint's website for AI assistant
 
 ## Product Summary
 
-Blueprint is capture-first and world-model-product-first. Blueprint turns lawful indoor capture into site-specific world-model packages, hosted review paths, and buyer decision workflows for robot teams while preserving rights, privacy, and provenance metadata.
+Blueprint is a capture-first, world-model-product-first company with a narrow public buyer wedge: site-specific robot deployment readiness before an expensive pilot.
 
-Google Genie and Street View make real-place world models legible outdoors, while Waymo-style world models show why autonomy teams care about rare, replayable, and counterfactual scenarios before field exposure. Blueprint uses those as category validation only. Blueprint's wedge is the indoor layer: unscanned facilities, public-facing indoor routes, access-sensitive operating spaces, provenance, rights boundaries, hosted review, and export or recapture decisions for robot teams.
+The core buyer question is: will this robot work in this real facility, on this task, at the required success rate, cycle time, intervention rate, and safety threshold?
 
-Blueprint is not qualification-first, not model-checkpoint-first, and not a generic simulated benchmark library. Qualification, readiness, and hosted review can support the product, but they do not replace raw capture truth, rights state, provenance, or buyer-visible package boundaries.
+Blueprint turns that question into a readiness workflow. The buyer provides or requests one site, one robot task suite, one robot profile, one threshold set, the evidence they already have, and the pilot decision they need. Blueprint packages capture evidence, provenance, rights/privacy posture, site/task context, failure modes, missing proof, and next-step recommendations into an advisory readiness report.
 
-Ground truth means raw capture evidence, timestamps, poses, device metadata, rights and privacy records, provenance, and package artifacts or runtime artifacts when they exist. Samples, generated previews, dry-run commerce, catalog matches, and request drafts are support signals. They do not prove customer results, rights clearance, provider execution, payment, package access, hosted fulfillment, deployment readiness, or city-live coverage.
+Blueprint remains capture-first and world-model-product-first. Readiness does not replace raw capture truth, rights state, provenance, site package boundaries, hosted-session artifacts, or owner-system proof. Qualification, readiness, and hosted review support the product; they do not become unsupported ready-to-deploy, safety-validated, or guaranteed-threshold claims.
+
+Ground truth means raw capture evidence, timestamps, poses, device metadata, rights/privacy records, provenance, and package or runtime artifacts when they exist. Samples, generated previews, dry-run commerce, catalog matches, and request drafts are support signals. They do not prove customer results, rights clearance, provider execution, payment, package access, hosted fulfillment, deployment readiness, or city-live coverage.
 
 ## Buyer-Facing Definitions
 
 ### What is Blueprint?
 
-Blueprint is a platform for turning indoor real places into site-specific world-model products and hosted evaluation paths for robot teams. The buyer starts from a real site, a workflow, and a robot question, then inspects the package or hosted-review path before committing deeper time or spend.
-
-### What is an exact-site world model?
-
-An exact-site world model is a digital environment tied to one real facility, public-facing place, or workflow. It should stay connected to the capture record, timestamp/freshness context, rights posture, privacy handling, and package/export limits.
+Blueprint helps robot teams and site operators evaluate deployment readiness before a costly pilot by turning one real site, one task, and one pass bar into a capture-backed readiness report.
 
 ### What does a robot team receive?
 
-A robot team can receive or review a site package, hosted evaluation output, sample exports, review notes, run evidence, and next-step framing. Package access and hosted sessions remain request-gated when rights, privacy, export scope, or hosted-session availability need review.
+A robot team can receive a site/task readiness advisory, capture-backed site package scope, hosted evaluation request, failure-mode report, site modification recommendation, data requirement, short-pilot protocol, or custom benchmark scope. Access, hosted availability, rights, payment, package delivery, provider execution, and operational readiness remain request-specific.
 
-### What is hosted robot evaluation?
+### What is a site package?
 
-Hosted robot evaluation is a Blueprint-managed review session against one exact-site world model. It can include scoped runs, observations, route/replay notes, export framing, and a recommendation for the next commercial or technical step. It is not a deployment guarantee.
+A site package is a downstream output tied to one real facility or workflow. It may include walkthrough media, route context, poses, metadata, geometry when available, rights/privacy posture, provenance, export scope, and package or hosted-session references.
+
+### What is hosted evaluation?
+
+Hosted evaluation is a Blueprint-managed buyer review room for one site package when entitlement, package, and runtime proof support that request. It can include scoped review, reruns, observations, export framing, and next-step notes. It is not a deployment guarantee.
 
 ### What is capture provenance?
 
-Capture provenance is the evidence chain behind a downstream world-model product: capture media, route, timestamps, device/context metadata, freshness, review status, privacy handling, rights posture, restrictions, and links to package or hosted artifacts when available.
+Capture provenance is the evidence chain behind a downstream site package: capture media, route, timestamps, device/context metadata, freshness, review status, privacy handling, rights posture, restrictions, and links to package or hosted artifacts when available.
 
 ### What is sample versus real proof?
 
-Public examples are samples unless the page explicitly ties them to an approved real listing and evidence chain. Sample artifacts show the fields, manifests, rights sheets, hosted-review reports, and export shapes a buyer can inspect; they should not be treated as customer results or deployment proof.
+Public examples are samples unless the page explicitly ties them to an approved real listing and evidence chain. Sample artifacts show the fields, manifests, rights sheets, hosted-review reports, and export shapes a buyer can inspect. They should not be treated as customer results, rights clearance, provider execution, hosted fulfillment, or deployment proof.
 
 ## Important Public Pages
 
-- `/` - Homepage. Defines Blueprint as a capture-backed, site-specific world-model and hosted-evaluation platform for robot teams.
-- `/product` - Product page. Explains indoor site-specific world models, site packages, and hosted review as one capture-backed, request-gated offer.
-- `/for-robot-teams` - Robot-team page. Explains the indoor workflow from real site to capture provenance, grounded world model, scenario or hosted review, and export or recapture decision.
-- `/how-it-works` - Workflow page. Separates robot teams, robot agents, and internal Blueprint agents across capture, package, hosted review, and decision steps.
-- `/world-models` - Search-first catalog of exact-site world models for addresses, sites, cities, store types, workflows, and robot tasks. Separates exact matches, nearby or closest matches, category/workflow matches, and request candidates while keeping public proof, package access, hosted access, and commercial status separate.
-- `/world-models/siteworld-f5fd54898cfb` - Public sample listing. Useful for seeing how a site-specific world model page presents evidence, restrictions, package paths, and hosted access.
-- `/agents` - Robot-team agent access. Documents headless discovery, explainable site-world catalog search, dry-run quote/order/entitlement proof, OpenAPI, CLI, MCP tools, truth labels, auth model, public demo flow, protected robot-team flow, hosted-session lifecycle, explorer rendering, exports, and error semantics.
-- `/sample-deliverables` - Buyer-readable sample package viewer for the public manifest, rights sheet, export bundle, hosted-review report, and raw sample files.
-- `/capture` - Capture rules and handoff page. Explains lawful public-facing capture, app access, review gates, and how capture supports downstream world-model products.
-- `/capture-app/launch-access` - Future-city signal path for capturers, site operators, and local leads.
-- `/proof` - Stories and proof page. Consolidates sample evaluation, sample deliverables, and proof-story framing into one truthful proof packet surface.
-- `/governance` - Trust and governance page for rights, privacy, provenance, restrictions, and hosted-access boundaries.
-- `/faq` - Direct Q&A about Blueprint's product, buyer outputs, hosted evaluation, proof boundaries, and starting path.
-- `/pricing` - Commercial paths for site package, hosted evaluation, and enterprise scope.
-- `/contact` - Structured buyer/operator intake. The request should name the site, workflow, robot question, rights context, and desired next step.
-- `/contact/site-operator` - Site-operator path for capture boundaries, restricted/private zones, commercialization posture, buyer-access review, and stale-boundary refresh/removal.
-- `/about` - Company overview.
-- `/updates` - Short product notes and public updates.
-- `/careers` - Hiring page.
-- `/privacy` and `/terms` - Formal policy pages.
+- `/` - Homepage and core buyer story. Explains the value prop, buyer question, workflow, offer, planning ranges, proof boundary, and request CTA in one place.
+- `/pricing` - Planning ranges for Site/Task Readiness Review, Hosted Evaluation, and Custom Multi-Site Benchmark.
+- `/proof` - Short proof explainer separating public samples, generated support signals, request packets, and owner-system proof.
+- `/contact` - Structured readiness review intake for the site, workflow, robot profile, thresholds, timeline, evidence needs, rights context, and desired next step.
+- `/privacy` and `/terms` - Legal policy pages.
+
+Secondary marketing URLs are not the primary public buyer surface. Routes such as `/product`, `/readiness`, `/for-robot-teams`, `/how-it-works`, `/world-models`, `/agents`, `/capture`, `/sample-deliverables`, `/launch-map`, `/faq`, `/governance`, `/about`, `/updates`, `/careers`, and `/help` should be treated as hidden, redirected, noindex, or direct-purpose URLs rather than core public IA.
 
 ## Canonical Query Themes
 
 Blueprint pages are most relevant to these themes:
 
-- exact-site world models
-- indoor world models for robot teams
-- Google Genie Street View indoor world model gap
-- site-specific world models for robotics
+- site-specific robot deployment readiness
+- pre-pilot robot readiness estimate
+- site task readiness report
+- warehouse robot readiness evaluation
+- factory robot readiness evaluation
+- success rate, cycle time, intervention rate, and safety threshold for a robot task
 - capture-backed robot evaluation
 - hosted robot evaluation
 - robot deployment site evaluation
-- site package for robot teams
 - capture provenance for world models
-- facility world model
-- site operator robot evaluation access
-- rights and privacy for site-specific robot evaluation
-- robot-team agent API
-- robot agent dry-run commerce
-- hosted-session entitlement proof
-- agent site-world catalog search
-- Whole Foods or store query close-match site-world search
-- headless hosted-session rollout
-- Blueprint MCP server
+- site operator robot evaluation boundaries
+- readiness proof boundary
+- request readiness review
 
 ## Truth Boundaries
 
 - Do not describe generated or sample assets as customer proof.
 - Do not claim a deployment guarantee.
+- Do not claim safety validation, simulator execution completed, robot-trial success, provider execution, or cleared rights unless owner-system evidence proves it.
 - Do not claim a site is buyer-ready only because it appears in public copy.
-- Do not treat qualification/readiness outputs as the main product.
 - Do not imply package files, raw exports, private request consoles, admin surfaces, or hosted workspaces are publicly accessible.
 - Do not treat public demo agent flows as protected customer access, provider success, rights clearance, or deployment proof.
 - Do not treat dry-run agent commerce as a live payment, live package delivery, rights clearance, provider execution, or guaranteed hosted fulfillment.
-- Do not invent customer results, prices, ratings, reviews, availability, providers, rights state, or capture provenance.
+- Do not invent customer results, prices outside the planning ranges, ratings, reviews, availability, providers, rights state, or capture provenance.
 - Treat Public Launch Ready copy as buyer-facing posture. Live availability, rights, payment, provider execution, package access, and fulfillment are confirmed per site/request.
 
-## Private Or Noindex Surfaces
+## Private, Hidden, Or Noindex Surfaces
 
-The following are not public buyer-content targets: `/admin/*`, `/dashboard`, `/onboarding`, `/settings`, `/requests/*`, `/portal`, `/sign-in`, `/login`, `/forgot-password`, `/signup*`, `/off-waitlist-signup`, `/capture-app`, `/world-models/*/start`, and `/world-models/*/workspace`.
+The following are not public buyer-content targets: `/product`, `/readiness`, `/readiness-pack`, `/for-robot-teams`, `/how-it-works`, `/world-models`, `/world-models/*`, `/agents`, `/capture`, `/sample-deliverables`, `/launch-map`, `/faq`, `/governance`, `/about`, `/updates`, `/careers`, `/help`, `/help/*`, `/city/*`, `/admin/*`, `/dashboard`, `/onboarding`, `/settings`, `/requests/*`, `/portal`, `/sign-in`, `/login`, `/forgot-password`, `/signup*`, `/off-waitlist-signup`, `/capture-app`, `/world-models/*/start`, and `/world-models/*/workspace`.
 
 ## Public JSON Summary
 
 `/api/site-content` returns a non-sensitive JSON summary of the public pages, definitions, query themes, and safety boundaries.
 
-`/api/site-worlds/search` is the public read-only site-world search endpoint behind MCP tool `blueprint.siteWorld.search` for agent and buyer queries such as `store`, `Whole Foods`, `supermarket`, `retail aisle`, `hospital supply`, `lab`, and `warehouse tote`. It returns scores, reasons, matched aliases, matched fields, parsed filters, `matchSemantics`, `requestCandidate`, warnings, and embedding-use metadata. Brand, address, and category aliases produce truthful close matches or request candidates; they do not claim exact brand availability, completed capture, rights clearance, purchase, or hosted access.
+`/api/site-worlds/search` remains the public read-only search endpoint behind MCP tool `blueprint.siteWorld.search`. Search, catalog matches, generated URLs, dry-run orders, and public demos are not payment, rights clearance, provider execution, package access, hosted fulfillment, or deployment readiness.
 
-`npm run agent:cli -- plan --q "Whole Foods near Durham" --want hosted-review` is the one-command robot-team journey planner. It returns compact JSON for the next safe action: `exact_catalog_match`, `request_candidate`, `dry_run_quote_order`, `entitlement_readiness`, `public_demo_session_path`, or `blocked_protected_session_path`. Blockers are structured as `code`, `severity`, `ownerSystem`, `message`, and `retryAction`. The planner reads public search and may call dry-run agent commerce/readiness endpoints only; it never creates live payment, private access, provider execution, or hosted-session fulfillment.
-
-Robot-team agents can create a supported request URL instead of scraping the contact UI. They can also use CLI `request location` or MCP `blueprint.request.locationDraft` to receive a dry-run packet with `contactUrl`, `inboundRequestDraft`, `missingRequiredFields`, `truthBoundaries`, and `submitInstructions`. The compact URL pattern is:
-
-`/contact?source=site-worlds&buyerType=robot_team&path=hosted-review&location=123%20Unknown%20St&workflow=warehouse%20tote&message=Need%20a%20hosted%20review`
-
-Supported `path` values are `world-model`, `hosted-review`, `new-capture`, and `site-question`. Supported prefill fields include `source`, `buyerType`, `siteName`, `siteWorldId`, `location`, `address`, `siteLocation`, `city`, `siteClass`, `targetSiteType`, `workflow`, `category`, `targetRobotTeam`, `scenario`, `requestedOutputs`, and `message`. If `/api/site-worlds/search` returns `matchSemantics.noExactScannedPackage=true`, agents can use `requestCandidate.requestUrl`, adapt `requestCandidate.inboundRequestDraft` with required contact fields, or call `blueprint.request.locationDraft` directly. If an agent submits directly through `/api/inbound-request`, it should send the same structured request facts as JSON plus required contact fields. A generated URL, location draft, or inbound request only records intake. It never grants package access, entitlement, payment, rights clearance, provider execution, fulfillment, live hosted-session availability, private artifact access, or admin access. The CLI/MCP location draft does not submit by default and does not write.
+Robot-team agents can create a supported request URL instead of scraping the contact UI. They can also use CLI `request location` or MCP `blueprint.request.locationDraft` to receive a dry-run packet with `contactUrl`, `inboundRequestDraft`, `missingRequiredFields`, `truthBoundaries`, and `submitInstructions`. A generated URL, location draft, or inbound request only records intake. It never grants package access, entitlement, payment, rights clearance, provider execution, fulfillment, live hosted-session availability, private artifact access, or admin access.
 
 `/agent-access.openapi.json` and `/api/agent-access/openapi.json` describe the robot-team agent contract for `blueprint.siteWorld.search`, `blueprint.request.locationDraft`, site-world detail, dry-run quote/order/receipt/entitlement proof, entitlement readiness, launch readiness, session create/read/reset/step/run-batch/control, explorer render, and export. Public demo eligibility is narrow; protected flows require Firebase robot-team or admin bearer auth plus session ownership or a matching provisioned entitlement.
-
-`/api/agent-access` returns the compact robot-team agent manifest. It names `blueprint.siteWorld.search` as the preferred search tool, keeps `blueprint.catalog.search` as a compatibility alias, lists the dry-run commerce endpoints, exposes all truth labels, and describes the credential-free mock/public-demo path. `npm run smoke:agent-headless` is the local no-credential proof: discover, read the manifest and OpenAPI truth labels, search site worlds, quote dry-run, create dry-run order and entitlement proof, check entitlement readiness, create a mock public-demo hosted session, reset/step/batch/control/render/export, and never send a bearer token.
-
-The request/commerce/session lifecycle is: request intake through `requestCandidate` or `blueprint.request.locationDraft`, dry-run commerce through quote/checkout/order/entitlement/readiness tools, then hosted-session lifecycle commands for create/reset/step/runBatch/control/renderExplorer/export when public-demo eligibility or protected auth allows it.
 
 Agent access truth labels: `capture_grounded`, `provider_derived`, `generated`, `sample_demo`, `public_demo_eligible`, `request_gated`, `protected_robot_team`, and `dry_run_order`.
 

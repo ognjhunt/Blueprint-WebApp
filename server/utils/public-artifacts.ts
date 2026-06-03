@@ -1,6 +1,4 @@
 import path from "node:path";
-import { helpArticles, helpCategories } from "../../client/src/data/helpCenter";
-import { siteWorldCards } from "../../client/src/data/siteWorlds";
 
 export type SitemapRoute = {
   changefreq: "weekly" | "monthly" | "yearly";
@@ -12,58 +10,14 @@ export const sitemapBaseUrl = "https://tryblueprint.io";
 
 const staticSitemapRoutes: SitemapRoute[] = [
   { path: "/", changefreq: "weekly", priority: 1.0 },
-  { path: "/product", changefreq: "weekly", priority: 0.9 },
-  { path: "/for-robot-teams", changefreq: "weekly", priority: 0.9 },
-  { path: "/how-it-works", changefreq: "weekly", priority: 0.8 },
-  { path: "/world-models", changefreq: "weekly", priority: 0.9 },
-  { path: "/agents", changefreq: "weekly", priority: 0.8 },
-  { path: "/sample-deliverables", changefreq: "monthly", priority: 0.8 },
-  { path: "/proof", changefreq: "weekly", priority: 0.8 },
-  { path: "/launch-map", changefreq: "weekly", priority: 0.7 },
-  { path: "/capture", changefreq: "monthly", priority: 0.7 },
-  { path: "/pricing", changefreq: "monthly", priority: 0.7 },
-  { path: "/contact", changefreq: "monthly", priority: 0.7 },
-  { path: "/contact/site-operator", changefreq: "monthly", priority: 0.6 },
-  { path: "/updates", changefreq: "monthly", priority: 0.6 },
-  { path: "/capture-app/launch-access", changefreq: "monthly", priority: 0.6 },
-  { path: "/governance", changefreq: "monthly", priority: 0.5 },
-  { path: "/help", changefreq: "monthly", priority: 0.5 },
-  { path: "/help/contact", changefreq: "monthly", priority: 0.5 },
-  { path: "/faq", changefreq: "monthly", priority: 0.5 },
-  { path: "/about", changefreq: "monthly", priority: 0.5 },
-  { path: "/careers", changefreq: "weekly", priority: 0.5 },
+  { path: "/pricing", changefreq: "monthly", priority: 0.8 },
+  { path: "/proof", changefreq: "monthly", priority: 0.8 },
+  { path: "/contact", changefreq: "monthly", priority: 0.8 },
   { path: "/privacy", changefreq: "yearly", priority: 0.3 },
   { path: "/terms", changefreq: "yearly", priority: 0.3 },
 ];
 
-const helpSitemapRoutes: SitemapRoute[] = [
-  ...helpCategories.map(
-    (category): SitemapRoute => ({
-      path: `/help/category/${category.slug}`,
-      changefreq: "monthly",
-      priority: 0.4,
-    }),
-  ),
-  ...helpArticles.map(
-    (article): SitemapRoute => ({
-      path: `/help/article/${article.slug}`,
-      changefreq: "monthly",
-      priority: 0.4,
-    }),
-  ),
-];
-
-export const sitemapRoutes: SitemapRoute[] = [
-  ...staticSitemapRoutes,
-  ...helpSitemapRoutes,
-  ...siteWorldCards.map(
-    (site): SitemapRoute => ({
-      path: `/world-models/${site.id}`,
-      changefreq: "weekly",
-      priority: 0.8,
-    }),
-  ),
-];
+export const sitemapRoutes: SitemapRoute[] = staticSitemapRoutes;
 
 export function getPublicAssetDir(isProduction: boolean) {
   return path.resolve(process.cwd(), isProduction ? "dist/public" : "client/public");
