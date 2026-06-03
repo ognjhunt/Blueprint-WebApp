@@ -9,18 +9,18 @@ describe("Home", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Real-site data for robot teams before the pilot\./i,
+        name: /Evaluate robots on real sites before deployment\./i,
       }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/Evaluate policies, test scenarios, and generate training data/i),
+      screen.getByText(/Test policies and scenarios against capture-backed sites/i),
     ).toBeInTheDocument();
     expect(screen.getByText(/^Success rate$/i)).toBeInTheDocument();
     expect(screen.getByText(/^Cycle time$/i)).toBeInTheDocument();
     expect(screen.getByText(/^Intervention rate$/i)).toBeInTheDocument();
     expect(screen.getByText(/^Safety threshold$/i)).toBeInTheDocument();
     expect(
-      screen.getAllByRole("link", { name: /Request site data/i })[0],
+      screen.getAllByRole("link", { name: /Request evaluation/i })[0],
     ).toHaveAttribute("href", expect.stringContaining("/contact?persona=robot-team"));
     expect(
       Array.from(container.querySelectorAll("[data-home-section]")).map((node) =>
@@ -34,7 +34,7 @@ describe("Home", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /A service for site data, policy evaluation, and training exports\./i,
+        name: /Real-site evaluations for robot teams\./i,
       }),
     ).toBeInTheDocument();
     expect(screen.getAllByRole("heading", { name: /Policy Evaluation Set/i }).length).toBeGreaterThan(0);

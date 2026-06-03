@@ -169,8 +169,8 @@ describe("build output", () => {
     const homeHtml = fs.readFileSync(distPath("index.html"), "utf8");
     const proofHtml = fs.readFileSync(distPath("proof/index.html"), "utf8");
 
-    expect(homeHtml).toContain("Real-site data for robot teams before the pilot.");
-    expect(homeHtml).toContain("Robot teams pay for evaluation sets and data");
+    expect(homeHtml).toContain("Evaluate robots on real sites before deployment.");
+    expect(homeHtml).toContain("Robot teams pay for evaluations and optional data exports");
     expect(homeHtml).toContain("Public samples show the workflow. Request packets prove one site.");
     expect(homeHtml).toContain('rel="canonical" href="https://tryblueprint.io/"');
     expect(homeHtml).toContain('type="application/ld+json"');

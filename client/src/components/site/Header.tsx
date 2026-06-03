@@ -71,8 +71,8 @@ export function Header() {
     }
 
     return {
-      href: "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=header",
-      label: "Request site data",
+      href: "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=header",
+      label: "Request evaluation",
     };
   }, [location]);
 

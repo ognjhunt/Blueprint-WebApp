@@ -5,7 +5,10 @@ export const primaryNavLinks = [
 ];
 
 export const headerUtilityLinks = [
-  { href: "/contact?persona=robot-team", label: "Request site data" },
+  {
+    href: "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=header",
+    label: "Request evaluation",
+  },
 ];
 
 export const footerProductLinks = [
@@ -15,7 +18,10 @@ export const footerProductLinks = [
 ];
 
 export const footerCompanyLinks = [
-  { href: "/contact?persona=robot-team", label: "Request site data" },
+  {
+    href: "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=footer",
+    label: "Request evaluation",
+  },
   { href: "/contact/site-operator", label: "Submit site free" },
   { href: "/capture-app/launch-access?role=capturer&source=footer", label: "Capturer access" },
 ];

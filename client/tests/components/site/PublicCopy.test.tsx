@@ -25,8 +25,8 @@ vi.mock("@/lib/siteWorldsApi", () => ({
   fetchSiteWorldDetail: vi.fn(() => new Promise(() => {})),
 }));
 
-describe("public capture and data marketplace copy", () => {
-  it("keeps the buyer path centered on site data, policy evaluation, proof, and free operator participation", { timeout: 10000 }, () => {
+describe("public real-site evaluation copy", () => {
+  it("keeps the buyer path centered on evaluation, proof, and free operator participation", { timeout: 10000 }, () => {
     window.localStorage.clear();
     const { container } = render(
       <>
@@ -39,15 +39,15 @@ describe("public capture and data marketplace copy", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Real-site data for robot teams before the pilot\./i,
+        name: /Evaluate robots on real sites before deployment\./i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: /Request site data/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: /Request evaluation/i }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("link", { name: /^Proof$/i }).length).toBeGreaterThan(0);
-    expect(container).toHaveTextContent(/open robot-team marketplace/i);
-    expect(container).toHaveTextContent(/site data packages/i);
-    expect(container).toHaveTextContent(/policy-evaluation sets/i);
-    expect(container).toHaveTextContent(/training exports/i);
+    expect(container).toHaveTextContent(/Real-site robot evaluation/i);
+    expect(container).toHaveTextContent(/Real-site evaluation/i);
+    expect(container).toHaveTextContent(/Scenario tests/i);
+    expect(container).toHaveTextContent(/optional data exports/i);
     expect(container).toHaveTextContent(/site operators can submit facilities and define boundaries for free/i);
     expect(container).toHaveTextContent(/success rate/i);
     expect(container).toHaveTextContent(/proof/i);

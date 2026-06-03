@@ -11,7 +11,7 @@ const definitions = [
   {
     term: "Exact-site world model",
     definition:
-      "A digital environment tied to one real indoor facility, public-facing place, or workflow. In the current public story it is the substrate for site data packages, policy-evaluation sets, and training exports, with capture provenance, rights, privacy, and package limits kept attached.",
+      "A digital environment tied to one real indoor facility, public-facing place, or workflow. In the current public story it is the substrate for real-site evaluations, policy runs, optional data exports, and training outputs, with capture provenance, rights, privacy, and package limits kept attached.",
   },
   {
     term: "Real-site robot eval dataset",
@@ -29,9 +29,9 @@ const definitions = [
       "A request-scoped pre-pilot estimate for one site/task, robot profile, and threshold set. It can organize success-rate, cycle-time, intervention-rate, safety-threshold, failure-mode, site-modification, data-need, and pilot-protocol questions without claiming the robot is ready to deploy.",
   },
   {
-    term: "Real-site robot data service",
+    term: "Real-site robot evaluation service",
     definition:
-      "Blueprint's service for turning one capture-backed site into a world-model package, task/scenario data, policy-evaluation set, export bundle, and proof-boundary record for robot teams.",
+      "Blueprint's service for testing one robot profile or policy against one capture-backed site, task scope, scenario set, threshold target, optional export bundle, and proof-boundary record.",
   },
   {
     term: "Policy evaluation record",
@@ -56,7 +56,7 @@ const definitions = [
   {
     term: "Site package",
     definition:
-      "Walkthrough media, poses, metadata, geometry when available, scenario data, rights, privacy, provenance, and export scope for one site. It grounds robot-team data and policy evaluation instead of disappearing behind a generic digital-twin claim.",
+      "Walkthrough media, poses, metadata, geometry when available, scenario data, rights, privacy, provenance, and export scope for one site. It grounds robot-team evaluation instead of becoming the lead product claim by itself.",
   },
   {
     term: "Policy evaluation",
@@ -85,7 +85,7 @@ const pages = [
     path: "/",
     title: "Home",
     description:
-      "The core public buyer story: an open robot-team marketplace for capture-backed site data packages, policy-evaluation sets, scenario data, training exports, and proof boundaries.",
+      "The core public buyer story: real-site robot evaluation before pilots or deployment, grounded in capture-backed site packages, policy-evaluation sets, scenario tests, optional data exports, and proof boundaries.",
   },
   {
     path: "/for-robot-teams",
@@ -109,7 +109,7 @@ const pages = [
     path: "/pricing",
     title: "Pricing",
     description:
-      "Simple pricing: robot teams pay for fixed-scope policy evaluation sets or site data packages; site operators participate for free.",
+      "Simple pricing: robot teams pay for fixed-scope evaluations first, with optional site packages and data exports; site operators participate for free.",
   },
   {
     path: "/contact",
@@ -130,19 +130,19 @@ const pages = [
 ];
 
 const queryThemes = [
-  "real-site robot data marketplace",
-  "real-site robot data service",
-  "site data package policy evaluation robot",
-  "capture a real site turn it into robot training data",
+  "real-site robot evaluation",
+  "real-site robot evaluation service",
+  "test robot policy on a real site before deployment",
+  "capture a real site turn it into robot evaluation",
   "test robot policy before a long pilot",
   "site-specific robot deployment readiness",
-  "real-site robot data workflow",
+  "real-site robot evaluation workflow",
   "pre-pilot robot readiness estimate",
   "site task robot policy evaluation",
-  "warehouse robot data package",
-  "factory robot scenario data",
+  "warehouse robot evaluation",
+  "factory robot scenario tests",
   "success rate cycle time intervention safety threshold robot task",
-  "capture-backed site packages for robot teams",
+  "capture-backed site evaluation for robot teams",
   "capture-backed robot policy evaluation",
   "robot team test submission interface",
   "policy API endpoint Docker container robot eval",
@@ -150,13 +150,13 @@ const queryThemes = [
   "sim controller plugin hosted session robot evaluation",
   "headless robot policy evaluation",
   "manual robot policy evaluation",
-  "robot training data for one site",
+  "robot evaluation data for one site",
   "robot fine-tuning data for one site",
   "robot deployment site evaluation",
   "capture provenance for world models",
   "site operator robot evaluation boundaries",
   "site operators free Blueprint",
-  "request robot site data",
+  "request robot site evaluation",
   "readiness proof boundary",
 ];
 
