@@ -398,7 +398,9 @@ export interface HostedSessionRecord {
   robotProfile?: RobotProfile | null;
   robotProfileId?: string;
   robot: string;
-  policy: Record<string, unknown>;
+  policy: Record<string, unknown> & {
+    robotTeamTestSubmission?: RobotTeamTestSubmission;
+  };
   runtimeConfig?: RuntimeConfig | null;
   runtimeSessionConfig?: HostedRuntimeSessionConfig | null;
   taskSelection?: TaskSelection | null;
@@ -469,7 +471,9 @@ export interface CreateHostedSessionRequest {
   autoStartDemo?: boolean;
   robotProfileId: string;
   robotProfileOverride?: Partial<RobotProfile>;
-  policy?: Record<string, unknown>;
+  policy?: Record<string, unknown> & {
+    robotTeamTestSubmission?: RobotTeamTestSubmission | unknown;
+  };
   taskId: string;
   scenarioId: string;
   startStateId: string;
@@ -480,3 +484,4 @@ export interface CreateHostedSessionRequest {
   exportModes?: string[];
   notes?: string;
 }
+import type { RobotTeamTestSubmission } from "../../client/src/lib/robotTeamTestSubmission";

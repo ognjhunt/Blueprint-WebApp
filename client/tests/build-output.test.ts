@@ -47,6 +47,8 @@ describe("build output", () => {
       "index.html",
       "pricing/index.html",
       "proof/index.html",
+      "for-robot-teams/index.html",
+      "robot-team/eval/index.html",
       "contact/index.html",
       "contact/site-operator/index.html",
       "capture-app/index.html",
@@ -68,7 +70,6 @@ describe("build output", () => {
     [
       "product/index.html",
       "readiness/index.html",
-      "for-robot-teams/index.html",
       "how-it-works/index.html",
       "world-models/index.html",
       "world-models/sw-chi-01/index.html",
@@ -113,6 +114,8 @@ describe("build output", () => {
       "https://tryblueprint.io/",
       "https://tryblueprint.io/pricing",
       "https://tryblueprint.io/proof",
+      "https://tryblueprint.io/for-robot-teams",
+      "https://tryblueprint.io/robot-team/eval",
       "https://tryblueprint.io/contact",
       "https://tryblueprint.io/privacy",
       "https://tryblueprint.io/terms",
@@ -123,7 +126,6 @@ describe("build output", () => {
     [
       "https://tryblueprint.io/product",
       "https://tryblueprint.io/readiness",
-      "https://tryblueprint.io/for-robot-teams",
       "https://tryblueprint.io/how-it-works",
       "https://tryblueprint.io/world-models",
       "https://tryblueprint.io/agents",
@@ -167,13 +169,13 @@ describe("build output", () => {
     const homeHtml = fs.readFileSync(distPath("index.html"), "utf8");
     const proofHtml = fs.readFileSync(distPath("proof/index.html"), "utf8");
 
-    expect(homeHtml).toContain("Know what breaks before the robot pilot.");
-    expect(homeHtml).toContain("one real facility, one robot task, and one pass bar");
-    expect(homeHtml).toContain("Public samples show the product shape");
+    expect(homeHtml).toContain("Real-site data for robot teams before the pilot.");
+    expect(homeHtml).toContain("Robot teams pay for compute and data");
+    expect(homeHtml).toContain("Public samples show the workflow. Request packets prove one site.");
     expect(homeHtml).toContain('rel="canonical" href="https://tryblueprint.io/"');
     expect(homeHtml).toContain('type="application/ld+json"');
-    expect(proofHtml).toContain("See what supports the readiness estimate.");
-    expect(proofHtml).toContain("The public packet teaches the workflow");
+    expect(proofHtml).toContain("See what supports the site data and policy runs.");
+    expect(proofHtml).toContain("Public samples teach the workflow. Request packets prove one site.");
     expect(proofHtml).toContain("Advisory until stronger proof exists.");
     expect(proofHtml).not.toContain("images.unsplash.com");
   });

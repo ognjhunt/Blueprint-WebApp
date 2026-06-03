@@ -131,11 +131,11 @@ describe("PilotExchange", () => {
     render(<PilotExchange />);
 
     expect(screen.getByRole("heading", { name: /Pay for the job you need\./i })).toBeInTheDocument();
-    expect(screen.getByText(/Pay for the next layer/i)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /^World Models$/i })).toBeInTheDocument();
-    expect(screen.getByText(/Buy site-specific world models of real indoor locations/i)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Simulation Access/i })).toBeInTheDocument();
-    expect(screen.getByText(/Private site terms are custom\./i)).toBeInTheDocument();
+    expect(screen.getByText(/Pay for compute or data/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Site Data Package$/i })).toBeInTheDocument();
+    expect(screen.getByText(/Buy the capture-backed world model, scenario data, and export bundle/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Policy Evaluation/i })).toBeInTheDocument();
+    expect(screen.getByText(/Site operators participate for free\./i)).toBeInTheDocument();
 
     fireEvent.click(screen.getAllByRole("button", { name: /Review this site/i })[0]);
 

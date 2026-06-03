@@ -150,7 +150,7 @@ export function CurrentRobotStateSection() {
             Robots do not usually fail because the demo was fake. They fail because the live site
             is different: different layout, different traffic, different transfer points, different
             safety rules, different pass bar. Blueprint reduces that deployment gap by giving
-            teams a site-specific world model and hosted evaluation path built from real capture.
+            teams a site-specific world model and policy-evaluation path built from real capture.
           </p>
         </div>
 

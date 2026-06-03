@@ -45,7 +45,7 @@ export const OPPORTUNITY_STATES = [
 export const REQUESTED_LANE_LABELS = {
   qualification: "Site Access Review",
   preview_simulation: "Preview Simulation",
-  deeper_evaluation: "Readiness Report / Hosted Evaluation",
+  deeper_evaluation: "Site Data / Policy Evaluation",
   managed_tuning: "Managed Tuning",
   data_licensing: "Site Package Access",
 } as const;
@@ -53,14 +53,14 @@ export const REQUESTED_LANE_LABELS = {
 export const REQUESTED_LANE_DESCRIPTIONS = {
   qualification: "Review the site, access path, and blockers before capture or release.",
   preview_simulation: "Prepare a preview asset once the record supports it.",
-  deeper_evaluation: "Request a site/task readiness report or hosted evaluation scope.",
+  deeper_evaluation: "Request a site data package or policy-evaluation scope.",
   managed_tuning: "Flag later scenario generation or managed tuning work.",
   data_licensing: "Request licensed site-package access for one exact site.",
 } as const;
 
 export const COMMERCIAL_REQUEST_PATH_LABELS = {
-  world_model: "Readiness report request",
-  hosted_evaluation: "Hosted evaluation request",
+  world_model: "Site data package request",
+  hosted_evaluation: "Policy evaluation request",
   capture_access: "Capture access request",
   site_claim: "Site operator claim",
 } as const;
@@ -68,7 +68,7 @@ export const COMMERCIAL_REQUEST_PATH_LABELS = {
 export const COMMERCIAL_REQUEST_PATH_DESCRIPTIONS = {
   world_model: "Package a real site into a world-model product your robot team can evaluate.",
   hosted_evaluation:
-    "Scope a hosted review path after Blueprint confirms site, entitlement, and runtime availability.",
+    "Scope a policy-evaluation path after Blueprint confirms site, entitlement, and runtime availability.",
   capture_access:
     "Ask Blueprint to open a capture path for a site or workflow that is not packaged yet.",
   site_claim:

@@ -3,8 +3,8 @@ import { humanoidReadinessAssets } from "@/lib/editorialGeneratedAssets";
 import {
   ArrowRight,
   Building2,
-  ClipboardCheck,
-  MonitorPlay,
+  Cpu,
+  Database,
   ShieldCheck,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -13,6 +13,7 @@ type PricingPlan = {
   icon: LucideIcon;
   name: string;
   range: string;
+  payer: string;
   bestFor: string;
   includes: string[];
   href: string;
@@ -21,64 +22,67 @@ type PricingPlan = {
 
 const plans: PricingPlan[] = [
   {
-    icon: ClipboardCheck,
-    name: "Real-Site Eval Dataset",
-    range: "$2,100 - $3,400",
+    icon: Cpu,
+    name: "Policy Evaluation",
+    range: "$39 / session-hour",
+    payer: "Robot teams only",
     bestFor:
-      "Robot teams or site operators deciding whether one exact site/task deserves pilot time.",
+      "Robot teams evaluating a robot policy against tasks and scenarios on one real site, by headless agent or manual browser session.",
     includes: [
-      "Site Card and Task Cards",
-      "Scenario Cards and Eval Cards",
-      "Annotation backlog and proof boundaries",
-      "Pilot recommendation and next data ask",
-    ],
-    href: "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=pricing-kiss",
-    cta: "Request eval dataset",
-  },
-  {
-    icon: MonitorPlay,
-    name: "Hosted Evaluation",
-    range: "$16 - $29 / session-hour",
-    bestFor:
-      "Teams that want a managed browser room, reruns, observations, and export framing before deeper field work.",
-    includes: [
-      "Managed hosted review",
-      "Scenario-card reruns and notes",
-      "Buyer-room observations",
-      "Availability confirmed per request",
+      "Manual or headless policy runs",
+      "Task and scenario reruns",
+      "Observation logs and export framing",
+      "Billed as compute-backed session time",
     ],
     href: "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=pricing-kiss",
-    cta: "Request hosted evaluation",
+    cta: "Request policy evaluation",
+  },
+  {
+    icon: Database,
+    name: "Site Data Package",
+    range: "$3,500+ / site package",
+    payer: "Robot teams only",
+    bestFor:
+      "Robot teams that need the world model, scenario set, and export data for post-training or fine-tuning on a specific site.",
+    includes: [
+      "Capture-backed world-model package",
+      "Scenario and variation data",
+      "Provenance, rights, and export limits",
+      "Training and fine-tuning export path",
+    ],
+    href: "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=pricing-kiss",
+    cta: "Request site data",
   },
   {
     icon: Building2,
-    name: "Custom Multi-Site Benchmark",
-    range: "$50,000+ scoped",
+    name: "Site Operator Participation",
+    range: "Free",
+    payer: "Site operators",
     bestFor:
-      "Private, multi-site, vendor-comparison, or operator-heavy work where one review is too narrow.",
+      "Facility owners and operators who want to submit a site, define access boundaries, or review commercial posture without paying Blueprint.",
     includes: [
-      "Capture and benchmark plan",
-      "Vendor-neutral comparison",
-      "Custom eval-card package",
-      "Operator boundaries and commercial scope",
+      "Submit or claim a site",
+      "Set access, privacy, and area limits",
+      "Review buyer-use boundaries",
+      "No paid plan required",
     ],
-    href: "/contact?persona=robot-team&buyerType=robot_team&interest=custom-scope&path=world-model&source=pricing-kiss",
-    cta: "Request benchmark scope",
+    href: "/contact/site-operator?source=pricing-kiss",
+    cta: "Submit site free",
   },
 ];
 
 const choiceRows = [
   {
-    title: "Choose eval dataset first",
-    body: "Use it when the next decision is whether a real-site card packet can de-risk one pilot.",
+    title: "Choose policy evaluation first",
+    body: "Use it when your team needs to run a robot policy against site tasks or scenarios before field time.",
   },
   {
-    title: "Choose hosted evaluation first",
-    body: "Use it when the team needs a managed review room before file handoff or deeper package work.",
+    title: "Choose site data first",
+    body: "Use it when your team needs the world model, scenario data, and exports for training, fine-tuning, or regression work.",
   },
   {
-    title: "Choose custom benchmark first",
-    body: "Use it when multiple sites, vendors, operators, or robot releases need a shared methodology.",
+    title: "Site operators do not pay",
+    body: "Operators can submit a facility and set boundaries for free; paid usage starts only when robot teams buy data or session time.",
   },
 ];
 
@@ -87,7 +91,7 @@ export default function Pricing() {
     <>
       <SEO
         title="Pricing | Blueprint"
-        description="Planning ranges for Blueprint real-site robot eval datasets, hosted evaluation workflow, and custom multi-site robot benchmarks."
+        description="Simple Blueprint pricing for robot teams: policy-evaluation session-hours and site data packages. Site operator participation is free."
         canonical="/pricing"
         image={`https://tryblueprint.io${humanoidReadinessAssets.hostedDashboard}`}
       />
@@ -96,7 +100,7 @@ export default function Pricing() {
         <section className="relative overflow-hidden bg-[#111110] px-4 py-20 text-white sm:px-6 lg:px-10">
           <img
             src={humanoidReadinessAssets.hostedDashboard}
-            alt="Illustrative hosted readiness dashboard"
+            alt="Illustrative policy-evaluation dashboard"
             className="absolute inset-0 h-full w-full object-cover opacity-32"
           />
           <div className="absolute inset-0 bg-black/68" />
@@ -105,12 +109,12 @@ export default function Pricing() {
               Pricing
             </p>
             <h1 className="mt-4 max-w-4xl text-5xl font-semibold leading-none md:text-7xl">
-              Price the eval dataset before the pilot.
+              Robot teams pay for site compute and data.
             </h1>
             <p className="mt-6 max-w-2xl text-lg leading-8 text-white/78">
-              Pick the smallest package that answers the first buyer decision:
-              one Site/Task/Scenario/Eval Card packet, a hosted review room, or
-              a private multi-site benchmark.
+              Blueprint has two paid motions for robot teams: policy-evaluation
+              session-hours and site data packages. Site operators can
+              participate and define boundaries for free.
             </p>
           </div>
         </section>
@@ -132,6 +136,9 @@ export default function Pricing() {
                     {plan.name}
                   </h2>
                   <p className="mt-4 text-3xl font-semibold">{plan.range}</p>
+                  <p className="mt-2 text-xs font-semibold uppercase tracking-normal text-[#8b6f42]">
+                    {plan.payer}
+                  </p>
                   <p className="mt-4 text-sm leading-6 text-[#5f5a53]">
                     {plan.bestFor}
                   </p>
@@ -163,7 +170,7 @@ export default function Pricing() {
                 Which should I choose?
               </p>
               <h2 className="mt-3 text-4xl font-semibold leading-tight">
-                Start with the decision that blocks field time.
+                Start with what your robot team needs to use.
               </h2>
             </div>
             <div className="grid gap-3">
@@ -188,17 +195,18 @@ export default function Pricing() {
                 A request is not a payment, entitlement, rights clearance, provider run, hosted fulfillment, or deployment verdict.
               </h2>
               <p className="mt-4 max-w-4xl text-sm leading-7 text-white/74">
-                Public ranges help buyers plan. Availability, rights, package
-                access, Stripe payment state, hosted-session availability,
-                simulator traces, action logs, robot trials, safety review, and
-                operational readiness are confirmed per site/request by the
-                systems that own those facts.
+                Public prices help robot teams plan. Availability, rights,
+                package access, Stripe payment state, hosted-session
+                availability, simulator traces, action logs, robot trials,
+                safety review, and operational readiness are confirmed per
+                site/request by the systems that own those facts. Site-operator
+                intake remains free.
               </p>
               <a
                 href="/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=pricing-proof-boundary"
                 className="mt-7 inline-flex min-h-11 items-center justify-center gap-2 bg-[#d8bd8d] px-4 text-sm font-semibold text-[#111110] transition hover:bg-[#e8cfa1]"
               >
-                Request scoped pricing
+                Request robot-team pricing
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </a>
             </div>

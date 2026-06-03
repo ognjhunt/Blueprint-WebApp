@@ -93,14 +93,14 @@ const robotRequestPathOptions: Array<{
 }> = [
   {
     value: "world_model",
-    label: "Eval dataset",
-    description: "Scope Site, Task, Scenario, and Eval Cards plus package path.",
+    label: "Site data package",
+    description: "Scope world model, scenario data, exports, provenance, and package path.",
     Icon: Gauge,
   },
   {
     value: "hosted_evaluation",
-    label: "Hosted evaluation",
-    description: "Scope a hosted buyer review for one exact-site readiness workflow.",
+    label: "Policy evaluation",
+    description: "Scope manual or headless policy runs on one exact site's tasks and scenarios.",
     Icon: MonitorPlay,
   },
   {
@@ -125,30 +125,30 @@ const requestPathCopy: Record<
   }
 > = {
   world_model: {
-    successTitle: "Eval dataset request received",
+    successTitle: "Site data request received",
     successBody:
-      "Blueprint now has the buyer, site, task, and robot context needed to route this toward a Site/Task/Scenario/Eval Card packet, package path, hosted evaluation option, or one narrow follow-up. No payment, provider run, robot trial, safety validation, or fulfillment action was triggered by this form.",
-    requestSectionTitle: "What should the eval dataset be scoped around?",
-    taskLabel: "What real-site robot eval question should Blueprint help answer?",
+      "Blueprint now has the buyer, site, task, and robot context needed to route this toward a site data package, scenario-data scope, policy-evaluation option, or one narrow follow-up. No payment, provider run, robot trial, safety validation, or fulfillment action was triggered by this form.",
+    requestSectionTitle: "What should the site data package be scoped around?",
+    taskLabel: "What real-site data or robot task should Blueprint help with?",
     taskPlaceholder:
-      "Describe the robot task, facility workflow, pass/fail question, or threshold the cards should answer first.*",
-    taskHelper: "One concrete site/task question turns into cleaner Site, Task, Scenario, and Eval Cards.",
-    submitLabel: "Request eval dataset",
+      "Describe the robot task, facility workflow, pass/fail question, scenario data, or training export your team needs first.*",
+    taskHelper: "One concrete site/task question turns into cleaner world-model, scenario, and export scope.",
+    submitLabel: "Request site data",
     nextStep:
-      "Blueprint reviews the site, task, robot profile, thresholds, and evidence needs, then routes the request toward an eval-card packet, package access, hosted evaluation, capture access, or one missing detail.",
+      "Blueprint reviews the site, task, robot profile, thresholds, and evidence needs, then routes the request toward a site data package, policy evaluation, capture access, or one missing detail.",
   },
   hosted_evaluation: {
-    successTitle: "Hosted evaluation request received",
+    successTitle: "Policy evaluation request received",
     successBody:
-      "Blueprint now has the site and robot context needed to evaluate a hosted review path without treating availability or entitlement as automatic. No hosted runtime, provider job, or fulfillment action was started by this request.",
-    requestSectionTitle: "What should the hosted evaluation prove?",
-    taskLabel: "What should the hosted evaluation help your team answer?",
+      "Blueprint now has the site and robot context needed to evaluate a policy-run path without treating availability or entitlement as automatic. No hosted runtime, provider job, or fulfillment action was started by this request.",
+    requestSectionTitle: "What should the policy evaluation run?",
+    taskLabel: "What should the policy evaluation help your team answer?",
     taskPlaceholder:
-      "Describe the robot task, scenario, pass/fail question, or review workflow this hosted review should support.*",
-    taskHelper: "Hosted evaluation is confirmed after site, entitlement, proof, and runtime availability are checked.",
-    submitLabel: "Request hosted evaluation",
+      "Describe the robot policy, task, scenario, pass/fail question, or review workflow this session should support.*",
+    taskHelper: "Policy evaluation is confirmed after site, entitlement, proof, and runtime availability are checked.",
+    submitLabel: "Request policy evaluation",
     nextStep:
-      "Blueprint checks the site, task, entitlement, and hosted-path readiness before confirming whether a hosted evaluation can move forward.",
+      "Blueprint checks the site, task, entitlement, and hosted-path availability before confirming whether a policy-evaluation session can move forward.",
   },
   capture_access: {
     successTitle: "Capture access request received",
@@ -161,17 +161,17 @@ const requestPathCopy: Record<
     taskHelper: "Capture access is reviewed against site specificity, lawful access, rights, and operational fit.",
     submitLabel: "Request capture access",
     nextStep:
-      "Blueprint checks whether this needs a new capture, an existing package, a hosted evaluation, or an access follow-up before making commitments.",
+      "Blueprint checks whether this needs a new capture, an existing package, a policy evaluation, or an access follow-up before making commitments.",
   },
   site_claim: {
     successTitle: "Site claim received",
     successBody:
-      "Blueprint now has the site claim, access notes, and governance boundaries needed for a measured follow-up. This does not list the site, clear rights, or open buyer access by itself.",
+      "Blueprint now has the site claim, access notes, and governance boundaries needed for a measured follow-up. Site-operator participation is free; this does not list the site, clear rights, or open buyer access by itself.",
     requestSectionTitle: "What facility and access path are you bringing?",
     taskLabel: "What site participation path should Blueprint review?",
     taskPlaceholder: "Describe the facility, access path, or approval question.",
     taskHelper: "Use a concrete access boundary so Blueprint can route the right review.",
-    submitLabel: "Submit site claim",
+    submitLabel: "Submit site free",
     nextStep:
       "Blueprint reviews the facility, access rules, privacy boundary, and commercialization posture before suggesting any next step.",
   },
@@ -765,7 +765,7 @@ export function ContactForm() {
 
       {commercialRequestPath === "hosted_evaluation" ? (
         <div className="border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700">
-          You are requesting a hosted review. Blueprint will still confirm entitlement, site fit, proof state, threshold scope, and hosted-path availability before promising access.
+          You are requesting policy evaluation. Blueprint will still confirm entitlement, site fit, proof state, threshold scope, and hosted-path availability before promising access.
           {siteName ? ` Site: ${siteName}.` : ""}
           {siteLocation ? ` Location: ${siteLocation}.` : ""}
         </div>
@@ -960,7 +960,7 @@ export function ContactForm() {
               aria-expanded={showOptionalDetails}
               onClick={() => setShowOptionalDetails((current) => !current)}
             >
-              <span>{showOptionalDetails ? "Hide optional details" : "Add card inputs, robot, thresholds, zones, or evidence needs"}</span>
+              <span>{showOptionalDetails ? "Hide optional details" : "Add robot, thresholds, zones, or evidence needs"}</span>
               <span className="text-xs uppercase tracking-[0.16em] text-slate-500">
                 Optional
               </span>
@@ -968,7 +968,7 @@ export function ContactForm() {
           </div>
 
           {showOptionalDetails ? (
-            <FormSection eyebrow="04 Optional" title="Add details only when they make the cards clearer.">
+            <FormSection eyebrow="04 Optional" title="Add details only when they make the scope clearer.">
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
                   <label

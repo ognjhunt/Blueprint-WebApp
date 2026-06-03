@@ -19,6 +19,7 @@ import Proof from "../client/src/pages/Proof";
 import Privacy from "../client/src/pages/Privacy";
 import Terms from "../client/src/pages/Terms";
 import Login from "../client/src/pages/Login";
+import RobotTeamEval from "../client/src/pages/RobotTeamEval";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -202,6 +203,8 @@ const staticRoutes: StaticRoute[] = [
   { path: "/capture-app/launch-access", component: CaptureLaunchAccess },
   { path: "/pricing", component: Pricing },
   { path: "/proof", component: Proof },
+  { path: "/for-robot-teams", component: RobotTeamEval },
+  { path: "/robot-team/eval", component: RobotTeamEval },
   { path: "/contact", component: Contact },
   { path: "/contact/site-operator", component: Contact },
   { path: "/sign-in", component: Login },

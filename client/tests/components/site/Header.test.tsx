@@ -47,12 +47,12 @@ describe("Header", () => {
   it("uses a reduced proof-first action rail in the header", () => {
     render(<Header />);
 
-    const requestLink = screen.getAllByRole("link", { name: /Request readiness/i })[0];
+    const requestLink = screen.getAllByRole("link", { name: /Request site data/i })[0];
     expect(requestLink).toHaveAttribute(
       "href",
       "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=header",
     );
-    expect(screen.queryByRole("link", { name: /See hosted evaluation/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /See policy evaluation/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /^Book call$/i })).not.toBeInTheDocument();
   });
 

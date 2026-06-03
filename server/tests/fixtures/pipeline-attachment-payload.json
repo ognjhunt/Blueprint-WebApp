@@ -25,6 +25,7 @@
     "robot_eval_annotation_backlog_uri": "gs://bucket/scenes/scene-1/captures/cap-1/pipeline/robot_eval_dataset/annotation_backlog.json",
     "robot_eval_proof_boundaries_uri": "gs://bucket/scenes/scene-1/captures/cap-1/pipeline/robot_eval_dataset/proof_boundaries.json",
     "robot_task_library_uri": "gs://bucket/scenes/scene-1/captures/cap-1/pipeline/robot_eval_dataset/robot_task_library.json",
+    "robot_team_test_submission_modalities_uri": "gs://bucket/scenes/scene-1/captures/cap-1/pipeline/robot_eval_dataset/robot_team_test_submission_modalities.json",
     "prediction_outcome_ledger_uri": "gs://bucket/scenes/scene-1/captures/cap-1/pipeline/robot_eval_dataset/prediction_outcome_ledger.json"
   },
   "derived_assets": {
@@ -68,7 +69,8 @@
         "scenario_cards_uri": "gs://bucket/scenes/scene-1/captures/cap-1/pipeline/robot_eval_dataset/scenario_cards.json",
         "eval_cards_uri": "gs://bucket/scenes/scene-1/captures/cap-1/pipeline/robot_eval_dataset/eval_cards.json",
         "annotation_backlog_uri": "gs://bucket/scenes/scene-1/captures/cap-1/pipeline/robot_eval_dataset/annotation_backlog.json",
-        "proof_boundaries_uri": "gs://bucket/scenes/scene-1/captures/cap-1/pipeline/robot_eval_dataset/proof_boundaries.json"
+        "proof_boundaries_uri": "gs://bucket/scenes/scene-1/captures/cap-1/pipeline/robot_eval_dataset/proof_boundaries.json",
+        "robot_team_test_submission_modalities_uri": "gs://bucket/scenes/scene-1/captures/cap-1/pipeline/robot_eval_dataset/robot_team_test_submission_modalities.json"
       }
     }
   }

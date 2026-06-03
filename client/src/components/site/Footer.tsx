@@ -14,10 +14,10 @@ export function Footer() {
             <BrandLockup compact />
           </a>
           <p className="text-sm leading-6 text-slate-600">
-            Blueprint turns one real facility, one robot task, and one pass bar into Site, Task, Scenario, and Eval Cards before an expensive pilot.
+            Blueprint turns real facilities into site data packages, policy-evaluation sessions, and training exports for robot teams.
           </p>
           <p className="text-sm leading-6 text-slate-600">
-            Public samples show the product shape. Request packets carry provenance, rights, thresholds, and proof gaps without upgrading cards into robot-trial proof.
+            Robot teams pay for compute and data. Site operators can submit facilities and define boundaries for free.
           </p>
           <div className="flex flex-col gap-2">
             <a
@@ -72,7 +72,7 @@ export function Footer() {
       <div className="border-t border-black/10 bg-white py-4">
         <div className="mx-auto flex max-w-[88rem] flex-col items-start gap-2 px-4 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-10">
           <p>© {new Date().getFullYear()} Blueprint, Inc. All rights reserved.</p>
-          <p>Capture first. Eval cards stay advisory until owner-system proof exists.</p>
+          <p>Capture first. Robot-team data and session claims stay evidence-gated.</p>
         </div>
       </div>
     </footer>

@@ -18,6 +18,7 @@ const CapturerSignUpFlow = lazy(() => import("../pages/CapturerSignUpFlow"));
 const OnboardingChecklist = lazy(() => import("../pages/OnboardingChecklist"));
 const HostedSessionSetup = lazy(() => import("../pages/HostedSessionSetup"));
 const HostedSessionWorkspace = lazy(() => import("../pages/HostedSessionWorkspace"));
+const RobotTeamEval = lazy(() => import("../pages/RobotTeamEval"));
 const Pricing = lazy(() => import("../pages/Pricing"));
 const Contact = lazy(() => import("../pages/Contact"));
 const Proof = lazy(() => import("../pages/Proof"));
@@ -143,7 +144,8 @@ export const appRoutes: AppRoute[] = [
 
   // Persona pages
   { path: "/for-site-operators", layout: "public", component: LegacyForSiteOperatorsRedirect },
-  { path: "/for-robot-teams", layout: "public", component: HomeRedirect },
+  { path: "/for-robot-teams", layout: "public", component: RobotTeamEval },
+  { path: "/robot-team/eval", layout: "public", component: RobotTeamEval },
   { path: "/for-robot-integrators", layout: "public", component: LegacyForRobotIntegratorsRedirect },
 
   // Core pages

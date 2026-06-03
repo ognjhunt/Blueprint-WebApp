@@ -70,6 +70,7 @@ import {
   isHostedAccessError,
   selectLaunchReadinessBlockerCode,
 } from "../utils/hosted-session-route-helpers";
+import { normalizeRobotTeamTestSubmission } from "../../client/src/lib/robotTeamTestSubmission";
 
 const protectedRouter = Router();
 export const publicSiteWorldSessionsRouter = Router();
@@ -171,6 +172,22 @@ function sendHostedAccessError(res: Response, error: unknown) {
     code: hostedError.code,
   });
   return true;
+}
+
+function hostedSessionCreateErrorStatus(error: HostedSessionRuntimeError) {
+  if (error.code === "forbidden" || error.code === "entitlement_required" || error.code === "session_access_denied") {
+    return 403;
+  }
+  if (error.code === "unauthorized") {
+    return 401;
+  }
+  if (error.code === "invalid_robot_team_test_submission" || error.code === "robot_team_test_modality_required") {
+    return 400;
+  }
+  if (error.code.startsWith("missing") || error.code.includes("not_launchable")) {
+    return 409;
+  }
+  return 500;
 }
 
 async function ensureRobotTeamOrAdminAccess(res: Response): Promise<HostedSessionAccessUser> {
@@ -709,6 +726,37 @@ function normalizeRequestedOutputs(body: CreateHostedSessionRequest) {
     return body.exportModes.map((value) => String(value || "").trim()).filter(Boolean);
   }
   return ["start_state", "task_summary", "scenario", "observation_frames", "action_trace", "step_count", "reward_score", "success_failure", "rollout_video", "export_bundle"];
+}
+
+function normalizeHostedSessionPolicy(
+  body: CreateHostedSessionRequest,
+): HostedSessionRecord["policy"] {
+  const policy =
+    body.policy && typeof body.policy === "object" && !Array.isArray(body.policy)
+      ? { ...(body.policy as Record<string, unknown>) }
+      : {};
+  if (!Object.prototype.hasOwnProperty.call(policy, "robotTeamTestSubmission")) {
+    return policy;
+  }
+
+  const submission = normalizeRobotTeamTestSubmission(policy.robotTeamTestSubmission);
+  if (!submission) {
+    throw new HostedSessionRuntimeError(
+      "invalid_robot_team_test_submission",
+      "policy.robotTeamTestSubmission must be an object that matches the robot-team test submission schema.",
+    );
+  }
+  if (submission.selectedModalities.length === 0) {
+    throw new HostedSessionRuntimeError(
+      "robot_team_test_modality_required",
+      "Select at least one robot-team test submission modality before creating a hosted session.",
+    );
+  }
+
+  return {
+    ...policy,
+    robotTeamTestSubmission: submission,
+  };
 }
 
 function buildSiteModelSummary(
@@ -1764,7 +1812,7 @@ function createSessionRecord(params: {
     robotProfileId: params.body.robotProfileId,
     robotProfile,
     robot: robotProfile.displayName,
-    policy: params.body.policy || {},
+    policy: normalizeHostedSessionPolicy(params.body),
     runtimeConfig,
     runtimeSessionConfig,
     taskSelection,
@@ -2158,10 +2206,7 @@ publicSiteWorldSessionsRouter.post("/", async (req, res, next) => {
         : error instanceof Error
           ? new HostedSessionRuntimeError("session_create_failed", error.message)
           : new HostedSessionRuntimeError("session_create_failed", "Failed to create hosted session.");
-    const status =
-      hostedError.code.startsWith("missing") || hostedError.code.includes("not_launchable")
-        ? 409
-        : 500;
+    const status = hostedSessionCreateErrorStatus(hostedError);
     return res.status(status).json({ error: hostedError.message, code: hostedError.code });
   }
 });
@@ -2830,14 +2875,7 @@ protectedRouter.post("/", async (req: Request, res: Response) => {
         : error instanceof Error
           ? new HostedSessionRuntimeError("session_create_failed", error.message)
           : new HostedSessionRuntimeError("session_create_failed", "Failed to create hosted session.");
-    const status =
-      hostedError.code === "forbidden" || hostedError.code === "entitlement_required" || hostedError.code === "session_access_denied"
-        ? 403
-        : hostedError.code === "unauthorized"
-          ? 401
-          : hostedError.code.startsWith("missing") || hostedError.code.includes("not_launchable")
-            ? 409
-            : 500;
+    const status = hostedSessionCreateErrorStatus(hostedError);
     return res.status(status).json({ error: hostedError.message, code: hostedError.code });
   }
 });

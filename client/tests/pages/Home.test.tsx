@@ -9,18 +9,18 @@ describe("Home", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Know what breaks before the robot pilot\./i,
+        name: /Real-site data for robot teams before the pilot\./i,
       }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/one real facility, one robot task, and one pass bar/i),
+      screen.getByText(/Evaluate policies, test scenarios, and generate training data/i),
     ).toBeInTheDocument();
     expect(screen.getByText(/^Success rate$/i)).toBeInTheDocument();
     expect(screen.getByText(/^Cycle time$/i)).toBeInTheDocument();
     expect(screen.getByText(/^Intervention rate$/i)).toBeInTheDocument();
     expect(screen.getByText(/^Safety threshold$/i)).toBeInTheDocument();
     expect(
-      screen.getAllByRole("link", { name: /Request readiness review/i })[0],
+      screen.getAllByRole("link", { name: /Request site data/i })[0],
     ).toHaveAttribute("href", expect.stringContaining("/contact?persona=robot-team"));
     expect(
       Array.from(container.querySelectorAll("[data-home-section]")).map((node) =>
@@ -34,18 +34,18 @@ describe("Home", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /A readiness answer for one site, not a giant marketplace\./i,
+        name: /A service for site data, policy evaluation, and training exports\./i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Site\/task readiness report/i })).toBeInTheDocument();
-    expect(screen.getAllByRole("heading", { name: /Hosted evaluation/i }).length).toBeGreaterThan(0);
-    expect(screen.getByRole("heading", { name: /Three ways to start\./i })).toBeInTheDocument();
-    expect(screen.getByText(/\$2,100 - \$3,400/i)).toBeInTheDocument();
-    expect(screen.getByText(/\$16 - \$29 \/ session-hour/i)).toBeInTheDocument();
-    expect(screen.getByText(/\$50,000\+ scoped/i)).toBeInTheDocument();
+    expect(screen.getAllByRole("heading", { name: /Policy Evaluation/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("heading", { name: /Site Data Package/i }).length).toBeGreaterThan(0);
+    expect(screen.getByRole("heading", { name: /Two paid robot-team products\. Operators are free\./i })).toBeInTheDocument();
+    expect(screen.getByText(/\$39 \/ session-hour/i)).toBeInTheDocument();
+    expect(screen.getByText(/\$3,500\+ \/ site package/i)).toBeInTheDocument();
+    expect(screen.getByText(/^Free$/i)).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
-        name: /Public samples show the product shape\. Request packets prove one site\./i,
+        name: /Public samples show the workflow\. Request packets prove one site\./i,
       }),
     ).toBeInTheDocument();
     expect(screen.getByText(/Generated imagery on the public site is illustrative/i)).toBeInTheDocument();

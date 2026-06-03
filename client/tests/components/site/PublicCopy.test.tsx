@@ -25,8 +25,8 @@ vi.mock("@/lib/siteWorldsApi", () => ({
   fetchSiteWorldDetail: vi.fn(() => new Promise(() => {})),
 }));
 
-describe("public capture and readiness copy", () => {
-  it("keeps the buyer path centered on readiness reports, proof, and hosted evaluation", { timeout: 10000 }, () => {
+describe("public capture and data marketplace copy", () => {
+  it("keeps the buyer path centered on site data, policy evaluation, proof, and free operator participation", { timeout: 10000 }, () => {
     window.localStorage.clear();
     const { container } = render(
       <>
@@ -39,20 +39,20 @@ describe("public capture and readiness copy", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Site-specific robot deployment readiness\./i,
+        name: /Real-site data for robot teams before the pilot\./i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: /Request readiness/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: /Request site data/i }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("link", { name: /^Proof$/i }).length).toBeGreaterThan(0);
-    expect(container).toHaveTextContent(/readiness report/i);
-    expect(container).toHaveTextContent(/indoor real-site capture/i);
-    expect(container).toHaveTextContent(/site packages/i);
+    expect(container).toHaveTextContent(/open robot-team marketplace/i);
+    expect(container).toHaveTextContent(/site data packages/i);
+    expect(container).toHaveTextContent(/policy-evaluation sessions/i);
+    expect(container).toHaveTextContent(/training exports/i);
+    expect(container).toHaveTextContent(/site operators can submit facilities and define boundaries for free/i);
     expect(container).toHaveTextContent(/success rate/i);
     expect(container).toHaveTextContent(/proof/i);
-    expect(container).toHaveTextContent(/hosted evaluation/i);
     expect(container).not.toHaveTextContent(/digital twin/i);
     expect(container).not.toHaveTextContent(/SimReady/i);
-    expect(container).not.toHaveTextContent(/marketplace/i);
     expect(screen.queryByRole("link", { name: /^Environments$/i })).not.toBeInTheDocument();
     expect(container).not.toHaveTextContent(/decision memo/i);
 

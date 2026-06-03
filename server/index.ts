@@ -365,7 +365,6 @@ app.use((req, res, next) => {
     { from: "/readiness", to: "/" },
     { from: "/readiness-pack", to: "/" },
     { from: "/quality-standard", to: "/" },
-    { from: "/for-robot-teams", to: "/" },
     { from: "/for-robot-integrators", to: "/" },
     { from: "/for-site-operators", to: "/contact?persona=site-operator" },
     { from: "/how-it-works", to: "/" },

@@ -1,7 +1,7 @@
 # Cross-Source Claims Guard Report
 
 Root: `/Users/nijelhunt_1/workspace/Blueprint-WebApp`
-Scanned files: 415
+Scanned files: 416
 Findings: 0
 
 ## Target Surfaces

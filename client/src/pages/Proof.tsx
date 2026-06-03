@@ -2,8 +2,8 @@ import { SEO } from "@/components/SEO";
 import { humanoidReadinessAssets } from "@/lib/editorialGeneratedAssets";
 import {
   ArrowRight,
-  ClipboardCheck,
-  FileText,
+  Cpu,
+  Database,
   Fingerprint,
   LockKeyhole,
   PackageCheck,
@@ -24,8 +24,8 @@ const requestHref =
 
 const sampleVsRequest = [
   {
-    label: "Card family",
-    sample: "Illustrative Site Card, Task Cards, Scenario Cards, Eval Cards, and proof-boundary shape.",
+    label: "Site data product",
+    sample: "Illustrative world-model package, scenario data, export manifest, and proof-boundary shape.",
     request: "Capture record, task scope, robot profile, thresholds, rights/privacy posture, missing annotations, and proof gaps for one site.",
   },
   {
@@ -34,9 +34,9 @@ const sampleVsRequest = [
     request: "Owner-system evidence such as provider artifacts, runtime records, simulator traces, action logs, robot trials, and safety review.",
   },
   {
-    label: "Readiness recommendation",
-    sample: "Shows how Blueprint frames proceed, modify site, gather more data, compare vendors, or hold.",
-    request: "A request-scoped advisory tied to the exact facility, eval cards, pass bar, package state, and missing-proof labels.",
+    label: "Policy evaluation output",
+    sample: "Shows how Blueprint frames proceed, modify site, gather more data, compare releases, or hold.",
+    request: "A request-scoped advisory tied to the exact facility, robot policy, pass bar, package state, and missing-proof labels.",
   },
 ];
 
@@ -56,14 +56,14 @@ const hierarchy: ProofItem[] = [
   {
     icon: PackageCheck,
     label: "03",
-    title: "Site package contract",
-    body: "Manifest, included files, linked geometry, proof depth, hosted-review limits, and package access review state.",
+    title: "Site data package",
+    body: "Manifest, included files, scenario data, linked geometry, proof depth, export limits, and package access review state.",
   },
   {
-    icon: ClipboardCheck,
+    icon: Cpu,
     label: "04",
-    title: "Eval card workflow",
-    body: "Task thresholds, scenario variations, failure modes, annotation backlog, unresolved proof, and next-step recommendation.",
+    title: "Policy evaluation",
+    body: "Task thresholds, scenario variations, policy-run outputs, failure modes, annotation backlog, unresolved proof, and next-step recommendation.",
   },
 ];
 
@@ -80,7 +80,7 @@ export default function Proof() {
     <>
       <SEO
         title="Proof | Blueprint"
-        description="A short Blueprint proof explainer separating public card samples from request-specific real-site robot eval evidence."
+        description="A short Blueprint proof explainer separating public samples from request-specific site data, policy-evaluation, and robot-team evidence."
         canonical="/proof"
         image={`https://tryblueprint.io${humanoidReadinessAssets.proofBoard}`}
       />
@@ -98,7 +98,7 @@ export default function Proof() {
               Proof
             </p>
             <h1 className="mt-4 max-w-4xl text-5xl font-semibold leading-none md:text-7xl">
-              See what supports the eval cards.
+              See what supports the site data and policy runs.
             </h1>
             <p className="mt-6 max-w-2xl text-lg leading-8 text-white/78">
               Blueprint proof keeps the buyer question grounded: what came from
@@ -110,7 +110,7 @@ export default function Proof() {
                 href={requestHref}
                 className="inline-flex min-h-12 items-center justify-center gap-2 bg-[#d8bd8d] px-5 text-sm font-semibold text-[#111110] transition hover:bg-[#e8cfa1]"
               >
-                Request eval dataset
+                Request site data
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </a>
               <a
@@ -130,7 +130,7 @@ export default function Proof() {
                 Sample vs request
               </p>
               <h2 className="mt-3 text-4xl font-semibold leading-tight">
-                Public card samples teach the workflow. Request cards prove one site.
+                Public samples teach the workflow. Request packets prove one site.
               </h2>
             </div>
             <div className="mt-8 overflow-hidden border border-black/10 bg-white">
@@ -195,13 +195,14 @@ export default function Proof() {
         <section className="px-4 py-14 sm:px-6 lg:px-10">
           <div className="mx-auto grid max-w-[88rem] gap-8 lg:grid-cols-[0.46fr_0.54fr]">
             <div className="border border-black/10 bg-white p-6">
-              <FileText className="h-8 w-8 text-[#8b6f42]" aria-hidden="true" />
+              <Database className="h-8 w-8 text-[#8b6f42]" aria-hidden="true" />
               <h2 className="mt-5 text-3xl font-semibold leading-tight">
-                A proof packet should make the readiness decision obvious.
+                A proof packet should make the data and policy decision obvious.
               </h2>
               <p className="mt-4 text-sm leading-7 text-[#5f5a53]">
-                The buyer should be able to see why Blueprint recommends a short
-                pilot, site modification, more data, vendor comparison, or hold.
+                The robot team should be able to see why Blueprint recommends a
+                policy session, more site data, site modification, release
+                comparison, or hold.
               </p>
             </div>
             <div className="grid gap-3">
@@ -226,7 +227,7 @@ export default function Proof() {
                 Advisory until stronger proof exists.
               </h2>
               <p className="mt-4 max-w-4xl text-sm leading-7 text-white/74">
-                Blueprint can publish polished Site/Task/Scenario/Eval Card
+                Blueprint can publish polished site data, scenario, policy-run
                 structure, sample packets, and request paths. It must not claim safety validation.
                 Do not claim simulator execution completed, robot-trial success, or cleared rights.
                 Do not claim hosted-session fulfillment, payment success, or ready to deploy

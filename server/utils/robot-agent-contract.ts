@@ -955,6 +955,88 @@ function buildSchemas() {
         source: { type: ["string", "null"] },
       },
     },
+    RobotTeamTestSubmissionModalityId: {
+      type: "string",
+      enum: [
+        "policy_api_endpoint",
+        "docker_container",
+        "recorded_action_trace",
+        "high_level_skill_trace",
+        "teleop_demo",
+        "sim_controller_plugin",
+      ],
+    },
+    RobotTeamTestSubmissionModality: {
+      type: "object",
+      required: ["selected", "fields"],
+      additionalProperties: true,
+      properties: {
+        selected: { type: "boolean" },
+        fields: {
+          type: "object",
+          additionalProperties: { type: "string" },
+          description:
+            "CamelCase reference fields from the WebApp/Pipeline robot-team test submission schema.",
+        },
+        artifactReferenceUris: { type: "array", items: { type: "string" } },
+        missingFields: { type: "array", items: { type: "string" } },
+        missingEvidenceStatus: { type: ["string", "null"] },
+        reviewStatus: {
+          type: "string",
+          enum: ["not_selected", "missing_required_refs", "ready_for_review"],
+        },
+      },
+    },
+    RobotTeamTestSubmission: {
+      type: "object",
+      required: ["schemaVersion", "selectedModalities", "modalities"],
+      additionalProperties: true,
+      properties: {
+        schemaVersion: {
+          type: "string",
+          enum: ["blueprint.robot_team_test_submission.v1"],
+        },
+        submissionId: { type: ["string", "null"] },
+        siteWorldId: { type: ["string", "null"] },
+        taskId: { type: ["string", "null"] },
+        scenarioId: { type: ["string", "null"] },
+        robotProfileId: { type: ["string", "null"] },
+        selectedModalities: {
+          type: "array",
+          items: { $ref: "#/components/schemas/RobotTeamTestSubmissionModalityId" },
+        },
+        modalities: {
+          type: "object",
+          additionalProperties: {
+            $ref: "#/components/schemas/RobotTeamTestSubmissionModality",
+          },
+        },
+        missingEvidenceStatuses: { type: "array", items: { type: "string" } },
+        requestedOutputs: { type: "array", items: { type: "string" } },
+        pipelineDatasetSchemaRefs: {
+          type: "array",
+          items: { type: "string" },
+          examples: [["robot_team_test_submission_modalities.v0.1"]],
+        },
+        proofBoundary: {
+          type: "object",
+          additionalProperties: true,
+          description:
+            "Submitted references are artifact pointers only and do not prove readiness, safety, real robot execution, simulator completion, rights clearance, or policy pass/fail outcome.",
+        },
+      },
+    },
+    HostedSessionPolicy: {
+      type: "object",
+      additionalProperties: true,
+      properties: {
+        runMode: { type: "string" },
+        robotTeamTestSubmission: {
+          $ref: "#/components/schemas/RobotTeamTestSubmission",
+        },
+        proofBoundary: { type: "string" },
+      },
+    },
     CreateHostedSessionRequest: {
       type: "object",
       required: ["siteWorldId", "robotProfileId", "taskId", "scenarioId", "startStateId"],
@@ -965,7 +1047,7 @@ function buildSchemas() {
         autoStartDemo: { type: "boolean" },
         robotProfileId: { type: "string" },
         robotProfileOverride: { type: "object", additionalProperties: true },
-        policy: { type: "object", additionalProperties: true },
+        policy: { $ref: "#/components/schemas/HostedSessionPolicy" },
         taskId: { type: "string" },
         scenarioId: { type: "string" },
         startStateId: { type: "string" },

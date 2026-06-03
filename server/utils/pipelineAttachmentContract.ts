@@ -36,6 +36,7 @@ const robotEvalDatasetCardArtifactUrisSchema = z.object({
   proof_boundaries_uri: z.string().nullable().optional(),
   task_library_uri: z.string().nullable().optional(),
   scenario_library_uri: z.string().nullable().optional(),
+  robot_team_test_submission_modalities_uri: z.string().nullable().optional(),
   prediction_outcome_ledger_uri: z.string().nullable().optional(),
 }).passthrough();
 

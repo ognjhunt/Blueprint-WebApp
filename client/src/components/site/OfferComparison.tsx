@@ -1,4 +1,4 @@
-import { ArrowRight, BriefcaseBusiness, Play, ScanLine } from "lucide-react";
+import { ArrowRight, Building2, Database, Play } from "lucide-react";
 import { sessionHourDefinition } from "@/data/marketingDefinitions";
 
 type OfferComparisonProps = {
@@ -10,18 +10,18 @@ type OfferComparisonProps = {
 
 const offerCards = [
   {
-    title: "Buy the site package",
-    price: "$2,100 - $3,400",
+    title: "Buy the site data package",
+    price: "$3,500+",
     description:
-      "Everything your team needs to run its own world model on that facility — walkthrough media, geometry, metadata, and rights.",
+      "Everything your robot team needs to use one facility as data: world model, scenarios, metadata, provenance, and export limits.",
     bullets: [
       "Walkthrough video, timestamps, and camera poses",
-      "Depth and geometry files when available from source capture",
-      "Rights, freshness, provenance, and package notes",
+      "Scenario data, depth, and geometry when source capture supports them",
+      "Rights, freshness, provenance, and export notes",
     ],
-    href: "/world-models",
-    cta: "Inspect site packages",
-    icon: ScanLine,
+    href: "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model",
+    cta: "Request site data",
+    icon: Database,
     imageSrc: "/illustrations/offer-site-package-preview.svg",
     imageAlt:
       "Site package shown as a capture-backed data bundle with walkthrough frames, geometry files, and rights materials.",
@@ -30,41 +30,41 @@ const offerCards = [
     bulletTone: "bg-slate-400",
   },
   {
-    title: "Run a hosted evaluation",
-    price: "$16 - $29 / session-hour",
+    title: "Run policy evaluation",
+    price: "$39 / session-hour",
     description:
-      "Blueprint runs the site for you. Rerun tasks, review failures, compare checkpoints, and export results — no local setup needed.",
+      "Run a robot policy against site tasks and scenarios by manual browser session or headless agent, no local setup needed.",
     bullets: [
-      "Repeatable runs on one exact site",
+      "Manual or headless runs on one exact site",
       "Rollout video, metrics, and failure review",
       "Raw bundles and dataset exports for tuning and adaptation",
     ],
     href: "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation",
-    cta: "Scope hosted evaluation",
+    cta: "Request policy evaluation",
     icon: Play,
     imageSrc: "/illustrations/offer-hosted-evaluation-preview.svg",
     imageAlt:
-      "Illustration of Blueprint-hosted evaluation on one exact site with reruns, comparison, and export outputs.",
+      "Illustration of Blueprint policy evaluation on one exact site with reruns, comparison, and export outputs.",
     accent: "border border-slate-300 bg-white text-slate-900",
     cardTone: "border-slate-200 bg-slate-50",
     bulletTone: "bg-slate-500",
   },
   {
-    title: "Plan a custom program",
-    price: "$50,000+",
+    title: "Submit a site as an operator",
+    price: "Free",
     description:
-      "Use this for custom capture, exclusive training data, or managed evaluation programs around one facility.",
+      "Operators can submit a site, name access limits, and review buyer-use posture without paying Blueprint.",
     bullets: [
-      "Custom capture scope and private onboarding",
-      "Private or exclusive access",
-      "Managed support for high-stakes work",
+      "Submit or claim a real facility",
+      "Define access, privacy, and restricted-area boundaries",
+      "No paid plan required for operator participation",
     ],
-    href: "/contact?persona=robot-team&interest=enterprise",
-    cta: "Contact Blueprint",
-    icon: BriefcaseBusiness,
+    href: "/contact/site-operator",
+    cta: "Submit site free",
+    icon: Building2,
     imageSrc: "/illustrations/offer-custom-program-preview.svg",
     imageAlt:
-      "Illustration of a private custom program with buyer-specific capture scope, exclusive access, and managed model and data work.",
+      "Illustration of a site operator submitting access boundaries and commercial posture for Blueprint review.",
     accent: "border border-slate-300 bg-white text-slate-900",
     cardTone: "border-slate-200 bg-white",
     bulletTone: "bg-slate-400",
@@ -72,9 +72,9 @@ const offerCards = [
 ];
 
 export function OfferComparison({
-  eyebrow = "What you can buy first",
-  title = "Choose the path that matches the work.",
-  description = "Inspect the package path when your team wants the capture-backed data contract. Use hosted evaluation when your team wants Blueprint to run the exact site first. Use custom scope when the site, rights model, or support layer are private from day one.",
+  eyebrow = "Simple commercial model",
+  title = "Robot teams pay for compute and data. Operators are free.",
+  description = "Request the site data package when your team needs world-model and scenario exports. Use policy evaluation when your team wants to run the exact site first. Submit a site for free when you operate the facility.",
   className = "",
 }: OfferComparisonProps) {
   return (
@@ -122,7 +122,7 @@ export function OfferComparison({
                   </li>
                 ))}
               </ul>
-              {card.title === "Run a hosted evaluation" ? (
+              {card.title === "Run policy evaluation" ? (
                 <p className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-6 text-slate-600">
                   {sessionHourDefinition}
                 </p>
@@ -142,37 +142,37 @@ export function OfferComparison({
       <div className="mt-8 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_18px_60px_-36px_rgba(15,23,42,0.35)]">
         <div className="border-b border-slate-200 bg-stone-50 px-5 py-4 sm:px-6">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-            Compare the three commercial paths.
+            Compare the three paths.
           </p>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-            The same site can support multiple buying motions. The right first step depends on whether your team needs raw site data, hosted-run evidence, or a private program.
+            The same site can support multiple motions. The right first step depends on whether the robot team needs site data, policy-evaluation compute, or whether the facility operator is submitting boundaries.
           </p>
         </div>
         <div className="grid gap-px bg-slate-200 lg:grid-cols-[1.05fr_1fr_1fr_1fr]">
           <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-500">Decision point</div>
-          <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-900">Site package</div>
-          <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-900">Hosted evaluation</div>
-          <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-900">Custom site scope</div>
+          <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-900">Site data package</div>
+          <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-900">Policy evaluation</div>
+          <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-900">Site operator</div>
 
           <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-900">Best when</div>
-          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Your team wants the data contract and plans to run its own stack.</div>
-          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Your team wants hosted-run evidence, reruns, comparison, and exports before moving files around.</div>
-          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">The site is private, the rights model is custom, or the work needs hands-on support and commercial review.</div>
+          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Your robot team wants world-model, scenario, and export data for its own stack.</div>
+          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Your robot team wants to run policies against tasks and scenarios before using the data more deeply.</div>
+          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">You operate the facility and want to submit boundaries before robot-team use is reviewed.</div>
 
           <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-900">Buyer gets first</div>
-          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Walkthrough media, poses, geometry coverage, manifest, and rights metadata.</div>
-          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">A hosted evaluation on one exact site with run review and export outputs.</div>
-          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">A scoped program covering capture, packaging, hosted access, and any private operating constraints.</div>
+          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Walkthrough media, poses, geometry coverage, scenarios, manifest, and rights metadata.</div>
+          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">A compute-backed policy-evaluation session with run review and export outputs.</div>
+          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">A free intake path for facility, access, privacy, and commercial-use boundaries.</div>
 
           <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-900">Typical first purchase</div>
-          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">$2,100 - $3,400 per listing depending on the package depth.</div>
-          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">$16 - $29 per session-hour on the public hosted path.</div>
-          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">$50,000+ when the site, support, or rights posture is custom from the start.</div>
+          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">$3,500+ per site package, scoped by data depth and scenario volume.</div>
+          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">$39 per session-hour on the policy-evaluation path.</div>
+          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Free for site operators.</div>
 
           <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-900">Next step</div>
-          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Inspect a listing, review the manifest and trust card, then request package access for that site.</div>
-          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Review the hosted flow, confirm the robot and workflow question, then submit hosted-eval scoping.</div>
-          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Tell Blueprint the facility, rights needs, and operating constraints so we can scope the program.</div>
+          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Name the site, robot task, and data outputs your team needs.</div>
+          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Confirm the robot policy, task, and scenario set for session scoping.</div>
+          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Tell Blueprint the facility, access rules, privacy limits, and commercial posture.</div>
         </div>
       </div>
     </section>

@@ -134,6 +134,8 @@ function buildRobotEvalCardArtifactUris(
     proof_boundaries_uri: artifacts?.robot_eval_proof_boundaries_uri || null,
     task_library_uri: artifacts?.robot_task_library_uri || null,
     scenario_library_uri: artifacts?.robot_scenario_library_uri || null,
+    robot_team_test_submission_modalities_uri:
+      artifacts?.robot_team_test_submission_modalities_uri || null,
     prediction_outcome_ledger_uri: artifacts?.prediction_outcome_ledger_uri || null,
   };
 }
@@ -145,7 +147,8 @@ function hasRobotEvalCardFamily(artifacts: PipelineArtifacts | undefined): boole
       hasArtifact(artifacts, "robot_eval_scenario_cards_uri") ||
       hasArtifact(artifacts, "robot_eval_cards_uri") ||
       hasArtifact(artifacts, "robot_eval_annotation_backlog_uri") ||
-      hasArtifact(artifacts, "robot_eval_proof_boundaries_uri"),
+      hasArtifact(artifacts, "robot_eval_proof_boundaries_uri") ||
+      hasArtifact(artifacts, "robot_team_test_submission_modalities_uri"),
   );
 }
 

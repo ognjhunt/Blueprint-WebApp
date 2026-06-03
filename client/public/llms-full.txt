@@ -45,10 +45,12 @@ Public examples are samples unless the page explicitly ties them to an approved 
 - `/` - Homepage and core buyer story. Explains the value prop, buyer question, workflow, offer, planning ranges, proof boundary, and request CTA in one place.
 - `/pricing` - Planning ranges for Site/Task Readiness Review, Hosted Evaluation, and Custom Multi-Site Benchmark.
 - `/proof` - Short proof explainer separating public samples, generated support signals, request packets, and owner-system proof.
+- `/for-robot-teams` - Structured robot-team test interface for selecting a capture-backed site/task package and referencing policy API endpoints, Docker containers, recorded action traces, high-level skill traces, teleop demos, or sim controller plugins.
+- `/robot-team/eval` - Direct structured submission URL for creating an eligible hosted session or routing request-gated modalities to contact intake.
 - `/contact` - Structured readiness review intake for the site, workflow, robot profile, thresholds, timeline, evidence needs, rights context, and desired next step.
 - `/privacy` and `/terms` - Legal policy pages.
 
-Secondary marketing URLs are not the primary public buyer surface. Routes such as `/product`, `/readiness`, `/for-robot-teams`, `/how-it-works`, `/world-models`, `/agents`, `/capture`, `/sample-deliverables`, `/launch-map`, `/faq`, `/governance`, `/about`, `/updates`, `/careers`, and `/help` should be treated as hidden, redirected, noindex, or direct-purpose URLs rather than core public IA.
+Secondary marketing URLs are not the primary public buyer surface. Routes such as `/product`, `/readiness`, `/how-it-works`, `/world-models`, `/agents`, `/capture`, `/sample-deliverables`, `/launch-map`, `/faq`, `/governance`, `/about`, `/updates`, `/careers`, and `/help` should be treated as hidden, redirected, noindex, or direct-purpose URLs rather than core public IA.
 
 ## Canonical Query Themes
 
@@ -62,6 +64,9 @@ Blueprint pages are most relevant to these themes:
 - success rate, cycle time, intervention rate, and safety threshold for a robot task
 - capture-backed robot evaluation
 - hosted robot evaluation
+- robot team test submission interface
+- policy API endpoint or Docker container for robot evaluation
+- recorded action trace, high-level skill trace, teleop demo, or sim controller plugin review
 - robot deployment site evaluation
 - capture provenance for world models
 - site operator robot evaluation boundaries
@@ -82,11 +87,13 @@ Blueprint pages are most relevant to these themes:
 
 ## Private, Hidden, Or Noindex Surfaces
 
-The following are not public buyer-content targets: `/product`, `/readiness`, `/readiness-pack`, `/for-robot-teams`, `/how-it-works`, `/world-models`, `/world-models/*`, `/agents`, `/capture`, `/sample-deliverables`, `/launch-map`, `/faq`, `/governance`, `/about`, `/updates`, `/careers`, `/help`, `/help/*`, `/city/*`, `/admin/*`, `/dashboard`, `/onboarding`, `/settings`, `/requests/*`, `/portal`, `/sign-in`, `/login`, `/forgot-password`, `/signup*`, `/off-waitlist-signup`, `/capture-app`, `/world-models/*/start`, and `/world-models/*/workspace`.
+The following are not public buyer-content targets: `/product`, `/readiness`, `/readiness-pack`, `/how-it-works`, `/world-models`, `/world-models/*`, `/agents`, `/capture`, `/sample-deliverables`, `/launch-map`, `/faq`, `/governance`, `/about`, `/updates`, `/careers`, `/help`, `/help/*`, `/city/*`, `/admin/*`, `/dashboard`, `/onboarding`, `/settings`, `/requests/*`, `/portal`, `/sign-in`, `/login`, `/forgot-password`, `/signup*`, `/off-waitlist-signup`, `/capture-app`, `/world-models/*/start`, and `/world-models/*/workspace`.
 
 ## Public JSON Summary
 
 `/api/site-content` returns a non-sensitive JSON summary of the public pages, definitions, query themes, and safety boundaries.
+
+The request/commerce/session lifecycle stays split into request intake, dry-run commerce, and hosted-session lifecycle proof so agents do not mistake intake or dry-run proof for live fulfillment.
 
 `/api/site-worlds/search` remains the public read-only search endpoint behind MCP tool `blueprint.siteWorld.search`. Search, catalog matches, generated URLs, dry-run orders, and public demos are not payment, rights clearance, provider execution, package access, hosted fulfillment, or deployment readiness.
 

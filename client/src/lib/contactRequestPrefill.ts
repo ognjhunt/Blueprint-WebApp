@@ -57,17 +57,17 @@ export const CONTACT_REQUEST_PATH_OPTIONS: Array<{
 }> = [
   {
     value: "world-model",
-    label: "Eval dataset",
-    description: "Scope Site, Task, Scenario, and Eval Cards backed by one site package.",
-    cta: "Request eval dataset",
+    label: "Site data package",
+    description: "Scope the world model, scenario data, exports, provenance, and usage limits for one site.",
+    cta: "Request site data",
     buyerType: "robot_team",
     commercialRequestPath: "world_model",
   },
   {
     value: "hosted-review",
-    label: "Hosted evaluation",
-    description: "Review one exact-site readiness workflow in a hosted Blueprint path.",
-    cta: "Request hosted evaluation",
+    label: "Policy evaluation",
+    description: "Run a robot policy against one site's tasks and scenarios by manual session or headless agent.",
+    cta: "Request policy evaluation",
     buyerType: "robot_team",
     commercialRequestPath: "hosted_evaluation",
   },
@@ -81,9 +81,9 @@ export const CONTACT_REQUEST_PATH_OPTIONS: Array<{
   },
   {
     value: "site-question",
-    label: "Site/operator access",
-    description: "Ask about site controls, access, or participation.",
-    cta: "Send request",
+    label: "Site operator participation",
+    description: "Submit a facility and define access, privacy, and commercial-use boundaries for free.",
+    cta: "Submit site free",
     buyerType: "site_operator",
     commercialRequestPath: "site_claim",
   },
@@ -322,8 +322,8 @@ function inferredTaskStatement(input: ContactRequestUrlInput, requestPath: Conta
   if (requestPath === "new-capture" && primaryNeed) {
     return `Request an exact-site capture path for an eval-card dataset around ${primaryNeed}.`;
   }
-  if (primaryNeed) return `Request a real-site robot eval dataset for ${primaryNeed}.`;
-  if (siteClass) return `Request a real-site robot eval dataset for ${siteClass}.`;
+  if (primaryNeed) return `Request real-site robot data or policy evaluation for ${primaryNeed}.`;
+  if (siteClass) return `Request real-site robot data or policy evaluation for ${siteClass}.`;
   return "";
 }
 

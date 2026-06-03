@@ -104,6 +104,7 @@
     "client/src/pages/ReadinessPack.tsx",
     "client/src/pages/Recipes.tsx",
     "client/src/pages/RequestConsole.tsx",
+    "client/src/pages/RobotTeamEval.tsx",
     "client/src/pages/SampleDeliverables.tsx",
     "client/src/pages/SampleEvaluation.tsx",
     "client/src/pages/SiteWorldDetail.tsx",

@@ -356,6 +356,7 @@ describe("enrichDeploymentReadinessFromArtifacts", () => {
       "robot_eval_annotation_backlog_uri",
       "robot_eval_proof_boundaries_uri",
       "robot_task_library_uri",
+      "robot_team_test_submission_modalities_uri",
       "prediction_outcome_ledger_uri",
     ]);
     const enriched = enrichDeploymentReadinessFromArtifacts(undefined, arts, undefined);
@@ -373,6 +374,8 @@ describe("enrichDeploymentReadinessFromArtifacts", () => {
         scenario_cards_uri: "gs://test/robot_eval_scenario_cards_uri.json",
         eval_cards_uri: "gs://test/robot_eval_cards_uri.json",
         proof_boundaries_uri: "gs://test/robot_eval_proof_boundaries_uri.json",
+        robot_team_test_submission_modalities_uri:
+          "gs://test/robot_team_test_submission_modalities_uri.json",
       }),
     );
     expect(enriched?.runtime_launchable).toBeUndefined();

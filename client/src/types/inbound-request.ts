@@ -241,6 +241,7 @@ export interface PipelineArtifacts {
   robot_scenario_library_uri?: string | null;
   robot_pov_evidence_requirements_uri?: string | null;
   human_demo_evidence_requirements_uri?: string | null;
+  robot_team_test_submission_modalities_uri?: string | null;
   robot_failure_taxonomy_uri?: string | null;
   prediction_outcome_ledger_uri?: string | null;
   robot_eval_methodology_summary_uri?: string | null;
@@ -358,6 +359,7 @@ export interface RobotEvalDatasetCardArtifactUris {
   proof_boundaries_uri?: string | null;
   task_library_uri?: string | null;
   scenario_library_uri?: string | null;
+  robot_team_test_submission_modalities_uri?: string | null;
   prediction_outcome_ledger_uri?: string | null;
 }
 

@@ -218,13 +218,13 @@ export function ExactSitePreviewSection({
         <div className="flex flex-col justify-between border-y border-white/12 py-7 pr-0 lg:border-y-0 lg:border-l lg:py-9 lg:pl-7 lg:pr-8">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#9fb5a4]">
-              Hosted Readiness Preview
+              Policy Evaluation Preview
             </p>
             <h2 className="font-editorial mt-4 max-w-[34rem] text-[2.5rem] leading-[0.92] tracking-normal text-white sm:text-[3.35rem]">
               Choose a site task. Name the pass bar.
             </h2>
             <p className="mt-5 max-w-[32rem] text-sm leading-7 text-white/74">
-              A hosted evaluation would start from a site-specific task and required thresholds,
+              A policy evaluation would start from a site-specific task and required thresholds,
               then use the site package to inspect local context before live robot work. These
               grocery tasks drive sample camera paths only; they do not claim a real robot policy
               has completed the task.

@@ -871,6 +871,91 @@ describe("site world session routes", () => {
     }
   }, 60_000);
 
+  it("normalizes robot-team test submissions into the hosted-session policy", async () => {
+    const { server, baseUrl } = await startServer();
+    try {
+      const response = await fetch(`${baseUrl}/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          siteWorldId: "sw-chi-01",
+          robotProfileId: "other_sample",
+          taskId: "sw-chi-01-task-1",
+          scenarioId: "sw-chi-01-scenario-1",
+          startStateId: "sw-chi-01-start-1",
+          requestedOutputs: ["observation_frames", "action_trace"],
+          policy: {
+            runMode: "robot_team_structured_test",
+            robotTeamTestSubmission: {
+              submissionId: "submission-1",
+              siteWorldId: "sw-chi-01",
+              taskId: "sw-chi-01-task-1",
+              scenarioId: "sw-chi-01-scenario-1",
+              robotProfileId: "other_sample",
+              modalities: {
+                policy_api_endpoint: {
+                  selected: true,
+                  fields: {
+                    endpointUrl: "https://robot-team.example/policy",
+                    authHandling: "Bearer token in redacted secret ref robot-policy-prod",
+                    observationSchemaRef: "gs://robot-team/schemas/observation.v1.json",
+                    actionSchemaRef: "gs://robot-team/schemas/action.v1.json",
+                    runtimeConstraints: "200 ms p95, 10 rps",
+                    callbackLogUri: "gs://robot-team/blueprint/callbacks/",
+                    ownerContact: "robot-owner@example.com",
+                  },
+                },
+              },
+            },
+          },
+        }),
+      });
+      const payload = (await response.json()) as Record<string, unknown>;
+      expect(response.status).toBe(201);
+      expect(payload.status).toBe("ready");
+      const storedSession = Array.from(state.hostedSessions.values())[0] as Record<string, unknown>;
+      const storedPolicy = storedSession.policy as Record<string, unknown>;
+      const storedSubmission = storedPolicy.robotTeamTestSubmission as Record<string, unknown>;
+      expect(storedSubmission.schemaVersion).toBe("blueprint.robot_team_test_submission.v1");
+      expect(storedSubmission.selectedModalities).toEqual(["policy_api_endpoint"]);
+      expect(storedSubmission.missingEvidenceStatuses).toEqual([]);
+      expect(storedSubmission.pipelineDatasetSchemaRefs).toContain("robot_team_test_submission_modalities.v0.1");
+
+      const forwardedPolicy = (state.lastCreateHostedSessionRunParams as Record<string, unknown>).policy as Record<string, unknown>;
+      const forwardedSubmission = forwardedPolicy.robotTeamTestSubmission as Record<string, unknown>;
+      expect(forwardedSubmission).toEqual(storedSubmission);
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("rejects robot-team test submissions without a selected modality", async () => {
+    const { server, baseUrl } = await startServer();
+    try {
+      const response = await fetch(`${baseUrl}/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          siteWorldId: "sw-chi-01",
+          robotProfileId: "other_sample",
+          taskId: "sw-chi-01-task-1",
+          scenarioId: "sw-chi-01-scenario-1",
+          startStateId: "sw-chi-01-start-1",
+          policy: {
+            robotTeamTestSubmission: {
+              modalities: {},
+            },
+          },
+        }),
+      });
+      const payload = (await response.json()) as Record<string, unknown>;
+      expect(response.status).toBe(400);
+      expect(payload.code).toBe("robot_team_test_modality_required");
+    } finally {
+      await stopServer(server);
+    }
+  });
+
   it("resets and steps a stored hosted session", async () => {
     const { server, baseUrl } = await startServer();
     try {

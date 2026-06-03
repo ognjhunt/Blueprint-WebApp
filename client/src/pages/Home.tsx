@@ -4,7 +4,6 @@ import {
   ArrowRight,
   Building2,
   CheckCircle2,
-  ClipboardCheck,
   Clock,
   Gauge,
   PackageCheck,
@@ -16,7 +15,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 
 const requestHref =
-  "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&requestedOutputs=Site%20Card%2C%20Task%20Cards%2C%20Scenario%20Cards%2C%20Eval%20Cards&source=home-kiss";
+  "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&requestedOutputs=Site%20data%20package%2C%20scenario%20data%2C%20policy%20evaluation%20access&source=home-kiss";
 
 const hostedHref =
   "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=home-kiss";
@@ -33,7 +32,7 @@ const buyerBars: IconBlock[] = [
     icon: Target,
     label: "Success rate",
     title: "Can the robot complete the task often enough?",
-    body: "The readiness scope starts with the pass bar the buyer actually needs.",
+    body: "The evaluation starts with the pass bar the robot team actually needs.",
   },
   {
     icon: Clock,
@@ -45,7 +44,7 @@ const buyerBars: IconBlock[] = [
     icon: Gauge,
     label: "Intervention rate",
     title: "Where will people still need to step in?",
-    body: "The report names likely assist points instead of hiding them behind a score.",
+    body: "Blueprint keeps assist points visible instead of hiding them behind a score.",
   },
   {
     icon: ShieldCheck,
@@ -57,28 +56,28 @@ const buyerBars: IconBlock[] = [
 
 const offerItems: IconBlock[] = [
   {
-    icon: ClipboardCheck,
-    label: "01",
-    title: "Site Card",
-    body: "Site type, geometry, visual and dynamic conditions, safety constraints, robot metadata, provenance, rights, and review status.",
-  },
-  {
     icon: PackageCheck,
-    label: "02",
-    title: "Task Cards",
-    body: "Task statement, start state, success and failure definitions, required metrics, evidence source, and confidence.",
+    label: "01",
+    title: "Site data package",
+    body: "Capture-backed world model, walkthrough media, geometry when available, provenance, rights posture, and export limits.",
   },
   {
     icon: Route,
+    label: "02",
+    title: "Scenario data",
+    body: "Task variations, start states, dynamic conditions, object zones, failure cases, and observed-vs-inferred labels.",
+  },
+  {
+    icon: Gauge,
     label: "03",
-    title: "Scenario Cards",
-    body: "Normal scenario, variation, edge case, known risk, observed-vs-inferred labels, and missing annotations.",
+    title: "Policy evaluation",
+    body: "Manual or headless robot-policy sessions across site tasks and scenarios, billed as compute-backed session time.",
   },
   {
     icon: Building2,
     label: "04",
-    title: "Eval Cards",
-    body: "Robot or policy tested, engine used, predicted results, failure modes, uncertainty, validation status, and blocked upgrades.",
+    title: "Training exports",
+    body: "Exportable data for post-training, fine-tuning, regression checks, and site-specific model improvement.",
   },
 ];
 
@@ -88,53 +87,56 @@ const workflowSteps = [
     body: "Start from a lawful capture, existing site package, or structured request for the facility in question.",
   },
   {
-    title: "Turn it into eval cards",
-    body: "Build the Site Card, Task Cards, Scenario Cards, Eval Cards, annotation backlog, and proof boundaries.",
+    title: "Package world and scenario data",
+    body: "Build the site world, task/scenario variations, provenance, rights labels, and export boundaries.",
   },
   {
-    title: "Define the robot task and pass bar",
-    body: "Name the robot profile, task suite, success rate, cycle time, intervention rate, and safety threshold.",
+    title: "Run the robot policy",
+    body: "Use a manual browser session or a headless agent path to test the robot profile against site tasks.",
   },
   {
-    title: "Test what breaks",
-    body: "Call out failure modes, site modifications, data needs, recapture needs, and proof that remains blocked.",
+    title: "Generate the data your team needs",
+    body: "Export observations, scenario results, failure cases, and data bundles for training or fine-tuning.",
   },
   {
     title: "Decide the next step",
-    body: "Proceed to a short pilot protocol, change the site, gather more evidence, compare vendors, or hold.",
+    body: "Proceed to a short pilot, request more site data, tune on the exported set, or hold until missing proof clears.",
   },
 ];
 
 const pricingPlans = [
   {
-    name: "Site/Task Readiness Review",
-    price: "$2,100 - $3,400",
+    name: "Policy Evaluation",
+    price: "$39 / session-hour",
     summary:
-      "One site, one task suite, one robot profile, one threshold set, and a pre-pilot recommendation.",
-    href: requestHref,
-  },
-  {
-    name: "Hosted Evaluation",
-    price: "$16 - $29 / session-hour",
-    summary:
-      "Managed browser review, reruns, observations, export framing, and a direct buyer room when available.",
+      "Robot teams run policies against site tasks and scenarios by manual browser session or headless agent.",
     href: hostedHref,
+    cta: "Request policy evaluation",
   },
   {
-    name: "Custom Multi-Site Benchmark",
-    price: "$50,000+ scoped",
+    name: "Site Data Package",
+    price: "$3,500+ / site package",
     summary:
-      "Private capture planning, vendor-neutral benchmark design, custom data package, and operator boundaries.",
-    href: "/contact?persona=robot-team&buyerType=robot_team&interest=custom-scope&path=world-model&source=home-kiss",
+      "World model, scenario set, provenance, rights labels, and data exports for post-training or fine-tuning.",
+    href: requestHref,
+    cta: "Request site data",
+  },
+  {
+    name: "Site Operators",
+    price: "Free",
+    summary:
+      "Operators can submit a site, define access and privacy boundaries, and participate without paying Blueprint.",
+    href: "/contact/site-operator?source=home-kiss-pricing",
+    cta: "Submit site free",
   },
 ];
 
 const proofRows = [
   {
-    sample: "Public card samples",
+    sample: "Public product samples",
     request: "Request packets",
     detail:
-      "Samples show the Site/Task/Scenario/Eval Card workflow. Request packets prove one site with provenance, rights, thresholds, and gaps attached.",
+      "Samples show the product shape. Request packets prove one site with provenance, rights, thresholds, and gaps attached.",
   },
   {
     sample: "Generated or model-derived visuals",
@@ -143,10 +145,10 @@ const proofRows = [
       "Generated outputs can support review, but simulator traces, action logs, robot trials, safety review, rights proof, and runtime artifacts own stronger claims.",
   },
   {
-    sample: "Readiness advisory",
+    sample: "Evaluation output",
     request: "Operational readiness",
     detail:
-      "Eval cards stay advisory until the missing proof exists for that exact site, robot, task, and threshold set.",
+      "Policy-evaluation output stays advisory until the missing proof exists for that exact site, robot, task, and threshold set.",
   },
 ];
 
@@ -197,16 +199,16 @@ export default function Home() {
   return (
     <>
       <SEO
-        title="Real-Site Robot Eval Dataset | Blueprint"
-        description="Blueprint captures a real site, turns it into Site, Task, Scenario, and Eval Cards, and helps robot teams test the task before a long pilot."
+        title="Real-Site Robot Data Marketplace | Blueprint"
+        description="Blueprint turns real sites into world-model data packages and policy-evaluation sessions for robot teams. Site operators participate free."
         canonical="/"
         image={`https://tryblueprint.io${humanoidReadinessAssets.warehouseHero}`}
         jsonLd={{
           "@context": "https://schema.org",
           "@type": "WebPage",
-          name: "Blueprint Real-Site Robot Eval Dataset",
+          name: "Blueprint Real-Site Robot Data Marketplace",
           description:
-            "Blueprint captures a real site, turns it into Site, Task, Scenario, and Eval Cards, and helps robot teams test the task before a long pilot.",
+            "Blueprint turns real sites into world-model data packages and policy-evaluation sessions for robot teams. Site operators participate free.",
           url: "https://tryblueprint.io/",
         }}
       />
@@ -218,28 +220,29 @@ export default function Home() {
         >
           <img
             src={humanoidReadinessAssets.warehouseHero}
-            alt="Humanoid robot in a warehouse aisle used as illustrative readiness imagery"
+            alt="Humanoid robot in a warehouse aisle used as illustrative site-data marketplace imagery"
             className="absolute inset-0 h-full w-full object-cover"
           />
           <div className="absolute inset-0 bg-black/62" />
           <div className="relative mx-auto flex min-h-[74vh] max-w-[88rem] flex-col justify-end px-4 pb-12 pt-24 sm:px-6 lg:px-10">
             <div className="max-w-4xl">
               <p className="text-sm font-semibold uppercase tracking-normal text-[#d8bd8d]">
-                Real-site robot evaluation dataset and workflow
+                Open robot-team marketplace for real-site data
               </p>
               <h1 className="mt-5 text-5xl font-semibold leading-none md:text-7xl">
-                Real-site robot eval cards before the pilot.
+                Real-site data for robot teams before the pilot.
               </h1>
               <p className="mt-6 max-w-2xl text-lg leading-8 text-white/82 md:text-xl">
-                Capture a real site. Turn it into Site, Task, Scenario, and
-                Eval Cards. Test the task before teams spend months on-site.
+                Evaluate policies, test scenarios, and generate training data
+                from capture-backed sites. Robot teams pay for compute and data;
+                site operators participate free.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <a
                   href={requestHref}
                   className="inline-flex min-h-12 items-center justify-center gap-2 bg-[#d8bd8d] px-5 text-sm font-semibold text-[#111110] transition hover:bg-[#e8cfa1]"
                 >
-                  Request eval dataset
+                  Request site data
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </a>
                 <a
@@ -265,8 +268,8 @@ export default function Home() {
           <div className="mx-auto max-w-[88rem]">
             <SectionHeading
               eyebrow="What Blueprint sells"
-              title="The card family for one real robot task."
-              body="Blueprint turns capture and pipeline evidence into an inspectable dataset and workflow: what the site is, what task matters, what scenarios can break, and what proof is still missing."
+              title="A service for site data, policy evaluation, and training exports."
+              body="Blueprint turns capture and pipeline evidence into a robot-team marketplace: what the site is, which scenarios matter, how policies behave, and what data can be exported for model improvement."
             />
             <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               {offerItems.map((item) => (
@@ -287,16 +290,16 @@ export default function Home() {
                 How it works
               </p>
               <h2 className="mt-3 text-4xl font-semibold leading-tight md:text-5xl">
-                Turn pilot risk into an inspectable card workflow.
+                Turn a real site into policy runs and training data.
               </h2>
               <p className="mt-4 text-base leading-7 text-white/72 md:text-lg">
                 Blueprint keeps the workflow compact: real site, robot task,
-                scenario variation, eval status, missing annotations, and the
-                next proof step.
+                scenario variation, policy run, exported data, and the next
+                proof step.
               </p>
               <img
                 src={humanoidReadinessAssets.hostedDashboard}
-                alt="Illustrative readiness dashboard for a hosted evaluation"
+                alt="Illustrative dashboard for site policy evaluation"
                 className="mt-8 aspect-[4/3] w-full border border-white/15 object-cover"
               />
             </div>
@@ -330,8 +333,8 @@ export default function Home() {
             <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
               <SectionHeading
                 eyebrow="Planning ranges"
-                title="Three ways to start."
-                body="Pricing is intentionally simple. Public ranges help a buyer pick a path; live availability, rights, payment, and fulfillment are confirmed per request."
+                title="Two paid robot-team products. Operators are free."
+                body="Robot teams pay for policy-evaluation compute or site data packages. Operators can submit sites and define boundaries without paying Blueprint."
               />
               <a
                 href="/pricing"
@@ -357,7 +360,7 @@ export default function Home() {
                     href={plan.href}
                     className="mt-6 inline-flex min-h-11 items-center justify-center gap-2 bg-[#111110] px-4 text-sm font-semibold text-white transition hover:bg-[#2b2925]"
                   >
-                    Request scope
+                    {plan.cta}
                     <ArrowRight className="h-4 w-4" aria-hidden="true" />
                   </a>
                 </article>
@@ -375,7 +378,7 @@ export default function Home() {
             <div>
               <SectionHeading
                 eyebrow="Proof boundary"
-                title="Public card samples show the workflow. Request packets prove one site."
+                title="Public samples show the workflow. Request packets prove one site."
                 body="Blueprint can look ready and polished without pretending a robot has passed deployment, safety, payment, provider, rights, or hosted-session checks that still need owner-system proof."
               />
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -390,7 +393,7 @@ export default function Home() {
                   href={requestHref}
                   className="inline-flex min-h-12 items-center justify-center border border-black/15 px-5 text-sm font-semibold text-[#111110] transition hover:bg-[#f0e7d8]"
                 >
-                  Request eval dataset
+                  Request site data
                 </a>
               </div>
             </div>
@@ -432,26 +435,27 @@ export default function Home() {
                 First request
               </p>
               <h2 className="mt-3 text-4xl font-semibold leading-tight md:text-5xl">
-                Ask for one real-site eval dataset.
+                Ask for one real site to evaluate or train on.
               </h2>
               <p className="mt-4 max-w-2xl text-base leading-7 text-white/72 md:text-lg">
                 Bring the facility, task, robot profile, target thresholds,
                 timeline, and proof you already have. Blueprint routes the next
-                step to an eval-card packet, hosted evaluation, capture ask, or
+                step to a site data package, policy evaluation, capture ask, or
                 proof blocker.
               </p>
               <a
                 href={requestHref}
                 className="mt-8 inline-flex min-h-12 items-center justify-center gap-2 bg-[#d8bd8d] px-5 text-sm font-semibold text-[#111110] transition hover:bg-[#e8cfa1]"
               >
-                Request eval dataset
+                Request site data
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </a>
             </div>
             <div className="grid content-start gap-3">
               {[
                 "Requests do not grant package access, rights clearance, payment, fulfillment, or hosted-session availability by themselves.",
-                "Readiness remains advisory until simulator traces, action logs, robot trials, safety review, rights proof, and runtime proof support a stronger claim.",
+                "Policy-evaluation output remains advisory until simulator traces, action logs, robot trials, safety review, rights proof, and runtime proof support a stronger claim.",
+                "Site operators can submit and govern a site for free; paid usage starts with robot-team compute or data access.",
                 "Generated imagery on the public site is illustrative, not customer or robot-trial proof.",
               ].map((item) => (
                 <div key={item} className="flex gap-3 border border-white/15 bg-white/[0.04] p-4">

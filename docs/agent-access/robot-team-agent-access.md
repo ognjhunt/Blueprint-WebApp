@@ -84,6 +84,25 @@ The request/commerce/session lifecycle is intentionally split so robot-team agen
 - `dry-run commerce`: use quote, dry-run checkout, order, entitlement, and entitlement-readiness tools to prove the commerce shape without live Stripe, package delivery, rights clearance, provider execution, or hosted fulfillment.
 - `hosted-session lifecycle`: use create/reset/step/runBatch/control/renderExplorer/export only after public-demo eligibility or protected Firebase robot-team/admin auth plus entitlement/session ownership gates allow it.
 
+## Structured Robot-Team Test Submission
+
+The buyer-facing structured submission surface lives at `/for-robot-teams` and `/robot-team/eval`. It creates an eligible hosted session through `POST /api/site-worlds/sessions` when public-demo or protected robot-team access allows direct create, and falls back to a prefilled `/contact` intake URL when the package is request-gated. The fallback URL carries a compact modality/field-reference summary in the contact `message` so existing intake can preserve artifact references without adding raw uploads.
+
+The hosted-session create payload may include `policy.robotTeamTestSubmission` with schema version `blueprint.robot_team_test_submission.v1`. WebApp normalizes and validates this object before storing it on the session policy or forwarding it to the hosted-session runtime adapter.
+
+Supported modalities:
+
+| Modality | Required reference class |
+|---|---|
+| `policy_api_endpoint` | Callable policy endpoint, auth handling reference, observation/action schemas, runtime constraints, callback/log URI, owner contact. |
+| `docker_container` | Image reference, digest/checksum, entrypoint, environment contract, hardware needs, IO schema, runtime notes. |
+| `recorded_action_trace` | Trace manifest, format, task/scenario mapping, timestamp alignment, observation/action alignment, success/failure labels, checksum. |
+| `high_level_skill_trace` | Skill taxonomy, ordered skill sequence, preconditions/postconditions, failure labels, source type, confidence/coverage note. |
+| `teleop_demo` | Demo artifact, operator/device, control mapping, time sync, task/scenario mapping, rights/privacy attestation, labels. |
+| `sim_controller_plugin` | Simulator framework, plugin reference, supported control modes, observation/action spaces, replay/export path, compatibility notes. |
+
+The Pipeline schema truth for these modalities is `robot_team_test_submission_modalities.v0.1` and the WebApp policy field is `policy.robotTeamTestSubmission`. Submitted references are artifact pointers only. They do not prove policy execution, simulator completion, real robot execution, safety validation, rights/privacy clearance, or deployment readiness. Missing modality evidence is surfaced as fail-closed statuses such as `needs_policy_api_endpoint_ref`, `needs_docker_container_ref`, `needs_recorded_action_trace_ref`, `needs_high_level_skill_trace_ref`, `needs_teleop_demo_ref`, and `needs_sim_controller_plugin_ref`.
+
 ## MCP Stdio Config
 
 ```json

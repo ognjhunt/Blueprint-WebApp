@@ -5,7 +5,7 @@ export const primaryNavLinks = [
 ];
 
 export const headerUtilityLinks = [
-  { href: "/contact?persona=robot-team", label: "Request eval dataset" },
+  { href: "/contact?persona=robot-team", label: "Request site data" },
 ];
 
 export const footerProductLinks = [
@@ -15,8 +15,8 @@ export const footerProductLinks = [
 ];
 
 export const footerCompanyLinks = [
-  { href: "/contact?persona=robot-team", label: "Request eval dataset" },
-  { href: "/contact/site-operator", label: "Site operator boundaries" },
+  { href: "/contact?persona=robot-team", label: "Request site data" },
+  { href: "/contact/site-operator", label: "Submit site free" },
   { href: "/capture-app/launch-access?role=capturer&source=footer", label: "Capturer access" },
 ];
 

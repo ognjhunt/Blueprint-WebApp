@@ -11,6 +11,8 @@ describe("Route registration", () => {
     expect(source).toContain('path: "/pricing"');
     expect(source).toContain('path: "/proof"');
     expect(source).toContain('path: "/contact"');
+    expect(source).toContain('path: "/for-robot-teams"');
+    expect(source).toContain('path: "/robot-team/eval"');
     expect(source).toContain('path: "/privacy"');
     expect(source).toContain('path: "/terms"');
     expect(source).toContain('path: "/sign-in"');
@@ -69,7 +71,8 @@ describe("Route registration", () => {
     const source = fs.readFileSync(routesPath, "utf-8");
 
     expect(source).toContain('{ path: "/for-site-operators", layout: "public", component: LegacyForSiteOperatorsRedirect }');
-    expect(source).toContain('{ path: "/for-robot-teams", layout: "public", component: HomeRedirect }');
+    expect(source).toContain('{ path: "/for-robot-teams", layout: "public", component: RobotTeamEval }');
+    expect(source).toContain('{ path: "/robot-team/eval", layout: "public", component: RobotTeamEval }');
     expect(source).toContain('{ path: "/for-robot-integrators", layout: "public", component: LegacyForRobotIntegratorsRedirect }');
     expect(source).toContain('{ path: "/exact-site-hosted-review", layout: "public", component: LegacyHostedReviewRedirect }');
     expect(source).toContain('{ path: "/how-it-works", layout: "public", component: HowItWorksRedirect }');
