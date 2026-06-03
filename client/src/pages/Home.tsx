@@ -16,7 +16,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 
 const requestHref =
-  "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-kiss";
+  "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&requestedOutputs=Site%20Card%2C%20Task%20Cards%2C%20Scenario%20Cards%2C%20Eval%20Cards&source=home-kiss";
 
 const hostedHref =
   "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=home-kiss";
@@ -59,44 +59,44 @@ const offerItems: IconBlock[] = [
   {
     icon: ClipboardCheck,
     label: "01",
-    title: "Site/task readiness report",
-    body: "One facility, task suite, robot profile, threshold set, failure modes, proof gaps, and next-step recommendation.",
+    title: "Site Card",
+    body: "Site type, geometry, visual and dynamic conditions, safety constraints, robot metadata, provenance, rights, and review status.",
   },
   {
     icon: PackageCheck,
     label: "02",
-    title: "Capture-backed site package",
-    body: "Walkthrough evidence, route context, provenance, rights posture, manifests, and export boundaries for the site.",
+    title: "Task Cards",
+    body: "Task statement, start state, success and failure definitions, required metrics, evidence source, and confidence.",
   },
   {
     icon: Route,
     label: "03",
-    title: "Hosted evaluation",
-    body: "A managed buyer review room when package, entitlement, and runtime proof support that request.",
+    title: "Scenario Cards",
+    body: "Normal scenario, variation, edge case, known risk, observed-vs-inferred labels, and missing annotations.",
   },
   {
     icon: Building2,
     label: "04",
-    title: "Custom benchmark scope",
-    body: "Private, multi-site, vendor-comparison, or operator-heavy work when one site review is too narrow.",
+    title: "Eval Cards",
+    body: "Robot or policy tested, engine used, predicted results, failure modes, uncertainty, validation status, and blocked upgrades.",
   },
 ];
 
 const workflowSteps = [
   {
-    title: "Capture or package one real site",
+    title: "Capture a real site",
     body: "Start from a lawful capture, existing site package, or structured request for the facility in question.",
+  },
+  {
+    title: "Turn it into eval cards",
+    body: "Build the Site Card, Task Cards, Scenario Cards, Eval Cards, annotation backlog, and proof boundaries.",
   },
   {
     title: "Define the robot task and pass bar",
     body: "Name the robot profile, task suite, success rate, cycle time, intervention rate, and safety threshold.",
   },
   {
-    title: "Build the readiness packet",
-    body: "Attach capture evidence, route context, scenario notes, missing proof, and package or hosted-review limits.",
-  },
-  {
-    title: "Show what breaks",
+    title: "Test what breaks",
     body: "Call out failure modes, site modifications, data needs, recapture needs, and proof that remains blocked.",
   },
   {
@@ -131,10 +131,10 @@ const pricingPlans = [
 
 const proofRows = [
   {
-    sample: "Public samples",
+    sample: "Public card samples",
     request: "Request packets",
     detail:
-      "Samples show the product shape. Request packets prove one site with provenance, rights, thresholds, and gaps attached.",
+      "Samples show the Site/Task/Scenario/Eval Card workflow. Request packets prove one site with provenance, rights, thresholds, and gaps attached.",
   },
   {
     sample: "Generated or model-derived visuals",
@@ -146,7 +146,7 @@ const proofRows = [
     sample: "Readiness advisory",
     request: "Operational readiness",
     detail:
-      "A readiness report is advisory until the missing proof exists for that exact site, robot, task, and threshold set.",
+      "Eval cards stay advisory until the missing proof exists for that exact site, robot, task, and threshold set.",
   },
 ];
 
@@ -197,16 +197,16 @@ export default function Home() {
   return (
     <>
       <SEO
-        title="Robot Deployment Readiness | Blueprint"
-        description="Blueprint turns one real facility, one robot task, and one pass bar into a capture-backed readiness report before an expensive pilot."
+        title="Real-Site Robot Eval Dataset | Blueprint"
+        description="Blueprint captures a real site, turns it into Site, Task, Scenario, and Eval Cards, and helps robot teams test the task before a long pilot."
         canonical="/"
         image={`https://tryblueprint.io${humanoidReadinessAssets.warehouseHero}`}
         jsonLd={{
           "@context": "https://schema.org",
           "@type": "WebPage",
-          name: "Blueprint Robot Deployment Readiness",
+          name: "Blueprint Real-Site Robot Eval Dataset",
           description:
-            "Blueprint turns one real facility, one robot task, and one pass bar into a capture-backed readiness report before an expensive pilot.",
+            "Blueprint captures a real site, turns it into Site, Task, Scenario, and Eval Cards, and helps robot teams test the task before a long pilot.",
           url: "https://tryblueprint.io/",
         }}
       />
@@ -225,22 +225,21 @@ export default function Home() {
           <div className="relative mx-auto flex min-h-[74vh] max-w-[88rem] flex-col justify-end px-4 pb-12 pt-24 sm:px-6 lg:px-10">
             <div className="max-w-4xl">
               <p className="text-sm font-semibold uppercase tracking-normal text-[#d8bd8d]">
-                Site-specific robot deployment readiness
+                Real-site robot evaluation dataset and workflow
               </p>
               <h1 className="mt-5 text-5xl font-semibold leading-none md:text-7xl">
-                Know what breaks before the robot pilot.
+                Real-site robot eval cards before the pilot.
               </h1>
               <p className="mt-6 max-w-2xl text-lg leading-8 text-white/82 md:text-xl">
-                Blueprint turns one real facility, one robot task, and one pass
-                bar into a capture-backed readiness report before teams spend
-                months on-site.
+                Capture a real site. Turn it into Site, Task, Scenario, and
+                Eval Cards. Test the task before teams spend months on-site.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <a
                   href={requestHref}
                   className="inline-flex min-h-12 items-center justify-center gap-2 bg-[#d8bd8d] px-5 text-sm font-semibold text-[#111110] transition hover:bg-[#e8cfa1]"
                 >
-                  Request readiness review
+                  Request eval dataset
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </a>
                 <a
@@ -266,8 +265,8 @@ export default function Home() {
           <div className="mx-auto max-w-[88rem]">
             <SectionHeading
               eyebrow="What Blueprint sells"
-              title="A readiness answer for one site, not a giant marketplace."
-              body="The public site now starts with the buyer decision: will this robot work in this facility, on this task, at the thresholds the team needs?"
+              title="The card family for one real robot task."
+              body="Blueprint turns capture and pipeline evidence into an inspectable dataset and workflow: what the site is, what task matters, what scenarios can break, and what proof is still missing."
             />
             <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               {offerItems.map((item) => (
@@ -288,11 +287,12 @@ export default function Home() {
                 How it works
               </p>
               <h2 className="mt-3 text-4xl font-semibold leading-tight md:text-5xl">
-                Turn pilot risk into an inspectable packet.
+                Turn pilot risk into an inspectable card workflow.
               </h2>
               <p className="mt-4 text-base leading-7 text-white/72 md:text-lg">
-                Blueprint keeps the workflow compact: site, task, pass bar,
-                evidence, gaps, and the next proof step.
+                Blueprint keeps the workflow compact: real site, robot task,
+                scenario variation, eval status, missing annotations, and the
+                next proof step.
               </p>
               <img
                 src={humanoidReadinessAssets.hostedDashboard}
@@ -375,7 +375,7 @@ export default function Home() {
             <div>
               <SectionHeading
                 eyebrow="Proof boundary"
-                title="Public samples show the product shape. Request packets prove one site."
+                title="Public card samples show the workflow. Request packets prove one site."
                 body="Blueprint can look ready and polished without pretending a robot has passed deployment, safety, payment, provider, rights, or hosted-session checks that still need owner-system proof."
               />
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -390,7 +390,7 @@ export default function Home() {
                   href={requestHref}
                   className="inline-flex min-h-12 items-center justify-center border border-black/15 px-5 text-sm font-semibold text-[#111110] transition hover:bg-[#f0e7d8]"
                 >
-                  Request readiness review
+                  Request eval dataset
                 </a>
               </div>
             </div>
@@ -432,19 +432,19 @@ export default function Home() {
                 First request
               </p>
               <h2 className="mt-3 text-4xl font-semibold leading-tight md:text-5xl">
-                Ask for one site/task readiness review.
+                Ask for one real-site eval dataset.
               </h2>
               <p className="mt-4 max-w-2xl text-base leading-7 text-white/72 md:text-lg">
                 Bring the facility, task, robot profile, target thresholds,
                 timeline, and proof you already have. Blueprint routes the next
-                step to a readiness report, hosted evaluation, capture ask, or
+                step to an eval-card packet, hosted evaluation, capture ask, or
                 proof blocker.
               </p>
               <a
                 href={requestHref}
                 className="mt-8 inline-flex min-h-12 items-center justify-center gap-2 bg-[#d8bd8d] px-5 text-sm font-semibold text-[#111110] transition hover:bg-[#e8cfa1]"
               >
-                Request readiness review
+                Request eval dataset
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </a>
             </div>

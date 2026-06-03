@@ -68,11 +68,11 @@ const blockers = [
 ];
 
 const proofPacket = [
-  { label: "Capture", status: "Complete", icon: Camera },
-  { label: "Route", status: "Mapped", icon: Route },
-  { label: "Rights", status: "Reviewed", icon: ShieldCheck },
-  { label: "Thresholds", status: "Named", icon: Gauge },
-  { label: "Report", status: "Advisory", icon: FileText },
+  { label: "Site Card", status: "Capture-grounded", icon: Camera },
+  { label: "Task Cards", status: "Scoped", icon: Route },
+  { label: "Scenario Cards", status: "Review needed", icon: ShieldCheck },
+  { label: "Eval Cards", status: "Advisory", icon: Gauge },
+  { label: "Proof boundary", status: "Fail-closed", icon: FileText },
 ];
 
 const taskLanes = [
@@ -278,8 +278,8 @@ export default function ReadinessPack() {
   return (
     <>
       <SEO
-        title="Humanoid Robot Deployment Readiness | Blueprint"
-        description="Blueprint produces request-scoped site/task readiness reports for humanoid robot teams evaluating success rate, cycle time, intervention rate, and safety thresholds before an on-site pilot."
+        title="Real-Site Robot Eval Cards | Blueprint"
+        description="Blueprint produces request-scoped Site, Task, Scenario, and Eval Cards for humanoid robot teams evaluating success rate, cycle time, intervention rate, and safety thresholds before an on-site pilot."
         canonical="/readiness"
       />
 
@@ -299,21 +299,21 @@ export default function ReadinessPack() {
                 <div className="mb-5 flex flex-wrap gap-2">
                   <ProofChip light>Humanoid tasks</ProofChip>
                   <ProofChip light>Exact site</ProofChip>
-                  <ProofChip light>Advisory until proof closes</ProofChip>
+                  <ProofChip light>Eval cards stay advisory</ProofChip>
                 </div>
                 <h1 className="font-editorial max-w-[42rem] text-[3.6rem] leading-[0.88] tracking-[-0.06em] text-white sm:text-[5.7rem]">
-                  Humanoid readiness for one real site.
+                  Humanoid eval cards for one real site.
                 </h1>
                 <p className="mt-6 max-w-[32rem] text-base leading-7 text-white/80 sm:text-lg sm:leading-8">
-                  A capture-backed cockpit for the route, pass bar, blockers,
-                  and next pilot proof.
+                  A capture-backed card workflow for the site, task, scenario,
+                  eval status, blockers, and next pilot proof.
                 </p>
                 <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                   <a
                     href={primaryContactHref}
                     className="inline-flex items-center justify-center rounded-full bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
                   >
-                    Request readiness evaluation
+                    Request eval dataset
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </a>
                   <a
@@ -331,7 +331,7 @@ export default function ReadinessPack() {
                     <ScoreRing score={78} label="score" />
                     <div className="min-w-0 flex-1">
                       <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/50">
-                        Hosted readiness review
+                        Hosted eval-card review
                       </p>
                       <h2 className="mt-4 font-editorial text-[2.45rem] leading-none tracking-[-0.05em]">
                         Two proof blockers remain.
@@ -498,7 +498,7 @@ export default function ReadinessPack() {
               {[
                 [
                   "Readiness packet",
-                  "Site, task, route, thresholds, blockers.",
+                "Site Card, Task Cards, Scenario Cards, Eval Cards.",
                 ],
                 [
                   "Proof boundary",
@@ -506,7 +506,7 @@ export default function ReadinessPack() {
                 ],
                 [
                   "Pilot protocol",
-                  "A bounded next test, not a broad readiness guarantee.",
+                "A bounded next test, not a broad readiness guarantee.",
                 ],
               ].map(([title, body]) => (
                 <div key={title} className="bg-white p-6">
@@ -549,7 +549,7 @@ export default function ReadinessPack() {
                   href={primaryContactHref}
                   className="inline-flex items-center justify-center bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
                 >
-                  Request readiness evaluation
+                  Request eval dataset
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </a>
                 <a

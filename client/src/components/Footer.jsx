@@ -2,7 +2,7 @@ import React from "react";
 import { BrandLockup } from "@/components/site/BrandMark";
 
 const productLinks = [
-  ["Readiness", "/readiness"],
+  ["Eval dataset", "/readiness"],
   ["Product workflow", "/product"],
   ["Site packages", "/world-models"],
   ["Sample proof", "/proof"],
@@ -27,10 +27,10 @@ export default function Footer() {
             <BrandLockup tone="paper" compact />
           </a>
           <p className="mt-5 max-w-md text-sm leading-7 text-white/65">
-            Site-specific robot deployment readiness reports, capture-backed site packages, hosted review rooms, and proof boundaries for robot teams.
+            Real-site robot eval datasets, capture-backed site packages, hosted review rooms, and proof boundaries for robot teams.
           </p>
           <p className="mt-4 max-w-md text-sm leading-7 text-white/55">
-            Readiness estimates stay request-scoped. Sample proof stays labeled, and rights, freshness, hosted access, and safety claims stay evidence-gated before a buyer commits.
+            Site, Task, Scenario, and Eval Cards stay request-scoped. Sample proof stays labeled, and rights, freshness, hosted access, and safety claims stay evidence-gated before a buyer commits.
           </p>
         </div>
 
@@ -59,7 +59,7 @@ export default function Footer() {
       <div className="border-t border-white/10 px-5 py-4 text-xs text-white/45 sm:px-8 lg:px-10">
         <div className="mx-auto flex max-w-[88rem] flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <span>© {year} Blueprint, Inc. All rights reserved.</span>
-          <span>Capture first. Site/task readiness stays evidence-backed.</span>
+          <span>Capture first. Eval cards stay evidence-backed.</span>
         </div>
       </div>
     </footer>

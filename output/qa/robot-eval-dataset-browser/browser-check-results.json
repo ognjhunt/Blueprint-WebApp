@@ -1,0 +1,46 @@
+[
+  {
+    "path": "/",
+    "screenshotPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/qa/robot-eval-dataset-browser/home.png",
+    "expectedH1": "Real-site robot eval cards before the pilot.",
+    "expectedH1Present": true,
+    "h1": "Real-site robot eval cards before the pilot.",
+    "hasEvalDataset": true,
+    "hasStaleRequestReadiness": false,
+    "hasUnsupportedOperationalClaim": false,
+    "title": "Real-Site Robot Eval Dataset | Blueprint"
+  },
+  {
+    "path": "/proof",
+    "screenshotPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/qa/robot-eval-dataset-browser/proof.png",
+    "expectedH1": "See what supports the eval cards.",
+    "expectedH1Present": true,
+    "h1": "See what supports the eval cards.",
+    "hasEvalDataset": true,
+    "hasStaleRequestReadiness": false,
+    "hasUnsupportedOperationalClaim": false,
+    "title": "Proof | Blueprint"
+  },
+  {
+    "path": "/pricing",
+    "screenshotPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/qa/robot-eval-dataset-browser/pricing.png",
+    "expectedH1": "Price the eval dataset before the pilot.",
+    "expectedH1Present": true,
+    "h1": "Price the eval dataset before the pilot.",
+    "hasEvalDataset": true,
+    "hasStaleRequestReadiness": false,
+    "hasUnsupportedOperationalClaim": false,
+    "title": "Pricing | Blueprint"
+  },
+  {
+    "path": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=browser-check",
+    "screenshotPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/qa/robot-eval-dataset-browser/contact.png",
+    "expectedH1": "Request a real-site robot eval dataset.",
+    "expectedH1Present": true,
+    "h1": "Request a real-site robot eval dataset.",
+    "hasEvalDataset": true,
+    "hasStaleRequestReadiness": false,
+    "hasUnsupportedOperationalClaim": false,
+    "title": "Request A Robot Eval Dataset | Blueprint"
+  }
+]

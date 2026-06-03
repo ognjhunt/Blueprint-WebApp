@@ -346,6 +346,40 @@ describe("enrichDeploymentReadinessFromArtifacts", () => {
     expect(enriched?.runtime_launchable).toBe(true);
   });
 
+  it("keeps robot eval dataset artifacts advisory-only", () => {
+    const arts = makeArtifacts([
+      "robot_eval_dataset_manifest_uri",
+      "robot_eval_site_card_uri",
+      "robot_eval_task_cards_uri",
+      "robot_eval_scenario_cards_uri",
+      "robot_eval_cards_uri",
+      "robot_eval_annotation_backlog_uri",
+      "robot_eval_proof_boundaries_uri",
+      "robot_task_library_uri",
+      "prediction_outcome_ledger_uri",
+    ]);
+    const enriched = enrichDeploymentReadinessFromArtifacts(undefined, arts, undefined);
+    expect(enriched?.robot_eval_dataset_summary?.dataset_state).toBe(
+      "v0_1_card_family_present"
+    );
+    expect(enriched?.robot_eval_dataset_summary?.manifest_uri).toBe(
+      "gs://test/robot_eval_dataset_manifest_uri.json"
+    );
+    expect(enriched?.robot_eval_dataset_summary?.site_card_count).toBe(1);
+    expect(enriched?.robot_eval_dataset_summary?.card_artifact_uris).toEqual(
+      expect.objectContaining({
+        site_card_uri: "gs://test/robot_eval_site_card_uri.json",
+        task_cards_uri: "gs://test/robot_eval_task_cards_uri.json",
+        scenario_cards_uri: "gs://test/robot_eval_scenario_cards_uri.json",
+        eval_cards_uri: "gs://test/robot_eval_cards_uri.json",
+        proof_boundaries_uri: "gs://test/robot_eval_proof_boundaries_uri.json",
+      }),
+    );
+    expect(enriched?.runtime_launchable).toBeUndefined();
+    expect(enriched?.runtime_registration_status).toBeUndefined();
+    expect(enriched?.native_world_model_status).toBeUndefined();
+  });
+
   it("sets benchmark_coverage_status to ready when benchmark_suite exists", () => {
     const arts = makeArtifacts(["benchmark_suite_manifest_uri"]);
     const enriched = enrichDeploymentReadinessFromArtifacts(undefined, arts, undefined);

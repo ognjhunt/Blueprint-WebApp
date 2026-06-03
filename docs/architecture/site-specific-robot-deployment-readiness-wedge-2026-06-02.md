@@ -2,11 +2,11 @@
 
 Date: 2026-06-02
 
-Status: Active WebApp public narrative doctrine.
+Status: Active PMF wedge doctrine. As of 2026-06-03, the public implementation expresses this wedge as the Real-Site Robot Eval Dataset v0.1 story: Site Card, Task Cards, Scenario Cards, Eval Cards, annotation backlog, and proof boundaries.
 
 ## Summary
 
-Blueprint-WebApp's first PMF wedge is a **site-specific robot deployment readiness platform**.
+Blueprint-WebApp's first PMF wedge is a **real-site robot evaluation dataset and workflow** for site-specific robot deployment decisions.
 
 The public buyer question is:
 
@@ -16,8 +16,8 @@ The site may confidently sell this category, workflow, and request path. It must
 
 ## What Blueprint Sells Publicly
 
-- Site/task readiness reports for one real facility, task suite, and robot profile.
-- Deployment readiness advisories and pre-pilot readiness estimates.
+- Site Card, Task Cards, Scenario Cards, Eval Cards, annotation backlog, and proof boundaries for one real facility, task suite, and robot profile.
+- Deployment readiness advisories and pre-pilot readiness estimates as support-layer interpretations of the cards.
 - Capture-backed site packages that ground the advisory.
 - Hosted evaluation and buyer review rooms when entitlement, package, and runtime proof supports them.
 - Failure-mode reports, site modification recommendations, training/post-training data requirements, short-pilot protocols, and vendor comparisons when scoped.
@@ -62,10 +62,10 @@ Non-humanoid robot visuals should be scoped to pages that explicitly discuss ano
 
 ## Allowed Public Category Claims
 
-- Blueprint helps robot teams and site operators evaluate deployment readiness before a costly pilot.
-- Blueprint turns capture-grounded site/task evidence into readiness reports and evaluation workflows.
+- Blueprint helps robot teams and site operators evaluate deployment risk before a costly pilot.
+- Blueprint turns capture-grounded site/task evidence into real-site robot eval datasets and card-backed workflows.
 - Blueprint structures success-rate, cycle-time, intervention-rate, and safety-threshold questions for a specific site/task.
-- Blueprint shows sample readiness reports and sample workflows when clearly labeled.
+- Blueprint shows sample Site, Task, Scenario, and Eval Cards when clearly labeled.
 
 ## Blocked Unless Owner-System Proof Exists
 
@@ -84,7 +84,7 @@ Use:
 
 - deployment readiness advisory
 - pre-pilot readiness estimate
-- readiness report
+- real-site eval cards for advisory review
 - task-specific confidence packet
 - evidence-backed recommendation
 - confirmed after review

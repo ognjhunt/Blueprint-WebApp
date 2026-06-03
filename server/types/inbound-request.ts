@@ -336,6 +336,21 @@ export interface PipelineArtifacts {
   compatibility_matrix_uri?: string | null;
   recapture_diff_uri?: string | null;
   launchable_export_bundle_uri?: string | null;
+  robot_eval_dataset_manifest_uri?: string | null;
+  robot_eval_legacy_manifest_uri?: string | null;
+  robot_eval_site_card_uri?: string | null;
+  robot_eval_task_cards_uri?: string | null;
+  robot_eval_scenario_cards_uri?: string | null;
+  robot_eval_cards_uri?: string | null;
+  robot_eval_annotation_backlog_uri?: string | null;
+  robot_eval_proof_boundaries_uri?: string | null;
+  robot_task_library_uri?: string | null;
+  robot_scenario_library_uri?: string | null;
+  robot_pov_evidence_requirements_uri?: string | null;
+  human_demo_evidence_requirements_uri?: string | null;
+  robot_failure_taxonomy_uri?: string | null;
+  prediction_outcome_ledger_uri?: string | null;
+  robot_eval_methodology_summary_uri?: string | null;
 }
 
 export type ProviderRunStatus =
@@ -359,6 +374,36 @@ export interface ProviderRunSummary {
   latency_ms?: number | null;
   failure_reason?: string | null;
   provenance?: Record<string, unknown> | null;
+}
+
+export interface RobotEvalDatasetCardArtifactUris {
+  manifest_uri?: string | null;
+  legacy_manifest_uri?: string | null;
+  site_card_uri?: string | null;
+  task_cards_uri?: string | null;
+  scenario_cards_uri?: string | null;
+  eval_cards_uri?: string | null;
+  annotation_backlog_uri?: string | null;
+  proof_boundaries_uri?: string | null;
+  task_library_uri?: string | null;
+  scenario_library_uri?: string | null;
+  prediction_outcome_ledger_uri?: string | null;
+}
+
+export interface RobotEvalDatasetSummary {
+  dataset_state?: string | null;
+  dataset_statuses?: string[];
+  task_count?: number | null;
+  scenario_count?: number | null;
+  site_card_count?: number | null;
+  task_card_count?: number | null;
+  scenario_card_count?: number | null;
+  eval_card_count?: number | null;
+  annotation_backlog_count?: number | null;
+  prediction_record_count?: number | null;
+  manifest_uri?: string | null;
+  card_artifact_uris?: RobotEvalDatasetCardArtifactUris | null;
+  claim_boundary?: Record<string, unknown> | null;
 }
 
 export interface BuyerTrustScore {
@@ -494,6 +539,7 @@ export interface DeploymentReadinessSummary {
   runtime_registration_status?: string | null;
   evaluation_prep_summary?: Record<string, unknown> | null;
   alpha_readiness?: Record<string, unknown> | null;
+  robot_eval_dataset_summary?: RobotEvalDatasetSummary | null;
   preview_status?: ProviderRunStatus | "preview_unavailable" | null;
   provider_run?: ProviderRunSummary | null;
 }

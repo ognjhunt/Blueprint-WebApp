@@ -190,7 +190,7 @@ The scan is a guardrail, not a substitute for review. It should prefer false pos
 | Rights/provenance | Consent, derived use, commercialization, exact-site release, rights clearance, privacy processing, capture provenance | `rights-provenance-agent` plus human reviewer when policy requires |
 | Solutions engineering | Hosted-session runtime, export, integration, deployment, buyer stack, package artifact compatibility | `solutions-engineering-agent` |
 | Commercial/procurement | Pricing, invoices, vendor onboarding, procurement deadlines, quote terms, non-standard support commitments | `buyer-solutions-agent` plus human commercial owner |
-| Founder/public claims | Customer logos, testimonials, traction, public-use approval, company-level security commitments | founder/CEO |
+| Founder/public claim review | Customer logos, testimonials, traction, public-use approval, company-level security commitments | requires founder/CEO approval |
 
 ## Example Packet Outlines
 

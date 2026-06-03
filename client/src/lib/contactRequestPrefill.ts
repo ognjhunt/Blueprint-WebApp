@@ -57,9 +57,9 @@ export const CONTACT_REQUEST_PATH_OPTIONS: Array<{
 }> = [
   {
     value: "world-model",
-    label: "Readiness report",
-    description: "Scope a site/task readiness report backed by one site package.",
-    cta: "Request readiness evaluation",
+    label: "Eval dataset",
+    description: "Scope Site, Task, Scenario, and Eval Cards backed by one site package.",
+    cta: "Request eval dataset",
     buyerType: "robot_team",
     commercialRequestPath: "world_model",
   },
@@ -317,13 +317,13 @@ function inferredTaskStatement(input: ContactRequestUrlInput, requestPath: Conta
   }
   if (workflow) return workflow;
   if (requestPath === "hosted-review" && primaryNeed) {
-    return `Request hosted evaluation for ${primaryNeed}.`;
+    return `Request hosted eval-card review for ${primaryNeed}.`;
   }
   if (requestPath === "new-capture" && primaryNeed) {
-    return `Request an exact-site readiness evaluation for ${primaryNeed}.`;
+    return `Request an exact-site capture path for an eval-card dataset around ${primaryNeed}.`;
   }
-  if (primaryNeed) return `Request a site/task readiness evaluation for ${primaryNeed}.`;
-  if (siteClass) return `Request a site/task readiness evaluation for ${siteClass}.`;
+  if (primaryNeed) return `Request a real-site robot eval dataset for ${primaryNeed}.`;
+  if (siteClass) return `Request a real-site robot eval dataset for ${siteClass}.`;
   return "";
 }
 

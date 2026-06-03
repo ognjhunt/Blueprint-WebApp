@@ -17,7 +17,7 @@ This ledger is intentionally split into:
 
 ## Workflow Priorities
 
-- Warehouse / fulfillment / 3PL (tier_1): Still the clearest real robot workflow lane for exact-site hosted review, brownfield automation, and case-handling proof.
+- Warehouse / fulfillment / 3PL (tier_1): Still the clearest real robot workflow lane for request-gated exact-site hosted review, brownfield automation, and case-handling proof shape; not proof of live hosted availability.
 - Advanced manufacturing / intralogistics (tier_1): Austin has strong advanced manufacturing density, and 2026 robot demand remains grounded in repetitive movement, handling, and plant-floor workflows.
 - Industrial inspection (tier_2): Inspection robots remain active in industrial environments and can map cleanly to exact-site review and recency-sensitive site assets.
 - Semiconductor and clean manufacturing support environments (tier_2): Central Texas semiconductor growth creates high-value, constrained, site-specific environments, though access friction is higher.

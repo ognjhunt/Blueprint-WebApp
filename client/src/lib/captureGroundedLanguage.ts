@@ -1,8 +1,8 @@
 export const captureGroundedPublicCopy = {
   productSummary:
-    "Blueprint is a site-specific robot deployment readiness platform: it turns lawful indoor capture, site/task scope, robot profiles, and buyer thresholds into request-scoped readiness reports for robot teams and site operators.",
+    "Blueprint owns the real-site robot evaluation dataset and workflow: it turns lawful indoor capture, site/task scope, robot profiles, and buyer thresholds into Site, Task, Scenario, and Eval Cards for robot teams and site operators.",
   seoDescription:
-    "Blueprint helps robot teams and site operators estimate pre-pilot deployment readiness for a specific site and task while keeping capture provenance, rights, privacy, evidence, and access boundaries attached.",
+    "Blueprint helps robot teams and site operators turn a specific site and task into a real-site robot evaluation dataset and workflow while keeping capture provenance, rights, privacy, evidence, and access boundaries attached.",
   groundTruthDefinition:
     "Ground truth means raw capture evidence, timestamps, poses, device metadata, rights and privacy records, provenance, and package artifacts or runtime artifacts when they exist.",
   supportSignalBoundary:

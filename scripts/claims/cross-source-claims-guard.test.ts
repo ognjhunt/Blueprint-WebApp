@@ -22,6 +22,7 @@ describe("cross-source claims guard", () => {
     expect(result.findingsByType.unsupported_hosted_session_proof).toBeGreaterThan(0);
     expect(result.findingsByType.public_copy_proof_drift).toBeGreaterThan(0);
     expect(result.findingsByType.unsupported_robot_readiness_claim).toBeGreaterThan(0);
+    expect(result.findingsByType.unsupported_robot_eval_dataset_claim).toBeGreaterThan(0);
     expect(result.findingsByType.stale_payment_payout_provider_doc).toBeGreaterThan(0);
     expect(result.findingsByType.city_live_claim).toBeGreaterThan(0);
     expect(result.findingsByType.customer_or_traction_claim).toBeGreaterThan(0);

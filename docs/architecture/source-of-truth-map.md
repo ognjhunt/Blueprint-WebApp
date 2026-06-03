@@ -20,7 +20,8 @@ Treat these as repo-authoritative definitions unless a newer explicit doctrine u
 - `docs/architecture/autoagent-autoresearch-operating-policy.md`: repo-authoritative near-zero-human AutoAgent/AutoResearch operating tiers and blocked autonomous actions.
 - `docs/architecture/autonomous-kpi-live-source-contract.md`: repo-local live-source contracts for KPI rows that must stay `Source needed` until owner-system evidence exists.
 - `docs/architecture/public-display-ready-claims-matrix.md`: Public Display Ready vs Operational Launch Ready claim rules for docs, agents, and buyer pages.
-- `docs/architecture/site-specific-robot-deployment-readiness-wedge-2026-06-02.md`: current WebApp PMF wedge doctrine for public readiness positioning, allowed category claims, deliverables, buyer scope, and blocked unsupported readiness proof.
+- `docs/architecture/site-specific-robot-deployment-readiness-wedge-2026-06-02.md`: WebApp PMF wedge doctrine for public robot-eval positioning, allowed category claims, deliverables, buyer scope, and blocked unsupported readiness proof.
+- `docs/architecture/real-site-robot-eval-dataset-sync-boundary-2026-06-03.md`: WebApp consumer boundary for Pipeline robot-eval dataset artifacts and advisory-only display rules.
 - `docs/company/`: repo-canonical employee handbook and policy drafts until counsel/PEO-approved systems adopt final versions.
 - `docs/onboarding/`: repo-canonical onboarding journeys for humans, managers, AI agents, role scorecards, and Notion IA.
 
@@ -29,11 +30,12 @@ When these files disagree with older reports, generated summaries, graph output,
 ## Product And Contract Truth
 
 - Public route truth starts in `client/src/app/routes.tsx`.
-- Public readiness wedge truth starts in `client/src/pages/Home.tsx`, `client/src/pages/ReadinessPack.tsx`, `client/src/pages/ExactSiteHostedReview.tsx`, `client/src/pages/ForRobotIntegrators.tsx`, `client/src/pages/Pricing.tsx`, `client/src/pages/Proof.tsx`, `client/src/pages/Contact.tsx`, `client/src/lib/captureGroundedLanguage.ts`, and `server/routes/site-content.ts`.
+- Public real-site robot eval dataset truth starts in `client/src/pages/Home.tsx`, `client/src/pages/ReadinessPack.tsx`, `client/src/pages/Pricing.tsx`, `client/src/pages/Proof.tsx`, `client/src/pages/Contact.tsx`, `client/src/lib/captureGroundedLanguage.ts`, `client/src/lib/contactRequestPrefill.ts`, `client/src/components/site/ContactForm.tsx`, and `server/routes/site-content.ts`.
 - Public editorial visual truth for the humanoid readiness wedge starts in `client/src/lib/editorialGeneratedAssets.ts`, `client/src/lib/siteEditorialContent.ts`, and the project-bound generated assets under `client/public/generated/humanoid-readiness-2026-06-03/`.
 - Public catalog/listing disclosure truth starts in `client/src/lib/siteWorldCommercialStatus.ts`, `client/src/data/siteWorlds.ts`, `server/routes/site-worlds.ts`, and `server/utils/site-worlds.ts`.
 - Hosted-session truth starts in `server/routes/site-world-sessions.ts`, `server/types/hosted-session.ts`, and `client/src/types/hostedSession.ts`.
 - Inbound request and pipeline bridge truth starts in `server/types/inbound-request.ts`, `client/src/types/inbound-request.ts`, `server/routes/inbound-request.ts`, `server/routes/internal-pipeline.ts`, and `server/utils/pipelineStateMachine.ts`.
+- Real-site robot evaluation dataset display truth starts in Pipeline artifacts under `pipeline/robot_eval_dataset/`, then WebApp's advisory-only sync fields in `server/types/inbound-request.ts`, `client/src/types/inbound-request.ts`, `server/utils/pipelineAttachmentContract.ts`, `server/utils/pipelineStateMachine.ts`, and `server/utils/site-task-deployment-confidence.ts`.
 - Stripe/entitlement truth starts in `server/routes/stripe.ts`, `server/routes/stripe-webhooks.ts`, `server/routes/marketplace.ts`, `server/routes/marketplace-entitlements.ts`, and relevant tests.
 - Agent runtime truth starts in `server/agents/`, `server/routes/admin-agent.ts`, `server/routes/paperclip-relay.ts`, and the Paperclip package under `ops/paperclip/`. AutoAgent/AutoResearch live action authority is specifically gated by `server/agents/autoagent-production-action-registry.ts`, which defaults to dry-run and allowlists only named production action types.
 - Autonomous KPI source-status truth starts in `docs/architecture/autonomous-kpi-live-source-contract.md`, `server/utils/kpiLiveSourceStatus.ts`, and repo-local snapshots consumed by `scripts/autonomy/generate-kpi-source-status.ts`. Notion KPI rows may mirror these artifacts later, but missing live owner-system evidence remains `Source needed`.

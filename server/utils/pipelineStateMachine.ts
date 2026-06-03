@@ -27,6 +27,7 @@ import type {
   ProofPathMilestones,
   OpsAutomationEnvelope,
   ProviderRunStatus,
+  RobotEvalDatasetCardArtifactUris,
 } from "../types/inbound-request";
 
 // ────────────────────────────────────────────────
@@ -117,6 +118,35 @@ const DERIVED_ASSET_KEYS: (keyof DerivedAssetsAttachment)[] = [
 function getDerivedAssetStatus(derivedAssets: DerivedAssetsAttachment | undefined, key: keyof DerivedAssetsAttachment): string | null {
   const entry = derivedAssets?.[key] as DerivedAssetEntry | undefined;
   return entry?.status ?? null;
+}
+
+function buildRobotEvalCardArtifactUris(
+  artifacts: PipelineArtifacts | undefined,
+): RobotEvalDatasetCardArtifactUris {
+  return {
+    manifest_uri: artifacts?.robot_eval_dataset_manifest_uri || null,
+    legacy_manifest_uri: artifacts?.robot_eval_legacy_manifest_uri || null,
+    site_card_uri: artifacts?.robot_eval_site_card_uri || null,
+    task_cards_uri: artifacts?.robot_eval_task_cards_uri || null,
+    scenario_cards_uri: artifacts?.robot_eval_scenario_cards_uri || null,
+    eval_cards_uri: artifacts?.robot_eval_cards_uri || null,
+    annotation_backlog_uri: artifacts?.robot_eval_annotation_backlog_uri || null,
+    proof_boundaries_uri: artifacts?.robot_eval_proof_boundaries_uri || null,
+    task_library_uri: artifacts?.robot_task_library_uri || null,
+    scenario_library_uri: artifacts?.robot_scenario_library_uri || null,
+    prediction_outcome_ledger_uri: artifacts?.prediction_outcome_ledger_uri || null,
+  };
+}
+
+function hasRobotEvalCardFamily(artifacts: PipelineArtifacts | undefined): boolean {
+  return Boolean(
+    hasArtifact(artifacts, "robot_eval_site_card_uri") ||
+      hasArtifact(artifacts, "robot_eval_task_cards_uri") ||
+      hasArtifact(artifacts, "robot_eval_scenario_cards_uri") ||
+      hasArtifact(artifacts, "robot_eval_cards_uri") ||
+      hasArtifact(artifacts, "robot_eval_annotation_backlog_uri") ||
+      hasArtifact(artifacts, "robot_eval_proof_boundaries_uri"),
+  );
 }
 
 function allDerivedAssetsComplete(derivedAssets: DerivedAssetsAttachment | undefined): boolean {
@@ -501,6 +531,24 @@ export function enrichDeploymentReadinessFromArtifacts(
   }
   if (hasArtifact(artifacts, "preview_manifest_uri")) {
     enriched.preview_status = "preview_unavailable";
+  }
+  if (hasArtifact(artifacts, "robot_eval_dataset_manifest_uri")) {
+    const cardArtifactUris = buildRobotEvalCardArtifactUris(artifacts);
+    const cardFamilyPresent = hasRobotEvalCardFamily(artifacts);
+    enriched.robot_eval_dataset_summary = {
+      ...(enriched.robot_eval_dataset_summary || {}),
+      dataset_state:
+        enriched.robot_eval_dataset_summary?.dataset_state ||
+        (cardFamilyPresent ? "v0_1_card_family_present" : "advisory_contract_present"),
+      manifest_uri: artifacts?.robot_eval_dataset_manifest_uri || null,
+      site_card_count:
+        enriched.robot_eval_dataset_summary?.site_card_count ??
+        (artifacts?.robot_eval_site_card_uri ? 1 : null),
+      card_artifact_uris: {
+        ...(enriched.robot_eval_dataset_summary?.card_artifact_uris || {}),
+        ...cardArtifactUris,
+      },
+    };
   }
 
   // Derived asset status mapping

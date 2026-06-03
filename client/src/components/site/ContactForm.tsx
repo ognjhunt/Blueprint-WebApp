@@ -93,8 +93,8 @@ const robotRequestPathOptions: Array<{
 }> = [
   {
     value: "world_model",
-    label: "Readiness report",
-    description: "Scope a site/task readiness advisory and package path.",
+    label: "Eval dataset",
+    description: "Scope Site, Task, Scenario, and Eval Cards plus package path.",
     Icon: Gauge,
   },
   {
@@ -125,17 +125,17 @@ const requestPathCopy: Record<
   }
 > = {
   world_model: {
-    successTitle: "Readiness evaluation request received",
+    successTitle: "Eval dataset request received",
     successBody:
-      "Blueprint now has the buyer, site, task, and robot context needed to route this toward a readiness report, package path, hosted evaluation option, or one narrow follow-up. No payment, provider run, robot trial, safety validation, or fulfillment action was triggered by this form.",
-    requestSectionTitle: "What should the readiness report be scoped around?",
-    taskLabel: "What site/task readiness question should Blueprint help answer?",
+      "Blueprint now has the buyer, site, task, and robot context needed to route this toward a Site/Task/Scenario/Eval Card packet, package path, hosted evaluation option, or one narrow follow-up. No payment, provider run, robot trial, safety validation, or fulfillment action was triggered by this form.",
+    requestSectionTitle: "What should the eval dataset be scoped around?",
+    taskLabel: "What real-site robot eval question should Blueprint help answer?",
     taskPlaceholder:
-      "Describe the robot task, facility workflow, pass/fail question, or threshold you want answered first.*",
-    taskHelper: "One concrete site/task question converts faster than a broad discovery note.",
-    submitLabel: "Request readiness evaluation",
+      "Describe the robot task, facility workflow, pass/fail question, or threshold the cards should answer first.*",
+    taskHelper: "One concrete site/task question turns into cleaner Site, Task, Scenario, and Eval Cards.",
+    submitLabel: "Request eval dataset",
     nextStep:
-      "Blueprint reviews the site, task, robot profile, thresholds, and evidence needs, then routes the request toward a readiness report, package access, hosted evaluation, capture access, or one missing detail.",
+      "Blueprint reviews the site, task, robot profile, thresholds, and evidence needs, then routes the request toward an eval-card packet, package access, hosted evaluation, capture access, or one missing detail.",
   },
   hosted_evaluation: {
     successTitle: "Hosted evaluation request received",
@@ -363,6 +363,9 @@ export function ContactForm() {
   const [pilotTimeline, setPilotTimeline] = useState("");
   const [vendorOperatorRole, setVendorOperatorRole] = useState("");
   const [requiredEvidence, setRequiredEvidence] = useState("");
+  const [dynamicConditions, setDynamicConditions] = useState("");
+  const [objectTaskZones, setObjectTaskZones] = useState("");
+  const [pilotOutcomes, setPilotOutcomes] = useState("");
   const [detailsMessage, setDetailsMessage] = useState("");
   const [honeypot, setHoneypot] = useState("");
 
@@ -551,6 +554,9 @@ export function ContactForm() {
       cycleTimeThreshold.trim() ? `Cycle-time threshold: ${cycleTimeThreshold.trim()}` : "",
       interventionRateThreshold.trim() ? `Intervention-rate threshold: ${interventionRateThreshold.trim()}` : "",
       safetyThreshold.trim() ? `Safety threshold: ${safetyThreshold.trim()}` : "",
+      dynamicConditions.trim() ? `Dynamic conditions: ${dynamicConditions.trim()}` : "",
+      objectTaskZones.trim() ? `Object/task zones: ${objectTaskZones.trim()}` : "",
+      pilotOutcomes.trim() ? `Pilot outcomes: ${pilotOutcomes.trim()}` : "",
       pilotTimeline.trim() ? `Pilot timeline: ${pilotTimeline.trim()}` : "",
       vendorOperatorRole.trim() ? `Vendor/operator role: ${vendorOperatorRole.trim()}` : "",
       requiredEvidence.trim() ? `Required evidence: ${requiredEvidence.trim()}` : "",
@@ -954,7 +960,7 @@ export function ContactForm() {
               aria-expanded={showOptionalDetails}
               onClick={() => setShowOptionalDetails((current) => !current)}
             >
-              <span>{showOptionalDetails ? "Hide optional details" : "Add robot, thresholds, pilot timeline, or evidence needs"}</span>
+              <span>{showOptionalDetails ? "Hide optional details" : "Add card inputs, robot, thresholds, zones, or evidence needs"}</span>
               <span className="text-xs uppercase tracking-[0.16em] text-slate-500">
                 Optional
               </span>
@@ -962,7 +968,7 @@ export function ContactForm() {
           </div>
 
           {showOptionalDetails ? (
-            <FormSection eyebrow="04 Optional" title="Add detail only when it helps the first reply.">
+            <FormSection eyebrow="04 Optional" title="Add details only when they make the cards clearer.">
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
                   <label
@@ -1065,14 +1071,40 @@ export function ContactForm() {
                 </div>
                 <div>
                   <label htmlFor="contact-safety-threshold" className={labelClassName}>
-                    Safety threshold
+                    Safety constraints
                   </label>
                   <input
                     id="contact-safety-threshold"
                     className={inputClassName}
-                    placeholder="Example: exclusion zones, speed limits, or operator signoff"
+                    placeholder="Restricted zones, proximity rules, pinch points, no-go areas"
                     value={safetyThreshold}
                     onChange={(event) => setSafetyThreshold(event.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label htmlFor="contact-dynamic-conditions" className={labelClassName}>
+                    Dynamic conditions
+                  </label>
+                  <input
+                    id="contact-dynamic-conditions"
+                    className={inputClassName}
+                    placeholder="Human paths, carts, forklifts, doors, blocked pathways"
+                    value={dynamicConditions}
+                    onChange={(event) => setDynamicConditions(event.target.value)}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="contact-object-task-zones" className={labelClassName}>
+                    Object or task zones
+                  </label>
+                  <input
+                    id="contact-object-task-zones"
+                    className={inputClassName}
+                    placeholder="Start zone, goal zone, object locations, handoff points"
+                    value={objectTaskZones}
+                    onChange={(event) => setObjectTaskZones(event.target.value)}
                   />
                 </div>
               </div>
@@ -1090,6 +1122,19 @@ export function ContactForm() {
                   />
                 </div>
                 <div>
+                  <label htmlFor="contact-pilot-outcomes" className={labelClassName}>
+                    Pilot outcomes, if any
+                  </label>
+                  <input
+                    id="contact-pilot-outcomes"
+                    className={inputClassName}
+                    placeholder="Prior attempts, real pilot result, teleop logs, operator notes"
+                    value={pilotOutcomes}
+                    onChange={(event) => setPilotOutcomes(event.target.value)}
+                  />
+                </div>
+              </div>
+              <div>
                   <label htmlFor="contact-required-evidence" className={labelClassName}>
                     Required evidence
                   </label>
@@ -1100,7 +1145,6 @@ export function ContactForm() {
                     value={requiredEvidence}
                     onChange={(event) => setRequiredEvidence(event.target.value)}
                   />
-                </div>
               </div>
               {commercialRequestPath !== "hosted_evaluation" ? (
               <div>

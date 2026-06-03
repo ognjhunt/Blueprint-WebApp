@@ -36,14 +36,14 @@ These are allowed on public pages without requiring Operational Launch Ready pro
 
 | Claim Type | Allowed Language | Guardrail |
 |---|---|---|
-| Product category | Blueprint is a site-specific robot deployment readiness platform built on capture-backed site packages, hosted review paths, and buyer workflows. | Category language is allowed; do not imply every package is fulfilled, every hosted path is live, or any robot is ready to deploy. |
-| Workflow | Request readiness evaluation, request a readiness report, book hosted evaluation, view pricing, inspect proof, browse site packages. | Requests can be confident; fulfillment state is confirmed after review. |
-| Intended buyer value | Robot teams and site operators use exact-site packages to estimate whether a robot can hit required success rate, cycle time, intervention rate, and safety thresholds before field time. | Do not guarantee deployment success, safety certification, simulator execution, robot trials, or production performance. |
-| Readiness deliverable | Site/task readiness report, deployment readiness advisory, pre-pilot readiness estimate, task-specific confidence packet, failure-mode report, site modification recommendation, data requirement, short-pilot protocol. | The deliverable is advisory until owner-system proof supports a stronger claim. |
-| Request paths | Forms and CTAs can route buyers to readiness reports, package access, hosted evaluation, capture access, proof packets, or pricing. | A request is not a payment, entitlement grant, provider job, safety validation, robot trial, or fulfillment start. |
+| Product category | Blueprint is a real-site robot evaluation dataset and workflow built on capture-backed site packages, hosted review paths, and buyer workflows. | Category language is allowed; do not imply every package is fulfilled, every hosted path is live, or any robot is ready to deploy. |
+| Workflow | Request a real-site eval dataset, request Site/Task/Scenario/Eval Cards, book hosted evaluation, view pricing, inspect proof, browse site packages. | Requests can be confident; fulfillment state is confirmed after review. |
+| Intended buyer value | Robot teams and site operators use exact-site packages and eval cards to estimate whether a robot can hit required success rate, cycle time, intervention rate, and safety thresholds before field time. | Do not guarantee deployment success, safety certification, simulator execution, robot trials, or production performance. |
+| Eval dataset deliverable | Site Card, Task Cards, Scenario Cards, Eval Cards, annotation backlog, proof-boundary packet, deployment readiness advisory, failure-mode report, site modification recommendation, data requirement, short-pilot protocol. | The deliverable is advisory until owner-system proof supports a stronger claim. |
+| Request paths | Forms and CTAs can route buyers to eval datasets, card packets, package access, hosted evaluation, capture access, proof packets, or pricing. | A request is not a payment, entitlement grant, provider job, safety validation, robot trial, or fulfillment start. |
 | Demo/sample framing | Public samples and representative packets can show product shape, UI quality, proof structure, and buyer workflow. | Label sample/demo material in proof/detail areas; do not present it as a customer result. |
 | Launch-quality UI language | The site may use polished present-tense interface labels and confident buyer language. | Do not add broad apology copy solely because operations are still request-specific. |
-| Request/access review | Request readiness evaluation, request package access, book hosted evaluation, submit site, apply for capture access, open request console. | Availability, rights, access, payment, payout, safety proof, and fulfillment are confirmed per site/request. |
+| Request/access review | Request eval dataset, request package access, book hosted evaluation, submit site, apply for capture access, open request console. | Availability, rights, access, payment, payout, safety proof, and fulfillment are confirmed per site/request. |
 
 ## Public Visual Guardrails
 
@@ -52,8 +52,8 @@ Public visuals may be polished, premium, and specific to the first PMF wedge. Th
 | Visual Type | Allowed Public Use | Guardrail |
 |---|---|---|
 | Humanoid robot scenes | Default public robot imagery for the first PMF wedge: a humanoid robot evaluating, carrying, picking, inspecting, or routing through an exact indoor site. | Do not imply the pictured robot completed a live trial, passed safety review, ran the buyer's robot policy, or is ready to deploy. |
-| Generated readiness dashboards | Show product shape: routes, thresholds, blockers, readiness bands, proof packets, hosted review rooms, and advisory score concepts. | Treat generated dashboards as sample/advisory UI unless owner-system proof exists for that request. |
-| Proof boards and report visuals | Show the structure of provenance, rights, route, blocker, and threshold evidence that Blueprint packages for buyers. | Do not present representative boards as customer outcomes, cleared rights, robot trials, or completed provider runs. |
+| Generated eval-card dashboards | Show product shape: routes, thresholds, blockers, card status, proof packets, hosted review rooms, and advisory score concepts. | Treat generated dashboards as sample/advisory UI unless owner-system proof exists for that request. |
+| Proof boards and card visuals | Show the structure of provenance, rights, route, blocker, annotation, and threshold evidence that Blueprint packages for buyers. | Do not present representative boards as customer outcomes, cleared rights, robot trials, or completed provider runs. |
 | Non-humanoid robot visuals | Use when a page explicitly discusses AMRs, arms, drones, or another robot class. | Do not let generic wheeled robot imagery become the default public robot posture for the humanoid readiness wedge. |
 
 ## Conditional Claims
@@ -64,7 +64,7 @@ Use these only when the page, listing, packet, or request has supporting proof. 
 |---|---|---|
 | Available | Current listing, package, entitlement, or request state supports access. | `available after request review`, `request access`, or `availability confirmed per site/request`. |
 | Live hosted session | Runtime/session artifacts, entitlement path, and hosted-session availability support it. | `book hosted review` or `hosted review is confirmed per site/request`. |
-| Ready to deploy | Site-specific simulator traces, action logs, robot trials, safety review/signoff, rights/privacy proof, support path, and runtime proof support deployment. | `deployment readiness advisory`, `pre-pilot readiness estimate`, `readiness report`, `task-specific confidence packet`, or `deployment readiness confirmed after review`. |
+| Ready to deploy | Site-specific simulator traces, action logs, robot trials, safety review/signoff, rights/privacy proof, support path, and runtime proof support deployment. | `real-site eval cards for advisory review`, `deployment readiness advisory`, `pre-pilot readiness estimate`, `task-specific confidence packet`, or `deployment readiness confirmed after review`. |
 | Safety validated | Safety owner review/signoff, exact-site risk controls, robot-stack evidence, and request-scoped records support the claim. | `safety threshold scoped`, `safety review required`, or `safety posture reviewed per request`. |
 | Simulator execution completed | Provider/runtime artifacts, run logs, scenario manifest, robot policy linkage, and exact request linkage exist. | `simulator traces required`, `hosted evaluation requested`, or `execution confirmed per request`. |
 | Guaranteed success/cycle/intervention threshold | Current exact-site evidence, robot trials or action logs, agreed threshold methodology, and buyer-approved proof support the guarantee. | `threshold scoped`, `advisory estimate`, or `requires simulator traces/action logs/robot trials for operational readiness`. |

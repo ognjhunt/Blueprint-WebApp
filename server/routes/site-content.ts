@@ -19,9 +19,19 @@ const definitions = [
       "A request-scoped pre-pilot estimate for one site/task, robot profile, and threshold set. It can organize success-rate, cycle-time, intervention-rate, safety-threshold, failure-mode, site-modification, data-need, and pilot-protocol questions without claiming the robot is ready to deploy.",
   },
   {
-    term: "Readiness report",
+    term: "Real-site robot eval dataset",
     definition:
-      "A Blueprint deliverable that summarizes site/task scope, capture-backed evidence, robot profile, thresholds, scenario variations, failure modes, site modifications, data requirements, missing owner-system proof, and recommended next step.",
+      "A versioned Site Card, Task Cards, Scenario Cards, Eval Cards, annotation backlog, and proof-boundary packet derived from capture and pipeline evidence for one real facility or task scope.",
+  },
+  {
+    term: "Eval Cards",
+    definition:
+      "Records that name the robot or policy scope, engine used, predicted result fields, failure modes, intervention estimate, uncertainty, validation state, and blocked proof upgrades.",
+  },
+  {
+    term: "Card-backed readiness advisory",
+    definition:
+      "A Blueprint deliverable that summarizes the real-site eval card family, capture-backed evidence, robot profile, thresholds, scenario variations, failure modes, site modifications, data requirements, missing owner-system proof, and recommended next step.",
   },
   {
     term: "Category validation",
@@ -31,7 +41,7 @@ const definitions = [
   {
     term: "Site package",
     definition:
-      "Walkthrough media, poses, metadata, geometry when available, rights, privacy, provenance, and export scope for one site. It grounds the readiness report instead of disappearing behind a generic digital-twin claim.",
+      "Walkthrough media, poses, metadata, geometry when available, rights, privacy, provenance, and export scope for one site. It grounds the eval cards instead of disappearing behind a generic digital-twin claim.",
   },
   {
     term: "Hosted review",
@@ -60,7 +70,7 @@ const pages = [
     path: "/",
     title: "Home",
     description:
-      "The core public buyer story: one real facility, one robot task, one pass bar, readiness workflow, planning ranges, proof boundary, and request path.",
+      "The core public buyer story: capture a real site, turn it into robot eval cards, test the task before a long pilot, and keep proof boundaries attached.",
   },
   {
     path: "/proof",
@@ -72,13 +82,13 @@ const pages = [
     path: "/pricing",
     title: "Pricing",
     description:
-      "Planning ranges for site/task readiness review, hosted evaluation, and custom multi-site benchmark work.",
+      "Planning ranges for real-site robot eval datasets, hosted evaluation workflow, and custom multi-site benchmark work.",
   },
   {
     path: "/contact",
     title: "Request Readiness Review",
     description:
-      "Structured intake for a site, workflow, robot profile, thresholds, pilot timeline, evidence needs, rights context, and desired next step.",
+      "Structured intake for site type, robot task, success thresholds, safety constraints, dynamic conditions, object/task zones, rights/access, pilot outcomes, and desired next step.",
   },
   {
     path: "/privacy",
@@ -93,12 +103,17 @@ const pages = [
 ];
 
 const queryThemes = [
+  "real-site robot evaluation dataset",
+  "real-site robot evaluation workflow",
+  "Site Card Task Cards Scenario Cards Eval Cards robot",
+  "capture a real site turn it into robot eval cards",
+  "test the robot task before a long pilot",
   "site-specific robot deployment readiness",
-  "robot deployment readiness platform",
+  "real-site robot eval dataset workflow",
   "pre-pilot robot readiness estimate",
-  "site task readiness report",
-  "warehouse robot readiness evaluation",
-  "factory robot readiness evaluation",
+  "site task robot eval cards",
+  "warehouse robot evaluation dataset",
+  "factory robot evaluation dataset",
   "success rate cycle time intervention safety threshold robot task",
   "capture-backed site packages for robot readiness",
   "capture-backed robot evaluation",
@@ -106,7 +121,7 @@ const queryThemes = [
   "robot deployment site evaluation",
   "capture provenance for world models",
   "site operator robot evaluation boundaries",
-  "request readiness review",
+  "request robot eval dataset",
   "readiness proof boundary",
 ];
 

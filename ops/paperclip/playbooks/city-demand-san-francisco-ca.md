@@ -63,7 +63,7 @@ San Francisco demand should stay proof-led and ecosystem-driven: qualify real ro
 - clear statement of what exists now versus what still needs capture or approval
 
 ## Operational and Commercial Dependencies
-- rights-cleared proof assets for at least one Bay Area logistics or manufacturing target
+- rights-reviewed proof assets for at least one Bay Area logistics or manufacturing target, with clearance confirmed per request
 - proof-pack assembly with provenance, rights, privacy, recency, and hosted-review fields intact
 - a named buyer-target ledger that turns corridors into concrete accounts and first touches
 - analytics validation for city/source-tagged funnel events before scaling outbound

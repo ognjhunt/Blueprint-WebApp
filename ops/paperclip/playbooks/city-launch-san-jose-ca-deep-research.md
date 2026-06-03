@@ -39,7 +39,7 @@ San Jose is the best proof-motion city for Blueprint because the city co-locates
 
 The local demand cluster includes Applied Intuition, Scale AI, Fetch Robotics / Zebra, AutoX, Figure, IntBot, and Brain Corp as a stack-relevant buyer reference. The site cluster includes Edenvale Industrial Park, Prologis STEM Park, and named warehouse examples such as 550 Piercy Road and 6480 Hellyer Avenue.
 
-The core commercial friction is the gap between buyer intention and a rights-cleared, browser-visible proof artifact. Blueprint closes that gap with exact-site capture, hosted review, and artifact handoff.
+The core commercial friction is the gap between buyer intention and a rights-reviewed, browser-visible proof artifact. Blueprint closes that gap with exact-site capture, hosted review, and artifact handoff after clearance is confirmed per request.
 
 ## Why This City Now For Blueprint
 
@@ -1020,4 +1020,3 @@ Instrument the proof-motion path so the city can see time-to-proof, review start
   ]
 }
 ```
-

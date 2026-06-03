@@ -25,6 +25,36 @@ const providerRunSummarySchema = z.object({
   provenance: z.record(z.unknown()).nullable().optional(),
 }).passthrough();
 
+const robotEvalDatasetCardArtifactUrisSchema = z.object({
+  manifest_uri: z.string().nullable().optional(),
+  legacy_manifest_uri: z.string().nullable().optional(),
+  site_card_uri: z.string().nullable().optional(),
+  task_cards_uri: z.string().nullable().optional(),
+  scenario_cards_uri: z.string().nullable().optional(),
+  eval_cards_uri: z.string().nullable().optional(),
+  annotation_backlog_uri: z.string().nullable().optional(),
+  proof_boundaries_uri: z.string().nullable().optional(),
+  task_library_uri: z.string().nullable().optional(),
+  scenario_library_uri: z.string().nullable().optional(),
+  prediction_outcome_ledger_uri: z.string().nullable().optional(),
+}).passthrough();
+
+const robotEvalDatasetSummarySchema = z.object({
+  dataset_state: z.string().nullable().optional(),
+  dataset_statuses: z.array(z.string()).optional(),
+  task_count: z.number().nullable().optional(),
+  scenario_count: z.number().nullable().optional(),
+  site_card_count: z.number().nullable().optional(),
+  task_card_count: z.number().nullable().optional(),
+  scenario_card_count: z.number().nullable().optional(),
+  eval_card_count: z.number().nullable().optional(),
+  annotation_backlog_count: z.number().nullable().optional(),
+  prediction_record_count: z.number().nullable().optional(),
+  manifest_uri: z.string().nullable().optional(),
+  card_artifact_uris: robotEvalDatasetCardArtifactUrisSchema.nullable().optional(),
+  claim_boundary: z.record(z.unknown()).nullable().optional(),
+}).passthrough();
+
 const deploymentReadinessSchema = z.object({
   qualification_state: z.string().optional(),
   opportunity_state: z.string().optional(),
@@ -34,6 +64,7 @@ const deploymentReadinessSchema = z.object({
   rights_and_compliance: z.record(z.unknown()).optional(),
   privacy_processing: z.record(z.unknown()).optional(),
   missing_evidence: z.array(z.string()).optional(),
+  robot_eval_dataset_summary: robotEvalDatasetSummarySchema.nullable().optional(),
   preview_status: z.string().nullable().optional(),
   provider_run: providerRunSummarySchema.nullable().optional(),
 }).passthrough();

@@ -64,6 +64,25 @@ export interface WorldModelEvalInput {
   actionEvidenceUri?: string | null;
   generatedOutputsLabeledDerived?: boolean;
   blockedClaims?: string[];
+  robotEvalDataset?: RobotEvalDatasetEvidenceInput;
+}
+
+export interface RobotEvalDatasetEvidenceInput {
+  manifestUri?: string | null;
+  legacyManifestUri?: string | null;
+  siteCardUri?: string | null;
+  taskCardsUri?: string | null;
+  scenarioCardsUri?: string | null;
+  evalCardsUri?: string | null;
+  annotationBacklogUri?: string | null;
+  proofBoundariesUri?: string | null;
+  datasetState?: string | null;
+  datasetStatuses?: string[];
+  simulatorExecutionProven?: boolean;
+  physicsContactValidationProven?: boolean;
+  robotPolicyExecutionProven?: boolean;
+  safetyValidationProven?: boolean;
+  realPilotOutcomeProven?: boolean;
 }
 
 export interface RobotTaskInput {
@@ -147,6 +166,7 @@ const BASE_FORBIDDEN_CLAIMS = [
   "generated world-model output as ground truth",
   "robot deployment readiness without linked action, safety, rights, and runtime proof",
   "contact, collision, or safety validation from visual plausibility alone",
+  "real-site robot eval cards as simulator execution, robot trial, or safety validation proof",
   "rights, privacy, payment, payout, hosted-session, city coverage, or provider completion without owner-system records",
 ];
 
@@ -375,10 +395,44 @@ function evaluateWorldModel(input: SiteTaskDeploymentConfidenceInput) {
   const blockers: string[] = [];
   const warnings: string[] = [];
   const worldModel = input.worldModelEval || {};
+  const robotEval = worldModel.robotEvalDataset || {};
 
   recordUri(family, "cosmos3_or_world_model_readiness", worldModel.cosmos3ReadinessUri);
   recordUri(family, "held_out_validation", worldModel.heldOutValidationUri);
   recordUri(family, "action_evidence", worldModel.actionEvidenceUri);
+
+  if (hasText(robotEval.manifestUri)) {
+    addUnique(family.present, "robot_eval_dataset_manifest");
+  }
+  if (hasText(robotEval.siteCardUri)) {
+    addUnique(family.present, "robot_eval_site_card");
+  }
+  if (hasText(robotEval.taskCardsUri)) {
+    addUnique(family.present, "robot_eval_task_cards");
+  }
+  if (hasText(robotEval.scenarioCardsUri)) {
+    addUnique(family.present, "robot_eval_scenario_cards");
+  }
+  if (hasText(robotEval.evalCardsUri)) {
+    addUnique(family.present, "robot_eval_eval_cards");
+  }
+  if (hasText(robotEval.annotationBacklogUri)) {
+    addUnique(family.present, "robot_eval_annotation_backlog");
+  }
+  if (hasText(robotEval.proofBoundariesUri)) {
+    addUnique(family.present, "robot_eval_proof_boundaries");
+  }
+  if (
+    hasText(robotEval.siteCardUri) &&
+    hasText(robotEval.taskCardsUri) &&
+    hasText(robotEval.scenarioCardsUri) &&
+    hasText(robotEval.evalCardsUri)
+  ) {
+    addUnique(family.present, "robot_eval_card_family_complete");
+  }
+  (robotEval.datasetStatuses || []).forEach((status) =>
+    addUnique(family.warnings, `Robot eval dataset status: ${status}`),
+  );
 
   if (hasText(worldModel.claimPolicy)) {
     addUnique(family.present, `claim_policy:${worldModel.claimPolicy}`);
@@ -403,6 +457,37 @@ function evaluateWorldModel(input: SiteTaskDeploymentConfidenceInput) {
     addUnique(family.present, "generated_outputs_labeled_derived");
   } else {
     addUnique(family.blockers, "Generated or world-model outputs must be labeled as derived, non-ground-truth artifacts.");
+  }
+
+  if (robotEval.simulatorExecutionProven === true) {
+    addUnique(
+      family.blockers,
+      "WebApp advisory evaluator cannot upgrade robot-eval cards into simulator execution proof.",
+    );
+  }
+  if (robotEval.physicsContactValidationProven === true) {
+    addUnique(
+      family.blockers,
+      "WebApp advisory evaluator cannot upgrade robot-eval cards into physics/contact validation proof.",
+    );
+  }
+  if (robotEval.robotPolicyExecutionProven === true) {
+    addUnique(
+      family.blockers,
+      "WebApp advisory evaluator cannot upgrade robot-eval cards into robot policy execution proof.",
+    );
+  }
+  if (robotEval.safetyValidationProven === true) {
+    addUnique(
+      family.blockers,
+      "WebApp advisory evaluator cannot upgrade robot-eval cards into safety validation proof.",
+    );
+  }
+  if (robotEval.realPilotOutcomeProven === true && !hasText(input.deploymentEvidence?.robotTrialUri)) {
+    addUnique(
+      family.blockers,
+      "Real pilot outcome proof requires the owning robot-trial artifact, not only a dataset flag.",
+    );
   }
 
   (worldModel.blockedClaims || []).forEach((claim) => addUnique(family.blockers, `World-model blocked claim: ${claim}`));
@@ -500,7 +585,7 @@ function evaluateState(params: {
     (blocker) => blocker.includes("provider jobs") || blocker.includes("model downloads"),
   );
 
-  if (criticalCaptureBlocked || localExecutionBlocked) {
+  if (criticalCaptureBlocked || worldModelBlocked || localExecutionBlocked) {
     return "blocked" satisfies SiteTaskConfidenceState;
   }
 
@@ -529,12 +614,19 @@ function evaluateState(params: {
     pipelineReady &&
     !worldModelBlocked &&
     hasAll(params.worldModel, [
-      "cosmos3_or_world_model_readiness",
-      "held_out_validation",
       "generated_outputs_labeled_derived",
       "provider_jobs_called:false",
       "model_download_required:false",
-    ]);
+    ]) &&
+    (hasAll(params.worldModel, [
+        "cosmos3_or_world_model_readiness",
+        "held_out_validation",
+      ]) ||
+      hasAll(params.worldModel, [
+        "robot_eval_dataset_manifest",
+        "robot_eval_card_family_complete",
+        "robot_eval_proof_boundaries",
+      ]));
 
   if (!visualReady) {
     return "capture_review_ready" satisfies SiteTaskConfidenceState;
@@ -586,6 +678,11 @@ function buildClaims(state: SiteTaskConfidenceState, input: SiteTaskDeploymentCo
     addUnique(allowed, "generated outputs may be used as derived review artifacts when labeled non-ground-truth");
   } else {
     addUnique(forbidden, "visual world-model review readiness");
+  }
+
+  if (hasText(input.worldModelEval?.robotEvalDataset?.manifestUri)) {
+    addUnique(allowed, "real-site robot evaluation card workflow is assembled for advisory review");
+    addUnique(forbidden, "Site, Task, Scenario, or Eval Cards as operational robot proof");
   }
 
   if (state === "deployment_confidence_advisory" || state === "operational_deployment_ready") {
@@ -661,6 +758,19 @@ function buildNextMoves(input: SiteTaskDeploymentConfidenceInput, evidence: Site
   }
   if (evidence.world_model_eval.missing.includes("action_evidence")) {
     addUnique(moves, "Link task-specific action evidence before robot action-policy claims.");
+  }
+  const robotEval = input.worldModelEval?.robotEvalDataset;
+  if (robotEval && !robotEval.manifestUri) {
+    addUnique(moves, "Attach the robot-eval dataset manifest before displaying card-family readiness.");
+  }
+  if (
+    robotEval &&
+    (!robotEval.siteCardUri || !robotEval.taskCardsUri || !robotEval.scenarioCardsUri || !robotEval.evalCardsUri)
+  ) {
+    addUnique(moves, "Attach Site, Task, Scenario, and Eval Card artifacts before card-family advisory review.");
+  }
+  if (robotEval && !robotEval.proofBoundariesUri) {
+    addUnique(moves, "Attach robot-eval proof boundaries before public card-family display.");
   }
   if (!input.deploymentEvidence?.simTraceUri && !input.deploymentEvidence?.actionLogUri && !input.deploymentEvidence?.robotTrialUri) {
     addUnique(moves, "Attach simulator traces, action logs, or robot-trial records before deployment confidence claims.");

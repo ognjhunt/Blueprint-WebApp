@@ -100,6 +100,69 @@ describe("site/task robot deployment confidence package", () => {
     );
   });
 
+  it("treats real-site robot eval cards as advisory review evidence without held-out validation", () => {
+    const packet = buildSiteTaskDeploymentConfidencePackage(
+      visualReviewFixture({
+        worldModelEval: {
+          heldOutValidationUri: undefined,
+          robotEvalDataset: {
+            manifestUri: "gs://pipeline/scene/robot_eval_dataset/robot_eval_dataset_manifest.json",
+            siteCardUri: "gs://pipeline/scene/robot_eval_dataset/site_card.json",
+            taskCardsUri: "gs://pipeline/scene/robot_eval_dataset/task_cards.json",
+            scenarioCardsUri: "gs://pipeline/scene/robot_eval_dataset/scenario_cards.json",
+            evalCardsUri: "gs://pipeline/scene/robot_eval_dataset/eval_cards.json",
+            annotationBacklogUri: "gs://pipeline/scene/robot_eval_dataset/annotation_backlog.json",
+            proofBoundariesUri: "gs://pipeline/scene/robot_eval_dataset/proof_boundaries.json",
+            datasetState: "v0_1_card_family_present",
+            datasetStatuses: ["capture_grounded_ready", "needs_action_logs"],
+          },
+        },
+      }),
+    );
+
+    expect(packet.state).toBe("visual_world_model_review_ready");
+    expect(packet.evidence.world_model_eval.present).toContain("robot_eval_card_family_complete");
+    expect(packet.allowed_claims).toContain(
+      "real-site robot evaluation card workflow is assembled for advisory review",
+    );
+    expect(packet.forbidden_claims).toContain(
+      "Site, Task, Scenario, or Eval Cards as operational robot proof",
+    );
+    expect(packet.forbidden_claims).toContain("robot action-policy readiness");
+    expect(packet.warnings).toContain("Robot eval dataset status: needs_action_logs");
+  });
+
+  it("blocks robot eval dataset flags that try to stand in for owner-system proof", () => {
+    const packet = buildSiteTaskDeploymentConfidencePackage(
+      visualReviewFixture({
+        worldModelEval: {
+          robotEvalDataset: {
+            manifestUri: "gs://pipeline/scene/robot_eval_dataset/robot_eval_dataset_manifest.json",
+            siteCardUri: "gs://pipeline/scene/robot_eval_dataset/site_card.json",
+            taskCardsUri: "gs://pipeline/scene/robot_eval_dataset/task_cards.json",
+            scenarioCardsUri: "gs://pipeline/scene/robot_eval_dataset/scenario_cards.json",
+            evalCardsUri: "gs://pipeline/scene/robot_eval_dataset/eval_cards.json",
+            proofBoundariesUri: "gs://pipeline/scene/robot_eval_dataset/proof_boundaries.json",
+            simulatorExecutionProven: true,
+            robotPolicyExecutionProven: true,
+            safetyValidationProven: true,
+          },
+        },
+      }),
+    );
+
+    expect(packet.state).toBe("blocked");
+    expect(packet.blockers).toContain(
+      "WebApp advisory evaluator cannot upgrade robot-eval cards into simulator execution proof.",
+    );
+    expect(packet.blockers).toContain(
+      "WebApp advisory evaluator cannot upgrade robot-eval cards into robot policy execution proof.",
+    );
+    expect(packet.blockers).toContain(
+      "WebApp advisory evaluator cannot upgrade robot-eval cards into safety validation proof.",
+    );
+  });
+
   it("keeps fallback geometry out of visual world-model and robot policy confidence", () => {
     const packet = buildSiteTaskDeploymentConfidencePackage(
       visualReviewFixture({

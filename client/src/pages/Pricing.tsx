@@ -22,18 +22,18 @@ type PricingPlan = {
 const plans: PricingPlan[] = [
   {
     icon: ClipboardCheck,
-    name: "Site/Task Readiness Review",
+    name: "Real-Site Eval Dataset",
     range: "$2,100 - $3,400",
     bestFor:
-      "Robot teams or site operators deciding whether one exact task deserves pilot time.",
+      "Robot teams or site operators deciding whether one exact site/task deserves pilot time.",
     includes: [
-      "One site and task suite",
-      "Robot profile and threshold set",
-      "Failure modes and missing proof",
+      "Site Card and Task Cards",
+      "Scenario Cards and Eval Cards",
+      "Annotation backlog and proof boundaries",
       "Pilot recommendation and next data ask",
     ],
     href: "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=pricing-kiss",
-    cta: "Request readiness review",
+    cta: "Request eval dataset",
   },
   {
     icon: MonitorPlay,
@@ -43,7 +43,7 @@ const plans: PricingPlan[] = [
       "Teams that want a managed browser room, reruns, observations, and export framing before deeper field work.",
     includes: [
       "Managed hosted review",
-      "Scenario reruns and notes",
+      "Scenario-card reruns and notes",
       "Buyer-room observations",
       "Availability confirmed per request",
     ],
@@ -59,7 +59,7 @@ const plans: PricingPlan[] = [
     includes: [
       "Capture and benchmark plan",
       "Vendor-neutral comparison",
-      "Custom data/eval package",
+      "Custom eval-card package",
       "Operator boundaries and commercial scope",
     ],
     href: "/contact?persona=robot-team&buyerType=robot_team&interest=custom-scope&path=world-model&source=pricing-kiss",
@@ -69,8 +69,8 @@ const plans: PricingPlan[] = [
 
 const choiceRows = [
   {
-    title: "Choose readiness review first",
-    body: "Use it when the next decision is whether the robot pilot is worth starting at one site.",
+    title: "Choose eval dataset first",
+    body: "Use it when the next decision is whether a real-site card packet can de-risk one pilot.",
   },
   {
     title: "Choose hosted evaluation first",
@@ -87,7 +87,7 @@ export default function Pricing() {
     <>
       <SEO
         title="Pricing | Blueprint"
-        description="Planning ranges for Blueprint site/task readiness reviews, hosted evaluation, and custom multi-site robot deployment readiness benchmarks."
+        description="Planning ranges for Blueprint real-site robot eval datasets, hosted evaluation workflow, and custom multi-site robot benchmarks."
         canonical="/pricing"
         image={`https://tryblueprint.io${humanoidReadinessAssets.hostedDashboard}`}
       />
@@ -105,12 +105,12 @@ export default function Pricing() {
               Pricing
             </p>
             <h1 className="mt-4 max-w-4xl text-5xl font-semibold leading-none md:text-7xl">
-              Price the readiness question before the pilot.
+              Price the eval dataset before the pilot.
             </h1>
             <p className="mt-6 max-w-2xl text-lg leading-8 text-white/78">
               Pick the smallest package that answers the first buyer decision:
-              one site/task advisory, a hosted review room, or a private
-              multi-site benchmark.
+              one Site/Task/Scenario/Eval Card packet, a hosted review room, or
+              a private multi-site benchmark.
             </p>
           </div>
         </section>

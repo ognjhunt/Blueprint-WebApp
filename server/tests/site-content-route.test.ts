@@ -36,14 +36,18 @@ describe("site-content route", () => {
         safety: string;
       };
 
-      expect(payload.summary).toContain("site-specific robot deployment readiness platform");
+      expect(payload.summary).toContain("real-site robot evaluation dataset and workflow");
       expect(payload.summary).toContain("lawful indoor capture");
-      expect(payload.summary).toContain("readiness reports");
+      expect(payload.summary).toContain("Site, Task, Scenario, and Eval Cards");
       expect(payload.definitions).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            term: "Readiness report",
-            definition: expect.stringContaining("site/task scope"),
+            term: "Real-site robot eval dataset",
+            definition: expect.stringContaining("Site Card"),
+          }),
+          expect.objectContaining({
+            term: "Eval Cards",
+            definition: expect.stringContaining("blocked proof upgrades"),
           }),
           expect.objectContaining({
             term: "Ground-truth boundary",

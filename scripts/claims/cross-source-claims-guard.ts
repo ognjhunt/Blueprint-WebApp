@@ -8,6 +8,7 @@ export type ClaimType =
   | "unsupported_hosted_session_proof"
   | "public_copy_proof_drift"
   | "unsupported_robot_readiness_claim"
+  | "unsupported_robot_eval_dataset_claim"
   | "stale_payment_payout_provider_doc"
   | "city_live_claim"
   | "customer_or_traction_claim"
@@ -84,8 +85,11 @@ const EXCLUDED_RELATIVE_PREFIXES = [
   "client/src/pages/admin-",
   "ops/paperclip/external/",
   "output/agent-improvement-observer/",
+  "output/audits/",
   "output/autoagent/",
   "output/claims-guard/",
+  "output/autonomous-org/",
+  "output/launch-readiness-gap-closeout-2026-05-14/",
   "output/playwright/",
   "output/qa/",
 ];
@@ -130,8 +134,10 @@ const guardrailPatterns = [
   /\bcan't\b/i,
   /\bnever\b/i,
   /\bwithout\b/i,
+  /\?\s*$/i,
   /\bnot proof\b/i,
   /\bnot a proof\b/i,
+  /\bnot enough\b/i,
   /\bnot\b[\s\S]{0,180}\bproof\b/i,
   /\bnot current\b/i,
   /\bnot submitted\b/i,
@@ -150,6 +156,9 @@ const guardrailPatterns = [
   /\bno .*city\b/i,
   /\bno .*rights\b/i,
   /\bblocked\b/i,
+  /\bblocker\b/i,
+  /\bforbidden\b/i,
+  /\bblockedClaims\b/i,
   /\bfail closed\b/i,
   /\bmissing\b/i,
   /\bguardrail\b/i,
@@ -159,13 +168,18 @@ const guardrailPatterns = [
   /\bstage:/i,
   /\blabel:/i,
   /\bquestion\b/i,
+  /\bask\b/i,
   /\bwhich\b/i,
+  /\bwhether\b/i,
   /\bverify\b/i,
   /\bconfirm(?:ed|ing|s)?\b/i,
   /\bsafe replacement\b/i,
   /\bowner proof\b/i,
   /\brequires?\b/i,
+  /\brequired\b/i,
   /\brequired before\b/i,
+  /\bdependency\b/i,
+  /\bdependencies\b/i,
   /\bconfirmed per\b/i,
   /\bconfirmed after review\b/i,
   /\bper site\/request\b/i,
@@ -177,9 +191,13 @@ const guardrailPatterns = [
   /\bbefore anything\b/i,
   /\bbefore a buyer\b/i,
   /\bonly when\b/i,
+  /\bonly truthful when\b/i,
+  /\bspeak truthfully\b/i,
   /\bafter first\b/i,
+  /\botherwise\b/i,
   /\bonce\b/i,
   /\bstill required\b/i,
+  /\bstill needs\b/i,
   /\bwill produce\b/i,
   /\bfirst rights-cleared\b/i,
   /\bproof-ready\b/i,
@@ -192,12 +210,19 @@ const guardrailPatterns = [
   /\battempts\b/i,
   /\bwhen approved\b/i,
   /\bwhen available\b/i,
+  /\bpending\b/i,
+  /\bunavailable\b/i,
   /\bunless\b/i,
   /\buntil\b/i,
   /\bplanning candidate\b/i,
   /\bcandidate only\b/i,
   /\btemplate\b/i,
   /\bexample\b/i,
+  /\bexpected to\b/i,
+  /\bfirst realistic proof motion\b/i,
+  /\binstead of\b/i,
+  /\blabeled proof shape\b/i,
+  /\brepo-local only\b/i,
   /\bplaceholder blocker\b/i,
   /\bhistorical\/internal\b/i,
   /\bunsafe\/stale archive\b/i,
@@ -288,6 +313,24 @@ const rules: ClaimRule[] = [
       || /\bconfirmed after review\b/i.test(line)
       || /\brequires? simulator traces\b/i.test(line)
       || /\badvisory\b/i.test(line),
+  },
+  {
+    type: "unsupported_robot_eval_dataset_claim",
+    ownerProofRequired:
+      "Request-scoped owner-system proof beyond the eval-card dataset: simulator traces, action logs, robot trials, safety review/signoff, rights/privacy approval, and actual outcome records for the exact site/task/robot.",
+    safeReplacement:
+      "Use `real-site robot evaluation card workflow assembled for advisory review` or `Site, Task, Scenario, and Eval Cards with proof boundaries attached`; operational proof still requires simulator, action, robot-trial, safety, rights, and outcome records.",
+    matches: (line) =>
+      /\b(real[- ]site robot eval(?:uation)? dataset|robot eval(?:uation)? dataset|Site Cards?|Task Cards?|Scenario Cards?|Eval Cards?|eval[- ]card(?:s)?|card family)\b/i.test(line)
+      && /\b(simulator execution(?: completed| proof)?|robot policy execution|action[- ]policy readiness|policy execution proof|robot trial(?: passed| proof)?|safety validated|safety validation|collision validated|contact validated|deployment[- ]ready|ready to deploy|operational robot proof|operational proof|guaranteed success rate|guaranteed cycle time|guaranteed intervention rate|guaranteed safety threshold)\b/i.test(line),
+    allowed: (line) =>
+      hasGuardrailContext(line)
+      || /\badvisory\b/i.test(line)
+      || /\bproof[- ]boundar(?:y|ies)\b/i.test(line)
+      || /\brequires? simulator\b/i.test(line)
+      || /\brequires? action\b/i.test(line)
+      || /\brequires? robot[- ]trial\b/i.test(line)
+      || /\brequires? safety\b/i.test(line),
   },
   {
     type: "public_copy_proof_drift",
@@ -546,8 +589,16 @@ export async function scanClaims(options: ScanOptions = {}): Promise<ScanResult>
     const sourceGroup = sourceGroupForFile(absoluteFile, targets);
     const text = await fs.readFile(absoluteFile, "utf-8");
     const lines = text.split(/\r?\n/);
+    let inMarkdownFence = false;
 
     lines.forEach((line, index) => {
+      if (line.trim().startsWith("```")) {
+        inMarkdownFence = !inMarkdownFence;
+        return;
+      }
+      if (inMarkdownFence) {
+        return;
+      }
       findings.push(...scanLine(line, { absoluteFile, relativeFile, sourceGroup }, index + 1));
     });
   }

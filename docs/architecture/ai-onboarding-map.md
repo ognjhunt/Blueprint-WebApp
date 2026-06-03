@@ -8,7 +8,7 @@ Purpose: fast orientation for a new engineer or agent entering `Blueprint-WebApp
 
 | Surface | Primary files | Responsibility |
 |---|---|---|
-| Public product and buyer routes | `client/src/app/routes.tsx`, `client/src/pages/Home.tsx`, `client/src/pages/ReadinessPack.tsx`, `client/src/pages/ExactSiteHostedReview.tsx`, `client/src/pages/SiteWorlds.tsx`, `client/src/pages/SiteWorldDetail.tsx`, `client/src/pages/Pricing.tsx`, `client/src/pages/Proof.tsx`, `client/src/pages/Contact.tsx`, `docs/architecture/site-specific-robot-deployment-readiness-wedge-2026-06-02.md` | Explain and route the buyer workflow for capture-backed site-specific robot deployment readiness reports, site packages, hosted evaluation, and proof-bounded pilot decisions. |
+| Public product and buyer routes | `client/src/app/routes.tsx`, `client/src/pages/Home.tsx`, `client/src/pages/ReadinessPack.tsx`, `client/src/pages/ExactSiteHostedReview.tsx`, `client/src/pages/SiteWorlds.tsx`, `client/src/pages/SiteWorldDetail.tsx`, `client/src/pages/Pricing.tsx`, `client/src/pages/Proof.tsx`, `client/src/pages/Contact.tsx`, `docs/architecture/site-specific-robot-deployment-readiness-wedge-2026-06-02.md`, `docs/architecture/real-site-robot-eval-dataset-sync-boundary-2026-06-03.md` | Explain and route the buyer workflow for capture-backed real-site robot eval datasets, Site/Task/Scenario/Eval Cards, hosted evaluation, and proof-bounded pilot decisions. |
 | Site-world/world-model catalog | `client/src/data/siteWorlds.ts`, `client/src/lib/siteWorldCommercialStatus.ts`, `server/routes/site-worlds.ts`, `server/utils/site-worlds.ts`, `server/routes/admin-site-worlds.ts` | List public samples, planned catalog profiles, request-scoped proof, and pipeline-backed packages without overstating readiness. |
 | Hosted sessions | `client/src/pages/HostedSessionSetup.tsx`, `client/src/pages/HostedSessionWorkspace.tsx`, `client/src/lib/hostedSession.ts`, `server/routes/site-world-sessions.ts`, `server/types/hosted-session.ts` | Create, load, proxy, and disclose hosted-session access for site-world packages and demo/runtime paths. |
 | Buyer intake and request console | `client/src/pages/Contact.tsx`, `client/src/pages/RequestConsole.tsx`, `client/src/lib/structuredIntake.ts`, `server/routes/inbound-request.ts`, `server/routes/requests.ts`, `server/types/inbound-request.ts` | Capture buyer/site/operator context, persist request state, and expose proof/readiness/preview progress. |
@@ -96,9 +96,9 @@ Use graphify to find navigation hotspots. Do not use it to decide product truth,
 
 - `world model`: model/runtime substrate for a site-specific package or hosted experience built from real capture evidence.
 - `site world`: existing internal naming for many data contracts, routes, IDs, files, and runtime objects. Do not rename internals just because public copy says "world models."
-- `site package`: capture-backed downstream output sold, hosted, or used as the substrate for a readiness report.
+- `site package`: capture-backed downstream output sold, hosted, or used as the substrate for a real-site robot eval dataset.
 - `hosted session`: request/runtime surface for interacting with a site-world/world-model package.
-- `Site-Specific Robot Deployment Readiness`: current WebApp wedge for one real site, one robot task, one threshold set, one site package, and one readiness report or proof blocker.
-- `qualification` / `readiness`: public WebApp buyer workflow when site/task scoped and capture-grounded; unsupported ready-to-deploy or safety-validated verdicts remain blocked.
+- `real-site robot eval dataset`: current WebApp public buyer story for one real site, one robot task, one threshold set, Site/Task/Scenario/Eval Cards, and proof blockers.
+- `qualification` / `readiness`: support-layer vocabulary for site/task scoped and capture-grounded review; unsupported ready-to-deploy or safety-validated verdicts remain blocked.
 - `provenance`: capture source, timestamps, device metadata, poses, and derivation trail.
 - `rights` / `privacy` / `consent`: commercialization and access boundaries. These must be explicit and cannot be inferred from listing existence.

@@ -106,7 +106,7 @@ function buildContactHref(params: {
   const taskStatement =
     params.prefill.taskStatement ||
     workflow ||
-    (query ? `Request a site/task readiness evaluation for ${query}.` : "");
+    (query ? `Request a real-site robot eval dataset for ${query}.` : "");
 
   return `${buildContactRequestUrl({
     requestPath: params.selectedPath,
@@ -212,8 +212,8 @@ export default function Contact() {
   return (
     <>
       <SEO
-        title="Request A Readiness Evaluation | Blueprint"
-        description="Request a Blueprint site/task readiness evaluation, hosted review, new capture, or site/operator access answer by naming a facility, robot task, threshold, or pilot timeline."
+        title="Request A Robot Eval Dataset | Blueprint"
+        description="Request a Blueprint real-site robot eval dataset, hosted review, new capture, or site/operator access answer by naming site type, robot task, thresholds, safety constraints, dynamic conditions, zones, rights, and pilot outcomes."
         canonical={location === "/contact/site-operator" ? "/contact/site-operator" : "/contact"}
       />
 
@@ -222,17 +222,22 @@ export default function Contact() {
           <div className="mx-auto grid min-h-[35rem] max-w-[88rem] items-center gap-8 px-5 py-16 sm:px-8 lg:grid-cols-[0.58fr_0.42fr] lg:px-10">
             <div>
               <h1 className="font-editorial max-w-[46rem] text-[3.25rem] leading-[0.94] tracking-[-0.05em] text-slate-950 sm:text-[5.1rem] sm:tracking-[-0.06em]">
-                Request a site/task readiness evaluation.
+                Request a real-site robot eval dataset.
               </h1>
               <p className="mt-5 max-w-[38rem] text-base leading-8 text-slate-600">
-                Name the facility, task, robot stack, threshold, or pilot timeline. Blueprint routes the request to a readiness report, hosted review, new capture, or site-access answer without treating the form as payment, rights clearance, provider execution, or fulfillment.
+                Name the facility, site type, robot task, thresholds, safety
+                constraints, dynamic conditions, object zones, rights/access,
+                or pilot outcomes. Blueprint routes the request to an eval-card
+                packet, hosted review, new capture, or site-access answer
+                without treating the form as payment, rights clearance,
+                provider execution, or fulfillment.
               </p>
               <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <a
                   href="#contact-intake"
                   className="inline-flex items-center justify-center bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                 >
-                  Request readiness evaluation
+                  Request eval dataset
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </a>
                 <a
@@ -248,7 +253,7 @@ export default function Contact() {
                   htmlFor="contact-primary-request"
                   className="mb-2 block text-sm font-semibold text-slate-900"
                 >
-                  What site, task, or robot workflow do you need evaluated?
+                  What site, task, or card family do you need evaluated?
                 </label>
                 <div className="grid gap-3 border border-black/10 bg-[#f8f6f1] p-3 sm:grid-cols-[1fr_auto]">
                   <div className="flex min-h-14 items-center gap-3 bg-white px-4">

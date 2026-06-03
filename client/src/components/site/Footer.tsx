@@ -14,10 +14,10 @@ export function Footer() {
             <BrandLockup compact />
           </a>
           <p className="text-sm leading-6 text-slate-600">
-            Blueprint turns one real facility, one robot task, and one pass bar into a capture-backed readiness report before an expensive pilot.
+            Blueprint turns one real facility, one robot task, and one pass bar into Site, Task, Scenario, and Eval Cards before an expensive pilot.
           </p>
           <p className="text-sm leading-6 text-slate-600">
-            Public samples show the product shape. Request packets prove one site with provenance, rights, thresholds, and proof gaps attached.
+            Public samples show the product shape. Request packets carry provenance, rights, thresholds, and proof gaps without upgrading cards into robot-trial proof.
           </p>
           <div className="flex flex-col gap-2">
             <a
@@ -72,7 +72,7 @@ export function Footer() {
       <div className="border-t border-black/10 bg-white py-4">
         <div className="mx-auto flex max-w-[88rem] flex-col items-start gap-2 px-4 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-10">
           <p>© {new Date().getFullYear()} Blueprint, Inc. All rights reserved.</p>
-          <p>Capture first. Operational claims require owner-system proof.</p>
+          <p>Capture first. Eval cards stay advisory until owner-system proof exists.</p>
         </div>
       </div>
     </footer>

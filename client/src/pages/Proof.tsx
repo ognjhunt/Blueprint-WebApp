@@ -24,9 +24,9 @@ const requestHref =
 
 const sampleVsRequest = [
   {
-    label: "Public sample",
-    sample: "Illustrative proof board, sample manifest, sample rights posture, and sample report shape.",
-    request: "Capture record, task scope, robot profile, thresholds, rights/privacy posture, and proof gaps for one site.",
+    label: "Card family",
+    sample: "Illustrative Site Card, Task Cards, Scenario Cards, Eval Cards, and proof-boundary shape.",
+    request: "Capture record, task scope, robot profile, thresholds, rights/privacy posture, missing annotations, and proof gaps for one site.",
   },
   {
     label: "Generated or model-derived output",
@@ -36,7 +36,7 @@ const sampleVsRequest = [
   {
     label: "Readiness recommendation",
     sample: "Shows how Blueprint frames proceed, modify site, gather more data, compare vendors, or hold.",
-    request: "A request-scoped advisory tied to the exact facility, task, pass bar, package state, and missing-proof labels.",
+    request: "A request-scoped advisory tied to the exact facility, eval cards, pass bar, package state, and missing-proof labels.",
   },
 ];
 
@@ -57,13 +57,13 @@ const hierarchy: ProofItem[] = [
     icon: PackageCheck,
     label: "03",
     title: "Site package contract",
-    body: "Manifest, included files, geometry where available, proof depth, hosted-review limits, and package access state.",
+    body: "Manifest, included files, linked geometry, proof depth, hosted-review limits, and package access review state.",
   },
   {
     icon: ClipboardCheck,
     label: "04",
-    title: "Readiness advisory",
-    body: "Task thresholds, failure modes, site modifications, data needs, unresolved proof, and next-step recommendation.",
+    title: "Eval card workflow",
+    body: "Task thresholds, scenario variations, failure modes, annotation backlog, unresolved proof, and next-step recommendation.",
   },
 ];
 
@@ -80,7 +80,7 @@ export default function Proof() {
     <>
       <SEO
         title="Proof | Blueprint"
-        description="A short Blueprint proof explainer separating public samples from request-specific robot deployment readiness evidence."
+        description="A short Blueprint proof explainer separating public card samples from request-specific real-site robot eval evidence."
         canonical="/proof"
         image={`https://tryblueprint.io${humanoidReadinessAssets.proofBoard}`}
       />
@@ -98,7 +98,7 @@ export default function Proof() {
               Proof
             </p>
             <h1 className="mt-4 max-w-4xl text-5xl font-semibold leading-none md:text-7xl">
-              See what supports the readiness estimate.
+              See what supports the eval cards.
             </h1>
             <p className="mt-6 max-w-2xl text-lg leading-8 text-white/78">
               Blueprint proof keeps the buyer question grounded: what came from
@@ -110,7 +110,7 @@ export default function Proof() {
                 href={requestHref}
                 className="inline-flex min-h-12 items-center justify-center gap-2 bg-[#d8bd8d] px-5 text-sm font-semibold text-[#111110] transition hover:bg-[#e8cfa1]"
               >
-                Request readiness review
+                Request eval dataset
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </a>
               <a
@@ -130,7 +130,7 @@ export default function Proof() {
                 Sample vs request
               </p>
               <h2 className="mt-3 text-4xl font-semibold leading-tight">
-                The public packet teaches the workflow. The request packet proves one site.
+                Public card samples teach the workflow. Request cards prove one site.
               </h2>
             </div>
             <div className="mt-8 overflow-hidden border border-black/10 bg-white">
@@ -226,12 +226,11 @@ export default function Proof() {
                 Advisory until stronger proof exists.
               </h2>
               <p className="mt-4 max-w-4xl text-sm leading-7 text-white/74">
-                Blueprint can publish polished proof structure, sample packets,
-                and request paths. It must not claim safety validation,
-                simulator execution completed, robot-trial success, cleared
-                rights, hosted-session fulfillment, payment success, or ready to
-                deploy unless the owning systems prove those facts for the
-                request.
+                Blueprint can publish polished Site/Task/Scenario/Eval Card
+                structure, sample packets, and request paths. It must not claim safety validation.
+                Do not claim simulator execution completed, robot-trial success, or cleared rights.
+                Do not claim hosted-session fulfillment, payment success, or ready to deploy
+                unless the owning systems prove those facts for the request.
               </p>
               <a
                 href={requestHref}

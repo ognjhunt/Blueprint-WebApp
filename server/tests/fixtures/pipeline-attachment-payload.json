@@ -16,7 +16,16 @@
     "privacy_processed_video_uri": "gs://bucket/scenes/scene-1/captures/cap-1/privacy/final_walkthrough.mov",
     "world_model_video_uri": "gs://bucket/scenes/scene-1/captures/cap-1/privacy/final_walkthrough.mov",
     "privacy_processing_manifest_uri": "gs://bucket/scenes/scene-1/captures/cap-1/pipeline/privacy_processing_manifest.json",
-    "privacy_verification_report_uri": "gs://bucket/scenes/scene-1/captures/cap-1/pipeline/privacy_verification_report.json"
+    "privacy_verification_report_uri": "gs://bucket/scenes/scene-1/captures/cap-1/pipeline/privacy_verification_report.json",
+    "robot_eval_dataset_manifest_uri": "gs://bucket/scenes/scene-1/captures/cap-1/pipeline/robot_eval_dataset/robot_eval_dataset_manifest.json",
+    "robot_eval_site_card_uri": "gs://bucket/scenes/scene-1/captures/cap-1/pipeline/robot_eval_dataset/site_card.json",
+    "robot_eval_task_cards_uri": "gs://bucket/scenes/scene-1/captures/cap-1/pipeline/robot_eval_dataset/task_cards.json",
+    "robot_eval_scenario_cards_uri": "gs://bucket/scenes/scene-1/captures/cap-1/pipeline/robot_eval_dataset/scenario_cards.json",
+    "robot_eval_cards_uri": "gs://bucket/scenes/scene-1/captures/cap-1/pipeline/robot_eval_dataset/eval_cards.json",
+    "robot_eval_annotation_backlog_uri": "gs://bucket/scenes/scene-1/captures/cap-1/pipeline/robot_eval_dataset/annotation_backlog.json",
+    "robot_eval_proof_boundaries_uri": "gs://bucket/scenes/scene-1/captures/cap-1/pipeline/robot_eval_dataset/proof_boundaries.json",
+    "robot_task_library_uri": "gs://bucket/scenes/scene-1/captures/cap-1/pipeline/robot_eval_dataset/robot_task_library.json",
+    "prediction_outcome_ledger_uri": "gs://bucket/scenes/scene-1/captures/cap-1/pipeline/robot_eval_dataset/prediction_outcome_ledger.json"
   },
   "derived_assets": {
     "scene_memory": {
@@ -38,6 +47,29 @@
       "face_anonymized_segments": [],
       "raw_retained": true,
       "fail_closed": true
+    },
+    "robot_eval_dataset_summary": {
+      "dataset_state": "v0_1_card_family_present",
+      "dataset_statuses": [
+        "capture_grounded_ready",
+        "needs_action_logs",
+        "needs_actual_outcome",
+        "review_only_no_robot_readiness"
+      ],
+      "site_card_count": 1,
+      "task_card_count": 1,
+      "scenario_card_count": 1,
+      "eval_card_count": 2,
+      "annotation_backlog_count": 6,
+      "manifest_uri": "gs://bucket/scenes/scene-1/captures/cap-1/pipeline/robot_eval_dataset/robot_eval_dataset_manifest.json",
+      "card_artifact_uris": {
+        "site_card_uri": "gs://bucket/scenes/scene-1/captures/cap-1/pipeline/robot_eval_dataset/site_card.json",
+        "task_cards_uri": "gs://bucket/scenes/scene-1/captures/cap-1/pipeline/robot_eval_dataset/task_cards.json",
+        "scenario_cards_uri": "gs://bucket/scenes/scene-1/captures/cap-1/pipeline/robot_eval_dataset/scenario_cards.json",
+        "eval_cards_uri": "gs://bucket/scenes/scene-1/captures/cap-1/pipeline/robot_eval_dataset/eval_cards.json",
+        "annotation_backlog_uri": "gs://bucket/scenes/scene-1/captures/cap-1/pipeline/robot_eval_dataset/annotation_backlog.json",
+        "proof_boundaries_uri": "gs://bucket/scenes/scene-1/captures/cap-1/pipeline/robot_eval_dataset/proof_boundaries.json"
+      }
     }
   }
 }

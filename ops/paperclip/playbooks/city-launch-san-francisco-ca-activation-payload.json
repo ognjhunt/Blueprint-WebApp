@@ -53,7 +53,7 @@
       "phase": "proof_assets",
       "ownerLane": "buyer-solutions-agent",
       "humanLane": "ops-lead",
-      "summary": "Turn the first San Francisco rights-cleared asset into a buyer-visible proof pack with hosted-review routing.",
+      "summary": "Turn the first San Francisco rights-reviewed asset into a buyer-visible proof pack with hosted-review routing; clearance is confirmed per request.",
       "dependencyKeys": [
         "rights-clearance"
       ],
