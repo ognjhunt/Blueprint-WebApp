@@ -21,7 +21,7 @@ const faqs = [
       "The walkthrough media, timestamps, camera poses, intrinsics, site notes, and any available depth or geometry files for that site, plus rights, privacy, and provenance metadata.",
   },
   {
-    question: "What is hosted evaluation?",
+    question: "What is a policy evaluation set?",
     answer:
       "A Blueprint-managed hosted session on one exact site. Your team can rerun scoped tasks, review failures, compare policies or checkpoints when configured, and export results without moving data into its own stack first.",
   },
@@ -48,7 +48,7 @@ const faqs = [
   {
     question: "Can we book time instead of starting with a form?",
     answer:
-      "Yes. Use the dedicated booking path when your team already has a real site or listing in mind and wants a fast scoping conversation around package access or hosted evaluation.",
+      "Yes. Use the dedicated booking path when your team already has a real site or listing in mind and wants a fast scoping conversation around package access or a policy evaluation set.",
   },
 ];
 
@@ -57,14 +57,14 @@ export default function FAQ() {
     <>
       <SEO
         title="FAQ | Blueprint"
-        description="Straight answers about Blueprint world models, site packages, hosted evaluation, proof boundaries, and how to start."
+        description="Straight answers about Blueprint world models, site packages, policy evaluation sets, proof boundaries, and how to start."
         canonical="/faq"
         jsonLd={[
           webPageJsonLd({
             path: "/faq",
             name: "Blueprint FAQ",
             description:
-              "Questions and answers about Blueprint world models, site packages, hosted evaluation, proof boundaries, and buyer next steps.",
+              "Questions and answers about Blueprint world models, site packages, policy evaluation sets, proof boundaries, and buyer next steps.",
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },

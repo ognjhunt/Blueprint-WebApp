@@ -167,7 +167,7 @@ export function getSiteWorldCommercialStatus(
       summary:
         "The listing is readable, but freshness, missing evidence, or recapture signals need review before the team relies on it for a commercial decision.",
       buyerNote:
-        "Use the public listing to assess fit, then confirm the refresh and evidence path before package access or hosted evaluation moves forward.",
+        "Use the public listing to assess fit, then confirm the refresh and evidence path before package access or a policy evaluation set moves forward.",
     };
   }
 
@@ -380,7 +380,7 @@ export function getSiteWorldPlainEnglishProof(site: PublicSiteWorldRecord) {
   }
 
   if (isCommercialExemplarSiteWorld(site)) {
-    return "This listing is a request-reviewed exemplar: pricing, listing proof fields, and a clearer path into hosted evaluation request or package access. It is not customer proof.";
+    return "This listing is a request-reviewed exemplar: pricing, listing proof fields, and a clearer path into policy evaluation set request or package access. It is not customer proof.";
   }
 
   if (isPlannedCatalogSiteWorld(site)) {
@@ -445,7 +445,7 @@ export function getSiteWorldHostedAccessDisclosure(
     return {
       label: "Interactive preview ready",
       summary:
-        "An optional provider preview is ready. The hosted evaluation still starts through the protected setup check.",
+        "An optional provider preview is ready. The policy evaluation set still starts through the protected setup check.",
       launchVerified: false,
     };
   }
@@ -454,7 +454,7 @@ export function getSiteWorldHostedAccessDisclosure(
     return {
       label: "Hosted request path",
       summary:
-        "The listing can support a hosted evaluation request, but the setup page must verify account access and hosted-session availability before launch.",
+        "The listing can support a policy evaluation set request, but the setup page must verify account access and hosted-session availability before launch.",
       launchVerified: false,
     };
   }
@@ -513,7 +513,7 @@ export function getSiteWorldBuyerFlowDisclosure(
       hostedAccess:
         "Hosted review starts from setup checks for account access, entitlement, runtime availability, and package readiness.",
       nextStep:
-        "Request a readiness report or hosted evaluation; Blueprint replies with the supported request path or the first blocking proof detail.",
+        "Request a readiness report or a policy evaluation set; Blueprint replies with the supported request path or the first blocking proof detail.",
     };
   }
 

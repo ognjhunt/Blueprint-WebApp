@@ -339,7 +339,7 @@ function SiteCard({
               href={`/world-models/${site.id}/start`}
               className="inline-flex w-full items-center justify-center border border-black/10 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-slate-100 sm:w-auto"
             >
-              Check hosted evaluation
+              Check policy evaluation
             </a>
           ) : null}
           <a
@@ -897,7 +897,7 @@ export default function SiteWorlds() {
               </h3>
               <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-600">
                 Request the site, workflow, and robot class you need. Blueprint
-                can route it through capture, package review, hosted evaluation,
+                can route it through capture, package review, a policy evaluation set,
                 and rights/privacy checks before access is represented as
                 supported.
               </p>
@@ -977,7 +977,7 @@ export default function SiteWorlds() {
           <EditorialCtaBand
             eyebrow="Need a different place?"
             title="Request the exact site instead of guessing from a dense catalog."
-            description="Start from the public sample for shape, then request a readiness report, hosted evaluation, or a new capture-backed profile when the catalog does not show the site/task your robot team needs."
+            description="Start from the public sample for shape, then request a readiness report, policy evaluation set, or a new capture-backed profile when the catalog does not show the site/task your robot team needs."
             imageSrc={humanoidReadinessAssets.loadingDock}
             imageAlt={heroSite.siteName}
             primaryHref={

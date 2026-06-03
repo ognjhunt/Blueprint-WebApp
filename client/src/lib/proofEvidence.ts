@@ -30,7 +30,7 @@ export const mediaRoomSampleEvaluation = {
   siteName: "Media Room Demo Walkthrough",
   siteCode: "SW-DEMO-01",
   siteType: "Captured indoor media and mechanical-room route",
-  location: "Blueprint hosted evaluation demo",
+  location: "Blueprint policy evaluation set demo",
   captureBasis: "Blueprint demo capture with example buyer deliverables",
   robotSetup: "Mobile manipulator with head and wrist cameras",
   workflowLane: "Media room entry, rack approach, cabinet evaluation, and exit route",
@@ -72,7 +72,7 @@ export const publicCaptureProofStories: PublicProofStory[] = [
       "Hosted report with route notes, occlusion risks, and export scope",
     ],
     decisionNote:
-      "A robotics team can use this to decide whether a grocery-specific hosted evaluation is worth scoping before field work.",
+      "A robotics team can use this to decide whether a grocery-specific policy evaluation set is worth scoping before field work.",
     guardrails: [
       "Avoid checkout lanes, pharmacy counters, screens, receipts, and identifiable shoppers",
       "Stop capture if staff objects or signage restricts photography",
@@ -150,7 +150,7 @@ export const publicCaptureProofStories: PublicProofStory[] = [
       "Sample export tree with run summary, observation frames, and route replay references",
     ],
     decisionNote:
-      "The robot team can start with hosted evaluation while export rights stay gated until the listing-specific review is done.",
+      "The robot team can start with policy evaluation set while export rights stay gated until the listing-specific review is done.",
     guardrails: [
       "Do not capture payment terminals, service-desk screens, or employee-only spaces",
       "Avoid identifiable shoppers and staff",
@@ -175,7 +175,7 @@ export const sampleHostedRunRows: HostedRunRow[] = [
     run: "Run 01",
     scenario: "Baseline aisle navigation",
     observation: "Route is readable through endcap and mid-aisle transitions.",
-    output: "Keep in hosted evaluation",
+    output: "Keep in policy evaluation set",
   },
   {
     run: "Run 02",

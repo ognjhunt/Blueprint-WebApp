@@ -71,7 +71,7 @@ const offerItems: IconBlock[] = [
     icon: Gauge,
     label: "03",
     title: "Policy evaluation",
-    body: "Manual or headless robot-policy sessions across site tasks and scenarios, billed as compute-backed session time.",
+    body: "A fixed-scope manual or headless evaluation set across the site's task suite, with episode-level results and failure notes.",
   },
   {
     icon: Building2,
@@ -106,10 +106,10 @@ const workflowSteps = [
 
 const pricingPlans = [
   {
-    name: "Policy Evaluation",
-    price: "$39 / session-hour",
+    name: "Policy Evaluation Set",
+    price: "$6,500 / site evaluation",
     summary:
-      "Robot teams run policies against site tasks and scenarios by manual browser session or headless agent.",
+      "Robot teams run one policy/profile across the site's task suite by manual browser session or headless agent.",
     href: hostedHref,
     cta: "Request policy evaluation",
   },
@@ -200,7 +200,7 @@ export default function Home() {
     <>
       <SEO
         title="Real-Site Robot Data Marketplace | Blueprint"
-        description="Blueprint turns real sites into world-model data packages and policy-evaluation sessions for robot teams. Site operators participate free."
+        description="Blueprint turns real sites into world-model data packages and policy-evaluation sets for robot teams. Site operators participate free."
         canonical="/"
         image={`https://tryblueprint.io${humanoidReadinessAssets.warehouseHero}`}
         jsonLd={{
@@ -208,7 +208,7 @@ export default function Home() {
           "@type": "WebPage",
           name: "Blueprint Real-Site Robot Data Marketplace",
           description:
-            "Blueprint turns real sites into world-model data packages and policy-evaluation sessions for robot teams. Site operators participate free.",
+            "Blueprint turns real sites into world-model data packages and policy-evaluation sets for robot teams. Site operators participate free.",
           url: "https://tryblueprint.io/",
         }}
       />
@@ -234,7 +234,7 @@ export default function Home() {
               </h1>
               <p className="mt-6 max-w-2xl text-lg leading-8 text-white/82 md:text-xl">
                 Evaluate policies, test scenarios, and generate training data
-                from capture-backed sites. Robot teams pay for compute and data;
+                from capture-backed sites. Robot teams pay for evaluation sets and data;
                 site operators participate free.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -334,7 +334,7 @@ export default function Home() {
               <SectionHeading
                 eyebrow="Planning ranges"
                 title="Two paid robot-team products. Operators are free."
-                body="Robot teams pay for policy-evaluation compute or site data packages. Operators can submit sites and define boundaries without paying Blueprint."
+                body="Robot teams pay for policy evaluation sets or site data packages. Operators can submit sites and define boundaries without paying Blueprint."
               />
               <a
                 href="/pricing"
@@ -455,7 +455,7 @@ export default function Home() {
               {[
                 "Requests do not grant package access, rights clearance, payment, fulfillment, or hosted-session availability by themselves.",
                 "Policy-evaluation output remains advisory until simulator traces, action logs, robot trials, safety review, rights proof, and runtime proof support a stronger claim.",
-                "Site operators can submit and govern a site for free; paid usage starts with robot-team compute or data access.",
+                "Site operators can submit and govern a site for free; paid usage starts with robot-team evaluation sets or data access.",
                 "Generated imagery on the public site is illustrative, not customer or robot-trial proof.",
               ].map((item) => (
                 <div key={item} className="flex gap-3 border border-white/15 bg-white/[0.04] p-4">

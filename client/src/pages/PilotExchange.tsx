@@ -542,7 +542,7 @@ export default function PilotExchange() {
               <h2 className="mt-3 text-3xl font-bold tracking-tight text-zinc-950">Pay for the job you need.</h2>
               <p className="mt-3 text-base leading-7 text-zinc-600">
                 This page sits downstream of capture and world-model packaging. Robot teams pay for
-                policy-evaluation compute or site data packages only when the site is real.
+                policy evaluation sets or site data packages only when the site is real.
               </p>
             </div>
 
@@ -554,8 +554,8 @@ export default function PilotExchange() {
               </div>
               <div className="rounded-2xl border border-zinc-200 bg-white p-5">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">Robot teams</p>
-                <p className="mt-2 text-2xl font-bold text-zinc-950">Pay for compute or data</p>
-                <p className="mt-2 text-sm text-zinc-600">Start with the brief, then buy policy sessions or site data only when justified.</p>
+                <p className="mt-2 text-2xl font-bold text-zinc-950">Pay for evaluation sets or data</p>
+                <p className="mt-2 text-sm text-zinc-600">Start with the brief, then buy a policy evaluation set or site data only when justified.</p>
               </div>
             </div>
 
@@ -612,7 +612,7 @@ export default function PilotExchange() {
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">Operator side</p>
               <h3 className="mt-2 text-xl font-bold text-zinc-950">Site operators participate for free.</h3>
               <p className="mt-3 max-w-3xl text-sm leading-6 text-zinc-600">
-                Operators can submit a facility, set access windows, define restricted areas, and review commercial posture without paying Blueprint. Paid usage starts when robot teams buy compute-backed policy evaluation or site data packages.
+                Operators can submit a facility, set access windows, define restricted areas, and review commercial posture without paying Blueprint. Paid usage starts when robot teams buy policy evaluation sets or site data packages.
               </p>
               <a
                 href="/contact/site-operator?source=qualified-opportunities"

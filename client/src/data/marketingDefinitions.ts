@@ -5,13 +5,13 @@ export const sitePackageDefinition =
   "A site data package gives a robot team the capture-backed world model, scenario data, provenance, rights posture, and export limits for one real site.";
 
 export const hostedEvaluationDefinition =
-  "Policy evaluation is the compute-backed session path for running a robot policy against site tasks and scenarios, either manually in the browser or through a headless agent.";
+  "A policy evaluation set is the fixed-scope path for running one robot policy/profile against a site's task suite, either manually in the browser or through a headless agent.";
 
 export const categoryValidationDefinition =
   "Street View-grounded world models make outdoor places easier for agents to explore; Blueprint focuses the same site-specific logic on indoor spaces that need lawful capture, provenance, and rights review.";
 
-export const sessionHourDefinition =
-  "A session-hour is one hour of compute-backed policy evaluation on one exact site. It covers manual or headless session time used to run, rerun, inspect, and export results.";
+export const policyEvaluationSetDefinition =
+  "A policy evaluation set covers one site, one robot policy/profile, up to 8 task families, and up to 50 episodes per task, with success rate, cycle time, failure notes, logs, and export framing.";
 
 export const sitePackageIncludes = [
   "Walkthrough video, timestamps, and camera poses tied to one real facility",
@@ -21,10 +21,10 @@ export const sitePackageIncludes = [
 ];
 
 export const hostedEvaluationOutputs = [
-  "Manual or headless policy runs on the same exact site",
-  "Task/scenario reruns, failure review, and checkpoint comparison",
+  "Manual or headless policy runs across the same exact site's task suite",
+  "Up to 50 episodes per task, with failure review and checkpoint comparison",
   "Dataset, raw bundle, and export generation tied to the site",
-  "A browser-accessible policy-evaluation session, no local setup needed",
+  "A browser-accessible policy-evaluation path, no local setup needed",
 ];
 
 export const stableContractItems = [
@@ -43,7 +43,7 @@ export const listingVariationItems = [
 
 export const companyTrustItems = [
   "Blueprint captures indoor facilities and turns them into site-specific data products robot teams can request, evaluate, and license.",
-  "Blueprint sells site data packages and policy-evaluation session time, not deployment guarantees.",
+  "Blueprint sells site data packages and fixed-scope policy evaluation sets, not deployment guarantees.",
   "Rights, privacy, and usage controls are attached to every listing up front.",
 ];
 

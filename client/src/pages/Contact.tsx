@@ -213,7 +213,7 @@ export default function Contact() {
     <>
       <SEO
         title="Request Site Data Or Policy Evaluation | Blueprint"
-        description="Request a Blueprint site data package, policy-evaluation session, new capture, or free site-operator participation path by naming site type, robot task, thresholds, safety constraints, dynamic conditions, zones, rights, and pilot outcomes."
+        description="Request a Blueprint site data package, policy-evaluation set, new capture, or free site-operator participation path by naming site type, robot task, thresholds, safety constraints, dynamic conditions, zones, rights, and pilot outcomes."
         canonical={location === "/contact/site-operator" ? "/contact/site-operator" : "/contact"}
       />
 
@@ -228,7 +228,7 @@ export default function Contact() {
                 Name the facility, site type, robot task, thresholds, safety
                 constraints, dynamic conditions, object zones, rights/access,
                 or pilot outcomes. Blueprint routes the request to a site data
-                package, policy-evaluation session, new capture, or free
+                package, policy-evaluation set, new capture, or free
                 site-operator path without treating the form as payment, rights
                 clearance, provider execution, or fulfillment.
               </p>

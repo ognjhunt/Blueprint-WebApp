@@ -81,7 +81,7 @@ const BUYER_TYPES = [
   {
     value: "robot_team",
     label: "Robot team",
-    description: "I need an exact-site package, hosted evaluation, or delivery path for a real facility.",
+    description: "I need an exact-site package, a policy evaluation set, or delivery path for a real facility.",
   },
   {
     value: "site_operator",
@@ -814,7 +814,7 @@ export default function BusinessSignUpFlow() {
                   </h1>
                   <p className="mt-3 max-w-[34rem] text-sm leading-7 text-black/60">
                     {step === 1
-                      ? "Request exact-site packages or hosted evaluation through a private, context-rich intake instead of a generic marketplace signup."
+                      ? "Request exact-site packages or a policy evaluation set through a private, context-rich intake instead of a generic marketplace signup."
                       : step === 2
                         ? "Tell Blueprint who is evaluating the site and which lane should open first."
                         : "Ground the request in one real facility, one workflow, and one commercial path."}

@@ -320,7 +320,7 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
       <div className="mx-auto max-w-5xl px-4 py-24 sm:px-6 lg:px-8">
         <h1 className="text-3xl font-bold text-slate-900">Site world not found</h1>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-          The Site World Run setup page is not available because the site could not be loaded.
+          The Policy Evaluation Set setup page is not available because the site could not be loaded.
         </p>
       </div>
     );
@@ -400,7 +400,7 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
         throw new Error(
           Array.isArray(payload.blockers) && payload.blockers.length > 0
             ? payload.blockers.join(", ")
-            : payload.error || "Unable to start Site World Run",
+            : payload.error || "Unable to start Policy Evaluation Set",
         );
       }
       setLocation(payload.workspaceUrl);
@@ -408,7 +408,7 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "Unable to start Site World Run.",
+          : "Unable to start Policy Evaluation Set.",
       );
     } finally {
       setSubmitting(false);
@@ -481,8 +481,8 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
   return (
     <>
       <SEO
-        title={`Site World Run | ${site.siteName} | Blueprint`}
-        description={`Configure a proof-gated Site World Run for ${site.siteName}.`}
+        title={`Policy Evaluation Set | ${site.siteName} | Blueprint`}
+        description={`Configure a proof-gated policy evaluation set for ${site.siteName}.`}
         canonical={`/world-models/${site.id}/start`}
         noIndex
       />
@@ -541,11 +541,11 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
                     /world-models/{site.id}/start
                   </p>
                   <h1 className="mt-3 max-w-4xl text-[clamp(3rem,6vw,7rem)] font-semibold leading-[0.88] tracking-[-0.07em] text-stone-950">
-                    Site World Run
+                    Policy Evaluation Set
                   </h1>
                   <p className="mt-5 max-w-3xl text-lg leading-8 text-stone-700">
-                    Configure a run using a capture-backed site world, robot profile, task, scenario,
-                    start state, simulation settings, and requested outputs. Launch checks decide
+                    Configure a fixed-scope evaluation using a capture-backed site world, robot profile, task,
+                    scenario, start state, execution settings, and requested outputs. Launch checks decide
                     whether this opens World Studio now or routes a request review.
                   </p>
                 </div>
@@ -586,7 +586,7 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
                 <div className="relative min-h-[28rem] overflow-hidden bg-[#111713] text-white">
                   <MonochromeMedia
                     src={editorialRefreshAssets.setupOverviewMap}
-                    alt={`${site.siteName} Site World Run map`}
+                    alt={`${site.siteName} Policy Evaluation Set map`}
                     className="absolute inset-0 min-h-full rounded-none"
                     imageClassName="min-h-full object-cover"
                     overlayClassName="bg-[linear-gradient(90deg,rgba(13,18,15,0.86),rgba(13,18,15,0.38)_54%,rgba(13,18,15,0.18))]"
@@ -1063,7 +1063,7 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
                     href={hostedRequestHref}
                     className="inline-flex w-full items-center justify-center rounded-md bg-stone-950 px-5 py-4 text-sm font-semibold text-white transition hover:bg-stone-800"
                   >
-                    Request Site World Run
+                    Request Policy Evaluation Set
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </a>
                 ) : (
@@ -1072,7 +1072,7 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
                     disabled={submitting}
                     className="inline-flex w-full items-center justify-center rounded-md bg-stone-950 px-5 py-4 text-sm font-semibold text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {submitting ? "Starting..." : "Start Site World Run"}
+                    {submitting ? "Starting..." : "Start Policy Evaluation Set"}
                     {!submitting ? <ArrowRight className="ml-2 h-4 w-4" /> : null}
                   </button>
                 )}

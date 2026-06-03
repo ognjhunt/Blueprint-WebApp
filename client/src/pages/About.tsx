@@ -13,7 +13,7 @@ const companyCards = [
   {
     title: "What Blueprint is",
     body:
-      "A product for turning one real facility into site-specific world models, hosted evaluation, and clear trust details tied to the same capture-backed source record.",
+      "A product for turning one real facility into site-specific world models, policy evaluation sets, and clear trust details tied to the same capture-backed source record.",
   },
   {
     title: "What Blueprint is not",
@@ -24,7 +24,7 @@ const companyCards = [
 
 const storySteps = [
   "A robot team has one real facility and one workflow question before a field visit starts.",
-  "Blueprint's job is to make that site usable earlier through truthful proof, package framing, and hosted evaluation.",
+  "Blueprint's job is to make that site usable earlier through truthful proof, package framing, and policy evaluation sets.",
   "That lets the team decide whether to keep moving on the exact site instead of spending time on vague assumptions.",
 ];
 
@@ -33,7 +33,7 @@ export default function About() {
     <>
       <SEO
         title="About | Blueprint"
-        description="Why Blueprint exists and how it turns real facilities into site-specific world models, hosted evaluation, and trust details a robot team can evaluate."
+        description="Why Blueprint exists and how it turns real facilities into site-specific world models, policy evaluation sets, and trust details a robot team can evaluate."
         canonical="/about"
       />
 

@@ -41,7 +41,7 @@ describe("Header", () => {
     expect(screen.queryByRole("link", { name: /^Sample Listing$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /^Deliverables$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /^About$/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /^Hosted Evaluation$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /^Policy Evaluation Set$/i })).not.toBeInTheDocument();
   });
 
   it("uses a reduced proof-first action rail in the header", () => {

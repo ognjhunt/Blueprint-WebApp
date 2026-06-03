@@ -337,7 +337,7 @@ export default function Capture() {
           <EditorialCtaBand
             eyebrow="Buyer side"
             title="Need readiness evidence for one real workflow?"
-            description="Robot teams start with readiness evaluation, site package requests, hosted evaluation, and proof packets. Capturer access is a separate supply path."
+            description="Robot teams start with readiness evaluation, site package requests, policy evaluation sets, and proof packets. Capturer access is a separate supply path."
             imageSrc={publicCaptureGeneratedAssets.everydayPlacesCollage}
             imageAlt="Blueprint capture route"
             primaryHref="/world-models"

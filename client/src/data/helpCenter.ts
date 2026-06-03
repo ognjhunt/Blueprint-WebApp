@@ -48,7 +48,7 @@ export const helpCategories: HelpCategory[] = [
     slug: "getting-started",
     title: "Getting Started",
     shortTitle: "Start",
-    description: "Choose the right Blueprint path before a team opens a request, package, or hosted evaluation.",
+    description: "Choose the right Blueprint path before a team opens a request, package, or a policy evaluation set.",
     audience: "New buyers, operators, and capturers",
     iconKey: "rocket",
     primaryActionHref: "/contact?persona=robot-team",
@@ -81,9 +81,9 @@ export const helpCategories: HelpCategory[] = [
   },
   {
     slug: "hosted-evaluation",
-    title: "Hosted Evaluation",
-    shortTitle: "Hosted",
-    description: "Start, inspect, share, and troubleshoot hosted sessions without separating runtime behavior from capture evidence.",
+    title: "Policy Evaluation Set",
+    shortTitle: "Eval set",
+    description: "Start, inspect, share, and troubleshoot evaluation sessions without separating runtime behavior from capture evidence.",
     audience: "Deployment, autonomy, and QA leads",
     iconKey: "play",
     primaryActionHref: "/product",
@@ -164,7 +164,7 @@ export const helpArticles: HelpArticle[] = [
     sections: [
       {
         heading: "Start with the site",
-        body: "Blueprint is capture-first and world-model-product-first. The product begins with real capture evidence and turns that evidence into exact-site packages and hosted evaluation paths.",
+        body: "Blueprint is capture-first and world-model-product-first. The product begins with real capture evidence and turns that evidence into exact-site packages and policy evaluation paths.",
       },
       {
         heading: "What is primary",
@@ -179,7 +179,7 @@ export const helpArticles: HelpArticle[] = [
     categorySlug: "getting-started",
     title: "Choose the right support path",
     description: "Where to go when you need a package, hosted review, capture access, or human reply.",
-    summary: "Use buyer contact for a known site, hosted evaluation for an existing package, capture access for capturer questions, and support for access or evidence issues.",
+    summary: "Use buyer contact for a known site, a policy evaluation set for an existing package, capture access for capturer questions, and support for access or evidence issues.",
     readTime: "3 min",
     sections: [
       {
@@ -188,7 +188,7 @@ export const helpArticles: HelpArticle[] = [
       },
       {
         heading: "If you are evaluating",
-        body: "Open the hosted evaluation path when a package exists and the next question is whether the evidence, routes, and runtime view answer your deployment question.",
+        body: "Open the policy evaluation set path when a package exists and the next question is whether the evidence, routes, and runtime view answer your deployment question.",
       },
       {
         heading: "If you are capturing",
@@ -207,7 +207,7 @@ export const helpArticles: HelpArticle[] = [
     sections: [
       {
         heading: "Routing comes first",
-        body: "Blueprint support starts with structured intake because the next step depends on whether you need buyer access, package review, hosted evaluation, operator permissioning, or capture help.",
+        body: "Blueprint support starts with structured intake because the next step depends on whether you need buyer access, package review, a policy evaluation set, operator permissioning, or capture help.",
       },
       {
         heading: "Calendar second",
@@ -240,7 +240,7 @@ export const helpArticles: HelpArticle[] = [
     categorySlug: "getting-started",
     title: "Support response times",
     description: "What to expect after contacting Blueprint.",
-    summary: "Blueprint prioritizes support based on buyer access, active hosted evaluations, package blockers, and human-gated review needs.",
+    summary: "Blueprint prioritizes support based on buyer access, active policy evaluation sets, package blockers, and human-gated review needs.",
     readTime: "2 min",
     sections: [
       {
@@ -315,7 +315,7 @@ export const helpArticles: HelpArticle[] = [
   article({
     slug: "package-vs-hosted-evaluation",
     categorySlug: "world-model-packages",
-    title: "Package access vs hosted evaluation",
+    title: "Package access vs policy evaluation set",
     description: "When to use each buyer path.",
     summary: "Package access is for inspecting and using deliverables. Hosted evaluation is for reviewing the site through a managed runtime and evidence view.",
     readTime: "3 min",
@@ -325,7 +325,7 @@ export const helpArticles: HelpArticle[] = [
         body: "Your team needs files, manifests, metadata, or a licensing conversation around a specific site output.",
       },
       {
-        heading: "Use hosted evaluation when",
+        heading: "Use a policy evaluation set when",
         body: "Your team needs to inspect the site, routes, runtime behavior, or review evidence before deployment, travel, or integration spend.",
       },
     ],
@@ -373,14 +373,14 @@ export const helpArticles: HelpArticle[] = [
   article({
     slug: "start-a-hosted-evaluation",
     categorySlug: "hosted-evaluation",
-    title: "Start a hosted evaluation",
-    description: "How to begin a hosted exact-site review.",
-    summary: "Open the hosted evaluation path from a site or package page, then follow the access, evidence, and runtime readiness prompts.",
+    title: "Start a policy evaluation set",
+    description: "How to begin a policy evaluation set.",
+    summary: "Open the policy evaluation set path from a site or package page, then follow the access, evidence, and runtime readiness prompts.",
     readTime: "3 min",
     sections: [
       {
         heading: "From a site page",
-        body: "When a site supports hosted evaluation, the page should route you to the hosted setup flow. If access is missing, request access instead of bypassing the gate.",
+        body: "When a site supports a policy evaluation set, the page should route you to the evaluation setup flow. If access is missing, request access instead of bypassing the gate.",
       },
       {
         heading: "Before the session",
@@ -610,7 +610,7 @@ export const helpArticles: HelpArticle[] = [
     sections: [
       {
         heading: "Scope drives price",
-        body: "Exact-site access, package rights, hosted evaluation, export needs, and managed support all affect price. Use the pricing page for the current public offer shape.",
+        body: "Exact-site access, package rights, policy evaluation scope, export needs, and managed support all affect price. Use the pricing page for the current public offer shape.",
       },
       {
         heading: "Ask with context",
@@ -643,7 +643,7 @@ export const helpArticles: HelpArticle[] = [
     categorySlug: "billing-and-access",
     title: "Seat and workspace access",
     description: "How workspace access is assigned.",
-    summary: "Seats and workspace access should match organization, package, hosted evaluation, and license scope.",
+    summary: "Seats and workspace access should match organization, package, a policy evaluation set, and license scope.",
     readTime: "3 min",
     sections: [
       {
@@ -777,7 +777,7 @@ export const helpArticles: HelpArticle[] = [
     categorySlug: "troubleshooting",
     title: "Broken link or page",
     description: "How to report a public-site or workspace route issue.",
-    summary: "Send the URL, referring page, expected destination, and whether this blocked buyer access, capture access, or hosted evaluation.",
+    summary: "Send the URL, referring page, expected destination, and whether this blocked buyer access, capture access, or a policy evaluation set.",
     readTime: "2 min",
     sections: [
       {

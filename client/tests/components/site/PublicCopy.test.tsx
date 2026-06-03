@@ -46,7 +46,7 @@ describe("public capture and data marketplace copy", () => {
     expect(screen.getAllByRole("link", { name: /^Proof$/i }).length).toBeGreaterThan(0);
     expect(container).toHaveTextContent(/open robot-team marketplace/i);
     expect(container).toHaveTextContent(/site data packages/i);
-    expect(container).toHaveTextContent(/policy-evaluation sessions/i);
+    expect(container).toHaveTextContent(/policy-evaluation sets/i);
     expect(container).toHaveTextContent(/training exports/i);
     expect(container).toHaveTextContent(/site operators can submit facilities and define boundaries for free/i);
     expect(container).toHaveTextContent(/success rate/i);

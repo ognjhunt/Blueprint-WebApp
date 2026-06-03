@@ -96,7 +96,7 @@ export default function Docs() {
     <>
       <SEO
         title="Compatibility and Exports | Blueprint"
-        description="The stable Blueprint product contract, the site package structure, the hosted evaluation path, and the listing details that can vary."
+        description="The stable Blueprint product contract, the site package structure, the policy evaluation set path, and the listing details that can vary."
         canonical="/docs"
       />
       <div className="min-h-screen bg-[#f5f3ef] text-slate-950">

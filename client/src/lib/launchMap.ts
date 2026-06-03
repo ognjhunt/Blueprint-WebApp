@@ -48,9 +48,9 @@ export function getLaunchAudienceActions(city: PublicLaunchCity): LaunchAudience
     return [
       {
         audience: "Robot teams",
-        label: "Request hosted evaluation",
+        label: "Request policy evaluation",
         href: "/book-exact-site-review",
-        note: "Start the exact-site readiness evaluation path for this launch city.",
+        note: "Start the exact-site policy evaluation path for this launch city.",
       },
       {
         audience: "Site operators",

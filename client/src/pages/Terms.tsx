@@ -50,7 +50,7 @@ const roleTerms = [
   {
     title: "Operator schedule",
     items: [
-      "Operators must have authority to approve capture, listing visibility, hosted evaluation, buyer access, and commercialization.",
+      "Operators must have authority to approve capture, listing visibility, policy evaluation, buyer access, and commercialization.",
       "Restricted zones, capture windows, privacy instructions, and revocation or refresh requirements remain part of the site record.",
       "Private or employee-only spaces require explicit approval before capture or buyer-facing use.",
     ],

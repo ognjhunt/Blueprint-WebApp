@@ -500,7 +500,7 @@ function buildRequestHref(candidate: Omit<CatalogRequestCandidate, "href" | "hea
     buyerType: "robot_team",
     source: "site-worlds",
     proofPathPreference: "exact_site_required",
-    requestedOutputs: "Site package, readiness report, and hosted evaluation scoping",
+    requestedOutputs: "Site package, readiness report, and policy evaluation set scoping",
     query: candidate.query,
     siteName: candidate.siteName,
     siteLocation: candidate.siteLocation,

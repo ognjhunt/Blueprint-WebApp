@@ -131,7 +131,7 @@ describe("PilotExchange", () => {
     render(<PilotExchange />);
 
     expect(screen.getByRole("heading", { name: /Pay for the job you need\./i })).toBeInTheDocument();
-    expect(screen.getByText(/Pay for compute or data/i)).toBeInTheDocument();
+    expect(screen.getByText(/Pay for evaluation sets or data/i)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /^Site Data Package$/i })).toBeInTheDocument();
     expect(screen.getByText(/Buy the capture-backed world model, scenario data, and export bundle/i)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Policy Evaluation/i })).toBeInTheDocument();

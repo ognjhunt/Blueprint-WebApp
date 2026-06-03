@@ -152,7 +152,7 @@ function HelpSearch({
           <div className="bg-white p-5">
             <p className="text-sm font-semibold text-slate-950">No exact match.</p>
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              Try package access, hosted evaluation, capture rules, billing, or runtime issue.
+              Try package access, a policy evaluation set, capture rules, billing, or runtime issue.
             </p>
           </div>
         )}
@@ -214,7 +214,7 @@ function HelpHome() {
   return (
     <PageFrame
       title="Blueprint Help Center"
-      description="Search Blueprint support for exact-site packages, hosted evaluation, capture provenance, billing, access, and troubleshooting."
+      description="Search Blueprint support for exact-site packages, policy evaluation sets, capture provenance, billing, access, and troubleshooting."
       canonical="/help"
     >
       <section className="border-b border-black/10 bg-slate-950 text-white">
@@ -225,7 +225,7 @@ function HelpHome() {
               Help Center
             </h1>
             <p className="mt-7 max-w-[38rem] text-base leading-8 text-white/72">
-              Find the right route for world-model packages, hosted evaluation, capture
+              Find the right route for world-model packages, policy evaluation sets, capture
               provenance, billing, access, and runtime issues.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
@@ -621,7 +621,7 @@ function ContactSupportPage() {
             </h1>
             <p className="mt-7 max-w-[38rem] text-base leading-8 text-slate-600">
               Send the context Blueprint needs to route the issue to buyer support,
-              hosted evaluation, capture review, billing, or access repair without
+              a policy evaluation set, capture review, billing, or access repair without
               guessing.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">

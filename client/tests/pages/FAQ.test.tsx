@@ -13,7 +13,7 @@ describe("FAQ", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/What is a Blueprint world model\?/i)).toBeInTheDocument();
     expect(screen.getByText(/What does a buyer actually receive with the site package\?/i)).toBeInTheDocument();
-    expect(screen.getByText(/What is hosted evaluation\?/i)).toBeInTheDocument();
+    expect(screen.getByText(/What is a policy evaluation set\?/i)).toBeInTheDocument();
     expect(screen.getByText(/How close is this to a deployment guarantee\?/i)).toBeInTheDocument();
     expect(screen.getByText(/What if the exact site we care about is not in the catalog\?/i)).toBeInTheDocument();
     expect(screen.getByText(/Can Blueprint start from everyday public-facing locations\?/i)).toBeInTheDocument();

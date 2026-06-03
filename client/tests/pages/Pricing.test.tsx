@@ -8,13 +8,13 @@ describe("Pricing", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Robot teams pay for site compute and data\./i,
+        name: /Robot teams pay for evaluation sets and site data\./i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /^Policy Evaluation$/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Policy Evaluation Set$/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /^Site Data Package$/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /^Site Operator Participation$/i })).toBeInTheDocument();
-    expect(screen.getByText(/\$39 \/ session-hour/i)).toBeInTheDocument();
+    expect(screen.getByText(/\$6,500 \/ site evaluation/i)).toBeInTheDocument();
     expect(screen.getByText(/\$3,500\+ \/ site package/i)).toBeInTheDocument();
     expect(screen.getByText(/^Free$/i)).toBeInTheDocument();
     expect(screen.getAllByText(/Robot teams only/i).length).toBe(2);

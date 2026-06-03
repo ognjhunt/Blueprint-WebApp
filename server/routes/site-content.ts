@@ -11,7 +11,7 @@ const definitions = [
   {
     term: "Exact-site world model",
     definition:
-      "A digital environment tied to one real indoor facility, public-facing place, or workflow. In the current public story it is the substrate for site data packages, policy-evaluation sessions, and training exports, with capture provenance, rights, privacy, and package limits kept attached.",
+      "A digital environment tied to one real indoor facility, public-facing place, or workflow. In the current public story it is the substrate for site data packages, policy-evaluation sets, and training exports, with capture provenance, rights, privacy, and package limits kept attached.",
   },
   {
     term: "Real-site robot eval dataset",
@@ -31,7 +31,7 @@ const definitions = [
   {
     term: "Real-site robot data service",
     definition:
-      "Blueprint's service for turning one capture-backed site into a world-model package, task/scenario data, policy-evaluation session path, export bundle, and proof-boundary record for robot teams.",
+      "Blueprint's service for turning one capture-backed site into a world-model package, task/scenario data, policy-evaluation set, export bundle, and proof-boundary record for robot teams.",
   },
   {
     term: "Policy evaluation record",
@@ -61,7 +61,7 @@ const definitions = [
   {
     term: "Policy evaluation",
     definition:
-      "A compute-backed manual or headless session for running a robot policy against one exact site's tasks and scenarios, with run evidence, observations, export framing, and an explicit next step.",
+      "A fixed-scope manual or headless evaluation set for running one robot policy/profile against one exact site's task suite, with episode evidence, observations, export framing, and an explicit next step.",
   },
   {
     term: "Dry-run agent commerce",
@@ -85,7 +85,7 @@ const pages = [
     path: "/",
     title: "Home",
     description:
-      "The core public buyer story: an open robot-team marketplace for capture-backed site data packages, policy-evaluation sessions, scenario data, training exports, and proof boundaries.",
+      "The core public buyer story: an open robot-team marketplace for capture-backed site data packages, policy-evaluation sets, scenario data, training exports, and proof boundaries.",
   },
   {
     path: "/for-robot-teams",
@@ -109,7 +109,7 @@ const pages = [
     path: "/pricing",
     title: "Pricing",
     description:
-      "Simple pricing: robot teams pay for policy-evaluation session-hours or site data packages; site operators participate for free.",
+      "Simple pricing: robot teams pay for fixed-scope policy evaluation sets or site data packages; site operators participate for free.",
   },
   {
     path: "/contact",

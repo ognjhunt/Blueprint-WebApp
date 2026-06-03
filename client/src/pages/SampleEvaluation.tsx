@@ -151,7 +151,7 @@ export default function SampleEvaluation() {
                   <div className="mt-7 flex flex-wrap gap-2">
                     <ProofChip light>Example sample</ProofChip>
                     <ProofChip light>Capture-backed route</ProofChip>
-                    <ProofChip light>Request-gated hosted evaluation</ProofChip>
+                    <ProofChip light>Request-gated policy evaluation set</ProofChip>
                   </div>
                   <div className="mt-8 flex flex-wrap gap-3">
                     <a

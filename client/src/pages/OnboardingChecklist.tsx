@@ -210,7 +210,7 @@ export default function OnboardingChecklist() {
               id: "package-path",
               title: "Pick package or hosted path",
               description:
-                "Confirm whether the request starts with package access, hosted evaluation, data licensing, or guidance.",
+                "Confirm whether the request starts with package access, a policy evaluation set, data licensing, or guidance.",
               completed: Boolean(progress.packageOrHostedPathSelected || progress.defineSiteSubmission),
               icon: FileSearch,
               action: {

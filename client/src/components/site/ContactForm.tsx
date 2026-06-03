@@ -140,11 +140,11 @@ const requestPathCopy: Record<
   hosted_evaluation: {
     successTitle: "Policy evaluation request received",
     successBody:
-      "Blueprint now has the site and robot context needed to evaluate a policy-run path without treating availability or entitlement as automatic. No hosted runtime, provider job, or fulfillment action was started by this request.",
-    requestSectionTitle: "What should the policy evaluation run?",
-    taskLabel: "What should the policy evaluation help your team answer?",
+      "Blueprint now has the site and robot context needed to scope a policy evaluation set without treating availability or entitlement as automatic. No hosted runtime, provider job, or fulfillment action was started by this request.",
+    requestSectionTitle: "What should the policy evaluation set run?",
+    taskLabel: "What should the policy evaluation set help your team answer?",
     taskPlaceholder:
-      "Describe the robot policy, task, scenario, pass/fail question, or review workflow this session should support.*",
+      "Describe the robot policy, task suite, scenarios, pass/fail question, or review workflow this evaluation should support.*",
     taskHelper: "Policy evaluation is confirmed after site, entitlement, proof, and runtime availability are checked.",
     submitLabel: "Request policy evaluation",
     nextStep:
@@ -764,8 +764,8 @@ export function ContactForm() {
       </div>
 
       {commercialRequestPath === "hosted_evaluation" ? (
-        <div className="border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700">
-          You are requesting policy evaluation. Blueprint will still confirm entitlement, site fit, proof state, threshold scope, and hosted-path availability before promising access.
+      <div className="border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700">
+          You are requesting a policy evaluation set. Blueprint will still confirm entitlement, site fit, proof state, threshold scope, and hosted-path availability before promising access.
           {siteName ? ` Site: ${siteName}.` : ""}
           {siteLocation ? ` Location: ${siteLocation}.` : ""}
         </div>

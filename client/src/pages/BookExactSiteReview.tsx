@@ -19,7 +19,7 @@ const reviewCards = [
   },
   {
     title: "What it resolves",
-    body: "Whether the next move is package access, hosted evaluation, more scoping, or a custom request path.",
+    body: "Whether the next move is package access, a policy evaluation set, more scoping, or a custom request path.",
   },
 ];
 
@@ -28,7 +28,7 @@ export default function BookExactSiteReview() {
     <>
       <SEO
         title="Book Exact-Site Review Call | Blueprint"
-        description="Book a Blueprint scoping call for exact-site world-model work, hosted evaluation, and site-package review."
+        description="Book a Blueprint scoping call for exact-site world-model work, a policy evaluation set, and site-package review."
         canonical="/book-exact-site-review"
       />
 
@@ -86,7 +86,7 @@ export default function BookExactSiteReview() {
               />
               <div className="mt-8 space-y-3 text-sm leading-7 text-slate-700">
                 <div>Confirm the real facility and workflow.</div>
-                <div>Clarify whether package, hosted evaluation, or a custom path fits.</div>
+                <div>Clarify whether package, a policy evaluation set, or a custom path fits.</div>
                 <div>Keep rights, privacy, and export considerations visible from the start.</div>
               </div>
             </div>

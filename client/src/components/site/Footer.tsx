@@ -14,10 +14,10 @@ export function Footer() {
             <BrandLockup compact />
           </a>
           <p className="text-sm leading-6 text-slate-600">
-            Blueprint turns real facilities into site data packages, policy-evaluation sessions, and training exports for robot teams.
+            Blueprint turns real facilities into site data packages, policy-evaluation sets, and training exports for robot teams.
           </p>
           <p className="text-sm leading-6 text-slate-600">
-            Robot teams pay for compute and data. Site operators can submit facilities and define boundaries for free.
+            Robot teams pay for evaluation sets and data. Site operators can submit facilities and define boundaries for free.
           </p>
           <div className="flex flex-col gap-2">
             <a

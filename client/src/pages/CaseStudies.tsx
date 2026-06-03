@@ -35,7 +35,7 @@ const launchStudyStages = [
   "Capture a lawful public-facing route or operator-approved facility path.",
   "Attach manifest, rights, privacy, restricted-zone, and freshness labels.",
   "Open a hosted report with observations and non-guarantee limits a buyer can read.",
-  "Route the serious buyer into package access, hosted evaluation, or operator permissioning.",
+  "Route the serious buyer into package access, a policy evaluation set, or operator permissioning.",
 ];
 
 export default function CaseStudies() {

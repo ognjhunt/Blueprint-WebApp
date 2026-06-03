@@ -303,7 +303,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
     { title: "Site code", value: site.siteCode || "Current listing" },
     { title: "Industry", value: site.industry || "Exact-site walkthrough" },
     { title: "Workflow", value: site.taskLane || site.sampleTask || "Current workflow" },
-    { title: "Hosted review", value: site.runtime || "Hosted evaluation" },
+    { title: "Policy evaluation", value: site.runtime || "Evaluation path" },
   ];
 
   const taskRows = [
@@ -406,14 +406,14 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
     <>
       <SEO
         title={`${site.siteName} | Site Packages | Blueprint`}
-        description={`${site.siteName} is a capture-grounded site package for readiness review, hosted evaluation, package access, and provenance checks.`}
+        description={`${site.siteName} is a capture-grounded site package for readiness review, policy evaluation set, package access, and provenance checks.`}
         canonical={`/world-models/${site.id}`}
         type="product"
         jsonLd={[
           webPageJsonLd({
             path: `/world-models/${site.id}`,
             name: `${site.siteName} site package`,
-            description: `${site.siteName} is a capture-grounded site package for readiness review, hosted evaluation, package access, and provenance checks.`,
+            description: `${site.siteName} is a capture-grounded site package for readiness review, policy evaluation set, package access, and provenance checks.`,
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },
@@ -492,7 +492,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                       href={`/world-models/${site.id}/start`}
                       className="inline-flex items-center justify-center border border-white/15 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
                     >
-                      Check hosted evaluation
+                      Check policy evaluation
                     </a>
                   </div>
                 </div>
@@ -664,7 +664,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
         <section className="border-b border-black/10 bg-white">
           <div className="mx-auto max-w-[96rem] px-5 py-10 sm:px-8 lg:px-10">
             <h2 className="font-editorial text-[2.6rem] leading-[0.94] tracking-[-0.05em] text-slate-950">
-              Composite hosted evaluation preview
+              Composite policy evaluation set preview
             </h2>
             <p className="mt-2 text-sm leading-7 text-slate-700">
               These frames explain the hosted-review flow. They are polished composite visuals unless
@@ -1030,14 +1030,14 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
 
             <div id="hosted-sessions" className="border border-black/10 bg-white p-6 lg:p-8">
               <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
-                Hosted evaluation
+                Policy evaluation set
               </p>
               <h2 className="mt-3 text-[2.1rem] leading-[0.98] tracking-[-0.05em] text-slate-950">
-                Configure a hosted evaluation request for this site.
+                Configure a policy evaluation set for this site.
               </h2>
               <p className="mt-4 text-sm leading-7 text-slate-700">
                 {hostedPackage?.summary
-                  || "Use the hosted request path when the team wants reruns, review, and exports on the same site before moving the package."}{" "}
+                  || "Use the policy evaluation path when the team wants one fixed-scope read across site tasks before moving the package."}{" "}
                 The next screen verifies account access, entitlement, and hosted-review availability status before
                 anything launches.
               </p>
@@ -1050,7 +1050,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
               </div>
               <div className="mt-6 border border-black/10 bg-slate-950 p-5 text-white">
                 <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Best fit</p>
-                <p className="mt-2 text-lg">Teams that want Blueprint to verify a hosted run</p>
+                <p className="mt-2 text-lg">Teams that want Blueprint to run a fixed policy evaluation set</p>
                 <p className="mt-3 text-sm text-white/70">{hostedAccessDisclosure.summary}</p>
               </div>
               <div className="mt-6 flex flex-wrap gap-3">
@@ -1058,13 +1058,13 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                   href={`/world-models/${site.id}/start`}
                   className="inline-flex items-center justify-center bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                 >
-                  Check hosted evaluation
+                  Check policy evaluation
                 </a>
                 <a
                   href={hostedPackage?.actionHref || "/contact?persona=robot-team"}
                   className="inline-flex items-center justify-center border border-black/10 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
                 >
-                  Request hosted evaluation
+                  Request policy evaluation
                 </a>
               </div>
             </div>
@@ -1081,7 +1081,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
             primaryHref={scenePackage?.actionHref || "/contact?persona=robot-team"}
             primaryLabel="Request readiness report"
             secondaryHref={`/world-models/${site.id}/start`}
-            secondaryLabel="Check hosted evaluation"
+            secondaryLabel="Check policy evaluation"
           />
         </section>
       </div>

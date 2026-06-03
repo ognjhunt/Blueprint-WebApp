@@ -53,7 +53,7 @@ const artifactPreviews = [
     title: "Export bundle",
     label: "JSON sample",
     href: "/samples/sample-export-bundle.json",
-    body: "A compact example of the run summary, file list, and notes a robot team can evaluate after hosted evaluation.",
+    body: "A compact example of the run summary, file list, and notes a robot team can evaluate after a policy evaluation set.",
     icon: PackageOpen,
     proves: "Which files a buyer can inspect first and which outputs remain tied to request-specific review.",
     action: "Open raw export bundle",
@@ -393,7 +393,7 @@ export default function SampleDeliverables() {
               <EditorialSectionIntro
                 eyebrow="Paths"
                 title="Package and hosted paths, side by side."
-                description="The product difference is simple: take the package into your stack, or use Blueprint-hosted evaluation before moving files."
+                description="The product difference is simple: take the package into your stack, or use a Blueprint policy evaluation set before moving files."
                 className="max-w-3xl"
               />
             <div className="mt-8 grid gap-4 lg:grid-cols-2">
@@ -441,7 +441,7 @@ export default function SampleDeliverables() {
           <EditorialCtaBand
             eyebrow="Next step"
             title="Evaluate the readiness packet before you buy the path."
-            description="Move into the sample listing, then continue into readiness review, package access, or hosted evaluation only when the site and proof already make sense."
+            description="Move into the sample listing, then continue into readiness review, package access, or a policy evaluation set only when the site and proof already make sense."
             imageSrc={publicCaptureGeneratedAssets.cedarMarketProofBoard}
             imageAlt="Deliverables proof board"
             primaryHref="/proof"

@@ -23,16 +23,16 @@ type PricingPlan = {
 const plans: PricingPlan[] = [
   {
     icon: Cpu,
-    name: "Policy Evaluation",
-    range: "$39 / session-hour",
+    name: "Policy Evaluation Set",
+    range: "$6,500 / site evaluation",
     payer: "Robot teams only",
     bestFor:
-      "Robot teams evaluating a robot policy against tasks and scenarios on one real site, by headless agent or manual browser session.",
+      "Robot teams evaluating one robot policy/profile against the task suite for one real site, by headless agent or manual browser session.",
     includes: [
-      "Manual or headless policy runs",
-      "Task and scenario reruns",
-      "Observation logs and export framing",
-      "Billed as compute-backed session time",
+      "One site and one robot policy/profile",
+      "Task suite up to 8 task families",
+      "Up to 50 episodes per task",
+      "Success rate, cycle time, failure notes, logs, and export framing",
     ],
     href: "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=pricing-kiss",
     cta: "Request policy evaluation",
@@ -82,7 +82,7 @@ const choiceRows = [
   },
   {
     title: "Site operators do not pay",
-    body: "Operators can submit a facility and set boundaries for free; paid usage starts only when robot teams buy data or session time.",
+    body: "Operators can submit a facility and set boundaries for free; paid usage starts only when robot teams buy site data or an evaluation set.",
   },
 ];
 
@@ -91,7 +91,7 @@ export default function Pricing() {
     <>
       <SEO
         title="Pricing | Blueprint"
-        description="Simple Blueprint pricing for robot teams: policy-evaluation session-hours and site data packages. Site operator participation is free."
+        description="Simple Blueprint pricing for robot teams: fixed-scope policy evaluation sets and site data packages. Site operator participation is free."
         canonical="/pricing"
         image={`https://tryblueprint.io${humanoidReadinessAssets.hostedDashboard}`}
       />
@@ -109,11 +109,11 @@ export default function Pricing() {
               Pricing
             </p>
             <h1 className="mt-4 max-w-4xl text-5xl font-semibold leading-none md:text-7xl">
-              Robot teams pay for site compute and data.
+              Robot teams pay for evaluation sets and site data.
             </h1>
             <p className="mt-6 max-w-2xl text-lg leading-8 text-white/78">
-              Blueprint has two paid motions for robot teams: policy-evaluation
-              session-hours and site data packages. Site operators can
+              Blueprint has two paid motions for robot teams: fixed-scope
+              policy evaluation sets and site data packages. Site operators can
               participate and define boundaries for free.
             </p>
           </div>

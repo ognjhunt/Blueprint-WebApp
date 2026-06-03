@@ -101,7 +101,7 @@ export default function ForRobotIntegrators() {
             path: "/for-robot-teams",
             name: "Blueprint for Robot Teams",
             description:
-              "How robotics teams use Blueprint for pre-sales and pre-deployment readiness evaluation, capture-backed site packages, hosted evaluation, and evidence-gated deployment decisions.",
+              "How robotics teams use Blueprint for pre-sales and pre-deployment readiness evaluation, capture-backed site packages, policy evaluation sets, and evidence-gated deployment decisions.",
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },
@@ -248,11 +248,11 @@ export default function ForRobotIntegrators() {
 	              <EditorialSectionIntro
                 eyebrow="What this is"
                 title="Pre-sales and pre-deployment eval infrastructure, not a generic benchmark."
-                description="This path makes the site package, readiness estimate, hosted evaluation, and limits visible before more pilot budget goes in."
+                description="This path makes the site package, readiness estimate, policy evaluation sets, and limits visible before more pilot budget goes in."
 	                light
 	              />
               <p className="mt-8 text-sm leading-7 text-white/70">
-                This path works well for policy fine-tuning, training data generation, release comparison, and hosted evaluation. It does not replace final on-site safety validation, stack-specific signoff, or live deployment proof.
+                This path works well for policy fine-tuning, training data generation, release comparison, and policy evaluation sets. It does not replace final on-site safety validation, stack-specific signoff, or live deployment proof.
               </p>
             </div>
             <div className="bg-[#f5f3ef] px-6 py-8 lg:px-8 lg:py-10">

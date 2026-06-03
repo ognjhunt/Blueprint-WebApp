@@ -406,7 +406,7 @@ export function evaluateStructuredIntake(input: StructuredIntakeInput): Structur
     input.buyerType === "site_operator"
       ? "Submit or claim a site"
       : requestedLanes.includes("deeper_evaluation")
-        ? "Scope hosted evaluation"
+        ? "Scope policy evaluation"
         : "Request buyer access";
   const secondaryCta =
     calendarDisposition === "not_needed_yet"

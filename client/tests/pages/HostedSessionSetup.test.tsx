@@ -73,17 +73,17 @@ describe("HostedSessionSetup", () => {
 
     render(<HostedSessionSetup params={{ slug: "sw-chi-01" }} />);
 
-    expect(await screen.findByRole("heading", { name: /Configure Hosted Evaluation/i })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: /Policy Evaluation Set/i })).toBeInTheDocument();
     expect(screen.getAllByText(/Harborview Grocery Distribution Annex/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/1847 W Fulton St, Chicago, IL 60612/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/scoped hosted-review request for Harborview Grocery Distribution Annex/i)).toBeInTheDocument();
+    expect(screen.getByText(/Configure a fixed-scope evaluation using a capture-backed site world/i)).toBeInTheDocument();
     expect(screen.getAllByText(/World Model/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Robot profile/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Launch check/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Hosted review room/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/World Studio/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Observation frames/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/45.60 min/)).toBeInTheDocument();
-    expect(screen.getByText(/does not charge, run a provider job, or start fulfillment/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Start Policy Evaluation Set/i })).toBeInTheDocument();
+    expect(screen.getByText(/does not create provider execution, payment, rights clearance, or robot-readiness proof/i)).toBeInTheDocument();
   });
 
   it("renders structured readiness blockers for demo and runtime launch", async () => {
@@ -121,17 +121,15 @@ describe("HostedSessionSetup", () => {
 
     render(<HostedSessionSetup params={{ slug: "sw-chi-01" }} />);
 
-    expect(await screen.findByText(/Hosted review room/i)).toBeInTheDocument();
+    expect(await screen.findByText(/World Studio can open from this setup\./i)).toBeInTheDocument();
+    expect(await screen.findByText(/Runtime execution remains request-reviewed for this site\./i)).toBeInTheDocument();
     expect(
-      await screen.findByText(/Review files are ready\. Runtime access remains request-reviewed for this exact site\./i),
+      screen.getByText(/Runtime execution remains request-reviewed for this site\./i),
     ).toBeInTheDocument();
-    expect(
-      screen.getByText(/Hosted session is request-gated\. Submit the configuration instead\./i),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/Launch-path dependent/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Request Policy Evaluation Set/i })).toBeInTheDocument();
     expect(screen.queryByText(/45.60 min/)).not.toBeInTheDocument();
-    expect(screen.getByText(/Hosted workspace/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Submit hosted evaluation request/i })).toBeInTheDocument();
+    expect(screen.getAllByText(/World Studio/i).length).toBeGreaterThan(0);
+    expect(screen.getByRole("link", { name: /Request Policy Evaluation Set/i })).toBeInTheDocument();
   });
 
   it("offers a runtime-only launch fallback when the embedded demo is blocked", async () => {
@@ -172,9 +170,9 @@ describe("HostedSessionSetup", () => {
     render(<HostedSessionSetup params={{ slug: demoSiteId }} />);
 
     expect(
-      await screen.findByText(/Hosted review room access is request-reviewed, but the hosted workspace is available\./i),
+      await screen.findByText(/World Studio access is request-reviewed, but the runtime run is available\./i),
     ).toBeInTheDocument();
-    const runtimeButton = screen.getByRole("button", { name: /Launch hosted session/i });
+    const runtimeButton = screen.getByRole("button", { name: /Start Policy Evaluation Set/i });
     expect(runtimeButton).toBeEnabled();
 
     fireEvent.click(runtimeButton);
@@ -225,7 +223,7 @@ describe("HostedSessionSetup", () => {
 
     render(<HostedSessionSetup params={{ slug: demoSiteId }} />);
 
-    expect(await screen.findByText(/Hosted workspace/i)).toBeInTheDocument();
+    expect(await screen.findByText(/The configured run can start\./i)).toBeInTheDocument();
     await waitFor(
       () => {
         expect(fetchMock).toHaveBeenCalledTimes(1);

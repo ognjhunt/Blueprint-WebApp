@@ -90,7 +90,7 @@ const proofBoundaries = [
   },
   {
     title: "Hosted access is gated",
-    body: "The page sells the hosted evaluation workflow while confirming session availability, runtime scope, and stronger readiness claims per site/request.",
+    body: "The page sells the policy evaluation set workflow while confirming session availability, runtime scope, and stronger readiness claims per site/request.",
   },
   {
     title: "Rights do not disappear",
@@ -133,7 +133,7 @@ export default function ExactSiteHostedReview() {
     <>
       <SEO
         title="Product | Blueprint"
-        description="Blueprint turns indoor exact-site capture into site/task readiness reports, site-specific world-model assets, hosted evaluation, and pilot decision evidence for robot teams."
+        description="Blueprint turns indoor exact-site capture into site/task readiness reports, site-specific world-model assets, policy evaluation sets, and pilot decision evidence for robot teams."
         canonical="/product"
         type="product"
         jsonLd={[
@@ -141,7 +141,7 @@ export default function ExactSiteHostedReview() {
             path: "/product",
             name: "Blueprint Product",
             description:
-              "Indoor exact-site capture, site/task readiness reports, site-specific world-model assets, hosted evaluation, and pilot decision evidence for robot teams.",
+              "Indoor exact-site capture, site/task readiness reports, site-specific world-model assets, policy evaluation sets, and pilot decision evidence for robot teams.",
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },
@@ -151,7 +151,7 @@ export default function ExactSiteHostedReview() {
             path: "/product",
             name: "Blueprint Site-Specific Robot Deployment Readiness",
             description:
-              "A capture-backed product workflow for indoor exact-site readiness reports, world-model assets, hosted evaluation requests, and buyer decisions with proof attached.",
+              "A capture-backed product workflow for indoor exact-site readiness reports, world-model assets, policy evaluation set requests, and buyer decisions with proof attached.",
             image: publicCaptureGeneratedAssets.hostedReviewPublicRoute,
             category: "Site-specific robot deployment readiness platform",
             properties: [
@@ -167,7 +167,7 @@ export default function ExactSiteHostedReview() {
         <section className="relative border-b border-[#15130f]/10 bg-[#0d0d0b] text-white">
           <MonochromeMedia
             src={editorialGeneratedAssets.hostedReviewHero}
-            alt="Blueprint hosted evaluation workspace"
+            alt="Blueprint policy evaluation set workspace"
             className="min-h-[46rem] rounded-none md:min-h-[43rem]"
             imageClassName="min-h-[46rem] md:min-h-[43rem]"
             loading="eager"
@@ -340,7 +340,7 @@ export default function ExactSiteHostedReview() {
             <div className="min-h-[30rem]">
               <MonochromeMedia
                 src={publicCaptureGeneratedAssets.hostedReviewPublicRoute}
-                alt="Sample public route prepared for hosted evaluation"
+                alt="Sample public route prepared for a policy evaluation set"
                 className="h-full min-h-[30rem] rounded-none"
                 imageClassName="h-full min-h-[30rem]"
                 overlayClassName="bg-[linear-gradient(180deg,rgba(13,13,11,0.06),rgba(13,13,11,0.36))]"

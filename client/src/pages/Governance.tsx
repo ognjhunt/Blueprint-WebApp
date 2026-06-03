@@ -56,7 +56,7 @@ const publicCaptureBoundarySteps = [
 ];
 
 const operatorMatrix = [
-  ["Site authority", "Who can approve capture, listing visibility, hosted evaluation, and buyer access."],
+  ["Site authority", "Who can approve capture, listing visibility, policy evaluation, and buyer access."],
   ["Capture window", "Dates, hours, routes, escort needs, and recapture constraints."],
   ["Restricted zones", "Private, employee-only, payment, screen, sensitive, or no-record areas."],
   ["Commercial posture", "Whether buyer review, licensing, export, or revenue sharing is allowed."],

@@ -76,7 +76,7 @@ describe("SiteWorldDetail", () => {
     vi.mocked(fetchSiteWorldDetail).mockResolvedValue(buildSiteWorld());
   });
 
-  it("keeps the explainer secondary and uses hosted evaluation request CTAs", async () => {
+  it("keeps the explainer secondary and uses policy evaluation request CTAs", async () => {
     window.history.replaceState({}, "", "/site-worlds/sw-chi-01");
 
     render(<SiteWorldDetail params={{ slug: "sw-chi-01" }} />);
@@ -95,12 +95,12 @@ describe("SiteWorldDetail", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Site overview/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Tasks in this site package/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Composite hosted evaluation preview/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Composite policy evaluation set preview/i })).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: /Request a readiness report\./i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /Configure a hosted evaluation request for this site\./i }),
+      screen.getByRole("heading", { name: /Configure a policy evaluation set for this site\./i }),
     ).toBeInTheDocument();
     expect(screen.getAllByText(/^Status$/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Request-reviewed exemplar/i).length).toBeGreaterThan(0);
@@ -129,7 +129,7 @@ describe("SiteWorldDetail", () => {
     expect(packageUrl.pathname).toBe("/contact");
     expect(packageUrl.searchParams.get("interest")).toBe("data-licensing");
 
-    const hostedLink = screen.getByRole("link", { name: /Request hosted evaluation/i });
+    const hostedLink = screen.getByRole("link", { name: /Request policy evaluation/i });
     const hostedUrl = new URL(hostedLink.getAttribute("href")!, "https://example.com");
     expect(hostedUrl.pathname).toBe("/contact");
     expect(hostedUrl.searchParams.get("interest")).toBe("hosted-evaluation");

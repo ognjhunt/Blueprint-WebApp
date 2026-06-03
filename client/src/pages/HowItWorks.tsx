@@ -438,7 +438,7 @@ export default function HowItWorks() {
               </h2>
               <p className="mt-4 max-w-[28rem] text-sm leading-7 text-white/70">
                 The public sample listing shows how capture, package framing,
-                and hosted evaluation stay attached to one facility without
+                and policy evaluation sets stay attached to one facility without
                 claiming live fulfillment.
               </p>
               <div className="mt-7 flex flex-col gap-3 sm:flex-row">
