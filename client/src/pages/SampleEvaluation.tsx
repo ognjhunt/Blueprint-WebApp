@@ -158,7 +158,7 @@ export default function SampleEvaluation() {
                       href={publicDemoHref}
                       className="inline-flex items-center justify-center bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
                     >
-                      Open sample world model
+                      Open sample site package
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </a>
                     <a
@@ -291,11 +291,11 @@ export default function SampleEvaluation() {
           <EditorialCtaBand
             eyebrow="Next step"
             title="Turn the sample into a real request."
-            description="Open the public sample world model, then ask Blueprint to capture the exact site and robot question your team needs answered."
+            description="Open the public sample site package, then ask Blueprint to capture the exact site and robot question your team needs answered."
             imageSrc={editorialGeneratedAssets.sampleEvaluationProofBoard}
             imageAlt="Sample evaluation proof board"
             primaryHref={publicDemoHref}
-            primaryLabel="Open sample world model"
+            primaryLabel="Open sample site package"
             secondaryHref={sampleCaptureRequestHref}
             secondaryLabel="Request exact-site capture"
           />

@@ -1,6 +1,6 @@
 /**
  * HeroPipelineGraphic — animated SVG-based hero graphic showing the
- * Capture → Qualify → World Model pipeline. Replaces the static hero SVG.
+ * Capture → Scope → Readiness pipeline. Replaces the static hero SVG.
  * Uses pure CSS + framer-motion for drawing effects.
  */
 import { motion, useReducedMotion } from "framer-motion";
@@ -11,8 +11,8 @@ export function HeroPipelineGraphic() {
 
   const stages = [
     { icon: Camera, label: "Capture", sublabel: "Walk & scan", color: "text-indigo-600", bg: "bg-indigo-50", border: "border-indigo-200" },
-    { icon: ShieldCheck, label: "Qualify", sublabel: "Auto-verify", color: "text-emerald-600", bg: "bg-emerald-50", border: "border-emerald-200" },
-    { icon: Globe, label: "World Model", sublabel: "Robot-ready", color: "text-violet-600", bg: "bg-violet-50", border: "border-violet-200" },
+    { icon: ShieldCheck, label: "Scope", sublabel: "Pass bar", color: "text-emerald-600", bg: "bg-emerald-50", border: "border-emerald-200" },
+    { icon: Globe, label: "Readiness", sublabel: "Evidence packet", color: "text-violet-600", bg: "bg-violet-50", border: "border-violet-200" },
   ];
 
   return (
@@ -143,8 +143,8 @@ export function HeroPipelineGraphic() {
           </div>
           <div className="h-6 w-px bg-zinc-200" />
           <div className="text-center">
-            <p className="text-sm font-bold text-zinc-900">Robot-ready</p>
-            <p className="text-xs text-zinc-500">world models</p>
+            <p className="text-sm font-bold text-zinc-900">Readiness</p>
+            <p className="text-xs text-zinc-500">evidence packets</p>
           </div>
         </motion.div>
       </div>

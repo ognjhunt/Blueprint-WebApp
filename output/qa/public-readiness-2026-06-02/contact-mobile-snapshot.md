@@ -1,0 +1,77 @@
+- generic [ref=e2]:
+  - generic [ref=e7]:
+    - banner [ref=e8]:
+      - generic [ref=e9]:
+        - link "Blueprint home" [ref=e10] [cursor=pointer]:
+          - /url: /
+          - generic [ref=e11]
+        - button "Toggle navigation" [ref=e17] [cursor=pointer]:
+          - img [ref=e18]
+    - main [ref=e19]:
+      - generic [ref=e20]:
+        - generic [ref=e22]:
+          - generic [ref=e23]
+          - generic [ref=e72]
+        - generic [ref=e106]:
+          - generic [ref=e107]
+          - group [ref=e111]
+          - generic [ref=e113]
+    - contentinfo [ref=e207]:
+      - generic [ref=e208]:
+        - generic [ref=e209]:
+          - link "Blueprint home" [ref=e210] [cursor=pointer]:
+            - /url: /
+          - paragraph [ref=e217]: Blueprint turns indoor real-site capture into site-specific robot deployment readiness reports, hosted review rooms, and package evidence for robot teams.
+          - paragraph [ref=e218]: Robot teams request site/task readiness. Site operators set access and privacy boundaries. Capturers apply only where capture is open.
+          - generic [ref=e219]
+        - navigation [ref=e222]:
+          - paragraph [ref=e223]: Product
+          - link "Readiness reports" [ref=e224] [cursor=pointer]:
+            - /url: /readiness
+          - link "Product workflow" [ref=e225] [cursor=pointer]:
+            - /url: /product
+          - link "For robot teams" [ref=e226] [cursor=pointer]:
+            - /url: /for-robot-teams
+          - link "How it works" [ref=e227] [cursor=pointer]:
+            - /url: /how-it-works
+          - link "Site packages" [ref=e228] [cursor=pointer]:
+            - /url: /world-models
+          - link "Agent access" [ref=e229] [cursor=pointer]:
+            - /url: /agents
+          - link "Sample proof" [ref=e230] [cursor=pointer]:
+            - /url: /proof
+          - link "Sample deliverables" [ref=e231] [cursor=pointer]:
+            - /url: /sample-deliverables
+          - link "Capture" [ref=e232] [cursor=pointer]:
+            - /url: /capture
+          - link "Pricing" [ref=e233] [cursor=pointer]:
+            - /url: /pricing
+        - navigation [ref=e234]:
+          - paragraph [ref=e235]: Company
+          - link "About" [ref=e236] [cursor=pointer]:
+            - /url: /about
+          - link "Trust & site controls" [ref=e237] [cursor=pointer]:
+            - /url: /governance
+          - link "Site operators" [ref=e238] [cursor=pointer]:
+            - /url: /contact/site-operator
+          - link "Contact" [ref=e239] [cursor=pointer]:
+            - /url: /contact?persona=robot-team
+          - link "Updates" [ref=e240] [cursor=pointer]:
+            - /url: /updates
+          - link "Careers" [ref=e241] [cursor=pointer]:
+            - /url: /careers
+        - navigation [ref=e242]:
+          - paragraph [ref=e243]: Support
+          - link "Support" [ref=e244] [cursor=pointer]:
+            - /url: /help
+          - link "FAQ" [ref=e245] [cursor=pointer]:
+            - /url: /faq
+          - link "Privacy" [ref=e246] [cursor=pointer]:
+            - /url: /privacy
+          - link "Terms" [ref=e247] [cursor=pointer]:
+            - /url: /terms
+      - generic [ref=e249]:
+        - paragraph [ref=e250]: © 2026 Blueprint, Inc. All rights reserved.
+        - paragraph [ref=e251]: Capture first. Readiness claims stay evidence-backed.
+  - region "Notifications (F8)":
+    - list

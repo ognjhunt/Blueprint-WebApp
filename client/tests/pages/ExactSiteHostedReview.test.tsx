@@ -9,36 +9,36 @@ describe("ExactSiteHostedReview", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Turn the exact site into a decision-ready world model\./i,
+        name: /Turn the exact site into a robot-readiness report\./i,
       }),
     ).toBeInTheDocument();
 
     expect(
       screen.getByText(
-        /Blueprint packages indoor capture, world-model output, hosted review, and buyer proof around one site/i,
+        /Blueprint packages indoor capture, task suites, robot profiles, site-specific world-model assets, hosted review, and buyer proof around one site/i,
       ),
     ).toBeInTheDocument();
 
     expect(screen.getAllByText(/^Indoor site capture$/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/^World model package$/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/^Readiness report and pilot protocol$/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/^Hosted evaluation$/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/^Export or recapture decision$/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/^Proceed to short-pilot protocol$/i).length).toBeGreaterThan(0);
     expect(
       screen.getByRole("heading", {
-        name: /The sellable product is the site package, not a detached demo\./i,
+        name: /The site package is the substrate, not a detached demo\./i,
       }),
     ).toBeInTheDocument();
     expect(screen.getByText(/Representative product evidence, not a customer result/i)).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
-        name: /A buyer room for runs, limits, and next steps\./i,
+        name: /A buyer room for readiness evidence, limits, and next steps\./i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Approve a scoped export/i)).toBeInTheDocument();
+    expect(screen.getByText(/Proceed to short-pilot protocol/i)).toBeInTheDocument();
     expect(screen.getByText(/Package preview/i)).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
-        name: /Commercially confident, proof honest\./i,
+        name: /Commercially confident, verdicts evidence-gated\./i,
       }),
     ).toBeInTheDocument();
 
@@ -53,7 +53,7 @@ describe("ExactSiteHostedReview", () => {
     );
     expect(
       screen
-        .getAllByRole("link", { name: /Book hosted review/i })
+        .getAllByRole("link", { name: /Request readiness evaluation/i })
         .some(
           (link) =>
             link.getAttribute("href")

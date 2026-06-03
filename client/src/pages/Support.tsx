@@ -239,7 +239,7 @@ function HelpHome() {
                 href="/world-models"
                 className="inline-flex min-h-12 items-center justify-center border border-white/20 px-6 text-sm font-semibold text-white transition hover:bg-white/10"
               >
-                Browse world models
+                Browse site packages
               </a>
             </div>
           </div>

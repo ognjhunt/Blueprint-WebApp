@@ -1,0 +1,33 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e5]:
+        - link "Blueprint home" [ref=e6] [cursor=pointer]:
+          - /url: /
+        - button "Toggle navigation" [ref=e13] [cursor=pointer]
+    - main [ref=e15]:
+      - generic [ref=e16]:
+        - generic [ref=e18]
+        - generic [ref=e36]
+        - generic [ref=e87]
+        - generic [ref=e104]
+        - generic [ref=e131]
+        - generic [ref=e164]
+        - generic [ref=e178]
+        - generic [ref=e201]
+        - generic [ref=e219]
+        - generic [ref=e253]
+        - generic [ref=e292]
+        - generic [ref=e330]
+        - generic [ref=e349]
+    - contentinfo [ref=e358]:
+      - generic [ref=e359]:
+        - generic [ref=e360]
+        - navigation [ref=e373]
+        - navigation [ref=e385]
+        - navigation [ref=e393]
+      - generic [ref=e400]:
+        - paragraph [ref=e401]: © 2026 Blueprint, Inc. All rights reserved.
+        - paragraph [ref=e402]: Capture first. Readiness claims stay evidence-backed.
+  - region "Notifications (F8)":
+    - list

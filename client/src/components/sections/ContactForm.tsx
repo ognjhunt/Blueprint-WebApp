@@ -274,12 +274,12 @@ export default function ContactForm() {
           <h2 className="text-3xl md:text-5xl font-black leading-tight text-white">
             Ready to Turn Your{" "}
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-emerald-300 to-cyan-300">
-              Real Site Into a World Model?
+              Real Site Into Readiness Evidence?
             </span>
           </h2>
           <p className="text-base md:text-xl text-slate-300 mt-3">
-            Blueprint captures your space, builds a site-specific world model,
-            and helps your team open hosted access on the exact environment that matters.
+            Blueprint captures your space, packages site-specific evidence,
+            and helps your team scope hosted review around the exact environment that matters.
           </p>
         </motion.div>
 

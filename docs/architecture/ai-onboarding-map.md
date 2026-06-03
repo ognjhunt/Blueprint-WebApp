@@ -94,11 +94,11 @@ Use graphify to find navigation hotspots. Do not use it to decide product truth,
 
 ## Naming Glossary
 
-- `world model`: public-facing product category for a site-specific model or hosted experience built from real capture evidence.
+- `world model`: model/runtime substrate for a site-specific package or hosted experience built from real capture evidence.
 - `site world`: existing internal naming for many data contracts, routes, IDs, files, and runtime objects. Do not rename internals just because public copy says "world models."
-- `site-specific world model package`: pipeline-backed downstream output sold or hosted by WebApp.
+- `site package`: capture-backed downstream output sold, hosted, or used as the substrate for a readiness report.
 - `hosted session`: request/runtime surface for interacting with a site-world/world-model package.
-- `Exact-Site Hosted Review`: current wedge for one real site, one workflow lane, one package-plus-hosted-review path.
-- `qualification` / `readiness`: optional trust and review layers. Useful, but not the primary product story.
+- `Site-Specific Robot Deployment Readiness`: current WebApp wedge for one real site, one robot task, one threshold set, one site package, and one readiness report or proof blocker.
+- `qualification` / `readiness`: public WebApp buyer workflow when site/task scoped and capture-grounded; unsupported ready-to-deploy or safety-validated verdicts remain blocked.
 - `provenance`: capture source, timestamps, device metadata, poses, and derivation trail.
 - `rights` / `privacy` / `consent`: commercialization and access boundaries. These must be explicit and cannot be inferred from listing existence.

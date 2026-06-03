@@ -94,10 +94,10 @@ describe("SiteWorldDetail", () => {
       ),
     ).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Site overview/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Tasks in this world model/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Tasks in this site package/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Composite hosted evaluation preview/i })).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /Request package access\./i }),
+      screen.getByRole("heading", { name: /Request a readiness report\./i }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: /Configure a hosted evaluation request for this site\./i }),
@@ -124,7 +124,7 @@ describe("SiteWorldDetail", () => {
     expect(screen.getAllByText(/Proof depth/i).length).toBeGreaterThan(0);
     expect(screen.queryByText(/Not specified/i)).not.toBeInTheDocument();
 
-    const packageLink = screen.getAllByRole("link", { name: /Request package access/i })[0];
+    const packageLink = screen.getAllByRole("link", { name: /Request readiness report/i })[0];
     const packageUrl = new URL(packageLink.getAttribute("href")!, "https://example.com");
     expect(packageUrl.pathname).toBe("/contact");
     expect(packageUrl.searchParams.get("interest")).toBe("data-licensing");

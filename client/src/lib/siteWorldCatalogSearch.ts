@@ -533,7 +533,7 @@ export function buildCatalogRequestCandidate(
       ? suggestion.value
       : suggestion?.siteLocation || trimmedQuery;
   const taskStatement = [
-    `Request an exact-site world model for ${trimmedQuery}.`,
+    `Request an exact-site readiness evaluation for ${trimmedQuery}.`,
     workflow ? `Workflow: ${workflow}.` : "",
     targetSiteType ? `Site class: ${targetSiteType}.` : "",
   ].filter(Boolean).join(" ");

@@ -4,12 +4,12 @@ import SiteWorlds from "@/pages/SiteWorlds";
 import { siteWorldCards } from "@/data/siteWorlds";
 
 describe("SiteWorlds", () => {
-  it("renders a search-first world-model catalog with truthful state labels", () => {
+  it("renders a search-first site-package catalog with truthful state labels", () => {
     render(<SiteWorlds />);
 
     expect(
       screen.getByRole("heading", {
-        name: /Browse exact-site world models\./i,
+        name: /Browse site packages for readiness evaluation\./i,
       }),
     ).toBeInTheDocument();
     expect(
@@ -28,7 +28,7 @@ describe("SiteWorlds", () => {
     }
 
     expect(
-      screen.getByRole("link", { name: /Open sample world model/i }),
+      screen.getByRole("link", { name: /Open sample site package/i }),
     ).toHaveAttribute("href", "/world-models/siteworld-f5fd54898cfb");
     expect(screen.getAllByText(/Sample/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Planned/i).length).toBeGreaterThan(0);
@@ -43,7 +43,7 @@ describe("SiteWorlds", () => {
   it("shows suggestions for names, addresses, cities, aliases, and workflows", () => {
     render(<SiteWorlds />);
 
-    const input = screen.getByLabelText(/Search the catalog/i);
+    const input = screen.getByLabelText(/Search site packages/i);
 
     fireEvent.change(input, { target: { value: "Harborview" } });
     expect(
@@ -66,7 +66,7 @@ describe("SiteWorlds", () => {
   it("selecting or typing an unknown location shows a truthful request CTA with prefilled params", () => {
     render(<SiteWorlds />);
 
-    const input = screen.getByLabelText(/Search the catalog/i);
+    const input = screen.getByLabelText(/Search site packages/i);
     fireEvent.change(input, { target: { value: "123 New Robot Ave, Austin, TX" } });
     fireEvent.keyDown(input, { key: "Enter" });
 
@@ -83,13 +83,13 @@ describe("SiteWorlds", () => {
     expect(href).toContain("source=site-worlds");
     expect(href).toContain("path=new-capture");
     expect(url.searchParams.get("siteLocation")).toBe("123 New Robot Ave, Austin, TX");
-    expect(url.searchParams.get("taskStatement")).toContain("Request an exact-site world model");
+    expect(url.searchParams.get("taskStatement")).toContain("Request an exact-site readiness evaluation");
   });
 
   it("selecting a city suggestion clearly separates nearby matches from exact scanned packages", () => {
     render(<SiteWorlds />);
 
-    const input = screen.getByLabelText(/Search the catalog/i);
+    const input = screen.getByLabelText(/Search site packages/i);
     fireEvent.change(input, { target: { value: "Chicago" } });
     const cityOption = screen.getAllByRole("option", { name: /Chicago, IL/i })[0];
     fireEvent.click(cityOption);

@@ -1,6 +1,6 @@
 /**
  * BlueprintPipelineAnimation — Remotion composition showing the full
- * Capture → Process → World Model → Robot Deploy pipeline as a looping
+ * Capture → Process → Site Package → Readiness pipeline as a looping
  * animated graphic for the homepage hero section.
  *
  * Uses Remotion primitives (useCurrentFrame, interpolate, spring, Sequence)
@@ -426,7 +426,7 @@ export const BlueprintPipelineAnimation: React.FC = () => {
           {/* Transition particles: Capture → Process */}
           <TransitionParticles color={COLORS.indigo} fromX={260} toX={310} y={75} />
 
-          {/* Scene 2: Process & World Model */}
+          {/* Scene 2: Process & Site Package */}
           <Sequence from={0.8 * fps} durationInFrames={3 * fps} layout="none">
             <g transform="translate(280, 0)">
               <ProcessScene />
@@ -436,7 +436,7 @@ export const BlueprintPipelineAnimation: React.FC = () => {
           {/* Transition particles: Process → Deploy */}
           <TransitionParticles color={COLORS.violet} fromX={540} toX={590} y={75} />
 
-          {/* Scene 3: Robot Deploy */}
+          {/* Scene 3: Readiness */}
           <Sequence from={2 * fps} durationInFrames={3.5 * fps} layout="none">
             <g transform="translate(560, 0)">
               <DeployScene />
@@ -494,7 +494,7 @@ export const BlueprintPipelineAnimation: React.FC = () => {
           {[
             { bold: "15-30 min", sub: "capture session" },
             { bold: "Auto-scored", sub: "quality gates" },
-            { bold: "Robot-ready", sub: "world models" },
+            { bold: "Readiness", sub: "evidence packets" },
           ].map((stat, i) => (
             <div key={i} style={{ display: "flex", flexDirection: "column" as const, alignItems: "center", flex: 1 }}>
               <span style={{ fontSize: 11, fontWeight: 700, color: COLORS.slate }}>{stat.bold}</span>

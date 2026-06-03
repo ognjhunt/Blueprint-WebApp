@@ -65,9 +65,9 @@ export const CONTACT_REQUEST_PATH_OPTIONS: Array<{
   },
   {
     value: "hosted-review",
-    label: "Hosted review",
-    description: "Review one exact-site workflow in a hosted Blueprint path.",
-    cta: "Request hosted review",
+    label: "Hosted evaluation",
+    description: "Review one exact-site readiness workflow in a hosted Blueprint path.",
+    cta: "Request hosted evaluation",
     buyerType: "robot_team",
     commercialRequestPath: "hosted_evaluation",
   },
@@ -317,13 +317,13 @@ function inferredTaskStatement(input: ContactRequestUrlInput, requestPath: Conta
   }
   if (workflow) return workflow;
   if (requestPath === "hosted-review" && primaryNeed) {
-    return `Request hosted review for ${primaryNeed}.`;
+    return `Request hosted evaluation for ${primaryNeed}.`;
   }
   if (requestPath === "new-capture" && primaryNeed) {
-    return `Request a new capture for ${primaryNeed}.`;
+    return `Request an exact-site readiness evaluation for ${primaryNeed}.`;
   }
-  if (primaryNeed) return `Request a site-specific world model for ${primaryNeed}.`;
-  if (siteClass) return `Request a site-specific world model for ${siteClass}.`;
+  if (primaryNeed) return `Request a site/task readiness evaluation for ${primaryNeed}.`;
+  if (siteClass) return `Request a site/task readiness evaluation for ${siteClass}.`;
   return "";
 }
 

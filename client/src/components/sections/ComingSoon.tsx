@@ -72,10 +72,9 @@ export default function ComingSoon() {
                   </h3>
                 </div>
                 <p className="text-zinc-600 leading-relaxed">
-                  We're using Dynamic World Models to generate first-person manipulation
-                  video from each SimReady scene in our catalog. Buy the scene for Isaac Sim
-                  training and evaluation, or add egocentric video datasets for pretraining
-                  your vision-language-action models.
+                  Blueprint keeps generated media and simulated scenes in a support lane:
+                  useful for inspection, training context, and evaluation planning, but not
+                  a substitute for capture provenance or robot deployment proof.
                 </p>
                 <div className="rounded-xl border border-zinc-200 bg-white p-4">
                   <p className="text-sm font-semibold text-zinc-900 mb-3">Two ways to use each scene:</p>
@@ -182,10 +181,10 @@ export default function ComingSoon() {
               </div>
               <div>
                 <p className="text-sm font-semibold text-zinc-900">
-                  Powered by Dynamic World Models
+                  Grounded by capture evidence
                 </p>
                 <p className="text-xs text-zinc-500 mt-1">
-                  Scene-action-conditioned video diffusion for photorealistic egocentric generation.
+                  Generated and simulated outputs stay labeled as support evidence.
                 </p>
               </div>
             </div>

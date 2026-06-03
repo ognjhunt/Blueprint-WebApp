@@ -729,7 +729,7 @@ export default function Home() {
             <div className="bg-[#e8efe8] px-6 py-8 lg:px-8 lg:py-10">
               <EditorialSectionIntro
                 eyebrow="For robot teams"
-                title="Start with the exact site/task your robot must clear."
+                title="Choose a site task. Set the pass bar."
                 description="A buyer request should name the indoor place, workflow, robot profile, pass thresholds, and pilot timeline. Blueprint then keeps the capture-backed proof, readiness scope, and hosted path together."
               />
               <a
@@ -812,14 +812,14 @@ export default function Home() {
                   onClick={() =>
                     trackHomeCtaClick(
                       "home_sample_site_secondary",
-                      "Open sample world model",
+                      "Open sample site package",
                       publicDemoHref,
                       "home-proof-story",
                     )
                   }
                   className="inline-flex items-center justify-center border border-black/10 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
                 >
-                  Open sample world model
+                  Open sample site package
                 </a>
               </div>
             </div>

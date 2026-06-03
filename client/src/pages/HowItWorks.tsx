@@ -196,7 +196,7 @@ export default function HowItWorks() {
               <div className="pt-16 lg:pt-24">
                 <EditorialSectionLabel>How It Works</EditorialSectionLabel>
                 <h1 className="font-editorial mt-8 text-[3.8rem] leading-[0.9] tracking-[-0.06em] sm:text-[5.2rem]">
-                  Indoor capture to world model.
+                  Indoor capture to readiness report.
                 </h1>
                 <p className="mt-6 max-w-[18rem] text-sm uppercase tracking-[0.2em] text-slate-500">
                   Street View grounds outdoor places. Blueprint captures indoor routes robots need.
@@ -359,14 +359,14 @@ export default function HowItWorks() {
                   href={publicDemoHref}
                   className="inline-flex items-center justify-center rounded-full bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
                 >
-                  Open sample world model
+                  Open sample site package
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </a>
                 <a
                   href="/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=how-it-works"
                   className="inline-flex items-center justify-center rounded-full border border-white/15 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/5"
                 >
-                  Request world model
+                  Request readiness evaluation
                 </a>
               </div>
             </div>

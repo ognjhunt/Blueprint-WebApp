@@ -99,8 +99,8 @@ const robotRequestPathOptions: Array<{
   },
   {
     value: "hosted_evaluation",
-    label: "Hosted review",
-    description: "Scope a hosted buyer review for one exact-site workflow.",
+    label: "Hosted evaluation",
+    description: "Scope a hosted buyer review for one exact-site readiness workflow.",
     Icon: MonitorPlay,
   },
   {
@@ -138,15 +138,15 @@ const requestPathCopy: Record<
       "Blueprint reviews the site, task, robot profile, thresholds, and evidence needs, then routes the request toward a readiness report, package access, hosted evaluation, capture access, or one missing detail.",
   },
   hosted_evaluation: {
-    successTitle: "Hosted review request received",
+    successTitle: "Hosted evaluation request received",
     successBody:
       "Blueprint now has the site and robot context needed to evaluate a hosted review path without treating availability or entitlement as automatic. No hosted runtime, provider job, or fulfillment action was started by this request.",
-    requestSectionTitle: "What should the hosted review prove?",
-    taskLabel: "What should the hosted review help your team answer?",
+    requestSectionTitle: "What should the hosted evaluation prove?",
+    taskLabel: "What should the hosted evaluation help your team answer?",
     taskPlaceholder:
       "Describe the robot task, scenario, pass/fail question, or review workflow this hosted review should support.*",
-    taskHelper: "Hosted review is confirmed after site, entitlement, proof, and runtime availability are checked.",
-    submitLabel: "Request hosted review",
+    taskHelper: "Hosted evaluation is confirmed after site, entitlement, proof, and runtime availability are checked.",
+    submitLabel: "Request hosted evaluation",
     nextStep:
       "Blueprint checks the site, task, entitlement, and hosted-path readiness before confirming whether a hosted evaluation can move forward.",
   },
@@ -616,7 +616,7 @@ export function ContactForm() {
       hasTaskStatement: Boolean(taskStatement.trim()),
       hasOperatingConstraints: Boolean(operatingConstraints.trim()),
       hasPrivacySecurityConstraints: Boolean(privacySecurityConstraints.trim()),
-      hasNotes: Boolean(detailsMessage.trim()),
+      hasNotes: Boolean(readinessDetails),
       ...(analyticsDemandAttribution
         ? { demandAttribution: analyticsDemandAttribution }
         : {}),

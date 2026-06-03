@@ -8,7 +8,7 @@ describe("HowItWorks", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Indoor capture to world model\./i,
+        name: /Indoor capture to readiness report\./i,
       }),
     ).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /^Capture$/i })).toBeInTheDocument();
@@ -19,10 +19,10 @@ describe("HowItWorks", () => {
     expect(screen.getByText(/See the indoor site before field time\./i)).toBeInTheDocument();
     expect(
       screen
-        .getAllByRole("link", { name: /Open sample world model/i })
+        .getAllByRole("link", { name: /Open sample site package/i })
         .some((link) => link.getAttribute("href") === "/world-models/siteworld-f5fd54898cfb"),
     ).toBe(true);
-    expect(screen.getByRole("link", { name: /Request world model/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Request readiness evaluation/i })).toHaveAttribute(
       "href",
       expect.stringContaining("/contact?persona=robot-team"),
     );

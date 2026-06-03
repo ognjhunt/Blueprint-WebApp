@@ -8,13 +8,13 @@ describe("Pricing", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Choose the first step for one real site\./i,
+        name: /Price the readiness question before the pilot\./i,
       }),
     ).toBeInTheDocument();
 
-    expect(screen.getAllByRole("heading", { name: /^Site Package Access$/i }).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole("heading", { name: /^Hosted Review$/i }).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole("heading", { name: /^Custom Scope$/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("heading", { name: /^Site\/Task Readiness Review$/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("heading", { name: /^Hosted Evaluation$/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("heading", { name: /^Custom Multi-Site Benchmark$/i }).length).toBeGreaterThan(0);
 
     expect(screen.getAllByText(/\$2,100 – \$3,400/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/\$16 – \$29 \/ session-hour/i).length).toBeGreaterThan(0);
@@ -26,20 +26,20 @@ describe("Pricing", () => {
     expect(
       screen.getByRole("heading", { name: /Choose by the first decision your team needs to make\./i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Package access first/i)).toBeInTheDocument();
+    expect(screen.getByText(/Readiness review first/i)).toBeInTheDocument();
     expect(screen.getByText(/Hosted review first/i)).toBeInTheDocument();
-    expect(screen.getByText(/Custom scope first/i)).toBeInTheDocument();
-    expect(screen.getByText(/Package access means files and approved exports/i)).toBeInTheDocument();
-    expect(screen.getByText(/managed browser sessions and run evidence/i)).toBeInTheDocument();
+    expect(screen.getByText(/Multi-site benchmark first/i)).toBeInTheDocument();
+    expect(screen.getByText(/Readiness review means advisory evidence/i)).toBeInTheDocument();
+    expect(screen.getByText(/managed browser sessions and run notes/i)).toBeInTheDocument();
 
     expect(screen.getByText(/Scope changes with/i)).toBeInTheDocument();
     expect(screen.getByText(/Planning ranges/i)).toBeInTheDocument();
-    expect(screen.getByText(/not a package license by itself/i)).toBeInTheDocument();
+    expect(screen.getByText(/not claim a robot is ready to deploy/i)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /What each path unlocks first\./i })).toBeInTheDocument();
 
     expect(
       screen
-        .getAllByRole("link", { name: /Request hosted review/i })
+        .getAllByRole("link", { name: /Request hosted evaluation/i })
         .some((link) =>
           link.getAttribute("href") ===
           "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=pricing",
@@ -47,7 +47,7 @@ describe("Pricing", () => {
     ).toBe(true);
     expect(
       screen
-        .getAllByRole("link", { name: /Request world model/i })
+        .getAllByRole("link", { name: /Request readiness evaluation/i })
         .some((link) =>
           link.getAttribute("href") ===
           "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=pricing",

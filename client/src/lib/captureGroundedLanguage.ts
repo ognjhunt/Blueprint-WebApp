@@ -6,7 +6,7 @@ export const captureGroundedPublicCopy = {
   groundTruthDefinition:
     "Ground truth means raw capture evidence, timestamps, poses, device metadata, rights and privacy records, provenance, and package artifacts or runtime artifacts when they exist.",
   supportSignalBoundary:
-    "Samples, generated previews, dry-run commerce, catalog matches, and request drafts are support signals. They do not prove customer results, rights clearance, provider execution, payment, package access, hosted fulfillment, a robot is ready to deploy, safety validation, guaranteed threshold performance, or city-live coverage.",
+    "Samples, generated previews, dry-run commerce, catalog matches, and request drafts are support signals. They do not prove customer results, rights clearance, provider execution, payment, package access, hosted fulfillment, an operational deployment verdict, safety validation, guaranteed threshold performance, or city-live coverage.",
   publicLaunchReadyBoundary:
     "Public pages can stay polished and present-tense while live availability, rights, payment, provider execution, package access, and fulfillment remain confirmed per site/request.",
   requestBoundary:
@@ -34,9 +34,9 @@ export const captureGroundedBlockedClaims = [
   "payment",
   "package access",
   "hosted fulfillment",
-  "ready to deploy verdict",
+  "operational deployment verdict",
   "safety validation",
-  "guaranteed success, cycle time, intervention, or safety threshold",
+  "guaranteed threshold performance",
   "city-live coverage",
 ];
 

@@ -36,10 +36,15 @@ describe("site-content route", () => {
         safety: string;
       };
 
+      expect(payload.summary).toContain("site-specific robot deployment readiness platform");
       expect(payload.summary).toContain("lawful indoor capture");
-      expect(payload.summary).toContain("buyer decision workflows");
+      expect(payload.summary).toContain("readiness reports");
       expect(payload.definitions).toEqual(
         expect.arrayContaining([
+          expect.objectContaining({
+            term: "Readiness report",
+            definition: expect.stringContaining("site/task scope"),
+          }),
           expect.objectContaining({
             term: "Ground-truth boundary",
             definition: expect.stringContaining("Ground truth means raw capture evidence"),

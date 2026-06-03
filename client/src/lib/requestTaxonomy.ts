@@ -45,21 +45,21 @@ export const OPPORTUNITY_STATES = [
 export const REQUESTED_LANE_LABELS = {
   qualification: "Site Access Review",
   preview_simulation: "Preview Simulation",
-  deeper_evaluation: "World Model / Hosted Evaluation",
+  deeper_evaluation: "Readiness Report / Hosted Evaluation",
   managed_tuning: "Managed Tuning",
-  data_licensing: "World Model Package Access",
+  data_licensing: "Site Package Access",
 } as const;
 
 export const REQUESTED_LANE_DESCRIPTIONS = {
   qualification: "Review the site, access path, and blockers before capture or release.",
   preview_simulation: "Prepare a preview asset once the record supports it.",
-  deeper_evaluation: "Request a site-specific world model path or hosted evaluation scope.",
+  deeper_evaluation: "Request a site/task readiness report or hosted evaluation scope.",
   managed_tuning: "Flag later scenario generation or managed tuning work.",
-  data_licensing: "Request licensed world-model package access for one exact site.",
+  data_licensing: "Request licensed site-package access for one exact site.",
 } as const;
 
 export const COMMERCIAL_REQUEST_PATH_LABELS = {
-  world_model: "World model request",
+  world_model: "Readiness report request",
   hosted_evaluation: "Hosted evaluation request",
   capture_access: "Capture access request",
   site_claim: "Site operator claim",

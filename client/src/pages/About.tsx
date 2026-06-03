@@ -134,14 +134,14 @@ export default function About() {
         <section className="mx-auto max-w-[88rem] px-5 pb-12 sm:px-8 lg:px-10 lg:pb-14">
           <EditorialCtaBand
             eyebrow="Next step"
-            title="Start with the public proof or bring one exact site."
-            description="Browse the public catalog if you want to evaluate the proof style first, or contact Blueprint when the facility is already known."
+            title="Start with the public proof or bring one exact site/task."
+            description="Browse site packages if you want to evaluate the proof style first, or contact Blueprint when the readiness question is already known."
             imageSrc={editorialGeneratedAssets.scopingRoom}
             imageAlt="Blueprint scoping room"
             primaryHref="/world-models"
-            primaryLabel="Explore world models"
+            primaryLabel="Explore site packages"
             secondaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=about-bottom"
-            secondaryLabel="Request world model"
+            secondaryLabel="Request readiness evaluation"
             dark={false}
           />
         </section>

@@ -336,12 +336,12 @@ export default function Capture() {
         <section className="mx-auto max-w-[96rem] px-5 py-10 sm:px-8 lg:px-10">
           <EditorialCtaBand
             eyebrow="Buyer side"
-            title="Need a world model for one real workflow?"
-            description="Robot teams start with package requests, hosted review, and proof packets. Capturer access is a separate supply path."
+            title="Need readiness evidence for one real workflow?"
+            description="Robot teams start with readiness evaluation, site package requests, hosted evaluation, and proof packets. Capturer access is a separate supply path."
             imageSrc={publicCaptureGeneratedAssets.everydayPlacesCollage}
             imageAlt="Blueprint capture route"
             primaryHref="/world-models"
-            primaryLabel="Browse world models"
+            primaryLabel="Browse site packages"
             secondaryHref="mailto:hello@tryblueprint.io?subject=Blueprint%20Capture%20Support"
             secondaryLabel="Email support"
           />

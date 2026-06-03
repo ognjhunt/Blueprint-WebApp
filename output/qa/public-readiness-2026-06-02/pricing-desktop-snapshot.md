@@ -1,0 +1,27 @@
+- generic [ref=e2]:
+  - generic [ref=e7]:
+    - banner [ref=e8]:
+      - generic [ref=e9]:
+        - link "Blueprint home" [ref=e10] [cursor=pointer]:
+          - /url: /
+        - navigation [ref=e17]
+        - link "Request readiness" [ref=e27] [cursor=pointer]:
+          - /url: /contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=header
+    - main [ref=e28]:
+      - generic [ref=e29]:
+        - generic [ref=e31]
+        - generic [ref=e44]
+        - generic [ref=e88]
+        - generic [ref=e224]
+        - generic [ref=e262]
+    - contentinfo [ref=e339]:
+      - generic [ref=e340]:
+        - generic [ref=e341]
+        - navigation [ref=e354]
+        - navigation [ref=e366]
+        - navigation [ref=e374]
+      - generic [ref=e381]:
+        - paragraph [ref=e382]: © 2026 Blueprint, Inc. All rights reserved.
+        - paragraph [ref=e383]: Capture first. Readiness claims stay evidence-backed.
+  - region "Notifications (F8)":
+    - list

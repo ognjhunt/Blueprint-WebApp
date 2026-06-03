@@ -37,7 +37,7 @@ describe("SampleDeliverables", () => {
       "href",
       "/proof",
     );
-    expect(screen.getByRole("link", { name: /Request package access/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Request readiness review/i })).toHaveAttribute(
       "href",
       expect.stringContaining("path=package-access"),
     );

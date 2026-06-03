@@ -23,7 +23,11 @@ describe("Header", () => {
       "href",
       "/product",
     );
-    expect(screen.getByRole("link", { name: /^World models$/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /^Readiness$/i })).toHaveAttribute(
+      "href",
+      "/readiness",
+    );
+    expect(screen.getByRole("link", { name: /^Site packages$/i })).toHaveAttribute(
       "href",
       "/world-models",
     );
@@ -51,7 +55,7 @@ describe("Header", () => {
   it("uses a reduced proof-first action rail in the header", () => {
     render(<Header />);
 
-    const requestLink = screen.getAllByRole("link", { name: /Request world model/i })[0];
+    const requestLink = screen.getAllByRole("link", { name: /Request readiness/i })[0];
     expect(requestLink).toHaveAttribute(
       "href",
       "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=header",

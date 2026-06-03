@@ -71,12 +71,12 @@ describe("Contact page", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Request the site-specific world model your robot team needs\./i,
+        name: /Request a site\/task readiness evaluation\./i,
       }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("textbox", {
-        name: /What site, location, or robot workflow do you need\?/i,
+        name: /What site, task, or robot workflow do you need evaluated\?/i,
       }),
     ).toBeInTheDocument();
     expect(screen.getByText(/Human and agent friendly/i)).toBeInTheDocument();
@@ -84,14 +84,14 @@ describe("Contact page", () => {
     expect(screen.getByText(/This creates an intake record only/i)).toBeInTheDocument();
     expect(screen.queryByText(/Buyer type/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Requested lanes/i)).not.toBeInTheDocument();
-    expect(screen.getAllByRole("button", { name: /Request world model/i }).length).toBeGreaterThan(0);
-    expect(screen.getByRole("radio", { name: /World model package/i })).toBeChecked();
-    expect(screen.getByRole("radio", { name: /Hosted review/i })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /Request readiness evaluation/i }).length).toBeGreaterThan(0);
+    expect(screen.getByRole("radio", { name: /Readiness report/i })).toBeChecked();
+    expect(screen.getByRole("radio", { name: /Hosted evaluation/i })).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: /New capture request/i })).toBeInTheDocument();
     expect(screen.getByText(/Required first pass/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/Hosted review/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Hosted evaluation/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/New capture request/i).length).toBeGreaterThan(0);
-    expect(screen.getByRole("textbox", { name: /What should this world model help your team evaluate\?/i })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: /What site\/task readiness question should Blueprint help answer\?/i })).toBeInTheDocument();
     expect(screen.queryByText(/Proof boundaries visible/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Fastest paths/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Learn More/i)).not.toBeInTheDocument();
@@ -109,12 +109,12 @@ describe("Contact page", () => {
   it("tracks the path selector without adding personal data", () => {
     render(<Contact />);
 
-    fireEvent.click(screen.getAllByRole("button", { name: /Hosted review/i })[0]);
+    fireEvent.click(screen.getAllByRole("button", { name: /Hosted evaluation/i })[0]);
 
     expect(analyticsEventsMock.contactPageCtaClicked).toHaveBeenCalledWith({
       persona: "robot_team",
       ctaId: "contact_path_select_hosted-review",
-      ctaLabel: "Hosted review",
+      ctaLabel: "Hosted evaluation",
       destination: "hosted-review",
       source: "contact-primary-path-selector",
       requestedLane: "deeper_evaluation",
@@ -129,12 +129,12 @@ describe("Contact page", () => {
     render(<Contact />);
 
     expect(
-      screen.getByRole("heading", { name: /Request the site-specific world model your robot team needs\./i }),
+      screen.getByRole("heading", { name: /Request a site\/task readiness evaluation\./i }),
     ).toBeInTheDocument();
     expect(screen.getAllByDisplayValue("Harborview Grocery Distribution Annex").length).toBeGreaterThan(0);
     expect(screen.getByDisplayValue("Walk to shelf staging and pick the blue tote")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Unitree G1 with head cam and wrist cam")).toBeInTheDocument();
-    expect(screen.getAllByRole("button", { name: /Request hosted review/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("button", { name: /Request hosted evaluation/i }).length).toBeGreaterThan(0);
 
     expect(screen.queryByRole("combobox", { name: /Proof path/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("textbox", { name: /Existing stack or review workflow/i })).not.toBeInTheDocument();
@@ -167,10 +167,10 @@ describe("Contact page", () => {
     fireEvent.change(screen.getByRole("textbox", { name: /Your role/i }), {
       target: { value: "Autonomy lead" },
     });
-    fireEvent.change(screen.getByRole("textbox", { name: /What should this world model help your team evaluate\?/i }), {
+    fireEvent.change(screen.getByRole("textbox", { name: /What site\/task readiness question should Blueprint help answer\?/i }), {
       target: { value: "Compare shelf-staging behavior before field travel." },
     });
-    const submitButtons = screen.getAllByRole("button", { name: /Request world model/i });
+    const submitButtons = screen.getAllByRole("button", { name: /Request readiness evaluation/i });
     fireEvent.click(submitButtons[submitButtons.length - 1]);
 
     await waitFor(() => {
@@ -189,7 +189,7 @@ describe("Contact page", () => {
       commercialRequestPath: "world_model",
       siteName: "Harborview Grocery Distribution Annex",
       targetSiteType: "Grocery distribution",
-      details: "Scenario: Walk to shelf staging\nRequested outputs: Runtime manifest and proof packet",
+      details: "Notes: Scenario: Walk to shelf staging\nRequested outputs: Runtime manifest and proof packet",
     });
   });
 
@@ -200,12 +200,12 @@ describe("Contact page", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Request the site-specific world model your robot team needs\./i,
+        name: /Request a site\/task readiness evaluation\./i,
       }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("textbox", {
-        name: /What site, location, or robot workflow do you need\?/i,
+        name: /What site, task, or robot workflow do you need evaluated\?/i,
       }),
     ).toHaveValue("austin");
     expect(screen.queryByText(/Austin request lens/i)).not.toBeInTheDocument();
@@ -222,14 +222,14 @@ describe("Contact page", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByRole("textbox", {
-        name: /What site, location, or robot workflow do you need\?/i,
+        name: /What site, task, or robot workflow do you need evaluated\?/i,
       }),
     ).toHaveValue("123 Unknown St");
     expect(
-      screen.getByRole("link", { name: /Request hosted review/i }),
+      screen.getByRole("link", { name: /Request hosted evaluation/i }),
     ).toHaveAttribute("href", expect.stringContaining("buyerType=robot_team"));
     expect(
-      screen.getByRole("link", { name: /Request hosted review/i }),
+      screen.getByRole("link", { name: /Request hosted evaluation/i }),
     ).toHaveAttribute("href", expect.stringContaining("source=site-worlds"));
     expect(
       screen.getByDisplayValue("warehouse tote"),
@@ -255,13 +255,32 @@ describe("Contact page", () => {
     fireEvent.change(screen.getByRole("textbox", { name: /Your role/i }), {
       target: { value: "Autonomy lead" },
     });
-    fireEvent.change(screen.getByRole("textbox", { name: /What should this world model help your team evaluate\?/i }), {
+    fireEvent.change(screen.getByRole("textbox", { name: /What site\/task readiness question should Blueprint help answer\?/i }), {
       target: { value: "Qualify a tote picking workflow." },
     });
     fireEvent.change(screen.getByRole("textbox", { name: /Site or facility/i }), {
       target: { value: "Warehouse in Chicago" },
     });
-    const submitButtons = screen.getAllByRole("button", { name: /Request world model/i });
+    fireEvent.click(screen.getByRole("button", { name: /Add robot, thresholds, pilot timeline, or evidence needs/i }));
+    fireEvent.change(screen.getByRole("textbox", { name: /Required success rate/i }), {
+      target: { value: "97% over 200 attempts" },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: /Cycle-time threshold/i }), {
+      target: { value: "45 seconds per tote" },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: /Intervention-rate threshold/i }), {
+      target: { value: "fewer than 1 per shift" },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: /Safety threshold/i }), {
+      target: { value: "operator signoff and exclusion zones" },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: /Pilot timeline/i }), {
+      target: { value: "Q3 short pilot" },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: /Required evidence/i }), {
+      target: { value: "simulator traces and action logs" },
+    });
+    const submitButtons = screen.getAllByRole("button", { name: /Request readiness evaluation/i });
     fireEvent.click(submitButtons[submitButtons.length - 1]);
 
     await waitFor(() => {
@@ -271,9 +290,19 @@ describe("Contact page", () => {
       );
     });
 
-    expect(screen.getByText(/World model request received/i)).toBeInTheDocument();
+    expect(screen.getByText(/Readiness evaluation request received/i)).toBeInTheDocument();
     expect(screen.getByText(/No checkout, provider generation, live hosted launch/i)).toBeInTheDocument();
     expect(screen.getByText(/supported request path or the first missing proof/i)).toBeInTheDocument();
+    const submitCall = vi.mocked(global.fetch).mock.calls.find(
+      ([input]) => input === "/api/inbound-request",
+    );
+    const body = JSON.parse(String(submitCall?.[1]?.body));
+    expect(body.details).toContain("Success-rate threshold: 97% over 200 attempts");
+    expect(body.details).toContain("Cycle-time threshold: 45 seconds per tote");
+    expect(body.details).toContain("Intervention-rate threshold: fewer than 1 per shift");
+    expect(body.details).toContain("Safety threshold: operator signoff and exclusion zones");
+    expect(body.details).toContain("Pilot timeline: Q3 short pilot");
+    expect(body.details).toContain("Required evidence: simulator traces and action logs");
     expect(analyticsEventsMock.contactRequestSubmitted).toHaveBeenCalledWith({
       persona: "robot_team",
       hostedMode: false,
@@ -286,7 +315,7 @@ describe("Contact page", () => {
       hasTaskStatement: true,
       hasOperatingConstraints: false,
       hasPrivacySecurityConstraints: false,
-      hasNotes: false,
+      hasNotes: true,
     });
     expect(analyticsEventsMock.contactRequestCompleted).toHaveBeenCalledWith({
       persona: "robot_team",
@@ -320,7 +349,7 @@ describe("Contact page", () => {
     fireEvent.change(screen.getByRole("textbox", { name: /Your role/i }), {
       target: { value: "Autonomy lead" },
     });
-    const hostedSubmitButtons = screen.getAllByRole("button", { name: /Request hosted review/i });
+    const hostedSubmitButtons = screen.getAllByRole("button", { name: /Request hosted evaluation/i });
     fireEvent.click(hostedSubmitButtons[hostedSubmitButtons.length - 1]);
 
     await waitFor(() => {
@@ -357,7 +386,7 @@ describe("Contact page", () => {
         content: null,
       },
     });
-    expect(screen.getByText(/Hosted review request received/i)).toBeInTheDocument();
+    expect(screen.getByText(/Hosted evaluation request received/i)).toBeInTheDocument();
   });
 
   it("submits site-operator rights, privacy, access, and commercial boundaries", async () => {
@@ -425,7 +454,7 @@ describe("Contact page", () => {
   it("tracks a validation failure when required contact fields are missing", async () => {
     render(<Contact />);
 
-    const submitButtons = screen.getAllByRole("button", { name: /Request world model/i });
+    const submitButtons = screen.getAllByRole("button", { name: /Request readiness evaluation/i });
     fireEvent.click(submitButtons[submitButtons.length - 1]);
 
     expect(screen.getByText(/keeps the request routeable before any call or human review/i)).toBeInTheDocument();

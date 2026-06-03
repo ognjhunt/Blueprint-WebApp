@@ -25,8 +25,8 @@ vi.mock("@/lib/siteWorldsApi", () => ({
   fetchSiteWorldDetail: vi.fn(() => new Promise(() => {})),
 }));
 
-describe("public capture and world-model copy", () => {
-  it("keeps the buyer path centered on world models, proof, and hosted evaluation", { timeout: 10000 }, () => {
+describe("public capture and readiness copy", () => {
+  it("keeps the buyer path centered on readiness reports, proof, and hosted evaluation", { timeout: 10000 }, () => {
     window.localStorage.clear();
     const { container } = render(
       <>
@@ -39,15 +39,15 @@ describe("public capture and world-model copy", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Site-specific world models from real capture\./i,
+        name: /Site-specific robot deployment readiness\./i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: /Request world model/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: /Request readiness/i }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("link", { name: /^Proof$/i }).length).toBeGreaterThan(0);
-    expect(container).toHaveTextContent(/world model/i);
-    expect(container).toHaveTextContent(/real capture/i);
-    expect(container).toHaveTextContent(/site-specific packages/i);
-    expect(container).toHaveTextContent(/products/i);
+    expect(container).toHaveTextContent(/readiness report/i);
+    expect(container).toHaveTextContent(/indoor real-site capture/i);
+    expect(container).toHaveTextContent(/site packages/i);
+    expect(container).toHaveTextContent(/success rate/i);
     expect(container).toHaveTextContent(/proof/i);
     expect(container).toHaveTextContent(/hosted evaluation/i);
     expect(container).not.toHaveTextContent(/digital twin/i);

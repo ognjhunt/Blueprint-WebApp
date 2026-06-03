@@ -939,8 +939,8 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - Experiment priority queue → Conversion Optimizer
 - Research briefs → Market Intelligence and Demand Intelligence agents
 - Buyer-city sequencing priorities → City Demand agent
-- Exact-Site Hosted Review GTM pilot ledger and audit closeout when the bounded 14-day pilot is active
-- Exact-Site Hosted Review buyer-loop report with target count, recipient-backed contacts, founder approval queue, sends, replies, hosted-review starts, qualified calls, next actions, and the 100-touch decision gap
+- Site-Specific Robot Deployment Readiness GTM pilot ledger and audit closeout when the bounded 14-day pilot is active
+- Site-Specific Robot Deployment Readiness buyer-loop report with target count, recipient-backed contacts, founder approval queue, sends, replies, hosted-evaluation starts, qualified calls, readiness-report requests, next actions, and the 100-touch decision gap
 - Lifecycle cadence policy decisions for `lifecycle_email_cadences`, including pause/skip rules, suppression posture, and human-review routing
 - Explicit pause or restart decisions for non-core growth lanes
 - Funnel health dashboard updates → Notion

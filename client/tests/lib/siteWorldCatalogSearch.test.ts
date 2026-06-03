@@ -73,6 +73,6 @@ describe("siteWorldCatalogSearch", () => {
     expect(candidate?.href).toContain("source=site-worlds");
     expect(url.searchParams.get("location")).toBe("123 New Robot Ave, Austin, TX");
     expect(url.searchParams.get("siteLocation")).toBe("123 New Robot Ave, Austin, TX");
-    expect(url.searchParams.get("taskStatement")).toContain("Request an exact-site world model");
+    expect(url.searchParams.get("taskStatement")).toContain("Request an exact-site readiness evaluation");
   });
 });

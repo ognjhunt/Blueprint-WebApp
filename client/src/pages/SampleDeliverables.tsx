@@ -440,14 +440,14 @@ export default function SampleDeliverables() {
         <section className="mx-auto max-w-[88rem] px-5 pb-12 sm:px-8 lg:px-10 lg:pb-14">
           <EditorialCtaBand
             eyebrow="Next step"
-            title="Evaluate the files before you buy the path."
-            description="Move into the sample listing, then continue into package or hosted evaluation only when the site and proof already make sense."
+            title="Evaluate the readiness packet before you buy the path."
+            description="Move into the sample listing, then continue into readiness review, package access, or hosted evaluation only when the site and proof already make sense."
             imageSrc={publicCaptureGeneratedAssets.cedarMarketProofBoard}
             imageAlt="Deliverables proof board"
             primaryHref="/proof"
             primaryLabel="Open sample evaluation"
             secondaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=data-licensing&path=package-access&source=sample-deliverables"
-            secondaryLabel="Request package access"
+            secondaryLabel="Request readiness review"
             dark={false}
           />
         </section>
