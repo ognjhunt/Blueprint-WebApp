@@ -52,6 +52,14 @@ Blueprint remains capture-first and world-model-product-first. The WebApp readin
 
 Avoid initial public claims around broad general humanoid capability, complex dexterous assembly, high-risk human-adjacent autonomy, medical/surgery, and unrestricted home tasks.
 
+## Public Visual Posture
+
+Use humanoid robot scenes as the default public robot visual for this wedge. Good visuals show a humanoid robot inside a specific indoor site, with the surrounding task, route, obstacles, fixtures, bins, carts, shelves, doors, docks, or equipment visible enough for the buyer to understand what readiness is being evaluated.
+
+Generated humanoid imagery may show the product category and buyer workflow. It must not be presented as live robot-trial proof, safety validation, customer deployment proof, cleared rights, or proof that a specific robot is ready to deploy. Generated readiness dashboards, route maps, score bands, and proof boards are sample/advisory UI unless owner-system evidence exists for that request.
+
+Non-humanoid robot visuals should be scoped to pages that explicitly discuss another robot class. They should not become the default public posture for the readiness wedge.
+
 ## Allowed Public Category Claims
 
 - Blueprint helps robot teams and site operators evaluate deployment readiness before a costly pilot.

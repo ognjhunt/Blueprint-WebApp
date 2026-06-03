@@ -1,121 +1,412 @@
 import { SEO } from "@/components/SEO";
-import { CTAButtons } from "@/components/site/CTAButtons";
-import { ArrowRight, CheckCircle2, FileText, Map, ScanLine, ShieldCheck } from "lucide-react";
+import {
+  MonochromeMedia,
+  ProofChip,
+  RouteTraceOverlay,
+} from "@/components/site/editorial";
+import { humanoidReadinessAssets } from "@/lib/editorialGeneratedAssets";
+import {
+  Activity,
+  AlertTriangle,
+  ArrowRight,
+  Camera,
+  CheckCircle2,
+  ClipboardCheck,
+  FileText,
+  Gauge,
+  LockKeyhole,
+  Route,
+  ShieldCheck,
+} from "lucide-react";
 
-function DotPattern() {
+const primaryContactHref =
+  "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=readiness-hero";
+
+const thresholds = [
+  {
+    label: "Success",
+    value: "82%",
+    target: "Target >= 92%",
+    pct: 82,
+    state: "Below bar",
+  },
+  {
+    label: "Cycle",
+    value: "118s",
+    target: "Target <= 120s",
+    pct: 86,
+    state: "Review",
+  },
+  {
+    label: "Intervene",
+    value: "6%",
+    target: "Target <= 5%",
+    pct: 68,
+    state: "Needs proof",
+  },
+  {
+    label: "Safety",
+    value: "0.96",
+    target: "Target >= 0.95",
+    pct: 94,
+    state: "Review",
+  },
+];
+
+const blockers = [
+  {
+    label: "Action logs",
+    state: "Missing",
+    detail: "Named manipulation traces",
+  },
+  { label: "Robot trial", state: "Missing", detail: "No owner-system run yet" },
+  {
+    label: "Safety review",
+    state: "Open",
+    detail: "Operator signoff required",
+  },
+];
+
+const proofPacket = [
+  { label: "Capture", status: "Complete", icon: Camera },
+  { label: "Route", status: "Mapped", icon: Route },
+  { label: "Rights", status: "Reviewed", icon: ShieldCheck },
+  { label: "Thresholds", status: "Named", icon: Gauge },
+  { label: "Report", status: "Advisory", icon: FileText },
+];
+
+const taskLanes = [
+  {
+    title: "Grocery shelf pick",
+    image: humanoidReadinessAssets.groceryTask,
+    checks: ["Reach", "Shelf face", "Handoff"],
+  },
+  {
+    title: "Dock staging",
+    image: humanoidReadinessAssets.loadingDock,
+    checks: ["Turn", "Door state", "Traffic"],
+  },
+  {
+    title: "Line-side assist",
+    image: humanoidReadinessAssets.manufacturing,
+    checks: ["Panel", "Fixture", "Payload"],
+  },
+  {
+    title: "Cold aisle pull",
+    image: humanoidReadinessAssets.coldStorage,
+    checks: ["Fog", "Gloves", "Label"],
+  },
+];
+
+const operatingFrames = [
+  {
+    label: "01 Capture",
+    detail: "RGB/LiDAR evidence from the exact work area.",
+  },
+  { label: "02 Route", detail: "Start, stop, handoff, and restricted zones." },
+  {
+    label: "03 Pass bar",
+    detail: "Success, cycle, intervention, and safety targets.",
+  },
+  {
+    label: "04 Gaps",
+    detail: "Simulator, action-log, trial, or safety blockers.",
+  },
+];
+
+function ScoreRing({ score, label }: { score: number; label: string }) {
   return (
-    <svg
-      className="absolute inset-0 -z-10 h-full w-full stroke-slate-200 [mask-image:radial-gradient(100%_100%_at_top_right,white,transparent)]"
-      aria-hidden="true"
-    >
-      <defs>
-        <pattern
-          id="grid-pattern-readiness-pack"
-          width={40}
-          height={40}
-          x="50%"
-          y={-1}
-          patternUnits="userSpaceOnUse"
-        >
-          <path d="M.5 40V.5H40" fill="none" />
-        </pattern>
-      </defs>
-      <rect width="100%" height="100%" strokeWidth={0} fill="url(#grid-pattern-readiness-pack)" />
-    </svg>
+    <div className="relative flex h-36 w-36 shrink-0 items-center justify-center rounded-full">
+      <div
+        className="absolute inset-0 rounded-full"
+        style={{
+          background: `conic-gradient(#d6b36a 0 ${score}%, rgba(255,255,255,0.14) ${score}% 100%)`,
+        }}
+      />
+      <div className="absolute inset-3 rounded-full bg-slate-950" />
+      <div className="relative text-center text-white">
+        <p className="font-editorial text-5xl leading-none tracking-[-0.04em]">
+          {score}
+        </p>
+        <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/50">
+          {label}
+        </p>
+      </div>
+    </div>
   );
 }
 
-const sampleSections = [
-  {
-    title: "Site twin capture",
-    body:
-      "A capture-backed view of the work area, route, transfer points, restricted zones, lighting, occlusion, and access limits.",
-    icon: <Map className="h-5 w-5" />,
-  },
-  {
-    title: "Task suite and thresholds",
-    body:
-      "The exact task being checked, required success rate, cycle time, intervention rate, safety threshold, and scenario variations.",
-    icon: <ScanLine className="h-5 w-5" />,
-  },
-  {
-    title: "Readiness report",
-    body:
-      "A pre-pilot readiness estimate with evidence quality, open blockers, failure modes, site modifications, data needs, and next proof moves.",
-    icon: <FileText className="h-5 w-5" />,
-  },
-  {
-    title: "Pilot protocol",
-    body:
-      "A short-pilot protocol for what to test in the facility next, plus vendor comparison when multiple robots are in scope.",
-    icon: <ShieldCheck className="h-5 w-5" />,
-  },
-];
+function RouteMap() {
+  const points = [
+    ["Entry", 58, 230],
+    ["Cross", 155, 152],
+    ["Pick", 256, 178],
+    ["Handoff", 355, 104],
+    ["Exit", 464, 162],
+  ] as const;
 
-const reportSections = [
-  "Site and task scope: facility area, workflow lane, start/end states, and restricted zones",
-  "Robot profile: embodiment, sensors, autonomy stack, payload, speed, and integration assumptions",
-  "Thresholds: required success rate, cycle time, intervention rate, and safety threshold",
-  "Scenario variations: lighting, clutter, traffic, route blockage, object state, and schedule changes",
-  "Evidence quality: capture provenance, package state, held-out validation, simulator/action/robot-trial gaps",
-  "Failure-mode report: where the robot is likely to miss the bar and why",
-  "Recommendations: site modifications, training or post-training data needs, and short-pilot protocol",
-];
+  return (
+    <div className="relative overflow-hidden border border-white/10 bg-slate-950 p-4 text-white">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/50">
+          Site route
+        </p>
+        <span className="rounded-full border border-amber-300/40 bg-amber-300/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-100">
+          Advisory
+        </span>
+      </div>
+      <svg viewBox="0 0 520 300" className="mt-4 h-[19rem] w-full">
+        <defs>
+          <pattern
+            id="readiness-floor-grid"
+            width="28"
+            height="28"
+            patternUnits="userSpaceOnUse"
+          >
+            <path d="M28 0H0V28" fill="none" stroke="rgba(255,255,255,0.08)" />
+          </pattern>
+        </defs>
+        <rect
+          x="0"
+          y="0"
+          width="520"
+          height="300"
+          fill="url(#readiness-floor-grid)"
+        />
+        <path
+          d="M42 246H124V92H214V52H318V118H486V238H380V202H248V246H42Z"
+          fill="rgba(255,255,255,0.025)"
+          stroke="rgba(255,255,255,0.16)"
+          strokeWidth="2"
+        />
+        <path
+          d="M58 230C102 230 100 152 155 152C206 152 204 178 256 178C316 178 318 104 355 104C414 104 420 162 464 162"
+          fill="none"
+          stroke="#d6b36a"
+          strokeLinecap="round"
+          strokeWidth="6"
+        />
+        {points.map(([label, cx, cy], index) => (
+          <g key={label}>
+            <circle
+              cx={cx}
+              cy={cy}
+              r="15"
+              fill="#0f172a"
+              stroke="#d6b36a"
+              strokeWidth="4"
+            />
+            <text
+              x={cx}
+              y={cy + 4}
+              fill="#fff7df"
+              fontSize="12"
+              fontWeight="700"
+              textAnchor="middle"
+            >
+              {index + 1}
+            </text>
+          </g>
+        ))}
+        <circle cx="168" cy="82" r="12" fill="#ef4444" opacity="0.95" />
+        <circle cx="417" cy="224" r="12" fill="#ef4444" opacity="0.95" />
+      </svg>
+      <div className="grid gap-2 border-t border-white/10 pt-3 sm:grid-cols-5">
+        {points.map(([label]) => (
+          <div
+            key={label}
+            className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/50"
+          >
+            {label}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ThresholdGauge({ item }: { item: (typeof thresholds)[number] }) {
+  const belowBar = item.state === "Below bar" || item.state === "Needs proof";
+
+  return (
+    <div className="border border-black/10 bg-white px-4 py-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+            {item.label}
+          </p>
+          <p className="mt-2 text-2xl font-semibold text-slate-950">
+            {item.value}
+          </p>
+        </div>
+        <span
+          className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${
+            belowBar
+              ? "bg-amber-100 text-amber-900"
+              : "bg-emerald-100 text-emerald-800"
+          }`}
+        >
+          {item.state}
+        </span>
+      </div>
+      <div className="mt-4 h-2 overflow-hidden bg-slate-100">
+        <div
+          className={`h-full ${belowBar ? "bg-amber-500" : "bg-emerald-500"}`}
+          style={{ width: `${item.pct}%` }}
+        />
+      </div>
+      <p className="mt-3 text-xs font-medium text-slate-500">{item.target}</p>
+    </div>
+  );
+}
+
+function ProofTile({ item }: { item: (typeof proofPacket)[number] }) {
+  const Icon = item.icon;
+
+  return (
+    <div className="border border-white/10 bg-white/[0.04] p-4 text-white">
+      <Icon className="h-5 w-5 text-amber-200" />
+      <p className="mt-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/50">
+        {item.label}
+      </p>
+      <p className="mt-1 text-sm font-semibold">{item.status}</p>
+    </div>
+  );
+}
 
 export default function ReadinessPack() {
   return (
     <>
       <SEO
-        title="Robot Deployment Readiness | Blueprint"
-        description="Blueprint produces request-scoped site/task readiness reports for robot teams evaluating success rate, cycle time, intervention rate, and safety thresholds before an on-site pilot."
+        title="Humanoid Robot Deployment Readiness | Blueprint"
+        description="Blueprint produces request-scoped site/task readiness reports for humanoid robot teams evaluating success rate, cycle time, intervention rate, and safety thresholds before an on-site pilot."
         canonical="/readiness"
       />
 
-      <div className="relative min-h-screen bg-white font-sans text-slate-900 selection:bg-slate-100 selection:text-slate-900">
-        <DotPattern />
-
-        <section className="relative overflow-hidden pb-16 pt-16 sm:pb-20 sm:pt-24">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="grid gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
-              <div className="space-y-6">
-                <div className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-medium uppercase tracking-wider text-slate-600">
-                  <FileText className="h-3 w-3" />
-                  Site/task readiness report
+      <div className="bg-[#f5f3ef] text-slate-950">
+        <section className="relative border-b border-black/10">
+          <MonochromeMedia
+            src={humanoidReadinessAssets.warehouseHero}
+            alt="Humanoid robot carrying a tote through a warehouse aisle"
+            className="min-h-[44rem] rounded-none lg:min-h-[47rem]"
+            imageClassName="min-h-[44rem] lg:min-h-[47rem]"
+            loading="eager"
+            overlayClassName="bg-[linear-gradient(90deg,rgba(0,0,0,0.94)_0%,rgba(0,0,0,0.68)_38%,rgba(0,0,0,0.12)_100%)]"
+          >
+            <RouteTraceOverlay className="opacity-70" />
+            <div className="absolute inset-0 mx-auto grid max-w-[88rem] gap-8 px-5 py-12 sm:px-8 lg:grid-cols-[0.54fr_0.46fr] lg:px-10 lg:py-16">
+              <div className="flex min-h-[35rem] flex-col justify-end">
+                <div className="mb-5 flex flex-wrap gap-2">
+                  <ProofChip light>Humanoid tasks</ProofChip>
+                  <ProofChip light>Exact site</ProofChip>
+                  <ProofChip light>Advisory until proof closes</ProofChip>
                 </div>
-                <h1 className="text-4xl font-bold tracking-tight text-slate-950 sm:text-5xl lg:text-6xl">
-                  Estimate robot deployment readiness before the expensive pilot.
+                <h1 className="font-editorial max-w-[42rem] text-[3.6rem] leading-[0.88] tracking-[-0.06em] text-white sm:text-[5.7rem]">
+                  Humanoid readiness for one real site.
                 </h1>
-                <p className="max-w-2xl text-lg leading-relaxed text-slate-600">
-                  Blueprint helps a robot vendor, site operator, or integrator answer the pre-pilot
-                  question: how likely is this robot to meet the required success rate, cycle time,
-                  intervention rate, and safety threshold on this actual facility task? The answer is
-                  advisory and request-scoped until simulator traces, action logs, robot trials,
-                  safety review, rights clearance, and hosted runtime proof support a stronger claim.
+                <p className="mt-6 max-w-[32rem] text-base leading-7 text-white/80 sm:text-lg sm:leading-8">
+                  A capture-backed cockpit for the route, pass bar, blockers,
+                  and next pilot proof.
                 </p>
-
-                <CTAButtons
-                  primaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=readiness-hero"
-                  primaryLabel="Request readiness evaluation"
-                  secondaryHref="/proof"
-                  secondaryLabel="Inspect proof boundaries"
-                />
+                <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                  <a
+                    href={primaryContactHref}
+                    className="inline-flex items-center justify-center rounded-full bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
+                  >
+                    Request readiness evaluation
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </a>
+                  <a
+                    href="/proof"
+                    className="inline-flex items-center justify-center rounded-full border border-white/30 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+                  >
+                    Inspect proof boundaries
+                  </a>
+                </div>
               </div>
 
-              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <p className="text-xs font-bold uppercase tracking-widest text-slate-400">
-                  Sample advisory frame
+              <div className="hidden items-end lg:flex">
+                <div className="w-full border border-white/20 bg-slate-950/80 p-5 text-white shadow-[0_34px_90px_-52px_rgba(0,0,0,0.72)] backdrop-blur">
+                  <div className="flex items-center justify-between gap-6">
+                    <ScoreRing score={78} label="score" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/50">
+                        Hosted readiness review
+                      </p>
+                      <h2 className="mt-4 font-editorial text-[2.45rem] leading-none tracking-[-0.05em]">
+                        Two proof blockers remain.
+                      </h2>
+                      <p className="mt-4 text-sm leading-6 text-white/70">
+                        Route evidence is inspectable. Action logs and
+                        robot-trial proof are still missing.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-5 grid gap-2 sm:grid-cols-3">
+                    {blockers.map((blocker) => (
+                      <div
+                        key={blocker.label}
+                        className="border border-white/10 bg-black/20 px-3 py-3"
+                      >
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/40">
+                          {blocker.label}
+                        </p>
+                        <p className="mt-2 text-sm font-semibold text-amber-100">
+                          {blocker.state}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </MonochromeMedia>
+        </section>
+
+        <section className="border-b border-black/10 bg-white">
+          <div className="mx-auto grid max-w-[88rem] gap-px bg-black/10 px-5 py-6 sm:px-8 lg:grid-cols-4 lg:px-10">
+            {operatingFrames.map((frame) => (
+              <div key={frame.label} className="bg-[#f8f6f1] px-5 py-5">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                  {frame.label}
                 </p>
-                <h2 className="mt-3 text-2xl font-bold text-slate-950">Pre-pilot estimate with two blockers</h2>
-                <p className="mt-3 text-sm leading-relaxed text-slate-600">
-                  The route and transfer point look reviewable from current capture evidence. The
-                  current blockers are a narrow dock turn and incomplete evidence around restricted
-                  storage-aisle access. This sample does not claim the robot is ready to deploy.
+                <p className="mt-3 text-sm leading-6 text-slate-700">
+                  {frame.detail}
                 </p>
-                <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-sm font-semibold text-slate-900">Next step</p>
-                  <p className="mt-2 text-sm text-slate-600">
-                    Confirm aisle access rules, gather action or simulator traces for the named
-                    task, then run a short pilot protocol only after safety and operator review.
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
+          <div className="grid gap-6 lg:grid-cols-[0.56fr_0.44fr]">
+            <RouteMap />
+
+            <div className="grid gap-4">
+              <div className="border border-black/10 bg-white px-5 py-5">
+                <div className="flex items-center gap-3">
+                  <Activity className="h-5 w-5 text-slate-950" />
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                      Pass bar
+                    </p>
+                    <h2 className="font-editorial mt-1 text-[2.5rem] leading-none tracking-[-0.05em]">
+                      What must be proven.
+                    </h2>
+                  </div>
+                </div>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {thresholds.map((item) => (
+                  <ThresholdGauge key={item.label} item={item} />
+                ))}
+              </div>
+              <div className="border border-amber-200 bg-amber-50 px-5 py-4 text-amber-950">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+                  <p className="text-sm leading-6">
+                    No deployment verdict without robot trials, action logs, and
+                    safety review from the systems that own those facts.
                   </p>
                 </div>
               </div>
@@ -123,66 +414,157 @@ export default function ReadinessPack() {
           </div>
         </section>
 
-        <section className="border-y border-slate-100 bg-slate-50/50 py-12 sm:py-16">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="max-w-3xl">
-              <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
-                The deliverable is a readiness packet
-              </h2>
-              <p className="mt-4 text-slate-600">
-                You are not buying a generic digital twin or an unsupported deployment verdict. You
-                are getting a concrete site/task packet that shows what the robot must prove, what
-                evidence already exists, and what still blocks a stronger operational claim.
+        <section className="border-y border-black/10 bg-slate-950 text-white">
+          <div className="mx-auto grid max-w-[88rem] gap-8 px-5 py-10 sm:px-8 lg:grid-cols-[0.48fr_0.52fr] lg:px-10 lg:py-12">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/50">
+                Sample report surface
               </p>
+              <h2 className="font-editorial mt-5 text-[3rem] leading-[0.92] tracking-[-0.05em] sm:text-[4.4rem]">
+                Less prose. More proof state.
+              </h2>
+              <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                {proofPacket.map((item) => (
+                  <ProofTile key={item.label} item={item} />
+                ))}
+              </div>
             </div>
 
-            <div className="mobile-snap-row mt-8 md:grid md:grid-cols-2 md:gap-6">
-              {sampleSections.map((section) => (
+            <div className="overflow-hidden border border-white/10 bg-black/30">
+              <img
+                src={humanoidReadinessAssets.hostedDashboard}
+                alt="Hosted readiness dashboard showing route, thresholds, blockers, and proof packet state"
+                className="h-full min-h-[25rem] w-full object-cover"
+                loading="lazy"
+              />
+            </div>
+          </div>
+        </section>
+
+        <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
+          <div className="grid gap-5 lg:grid-cols-[0.32fr_0.68fr]">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+                Humanoid task lanes
+              </p>
+              <h2 className="font-editorial mt-5 text-[3rem] leading-[0.95] tracking-[-0.05em]">
+                Same platform. Different site physics.
+              </h2>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              {taskLanes.map((lane) => (
                 <article
-                  key={section.title}
-                  className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
+                  key={lane.title}
+                  className="overflow-hidden border border-black/10 bg-white"
                 >
-                  <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
-                    {section.icon}
+                  <img
+                    src={lane.image}
+                    alt={`${lane.title} humanoid robot readiness scene`}
+                    className="aspect-[16/9] w-full object-cover"
+                    loading="lazy"
+                  />
+                  <div className="grid gap-px bg-black/10 sm:grid-cols-[0.46fr_0.54fr]">
+                    <div className="bg-white p-4">
+                      <h3 className="text-base font-semibold text-slate-950">
+                        {lane.title}
+                      </h3>
+                      <p className="mt-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                        Request-scoped
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-3 gap-px bg-black/10 text-center text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-600">
+                      {lane.checks.map((check) => (
+                        <span key={check} className="bg-[#f8f6f1] px-2 py-4">
+                          {check}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                  <h3 className="text-lg font-semibold text-slate-900">{section.title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-slate-600">{section.body}</p>
                 </article>
               ))}
             </div>
           </div>
         </section>
 
-        <section className="py-14 sm:py-20">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
-              <div className="space-y-5">
-                <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
-                  What the report covers
-                </h2>
-                <p className="text-slate-600">
-                  Use this when a robot vendor, site operator, integrator, or internal deployment
-                  lead needs a tighter review before approving deeper work in warehouses, factories,
-                  material-handling flows, industrial inspection routes, or equipment-state checks.
-                </p>
+        <section className="border-t border-black/10 bg-white">
+          <div className="mx-auto grid max-w-[88rem] gap-6 px-5 py-10 sm:px-8 lg:grid-cols-[0.42fr_0.58fr] lg:px-10 lg:py-12">
+            <div className="border border-black/10 bg-[#f8f6f1] p-6">
+              <ClipboardCheck className="h-6 w-6 text-slate-950" />
+              <h2 className="font-editorial mt-5 text-[2.7rem] leading-[0.95] tracking-[-0.05em]">
+                What the buyer receives.
+              </h2>
+            </div>
+            <div className="grid gap-px bg-black/10 md:grid-cols-3">
+              {[
+                [
+                  "Readiness packet",
+                  "Site, task, route, thresholds, blockers.",
+                ],
+                [
+                  "Proof boundary",
+                  "What is sample, reviewed, missing, or owner-system proof.",
+                ],
+                [
+                  "Pilot protocol",
+                  "A bounded next test, not a broad readiness guarantee.",
+                ],
+              ].map(([title, body]) => (
+                <div key={title} className="bg-white p-6">
+                  <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                  <h3 className="mt-4 text-base font-semibold text-slate-950">
+                    {title}
+                  </h3>
+                  <p className="mt-3 text-sm leading-6 text-slate-600">
+                    {body}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="mx-auto max-w-[88rem] px-5 pb-16 pt-8 sm:px-8 lg:px-10 lg:pb-20">
+          <div className="grid gap-6 overflow-hidden border border-black/10 bg-slate-950 p-6 text-white lg:grid-cols-[0.5fr_0.5fr] lg:p-8">
+            <div className="overflow-hidden border border-white/10">
+              <img
+                src={humanoidReadinessAssets.proofBoard}
+                alt="Humanoid robot readiness proof board with route, rights, thresholds, blockers, and provenance"
+                className="h-full min-h-[18rem] w-full object-cover"
+                loading="lazy"
+              />
+            </div>
+            <div className="flex flex-col justify-center">
+              <ProofChip light>
+                Capture-backed. Request-scoped. Humanoid-first.
+              </ProofChip>
+              <h2 className="font-editorial mt-5 text-[3rem] leading-[0.95] tracking-[-0.05em] sm:text-[3.6rem]">
+                Turn pilot risk into a visible proof queue.
+              </h2>
+              <p className="mt-4 max-w-[31rem] text-sm leading-7 text-white/70">
+                Blueprint shows what is inspectable now and what must be proven
+                before a stronger robot-readiness claim can be made.
+              </p>
+              <div className="mt-7 flex flex-col gap-3 sm:flex-row">
                 <a
-                  href="/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=readiness-report"
-                  className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-700"
+                  href={primaryContactHref}
+                  className="inline-flex items-center justify-center bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
                 >
                   Request readiness evaluation
-                  <ArrowRight className="h-4 w-4" />
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </a>
+                <a
+                  href="/proof"
+                  className="inline-flex items-center justify-center border border-white/20 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/5"
+                >
+                  Inspect proof boundaries
                 </a>
               </div>
-
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6">
-                <ul className="space-y-3">
-                  {reportSections.map((item) => (
-                    <li key={item} className="flex items-start gap-3 text-sm text-slate-700">
-                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
+              <div className="mt-6 flex items-start gap-3 text-xs leading-5 text-white/50">
+                <LockKeyhole className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>
+                  Requests do not charge, clear rights, start providers,
+                  validate safety, or open hosted access by themselves.
+                </span>
               </div>
             </div>
           </div>

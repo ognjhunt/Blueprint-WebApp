@@ -5,9 +5,11 @@ import {
   ProofChip,
   RouteTraceOverlay,
 } from "@/components/site/editorial";
+import { publicDemoHref } from "@/lib/marketingProof";
 import {
-  publicDemoHref,
-} from "@/lib/marketingProof";
+  editorialGeneratedAssets,
+  humanoidReadinessAssets,
+} from "@/lib/editorialGeneratedAssets";
 import { ArrowRight } from "lucide-react";
 
 const chapterCards = [
@@ -40,18 +42,15 @@ const chapterCards = [
 const audienceRows = [
   {
     title: "Robot teams",
-    body:
-      "Use Blueprint to evaluate the indoor site, task, proof chain, and hosted review path before committing field time or integration budget.",
+    body: "Use Blueprint to evaluate the indoor site, task, proof chain, and hosted review path before committing field time or integration budget.",
   },
   {
     title: "Robot agents",
-    body:
-      "Use public or protected contracts to discover site-world records, inspect truth labels, and request hosted-session actions only inside the supported API surface.",
+    body: "Use public or protected contracts to discover site-world records, inspect truth labels, and request hosted-session actions only inside the supported API surface.",
   },
   {
     title: "Blueprint agents",
-    body:
-      "Route intake, proof, rights, capture, and follow-up work without inventing availability, provider success, clearance, or launch outcomes.",
+    body: "Route intake, proof, rights, capture, and follow-up work without inventing availability, provider success, clearance, or launch outcomes.",
   },
 ];
 
@@ -68,11 +67,15 @@ function ChapterLabel({
 }) {
   return (
     <div className="border-r border-black/10 bg-[#f3f1ec] px-6 py-8 lg:px-8 lg:py-10">
-      <p className="text-[3rem] leading-none tracking-[-0.05em] text-slate-300">{id}</p>
+      <p className="text-[3rem] leading-none tracking-[-0.05em] text-slate-300">
+        {id}
+      </p>
       <h2 className="font-editorial mt-4 text-[3.4rem] leading-[0.92] tracking-[-0.05em] text-slate-950">
         {title}
       </h2>
-      <p className="mt-6 max-w-[15rem] text-base leading-7 text-slate-700">{body}</p>
+      <p className="mt-6 max-w-[15rem] text-base leading-7 text-slate-700">
+        {body}
+      </p>
       <div className="mt-10 border-t border-black/10 pt-4">
         <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
           Sample values
@@ -91,7 +94,9 @@ function PackagePanel() {
           <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
             Sample manifest
           </p>
-          <h3 className="mt-5 text-2xl font-semibold text-slate-950">Indoor route request</h3>
+          <h3 className="mt-5 text-2xl font-semibold text-slate-950">
+            Indoor route request
+          </h3>
           <div className="mt-6 grid gap-y-3 text-sm text-slate-700">
             <div className="flex justify-between border-b border-black/5 pb-3">
               <span>Capture basis</span>
@@ -121,17 +126,25 @@ function PackagePanel() {
         </div>
         <div className="space-y-4">
           <div className="rounded-[1.8rem] border border-black/10 bg-slate-950 p-6 text-white shadow-[0_24px_44px_-34px_rgba(15,23,42,0.5)]">
-            <p className="text-[11px] uppercase tracking-[0.2em] text-white/45">Package</p>
+            <p className="text-[11px] uppercase tracking-[0.2em] text-white/45">
+              Package
+            </p>
             <p className="mt-4 text-2xl font-semibold">Blueprint package</p>
             <p className="mt-5 text-sm leading-7 text-white/70">
-              Versioned route context, geometry when available, metadata, rights, and exports tied to one exact site.
+              Versioned route context, geometry when available, metadata,
+              rights, and exports tied to one exact site.
             </p>
           </div>
           <div className="rounded-[1.8rem] border border-black/10 bg-white p-6 shadow-[0_20px_38px_-30px_rgba(15,23,42,0.16)]">
-            <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Rights sheet</p>
-            <p className="mt-4 text-lg font-semibold text-slate-950">Use scope attached</p>
+            <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+              Rights sheet
+            </p>
+            <p className="mt-4 text-lg font-semibold text-slate-950">
+              Use scope attached
+            </p>
             <p className="mt-3 text-sm leading-6 text-slate-600">
-              Example scope only. Real rights and export sharing remain listing- and request-scoped.
+              Example scope only. Real rights and export sharing remain listing-
+              and request-scoped.
             </p>
           </div>
         </div>
@@ -164,14 +177,23 @@ function DeliverPanel() {
         </div>
         <div className="space-y-4">
           <div className="rounded-[1.7rem] border border-black/10 bg-slate-950 p-6 text-white shadow-[0_24px_42px_-32px_rgba(15,23,42,0.52)]">
-            <p className="text-[11px] uppercase tracking-[0.2em] text-white/40">World model card</p>
-            <p className="mt-5 text-[1.75rem] font-semibold leading-tight">Plant 7 world model</p>
-            <p className="mt-3 text-sm text-white/55">Sample only · request-scoped access</p>
+            <p className="text-[11px] uppercase tracking-[0.2em] text-white/40">
+              World model card
+            </p>
+            <p className="mt-5 text-[1.75rem] font-semibold leading-tight">
+              Plant 7 world model
+            </p>
+            <p className="mt-3 text-sm text-white/55">
+              Sample only · request-scoped access
+            </p>
           </div>
           <div className="rounded-[1.3rem] border border-black/10 bg-white px-5 py-4 shadow-[0_16px_28px_-24px_rgba(15,23,42,0.18)]">
-            <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Export bundle</p>
+            <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+              Export bundle
+            </p>
             <p className="mt-3 text-sm leading-6 text-slate-700">
-              MP4 sessions, JSON maps, ZIP observations, logs, and package metadata ready to review.
+              MP4 sessions, JSON maps, ZIP observations, logs, and package
+              metadata ready to review.
             </p>
           </div>
         </div>
@@ -199,22 +221,34 @@ export default function HowItWorks() {
                   Indoor capture to readiness report.
                 </h1>
                 <p className="mt-6 max-w-[18rem] text-sm uppercase tracking-[0.2em] text-slate-500">
-                  Street View grounds outdoor places. Blueprint captures indoor routes robots need.
+                  Street View grounds outdoor places. Blueprint captures indoor
+                  routes robots need.
                 </p>
                 <p className="mt-5 max-w-[19rem] text-xs leading-6 text-slate-500">
-                  Any sample values on this page are illustrative unless a listing marks them as approved real-site proof.
+                  Any sample values on this page are illustrative unless a
+                  listing marks them as approved real-site proof.
                 </p>
               </div>
 
               <div className="relative min-h-[34rem]">
                 <div className="absolute right-[4%] top-0 z-20 rotate-[1deg] rounded-[0.2rem] bg-white px-5 py-4 shadow-[0_16px_30px_-20px_rgba(15,23,42,0.24)]">
-                  <p className="font-editorial text-[1.1rem] italic">Sample flow: indoor route</p>
-                  <p className="mt-2 text-sm text-slate-700">Capture basis: request-scoped</p>
-                  <p className="text-sm text-slate-700">Proof: labeled sample</p>
+                  <p className="font-editorial text-[1.1rem] italic">
+                    Sample flow: indoor route
+                  </p>
+                  <p className="mt-2 text-sm text-slate-700">
+                    Capture basis: request-scoped
+                  </p>
+                  <p className="text-sm text-slate-700">
+                    Proof: labeled sample
+                  </p>
                 </div>
                 <div className="absolute left-[22%] right-[8%] top-[2.5rem] rounded-[1.3rem] border border-black/10 bg-white p-3 shadow-[0_24px_44px_-26px_rgba(15,23,42,0.2)]">
                   <div className="grid gap-3 md:grid-cols-3">
-                    {["/generated/editorial/world-models-hero.png", "/generated/editorial/proof-board.png", "/generated/editorial/cross-dock.png"].map((src) => (
+                    {[
+                      editorialGeneratedAssets.warehouseAisle,
+                      editorialGeneratedAssets.proofBoardDeliverables,
+                      humanoidReadinessAssets.loadingDock,
+                    ].map((src) => (
                       <MonochromeMedia
                         key={src}
                         src={src}
@@ -226,17 +260,49 @@ export default function HowItWorks() {
                   </div>
                 </div>
                 <div className="absolute left-4 right-4 top-[11rem] z-10 rotate-[-2deg] overflow-hidden rounded-[1.4rem] border border-black/10 bg-slate-950 p-4 shadow-[0_28px_50px_-28px_rgba(15,23,42,0.4)] sm:left-[18%] sm:right-auto">
-                  <svg viewBox="0 0 380 220" className="h-[11.5rem] w-full max-w-[18rem] sm:h-[13rem] sm:w-[18rem]">
-                    <rect x="18" y="18" width="344" height="184" rx="22" fill="rgba(255,255,255,0.03)" />
-                    <path d="M28 44H352" stroke="rgba(255,255,255,0.12)" strokeDasharray="6 8" />
-                    <path d="M52 176C112 176 118 74 182 74C228 74 230 138 298 138C322 138 334 108 342 108" fill="none" stroke="rgba(255,255,255,0.88)" strokeWidth="5" strokeLinecap="round" />
+                  <svg
+                    viewBox="0 0 380 220"
+                    className="h-[11.5rem] w-full max-w-[18rem] sm:h-[13rem] sm:w-[18rem]"
+                  >
+                    <rect
+                      x="18"
+                      y="18"
+                      width="344"
+                      height="184"
+                      rx="22"
+                      fill="rgba(255,255,255,0.03)"
+                    />
+                    <path
+                      d="M28 44H352"
+                      stroke="rgba(255,255,255,0.12)"
+                      strokeDasharray="6 8"
+                    />
+                    <path
+                      d="M52 176C112 176 118 74 182 74C228 74 230 138 298 138C322 138 334 108 342 108"
+                      fill="none"
+                      stroke="rgba(255,255,255,0.88)"
+                      strokeWidth="5"
+                      strokeLinecap="round"
+                    />
                     {[52, 182, 298, 342].map((cx, index) => (
-                      <circle key={cx} cx={cx} cy={[176, 74, 138, 108][index]} r="7" fill="white" />
+                      <circle
+                        key={cx}
+                        cx={cx}
+                        cy={[176, 74, 138, 108][index]}
+                        r="7"
+                        fill="white"
+                      />
                     ))}
                   </svg>
                 </div>
                 <div className="absolute bottom-0 left-[10%] right-0 grid gap-3 rounded-[1.4rem] border border-black/10 bg-white/90 p-3 shadow-[0_18px_36px_-22px_rgba(15,23,42,0.16)] md:grid-cols-5">
-                  {["/generated/editorial/world-models-hero.png", "/generated/editorial/proof-board.png", "/generated/editorial/cross-dock.png", "/generated/editorial/hosted-hero.png", "/generated/editorial/grocery-fulfillment.png"].map((src, index) => (
+                  {[
+                    editorialGeneratedAssets.warehouseAisle,
+                    editorialGeneratedAssets.proofBoardDeliverables,
+                    humanoidReadinessAssets.loadingDock,
+                    editorialGeneratedAssets.operatorControlEntry,
+                    editorialGeneratedAssets.groceryBackroom,
+                  ].map((src, index) => (
                     <MonochromeMedia
                       key={`${src}-${index}`}
                       src={src}
@@ -256,7 +322,7 @@ export default function HowItWorks() {
             <ChapterLabel {...chapterCards[0]} />
             <div className="relative border-t border-black/10 lg:border-t-0">
               <MonochromeMedia
-                src="/generated/editorial/hosted-hero.png"
+                src={editorialGeneratedAssets.operatorControlEntry}
                 alt="Capture proof"
                 className="h-full rounded-none"
                 imageClassName="h-full"
@@ -268,10 +334,18 @@ export default function HowItWorks() {
                 <div className="absolute inset-y-0 right-[18%] w-px bg-white/20" />
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_26%_40%,rgba(255,255,255,0.18)_0_2px,transparent_2px_100%)] bg-[size:14px_14px] opacity-40" />
                 <div className="absolute bottom-6 right-6 w-[10rem] rounded-[1.1rem] border border-white/15 bg-black/40 p-3 text-white">
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-white/50">Scan path</p>
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-white/50">
+                    Scan path
+                  </p>
                   <div className="mt-3 rounded-[0.9rem] border border-white/10 bg-black/50 p-2">
                     <svg viewBox="0 0 140 110" className="h-20 w-full">
-                      <path d="M10 90C26 90 22 26 50 26C76 26 78 82 114 82C124 82 130 56 132 56" fill="none" stroke="rgba(255,255,255,0.82)" strokeWidth="4" strokeLinecap="round" />
+                      <path
+                        d="M10 90C26 90 22 26 50 26C76 26 78 82 114 82C124 82 130 56 132 56"
+                        fill="none"
+                        stroke="rgba(255,255,255,0.82)"
+                        strokeWidth="4"
+                        strokeLinecap="round"
+                      />
                     </svg>
                   </div>
                 </div>
@@ -290,7 +364,7 @@ export default function HowItWorks() {
             <ChapterLabel {...chapterCards[2]} />
             <div className="relative border-t border-black/10 bg-slate-950 lg:border-t-0">
               <MonochromeMedia
-                src="/generated/editorial/manufacturing-plant.png"
+                src={humanoidReadinessAssets.manufacturing}
                 alt="Run overlay"
                 className="h-full rounded-none"
                 imageClassName="h-full"
@@ -299,9 +373,12 @@ export default function HowItWorks() {
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.16)_0_1px,transparent_1px_100%)] bg-[size:12px_12px] opacity-40" />
                 <RouteTraceOverlay className="opacity-90" />
                 <div className="absolute bottom-6 right-6 w-[13rem] rounded-[1.2rem] border border-white/10 bg-black/40 p-4 text-white shadow-[0_18px_36px_-24px_rgba(0,0,0,0.5)]">
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">World model preview</p>
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">
+                    World model preview
+                  </p>
                   <p className="mt-4 text-sm leading-6 text-white/70">
-                    Route overlays, robot pose, and site geometry remain tied to the same package truth.
+                    Route overlays, robot pose, and site geometry remain tied to
+                    the same package truth.
                   </p>
                 </div>
               </MonochromeMedia>
@@ -319,19 +396,27 @@ export default function HowItWorks() {
         <section className="border-y border-black/10 bg-white">
           <div className="mx-auto grid max-w-[88rem] gap-px px-5 py-10 sm:px-8 lg:grid-cols-[0.34fr_0.66fr] lg:px-10 lg:py-12">
             <div className="bg-slate-950 px-6 py-8 text-white lg:px-8 lg:py-10">
-              <EditorialSectionLabel light>Who uses the flow</EditorialSectionLabel>
+              <EditorialSectionLabel light>
+                Who uses the flow
+              </EditorialSectionLabel>
               <h2 className="font-editorial mt-5 text-[3rem] leading-[0.95] tracking-[-0.05em]">
                 Teams, robot agents, and Blueprint agents have different jobs.
               </h2>
               <p className="mt-5 text-sm leading-7 text-white/70">
-                The workflow keeps product buyers, API-driven robot agents, and internal routing agents separate so no page implies unsupported access or automated fulfillment.
+                The workflow keeps product buyers, API-driven robot agents, and
+                internal routing agents separate so no page implies unsupported
+                access or automated fulfillment.
               </p>
             </div>
             <div className="grid gap-px bg-black/10 md:grid-cols-3">
               {audienceRows.map((row) => (
                 <article key={row.title} className="bg-white p-6">
-                  <h3 className="text-base font-semibold text-slate-950">{row.title}</h3>
-                  <p className="mt-3 text-sm leading-7 text-slate-600">{row.body}</p>
+                  <h3 className="text-base font-semibold text-slate-950">
+                    {row.title}
+                  </h3>
+                  <p className="mt-3 text-sm leading-7 text-slate-600">
+                    {row.body}
+                  </p>
                 </article>
               ))}
             </div>
@@ -341,7 +426,7 @@ export default function HowItWorks() {
         <section className="mx-auto max-w-[88rem] px-5 pb-16 pt-8 sm:px-8 lg:px-10 lg:pb-20">
           <div className="grid gap-6 overflow-hidden rounded-[2rem] border border-black/10 bg-slate-950 px-6 py-8 text-white lg:grid-cols-[0.5fr_0.5fr] lg:px-8">
             <MonochromeMedia
-              src="/generated/editorial/cross-dock.png"
+              src={humanoidReadinessAssets.loadingDock}
               alt="Call to action background"
               className="min-h-[14rem] border border-white/10"
               overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.16),rgba(0,0,0,0.52))]"
@@ -352,7 +437,9 @@ export default function HowItWorks() {
                 See the indoor site before field time.
               </h2>
               <p className="mt-4 max-w-[28rem] text-sm leading-7 text-white/70">
-                The public sample listing shows how capture, package framing, and hosted evaluation stay attached to one facility without claiming live fulfillment.
+                The public sample listing shows how capture, package framing,
+                and hosted evaluation stay attached to one facility without
+                claiming live fulfillment.
               </p>
               <div className="mt-7 flex flex-col gap-3 sm:flex-row">
                 <a

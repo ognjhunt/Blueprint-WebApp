@@ -1,5 +1,6 @@
 import type { JsonLdValue } from "@/components/SEO";
 import { captureGroundedPublicCopy } from "./captureGroundedLanguage";
+import { humanoidReadinessAssets } from "./editorialGeneratedAssets";
 
 const BASE_URL = "https://tryblueprint.io";
 const ORGANIZATION_ID = `${BASE_URL}/#organization`;
@@ -121,7 +122,9 @@ export function productJsonLd({
     name,
     description,
     url: absoluteUrl(path),
-    image: image ? absoluteUrl(image) : `${BASE_URL}/generated/editorial/world-models-hero.png`,
+    image: image
+      ? absoluteUrl(image)
+      : absoluteUrl(humanoidReadinessAssets.warehouseHero),
     category,
     brand: { "@id": ORGANIZATION_ID },
     additionalProperty: (properties || []).map((property) => ({

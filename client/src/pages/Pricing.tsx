@@ -6,6 +6,10 @@ import {
   EditorialSectionLabel,
   MonochromeMedia,
 } from "@/components/site/editorial";
+import {
+  editorialGeneratedAssets,
+  humanoidReadinessAssets,
+} from "@/lib/editorialGeneratedAssets";
 import { publicDemoHref } from "@/lib/marketingProof";
 import {
   ArrowRight,
@@ -42,12 +46,36 @@ const enterpriseBullets = [
 ];
 
 const comparisonArtifacts = [
-  { label: "Readiness report", detail: "The site/task advisory starts here.", icon: ClipboardCheck },
-  { label: "Package manifest", detail: "Capture-backed files keep the advisory grounded.", icon: Boxes },
-  { label: "Rights sheet", detail: "Use, sharing, and export limits stay attached.", icon: ShieldCheck },
-  { label: "Hosted review", detail: "The managed session path starts in the browser.", icon: CirclePlay },
-  { label: "Threshold record", detail: "Success, cycle, intervention, and safety bars stay visible.", icon: ScanEye },
-  { label: "Pilot protocol", detail: "Next field work stays bounded to the evidence.", icon: Map },
+  {
+    label: "Readiness report",
+    detail: "The site/task advisory starts here.",
+    icon: ClipboardCheck,
+  },
+  {
+    label: "Package manifest",
+    detail: "Capture-backed files keep the advisory grounded.",
+    icon: Boxes,
+  },
+  {
+    label: "Rights sheet",
+    detail: "Use, sharing, and export limits stay attached.",
+    icon: ShieldCheck,
+  },
+  {
+    label: "Hosted review",
+    detail: "The managed session path starts in the browser.",
+    icon: CirclePlay,
+  },
+  {
+    label: "Threshold record",
+    detail: "Success, cycle, intervention, and safety bars stay visible.",
+    icon: ScanEye,
+  },
+  {
+    label: "Pilot protocol",
+    detail: "Next field work stays bounded to the evidence.",
+    icon: Map,
+  },
 ];
 
 const accessModels = [
@@ -96,30 +124,42 @@ const trustNotes = [
 const pricingPathRows = [
   {
     path: "Site/Task Readiness Review",
-    bestFor: "Robot teams or site operators deciding whether one exact task deserves pilot time.",
-    startsWith: "One site, robot task, robot profile, and required success/cycle/intervention/safety threshold.",
-    receivesFirst: "Readiness advisory, failure modes, site modifications, data needs, short-pilot protocol, and package scope.",
-    gatedBy: "Capture/provenance depth, rights/privacy review, freshness, threshold scope, and missing simulator/action/robot/safety proof.",
+    bestFor:
+      "Robot teams or site operators deciding whether one exact task deserves pilot time.",
+    startsWith:
+      "One site, robot task, robot profile, and required success/cycle/intervention/safety threshold.",
+    receivesFirst:
+      "Readiness advisory, failure modes, site modifications, data needs, short-pilot protocol, and package scope.",
+    gatedBy:
+      "Capture/provenance depth, rights/privacy review, freshness, threshold scope, and missing simulator/action/robot/safety proof.",
     priceRange: "$2,100-$3,400",
     cta: "Request readiness review",
     href: "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=pricing-package-table",
   },
   {
     path: "Hosted Evaluation",
-    bestFor: "Teams that want Blueprint to run a managed exact-site review before pilot protocol or file handoff.",
-    startsWith: "A site package or sample listing plus the task, threshold, and evidence question your team wants to inspect.",
-    receivesFirst: "Review room request, scoped run notes, readiness observations, limits, and output decisions.",
-    gatedBy: "Account access, entitlement, package readiness, threshold scope, and hosted-session availability.",
+    bestFor:
+      "Teams that want Blueprint to run a managed exact-site review before pilot protocol or file handoff.",
+    startsWith:
+      "A site package or sample listing plus the task, threshold, and evidence question your team wants to inspect.",
+    receivesFirst:
+      "Review room request, scoped run notes, readiness observations, limits, and output decisions.",
+    gatedBy:
+      "Account access, entitlement, package readiness, threshold scope, and hosted-session availability.",
     priceRange: "$16-$29 / session-hour",
     cta: "Request hosted evaluation",
     href: "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=pricing-hosted-table",
   },
   {
     path: "Custom Multi-Site Benchmark",
-    bestFor: "Private, multi-site, vendor-comparison, or operator-heavy work where one catalog path is too narrow.",
-    startsWith: "Facilities, task suite, site boundaries, commercialization posture, vendors, and pilot decision goal.",
-    receivesFirst: "Benchmark brief, capture plan, operator boundary review, readiness methodology, and delivery estimate.",
-    gatedBy: "Operator authority, custom rights/privacy terms, delivery capacity, evidence requirements, and commercial review.",
+    bestFor:
+      "Private, multi-site, vendor-comparison, or operator-heavy work where one catalog path is too narrow.",
+    startsWith:
+      "Facilities, task suite, site boundaries, commercialization posture, vendors, and pilot decision goal.",
+    receivesFirst:
+      "Benchmark brief, capture plan, operator boundary review, readiness methodology, and delivery estimate.",
+    gatedBy:
+      "Operator authority, custom rights/privacy terms, delivery capacity, evidence requirements, and commercial review.",
     priceRange: "$50,000+ scoped",
     cta: "Request benchmark scope",
     href: "/contact?persona=robot-team&buyerType=robot_team&interest=custom-scope&path=world-model&source=pricing-custom-table",
@@ -150,23 +190,41 @@ function PricePanel({
   children?: ReactNode;
 }) {
   return (
-    <section className={`grid overflow-hidden rounded-[2rem] border border-black/10 ${dark ? "bg-slate-950" : "bg-white"} lg:grid-cols-[0.34fr_0.66fr]`}>
-      <div className={`px-6 py-7 lg:px-8 lg:py-9 ${dark ? "text-white" : "text-slate-950"}`}>
-        <p className={`text-sm ${dark ? "text-white/50" : "text-slate-400"}`}>{index}</p>
+    <section
+      className={`grid overflow-hidden rounded-[2rem] border border-black/10 ${dark ? "bg-slate-950" : "bg-white"} lg:grid-cols-[0.34fr_0.66fr]`}
+    >
+      <div
+        className={`px-6 py-7 lg:px-8 lg:py-9 ${dark ? "text-white" : "text-slate-950"}`}
+      >
+        <p className={`text-sm ${dark ? "text-white/50" : "text-slate-400"}`}>
+          {index}
+        </p>
         <h2 className="font-editorial mt-4 text-[3.2rem] leading-[0.95] tracking-[-0.05em]">
           {title}
         </h2>
-        <p className={`mt-3 text-[11px] uppercase tracking-[0.2em] ${dark ? "text-white/50" : "text-slate-500"}`}>
+        <p
+          className={`mt-3 text-[11px] uppercase tracking-[0.2em] ${dark ? "text-white/50" : "text-slate-500"}`}
+        >
           {eyebrow}
         </p>
-        <p className={`mt-5 text-base leading-7 ${dark ? "text-white/75" : "text-slate-700"}`}>
+        <p
+          className={`mt-5 text-base leading-7 ${dark ? "text-white/75" : "text-slate-700"}`}
+        >
           {body}
         </p>
-        <p className={`mt-6 text-lg font-semibold ${dark ? "text-white" : "text-slate-950"}`}>{price}</p>
-        <ul className={`mt-6 space-y-3 text-sm leading-6 ${dark ? "text-white/70" : "text-slate-600"}`}>
+        <p
+          className={`mt-6 text-lg font-semibold ${dark ? "text-white" : "text-slate-950"}`}
+        >
+          {price}
+        </p>
+        <ul
+          className={`mt-6 space-y-3 text-sm leading-6 ${dark ? "text-white/70" : "text-slate-600"}`}
+        >
           {bullets.map((bullet) => (
             <li key={bullet} className="flex gap-3">
-              <span className={`mt-2 h-1.5 w-1.5 rounded-full ${dark ? "bg-white/45" : "bg-slate-400"}`} />
+              <span
+                className={`mt-2 h-1.5 w-1.5 rounded-full ${dark ? "bg-white/45" : "bg-slate-400"}`}
+              />
               <span>{bullet}</span>
             </li>
           ))}
@@ -178,7 +236,11 @@ function PricePanel({
           alt={imageAlt}
           className="h-full rounded-none"
           imageClassName="h-full"
-          overlayClassName={dark ? "bg-[linear-gradient(180deg,rgba(0,0,0,0.08),rgba(0,0,0,0.48))]" : "bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.36))]"}
+          overlayClassName={
+            dark
+              ? "bg-[linear-gradient(180deg,rgba(0,0,0,0.08),rgba(0,0,0,0.48))]"
+              : "bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.36))]"
+          }
         >
           {children}
         </MonochromeMedia>
@@ -199,8 +261,8 @@ export default function Pricing() {
       <div className="bg-[#f5f3ef] text-slate-950">
         <section className="border-b border-black/10">
           <MonochromeMedia
-            src="/generated/editorial/pricing-hero.png"
-            alt="Pricing hero"
+            src={humanoidReadinessAssets.loadingDock}
+            alt="Humanoid robot readiness review at a loading dock"
             className="min-h-[35rem] rounded-none"
             loading="eager"
             imageClassName="min-h-[35rem]"
@@ -213,7 +275,11 @@ export default function Pricing() {
                   Price the readiness question before the pilot.
                 </h1>
                 <p className="mt-6 text-lg leading-8 text-slate-900 sm:text-slate-700">
-                  Robot teams can start with a site/task readiness advisory, a managed buyer room, or a custom benchmark. Blueprint keeps proof, rights, thresholds, price range, and access review tied to the indoor exact site before anything becomes payment, fulfillment, or hosted access.
+                  Robot teams can start with a site/task readiness advisory, a
+                  managed buyer room, or a custom benchmark. Blueprint keeps
+                  proof, rights, thresholds, price range, and access review tied
+                  to the indoor exact site before anything becomes payment,
+                  fulfillment, or hosted access.
                 </p>
                 <div className="mt-8 flex flex-wrap gap-3">
                   <a
@@ -250,7 +316,9 @@ export default function Pricing() {
                     <th className="px-4 py-3 font-semibold">Path</th>
                     <th className="px-4 py-3 font-semibold">Best for</th>
                     <th className="px-4 py-3 font-semibold">Starts with</th>
-                    <th className="px-4 py-3 font-semibold">Buyer receives first</th>
+                    <th className="px-4 py-3 font-semibold">
+                      Buyer receives first
+                    </th>
                     <th className="px-4 py-3 font-semibold">Gated by</th>
                     <th className="px-4 py-3 font-semibold">Price range</th>
                     <th className="px-4 py-3 font-semibold">Next step</th>
@@ -259,12 +327,24 @@ export default function Pricing() {
                 <tbody className="divide-y divide-black/10">
                   {pricingPathRows.map((row) => (
                     <tr key={row.path}>
-                      <td className="px-4 py-4 font-semibold text-slate-950">{row.path}</td>
-                      <td className="px-4 py-4 leading-6 text-slate-700">{row.bestFor}</td>
-                      <td className="px-4 py-4 leading-6 text-slate-700">{row.startsWith}</td>
-                      <td className="px-4 py-4 leading-6 text-slate-700">{row.receivesFirst}</td>
-                      <td className="px-4 py-4 leading-6 text-slate-700">{row.gatedBy}</td>
-                      <td className="px-4 py-4 font-semibold text-slate-950">{row.priceRange}</td>
+                      <td className="px-4 py-4 font-semibold text-slate-950">
+                        {row.path}
+                      </td>
+                      <td className="px-4 py-4 leading-6 text-slate-700">
+                        {row.bestFor}
+                      </td>
+                      <td className="px-4 py-4 leading-6 text-slate-700">
+                        {row.startsWith}
+                      </td>
+                      <td className="px-4 py-4 leading-6 text-slate-700">
+                        {row.receivesFirst}
+                      </td>
+                      <td className="px-4 py-4 leading-6 text-slate-700">
+                        {row.gatedBy}
+                      </td>
+                      <td className="px-4 py-4 font-semibold text-slate-950">
+                        {row.priceRange}
+                      </td>
                       <td className="px-4 py-4">
                         <a
                           href={row.href}
@@ -289,25 +369,39 @@ export default function Pricing() {
             price="$2,100 – $3,400"
             body="Scope a readiness report for one exact site/task: site package, robot profile, thresholds, failure modes, site modifications, data requirements, and short-pilot protocol."
             bullets={packageBullets}
-            image="/generated/editorial/pricing-hero.png"
-            imageAlt="Site package illustration"
+            image={humanoidReadinessAssets.loadingDock}
+            imageAlt="Humanoid robot dock-task readiness scene"
             dark
           >
             <div className="absolute inset-y-0 right-0 flex w-full items-end justify-center p-6 lg:justify-end lg:p-8">
               <div className="grid w-full max-w-[32rem] gap-4 md:grid-cols-[0.52fr_0.48fr]">
                 <div className="rounded-[1.6rem] border border-white/10 bg-black/55 p-5 text-white">
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Blueprint readiness review</p>
-                  <p className="mt-5 text-2xl font-semibold">Market Hall Grocery</p>
-                  <p className="mt-3 text-sm text-white/60">Sample packet date · Mar 13, 2026</p>
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">
+                    Blueprint readiness review
+                  </p>
+                  <p className="mt-5 text-2xl font-semibold">
+                    Market Hall Grocery
+                  </p>
+                  <p className="mt-3 text-sm text-white/60">
+                    Sample packet date · Mar 13, 2026
+                  </p>
                 </div>
                 <div className="space-y-3">
                   <div className="rounded-[1.2rem] border border-white/10 bg-white/90 p-4">
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Thresholds</p>
-                    <p className="mt-2 text-sm text-slate-700">Success, cycle, intervention, and safety bars named.</p>
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">
+                      Thresholds
+                    </p>
+                    <p className="mt-2 text-sm text-slate-700">
+                      Success, cycle, intervention, and safety bars named.
+                    </p>
                   </div>
                   <div className="rounded-[1.2rem] border border-white/10 bg-white/90 p-4">
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Evidence boundary</p>
-                    <p className="mt-2 text-sm text-slate-700">Advisory until owner-system proof supports more.</p>
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">
+                      Evidence boundary
+                    </p>
+                    <p className="mt-2 text-sm text-slate-700">
+                      Advisory until owner-system proof supports more.
+                    </p>
                   </div>
                 </div>
               </div>
@@ -321,8 +415,8 @@ export default function Pricing() {
             price="$16 – $29 / session-hour"
             body="Blueprint hosts the exact-site package in a managed buyer room so your team can review configured routes, scenario variations, observations, and readiness limits before deciding whether package access or pilot protocol should open next."
             bullets={hostedBullets}
-            image="/generated/editorial/hosted-hero.png"
-            imageAlt="Hosted evaluation panel"
+            image={editorialGeneratedAssets.operatorControlEntry}
+            imageAlt="Hosted humanoid readiness dashboard"
           >
             <div className="absolute inset-0 flex items-center justify-center p-6 lg:justify-end lg:p-8">
               <div className="w-full max-w-[34rem] overflow-hidden rounded-[1.8rem] border border-white/15 bg-black/70 text-white shadow-[0_24px_60px_-36px_rgba(0,0,0,0.62)]">
@@ -334,12 +428,26 @@ export default function Pricing() {
                   <div className="overflow-hidden rounded-[1.2rem] border border-white/10 bg-black/35">
                     <div className="absolute hidden" />
                     <svg viewBox="0 0 360 220" className="h-[13rem] w-full">
-                      <path d="M26 186V42H112V84H204V28H328V178H232V138H138V186Z" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="3" />
-                      <path d="M56 164C92 164 96 112 142 112C190 112 196 70 244 70C288 70 298 140 324 140" fill="none" stroke="rgba(255,255,255,0.86)" strokeWidth="4" strokeLinecap="round" />
+                      <path
+                        d="M26 186V42H112V84H204V28H328V178H232V138H138V186Z"
+                        fill="none"
+                        stroke="rgba(255,255,255,0.12)"
+                        strokeWidth="3"
+                      />
+                      <path
+                        d="M56 164C92 164 96 112 142 112C190 112 196 70 244 70C288 70 298 140 324 140"
+                        fill="none"
+                        stroke="rgba(255,255,255,0.86)"
+                        strokeWidth="4"
+                        strokeLinecap="round"
+                      />
                     </svg>
                   </div>
                   <div className="space-y-3">
-                    {["/generated/editorial/world-models-hero.png", "/generated/editorial/grocery-fulfillment.png"].map((src, index) => (
+                    {[
+                      editorialGeneratedAssets.warehouseAisle,
+                      editorialGeneratedAssets.groceryBackroom,
+                    ].map((src, index) => (
                       <MonochromeMedia
                         key={`${src}-${index}`}
                         src={src}
@@ -361,8 +469,8 @@ export default function Pricing() {
             price="$50,000+ scoped"
             body="Use this path when the site is private, the rights model is custom, or your team needs Blueprint-managed readiness benchmarking across multiple locations, vendors, or robot releases."
             bullets={enterpriseBullets}
-            image="/generated/editorial/manufacturing-plant.png"
-            imageAlt="Custom operations view"
+            image={humanoidReadinessAssets.manufacturing}
+            imageAlt="Humanoid robot manufacturing readiness scene"
             dark
           >
             <div className="absolute inset-0 flex items-center justify-center p-6 lg:justify-end lg:p-8">
@@ -379,19 +487,35 @@ export default function Pricing() {
                       ["Multi-site request", "Scoped"],
                       ["Recapture need", "Pending"],
                     ].map(([name, state]) => (
-                      <div key={name} className="flex items-center justify-between border-b border-white/10 py-3 last:border-b-0">
+                      <div
+                        key={name}
+                        className="flex items-center justify-between border-b border-white/10 py-3 last:border-b-0"
+                      >
                         <span>{name}</span>
                         <span className="text-white/45">{state}</span>
                       </div>
                     ))}
                   </div>
                   <div className="bg-black/30 px-5 py-4">
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Rollout map</p>
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">
+                      Rollout map
+                    </p>
                     <div className="mt-4 rounded-[1.1rem] border border-white/10 bg-black/35 p-4">
                       <svg viewBox="0 0 210 120" className="h-28 w-full">
-                        <path d="M16 90L44 28L72 38L84 20L128 28L166 42L194 76L176 98L138 90L116 102L68 96L44 112Z" fill="none" stroke="rgba(255,255,255,0.24)" strokeWidth="2.5" />
+                        <path
+                          d="M16 90L44 28L72 38L84 20L128 28L166 42L194 76L176 98L138 90L116 102L68 96L44 112Z"
+                          fill="none"
+                          stroke="rgba(255,255,255,0.24)"
+                          strokeWidth="2.5"
+                        />
                         {[44, 92, 136, 168].map((cx, index) => (
-                          <circle key={cx} cx={cx} cy={[64, 82, 52, 72][index]} r="4.5" fill="white" />
+                          <circle
+                            key={cx}
+                            cx={cx}
+                            cy={[64, 82, 52, 72][index]}
+                            r="4.5"
+                            fill="white"
+                          />
                         ))}
                       </svg>
                     </div>
@@ -411,10 +535,15 @@ export default function Pricing() {
                 description="Readiness review means advisory evidence for one site/task. Hosted evaluation means managed browser sessions and run notes. Custom benchmark is for private, vendor-comparison, or multi-site work."
               />
               <div className="mt-6 border-t border-black/10 pt-5">
-                <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Scope changes with</p>
+                <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
+                  Scope changes with
+                </p>
                 <div className="mt-4 grid gap-2">
                   {scopeFactors.map((item) => (
-                    <div key={item} className="border border-black/10 bg-[#f8f6f1] px-4 py-3 text-sm text-slate-700">
+                    <div
+                      key={item}
+                      className="border border-black/10 bg-[#f8f6f1] px-4 py-3 text-sm text-slate-700"
+                    >
                       {item}
                     </div>
                   ))}
@@ -423,15 +552,25 @@ export default function Pricing() {
             </div>
             <div className="grid gap-4 md:grid-cols-3">
               {accessModels.map((example) => (
-                <article key={example.title} className="border border-black/10 bg-white p-5">
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">{example.price}</p>
+                <article
+                  key={example.title}
+                  className="border border-black/10 bg-white p-5"
+                >
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
+                    {example.price}
+                  </p>
                   <h2 className="mt-4 text-[1.55rem] leading-[1.02] tracking-[-0.04em] text-slate-950">
                     {example.title}
                   </h2>
-                  <p className="mt-3 text-sm leading-6 text-slate-700">{example.body}</p>
+                  <p className="mt-3 text-sm leading-6 text-slate-700">
+                    {example.body}
+                  </p>
                   <div className="mt-5 grid gap-2">
                     {example.items.map((item) => (
-                      <span key={item} className="border border-black/10 bg-[#f8f6f1] px-3 py-2 text-sm text-slate-700">
+                      <span
+                        key={item}
+                        className="border border-black/10 bg-[#f8f6f1] px-3 py-2 text-sm text-slate-700"
+                      >
                         {item}
                       </span>
                     ))}
@@ -445,9 +584,16 @@ export default function Pricing() {
         <section className="mx-auto max-w-[88rem] px-5 pb-16 sm:px-8 lg:px-10 lg:pb-20">
           <div className="mb-8 grid gap-4 md:grid-cols-3">
             {trustNotes.map((note) => (
-              <article key={note.title} className="border border-black/10 bg-[#ebe7dd] p-5">
-                <h2 className="text-lg font-semibold tracking-[-0.02em] text-slate-950">{note.title}</h2>
-                <p className="mt-3 text-sm leading-6 text-slate-700">{note.body}</p>
+              <article
+                key={note.title}
+                className="border border-black/10 bg-[#ebe7dd] p-5"
+              >
+                <h2 className="text-lg font-semibold tracking-[-0.02em] text-slate-950">
+                  {note.title}
+                </h2>
+                <p className="mt-3 text-sm leading-6 text-slate-700">
+                  {note.body}
+                </p>
               </article>
             ))}
           </div>
@@ -469,8 +615,12 @@ export default function Pricing() {
                     <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-black/10 bg-slate-950 text-white">
                       <Icon className="h-5 w-5" />
                     </div>
-                    <p className="mt-5 text-sm font-semibold text-slate-950">{artifact.label}</p>
-                    <p className="mt-1 text-sm leading-6 text-slate-600">{artifact.detail}</p>
+                    <p className="mt-5 text-sm font-semibold text-slate-950">
+                      {artifact.label}
+                    </p>
+                    <p className="mt-1 text-sm leading-6 text-slate-600">
+                      {artifact.detail}
+                    </p>
                   </div>
                 );
               })}

@@ -39,25 +39,21 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 const productPaths = [
   {
     title: "Readiness Report",
-    body:
-      "A site/task confidence packet around success rate, cycle time, intervention rate, safety threshold, failure modes, and required next proof.",
+    body: "A site/task confidence packet around success rate, cycle time, intervention rate, safety threshold, failure modes, and required next proof.",
     href: "/readiness",
     label: "See readiness report",
   },
   {
     title: "Site Package Substrate",
-    body:
-      "One real place packaged with capture route, manifest, proof notes, rights limits, export scope, and geometry when available.",
+    body: "One real place packaged with capture route, manifest, proof notes, rights limits, export scope, and geometry when available.",
     href: "/world-models",
     label: "Browse site packages",
     dark: true,
   },
   {
     title: "Buyer Request Path",
-    body:
-      "Structured intake turns a robot-team question into the next site/task scope, readiness estimate, evidence ask, hosted review, or capture run.",
-    href:
-      "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=home-product-readiness",
+    body: "Structured intake turns a robot-team question into the next site/task scope, readiness estimate, evidence ask, hosted review, or capture run.",
+    href: "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=home-product-readiness",
     label: "Evaluate a site/task",
   },
 ];
@@ -67,8 +63,7 @@ const personaEntryPoints = [
     audience: "Robot team",
     question: "I need to know if this robot is likely to clear our pilot bar.",
     title: "Request a site/task readiness evaluation.",
-    body:
-      "Name the facility, task, robot setup, target thresholds, and pilot timeline. Blueprint routes you to a readiness report, site package, new capture request, or hosted evaluation.",
+    body: "Name the facility, task, robot setup, target thresholds, and pilot timeline. Blueprint routes you to a readiness report, site package, new capture request, or hosted evaluation.",
     primaryHref:
       "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=home-persona-robot-team",
     primaryLabel: "Request readiness evaluation",
@@ -79,8 +74,7 @@ const personaEntryPoints = [
     audience: "Site operator",
     question: "I control or influence a facility.",
     title: "Set site boundaries.",
-    body:
-      "Define access rules, privacy constraints, restricted zones, and commercialization terms before a package is released.",
+    body: "Define access rules, privacy constraints, restricted zones, and commercialization terms before a package is released.",
     primaryHref: "/contact/site-operator",
     primaryLabel: "Submit or claim a site",
     secondaryHref: "/governance",
@@ -90,9 +84,9 @@ const personaEntryPoints = [
     audience: "Capturer",
     question: "I can record real public-facing places.",
     title: "Apply for capture access.",
-    body:
-      "Capture work remains city- and approval-gated. Open the launch path before recording, routing, or expecting assignment payout.",
-    primaryHref: "/capture-app/launch-access?role=capturer&source=home-persona-capturer",
+    body: "Capture work remains city- and approval-gated. Open the launch path before recording, routing, or expecting assignment payout.",
+    primaryHref:
+      "/capture-app/launch-access?role=capturer&source=home-persona-capturer",
     primaryLabel: "Check capture access",
     secondaryHref: "/capture",
     secondaryLabel: "How capture works",
@@ -102,18 +96,15 @@ const personaEntryPoints = [
 const categoryValidationItems = [
   {
     title: "Outdoor worlds are getting grounded",
-    body:
-      "Google's Genie and Street View work make the category legible: agents can explore worlds anchored to real places.",
+    body: "Google's Genie and Street View work make the category legible: agents can explore worlds anchored to real places.",
   },
   {
     title: "Indoor spaces are still missing",
-    body:
-      "Warehouses, stores, labs, hotels, back rooms, and service corridors are rights-sensitive, task-specific, and rarely captured at robot-evaluation depth.",
+    body: "Warehouses, stores, labs, hotels, back rooms, and service corridors are rights-sensitive, task-specific, and rarely captured at robot-evaluation depth.",
   },
   {
     title: "Blueprint turns sites into readiness evidence",
-    body:
-      "Blueprint turns those unscanned spaces into capture-backed site/task packages, readiness reports, hosted review paths, proof boundaries, and pilot decisions for robot teams.",
+    body: "Blueprint turns those unscanned spaces into capture-backed site/task packages, readiness reports, hosted review paths, proof boundaries, and pilot decisions for robot teams.",
   },
 ];
 
@@ -136,8 +127,7 @@ const homeDirectAnswers = [
   },
   {
     question: "What proof is attached?",
-    answer:
-      `${captureGroundedPublicCopy.groundTruthDefinition} Public examples show the proof shape without replacing that source record.`,
+    answer: `${captureGroundedPublicCopy.groundTruthDefinition} Public examples show the proof shape without replacing that source record.`,
   },
   {
     question: "What should a buyer request next?",
@@ -151,7 +141,10 @@ const HOME_ROBOT_TEAM_CONVERSION_GOAL = "structured_robot_team_intake";
 const GOOGLE_GENIE_STREET_VIEW_URL =
   "https://blog.google/innovation-and-ai/models-and-research/google-deepmind/project-genie-expands/";
 
-const homeRobotTeamVariants = ["outdoor_street_view", "street_view_grounds"] as const;
+const homeRobotTeamVariants = [
+  "outdoor_street_view",
+  "street_view_grounds",
+] as const;
 
 type HomeRobotTeamVariant = (typeof homeRobotTeamVariants)[number];
 
@@ -170,12 +163,13 @@ const homeVariantContent: Record<
 > = {
   outdoor_street_view: {
     title: "Site-specific robot deployment readiness.",
-    description:
+    description: (
       <>
-        Before a costly on-site pilot, Blueprint helps robot teams estimate whether
-        a robot can meet the required success rate, cycle time, intervention rate,
-        and safety threshold on the actual facility tasks. Capture-grounded site
-        packages and hosted review keep the answer tied to the real place. Google's{" "}
+        Before a costly on-site pilot, Blueprint helps robot teams estimate
+        whether a robot can meet the required success rate, cycle time,
+        intervention rate, and safety threshold on the actual facility tasks.
+        Capture-grounded site packages and hosted review keep the answer tied to
+        the real place. Google's{" "}
         <a
           href={GOOGLE_GENIE_STREET_VIEW_URL}
           target="_blank"
@@ -185,7 +179,8 @@ const homeVariantContent: Record<
           Street View-grounded Genie
         </a>{" "}
         is category context, not Blueprint proof.
-      </>,
+      </>
+    ),
     primaryLabel: "Request readiness evaluation",
     primaryPath: "hosted-evaluation",
     secondaryLabel: "See sample readiness report",
@@ -196,12 +191,13 @@ const homeVariantContent: Record<
   },
   street_view_grounds: {
     title: "Site-specific robot deployment readiness.",
-    description:
+    description: (
       <>
-        Before a costly on-site pilot, Blueprint helps robot teams estimate whether
-        a robot can meet the required success rate, cycle time, intervention rate,
-        and safety threshold on the actual facility tasks. Capture-grounded site
-        packages and hosted review keep the answer tied to the real place. Google's{" "}
+        Before a costly on-site pilot, Blueprint helps robot teams estimate
+        whether a robot can meet the required success rate, cycle time,
+        intervention rate, and safety threshold on the actual facility tasks.
+        Capture-grounded site packages and hosted review keep the answer tied to
+        the real place. Google's{" "}
         <a
           href={GOOGLE_GENIE_STREET_VIEW_URL}
           target="_blank"
@@ -211,7 +207,8 @@ const homeVariantContent: Record<
           Street View-grounded Genie
         </a>{" "}
         is category context, not Blueprint proof.
-      </>,
+      </>
+    ),
     primaryLabel: "Request readiness evaluation",
     primaryPath: "hosted-evaluation",
     secondaryLabel: "See sample readiness report",
@@ -240,19 +237,23 @@ const robotTeamDecisionSteps = [
 const firstScreenDefinitions = [
   {
     term: "Readiness report",
-    definition: "A request-scoped advisory packet for one site, one task suite, one robot profile, and a named pass bar.",
+    definition:
+      "A request-scoped advisory packet for one site, one task suite, one robot profile, and a named pass bar.",
   },
   {
     term: "Site/task suite",
-    definition: "The actual workflows, thresholds, scenario variations, and failure modes a pilot must clear.",
+    definition:
+      "The actual workflows, thresholds, scenario variations, and failure modes a pilot must clear.",
   },
   {
     term: "Capture substrate",
-    definition: "The manifest, route, proof, rights notes, exports, and files tied to that exact site.",
+    definition:
+      "The manifest, route, proof, rights notes, exports, and files tied to that exact site.",
   },
   {
     term: "Operational proof",
-    definition: "Simulator traces, action logs, robot trials, safety review, rights clearance, and runtime proof when a stronger claim is requested.",
+    definition:
+      "Simulator traces, action logs, robot trials, safety review, rights clearance, and runtime proof when a stronger claim is requested.",
   },
 ];
 
@@ -327,8 +328,9 @@ export default function Home() {
     [],
   );
   const heroSite = featuredSites[0];
-  const [heroVariant, setHeroVariant] =
-    useState<HomeRobotTeamVariant>("outdoor_street_view");
+  const [heroVariant, setHeroVariant] = useState<HomeRobotTeamVariant>(
+    "outdoor_street_view",
+  );
   const [liveExactSitePreview, setLiveExactSitePreview] =
     useState<PublicSiteWorldRecord | null>(null);
   const heroContent = homeVariantContent[heroVariant];
@@ -348,7 +350,9 @@ export default function Home() {
     heroContent.primaryPath,
   );
   const exactSitePreviewSeed = useMemo(
-    () => siteWorldCards.find((site) => site.id === publicDemoSiteWorldId) || heroSite,
+    () =>
+      siteWorldCards.find((site) => site.id === publicDemoSiteWorldId) ||
+      heroSite,
     [heroSite],
   );
   const exactSitePreviewSite = useMemo(() => {
@@ -358,7 +362,9 @@ export default function Home() {
     }
 
     const preview = site.worldLabsPreview || { status: "ready" as const };
-    const spzUrls = preview.spzUrls?.length ? preview.spzUrls : [publicDemoSpzPreviewSrc];
+    const spzUrls = preview.spzUrls?.length
+      ? preview.spzUrls
+      : [publicDemoSpzPreviewSrc];
     const previewWithSplat = {
       ...preview,
       status: preview.status || "ready",
@@ -376,19 +382,23 @@ export default function Home() {
     () => [
       {
         label: "Buyer question",
-        detail: "Can this robot hit the required success rate, cycle time, intervention rate, and safety threshold on this site/task?",
+        detail:
+          "Can this robot hit the required success rate, cycle time, intervention rate, and safety threshold on this site/task?",
       },
       {
         label: "Indoor capture",
-        detail: "A walkthrough or site record starts the evidence. Provenance, rights, and limits stay attached.",
+        detail:
+          "A walkthrough or site record starts the evidence. Provenance, rights, and limits stay attached.",
       },
       {
         label: "Readiness packet",
-        detail: "Blueprint packages the task suite, robot profile, thresholds, failure modes, data needs, and pilot protocol.",
+        detail:
+          "Blueprint packages the task suite, robot profile, thresholds, failure modes, data needs, and pilot protocol.",
       },
       {
         label: "Proof boundary",
-        detail: "Advisory estimates can be public-product language; deployment-ready verdicts need owner-system evidence.",
+        detail:
+          "Advisory estimates can be public-product language; deployment-ready verdicts need owner-system evidence.",
       },
     ],
     [],
@@ -396,7 +406,9 @@ export default function Home() {
 
   useEffect(() => {
     const nextVariant =
-      homeRobotTeamVariants[Math.floor(Math.random() * homeRobotTeamVariants.length)];
+      homeRobotTeamVariants[
+        Math.floor(Math.random() * homeRobotTeamVariants.length)
+      ];
     setHeroVariant(nextVariant);
     analyticsEvents.experimentExposure(
       HOME_ROBOT_TEAM_EXPERIMENT_KEY,
@@ -453,9 +465,11 @@ export default function Home() {
       { threshold: 0.35 },
     );
 
-    document.querySelectorAll<HTMLElement>("[data-home-section]").forEach((node) => {
-      observer.observe(node);
-    });
+    document
+      .querySelectorAll<HTMLElement>("[data-home-section]")
+      .forEach((node) => {
+        observer.observe(node);
+      });
 
     return () => observer.disconnect();
   }, [heroVariant]);
@@ -503,7 +517,7 @@ export default function Home() {
       <div className="bg-[#f5f3ef] text-slate-950">
         <section className="border-b border-black/10" data-home-section="hero">
           <MonochromeMedia
-            src="/generated/editorial/world-models-hero.png"
+            src={editorialGeneratedAssets.warehouseAisle}
             alt={heroSite.siteName}
             className="min-h-[39rem] rounded-none sm:min-h-[42rem]"
             loading="eager"
@@ -565,12 +579,15 @@ export default function Home() {
                     <p className="text-[11px] uppercase tracking-[0.2em] text-white/45">
                       Robot-team next step
                     </p>
-                    <h2 className="mt-4 text-lg font-semibold">{heroContent.panelTitle}</h2>
+                    <h2 className="mt-4 text-lg font-semibold">
+                      {heroContent.panelTitle}
+                    </h2>
                     <p className="mt-2 text-sm text-white/60">
                       {heroContent.panelBody}
                     </p>
                     <div className="mt-5 border-t border-white/10 pt-4 text-sm text-white/70">
-                      Capture first. Thresholds next. Advisory before pilot commitment.
+                      Capture first. Thresholds next. Advisory before pilot
+                      commitment.
                     </div>
                   </div>
                 </div>
@@ -585,7 +602,10 @@ export default function Home() {
           onCtaClick={trackHomeCtaClick}
         />
 
-        <section className="border-b border-black/10 bg-white" data-home-section="category-validation">
+        <section
+          className="border-b border-black/10 bg-white"
+          data-home-section="category-validation"
+        >
           <div className="mx-auto grid max-w-[88rem] gap-px px-5 py-10 sm:px-8 lg:grid-cols-[0.34fr_0.66fr] lg:px-10 lg:py-12">
             <div className="bg-slate-950 px-6 py-8 text-white lg:px-8 lg:py-10">
               <EditorialSectionIntro
@@ -598,15 +618,22 @@ export default function Home() {
             <div className="grid gap-px bg-black/10 md:grid-cols-3">
               {categoryValidationItems.map((item) => (
                 <article key={item.title} className="bg-white p-6">
-                  <h2 className="text-base font-semibold text-slate-950">{item.title}</h2>
-                  <p className="mt-3 text-sm leading-7 text-slate-600">{item.body}</p>
+                  <h2 className="text-base font-semibold text-slate-950">
+                    {item.title}
+                  </h2>
+                  <p className="mt-3 text-sm leading-7 text-slate-600">
+                    {item.body}
+                  </p>
                 </article>
               ))}
             </div>
           </div>
         </section>
 
-        <section className="border-b border-black/10 bg-white" data-home-section="first-route">
+        <section
+          className="border-b border-black/10 bg-white"
+          data-home-section="first-route"
+        >
           <div className="mx-auto grid max-w-[88rem] gap-px px-5 py-8 sm:px-8 lg:grid-cols-[0.34fr_0.66fr] lg:px-10 lg:py-10">
             <div className="bg-[#f5f3ef] p-5 sm:p-6">
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
@@ -616,7 +643,10 @@ export default function Home() {
                 {[
                   ["For robot teams", heroPrimaryHref],
                   ["For site operators", "/contact/site-operator"],
-                  ["For capturers", "/capture-app/launch-access?role=capturer&source=home-top-persona"],
+                  [
+                    "For capturers",
+                    "/capture-app/launch-access?role=capturer&source=home-top-persona",
+                  ],
                 ].map(([label, href]) => (
                   <a
                     key={label}
@@ -632,15 +662,22 @@ export default function Home() {
             <div className="grid gap-px bg-black/10 md:grid-cols-4">
               {firstScreenDefinitions.map((item) => (
                 <div key={item.term} className="bg-white p-5">
-                  <p className="text-sm font-semibold text-slate-950">{item.term}</p>
-                  <p className="mt-3 text-sm leading-6 text-slate-600">{item.definition}</p>
+                  <p className="text-sm font-semibold text-slate-950">
+                    {item.term}
+                  </p>
+                  <p className="mt-3 text-sm leading-6 text-slate-600">
+                    {item.definition}
+                  </p>
                 </div>
               ))}
             </div>
           </div>
         </section>
 
-        <section className="border-b border-black/10 bg-[#101310] text-white" data-home-section="product-stack">
+        <section
+          className="border-b border-black/10 bg-[#101310] text-white"
+          data-home-section="product-stack"
+        >
           <div className="mx-auto grid max-w-[88rem] gap-10 px-5 py-12 sm:px-8 lg:grid-cols-[0.43fr_0.57fr] lg:px-10 lg:py-14">
             <div className="max-w-xl">
               <ProofChip light>Commercial product</ProofChip>
@@ -648,8 +685,9 @@ export default function Home() {
                 Blueprint sells pre-pilot readiness evidence, not generic demos.
               </h2>
               <p className="mt-6 text-base leading-8 text-white/76">
-                Blueprint turns indoor capture into site/task readiness reports, site packages,
-                hosted review paths, and buyer decisions tied to the same facility, route, thresholds, and proof record.
+                Blueprint turns indoor capture into site/task readiness reports,
+                site packages, hosted review paths, and buyer decisions tied to
+                the same facility, route, thresholds, and proof record.
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <a
@@ -688,15 +726,23 @@ export default function Home() {
               {productPaths.map((path, index) => (
                 <article
                   key={path.title}
-                  className={index === 1 ? "bg-[#e8efe8] p-6 text-slate-950" : "bg-white/[0.06] p-6 text-white"}
+                  className={
+                    index === 1
+                      ? "bg-[#e8efe8] p-6 text-slate-950"
+                      : "bg-white/[0.06] p-6 text-white"
+                  }
                 >
-                  <p className={`text-[11px] uppercase tracking-[0.18em] ${index === 1 ? "text-slate-500" : "text-white/45"}`}>
+                  <p
+                    className={`text-[11px] uppercase tracking-[0.18em] ${index === 1 ? "text-slate-500" : "text-white/45"}`}
+                  >
                     0{index + 1}
                   </p>
                   <h3 className="font-editorial mt-5 text-[2.25rem] leading-[0.92] tracking-[-0.04em]">
                     {path.title}
                   </h3>
-                  <p className={`mt-4 text-sm leading-7 ${index === 1 ? "text-slate-700" : "text-white/68"}`}>
+                  <p
+                    className={`mt-4 text-sm leading-7 ${index === 1 ? "text-slate-700" : "text-white/68"}`}
+                  >
                     {path.body}
                   </p>
                   <a
@@ -720,11 +766,17 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="mx-auto max-w-[88rem] px-5 py-8 sm:px-8 lg:px-10 lg:py-10" data-home-section="metrics">
+        <section
+          className="mx-auto max-w-[88rem] px-5 py-8 sm:px-8 lg:px-10 lg:py-10"
+          data-home-section="metrics"
+        >
           <EditorialMetricStrip items={metrics} />
         </section>
 
-        <section className="border-y border-black/10 bg-white" data-home-section="robot-team-path">
+        <section
+          className="border-y border-black/10 bg-white"
+          data-home-section="robot-team-path"
+        >
           <div className="mx-auto grid max-w-[88rem] gap-px px-5 py-10 sm:px-8 lg:grid-cols-[0.35fr_0.65fr] lg:px-10">
             <div className="bg-[#e8efe8] px-6 py-8 lg:px-8 lg:py-10">
               <EditorialSectionIntro
@@ -736,10 +788,10 @@ export default function Home() {
                 href={decisionPathHref}
                 onClick={() =>
                   trackHomeCtaClick(
-                          "home_decision_path",
-                          "Request readiness evaluation",
-                          decisionPathHref,
-                          "home-decision-path",
+                    "home_decision_path",
+                    "Request readiness evaluation",
+                    decisionPathHref,
+                    "home-decision-path",
                   )
                 }
                 className="mt-7 inline-flex items-center justify-center bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
@@ -752,15 +804,23 @@ export default function Home() {
               {robotTeamDecisionSteps.map((step, index) => (
                 <div
                   key={step.title}
-                  className={index === 1 ? "bg-slate-950 p-6 text-white" : "bg-white p-6 text-slate-950"}
+                  className={
+                    index === 1
+                      ? "bg-slate-950 p-6 text-white"
+                      : "bg-white p-6 text-slate-950"
+                  }
                 >
-                  <p className={`text-[11px] uppercase tracking-[0.18em] ${index === 1 ? "text-white/45" : "text-slate-400"}`}>
+                  <p
+                    className={`text-[11px] uppercase tracking-[0.18em] ${index === 1 ? "text-white/45" : "text-slate-400"}`}
+                  >
                     0{index + 1}
                   </p>
                   <h2 className="font-editorial mt-4 text-[2rem] leading-[0.95] tracking-[-0.04em]">
                     {step.title}
                   </h2>
-                  <p className={`mt-4 text-sm leading-7 ${index === 1 ? "text-white/70" : "text-slate-600"}`}>
+                  <p
+                    className={`mt-4 text-sm leading-7 ${index === 1 ? "text-white/70" : "text-slate-600"}`}
+                  >
                     {step.body}
                   </p>
                 </div>
@@ -769,10 +829,16 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="border-y border-black/10 bg-[#f5f3ef]" data-home-section="proof-story">
+        <section
+          className="border-y border-black/10 bg-[#f5f3ef]"
+          data-home-section="proof-story"
+        >
           <div className="mx-auto grid max-w-[88rem] gap-px px-5 py-10 sm:px-8 lg:grid-cols-[0.52fr_0.48fr] lg:px-10 lg:py-12">
             <MonochromeMedia
-              src={publicCaptureProofStories[0]?.image || editorialGeneratedAssets.groceryBackroom}
+              src={
+                publicCaptureProofStories[0]?.image ||
+                editorialGeneratedAssets.groceryBackroom
+              }
               alt="Blueprint exact-site proof route"
               className="min-h-[29rem] rounded-none"
               imageClassName="min-h-[29rem]"
@@ -786,7 +852,10 @@ export default function Home() {
               />
               <div className="mt-8 divide-y divide-black/10 border-y border-black/10">
                 {proofItems.map((item) => (
-                  <div key={item} className="py-4 text-sm leading-7 text-slate-700">
+                  <div
+                    key={item}
+                    className="py-4 text-sm leading-7 text-slate-700"
+                  >
                     {item}
                   </div>
                 ))}
@@ -795,7 +864,7 @@ export default function Home() {
                 <a
                   href="/proof"
                   onClick={() =>
-                  trackHomeCtaClick(
+                    trackHomeCtaClick(
                       "home_proof_primary",
                       "Inspect proof",
                       "/proof",
@@ -826,7 +895,10 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12" data-home-section="catalog">
+        <section
+          className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12"
+          data-home-section="catalog"
+        >
           <EditorialSectionIntro
             eyebrow="World-model catalog"
             title="Site packages feed readiness reports."
@@ -853,7 +925,10 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="border-y border-black/10 bg-white" data-home-section="capture-examples">
+        <section
+          className="border-y border-black/10 bg-white"
+          data-home-section="capture-examples"
+        >
           <div className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10">
             <EditorialSectionIntro
               eyebrow="Why capture matters"
@@ -877,14 +952,18 @@ export default function Home() {
                     overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.04),rgba(0,0,0,0.32))]"
                   />
                   <div className="p-5">
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">{story.label}</p>
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
+                      {story.label}
+                    </p>
                     <h2 className="mt-3 text-lg font-semibold leading-tight text-slate-950">
                       {story.locationName}
                     </h2>
                     <p className="mt-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
                       {story.city}
                     </p>
-                    <p className="mt-3 text-sm leading-6 text-slate-600">{story.robotQuestion}</p>
+                    <p className="mt-3 text-sm leading-6 text-slate-600">
+                      {story.robotQuestion}
+                    </p>
                   </div>
                 </a>
               ))}
@@ -892,7 +971,10 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="border-y border-black/10 bg-[#101310] text-white" data-home-section="persona-paths">
+        <section
+          className="border-y border-black/10 bg-[#101310] text-white"
+          data-home-section="persona-paths"
+        >
           <div className="mx-auto grid max-w-[88rem] gap-px px-5 py-10 sm:px-8 lg:grid-cols-[0.31fr_0.69fr] lg:px-10 lg:py-12">
             <div className="bg-white/[0.06] px-6 py-8 lg:px-8 lg:py-10">
               <EditorialSectionIntro
@@ -906,18 +988,28 @@ export default function Home() {
               {personaEntryPoints.map((entry, index) => (
                 <article
                   key={entry.audience}
-                  className={index === 0 ? "bg-[#e8efe8] p-6 text-slate-950" : "bg-white/[0.06] p-6 text-white"}
+                  className={
+                    index === 0
+                      ? "bg-[#e8efe8] p-6 text-slate-950"
+                      : "bg-white/[0.06] p-6 text-white"
+                  }
                 >
-                  <p className={`text-[11px] uppercase tracking-[0.18em] ${index === 0 ? "text-slate-500" : "text-white/45"}`}>
+                  <p
+                    className={`text-[11px] uppercase tracking-[0.18em] ${index === 0 ? "text-slate-500" : "text-white/45"}`}
+                  >
                     {entry.audience}
                   </p>
-                  <p className={`mt-3 text-sm leading-6 ${index === 0 ? "text-slate-600" : "text-white/62"}`}>
+                  <p
+                    className={`mt-3 text-sm leading-6 ${index === 0 ? "text-slate-600" : "text-white/62"}`}
+                  >
                     {entry.question}
                   </p>
                   <h2 className="font-editorial mt-5 text-[2rem] leading-[0.95] tracking-[-0.04em]">
                     {entry.title}
                   </h2>
-                  <p className={`mt-4 text-sm leading-7 ${index === 0 ? "text-slate-700" : "text-white/70"}`}>
+                  <p
+                    className={`mt-4 text-sm leading-7 ${index === 0 ? "text-slate-700" : "text-white/70"}`}
+                  >
                     {entry.body}
                   </p>
                   <div className="mt-7 flex flex-wrap gap-3">
@@ -931,9 +1023,11 @@ export default function Home() {
                           "home-persona-paths",
                         )
                       }
-                      className={index === 0
-                        ? "inline-flex items-center justify-center bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-                        : "inline-flex items-center justify-center bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"}
+                      className={
+                        index === 0
+                          ? "inline-flex items-center justify-center bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                          : "inline-flex items-center justify-center bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
+                      }
                     >
                       {entry.primaryLabel}
                       <ArrowRight className="ml-2 h-4 w-4" />
@@ -948,9 +1042,11 @@ export default function Home() {
                           "home-persona-paths",
                         )
                       }
-                      className={index === 0
-                        ? "inline-flex items-center justify-center border border-black/10 bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
-                        : "inline-flex items-center justify-center border border-white/15 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"}
+                      className={
+                        index === 0
+                          ? "inline-flex items-center justify-center border border-black/10 bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
+                          : "inline-flex items-center justify-center border border-white/15 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+                      }
                     >
                       {entry.secondaryLabel}
                     </a>
@@ -961,7 +1057,10 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12" data-home-section="direct-answers">
+        <section
+          className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12"
+          data-home-section="direct-answers"
+        >
           <EditorialFaq
             title="Buyer answers"
             description="Short definitions for investors and robot teams comparing readiness reports, exact-site packages, hosted evaluation, provenance, rights, and sample boundaries."
@@ -969,7 +1068,10 @@ export default function Home() {
           />
         </section>
 
-	        <section className="mx-auto max-w-[88rem] px-5 pb-12 sm:px-8 lg:px-10 lg:pb-14" data-home-section="bottom-cta">
+        <section
+          className="mx-auto max-w-[88rem] px-5 pb-12 sm:px-8 lg:px-10 lg:pb-14"
+          data-home-section="bottom-cta"
+        >
           <EditorialCtaBand
             eyebrow="Start"
             title="Request one site/task readiness evaluation."

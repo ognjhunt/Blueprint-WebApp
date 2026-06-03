@@ -45,6 +45,17 @@ These are allowed on public pages without requiring Operational Launch Ready pro
 | Launch-quality UI language | The site may use polished present-tense interface labels and confident buyer language. | Do not add broad apology copy solely because operations are still request-specific. |
 | Request/access review | Request readiness evaluation, request package access, book hosted evaluation, submit site, apply for capture access, open request console. | Availability, rights, access, payment, payout, safety proof, and fulfillment are confirmed per site/request. |
 
+## Public Visual Guardrails
+
+Public visuals may be polished, premium, and specific to the first PMF wedge. They must still obey the same proof boundary as copy.
+
+| Visual Type | Allowed Public Use | Guardrail |
+|---|---|---|
+| Humanoid robot scenes | Default public robot imagery for the first PMF wedge: a humanoid robot evaluating, carrying, picking, inspecting, or routing through an exact indoor site. | Do not imply the pictured robot completed a live trial, passed safety review, ran the buyer's robot policy, or is ready to deploy. |
+| Generated readiness dashboards | Show product shape: routes, thresholds, blockers, readiness bands, proof packets, hosted review rooms, and advisory score concepts. | Treat generated dashboards as sample/advisory UI unless owner-system proof exists for that request. |
+| Proof boards and report visuals | Show the structure of provenance, rights, route, blocker, and threshold evidence that Blueprint packages for buyers. | Do not present representative boards as customer outcomes, cleared rights, robot trials, or completed provider runs. |
+| Non-humanoid robot visuals | Use when a page explicitly discusses AMRs, arms, drones, or another robot class. | Do not let generic wheeled robot imagery become the default public robot posture for the humanoid readiness wedge. |
+
 ## Conditional Claims
 
 Use these only when the page, listing, packet, or request has supporting proof. Otherwise qualify the exact term while keeping the surrounding product presentation confident.

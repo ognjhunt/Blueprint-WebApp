@@ -8,7 +8,11 @@ import {
 } from "@/components/site/editorial";
 import { PlaceAutocompleteInput } from "@/components/site/PlaceAutocompleteInput";
 import { SiteWorldGraphic } from "@/components/site/SiteWorldGraphic";
-import { categoryFilters, siteWorldCards, type SiteCategory } from "@/data/siteWorlds";
+import {
+  categoryFilters,
+  siteWorldCards,
+  type SiteCategory,
+} from "@/data/siteWorlds";
 import {
   buildCatalogSearchSuggestions,
   CATALOG_EXAMPLE_QUERIES,
@@ -31,9 +35,13 @@ import {
   isPlannedCatalogSiteWorld,
   siteWorldStatusLegend,
 } from "@/lib/siteWorldCommercialStatus";
-import { fetchSiteWorldCatalog, searchSiteWorldCatalog } from "@/lib/siteWorldsApi";
+import {
+  fetchSiteWorldCatalog,
+  searchSiteWorldCatalog,
+} from "@/lib/siteWorldsApi";
 import { publicDemoHref } from "@/lib/marketingProof";
 import { captureGroundedPublicCopy } from "@/lib/captureGroundedLanguage";
+import { humanoidReadinessAssets } from "@/lib/editorialGeneratedAssets";
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 import {
   ArrowRight,
@@ -49,7 +57,12 @@ import {
 import { useEffect, useMemo, useState } from "react";
 
 type SiteWorld = (typeof siteWorldCards)[number];
-type AvailabilityFilter = "All" | "Sample" | "Access-reviewed" | "Planned" | "Proof visible";
+type AvailabilityFilter =
+  | "All"
+  | "Sample"
+  | "Access-reviewed"
+  | "Planned"
+  | "Proof visible";
 
 const availabilityFilters: AvailabilityFilter[] = [
   "All",
@@ -59,7 +72,10 @@ const availabilityFilters: AvailabilityFilter[] = [
   "Proof visible",
 ];
 
-const resultTypeCopy: Record<CatalogResultType, { label: string; tone: string }> = {
+const resultTypeCopy: Record<
+  CatalogResultType,
+  { label: string; tone: string }
+> = {
   exact: {
     label: "Exact catalog match",
     tone: "border-emerald-200 bg-emerald-50 text-emerald-900",
@@ -91,7 +107,8 @@ function uniqueSites(sites: SiteWorld[]) {
 
 function sortCatalog(sites: SiteWorld[]) {
   return [...sites].sort((left, right) => {
-    const priorityDelta = getSiteWorldCatalogPriority(left) - getSiteWorldCatalogPriority(right);
+    const priorityDelta =
+      getSiteWorldCatalogPriority(left) - getSiteWorldCatalogPriority(right);
     if (priorityDelta !== 0) return priorityDelta;
     return left.siteName.localeCompare(right.siteName);
   });
@@ -100,8 +117,8 @@ function sortCatalog(sites: SiteWorld[]) {
 function hasPublicProof(site: SiteWorld) {
   const proofSummary = getSiteWorldPublicProofSummary(site);
   return (
-    proofSummary !== "Metadata preview only"
-    && !proofSummary.toLowerCase().includes("planned profile")
+    proofSummary !== "Metadata preview only" &&
+    !proofSummary.toLowerCase().includes("planned profile")
   );
 }
 
@@ -112,9 +129,13 @@ function getCatalogStateLabel(site: SiteWorld) {
   return "Access-reviewed";
 }
 
-function matchesAvailabilityFilter(site: SiteWorld, filter: AvailabilityFilter) {
+function matchesAvailabilityFilter(
+  site: SiteWorld,
+  filter: AvailabilityFilter,
+) {
   if (filter === "All") return true;
-  if (filter === "Sample") return getSiteWorldCommercialStatus(site).id === "public_demo_sample";
+  if (filter === "Sample")
+    return getSiteWorldCommercialStatus(site).id === "public_demo_sample";
   if (filter === "Planned") return isPlannedCatalogSiteWorld(site);
   if (filter === "Proof visible") return hasPublicProof(site);
   return getCatalogStateLabel(site) === "Access-reviewed";
@@ -125,9 +146,12 @@ function getResultTypeForSite(
   classification: CatalogSearchClassification,
 ): CatalogResultType | null {
   if (!classification.query) return null;
-  if (classification.exactMatches.some((match) => match.id === site.id)) return "exact";
-  if (classification.nearbyMatches.some((match) => match.id === site.id)) return "nearby";
-  if (classification.categoryMatches.some((match) => match.id === site.id)) return "category";
+  if (classification.exactMatches.some((match) => match.id === site.id))
+    return "exact";
+  if (classification.nearbyMatches.some((match) => match.id === site.id))
+    return "nearby";
+  if (classification.categoryMatches.some((match) => match.id === site.id))
+    return "category";
   return null;
 }
 
@@ -152,14 +176,20 @@ function SearchSuggestionButton({
       onClick={() => onSelect(suggestion)}
     >
       <span>
-        <span className="block text-sm font-semibold text-slate-950">{suggestion.label}</span>
-        <span className="mt-1 block text-xs leading-5 text-slate-600">{suggestion.description}</span>
+        <span className="block text-sm font-semibold text-slate-950">
+          {suggestion.label}
+        </span>
+        <span className="mt-1 block text-xs leading-5 text-slate-600">
+          {suggestion.description}
+        </span>
       </span>
       <span className="flex flex-wrap items-start gap-2 sm:justify-end">
         <span className="border border-black/10 bg-white px-2 py-1 text-[10px] font-semibold uppercase text-slate-500">
           {suggestionKindLabel(suggestion.kind)}
         </span>
-        <span className={`border px-2 py-1 text-[10px] font-semibold uppercase ${copy.tone}`}>
+        <span
+          className={`border px-2 py-1 text-[10px] font-semibold uppercase ${copy.tone}`}
+        >
           {copy.label}
         </span>
       </span>
@@ -186,8 +216,12 @@ function SiteCard({
   const packageSummary = getSiteWorldPackageAccessSummary(site);
   const catalogState = getCatalogStateLabel(site);
   const planned = isPlannedCatalogSiteWorld(site);
-  const primaryCta = planned ? "Scope this site/task" : "Review readiness inputs";
-  const packageCta = planned ? "Scope site package" : "Request readiness report";
+  const primaryCta = planned
+    ? "Scope this site/task"
+    : "Review readiness inputs";
+  const packageCta = planned
+    ? "Scope site package"
+    : "Request readiness report";
 
   return (
     <article
@@ -220,8 +254,13 @@ function SiteCard({
         <p className="mt-5 text-[11px] uppercase tracking-[0.18em] text-slate-500">
           {getCatalogLocationLabel(site)} / {site.industry}
         </p>
-        <h3 className={`mt-2 font-medium text-slate-950 ${large ? "text-[2rem] leading-[1.02]" : "text-[1.55rem] leading-[1.08]"}`}>
-          <a href={`/world-models/${site.id}`} className="transition hover:text-slate-700">
+        <h3
+          className={`mt-2 font-medium text-slate-950 ${large ? "text-[2rem] leading-[1.02]" : "text-[1.55rem] leading-[1.08]"}`}
+        >
+          <a
+            href={`/world-models/${site.id}`}
+            className="transition hover:text-slate-700"
+          >
             {site.siteName}
           </a>
         </h3>
@@ -232,13 +271,17 @@ function SiteCard({
             <span className="block text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
               Readiness workflow
             </span>
-            <span className="mt-1 block font-medium text-slate-950">{site.taskLane}</span>
+            <span className="mt-1 block font-medium text-slate-950">
+              {site.taskLane}
+            </span>
           </p>
           <p>
             <span className="block text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
               Robot fit
             </span>
-            <span className="mt-1 block font-medium text-slate-950">{site.bestFor}</span>
+            <span className="mt-1 block font-medium text-slate-950">
+              {site.bestFor}
+            </span>
           </p>
         </div>
 
@@ -255,7 +298,9 @@ function SiteCard({
               ["Hosted", hostedDisclosure.label],
             ].map(([label, value]) => (
               <div key={label} className="bg-white p-3">
-                <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">{label}</p>
+                <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
+                  {label}
+                </p>
                 <p className="mt-2 text-sm leading-5 text-slate-800">{value}</p>
               </div>
             ))}
@@ -266,7 +311,10 @@ function SiteCard({
             {badges.map((badge) => (
               <p key={badge.id} className="border-t border-black/10 pt-2">
                 <span className="font-semibold text-slate-800">
-                  {badge.id === "hosted_request_gated" ? hostedDisclosure.label : badge.label}:
+                  {badge.id === "hosted_request_gated"
+                    ? hostedDisclosure.label
+                    : badge.label}
+                  :
                 </span>{" "}
                 {badge.summary}
               </p>
@@ -276,7 +324,11 @@ function SiteCard({
 
         <div className="mt-auto flex flex-col gap-2 pt-5 sm:flex-row sm:flex-wrap">
           <a
-            href={planned ? scenePackage?.actionHref || "/contact?persona=robot-team" : `/world-models/${site.id}`}
+            href={
+              planned
+                ? scenePackage?.actionHref || "/contact?persona=robot-team"
+                : `/world-models/${site.id}`
+            }
             className="inline-flex w-full items-center justify-center bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 sm:w-auto"
           >
             {primaryCta}
@@ -305,10 +357,12 @@ function SiteCard({
 export default function SiteWorlds() {
   const [catalog, setCatalog] = useState(siteWorldCards);
   const [categoryFilter, setCategoryFilter] = useState<SiteCategory>("All");
-  const [availabilityFilter, setAvailabilityFilter] = useState<AvailabilityFilter>("All");
+  const [availabilityFilter, setAvailabilityFilter] =
+    useState<AvailabilityFilter>("All");
   const [query, setQuery] = useState("");
   const [locationQuery, setLocationQuery] = useState("");
-  const [selectedSuggestion, setSelectedSuggestion] = useState<CatalogSearchSuggestion | null>(null);
+  const [selectedSuggestion, setSelectedSuggestion] =
+    useState<CatalogSearchSuggestion | null>(null);
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
   const [apiResultIds, setApiResultIds] = useState<string[]>([]);
 
@@ -340,7 +394,9 @@ export default function SiteWorlds() {
       searchSiteWorldCatalog(trimmedQuery, 12)
         .then((payload) => {
           if (!cancelled) {
-            setApiResultIds(payload.results.map((result) => result.siteWorld.id));
+            setApiResultIds(
+              payload.results.map((result) => result.siteWorld.id),
+            );
           }
         })
         .catch(() => {
@@ -368,8 +424,12 @@ export default function SiteWorlds() {
   const filteredCatalog = useMemo(
     () =>
       sortedCatalog.filter((site) => {
-        const matchesCategory = categoryFilter === "All" || site.category === categoryFilter;
-        const matchesAvailability = matchesAvailabilityFilter(site, availabilityFilter);
+        const matchesCategory =
+          categoryFilter === "All" || site.category === categoryFilter;
+        const matchesAvailability = matchesAvailabilityFilter(
+          site,
+          availabilityFilter,
+        );
         return matchesCategory && matchesAvailability;
       }),
     [availabilityFilter, categoryFilter, sortedCatalog],
@@ -389,20 +449,27 @@ export default function SiteWorlds() {
     return uniqueSites([...apiMatches, ...localMatches]);
   }, [apiResultIds, filteredCatalog, normalizedQuery, searchClassification]);
   const activeFilterCount =
-    (categoryFilter === "All" ? 0 : 1)
-    + (availabilityFilter === "All" ? 0 : 1)
-    + (normalizedQuery ? 1 : 0);
+    (categoryFilter === "All" ? 0 : 1) +
+    (availabilityFilter === "All" ? 0 : 1) +
+    (normalizedQuery ? 1 : 0);
   const catalogStats = useMemo(() => {
     const sampleCount = sortedCatalog.filter(
       (site) => getSiteWorldCommercialStatus(site).id === "public_demo_sample",
     ).length;
-    const plannedCount = sortedCatalog.filter((site) => isPlannedCatalogSiteWorld(site)).length;
-    const proofCount = sortedCatalog.filter((site) => hasPublicProof(site)).length;
+    const plannedCount = sortedCatalog.filter((site) =>
+      isPlannedCatalogSiteWorld(site),
+    ).length;
+    const proofCount = sortedCatalog.filter((site) =>
+      hasPublicProof(site),
+    ).length;
     return {
       sampleCount,
       plannedCount,
       proofCount,
-      requestGatedCount: Math.max(sortedCatalog.length - sampleCount - plannedCount, 0),
+      requestGatedCount: Math.max(
+        sortedCatalog.length - sampleCount - plannedCount,
+        0,
+      ),
     };
   }, [sortedCatalog]);
 
@@ -450,7 +517,7 @@ export default function SiteWorlds() {
   };
 
   const requestCandidate = searchClassification.requestCandidate;
-  const heroImageSrc = "/generated/editorial/world-models-hero.png";
+  const heroImageSrc = humanoidReadinessAssets.warehouseHero;
   const resultHeading = !normalizedQuery
     ? "Browse catalog listings"
     : searchClassification.exactMatches.length > 0
@@ -505,7 +572,10 @@ export default function SiteWorlds() {
                   Browse site packages for readiness evaluation.
                 </h1>
                 <p className="mt-4 max-w-[40rem] text-base leading-7 text-white/85 sm:text-lg sm:leading-8">
-                  Search by address, site, city, category, workflow, or robot task. If Blueprint has not scanned the exact place yet, request the site/task without turning a match into readiness, rights, or hosted-access proof.
+                  Search by address, site, city, category, workflow, or robot
+                  task. If Blueprint has not scanned the exact place yet,
+                  request the site/task without turning a match into readiness,
+                  rights, or hosted-access proof.
                 </p>
                 <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                   <a
@@ -538,7 +608,9 @@ export default function SiteWorlds() {
                       <input
                         id="world-model-catalog-search"
                         value={query}
-                        onChange={(event) => handleSearchChange(event.target.value)}
+                        onChange={(event) =>
+                          handleSearchChange(event.target.value)
+                        }
                         onFocus={() => setSuggestionsOpen(true)}
                         onKeyDown={(event) => {
                           if (event.key === "Escape") setSuggestionsOpen(false);
@@ -547,7 +619,9 @@ export default function SiteWorlds() {
                         placeholder="Search an address, site, city, store type, workflow, or robot task"
                         className="min-w-0 flex-1 bg-transparent text-base font-medium text-slate-950 outline-none placeholder:text-slate-500"
                         aria-autocomplete="list"
-                        aria-expanded={suggestionsOpen && suggestions.length > 0}
+                        aria-expanded={
+                          suggestionsOpen && suggestions.length > 0
+                        }
                         aria-controls="world-model-catalog-search-options"
                       />
                     </div>
@@ -575,7 +649,8 @@ export default function SiteWorlds() {
                     value={locationQuery}
                     onChange={handleLocationChange}
                     onPlaceSelect={(metadata) => {
-                      const formatted = metadata.formattedAddress || locationQuery.trim();
+                      const formatted =
+                        metadata.formattedAddress || locationQuery.trim();
                       if (!formatted) return;
                       setSelectedSuggestion({
                         id: `place:${metadata.placeId || formatted}`,
@@ -619,14 +694,27 @@ export default function SiteWorlds() {
         <section className="border-b border-black/10 bg-white">
           <div className="mx-auto grid max-w-[88rem] gap-px bg-black/10 px-5 py-6 sm:px-8 lg:grid-cols-4 lg:px-10">
             {[
-              ["Exact catalog match", searchClassification.exactMatches.length || "Ask"],
-              ["Nearby/closest match", searchClassification.nearbyMatches.length || "Compare"],
-              ["Category/workflow match", searchClassification.categoryMatches.length || "Browse"],
+              [
+                "Exact catalog match",
+                searchClassification.exactMatches.length || "Ask",
+              ],
+              [
+                "Nearby/closest match",
+                searchClassification.nearbyMatches.length || "Compare",
+              ],
+              [
+                "Category/workflow match",
+                searchClassification.categoryMatches.length || "Browse",
+              ],
               ["Request candidate", requestCandidate ? "Draft" : "Ask"],
             ].map(([label, value]) => (
               <div key={label} className="bg-[#f8f6f1] px-5 py-4">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">{label}</p>
-                <p className="mt-2 text-lg font-semibold text-slate-950">{value}</p>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  {label}
+                </p>
+                <p className="mt-2 text-lg font-semibold text-slate-950">
+                  {value}
+                </p>
               </div>
             ))}
           </div>
@@ -640,11 +728,27 @@ export default function SiteWorlds() {
                   <LocateFixed className="h-5 w-5 text-slate-950" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-slate-950">{requestCandidate.headline}</p>
-                  <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">{requestCandidate.body}</p>
+                  <p className="text-sm font-semibold text-slate-950">
+                    {requestCandidate.headline}
+                  </p>
+                  <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                    {requestCandidate.body}
+                  </p>
                   {searchClassification.closestMatches.length > 0 ? (
                     <p className="mt-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                      Showing {Math.min(searchClassification.closestMatches.length, catalogSites.length)} closest relevant catalog match{Math.min(searchClassification.closestMatches.length, catalogSites.length) === 1 ? "" : "es"} below.
+                      Showing{" "}
+                      {Math.min(
+                        searchClassification.closestMatches.length,
+                        catalogSites.length,
+                      )}{" "}
+                      closest relevant catalog match
+                      {Math.min(
+                        searchClassification.closestMatches.length,
+                        catalogSites.length,
+                      ) === 1
+                        ? ""
+                        : "es"}{" "}
+                      below.
                     </p>
                   ) : null}
                 </div>
@@ -660,7 +764,10 @@ export default function SiteWorlds() {
           </section>
         ) : null}
 
-        <section id="catalog" className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
+        <section
+          id="catalog"
+          className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12"
+        >
           <div className="mb-5 grid gap-5 lg:grid-cols-[0.62fr_0.38fr] lg:items-end">
             <EditorialSectionIntro
               eyebrow="Catalog"
@@ -670,14 +777,20 @@ export default function SiteWorlds() {
             />
             <div className="flex flex-col gap-2 lg:items-end">
               <a
-                href={requestCandidate?.href || "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=site-worlds"}
+                href={
+                  requestCandidate?.href ||
+                  "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=site-worlds"
+                }
                 className="inline-flex w-full items-center justify-center bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 sm:w-auto"
               >
-                {requestCandidate ? "Request this location" : "Request readiness evaluation"}
+                {requestCandidate
+                  ? "Request this location"
+                  : "Request readiness evaluation"}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </a>
               <p className="text-xs leading-5 text-slate-500">
-                Requests do not charge, clear rights, start providers, validate safety, or open hosted access.
+                Requests do not charge, clear rights, start providers, validate
+                safety, or open hosted access.
               </p>
             </div>
           </div>
@@ -689,9 +802,12 @@ export default function SiteWorlds() {
                   <SlidersHorizontal className="h-4 w-4 text-slate-700" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-slate-950">Refine visible matches</p>
+                  <p className="text-sm font-semibold text-slate-950">
+                    Refine visible matches
+                  </p>
                   <p className="mt-1 text-xs leading-5 text-slate-600">
-                    Showing {catalogSites.length} of {sortedCatalog.length}; {catalogStats.proofCount} with public proof visible.
+                    Showing {catalogSites.length} of {sortedCatalog.length};{" "}
+                    {catalogStats.proofCount} with public proof visible.
                   </p>
                 </div>
               </div>
@@ -780,14 +896,22 @@ export default function SiteWorlds() {
                 No exact-site profile matches this view.
               </h3>
               <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-600">
-                Request the site, workflow, and robot class you need. Blueprint can route it through capture, package review, hosted evaluation, and rights/privacy checks before access is represented as supported.
+                Request the site, workflow, and robot class you need. Blueprint
+                can route it through capture, package review, hosted evaluation,
+                and rights/privacy checks before access is represented as
+                supported.
               </p>
               <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <a
-                  href={requestCandidate?.href || "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=site-worlds-empty"}
+                  href={
+                    requestCandidate?.href ||
+                    "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=site-worlds-empty"
+                  }
                   className="inline-flex items-center justify-center bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                 >
-                  {requestCandidate ? "Request this location" : "Request readiness evaluation"}
+                  {requestCandidate
+                    ? "Request this location"
+                    : "Request readiness evaluation"}
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </a>
                 <button
@@ -816,7 +940,9 @@ export default function SiteWorlds() {
                     <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
                     <div>
                       <p className="text-sm font-semibold">{item.label}</p>
-                      <p className="mt-2 text-sm leading-6 opacity-80">{item.summary}</p>
+                      <p className="mt-2 text-sm leading-6 opacity-80">
+                        {item.summary}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -833,7 +959,9 @@ export default function SiteWorlds() {
                 <p className="truncate text-sm font-semibold text-slate-950">
                   No exact scanned package yet
                 </p>
-                <p className="truncate text-xs text-slate-500">{normalizedQuery}</p>
+                <p className="truncate text-xs text-slate-500">
+                  {normalizedQuery}
+                </p>
               </div>
               <a
                 href={requestCandidate.href}
@@ -850,10 +978,17 @@ export default function SiteWorlds() {
             eyebrow="Need a different place?"
             title="Request the exact site instead of guessing from a dense catalog."
             description="Start from the public sample for shape, then request a readiness report, hosted evaluation, or a new capture-backed profile when the catalog does not show the site/task your robot team needs."
-            imageSrc="/generated/editorial/cross-dock.png"
+            imageSrc={humanoidReadinessAssets.loadingDock}
             imageAlt={heroSite.siteName}
-            primaryHref={requestCandidate?.href || "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=site-worlds"}
-            primaryLabel={requestCandidate ? "Request this location" : "Request readiness evaluation"}
+            primaryHref={
+              requestCandidate?.href ||
+              "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=site-worlds"
+            }
+            primaryLabel={
+              requestCandidate
+                ? "Request this location"
+                : "Request readiness evaluation"
+            }
             secondaryHref={publicDemoHref}
             secondaryLabel="Open sample site package"
           />

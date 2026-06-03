@@ -1,33 +1,38 @@
-import { siteWorldCards, type SiteWorldCard, type ThumbnailKind } from "@/data/siteWorlds";
+import {
+  siteWorldCards,
+  type SiteWorldCard,
+  type ThumbnailKind,
+} from "@/data/siteWorlds";
 import {
   COMMERCIAL_EXEMPLAR_SITE_WORLD_ID,
   PUBLIC_SAMPLE_SITE_WORLD_ID,
   getSiteWorldCatalogPriority,
 } from "@/lib/siteWorldCommercialStatus";
+import { humanoidReadinessAssets } from "@/lib/editorialGeneratedAssets";
 
 const editorialThumbnailByKind: Record<ThumbnailKind, string> = {
-  grocery: "/generated/editorial/grocery-fulfillment.png",
-  parcel: "/generated/editorial/cross-dock.png",
-  lineSide: "/generated/editorial/manufacturing-plant.png",
-  laundry: "/generated/editorial/manufacturing-plant.png",
-  coldChain: "/generated/editorial/cold-storage.png",
-  returns: "/generated/editorial/cross-dock.png",
-  microFulfillment: "/generated/editorial/grocery-fulfillment.png",
-  pharmacy: "/generated/editorial/retail-store.png",
-  battery: "/generated/editorial/manufacturing-plant.png",
-  airport: "/generated/editorial/cross-dock.png",
-  hospital: "/generated/editorial/retail-store.png",
-  electronics: "/generated/editorial/manufacturing-plant.png",
+  grocery: humanoidReadinessAssets.groceryTask,
+  parcel: humanoidReadinessAssets.loadingDock,
+  lineSide: humanoidReadinessAssets.manufacturing,
+  laundry: humanoidReadinessAssets.manufacturing,
+  coldChain: humanoidReadinessAssets.coldStorage,
+  returns: humanoidReadinessAssets.loadingDock,
+  microFulfillment: humanoidReadinessAssets.groceryTask,
+  pharmacy: humanoidReadinessAssets.groceryTask,
+  battery: humanoidReadinessAssets.manufacturing,
+  airport: humanoidReadinessAssets.loadingDock,
+  hospital: humanoidReadinessAssets.groceryTask,
+  electronics: humanoidReadinessAssets.manufacturing,
 };
 
 export function getEditorialSiteImage(site: SiteWorldCard) {
   return (
-    site.worldLabsPreview?.panoUrl
-    || site.worldLabsPreview?.thumbnailUrl
-    || editorialThumbnailByKind[site.thumbnailKind]
-    || site.runtimeReferenceImageUrl
-    || site.presentationReferenceImageUrl
-    || "/generated/editorial/world-models-hero.png"
+    site.worldLabsPreview?.panoUrl ||
+    site.worldLabsPreview?.thumbnailUrl ||
+    editorialThumbnailByKind[site.thumbnailKind] ||
+    site.runtimeReferenceImageUrl ||
+    site.presentationReferenceImageUrl ||
+    humanoidReadinessAssets.warehouseHero
   );
 }
 
@@ -90,31 +95,31 @@ export function getEditorialMoreSites(
 
 export const hostedFilmstripFrames = [
   {
-    src: "/generated/editorial/world-models-hero.png",
+    src: humanoidReadinessAssets.warehouseHero,
     alt: "Hosted evaluation observation frame",
     time: "00:08",
     title: "Observe",
   },
   {
-    src: "/generated/editorial/grocery-fulfillment.png",
+    src: humanoidReadinessAssets.groceryTask,
     alt: "Hosted evaluation replay frame",
     time: "00:22",
     title: "Replay",
   },
   {
-    src: "/generated/editorial/cross-dock.png",
+    src: humanoidReadinessAssets.loadingDock,
     alt: "Warehouse aisle frame",
     time: "00:36",
     title: "Inspect",
   },
   {
-    src: "/generated/editorial/manufacturing-plant.png",
+    src: humanoidReadinessAssets.manufacturing,
     alt: "Warehouse pallet frame",
     time: "00:48",
     title: "Review",
   },
   {
-    src: "/generated/editorial/cold-storage.png",
+    src: humanoidReadinessAssets.coldStorage,
     alt: "Cross-dock frame",
     time: "01:04",
     title: "Export",

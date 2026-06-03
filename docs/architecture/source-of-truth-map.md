@@ -30,6 +30,7 @@ When these files disagree with older reports, generated summaries, graph output,
 
 - Public route truth starts in `client/src/app/routes.tsx`.
 - Public readiness wedge truth starts in `client/src/pages/Home.tsx`, `client/src/pages/ReadinessPack.tsx`, `client/src/pages/ExactSiteHostedReview.tsx`, `client/src/pages/ForRobotIntegrators.tsx`, `client/src/pages/Pricing.tsx`, `client/src/pages/Proof.tsx`, `client/src/pages/Contact.tsx`, `client/src/lib/captureGroundedLanguage.ts`, and `server/routes/site-content.ts`.
+- Public editorial visual truth for the humanoid readiness wedge starts in `client/src/lib/editorialGeneratedAssets.ts`, `client/src/lib/siteEditorialContent.ts`, and the project-bound generated assets under `client/public/generated/humanoid-readiness-2026-06-03/`.
 - Public catalog/listing disclosure truth starts in `client/src/lib/siteWorldCommercialStatus.ts`, `client/src/data/siteWorlds.ts`, `server/routes/site-worlds.ts`, and `server/utils/site-worlds.ts`.
 - Hosted-session truth starts in `server/routes/site-world-sessions.ts`, `server/types/hosted-session.ts`, and `client/src/types/hostedSession.ts`.
 - Inbound request and pipeline bridge truth starts in `server/types/inbound-request.ts`, `client/src/types/inbound-request.ts`, `server/routes/inbound-request.ts`, `server/routes/internal-pipeline.ts`, and `server/utils/pipelineStateMachine.ts`.
