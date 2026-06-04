@@ -106,6 +106,44 @@ export interface DisplayCaptureMetadata {
   allowedAdvisoryHints?: DisplayAdvisoryScanHint[];
 }
 
+export interface RealSiteRobotEvalFitSiteCardInput {
+  siteType?: string | null;
+  knownGeometryAssets?: string | null;
+  visualConditions?: string | null;
+  dynamicConditions?: string | null;
+  safetyConstraints?: string | null;
+  robotRelevantMetadata?: string | null;
+}
+
+export interface RealSiteRobotEvalFitTaskCardInput {
+  task?: string | null;
+  startState?: string | null;
+  successDefinition?: string | null;
+  failureDefinition?: string | null;
+  requiredMetrics?: string | null;
+}
+
+export interface RealSiteRobotEvalFitScenarioCardInput {
+  normalScenario?: string | null;
+  variation?: string | null;
+  edgeCase?: string | null;
+  knownRisk?: string | null;
+}
+
+export interface RealSiteRobotEvalFitEvalCardInput {
+  robotOrPolicyTested?: string | null;
+  preferredReviewPath?: string | null;
+  resultsValidationExpectations?: string | null;
+  predictedVsActualHistory?: string | null;
+}
+
+export interface RealSiteRobotEvalFitInput {
+  siteCardInput?: RealSiteRobotEvalFitSiteCardInput | null;
+  taskCardInput?: RealSiteRobotEvalFitTaskCardInput | null;
+  scenarioCardInput?: RealSiteRobotEvalFitScenarioCardInput | null;
+  evalCardInput?: RealSiteRobotEvalFitEvalCardInput | null;
+}
+
 // Priority levels
 export type RequestPriority = "low" | "normal" | "high";
 
@@ -163,6 +201,7 @@ export interface InboundRequestPayload {
   datasetLicensingPermission?: string;
   payoutEligibility?: string;
   displayCaptureMetadata?: DisplayCaptureMetadata | null;
+  realSiteRobotEvalFit?: RealSiteRobotEvalFitInput | null;
   details?: string;
   context: RequestContext;
   honeypot?: string; // Anti-bot honeypot field
@@ -237,13 +276,21 @@ export interface PipelineArtifacts {
   robot_eval_cards_uri?: string | null;
   robot_eval_annotation_backlog_uri?: string | null;
   robot_eval_proof_boundaries_uri?: string | null;
+  robot_rights_packet_uri?: string | null;
+  robot_rights_ledger_uri?: string | null;
+  robot_task_ontology_v1_uri?: string | null;
   robot_task_library_uri?: string | null;
+  robot_scenario_family_library_uri?: string | null;
   robot_scenario_library_uri?: string | null;
+  robot_scoring_methodology_uri?: string | null;
+  recorded_trace_eval_report_uri?: string | null;
+  policy_eval_report_uri?: string | null;
   robot_pov_evidence_requirements_uri?: string | null;
   human_demo_evidence_requirements_uri?: string | null;
   robot_team_test_submission_modalities_uri?: string | null;
   robot_failure_taxonomy_uri?: string | null;
   prediction_outcome_ledger_uri?: string | null;
+  prediction_vs_actual_summary_uri?: string | null;
   robot_eval_methodology_summary_uri?: string | null;
 }
 
@@ -297,6 +344,7 @@ export type AccessBoundaryOutcome =
   | "not_applicable"
   | "needs_access_rules"
   | "needs_privacy_security_boundary"
+  | "needs_commercialization_boundary"
   | "access_boundary_defined";
 
 export interface StructuredIntakeSummary {
@@ -357,10 +405,18 @@ export interface RobotEvalDatasetCardArtifactUris {
   eval_cards_uri?: string | null;
   annotation_backlog_uri?: string | null;
   proof_boundaries_uri?: string | null;
+  rights_packet_uri?: string | null;
+  rights_ledger_uri?: string | null;
+  task_ontology_v1_uri?: string | null;
   task_library_uri?: string | null;
+  scenario_family_library_uri?: string | null;
   scenario_library_uri?: string | null;
+  scoring_methodology_uri?: string | null;
+  recorded_trace_eval_report_uri?: string | null;
+  policy_eval_report_uri?: string | null;
   robot_team_test_submission_modalities_uri?: string | null;
   prediction_outcome_ledger_uri?: string | null;
+  prediction_vs_actual_summary_uri?: string | null;
 }
 
 export interface RobotEvalDatasetSummary {
@@ -721,6 +777,7 @@ export interface InboundRequestListItem {
     details?: string | null;
     proofPathPreference?: ProofPathPreference | null;
     displayCaptureMetadata?: DisplayCaptureMetadata | null;
+    realSiteRobotEvalFit?: RealSiteRobotEvalFitInput | null;
   };
   owner: RequestOwner;
   ops_automation?: OpsAutomationEnvelope;
@@ -776,6 +833,7 @@ export interface InboundRequestDetail extends InboundRequestListItem {
     datasetLicensingPermission?: string | null;
     payoutEligibility?: string | null;
     displayCaptureMetadata?: DisplayCaptureMetadata | null;
+    realSiteRobotEvalFit?: RealSiteRobotEvalFitInput | null;
   };
 }
 

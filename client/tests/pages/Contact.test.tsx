@@ -71,9 +71,17 @@ describe("Contact page", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Request site data or policy evaluation\./i,
+        name: /Request a real-site robot eval\./i,
       }),
     ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /I build\/deploy robots/i })).toHaveAttribute(
+      "href",
+      expect.stringContaining("persona=robot-team"),
+    );
+    expect(screen.getByRole("link", { name: /I run\/represent a site/i })).toHaveAttribute(
+      "href",
+      "/contact/site-operator#contact-intake",
+    );
     expect(
       screen.getByRole("textbox", {
         name: /What site, policy, or data package do you need\?/i,
@@ -92,6 +100,7 @@ describe("Contact page", () => {
     expect(screen.getAllByText(/Policy evaluation/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/New capture request/i).length).toBeGreaterThan(0);
     expect(screen.getByRole("textbox", { name: /What real-site data or robot task should Blueprint help with\?/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Add Site\/Task\/Scenario\/Eval intake/i })).toBeInTheDocument();
     expect(screen.queryByText(/Proof boundaries visible/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Fastest paths/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Learn More/i)).not.toBeInTheDocument();
@@ -129,11 +138,11 @@ describe("Contact page", () => {
     render(<Contact />);
 
     expect(
-      screen.getByRole("heading", { name: /Request site data or policy evaluation\./i }),
+      screen.getByRole("heading", { name: /Request a real-site robot eval\./i }),
     ).toBeInTheDocument();
     expect(screen.getAllByDisplayValue("Harborview Grocery Distribution Annex").length).toBeGreaterThan(0);
     expect(screen.getByDisplayValue("Walk to shelf staging and pick the blue tote")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("Unitree G1 with head cam and wrist cam")).toBeInTheDocument();
+    expect(screen.getAllByDisplayValue("Unitree G1 with head cam and wrist cam").length).toBeGreaterThan(0);
     expect(screen.getAllByRole("button", { name: /Request policy evaluation/i }).length).toBeGreaterThan(0);
 
     expect(screen.queryByRole("combobox", { name: /Proof path/i })).not.toBeInTheDocument();
@@ -200,7 +209,7 @@ describe("Contact page", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Request site data or policy evaluation\./i,
+        name: /Request a real-site robot eval\./i,
       }),
     ).toBeInTheDocument();
     expect(
@@ -261,7 +270,22 @@ describe("Contact page", () => {
     fireEvent.change(screen.getByRole("textbox", { name: /Site or facility/i }), {
       target: { value: "Warehouse in Chicago" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /Add robot, thresholds, zones, or evidence needs/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Add Site\/Task\/Scenario\/Eval intake/i }));
+    fireEvent.change(screen.getByRole("textbox", { name: /Known geometry or assets/i }), {
+      target: { value: "CAD for dock and staging lanes." },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: /Visual conditions/i }), {
+      target: { value: "Mixed LED light and reflective tape." },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: /Start state/i }), {
+      target: { value: "Robot starts at charging alcove with empty hands." },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: /Success definition/i }), {
+      target: { value: "Tote reaches conveyor without human touch." },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: /Failure definition/i }), {
+      target: { value: "Dropped tote, blocked route, or human intervention." },
+    });
     fireEvent.change(screen.getByRole("textbox", { name: /Required success rate/i }), {
       target: { value: "97% over 200 attempts" },
     });
@@ -279,6 +303,27 @@ describe("Contact page", () => {
     });
     fireEvent.change(screen.getByRole("textbox", { name: /Required evidence/i }), {
       target: { value: "simulator traces and action logs" },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: /Normal scenario/i }), {
+      target: { value: "Clear aisle tote transfer." },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: /Variation to include/i }), {
+      target: { value: "Cart partially blocks the main aisle." },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: /Edge case/i }), {
+      target: { value: "Human steps into the handoff zone." },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: /Known risk/i }), {
+      target: { value: "Reflective tape creates false obstacle detections." },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: /Robot or policy tested/i }), {
+      target: { value: "Unitree G1 policy API endpoint." },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: /Preferred review path/i }), {
+      target: { value: "Hosted review first, then simulator traces." },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: /Validation expectations/i }), {
+      target: { value: "Compare policy trace, action logs, human demo, and short pilot result." },
     });
     const submitButtons = screen.getAllByRole("button", { name: /Request site data/i });
     fireEvent.click(submitButtons[submitButtons.length - 1]);
@@ -303,6 +348,36 @@ describe("Contact page", () => {
     expect(body.details).toContain("Safety threshold: operator signoff and exclusion zones");
     expect(body.details).toContain("Pilot timeline: Q3 short pilot");
     expect(body.details).toContain("Required evidence: simulator traces and action logs");
+    expect(body.realSiteRobotEvalFit).toMatchObject({
+      siteCardInput: {
+        siteType: "Warehouse in Chicago",
+        knownGeometryAssets: "CAD for dock and staging lanes.",
+        visualConditions: "Mixed LED light and reflective tape.",
+        dynamicConditions: "",
+        safetyConstraints: "operator signoff and exclusion zones",
+        robotRelevantMetadata: "",
+      },
+      taskCardInput: {
+        task: "Qualify a tote picking workflow.",
+        startState: "Robot starts at charging alcove with empty hands.",
+        successDefinition: "Tote reaches conveyor without human touch.",
+        failureDefinition: "Dropped tote, blocked route, or human intervention.",
+        requiredMetrics:
+          "Success-rate threshold: 97% over 200 attempts\nCycle-time threshold: 45 seconds per tote\nIntervention-rate threshold: fewer than 1 per shift",
+      },
+      scenarioCardInput: {
+        normalScenario: "Clear aisle tote transfer.",
+        variation: "Cart partially blocks the main aisle.",
+        edgeCase: "Human steps into the handoff zone.",
+        knownRisk: "Reflective tape creates false obstacle detections.",
+      },
+      evalCardInput: {
+        robotOrPolicyTested: "Unitree G1 policy API endpoint.",
+        preferredReviewPath: "Hosted review first, then simulator traces.",
+        resultsValidationExpectations:
+          "Required evidence: simulator traces and action logs\nValidation expectations: Compare policy trace, action logs, human demo, and short pilot result.",
+      },
+    });
     expect(analyticsEventsMock.contactRequestSubmitted).toHaveBeenCalledWith({
       persona: "robot_team",
       hostedMode: false,

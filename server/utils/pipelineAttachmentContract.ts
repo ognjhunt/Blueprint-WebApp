@@ -34,10 +34,18 @@ const robotEvalDatasetCardArtifactUrisSchema = z.object({
   eval_cards_uri: z.string().nullable().optional(),
   annotation_backlog_uri: z.string().nullable().optional(),
   proof_boundaries_uri: z.string().nullable().optional(),
+  rights_packet_uri: z.string().nullable().optional(),
+  rights_ledger_uri: z.string().nullable().optional(),
+  task_ontology_v1_uri: z.string().nullable().optional(),
   task_library_uri: z.string().nullable().optional(),
+  scenario_family_library_uri: z.string().nullable().optional(),
   scenario_library_uri: z.string().nullable().optional(),
+  scoring_methodology_uri: z.string().nullable().optional(),
+  recorded_trace_eval_report_uri: z.string().nullable().optional(),
+  policy_eval_report_uri: z.string().nullable().optional(),
   robot_team_test_submission_modalities_uri: z.string().nullable().optional(),
   prediction_outcome_ledger_uri: z.string().nullable().optional(),
+  prediction_vs_actual_summary_uri: z.string().nullable().optional(),
 }).passthrough();
 
 const robotEvalDatasetSummarySchema = z.object({

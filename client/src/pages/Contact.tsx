@@ -212,8 +212,8 @@ export default function Contact() {
   return (
     <>
       <SEO
-        title="Request Site Data Or Policy Evaluation | Blueprint"
-        description="Request a Blueprint site data package, policy-evaluation set, new capture, or free site-operator participation path by naming site type, robot task, thresholds, safety constraints, dynamic conditions, zones, rights, and pilot outcomes."
+        title="Request Real-Site Robot Evaluation | Blueprint"
+        description="Request a Blueprint real-site robot eval intake for one site, task, robot or policy, thresholds, safety constraints, validation needs, or free site-operator participation."
         canonical={location === "/contact/site-operator" ? "/contact/site-operator" : "/contact"}
       />
 
@@ -222,29 +222,37 @@ export default function Contact() {
           <div className="mx-auto grid min-h-[35rem] max-w-[88rem] items-center gap-8 px-5 py-16 sm:px-8 lg:grid-cols-[0.58fr_0.42fr] lg:px-10">
             <div>
               <h1 className="font-editorial max-w-[46rem] text-[3.25rem] leading-[0.94] tracking-[-0.05em] text-slate-950 sm:text-[5.1rem] sm:tracking-[-0.06em]">
-                Request site data or policy evaluation.
+                Request a real-site robot eval.
               </h1>
-              <p className="mt-5 max-w-[38rem] text-base leading-8 text-slate-600">
-                Name the facility, site type, robot task, thresholds, safety
-                constraints, dynamic conditions, object zones, rights/access,
-                or pilot outcomes. Blueprint routes the request to a site data
-                package, policy-evaluation set, new capture, or free
-                site-operator path without treating the form as payment, rights
-                clearance, provider execution, or fulfillment.
+              <p className="mt-5 max-w-[36rem] text-base leading-8 text-slate-600">
+                Pick a lane, name the site or site class, and send one task with
+                the threshold that matters. Blueprint records an intake request
+                only; proof, access, rights, and fulfillment stay request-scoped.
               </p>
-              <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              <div className="mt-7 grid gap-3 sm:grid-cols-2">
                 <a
-                  href="#contact-intake"
-                  className="inline-flex items-center justify-center bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                  href="/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=contact-lane#contact-intake"
+                  className="flex min-h-[5rem] items-center justify-between gap-4 border border-slate-950 bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                 >
-                  Request site data
-                  <ArrowRight className="ml-2 h-4 w-4" />
+                  <span>
+                    <span className="block">I build/deploy robots</span>
+                    <span className="mt-1 block text-xs font-medium text-white/70">
+                      One site, task, robot or policy, and threshold.
+                    </span>
+                  </span>
+                  <Bot className="h-5 w-5 shrink-0 text-[#c7a775]" />
                 </a>
                 <a
-                  href="/proof"
-                  className="inline-flex items-center justify-center border border-black/10 bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-50"
+                  href="/contact/site-operator#contact-intake"
+                  className="flex min-h-[5rem] items-center justify-between gap-4 border border-black/10 bg-[#f8f6f1] px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-white"
                 >
-                  Inspect proof
+                  <span>
+                    <span className="block">I run/represent a site</span>
+                    <span className="mt-1 block text-xs font-medium text-slate-500">
+                      Free access, privacy, and commercialization review.
+                    </span>
+                  </span>
+                  <ShieldCheck className="h-5 w-5 shrink-0 text-slate-500" />
                 </a>
               </div>
 

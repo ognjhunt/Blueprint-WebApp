@@ -67,6 +67,35 @@ describe("field encryption", () => {
         derivedScenePermission: "Derived scenes can be shared with the robot team.",
         datasetLicensingPermission: "Dataset exports require commercial review.",
         payoutEligibility: "Commercial terms still need approval.",
+        realSiteRobotEvalFit: {
+          siteCardInput: {
+            siteType: "Warehouse",
+            knownGeometryAssets: "CAD for dock and staging lanes exists.",
+            visualConditions: "Mixed LED lighting and reflective pallet wrap.",
+            dynamicConditions: "Forklifts cross the main route.",
+            safetyConstraints: "No-go zone near dock edge.",
+            robotRelevantMetadata: "36 inch aisle choke point.",
+          },
+          taskCardInput: {
+            task: "Move totes from shelf staging to conveyor.",
+            startState: "Robot starts at charging alcove.",
+            successDefinition: "Tote reaches conveyor without human touch.",
+            failureDefinition: "Dropped tote or human intervention.",
+            requiredMetrics: "97% success under 45 seconds.",
+          },
+          scenarioCardInput: {
+            normalScenario: "Clear aisle tote transfer.",
+            variation: "Cart blocks the main aisle.",
+            edgeCase: "Human enters the handoff zone.",
+            knownRisk: "Reflective tape affects perception.",
+          },
+          evalCardInput: {
+            robotOrPolicyTested: "Unitree G1 policy endpoint.",
+            preferredReviewPath: "Hosted review first.",
+            resultsValidationExpectations: "Simulator traces and action logs.",
+            predictedVsActualHistory: "Prior pilot missed cycle time by 20%.",
+          },
+        },
         displayCaptureMetadata: {
           targetName: "Analytical Engine Co - Durham",
           addressLabel: "Durham, NC",
@@ -112,6 +141,9 @@ describe("field encryption", () => {
     expect(isEncryptedField(encrypted.request.displayCaptureMetadata?.targetName ?? "")).toBe(true);
     expect(isEncryptedField(encrypted.request.displayCaptureMetadata?.addressLabel ?? "")).toBe(true);
     expect(isEncryptedField(encrypted.request.displayCaptureMetadata?.captureBrief ?? "")).toBe(true);
+    expect(isEncryptedField(encrypted.request.realSiteRobotEvalFit?.siteCardInput?.siteType ?? "")).toBe(true);
+    expect(isEncryptedField(encrypted.request.realSiteRobotEvalFit?.taskCardInput?.requiredMetrics ?? "")).toBe(true);
+    expect(isEncryptedField(encrypted.request.realSiteRobotEvalFit?.evalCardInput?.robotOrPolicyTested ?? "")).toBe(true);
     expect(encrypted.request.displayCaptureMetadata?.requestId).toBe("req-123");
     expect(encrypted.request.displayCaptureMetadata?.captureJobId).toBe("capture-job-123");
 
@@ -134,6 +166,19 @@ describe("field encryption", () => {
     expect(decrypted.request.payoutEligibility).toBe(
       "Commercial terms still need approval.",
     );
+    expect(decrypted.request.realSiteRobotEvalFit).toMatchObject({
+      siteCardInput: {
+        siteType: "Warehouse",
+        safetyConstraints: "No-go zone near dock edge.",
+      },
+      taskCardInput: {
+        requiredMetrics: "97% success under 45 seconds.",
+      },
+      evalCardInput: {
+        robotOrPolicyTested: "Unitree G1 policy endpoint.",
+        resultsValidationExpectations: "Simulator traces and action logs.",
+      },
+    });
     expect(decrypted.request.displayCaptureMetadata).toMatchObject({
       targetName: "Analytical Engine Co - Durham",
       addressLabel: "Durham, NC",

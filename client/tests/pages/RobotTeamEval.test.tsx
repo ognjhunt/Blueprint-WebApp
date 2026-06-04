@@ -37,18 +37,66 @@ afterEach(() => {
 });
 
 describe("RobotTeamEval", () => {
+  function representativeSiteSelect() {
+    return screen.getByRole("combobox", { name: "Representative site" });
+  }
+
+  function canonicalTaskSelect() {
+    return screen.getByRole("combobox", { name: "Canonical task" });
+  }
+
+  function scenarioFamilySelect() {
+    return screen.getByRole("combobox", { name: "Scenario family" });
+  }
+
   it("renders the six structured robot-team submission modalities", () => {
     render(<RobotTeamEval />);
 
     expect(screen.getByRole("heading", { name: /Robot-team test interface/i })).toBeInTheDocument();
     expect(screen.getByText(/Policy API endpoint/i)).toBeInTheDocument();
     expect(screen.getByText(/Docker container/i)).toBeInTheDocument();
-    expect(screen.getByText(/Recorded action traces/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Recorded action traces/i })).toBeInTheDocument();
     expect(screen.getByText(/High-level skill traces/i)).toBeInTheDocument();
     expect(screen.getByText(/Teleop demos/i)).toBeInTheDocument();
     expect(screen.getByText(/Sim controller plugin/i)).toBeInTheDocument();
     expect(screen.getByText(/Artifact refs first/i)).toBeInTheDocument();
     expect(screen.getByText(/does not prove deployment readiness/i)).toBeInTheDocument();
+  });
+
+  it("renders the real-site robot eval workflow and keeps sample report boundaries visible", () => {
+    render(<RobotTeamEval />);
+
+    expect(
+      screen.getByRole("heading", { name: /Choose site, task, and scenario family/i }),
+    ).toBeInTheDocument();
+    expect(representativeSiteSelect()).toHaveValue("robot-eval-warehouse");
+    expect(canonicalTaskSelect()).toHaveValue("warehouse-move-tote");
+    expect(scenarioFamilySelect()).toHaveValue("warehouse-blocked-path");
+    expect(screen.getAllByText(/policy_eval_report\.json/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/prediction_vs_actual_summary\.json/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Unsafe proximity/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Pilot/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Tune/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Hold/i).length).toBeGreaterThan(0);
+  });
+
+  it("updates the task and scenario controls when a representative site changes", () => {
+    render(<RobotTeamEval />);
+
+    fireEvent.change(representativeSiteSelect(), {
+      target: { value: "robot-eval-hospital" },
+    });
+
+    expect(canonicalTaskSelect()).toHaveValue("hospital-room-delivery");
+    expect(scenarioFamilySelect()).toHaveValue("hospital-dim-corridor");
+    expect(screen.getAllByText(/Cherry Creek Hospital Supply Annex/i).length).toBeGreaterThan(0);
+
+    fireEvent.change(canonicalTaskSelect(), {
+      target: { value: "hospital-door-entry" },
+    });
+
+    expect(screen.getAllByText(/open_door_enter_room/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Door entry is completed/i)).toBeInTheDocument();
   });
 
   it("creates a hosted-session request with normalized robot-team submission policy", async () => {
@@ -104,6 +152,7 @@ describe("RobotTeamEval", () => {
     expect(submission.selectedModalities).toEqual(["policy_api_endpoint"]);
     expect(submission.missingEvidenceStatuses).toEqual([]);
     expect(submission.pipelineDatasetSchemaRefs).toContain("robot_team_test_submission_modalities.v0.1");
+    expect(body.notes).toEqual(expect.stringContaining("Representative eval workflow"));
   });
 
   it("surfaces the existing intake fallback when direct session creation is blocked", async () => {

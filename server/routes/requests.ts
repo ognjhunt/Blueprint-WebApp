@@ -265,6 +265,7 @@ router.get("/:requestId", async (req: Request, res: Response) => {
         datasetLicensingPermission: decrypted.request.datasetLicensingPermission || null,
         payoutEligibility: decrypted.request.payoutEligibility || null,
         displayCaptureMetadata: decrypted.request.displayCaptureMetadata || null,
+        realSiteRobotEvalFit: decrypted.request.realSiteRobotEvalFit || null,
         requestedLanes: decrypted.request.requestedLanes || [],
         buyerType: decrypted.request.buyerType,
       },

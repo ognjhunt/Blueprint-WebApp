@@ -3,6 +3,7 @@ import type {
   CommercialRequestPath,
   InboundRequestPayload,
   ProofPathPreference,
+  RealSiteRobotEvalFitInput,
   RequestedLane,
 } from "@/types/inbound-request";
 
@@ -32,6 +33,7 @@ export type ContactRequestPrefill = {
   requestedOutputs: string;
   message: string;
   proofPathPreference: ProofPathPreference | "";
+  realSiteRobotEvalFit: RealSiteRobotEvalFitInput | null;
 };
 
 export type ContactRequestUrlInput = Partial<ContactRequestPrefill> & {
@@ -109,6 +111,7 @@ const DEFAULT_PREFILL: ContactRequestPrefill = {
   requestedOutputs: "",
   message: "",
   proofPathPreference: "",
+  realSiteRobotEvalFit: null,
 };
 
 function clean(value: unknown): string {
@@ -232,6 +235,136 @@ function parseProofPathPreference(value: string): ProofPathPreference | "" {
     : "";
 }
 
+function hasRobotFitText(value?: RealSiteRobotEvalFitInput | null): value is RealSiteRobotEvalFitInput {
+  if (!value) return false;
+  return [
+    value.siteCardInput?.siteType,
+    value.siteCardInput?.knownGeometryAssets,
+    value.siteCardInput?.visualConditions,
+    value.siteCardInput?.dynamicConditions,
+    value.siteCardInput?.safetyConstraints,
+    value.siteCardInput?.robotRelevantMetadata,
+    value.taskCardInput?.task,
+    value.taskCardInput?.startState,
+    value.taskCardInput?.successDefinition,
+    value.taskCardInput?.failureDefinition,
+    value.taskCardInput?.requiredMetrics,
+    value.scenarioCardInput?.normalScenario,
+    value.scenarioCardInput?.variation,
+    value.scenarioCardInput?.edgeCase,
+    value.scenarioCardInput?.knownRisk,
+    value.evalCardInput?.robotOrPolicyTested,
+    value.evalCardInput?.preferredReviewPath,
+    value.evalCardInput?.resultsValidationExpectations,
+    value.evalCardInput?.predictedVsActualHistory,
+  ].some((entry) => clean(entry));
+}
+
+function buildRobotFitFromParams(params: URLSearchParams): RealSiteRobotEvalFitInput | null {
+  const fit: RealSiteRobotEvalFitInput = {
+    siteCardInput: {
+      siteType: getParam(params, ["siteType", "targetSiteType", "siteClass"]),
+      knownGeometryAssets: getParam(params, ["knownGeometryAssets", "geometryAssets"]),
+      visualConditions: getParam(params, ["visualConditions"]),
+      dynamicConditions: getParam(params, ["dynamicConditions"]),
+      safetyConstraints: getParam(params, ["safetyConstraints", "safetyThreshold"]),
+      robotRelevantMetadata: getParam(params, ["robotRelevantMetadata", "objectTaskZones"]),
+    },
+    taskCardInput: {
+      task: getParam(params, ["taskCardTask", "taskStatement", "workflow", "robotTask", "task"]),
+      startState: getParam(params, ["startState"]),
+      successDefinition: getParam(params, ["successDefinition"]),
+      failureDefinition: getParam(params, ["failureDefinition"]),
+      requiredMetrics: getParam(params, ["requiredMetrics", "metricThresholds"]),
+    },
+    scenarioCardInput: {
+      normalScenario: getParam(params, ["normalScenario", "scenario"]),
+      variation: getParam(params, ["variation", "scenarioVariation"]),
+      edgeCase: getParam(params, ["edgeCase"]),
+      knownRisk: getParam(params, ["knownRisk"]),
+    },
+    evalCardInput: {
+      robotOrPolicyTested: getParam(params, [
+        "robotOrPolicy",
+        "robotOrPolicyTested",
+        "targetRobotTeam",
+        "robot",
+        "robotTeam",
+      ]),
+      preferredReviewPath: getParam(params, ["preferredReviewPath", "reviewPath"]),
+      resultsValidationExpectations: getParam(params, [
+        "validationExpectations",
+        "resultsValidationExpectations",
+        "requiredEvidence",
+      ]),
+      predictedVsActualHistory: getParam(params, [
+        "predictedVsActualHistory",
+        "pilotHistory",
+        "pilotOutcomes",
+      ]),
+    },
+  };
+
+  return hasRobotFitText(fit) ? fit : null;
+}
+
+function mergeRobotFit(
+  input: ContactRequestUrlInput,
+  requestPath: ContactRequestPath,
+): RealSiteRobotEvalFitInput | null {
+  const base = input.realSiteRobotEvalFit || {};
+  const taskStatement = inferredTaskStatement(input, requestPath);
+  const fit: RealSiteRobotEvalFitInput = {
+    siteCardInput: {
+      ...base.siteCardInput,
+      siteType: clean(base.siteCardInput?.siteType || input.targetSiteType || input.siteClass),
+    },
+    taskCardInput: {
+      ...base.taskCardInput,
+      task: clean(base.taskCardInput?.task || taskStatement),
+    },
+    scenarioCardInput: {
+      ...base.scenarioCardInput,
+    },
+    evalCardInput: {
+      ...base.evalCardInput,
+      robotOrPolicyTested: clean(
+        base.evalCardInput?.robotOrPolicyTested || input.targetRobotTeam,
+      ),
+    },
+  };
+
+  return hasRobotFitText(fit) ? fit : null;
+}
+
+function setFitParam(params: URLSearchParams, key: string, value: unknown) {
+  const cleaned = clean(value);
+  if (cleaned) params.set(key, cleaned);
+}
+
+function appendRobotFitParams(params: URLSearchParams, fit?: RealSiteRobotEvalFitInput | null) {
+  if (!hasRobotFitText(fit)) return;
+
+  setFitParam(params, "siteType", fit.siteCardInput?.siteType);
+  setFitParam(params, "knownGeometryAssets", fit.siteCardInput?.knownGeometryAssets);
+  setFitParam(params, "visualConditions", fit.siteCardInput?.visualConditions);
+  setFitParam(params, "dynamicConditions", fit.siteCardInput?.dynamicConditions);
+  setFitParam(params, "safetyConstraints", fit.siteCardInput?.safetyConstraints);
+  setFitParam(params, "robotRelevantMetadata", fit.siteCardInput?.robotRelevantMetadata);
+  setFitParam(params, "startState", fit.taskCardInput?.startState);
+  setFitParam(params, "successDefinition", fit.taskCardInput?.successDefinition);
+  setFitParam(params, "failureDefinition", fit.taskCardInput?.failureDefinition);
+  setFitParam(params, "requiredMetrics", fit.taskCardInput?.requiredMetrics);
+  setFitParam(params, "normalScenario", fit.scenarioCardInput?.normalScenario);
+  setFitParam(params, "variation", fit.scenarioCardInput?.variation);
+  setFitParam(params, "edgeCase", fit.scenarioCardInput?.edgeCase);
+  setFitParam(params, "knownRisk", fit.scenarioCardInput?.knownRisk);
+  setFitParam(params, "robotOrPolicy", fit.evalCardInput?.robotOrPolicyTested);
+  setFitParam(params, "preferredReviewPath", fit.evalCardInput?.preferredReviewPath);
+  setFitParam(params, "validationExpectations", fit.evalCardInput?.resultsValidationExpectations);
+  setFitParam(params, "predictedVsActualHistory", fit.evalCardInput?.predictedVsActualHistory);
+}
+
 export function parseContactRequestPrefill(
   input: string | URLSearchParams,
   routePath = "/contact",
@@ -266,6 +399,7 @@ export function parseContactRequestPrefill(
     "category",
   ]);
   const message = getParam(params, ["message", "details", "note"]);
+  const realSiteRobotEvalFit = buildRobotFitFromParams(params);
   const query = getParam(params, ["query", "q", "need", "location", "address"]);
   const siteName = getParam(params, ["siteName", "site", "place"]);
   const primaryNeed = [
@@ -301,6 +435,7 @@ export function parseContactRequestPrefill(
     proofPathPreference: parseProofPathPreference(
       getParam(params, ["proofPathPreference"]),
     ),
+    realSiteRobotEvalFit,
   };
 }
 
@@ -341,6 +476,7 @@ export function buildContactRequestUrl(input: ContactRequestUrlInput = {}): stri
   const taskStatement = inferredTaskStatement(input, requestPath);
   const targetSiteType = clean(input.targetSiteType || input.siteClass);
   const query = clean(input.query || input.primaryNeed || siteLocation || input.siteName);
+  const realSiteRobotEvalFit = mergeRobotFit(input, requestPath);
 
   if (query) params.set("query", query);
   if (input.siteWorldId) params.set("siteWorldId", clean(input.siteWorldId));
@@ -358,6 +494,7 @@ export function buildContactRequestUrl(input: ContactRequestUrlInput = {}): stri
   if (input.scenario) params.set("scenario", clean(input.scenario));
   if (input.requestedOutputs) params.set("requestedOutputs", clean(input.requestedOutputs));
   if (input.message) params.set("message", clean(input.message));
+  appendRobotFitParams(params, realSiteRobotEvalFit);
   params.set(
     "proofPathPreference",
     input.proofPathPreference || defaultProofPathPreferenceForRequestPath(requestPath),
@@ -377,6 +514,7 @@ export function buildAgentInboundRequestDraft(
   const taskStatement = inferredTaskStatement(input, requestPath);
   const proofPathPreference =
     input.proofPathPreference || defaultProofPathPreferenceForRequestPath(requestPath);
+  const realSiteRobotEvalFit = mergeRobotFit(input, requestPath);
 
   return {
     buyerType,
@@ -389,6 +527,7 @@ export function buildAgentInboundRequestDraft(
     proofPathPreference,
     targetRobotTeam: clean(input.targetRobotTeam) || undefined,
     workflowContext: clean(input.workflow) || undefined,
+    realSiteRobotEvalFit,
     details: clean(input.message) || undefined,
     context: {
       sourcePageUrl: input.sourcePageUrl || buildContactRequestUrl(input),

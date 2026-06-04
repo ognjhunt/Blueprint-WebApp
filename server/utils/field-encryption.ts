@@ -9,6 +9,8 @@ import type {
   PlaceLocationMetadataStored,
   DisplayCaptureMetadata,
   DisplayCaptureMetadataStored,
+  RealSiteRobotEvalFitInput,
+  RealSiteRobotEvalFitInputStored,
 } from "../types/inbound-request";
 import type { EncryptedField, EncryptableString } from "../types/field-encryption";
 
@@ -307,6 +309,109 @@ export async function decryptDisplayCaptureMetadata(
   };
 }
 
+function hasRobotEvalFit(value?: RealSiteRobotEvalFitInput | null): value is RealSiteRobotEvalFitInput {
+  if (!value) return false;
+  return [
+    value.siteCardInput?.siteType,
+    value.siteCardInput?.knownGeometryAssets,
+    value.siteCardInput?.visualConditions,
+    value.siteCardInput?.dynamicConditions,
+    value.siteCardInput?.safetyConstraints,
+    value.siteCardInput?.robotRelevantMetadata,
+    value.taskCardInput?.task,
+    value.taskCardInput?.startState,
+    value.taskCardInput?.successDefinition,
+    value.taskCardInput?.failureDefinition,
+    value.taskCardInput?.requiredMetrics,
+    value.scenarioCardInput?.normalScenario,
+    value.scenarioCardInput?.variation,
+    value.scenarioCardInput?.edgeCase,
+    value.scenarioCardInput?.knownRisk,
+    value.evalCardInput?.robotOrPolicyTested,
+    value.evalCardInput?.preferredReviewPath,
+    value.evalCardInput?.resultsValidationExpectations,
+    value.evalCardInput?.predictedVsActualHistory,
+  ].some((entry) => entry !== null && entry !== undefined && String(entry).trim() !== "");
+}
+
+export async function encryptRealSiteRobotEvalFit(
+  value?: RealSiteRobotEvalFitInput | null
+): Promise<RealSiteRobotEvalFitInputStored | null> {
+  if (!hasRobotEvalFit(value)) {
+    return null;
+  }
+
+  return {
+    siteCardInput: {
+      siteType: await encryptOptionalField(value.siteCardInput?.siteType ?? null),
+      knownGeometryAssets: await encryptOptionalField(value.siteCardInput?.knownGeometryAssets ?? null),
+      visualConditions: await encryptOptionalField(value.siteCardInput?.visualConditions ?? null),
+      dynamicConditions: await encryptOptionalField(value.siteCardInput?.dynamicConditions ?? null),
+      safetyConstraints: await encryptOptionalField(value.siteCardInput?.safetyConstraints ?? null),
+      robotRelevantMetadata: await encryptOptionalField(value.siteCardInput?.robotRelevantMetadata ?? null),
+    },
+    taskCardInput: {
+      task: await encryptOptionalField(value.taskCardInput?.task ?? null),
+      startState: await encryptOptionalField(value.taskCardInput?.startState ?? null),
+      successDefinition: await encryptOptionalField(value.taskCardInput?.successDefinition ?? null),
+      failureDefinition: await encryptOptionalField(value.taskCardInput?.failureDefinition ?? null),
+      requiredMetrics: await encryptOptionalField(value.taskCardInput?.requiredMetrics ?? null),
+    },
+    scenarioCardInput: {
+      normalScenario: await encryptOptionalField(value.scenarioCardInput?.normalScenario ?? null),
+      variation: await encryptOptionalField(value.scenarioCardInput?.variation ?? null),
+      edgeCase: await encryptOptionalField(value.scenarioCardInput?.edgeCase ?? null),
+      knownRisk: await encryptOptionalField(value.scenarioCardInput?.knownRisk ?? null),
+    },
+    evalCardInput: {
+      robotOrPolicyTested: await encryptOptionalField(value.evalCardInput?.robotOrPolicyTested ?? null),
+      preferredReviewPath: await encryptOptionalField(value.evalCardInput?.preferredReviewPath ?? null),
+      resultsValidationExpectations: await encryptOptionalField(value.evalCardInput?.resultsValidationExpectations ?? null),
+      predictedVsActualHistory: await encryptOptionalField(value.evalCardInput?.predictedVsActualHistory ?? null),
+    },
+  };
+}
+
+export async function decryptRealSiteRobotEvalFit(
+  value?: RealSiteRobotEvalFitInputStored | null
+): Promise<RealSiteRobotEvalFitInput | null> {
+  if (!value) {
+    return null;
+  }
+
+  const decrypted: RealSiteRobotEvalFitInput = {
+    siteCardInput: {
+      siteType: await decryptOptionalField(value.siteCardInput?.siteType ?? null),
+      knownGeometryAssets: await decryptOptionalField(value.siteCardInput?.knownGeometryAssets ?? null),
+      visualConditions: await decryptOptionalField(value.siteCardInput?.visualConditions ?? null),
+      dynamicConditions: await decryptOptionalField(value.siteCardInput?.dynamicConditions ?? null),
+      safetyConstraints: await decryptOptionalField(value.siteCardInput?.safetyConstraints ?? null),
+      robotRelevantMetadata: await decryptOptionalField(value.siteCardInput?.robotRelevantMetadata ?? null),
+    },
+    taskCardInput: {
+      task: await decryptOptionalField(value.taskCardInput?.task ?? null),
+      startState: await decryptOptionalField(value.taskCardInput?.startState ?? null),
+      successDefinition: await decryptOptionalField(value.taskCardInput?.successDefinition ?? null),
+      failureDefinition: await decryptOptionalField(value.taskCardInput?.failureDefinition ?? null),
+      requiredMetrics: await decryptOptionalField(value.taskCardInput?.requiredMetrics ?? null),
+    },
+    scenarioCardInput: {
+      normalScenario: await decryptOptionalField(value.scenarioCardInput?.normalScenario ?? null),
+      variation: await decryptOptionalField(value.scenarioCardInput?.variation ?? null),
+      edgeCase: await decryptOptionalField(value.scenarioCardInput?.edgeCase ?? null),
+      knownRisk: await decryptOptionalField(value.scenarioCardInput?.knownRisk ?? null),
+    },
+    evalCardInput: {
+      robotOrPolicyTested: await decryptOptionalField(value.evalCardInput?.robotOrPolicyTested ?? null),
+      preferredReviewPath: await decryptOptionalField(value.evalCardInput?.preferredReviewPath ?? null),
+      resultsValidationExpectations: await decryptOptionalField(value.evalCardInput?.resultsValidationExpectations ?? null),
+      predictedVsActualHistory: await decryptOptionalField(value.evalCardInput?.predictedVsActualHistory ?? null),
+    },
+  };
+
+  return hasRobotEvalFit(decrypted) ? decrypted : null;
+}
+
 export async function encryptInboundRequestForStorage<
   T extends {
     contact: ContactInfo;
@@ -383,6 +488,9 @@ export async function encryptInboundRequestForStorage<
       ),
       displayCaptureMetadata: await encryptDisplayCaptureMetadata(
         request.request.displayCaptureMetadata ?? null
+      ),
+      realSiteRobotEvalFit: await encryptRealSiteRobotEvalFit(
+        request.request.realSiteRobotEvalFit ?? null
       ),
     },
   };
@@ -466,6 +574,9 @@ export async function decryptInboundRequestForAdmin<
       ),
       displayCaptureMetadata: await decryptDisplayCaptureMetadata(
         request.request.displayCaptureMetadata ?? null
+      ),
+      realSiteRobotEvalFit: await decryptRealSiteRobotEvalFit(
+        request.request.realSiteRobotEvalFit ?? null
       ),
     },
   };

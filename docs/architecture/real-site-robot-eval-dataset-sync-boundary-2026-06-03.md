@@ -18,13 +18,21 @@ pipeline/robot_eval_dataset/
   eval_cards.json
   annotation_backlog.json
   proof_boundaries.json
+  rights_packet.json
+  rights_ledger.json
+  task_ontology_v1.json
   robot_task_library.json
+  scenario_family_library.json
   scenario_library.json
+  scoring_methodology.json
+  recorded_trace_eval_report.json
+  policy_eval_report.json
   robot_pov_evidence_requirements.json
   human_demo_evidence_requirements.json
   robot_team_test_submission_modalities.json
   failure_taxonomy.json
   prediction_outcome_ledger.json
+  prediction_vs_actual_summary.json
   eval_methodology_summary.md
 ```
 
@@ -44,13 +52,21 @@ Pipeline sync may attach these optional artifact fields:
 - `robot_eval_cards_uri`
 - `robot_eval_annotation_backlog_uri`
 - `robot_eval_proof_boundaries_uri`
+- `robot_rights_packet_uri`
+- `robot_rights_ledger_uri`
+- `robot_task_ontology_v1_uri`
 - `robot_task_library_uri`
+- `robot_scenario_family_library_uri`
 - `robot_scenario_library_uri`
+- `robot_scoring_methodology_uri`
+- `recorded_trace_eval_report_uri`
+- `policy_eval_report_uri`
 - `robot_pov_evidence_requirements_uri`
 - `human_demo_evidence_requirements_uri`
 - `robot_team_test_submission_modalities_uri`
 - `robot_failure_taxonomy_uri`
 - `prediction_outcome_ledger_uri`
+- `prediction_vs_actual_summary_uri`
 - `robot_eval_methodology_summary_uri`
 
 `deployment_readiness.robot_eval_dataset_summary` may summarize the contract as
@@ -67,12 +83,16 @@ WebApp may display:
 
 - advisory dataset contract present
 - Site, Task, Scenario, and Eval Card artifact URIs
+- rights packet and rights ledger URIs
+- task ontology and scenario family library URIs
 - task count and scenario count
 - card counts and annotation backlog count
+- scoring methodology, recorded trace eval report, and policy eval report URIs
 - evidence requirements
 - robot-team submission modality requirements and missing-evidence statuses
 - failure taxonomy availability
 - prediction-vs-actual ledger schema availability
+- prediction-vs-actual summary availability
 - missing-proof statuses such as `needs_robot_pov`, `needs_human_demo`,
   `needs_action_logs`, `needs_actual_outcome`,
   `needs_policy_api_endpoint_ref`, `needs_docker_container_ref`,

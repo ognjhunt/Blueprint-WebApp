@@ -45,6 +45,7 @@ import type {
   PlaceLocationMetadata,
   DisplayAdvisoryScanHint,
   DisplayCaptureMetadata,
+  RealSiteRobotEvalFitInput,
 } from "../types/inbound-request";
 
 const router = Router();
@@ -461,6 +462,82 @@ function normalizeDisplayCaptureMetadata(params: {
     : null;
 }
 
+function hasRealSiteRobotEvalFit(value?: RealSiteRobotEvalFitInput | null): value is RealSiteRobotEvalFitInput {
+  if (!value) return false;
+  return [
+    value.siteCardInput?.siteType,
+    value.siteCardInput?.knownGeometryAssets,
+    value.siteCardInput?.visualConditions,
+    value.siteCardInput?.dynamicConditions,
+    value.siteCardInput?.safetyConstraints,
+    value.siteCardInput?.robotRelevantMetadata,
+    value.taskCardInput?.task,
+    value.taskCardInput?.startState,
+    value.taskCardInput?.successDefinition,
+    value.taskCardInput?.failureDefinition,
+    value.taskCardInput?.requiredMetrics,
+    value.scenarioCardInput?.normalScenario,
+    value.scenarioCardInput?.variation,
+    value.scenarioCardInput?.edgeCase,
+    value.scenarioCardInput?.knownRisk,
+    value.evalCardInput?.robotOrPolicyTested,
+    value.evalCardInput?.preferredReviewPath,
+    value.evalCardInput?.resultsValidationExpectations,
+    value.evalCardInput?.predictedVsActualHistory,
+  ].some((entry) => normalizeOptionalString(entry));
+}
+
+function normalizeRealSiteRobotEvalFit(
+  value?: RealSiteRobotEvalFitInput | null
+): RealSiteRobotEvalFitInput | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const normalized: RealSiteRobotEvalFitInput = {
+    siteCardInput: {
+      siteType: normalizeOptionalString(value.siteCardInput?.siteType),
+      knownGeometryAssets: normalizeOptionalString(value.siteCardInput?.knownGeometryAssets),
+      visualConditions: normalizeOptionalString(value.siteCardInput?.visualConditions),
+      dynamicConditions: normalizeOptionalString(value.siteCardInput?.dynamicConditions),
+      safetyConstraints: normalizeOptionalString(value.siteCardInput?.safetyConstraints),
+      robotRelevantMetadata: normalizeOptionalString(value.siteCardInput?.robotRelevantMetadata),
+    },
+    taskCardInput: {
+      task: normalizeOptionalString(value.taskCardInput?.task),
+      startState: normalizeOptionalString(value.taskCardInput?.startState),
+      successDefinition: normalizeOptionalString(value.taskCardInput?.successDefinition),
+      failureDefinition: normalizeOptionalString(value.taskCardInput?.failureDefinition),
+      requiredMetrics: normalizeOptionalString(value.taskCardInput?.requiredMetrics),
+    },
+    scenarioCardInput: {
+      normalScenario: normalizeOptionalString(value.scenarioCardInput?.normalScenario),
+      variation: normalizeOptionalString(value.scenarioCardInput?.variation),
+      edgeCase: normalizeOptionalString(value.scenarioCardInput?.edgeCase),
+      knownRisk: normalizeOptionalString(value.scenarioCardInput?.knownRisk),
+    },
+    evalCardInput: {
+      robotOrPolicyTested: normalizeOptionalString(value.evalCardInput?.robotOrPolicyTested),
+      preferredReviewPath: normalizeOptionalString(value.evalCardInput?.preferredReviewPath),
+      resultsValidationExpectations: normalizeOptionalString(
+        value.evalCardInput?.resultsValidationExpectations
+      ),
+      predictedVsActualHistory: normalizeOptionalString(value.evalCardInput?.predictedVsActualHistory),
+    },
+  };
+
+  return hasRealSiteRobotEvalFit(normalized) ? normalized : null;
+}
+
+function hasFitField(
+  fit: RealSiteRobotEvalFitInput | null,
+  field: "metric_thresholds" | "safety_constraints" | "evidence_validation_needs",
+): boolean {
+  if (field === "metric_thresholds") return Boolean(fit?.taskCardInput?.requiredMetrics);
+  if (field === "safety_constraints") return Boolean(fit?.siteCardInput?.safetyConstraints);
+  return Boolean(fit?.evalCardInput?.resultsValidationExpectations);
+}
+
 function normalizeToken(value: string | null | undefined) {
   return String(value || "")
     .trim()
@@ -775,6 +852,9 @@ router.post("/", async (req: Request, res: Response) => {
       taskStatement,
       targetSiteType,
     });
+    const realSiteRobotEvalFit = normalizeRealSiteRobotEvalFit(
+      payload.realSiteRobotEvalFit
+    );
     const proofPathPreference = normalizeProofPathPreference(
       payload.proofPathPreference
     );
@@ -921,6 +1001,7 @@ router.post("/", async (req: Request, res: Response) => {
       derivedScenePermission: payload.derivedScenePermission?.trim() || null,
       datasetLicensingPermission: payload.datasetLicensingPermission?.trim() || null,
       payoutEligibility: payload.payoutEligibility?.trim() || null,
+      realSiteRobotEvalFit,
       details: payload.details?.trim() || null,
     });
     const structuredIntake = toStructuredIntakeSummary(structuredIntakeDecision);
@@ -940,7 +1021,18 @@ router.post("/", async (req: Request, res: Response) => {
           requested_lane: requestedLanes[0] || null,
           commercial_request_path: commercialRequestPath,
           requested_lane_count: requestedLanes.length,
-          buyer_segment: payload.roleTitle?.trim() || null,
+          has_buyer_role: Boolean(payload.roleTitle?.trim()),
+          has_site_scope: Boolean(siteName || siteLocation || targetSiteType),
+          has_robot_or_policy: Boolean(
+            payload.targetRobotTeam?.trim() ||
+              realSiteRobotEvalFit?.evalCardInput?.robotOrPolicyTested
+          ),
+          has_metric_thresholds: hasFitField(realSiteRobotEvalFit, "metric_thresholds"),
+          has_safety_constraints: hasFitField(realSiteRobotEvalFit, "safety_constraints"),
+          has_evidence_validation_needs: hasFitField(
+            realSiteRobotEvalFit,
+            "evidence_validation_needs"
+          ),
           exact_site_classification: proofPathClassification(
             structuredIntakeDecision.proofPathOutcome
           ),
@@ -958,9 +1050,7 @@ router.post("/", async (req: Request, res: Response) => {
             demandAttribution.buyerChannelSourceCaptureMode,
           utm: payload.context?.utm || {},
         },
-        user: {
-          email: emailLower,
-        },
+        user: null,
       });
     };
     const emitSiteOperatorClaimChecked = async () => {
@@ -992,9 +1082,7 @@ router.post("/", async (req: Request, res: Response) => {
             demandAttribution.buyerChannelSourceCaptureMode,
           utm: payload.context?.utm || {},
         },
-        user: {
-          email: emailLower,
-        },
+        user: null,
       });
     };
 
@@ -1051,6 +1139,7 @@ router.post("/", async (req: Request, res: Response) => {
           datasetLicensingPermission: payload.datasetLicensingPermission?.trim() || null,
           payoutEligibility: payload.payoutEligibility?.trim() || null,
           displayCaptureMetadata,
+          realSiteRobotEvalFit,
           details: payload.details?.trim() || null,
         },
         context: {
@@ -1199,6 +1288,7 @@ router.post("/", async (req: Request, res: Response) => {
         datasetLicensingPermission: payload.datasetLicensingPermission?.trim() || null,
         payoutEligibility: payload.payoutEligibility?.trim() || null,
         displayCaptureMetadata,
+        realSiteRobotEvalFit,
       },
       context: {
         sourcePageUrl: payload.context?.sourcePageUrl || "",
@@ -1346,7 +1436,7 @@ router.post("/", async (req: Request, res: Response) => {
         properties: {
           request_id: payload.requestId,
           city: demandAttribution.demandCity || null,
-          buyer_role: payload.roleTitle?.trim() || null,
+          has_buyer_role: Boolean(payload.roleTitle?.trim()),
           requested_lane: requestedLanes[0] || null,
           commercial_request_path: commercialRequestPath,
           requested_lane_count: requestedLanes.length,
@@ -1359,9 +1449,7 @@ router.post("/", async (req: Request, res: Response) => {
             demandAttribution.buyerChannelSourceCaptureMode,
           utm: payload.context?.utm || {},
         },
-        user: {
-          email: emailLower,
-        },
+        user: null,
       }).catch(() => null);
 
       if (proofPathPreference === "exact_site_required") {
@@ -1373,7 +1461,7 @@ router.post("/", async (req: Request, res: Response) => {
             city: demandAttribution.demandCity || null,
             site_request_type: "exact_site_required",
             commercial_request_path: commercialRequestPath,
-            buyer_segment: payload.roleTitle?.trim() || null,
+            has_buyer_role: Boolean(payload.roleTitle?.trim()),
           },
           attribution: {
             demandCity: demandAttribution.demandCity,
@@ -1382,9 +1470,7 @@ router.post("/", async (req: Request, res: Response) => {
               demandAttribution.buyerChannelSourceCaptureMode,
             utm: payload.context?.utm || {},
           },
-          user: {
-            email: emailLower,
-          },
+          user: null,
         }).catch(() => null);
       }
 
@@ -1395,12 +1481,13 @@ router.post("/", async (req: Request, res: Response) => {
           properties: {
             request_id: payload.requestId,
             city: demandAttribution.demandCity || null,
-            blocker_type:
-              payload.humanGateTopics?.trim()
-              || payload.privacySecurityConstraints?.trim()
-              || "deeper_evaluation_requested",
+            blocker_type: payload.humanGateTopics?.trim()
+              ? "human_gate_topics"
+              : payload.privacySecurityConstraints?.trim()
+                ? "privacy_security_constraints"
+                : "deeper_evaluation_requested",
             commercial_request_path: commercialRequestPath,
-            buyer_segment: payload.roleTitle?.trim() || null,
+            has_buyer_role: Boolean(payload.roleTitle?.trim()),
           },
           attribution: {
             demandCity: demandAttribution.demandCity,
@@ -1409,9 +1496,7 @@ router.post("/", async (req: Request, res: Response) => {
               demandAttribution.buyerChannelSourceCaptureMode,
             utm: payload.context?.utm || {},
           },
-          user: {
-            email: emailLower,
-          },
+          user: null,
         }).catch(() => null);
       }
     }

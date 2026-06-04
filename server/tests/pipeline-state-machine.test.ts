@@ -355,9 +355,17 @@ describe("enrichDeploymentReadinessFromArtifacts", () => {
       "robot_eval_cards_uri",
       "robot_eval_annotation_backlog_uri",
       "robot_eval_proof_boundaries_uri",
+      "robot_rights_packet_uri",
+      "robot_rights_ledger_uri",
+      "robot_task_ontology_v1_uri",
       "robot_task_library_uri",
+      "robot_scenario_family_library_uri",
+      "robot_scoring_methodology_uri",
+      "recorded_trace_eval_report_uri",
+      "policy_eval_report_uri",
       "robot_team_test_submission_modalities_uri",
       "prediction_outcome_ledger_uri",
+      "prediction_vs_actual_summary_uri",
     ]);
     const enriched = enrichDeploymentReadinessFromArtifacts(undefined, arts, undefined);
     expect(enriched?.robot_eval_dataset_summary?.dataset_state).toBe(
@@ -374,8 +382,19 @@ describe("enrichDeploymentReadinessFromArtifacts", () => {
         scenario_cards_uri: "gs://test/robot_eval_scenario_cards_uri.json",
         eval_cards_uri: "gs://test/robot_eval_cards_uri.json",
         proof_boundaries_uri: "gs://test/robot_eval_proof_boundaries_uri.json",
+        rights_packet_uri: "gs://test/robot_rights_packet_uri.json",
+        rights_ledger_uri: "gs://test/robot_rights_ledger_uri.json",
+        task_ontology_v1_uri: "gs://test/robot_task_ontology_v1_uri.json",
+        scenario_family_library_uri:
+          "gs://test/robot_scenario_family_library_uri.json",
+        scoring_methodology_uri: "gs://test/robot_scoring_methodology_uri.json",
+        recorded_trace_eval_report_uri:
+          "gs://test/recorded_trace_eval_report_uri.json",
+        policy_eval_report_uri: "gs://test/policy_eval_report_uri.json",
         robot_team_test_submission_modalities_uri:
           "gs://test/robot_team_test_submission_modalities_uri.json",
+        prediction_vs_actual_summary_uri:
+          "gs://test/prediction_vs_actual_summary_uri.json",
       }),
     );
     expect(enriched?.runtime_launchable).toBeUndefined();

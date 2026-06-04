@@ -132,11 +132,22 @@ function buildRobotEvalCardArtifactUris(
     eval_cards_uri: artifacts?.robot_eval_cards_uri || null,
     annotation_backlog_uri: artifacts?.robot_eval_annotation_backlog_uri || null,
     proof_boundaries_uri: artifacts?.robot_eval_proof_boundaries_uri || null,
+    rights_packet_uri: artifacts?.robot_rights_packet_uri || null,
+    rights_ledger_uri: artifacts?.robot_rights_ledger_uri || null,
+    task_ontology_v1_uri: artifacts?.robot_task_ontology_v1_uri || null,
     task_library_uri: artifacts?.robot_task_library_uri || null,
+    scenario_family_library_uri:
+      artifacts?.robot_scenario_family_library_uri || null,
     scenario_library_uri: artifacts?.robot_scenario_library_uri || null,
+    scoring_methodology_uri: artifacts?.robot_scoring_methodology_uri || null,
+    recorded_trace_eval_report_uri:
+      artifacts?.recorded_trace_eval_report_uri || null,
+    policy_eval_report_uri: artifacts?.policy_eval_report_uri || null,
     robot_team_test_submission_modalities_uri:
       artifacts?.robot_team_test_submission_modalities_uri || null,
     prediction_outcome_ledger_uri: artifacts?.prediction_outcome_ledger_uri || null,
+    prediction_vs_actual_summary_uri:
+      artifacts?.prediction_vs_actual_summary_uri || null,
   };
 }
 
@@ -148,6 +159,13 @@ function hasRobotEvalCardFamily(artifacts: PipelineArtifacts | undefined): boole
       hasArtifact(artifacts, "robot_eval_cards_uri") ||
       hasArtifact(artifacts, "robot_eval_annotation_backlog_uri") ||
       hasArtifact(artifacts, "robot_eval_proof_boundaries_uri") ||
+      hasArtifact(artifacts, "robot_task_ontology_v1_uri") ||
+      hasArtifact(artifacts, "robot_scenario_family_library_uri") ||
+      hasArtifact(artifacts, "robot_rights_packet_uri") ||
+      hasArtifact(artifacts, "robot_scoring_methodology_uri") ||
+      hasArtifact(artifacts, "recorded_trace_eval_report_uri") ||
+      hasArtifact(artifacts, "policy_eval_report_uri") ||
+      hasArtifact(artifacts, "prediction_vs_actual_summary_uri") ||
       hasArtifact(artifacts, "robot_team_test_submission_modalities_uri"),
   );
 }

@@ -105,6 +105,35 @@ function buildRobotTeamPayload(requestId: string, email: string) {
     taskStatement: "Can Blueprint show a proof path for pallet putaway in a warehouse?",
     targetSiteType: "Warehouse pallet putaway",
     proofPathPreference: "adjacent_site_acceptable",
+    realSiteRobotEvalFit: {
+      siteCardInput: {
+        siteType: "Warehouse pallet putaway",
+        knownGeometryAssets: "CAD for storage lanes exists.",
+        visualConditions: "Reflective pallet wrap and mixed overhead lighting.",
+        dynamicConditions: "Forklifts and workers cross the route.",
+        safetyConstraints: "Forklift lane exclusion and pallet-rack clearance.",
+        robotRelevantMetadata: "48 inch aisle with dock-edge no-go zone.",
+      },
+      taskCardInput: {
+        task: "Pallet putaway from receiving to rack staging.",
+        startState: "Robot starts at receiving lane with pallet localized.",
+        successDefinition: "Pallet reaches staging without human intervention.",
+        failureDefinition: "Dropped pallet, blocked route, or human recovery.",
+        requiredMetrics: "95% success, under 90 seconds, fewer than 1 intervention per shift.",
+      },
+      scenarioCardInput: {
+        normalScenario: "Clear route from receiving to staging.",
+        variation: "Forklift blocks the cross aisle.",
+        edgeCase: "Worker enters the staging lane.",
+        knownRisk: "Pallet wrap glare affects perception.",
+      },
+      evalCardInput: {
+        robotOrPolicyTested: "Humanoid policy container",
+        preferredReviewPath: "Hosted review first.",
+        resultsValidationExpectations: "Simulator traces, action logs, and human demo.",
+        predictedVsActualHistory: "No actual pilot yet.",
+      },
+    },
     existingStackReviewWorkflow: "We review hosted artifacts before simulator ingestion.",
     humanGateTopics: "Raise rights, delivery scope, and security review early.",
     context: {
@@ -326,6 +355,7 @@ describe("inbound request route", () => {
             missing_structured_fields?: string[];
             missing_structured_field_labels?: string[];
             routing_summary?: string;
+            proof_ready_criteria?: string[];
           };
         })
         .find((entry) => entry.requestId === requestId);
@@ -333,12 +363,28 @@ describe("inbound request route", () => {
       expect(savedRequest?.request?.targetSiteType).toBe("Warehouse pallet putaway");
       expect(savedRequest?.request?.commercialRequestPath).toBe("world_model");
       expect(savedRequest?.request?.proofPathPreference).toBe("adjacent_site_acceptable");
+      expect(savedRequest?.request?.realSiteRobotEvalFit).toMatchObject({
+        taskCardInput: {
+          requiredMetrics: "95% success, under 90 seconds, fewer than 1 intervention per shift.",
+        },
+        evalCardInput: {
+          robotOrPolicyTested: "Humanoid policy container",
+        },
+      });
       expect(savedRequest?.request?.siteName).toBe("");
-      expect(savedRequest?.structured_intake?.calendar_disposition).toBe("not_needed_yet");
-      expect(savedRequest?.structured_intake?.owner_lane).toBe("intake-agent");
-      expect(savedRequest?.structured_intake?.missing_structured_fields).toEqual(["robot_or_stack"]);
-      expect(savedRequest?.structured_intake?.missing_structured_field_labels).toEqual(["Robot or stack"]);
-      expect(savedRequest?.structured_intake?.routing_summary).toMatch(/intake-agent/i);
+      expect(savedRequest?.structured_intake?.calendar_disposition).toBe("eligible_optional");
+      expect(savedRequest?.structured_intake?.owner_lane).toBe("buyer-solutions-agent");
+      expect(savedRequest?.structured_intake?.missing_structured_fields).toEqual([]);
+      expect(savedRequest?.structured_intake?.missing_structured_field_labels).toEqual([]);
+      expect(savedRequest?.structured_intake?.proof_ready_criteria).toEqual(
+        expect.arrayContaining([
+          "robot_or_stack",
+          "metric_thresholds",
+          "safety_constraints",
+          "evidence_validation_needs",
+        ]),
+      );
+      expect(savedRequest?.structured_intake?.routing_summary).toMatch(/buyer-solutions-agent/i);
     } finally {
       await stopServer(server);
     }
@@ -360,6 +406,15 @@ describe("inbound request route", () => {
         targetRobotTeam: "AMR fleet",
         targetSiteType: "Warehouse",
         proofPathPreference: "exact_site_required",
+        realSiteRobotEvalFit: {
+          ...buildRobotTeamPayload(requestId, `unused-${Date.now()}@example.com`).realSiteRobotEvalFit,
+          evalCardInput: {
+            robotOrPolicyTested: "AMR fleet policy API",
+            preferredReviewPath: "Hosted review first.",
+            resultsValidationExpectations: "Simulator traces and robot action logs.",
+            predictedVsActualHistory: "Prior pilot was slower than expected.",
+          },
+        },
       };
 
       const response = await fetch(`${baseUrl}/`, {
@@ -380,6 +435,7 @@ describe("inbound request route", () => {
             proof_ready_outcome?: string;
             proof_path_outcome?: string;
             proof_readiness_score?: number;
+            proof_ready_criteria?: string[];
             missing_proof_ready_fields?: string[];
             missing_structured_field_labels?: string[];
             proof_path_summary?: string;
@@ -396,6 +452,13 @@ describe("inbound request route", () => {
         missing_proof_ready_fields: [],
         missing_structured_field_labels: [],
       });
+      expect(savedRequest?.structured_intake?.proof_ready_criteria).toEqual(
+        expect.arrayContaining([
+          "metric_thresholds",
+          "safety_constraints",
+          "evidence_validation_needs",
+        ]),
+      );
       expect(savedRequest?.structured_intake?.proof_path_summary).toMatch(/exact-site proof path/i);
       expect(savedRequest?.structured_intake?.calendar_summary).toMatch(/recommended/i);
       expect(savedRequest?.ops_automation?.recommended_path).toBe("intake_then_recommended_scoping_call");
@@ -411,9 +474,18 @@ describe("inbound request route", () => {
             proof_path_preference: "exact_site_required",
             proof_ready_outcome: "proof_ready_intake",
             proof_readiness_score: 100,
+            has_metric_thresholds: true,
+            has_safety_constraints: true,
+            has_evidence_validation_needs: true,
           }),
+          user: null,
         }),
       );
+      const fitEvent = logGrowthEvent.mock.calls
+        .map(([event]) => event)
+        .find((event) => event.event === "robot_team_fit_checked");
+      expect(JSON.stringify(fitEvent?.properties)).not.toContain("AMR fleet");
+      expect(JSON.stringify(fitEvent?.properties)).not.toContain("Simulator traces");
     } finally {
       await stopServer(server);
     }
@@ -437,6 +509,18 @@ describe("inbound request route", () => {
         taskStatement: "warehouse tote",
         targetRobotTeam: "robot-team agent",
         proofPathPreference: "exact_site_required",
+        realSiteRobotEvalFit: {
+          siteCardInput: {
+            safetyConstraints: "No-go zones around handoff.",
+          },
+          taskCardInput: {
+            requiredMetrics: "95% success and one intervention per shift.",
+          },
+          evalCardInput: {
+            robotOrPolicyTested: "robot-team agent",
+            resultsValidationExpectations: "Simulator traces and action logs.",
+          },
+        },
         context: {
           sourcePageUrl:
             "http://localhost:5001/contact?source=site-worlds&buyerType=robot_team&path=hosted-review&location=123%20Unknown%20St&workflow=warehouse%20tote",
@@ -557,6 +641,7 @@ describe("inbound request route", () => {
         taskStatement: "Claim this facility for a controlled robot-team evaluation.",
         operatingConstraints: "Escorted access on weekdays, no capture near the cash office.",
         privacySecurityConstraints: "No employee-only rooms and redact faces.",
+        derivedScenePermission: "Keep private until owner review.",
       };
       const response = await fetch(`${baseUrl}/`, {
         method: "POST",
@@ -602,7 +687,11 @@ describe("inbound request route", () => {
             site_operator_claim_outcome: "site_claim_access_boundary_ready",
             access_boundary_outcome: "access_boundary_defined",
             site_claim_readiness_score: 100,
+            has_access_rules: true,
+            has_privacy_security_boundary: true,
+            has_commercialization_boundary: true,
           }),
+          user: null,
         }),
       );
     } finally {

@@ -8,7 +8,7 @@ import {
 describe("contactRequestPrefill", () => {
   it("parses agent-friendly location, workflow, source, buyer type, and path aliases", () => {
     const prefill = parseContactRequestPrefill(
-      "source=site-worlds&buyerType=robot_team&path=hosted-review&location=123%20Unknown%20St&workflow=warehouse%20tote&message=Need%20a%20review",
+      "source=site-worlds&buyerType=robot_team&path=hosted-review&location=123%20Unknown%20St&workflow=warehouse%20tote&message=Need%20a%20review&siteType=warehouse&requiredMetrics=97%25%20success&robotOrPolicy=Unitree%20G1%20policy&validationExpectations=sim%20trace",
     );
 
     expect(prefill).toMatchObject({
@@ -21,6 +21,18 @@ describe("contactRequestPrefill", () => {
       taskStatement: "warehouse tote",
       message: "Need a review",
       primaryNeed: "123 Unknown St",
+      realSiteRobotEvalFit: {
+        siteCardInput: {
+          siteType: "warehouse",
+        },
+        taskCardInput: {
+          requiredMetrics: "97% success",
+        },
+        evalCardInput: {
+          robotOrPolicyTested: "Unitree G1 policy",
+          resultsValidationExpectations: "sim trace",
+        },
+      },
     });
   });
 
@@ -33,6 +45,26 @@ describe("contactRequestPrefill", () => {
       workflow: "warehouse tote",
       siteName: "Unknown warehouse",
       targetRobotTeam: "robot-team agent",
+      realSiteRobotEvalFit: {
+        siteCardInput: {
+          siteType: "warehouse",
+          safetyConstraints: "No-go zone around dock edge.",
+        },
+        taskCardInput: {
+          startState: "Robot starts near staging.",
+          successDefinition: "Tote reaches conveyor.",
+          requiredMetrics: "97% success under 45 seconds.",
+        },
+        scenarioCardInput: {
+          normalScenario: "Clear aisle transfer.",
+          edgeCase: "Human steps into handoff zone.",
+        },
+        evalCardInput: {
+          robotOrPolicyTested: "robot-team agent",
+          preferredReviewPath: "Hosted review first.",
+          resultsValidationExpectations: "Simulator traces and action logs.",
+        },
+      },
       message: "Scope hosted review without granting access.",
     });
     const url = new URL(href, "https://tryblueprint.local");
@@ -46,6 +78,16 @@ describe("contactRequestPrefill", () => {
     expect(url.searchParams.get("workflow")).toBe("warehouse tote");
     expect(url.searchParams.get("taskStatement")).toBe("warehouse tote");
     expect(url.searchParams.get("targetRobotTeam")).toBe("robot-team agent");
+    expect(url.searchParams.get("siteType")).toBe("warehouse");
+    expect(url.searchParams.get("safetyConstraints")).toBe("No-go zone around dock edge.");
+    expect(url.searchParams.get("startState")).toBe("Robot starts near staging.");
+    expect(url.searchParams.get("successDefinition")).toBe("Tote reaches conveyor.");
+    expect(url.searchParams.get("requiredMetrics")).toBe("97% success under 45 seconds.");
+    expect(url.searchParams.get("normalScenario")).toBe("Clear aisle transfer.");
+    expect(url.searchParams.get("edgeCase")).toBe("Human steps into handoff zone.");
+    expect(url.searchParams.get("robotOrPolicy")).toBe("robot-team agent");
+    expect(url.searchParams.get("preferredReviewPath")).toBe("Hosted review first.");
+    expect(url.searchParams.get("validationExpectations")).toBe("Simulator traces and action logs.");
     expect(url.searchParams.get("proofPathPreference")).toBe("exact_site_required");
     expect(url.searchParams.has("entitlementId")).toBe(false);
     expect(url.searchParams.has("access")).toBe(false);
@@ -59,6 +101,20 @@ describe("contactRequestPrefill", () => {
       workflow: "warehouse tote transfer",
       siteClass: "warehouse aisle",
       sourcePageUrl: "https://tryblueprint.io/contact?source=site-worlds",
+      realSiteRobotEvalFit: {
+        siteCardInput: {
+          siteType: "warehouse aisle",
+          dynamicConditions: "Forklifts and carts cross the route.",
+          safetyConstraints: "Forklift lane exclusion.",
+        },
+        taskCardInput: {
+          requiredMetrics: "95% success and fewer than one intervention per shift.",
+        },
+        evalCardInput: {
+          robotOrPolicyTested: "Humanoid policy container",
+          resultsValidationExpectations: "Action logs and human demo.",
+        },
+      },
     });
 
     expect(draft).toMatchObject({
@@ -70,6 +126,20 @@ describe("contactRequestPrefill", () => {
       targetSiteType: "warehouse aisle",
       proofPathPreference: "exact_site_required",
       workflowContext: "warehouse tote transfer",
+      realSiteRobotEvalFit: {
+        siteCardInput: {
+          siteType: "warehouse aisle",
+          dynamicConditions: "Forklifts and carts cross the route.",
+          safetyConstraints: "Forklift lane exclusion.",
+        },
+        taskCardInput: {
+          requiredMetrics: "95% success and fewer than one intervention per shift.",
+        },
+        evalCardInput: {
+          robotOrPolicyTested: "Humanoid policy container",
+          resultsValidationExpectations: "Action logs and human demo.",
+        },
+      },
       context: {
         sourcePageUrl: "https://tryblueprint.io/contact?source=site-worlds",
         buyerChannelSourceRaw: "site-worlds",

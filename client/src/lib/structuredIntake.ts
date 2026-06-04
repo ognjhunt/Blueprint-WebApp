@@ -2,6 +2,7 @@ import type {
   BudgetBucket,
   BuyerType,
   ProofPathPreference,
+  RealSiteRobotEvalFitInput,
   RequestedLane,
 } from "@/types/inbound-request";
 
@@ -30,6 +31,7 @@ export type AccessBoundaryOutcome =
   | "not_applicable"
   | "needs_access_rules"
   | "needs_privacy_security_boundary"
+  | "needs_commercialization_boundary"
   | "access_boundary_defined";
 
 export interface StructuredIntakeDecision {
@@ -80,6 +82,7 @@ export interface StructuredIntakeInput {
   derivedScenePermission?: string | null;
   datasetLicensingPermission?: string | null;
   payoutEligibility?: string | null;
+  realSiteRobotEvalFit?: RealSiteRobotEvalFitInput | null;
   details?: string | null;
 }
 
@@ -98,12 +101,16 @@ function unique(values: string[]): string[] {
 const STRUCTURED_FIELD_LABELS: Record<string, string> = {
   access_rules: "Access rules",
   budget_or_procurement_range: "Budget or procurement range",
+  commercialization_boundary: "Commercialization boundary",
+  evidence_validation_needs: "Evidence or validation needs",
   facility_name: "Facility name",
+  metric_thresholds: "Metric thresholds",
   operator_intent: "Operator intent",
   privacy_security_boundary: "Privacy/security boundary",
   proof_path_preference: "Proof path preference",
   robot_or_stack: "Robot or stack",
   robot_team_role: "Robot-team role",
+  safety_constraints: "Safety constraints",
   site_location: "Site location",
   site_name: "Site name",
   target_site_type_or_site: "Target site class or site",
@@ -205,17 +212,41 @@ function buildProofReadyDecision(
     };
   }
 
+  const fit = input.realSiteRobotEvalFit;
+  const fitSite = fit?.siteCardInput;
+  const fitTask = fit?.taskCardInput;
+  const fitEval = fit?.evalCardInput;
+  const details = input.details || "";
+  const hasMetricThresholds =
+    hasText(fitTask?.requiredMetrics) ||
+    /\b(success|cycle|intervention|threshold|metric)\b/i.test(details);
+  const hasSafetyConstraints =
+    hasText(fitSite?.safetyConstraints) ||
+    /\b(safety|restricted|no-go|exclusion|pinch|proximity)\b/i.test(details);
+  const hasEvidenceValidationNeeds =
+    hasText(fitEval?.resultsValidationExpectations) ||
+    /\b(evidence|validation|simulator|trace|action log|robot trial|pilot result|human demo)\b/i.test(details);
+  const hasRobotOrStack =
+    hasText(input.targetRobotTeam) || hasText(fitEval?.robotOrPolicyTested);
+  const hasTaskOrWorkflow =
+    hasText(input.taskStatement) ||
+    hasText(fitTask?.task) ||
+    hasText(fitTask?.successDefinition) ||
+    hasText(fitTask?.failureDefinition);
+  const hasTargetSiteTypeOrSite =
+    hasText(input.targetSiteType) ||
+    hasText(input.siteName) ||
+    hasText(input.siteLocation) ||
+    hasText(fitSite?.siteType);
+
   const criteria: Array<{ key: string; met: boolean }> = [
     { key: "robot_team_role", met: hasText(input.roleTitle) },
-    { key: "task_or_workflow_question", met: hasText(input.taskStatement) },
-    { key: "robot_or_stack", met: hasText(input.targetRobotTeam) },
-    {
-      key: "target_site_type_or_site",
-      met:
-        hasText(input.targetSiteType) ||
-        hasText(input.siteName) ||
-        hasText(input.siteLocation),
-    },
+    { key: "task_or_workflow_question", met: hasTaskOrWorkflow },
+    { key: "robot_or_stack", met: hasRobotOrStack },
+    { key: "target_site_type_or_site", met: hasTargetSiteTypeOrSite },
+    { key: "metric_thresholds", met: hasMetricThresholds },
+    { key: "safety_constraints", met: hasSafetyConstraints },
+    { key: "evidence_validation_needs", met: hasEvidenceValidationNeeds },
     {
       key: "proof_path_preference",
       met: Boolean(input.proofPathPreference && input.proofPathPreference !== "need_guidance"),
@@ -282,6 +313,10 @@ function buildSiteOperatorClaimDecision(input: StructuredIntakeInput): {
     || hasText(input.captureRights)
     || hasText(input.derivedScenePermission)
     || hasText(input.datasetLicensingPermission);
+  const hasCommercializationBoundary =
+    hasText(input.derivedScenePermission)
+    || hasText(input.datasetLicensingPermission)
+    || hasText(input.payoutEligibility);
   const criteria: Array<{ key: string; met: boolean }> = [
     { key: "facility_name", met: hasText(input.siteName) },
     { key: "site_location", met: hasText(input.siteLocation) },
@@ -294,6 +329,7 @@ function buildSiteOperatorClaimDecision(input: StructuredIntakeInput): {
     },
     { key: "access_rules", met: hasText(input.operatingConstraints) },
     { key: "privacy_security_boundary", met: hasPrivacyBoundary },
+    { key: "commercialization_boundary", met: hasCommercializationBoundary },
   ];
 
   const siteClaimCriteria = criteria
@@ -305,9 +341,11 @@ function buildSiteOperatorClaimDecision(input: StructuredIntakeInput): {
   const siteClaimReadinessScore = Math.round((siteClaimCriteria.length / criteria.length) * 100);
   const accessBoundaryOutcome: AccessBoundaryOutcome = !hasText(input.operatingConstraints)
     ? "needs_access_rules"
-    : hasPrivacyBoundary
-      ? "access_boundary_defined"
-      : "needs_privacy_security_boundary";
+    : !hasPrivacyBoundary
+      ? "needs_privacy_security_boundary"
+      : hasCommercializationBoundary
+        ? "access_boundary_defined"
+        : "needs_commercialization_boundary";
   const missingCoreClaimDetail = ["facility_name", "site_location", "operator_intent"].some(
     (key) => missingSiteClaimFields.includes(key),
   );
@@ -335,15 +373,37 @@ export function evaluateStructuredIntake(input: StructuredIntakeInput): Structur
   const siteOperatorClaimDecision = buildSiteOperatorClaimDecision(input);
 
   if (input.buyerType === "robot_team") {
+    const fit = input.realSiteRobotEvalFit;
+    const fitSite = fit?.siteCardInput;
+    const fitTask = fit?.taskCardInput;
+    const fitEval = fit?.evalCardInput;
     if (!hasText(input.roleTitle)) missingStructuredFields.push("robot_team_role");
-    if (!hasText(input.taskStatement)) missingStructuredFields.push("task_or_workflow_question");
-    if (!hasText(input.targetRobotTeam)) missingStructuredFields.push("robot_or_stack");
+    if (
+      !hasText(input.taskStatement) &&
+      !hasText(fitTask?.task) &&
+      !hasText(fitTask?.successDefinition)
+    ) {
+      missingStructuredFields.push("task_or_workflow_question");
+    }
+    if (!hasText(input.targetRobotTeam) && !hasText(fitEval?.robotOrPolicyTested)) {
+      missingStructuredFields.push("robot_or_stack");
+    }
+    if (!hasText(fitTask?.requiredMetrics)) missingStructuredFields.push("metric_thresholds");
+    if (!hasText(fitSite?.safetyConstraints)) missingStructuredFields.push("safety_constraints");
+    if (!hasText(fitEval?.resultsValidationExpectations)) {
+      missingStructuredFields.push("evidence_validation_needs");
+    }
     if (input.proofPathPreference === "exact_site_required") {
       if (!hasText(input.siteName) && !hasText(input.siteLocation)) {
         missingStructuredFields.push("site_name");
       }
       if (!hasText(input.siteLocation)) missingStructuredFields.push("site_location");
-    } else if (!hasText(input.targetSiteType) && !hasText(input.siteName) && !hasText(input.siteLocation)) {
+    } else if (
+      !hasText(input.targetSiteType) &&
+      !hasText(input.siteName) &&
+      !hasText(input.siteLocation) &&
+      !hasText(fitSite?.siteType)
+    ) {
       missingStructuredFields.push("target_site_type_or_site");
     }
     if (!input.proofPathPreference) missingStructuredFields.push("proof_path_preference");
@@ -356,11 +416,16 @@ export function evaluateStructuredIntake(input: StructuredIntakeInput): Structur
   const exactSiteRequested =
     input.proofPathPreference === "exact_site_required"
     || requestedLanes.includes("deeper_evaluation");
+  const fit = input.realSiteRobotEvalFit;
+  const robotTaskSignal =
+    input.taskStatement || fit?.taskCardInput?.task || fit?.taskCardInput?.successDefinition;
+  const robotStackSignal =
+    input.targetRobotTeam || fit?.evalCardInput?.robotOrPolicyTested || input.targetSiteType;
   const robotHighIntent =
     input.buyerType === "robot_team"
     && exactSiteRequested
-    && hasText(input.taskStatement)
-    && (hasText(input.targetRobotTeam) || hasText(input.targetSiteType))
+    && hasText(robotTaskSignal)
+    && hasText(robotStackSignal)
     && (hasText(input.siteName) || hasText(input.siteLocation));
 
   if (robotHighIntent) {
@@ -441,7 +506,7 @@ export function evaluateStructuredIntake(input: StructuredIntakeInput): Structur
       : input.buyerType === "site_operator" &&
           siteOperatorClaimDecision.siteOperatorClaimOutcome ===
             "site_claim_needs_access_boundary"
-        ? "review the site claim and ask for the missing privacy/security boundary before any call, listing, access, or commercialization commitment"
+        ? "review the site claim and ask for the missing privacy/security or commercialization boundary before any call, listing, access, or commercialization commitment"
         : input.buyerType === "site_operator" &&
             siteOperatorClaimDecision.siteOperatorClaimOutcome ===
               "site_claim_needs_detail"
@@ -478,6 +543,16 @@ export function evaluateStructuredIntake(input: StructuredIntakeInput): Structur
     ...requestedLanes,
     ...calendarReasons,
   );
+
+  if (proofReadyDecision.proofReadyCriteria.includes("metric_thresholds")) {
+    filterTags.push("has_metric_thresholds");
+  }
+  if (proofReadyDecision.proofReadyCriteria.includes("safety_constraints")) {
+    filterTags.push("has_safety_constraints");
+  }
+  if (proofReadyDecision.proofReadyCriteria.includes("evidence_validation_needs")) {
+    filterTags.push("has_evidence_validation_needs");
+  }
 
   return {
     intakeMode:

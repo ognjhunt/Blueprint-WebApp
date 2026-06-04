@@ -8,9 +8,14 @@ import {
   ClipboardList,
   Code2,
   Container,
+  Database,
   FileJson2,
+  Gauge,
+  GitBranch,
+  Layers3,
   Gamepad2,
   Link2,
+  ListChecks,
   Loader2,
   MonitorPlay,
   PackageCheck,
@@ -20,6 +25,15 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { SEO } from "@/components/SEO";
+import {
+  getRobotEvalMoatScenarioFamily,
+  getRobotEvalMoatSite,
+  getRobotEvalMoatTask,
+  representativeRobotEvalSites,
+  robotEvalDecisionOptions,
+  robotEvalMoatModules,
+  robotEvalMoatWorkflowSteps,
+} from "@/data/robotEvalMoat";
 import { siteWorldCards } from "@/data/siteWorlds";
 import { withCsrfHeader } from "@/lib/csrf";
 import {
@@ -41,6 +55,14 @@ const iconByModality: Record<RobotTeamTestSubmissionModalityId, LucideIcon> = {
   high_level_skill_trace: Route,
   teleop_demo: Gamepad2,
   sim_controller_plugin: Code2,
+};
+
+const iconByMoatModule: Record<string, LucideIcon> = {
+  rights_packet: ShieldCheck,
+  task_ontology: Database,
+  scenario_family_generator: Layers3,
+  scoring_runner: Gauge,
+  prediction_actual: GitBranch,
 };
 
 const fallbackOutputs = [
@@ -155,7 +177,13 @@ function uniqueOutputs(values: string[]) {
 
 export default function RobotTeamEval() {
   const [, setLocation] = useLocation();
+  const initialEvalSite = representativeRobotEvalSites[0];
   const [selectedSiteId, setSelectedSiteId] = useState(selectedSiteDefaultId);
+  const [evalSiteId, setEvalSiteId] = useState(initialEvalSite.id);
+  const [evalTaskId, setEvalTaskId] = useState(initialEvalSite.tasks[0].id);
+  const [evalScenarioFamilyId, setEvalScenarioFamilyId] = useState(
+    initialEvalSite.scenarioFamilies[0].id,
+  );
   const [enabled, setEnabled] = useState<EnabledState>(() => initialEnabledState());
   const [fieldValues, setFieldValues] = useState<FieldState>(() => initialFieldState());
   const [status, setStatus] = useState<"idle" | "submitting" | "created" | "blocked">("idle");
@@ -170,6 +198,15 @@ export default function RobotTeamEval() {
   const selectedTask = selectedSite?.taskCatalog[0] || null;
   const selectedScenario = selectedSite?.scenarioCatalog[0] || null;
   const selectedStartState = selectedSite?.startStateCatalog[0] || null;
+  const selectedEvalSite = useMemo(() => getRobotEvalMoatSite(evalSiteId), [evalSiteId]);
+  const selectedEvalTask = useMemo(
+    () => getRobotEvalMoatTask(selectedEvalSite, evalTaskId),
+    [evalTaskId, selectedEvalSite],
+  );
+  const selectedEvalScenarioFamily = useMemo(
+    () => getRobotEvalMoatScenarioFamily(selectedEvalSite, evalScenarioFamilyId),
+    [evalScenarioFamilyId, selectedEvalSite],
+  );
 
   const currentSubmission = useMemo(() => {
     if (!selectedSite || !selectedRobot || !selectedTask || !selectedScenario) {
@@ -197,10 +234,20 @@ export default function RobotTeamEval() {
   const requestReviewHref = buildRequestReviewHref({
     siteName: selectedSite?.siteName || "Blueprint site package",
     siteAddress: selectedSite?.siteAddress || "",
-    taskText: selectedTask?.taskText || "selected robot task",
+    taskText: selectedEvalTask?.label || selectedTask?.taskText || "selected robot task",
     robotName: selectedRobot?.displayName || "robot profile",
     submission: lastSubmission || currentSubmission,
   });
+
+  const updateEvalSite = (siteId: string) => {
+    const nextSite = getRobotEvalMoatSite(siteId);
+    setEvalSiteId(nextSite.id);
+    setEvalTaskId(nextSite.tasks[0].id);
+    setEvalScenarioFamilyId(nextSite.scenarioFamilies[0].id);
+    if (siteWorldCards.some((site) => site.id === nextSite.catalogSiteWorldId)) {
+      setSelectedSiteId(nextSite.catalogSiteWorldId);
+    }
+  };
 
   const updateField = (
     modalityId: RobotTeamTestSubmissionModalityId,
@@ -284,7 +331,10 @@ export default function RobotTeamEval() {
         proofBoundary:
           "Advisory review only. Submitted references are not deployment, safety, robot-run, sim-run, rights, or guaranteed-threshold proof.",
       },
-      notes: `Robot-team test submission modalities: ${submission.selectedModalities.join(", ")}`,
+      notes: [
+        `Robot-team test submission modalities: ${submission.selectedModalities.join(", ")}`,
+        `Representative eval workflow: ${selectedEvalSite.siteName} / ${selectedEvalTask.label} / ${selectedEvalScenarioFamily.label}`,
+      ].join("\n"),
     };
 
     try {
@@ -386,6 +436,241 @@ export default function RobotTeamEval() {
               </div>
             </div>
           </div>
+        </section>
+
+        <section
+          aria-labelledby="real-site-robot-eval-workflow"
+          className="mx-auto grid max-w-[118rem] gap-6 px-5 py-7 sm:px-8 lg:grid-cols-[minmax(0,1fr)_25rem] lg:px-10"
+        >
+          <div className="min-w-0 rounded-lg border border-black/10 bg-white p-5 shadow-sm">
+            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+              <div>
+                <p className="text-[11px] font-semibold uppercase text-slate-500">
+                  Real-site eval moat MVP
+                </p>
+                <h2
+                  id="real-site-robot-eval-workflow"
+                  className="mt-2 max-w-3xl text-3xl font-semibold text-slate-950"
+                >
+                  Choose site, task, and scenario family
+                </h2>
+                <p className="mt-3 max-w-4xl text-sm leading-6 text-slate-600">
+                  The product loop stays artifact-first: representative site
+                  package, canonical task ID, scenario family, submitted policy or
+                  trace references, advisory report, and a scoped pilot, tune, or
+                  hold decision.
+                </p>
+              </div>
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold uppercase text-amber-900">
+                Advisory sample
+              </div>
+            </div>
+
+            <div className="mt-5 grid gap-4 lg:grid-cols-3">
+              <label className="block">
+                <span className="mb-2 block text-sm font-semibold text-slate-800">
+                  Representative site
+                </span>
+                <select
+                  aria-label="Representative site"
+                  value={selectedEvalSite.id}
+                  onChange={(event) => updateEvalSite(event.target.value)}
+                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-950"
+                >
+                  {representativeRobotEvalSites.map((site) => (
+                    <option key={site.id} value={site.id}>
+                      {site.siteType} - {site.siteName}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block">
+                <span className="mb-2 block text-sm font-semibold text-slate-800">
+                  Canonical task
+                </span>
+                <select
+                  aria-label="Canonical task"
+                  value={selectedEvalTask.id}
+                  onChange={(event) => setEvalTaskId(event.target.value)}
+                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-950"
+                >
+                  {selectedEvalSite.tasks.map((task) => (
+                    <option key={task.id} value={task.id}>
+                      {task.label} - {task.canonicalTaskId}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block">
+                <span className="mb-2 block text-sm font-semibold text-slate-800">
+                  Scenario family
+                </span>
+                <select
+                  aria-label="Scenario family"
+                  value={selectedEvalScenarioFamily.id}
+                  onChange={(event) => setEvalScenarioFamilyId(event.target.value)}
+                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-950"
+                >
+                  {selectedEvalSite.scenarioFamilies.map((scenarioFamily) => (
+                    <option key={scenarioFamily.id} value={scenarioFamily.id}>
+                      {scenarioFamily.label} - {scenarioFamily.generatedScenarioCount} variants
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <div className="mt-5 grid gap-3 xl:grid-cols-[minmax(0,0.7fr)_minmax(18rem,0.3fr)]">
+              <div className="rounded-md border border-slate-200 bg-slate-50 p-4">
+                <div className="flex items-center gap-2 text-sm font-semibold text-slate-950">
+                  <Layers3 className="h-4 w-4 text-slate-500" />
+                  {selectedEvalScenarioFamily.label}
+                </div>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  {selectedEvalScenarioFamily.sampleScenario}
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {selectedEvalScenarioFamily.variationIds.map((variationId) => (
+                    <span
+                      key={variationId}
+                      className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-600"
+                    >
+                      {variationId.replaceAll("_", " ")}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div className="rounded-md border border-slate-200 bg-slate-50 p-4">
+                <p className="text-xs font-semibold uppercase text-slate-500">
+                  Task success
+                </p>
+                <p className="mt-2 text-sm font-semibold leading-6 text-slate-950">
+                  {selectedEvalTask.successDefinition}
+                </p>
+                <p className="mt-3 text-xs font-semibold uppercase text-slate-500">
+                  Required evidence
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {selectedEvalTask.requiredEvidence.map((evidence) => (
+                    <span
+                      key={evidence}
+                      className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-600"
+                    >
+                      {evidence.replaceAll("_", " ")}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-5 grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+              {robotEvalMoatWorkflowSteps.map((step, index) => (
+                <article
+                  key={step.id}
+                  className="rounded-md border border-slate-200 bg-white p-3"
+                >
+                  <p className="text-[11px] font-semibold uppercase text-slate-400">
+                    Step {index + 1}
+                  </p>
+                  <h3 className="mt-1 text-sm font-semibold text-slate-950">{step.label}</h3>
+                  <p className="mt-2 break-words text-xs font-semibold text-slate-500">
+                    {step.artifact}
+                  </p>
+                </article>
+              ))}
+            </div>
+
+            <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+              {robotEvalMoatModules.map((module) => {
+                const Icon = iconByMoatModule[module.id] || Database;
+                return (
+                  <article
+                    key={module.id}
+                    className="rounded-md border border-slate-200 bg-slate-50 p-4"
+                  >
+                    <Icon className="h-5 w-5 text-slate-500" />
+                    <h3 className="mt-3 text-sm font-semibold text-slate-950">{module.label}</h3>
+                    <p className="mt-2 text-xs leading-5 text-slate-500">{module.summary}</p>
+                  </article>
+                );
+              })}
+            </div>
+          </div>
+
+          <aside className="h-fit rounded-lg border border-black/10 bg-white p-5 shadow-sm lg:sticky lg:top-24">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-slate-950 text-white">
+                <Gauge className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-slate-950">Advisory eval report</p>
+                <p className="mt-1 text-xs leading-5 text-slate-500">
+                  Representative policy_eval_report.json output for the selected workflow.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-5 space-y-3">
+              {selectedEvalSite.evalReport.map((metric) => (
+                <div
+                  key={metric.id}
+                  className={`rounded-md border p-3 ${
+                    metric.status === "blocked"
+                      ? "border-amber-200 bg-amber-50"
+                      : "border-slate-200 bg-slate-50"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="text-sm font-semibold text-slate-950">{metric.label}</p>
+                    <span className="shrink-0 text-xs font-semibold uppercase text-slate-500">
+                      {metric.status}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-lg font-semibold text-slate-950">
+                    {metric.value}
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">{metric.detail}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-5">
+              <div className="flex items-center gap-2">
+                <ListChecks className="h-4 w-4 text-slate-500" />
+                <p className="text-sm font-semibold text-slate-950">Artifact ledger</p>
+              </div>
+              <div className="mt-3 space-y-2">
+                {selectedEvalSite.artifacts.map((artifact) => (
+                  <div
+                    key={artifact.id}
+                    className="rounded-md border border-slate-200 bg-slate-50 p-3"
+                  >
+                    <p className="text-xs font-semibold uppercase text-slate-500">
+                      {artifact.status.replaceAll("_", " ")}
+                    </p>
+                    <p className="mt-1 break-words text-sm font-semibold text-slate-950">
+                      {artifact.fileName}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-5">
+              <div className="flex items-center gap-2">
+                <GitBranch className="h-4 w-4 text-slate-500" />
+                <p className="text-sm font-semibold text-slate-950">Decision options</p>
+              </div>
+              <div className="mt-3 grid gap-2">
+                {robotEvalDecisionOptions.map((option) => (
+                  <div key={option.id} className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                    <p className="text-sm font-semibold text-slate-950">{option.label}</p>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">{option.criteria}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </aside>
         </section>
 
         <form
@@ -533,7 +818,21 @@ export default function RobotTeamEval() {
               </div>
               <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
                 <p className="text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">Task</p>
-                <p className="mt-1 break-words font-semibold text-slate-950">{selectedTask?.taskText || selectedSite?.sampleTask}</p>
+                <p className="mt-1 break-words font-semibold text-slate-950">
+                  {selectedEvalTask.label}
+                </p>
+                <p className="mt-1 break-words text-xs font-semibold text-slate-500">
+                  {selectedEvalTask.canonicalTaskId}
+                </p>
+              </div>
+              <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">Scenario family</p>
+                <p className="mt-1 break-words font-semibold text-slate-950">
+                  {selectedEvalScenarioFamily.label}
+                </p>
+                <p className="mt-1 break-words text-xs font-semibold text-slate-500">
+                  {selectedEvalScenarioFamily.generatedScenarioCount} generated variants
+                </p>
               </div>
               <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
                 <p className="text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">Selected modalities</p>

@@ -35,6 +35,7 @@ import type {
   InboundRequestPayload,
   PlaceLocationMetadata,
   ProofPathPreference,
+  RealSiteRobotEvalFitInput,
   RequestedLane,
   SubmitInboundRequestResponse,
 } from "@/types/inbound-request";
@@ -194,6 +195,30 @@ function getReferrer(): string | null {
   return document.referrer || null;
 }
 
+function hasRobotEvalFitText(value: RealSiteRobotEvalFitInput): boolean {
+  return [
+    value.siteCardInput?.siteType,
+    value.siteCardInput?.knownGeometryAssets,
+    value.siteCardInput?.visualConditions,
+    value.siteCardInput?.dynamicConditions,
+    value.siteCardInput?.safetyConstraints,
+    value.siteCardInput?.robotRelevantMetadata,
+    value.taskCardInput?.task,
+    value.taskCardInput?.startState,
+    value.taskCardInput?.successDefinition,
+    value.taskCardInput?.failureDefinition,
+    value.taskCardInput?.requiredMetrics,
+    value.scenarioCardInput?.normalScenario,
+    value.scenarioCardInput?.variation,
+    value.scenarioCardInput?.edgeCase,
+    value.scenarioCardInput?.knownRisk,
+    value.evalCardInput?.robotOrPolicyTested,
+    value.evalCardInput?.preferredReviewPath,
+    value.evalCardInput?.resultsValidationExpectations,
+    value.evalCardInput?.predictedVsActualHistory,
+  ].some((entry) => String(entry || "").trim());
+}
+
 function getPersonaFromSearch(
   personaParam: string,
   buyerTypeParam: string,
@@ -311,6 +336,7 @@ export function ContactForm() {
       taskStatement: requestPrefill.taskStatement,
       targetRobotTeam: requestPrefill.targetRobotTeam,
       targetSiteType: requestPrefill.targetSiteType,
+      realSiteRobotEvalFit: requestPrefill.realSiteRobotEvalFit,
       proofPathPreference:
         requestPrefill.proofPathPreference ||
         getProofPathPreferenceFromSearch(searchParams.get("proofPathPreference")),
@@ -322,6 +348,7 @@ export function ContactForm() {
       || prefills.targetRobotTeam
       || prefills.targetSiteType
       || prefills.routeDetails
+      || prefills.realSiteRobotEvalFit
       || prefills.proofPathPreference,
   );
   const [showOptionalDetails, setShowOptionalDetails] = useState(
@@ -366,6 +393,18 @@ export function ContactForm() {
   const [dynamicConditions, setDynamicConditions] = useState("");
   const [objectTaskZones, setObjectTaskZones] = useState("");
   const [pilotOutcomes, setPilotOutcomes] = useState("");
+  const [knownGeometryAssets, setKnownGeometryAssets] = useState("");
+  const [visualConditions, setVisualConditions] = useState("");
+  const [startState, setStartState] = useState("");
+  const [successDefinition, setSuccessDefinition] = useState("");
+  const [failureDefinition, setFailureDefinition] = useState("");
+  const [normalScenario, setNormalScenario] = useState("");
+  const [scenarioVariation, setScenarioVariation] = useState("");
+  const [edgeCase, setEdgeCase] = useState("");
+  const [knownRisk, setKnownRisk] = useState("");
+  const [robotOrPolicyTested, setRobotOrPolicyTested] = useState("");
+  const [preferredReviewPath, setPreferredReviewPath] = useState("");
+  const [validationExpectations, setValidationExpectations] = useState("");
   const [detailsMessage, setDetailsMessage] = useState("");
   const [honeypot, setHoneypot] = useState("");
 
@@ -424,6 +463,60 @@ export function ContactForm() {
     if (!targetSiteType && (prefills.targetSiteType || userData?.targetSiteType)) {
       setTargetSiteType(prefills.targetSiteType || userData?.targetSiteType || "");
     }
+    const fit = prefills.realSiteRobotEvalFit;
+    if (fit) {
+      if (!knownGeometryAssets && fit.siteCardInput?.knownGeometryAssets) {
+        setKnownGeometryAssets(fit.siteCardInput.knownGeometryAssets);
+      }
+      if (!visualConditions && fit.siteCardInput?.visualConditions) {
+        setVisualConditions(fit.siteCardInput.visualConditions);
+      }
+      if (!dynamicConditions && fit.siteCardInput?.dynamicConditions) {
+        setDynamicConditions(fit.siteCardInput.dynamicConditions);
+      }
+      if (!safetyThreshold && fit.siteCardInput?.safetyConstraints) {
+        setSafetyThreshold(fit.siteCardInput.safetyConstraints);
+      }
+      if (!objectTaskZones && fit.siteCardInput?.robotRelevantMetadata) {
+        setObjectTaskZones(fit.siteCardInput.robotRelevantMetadata);
+      }
+      if (!startState && fit.taskCardInput?.startState) {
+        setStartState(fit.taskCardInput.startState);
+      }
+      if (!successDefinition && fit.taskCardInput?.successDefinition) {
+        setSuccessDefinition(fit.taskCardInput.successDefinition);
+      }
+      if (!failureDefinition && fit.taskCardInput?.failureDefinition) {
+        setFailureDefinition(fit.taskCardInput.failureDefinition);
+      }
+      if (!normalScenario && fit.scenarioCardInput?.normalScenario) {
+        setNormalScenario(fit.scenarioCardInput.normalScenario);
+      }
+      if (!scenarioVariation && fit.scenarioCardInput?.variation) {
+        setScenarioVariation(fit.scenarioCardInput.variation);
+      }
+      if (!edgeCase && fit.scenarioCardInput?.edgeCase) {
+        setEdgeCase(fit.scenarioCardInput.edgeCase);
+      }
+      if (!knownRisk && fit.scenarioCardInput?.knownRisk) {
+        setKnownRisk(fit.scenarioCardInput.knownRisk);
+      }
+      if (!robotOrPolicyTested && fit.evalCardInput?.robotOrPolicyTested) {
+        setRobotOrPolicyTested(fit.evalCardInput.robotOrPolicyTested);
+      }
+      if (!preferredReviewPath && fit.evalCardInput?.preferredReviewPath) {
+        setPreferredReviewPath(fit.evalCardInput.preferredReviewPath);
+      }
+      if (!requiredEvidence && fit.evalCardInput?.resultsValidationExpectations) {
+        setRequiredEvidence(fit.evalCardInput.resultsValidationExpectations);
+      }
+      if (!validationExpectations && fit.evalCardInput?.resultsValidationExpectations) {
+        setValidationExpectations(fit.evalCardInput.resultsValidationExpectations);
+      }
+      if (!pilotOutcomes && fit.evalCardInput?.predictedVsActualHistory) {
+        setPilotOutcomes(fit.evalCardInput.predictedVsActualHistory);
+      }
+    }
     if (!detailsMessage && prefills.routeDetails) {
       setDetailsMessage(prefills.routeDetails);
     }
@@ -440,20 +533,37 @@ export function ContactForm() {
     captureRights,
     company,
     currentUser,
+    dynamicConditions,
+    edgeCase,
     email,
+    failureDefinition,
     firstName,
     jobTitle,
+    knownGeometryAssets,
+    knownRisk,
     lastName,
+    normalScenario,
+    objectTaskZones,
     operatingConstraints,
+    pilotOutcomes,
+    preferredReviewPath,
     persona,
     prefills,
     privacySecurityConstraints,
+    requiredEvidence,
+    robotOrPolicyTested,
+    safetyThreshold,
+    scenarioVariation,
     detailsMessage,
     siteLocation,
     siteName,
+    startState,
+    successDefinition,
     targetSiteType,
     targetRobotTeam,
     taskStatement,
+    validationExpectations,
+    visualConditions,
     userData,
   ]);
 
@@ -560,8 +670,47 @@ export function ContactForm() {
       pilotTimeline.trim() ? `Pilot timeline: ${pilotTimeline.trim()}` : "",
       vendorOperatorRole.trim() ? `Vendor/operator role: ${vendorOperatorRole.trim()}` : "",
       requiredEvidence.trim() ? `Required evidence: ${requiredEvidence.trim()}` : "",
+      validationExpectations.trim() ? `Validation expectations: ${validationExpectations.trim()}` : "",
       detailsMessage.trim() ? `Notes: ${detailsMessage.trim()}` : "",
     ].filter(Boolean).join("\n");
+    const requiredMetrics = [
+      successRateThreshold.trim() ? `Success-rate threshold: ${successRateThreshold.trim()}` : "",
+      cycleTimeThreshold.trim() ? `Cycle-time threshold: ${cycleTimeThreshold.trim()}` : "",
+      interventionRateThreshold.trim() ? `Intervention-rate threshold: ${interventionRateThreshold.trim()}` : "",
+    ].filter(Boolean).join("\n");
+    const resultsValidationExpectations = [
+      requiredEvidence.trim() ? `Required evidence: ${requiredEvidence.trim()}` : "",
+      validationExpectations.trim() ? `Validation expectations: ${validationExpectations.trim()}` : "",
+    ].filter(Boolean).join("\n");
+    const robotEvalFit: RealSiteRobotEvalFitInput = {
+      siteCardInput: {
+        siteType: targetSiteType.trim() || siteName.trim(),
+        knownGeometryAssets: knownGeometryAssets.trim(),
+        visualConditions: visualConditions.trim(),
+        dynamicConditions: dynamicConditions.trim(),
+        safetyConstraints: safetyThreshold.trim(),
+        robotRelevantMetadata: objectTaskZones.trim(),
+      },
+      taskCardInput: {
+        task: taskStatement.trim(),
+        startState: startState.trim(),
+        successDefinition: successDefinition.trim(),
+        failureDefinition: failureDefinition.trim(),
+        requiredMetrics,
+      },
+      scenarioCardInput: {
+        normalScenario: normalScenario.trim(),
+        variation: scenarioVariation.trim(),
+        edgeCase: edgeCase.trim(),
+        knownRisk: knownRisk.trim(),
+      },
+      evalCardInput: {
+        robotOrPolicyTested: robotOrPolicyTested.trim() || targetRobotTeam.trim(),
+        preferredReviewPath: preferredReviewPath.trim(),
+        resultsValidationExpectations,
+        predictedVsActualHistory: pilotOutcomes.trim(),
+      },
+    };
     const requestId = generateRequestId();
     const operatorTaskStatement =
       detailsMessage.trim()
@@ -591,6 +740,10 @@ export function ContactForm() {
       privacySecurityConstraints: privacySecurityConstraints.trim() || undefined,
       targetRobotTeam: persona === "robot_team" ? targetRobotTeam.trim() || undefined : undefined,
       derivedScenePermission: persona === "site_operator" ? commercializationPreference.trim() || undefined : undefined,
+      realSiteRobotEvalFit:
+        persona === "robot_team" && hasRobotEvalFitText(robotEvalFit)
+          ? robotEvalFit
+          : undefined,
       details: readinessDetails || undefined,
       context: {
         sourcePageUrl: typeof window !== "undefined" ? window.location.href : "",
@@ -747,7 +900,9 @@ export function ContactForm() {
               Required first pass
             </p>
             <p className="mt-2 text-sm leading-6 text-slate-700">
-              Keep the first pass short. Blueprint can ask for more detail after the site and workflow are clear.
+              {persona === "site_operator"
+                ? "Site-operator participation is free; Blueprint reviews access, privacy, and commercialization boundaries before listing or buyer access changes."
+                : "Keep the first pass short. Blueprint can ask for more detail after the site and workflow are clear."}
             </p>
           </div>
           <div className="flex flex-wrap gap-2 md:max-w-[20rem] md:justify-end">
@@ -960,7 +1115,7 @@ export function ContactForm() {
               aria-expanded={showOptionalDetails}
               onClick={() => setShowOptionalDetails((current) => !current)}
             >
-              <span>{showOptionalDetails ? "Hide optional details" : "Add robot, thresholds, zones, or evidence needs"}</span>
+              <span>{showOptionalDetails ? "Hide optional intake" : "Add Site/Task/Scenario/Eval intake"}</span>
               <span className="text-xs uppercase tracking-[0.16em] text-slate-500">
                 Optional
               </span>
@@ -968,7 +1123,7 @@ export function ContactForm() {
           </div>
 
           {showOptionalDetails ? (
-            <FormSection eyebrow="04 Optional" title="Add details only when they make the scope clearer.">
+            <FormSection eyebrow="04 Optional" title="Add Site, Task, Scenario, and Eval intake inputs.">
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
                   <label
@@ -1032,6 +1187,37 @@ export function ContactForm() {
                   </div>
                 ) : null}
               </div>
+              <div className="space-y-3 border-t border-black/10 pt-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                  Site Card intake
+                </p>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <label htmlFor="contact-known-geometry-assets" className={labelClassName}>
+                      Known geometry or assets
+                    </label>
+                    <input
+                      id="contact-known-geometry-assets"
+                      className={inputClassName}
+                      placeholder="CAD, maps, routes, camera poses, depth, or no assets yet"
+                      value={knownGeometryAssets}
+                      onChange={(event) => setKnownGeometryAssets(event.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="contact-visual-conditions" className={labelClassName}>
+                      Visual conditions
+                    </label>
+                    <input
+                      id="contact-visual-conditions"
+                      className={inputClassName}
+                      placeholder="Lighting, glare, labels, clutter, transparent surfaces"
+                      value={visualConditions}
+                      onChange={(event) => setVisualConditions(event.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
                   <label htmlFor="contact-success-threshold" className={labelClassName}>
@@ -1082,6 +1268,49 @@ export function ContactForm() {
                   />
                 </div>
               </div>
+              <div className="space-y-3 border-t border-black/10 pt-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                  Task Card intake
+                </p>
+                <div className="grid gap-4 md:grid-cols-3">
+                  <div>
+                    <label htmlFor="contact-start-state" className={labelClassName}>
+                      Start state
+                    </label>
+                    <input
+                      id="contact-start-state"
+                      className={inputClassName}
+                      placeholder="Robot starts at dock door with empty hands"
+                      value={startState}
+                      onChange={(event) => setStartState(event.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="contact-success-definition" className={labelClassName}>
+                      Success definition
+                    </label>
+                    <input
+                      id="contact-success-definition"
+                      className={inputClassName}
+                      placeholder="Tote reaches conveyor without human touch"
+                      value={successDefinition}
+                      onChange={(event) => setSuccessDefinition(event.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="contact-failure-definition" className={labelClassName}>
+                      Failure definition
+                    </label>
+                    <input
+                      id="contact-failure-definition"
+                      className={inputClassName}
+                      placeholder="Drop, blocked route, intervention, or safety stop"
+                      value={failureDefinition}
+                      onChange={(event) => setFailureDefinition(event.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
                   <label htmlFor="contact-dynamic-conditions" className={labelClassName}>
@@ -1106,6 +1335,61 @@ export function ContactForm() {
                     value={objectTaskZones}
                     onChange={(event) => setObjectTaskZones(event.target.value)}
                   />
+                </div>
+              </div>
+              <div className="space-y-3 border-t border-black/10 pt-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                  Scenario Card intake
+                </p>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <label htmlFor="contact-normal-scenario" className={labelClassName}>
+                      Normal scenario
+                    </label>
+                    <input
+                      id="contact-normal-scenario"
+                      className={inputClassName}
+                      placeholder="Clear aisle transfer during normal operations"
+                      value={normalScenario}
+                      onChange={(event) => setNormalScenario(event.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="contact-scenario-variation" className={labelClassName}>
+                      Variation to include
+                    </label>
+                    <input
+                      id="contact-scenario-variation"
+                      className={inputClassName}
+                      placeholder="Cart blocks aisle, door opens, shelf is restocked"
+                      value={scenarioVariation}
+                      onChange={(event) => setScenarioVariation(event.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="contact-edge-case" className={labelClassName}>
+                      Edge case
+                    </label>
+                    <input
+                      id="contact-edge-case"
+                      className={inputClassName}
+                      placeholder="Human enters handoff zone or object is misplaced"
+                      value={edgeCase}
+                      onChange={(event) => setEdgeCase(event.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="contact-known-risk" className={labelClassName}>
+                      Known risk
+                    </label>
+                    <input
+                      id="contact-known-risk"
+                      className={inputClassName}
+                      placeholder="Reflective tape, tight turn, ramp, blind corner"
+                      value={knownRisk}
+                      onChange={(event) => setKnownRisk(event.target.value)}
+                    />
+                  </div>
                 </div>
               </div>
               <div className="grid gap-4 md:grid-cols-2">
@@ -1134,6 +1418,37 @@ export function ContactForm() {
                   />
                 </div>
               </div>
+              <div className="space-y-3 border-t border-black/10 pt-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                  Eval Card intake
+                </p>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <label htmlFor="contact-robot-policy-tested" className={labelClassName}>
+                      Robot or policy tested
+                    </label>
+                    <input
+                      id="contact-robot-policy-tested"
+                      className={inputClassName}
+                      placeholder="Robot platform, policy API, container, trace, or teleop demo"
+                      value={robotOrPolicyTested}
+                      onChange={(event) => setRobotOrPolicyTested(event.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="contact-preferred-review-path" className={labelClassName}>
+                      Preferred review path
+                    </label>
+                    <input
+                      id="contact-preferred-review-path"
+                      className={inputClassName}
+                      placeholder="Hosted review, simulator trace, action log, or short pilot"
+                      value={preferredReviewPath}
+                      onChange={(event) => setPreferredReviewPath(event.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
               <div>
                   <label htmlFor="contact-required-evidence" className={labelClassName}>
                     Required evidence
@@ -1145,6 +1460,18 @@ export function ContactForm() {
                     value={requiredEvidence}
                     onChange={(event) => setRequiredEvidence(event.target.value)}
                   />
+              </div>
+              <div>
+                <label htmlFor="contact-validation-expectations" className={labelClassName}>
+                  Validation expectations
+                </label>
+                <input
+                  id="contact-validation-expectations"
+                  className={inputClassName}
+                  placeholder="Compare predictions, traces, logs, demos, and pilot outcomes"
+                  value={validationExpectations}
+                  onChange={(event) => setValidationExpectations(event.target.value)}
+                />
               </div>
               {commercialRequestPath !== "hosted_evaluation" ? (
               <div>
