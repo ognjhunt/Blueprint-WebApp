@@ -110,9 +110,9 @@ const workflowSteps = [
 const pricingPlans = [
   {
     name: "Policy Evaluation Set",
-    price: "$6,500 / site evaluation",
+    price: "From $6,500 / Policy Evaluation Run",
     summary:
-      "Robot teams run one policy/profile across the site's task suite by manual browser session or headless agent.",
+      "Robot teams run one policy/profile on one real site against one scoped task pack, up to 500 scenarios/episodes.",
     href: hostedHref,
     cta: "Request policy evaluation",
   },
@@ -120,7 +120,7 @@ const pricingPlans = [
     name: "Site Data Package",
     price: "$3,500+ / site package",
     summary:
-      "World model, scenario set, provenance, rights labels, and data exports for post-training or fine-tuning.",
+      "Capture-backed site package, scenario metadata, provenance, rights labels, export limits, and reviewed data scope.",
     href: siteDataHref,
     cta: "Request site data",
   },

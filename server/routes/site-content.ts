@@ -61,7 +61,7 @@ const definitions = [
   {
     term: "Policy evaluation",
     definition:
-      "A fixed-scope manual or headless evaluation set for running one robot policy/profile against one exact site's task suite, with episode evidence, observations, export framing, and an explicit next step.",
+      "A fixed-scope evaluation set for testing one robot policy/profile on one exact site against one scoped task pack, with scenario evidence, observations, export framing, and an explicit next step.",
   },
   {
     term: "Dry-run agent commerce",
@@ -109,7 +109,7 @@ const pages = [
     path: "/pricing",
     title: "Pricing",
     description:
-      "Simple pricing: robot teams pay for fixed-scope evaluations first, with optional site packages and data exports; site operators participate for free.",
+      "Simple pricing: robot teams pay for fixed-scope Policy Evaluation Runs and site data packages; site operators participate for free.",
   },
   {
     path: "/contact",

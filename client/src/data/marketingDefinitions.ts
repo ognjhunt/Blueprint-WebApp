@@ -5,13 +5,13 @@ export const sitePackageDefinition =
   "A site data package gives a robot team the capture-backed world model, scenario data, provenance, rights posture, and export limits for one real site.";
 
 export const hostedEvaluationDefinition =
-  "A policy evaluation set is the fixed-scope path for running one robot policy/profile against a site's task suite, either manually in the browser or through a headless agent.";
+  "A policy evaluation set is the fixed-scope path for testing one robot policy/profile on one real site against one scoped task pack.";
 
 export const categoryValidationDefinition =
   "Street View-grounded world models make outdoor places easier for agents to explore; Blueprint focuses the same site-specific logic on indoor spaces that need lawful capture, provenance, and rights review.";
 
 export const policyEvaluationSetDefinition =
-  "A policy evaluation set covers one site, one robot policy/profile, up to 8 task families, and up to 50 episodes per task, with success rate, cycle time, failure notes, logs, and export framing.";
+  "A policy evaluation set covers one site, one robot policy/profile, one scoped task pack, and up to 500 scenarios/episodes, with pass/fail metrics, cycle time, intervention and failure notes, selected rollout evidence, and export framing.";
 
 export const sitePackageIncludes = [
   "Walkthrough video, timestamps, and camera poses tied to one real facility",
@@ -21,10 +21,10 @@ export const sitePackageIncludes = [
 ];
 
 export const hostedEvaluationOutputs = [
-  "Manual or headless policy runs across the same exact site's task suite",
-  "Up to 50 episodes per task, with failure review and checkpoint comparison",
-  "Dataset, raw bundle, and export generation tied to the site",
-  "A browser-accessible policy-evaluation path, no local setup needed",
+  "One policy/profile reviewed against the same exact site's scoped task pack",
+  "Up to 500 scenarios/episodes, with failure review and checkpoint comparison",
+  "Scenario/results manifest and export generation tied to the site",
+  "A policy-evaluation path selected after request review",
 ];
 
 export const stableContractItems = [

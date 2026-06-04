@@ -37,12 +37,12 @@ export const simplePricingOptions: SimplePricingOption[] = [
     price: "$3,500+",
     unit: "per site package",
     payer: "Robot team / OEM / integrator",
-    summary: "Buy the capture-backed world model, scenario data, and export bundle for one real indoor site.",
+    summary: "Buy the capture-backed site package, scenario metadata, and export scope for one real indoor site.",
     includes: [
       "Site-specific spatial data from real capture",
-      "World model package tied to one exact site and workflow",
-      "Task and scenario data for evaluation, post-training, or fine-tuning",
-      "Exports, proof notes, and stated limitations for that site",
+      "Site package tied to one exact site and workflow",
+      "Task and scenario metadata for evaluation, post-training, or regression work",
+      "Exports, proof notes, rights posture, and stated limitations for that site",
     ],
   },
   {
@@ -51,15 +51,15 @@ export const simplePricingOptions: SimplePricingOption[] = [
     name: "Policy Evaluation Set",
     internalName: "Full Site Policy Evaluation",
     price: "$6,500",
-    unit: "per site-policy evaluation",
+    unit: "per Policy Evaluation Run",
     payer: "Robot team / OEM / integrator",
     summary:
-      "Evaluate one robot policy/profile across a site's task suite by manual session or headless agent.",
+      "Evaluate one robot policy/profile on one real site against one scoped task pack.",
     includes: [
-      "One site and one robot policy/profile",
-      "Up to 8 task families and 50 episodes per task",
-      "Success rate, cycle time, failure notes, and logs",
-      "Exports and availability confirmed per request before evaluation starts",
+      "Unit: 1 site, 1 robot policy/profile, 1 task pack",
+      "Up to 500 scenarios/episodes",
+      "Pass/fail metrics, cycle time, intervention and failure notes",
+      "Scenario/results manifest and availability confirmed per request before evaluation starts",
     ],
   },
   {

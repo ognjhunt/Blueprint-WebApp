@@ -13,7 +13,7 @@ const offerCards = [
     title: "Buy the site data package",
     price: "$3,500+",
     description:
-      "Everything your robot team needs to use one facility as data: world model, scenarios, metadata, provenance, and export limits.",
+      "Everything your robot team needs to use one facility as scoped site data: site package, scenarios, metadata, provenance, and export limits.",
     bullets: [
       "Walkthrough video, timestamps, and camera poses",
       "Scenario data, depth, and geometry when source capture supports them",
@@ -31,13 +31,13 @@ const offerCards = [
   },
   {
     title: "Run a policy evaluation set",
-    price: "$6,500 / site evaluation",
+    price: "From $6,500 / Policy Evaluation Run",
     description:
-      "Run one robot policy/profile across one site's task suite by manual browser session or headless agent, no local setup needed.",
+      "Run one robot policy/profile on one real site against one scoped task pack, up to 500 scenarios/episodes.",
     bullets: [
-      "Up to 8 task families and 50 episodes per task",
-      "Success rate, cycle time, video frames, and failure review",
-      "Raw bundles and dataset exports for tuning and adaptation",
+      "Unit: 1 site, 1 policy/profile, 1 task pack",
+      "Pass/fail metrics, cycle time, intervention notes, and failure review",
+      "Selected rollout evidence and exportable scenario/results manifest",
     ],
     href: "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation",
     cta: "Request policy evaluation",
@@ -156,22 +156,22 @@ export function OfferComparison({
 
           <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-900">Best when</div>
           <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Your robot team wants world-model, scenario, and export data for its own stack.</div>
-          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Your robot team wants one fixed-scope read on policy performance across site tasks before using the data more deeply.</div>
+          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Your robot team wants one fixed-scope read on policy performance against a scoped task pack before using the data more deeply.</div>
           <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">You operate the facility and want to submit boundaries before robot-team use is reviewed.</div>
 
           <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-900">Buyer gets first</div>
           <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Walkthrough media, poses, geometry coverage, scenarios, manifest, and rights metadata.</div>
-          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">A site-policy evaluation set with task results, episode evidence, failure review, and export outputs.</div>
+          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">A policy evaluation run with task-pack results, scenario evidence, failure review, and export outputs.</div>
           <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">A free intake path for facility, access, privacy, and commercial-use boundaries.</div>
 
           <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-900">Typical first purchase</div>
           <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">$3,500+ per site package, scoped by data depth and scenario volume.</div>
-          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">$6,500 per site-policy evaluation set.</div>
+          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">From $6,500 per Policy Evaluation Run.</div>
           <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Free for site operators.</div>
 
           <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-900">Next step</div>
           <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Name the site, robot task, and data outputs your team needs.</div>
-          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Confirm the robot policy/profile, task suite, and scenario set for evaluation scoping.</div>
+          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Confirm the robot policy/profile, task pack, and scenario set for evaluation scoping.</div>
           <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Tell Blueprint the facility, access rules, privacy limits, and commercial posture.</div>
         </div>
       </div>

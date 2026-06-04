@@ -40,7 +40,7 @@ describe("Home", () => {
     expect(screen.getAllByRole("heading", { name: /Policy Evaluation Set/i }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("heading", { name: /Site Data Package/i }).length).toBeGreaterThan(0);
     expect(screen.getByRole("heading", { name: /Two paid robot-team products\. Operators are free\./i })).toBeInTheDocument();
-    expect(screen.getByText(/\$6,500 \/ site evaluation/i)).toBeInTheDocument();
+    expect(screen.getByText(/From \$6,500 \/ Policy Evaluation Run/i)).toBeInTheDocument();
     expect(screen.getByText(/\$3,500\+ \/ site package/i)).toBeInTheDocument();
     expect(screen.getByText(/^Free$/i)).toBeInTheDocument();
     expect(

@@ -14,7 +14,10 @@ describe("Pricing", () => {
     expect(screen.getByRole("heading", { name: /^Policy Evaluation Set$/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /^Site Data Package$/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /^Site Operator Participation$/i })).toBeInTheDocument();
-    expect(screen.getByText(/\$6,500 \/ site evaluation/i)).toBeInTheDocument();
+    expect(screen.getByText(/From \$6,500 \/ Policy Evaluation Run/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Unit: 1 site, 1 robot policy\/profile, 1 task pack, up to 500 scenarios\/episodes\./i),
+    ).toBeInTheDocument();
     expect(screen.getByText(/\$3,500\+ \/ site package/i)).toBeInTheDocument();
     expect(screen.getByText(/^Free$/i)).toBeInTheDocument();
     expect(screen.getAllByText(/Robot teams only/i).length).toBe(2);

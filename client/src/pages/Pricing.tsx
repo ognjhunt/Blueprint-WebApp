@@ -24,15 +24,15 @@ const plans: PricingPlan[] = [
   {
     icon: Cpu,
     name: "Policy Evaluation Set",
-    range: "$6,500 / site evaluation",
+    range: "From $6,500 / Policy Evaluation Run",
     payer: "Robot teams only",
     bestFor:
-      "Robot teams evaluating one robot policy/profile against the task suite for one real site, by headless agent or manual browser session.",
+      "Robot teams evaluating one robot policy/profile on one real site against one scoped task pack.",
     includes: [
-      "One site and one robot policy/profile",
-      "Task suite up to 8 task families",
-      "Up to 50 episodes per task",
-      "Success rate, cycle time, failure notes, logs, and export framing",
+      "Unit: 1 site, 1 robot policy/profile, 1 task pack, up to 500 scenarios/episodes.",
+      "Scenario manifest, start-state variations, and threshold set",
+      "Pass/fail metrics, cycle time, intervention and failure notes",
+      "Selected rollout evidence plus exportable scenario/results manifest",
     ],
     href: "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=pricing-kiss",
     cta: "Request policy evaluation",
@@ -43,12 +43,12 @@ const plans: PricingPlan[] = [
     range: "$3,500+ / site package",
     payer: "Robot teams only",
     bestFor:
-      "Robot teams that need the world model, scenario set, and export data for post-training or fine-tuning on a specific site.",
+      "Robot teams that need capture-backed site data, scenario metadata, and export limits for one specific facility.",
     includes: [
-      "Capture-backed world-model package",
-      "Scenario and variation data",
+      "Capture-backed site package and walkthrough media",
+      "Scenario prompts, site notes, and variation data",
       "Provenance, rights, and export limits",
-      "Training and fine-tuning export path",
+      "Training, post-training, and regression export scope reviewed per request",
     ],
     href: "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=pricing-kiss",
     cta: "Request site data",
@@ -74,11 +74,11 @@ const plans: PricingPlan[] = [
 const choiceRows = [
   {
     title: "Choose policy evaluation first",
-    body: "Use it when your team needs to run a robot policy against site tasks or scenarios before field time.",
+    body: "Use it when your team needs one scoped task-pack run for a robot policy before field time.",
   },
   {
     title: "Choose site data first",
-    body: "Use it when your team needs the world model, scenario data, and exports for training, fine-tuning, or regression work.",
+    body: "Use it when your team needs the capture-backed site package, scenario metadata, and exports for training, post-training, or regression work.",
   },
   {
     title: "Site operators do not pay",
