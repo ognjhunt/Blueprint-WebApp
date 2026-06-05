@@ -5,6 +5,7 @@ import { pathToFileURL } from "node:url";
 
 export type ClaimType =
   | "no_change_churn"
+  | "stale_root_doctrine"
   | "unsupported_hosted_session_proof"
   | "public_copy_proof_drift"
   | "unsupported_robot_readiness_claim"
@@ -122,6 +123,17 @@ const CITY_NAMES = [
   "Seattle",
 ];
 
+const ROOT_DOCTRINE_FILES = new Set([
+  "AGENTS.md",
+  "README.md",
+  "PLATFORM_CONTEXT.md",
+  "WORLD_MODEL_STRATEGY_CONTEXT.md",
+  "AUTONOMOUS_ORG.md",
+  "client/src/AGENTS.md",
+  "docs/ai-tooling-adoption-implementation-2026-04-07.md",
+  "docs/ai-skills-governance-2026-04-07.md",
+]);
+
 const guardrailPatterns = [
   /\bdo not\b/i,
   /\bdon't\b/i,
@@ -130,6 +142,7 @@ const guardrailPatterns = [
   /\bwill not\b/i,
   /\bmust not\b/i,
   /\bshould not\b/i,
+  /\bnot\b/i,
   /\bcannot\b/i,
   /\bcan't\b/i,
   /\bnever\b/i,
@@ -162,6 +175,8 @@ const guardrailPatterns = [
   /\bfail closed\b/i,
   /\bmissing\b/i,
   /\bguardrail\b/i,
+  /\bunsupported\b/i,
+  /\bqualify\b/i,
   /\bsource-of-truth\b/i,
   /\bcurrentSearch\b/i,
   /\bcheckout=success\b/i,
@@ -267,6 +282,45 @@ function hasPaymentOperationalClaim(line: string) {
   return /\b(stripe|payments?|checkout|payouts?|capturer payouts?|Stripe Connect)\b[\s\S]{0,100}\b(success|successful|live|ready|production ready|completed|configured|guaranteed|guarantee|proof|proves)\b/i.test(line);
 }
 
+function isRootDoctrineFile(relativeFile: string) {
+  return ROOT_DOCTRINE_FILES.has(relativeFile)
+    || relativeFile.endsWith("fixtures/negative/stale-root-doctrine.md");
+}
+
+function hasWorldModelSupportContext(line: string) {
+  return /\b(internal|legacy|compatibility|support|supporting|generated|model[- ]derived|advisory|data[- ]package|post[- ]training|augmentation|editing|substrate|inside packages?|not the primary|not primary|support artifact|support layer|allowed as)\b/i.test(
+    line,
+  );
+}
+
+function hasStaleRootDoctrineClaim(line: string) {
+  if (/\b(world[- ]model[- ]product[- ]first|world model product first)\b/i.test(line)) {
+    return true;
+  }
+
+  if (/\b(this platform is|blueprint is|product doctrine is)\b[\s\S]{0,80}\bqualification[- ]first\b/i.test(line)) {
+    return !hasGuardrailContext(line);
+  }
+
+  if (/\bsite[- ]specific world models?\b[\s\S]{0,120}\b(primary|sellable|buy|buyer|public|main|center|product)\b/i.test(line)) {
+    return !hasGuardrailContext(line) && !hasWorldModelSupportContext(line);
+  }
+
+  if (/\bprimary sellable outputs?\b[\s\S]{0,120}\b(world models?|hosted sessions?)\b/i.test(line)) {
+    return !hasGuardrailContext(line) && !hasWorldModelSupportContext(line);
+  }
+
+  if (/\brobot teams?\b[\s\S]{0,80}\bbuy\b[\s\S]{0,80}\b(site[- ]specific )?world models?\b/i.test(line)) {
+    return !hasGuardrailContext(line) && !hasWorldModelSupportContext(line);
+  }
+
+  if (/\bworld models?\b[\s\S]{0,100}\b(primary public offer|primary public product|main public offer|main public product)\b/i.test(line)) {
+    return !hasGuardrailContext(line) && !hasWorldModelSupportContext(line);
+  }
+
+  return false;
+}
+
 const rules: ClaimRule[] = [
   {
     type: "no_change_churn",
@@ -277,6 +331,16 @@ const rules: ClaimRule[] = [
     matches: (line) =>
       hasAll([/\b(no files changed|no code changed|no docs changed|no diff|no[- ]change|no changes?)\b/i, /\b(mark|claim|close|done|complete|completed|ship|operational proof|polished|generated report)\b/i], line),
     allowed: (line) => /\b(report-only|not complete|not done|blocked until|requires changed proof|durable suppression)\b/i.test(line),
+  },
+  {
+    type: "stale_root_doctrine",
+    ownerProofRequired:
+      "Current cross-repo doctrine: Blueprint sells real-site robot Task Evaluation Runs and Post-Training Data Packages; world-model language is internal compatibility or generated/advisory/data-package support.",
+    safeReplacement:
+      "Use `capture-first and real-site robot-evaluation/data-package first`; describe world models as support artifacts inside packages, not the primary public offer.",
+    matches: (line, context) =>
+      isRootDoctrineFile(context.relativeFile) && hasStaleRootDoctrineClaim(line),
+    allowed: (line) => hasGuardrailContext(line) || hasWorldModelSupportContext(line),
   },
   {
     type: "unsupported_hosted_session_proof",
@@ -438,6 +502,14 @@ const rules: ClaimRule[] = [
 
 export function buildDefaultScanTargets(rootDir = process.cwd()): ScanTarget[] {
   const specs = [
+    ["AGENTS.md", "root_doctrine"],
+    ["README.md", "root_doctrine"],
+    ["PLATFORM_CONTEXT.md", "root_doctrine"],
+    ["WORLD_MODEL_STRATEGY_CONTEXT.md", "root_doctrine"],
+    ["AUTONOMOUS_ORG.md", "root_doctrine"],
+    ["client/src/AGENTS.md", "root_doctrine"],
+    ["docs/ai-tooling-adoption-implementation-2026-04-07.md", "root_doctrine"],
+    ["docs/ai-skills-governance-2026-04-07.md", "root_doctrine"],
     ["client/src/pages", "webapp_pages"],
     ["client/src/data/content/publicPages.ts", "webapp_pages"],
     ["client/src/lib/proofEvidence.ts", "webapp_pages"],
@@ -531,6 +603,10 @@ function scanLine(line: string, context: ScanContext, lineNumber: number): Claim
   }
 
   return rules.flatMap((rule) => {
+    if (context.sourceGroup === "root_doctrine" && rule.type !== "stale_root_doctrine") {
+      return [];
+    }
+
     if (!rule.matches(trimmed, context)) {
       return [];
     }

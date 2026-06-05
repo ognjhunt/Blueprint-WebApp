@@ -47,7 +47,7 @@ export const REQUESTED_LANE_LABELS = {
   preview_simulation: "Preview Simulation",
   deeper_evaluation: "Site Data / Policy Evaluation",
   managed_tuning: "Managed Tuning",
-  data_licensing: "Site Package Access",
+  data_licensing: "Post-Training Data Package",
 } as const;
 
 export const REQUESTED_LANE_DESCRIPTIONS = {
@@ -55,18 +55,19 @@ export const REQUESTED_LANE_DESCRIPTIONS = {
   preview_simulation: "Prepare a preview asset once the record supports it.",
   deeper_evaluation: "Request a site data package or policy-evaluation scope.",
   managed_tuning: "Flag later scenario generation or managed tuning work.",
-  data_licensing: "Request licensed site-package access for one exact site.",
+  data_licensing: "Request curated robot POV clips, labels, generated variations, failure cases, and export manifests for one scoped package.",
 } as const;
 
 export const COMMERCIAL_REQUEST_PATH_LABELS = {
-  world_model: "Site data package request",
+  world_model: "Post-Training Data Package request",
   hosted_evaluation: "Policy evaluation request",
   capture_access: "Capture access request",
   site_claim: "Site operator claim",
 } as const;
 
 export const COMMERCIAL_REQUEST_PATH_DESCRIPTIONS = {
-  world_model: "Package a real site into a world-model product your robot team can evaluate.",
+  world_model:
+    "`world_model` is an internal compatibility lane for Post-Training Data Package requests: curated real-site clips, labels, generated/model-derived variations, failure cases, and export manifests.",
   hosted_evaluation:
     "Scope a policy-evaluation path after Blueprint confirms site, entitlement, and runtime availability.",
   capture_access:
@@ -116,8 +117,10 @@ export const CONTACT_INTEREST_TO_LANE = {
   "site-qualification": "qualification",
   "site-access-review": "qualification",
   "preview-simulation": "preview_simulation",
-  "world-model": "deeper_evaluation",
-  "world-model-package": "deeper_evaluation",
+  "world-model": "data_licensing",
+  "world-model-package": "data_licensing",
+  "post-training-data-package": "data_licensing",
+  "data-package": "data_licensing",
   "capture-access": "deeper_evaluation",
   "evaluation-package": "deeper_evaluation",
   "deeper-evaluation": "deeper_evaluation",

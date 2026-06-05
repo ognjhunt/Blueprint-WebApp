@@ -23,7 +23,7 @@ Managers own the new hire's ramp. HR, IT, Paperclip, Notion, and repo docs suppo
 ## Day One
 
 - Welcome and role context.
-- Review product doctrine: capture-first, world-model-product-first.
+- Review product doctrine: capture-first, real-site robot-evaluation/data-package first.
 - Explain repo/Paperclip/Notion boundaries.
 - Confirm payroll/HR paperwork path is in motion.
 - Verify access to company email/chat/calendar/Notion.

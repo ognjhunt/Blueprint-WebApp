@@ -10,7 +10,7 @@ Review cadence: Quarterly, and before the first hire in any new state or country
 
 This handbook gives Blueprint humans and managers one operating baseline for how work gets done, how people are treated, and where company truth lives.
 
-Blueprint is a capture-first, world-model-product-first company. We build the system that turns real-site capture evidence into site-specific world-model products, hosted access, licensing, and buyer/ops workflows. This handbook must not be used to rewrite product doctrine, promise legal terms that have not been reviewed, or treat Notion as the execution record.
+Blueprint is a capture-first, real-site robot-evaluation/data-package-first company. We build the system that turns real-site capture evidence into Task Evaluation Runs, Post-Training Data Packages, hosted access, licensing, and buyer/ops workflows. World-model and site-world language is internal compatibility or support-artifact wording, not the primary public offer. This handbook must not be used to rewrite product doctrine, promise legal terms that have not been reviewed, or treat Notion as the execution record.
 
 ## Source Of Truth
 
@@ -46,7 +46,7 @@ Nothing in this draft creates a contract for continued employment, a guaranteed 
 - Blueprint: the company and product system spanning `BlueprintCapture`, `BlueprintCapturePipeline`, `Blueprint-WebApp`, optional validation work, and the Paperclip autonomous-org control plane.
 - Capture truth: raw capture bundles, timestamps, poses, device metadata, rights/privacy/consent metadata, and provenance.
 - Site-specific world model package: a downstream product package produced from real capture evidence and surfaced to buyers through WebApp.
-- Hosted access: an entitlement- and runtime-backed session for a buyer or operator to review or use a site-world/world-model package.
+- Hosted access: an entitlement- and runtime-backed session for a buyer or operator to review a site-world/world-model compatibility artifact, Task Evaluation Run, or Post-Training Data Package.
 - Paperclip: Blueprint's execution and ownership record for issues, routines, runs, blockers, and closeouts.
 - Notion: the workspace/review/visibility surface for humans and agents.
 - Company systems: repo, Paperclip, Notion, Firebase/Firestore, Stripe, Render, Redis, GitHub, Slack, Gmail/SendGrid, and approved provider consoles.

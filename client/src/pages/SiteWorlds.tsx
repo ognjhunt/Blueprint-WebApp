@@ -582,7 +582,7 @@ export default function SiteWorlds() {
                     href="/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=site-worlds-hero"
                     className="inline-flex w-full items-center justify-center bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100 sm:w-auto"
                   >
-                    Request readiness evaluation
+                    Request evaluation
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </a>
                   <a
@@ -785,7 +785,7 @@ export default function SiteWorlds() {
               >
                 {requestCandidate
                   ? "Request this location"
-                  : "Request readiness evaluation"}
+                  : "Request evaluation"}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </a>
               <p className="text-xs leading-5 text-slate-500">
@@ -911,7 +911,7 @@ export default function SiteWorlds() {
                 >
                   {requestCandidate
                     ? "Request this location"
-                    : "Request readiness evaluation"}
+                    : "Request evaluation"}
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </a>
                 <button
@@ -987,7 +987,7 @@ export default function SiteWorlds() {
             primaryLabel={
               requestCandidate
                 ? "Request this location"
-                : "Request readiness evaluation"
+                : "Request evaluation"
             }
             secondaryHref={publicDemoHref}
             secondaryLabel="Open sample site package"

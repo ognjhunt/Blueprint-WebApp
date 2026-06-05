@@ -30,7 +30,7 @@ Blueprint will not:
 
 This plan follows repo doctrine:
 
-- capture-first and world-model-product-first in `PLATFORM_CONTEXT.md`
+- capture-first and real-site robot-evaluation/data-package first in `PLATFORM_CONTEXT.md`
 - swappable model backends over permanent model coupling in `WORLD_MODEL_STRATEGY_CONTEXT.md`
 - Paperclip as execution record and human-gated autonomous org control plane in `AUTONOMOUS_ORG.md`
 

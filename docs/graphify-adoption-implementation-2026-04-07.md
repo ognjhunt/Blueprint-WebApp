@@ -30,7 +30,7 @@ Blueprint will not:
 
 This plan fits the current repo doctrine:
 
-- capture-first and world-model-product-first in `PLATFORM_CONTEXT.md`
+- capture-first and real-site robot-evaluation/data-package-first in `PLATFORM_CONTEXT.md`
 - backend-swappable world-model strategy in `WORLD_MODEL_STRATEGY_CONTEXT.md`
 - Paperclip as execution record and Notion as workspace/review surface in `AUTONOMOUS_ORG.md`
 - Hermes KB as support memory, not authority, in `docs/hermes-kb-design.md`

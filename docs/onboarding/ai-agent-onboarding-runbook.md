@@ -87,8 +87,8 @@ Closeouts must include:
 Use Blueprint-native framing:
 
 - capture-first;
-- world-model-product-first;
-- site-specific world-model packages;
+- real-site robot-evaluation/data-package first;
+- Task Evaluation Run artifacts and Post-Training Data Package artifacts;
 - hosted access;
 - rights/privacy/provenance truth;
 - qualification/readiness as optional support layers.

@@ -15,8 +15,10 @@ describe("contact interest mapping", () => {
     expect(normalizeInterestToLane("site-review")).toBe("qualification");
     expect(normalizeInterestToLane("site-qualification")).toBe("qualification");
     expect(normalizeInterestToLane("site-access-review")).toBe("qualification");
-    expect(normalizeInterestToLane("world-model")).toBe("deeper_evaluation");
-    expect(normalizeInterestToLane("world-model-package")).toBe("deeper_evaluation");
+    expect(normalizeInterestToLane("world-model")).toBe("data_licensing");
+    expect(normalizeInterestToLane("world-model-package")).toBe("data_licensing");
+    expect(normalizeInterestToLane("post-training-data-package")).toBe("data_licensing");
+    expect(normalizeInterestToLane("data-package")).toBe("data_licensing");
     expect(normalizeInterestToLane("capture-access")).toBe("deeper_evaluation");
     expect(normalizeInterestToLane("hosted-evaluation")).toBe("deeper_evaluation");
     expect(normalizeInterestToLane("evaluation-package")).toBe("deeper_evaluation");

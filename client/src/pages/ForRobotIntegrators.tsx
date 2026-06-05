@@ -141,7 +141,7 @@ export default function ForRobotIntegrators() {
                     href="/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=robot-teams-hero"
                     className="inline-flex items-center justify-center bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
                   >
-                    Request readiness evaluation
+                    Request evaluation
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </a>
                   <a
@@ -277,7 +277,7 @@ export default function ForRobotIntegrators() {
             imageSrc={editorialGeneratedAssets.homeHero}
             imageAlt="Hosted evaluation still"
             primaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=robot-teams-bottom"
-            primaryLabel="Request readiness evaluation"
+            primaryLabel="Request evaluation"
             secondaryHref="/world-models"
             secondaryLabel="Browse site packages"
             dark={false}

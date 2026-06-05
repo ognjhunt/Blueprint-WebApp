@@ -37,7 +37,7 @@ describe("Proof page", () => {
     ).toHaveAttribute("href", expect.stringContaining("/contact?persona=robot-team"));
     expect(screen.getByRole("link", { name: /Request a proof packet/i })).toHaveAttribute(
       "href",
-      expect.stringContaining("path=proof-packet"),
+      expect.stringContaining("path=data-package"),
     );
   });
 });

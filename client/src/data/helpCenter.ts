@@ -62,14 +62,14 @@ export const helpCategories: HelpCategory[] = [
     ],
   },
   {
-    slug: "world-model-packages",
-    title: "World Model Packages",
+    slug: "data-packages",
+    title: "Post-Training Data Packages",
     shortTitle: "Packages",
     description: "Understand exact-site packages, included artifacts, licensing, and how package proof should be read.",
     audience: "Robot teams and technical evaluators",
     iconKey: "package",
-    primaryActionHref: "/world-models",
-    primaryActionLabel: "Browse world models",
+    primaryActionHref: "/contact?persona=robot-team&interest=post-training-data-package&path=data-package",
+    primaryActionLabel: "Request data package",
     articles: [
       "what-is-a-site-world-package",
       "what-a-package-includes",
@@ -159,17 +159,17 @@ export const helpArticles: HelpArticle[] = [
     categorySlug: "getting-started",
     title: "What Blueprint sells",
     description: "The short version of Blueprint's product surface.",
-    summary: "Blueprint sells site-specific world-model packages, hosted access, and supporting review outputs tied to real capture provenance.",
+    summary: "Blueprint sells real-site robot evaluation runs, Post-Training Data Packages, hosted access, and supporting review outputs tied to real capture provenance.",
     readTime: "3 min",
     sections: [
       {
         heading: "Start with the site",
-        body: "Blueprint is capture-first and world-model-product-first. The product begins with real capture evidence and turns that evidence into exact-site packages and policy evaluation paths.",
+        body: "Blueprint is capture-first and evaluation/data-package-first. The product begins with real capture evidence and turns that evidence into exact-site robot evaluation runs, Post-Training Data Packages, and hosted review paths.",
       },
       {
         heading: "What is primary",
-        body: "The primary buyer output is the site-specific package or hosted session. Readiness, qualification, and review outputs help teams decide, but they do not replace the capture record.",
-        bullets: ["World model package", "Hosted evaluation", "Capture provenance", "Rights, privacy, and access context"],
+        body: "The primary buyer output is the real-site robot evaluation run, Post-Training Data Package, or hosted session. Readiness, qualification, generated/model-derived support, and review outputs help teams decide, but they do not replace the capture record.",
+        bullets: ["Task Evaluation Run", "Post-Training Data Package", "Capture provenance", "Rights, privacy, and access context"],
       },
     ],
     relatedArticleSlugs: ["choose-the-right-path", "what-is-a-site-world-package", "package-vs-hosted-evaluation"],
@@ -257,8 +257,8 @@ export const helpArticles: HelpArticle[] = [
 
   article({
     slug: "what-is-a-site-world-package",
-    categorySlug: "world-model-packages",
-    title: "What is a site-specific world-model package?",
+    categorySlug: "data-packages",
+    title: "What is a Post-Training Data Package?",
     description: "The package concept in plain language.",
     summary: "A package is a structured output derived from one real site, its capture evidence, and the rights and access context attached to that evidence.",
     readTime: "3 min",
@@ -276,15 +276,15 @@ export const helpArticles: HelpArticle[] = [
   }),
   article({
     slug: "what-a-package-includes",
-    categorySlug: "world-model-packages",
+    categorySlug: "data-packages",
     title: "What a package can include",
     description: "Common deliverables and supporting files.",
-    summary: "Package contents vary by site and scope, but usually center on the site model, capture record, route context, metadata, and access instructions.",
+    summary: "Package contents vary by site and scope, but usually center on curated robot POV clips, labels, generated/model-derived variations, failure cases, capture records, route context, metadata, and access instructions.",
     readTime: "4 min",
     sections: [
       {
         heading: "Common package materials",
-        body: "A package may include site model assets, route context, sample observations, manifests, metadata, hosted-session links, and notes about access or restrictions.",
+        body: "A package may include curated clips, labels, task metadata, generated/model-derived variations, manifests, route context, hosted-session links, and notes about access or restrictions.",
       },
       {
         heading: "What is not implied",
@@ -295,7 +295,7 @@ export const helpArticles: HelpArticle[] = [
   }),
   article({
     slug: "read-package-provenance",
-    categorySlug: "world-model-packages",
+    categorySlug: "data-packages",
     title: "How to read package provenance",
     description: "What the evidence labels mean.",
     summary: "Provenance labels tell you what was captured, when, where possible, by what route or device, and under which review or access boundaries.",
@@ -314,7 +314,7 @@ export const helpArticles: HelpArticle[] = [
   }),
   article({
     slug: "package-vs-hosted-evaluation",
-    categorySlug: "world-model-packages",
+    categorySlug: "data-packages",
     title: "Package access vs policy evaluation set",
     description: "When to use each buyer path.",
     summary: "Package access is for inspecting and using deliverables. Hosted evaluation is for reviewing the site through a managed runtime and evidence view.",
@@ -333,7 +333,7 @@ export const helpArticles: HelpArticle[] = [
   }),
   article({
     slug: "request-a-new-site",
-    categorySlug: "world-model-packages",
+    categorySlug: "data-packages",
     title: "Request a new site",
     description: "How to ask Blueprint for coverage that is not listed.",
     summary: "Send the site type, city or region, robot workflow, buyer reason, and any access constraints so Blueprint can route capture or partner review.",
@@ -352,7 +352,7 @@ export const helpArticles: HelpArticle[] = [
   }),
   article({
     slug: "export-and-integration-basics",
-    categorySlug: "world-model-packages",
+    categorySlug: "data-packages",
     title: "Export and integration basics",
     description: "How to think about integration scope.",
     summary: "Exports depend on the package, license, and technical scope. Ask for the target runtime, format, and integration constraints up front.",

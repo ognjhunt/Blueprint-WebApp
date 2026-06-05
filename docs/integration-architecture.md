@@ -8,9 +8,9 @@ Current doctrine note:
 
 This document is a support-layer integration map. `PLATFORM_CONTEXT.md` and
 `WORLD_MODEL_STRATEGY_CONTEXT.md` remain authoritative for product framing.
-Blueprint is capture-first and world-model-product-first. Qualification,
+Blueprint is capture-first and real-site robot-evaluation/data-package first. Qualification,
 readiness, and review outputs are optional trust layers around capture-backed
-site-specific world-model packages and hosted access; they are not the default
+Task Evaluation Runs, Post-Training Data Packages, and hosted access; they are not the default
 product center of gravity.
 
 ## Summary
@@ -19,7 +19,7 @@ Blueprint is a three-repo system with one primary lifecycle:
 
 1. `Blueprint-WebApp` creates and routes a scoped buyer/site/capture request.
 2. `BlueprintCapture` collects the real-site evidence package for that request.
-3. `BlueprintCapturePipeline` turns the evidence into site-specific package artifacts, hosted-session assets, and optional qualification/readiness handoff material.
+3. `BlueprintCapturePipeline` turns the evidence into site/task/scenario/eval artifacts, post-training data artifacts, hosted-session assets, generated/model-derived support assets, and optional qualification/readiness handoff material.
 4. `Blueprint-WebApp` ingests the resulting artifacts, updates request state, and promotes eligible capture-backed packages into buyer, hosted-access, licensing, and ops lanes.
 
 The key product rule is:

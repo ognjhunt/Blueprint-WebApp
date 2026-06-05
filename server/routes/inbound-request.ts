@@ -337,6 +337,19 @@ function normalizeCommercialRequestPath(params: {
   }
 
   if (
+    sourcePageUrl.includes("path=data-package") ||
+    sourcePageUrl.includes("path=post-training-data-package") ||
+    sourcePageUrl.includes("interest=post-training-data-package") ||
+    sourcePageUrl.includes("interest=data-package") ||
+    sourcePageUrl.includes("interest=data-licensing") ||
+    sourcePageUrl.includes("interest=world-model") ||
+    sourcePageUrl.includes("path=world-model") ||
+    sourcePageUrl.includes("commercialrequestpath=world_model")
+  ) {
+    return "world_model";
+  }
+
+  if (
     params.requestedLanes.includes("deeper_evaluation") ||
     params.requestedLanes.includes("data_licensing")
   ) {
@@ -692,9 +705,9 @@ function confirmationNextSteps(commercialRequestPath: CommercialRequestPath): st
   }
 
   return [
-    "We route the request as a world-model package path tied to the submitted buyer, site, task, and robot context.",
-    "We check package proof, rights/privacy, capture availability, and hosted-evaluation fit before promising access.",
-    "If the record supports it, we move toward package access, hosted review, capture planning, or a scoped buyer handoff.",
+    "We route the request as a Post-Training Data Package path tied to the submitted buyer, site, task, and robot context.",
+    "We check package proof, rights/privacy, capture availability, included data scope, generated/model-derived support artifacts, and export format before promising access.",
+    "If the record supports it, we move toward package scoping, hosted review, capture planning, or a scoped buyer handoff.",
   ];
 }
 
@@ -752,13 +765,13 @@ function generateConfirmationEmailHtml(
                     <tr>
                       <td style="padding:8px 0;">
                         <a href="https://tryblueprint.io/product" style="color:#4f46e5;text-decoration:none;font-size:14px;">Product</a>
-                        <span style="color:#9ca3af;font-size:14px;"> - Site-specific world models, packages, hosted review, and proof boundaries</span>
+                        <span style="color:#9ca3af;font-size:14px;"> - Task Evaluation Runs, Post-Training Data Packages, hosted review, and proof boundaries</span>
                       </td>
                     </tr>
                     <tr>
                       <td style="padding:8px 0;">
-                        <a href="https://tryblueprint.io/world-models" style="color:#4f46e5;text-decoration:none;font-size:14px;">World models</a>
-                        <span style="color:#9ca3af;font-size:14px;"> - Site-specific packages and hosted access</span>
+                        <a href="https://tryblueprint.io/sites" style="color:#4f46e5;text-decoration:none;font-size:14px;">Sites</a>
+                        <span style="color:#9ca3af;font-size:14px;"> - Captured-site packages and hosted access</span>
                       </td>
                     </tr>
                     <tr>
@@ -800,7 +813,7 @@ function generateConfirmationEmailHtml(
 
 /**
  * POST /api/inbound-request
- * Submit a new site submission for capture and world-model packaging
+ * Submit a new site submission for capture, evaluation, or data-package scoping
  */
 router.post("/", async (req: Request, res: Response) => {
   const startTime = Date.now();
@@ -1604,7 +1617,7 @@ This confirmation does not grant instant access, rights clearance, payment, prov
 
 In the meantime, explore our resources:
 - Product: https://tryblueprint.io/product
-- World models: https://tryblueprint.io/world-models
+- Sites: https://tryblueprint.io/sites
 - Proof: https://tryblueprint.io/proof
 
 Best,

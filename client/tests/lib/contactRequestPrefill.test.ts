@@ -93,6 +93,44 @@ describe("contactRequestPrefill", () => {
     expect(url.searchParams.has("access")).toBe(false);
   });
 
+  it("maps legacy world-model params to the Post-Training Data Package lane", () => {
+    const legacyPrefill = parseContactRequestPrefill(
+      "persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&requestedOutputs=Post-Training%20Data%20Package",
+    );
+
+    expect(legacyPrefill).toMatchObject({
+      buyerType: "robot_team",
+      requestPath: "data-package",
+      commercialRequestPath: "world_model",
+      requestedOutputs: "Post-Training Data Package",
+    });
+
+    const href = buildContactRequestUrl({
+      buyerType: "robot_team",
+      requestPath: "world-model",
+      requestedOutputs: "Post-Training Data Package",
+    });
+    const url = new URL(href, "https://tryblueprint.local");
+
+    expect(url.pathname).toBe("/contact/robot-team");
+    expect(url.searchParams.get("interest")).toBe("post-training-data-package");
+    expect(url.searchParams.get("path")).toBe("data-package");
+
+    const draft = buildAgentInboundRequestDraft({
+      buyerType: "robot_team",
+      requestPath: "world-model",
+      siteName: "Warehouse annex",
+      workflow: "tote transfer",
+    });
+
+    expect(draft).toMatchObject({
+      buyerType: "robot_team",
+      commercialRequestPath: "world_model",
+      requestedLanes: ["data_licensing"],
+      taskStatement: "tote transfer",
+    });
+  });
+
   it("creates an agent inbound-request draft without access, payment, provider, or hosted grants", () => {
     const draft = buildAgentInboundRequestDraft({
       source: "site-worlds",

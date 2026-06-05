@@ -39,7 +39,7 @@ const offerCards = [
       "Synthetic variations, failure cases, and task metadata",
       "Export format matched to the team's stack",
     ],
-    href: "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&requestedOutputs=Post-Training%20Data%20Package",
+    href: "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=post-training-data-package&path=data-package&requestedOutputs=Post-Training%20Data%20Package",
     cta: "Request Data Package",
     icon: Database,
     imageSrc: "/illustrations/offer-site-package-preview.svg",

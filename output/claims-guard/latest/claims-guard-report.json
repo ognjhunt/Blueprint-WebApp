@@ -2,6 +2,46 @@
   "rootDir": "/Users/nijelhunt_1/workspace/Blueprint-WebApp",
   "targets": [
     {
+      "relativePath": "AGENTS.md",
+      "absolutePath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/AGENTS.md",
+      "sourceGroup": "root_doctrine"
+    },
+    {
+      "relativePath": "README.md",
+      "absolutePath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/README.md",
+      "sourceGroup": "root_doctrine"
+    },
+    {
+      "relativePath": "PLATFORM_CONTEXT.md",
+      "absolutePath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/PLATFORM_CONTEXT.md",
+      "sourceGroup": "root_doctrine"
+    },
+    {
+      "relativePath": "WORLD_MODEL_STRATEGY_CONTEXT.md",
+      "absolutePath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/WORLD_MODEL_STRATEGY_CONTEXT.md",
+      "sourceGroup": "root_doctrine"
+    },
+    {
+      "relativePath": "AUTONOMOUS_ORG.md",
+      "absolutePath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/AUTONOMOUS_ORG.md",
+      "sourceGroup": "root_doctrine"
+    },
+    {
+      "relativePath": "client/src/AGENTS.md",
+      "absolutePath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/client/src/AGENTS.md",
+      "sourceGroup": "root_doctrine"
+    },
+    {
+      "relativePath": "docs/ai-tooling-adoption-implementation-2026-04-07.md",
+      "absolutePath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/ai-tooling-adoption-implementation-2026-04-07.md",
+      "sourceGroup": "root_doctrine"
+    },
+    {
+      "relativePath": "docs/ai-skills-governance-2026-04-07.md",
+      "absolutePath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/ai-skills-governance-2026-04-07.md",
+      "sourceGroup": "root_doctrine"
+    },
+    {
       "relativePath": "client/src/pages",
       "absolutePath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/client/src/pages",
       "sourceGroup": "webapp_pages"
@@ -48,6 +88,12 @@
     }
   ],
   "scannedFiles": [
+    "AGENTS.md",
+    "AUTONOMOUS_ORG.md",
+    "PLATFORM_CONTEXT.md",
+    "README.md",
+    "WORLD_MODEL_STRATEGY_CONTEXT.md",
+    "client/src/AGENTS.md",
     "client/src/data/content/publicPages.ts",
     "client/src/lib/proofEvidence.ts",
     "client/src/pages/About.tsx",
@@ -107,8 +153,10 @@
     "client/src/pages/RobotTeamEval.tsx",
     "client/src/pages/SampleDeliverables.tsx",
     "client/src/pages/SampleEvaluation.tsx",
+    "client/src/pages/SiteDetail.tsx",
     "client/src/pages/SiteWorldDetail.tsx",
     "client/src/pages/SiteWorlds.tsx",
+    "client/src/pages/Sites.tsx",
     "client/src/pages/Solutions.tsx",
     "client/src/pages/Support.tsx",
     "client/src/pages/TeamMembers.tsx",
@@ -123,6 +171,8 @@
     "client/src/pages/analytics/Sim2RealFidelity.tsx",
     "client/src/pages/analytics/TrajectoryOptimality.tsx",
     "client/src/pages/blog/RoboticsOS.tsx",
+    "docs/ai-skills-governance-2026-04-07.md",
+    "docs/ai-tooling-adoption-implementation-2026-04-07.md",
     "knowledge/compiled/README.md",
     "knowledge/compiled/buyer-dossiers/austin-proof-pack-rights-clearance.md",
     "knowledge/compiled/buyer-dossiers/brain-corp-san-diego-proof-pack.md",

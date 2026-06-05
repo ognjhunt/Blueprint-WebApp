@@ -20,12 +20,12 @@ type ProofItem = {
 };
 
 const requestHref =
-  "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=proof-packet&source=proof-kiss";
+  "/contact?persona=robot-team&buyerType=robot_team&interest=post-training-data-package&path=data-package&requestedOutputs=Proof%20packet%20and%20data%20package&source=proof-kiss";
 
 const sampleVsRequest = [
   {
     label: "Site data product",
-    sample: "Illustrative world-model package, scenario data, export manifest, and proof-boundary shape.",
+    sample: "Illustrative data-package support artifacts, scenario data, export manifest, and proof-boundary shape.",
     request: "Capture record, task scope, robot profile, thresholds, rights/privacy posture, missing annotations, and proof gaps for one site.",
   },
   {

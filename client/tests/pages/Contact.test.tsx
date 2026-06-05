@@ -111,19 +111,27 @@ describe("Contact page", () => {
     });
   });
 
-  it("keeps old robot-team query params in the new Task Evaluation Run form", () => {
+  it("maps old robot-team world-model query params to the Post-Training Data Package form", () => {
     mockSearch =
       "?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=site-world-detail&siteName=Harborview+Grocery+Distribution+Annex&targetSiteType=Grocery+distribution&scenario=Walk+to+shelf+staging&requestedOutputs=Runtime+manifest+and+proof+packet&targetRobotTeam=Unitree+G1";
 
     render(<Contact />);
 
     expect(
-      screen.getByRole("heading", { name: /Request a Task Evaluation Run\./i }),
+      screen.getByRole("heading", { name: /Request a Post-Training Data Package\./i }),
     ).toBeInTheDocument();
+    expect(screen.getByText(/A Post-Training Data Package means/i)).toBeInTheDocument();
     expect(screen.getByDisplayValue("Harborview Grocery Distribution Annex")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Unitree G1")).toBeInTheDocument();
     expect(screen.getByText(/Prefilled context attached/i)).toBeInTheDocument();
     expect(screen.getByText(/Runtime manifest and proof packet/i)).toBeInTheDocument();
+    expect(analyticsEventsMock.contactRequestStarted).toHaveBeenCalledWith(
+      expect.objectContaining({
+        hostedMode: false,
+        requestedLane: "data_licensing",
+        commercialRequestPath: "world_model",
+      }),
+    );
   });
 
   it("submits a robot-team Task Evaluation Run payload", async () => {
@@ -215,6 +223,55 @@ describe("Contact page", () => {
       hasPrivacySecurityConstraints: false,
       hasNotes: true,
     });
+  });
+
+  it("submits a Post-Training Data Package payload from data-package params", async () => {
+    mockSearch =
+      "?persona=robot-team&buyerType=robot_team&interest=post-training-data-package&path=data-package&requestedOutputs=Post-Training%20Data%20Package";
+
+    render(<Contact />);
+
+    fireEvent.change(screen.getByPlaceholderText("First name*"), {
+      target: { value: "Ruth" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("Company*"), {
+      target: { value: "ModelOps Robotics" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("Work email*"), {
+      target: { value: "ruth@example.com" },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: /Target site or site type/i }), {
+      target: { value: "Retail backroom" },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: /Task \+ threshold/i }), {
+      target: { value: "Shelf restock failures, robot POV clips, and variation labels." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Request data package/i }));
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        "/api/inbound-request",
+        expect.objectContaining({ method: "POST" }),
+      );
+    });
+
+    expect(screen.getByText(/Post-Training Data Package request received/i)).toBeInTheDocument();
+    expect(submittedBody()).toMatchObject({
+      buyerType: "robot_team",
+      commercialRequestPath: "world_model",
+      requestedLanes: ["data_licensing"],
+      proofPathPreference: "exact_site_required",
+      siteName: "Retail backroom",
+      targetSiteType: "Retail backroom",
+      taskStatement: "Shelf restock failures, robot POV clips, and variation labels.",
+    });
+    expect(analyticsEventsMock.contactRequestSubmitted).toHaveBeenCalledWith(
+      expect.objectContaining({
+        hostedMode: false,
+        requestedLane: "data_licensing",
+        commercialRequestPath: "world_model",
+      }),
+    );
   });
 
   it("renders the simplified free site-operator submission flow", () => {

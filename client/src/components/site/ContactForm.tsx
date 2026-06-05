@@ -14,6 +14,7 @@ import {
 import {
   defaultProofPathPreferenceForRequestPath,
   parseContactRequestPrefill,
+  requestPathToCommercialRequestPath,
 } from "@/lib/contactRequestPrefill";
 import { useAuth } from "@/contexts/AuthContext";
 import type {
@@ -159,6 +160,26 @@ function successCopy(commercialRequestPath: CommercialRequestPath) {
     };
   }
 
+  if (commercialRequestPath === "world_model") {
+    return {
+      title: "Post-Training Data Package request received",
+      body:
+        "Blueprint has the site, task, data, and export context needed to recommend a package scope and proof boundary.",
+      next:
+        "Blueprint reviews capture fit, rights posture, included clips and labels, generated variations, export format, and pricing before package work starts.",
+    };
+  }
+
+  if (commercialRequestPath === "capture_access") {
+    return {
+      title: "Capture access request received",
+      body:
+        "Blueprint has the site or workflow target needed to review whether a new capture path should open.",
+      next:
+        "Blueprint checks access, rights/privacy posture, capture feasibility, and existing site-package coverage before recommending the next step.",
+    };
+  }
+
   return {
     title: "Task Evaluation Run request received",
     body:
@@ -187,10 +208,20 @@ export function ContactForm() {
     requestPrefill.buyerType,
   );
   const buyerType: BuyerType = persona;
+  const isDataPackageRequest =
+    persona === "robot_team" && requestPrefill.requestPath === "data-package";
   const commercialRequestPath: CommercialRequestPath =
-    persona === "site_operator" ? "site_claim" : "hosted_evaluation";
+    persona === "site_operator"
+      ? "site_claim"
+      : requestPrefill.requestPath === "hosted-review"
+        ? "hosted_evaluation"
+        : requestPathToCommercialRequestPath(requestPrefill.requestPath);
   const requestedLanes: RequestedLane[] =
-    persona === "site_operator" ? ["qualification"] : ["deeper_evaluation"];
+    persona === "site_operator"
+      ? ["qualification"]
+      : isDataPackageRequest
+        ? ["data_licensing"]
+        : ["deeper_evaluation"];
   const requestedLane = requestedLanes[0];
   const proofPathPreference: ProofPathPreference =
     persona === "robot_team"
@@ -898,6 +929,8 @@ export function ContactForm() {
             ? "Submitting..."
             : persona === "site_operator"
               ? "Submit site free"
+              : isDataPackageRequest
+                ? "Request data package"
               : "Request evaluation"}
           <ArrowRight className="ml-2 h-4 w-4" />
         </button>

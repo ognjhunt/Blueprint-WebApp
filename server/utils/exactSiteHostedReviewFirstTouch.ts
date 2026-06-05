@@ -183,7 +183,7 @@ function demandSourcedDraft(target: ExactSiteGtmTarget, landingPage: string): Pi
   const proposedBody = [
     "Hi,",
     "",
-    "I am building Blueprint, a capture-backed way for robot teams to turn real sites into site-specific world-model packages and hosted review sessions.",
+    "I am building Blueprint, a capture-backed way for robot teams to turn real sites into Task Evaluation Runs, Post-Training Data Packages, and hosted review sessions.",
     "",
     `For ${target.organizationName}, I do not want to guess the wrong environment. If Blueprint captured one ${sitePhrase} for your team first, what exact site or workflow should we start with?`,
     "",

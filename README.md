@@ -1,16 +1,16 @@
 # Blueprint-WebApp
 
-`Blueprint-WebApp` is Blueprint's buyer, licensing, ops, and hosted-access surface for site-specific world-model products. It is not the capture client and it is not the pipeline that creates the packages; it sells, gates, operates, and exposes the outputs that come from the capture and pipeline repos.
+`Blueprint-WebApp` is Blueprint's buyer, licensing, ops, and hosted-access surface for real-site robot evaluation runs and post-training data packages. It is not the capture client and it is not the pipeline that creates the artifacts; it sells, gates, operates, and exposes the outputs that come from the capture and pipeline repos.
 
 ## System Position
 
 Blueprint is a three-repo product system:
 
 1. `BlueprintCapture` collects real-site capture evidence and upload bundles.
-2. `BlueprintCapturePipeline` turns those bundles into site-specific world-model packages, hosted-session artifacts, and optional trust or readiness outputs.
-3. `Blueprint-WebApp` exposes those packages through buyer pages, licensing, entitlements, hosted sessions, ops dashboards, Paperclip control-plane flows, and launch/runbooks.
+2. `BlueprintCapturePipeline` turns those bundles into Site Cards, Task Cards, Scenario Cards, Eval Cards, post-training data artifacts, generated/model-derived support assets, hosted-session artifacts, and proof boundaries.
+3. `Blueprint-WebApp` exposes Task Evaluation Runs, Post-Training Data Packages, hosted access, licensing, entitlements, ops dashboards, Paperclip control-plane flows, and launch/runbooks.
 
-The product doctrine is capture-first and world-model-product-first. Qualification, readiness, and review outputs are support layers. They help buyers and operators trust a package, but they are not the center of the company.
+The product doctrine is capture-first and real-site robot-evaluation/data-package first. World models, site-world routes, generated media, simulations, and readiness outputs are support layers. They help buyers inspect or improve a package, but they are not the primary public offer.
 
 ## Blueprint OS Quick Start
 

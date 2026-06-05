@@ -3,7 +3,7 @@
 - city: Seattle, WA
 - status: draft_pending_founder_approval
 - planning_state: in progress
-- doctrine: capture-first, world-model-product-first, Exact-Site Hosted Review wedge
+- doctrine: capture-first, real-site robot-evaluation/data-package first, Task Evaluation Run and Post-Training Data Package wedge
 
 ## Objective
 

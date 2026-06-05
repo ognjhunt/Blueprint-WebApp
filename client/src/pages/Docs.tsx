@@ -15,12 +15,12 @@ const sections = [
   {
     title: "Site package contents",
     body:
-      "The site package gives your team everything it needs to run its own world model stack on that facility.",
+      "The site package gives your team the capture-grounded material needed for evaluation, post-training data work, or your own internal model stack on that facility.",
     bullets: [
       "Walkthrough video, timestamps, and camera poses tied to one real facility",
       "Intrinsics, depth, and geometry files when the source capture supports them",
       "Site notes, provenance, privacy, and rights metadata",
-      "Package manifest and reference material for building your own world model",
+      "Package manifest and reference material for evaluation, data export, and internal model work",
     ],
   },
   {

@@ -21,6 +21,13 @@ const robotNextSteps = [
   "We run the evaluation or prepare the site/task package.",
 ];
 
+const dataPackageNextSteps = [
+  "We review the site/task and data need.",
+  "We confirm capture provenance, rights posture, and export boundary.",
+  "We recommend included clips, labels, generated variations, and package scope.",
+  "You approve pricing and access terms before package work starts.",
+];
+
 const operatorNextSteps = [
   "We review the site and access boundary.",
   "We confirm what can be captured or listed.",
@@ -43,7 +50,7 @@ function PersonaSwitch({ activePersona }: { activePersona: ContactPersona }) {
       persona: "robot_team" as const,
       href: "/contact/robot-team#contact-intake",
       title: "Robot teams",
-      body: "Request a Task Evaluation Run.",
+      body: "Request an evaluation or data package.",
       Icon: Bot,
     },
     {
@@ -119,7 +126,13 @@ function ContextSummary({
   );
 }
 
-function ExplainerCard({ persona }: { persona: ContactPersona }) {
+function ExplainerCard({
+  persona,
+  isDataPackage,
+}: {
+  persona: ContactPersona;
+  isDataPackage: boolean;
+}) {
   if (persona === "site_operator") {
     return (
       <aside className="border border-black/10 bg-white p-5">
@@ -130,6 +143,21 @@ function ExplainerCard({ persona }: { persona: ContactPersona }) {
         <p className="mt-2 text-sm leading-6 text-slate-600">
           You set the privacy, access, and commercialization boundary before
           Blueprint changes listing or robot-team access.
+        </p>
+      </aside>
+    );
+  }
+
+  if (isDataPackage) {
+    return (
+      <aside className="border border-black/10 bg-white p-5">
+        <ClipboardCheck className="h-5 w-5 text-slate-950" />
+        <p className="mt-4 text-sm font-semibold text-slate-950">
+          A Post-Training Data Package means:
+        </p>
+        <p className="mt-2 text-sm leading-6 text-slate-600">
+          Curated robot POV clips, labels, generated variations, failure cases,
+          and export manifests tied to real-site proof boundaries.
         </p>
       </aside>
     );
@@ -148,8 +176,19 @@ function ExplainerCard({ persona }: { persona: ContactPersona }) {
   );
 }
 
-function NextSteps({ persona }: { persona: ContactPersona }) {
-  const steps = persona === "site_operator" ? operatorNextSteps : robotNextSteps;
+function NextSteps({
+  persona,
+  isDataPackage,
+}: {
+  persona: ContactPersona;
+  isDataPackage: boolean;
+}) {
+  const steps =
+    persona === "site_operator"
+      ? operatorNextSteps
+      : isDataPackage
+        ? dataPackageNextSteps
+        : robotNextSteps;
 
   return (
     <div className="border border-black/10 bg-white p-5">
@@ -182,14 +221,22 @@ export default function Contact() {
   );
   const persona = personaFromPrefill({ location, prefill });
   const isSiteOperator = persona === "site_operator";
+  const isDataPackage =
+    persona === "robot_team" && prefill.requestPath === "data-package";
   const headline = isSiteOperator
     ? "Submit a Site for Robot Evaluation."
+    : isDataPackage
+      ? "Request a Post-Training Data Package."
     : "Request a Task Evaluation Run.";
   const subhead = isSiteOperator
     ? "Share a facility that robot teams can evaluate against. Participation is free, and you control access boundaries."
+    : isDataPackage
+      ? "Scope curated real-site data, generated variations, failure cases, labels, and export manifests for robot model improvement."
     : "Test one robot policy or profile against a real-site task pack before field time.";
   const intro = isSiteOperator
     ? "Tell us what the site is, where it is, and what access/privacy limits apply. We will review whether it fits the Blueprint site library."
+    : isDataPackage
+      ? "Tell us the site type, task, output format, and post-training need. We will reply with the recommended package scope, proof boundary, and next step."
     : "Tell us the site type, task, and threshold that matters. We will reply with the recommended scope, scenario count, and next proof step.";
 
   return (
@@ -198,11 +245,15 @@ export default function Contact() {
         title={
           isSiteOperator
             ? "Submit a Site for Robot Evaluation | Blueprint"
+            : isDataPackage
+              ? "Request a Post-Training Data Package | Blueprint"
             : "Request a Task Evaluation Run | Blueprint"
         }
         description={
           isSiteOperator
             ? "Submit a facility to Blueprint for free robot-evaluation review with access, privacy, and commercialization boundaries."
+            : isDataPackage
+              ? "Request a Blueprint Post-Training Data Package with curated real-site clips, labels, generated variations, failure cases, and export manifests."
             : "Request a Blueprint Task Evaluation Run for one robot policy, real-site task pack, and scenario scope."
         }
         canonical={isSiteOperator ? "/contact/site-operator" : "/contact/robot-team"}
@@ -227,12 +278,16 @@ export default function Contact() {
             </div>
 
             <div className="space-y-3 lg:pt-3">
-              <ExplainerCard persona={persona} />
+              <ExplainerCard persona={persona} isDataPackage={isDataPackage} />
               <a
                 href="#contact-intake"
                 className="inline-flex w-full items-center justify-center bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
               >
-                {isSiteOperator ? "Submit site free" : "Request evaluation"}
+                {isSiteOperator
+                  ? "Submit site free"
+                  : isDataPackage
+                    ? "Request data package"
+                    : "Request evaluation"}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </a>
             </div>
@@ -247,10 +302,18 @@ export default function Contact() {
             <div className="mb-6 border-b border-black/10 pb-5">
               <div className="flex items-center gap-2 text-sm font-semibold text-slate-950">
                 <CheckCircle2 className="h-4 w-4 text-[#98733f]" />
-                {isSiteOperator ? "Free site submission" : "Task Evaluation Run"}
+                {isSiteOperator
+                  ? "Free site submission"
+                  : isDataPackage
+                    ? "Post-Training Data Package"
+                    : "Task Evaluation Run"}
               </div>
               <h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-slate-950">
-                {isSiteOperator ? "Set the site boundary." : "Send the evaluation request."}
+                {isSiteOperator
+                  ? "Set the site boundary."
+                  : isDataPackage
+                    ? "Send the data package request."
+                    : "Send the evaluation request."}
               </h2>
             </div>
 
@@ -262,7 +325,7 @@ export default function Contact() {
           </div>
 
           <div className="space-y-4">
-            <NextSteps persona={persona} />
+            <NextSteps persona={persona} isDataPackage={isDataPackage} />
           </div>
         </section>
       </div>

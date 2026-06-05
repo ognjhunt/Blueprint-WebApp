@@ -48,7 +48,7 @@ export default function ForSiteOperators() {
     <>
       <SEO
         title="For Site Operators | Blueprint"
-        description="Blueprint helps site operators control access, privacy, permissions, and commercialization around site-specific world-model products."
+        description="Blueprint helps site operators control access, privacy, permissions, and commercialization around real-site robot evaluation and post-training data-package requests."
         canonical="/for-site-operators"
       />
 
@@ -67,7 +67,7 @@ export default function ForSiteOperators() {
                 <div className="flex min-h-[32rem] flex-col justify-end">
                 <EditorialSectionLabel light>For Site Operators</EditorialSectionLabel>
                 <h1 className="font-editorial mt-6 max-w-[36rem] text-[3.7rem] leading-[0.9] tracking-[-0.06em] text-white sm:text-[5rem]">
-                  Control how your facility becomes a world-model asset.
+                  Control how your facility supports robot evaluation and data packages.
                 </h1>
                 <p className="mt-6 max-w-[30rem] text-base leading-8 text-white/70">
                   Register the site, define access and privacy rules, and decide whether Blueprint can commercialize approved capture under terms you can actually inspect.

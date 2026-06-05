@@ -7,7 +7,7 @@ Review cadence: Quarterly, and before any recurring spend program.
 
 ## Purpose
 
-Blueprint should spend deliberately, document evidence, and avoid accidental commitments. Expenses must support capture supply, site-specific world-model packages, hosted access, buyer workflows, reliability, or company operations.
+Blueprint should spend deliberately, document evidence, and avoid accidental commitments. Expenses must support capture supply, Task Evaluation Runs, Post-Training Data Packages, hosted access, buyer workflows, reliability, or company operations.
 
 ## Approval Principles
 

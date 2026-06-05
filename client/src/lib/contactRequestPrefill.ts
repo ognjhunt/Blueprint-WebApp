@@ -8,6 +8,7 @@ import type {
 } from "@/types/inbound-request";
 
 export type ContactRequestPath =
+  | "data-package"
   | "world-model"
   | "hosted-review"
   | "new-capture"
@@ -66,7 +67,7 @@ export const CONTACT_REQUEST_PATH_OPTIONS: Array<{
     commercialRequestPath: "hosted_evaluation",
   },
   {
-    value: "world-model",
+    value: "data-package",
     label: "Post-Training Data Package",
     description: "Scope curated robot POV clips, labels, scenario variations, failure cases, and export format.",
     cta: "Request data package",
@@ -144,10 +145,12 @@ export function normalizeContactRequestPath(
   if (
     normalized === "world-model" ||
     normalized === "world-model-package" ||
+    normalized === "post-training-data-package" ||
+    normalized === "data-package" ||
     normalized === "package-access" ||
     normalized === "data-licensing"
   ) {
-    return "world-model";
+    return "data-package";
   }
 
   if (
@@ -187,7 +190,7 @@ export function commercialPathToContactRequestPath(
   if (value === "hosted_evaluation") return "hosted-review";
   if (value === "capture_access") return "new-capture";
   if (value === "site_claim") return "site-question";
-  return "world-model";
+  return "data-package";
 }
 
 export function requestPathToCommercialRequestPath(
@@ -210,7 +213,7 @@ export function interestForRequestPath(value: ContactRequestPath): string {
   if (value === "hosted-review") return "hosted-evaluation";
   if (value === "new-capture") return "capture-access";
   if (value === "site-question") return "site-review";
-  return "world-model";
+  return "post-training-data-package";
 }
 
 export function defaultProofPathPreferenceForRequestPath(
@@ -457,6 +460,9 @@ function inferredTaskStatement(input: ContactRequestUrlInput, requestPath: Conta
   if (requestPath === "new-capture" && primaryNeed) {
     return `Request an exact-site capture path for an eval-card dataset around ${primaryNeed}.`;
   }
+  if ((requestPath === "data-package" || requestPath === "world-model") && primaryNeed) {
+    return `Request a Post-Training Data Package for ${primaryNeed}.`;
+  }
   if (primaryNeed) return `Request a Task Evaluation Run for ${primaryNeed}.`;
   if (siteClass) return `Request a Task Evaluation Run for ${siteClass}.`;
   return "";
@@ -510,7 +516,11 @@ export function buildAgentInboundRequestDraft(
   const requestPath = normalizeContactRequestPath(input.requestPath);
   const buyerType = input.buyerType || requestPathToBuyerType(requestPath);
   const requestedLane: RequestedLane =
-    buyerType === "site_operator" ? "qualification" : "deeper_evaluation";
+    buyerType === "site_operator"
+      ? "qualification"
+      : requestPath === "data-package"
+        ? "data_licensing"
+        : "deeper_evaluation";
   const siteLocation = clean(input.siteLocation || input.location || input.address || input.city);
   const taskStatement = inferredTaskStatement(input, requestPath);
   const proofPathPreference =

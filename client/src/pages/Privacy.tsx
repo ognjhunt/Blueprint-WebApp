@@ -21,7 +21,7 @@ const sections = [
   {
     title: "Capture and site data",
     body:
-      "Blueprint may process walkthrough media, timestamps, poses, depth, device metadata, and site-level rights or privacy metadata when those records are part of a capture bundle or world-model package. That data is part of the product record and may be used to package, deliver, operate, refresh, or audit a listing or hosted session.",
+      "Blueprint may process walkthrough media, timestamps, poses, depth, device metadata, and site-level rights or privacy metadata when those records are part of a capture bundle, Task Evaluation Run, or Post-Training Data Package. That data is part of the product record and may be used to package, deliver, operate, refresh, or audit a listing or hosted session.",
     icon: Waypoints,
   },
   {
@@ -66,7 +66,7 @@ export default function Privacy() {
     <>
       <SEO
         title="Privacy Policy | Blueprint"
-        description="Privacy policy for Blueprint's website, capture workflows, world-model packages, hosted sessions, and related services."
+        description="Privacy policy for Blueprint's website, capture workflows, robot evaluation runs, post-training data packages, hosted sessions, and related services."
         canonical="/privacy"
       />
 

@@ -28,7 +28,7 @@ const buyerFlow = [
   {
     label: "03",
     title: "Site package and hosted review",
-    body: "Use capture-grounded world-model assets, package manifests, and hosted review to inspect the real site before field time.",
+    body: "Use capture-grounded site data, package manifests, generated support assets, and hosted review to inspect the real site before field time.",
     icon: ShieldCheck,
   },
   {
@@ -64,7 +64,7 @@ const packageLayers = [
   },
   {
     title: "World-model asset",
-    body: "Model artifacts and previews sit behind stable site-package contracts; they inform readiness but do not become ground truth.",
+    body: "Model artifacts and previews sit behind stable evaluation and data-package contracts; they inform readiness but do not become ground truth.",
   },
   {
     title: "Readiness report",
@@ -133,7 +133,7 @@ export default function ExactSiteHostedReview() {
     <>
       <SEO
         title="Product | Blueprint"
-        description="Blueprint turns indoor exact-site capture into site/task readiness reports, site-specific world-model assets, policy evaluation sets, and pilot decision evidence for robot teams."
+        description="Blueprint turns indoor exact-site capture into Task Evaluation Runs, Post-Training Data Packages, advisory support assets, and pilot decision evidence for robot teams."
         canonical="/product"
         type="product"
         jsonLd={[
@@ -141,7 +141,7 @@ export default function ExactSiteHostedReview() {
             path: "/product",
             name: "Blueprint Product",
             description:
-              "Indoor exact-site capture, site/task readiness reports, site-specific world-model assets, policy evaluation sets, and pilot decision evidence for robot teams.",
+              "Indoor exact-site capture, Task Evaluation Runs, Post-Training Data Packages, advisory support assets, and pilot decision evidence for robot teams.",
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },
@@ -151,7 +151,7 @@ export default function ExactSiteHostedReview() {
             path: "/product",
             name: "Blueprint Site-Specific Robot Deployment Readiness",
             description:
-              "A capture-backed product workflow for indoor exact-site readiness reports, world-model assets, policy evaluation set requests, and buyer decisions with proof attached.",
+              "A capture-backed product workflow for indoor exact-site evaluation runs, post-training data packages, generated support assets, and buyer decisions with proof attached.",
             image: publicCaptureGeneratedAssets.hostedReviewPublicRoute,
             category: "Site-specific robot deployment readiness platform",
             properties: [
@@ -183,7 +183,7 @@ export default function ExactSiteHostedReview() {
                     Turn the exact site into a robot-readiness report.
                   </h1>
                   <p className="mt-5 max-w-[35rem] text-base leading-7 text-white/82 sm:leading-8">
-                    Blueprint packages indoor capture, task suites, robot profiles, site-specific world-model assets, hosted review, and buyer proof around one site so teams can estimate pre-pilot readiness before field time.
+                    Blueprint packages indoor capture, task suites, robot profiles, generated support assets, hosted review, and buyer proof around one site so teams can evaluate policies before field time.
                   </p>
                   <div className="mt-7 flex flex-wrap gap-2">
                     <ProofChip light>Capture-backed</ProofChip>
@@ -195,7 +195,7 @@ export default function ExactSiteHostedReview() {
                       href="/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=product-hero"
                       className="inline-flex w-full items-center justify-center border border-white bg-white px-6 py-3 text-sm font-semibold text-[#15130f] transition hover:bg-[#f5f1e8] sm:w-auto"
                     >
-                      Request readiness evaluation
+                      Request evaluation
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </a>
                     <a
@@ -489,7 +489,7 @@ export default function ExactSiteHostedReview() {
                 href="/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=product-bottom"
                 className="inline-flex items-center justify-center border border-white bg-white px-6 py-3 text-sm font-semibold text-[#15130f] transition hover:bg-[#f5f1e8]"
               >
-                Request readiness evaluation
+                Request evaluation
                 <ArrowRight className="ml-2 h-4 w-4" />
               </a>
               <a

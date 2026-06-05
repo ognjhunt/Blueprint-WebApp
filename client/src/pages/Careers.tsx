@@ -113,7 +113,7 @@ export default function Careers() {
     <>
       <SEO
         title="Careers | Blueprint"
-        description="Blueprint is hiring founding systems leads for GTM and delivery loops around site-specific world-model products."
+        description="Blueprint is hiring founding systems leads for GTM and delivery loops around real-site robot evaluation runs and post-training data packages."
         canonical="/careers"
       />
 
@@ -132,7 +132,7 @@ export default function Careers() {
                 <div className="flex h-full max-w-[36rem] flex-col justify-end">
                   <EditorialSectionLabel light>Careers</EditorialSectionLabel>
                   <h1 className="font-editorial mt-6 text-[3.7rem] leading-[0.9] text-white sm:text-[5rem]">
-                    Build the systems behind exact-site world models.
+                    Build the systems behind real-site robot evaluation.
                   </h1>
                   <p className="mt-5 max-w-[34rem] text-base leading-7 text-white/75 sm:leading-8">
                     Founding systems leads turn agent runs, city research, capture supply, buyer requests, and delivery work into repeatable operating loops.

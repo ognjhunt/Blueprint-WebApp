@@ -5,7 +5,7 @@ Status: repo-local budget and cadence control plan; live billing is awaiting hum
 
 ## Objective
 
-Keep Blueprint's autonomous organization inside a $500/month all-in launch and growth budget while preserving the capture-first, world-model-product-first operating doctrine. This plan is repo-local only. It does not mutate live Paperclip, Notion, Stripe, Render, Firebase, Redis, provider, email, ad, payment, payout, rights, hosted-session, or city-launch systems.
+Keep Blueprint's autonomous organization inside a $500/month all-in launch and growth budget while preserving the capture-first, real-site robot-evaluation/data-package operating doctrine. This plan is repo-local only. It does not mutate live Paperclip, Notion, Stripe, Render, Firebase, Redis, provider, email, ad, payment, payout, rights, hosted-session, or city-launch systems.
 
 ## Evidence Snapshot
 

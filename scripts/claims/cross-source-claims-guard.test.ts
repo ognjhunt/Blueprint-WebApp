@@ -19,6 +19,7 @@ describe("cross-source claims guard", () => {
     });
 
     expect(result.findingsByType.no_change_churn).toBeGreaterThan(0);
+    expect(result.findingsByType.stale_root_doctrine).toBeGreaterThan(0);
     expect(result.findingsByType.unsupported_hosted_session_proof).toBeGreaterThan(0);
     expect(result.findingsByType.public_copy_proof_drift).toBeGreaterThan(0);
     expect(result.findingsByType.unsupported_robot_readiness_claim).toBeGreaterThan(0);
@@ -85,6 +86,9 @@ describe("cross-source claims guard", () => {
     const targets = buildDefaultScanTargets(repoRoot).map((target) => target.relativePath);
 
     expect(targets).toContain("client/src/pages");
+    expect(targets).toContain("AGENTS.md");
+    expect(targets).toContain("PLATFORM_CONTEXT.md");
+    expect(targets).toContain("WORLD_MODEL_STRATEGY_CONTEXT.md");
     expect(targets).toContain("../BlueprintCapture/docs/PUBLIC_COPY_TRUTH_INDEX_2026-05-24.md");
     expect(targets).toContain("scripts/gtm");
     expect(targets).toContain("ops/paperclip/playbooks");

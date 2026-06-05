@@ -12,7 +12,7 @@ It defines the metrics that manager loop, CEO review, city-launch scorecards, an
 
 ## Doctrine and truth rules
 
-- company metrics must stay capture-first and world-model-product-first
+- company metrics must stay capture-first and real-site robot-evaluation/data-package-first
 - metrics must be anchored to first-party ledgers, manifests, entitlements, hosted-session state, and durable runtime evidence
 - blocked or partial metrics must remain explicitly blocked or partial
 - no agent may smooth over missing feeds by inventing fallback values

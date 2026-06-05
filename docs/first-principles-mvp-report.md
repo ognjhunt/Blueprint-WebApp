@@ -6,7 +6,7 @@ It is kept as historical strategy context only and is not the current public pro
 Current product direction:
 
 1. capture supply through `BlueprintCapture`
-2. site-specific world models and hosted access as the primary sell
+2. Task Evaluation Runs, Post-Training Data Packages, and hosted access as the primary sell
 3. qualification / readiness as an optional support layer, not the main story
 
 Date: 2026-03-10

@@ -51,7 +51,7 @@ export default function Blog() {
     <>
       <SEO
         title="Updates | Blueprint"
-        description="Short product notes from Blueprint on capture supply, world-model packages, hosted access, and buyer workflow."
+        description="Short product notes from Blueprint on capture supply, robot evaluation runs, post-training data packages, hosted access, and buyer workflow."
         canonical="/updates"
       />
 
@@ -61,17 +61,17 @@ export default function Blog() {
             <div className="px-8 py-10 lg:px-12 lg:py-14">
               <EditorialSectionLabel>Updates</EditorialSectionLabel>
               <h1 className="font-editorial mt-6 max-w-[26rem] text-[4rem] leading-[0.88] tracking-[-0.07em] text-slate-950 sm:text-[5.2rem]">
-                Notes on exact-site world models.
+                Notes on real-site robot evaluation.
               </h1>
               <p className="mt-6 max-w-[28rem] text-base leading-8 text-slate-700">
                 Product updates from the capture-backed catalog, hosted review path, and buyer proof workflow.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <a
-                  href="/world-models"
+                  href="/sites"
                   className="inline-flex w-full items-center justify-center bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 sm:w-auto"
                 >
-                  Explore world models
+                  Explore sites
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </a>
                 <a
@@ -173,11 +173,11 @@ export default function Blog() {
           <EditorialCtaBand
             eyebrow="Next step"
             title="Ready to go deeper?"
-            description="Move from the notes into the world-model catalog or the proof surface."
+            description="Move from the notes into the captured-site library or the proof surface."
             imageSrc={editorialRefreshAssets.blogHeroTripod}
             imageAlt="Blueprint blog hero"
-            primaryHref="/world-models"
-            primaryLabel="Explore world models"
+            primaryHref="/sites"
+            primaryLabel="Explore sites"
             secondaryHref="/proof"
             secondaryLabel="See proof"
           />

@@ -33,7 +33,7 @@ Readiness does not replace the platform doctrine. It sits on top of:
 - hosted-session artifacts where available
 - explicit missing-proof labels
 
-Blueprint remains capture-first and world-model-product-first. The WebApp readiness wedge is a buyer-facing commercial workflow, not a claim that qualification is the universal center of the company.
+Blueprint remains capture-first and real-site robot-evaluation/data-package first. The WebApp readiness wedge is a buyer-facing commercial workflow, not a claim that qualification is the universal center of the company.
 
 ## Wedge Buyers
 

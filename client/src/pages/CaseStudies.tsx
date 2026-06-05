@@ -43,7 +43,7 @@ export default function CaseStudies() {
     <>
       <SEO
         title="Capture Examples | Blueprint"
-        description="Sample case studies showing how public-facing captures can become site-specific world models and hosted-evaluation evidence for robot teams."
+        description="Sample case studies showing how public-facing captures can become robot evaluation runs, data packages, and hosted-evaluation evidence for robot teams."
         canonical="/case-studies"
       />
 

@@ -453,7 +453,7 @@ export default function HowItWorks() {
                   href="/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=how-it-works"
                   className="inline-flex items-center justify-center rounded-full border border-white/15 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/5"
                 >
-                  Request readiness evaluation
+                  Request evaluation
                 </a>
               </div>
             </div>

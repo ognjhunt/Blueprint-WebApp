@@ -131,7 +131,7 @@ export default function PilotExchangeGuide() {
     <>
       <SEO
         title="Site Opportunities Guide"
-        description="Beginner guide to how Blueprint turns real captured sites into buyer-facing world-model and evaluation opportunities."
+        description="Beginner guide to how Blueprint turns real captured sites into buyer-facing robot evaluation and post-training data-package opportunities."
         canonical="/qualified-opportunities-guide"
       />
       <div className="relative min-h-screen bg-white text-zinc-900 font-sans selection:bg-zinc-200 selection:text-zinc-900">
@@ -423,7 +423,7 @@ export default function PilotExchangeGuide() {
               <h3 className="font-bold text-zinc-900 mb-4">How Evaluation Changes by Policy Type</h3>
               <div className="mobile-snap-row md:grid md:grid-cols-2 md:gap-4">
                 <div className="border border-zinc-200 rounded-lg p-4 bg-zinc-50">
-                  <p className="text-xs font-bold uppercase tracking-widest text-zinc-400 mb-2">Video World Models</p>
+                  <p className="text-xs font-bold uppercase tracking-widest text-zinc-400 mb-2">Generated Video Support</p>
                   <p className="text-sm text-zinc-600">
                     Evaluation can run in pixel-space rollout loops (predicted future frames), which may not require a full simulation package for first-pass ranking.
                   </p>

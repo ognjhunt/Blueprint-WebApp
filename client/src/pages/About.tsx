@@ -13,7 +13,7 @@ const companyCards = [
   {
     title: "What Blueprint is",
     body:
-      "A product for turning one real facility into site-specific world models, policy evaluation sets, and clear trust details tied to the same capture-backed source record.",
+      "A product for turning one real facility into Task Evaluation Runs, Post-Training Data Packages, and clear trust details tied to the same capture-backed source record.",
   },
   {
     title: "What Blueprint is not",
@@ -33,7 +33,7 @@ export default function About() {
     <>
       <SEO
         title="About | Blueprint"
-        description="Why Blueprint exists and how it turns real facilities into site-specific world models, policy evaluation sets, and trust details a robot team can evaluate."
+        description="Why Blueprint exists and how it turns real facilities into robot evaluation runs, post-training data packages, and trust details a robot team can evaluate."
         canonical="/about"
       />
 
@@ -59,14 +59,14 @@ export default function About() {
                 </p>
                 <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                   <a
-                    href="/world-models"
+                    href="/sites"
                     className="inline-flex w-full items-center justify-center bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100 sm:w-auto"
                   >
-                    Explore world models
+                    Explore sites
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </a>
                   <a
-                    href="/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=about-hero"
+                    href="/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-review&source=about-hero"
                     className="inline-flex w-full items-center justify-center border border-white/20 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10 sm:w-auto"
                   >
                     Contact Blueprint
@@ -138,10 +138,10 @@ export default function About() {
             description="Browse site packages if you want to evaluate the proof style first, or contact Blueprint when the readiness question is already known."
             imageSrc={editorialGeneratedAssets.scopingRoom}
             imageAlt="Blueprint scoping room"
-            primaryHref="/world-models"
+            primaryHref="/sites"
             primaryLabel="Explore site packages"
-            secondaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=about-bottom"
-            secondaryLabel="Request readiness evaluation"
+            secondaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-review&source=about-bottom"
+            secondaryLabel="Request evaluation"
             dark={false}
           />
         </section>

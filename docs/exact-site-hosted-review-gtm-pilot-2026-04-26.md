@@ -36,7 +36,7 @@ For Blueprint, that means:
 - No live send without recipient-backed evidence.
 - No paid spend until organic replies, hosted-review starts, or qualified calls exist in the ledger.
 - No public traction, customer, site-live, or readiness claims unless the proof exists.
-- No qualification-first reframing. The product story remains capture-first and world-model-product-first.
+- No qualification-first reframing. The product story remains capture-first and real-site robot-evaluation/data-package-first.
 
 ## Pilot Window
 

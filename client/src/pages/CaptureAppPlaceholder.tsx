@@ -274,7 +274,7 @@ export default function CaptureAppPlaceholder() {
                     href="/world-models"
                     className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-white"
                   >
-                    Explore world models
+                    Explore sites
                     <ArrowRight className="h-4 w-4" />
                   </a>
                 </div>

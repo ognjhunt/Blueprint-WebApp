@@ -7,7 +7,7 @@ Review cadence: After each hire and quarterly.
 
 ## Welcome
 
-Blueprint builds the buyer, licensing, ops, and hosted-access system for site-specific world-model products. The company is capture-first and world-model-product-first: real-site capture evidence, rights/privacy/provenance controls, site-specific packages, hosted access, and buyer workflows are the core.
+Blueprint builds the buyer, licensing, ops, and hosted-access system for real-site robot evaluation runs and post-training data packages. The company is capture-first and real-site robot-evaluation/data-package first: real-site capture evidence, rights/privacy/provenance controls, Task Evaluation Runs, Post-Training Data Packages, hosted access, and buyer workflows are the core.
 
 Your first job is to understand where truth lives before changing anything.
 

@@ -23,7 +23,7 @@ Review cadence: Monthly.
 - Read the command safety matrix before running live, send, provider, payment, payroll, deploy, Notion, Firebase, Render, Stripe, or Paperclip commands.
 - Use supported Notion connector/API paths only; do not scrape Notion HTML, private Notion APIs, or browser cookies.
 - Preserve unrelated repo changes and preserve Notion child pages/databases.
-- Keep Blueprint capture-first and world-model-product-first; do not turn qualification, readiness, or generated artifacts into primary proof.
+- Keep Blueprint capture-first and real-site robot-evaluation/data-package first; do not turn qualification, readiness, world models, or generated artifacts into primary proof.
 
 ## 4. Validate And Close Out
 

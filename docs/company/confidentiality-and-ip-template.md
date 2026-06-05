@@ -26,7 +26,7 @@ Confidential information includes non-public information about:
 
 - capture methods, raw bundles, manifests, timestamps, poses, device metadata, and provenance;
 - rights/privacy/consent and commercialization records;
-- site-specific world-model packages, hosted-session artifacts, and buyer-facing proof packages;
+- Task Evaluation Run artifacts, Post-Training Data Package artifacts, hosted-session artifacts, world-model/generated support artifacts, and buyer-facing proof packages;
 - buyer, site-operator, capturer, partner, vendor, and employee data;
 - pricing, revenue, GTM, outbound, and pipeline information;
 - source code, deployment details, credentials, security controls, and architecture;

@@ -26,7 +26,7 @@ const taskEvaluationHref =
   "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-review&requestedOutputs=Task%20Evaluation%20Run&source=pricing-task-evaluation";
 
 const dataPackageHref =
-  "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&requestedOutputs=Post-Training%20Data%20Package&source=pricing-post-training-data";
+  "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=post-training-data-package&path=data-package&requestedOutputs=Post-Training%20Data%20Package&source=pricing-post-training-data";
 
 const siteOperatorHref = "/contact/site-operator?source=pricing-site-operator-free";
 

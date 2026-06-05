@@ -22,7 +22,7 @@ State closeouts must also follow the shared [Autonomous Loop Evidence Checklist]
 
 ## Doctrine anchors
 
-- Keep Blueprint capture-first and world-model-product-first.
+- Keep Blueprint capture-first and real-site robot-evaluation/data-package-first.
 - Keep real capture provenance, rights, privacy, and commercialization truth above downstream summaries.
 - Keep `Blueprint-WebApp` as the canonical control plane for company execution state.
 - Keep repo-local execution detail inside each repo, but project shared state into one operating graph vocabulary.

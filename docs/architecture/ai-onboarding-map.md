@@ -97,7 +97,7 @@ Use graphify to find navigation hotspots. Do not use it to decide product truth,
 - `world model`: model/runtime substrate for a site-specific package or hosted experience built from real capture evidence.
 - `site world`: existing internal naming for many data contracts, routes, IDs, files, and runtime objects. Do not rename internals just because public copy says "world models."
 - `site package`: capture-backed downstream output sold, hosted, or used as the substrate for a real-site robot eval dataset.
-- `hosted session`: request/runtime surface for interacting with a site-world/world-model package.
+- `hosted session`: request/runtime surface for interacting with a Task Evaluation Run, Post-Training Data Package, or site-world/world-model compatibility artifact.
 - `real-site robot eval dataset`: current WebApp public buyer story for one real site, one robot task, one threshold set, Site/Task/Scenario/Eval Cards, and proof blockers.
 - `qualification` / `readiness`: support-layer vocabulary for site/task scoped and capture-grounded review; unsupported ready-to-deploy or safety-validated verdicts remain blocked.
 - `provenance`: capture source, timestamps, device metadata, poses, and derivation trail.

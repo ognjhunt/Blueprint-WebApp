@@ -7,7 +7,7 @@ Review cadence: Quarterly and before any vendor touches restricted data or produ
 
 ## Purpose
 
-Blueprint should adopt tools that strengthen capture supply, site-specific world-model products, hosted access, buyer operations, and reliability without creating uncontrolled source-of-truth sprawl.
+Blueprint should adopt tools that strengthen capture supply, Task Evaluation Runs, Post-Training Data Packages, hosted access, buyer operations, and reliability without creating uncontrolled source-of-truth sprawl.
 
 ## Procurement Principles
 

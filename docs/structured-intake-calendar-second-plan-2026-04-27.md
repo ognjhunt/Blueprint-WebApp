@@ -11,7 +11,7 @@ Calendly is not the funnel. It is a release valve once the request has enough co
 
 ## Why
 
-Blueprint is capture-first and world-model-product-first. The first website job is to collect truthful context that can route a request into the correct operating lane:
+Blueprint is capture-first and real-site robot-evaluation/data-package-first. The first website job is to collect truthful context that can route a request into the correct operating lane:
 
 - robot teams buying site-specific packages, hosted evaluation, or data access
 - site operators submitting or claiming a site, access policy, privacy boundary, or commercialization preference

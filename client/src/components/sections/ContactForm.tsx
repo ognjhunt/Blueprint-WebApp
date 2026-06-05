@@ -305,7 +305,7 @@ export default function ContactForm() {
                 </h3>
                 <p className="mb-6 text-sm md:text-base text-slate-300">
                   Blueprint turns real retail, hospitality, workplace, and venue spaces into
-                  site-specific world models and hosted testing surfaces.
+                  real-site robot evaluation, post-training data packages, and hosted testing surfaces.
                 </p>
 
                 <div className="space-y-4">

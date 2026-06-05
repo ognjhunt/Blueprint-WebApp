@@ -15,7 +15,7 @@ const sections = [
   {
     title: "Services",
     body:
-      "Blueprint provides software and related services for capture intake, site-specific world-model packages, hosted sessions, and supporting buyer or operator workflows. Specific deliverables, usage rights, and commercial terms may also be set in an order form, statement of work, listing-specific terms, or other written agreement.",
+      "Blueprint provides software and related services for capture intake, Task Evaluation Runs, Post-Training Data Packages, hosted sessions, and supporting buyer or operator workflows. Specific deliverables, usage rights, and commercial terms may also be set in an order form, statement of work, listing-specific terms, or other written agreement.",
     icon: Briefcase,
   },
   {
@@ -70,7 +70,7 @@ export default function Terms() {
     <>
       <SEO
         title="Terms of Service | Blueprint"
-        description="Terms of service for Blueprint world-model packages, hosted sessions, capture workflows, and related services."
+        description="Terms of service for Blueprint robot evaluation runs, post-training data packages, hosted sessions, capture workflows, and related services."
         canonical="/terms"
       />
 

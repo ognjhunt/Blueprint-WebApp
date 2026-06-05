@@ -22,7 +22,7 @@ const hostedHref =
   "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-review&source=home-kiss";
 
 const dataPackageHref =
-  "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&requestedOutputs=Post-Training%20Data%20Package&source=home-post-training-data";
+  "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=post-training-data-package&path=data-package&requestedOutputs=Post-Training%20Data%20Package&source=home-post-training-data";
 
 const operatorHref = "/contact/site-operator?source=home-kiss";
 

@@ -20,7 +20,7 @@ Use this template for human or Notion Manager review of Blueprint-managed Notion
 
 ## Blueprint Doctrine And Claims
 
-- [ ] Capture-first and world-model-product-first language remains visible.
+- [ ] Capture-first and real-site robot-evaluation/data-package-first language remains visible.
 - [ ] Qualification, readiness, and review are presented as support layers, not the company center.
 - [ ] Capture provenance, rights, privacy, consent, and commercialization status are not invented.
 - [ ] Sample, planned, request-gated, and live proof states are labeled separately.
