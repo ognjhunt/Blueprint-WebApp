@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import Contact from "@/pages/Contact";
 
 let mockSearch = "";
+let mockLocation = "/contact";
 const analyticsEventsMock = vi.hoisted(() => ({
   contactRequestStarted: vi.fn(),
   contactRequestSubmitted: vi.fn(),
@@ -23,6 +24,7 @@ vi.mock("wouter", async () => {
   return {
     ...actual,
     useSearch: () => mockSearch,
+    useLocation: () => [mockLocation, vi.fn()],
   };
 });
 
@@ -44,6 +46,7 @@ vi.mock("@/lib/client-env", async () => {
 beforeEach(() => {
   vi.clearAllMocks();
   mockSearch = "";
+  mockLocation = "/contact";
   global.fetch = vi.fn().mockImplementation((input: RequestInfo, init?: RequestInit) => {
     if (input === "/api/csrf") {
       return Promise.resolve({
@@ -65,268 +68,99 @@ beforeEach(() => {
   }) as typeof fetch;
 });
 
+function submittedBody() {
+  const submitCall = vi.mocked(global.fetch).mock.calls.find(
+    ([input]) => input === "/api/inbound-request",
+  );
+  return JSON.parse(String(submitCall?.[1]?.body));
+}
+
 describe("Contact page", () => {
-  it("renders the default robot-team intake", () => {
+  it("renders the simplified robot-team Task Evaluation Run flow", () => {
     render(<Contact />);
 
     expect(
-      screen.getByRole("heading", {
-        name: /Request a real-site robot eval\./i,
-      }),
+      screen.getByRole("heading", { name: /Request a Task Evaluation Run\./i }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /I build\/deploy robots/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Robot teams/i })).toHaveAttribute(
       "href",
-      expect.stringContaining("persona=robot-team"),
+      "/contact/robot-team#contact-intake",
     );
-    expect(screen.getByRole("link", { name: /I run\/represent a site/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Site operators/i })).toHaveAttribute(
       "href",
       "/contact/site-operator#contact-intake",
     );
-    expect(
-      screen.getByRole("textbox", {
-        name: /What site, policy, or data package do you need\?/i,
-      }),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/Human and agent friendly/i)).toBeInTheDocument();
-    expect(screen.getByText(/Add contact details and send the request/i)).toBeInTheDocument();
-    expect(screen.getByText(/This creates an intake record only/i)).toBeInTheDocument();
-    expect(screen.queryByText(/Buyer type/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Requested lanes/i)).not.toBeInTheDocument();
-    expect(screen.getAllByRole("button", { name: /Request site data/i }).length).toBeGreaterThan(0);
-    expect(screen.getByRole("radio", { name: /Site data package/i })).toBeChecked();
-    expect(screen.getByRole("radio", { name: /Policy evaluation/i })).toBeInTheDocument();
-    expect(screen.getByRole("radio", { name: /New capture request/i })).toBeInTheDocument();
-    expect(screen.getByText(/Required first pass/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/Policy evaluation/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/New capture request/i).length).toBeGreaterThan(0);
-    expect(screen.getByRole("textbox", { name: /What real-site data or robot task should Blueprint help with\?/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Add Site\/Task\/Scenario\/Eval intake/i })).toBeInTheDocument();
-    expect(screen.queryByText(/Proof boundaries visible/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Fastest paths/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Learn More/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Prefer a lighter first step\?/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/1 site x 1 robot policy\/profile x 1 task pack x scenario count/i)).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: /First name/i })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: /Work email/i })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: /^Company$/i })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: /Robot \/ policy name/i })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: /Target site or site type/i })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: /Task \+ threshold/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Request evaluation/i })).toBeInTheDocument();
+    expect(screen.queryByText(/Human and agent friendly/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Site data package/i)).not.toBeInTheDocument();
+
     expect(analyticsEventsMock.contactRequestStarted).toHaveBeenCalledWith({
       persona: "robot_team",
-      hostedMode: false,
+      hostedMode: true,
       requestedLane: "deeper_evaluation",
-      commercialRequestPath: "world_model",
+      commercialRequestPath: "hosted_evaluation",
       authenticated: false,
       prefilledSiteContext: false,
     });
   });
 
-  it("tracks the path selector without adding personal data", () => {
-    render(<Contact />);
-
-    fireEvent.click(screen.getAllByRole("button", { name: /Policy evaluation/i })[0]);
-
-    expect(analyticsEventsMock.contactPageCtaClicked).toHaveBeenCalledWith({
-      persona: "robot_team",
-      ctaId: "contact_path_select_hosted-review",
-      ctaLabel: "Policy evaluation",
-      destination: "hosted-review",
-      source: "contact-primary-path-selector",
-      requestedLane: "deeper_evaluation",
-      commercialRequestPath: "hosted_evaluation",
-    });
-  });
-
-  it("renders a compact hosted-session mode with prefilled robot-team data", () => {
+  it("keeps old robot-team query params in the new Task Evaluation Run form", () => {
     mockSearch =
-      "?interest=hosted-evaluation&buyerType=robot_team&path=hosted-evaluation&source=site-worlds&siteName=Harborview+Grocery+Distribution+Annex&siteLocation=1847+W+Fulton+St%2C+Chicago%2C+IL+60612&taskStatement=Walk+to+shelf+staging+and+pick+the+blue+tote&targetRobotTeam=Unitree+G1+with+head+cam+and+wrist+cam";
+      "?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=site-world-detail&siteName=Harborview+Grocery+Distribution+Annex&targetSiteType=Grocery+distribution&scenario=Walk+to+shelf+staging&requestedOutputs=Runtime+manifest+and+proof+packet&targetRobotTeam=Unitree+G1";
 
     render(<Contact />);
 
     expect(
-      screen.getByRole("heading", { name: /Request a real-site robot eval\./i }),
+      screen.getByRole("heading", { name: /Request a Task Evaluation Run\./i }),
     ).toBeInTheDocument();
-    expect(screen.getAllByDisplayValue("Harborview Grocery Distribution Annex").length).toBeGreaterThan(0);
-    expect(screen.getByDisplayValue("Walk to shelf staging and pick the blue tote")).toBeInTheDocument();
-    expect(screen.getAllByDisplayValue("Unitree G1 with head cam and wrist cam").length).toBeGreaterThan(0);
-    expect(screen.getAllByRole("button", { name: /Request policy evaluation/i }).length).toBeGreaterThan(0);
-
-    expect(screen.queryByRole("combobox", { name: /Proof path/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("textbox", { name: /Existing stack or review workflow/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("textbox", { name: /Human-gated topics to raise early/i })).not.toBeInTheDocument();
+    expect(screen.getByDisplayValue("Harborview Grocery Distribution Annex")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Unitree G1")).toBeInTheDocument();
+    expect(screen.getByText(/Prefilled context attached/i)).toBeInTheDocument();
+    expect(screen.getByText(/Runtime manifest and proof packet/i)).toBeInTheDocument();
   });
 
-  it("carries source route context into the robot-team payload", async () => {
-    mockSearch =
-      "?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=site-world-detail&siteName=Harborview+Grocery+Distribution+Annex&targetSiteType=Grocery+distribution&scenario=Walk+to+shelf+staging&requestedOutputs=Runtime+manifest+and+proof+packet";
-
-    render(<Contact />);
-
-    expect(screen.getAllByDisplayValue("Harborview Grocery Distribution Annex").length).toBeGreaterThan(0);
-    expect(screen.getByDisplayValue("Grocery distribution")).toBeInTheDocument();
-    expect(screen.getAllByText(/Scenario/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Runtime manifest and proof packet/i).length).toBeGreaterThan(0);
-
-    fireEvent.change(screen.getByPlaceholderText("First name*"), {
-      target: { value: "Ada" },
-    });
-    fireEvent.change(screen.getByPlaceholderText("Last name*"), {
-      target: { value: "Lovelace" },
-    });
-    fireEvent.change(screen.getByPlaceholderText("Company name*"), {
-      target: { value: "Analytical Engines" },
-    });
-    fireEvent.change(screen.getByPlaceholderText("Work email*"), {
-      target: { value: "ada@example.com" },
-    });
-    fireEvent.change(screen.getByRole("textbox", { name: /Your role/i }), {
-      target: { value: "Autonomy lead" },
-    });
-    fireEvent.change(screen.getByRole("textbox", { name: /What real-site data or robot task should Blueprint help with\?/i }), {
-      target: { value: "Compare shelf-staging behavior before field travel." },
-    });
-    const submitButtons = screen.getAllByRole("button", { name: /Request site data/i });
-    fireEvent.click(submitButtons[submitButtons.length - 1]);
-
-    await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith(
-        "/api/inbound-request",
-        expect.objectContaining({ method: "POST" }),
-      );
-    });
-
-    const submitCall = vi.mocked(global.fetch).mock.calls.find(
-      ([input]) => input === "/api/inbound-request",
-    );
-    const body = JSON.parse(String(submitCall?.[1]?.body));
-    expect(body).toMatchObject({
-      buyerType: "robot_team",
-      commercialRequestPath: "world_model",
-      siteName: "Harborview Grocery Distribution Annex",
-      targetSiteType: "Grocery distribution",
-      details: "Notes: Scenario: Walk to shelf staging\nRequested outputs: Runtime manifest and proof packet",
-    });
-  });
-
-  it("prefills the primary request from a city param without adding city-specific wall copy", () => {
-    mockSearch = "?persona=robot-team&city=austin";
-
-    render(<Contact />);
-
-    expect(
-      screen.getByRole("heading", {
-        name: /Request a real-site robot eval\./i,
-      }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("textbox", {
-        name: /What site, policy, or data package do you need\?/i,
-      }),
-    ).toHaveValue("austin");
-    expect(screen.queryByText(/Austin request lens/i)).not.toBeInTheDocument();
-  });
-
-  it("shows a truthful unknown-location request state from a direct agent URL", () => {
-    mockSearch =
-      "?source=site-worlds&buyerType=robot_team&path=hosted-review&location=123%20Unknown%20St&workflow=warehouse%20tote";
-
-    render(<Contact />);
-
-    expect(
-      screen.getByText(/No exact-site package in the catalog yet\./i),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("textbox", {
-        name: /What site, policy, or data package do you need\?/i,
-      }),
-    ).toHaveValue("123 Unknown St");
-    expect(
-      screen.getByRole("link", { name: /Request policy evaluation/i }),
-    ).toHaveAttribute("href", expect.stringContaining("buyerType=robot_team"));
-    expect(
-      screen.getByRole("link", { name: /Request policy evaluation/i }),
-    ).toHaveAttribute("href", expect.stringContaining("source=site-worlds"));
-    expect(
-      screen.getByDisplayValue("warehouse tote"),
-    ).toBeInTheDocument();
-    expect(screen.getAllByDisplayValue("123 Unknown St").length).toBeGreaterThan(0);
-  });
-
-  it("submits the default robot-team request when required fields are filled", async () => {
+  it("submits a robot-team Task Evaluation Run payload", async () => {
     render(<Contact />);
 
     fireEvent.change(screen.getByPlaceholderText("First name*"), {
       target: { value: "Ada" },
     });
-    fireEvent.change(screen.getByPlaceholderText("Last name*"), {
-      target: { value: "Lovelace" },
-    });
-    fireEvent.change(screen.getByPlaceholderText("Company name*"), {
+    fireEvent.change(screen.getByPlaceholderText("Company*"), {
       target: { value: "Analytical Engines" },
     });
     fireEvent.change(screen.getByPlaceholderText("Work email*"), {
       target: { value: "ada@example.com" },
     });
-    fireEvent.change(screen.getByRole("textbox", { name: /Your role/i }), {
-      target: { value: "Autonomy lead" },
+    fireEvent.change(screen.getByRole("textbox", { name: /Robot \/ policy name/i }), {
+      target: { value: "Unitree G1 policy API" },
     });
-    fireEvent.change(screen.getByRole("textbox", { name: /What real-site data or robot task should Blueprint help with\?/i }), {
-      target: { value: "Qualify a tote picking workflow." },
-    });
-    fireEvent.change(screen.getByRole("textbox", { name: /Site or facility/i }), {
+    fireEvent.change(screen.getByRole("textbox", { name: /Target site or site type/i }), {
       target: { value: "Warehouse in Chicago" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /Add Site\/Task\/Scenario\/Eval intake/i }));
-    fireEvent.change(screen.getByRole("textbox", { name: /Known geometry or assets/i }), {
-      target: { value: "CAD for dock and staging lanes." },
+    fireEvent.change(screen.getByRole("textbox", { name: /Task \+ threshold/i }), {
+      target: { value: "Tote transfer. Need >=97% simulated success before pilot." },
     });
-    fireEvent.change(screen.getByRole("textbox", { name: /Visual conditions/i }), {
-      target: { value: "Mixed LED light and reflective tape." },
+    fireEvent.click(screen.getByRole("button", { name: /Add optional details/i }));
+    fireEvent.change(screen.getByRole("combobox", { name: /Preferred policy access method/i }), {
+      target: { value: "Policy API endpoint" },
     });
-    fireEvent.change(screen.getByRole("textbox", { name: /Start state/i }), {
-      target: { value: "Robot starts at charging alcove with empty hands." },
+    fireEvent.change(screen.getByRole("textbox", { name: /Scenario count/i }), {
+      target: { value: "50 normal, 25 edge cases" },
     });
-    fireEvent.change(screen.getByRole("textbox", { name: /Success definition/i }), {
-      target: { value: "Tote reaches conveyor without human touch." },
+    fireEvent.change(screen.getByRole("textbox", { name: /Deadline/i }), {
+      target: { value: "Scope by June 20" },
     });
-    fireEvent.change(screen.getByRole("textbox", { name: /Failure definition/i }), {
-      target: { value: "Dropped tote, blocked route, or human intervention." },
+    fireEvent.change(screen.getByRole("textbox", { name: /Notes/i }), {
+      target: { value: "Compare against action logs." },
     });
-    fireEvent.change(screen.getByRole("textbox", { name: /Required success rate/i }), {
-      target: { value: "97% over 200 attempts" },
-    });
-    fireEvent.change(screen.getByRole("textbox", { name: /Cycle-time threshold/i }), {
-      target: { value: "45 seconds per tote" },
-    });
-    fireEvent.change(screen.getByRole("textbox", { name: /Intervention-rate threshold/i }), {
-      target: { value: "fewer than 1 per shift" },
-    });
-    fireEvent.change(screen.getByRole("textbox", { name: /Safety constraints/i }), {
-      target: { value: "operator signoff and exclusion zones" },
-    });
-    fireEvent.change(screen.getByRole("textbox", { name: /Pilot timeline/i }), {
-      target: { value: "Q3 short pilot" },
-    });
-    fireEvent.change(screen.getByRole("textbox", { name: /Required evidence/i }), {
-      target: { value: "simulator traces and action logs" },
-    });
-    fireEvent.change(screen.getByRole("textbox", { name: /Normal scenario/i }), {
-      target: { value: "Clear aisle tote transfer." },
-    });
-    fireEvent.change(screen.getByRole("textbox", { name: /Variation to include/i }), {
-      target: { value: "Cart partially blocks the main aisle." },
-    });
-    fireEvent.change(screen.getByRole("textbox", { name: /Edge case/i }), {
-      target: { value: "Human steps into the handoff zone." },
-    });
-    fireEvent.change(screen.getByRole("textbox", { name: /Known risk/i }), {
-      target: { value: "Reflective tape creates false obstacle detections." },
-    });
-    fireEvent.change(screen.getByRole("textbox", { name: /Robot or policy tested/i }), {
-      target: { value: "Unitree G1 policy API endpoint." },
-    });
-    fireEvent.change(screen.getByRole("textbox", { name: /Preferred review path/i }), {
-      target: { value: "Hosted review first, then simulator traces." },
-    });
-    fireEvent.change(screen.getByRole("textbox", { name: /Validation expectations/i }), {
-      target: { value: "Compare policy trace, action logs, human demo, and short pilot result." },
-    });
-    const submitButtons = screen.getAllByRole("button", { name: /Request site data/i });
-    fireEvent.click(submitButtons[submitButtons.length - 1]);
+    fireEvent.click(screen.getByRole("button", { name: /Request evaluation/i }));
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
@@ -335,56 +169,45 @@ describe("Contact page", () => {
       );
     });
 
-    expect(screen.getByText(/Site data request received/i)).toBeInTheDocument();
-    expect(screen.getByText(/No checkout, provider generation, live hosted launch/i)).toBeInTheDocument();
-    expect(screen.getByText(/supported request path or the first missing proof/i)).toBeInTheDocument();
-    const submitCall = vi.mocked(global.fetch).mock.calls.find(
-      ([input]) => input === "/api/inbound-request",
-    );
-    const body = JSON.parse(String(submitCall?.[1]?.body));
-    expect(body.details).toContain("Success-rate threshold: 97% over 200 attempts");
-    expect(body.details).toContain("Cycle-time threshold: 45 seconds per tote");
-    expect(body.details).toContain("Intervention-rate threshold: fewer than 1 per shift");
-    expect(body.details).toContain("Safety threshold: operator signoff and exclusion zones");
-    expect(body.details).toContain("Pilot timeline: Q3 short pilot");
-    expect(body.details).toContain("Required evidence: simulator traces and action logs");
+    expect(screen.getByText(/Task Evaluation Run request received/i)).toBeInTheDocument();
+    const body = submittedBody();
+    expect(body).toMatchObject({
+      firstName: "Ada",
+      lastName: "Not provided",
+      company: "Analytical Engines",
+      roleTitle: "Robot team",
+      email: "ada@example.com",
+      buyerType: "robot_team",
+      commercialRequestPath: "hosted_evaluation",
+      requestedLanes: ["deeper_evaluation"],
+      proofPathPreference: "exact_site_required",
+      siteName: "Warehouse in Chicago",
+      targetSiteType: "Warehouse in Chicago",
+      taskStatement: "Tote transfer. Need >=97% simulated success before pilot.",
+      targetRobotTeam: "Unitree G1 policy API",
+    });
+    expect(body.details).toContain("Policy access method: Policy API endpoint");
+    expect(body.details).toContain("Scenario count: 50 normal, 25 edge cases");
     expect(body.realSiteRobotEvalFit).toMatchObject({
       siteCardInput: {
         siteType: "Warehouse in Chicago",
-        knownGeometryAssets: "CAD for dock and staging lanes.",
-        visualConditions: "Mixed LED light and reflective tape.",
-        dynamicConditions: "",
-        safetyConstraints: "operator signoff and exclusion zones",
-        robotRelevantMetadata: "",
       },
       taskCardInput: {
-        task: "Qualify a tote picking workflow.",
-        startState: "Robot starts at charging alcove with empty hands.",
-        successDefinition: "Tote reaches conveyor without human touch.",
-        failureDefinition: "Dropped tote, blocked route, or human intervention.",
-        requiredMetrics:
-          "Success-rate threshold: 97% over 200 attempts\nCycle-time threshold: 45 seconds per tote\nIntervention-rate threshold: fewer than 1 per shift",
-      },
-      scenarioCardInput: {
-        normalScenario: "Clear aisle tote transfer.",
-        variation: "Cart partially blocks the main aisle.",
-        edgeCase: "Human steps into the handoff zone.",
-        knownRisk: "Reflective tape creates false obstacle detections.",
+        task: "Tote transfer. Need >=97% simulated success before pilot.",
+        requiredMetrics: "Tote transfer. Need >=97% simulated success before pilot.",
       },
       evalCardInput: {
-        robotOrPolicyTested: "Unitree G1 policy API endpoint.",
-        preferredReviewPath: "Hosted review first, then simulator traces.",
-        resultsValidationExpectations:
-          "Required evidence: simulator traces and action logs\nValidation expectations: Compare policy trace, action logs, human demo, and short pilot result.",
+        robotOrPolicyTested: "Unitree G1 policy API",
+        preferredReviewPath: "Policy API endpoint",
       },
     });
     expect(analyticsEventsMock.contactRequestSubmitted).toHaveBeenCalledWith({
       persona: "robot_team",
-      hostedMode: false,
+      hostedMode: true,
       requestedLane: "deeper_evaluation",
-      commercialRequestPath: "world_model",
+      commercialRequestPath: "hosted_evaluation",
       authenticated: false,
-      hasJobTitle: true,
+      hasJobTitle: false,
       hasSiteName: true,
       hasSiteLocation: false,
       hasTaskStatement: true,
@@ -392,117 +215,54 @@ describe("Contact page", () => {
       hasPrivacySecurityConstraints: false,
       hasNotes: true,
     });
-    expect(analyticsEventsMock.contactRequestCompleted).toHaveBeenCalledWith({
-      persona: "robot_team",
-      hostedMode: false,
-      requestedLane: "deeper_evaluation",
-      commercialRequestPath: "world_model",
-      authenticated: false,
-    });
   });
 
-  it("submits hosted-session mode with robot-team defaults", async () => {
-    mockSearch =
-      "?interest=hosted-evaluation&buyerType=robot_team&path=hosted-evaluation&source=site-worlds&siteName=Harborview+Grocery+Distribution+Annex&siteLocation=1847+W+Fulton+St%2C+Chicago%2C+IL+60612&taskStatement=Walk+to+shelf+staging+and+pick+the+blue+tote&targetRobotTeam=Unitree+G1+with+head+cam+and+wrist+cam";
+  it("renders the simplified free site-operator submission flow", () => {
+    mockLocation = "/contact/site-operator";
 
     render(<Contact />);
 
-    await screen.findByDisplayValue("Walk to shelf staging and pick the blue tote");
-
-    fireEvent.change(screen.getByPlaceholderText("First name*"), {
-      target: { value: "Ada" },
-    });
-    fireEvent.change(screen.getByPlaceholderText("Last name*"), {
-      target: { value: "Lovelace" },
-    });
-    fireEvent.change(screen.getByPlaceholderText("Company name*"), {
-      target: { value: "Analytical Engines" },
-    });
-    fireEvent.change(screen.getByPlaceholderText("Work email*"), {
-      target: { value: "ada@example.com" },
-    });
-    fireEvent.change(screen.getByRole("textbox", { name: /Your role/i }), {
-      target: { value: "Autonomy lead" },
-    });
-    const hostedSubmitButtons = screen.getAllByRole("button", { name: /Request policy evaluation/i });
-    fireEvent.click(hostedSubmitButtons[hostedSubmitButtons.length - 1]);
-
-    await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith(
-        "/api/inbound-request",
-        expect.objectContaining({ method: "POST" }),
-      );
-    });
-
-    const submitCall = vi.mocked(global.fetch).mock.calls.find(
-      ([input]) => input === "/api/inbound-request",
-    );
-    const body = JSON.parse(String(submitCall?.[1]?.body));
-    expect(body.buyerType).toBe("robot_team");
-    expect(body.commercialRequestPath).toBe("hosted_evaluation");
-    expect(body.requestedLanes).toEqual(["deeper_evaluation"]);
-    expect(body.budgetBucket).toBe("Undecided/Unsure");
-    expect(body.siteName).toBe("Harborview Grocery Distribution Annex");
-    expect(body.siteLocation).toBe("1847 W Fulton St, Chicago, IL 60612");
-    expect(body.siteLocationMetadata).toEqual({
-      source: "manual",
-      formattedAddress: "1847 W Fulton St, Chicago, IL 60612",
-    });
-    expect(body.context).toMatchObject({
-      demandCity: null,
-      buyerChannelSource: "site_worlds",
-      buyerChannelSourceCaptureMode: "explicit_query",
-      buyerChannelSourceRaw: "site-worlds",
-      utm: {
-        source: null,
-        medium: null,
-        campaign: null,
-        term: null,
-        content: null,
-      },
-    });
-    expect(screen.getByText(/Policy evaluation request received/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /Submit a Site for Robot Evaluation\./i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Submitting a site is free/i)).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: /Facility name or site type/i })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: /City \/ location/i })).toBeInTheDocument();
+    expect(screen.getByText(/Private review only/i)).toBeInTheDocument();
+    expect(screen.getByText(/Anonymized marketplace use/i)).toBeInTheDocument();
+    expect(screen.getByText(/Ask before each robot-team use/i)).toBeInTheDocument();
+    expect(screen.getByText(/Not sure yet/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Submit site free/i })).toBeInTheDocument();
   });
 
-  it("submits site-operator rights, privacy, access, and commercial boundaries", async () => {
-    mockSearch = "?persona=site-operator";
+  it("submits site-operator access and privacy boundaries", async () => {
+    mockLocation = "/contact/site-operator";
 
     render(<Contact />);
 
     fireEvent.change(screen.getByPlaceholderText("First name*"), {
       target: { value: "Nina" },
     });
-    fireEvent.change(screen.getByPlaceholderText("Last name*"), {
-      target: { value: "Operator" },
-    });
-    fireEvent.change(screen.getByPlaceholderText("Operator or company*"), {
+    fireEvent.change(screen.getByPlaceholderText("Company or operator*"), {
       target: { value: "Brightleaf Ops" },
     });
     fireEvent.change(screen.getByPlaceholderText("Work email*"), {
       target: { value: "nina@example.com" },
     });
-    fireEvent.change(screen.getByRole("textbox", { name: /Facility name/i }), {
+    fireEvent.change(screen.getByRole("textbox", { name: /Facility name or site type/i }), {
       target: { value: "Brightleaf Books" },
     });
-    fireEvent.change(screen.getByRole("textbox", { name: /Site location/i }), {
+    fireEvent.change(screen.getByRole("textbox", { name: /City \/ location/i }), {
       target: { value: "Durham, NC" },
     });
-    fireEvent.change(screen.getByRole("textbox", { name: /Access rules/i }), {
-      target: { value: "Escorted weekdays, no capture near the cash office." },
-    });
-    fireEvent.click(screen.getByRole("button", { name: /Add privacy, rights, or commercialization details/i }));
-    fireEvent.change(screen.getByRole("textbox", { name: /Rights and ownership notes/i }), {
-      target: { value: "Owner approval required before release." },
-    });
-    fireEvent.change(screen.getByRole("textbox", { name: /Privacy and security notes/i }), {
-      target: { value: "Redact faces and skip employee-only rooms." },
-    });
-    fireEvent.change(screen.getByRole("textbox", { name: /Commercialization preference/i }), {
-      target: { value: "Keep private until owner review." },
-    });
-
-    const siteSubmitButtons = screen.getAllByRole("button", { name: /Submit site free/i });
-    fireEvent.click(siteSubmitButtons[siteSubmitButtons.length - 1]);
+    fireEvent.click(screen.getByText(/Ask before each robot-team use/i));
+    fireEvent.change(
+      screen.getByRole("textbox", { name: /Privacy, safety, or commercialization notes/i }),
+      {
+        target: { value: "Redact faces and skip employee-only rooms." },
+      },
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Submit site free/i }));
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
@@ -511,36 +271,38 @@ describe("Contact page", () => {
       );
     });
 
-    const submitCall = vi.mocked(global.fetch).mock.calls.find(
-      ([input]) => input === "/api/inbound-request",
-    );
-    const body = JSON.parse(String(submitCall?.[1]?.body));
+    expect(screen.getByText(/Site submission received/i)).toBeInTheDocument();
+    const body = submittedBody();
     expect(body).toMatchObject({
+      firstName: "Nina",
+      lastName: "Not provided",
+      company: "Brightleaf Ops",
+      roleTitle: "Site operator",
       buyerType: "site_operator",
+      commercialRequestPath: "site_claim",
+      requestedLanes: ["qualification"],
       siteName: "Brightleaf Books",
       siteLocation: "Durham, NC",
-      operatingConstraints: "Escorted weekdays, no capture near the cash office.",
-      captureRights: "Owner approval required before release.",
+      operatingConstraints: "Ask before each robot-team use",
       privacySecurityConstraints: "Redact faces and skip employee-only rooms.",
-      derivedScenePermission: "Keep private until owner review.",
     });
-    expect(screen.getByText(/Site claim received/i)).toBeInTheDocument();
+    expect(body.captureRights).toContain("Ask before each robot-team use");
+    expect(body.derivedScenePermission).toContain("Per-use operator approval");
   });
 
-  it("tracks a validation failure when required contact fields are missing", async () => {
+  it("tracks a validation failure when required robot-team fields are missing", async () => {
     render(<Contact />);
 
-    const submitButtons = screen.getAllByRole("button", { name: /Request site data/i });
-    fireEvent.click(submitButtons[submitButtons.length - 1]);
+    fireEvent.click(screen.getByRole("button", { name: /Request evaluation/i }));
 
-    expect(screen.getByText(/keeps the request routeable before any call or human review/i)).toBeInTheDocument();
+    expect(screen.getByText(/Please add: First name, Company, Work email, Target site or site type, Task \+ threshold/i)).toBeInTheDocument();
     expect(analyticsEventsMock.contactRequestFailed).toHaveBeenCalledWith({
       stage: "validation",
       errorType: "missing_required_fields",
       persona: "robot_team",
-      hostedMode: false,
+      hostedMode: true,
       requestedLane: "deeper_evaluation",
-      commercialRequestPath: "world_model",
+      commercialRequestPath: "hosted_evaluation",
     });
   });
 });

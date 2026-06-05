@@ -69,7 +69,7 @@ describe("contactRequestPrefill", () => {
     });
     const url = new URL(href, "https://tryblueprint.local");
 
-    expect(url.pathname).toBe("/contact");
+    expect(url.pathname).toBe("/contact/robot-team");
     expect(url.searchParams.get("source")).toBe("site-worlds");
     expect(url.searchParams.get("buyerType")).toBe("robot_team");
     expect(url.searchParams.get("path")).toBe("hosted-review");

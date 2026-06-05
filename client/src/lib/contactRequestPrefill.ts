@@ -58,24 +58,24 @@ export const CONTACT_REQUEST_PATH_OPTIONS: Array<{
   commercialRequestPath: CommercialRequestPath;
 }> = [
   {
-    value: "world-model",
-    label: "Site data package",
-    description: "Scope the world model, scenario data, exports, provenance, and usage limits for one site.",
-    cta: "Request site data",
-    buyerType: "robot_team",
-    commercialRequestPath: "world_model",
-  },
-  {
     value: "hosted-review",
-    label: "Policy evaluation",
-    description: "Run a robot policy against one site's tasks and scenarios by manual session or headless agent.",
-    cta: "Request policy evaluation",
+    label: "Task Evaluation Run",
+    description: "Share a policy API, container, action trace, or assisted review path for one site/task.",
+    cta: "Request evaluation",
     buyerType: "robot_team",
     commercialRequestPath: "hosted_evaluation",
   },
   {
+    value: "world-model",
+    label: "Post-Training Data Package",
+    description: "Scope curated robot POV clips, labels, scenario variations, failure cases, and export format.",
+    cta: "Request data package",
+    buyerType: "robot_team",
+    commercialRequestPath: "world_model",
+  },
+  {
     value: "new-capture",
-    label: "New capture request",
+    label: "New site capture",
     description: "Name an unscanned site or workflow for capture review.",
     cta: "Request this location",
     buyerType: "robot_team",
@@ -83,7 +83,7 @@ export const CONTACT_REQUEST_PATH_OPTIONS: Array<{
   },
   {
     value: "site-question",
-    label: "Site operator participation",
+    label: "Site operator submission",
     description: "Submit a facility and define access, privacy, and commercial-use boundaries for free.",
     cta: "Submit site free",
     buyerType: "site_operator",
@@ -93,8 +93,8 @@ export const CONTACT_REQUEST_PATH_OPTIONS: Array<{
 
 const DEFAULT_PREFILL: ContactRequestPrefill = {
   buyerType: "robot_team",
-  requestPath: "world-model",
-  commercialRequestPath: "world_model",
+  requestPath: "hosted-review",
+  commercialRequestPath: "hosted_evaluation",
   source: "",
   primaryNeed: "",
   query: "",
@@ -134,7 +134,7 @@ function paramsFrom(input: string | URLSearchParams): URLSearchParams {
 
 export function normalizeContactRequestPath(
   value?: string | null,
-  fallback: ContactRequestPath = "world-model",
+  fallback: ContactRequestPath = "hosted-review",
 ): ContactRequestPath {
   const normalized = clean(value)
     .toLowerCase()
@@ -385,7 +385,7 @@ export function parseContactRequestPrefill(
           ? commercialPathToContactRequestPath(commercialPathParam as CommercialRequestPath)
           : interestParam
             ? normalizeContactRequestPath(interestParam)
-          : "world-model";
+          : "hosted-review";
   const buyerType = parseBuyerType(buyerTypeParam, requestPath);
   const address = getParam(params, ["address", "siteLocation"]);
   const city = getParam(params, ["city"]);
@@ -452,13 +452,13 @@ function inferredTaskStatement(input: ContactRequestUrlInput, requestPath: Conta
   }
   if (workflow) return workflow;
   if (requestPath === "hosted-review" && primaryNeed) {
-    return `Request hosted eval-card review for ${primaryNeed}.`;
+    return `Request a Task Evaluation Run for ${primaryNeed}.`;
   }
   if (requestPath === "new-capture" && primaryNeed) {
     return `Request an exact-site capture path for an eval-card dataset around ${primaryNeed}.`;
   }
-  if (primaryNeed) return `Request real-site robot data or policy evaluation for ${primaryNeed}.`;
-  if (siteClass) return `Request real-site robot data or policy evaluation for ${siteClass}.`;
+  if (primaryNeed) return `Request a Task Evaluation Run for ${primaryNeed}.`;
+  if (siteClass) return `Request a Task Evaluation Run for ${siteClass}.`;
   return "";
 }
 
@@ -500,7 +500,8 @@ export function buildContactRequestUrl(input: ContactRequestUrlInput = {}): stri
     input.proofPathPreference || defaultProofPathPreferenceForRequestPath(requestPath),
   );
 
-  return `/contact?${params.toString()}`;
+  const route = buyerType === "site_operator" ? "/contact/site-operator" : "/contact/robot-team";
+  return `${route}?${params.toString()}`;
 }
 
 export function buildAgentInboundRequestDraft(

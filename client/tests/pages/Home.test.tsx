@@ -13,7 +13,7 @@ describe("Home", () => {
       }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/Test policies and scenarios against capture-backed sites/i),
+      screen.getByText(/Blueprint turns captured facilities into robot task packs/i),
     ).toBeInTheDocument();
     expect(screen.getByText(/^Success rate$/i)).toBeInTheDocument();
     expect(screen.getByText(/^Cycle time$/i)).toBeInTheDocument();
@@ -21,7 +21,7 @@ describe("Home", () => {
     expect(screen.getByText(/^Safety threshold$/i)).toBeInTheDocument();
     expect(
       screen.getAllByRole("link", { name: /Request evaluation/i })[0],
-    ).toHaveAttribute("href", expect.stringContaining("/contact?persona=robot-team"));
+    ).toHaveAttribute("href", expect.stringContaining("/contact/robot-team?persona=robot-team"));
     expect(
       Array.from(container.querySelectorAll("[data-home-section]")).map((node) =>
         node.getAttribute("data-home-section"),
@@ -34,23 +34,24 @@ describe("Home", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Real-site evaluations for robot teams\./i,
+        name: /Two robot-team products\./i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getAllByRole("heading", { name: /Policy Evaluation Set/i }).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole("heading", { name: /Site Data Package/i }).length).toBeGreaterThan(0);
-    expect(screen.getByRole("heading", { name: /Two paid robot-team products\. Operators are free\./i })).toBeInTheDocument();
-    expect(screen.getByText(/From \$6,500 \/ Policy Evaluation Run/i)).toBeInTheDocument();
-    expect(screen.getByText(/\$3,500\+ \/ site package/i)).toBeInTheDocument();
-    expect(screen.getByText(/^Free$/i)).toBeInTheDocument();
+    expect(screen.getAllByRole("heading", { name: /Task Evaluation Run/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("heading", { name: /Post-Training Data Package/i }).length).toBeGreaterThan(0);
+    expect(screen.getByRole("heading", { name: /Two paid robot-team products\. Site operators submit free\./i })).toBeInTheDocument();
+    expect(screen.getByText(/From \$6,500 \/ run/i)).toBeInTheDocument();
+    expect(screen.getByText(/From \$25,000\+/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Site operators submit sites free\./i })).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
-        name: /Public samples show the workflow\. Request packets prove one site\./i,
+        name: /Public examples show the workflow shape\./i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Generated imagery on the public site is illustrative/i)).toBeInTheDocument();
     expect(
-      screen.getByText(/Operational Launch Ready claims still require proof/i),
+      screen.getByText(/Evaluation output remains advisory until supported by simulator traces/i),
     ).toBeInTheDocument();
+    expect(screen.queryByText(/Site Data Package/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/\$3,500\+ \/ site package/i)).not.toBeInTheDocument();
   });
 });

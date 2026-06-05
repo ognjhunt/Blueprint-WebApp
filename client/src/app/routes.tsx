@@ -158,6 +158,7 @@ export const appRoutes: AppRoute[] = [
   { path: "/sample-deliverables", layout: "public", component: ProofRedirect },
   { path: "/case-studies", layout: "public", component: LegacyProofStoryRedirect },
   { path: "/contact", layout: "public", component: Contact },
+  { path: "/contact/robot-team", layout: "public", component: Contact },
   { path: "/contact/site-operator", layout: "public", component: Contact },
   { path: "/help", layout: "public", component: ContactRedirect },
   { path: "/help/contact", layout: "public", component: ContactRedirect },

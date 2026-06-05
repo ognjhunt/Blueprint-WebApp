@@ -1,4 +1,4 @@
-import { ArrowRight, Building2, Database, Play } from "lucide-react";
+import { ArrowRight, Building2, ClipboardCheck, Database } from "lucide-react";
 import { policyEvaluationSetDefinition } from "@/data/marketingDefinitions";
 
 type OfferComparisonProps = {
@@ -10,41 +10,41 @@ type OfferComparisonProps = {
 
 const offerCards = [
   {
-    title: "Buy the site data package",
-    price: "$3,500+",
+    title: "Run a Task Evaluation Run",
+    price: "From $6,500 / run",
     description:
-      "Everything your robot team needs to use one facility as scoped site data: site package, scenarios, metadata, provenance, and export limits.",
+      "Test one robot policy/profile on one real site against one scoped Task Pack, up to 500 scenarios.",
     bullets: [
-      "Walkthrough video, timestamps, and camera poses",
-      "Scenario data, depth, and geometry when source capture supports them",
-      "Rights, freshness, provenance, and export notes",
+      "Unit: 1 site, 1 policy/profile, 1 Task Pack",
+      "Pass/fail results, cycle-time results, intervention notes, and failure review",
+      "Selected rollout evidence and exportable scenario/results manifest",
     ],
-    href: "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model",
-    cta: "Request site data",
-    icon: Database,
-    imageSrc: "/illustrations/offer-site-package-preview.svg",
+    href: "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-review",
+    cta: "Request Task Evaluation Run",
+    icon: ClipboardCheck,
+    imageSrc: "/illustrations/offer-hosted-evaluation-preview.svg",
     imageAlt:
-      "Site package shown as a capture-backed data bundle with walkthrough frames, geometry files, and rights materials.",
+      "Illustration of Blueprint task evaluation on one exact site with reruns, comparison, and export outputs.",
     accent: "bg-slate-950 text-white",
     cardTone: "border-slate-200 bg-white",
     bulletTone: "bg-slate-400",
   },
   {
-    title: "Run a policy evaluation set",
-    price: "From $6,500 / Policy Evaluation Run",
+    title: "Request a Post-Training Data Package",
+    price: "From $25,000+",
     description:
-      "Run one robot policy/profile on one real site against one scoped task pack, up to 500 scenarios/episodes.",
+      "Get curated robot POV clips, scenario labels, synthetic variations, failure cases, and export format after evaluation.",
     bullets: [
-      "Unit: 1 site, 1 policy/profile, 1 task pack",
-      "Pass/fail metrics, cycle time, intervention notes, and failure review",
-      "Selected rollout evidence and exportable scenario/results manifest",
+      "Curated robot POV clips and scenario labels",
+      "Synthetic variations, failure cases, and task metadata",
+      "Export format matched to the team's stack",
     ],
-    href: "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation",
-    cta: "Request policy evaluation",
-    icon: Play,
-    imageSrc: "/illustrations/offer-hosted-evaluation-preview.svg",
+    href: "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&requestedOutputs=Post-Training%20Data%20Package",
+    cta: "Request Data Package",
+    icon: Database,
+    imageSrc: "/illustrations/offer-site-package-preview.svg",
     imageAlt:
-      "Illustration of Blueprint policy evaluation on one exact site with reruns, comparison, and export outputs.",
+      "Site package shown as a data bundle with walkthrough frames, geometry files, and rights materials.",
     accent: "border border-slate-300 bg-white text-slate-900",
     cardTone: "border-slate-200 bg-slate-50",
     bulletTone: "bg-slate-500",
@@ -73,8 +73,8 @@ const offerCards = [
 
 export function OfferComparison({
   eyebrow = "Simple commercial model",
-  title = "Robot teams pay for evaluation sets and data. Operators are free.",
-  description = "Request the site data package when your team needs world-model and scenario exports. Use a policy evaluation set when your team wants a fixed-scope read on one policy across the site first. Submit a site for free when you operate the facility.",
+  title = "Robot teams pay for Task Evaluation Runs and Post-Training Data Packages. Operators are free.",
+  description = "Use a Task Evaluation Run when your team wants a fixed-scope read on one policy across a real-site Task Pack. Request a Post-Training Data Package when your team needs curated data for model improvement. Submit a site for free when you operate the facility.",
   className = "",
 }: OfferComparisonProps) {
   return (
@@ -122,7 +122,7 @@ export function OfferComparison({
                   </li>
                 ))}
               </ul>
-              {card.title === "Run a policy evaluation set" ? (
+              {card.title === "Run a Task Evaluation Run" ? (
                 <p className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-6 text-slate-600">
                   {policyEvaluationSetDefinition}
                 </p>
@@ -142,36 +142,36 @@ export function OfferComparison({
       <div className="mt-8 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_18px_60px_-36px_rgba(15,23,42,0.35)]">
         <div className="border-b border-slate-200 bg-stone-50 px-5 py-4 sm:px-6">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-            Compare the three paths.
+            Compare the paths.
           </p>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-            The same site can support multiple motions. The right first step depends on whether the robot team needs site data, a fixed policy-evaluation set, or whether the facility operator is submitting boundaries.
+            The same site can support multiple motions. The right first step depends on whether the robot team needs a task evaluation run, a post-training data package, or whether the facility operator is submitting boundaries.
           </p>
         </div>
         <div className="grid gap-px bg-slate-200 lg:grid-cols-[1.05fr_1fr_1fr_1fr]">
           <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-500">Decision point</div>
-          <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-900">Site data package</div>
-          <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-900">Policy evaluation</div>
+          <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-900">Task evaluation</div>
+          <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-900">Post-training data</div>
           <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-900">Site operator</div>
 
           <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-900">Best when</div>
-          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Your robot team wants world-model, scenario, and export data for its own stack.</div>
-          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Your robot team wants one fixed-scope read on policy performance against a scoped task pack before using the data more deeply.</div>
+          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Your robot team wants one fixed-scope read on policy performance against a scoped Task Pack before field time.</div>
+          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Your robot team wants curated POV clips, labels, variations, and failure cases to improve the model after evaluation.</div>
           <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">You operate the facility and want to submit boundaries before robot-team use is reviewed.</div>
 
           <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-900">Buyer gets first</div>
-          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Walkthrough media, poses, geometry coverage, scenarios, manifest, and rights metadata.</div>
-          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">A policy evaluation run with task-pack results, scenario evidence, failure review, and export outputs.</div>
+          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">A Task Evaluation Run with task-pack results, scenario evidence, failure review, and export outputs.</div>
+          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">A scoped data package for post-training, fine-tuning, regression testing, and failure recovery.</div>
           <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">A free intake path for facility, access, privacy, and commercial-use boundaries.</div>
 
           <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-900">Typical first purchase</div>
-          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">$3,500+ per site package, scoped by data depth and scenario volume.</div>
-          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">From $6,500 per Policy Evaluation Run.</div>
+          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">From $6,500 per run.</div>
+          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">From $25,000+ per scoped data package.</div>
           <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Free for site operators.</div>
 
           <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-900">Next step</div>
-          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Name the site, robot task, and data outputs your team needs.</div>
           <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Confirm the robot policy/profile, task pack, and scenario set for evaluation scoping.</div>
+          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Name the post-training, fine-tuning, or regression outputs your team needs.</div>
           <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Tell Blueprint the facility, access rules, privacy limits, and commercial posture.</div>
         </div>
       </div>

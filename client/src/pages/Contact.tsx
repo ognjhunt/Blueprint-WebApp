@@ -1,133 +1,175 @@
 import { ContactForm } from "@/components/site/ContactForm";
 import { SEO } from "@/components/SEO";
-import { siteWorldCards } from "@/data/siteWorlds";
-import { analyticsEvents } from "@/lib/analytics";
-import {
-  buildCatalogSearchSuggestions,
-  classifyCatalogSearch,
-  getCatalogLocationLabel,
-  type CatalogSearchSuggestion,
-} from "@/lib/siteWorldCatalogSearch";
-import {
-  buildContactRequestUrl,
-  CONTACT_REQUEST_PATH_OPTIONS,
-  parseContactRequestPrefill,
-  requestPathToCommercialRequestPath,
-  type ContactRequestPath,
-} from "@/lib/contactRequestPrefill";
+import { parseContactRequestPrefill } from "@/lib/contactRequestPrefill";
 import {
   ArrowRight,
   Bot,
-  HelpCircle,
-  MapPin,
-  MonitorPlay,
-  Package,
-  Search,
+  CheckCircle2,
+  ClipboardCheck,
+  LockKeyhole,
   ShieldCheck,
 } from "lucide-react";
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useMemo } from "react";
 import { useLocation, useSearch } from "wouter";
 
-type SiteWorld = (typeof siteWorldCards)[number];
+type ContactPersona = "robot_team" | "site_operator";
 
-const pathIcons = {
-  "world-model": Package,
-  "hosted-review": MonitorPlay,
-  "new-capture": MapPin,
-  "site-question": HelpCircle,
-} satisfies Record<ContactRequestPath, typeof Package>;
+const robotNextSteps = [
+  "We review the site/task fit.",
+  "We recommend scope and scenario count.",
+  "You approve pricing and access terms.",
+  "We run the evaluation or prepare the site/task package.",
+];
 
-function optionForPath(path: ContactRequestPath) {
+const operatorNextSteps = [
+  "We review the site and access boundary.",
+  "We confirm what can be captured or listed.",
+  "You approve any marketplace or commercial-use terms.",
+  "Robot-team access stays inside the agreed boundary.",
+];
+
+function personaFromPrefill(params: {
+  location: string;
+  prefill: ReturnType<typeof parseContactRequestPrefill>;
+}): ContactPersona {
+  if (params.location === "/contact/site-operator") return "site_operator";
+  if (params.prefill.buyerType === "site_operator") return "site_operator";
+  return "robot_team";
+}
+
+function PersonaSwitch({ activePersona }: { activePersona: ContactPersona }) {
+  const links = [
+    {
+      persona: "robot_team" as const,
+      href: "/contact/robot-team#contact-intake",
+      title: "Robot teams",
+      body: "Request a Task Evaluation Run.",
+      Icon: Bot,
+    },
+    {
+      persona: "site_operator" as const,
+      href: "/contact/site-operator#contact-intake",
+      title: "Site operators",
+      body: "Submit a site for free.",
+      Icon: ShieldCheck,
+    },
+  ];
+
   return (
-    CONTACT_REQUEST_PATH_OPTIONS.find((option) => option.value === path) ||
-    CONTACT_REQUEST_PATH_OPTIONS[0]
+    <div className="grid gap-2 sm:grid-cols-2" aria-label="Choose contact path">
+      {links.map(({ persona, href, title, body, Icon }) => {
+        const active = activePersona === persona;
+        return (
+          <a
+            key={persona}
+            href={href}
+            aria-current={active ? "page" : undefined}
+            className={`flex min-h-[5rem] items-center justify-between gap-4 border px-4 py-3 text-sm transition ${
+              active
+                ? "border-slate-950 bg-slate-950 text-white"
+                : "border-black/10 bg-white text-slate-950 hover:border-slate-300"
+            }`}
+          >
+            <span>
+              <span className="block font-semibold">{title}</span>
+              <span className={`mt-1 block text-xs leading-5 ${active ? "text-white/70" : "text-slate-500"}`}>
+                {body}
+              </span>
+            </span>
+            <Icon className={`h-5 w-5 shrink-0 ${active ? "text-[#c7a775]" : "text-slate-500"}`} />
+          </a>
+        );
+      })}
+    </div>
   );
 }
 
-function clean(value: unknown) {
-  return String(value || "").trim();
-}
-
-function buildRequestLabel(path: ContactRequestPath, fallback: string) {
-  return optionForPath(path)?.cta || fallback;
-}
-
-function buildSourceRows(prefill: ReturnType<typeof parseContactRequestPrefill>) {
-  return [
-    ["Path", optionForPath(prefill.requestPath).label],
-    ["Need", prefill.primaryNeed],
-    ["Site", prefill.siteName],
-    ["Location", prefill.siteLocation],
-    ["Site class", prefill.targetSiteType],
-    ["Workflow", prefill.workflow || prefill.taskStatement],
-    ["Robot", prefill.targetRobotTeam],
-    ["Source", prefill.source],
-  ].filter(([, value]) => Boolean(value));
-}
-
-function suggestionKindLabel(suggestion: CatalogSearchSuggestion) {
-  if (suggestion.kind === "site_code") return "site code";
-  if (suggestion.kind === "robot_fit") return "robot fit";
-  return suggestion.kind.replaceAll("_", " ");
-}
-
-function buildContactHref(params: {
-  selectedPath: ContactRequestPath;
-  query: string;
-  selectedSuggestion: CatalogSearchSuggestion | null;
-  knownMatch: SiteWorld | null;
+function ContextSummary({
+  prefill,
+}: {
   prefill: ReturnType<typeof parseContactRequestPrefill>;
 }) {
-  const query = clean(params.query);
-  const suggestion = params.selectedSuggestion;
-  const knownMatch = params.knownMatch;
-  const siteName =
-    knownMatch?.siteName ||
-    params.prefill.siteName ||
-    (suggestion?.kind === "site" || suggestion?.kind === "site_code" ? suggestion.label : "") ||
-    query;
-  const siteLocation =
-    knownMatch?.siteAddress ||
-    suggestion?.siteLocation ||
-    params.prefill.siteLocation ||
-    params.prefill.address ||
-    query;
-  const targetSiteType =
-    knownMatch?.industry ||
-    suggestion?.targetSiteType ||
-    params.prefill.targetSiteType ||
-    "";
-  const workflow =
-    suggestion?.workflow ||
-    params.prefill.workflow ||
-    (suggestion?.kind === "workflow" || suggestion?.kind === "robot_fit" || suggestion?.kind === "object"
-      ? suggestion.value
-      : "");
-  const taskStatement =
-    params.prefill.taskStatement ||
-    workflow ||
-    (query ? `Request real-site robot data or policy evaluation for ${query}.` : "");
+  const rows = [
+    ["Source", prefill.source],
+    ["Site", prefill.siteName],
+    ["Location", prefill.siteLocation],
+    ["Site type", prefill.targetSiteType],
+    ["Task", prefill.taskStatement || prefill.workflow],
+    ["Robot", prefill.targetRobotTeam],
+  ].filter(([, value]) => Boolean(value));
 
-  return `${buildContactRequestUrl({
-    requestPath: params.selectedPath,
-    buyerType: optionForPath(params.selectedPath).buyerType,
-    source: params.prefill.source || "contact-primary-input",
-    query,
-    primaryNeed: query,
-    siteWorldId: knownMatch?.id || suggestion?.siteId || params.prefill.siteWorldId,
-    siteName,
-    siteLocation,
-    targetSiteType,
-    workflow,
-    taskStatement,
-    targetRobotTeam: params.prefill.targetRobotTeam,
-    scenario: params.prefill.scenario,
-    requestedOutputs: params.prefill.requestedOutputs,
-    message: params.prefill.message,
-    proofPathPreference:
-      params.prefill.proofPathPreference ||
-      (params.selectedPath === "world-model" ? "need_guidance" : "exact_site_required"),
-  })}#contact-intake`;
+  if (rows.length === 0) return null;
+
+  return (
+    <details className="border border-black/10 bg-[#f8f6f1]">
+      <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-slate-950">
+        Prefilled context attached
+      </summary>
+      <div className="grid gap-px border-t border-black/10 bg-black/10 sm:grid-cols-2">
+        {rows.map(([label, value]) => (
+          <div key={label} className="bg-white px-4 py-3 text-sm">
+            <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
+              {label}
+            </p>
+            <p className="mt-1 text-slate-800">{value}</p>
+          </div>
+        ))}
+      </div>
+    </details>
+  );
+}
+
+function ExplainerCard({ persona }: { persona: ContactPersona }) {
+  if (persona === "site_operator") {
+    return (
+      <aside className="border border-black/10 bg-white p-5">
+        <LockKeyhole className="h-5 w-5 text-slate-950" />
+        <p className="mt-4 text-sm font-semibold text-slate-950">
+          Submitting a site is free.
+        </p>
+        <p className="mt-2 text-sm leading-6 text-slate-600">
+          You set the privacy, access, and commercialization boundary before
+          Blueprint changes listing or robot-team access.
+        </p>
+      </aside>
+    );
+  }
+
+  return (
+    <aside className="border border-black/10 bg-white p-5">
+      <ClipboardCheck className="h-5 w-5 text-slate-950" />
+      <p className="mt-4 text-sm font-semibold text-slate-950">
+        A Task Evaluation Run means:
+      </p>
+      <p className="mt-2 text-sm leading-6 text-slate-600">
+        1 site x 1 robot policy/profile x 1 task pack x scenario count.
+      </p>
+    </aside>
+  );
+}
+
+function NextSteps({ persona }: { persona: ContactPersona }) {
+  const steps = persona === "site_operator" ? operatorNextSteps : robotNextSteps;
+
+  return (
+    <div className="border border-black/10 bg-white p-5">
+      <p className="text-sm font-semibold text-slate-950">What happens next</p>
+      <div className="mt-4 grid gap-3">
+        {steps.map((step, index) => (
+          <div key={step} className="flex gap-3 text-sm leading-6 text-slate-600">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center border border-black/10 bg-[#f8f6f1] text-xs font-semibold text-slate-950">
+              {index + 1}
+            </span>
+            <span>{step}</span>
+          </div>
+        ))}
+      </div>
+      <p className="mt-4 border-t border-black/10 pt-4 text-xs leading-5 text-slate-500">
+        Requests create an intake record. Access, rights, pricing, provider
+        execution, and hosted availability are confirmed per request.
+      </p>
+    </div>
+  );
 }
 
 export default function Contact() {
@@ -138,334 +180,89 @@ export default function Contact() {
     () => parseContactRequestPrefill(searchParams, location),
     [location, searchParams],
   );
-  const [primaryQuery, setPrimaryQuery] = useState(prefill.primaryNeed);
-  const [selectedPath, setSelectedPath] = useState<ContactRequestPath>(prefill.requestPath);
-  const [selectedSuggestion, setSelectedSuggestion] =
-    useState<CatalogSearchSuggestion | null>(null);
-
-  useEffect(() => {
-    setPrimaryQuery(prefill.primaryNeed);
-    setSelectedPath(prefill.requestPath);
-    setSelectedSuggestion(null);
-  }, [prefill.primaryNeed, prefill.requestPath]);
-
-  const trimmedQuery = primaryQuery.trim();
-  const suggestions = useMemo(
-    () => buildCatalogSearchSuggestions(siteWorldCards, primaryQuery, 5),
-    [primaryQuery],
-  );
-  const searchClassification = useMemo(
-    () => classifyCatalogSearch(siteWorldCards, primaryQuery, selectedSuggestion),
-    [primaryQuery, selectedSuggestion],
-  );
-  const knownMatch = searchClassification.exactMatches[0] || null;
-  const noExactMatch = Boolean(trimmedQuery && searchClassification.noExactMatch);
-  const requestHref = buildContactHref({
-    selectedPath,
-    query: primaryQuery,
-    selectedSuggestion,
-    knownMatch,
-    prefill,
-  });
-  const selectedOption = optionForPath(selectedPath);
-  const sourceRows = buildSourceRows(prefill);
-  const hasPrefillContext = Boolean(
-    prefill.primaryNeed ||
-      prefill.source ||
-      prefill.siteWorldId ||
-      prefill.message ||
-      prefill.scenario ||
-      prefill.requestedOutputs,
-  );
-  const trackContactCta = (
-    ctaId: string,
-    ctaLabel: string,
-    destination: string,
-    sourceName: string,
-    requestPath: ContactRequestPath = selectedPath,
-  ) => {
-    analyticsEvents.contactPageCtaClicked({
-      persona: optionForPath(requestPath).buyerType,
-      ctaId,
-      ctaLabel,
-      destination,
-      source: sourceName,
-      requestedLane:
-        optionForPath(requestPath).buyerType === "site_operator"
-          ? "qualification"
-          : "deeper_evaluation",
-      commercialRequestPath: requestPathToCommercialRequestPath(requestPath),
-    });
-  };
-
-  const submitRequest = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    trackContactCta(
-      "contact_primary_submit",
-      buildRequestLabel(selectedPath, "Send request"),
-      requestHref,
-      "contact-primary-input",
-    );
-    window.location.href = requestHref;
-  };
+  const persona = personaFromPrefill({ location, prefill });
+  const isSiteOperator = persona === "site_operator";
+  const headline = isSiteOperator
+    ? "Submit a Site for Robot Evaluation."
+    : "Request a Task Evaluation Run.";
+  const subhead = isSiteOperator
+    ? "Share a facility that robot teams can evaluate against. Participation is free, and you control access boundaries."
+    : "Test one robot policy or profile against a real-site task pack before field time.";
+  const intro = isSiteOperator
+    ? "Tell us what the site is, where it is, and what access/privacy limits apply. We will review whether it fits the Blueprint site library."
+    : "Tell us the site type, task, and threshold that matters. We will reply with the recommended scope, scenario count, and next proof step.";
 
   return (
     <>
       <SEO
-        title="Request Real-Site Robot Evaluation | Blueprint"
-        description="Request a Blueprint real-site robot eval intake for one site, task, robot or policy, thresholds, safety constraints, validation needs, or free site-operator participation."
-        canonical={location === "/contact/site-operator" ? "/contact/site-operator" : "/contact"}
+        title={
+          isSiteOperator
+            ? "Submit a Site for Robot Evaluation | Blueprint"
+            : "Request a Task Evaluation Run | Blueprint"
+        }
+        description={
+          isSiteOperator
+            ? "Submit a facility to Blueprint for free robot-evaluation review with access, privacy, and commercialization boundaries."
+            : "Request a Blueprint Task Evaluation Run for one robot policy, real-site task pack, and scenario scope."
+        }
+        canonical={isSiteOperator ? "/contact/site-operator" : "/contact/robot-team"}
       />
 
       <div className="bg-[#f5f3ef] text-slate-950">
-        <section className="border-b border-black/10 bg-white">
-          <div className="mx-auto grid min-h-[35rem] max-w-[88rem] items-center gap-8 px-5 py-16 sm:px-8 lg:grid-cols-[0.58fr_0.42fr] lg:px-10">
-            <div>
-              <h1 className="font-editorial max-w-[46rem] text-[3.25rem] leading-[0.94] tracking-[-0.05em] text-slate-950 sm:text-[5.1rem] sm:tracking-[-0.06em]">
-                Request a real-site robot eval.
+        <section className="border-b border-black/10 bg-[#fbfaf7]">
+          <div className="mx-auto grid max-w-[84rem] gap-10 px-5 py-14 sm:px-8 lg:grid-cols-[0.62fr_0.38fr] lg:px-10 lg:py-20">
+            <div className="max-w-[50rem]">
+              <h1 className="font-editorial text-[3.1rem] leading-[0.95] tracking-[-0.05em] text-slate-950 sm:text-[5rem] sm:tracking-[-0.06em]">
+                {headline}
               </h1>
-              <p className="mt-5 max-w-[36rem] text-base leading-8 text-slate-600">
-                Pick a lane, name the site or site class, and send one task with
-                the threshold that matters. Blueprint records an intake request
-                only; proof, access, rights, and fulfillment stay request-scoped.
+              <p className="mt-5 max-w-[39rem] text-base leading-8 text-slate-600">
+                {subhead}
               </p>
-              <div className="mt-7 grid gap-3 sm:grid-cols-2">
-                <a
-                  href="/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=contact-lane#contact-intake"
-                  className="flex min-h-[5rem] items-center justify-between gap-4 border border-slate-950 bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-                >
-                  <span>
-                    <span className="block">I build/deploy robots</span>
-                    <span className="mt-1 block text-xs font-medium text-white/70">
-                      One site, task, robot or policy, and threshold.
-                    </span>
-                  </span>
-                  <Bot className="h-5 w-5 shrink-0 text-[#c7a775]" />
-                </a>
-                <a
-                  href="/contact/site-operator#contact-intake"
-                  className="flex min-h-[5rem] items-center justify-between gap-4 border border-black/10 bg-[#f8f6f1] px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-white"
-                >
-                  <span>
-                    <span className="block">I run/represent a site</span>
-                    <span className="mt-1 block text-xs font-medium text-slate-500">
-                      Free access, privacy, and commercialization review.
-                    </span>
-                  </span>
-                  <ShieldCheck className="h-5 w-5 shrink-0 text-slate-500" />
-                </a>
-              </div>
-
-              <form className="mt-8" onSubmit={submitRequest}>
-                <label
-                  htmlFor="contact-primary-request"
-                  className="mb-2 block text-sm font-semibold text-slate-900"
-                >
-                  What site, policy, or data package do you need?
-                </label>
-                <div className="grid gap-3 border border-black/10 bg-[#f8f6f1] p-3 sm:grid-cols-[1fr_auto]">
-                  <div className="flex min-h-14 items-center gap-3 bg-white px-4">
-                    <Search className="h-5 w-5 shrink-0 text-slate-500" />
-                    <input
-                      id="contact-primary-request"
-                      value={primaryQuery}
-                      onChange={(event) => {
-                        setPrimaryQuery(event.target.value);
-                        setSelectedSuggestion(null);
-                      }}
-                      placeholder="Site, task, robot type, threshold, or pilot workflow"
-                      className="min-w-0 flex-1 bg-transparent text-base font-medium text-slate-950 outline-none placeholder:text-slate-500"
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    className="inline-flex min-h-14 items-center justify-center bg-slate-950 px-5 text-sm font-semibold text-white transition hover:bg-slate-800"
-                  >
-                    {selectedOption.cta}
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </button>
-                </div>
-              </form>
-
-              <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                {CONTACT_REQUEST_PATH_OPTIONS.map((option) => {
-                  const Icon = pathIcons[option.value];
-                  const active = selectedPath === option.value;
-                  return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      aria-pressed={active}
-                      onClick={() => {
-                        setSelectedPath(option.value);
-                        trackContactCta(
-                          `contact_path_select_${option.value}`,
-                          option.label,
-                          option.value,
-                          "contact-primary-path-selector",
-                          option.value,
-                        );
-                      }}
-                      className={`flex min-h-[5.5rem] items-start gap-3 border px-4 py-3 text-left transition ${
-                        active
-                          ? "border-slate-950 bg-slate-950 text-white"
-                          : "border-black/10 bg-[#f8f6f1] text-slate-800 hover:bg-white"
-                      }`}
-                    >
-                      <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${active ? "text-[#c7a775]" : "text-slate-500"}`} />
-                      <span>
-                        <span className="block text-sm font-semibold">{option.label}</span>
-                        <span className={`mt-1 block text-xs leading-5 ${active ? "text-white/70" : "text-slate-500"}`}>
-                          {option.description}
-                        </span>
-                      </span>
-                    </button>
-                  );
-                })}
+              <p className="mt-4 max-w-[36rem] text-sm leading-7 text-slate-600">
+                {intro}
+              </p>
+              <div className="mt-8 max-w-[42rem]">
+                <PersonaSwitch activePersona={persona} />
               </div>
             </div>
 
-            <div className="space-y-3">
-              {trimmedQuery ? (
-                <div className="border border-black/10 bg-[#f8f6f1] p-4">
-                  {knownMatch ? (
-                    <div className="flex gap-4">
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center border border-emerald-200 bg-emerald-50 text-emerald-800">
-                        <ShieldCheck className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-slate-950">Known catalog match</p>
-                        <h2 className="mt-2 text-xl font-semibold tracking-[-0.03em] text-slate-950">
-                          {knownMatch.siteName}
-                        </h2>
-                        <p className="mt-1 text-sm leading-6 text-slate-600">
-                          {getCatalogLocationLabel(knownMatch)} / {knownMatch.industry}
-                        </p>
-                        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                          <a
-                            href={`/world-models/${knownMatch.id}`}
-                            className="inline-flex items-center justify-center border border-black/10 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
-                          >
-                            Open catalog match
-                          </a>
-                          <a
-                            href={requestHref}
-                            onClick={() =>
-                              trackContactCta(
-                                "contact_known_match_request",
-                                selectedOption.cta,
-                                requestHref,
-                                "contact-known-match",
-                              )
-                            }
-                            className="inline-flex items-center justify-center bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
-                          >
-                            {selectedOption.cta}
-                            <ArrowRight className="ml-2 h-4 w-4" />
-                          </a>
-                        </div>
-                      </div>
-                    </div>
-                  ) : noExactMatch ? (
-                    <div className="flex gap-4">
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center border border-black/10 bg-white text-slate-900">
-                        <MapPin className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-slate-950">
-                          No exact-site package in the catalog yet.
-                        </p>
-                        <p className="mt-2 text-sm leading-6 text-slate-600">
-                          Send it as a capture request. Blueprint will review the site, workflow, capture path, and proof needed before claiming package access or hosted availability.
-                        </p>
-                        <a
-                          href={requestHref}
-                          onClick={() =>
-                            trackContactCta(
-                              "contact_unknown_location_request",
-                              selectedOption.cta,
-                              requestHref,
-                              "contact-no-exact-match",
-                            )
-                          }
-                          className="mt-4 inline-flex items-center justify-center bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
-                        >
-                          {selectedOption.cta}
-                          <ArrowRight className="ml-2 h-4 w-4" />
-                        </a>
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-              ) : (
-                <div className="border border-black/10 bg-[#f8f6f1] p-5">
-                  <Bot className="h-5 w-5 text-slate-950" />
-                  <p className="mt-4 text-sm font-semibold text-slate-950">Human and agent friendly</p>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">
-                    Use a site name, address, city, site class, workflow, robot task, or threshold. Google Places is optional; catalog-local matching and free text still work.
-                  </p>
-                </div>
-              )}
-
-              {suggestions.length > 0 ? (
-                <div className="border border-black/10 bg-white" role="listbox" aria-label="Request suggestions">
-                  {suggestions.map((suggestion) => (
-                    <button
-                      key={suggestion.id}
-                      type="button"
-                      role="option"
-                      onClick={() => {
-                        setPrimaryQuery(suggestion.value);
-                        setSelectedSuggestion(suggestion);
-                      }}
-                      className="grid w-full gap-2 border-b border-black/10 px-4 py-3 text-left transition last:border-b-0 hover:bg-[#f8f6f1] sm:grid-cols-[1fr_auto]"
-                    >
-                      <span>
-                        <span className="block text-sm font-semibold text-slate-950">{suggestion.label}</span>
-                        <span className="mt-1 block text-xs leading-5 text-slate-600">{suggestion.description}</span>
-                      </span>
-                      <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                        {suggestionKindLabel(suggestion)}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              ) : null}
+            <div className="space-y-3 lg:pt-3">
+              <ExplainerCard persona={persona} />
+              <a
+                href="#contact-intake"
+                className="inline-flex w-full items-center justify-center bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+              >
+                {isSiteOperator ? "Submit site free" : "Request evaluation"}
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </a>
             </div>
           </div>
         </section>
 
-        <section id="contact-intake" className="mx-auto max-w-[76rem] scroll-mt-8 px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
+        <section
+          id="contact-intake"
+          className="mx-auto grid max-w-[84rem] scroll-mt-8 gap-6 px-5 py-10 sm:px-8 lg:grid-cols-[minmax(0,0.68fr)_minmax(20rem,0.32fr)] lg:px-10 lg:py-12"
+        >
           <div className="border border-black/10 bg-white p-5 shadow-[0_20px_60px_-48px_rgba(15,23,42,0.28)] sm:p-6 lg:p-8">
-            <div className="mb-7 border-b border-black/10 pb-5">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-                Send request
-              </p>
-              <h2 className="font-editorial mt-2 text-[2.4rem] leading-[0.96] tracking-[-0.05em] text-slate-950 sm:text-[3.2rem]">
-                Add contact details and send the request.
+            <div className="mb-6 border-b border-black/10 pb-5">
+              <div className="flex items-center gap-2 text-sm font-semibold text-slate-950">
+                <CheckCircle2 className="h-4 w-4 text-[#98733f]" />
+                {isSiteOperator ? "Free site submission" : "Task Evaluation Run"}
+              </div>
+              <h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-slate-950">
+                {isSiteOperator ? "Set the site boundary." : "Send the evaluation request."}
               </h2>
-              <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600">
-                This creates an intake record only. Access, payment, rights clearance, provider execution, fulfillment, and hosted-session launch stay request-specific until the owning proof exists.
-              </p>
             </div>
 
-            {hasPrefillContext ? (
-              <details className="mb-6 border border-black/10 bg-[#f8f6f1]">
-                <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-slate-950">
-                  Prefilled request context
-                </summary>
-                <div className="grid gap-px border-t border-black/10 bg-black/10 sm:grid-cols-2">
-                  {sourceRows.map(([label, value]) => (
-                    <div key={label} className="bg-white px-4 py-3 text-sm">
-                      <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">{label}</p>
-                      <p className="mt-1 text-slate-800">{value}</p>
-                    </div>
-                  ))}
-                </div>
-              </details>
-            ) : null}
+            <div className="mb-5">
+              <ContextSummary prefill={prefill} />
+            </div>
 
             <ContactForm />
+          </div>
+
+          <div className="space-y-4">
+            <NextSteps persona={persona} />
           </div>
         </section>
       </div>

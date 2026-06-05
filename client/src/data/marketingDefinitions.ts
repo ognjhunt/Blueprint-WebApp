@@ -2,16 +2,16 @@ export const worldModelDefinition =
   "A Blueprint world model is a site-specific digital environment built from real capture of one indoor operating space and the robot workflows that need to run there.";
 
 export const sitePackageDefinition =
-  "A site data package gives a robot team the capture-backed world model, scenario data, provenance, rights posture, and export limits for one real site.";
+  "A site package gives a robot team capture-grounded site context, scenario data, provenance, rights posture, and export limits for one real site.";
 
 export const hostedEvaluationDefinition =
-  "A policy evaluation set is the fixed-scope path for testing one robot policy/profile on one real site against one scoped task pack.";
+  "A Task Evaluation Run is the fixed-scope path for testing one robot policy/profile on one real site against one scoped Task Pack.";
 
 export const categoryValidationDefinition =
   "Street View-grounded world models make outdoor places easier for agents to explore; Blueprint focuses the same site-specific logic on indoor spaces that need lawful capture, provenance, and rights review.";
 
 export const policyEvaluationSetDefinition =
-  "A policy evaluation set covers one site, one robot policy/profile, one scoped task pack, and up to 500 scenarios/episodes, with pass/fail metrics, cycle time, intervention and failure notes, selected rollout evidence, and export framing.";
+  "A Task Evaluation Run covers one site, one robot policy/profile, one scoped Task Pack, and up to 500 scenarios, with pass/fail results, cycle-time results, intervention and failure notes, selected rollout evidence, and export framing.";
 
 export const sitePackageIncludes = [
   "Walkthrough video, timestamps, and camera poses tied to one real facility",
@@ -43,7 +43,7 @@ export const listingVariationItems = [
 
 export const companyTrustItems = [
   "Blueprint captures indoor facilities and turns them into site-specific data products robot teams can request, evaluate, and license.",
-  "Blueprint sells site data packages and fixed-scope policy evaluation sets, not deployment guarantees.",
+  "Blueprint sells Task Evaluation Runs and Post-Training Data Packages, not deployment guarantees.",
   "Rights, privacy, and usage controls are attached to every listing up front.",
 ];
 

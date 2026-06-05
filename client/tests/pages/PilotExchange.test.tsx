@@ -131,10 +131,10 @@ describe("PilotExchange", () => {
     render(<PilotExchange />);
 
     expect(screen.getByRole("heading", { name: /Pay for the job you need\./i })).toBeInTheDocument();
-    expect(screen.getByText(/Pay for evaluation sets or data/i)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /^Site Data Package$/i })).toBeInTheDocument();
-    expect(screen.getByText(/Buy the capture-backed world model, scenario data, and export bundle/i)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Policy Evaluation/i })).toBeInTheDocument();
+    expect(screen.getAllByText(/Task Evaluation Runs or Post-Training Data Packages/i).length).toBeGreaterThan(0);
+    expect(screen.getByRole("heading", { name: /^Post-Training Data Package$/i })).toBeInTheDocument();
+    expect(screen.getByText(/Request curated robot POV clips/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Task Evaluation Run/i })).toBeInTheDocument();
     expect(screen.getByText(/Site operators participate for free\./i)).toBeInTheDocument();
 
     fireEvent.click(screen.getAllByRole("button", { name: /Review this site/i })[0]);

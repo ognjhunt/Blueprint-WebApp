@@ -6,25 +6,25 @@ import {
 import {
   ArrowRight,
   Building2,
-  CheckCircle2,
   Clock,
   Gauge,
   PackageCheck,
   Route,
   ShieldCheck,
   Target,
-  TriangleAlert,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 const requestHref =
-  "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&requestedOutputs=Real-site%20evaluation%2C%20policy%20evaluation%20access%2C%20optional%20site%20data%20exports&source=home-kiss";
-
-const siteDataHref =
-  "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&requestedOutputs=Site%20data%20package%2C%20scenario%20data%2C%20policy%20evaluation%20access&source=home-kiss-site-data";
+  "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-review&requestedOutputs=Task%20Evaluation%20Run&source=home-kiss";
 
 const hostedHref =
-  "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=home-kiss";
+  "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-review&source=home-kiss";
+
+const dataPackageHref =
+  "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&requestedOutputs=Post-Training%20Data%20Package&source=home-post-training-data";
+
+const operatorHref = "/contact/site-operator?source=home-kiss";
 
 type IconBlock = {
   icon: LucideIcon;
@@ -62,99 +62,58 @@ const buyerBars: IconBlock[] = [
 
 const offerItems: IconBlock[] = [
   {
-    icon: Gauge,
-    label: "01",
-    title: "Real-site evaluation",
-    body: "A fixed-scope review for one site, robot task, policy/profile, target thresholds, and missing proof.",
-  },
-  {
     icon: Route,
-    label: "02",
-    title: "Scenario tests",
-    body: "Task variations, start states, dynamic conditions, object zones, failure cases, and observed-vs-inferred labels.",
+    label: "01",
+    title: "Task Evaluation Run",
+    body: "One site, one robot policy/profile, one Task Pack, and up to 500 scenarios.",
   },
   {
     icon: PackageCheck,
-    label: "03",
-    title: "Site package",
-    body: "Capture-backed world model, walkthrough media, geometry when available, provenance, rights posture, and export limits.",
-  },
-  {
-    icon: Building2,
-    label: "04",
-    title: "Training exports",
-    body: "Exportable data for post-training, fine-tuning, regression checks, and site-specific model improvement.",
+    label: "02",
+    title: "Post-Training Data Package",
+    body: "Curated robot POV clips, scenario labels, synthetic variations, failure cases, and export format for model improvement.",
   },
 ];
 
 const workflowSteps = [
   {
-    title: "Capture a real site",
-    body: "Start from a lawful capture, existing site package, or structured request for the facility in question.",
+    title: "Start with a real site",
+    body: "Use an existing site package, lawful capture, or structured facility request.",
   },
   {
-    title: "Scope the evaluation",
-    body: "Set the site task, robot profile, thresholds, scenario variations, provenance, rights labels, and proof boundaries.",
+    title: "Define the task pack",
+    body: "Set the robot profile, task, thresholds, start states, and scenario variations.",
   },
   {
-    title: "Run the robot policy",
-    body: "Use a manual browser session or a headless agent path to test the robot profile against site tasks.",
+    title: "Run the policy",
+    body: "Run through a policy API, vendor container, action trace, simulation workflow, or assisted review.",
   },
   {
-    title: "Export the evidence your team needs",
-    body: "Package observations, scenario results, failure cases, and optional data bundles for training or fine-tuning.",
+    title: "Score the scenarios",
+    body: "Measure success, cycle time, intervention points, safety events, and failure modes.",
   },
   {
-    title: "Decide the next step",
-    body: "Proceed to a short pilot, request more proof, tune on the exported set, or hold until missing evidence clears.",
+    title: "Decide the next proof step",
+    body: "Proceed to pilot, request more data, tune on the exported set, or hold until blockers clear.",
   },
 ];
 
 const pricingPlans = [
   {
-    name: "Policy Evaluation Set",
-    price: "From $6,500 / Policy Evaluation Run",
+    name: "Task Evaluation Run",
+    price: "From $6,500 / run",
     summary:
-      "Robot teams run one policy/profile on one real site against one scoped task pack, up to 500 scenarios/episodes.",
+      "Test one robot policy/profile against one real-site Task Pack, up to 500 scenarios.",
     href: hostedHref,
-    cta: "Request policy evaluation",
+    cta: "Request Task Evaluation Run",
   },
   {
-    name: "Site Data Package",
-    price: "$3,500+ / site package",
+    name: "Post-Training Data Package",
+    price: "From $25,000+",
     summary:
-      "Capture-backed site package, scenario metadata, provenance, rights labels, export limits, and reviewed data scope.",
-    href: siteDataHref,
-    cta: "Request site data",
-  },
-  {
-    name: "Site Operators",
-    price: "Free",
-    summary:
-      "Operators can submit a site, define access and privacy boundaries, and participate without paying Blueprint.",
-    href: "/contact/site-operator?source=home-kiss-pricing",
-    cta: "Submit site free",
-  },
-];
-
-const proofRows = [
-  {
-    sample: "Public product samples",
-    request: "Request packets",
-    detail:
-      "Samples show the product shape. Request packets prove one site with provenance, rights, thresholds, and gaps attached.",
-  },
-  {
-    sample: "Generated or model-derived visuals",
-    request: "Owner-system evidence",
-    detail:
-      "Generated outputs can support review, but simulator traces, action logs, robot trials, safety review, rights proof, and runtime artifacts own stronger claims.",
-  },
-  {
-    sample: "Evaluation output",
-    request: "Operational readiness",
-    detail:
-      "Policy-evaluation output stays advisory until the missing proof exists for that exact site, robot, task, and threshold set.",
+      "Curated robot POV clips, scenario labels, synthetic variations, failure cases, and matched export format.",
+    href: dataPackageHref,
+    cta: "Request Data Package",
   },
 ];
 
@@ -206,7 +165,7 @@ export default function Home() {
     <>
       <SEO
         title="Real-Site Robot Evaluation | Blueprint"
-        description="Blueprint helps robot teams test policies and scenarios on capture-backed real sites before pilots or deployment. Site operators participate free."
+        description="Blueprint helps robot teams test policies and scenarios on capture-backed site packages before pilots or deployment. Site operators participate free."
         canonical="/"
         image={`https://tryblueprint.io${humanoidReadinessAssets.warehouseHero}`}
         jsonLd={{
@@ -214,7 +173,7 @@ export default function Home() {
           "@type": "WebPage",
           name: "Blueprint Real-Site Robot Evaluation",
           description:
-            "Blueprint helps robot teams test policies and scenarios on capture-backed real sites before pilots or deployment. Site operators participate free.",
+            "Blueprint helps robot teams test policies and scenarios on capture-backed site packages before pilots or deployment. Site operators participate free.",
           url: "https://tryblueprint.io/",
         }}
       />
@@ -240,9 +199,13 @@ export default function Home() {
                 Evaluate robots on real sites before deployment.
               </h1>
               <p className="mt-6 max-w-2xl text-lg leading-8 text-white/82 md:text-xl">
-                Test policies and scenarios against capture-backed sites before
-                field time. Robot teams pay for evaluations and optional data
-                exports; site operators participate free.
+                Blueprint turns captured facilities into robot task packs so
+                teams can test policies, find failure modes, and prepare for
+                shorter field pilots.
+              </p>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-white/70">
+                Robot teams pay for evaluations. Site operators can submit sites
+                free.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <a
@@ -253,21 +216,32 @@ export default function Home() {
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </a>
                 <a
-                  href="#pricing"
+                  href={operatorHref}
                   className="inline-flex min-h-12 items-center justify-center border border-white/30 px-5 text-sm font-semibold text-white transition hover:bg-white/10"
                 >
-                  See pricing
+                  Submit site free
                 </a>
               </div>
             </div>
           </div>
         </section>
 
-        <section className="border-b border-black/10 bg-white px-4 py-8 sm:px-6 lg:px-10">
-          <div className="mx-auto grid max-w-[88rem] gap-4 md:grid-cols-4">
-            {buyerBars.map((item) => (
-              <IconCard key={item.label} item={item} />
-            ))}
+        <section className="border-b border-black/10 bg-white px-4 py-10 sm:px-6 lg:px-10">
+          <div className="mx-auto max-w-[88rem]">
+            <div className="border border-black/10 bg-[#f8f4ec] p-5">
+              <p className="text-xs font-semibold uppercase tracking-normal text-[#8b6f42]">
+                Task Evaluation Run
+              </p>
+              <p className="mt-2 text-xl font-semibold leading-snug text-[#111110] md:text-2xl">
+                One Task Evaluation Run = 1 site × 1 robot policy/profile × 1
+                Task Pack × up to 500 scenarios.
+              </p>
+            </div>
+            <div className="mt-4 grid gap-4 md:grid-cols-4">
+              {buyerBars.map((item) => (
+                <IconCard key={item.label} item={item} />
+              ))}
+            </div>
           </div>
         </section>
 
@@ -275,10 +249,10 @@ export default function Home() {
           <div className="mx-auto max-w-[88rem]">
             <SectionHeading
               eyebrow="What Blueprint sells"
-              title="Real-site evaluations for robot teams."
-              body="Blueprint turns capture and pipeline evidence into a scoped evaluation workflow: what the site is, which scenarios matter, how policies behave, and which proof or data export the team needs next."
+              title="Two robot-team products."
+              body="Start with a Task Evaluation Run when you need a scoped answer before field time. Add a Post-Training Data Package when the robot team needs curated data to improve the model."
             />
-            <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="mt-8 grid gap-4 md:grid-cols-2">
               {offerItems.map((item) => (
                 <IconCard key={item.label} item={item} />
               ))}
@@ -300,9 +274,8 @@ export default function Home() {
                 Turn a real site into an evaluation plan.
               </h2>
               <p className="mt-4 text-base leading-7 text-white/72 md:text-lg">
-                Blueprint keeps the workflow compact: real site, robot task,
-                scenario variation, policy run, exported evidence, and the next
-                proof step.
+                Blueprint keeps the workflow compact: one site, one policy, one
+                task pack, scored scenarios, and the next proof step.
               </p>
               <img
                 src={humanoidReadinessAssets.hostedDashboard}
@@ -340,8 +313,8 @@ export default function Home() {
             <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
               <SectionHeading
                 eyebrow="Planning ranges"
-                title="Two paid robot-team products. Operators are free."
-                body="Robot teams pay for evaluations first, with optional site packages and data exports. Operators can submit sites and define boundaries without paying Blueprint."
+                title="Two paid robot-team products. Site operators submit free."
+                body="Task Evaluation Runs start at $6,500 per run. Post-Training Data Packages start at $25,000+. Site operators can submit sites for free."
               />
               <a
                 href="/pricing"
@@ -351,7 +324,7 @@ export default function Home() {
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </a>
             </div>
-            <div className="mt-8 grid gap-4 lg:grid-cols-3">
+            <div className="mt-8 grid gap-4 lg:grid-cols-2">
               {pricingPlans.map((plan) => (
                 <article key={plan.name} className="border border-black/10 bg-white p-6">
                   <h3 className="text-2xl font-semibold text-[#111110]">
@@ -373,6 +346,26 @@ export default function Home() {
                 </article>
               ))}
             </div>
+            <div className="mt-4 grid gap-4 border border-black/10 bg-white p-5 md:grid-cols-[0.22fr_0.78fr]">
+              <Building2 className="h-8 w-8 text-[#8b6f42]" aria-hidden="true" />
+              <div>
+                <h3 className="text-2xl font-semibold text-[#111110]">
+                  Site operators submit sites free.
+                </h3>
+                <p className="mt-3 text-sm leading-6 text-[#5f5a53]">
+                  Facility owners can submit or claim a site, define privacy/access
+                  boundaries, and review commercial-use terms before anything is
+                  shared.
+                </p>
+                <a
+                  href={`${operatorHref}-pricing`}
+                  className="mt-5 inline-flex min-h-11 items-center justify-center gap-2 border border-black/15 px-4 text-sm font-semibold text-[#111110] transition hover:bg-[#f0e7d8]"
+                >
+                  Submit site free
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </a>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -381,14 +374,14 @@ export default function Home() {
           className="border-y border-black/10 bg-white px-4 py-16 sm:px-6 lg:px-10"
           data-home-section="proof"
         >
-          <div className="mx-auto grid max-w-[88rem] gap-10 lg:grid-cols-[0.44fr_0.56fr]">
-            <div>
+          <div className="mx-auto max-w-[88rem]">
+            <div className="grid gap-8 border border-black/10 bg-[#f8f4ec] p-6 md:grid-cols-[0.42fr_0.58fr] md:p-8">
               <SectionHeading
-                eyebrow="Proof boundary"
-                title="Public samples show the workflow. Request packets prove one site."
-                body="Blueprint can look ready and polished without pretending a robot has passed deployment, safety, payment, provider, rights, or hosted-session checks that still need owner-system proof."
+                eyebrow="Evidence boundary"
+                title="Public examples show the workflow shape."
+                body="A request packet proves one site, robot profile, task pack, thresholds, rights posture, and missing proof. Evaluation output remains advisory until supported by simulator traces, action logs, robot trials, safety review, and runtime evidence."
               />
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <div className="flex flex-col justify-end gap-3 sm:flex-row md:items-end">
                 <a
                   href="/proof"
                   className="inline-flex min-h-12 items-center justify-center gap-2 bg-[#111110] px-5 text-sm font-semibold text-white transition hover:bg-[#2b2925]"
@@ -396,42 +389,7 @@ export default function Home() {
                   See proof details
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </a>
-                <a
-                  href={requestHref}
-                  className="inline-flex min-h-12 items-center justify-center border border-black/15 px-5 text-sm font-semibold text-[#111110] transition hover:bg-[#f0e7d8]"
-                >
-                  Request evaluation
-                </a>
               </div>
-            </div>
-            <div className="space-y-3">
-              {proofRows.map((row) => (
-                <article
-                  key={row.sample}
-                  className="border border-black/10 bg-[#f8f4ec] p-5"
-                >
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-normal text-[#8b6f42]">
-                        Sample
-                      </p>
-                      <h3 className="mt-2 text-lg font-semibold">{row.sample}</h3>
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-normal text-[#8b6f42]">
-                        Stronger proof
-                      </p>
-                      <h3 className="mt-2 text-lg font-semibold">{row.request}</h3>
-                    </div>
-                  </div>
-                  <p className="mt-4 text-sm leading-6 text-[#5f5a53]">{row.detail}</p>
-                </article>
-              ))}
-              <p className="border border-black/10 bg-[#f8f4ec] p-4 text-xs leading-5 text-[#6b645b]">
-                Hero imagery is generated support media showing representative
-                warehouse and factory task scenarios. It is not customer proof,
-                robot-trial proof, safety validation, or deployment evidence.
-              </p>
             </div>
           </div>
         </section>
@@ -441,47 +399,34 @@ export default function Home() {
           className="px-4 py-16 sm:px-6 lg:px-10"
           data-home-section="request"
         >
-          <div className="mx-auto grid max-w-[88rem] gap-8 border border-black/10 bg-[#111110] p-6 text-white md:grid-cols-[0.55fr_0.45fr] md:p-8 lg:p-10">
+          <div className="mx-auto grid max-w-[88rem] gap-8 border border-black/10 bg-[#111110] p-6 text-white md:grid-cols-[0.62fr_0.38fr] md:p-8 lg:p-10">
             <div>
               <p className="text-xs font-semibold uppercase tracking-normal text-[#d8bd8d]">
                 First request
               </p>
               <h2 className="mt-3 text-4xl font-semibold leading-tight md:text-5xl">
-                Ask for one real site to evaluate before deployment.
+                Have one real site or task to evaluate?
               </h2>
               <p className="mt-4 max-w-2xl text-base leading-7 text-white/72 md:text-lg">
-                Bring the facility, task, robot profile, target thresholds,
-                timeline, and proof you already have. Blueprint routes the next
-                step to a real-site evaluation, site package, capture ask, or
-                proof blocker.
+                Bring one site, task, robot profile, and target threshold. We'll
+                recommend the right evaluation scope, scenario count, and next
+                proof step.
               </p>
+            </div>
+            <div className="flex flex-col justify-center gap-3 sm:flex-row md:flex-col">
               <a
                 href={requestHref}
-                className="mt-8 inline-flex min-h-12 items-center justify-center gap-2 bg-[#d8bd8d] px-5 text-sm font-semibold text-[#111110] transition hover:bg-[#e8cfa1]"
+                className="inline-flex min-h-12 items-center justify-center gap-2 bg-[#d8bd8d] px-5 text-sm font-semibold text-[#111110] transition hover:bg-[#e8cfa1]"
               >
                 Request evaluation
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </a>
-            </div>
-            <div className="grid content-start gap-3">
-              {[
-                "Requests do not grant package access, rights clearance, payment, fulfillment, or hosted-session availability by themselves.",
-                "Policy-evaluation output remains advisory until simulator traces, action logs, robot trials, safety review, rights proof, and runtime proof support a stronger claim.",
-                "Site operators can submit and govern a site for free; paid usage starts with robot-team evaluations or optional data access.",
-                "Generated imagery on the public site is illustrative, not customer or robot-trial proof.",
-              ].map((item) => (
-                <div key={item} className="flex gap-3 border border-white/15 bg-white/[0.04] p-4">
-                  <CheckCircle2 className="mt-1 h-5 w-5 flex-none text-[#d8bd8d]" aria-hidden="true" />
-                  <p className="text-sm leading-6 text-white/76">{item}</p>
-                </div>
-              ))}
-              <div className="flex gap-3 border border-[#d8bd8d]/35 bg-[#d8bd8d]/10 p-4">
-                <TriangleAlert className="mt-1 h-5 w-5 flex-none text-[#d8bd8d]" aria-hidden="true" />
-                <p className="text-sm leading-6 text-white/76">
-                  Public Launch Ready copy is allowed. Operational Launch Ready
-                  claims still require proof from the system that owns them.
-                </p>
-              </div>
+              <a
+                href={operatorHref}
+                className="inline-flex min-h-12 items-center justify-center border border-white/30 px-5 text-sm font-semibold text-white transition hover:bg-white/10"
+              >
+                Submit site free
+              </a>
             </div>
           </div>
         </section>

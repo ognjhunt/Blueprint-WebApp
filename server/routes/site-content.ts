@@ -85,7 +85,7 @@ const pages = [
     path: "/",
     title: "Home",
     description:
-      "The core public buyer story: real-site robot evaluation before pilots or deployment, grounded in capture-backed site packages, policy-evaluation sets, scenario tests, optional data exports, and proof boundaries.",
+      "The core public buyer story: real-site robot evaluation before pilots or deployment, grounded in Task Evaluation Runs, Post-Training Data Packages, free site-operator participation, and proof boundaries.",
   },
   {
     path: "/for-robot-teams",
@@ -109,13 +109,13 @@ const pages = [
     path: "/pricing",
     title: "Pricing",
     description:
-      "Simple pricing: robot teams pay for fixed-scope Policy Evaluation Runs and site data packages; site operators participate for free.",
+      "Simple pricing: robot teams pay for fixed-scope Task Evaluation Runs and Post-Training Data Packages; site operators submit sites for free.",
   },
   {
     path: "/contact",
-    title: "Request Site Data Or Policy Evaluation",
+    title: "Request Task Evaluation Or Data Package",
     description:
-      "Structured intake for site data packages, policy evaluation, new capture requests, free site-operator participation, robot tasks, thresholds, dynamic conditions, zones, rights/access, pilot outcomes, and desired next step.",
+      "Structured intake for Task Evaluation Runs, Post-Training Data Packages, new capture requests, free site-operator participation, robot tasks, thresholds, dynamic conditions, zones, rights/access, pilot outcomes, and desired next step.",
   },
   {
     path: "/privacy",

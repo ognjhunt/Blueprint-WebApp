@@ -31,34 +31,34 @@ export const simplePricingOptions: SimplePricingOption[] = [
   },
   {
     id: "world-models",
-    step: "Start here",
-    name: "Site Data Package",
-    internalName: "World Model + Scenario Data",
-    price: "$3,500+",
-    unit: "per site package",
+    step: "Data package",
+    name: "Post-Training Data Package",
+    internalName: "Post-Training + Regression Data",
+    price: "$25,000+",
+    unit: "scoped package",
     payer: "Robot team / OEM / integrator",
-    summary: "Buy the capture-backed site package, scenario metadata, and export scope for one real indoor site.",
+    summary: "Request curated robot POV clips, scenario labels, synthetic variations, failure cases, and export format after evaluation.",
     includes: [
-      "Site-specific spatial data from real capture",
-      "Site package tied to one exact site and workflow",
-      "Task and scenario metadata for evaluation, post-training, or regression work",
-      "Exports, proof notes, rights posture, and stated limitations for that site",
+      "Curated robot POV clips and scenario labels",
+      "Synthetic variations and failure cases",
+      "Task metadata for post-training, fine-tuning, or regression work",
+      "Export format matched to the team's stack",
     ],
   },
   {
     id: "simulation",
-    step: "Evaluation set",
-    name: "Policy Evaluation Set",
-    internalName: "Full Site Policy Evaluation",
+    step: "Evaluation run",
+    name: "Task Evaluation Run",
+    internalName: "Real-Site Task Evaluation",
     price: "$6,500",
-    unit: "per Policy Evaluation Run",
+    unit: "per run",
     payer: "Robot team / OEM / integrator",
     summary:
-      "Evaluate one robot policy/profile on one real site against one scoped task pack.",
+      "Evaluate one robot policy/profile on one real site against one scoped Task Pack.",
     includes: [
-      "Unit: 1 site, 1 robot policy/profile, 1 task pack",
-      "Up to 500 scenarios/episodes",
-      "Pass/fail metrics, cycle time, intervention and failure notes",
+      "Unit: 1 site, 1 robot policy/profile, 1 Task Pack",
+      "Up to 500 scenarios",
+      "Pass/fail results, cycle-time results, intervention and failure notes",
       "Scenario/results manifest and availability confirmed per request before evaluation starts",
     ],
   },
@@ -84,5 +84,5 @@ export function getPricingContactInterest(id: SimplePricingOption["id"]): string
   if (id === "capture") return "capturer-signup";
   if (id === "site-operator") return "site-review";
   if (id === "simulation") return "hosted-evaluation";
-  return "world-models";
+  return "world-model";
 }

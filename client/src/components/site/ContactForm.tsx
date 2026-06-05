@@ -1,16 +1,6 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { useSearch } from "wouter";
-import {
-  ArrowRight,
-  Calendar,
-  CheckCircle2,
-  Clock,
-  Mail,
-  MapPin,
-  MonitorPlay,
-  Package,
-  Gauge,
-} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { useLocation, useSearch } from "wouter";
+import { ArrowRight, Calendar, CheckCircle2, Clock, Mail } from "lucide-react";
 import { analyticsEvents, getSafeErrorType } from "@/lib/analytics";
 import { withCsrfHeader } from "@/lib/csrf";
 import {
@@ -21,15 +11,12 @@ import {
   getDemandAttributionFromSearchParams,
   hasDemandAttribution,
 } from "@/lib/demandAttribution";
-import { normalizeInterestToLane } from "@/lib/contactInterest";
 import {
   defaultProofPathPreferenceForRequestPath,
   parseContactRequestPrefill,
 } from "@/lib/contactRequestPrefill";
 import { useAuth } from "@/contexts/AuthContext";
-import { useLocation } from "wouter";
 import type {
-  BudgetBucket,
   BuyerType,
   CommercialRequestPath,
   InboundRequestPayload,
@@ -42,141 +29,70 @@ import type {
 
 type Persona = "robot_team" | "site_operator";
 
-function getDefaultRequestedLane(persona: Persona): RequestedLane {
-  return persona === "site_operator" ? "qualification" : "deeper_evaluation";
-}
+const inputClassName =
+  "w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-950 focus:ring-2 focus:ring-slate-950/10";
+const textareaClassName =
+  "min-h-24 w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm leading-6 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-950 focus:ring-2 focus:ring-slate-950/10";
+const labelClassName = "mb-1.5 block text-sm font-semibold text-slate-800";
+const helperClassName = "mt-1.5 text-xs leading-5 text-slate-500";
 
-function getCommercialRequestPathFromContext(params: {
-  persona: Persona;
-  sourcePath: string;
-  interest: string;
-  hostedMode: boolean;
-}): CommercialRequestPath {
-  if (params.persona === "site_operator") return "site_claim";
-
-  const sourcePath = params.sourcePath.trim().toLowerCase();
-  const interest = params.interest.trim().toLowerCase();
-
-  if (
-    params.hostedMode ||
-    sourcePath === "hosted-evaluation" ||
-    interest === "hosted-evaluation" ||
-    interest === "hosted-session"
-  ) {
-    return "hosted_evaluation";
-  }
-
-  if (
-    sourcePath === "request-capture" ||
-    sourcePath === "capture-access" ||
-    interest === "capture-access"
-  ) {
-    return "capture_access";
-  }
-
-  return "world_model";
-}
-
-function getDefaultProofPathPreference(
-  commercialRequestPath: CommercialRequestPath,
-): ProofPathPreference {
-  return commercialRequestPath === "hosted_evaluation" ||
-    commercialRequestPath === "capture_access"
-    ? "exact_site_required"
-    : "need_guidance";
-}
-
-const robotRequestPathOptions: Array<{
-  value: Extract<CommercialRequestPath, "world_model" | "hosted_evaluation" | "capture_access">;
-  label: string;
-  description: string;
-  Icon: typeof Package;
-}> = [
-  {
-    value: "world_model",
-    label: "Site data package",
-    description: "Scope world model, scenario data, exports, provenance, and package path.",
-    Icon: Gauge,
-  },
-  {
-    value: "hosted_evaluation",
-    label: "Policy evaluation",
-    description: "Scope manual or headless policy runs on one exact site's tasks and scenarios.",
-    Icon: MonitorPlay,
-  },
-  {
-    value: "capture_access",
-    label: "New capture request",
-    description: "Open a capture path for a site not packaged yet.",
-    Icon: MapPin,
-  },
+const policyAccessMethods = [
+  "Policy API endpoint",
+  "Docker container",
+  "Recorded action trace",
+  "High-level skill trace",
+  "Teleop demo",
+  "Sim controller plugin",
+  "Assisted review",
+  "Not sure yet",
 ];
 
-const requestPathCopy: Record<
-  CommercialRequestPath,
+const siteAccessBoundaryOptions = [
   {
-    successTitle: string;
-    successBody: string;
-    requestSectionTitle: string;
-    taskLabel: string;
-    taskPlaceholder: string;
-    taskHelper: string;
-    submitLabel: string;
-    nextStep: string;
-  }
-> = {
-  world_model: {
-    successTitle: "Site data request received",
-    successBody:
-      "Blueprint now has the buyer, site, task, and robot context needed to route this toward a site data package, scenario-data scope, policy-evaluation option, or one narrow follow-up. No payment, provider run, robot trial, safety validation, or fulfillment action was triggered by this form.",
-    requestSectionTitle: "What should the site data package be scoped around?",
-    taskLabel: "What real-site data or robot task should Blueprint help with?",
-    taskPlaceholder:
-      "Describe the robot task, facility workflow, pass/fail question, scenario data, or training export your team needs first.*",
-    taskHelper: "One concrete site/task question turns into cleaner world-model, scenario, and export scope.",
-    submitLabel: "Request site data",
-    nextStep:
-      "Blueprint reviews the site, task, robot profile, thresholds, and evidence needs, then routes the request toward a site data package, policy evaluation, capture access, or one missing detail.",
+    value: "Private review only",
+    description: "Blueprint reviews the site privately before any buyer visibility.",
+    captureRights:
+      "Private review only; no marketplace listing or robot-team access without explicit operator approval.",
+    derivedScenePermission:
+      "No marketplace or robot-team use without explicit operator approval.",
   },
-  hosted_evaluation: {
-    successTitle: "Policy evaluation request received",
-    successBody:
-      "Blueprint now has the site and robot context needed to scope a policy evaluation set without treating availability or entitlement as automatic. No hosted runtime, provider job, or fulfillment action was started by this request.",
-    requestSectionTitle: "What should the policy evaluation set run?",
-    taskLabel: "What should the policy evaluation set help your team answer?",
-    taskPlaceholder:
-      "Describe the robot policy, task suite, scenarios, pass/fail question, or review workflow this evaluation should support.*",
-    taskHelper: "Policy evaluation is confirmed after site, entitlement, proof, and runtime availability are checked.",
-    submitLabel: "Request policy evaluation",
-    nextStep:
-      "Blueprint checks the site, task, entitlement, and hosted-path availability before confirming whether a policy-evaluation session can move forward.",
+  {
+    value: "Anonymized marketplace use",
+    description: "Anonymized site/task use can be reviewed for marketplace fit.",
+    captureRights:
+      "Operator is open to anonymized marketplace use after Blueprint review.",
+    derivedScenePermission:
+      "Anonymized marketplace use allowed only after review and agreed terms.",
   },
-  capture_access: {
-    successTitle: "Capture access request received",
-    successBody:
-      "Blueprint now has the site and workflow signal needed to review whether a capture path can be opened or whether an existing package is a better first step. This does not schedule capture or imply rights clearance yet.",
-    requestSectionTitle: "What should Blueprint capture or inspect?",
-    taskLabel: "What site or workflow should Blueprint capture for your team?",
-    taskPlaceholder:
-      "Name the site, workflow, or site class your team wants captured before package or hosted-review work.*",
-    taskHelper: "Capture access is reviewed against site specificity, lawful access, rights, and operational fit.",
-    submitLabel: "Request capture access",
-    nextStep:
-      "Blueprint checks whether this needs a new capture, an existing package, a policy evaluation, or an access follow-up before making commitments.",
+  {
+    value: "Ask before each robot-team use",
+    description: "Blueprint must confirm approval before every robot-team use.",
+    captureRights:
+      "Ask before each robot-team use; approval is required per use.",
+    derivedScenePermission:
+      "Per-use operator approval required before robot-team access.",
   },
-  site_claim: {
-    successTitle: "Site claim received",
-    successBody:
-      "Blueprint now has the site claim, access notes, and governance boundaries needed for a measured follow-up. Site-operator participation is free; this does not list the site, clear rights, or open buyer access by itself.",
-    requestSectionTitle: "What facility and access path are you bringing?",
-    taskLabel: "What site participation path should Blueprint review?",
-    taskPlaceholder: "Describe the facility, access path, or approval question.",
-    taskHelper: "Use a concrete access boundary so Blueprint can route the right review.",
-    submitLabel: "Submit site free",
-    nextStep:
-      "Blueprint reviews the facility, access rules, privacy boundary, and commercialization posture before suggesting any next step.",
+  {
+    value: "Not sure yet",
+    description: "Use this when the boundary needs a follow-up review.",
+    captureRights:
+      "Access boundary requires follow-up before listing or robot-team use.",
+    derivedScenePermission:
+      "Commercial use is undecided and requires follow-up before access changes.",
   },
-};
+] as const;
+
+function RequiredMark() {
+  return (
+    <span className="ml-1 text-slate-500" aria-hidden="true">
+      *
+    </span>
+  );
+}
+
+function clean(value: unknown): string {
+  return String(value || "").trim();
+}
 
 function generateRequestId(): string {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
@@ -195,88 +111,61 @@ function getReferrer(): string | null {
   return document.referrer || null;
 }
 
-function hasRobotEvalFitText(value: RealSiteRobotEvalFitInput): boolean {
-  return [
-    value.siteCardInput?.siteType,
-    value.siteCardInput?.knownGeometryAssets,
-    value.siteCardInput?.visualConditions,
-    value.siteCardInput?.dynamicConditions,
-    value.siteCardInput?.safetyConstraints,
-    value.siteCardInput?.robotRelevantMetadata,
-    value.taskCardInput?.task,
-    value.taskCardInput?.startState,
-    value.taskCardInput?.successDefinition,
-    value.taskCardInput?.failureDefinition,
-    value.taskCardInput?.requiredMetrics,
-    value.scenarioCardInput?.normalScenario,
-    value.scenarioCardInput?.variation,
-    value.scenarioCardInput?.edgeCase,
-    value.scenarioCardInput?.knownRisk,
-    value.evalCardInput?.robotOrPolicyTested,
-    value.evalCardInput?.preferredReviewPath,
-    value.evalCardInput?.resultsValidationExpectations,
-    value.evalCardInput?.predictedVsActualHistory,
-  ].some((entry) => String(entry || "").trim());
-}
-
 function getPersonaFromSearch(
+  routePath: string,
   personaParam: string,
   buyerTypeParam: string,
-  hostedMode: boolean,
+  prefillBuyerType: BuyerType,
 ): Persona {
-  if (hostedMode) return "robot_team";
+  if (routePath === "/contact/site-operator") return "site_operator";
   if (personaParam === "site-operator") return "site_operator";
-  if (personaParam === "robot-team") return "robot_team";
   if (buyerTypeParam === "site_operator") return "site_operator";
+  if (prefillBuyerType === "site_operator") return "site_operator";
   return "robot_team";
 }
 
-function getProofPathPreferenceFromSearch(value: string | null): ProofPathPreference | "" {
-  const normalized = value?.trim() ?? "";
-  return normalized === "exact_site_required" ||
-    normalized === "adjacent_site_acceptable" ||
-    normalized === "need_guidance"
-    ? normalized
-    : "";
+function siteBoundaryFor(value: string) {
+  return siteAccessBoundaryOptions.find((option) => option.value === value);
 }
 
-const labelClassName = "mb-1.5 block text-sm font-semibold text-slate-800";
-const inputClassName =
-  "w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-950 focus:ring-2 focus:ring-slate-950/10";
-const textareaClassName =
-  "min-h-24 w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm leading-6 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-950 focus:ring-2 focus:ring-slate-950/10";
-const helperClassName = "mt-1.5 text-xs leading-5 text-slate-500";
-
-function RequiredMark() {
-  return (
-    <span className="ml-1 text-slate-500" aria-hidden="true">
-      *
-    </span>
-  );
+function hasRobotEvalFitText(value: RealSiteRobotEvalFitInput): boolean {
+  return [
+    value.siteCardInput?.siteType,
+    value.taskCardInput?.task,
+    value.taskCardInput?.requiredMetrics,
+    value.scenarioCardInput?.normalScenario,
+    value.evalCardInput?.robotOrPolicyTested,
+    value.evalCardInput?.preferredReviewPath,
+    value.evalCardInput?.resultsValidationExpectations,
+  ].some((entry) => clean(entry));
 }
 
-function FormSection({
-  eyebrow,
-  title,
-  children,
-}: {
-  eyebrow: string;
-  title: string;
-  children: ReactNode;
-}) {
-  return (
-    <section className="space-y-4 border-t border-black/10 pt-6">
-      <div>
-        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-          {eyebrow}
-        </p>
-        <h3 className="mt-2 text-lg font-semibold tracking-[-0.02em] text-slate-950">
-          {title}
-        </h3>
-      </div>
-      {children}
-    </section>
-  );
+function buildRouteDetails(prefill: ReturnType<typeof parseContactRequestPrefill>): string {
+  return [
+    prefill.scenario ? `Scenario: ${prefill.scenario}` : "",
+    prefill.requestedOutputs ? `Requested outputs: ${prefill.requestedOutputs}` : "",
+    prefill.message ? `Message: ${prefill.message}` : "",
+  ].filter(Boolean).join("\n");
+}
+
+function successCopy(commercialRequestPath: CommercialRequestPath) {
+  if (commercialRequestPath === "site_claim") {
+    return {
+      title: "Site submission received",
+      body:
+        "Blueprint has the facility, location, and access boundary needed for a free site review.",
+      next:
+        "Blueprint reviews the site and boundary, then confirms what can be captured, listed, or shared with robot teams.",
+    };
+  }
+
+  return {
+    title: "Task Evaluation Run request received",
+    body:
+      "Blueprint has the site, task, policy, and threshold context needed to recommend a scope, scenario count, and next proof step.",
+    next:
+      "Blueprint reviews site/task fit, recommends scope and scenario count, then confirms access and pricing terms before execution.",
+  };
 }
 
 export function ContactForm() {
@@ -284,35 +173,29 @@ export function ContactForm() {
   const search = useSearch();
   const [location] = useLocation();
   const searchParams = useMemo(() => new URLSearchParams(search), [search]);
-  const interest = searchParams.get("interest")?.trim() ?? "";
-  const buyerTypeParam = searchParams.get("buyerType")?.trim() ?? "";
-  const personaParam = searchParams.get("persona")?.trim() ?? "";
-  const sourcePath = searchParams.get("path")?.trim() ?? "";
   const requestPrefill = useMemo(
     () => parseContactRequestPrefill(searchParams, location),
     [location, searchParams],
   );
-  const interestLane = normalizeInterestToLane(interest);
-  const hostedMode =
-    (buyerTypeParam === "robot_team" || requestPrefill.buyerType === "robot_team") &&
-    (requestPrefill.requestPath === "hosted-review" ||
-      sourcePath.toLowerCase() === "hosted-review" ||
-      sourcePath.toLowerCase() === "hosted-evaluation" ||
-      interest.toLowerCase() === "hosted-evaluation" ||
-      interest.toLowerCase() === "hosted-session");
-  const persona =
-    location === "/contact/site-operator"
-      ? "site_operator"
-      : requestPrefill.buyerType === "site_operator"
-        ? "site_operator"
-      : getPersonaFromSearch(personaParam, buyerTypeParam, hostedMode);
-  const defaultCommercialRequestPath = requestPrefill.commercialRequestPath ||
-    getCommercialRequestPathFromContext({
-      persona,
-      sourcePath,
-      interest,
-      hostedMode,
-    });
+  const interest = searchParams.get("interest")?.trim() ?? "";
+  const buyerTypeParam = searchParams.get("buyerType")?.trim() ?? "";
+  const personaParam = searchParams.get("persona")?.trim() ?? "";
+  const persona = getPersonaFromSearch(
+    location,
+    personaParam,
+    buyerTypeParam,
+    requestPrefill.buyerType,
+  );
+  const buyerType: BuyerType = persona;
+  const commercialRequestPath: CommercialRequestPath =
+    persona === "site_operator" ? "site_claim" : "hosted_evaluation";
+  const requestedLanes: RequestedLane[] =
+    persona === "site_operator" ? ["qualification"] : ["deeper_evaluation"];
+  const requestedLane = requestedLanes[0];
+  const proofPathPreference: ProofPathPreference =
+    persona === "robot_team"
+      ? "exact_site_required"
+      : defaultProofPathPreferenceForRequestPath(requestPrefill.requestPath);
   const searchDemandAttribution = useMemo(
     () => getDemandAttributionFromSearchParams(searchParams),
     [searchParams],
@@ -320,132 +203,45 @@ export function ContactForm() {
   const analyticsDemandAttribution = hasDemandAttribution(searchDemandAttribution)
     ? searchDemandAttribution
     : undefined;
-  const prefills = useMemo(() => {
-    const scenario = requestPrefill.scenario;
-    const requestedOutputs = requestPrefill.requestedOutputs;
-    const agentMessage = requestPrefill.message;
-    const routeDetails = [
-      scenario ? `Scenario: ${scenario}` : "",
-      requestedOutputs ? `Requested outputs: ${requestedOutputs}` : "",
-      agentMessage ? `Message: ${agentMessage}` : "",
-    ].filter(Boolean).join("\n");
 
-    return {
-      siteName: requestPrefill.siteName,
-      siteLocation: requestPrefill.siteLocation,
-      taskStatement: requestPrefill.taskStatement,
-      targetRobotTeam: requestPrefill.targetRobotTeam,
-      targetSiteType: requestPrefill.targetSiteType,
-      realSiteRobotEvalFit: requestPrefill.realSiteRobotEvalFit,
-      proofPathPreference:
-        requestPrefill.proofPathPreference ||
-        getProofPathPreferenceFromSearch(searchParams.get("proofPathPreference")),
-      routeDetails,
-    };
-  }, [requestPrefill, searchParams]);
-  const hasPrefilledOptionalContext = Boolean(
-    prefills.siteLocation
-      || prefills.targetRobotTeam
-      || prefills.targetSiteType
-      || prefills.routeDetails
-      || prefills.realSiteRobotEvalFit
-      || prefills.proofPathPreference,
-  );
-  const [showOptionalDetails, setShowOptionalDetails] = useState(
-    hostedMode || hasPrefilledOptionalContext,
-  );
-
-  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
-  const [message, setMessage] = useState("");
-  const [submittedRequestId, setSubmittedRequestId] = useState<string | null>(null);
-  const [commercialRequestPath, setCommercialRequestPath] = useState<CommercialRequestPath>(
-    defaultCommercialRequestPath,
-  );
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [company, setCompany] = useState("");
-  const [jobTitle, setJobTitle] = useState("");
   const [email, setEmail] = useState("");
   const [siteName, setSiteName] = useState("");
   const [siteLocation, setSiteLocation] = useState("");
   const [siteLocationMetadata, setSiteLocationMetadata] =
     useState<PlaceLocationMetadata | null>(null);
-  const [taskStatement, setTaskStatement] = useState("");
   const [targetSiteType, setTargetSiteType] = useState("");
+  const [taskStatement, setTaskStatement] = useState("");
   const [targetRobotTeam, setTargetRobotTeam] = useState("");
-  const [budgetBucket, setBudgetBucket] = useState<BudgetBucket>("Undecided/Unsure");
-  const [proofPathPreference, setProofPathPreference] = useState<ProofPathPreference>(
-    prefills.proofPathPreference ||
-      defaultProofPathPreferenceForRequestPath(requestPrefill.requestPath),
-  );
-  const [operatingConstraints, setOperatingConstraints] = useState("");
-  const [captureRights, setCaptureRights] = useState("");
+  const [policyAccessMethod, setPolicyAccessMethod] = useState("");
+  const [scenarioCount, setScenarioCount] = useState("");
+  const [deadline, setDeadline] = useState("");
+  const [notes, setNotes] = useState("");
+  const [accessBoundary, setAccessBoundary] = useState("");
   const [privacySecurityConstraints, setPrivacySecurityConstraints] = useState("");
-  const [commercializationPreference, setCommercializationPreference] = useState("");
-  const [humanGateTopics, setHumanGateTopics] = useState("");
-  const [successRateThreshold, setSuccessRateThreshold] = useState("");
-  const [cycleTimeThreshold, setCycleTimeThreshold] = useState("");
-  const [interventionRateThreshold, setInterventionRateThreshold] = useState("");
-  const [safetyThreshold, setSafetyThreshold] = useState("");
-  const [pilotTimeline, setPilotTimeline] = useState("");
-  const [vendorOperatorRole, setVendorOperatorRole] = useState("");
-  const [requiredEvidence, setRequiredEvidence] = useState("");
-  const [dynamicConditions, setDynamicConditions] = useState("");
-  const [objectTaskZones, setObjectTaskZones] = useState("");
-  const [pilotOutcomes, setPilotOutcomes] = useState("");
-  const [knownGeometryAssets, setKnownGeometryAssets] = useState("");
-  const [visualConditions, setVisualConditions] = useState("");
-  const [startState, setStartState] = useState("");
-  const [successDefinition, setSuccessDefinition] = useState("");
-  const [failureDefinition, setFailureDefinition] = useState("");
-  const [normalScenario, setNormalScenario] = useState("");
-  const [scenarioVariation, setScenarioVariation] = useState("");
-  const [edgeCase, setEdgeCase] = useState("");
-  const [knownRisk, setKnownRisk] = useState("");
-  const [robotOrPolicyTested, setRobotOrPolicyTested] = useState("");
-  const [preferredReviewPath, setPreferredReviewPath] = useState("");
-  const [validationExpectations, setValidationExpectations] = useState("");
-  const [detailsMessage, setDetailsMessage] = useState("");
+  const [showOptionalDetails, setShowOptionalDetails] = useState(false);
+  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [message, setMessage] = useState("");
+  const [submittedRequestId, setSubmittedRequestId] = useState<string | null>(null);
   const [honeypot, setHoneypot] = useState("");
-
-  useEffect(() => {
-    setCommercialRequestPath(defaultCommercialRequestPath);
-    setProofPathPreference(
-      prefills.proofPathPreference ||
-        defaultProofPathPreferenceForRequestPath(requestPrefill.requestPath),
-    );
-  }, [
-    defaultCommercialRequestPath,
-    prefills.proofPathPreference,
-    requestPrefill.requestPath,
-  ]);
-
-  useEffect(() => {
-    if (
-      commercialRequestPath === "hosted_evaluation" ||
-      commercialRequestPath === "capture_access"
-    ) {
-      setProofPathPreference("exact_site_required");
-    }
-  }, [commercialRequestPath]);
 
   useEffect(() => {
     const displayName = userData?.name || currentUser?.displayName || "";
     const trimmedName = displayName.trim();
     const [defaultFirstName, ...restName] = trimmedName ? trimmedName.split(/\s+/) : [];
+    const fit = requestPrefill.realSiteRobotEvalFit;
+    const routeDetails = buildRouteDetails(requestPrefill);
 
     if (!firstName && defaultFirstName) setFirstName(defaultFirstName);
     if (!lastName && restName.length > 0) setLastName(restName.join(" "));
     if (!company && (userData?.company || userData?.organizationName)) {
       setCompany(userData.company || userData.organizationName || "");
     }
-    if (!jobTitle && userData?.jobTitle) setJobTitle(userData.jobTitle);
     if (!email && currentUser?.email) setEmail(currentUser.email);
-    if (!siteName && (prefills.siteName || userData?.siteName)) {
-      setSiteName(prefills.siteName || userData?.siteName || "");
-    }
-    if (!siteLocation && (prefills.siteLocation || userData?.siteLocation)) {
-      const defaultSiteLocation = prefills.siteLocation || userData?.siteLocation || "";
+    if (!siteLocation && (requestPrefill.siteLocation || userData?.siteLocation)) {
+      const defaultSiteLocation = requestPrefill.siteLocation || userData?.siteLocation || "";
       setSiteLocation(defaultSiteLocation);
       setSiteLocationMetadata(
         userData?.siteLocationMetadata || {
@@ -454,143 +250,76 @@ export function ContactForm() {
         },
       );
     }
-    if (!taskStatement && (prefills.taskStatement || userData?.taskStatement)) {
-      setTaskStatement(prefills.taskStatement || userData?.taskStatement || "");
+    if (!siteName) {
+      const defaultSiteName =
+        requestPrefill.siteName ||
+        (persona === "robot_team" ? requestPrefill.targetSiteType || requestPrefill.siteLocation : "") ||
+        userData?.siteName ||
+        "";
+      if (defaultSiteName) setSiteName(defaultSiteName);
     }
-    if (!targetRobotTeam && (prefills.targetRobotTeam || userData?.targetRobotTeam)) {
-      setTargetRobotTeam(prefills.targetRobotTeam || userData?.targetRobotTeam || "");
+    if (!targetSiteType && requestPrefill.targetSiteType) {
+      setTargetSiteType(requestPrefill.targetSiteType);
     }
-    if (!targetSiteType && (prefills.targetSiteType || userData?.targetSiteType)) {
-      setTargetSiteType(prefills.targetSiteType || userData?.targetSiteType || "");
+    if (!taskStatement && (requestPrefill.taskStatement || requestPrefill.workflow || fit?.taskCardInput?.task)) {
+      setTaskStatement(
+        requestPrefill.taskStatement ||
+          requestPrefill.workflow ||
+          fit?.taskCardInput?.task ||
+          "",
+      );
     }
-    const fit = prefills.realSiteRobotEvalFit;
-    if (fit) {
-      if (!knownGeometryAssets && fit.siteCardInput?.knownGeometryAssets) {
-        setKnownGeometryAssets(fit.siteCardInput.knownGeometryAssets);
-      }
-      if (!visualConditions && fit.siteCardInput?.visualConditions) {
-        setVisualConditions(fit.siteCardInput.visualConditions);
-      }
-      if (!dynamicConditions && fit.siteCardInput?.dynamicConditions) {
-        setDynamicConditions(fit.siteCardInput.dynamicConditions);
-      }
-      if (!safetyThreshold && fit.siteCardInput?.safetyConstraints) {
-        setSafetyThreshold(fit.siteCardInput.safetyConstraints);
-      }
-      if (!objectTaskZones && fit.siteCardInput?.robotRelevantMetadata) {
-        setObjectTaskZones(fit.siteCardInput.robotRelevantMetadata);
-      }
-      if (!startState && fit.taskCardInput?.startState) {
-        setStartState(fit.taskCardInput.startState);
-      }
-      if (!successDefinition && fit.taskCardInput?.successDefinition) {
-        setSuccessDefinition(fit.taskCardInput.successDefinition);
-      }
-      if (!failureDefinition && fit.taskCardInput?.failureDefinition) {
-        setFailureDefinition(fit.taskCardInput.failureDefinition);
-      }
-      if (!normalScenario && fit.scenarioCardInput?.normalScenario) {
-        setNormalScenario(fit.scenarioCardInput.normalScenario);
-      }
-      if (!scenarioVariation && fit.scenarioCardInput?.variation) {
-        setScenarioVariation(fit.scenarioCardInput.variation);
-      }
-      if (!edgeCase && fit.scenarioCardInput?.edgeCase) {
-        setEdgeCase(fit.scenarioCardInput.edgeCase);
-      }
-      if (!knownRisk && fit.scenarioCardInput?.knownRisk) {
-        setKnownRisk(fit.scenarioCardInput.knownRisk);
-      }
-      if (!robotOrPolicyTested && fit.evalCardInput?.robotOrPolicyTested) {
-        setRobotOrPolicyTested(fit.evalCardInput.robotOrPolicyTested);
-      }
-      if (!preferredReviewPath && fit.evalCardInput?.preferredReviewPath) {
-        setPreferredReviewPath(fit.evalCardInput.preferredReviewPath);
-      }
-      if (!requiredEvidence && fit.evalCardInput?.resultsValidationExpectations) {
-        setRequiredEvidence(fit.evalCardInput.resultsValidationExpectations);
-      }
-      if (!validationExpectations && fit.evalCardInput?.resultsValidationExpectations) {
-        setValidationExpectations(fit.evalCardInput.resultsValidationExpectations);
-      }
-      if (!pilotOutcomes && fit.evalCardInput?.predictedVsActualHistory) {
-        setPilotOutcomes(fit.evalCardInput.predictedVsActualHistory);
-      }
+    if (!targetRobotTeam && (requestPrefill.targetRobotTeam || fit?.evalCardInput?.robotOrPolicyTested)) {
+      setTargetRobotTeam(
+        requestPrefill.targetRobotTeam || fit?.evalCardInput?.robotOrPolicyTested || "",
+      );
     }
-    if (!detailsMessage && prefills.routeDetails) {
-      setDetailsMessage(prefills.routeDetails);
+    if (!policyAccessMethod && fit?.evalCardInput?.preferredReviewPath) {
+      setPolicyAccessMethod(fit.evalCardInput.preferredReviewPath);
     }
-    if (!operatingConstraints && userData?.operatingConstraints) {
-      setOperatingConstraints(userData.operatingConstraints);
+    if (!notes && routeDetails) {
+      setNotes(routeDetails);
+      setShowOptionalDetails(true);
     }
-    if (!captureRights && userData?.captureRights) {
-      setCaptureRights(userData.captureRights);
+    if (!accessBoundary && userData?.operatingConstraints) {
+      setAccessBoundary(userData.operatingConstraints);
     }
     if (!privacySecurityConstraints && userData?.privacySecurityConstraints) {
       setPrivacySecurityConstraints(userData.privacySecurityConstraints);
     }
   }, [
-    captureRights,
+    accessBoundary,
     company,
     currentUser,
-    dynamicConditions,
-    edgeCase,
     email,
-    failureDefinition,
     firstName,
-    jobTitle,
-    knownGeometryAssets,
-    knownRisk,
     lastName,
-    normalScenario,
-    objectTaskZones,
-    operatingConstraints,
-    pilotOutcomes,
-    preferredReviewPath,
+    notes,
     persona,
-    prefills,
+    policyAccessMethod,
     privacySecurityConstraints,
-    requiredEvidence,
-    robotOrPolicyTested,
-    safetyThreshold,
-    scenarioVariation,
-    detailsMessage,
+    requestPrefill,
     siteLocation,
     siteName,
-    startState,
-    successDefinition,
-    targetSiteType,
     targetRobotTeam,
+    targetSiteType,
     taskStatement,
-    validationExpectations,
-    visualConditions,
     userData,
   ]);
-
-  const buyerType: BuyerType = persona;
-  const requestedLanes: RequestedLane[] = hostedMode
-    ? ["deeper_evaluation"]
-    : [interestLane || getDefaultRequestedLane(persona)];
-  const requestedLane = requestedLanes[0] || "qualification";
-  const activeRequestPathCopy = requestPathCopy[commercialRequestPath];
-  const requiredFieldSummary =
-    persona === "site_operator"
-      ? ["Name", "Operator", "Work email", "Facility", "Location", "Access rules"]
-      : ["Name", "Company", "Work email", "Role", "Request path", "Site, location, or class"];
 
   useEffect(() => {
     analyticsEvents.contactRequestStarted({
       persona,
-      hostedMode,
+      hostedMode: commercialRequestPath === "hosted_evaluation",
       requestedLane,
       commercialRequestPath,
       authenticated: Boolean(currentUser?.uid),
-      prefilledSiteContext: Boolean(prefills.siteName || prefills.siteLocation),
+      prefilledSiteContext: Boolean(requestPrefill.siteName || requestPrefill.siteLocation),
       ...(analyticsDemandAttribution
         ? { demandAttribution: analyticsDemandAttribution }
         : {}),
     });
-    // We only want the baseline start event once per form visit.
+    // Baseline start event should fire once per form visit.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -599,27 +328,15 @@ export function ContactForm() {
 
     const missingFields: string[] = [];
     if (!firstName.trim()) missingFields.push("First name");
-    if (!lastName.trim()) missingFields.push("Last name");
-    if (!company.trim()) missingFields.push(persona === "site_operator" ? "Company or operator" : "Company");
+    if (!company.trim()) missingFields.push(persona === "site_operator" ? "Company / operator" : "Company");
     if (!email.trim()) missingFields.push("Work email");
-    if (persona === "site_operator" && !siteName.trim()) {
-      missingFields.push("Facility name");
-    }
-    if (persona === "site_operator" && !siteLocation.trim()) {
-      missingFields.push("Site location");
-    }
-
-    if (persona === "robot_team" && !taskStatement.trim()) {
-      missingFields.push("What you need");
-    }
-    if (persona === "robot_team" && !jobTitle.trim()) {
-      missingFields.push("Your role");
-    }
-    if (persona === "robot_team" && !siteName.trim() && !siteLocation.trim() && !targetSiteType.trim()) {
-      missingFields.push("Target site, location, or site class");
-    }
-    if (persona === "site_operator" && !operatingConstraints.trim()) {
-      missingFields.push("Access rules");
+    if (persona === "robot_team") {
+      if (!siteName.trim() && !targetSiteType.trim()) missingFields.push("Target site or site type");
+      if (!taskStatement.trim()) missingFields.push("Task + threshold");
+    } else {
+      if (!siteName.trim()) missingFields.push("Facility name or site type");
+      if (!siteLocation.trim()) missingFields.push("City / location");
+      if (!accessBoundary.trim()) missingFields.push("Access boundaries");
     }
 
     if (missingFields.length > 0) {
@@ -627,7 +344,7 @@ export function ContactForm() {
         stage: "validation",
         errorType: "missing_required_fields",
         persona,
-        hostedMode,
+        hostedMode: commercialRequestPath === "hosted_evaluation",
         requestedLane,
         commercialRequestPath,
         ...(analyticsDemandAttribution
@@ -635,9 +352,7 @@ export function ContactForm() {
           : {}),
       });
       setStatus("error");
-      setMessage(
-        `Please add: ${missingFields.join(", ")}. This keeps the request routeable before any call or human review.`,
-      );
+      setMessage(`Please add: ${missingFields.join(", ")}.`);
       return;
     }
 
@@ -647,7 +362,7 @@ export function ContactForm() {
         stage: "validation",
         errorType: "invalid_email",
         persona,
-        hostedMode,
+        hostedMode: commercialRequestPath === "hosted_evaluation",
         requestedLane,
         commercialRequestPath,
         ...(analyticsDemandAttribution
@@ -659,92 +374,70 @@ export function ContactForm() {
       return;
     }
 
-    const readinessDetails = [
-      successRateThreshold.trim() ? `Success-rate threshold: ${successRateThreshold.trim()}` : "",
-      cycleTimeThreshold.trim() ? `Cycle-time threshold: ${cycleTimeThreshold.trim()}` : "",
-      interventionRateThreshold.trim() ? `Intervention-rate threshold: ${interventionRateThreshold.trim()}` : "",
-      safetyThreshold.trim() ? `Safety threshold: ${safetyThreshold.trim()}` : "",
-      dynamicConditions.trim() ? `Dynamic conditions: ${dynamicConditions.trim()}` : "",
-      objectTaskZones.trim() ? `Object/task zones: ${objectTaskZones.trim()}` : "",
-      pilotOutcomes.trim() ? `Pilot outcomes: ${pilotOutcomes.trim()}` : "",
-      pilotTimeline.trim() ? `Pilot timeline: ${pilotTimeline.trim()}` : "",
-      vendorOperatorRole.trim() ? `Vendor/operator role: ${vendorOperatorRole.trim()}` : "",
-      requiredEvidence.trim() ? `Required evidence: ${requiredEvidence.trim()}` : "",
-      validationExpectations.trim() ? `Validation expectations: ${validationExpectations.trim()}` : "",
-      detailsMessage.trim() ? `Notes: ${detailsMessage.trim()}` : "",
+    const optionalDetails = [
+      policyAccessMethod.trim() ? `Policy access method: ${policyAccessMethod.trim()}` : "",
+      scenarioCount.trim() ? `Scenario count: ${scenarioCount.trim()}` : "",
+      deadline.trim() ? `Deadline: ${deadline.trim()}` : "",
+      notes.trim() ? `Notes: ${notes.trim()}` : "",
     ].filter(Boolean).join("\n");
-    const requiredMetrics = [
-      successRateThreshold.trim() ? `Success-rate threshold: ${successRateThreshold.trim()}` : "",
-      cycleTimeThreshold.trim() ? `Cycle-time threshold: ${cycleTimeThreshold.trim()}` : "",
-      interventionRateThreshold.trim() ? `Intervention-rate threshold: ${interventionRateThreshold.trim()}` : "",
-    ].filter(Boolean).join("\n");
-    const resultsValidationExpectations = [
-      requiredEvidence.trim() ? `Required evidence: ${requiredEvidence.trim()}` : "",
-      validationExpectations.trim() ? `Validation expectations: ${validationExpectations.trim()}` : "",
-    ].filter(Boolean).join("\n");
+    const siteBoundary = siteBoundaryFor(accessBoundary);
+    const siteTaskStatement =
+      `Site operator claim for ${siteName.trim()}. Access boundary: ${accessBoundary.trim()}.`;
     const robotEvalFit: RealSiteRobotEvalFitInput = {
       siteCardInput: {
         siteType: targetSiteType.trim() || siteName.trim(),
-        knownGeometryAssets: knownGeometryAssets.trim(),
-        visualConditions: visualConditions.trim(),
-        dynamicConditions: dynamicConditions.trim(),
-        safetyConstraints: safetyThreshold.trim(),
-        robotRelevantMetadata: objectTaskZones.trim(),
       },
       taskCardInput: {
         task: taskStatement.trim(),
-        startState: startState.trim(),
-        successDefinition: successDefinition.trim(),
-        failureDefinition: failureDefinition.trim(),
-        requiredMetrics,
+        requiredMetrics: taskStatement.trim(),
       },
       scenarioCardInput: {
-        normalScenario: normalScenario.trim(),
-        variation: scenarioVariation.trim(),
-        edgeCase: edgeCase.trim(),
-        knownRisk: knownRisk.trim(),
+        normalScenario: scenarioCount.trim()
+          ? `${scenarioCount.trim()} requested scenarios`
+          : "",
       },
       evalCardInput: {
-        robotOrPolicyTested: robotOrPolicyTested.trim() || targetRobotTeam.trim(),
-        preferredReviewPath: preferredReviewPath.trim(),
-        resultsValidationExpectations,
-        predictedVsActualHistory: pilotOutcomes.trim(),
+        robotOrPolicyTested: targetRobotTeam.trim(),
+        preferredReviewPath: policyAccessMethod.trim(),
+        resultsValidationExpectations: optionalDetails,
       },
     };
     const requestId = generateRequestId();
-    const operatorTaskStatement =
-      detailsMessage.trim()
-      || commercializationPreference.trim()
-      || `Site operator claim for ${siteName.trim()}`;
     const payload: InboundRequestPayload = {
       requestId,
       firstName: firstName.trim(),
-      lastName: lastName.trim(),
+      lastName: lastName.trim() || "Not provided",
       company: company.trim(),
-      roleTitle: jobTitle.trim(),
+      roleTitle: persona === "site_operator" ? "Site operator" : "Robot team",
       email: email.trim().toLowerCase(),
-      budgetBucket,
+      budgetBucket: "Undecided/Unsure",
       requestedLanes,
       buyerType,
       commercialRequestPath,
       siteName: siteName.trim(),
       siteLocation: siteLocation.trim(),
       siteLocationMetadata: resolvePlaceLocationMetadata(siteLocation, siteLocationMetadata),
-      taskStatement: persona === "robot_team" ? taskStatement.trim() : operatorTaskStatement,
+      taskStatement: persona === "robot_team" ? taskStatement.trim() : siteTaskStatement,
       targetSiteType: targetSiteType.trim() || siteName.trim() || undefined,
       proofPathPreference,
-      existingStackReviewWorkflow: undefined,
-      humanGateTopics: humanGateTopics.trim() || undefined,
-      operatingConstraints: operatingConstraints.trim() || undefined,
-      captureRights: persona === "site_operator" ? captureRights.trim() || undefined : undefined,
-      privacySecurityConstraints: privacySecurityConstraints.trim() || undefined,
+      operatingConstraints: persona === "site_operator" ? accessBoundary.trim() : undefined,
+      captureRights:
+        persona === "site_operator" ? siteBoundary?.captureRights || undefined : undefined,
+      privacySecurityConstraints:
+        persona === "site_operator" ? privacySecurityConstraints.trim() || undefined : undefined,
       targetRobotTeam: persona === "robot_team" ? targetRobotTeam.trim() || undefined : undefined,
-      derivedScenePermission: persona === "site_operator" ? commercializationPreference.trim() || undefined : undefined,
+      derivedScenePermission:
+        persona === "site_operator"
+          ? siteBoundary?.derivedScenePermission || undefined
+          : undefined,
       realSiteRobotEvalFit:
         persona === "robot_team" && hasRobotEvalFitText(robotEvalFit)
           ? robotEvalFit
           : undefined,
-      details: readinessDetails || undefined,
+      details:
+        persona === "robot_team"
+          ? optionalDetails || undefined
+          : privacySecurityConstraints.trim() || undefined,
       context: {
         sourcePageUrl: typeof window !== "undefined" ? window.location.href : "",
         referrer: getReferrer() || undefined,
@@ -765,17 +458,17 @@ export function ContactForm() {
     setMessage("");
     analyticsEvents.contactRequestSubmitted({
       persona,
-      hostedMode,
+      hostedMode: commercialRequestPath === "hosted_evaluation",
       requestedLane,
       commercialRequestPath,
       authenticated: Boolean(currentUser?.uid),
-      hasJobTitle: Boolean(jobTitle.trim()),
+      hasJobTitle: false,
       hasSiteName: Boolean(siteName.trim()),
       hasSiteLocation: Boolean(siteLocation.trim()),
-      hasTaskStatement: Boolean(taskStatement.trim()),
-      hasOperatingConstraints: Boolean(operatingConstraints.trim()),
-      hasPrivacySecurityConstraints: Boolean(privacySecurityConstraints.trim()),
-      hasNotes: Boolean(readinessDetails),
+      hasTaskStatement: Boolean(payload.taskStatement?.trim()),
+      hasOperatingConstraints: Boolean(payload.operatingConstraints?.trim()),
+      hasPrivacySecurityConstraints: Boolean(payload.privacySecurityConstraints?.trim()),
+      hasNotes: Boolean(payload.details?.trim()),
       ...(analyticsDemandAttribution
         ? { demandAttribution: analyticsDemandAttribution }
         : {}),
@@ -797,7 +490,7 @@ export function ContactForm() {
       setStatus("success");
       analyticsEvents.contactRequestCompleted({
         persona,
-        hostedMode,
+        hostedMode: commercialRequestPath === "hosted_evaluation",
         requestedLane,
         commercialRequestPath,
         authenticated: Boolean(currentUser?.uid),
@@ -810,7 +503,7 @@ export function ContactForm() {
         stage: "submission",
         errorType: getSafeErrorType(error),
         persona,
-        hostedMode,
+        hostedMode: commercialRequestPath === "hosted_evaluation",
         requestedLane,
         commercialRequestPath,
         ...(analyticsDemandAttribution
@@ -825,62 +518,39 @@ export function ContactForm() {
   };
 
   if (status === "success") {
+    const copy = successCopy(commercialRequestPath);
+
     return (
       <div className="rounded-2xl border border-zinc-200 bg-white p-8 text-center shadow-sm md:p-12">
         <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
           <CheckCircle2 className="h-8 w-8" />
         </div>
-        <h2 className="text-2xl font-bold text-zinc-900">
-          {activeRequestPathCopy.successTitle}
-        </h2>
-        <p className="mt-4 text-zinc-600">
-          {activeRequestPathCopy.successBody}
-        </p>
-        <div className="mt-8 rounded-xl bg-zinc-50 p-6 text-left">
-          <h3 className="mb-4 text-sm font-semibold text-zinc-900">What happens next?</h3>
+        <h2 className="text-2xl font-bold text-zinc-900">{copy.title}</h2>
+        <p className="mx-auto mt-4 max-w-2xl text-zinc-600">{copy.body}</p>
+        <div className="mx-auto mt-8 max-w-2xl rounded-xl bg-zinc-50 p-6 text-left">
+          <h3 className="mb-4 text-sm font-semibold text-zinc-900">
+            What happens next?
+          </h3>
           <div className="space-y-3 text-sm text-zinc-600">
             <div className="flex items-start gap-3">
               <div className="mt-0.5 rounded-full bg-indigo-100 p-1 text-indigo-600">
                 <Clock className="h-3 w-3" />
               </div>
-              <p>{activeRequestPathCopy.nextStep}</p>
+              <p>{copy.next}</p>
             </div>
             <div className="flex items-start gap-3">
               <div className="mt-0.5 rounded-full bg-indigo-100 p-1 text-indigo-600">
                 <Mail className="h-3 w-3" />
               </div>
-              <p>You get a request-specific follow-up rather than a dead-end auto-response.</p>
+              <p>You get a request-specific follow-up, not an instant entitlement.</p>
             </div>
             <div className="flex items-start gap-3">
               <div className="mt-0.5 rounded-full bg-indigo-100 p-1 text-indigo-600">
                 <Calendar className="h-3 w-3" />
               </div>
-              <p>The reply will not imply instant access, rights clearance, or live hosted availability unless the record supports it.</p>
+              <p>Any access, rights, pricing, or hosted execution step is confirmed before it starts.</p>
             </div>
           </div>
-        </div>
-        <div className="mt-4 grid gap-3 text-left sm:grid-cols-3">
-          {[
-            [
-              "Recorded",
-              "The request id and submitted context are now the source for follow-up.",
-            ],
-            [
-              "Not triggered",
-              "No checkout, provider generation, live hosted launch, send, or fulfillment action ran from this form.",
-            ],
-            [
-              "Next proof",
-              "Blueprint replies with the supported request path or the first missing proof, rights, entitlement, or runtime detail.",
-            ],
-          ].map(([label, body]) => (
-            <div key={label} className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">
-                {label}
-              </p>
-              <p className="mt-2 text-sm leading-6 text-zinc-600">{body}</p>
-            </div>
-          ))}
         </div>
         {submittedRequestId ? (
           <p className="mt-6 text-xs uppercase tracking-[0.18em] text-zinc-400">
@@ -892,230 +562,112 @@ export function ContactForm() {
   }
 
   return (
-    <form id="contact-form" className="space-y-7" onSubmit={handleSubmit} noValidate>
-      <div className="border border-black/10 bg-[#f8f6f1] p-4">
-        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-              Required first pass
-            </p>
-            <p className="mt-2 text-sm leading-6 text-slate-700">
-              {persona === "site_operator"
-                ? "Site-operator participation is free; Blueprint reviews access, privacy, and commercialization boundaries before listing or buyer access changes."
-                : "Keep the first pass short. Blueprint can ask for more detail after the site and workflow are clear."}
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2 md:max-w-[20rem] md:justify-end">
-            {requiredFieldSummary.map((field) => (
-              <span
-                key={field}
-                className="border border-black/10 bg-white px-2.5 py-1 text-xs font-medium text-slate-700"
-              >
-                {field}
-              </span>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {commercialRequestPath === "hosted_evaluation" ? (
-      <div className="border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700">
-          You are requesting a policy evaluation set. Blueprint will still confirm entitlement, site fit, proof state, threshold scope, and hosted-path availability before promising access.
-          {siteName ? ` Site: ${siteName}.` : ""}
-          {siteLocation ? ` Location: ${siteLocation}.` : ""}
-        </div>
-      ) : null}
-
-      {persona === "robot_team" ? (
-        <FormSection eyebrow="01 Path" title="Choose the commercial request path.">
-          <div className="grid gap-3 md:grid-cols-3" role="radiogroup" aria-label="Commercial request path">
-            {robotRequestPathOptions.map(({ value, label, description, Icon }) => {
-              const active = commercialRequestPath === value;
-              return (
-                <label
-                  key={value}
-                  className={`flex min-h-[8.25rem] cursor-pointer flex-col justify-between border px-4 py-4 transition ${
-                    active
-                      ? "border-slate-950 bg-slate-950 text-white"
-                      : "border-black/10 bg-white text-slate-800 hover:border-slate-400"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="commercial-request-path"
-                    value={value}
-                    checked={active}
-                    onChange={() => setCommercialRequestPath(value)}
-                    className="sr-only"
-                  />
-                  <span className="flex items-center justify-between gap-3">
-                    <span className="text-sm font-semibold">{label}</span>
-                    <Icon className={`h-4 w-4 ${active ? "text-[#c7a775]" : "text-slate-500"}`} />
-                  </span>
-                  <span className={`mt-3 text-xs leading-5 ${active ? "text-white/70" : "text-slate-500"}`}>
-                    {description}
-                  </span>
-                </label>
-              );
-            })}
-          </div>
-        </FormSection>
-      ) : null}
-
-      <FormSection eyebrow={persona === "robot_team" ? "02 Contact" : "01 Contact"} title="Who should Blueprint follow up with?">
-      <div className="grid gap-4 md:grid-cols-2">
-        <div>
-          <label htmlFor="contact-first-name" className={labelClassName}>
-            First name
-            <RequiredMark />
-          </label>
-          <input
-            id="contact-first-name"
-            className={inputClassName}
-            placeholder="First name*"
-            autoComplete="given-name"
-            aria-required="true"
-            value={firstName}
-            onChange={(event) => setFirstName(event.target.value)}
-          />
-        </div>
-        <div>
-          <label htmlFor="contact-last-name" className={labelClassName}>
-            Last name
-            <RequiredMark />
-          </label>
-          <input
-            id="contact-last-name"
-            className={inputClassName}
-            placeholder="Last name*"
-            autoComplete="family-name"
-            aria-required="true"
-            value={lastName}
-            onChange={(event) => setLastName(event.target.value)}
-          />
-        </div>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <div>
-          <label htmlFor="contact-company" className={labelClassName}>
-            {persona === "site_operator" ? "Company or operator" : "Company"}
-            <RequiredMark />
-          </label>
-          <input
-            id="contact-company"
-            className={inputClassName}
-            placeholder={persona === "site_operator" ? "Operator or company*" : "Company name*"}
-            autoComplete="organization"
-            aria-required="true"
-            value={company}
-            onChange={(event) => setCompany(event.target.value)}
-          />
-        </div>
-        <div>
-          <label htmlFor="contact-email" className={labelClassName}>
-            Work email
-            <RequiredMark />
-          </label>
-          <input
-            id="contact-email"
-            type="email"
-            className={inputClassName}
-            placeholder="Work email*"
-            autoComplete="email"
-            aria-required="true"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-          />
-        </div>
-      </div>
-      </FormSection>
-
+    <form id="contact-form" className="space-y-6" onSubmit={handleSubmit} noValidate>
       {persona === "robot_team" ? (
         <>
-          <FormSection eyebrow="03 Request" title={activeRequestPathCopy.requestSectionTitle}>
-          <div>
-            <label htmlFor="contact-title" className={labelClassName}>
-              Your role
-              <RequiredMark />
-            </label>
-            <input
-              id="contact-title"
-              className={inputClassName}
-              placeholder="Deployment lead"
-              autoComplete="organization-title"
-              aria-required="true"
-              value={jobTitle}
-              onChange={(event) => setJobTitle(event.target.value)}
-            />
-            <p className={helperClassName}>Use the role that owns the deployment, evaluation, or procurement question.</p>
+          <div className="grid gap-4 md:grid-cols-3">
+            <div>
+              <label htmlFor="contact-first-name" className={labelClassName}>
+                First name
+                <RequiredMark />
+              </label>
+              <input
+                id="contact-first-name"
+                className={inputClassName}
+                placeholder="First name*"
+                autoComplete="given-name"
+                aria-required="true"
+                value={firstName}
+                onChange={(event) => setFirstName(event.target.value)}
+              />
+            </div>
+            <div>
+              <label htmlFor="contact-email" className={labelClassName}>
+                Work email
+                <RequiredMark />
+              </label>
+              <input
+                id="contact-email"
+                type="email"
+                className={inputClassName}
+                placeholder="Work email*"
+                autoComplete="email"
+                aria-required="true"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+              />
+            </div>
+            <div>
+              <label htmlFor="contact-company" className={labelClassName}>
+                Company
+                <RequiredMark />
+              </label>
+              <input
+                id="contact-company"
+                className={inputClassName}
+                placeholder="Company*"
+                autoComplete="organization"
+                aria-required="true"
+                value={company}
+                onChange={(event) => setCompany(event.target.value)}
+              />
+            </div>
           </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <label htmlFor="contact-robot-policy" className={labelClassName}>
+                Robot / policy name
+              </label>
+              <input
+                id="contact-robot-policy"
+                className={inputClassName}
+                placeholder="Robot platform, stack, or policy name"
+                value={targetRobotTeam}
+                onChange={(event) => setTargetRobotTeam(event.target.value)}
+              />
+            </div>
+            <div>
+              <label htmlFor="contact-site-name" className={labelClassName}>
+                Target site or site type
+                <RequiredMark />
+              </label>
+              <input
+                id="contact-site-name"
+                className={inputClassName}
+                placeholder="Exact facility, city, warehouse, lab, hotel"
+                aria-required="true"
+                value={siteName}
+                onChange={(event) => setSiteName(event.target.value)}
+              />
+              <p className={helperClassName}>Use a real place if known; a site class is fine for first pass.</p>
+            </div>
+          </div>
+
           <div>
             <label htmlFor="contact-task" className={labelClassName}>
-              {activeRequestPathCopy.taskLabel}
+              Task + threshold
               <RequiredMark />
             </label>
             <textarea
               id="contact-task"
               className={textareaClassName}
-              placeholder={activeRequestPathCopy.taskPlaceholder}
+              placeholder="Example: Tote transfer in a warehouse. Need >=97% simulated success before a 90% real-site pilot gate."
               aria-required="true"
               value={taskStatement}
               onChange={(event) => setTaskStatement(event.target.value)}
             />
-            <p className={helperClassName}>{activeRequestPathCopy.taskHelper}</p>
+            <p className={helperClassName}>One concrete task and threshold is enough for the first pass.</p>
           </div>
-          <div className="grid gap-4 lg:grid-cols-3">
-            <div>
-              <label
-                htmlFor="contact-site-name"
-                className={labelClassName}
-              >
-                Site or facility
-              </label>
-              <input
-                id="contact-site-name"
-                className={inputClassName}
-                placeholder={hostedMode ? "Prefilled if known" : "Facility or site name"}
-                value={siteName}
-                onChange={(event) => setSiteName(event.target.value)}
-              />
-              <p className={helperClassName}>Use a real place when known. Otherwise use the closest site class.</p>
-            </div>
-            <PlaceAutocompleteInput
-              id="contact-site-location"
-              label="Location or address"
-              placeholder="Address, city, or region"
-              value={siteLocation}
-              onChange={setSiteLocation}
-              onPlaceSelect={setSiteLocationMetadata}
-              labelClassName={labelClassName}
-              inputClassName={inputClassName}
-            />
-            <div>
-              <label htmlFor="contact-site-type" className={labelClassName}>
-                Target site class
-              </label>
-              <input
-                id="contact-site-type"
-                className={inputClassName}
-                placeholder="Warehouse, lab, hotel"
-                value={targetSiteType}
-                onChange={(event) => setTargetSiteType(event.target.value)}
-              />
-              <p className={helperClassName}>Required only when you cannot name the exact site yet.</p>
-            </div>
-          </div>
-          </FormSection>
 
-          <div className="border-t border-black/10 pt-6">
+          <div className="border-t border-black/10 pt-5">
             <button
               type="button"
               className="inline-flex w-full items-center justify-between border border-black/10 bg-[#f8f6f1] px-4 py-3 text-left text-sm font-semibold text-slate-900 transition hover:bg-white"
               aria-expanded={showOptionalDetails}
               onClick={() => setShowOptionalDetails((current) => !current)}
             >
-              <span>{showOptionalDetails ? "Hide optional intake" : "Add Site/Task/Scenario/Eval intake"}</span>
+              <span>{showOptionalDetails ? "Hide optional details" : "Add optional details"}</span>
               <span className="text-xs uppercase tracking-[0.16em] text-slate-500">
                 Optional
               </span>
@@ -1123,504 +675,190 @@ export function ContactForm() {
           </div>
 
           {showOptionalDetails ? (
-            <FormSection eyebrow="04 Optional" title="Add Site, Task, Scenario, and Eval intake inputs.">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <label
-                    htmlFor="contact-embodiment"
-                    className={labelClassName}
-                  >
-                    Robot or stack
-                  </label>
-                  <input
-                    id="contact-embodiment"
-                    className={inputClassName}
-                    placeholder="Robot platform or stack"
-                    value={targetRobotTeam}
-                    onChange={(event) => setTargetRobotTeam(event.target.value)}
-                  />
-                </div>
-                <div>
-                  <label htmlFor="contact-vendor-role" className={labelClassName}>
-                    Vendor/operator role
-                  </label>
-                  <input
-                    id="contact-vendor-role"
-                    className={inputClassName}
-                    placeholder="Robot vendor, site operator, integrator, or buyer"
-                    value={vendorOperatorRole}
-                    onChange={(event) => setVendorOperatorRole(event.target.value)}
-                  />
-                </div>
-                <div>
-                  <label htmlFor="contact-budget" className={labelClassName}>
-                    Budget or procurement range
-                  </label>
-                  <select
-                    id="contact-budget"
-                    className={inputClassName}
-                    value={budgetBucket}
-                    onChange={(event) => setBudgetBucket(event.target.value as BudgetBucket)}
-                  >
-                    <option value="Undecided/Unsure">Undecided/Unsure</option>
-                    <option value="<$50K">&lt;$50K</option>
-                    <option value="$50K-$300K">$50K-$300K</option>
-                    <option value="$300K-$1M">$300K-$1M</option>
-                    <option value=">$1M">&gt;$1M</option>
-                  </select>
-                </div>
-                {commercialRequestPath !== "hosted_evaluation" ? (
-                  <div>
-                    <label htmlFor="contact-proof-path" className={labelClassName}>
-                      Proof path
-                    </label>
-                    <select
-                      id="contact-proof-path"
-                      className={inputClassName}
-                      value={proofPathPreference}
-                      onChange={(event) => setProofPathPreference(event.target.value as ProofPathPreference)}
-                    >
-                      <option value="need_guidance">Need guidance</option>
-                      <option value="exact_site_required">Exact site required</option>
-                      <option value="adjacent_site_acceptable">Adjacent site acceptable</option>
-                    </select>
-                  </div>
-                ) : null}
-              </div>
-              <div className="space-y-3 border-t border-black/10 pt-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                  Site Card intake
-                </p>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div>
-                    <label htmlFor="contact-known-geometry-assets" className={labelClassName}>
-                      Known geometry or assets
-                    </label>
-                    <input
-                      id="contact-known-geometry-assets"
-                      className={inputClassName}
-                      placeholder="CAD, maps, routes, camera poses, depth, or no assets yet"
-                      value={knownGeometryAssets}
-                      onChange={(event) => setKnownGeometryAssets(event.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="contact-visual-conditions" className={labelClassName}>
-                      Visual conditions
-                    </label>
-                    <input
-                      id="contact-visual-conditions"
-                      className={inputClassName}
-                      placeholder="Lighting, glare, labels, clutter, transparent surfaces"
-                      value={visualConditions}
-                      onChange={(event) => setVisualConditions(event.target.value)}
-                    />
-                  </div>
-                </div>
-              </div>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <label htmlFor="contact-success-threshold" className={labelClassName}>
-                    Required success rate
-                  </label>
-                  <input
-                    id="contact-success-threshold"
-                    className={inputClassName}
-                    placeholder="Example: 97% task completion over 200 runs"
-                    value={successRateThreshold}
-                    onChange={(event) => setSuccessRateThreshold(event.target.value)}
-                  />
-                </div>
-                <div>
-                  <label htmlFor="contact-cycle-threshold" className={labelClassName}>
-                    Cycle-time threshold
-                  </label>
-                  <input
-                    id="contact-cycle-threshold"
-                    className={inputClassName}
-                    placeholder="Example: under 45 seconds per tote transfer"
-                    value={cycleTimeThreshold}
-                    onChange={(event) => setCycleTimeThreshold(event.target.value)}
-                  />
-                </div>
-                <div>
-                  <label htmlFor="contact-intervention-threshold" className={labelClassName}>
-                    Intervention-rate threshold
-                  </label>
-                  <input
-                    id="contact-intervention-threshold"
-                    className={inputClassName}
-                    placeholder="Example: fewer than 1 intervention per shift"
-                    value={interventionRateThreshold}
-                    onChange={(event) => setInterventionRateThreshold(event.target.value)}
-                  />
-                </div>
-                <div>
-                  <label htmlFor="contact-safety-threshold" className={labelClassName}>
-                    Safety constraints
-                  </label>
-                  <input
-                    id="contact-safety-threshold"
-                    className={inputClassName}
-                    placeholder="Restricted zones, proximity rules, pinch points, no-go areas"
-                    value={safetyThreshold}
-                    onChange={(event) => setSafetyThreshold(event.target.value)}
-                  />
-                </div>
-              </div>
-              <div className="space-y-3 border-t border-black/10 pt-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                  Task Card intake
-                </p>
-                <div className="grid gap-4 md:grid-cols-3">
-                  <div>
-                    <label htmlFor="contact-start-state" className={labelClassName}>
-                      Start state
-                    </label>
-                    <input
-                      id="contact-start-state"
-                      className={inputClassName}
-                      placeholder="Robot starts at dock door with empty hands"
-                      value={startState}
-                      onChange={(event) => setStartState(event.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="contact-success-definition" className={labelClassName}>
-                      Success definition
-                    </label>
-                    <input
-                      id="contact-success-definition"
-                      className={inputClassName}
-                      placeholder="Tote reaches conveyor without human touch"
-                      value={successDefinition}
-                      onChange={(event) => setSuccessDefinition(event.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="contact-failure-definition" className={labelClassName}>
-                      Failure definition
-                    </label>
-                    <input
-                      id="contact-failure-definition"
-                      className={inputClassName}
-                      placeholder="Drop, blocked route, intervention, or safety stop"
-                      value={failureDefinition}
-                      onChange={(event) => setFailureDefinition(event.target.value)}
-                    />
-                  </div>
-                </div>
-              </div>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <label htmlFor="contact-dynamic-conditions" className={labelClassName}>
-                    Dynamic conditions
-                  </label>
-                  <input
-                    id="contact-dynamic-conditions"
-                    className={inputClassName}
-                    placeholder="Human paths, carts, forklifts, doors, blocked pathways"
-                    value={dynamicConditions}
-                    onChange={(event) => setDynamicConditions(event.target.value)}
-                  />
-                </div>
-                <div>
-                  <label htmlFor="contact-object-task-zones" className={labelClassName}>
-                    Object or task zones
-                  </label>
-                  <input
-                    id="contact-object-task-zones"
-                    className={inputClassName}
-                    placeholder="Start zone, goal zone, object locations, handoff points"
-                    value={objectTaskZones}
-                    onChange={(event) => setObjectTaskZones(event.target.value)}
-                  />
-                </div>
-              </div>
-              <div className="space-y-3 border-t border-black/10 pt-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                  Scenario Card intake
-                </p>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div>
-                    <label htmlFor="contact-normal-scenario" className={labelClassName}>
-                      Normal scenario
-                    </label>
-                    <input
-                      id="contact-normal-scenario"
-                      className={inputClassName}
-                      placeholder="Clear aisle transfer during normal operations"
-                      value={normalScenario}
-                      onChange={(event) => setNormalScenario(event.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="contact-scenario-variation" className={labelClassName}>
-                      Variation to include
-                    </label>
-                    <input
-                      id="contact-scenario-variation"
-                      className={inputClassName}
-                      placeholder="Cart blocks aisle, door opens, shelf is restocked"
-                      value={scenarioVariation}
-                      onChange={(event) => setScenarioVariation(event.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="contact-edge-case" className={labelClassName}>
-                      Edge case
-                    </label>
-                    <input
-                      id="contact-edge-case"
-                      className={inputClassName}
-                      placeholder="Human enters handoff zone or object is misplaced"
-                      value={edgeCase}
-                      onChange={(event) => setEdgeCase(event.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="contact-known-risk" className={labelClassName}>
-                      Known risk
-                    </label>
-                    <input
-                      id="contact-known-risk"
-                      className={inputClassName}
-                      placeholder="Reflective tape, tight turn, ramp, blind corner"
-                      value={knownRisk}
-                      onChange={(event) => setKnownRisk(event.target.value)}
-                    />
-                  </div>
-                </div>
-              </div>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <label htmlFor="contact-pilot-timeline" className={labelClassName}>
-                    Pilot timeline
-                  </label>
-                  <input
-                    id="contact-pilot-timeline"
-                    className={inputClassName}
-                    placeholder="Example: short pilot decision in Q3"
-                    value={pilotTimeline}
-                    onChange={(event) => setPilotTimeline(event.target.value)}
-                  />
-                </div>
-                <div>
-                  <label htmlFor="contact-pilot-outcomes" className={labelClassName}>
-                    Pilot outcomes, if any
-                  </label>
-                  <input
-                    id="contact-pilot-outcomes"
-                    className={inputClassName}
-                    placeholder="Prior attempts, real pilot result, teleop logs, operator notes"
-                    value={pilotOutcomes}
-                    onChange={(event) => setPilotOutcomes(event.target.value)}
-                  />
-                </div>
-              </div>
-              <div className="space-y-3 border-t border-black/10 pt-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                  Eval Card intake
-                </p>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div>
-                    <label htmlFor="contact-robot-policy-tested" className={labelClassName}>
-                      Robot or policy tested
-                    </label>
-                    <input
-                      id="contact-robot-policy-tested"
-                      className={inputClassName}
-                      placeholder="Robot platform, policy API, container, trace, or teleop demo"
-                      value={robotOrPolicyTested}
-                      onChange={(event) => setRobotOrPolicyTested(event.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="contact-preferred-review-path" className={labelClassName}>
-                      Preferred review path
-                    </label>
-                    <input
-                      id="contact-preferred-review-path"
-                      className={inputClassName}
-                      placeholder="Hosted review, simulator trace, action log, or short pilot"
-                      value={preferredReviewPath}
-                      onChange={(event) => setPreferredReviewPath(event.target.value)}
-                    />
-                  </div>
-                </div>
+            <div className="grid gap-4 border-t border-black/10 pt-5 md:grid-cols-2">
+              <div>
+                <label htmlFor="contact-policy-access-method" className={labelClassName}>
+                  Preferred policy access method
+                </label>
+                <select
+                  id="contact-policy-access-method"
+                  className={inputClassName}
+                  value={policyAccessMethod}
+                  onChange={(event) => setPolicyAccessMethod(event.target.value)}
+                >
+                  <option value="">Not selected</option>
+                  {policyAccessMethods.map((method) => (
+                    <option key={method} value={method}>
+                      {method}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
-                  <label htmlFor="contact-required-evidence" className={labelClassName}>
-                    Required evidence
-                  </label>
-                  <input
-                    id="contact-required-evidence"
-                    className={inputClassName}
-                    placeholder="Simulator traces, action logs, robot trials, safety review"
-                    value={requiredEvidence}
-                    onChange={(event) => setRequiredEvidence(event.target.value)}
-                  />
-              </div>
-              <div>
-                <label htmlFor="contact-validation-expectations" className={labelClassName}>
-                  Validation expectations
+                <label htmlFor="contact-scenario-count" className={labelClassName}>
+                  Scenario count
                 </label>
                 <input
-                  id="contact-validation-expectations"
+                  id="contact-scenario-count"
                   className={inputClassName}
-                  placeholder="Compare predictions, traces, logs, demos, and pilot outcomes"
-                  value={validationExpectations}
-                  onChange={(event) => setValidationExpectations(event.target.value)}
+                  placeholder="Example: 50 normal, 25 edge cases"
+                  value={scenarioCount}
+                  onChange={(event) => setScenarioCount(event.target.value)}
                 />
               </div>
-              {commercialRequestPath !== "hosted_evaluation" ? (
               <div>
-                <label htmlFor="contact-human-gates" className={labelClassName}>
-                  Human-gated topics
+                <label htmlFor="contact-deadline" className={labelClassName}>
+                  Deadline
                 </label>
                 <input
-                  id="contact-human-gates"
+                  id="contact-deadline"
                   className={inputClassName}
-                  placeholder="Procurement, legal, security"
-                  value={humanGateTopics}
-                  onChange={(event) => setHumanGateTopics(event.target.value)}
+                  placeholder="Example: scoping answer by June 20"
+                  value={deadline}
+                  onChange={(event) => setDeadline(event.target.value)}
                 />
               </div>
-              ) : null}
               <div>
-                <label htmlFor="contact-notes" className={labelClassName}>Optional notes</label>
+                <label htmlFor="contact-notes" className={labelClassName}>
+                  Notes
+                </label>
                 <textarea
                   id="contact-notes"
                   className={textareaClassName}
-                  placeholder="Timing, constraints, integrations, rights, or site context."
-                  value={detailsMessage}
-                  onChange={(event) => setDetailsMessage(event.target.value)}
+                  placeholder="Additional context, constraints, integrations, or proof expectations."
+                  value={notes}
+                  onChange={(event) => setNotes(event.target.value)}
                 />
               </div>
-            </FormSection>
+            </div>
           ) : null}
         </>
       ) : (
         <>
-          <FormSection eyebrow="02 Site" title="What facility and access path are you bringing?">
+          <div className="grid gap-4 md:grid-cols-3">
             <div>
-              <label htmlFor="contact-title" className={labelClassName}>Title</label>
-              <input
-                id="contact-title"
-                className={inputClassName}
-                placeholder="Ops lead, facility manager, innovation lead"
-                autoComplete="organization-title"
-                value={jobTitle}
-                onChange={(event) => setJobTitle(event.target.value)}
-              />
-            </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <label htmlFor="contact-site-name" className={labelClassName}>
-                  Facility name
-                  <RequiredMark />
-                </label>
-                <input
-                  id="contact-site-name"
-                  className={inputClassName}
-                  placeholder="Facility name*"
-                  aria-required="true"
-                  value={siteName}
-                  onChange={(event) => setSiteName(event.target.value)}
-                />
-              </div>
-              <PlaceAutocompleteInput
-                id="contact-site-location"
-                label="Site location"
-                placeholder="City, state, or facility address*"
-                value={siteLocation}
-                onChange={setSiteLocation}
-                onPlaceSelect={setSiteLocationMetadata}
-                required
-                labelClassName={labelClassName}
-                inputClassName={inputClassName}
-              />
-            </div>
-            <div>
-              <label htmlFor="contact-access-rules" className={labelClassName}>
-                Access rules
+              <label htmlFor="contact-first-name" className={labelClassName}>
+                First name
                 <RequiredMark />
               </label>
-              <textarea
-                id="contact-access-rules"
-                className={textareaClassName}
-                placeholder="Hours, escort requirements, restricted areas, or other operating rules.*"
+              <input
+                id="contact-first-name"
+                className={inputClassName}
+                placeholder="First name*"
+                autoComplete="given-name"
                 aria-required="true"
-                value={operatingConstraints}
-                onChange={(event) => setOperatingConstraints(event.target.value)}
+                value={firstName}
+                onChange={(event) => setFirstName(event.target.value)}
               />
             </div>
-          </FormSection>
-
-          <div className="border-t border-black/10 pt-6">
-            <button
-              type="button"
-              className="inline-flex w-full items-center justify-between border border-black/10 bg-[#f8f6f1] px-4 py-3 text-left text-sm font-semibold text-slate-900 transition hover:bg-white"
-              aria-expanded={showOptionalDetails}
-              onClick={() => setShowOptionalDetails((current) => !current)}
-            >
-              <span>{showOptionalDetails ? "Hide optional boundary details" : "Add privacy, rights, or commercialization details"}</span>
-              <span className="text-xs uppercase tracking-[0.16em] text-slate-500">
-                Optional
-              </span>
-            </button>
+            <div>
+              <label htmlFor="contact-email" className={labelClassName}>
+                Work email
+                <RequiredMark />
+              </label>
+              <input
+                id="contact-email"
+                type="email"
+                className={inputClassName}
+                placeholder="Work email*"
+                autoComplete="email"
+                aria-required="true"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+              />
+            </div>
+            <div>
+              <label htmlFor="contact-company" className={labelClassName}>
+                Company / operator
+                <RequiredMark />
+              </label>
+              <input
+                id="contact-company"
+                className={inputClassName}
+                placeholder="Company or operator*"
+                autoComplete="organization"
+                aria-required="true"
+                value={company}
+                onChange={(event) => setCompany(event.target.value)}
+              />
+            </div>
           </div>
 
-          {showOptionalDetails ? (
-            <FormSection eyebrow="03 Optional" title="Set extra boundaries before a call.">
-              <div>
-                <label htmlFor="contact-rights-notes" className={labelClassName}>
-                  Rights and ownership notes
-                </label>
-                <textarea
-                  id="contact-rights-notes"
-                  className={textareaClassName}
-                  placeholder="Who controls site approval, capture permission, owner review, or release terms."
-                  value={captureRights}
-                  onChange={(event) => setCaptureRights(event.target.value)}
-                />
-              </div>
-              <div>
-                <label htmlFor="contact-privacy-notes" className={labelClassName}>
-                  Privacy and security notes
-                </label>
-                <textarea
-                  id="contact-privacy-notes"
-                  className={textareaClassName}
-                  placeholder="Camera limits, redaction needs, safety or security restrictions."
-                  value={privacySecurityConstraints}
-                  onChange={(event) => setPrivacySecurityConstraints(event.target.value)}
-                />
-              </div>
-              <div>
-                <label htmlFor="contact-commercialization" className={labelClassName}>
-                  Commercialization preference
-                </label>
-                <textarea
-                  id="contact-commercialization"
-                  className={textareaClassName}
-                  placeholder="Whether the site can be listed for robot-team review, kept private, or discussed only after approval."
-                  value={commercializationPreference}
-                  onChange={(event) => setCommercializationPreference(event.target.value)}
-                />
-              </div>
-              <div>
-                <label htmlFor="contact-notes" className={labelClassName}>Notes</label>
-                <textarea
-                  id="contact-notes"
-                  className={textareaClassName}
-                  placeholder="Anything else Blueprint should know about the facility or approval path."
-                  value={detailsMessage}
-                  onChange={(event) => setDetailsMessage(event.target.value)}
-                />
-              </div>
-            </FormSection>
-          ) : null}
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <label htmlFor="contact-site-name" className={labelClassName}>
+                Facility name or site type
+                <RequiredMark />
+              </label>
+              <input
+                id="contact-site-name"
+                className={inputClassName}
+                placeholder="Facility name or site type*"
+                aria-required="true"
+                value={siteName}
+                onChange={(event) => setSiteName(event.target.value)}
+              />
+            </div>
+            <PlaceAutocompleteInput
+              id="contact-site-location"
+              label="City / location"
+              placeholder="City, state, or facility address*"
+              value={siteLocation}
+              onChange={setSiteLocation}
+              onPlaceSelect={setSiteLocationMetadata}
+              required
+              labelClassName={labelClassName}
+              inputClassName={inputClassName}
+            />
+          </div>
+
+          <fieldset className="space-y-3">
+            <legend className={labelClassName}>
+              Access boundaries
+              <RequiredMark />
+            </legend>
+            <div className="grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Access boundaries">
+              {siteAccessBoundaryOptions.map((option) => {
+                const active = accessBoundary === option.value;
+                return (
+                  <label
+                    key={option.value}
+                    className={`flex min-h-[7rem] cursor-pointer flex-col justify-between border px-4 py-3 transition ${
+                      active
+                        ? "border-slate-950 bg-slate-950 text-white"
+                        : "border-black/10 bg-[#f8f6f1] text-slate-800 hover:bg-white"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="access-boundary"
+                      value={option.value}
+                      checked={active}
+                      onChange={() => setAccessBoundary(option.value)}
+                      className="sr-only"
+                    />
+                    <span className="text-sm font-semibold">{option.value}</span>
+                    <span className={`mt-2 text-xs leading-5 ${active ? "text-white/70" : "text-slate-500"}`}>
+                      {option.description}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
+
+          <div>
+            <label htmlFor="contact-privacy-notes" className={labelClassName}>
+              Privacy, safety, or commercialization notes
+            </label>
+            <textarea
+              id="contact-privacy-notes"
+              className={textareaClassName}
+              placeholder="Restricted areas, redaction needs, safety rules, approval workflow, or commercial-use concerns."
+              value={privacySecurityConstraints}
+              onChange={(event) => setPrivacySecurityConstraints(event.target.value)}
+            />
+          </div>
         </>
       )}
 
@@ -1648,15 +886,19 @@ export function ContactForm() {
 
       <div className="flex flex-col gap-3 border-t border-black/10 pt-6 sm:flex-row sm:items-center sm:justify-between">
         <p className="max-w-md text-xs leading-5 text-slate-500">
-          Submitting this form records a request only. No payment, provider execution,
-          fulfillment, or live hosted session starts from this form.
+          The next step is a request-specific review, not an automatic access,
+          rights, payment, or execution commitment.
         </p>
         <button
           type="submit"
           disabled={status === "loading"}
           className="inline-flex w-full items-center justify-center bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
         >
-          {status === "loading" ? "Submitting..." : activeRequestPathCopy.submitLabel}
+          {status === "loading"
+            ? "Submitting..."
+            : persona === "site_operator"
+              ? "Submit site free"
+              : "Request evaluation"}
           <ArrowRight className="ml-2 h-4 w-4" />
         </button>
       </div>
