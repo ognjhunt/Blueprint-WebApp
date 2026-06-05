@@ -12,6 +12,7 @@ export type AppRoute = {
 };
 
 const Home = lazy(() => import("../pages/Home"));
+const Capture = lazy(() => import("../pages/Capture"));
 const CaptureAppPlaceholder = lazy(() => import("../pages/CaptureAppPlaceholder"));
 const CaptureLaunchAccess = lazy(() => import("../pages/CaptureLaunchAccess"));
 const BusinessSignUpFlow = lazy(() => import("../pages/BusinessSignUpFlow"));
@@ -53,8 +54,8 @@ const ContactRedirect = () => (
   <MarketingRedirect to="/contact?persona=robot-team&source=public-route-redirect" />
 );
 
-const CapturerAccessRedirect = () => (
-  <MarketingRedirect to="/capture-app/launch-access?role=capturer&source=public-route-redirect" />
+const LegacyCaptureJobsRedirect = () => (
+  <MarketingRedirect to="/capture" />
 );
 
 // Legacy redirects
@@ -134,9 +135,17 @@ export const appRoutes: AppRoute[] = [
   { path: "/launch-map", layout: "public", component: ContactRedirect },
 
   // Capture / Earn direct flows
-  { path: "/capture", layout: "public", component: CapturerAccessRedirect },
+  { path: "/capture", layout: "public", component: Capture },
   { path: "/capture-app", layout: "public", shell: "bare", component: CaptureAppPlaceholder },
   { path: "/capture-app/launch-access", layout: "public", component: CaptureLaunchAccess },
+  { path: "/capture-jobs", layout: "public", component: LegacyCaptureJobsRedirect },
+  { path: "/capture-network", layout: "public", component: LegacyCaptureJobsRedirect },
+  { path: "/capturer", layout: "public", component: LegacyCaptureJobsRedirect },
+  { path: "/capturers", layout: "public", component: LegacyCaptureJobsRedirect },
+  { path: "/capturer-access", layout: "public", component: LegacyCaptureJobsRedirect },
+  { path: "/become-a-capturer", layout: "public", component: LegacyCaptureJobsRedirect },
+  { path: "/for-capturers", layout: "public", component: LegacyCaptureJobsRedirect },
+  { path: "/earn", layout: "public", component: LegacyCaptureJobsRedirect },
 
   // City landing aliases stay request-first instead of implying open city coverage.
   { path: "/city/:citySlug", layout: "public", component: ContactRedirect },

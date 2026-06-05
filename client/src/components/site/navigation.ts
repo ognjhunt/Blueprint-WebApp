@@ -24,7 +24,7 @@ export const footerCompanyLinks = [
     label: "Request evaluation",
   },
   { href: "/contact/site-operator", label: "Submit site free" },
-  { href: "/capture-app/launch-access?role=capturer&source=footer", label: "Capturer access" },
+  { href: "/capture", label: "Capture Jobs" },
 ];
 
 export const footerSupportLinks = [

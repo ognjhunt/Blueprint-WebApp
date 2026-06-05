@@ -4,8 +4,12 @@ import {
   footerSupportLinks,
 } from "./navigation";
 import { BrandLockup } from "./BrandMark";
+import { useLocation } from "wouter";
 
 export function Footer() {
+  const [location] = useLocation();
+  const isCaptureJobsRoute = location === "/capture";
+
   return (
     <footer className="border-t border-black/10 bg-[#f5f1e8]">
       <div className="mx-auto grid max-w-[88rem] gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[1.35fr_0.82fr_0.82fr_0.82fr] lg:px-10">
@@ -14,10 +18,14 @@ export function Footer() {
             <BrandLockup compact />
           </a>
           <p className="text-sm leading-6 text-slate-600">
-            Blueprint helps robot teams evaluate policies and scenarios on capture-backed real facilities before pilots or deployment.
+            {isCaptureJobsRoute
+              ? "Blueprint routes approved capture work, site requests, and evaluation packages from real capture evidence."
+              : "Blueprint helps robot teams evaluate policies and scenarios on capture-backed real facilities before pilots or deployment."}
           </p>
           <p className="text-sm leading-6 text-slate-600">
-            Robot teams pay for evaluations and optional data exports. Site operators can submit facilities and define boundaries for free.
+            {isCaptureJobsRoute
+              ? "Capture Jobs links to application and waitlist paths. Site details, route access, and payout eligibility stay review-gated."
+              : "Robot teams pay for evaluations and optional data exports. Site operators can submit facilities and define boundaries for free."}
           </p>
           <div className="flex flex-col gap-2">
             <a
@@ -72,7 +80,11 @@ export function Footer() {
       <div className="border-t border-black/10 bg-white py-4">
         <div className="mx-auto flex max-w-[88rem] flex-col items-start gap-2 px-4 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-10">
           <p>© {new Date().getFullYear()} Blueprint, Inc. All rights reserved.</p>
-          <p>Capture first. Robot-team evaluations and session claims stay evidence-gated.</p>
+          <p>
+            {isCaptureJobsRoute
+              ? "Capture first. Route availability and payout eligibility stay review-gated."
+              : "Capture first. Robot-team evaluations and session claims stay evidence-gated."}
+          </p>
         </div>
       </div>
     </footer>

@@ -11,6 +11,7 @@ import { queryClient } from "../client/src/lib/queryClient";
 import { AuthProvider } from "../client/src/contexts/AuthContext";
 import { SiteLayout } from "../client/src/components/site/SiteLayout";
 import Home from "../client/src/pages/Home";
+import Capture from "../client/src/pages/Capture";
 import CaptureAppPlaceholder from "../client/src/pages/CaptureAppPlaceholder";
 import CaptureLaunchAccess from "../client/src/pages/CaptureLaunchAccess";
 import Pricing from "../client/src/pages/Pricing";
@@ -202,6 +203,7 @@ const PrerenderForgotPassword = () => (
 
 const staticRoutes: StaticRoute[] = [
   { path: "/", component: Home },
+  { path: "/capture", component: Capture },
   { path: "/capture-app", component: CaptureAppPlaceholder },
   { path: "/capture-app/launch-access", component: CaptureLaunchAccess },
   { path: "/pricing", component: Pricing },

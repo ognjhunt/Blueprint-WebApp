@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import Capture from "@/pages/Capture";
 import CaptureAppPlaceholder from "@/pages/CaptureAppPlaceholder";
@@ -66,34 +66,41 @@ describe("Capturer access copy", () => {
     };
   });
 
-  it("keeps the capture overview explicit about invite and code gating", () => {
+  it("renders Capture Jobs with accepted methods, payout hierarchy, mock jobs, and safety rules", () => {
     render(<Capture />);
 
     expect(
-      screen.getByRole("heading", { name: /Get paid to capture indoor places robots need to understand/i }),
+      screen.getByRole("heading", { name: /Capture Jobs/i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/assignment payout shown before you start/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/accepted capture/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/walk a public-facing route/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/upload one complete walkthrough/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/public-area-only/i)).toBeInTheDocument();
-    expect(screen.getByText(/city-, invite-, and code-gated/i)).toBeInTheDocument();
-    expect(screen.getByText(/Currently supported:/i)).toBeInTheDocument();
-    expect(screen.queryByText(/\$40 average/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/Get paid to capture real sites for robot evaluation/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/360 camera/i).length).toBeGreaterThan(2);
+    expect(screen.getByText(/Highest payout/i)).toBeInTheDocument();
+    expect(screen.getByText(/Standard payout/i)).toBeInTheDocument();
+    expect(screen.getByText(/POV payout/i)).toBeInTheDocument();
+    expect(screen.getByText(/360 camera pays the most, then phone, then smart glasses/i)).toBeInTheDocument();
+    expect(screen.getByText(/Showing 6 of 6 mock capture jobs/i)).toBeInTheDocument();
+    expect(screen.getByText(/Northfield Distribution Dock/i)).toBeInTheDocument();
+    expect(screen.getByText(/Capture only approved public-facing or operator-approved routes/i)).toBeInTheDocument();
+    expect(screen.getByText(/Sample jobs are not a live guarantee of availability, approval, or payout/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Apply to capture/i })).toHaveAttribute(
+      "href",
+      "/signup/capturer?source=capture-jobs",
+    );
+    expect(screen.getAllByRole("link", { name: /Join waitlist/i }).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/world model/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/post-training/i)).not.toBeInTheDocument();
   });
 
-  it("does not infer supported capture cities when launch status is unavailable", () => {
-    launchStatusMock.state = {
-      data: null,
-      loading: false,
-      error: "Failed to load launch cities",
-    };
-
+  it("filters mock capture jobs by site type", () => {
     render(<Capture />);
 
-    expect(screen.getByText(/Launch status unavailable/i)).toBeInTheDocument();
-    expect(screen.queryByText(/Austin, TX/i)).not.toBeInTheDocument();
-    expect(screen.getByText(/Capture markets reviewed before opening publicly/i)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(/Site type/i), {
+      target: { value: "Hospital" },
+    });
+
+    expect(screen.getByText(/Showing 1 of 6 mock capture jobs/i)).toBeInTheDocument();
+    expect(screen.getByText(/Commonwealth Pharmacy Supply Annex/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Northfield Distribution Dock/i)).not.toBeInTheDocument();
   });
 
   it("does not show default launch cities on the launch-access form when the API fails", () => {

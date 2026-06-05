@@ -56,8 +56,32 @@ describe("Route registration", () => {
     const routesPath = path.resolve(process.cwd(), "client/src/app/routes.tsx");
     const source = fs.readFileSync(routesPath, "utf-8");
 
+    expect(source).toContain('{ path: "/capture", layout: "public", component: Capture }');
     expect(source).toContain('path: "/capture-app"');
     expect(source).toContain('path: "/signup/capturer"');
+  });
+
+  it("keeps old capturer public route names as aliases to Capture Jobs", () => {
+    const routesPath = path.resolve(process.cwd(), "client/src/app/routes.tsx");
+    const source = fs.readFileSync(routesPath, "utf-8");
+    const serverPath = path.resolve(process.cwd(), "server/index.ts");
+    const serverSource = fs.readFileSync(serverPath, "utf-8");
+
+    for (const route of [
+      "/capture-jobs",
+      "/capture-network",
+      "/capturer",
+      "/capturers",
+      "/capturer-access",
+      "/become-a-capturer",
+      "/for-capturers",
+      "/earn",
+    ]) {
+      expect(source).toContain(`path: "${route}"`);
+      expect(serverSource).toContain(`from: "${route}", to: "/capture"`);
+    }
+
+    expect(serverSource).not.toContain('from: "/capture", to: "/capture-app/launch-access');
   });
 
   it("makes sign-in canonical and keeps login as a legacy alias", () => {
@@ -82,7 +106,6 @@ describe("Route registration", () => {
     expect(source).toContain('{ path: "/world-models", layout: "public", component: SitesRedirect }');
     expect(source).toContain('{ path: "/world-models/:slug", layout: "public", component: LegacySiteLibraryDetailRedirect }');
     expect(source).toContain('{ path: "/agents", layout: "public", component: ContactRedirect }');
-    expect(source).toContain('{ path: "/capture", layout: "public", component: CapturerAccessRedirect }');
     expect(source).toContain('{ path: "/sample-evaluation", layout: "public", component: LegacyProofStoryRedirect }');
     expect(source).toContain('{ path: "/blog", layout: "public", component: LegacyBlogRedirect }');
     expect(source).toContain('{ path: "/readiness-pack", layout: "public", component: LegacyReadinessPackRedirect }');
