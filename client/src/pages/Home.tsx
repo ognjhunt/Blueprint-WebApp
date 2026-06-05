@@ -1,5 +1,8 @@
 import { SEO } from "@/components/SEO";
-import { humanoidReadinessAssets } from "@/lib/editorialGeneratedAssets";
+import {
+  humanoidReadinessAssets,
+  robotMosaicHeroAssets,
+} from "@/lib/editorialGeneratedAssets";
 import {
   ArrowRight,
   Building2,
@@ -218,16 +221,17 @@ export default function Home() {
 
       <div className="bg-[#f6f1e8] text-[#111110]">
         <section
-          className="relative min-h-[74vh] overflow-hidden bg-[#111110] text-white"
+          className="relative min-h-[78vh] overflow-hidden bg-[#111110] text-white"
           data-home-section="hero"
         >
           <img
-            src={humanoidReadinessAssets.warehouseHero}
-            alt="Humanoid robot in a warehouse aisle used as illustrative real-site robot evaluation imagery"
+            src={robotMosaicHeroAssets.industrialScenarioMosaic}
+            alt="Generated mosaic of Figure-style humanoid robots handling warehouse and factory evaluation tasks"
             className="absolute inset-0 h-full w-full object-cover"
           />
-          <div className="absolute inset-0 bg-black/62" />
-          <div className="relative mx-auto flex min-h-[74vh] max-w-[88rem] flex-col justify-end px-4 pb-12 pt-24 sm:px-6 lg:px-10">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_34%_56%,rgba(216,189,141,0.16),transparent_24%),linear-gradient(90deg,rgba(0,0,0,0.52),rgba(0,0,0,0.28)_42%,rgba(0,0,0,0.58))]" />
+          <div className="absolute inset-0 bg-black/28" />
+          <div className="relative mx-auto flex min-h-[78vh] max-w-[88rem] flex-col justify-end px-4 pb-12 pt-24 sm:px-6 lg:px-10">
             <div className="max-w-4xl">
               <p className="text-sm font-semibold uppercase tracking-normal text-[#d8bd8d]">
                 Real-site robot evaluation
@@ -423,6 +427,11 @@ export default function Home() {
                   <p className="mt-4 text-sm leading-6 text-[#5f5a53]">{row.detail}</p>
                 </article>
               ))}
+              <p className="border border-black/10 bg-[#f8f4ec] p-4 text-xs leading-5 text-[#6b645b]">
+                Hero imagery is generated support media showing representative
+                warehouse and factory task scenarios. It is not customer proof,
+                robot-trial proof, safety validation, or deployment evidence.
+              </p>
             </div>
           </div>
         </section>

@@ -1,4 +1,5 @@
 const humanoidReadinessBase = "/generated/humanoid-readiness-2026-06-03";
+const robotMosaicHeroBase = "/editorial/2026-06-04";
 
 export const humanoidReadinessAssets = {
   warehouseHero: `${humanoidReadinessBase}/humanoid-warehouse-readiness-hero.png`,
@@ -10,7 +11,12 @@ export const humanoidReadinessAssets = {
   proofBoard: `${humanoidReadinessBase}/humanoid-proof-board.png`,
 } as const;
 
+export const robotMosaicHeroAssets = {
+  industrialScenarioMosaic: `${robotMosaicHeroBase}/figure-robot-industrial-mosaic-hero.jpg`,
+} as const;
+
 export const editorialGeneratedAssets = {
+  robotMosaicHero: robotMosaicHeroAssets.industrialScenarioMosaic,
   homeHero:
     "/generated/2026-05-13-brand-system/blueprint-hero-proof-room-gpt-image-2.png",
   groceryBackroom: humanoidReadinessAssets.groceryTask,
