@@ -4,7 +4,7 @@ import { BrandLockup } from "@/components/site/BrandMark";
 const productLinks = [
   ["Eval dataset", "/readiness"],
   ["Product workflow", "/product"],
-  ["Site packages", "/world-models"],
+  ["Sites", "/sites"],
   ["Sample proof", "/proof"],
   ["Pricing", "/pricing"],
 ];

@@ -77,9 +77,8 @@ export default function Nav({
   const navLinks = [
     { href: "/readiness", label: "Readiness" },
     { href: "/product", label: "Product" },
-    { href: "/world-models", label: "Site packages" },
+    { href: "/sites", label: "Sites" },
     { href: "/capture", label: "Capture" },
-    { href: "/proof", label: "Proof" },
     { href: "/pricing", label: "Pricing" },
     ...(currentUser && !hideAuthenticatedFeatures
       ? [{ href: "/scanner-portal", label: "Scanner Portal" }]

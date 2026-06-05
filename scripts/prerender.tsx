@@ -16,10 +16,13 @@ import CaptureLaunchAccess from "../client/src/pages/CaptureLaunchAccess";
 import Pricing from "../client/src/pages/Pricing";
 import Contact from "../client/src/pages/Contact";
 import Proof from "../client/src/pages/Proof";
+import Sites from "../client/src/pages/Sites";
+import SiteDetail from "../client/src/pages/SiteDetail";
 import Privacy from "../client/src/pages/Privacy";
 import Terms from "../client/src/pages/Terms";
 import Login from "../client/src/pages/Login";
 import RobotTeamEval from "../client/src/pages/RobotTeamEval";
+import { siteLibrarySites } from "../client/src/data/siteLibrary";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -202,6 +205,12 @@ const staticRoutes: StaticRoute[] = [
   { path: "/capture-app", component: CaptureAppPlaceholder },
   { path: "/capture-app/launch-access", component: CaptureLaunchAccess },
   { path: "/pricing", component: Pricing },
+  { path: "/sites", component: Sites },
+  ...siteLibrarySites.map((site) => ({
+    path: `/sites/${site.slug}`,
+    component: SiteDetail as ComponentType<any>,
+    props: { params: { slug: site.slug } },
+  })),
   { path: "/proof", component: Proof },
   { path: "/for-robot-teams", component: RobotTeamEval },
   { path: "/robot-team/eval", component: RobotTeamEval },

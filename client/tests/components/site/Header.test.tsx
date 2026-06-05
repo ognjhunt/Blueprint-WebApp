@@ -23,14 +23,15 @@ describe("Header", () => {
       "href",
       "/#how-it-works",
     );
-    expect(screen.getByRole("link", { name: /^Proof$/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /^Sites$/i })).toHaveAttribute(
       "href",
-      "/proof",
+      "/sites",
     );
     expect(screen.getByRole("link", { name: /^Pricing$/i })).toHaveAttribute(
       "href",
       "/#pricing",
     );
+    expect(screen.queryByRole("link", { name: /^Proof$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /^Product$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /^Readiness$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /^Site packages$/i })).not.toBeInTheDocument();

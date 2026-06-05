@@ -29,7 +29,7 @@ describe("SiteWorlds", () => {
 
     expect(
       screen.getByRole("link", { name: /Open sample site package/i }),
-    ).toHaveAttribute("href", "/world-models/siteworld-f5fd54898cfb");
+    ).toHaveAttribute("href", "/sites/triangle-robotics-lab");
     expect(screen.getAllByText(/Sample/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Planned/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Proof visible/i).length).toBeGreaterThan(0);

@@ -100,6 +100,12 @@ const pages = [
       "Canonical structured submission route for robot teams to create an eligible hosted session or route request-gated modalities to contact intake without upgrading references into readiness proof.",
   },
   {
+    path: "/sites",
+    title: "Sites",
+    description:
+      "Blueprint Site Library for browsing captured-site profiles by site type, task pack, readiness, access status, and region before requesting a Task Evaluation Run.",
+  },
+  {
     path: "/proof",
     title: "Proof",
     description:
@@ -151,6 +157,9 @@ const queryThemes = [
   "headless robot policy evaluation",
   "manual robot policy evaluation",
   "robot evaluation data for one site",
+  "captured site library",
+  "browse captured sites for robot evaluation",
+  "Task Evaluation Run request",
   "robot fine-tuning data for one site",
   "robot deployment site evaluation",
   "capture provenance for world models",
@@ -167,6 +176,8 @@ const privateOrNoindex = [
   "/how-it-works",
   "/world-models",
   "/world-models/*",
+  "/site-worlds",
+  "/site-worlds/*",
   "/agents",
   "/capture",
   "/sample-deliverables",

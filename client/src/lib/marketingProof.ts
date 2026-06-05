@@ -8,7 +8,7 @@ export const onlineOrderPickEvalPosterSrc =
   "/proof/blueprint-site-world-eval-online-order-pick-poster.jpg";
 export const proofReferenceImageSrc = "/siteworld-f5fd54898cfb-runtime-reference.png";
 export const publicDemoSiteWorldId = "siteworld-f5fd54898cfb";
-export const publicDemoHref = "/world-models/siteworld-f5fd54898cfb";
+export const publicDemoHref = "/sites/triangle-robotics-lab";
 export const publicDemoLabel = "View sample listing";
 export const publicDemoSpzPreviewSrc = "/world-model-previews/project-vintage-classroom-with-chalkboard.spz";
 export const publicDemoPlyPreviewSrc = "/world-model-previews/interiorgs-0043-839876-3dgs-compressed.ply";

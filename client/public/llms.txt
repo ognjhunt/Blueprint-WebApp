@@ -14,6 +14,7 @@ Blueprint turns one real facility, one robot task, and one pass bar into a captu
 ## High-Priority Public Pages
 
 - [Home](https://tryblueprint.io/): the core buyer story, including value prop, workflow, planning ranges, proof boundary, and request CTA.
+- [Sites](https://tryblueprint.io/sites): browseable Blueprint Site Library for captured-site profiles, site type, task packs, readiness, access status, region, and Task Evaluation Run requests.
 - [Pricing](https://tryblueprint.io/pricing): planning ranges for site/task readiness review, hosted evaluation, and custom multi-site benchmark work.
 - [Proof](https://tryblueprint.io/proof): concise proof explainer separating public samples from request-specific evidence and owner-system proof.
 - [Robot-Team Test Interface](https://tryblueprint.io/for-robot-teams): structured submission page for policy API endpoints, Docker containers, recorded action traces, high-level skill traces, teleop demos, and sim controller plugins.
@@ -22,7 +23,7 @@ Blueprint turns one real facility, one robot task, and one pass bar into a captu
 - [Privacy](https://tryblueprint.io/privacy): privacy policy.
 - [Terms](https://tryblueprint.io/terms): terms of service.
 
-Secondary marketing URLs such as `/product`, `/readiness`, `/how-it-works`, `/world-models`, `/agents`, `/capture`, `/sample-deliverables`, `/launch-map`, `/faq`, `/governance`, `/about`, `/updates`, `/careers`, and `/help` are no longer primary public buyer surfaces. They redirect, remain hidden, or serve direct operational/support purposes only.
+Secondary marketing URLs such as `/product`, `/readiness`, `/how-it-works`, `/world-models`, `/site-worlds`, `/agents`, `/capture`, `/sample-deliverables`, `/launch-map`, `/faq`, `/governance`, `/about`, `/updates`, `/careers`, and `/help` are no longer primary public buyer surfaces. Legacy catalog/detail URLs under `/world-models` and `/site-worlds` redirect into `/sites` when they map to a public site profile.
 
 ## Agent Request Pattern
 
@@ -30,7 +31,7 @@ The request/commerce/session lifecycle stays split into request intake, dry-run 
 
 Robot-team agents may construct request URLs without scraping the UI, or use CLI `request location` / MCP `blueprint.request.locationDraft` to receive a dry-run draft packet with `contactUrl`, `inboundRequestDraft`, `missingRequiredFields`, `truthBoundaries`, and `submitInstructions`:
 
-`/contact?source=site-worlds&buyerType=robot_team&path=hosted-review&location=123%20Unknown%20St&workflow=warehouse%20tote&message=Need%20a%20hosted%20review`
+`/contact?source=sites-library&buyerType=robot_team&path=task-evaluation-run&location=123%20Unknown%20St&workflow=warehouse%20tote&message=Need%20a%20Task%20Evaluation%20Run`
 
 Supported request fields include `source`, `buyerType`, `siteName`, `location`, `address`, `siteLocation`, `siteClass`, `targetSiteType`, `workflow`, `category`, `targetRobotTeam`, and `message`. A request URL, location draft, or `/api/inbound-request` submission records intake only; it does not grant entitlement, package access, rights clearance, payment, provider execution, fulfillment, or hosted-session availability.
 

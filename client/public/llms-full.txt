@@ -43,6 +43,7 @@ Public examples are samples unless the page explicitly ties them to an approved 
 ## Important Public Pages
 
 - `/` - Homepage and core buyer story. Explains the value prop, buyer question, workflow, offer, planning ranges, proof boundary, and request CTA in one place.
+- `/sites` - Blueprint Site Library for browsing captured-site profiles by site type, task pack, readiness, access status, and region before requesting a Task Evaluation Run.
 - `/pricing` - Planning ranges for Site/Task Readiness Review, Hosted Evaluation, and Custom Multi-Site Benchmark.
 - `/proof` - Short proof explainer separating public samples, generated support signals, request packets, and owner-system proof.
 - `/for-robot-teams` - Structured robot-team test interface for selecting a capture-backed site/task package and referencing policy API endpoints, Docker containers, recorded action traces, high-level skill traces, teleop demos, or sim controller plugins.
@@ -50,7 +51,7 @@ Public examples are samples unless the page explicitly ties them to an approved 
 - `/contact` - Structured readiness review intake for the site, workflow, robot profile, thresholds, timeline, evidence needs, rights context, and desired next step.
 - `/privacy` and `/terms` - Legal policy pages.
 
-Secondary marketing URLs are not the primary public buyer surface. Routes such as `/product`, `/readiness`, `/how-it-works`, `/world-models`, `/agents`, `/capture`, `/sample-deliverables`, `/launch-map`, `/faq`, `/governance`, `/about`, `/updates`, `/careers`, and `/help` should be treated as hidden, redirected, noindex, or direct-purpose URLs rather than core public IA.
+Secondary marketing URLs are not the primary public buyer surface. Routes such as `/product`, `/readiness`, `/how-it-works`, `/world-models`, `/site-worlds`, `/agents`, `/capture`, `/sample-deliverables`, `/launch-map`, `/faq`, `/governance`, `/about`, `/updates`, `/careers`, and `/help` should be treated as hidden, redirected, noindex, or direct-purpose URLs rather than core public IA. Legacy catalog/detail URLs under `/world-models` and `/site-worlds` redirect into `/sites` when they map to a public site profile.
 
 ## Canonical Query Themes
 
@@ -64,6 +65,8 @@ Blueprint pages are most relevant to these themes:
 - success rate, cycle time, intervention rate, and safety threshold for a robot task
 - capture-backed robot evaluation
 - hosted robot evaluation
+- captured site library
+- Task Evaluation Run request
 - robot team test submission interface
 - policy API endpoint or Docker container for robot evaluation
 - recorded action trace, high-level skill trace, teleop demo, or sim controller plugin review
@@ -87,7 +90,7 @@ Blueprint pages are most relevant to these themes:
 
 ## Private, Hidden, Or Noindex Surfaces
 
-The following are not public buyer-content targets: `/product`, `/readiness`, `/readiness-pack`, `/how-it-works`, `/world-models`, `/world-models/*`, `/agents`, `/capture`, `/sample-deliverables`, `/launch-map`, `/faq`, `/governance`, `/about`, `/updates`, `/careers`, `/help`, `/help/*`, `/city/*`, `/admin/*`, `/dashboard`, `/onboarding`, `/settings`, `/requests/*`, `/portal`, `/sign-in`, `/login`, `/forgot-password`, `/signup*`, `/off-waitlist-signup`, `/capture-app`, `/world-models/*/start`, and `/world-models/*/workspace`.
+The following are not public buyer-content targets: `/product`, `/readiness`, `/readiness-pack`, `/how-it-works`, `/world-models`, `/world-models/*`, `/site-worlds`, `/site-worlds/*`, `/agents`, `/capture`, `/sample-deliverables`, `/launch-map`, `/faq`, `/governance`, `/about`, `/updates`, `/careers`, `/help`, `/help/*`, `/city/*`, `/admin/*`, `/dashboard`, `/onboarding`, `/settings`, `/requests/*`, `/portal`, `/sign-in`, `/login`, `/forgot-password`, `/signup*`, `/off-waitlist-signup`, `/capture-app`, `/world-models/*/start`, and `/world-models/*/workspace`.
 
 ## Public JSON Summary
 

@@ -1,6 +1,7 @@
 import { lazy } from "react";
 import type { ComponentType } from "react";
 import { MarketingRedirect } from "../pages/MarketingRedirect";
+import { getSiteLibrarySite } from "../data/siteLibrary";
 
 export type AppRoute = {
   path?: string;
@@ -19,6 +20,8 @@ const OnboardingChecklist = lazy(() => import("../pages/OnboardingChecklist"));
 const HostedSessionSetup = lazy(() => import("../pages/HostedSessionSetup"));
 const HostedSessionWorkspace = lazy(() => import("../pages/HostedSessionWorkspace"));
 const RobotTeamEval = lazy(() => import("../pages/RobotTeamEval"));
+const Sites = lazy(() => import("../pages/Sites"));
+const SiteDetail = lazy(() => import("../pages/SiteDetail"));
 const Pricing = lazy(() => import("../pages/Pricing"));
 const Contact = lazy(() => import("../pages/Contact"));
 const Proof = lazy(() => import("../pages/Proof"));
@@ -43,6 +46,8 @@ const HomeRedirect = () => <MarketingRedirect to="/" />;
 const HowItWorksRedirect = () => <MarketingRedirect to="/#how-it-works" />;
 
 const ProofRedirect = () => <MarketingRedirect to="/proof" />;
+
+const SitesRedirect = () => <MarketingRedirect to="/sites" />;
 
 const ContactRedirect = () => (
   <MarketingRedirect to="/contact?persona=robot-team&source=public-route-redirect" />
@@ -69,10 +74,16 @@ const LegacyEnvironmentsRedirect = () => (
   <MarketingRedirect to="/proof" />
 );
 
-// Redirects from old site-worlds paths to new world-models paths
-const LegacySiteWorldsRedirect = () => (
-  <MarketingRedirect to="/proof" />
-);
+const LegacySiteLibraryDetailRedirect = ({
+  params,
+}: {
+  params?: { slug?: string };
+}) => {
+  const site = getSiteLibrarySite(params?.slug);
+  return <MarketingRedirect to={site ? `/sites/${site.slug}` : "/sites"} />;
+};
+
+const LegacySiteWorldsRedirect = () => <MarketingRedirect to="/sites" />;
 
 const LegacyReadinessPackRedirect = () => (
   <MarketingRedirect to="/#how-it-works" />
@@ -130,17 +141,21 @@ export const appRoutes: AppRoute[] = [
   // City landing aliases stay request-first instead of implying open city coverage.
   { path: "/city/:citySlug", layout: "public", component: ContactRedirect },
 
-  // World model catalog URLs remain reachable but no longer lead the public IA.
-  { path: "/world-models", layout: "public", component: ProofRedirect },
-  { path: "/world-models/:slug", layout: "public", component: ProofRedirect },
+  // Site library is the public discovery surface; site-world internals remain backend/API vocabulary.
+  { path: "/sites", layout: "public", component: Sites },
+  { path: "/sites/:slug", layout: "public", component: SiteDetail },
+
+  // Legacy world-model catalog/detail URLs map into the Sites library.
+  { path: "/world-models", layout: "public", component: SitesRedirect },
+  { path: "/world-models/:slug", layout: "public", component: LegacySiteLibraryDetailRedirect },
   { path: "/world-models/:slug/start", layout: "public", component: HostedSessionSetup },
   { path: "/world-models/:slug/workspace", layout: "public", shell: "bare", component: HostedSessionWorkspace },
 
   // Legacy site-worlds redirects
   { path: "/site-worlds", layout: "public", component: LegacySiteWorldsRedirect },
-  { path: "/site-worlds/:slug", layout: "public", component: LegacySiteWorldsRedirect },
-  { path: "/site-worlds/:slug/start", layout: "public", component: LegacySiteWorldsRedirect },
-  { path: "/site-worlds/:slug/workspace", layout: "public", component: LegacySiteWorldsRedirect },
+  { path: "/site-worlds/:slug", layout: "public", component: LegacySiteLibraryDetailRedirect },
+  { path: "/site-worlds/:slug/start", layout: "public", component: LegacySiteLibraryDetailRedirect },
+  { path: "/site-worlds/:slug/workspace", layout: "public", component: LegacySiteLibraryDetailRedirect },
 
   // Persona pages
   { path: "/for-site-operators", layout: "public", component: LegacyForSiteOperatorsRedirect },
@@ -187,6 +202,7 @@ export const appRoutes: AppRoute[] = [
   { path: "/pilot-exchange-guide", layout: "public", component: LegacyPilotExchangeGuideRedirect },
   { path: "/partners", layout: "public", component: LegacyPartnersRedirect },
   { path: "/environments", layout: "public", component: LegacyEnvironmentsRedirect },
+  { path: "/marketplace", layout: "public", component: SitesRedirect },
 
   // Auth & account
   { path: "/portal", layout: "public", shell: "bare", component: Portal },

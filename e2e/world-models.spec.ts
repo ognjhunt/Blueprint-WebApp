@@ -1,20 +1,20 @@
 import { test, expect } from '@playwright/test';
 
-test('world models catalog route redirects to the proof explainer', async ({ page }) => {
+test('world models catalog route redirects to the Sites library', async ({ page }) => {
   await page.goto('/world-models', { waitUntil: 'domcontentloaded' });
 
-  await expect(page).toHaveURL(/\/proof$/);
+  await expect(page).toHaveURL(/\/sites$/);
   await expect(
-    page.getByRole('heading', { name: /See what supports the readiness estimate\./i }),
+    page.getByRole('heading', { name: /Browse captured sites for robot evaluation\./i }),
   ).toBeVisible();
 });
 
-test('world-model detail route redirects to proof while hosted setup remains direct', async ({ page }) => {
+test('world-model detail route redirects to the matching site detail while hosted setup remains direct', async ({ page }) => {
   await page.goto('/world-models/sw-chi-01', { waitUntil: 'domcontentloaded' });
 
-  await expect(page).toHaveURL(/\/proof$/);
+  await expect(page).toHaveURL(/\/sites\/sw-chi-01$/);
   await expect(
-    page.getByRole('heading', { name: /The public packet teaches the workflow/i }),
+    page.getByRole('heading', { name: /Harborview Grocery Distribution Annex/i }),
   ).toBeVisible();
 });
 
@@ -23,6 +23,6 @@ test('direct navigation to the setup flow stays reachable', async ({ page }) => 
 
   await expect(page).toHaveURL(/\/world-models\/sw-chi-01\/start$/);
   await expect(
-    page.getByRole('heading', { name: /Site World Run/i }),
+    page.getByRole('heading', { name: /Policy Evaluation Set/i }),
   ).toBeVisible();
 });

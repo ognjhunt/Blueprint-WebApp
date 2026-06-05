@@ -45,6 +45,10 @@ describe("build output", () => {
   it("ships prerendered pages for the simplified public IA and direct access flows", () => {
     [
       "index.html",
+      "sites/index.html",
+      "sites/sw-chi-01/index.html",
+      "sites/sw-det-09/index.html",
+      "sites/triangle-robotics-lab/index.html",
       "pricing/index.html",
       "proof/index.html",
       "for-robot-teams/index.html",
@@ -112,6 +116,7 @@ describe("build output", () => {
 
     [
       "https://tryblueprint.io/",
+      "https://tryblueprint.io/sites",
       "https://tryblueprint.io/pricing",
       "https://tryblueprint.io/proof",
       "https://tryblueprint.io/for-robot-teams",
@@ -156,6 +161,7 @@ describe("build output", () => {
     expect(robots).toContain("Allow: /");
     expect(robots).toContain("Disallow: /world-models/*/workspace");
     expect(llms).toContain("High-Priority Public Pages");
+    expect(llms).toContain("https://tryblueprint.io/sites");
     expect(llms).toContain("https://tryblueprint.io/pricing");
     expect(llms).toContain("https://tryblueprint.io/proof");
     expect(llms).not.toContain("https://tryblueprint.io/product");
@@ -171,7 +177,8 @@ describe("build output", () => {
 
     expect(homeHtml).toContain("Evaluate robots on real sites before deployment.");
     expect(homeHtml).toContain("Robot teams pay for evaluations and optional data exports");
-    expect(homeHtml).toContain("Public samples show the workflow. Request packets prove one site.");
+    expect(homeHtml).toContain("Public examples show the workflow shape.");
+    expect(homeHtml).toContain("A request packet proves one site");
     expect(homeHtml).toContain('rel="canonical" href="https://tryblueprint.io/"');
     expect(homeHtml).toContain('type="application/ld+json"');
     expect(proofHtml).toContain("See what supports the site data and policy runs.");

@@ -8,6 +8,8 @@ describe("Route registration", () => {
     const source = fs.readFileSync(routesPath, "utf-8");
 
     expect(source).toContain('path: "/"');
+    expect(source).toContain('path: "/sites"');
+    expect(source).toContain('path: "/sites/:slug"');
     expect(source).toContain('path: "/pricing"');
     expect(source).toContain('path: "/proof"');
     expect(source).toContain('path: "/contact"');
@@ -28,11 +30,12 @@ describe("Route registration", () => {
     expect(source).toContain('path: "/site-worlds/:slug/workspace"');
   });
 
-  it("does not expose legacy marketplace routes and keeps environments as a redirect alias", () => {
+  it("routes legacy marketplace and environments paths through public redirects", () => {
     const routesPath = path.resolve(process.cwd(), "client/src/app/routes.tsx");
     const source = fs.readFileSync(routesPath, "utf-8");
 
-    expect(source).not.toContain('path: "/marketplace"');
+    expect(source).toContain('path: "/marketplace"');
+    expect(source).toContain("SitesRedirect");
     expect(source).not.toContain('path: "/marketplace/scenes"');
     expect(source).not.toContain('path: "/marketplace/datasets"');
     expect(source).toContain('path: "/environments"');
@@ -76,7 +79,8 @@ describe("Route registration", () => {
     expect(source).toContain('{ path: "/for-robot-integrators", layout: "public", component: LegacyForRobotIntegratorsRedirect }');
     expect(source).toContain('{ path: "/exact-site-hosted-review", layout: "public", component: LegacyHostedReviewRedirect }');
     expect(source).toContain('{ path: "/how-it-works", layout: "public", component: HowItWorksRedirect }');
-    expect(source).toContain('{ path: "/world-models", layout: "public", component: ProofRedirect }');
+    expect(source).toContain('{ path: "/world-models", layout: "public", component: SitesRedirect }');
+    expect(source).toContain('{ path: "/world-models/:slug", layout: "public", component: LegacySiteLibraryDetailRedirect }');
     expect(source).toContain('{ path: "/agents", layout: "public", component: ContactRedirect }');
     expect(source).toContain('{ path: "/capture", layout: "public", component: CapturerAccessRedirect }');
     expect(source).toContain('{ path: "/sample-evaluation", layout: "public", component: LegacyProofStoryRedirect }');

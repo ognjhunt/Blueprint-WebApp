@@ -1,7 +1,7 @@
 export const primaryNavLinks = [
   { href: "/#how-it-works", label: "How it works" },
+  { href: "/sites", label: "Sites" },
   { href: "/#pricing", label: "Pricing" },
-  { href: "/proof", label: "Proof" },
 ];
 
 export const headerUtilityLinks = [
@@ -13,6 +13,7 @@ export const headerUtilityLinks = [
 
 export const footerProductLinks = [
   { href: "/#how-it-works", label: "How it works" },
+  { href: "/sites", label: "Sites" },
   { href: "/pricing", label: "Pricing" },
   { href: "/proof", label: "Proof" },
 ];
