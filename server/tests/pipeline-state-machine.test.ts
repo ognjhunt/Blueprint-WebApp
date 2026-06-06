@@ -346,7 +346,29 @@ describe("enrichDeploymentReadinessFromArtifacts", () => {
     expect(enriched?.runtime_launchable).toBe(true);
   });
 
-  it("keeps robot eval dataset artifacts advisory-only", () => {
+  it("blocks public ready state when the robot eval package is partial", () => {
+    const arts = makeArtifacts([
+      "robot_eval_dataset_manifest_uri",
+      "robot_eval_site_card_uri",
+    ]);
+    const enriched = enrichDeploymentReadinessFromArtifacts(undefined, arts, undefined);
+
+    expect(enriched?.robot_eval_dataset_summary?.dataset_state).toBe(
+      "publication_blocked_missing_robot_eval_package",
+    );
+    expect(enriched?.robot_eval_dataset_summary?.ready_to_evaluate_publishable).toBe(false);
+    expect(enriched?.robot_eval_dataset_summary?.missing_required_artifacts).toEqual(
+      expect.arrayContaining([
+        "robot_eval_task_cards_uri",
+        "robot_eval_scenario_cards_uri",
+        "robot_eval_cards_uri",
+        "robot_eval_task_thresholds_uri",
+        "robot_eval_publication_readiness_uri",
+      ]),
+    );
+  });
+
+  it("keeps complete robot eval dataset artifacts advisory-only but publishable", () => {
     const arts = makeArtifacts([
       "robot_eval_dataset_manifest_uri",
       "robot_eval_site_card_uri",
@@ -361,6 +383,13 @@ describe("enrichDeploymentReadinessFromArtifacts", () => {
       "robot_task_library_uri",
       "robot_scenario_family_library_uri",
       "robot_scoring_methodology_uri",
+      "robot_eval_task_thresholds_uri",
+      "robot_eval_publication_readiness_uri",
+      "robot_eval_scene_asset_inspection_uri",
+      "robot_eval_scene_frame_estimate_uri",
+      "robot_eval_cpu_preflight_scorecard_uri",
+      "robot_eval_episode_spec_manifest_uri",
+      "robot_eval_cpu_simulator_preflight_manifest_uri",
       "recorded_trace_eval_report_uri",
       "policy_eval_report_uri",
       "robot_team_test_submission_modalities_uri",
@@ -369,8 +398,13 @@ describe("enrichDeploymentReadinessFromArtifacts", () => {
     ]);
     const enriched = enrichDeploymentReadinessFromArtifacts(undefined, arts, undefined);
     expect(enriched?.robot_eval_dataset_summary?.dataset_state).toBe(
-      "v0_1_card_family_present"
+      "ready_to_evaluate_package_present"
     );
+    expect(enriched?.robot_eval_dataset_summary?.ready_to_evaluate_publishable).toBe(true);
+    expect(enriched?.robot_eval_dataset_summary?.publication_label).toBe(
+      "Ready to evaluate",
+    );
+    expect(enriched?.robot_eval_dataset_summary?.missing_required_artifacts).toEqual([]);
     expect(enriched?.robot_eval_dataset_summary?.manifest_uri).toBe(
       "gs://test/robot_eval_dataset_manifest_uri.json"
     );
@@ -388,6 +422,19 @@ describe("enrichDeploymentReadinessFromArtifacts", () => {
         scenario_family_library_uri:
           "gs://test/robot_scenario_family_library_uri.json",
         scoring_methodology_uri: "gs://test/robot_scoring_methodology_uri.json",
+        task_thresholds_uri: "gs://test/robot_eval_task_thresholds_uri.json",
+        publication_readiness_uri:
+          "gs://test/robot_eval_publication_readiness_uri.json",
+        scene_asset_inspection_uri:
+          "gs://test/robot_eval_scene_asset_inspection_uri.json",
+        scene_frame_estimate_uri:
+          "gs://test/robot_eval_scene_frame_estimate_uri.json",
+        cpu_preflight_scorecard_uri:
+          "gs://test/robot_eval_cpu_preflight_scorecard_uri.json",
+        episode_spec_manifest_uri:
+          "gs://test/robot_eval_episode_spec_manifest_uri.json",
+        cpu_simulator_preflight_manifest_uri:
+          "gs://test/robot_eval_cpu_simulator_preflight_manifest_uri.json",
         recorded_trace_eval_report_uri:
           "gs://test/recorded_trace_eval_report_uri.json",
         policy_eval_report_uri: "gs://test/policy_eval_report_uri.json",
@@ -400,6 +447,96 @@ describe("enrichDeploymentReadinessFromArtifacts", () => {
     expect(enriched?.runtime_launchable).toBeUndefined();
     expect(enriched?.runtime_registration_status).toBeUndefined();
     expect(enriched?.native_world_model_status).toBeUndefined();
+    expect(enriched?.robot_eval_preflight_summary).toEqual(
+      expect.objectContaining({
+        status: "advisory_cpu_preflight_artifacts_present",
+        scene_asset_preflight_status: "manifest_present",
+        episode_spec_status: "manifest_present_review_required",
+        cpu_simulator_preflight_status: "manifest_present_optional_smoke",
+        cpu_preflight_scorecard_uri:
+          "gs://test/robot_eval_cpu_preflight_scorecard_uri.json",
+        episode_spec_manifest_uri:
+          "gs://test/robot_eval_episode_spec_manifest_uri.json",
+        cpu_simulator_preflight_manifest_uri:
+          "gs://test/robot_eval_cpu_simulator_preflight_manifest_uri.json",
+        local_cpu_preflight_smoke_ran: false,
+        simulator_execution_proven: false,
+        robot_readiness_proven: false,
+        safety_validated: false,
+        public_claim_upgrade_allowed: false,
+      }),
+    );
+  });
+
+  it("preserves synced robot eval preflight blockers while keeping proof claims false", () => {
+    const arts = makeArtifacts([
+      "robot_eval_cpu_preflight_scorecard_uri",
+      "robot_eval_episode_spec_manifest_uri",
+      "robot_eval_cpu_simulator_preflight_manifest_uri",
+    ]);
+    const enriched = enrichDeploymentReadinessFromArtifacts(
+      {
+        robot_eval_preflight_summary: {
+          scene_asset_preflight_status: "blocked",
+          episode_spec_status: "compiled_review_required",
+          cpu_simulator_preflight_status: "blocked_missing_optional_dependency",
+          episode_count: 1,
+          collider_backend_labels: ["isaac_usd_collision_unverified"],
+          collider_backend_blockers: ["portable_collider_glb_missing"],
+          install_instructions: [
+            "python -m pip install mujoco",
+            "python -m pip install pybullet",
+          ],
+          simulator_execution_proven: true,
+          robot_readiness_proven: true,
+          safety_validated: true,
+          public_claim_upgrade_allowed: true,
+        },
+      },
+      arts,
+      undefined,
+    );
+
+    expect(enriched?.robot_eval_preflight_summary).toEqual(
+      expect.objectContaining({
+        scene_asset_preflight_status: "blocked",
+        episode_spec_status: "compiled_review_required",
+        cpu_simulator_preflight_status: "blocked_missing_optional_dependency",
+        episode_count: 1,
+        collider_backend_blockers: ["portable_collider_glb_missing"],
+        install_instructions: [
+          "python -m pip install mujoco",
+          "python -m pip install pybullet",
+        ],
+        simulator_execution_proven: false,
+        robot_readiness_proven: false,
+        safety_validated: false,
+        public_claim_upgrade_allowed: false,
+      }),
+    );
+  });
+
+  it("syncs robot eval job status artifacts without upgrading proof claims", () => {
+    const arts = makeArtifacts([
+      "robot_eval_job_request_uri",
+      "robot_eval_job_run_manifest_uri",
+      "robot_eval_job_proof_boundary_uri",
+      "robot_eval_job_blocked_manifest_uri",
+    ]);
+    const enriched = enrichDeploymentReadinessFromArtifacts(undefined, arts, undefined);
+
+    expect(enriched?.robot_eval_job_summary).toEqual(
+      expect.objectContaining({
+        status: "advisory_job_artifacts_present",
+        job_request_uri: "gs://test/robot_eval_job_request_uri.json",
+        job_run_manifest_uri: "gs://test/robot_eval_job_run_manifest_uri.json",
+        proof_boundary_uri: "gs://test/robot_eval_job_proof_boundary_uri.json",
+        blocked_manifest_uri: "gs://test/robot_eval_job_blocked_manifest_uri.json",
+        simulator_execution_proven: false,
+        robot_readiness_proven: false,
+        public_claim_upgrade_allowed: false,
+      }),
+    );
   });
 
   it("sets benchmark_coverage_status to ready when benchmark_suite exists", () => {

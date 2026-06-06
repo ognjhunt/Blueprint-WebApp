@@ -50,6 +50,97 @@ export type ReadinessStatus = Exclude<(typeof readinessFilterOptions)[number], "
 export type AccessStatus = Exclude<(typeof accessFilterOptions)[number], "All">;
 export type SiteRegion = Exclude<(typeof regionFilterOptions)[number], "All">;
 
+export type RobotEvalPublicationArtifactUris = {
+  manifestUri: string;
+  siteCardUri: string;
+  taskCardsUri: string;
+  scenarioCardsUri: string;
+  evalCardsUri: string;
+  proofBoundariesUri: string;
+  taskOntologyUri: string;
+  scenarioFamilyLibraryUri: string;
+  scoringMethodologyUri: string;
+  taskThresholdsUri: string;
+  publicationReadinessUri: string;
+  sceneAssetInventoryUri: string;
+  sceneAssetDependencyAuditUri: string;
+  sceneAssetPreflightUri: string;
+  sceneAssetInspectionUri: string;
+  sceneFrameEstimateUri: string;
+  colliderProxyPlanUri: string;
+  cpuSceneProxyManifestUri: string;
+  cpuPreflightScorecardUri: string;
+  taskAnchorProposalManifestUri: string;
+  episodeSpecManifestUri: string;
+  episodeSpecsUri: string;
+  spawnPoseValidationManifestUri: string;
+  cpuPreflightManifestUri: string;
+  preGpuReadinessSummaryUri: string;
+  cpuSimulatorPreflightManifestUri: string;
+  gpuHandoffPacketUri: string;
+  gpuOwnerSystemProofSchemaUri: string;
+  gpuRunChecklistUri: string;
+  ownerGpuSimulatorExecutionBlockedManifestUri: string;
+};
+
+export type RobotEvalPreflightDisplaySummary = {
+  sceneAssetLabel: string;
+  dependencyLabel: string;
+  colliderProxyLabel: string;
+  episodeSpecLabel: string;
+  spawnValidationLabel: string;
+  cpuSimulatorLabel: string;
+  gpuHandoffLabel: string;
+  localCpuSmokeRan: boolean;
+  readyForOwnerGpuPreflight: boolean;
+  proofBoundaryLabel: string;
+};
+
+export type RobotEvalPublicationSummary = {
+  readyToEvaluatePublishable: boolean;
+  publicationLabel: "Ready to evaluate" | "Needs review";
+  taskThresholdSummary: {
+    taskThresholdCount: number;
+    thresholdPolicy: string;
+  };
+  missingProofLabels: string[];
+  preflightSummary: RobotEvalPreflightDisplaySummary;
+  artifactUris: RobotEvalPublicationArtifactUris;
+};
+
+export type PipelineManifestStatusLane =
+  | "privacy"
+  | "world_labs"
+  | "materialization"
+  | "cpu_preflight"
+  | "gpu_handoff"
+  | "eval_result"
+  | "data_package_export";
+
+export type PipelineManifestStatus = {
+  lane: PipelineManifestStatusLane;
+  label: string;
+  status: "complete" | "advisory" | "blocked" | "queued" | "not_started";
+  summary: string;
+  artifactUri: string;
+  retrySummary: string;
+  failureSummary: string;
+};
+
+export type DefaultRobotEvalSelection = {
+  taskId: string;
+  scenarioId: string;
+  robotProfileId: string;
+  policyId: string;
+};
+
+export type SiteCaptureLineage = {
+  siteSubmissionId: string;
+  captureJobId: string;
+  captureId: string;
+  pipelinePrefix: string;
+};
+
 export type SiteLibrarySite = {
   slug: string;
   aliasSlugs?: string[];
@@ -70,7 +161,165 @@ export type SiteLibrarySite = {
   robotPovSummary: string;
   geometrySummary: string;
   included: string[];
+  robotEvalPublication?: RobotEvalPublicationSummary;
+  pipelineManifestStatuses?: PipelineManifestStatus[];
+  defaultRobotEvalSelection?: DefaultRobotEvalSelection;
+  captureLineage?: SiteCaptureLineage;
 };
+
+const defaultMissingProofLabels = [
+  "needs_robot_pov",
+  "needs_human_demo",
+  "needs_action_logs",
+  "needs_actual_outcome",
+  "needs_policy_api_endpoint_ref",
+  "needs_docker_container_ref",
+  "needs_recorded_action_trace_ref",
+  "needs_high_level_skill_trace_ref",
+  "needs_teleop_demo_ref",
+  "needs_sim_controller_plugin_ref",
+  "review_only_no_robot_readiness",
+];
+
+function robotEvalPublicationPackage(
+  slug: string,
+  taskThresholdCount: number,
+): RobotEvalPublicationSummary {
+  const datasetPrefix = `/synced-artifacts/sites/${slug}/pipeline/robot_eval_dataset`;
+  const simulationPrefix = `/synced-artifacts/sites/${slug}/pipeline/simulation_automation`;
+  return {
+    readyToEvaluatePublishable: true,
+    publicationLabel: "Ready to evaluate",
+    taskThresholdSummary: {
+      taskThresholdCount,
+      thresholdPolicy: "Repo-synced task thresholds are evaluation gates, not robot-readiness claims.",
+    },
+    missingProofLabels: defaultMissingProofLabels,
+    preflightSummary: {
+      sceneAssetLabel: "Scene asset preflight",
+      dependencyLabel: "Dependencies audited",
+      colliderProxyLabel: "Collider/proxy plan review-required",
+      episodeSpecLabel: "Episode specs review-required",
+      spawnValidationLabel: "Spawn candidates checked",
+      cpuSimulatorLabel: "CPU setup manifests",
+      gpuHandoffLabel: "Owner GPU handoff packet ready",
+      localCpuSmokeRan: false,
+      readyForOwnerGpuPreflight: true,
+      proofBoundaryLabel: "No simulator execution or robot readiness claim",
+    },
+    artifactUris: {
+      manifestUri: `${datasetPrefix}/robot_eval_dataset_manifest.json`,
+      siteCardUri: `${datasetPrefix}/site_card.json`,
+      taskCardsUri: `${datasetPrefix}/task_cards.json`,
+      scenarioCardsUri: `${datasetPrefix}/scenario_cards.json`,
+      evalCardsUri: `${datasetPrefix}/eval_cards.json`,
+      proofBoundariesUri: `${datasetPrefix}/proof_boundaries.json`,
+      taskOntologyUri: `${datasetPrefix}/task_ontology_v1.json`,
+      scenarioFamilyLibraryUri: `${datasetPrefix}/scenario_family_library.json`,
+      scoringMethodologyUri: `${datasetPrefix}/scoring_methodology.json`,
+      taskThresholdsUri: `${datasetPrefix}/task_thresholds.json`,
+      publicationReadinessUri: `${datasetPrefix}/publication_readiness.json`,
+      sceneAssetInventoryUri: `${simulationPrefix}/scene_asset_inventory.json`,
+      sceneAssetDependencyAuditUri: `${simulationPrefix}/scene_asset_dependency_audit.json`,
+      sceneAssetPreflightUri: `${simulationPrefix}/scene_asset_preflight.json`,
+      sceneAssetInspectionUri: `${simulationPrefix}/scene_asset_inspection.json`,
+      sceneFrameEstimateUri: `${simulationPrefix}/scene_frame_estimate.json`,
+      colliderProxyPlanUri: `${simulationPrefix}/collider_proxy_plan.json`,
+      cpuSceneProxyManifestUri: `${simulationPrefix}/cpu_scene_proxy_manifest.json`,
+      cpuPreflightScorecardUri: `${simulationPrefix}/cpu_preflight_scorecard.json`,
+      taskAnchorProposalManifestUri: `${simulationPrefix}/task_anchor_proposal_manifest.json`,
+      episodeSpecManifestUri: `${simulationPrefix}/episode_spec_manifest.json`,
+      episodeSpecsUri: `${simulationPrefix}/episode_specs.json`,
+      spawnPoseValidationManifestUri: `${simulationPrefix}/spawn_pose_validation_manifest.json`,
+      cpuPreflightManifestUri: `${simulationPrefix}/cpu_preflight_manifest.json`,
+      preGpuReadinessSummaryUri: `${simulationPrefix}/pre_gpu_readiness_summary.json`,
+      cpuSimulatorPreflightManifestUri: `${simulationPrefix}/cpu_simulator_preflight_manifest.json`,
+      gpuHandoffPacketUri: `${simulationPrefix}/gpu_handoff_packet.json`,
+      gpuOwnerSystemProofSchemaUri: `${simulationPrefix}/gpu_owner_system_proof_schema.json`,
+      gpuRunChecklistUri: `${simulationPrefix}/gpu_run_checklist.md`,
+      ownerGpuSimulatorExecutionBlockedManifestUri: `${simulationPrefix}/owner_gpu_simulator_execution_blocked_manifest.json`,
+    },
+  };
+}
+
+function captureLineage(slug: string): SiteCaptureLineage {
+  return {
+    siteSubmissionId: `site-submission-${slug}`,
+    captureJobId: `capture-job-${slug}`,
+    captureId: `capture-${slug}`,
+    pipelinePrefix: `/synced-artifacts/sites/${slug}/pipeline`,
+  };
+}
+
+function pipelineManifestStatuses(slug: string): PipelineManifestStatus[] {
+  const datasetPrefix = `/synced-artifacts/sites/${slug}/pipeline/robot_eval_dataset`;
+  const simulationPrefix = `/synced-artifacts/sites/${slug}/pipeline/simulation_automation`;
+  return [
+    {
+      lane: "privacy",
+      label: "Privacy",
+      status: "advisory",
+      summary: "Rights/privacy packet attached for request review",
+      artifactUri: `${datasetPrefix}/rights_packet.json`,
+      retrySummary: "Retry after rights ledger or operator approval updates sync.",
+      failureSummary: "Blocked if the rights packet is missing or rejects external use.",
+    },
+    {
+      lane: "world_labs",
+      label: "World Labs",
+      status: "advisory",
+      summary: "Compatibility artifacts are support evidence only",
+      artifactUri: `${simulationPrefix}/scene_asset_dependency_audit.json`,
+      retrySummary: "Retry after dependency audit or generated-support asset refresh.",
+      failureSummary: "Dependency failures do not prove or disprove robot readiness.",
+    },
+    {
+      lane: "materialization",
+      label: "Materialization",
+      status: "complete",
+      summary: "Site, task, scenario, eval, and threshold manifests attached",
+      artifactUri: `${datasetPrefix}/robot_eval_dataset_manifest.json`,
+      retrySummary: "Retry materialization sync if card counts or thresholds are missing.",
+      failureSummary: "Partial card families stay Needs review.",
+    },
+    {
+      lane: "cpu_preflight",
+      label: "CPU preflight",
+      status: "advisory",
+      summary: "CPU setup manifests present; no owner-system simulator run claimed",
+      artifactUri: `${simulationPrefix}/cpu_simulator_preflight_manifest.json`,
+      retrySummary: "Retry after optional MuJoCo/PyBullet dependency repair.",
+      failureSummary: "CPU failures are setup blockers, not robot policy failures.",
+    },
+    {
+      lane: "gpu_handoff",
+      label: "GPU handoff",
+      status: "queued",
+      summary: "Owner GPU handoff packet available for request-scoped execution",
+      artifactUri: `${simulationPrefix}/gpu_handoff_packet.json`,
+      retrySummary: "Retry once owner-system GPU proof artifacts are supplied.",
+      failureSummary: "No GPU handoff packet can be treated as simulator execution.",
+    },
+    {
+      lane: "eval_result",
+      label: "Eval result",
+      status: "not_started",
+      summary: "Awaiting policy/container/trace/demo/plugin evidence",
+      artifactUri: `${datasetPrefix}/policy_eval_report.json`,
+      retrySummary: "Retry after all six policy modalities have owner-system refs.",
+      failureSummary: "Missing evidence keeps pass/fail and threshold claims blocked.",
+    },
+    {
+      lane: "data_package_export",
+      label: "Data-package export",
+      status: "queued",
+      summary: "Post-Training Data Package export awaits request approval",
+      artifactUri: `${datasetPrefix}/real_site_robot_eval_dataset_manifest.json`,
+      retrySummary: "Retry export after entitlement and package-scope approval.",
+      failureSummary: "Export blockers do not change the site capture provenance.",
+    },
+  ];
+}
 
 export const siteLibrarySites: SiteLibrarySite[] = [
   {
@@ -102,6 +351,15 @@ export const siteLibrarySites: SiteLibrarySite[] = [
       "Scenario suite summary with route and blocker labels",
       "Task Evaluation Run request path",
     ],
+    robotEvalPublication: robotEvalPublicationPackage("sw-chi-01", 3),
+    pipelineManifestStatuses: pipelineManifestStatuses("sw-chi-01"),
+    captureLineage: captureLineage("sw-chi-01"),
+    defaultRobotEvalSelection: {
+      taskId: "place_return_in_bin",
+      scenarioId: "scenario_place_return_in_bin_mobile_manipulator_rgb_v1",
+      robotProfileId: "mobile_manipulator_rgb_v1",
+      policyId: "default_fixture_policy",
+    },
   },
   {
     slug: "sw-det-09",
@@ -162,6 +420,15 @@ export const siteLibrarySites: SiteLibrarySite[] = [
       "Timing and airlock scenario notes",
       "Request-gated Task Evaluation Run path",
     ],
+    robotEvalPublication: robotEvalPublicationPackage("sw-col-05", 2),
+    pipelineManifestStatuses: pipelineManifestStatuses("sw-col-05"),
+    captureLineage: captureLineage("sw-col-05"),
+    defaultRobotEvalSelection: {
+      taskId: "move_tote",
+      scenarioId: "scenario_move_tote_mobile_manipulator_rgb_v1",
+      robotProfileId: "mobile_manipulator_rgb_v1",
+      policyId: "default_fixture_policy",
+    },
   },
   {
     slug: "northfield-distribution-center",
@@ -193,6 +460,15 @@ export const siteLibrarySites: SiteLibrarySite[] = [
       "Human crossing and blocked approach scenarios",
       "Evaluation request handoff",
     ],
+    robotEvalPublication: robotEvalPublicationPackage("northfield-distribution-center", 3),
+    pipelineManifestStatuses: pipelineManifestStatuses("northfield-distribution-center"),
+    captureLineage: captureLineage("northfield-distribution-center"),
+    defaultRobotEvalSelection: {
+      taskId: "cart_to_conveyor_transfer",
+      scenarioId: "scenario_cart_to_conveyor_transfer_mobile_manipulator_rgb_v1",
+      robotProfileId: "mobile_manipulator_rgb_v1",
+      policyId: "default_fixture_policy",
+    },
   },
   {
     slug: "piedmont-hospital-supply-hallway",
@@ -317,6 +593,15 @@ export const siteLibrarySites: SiteLibrarySite[] = [
       "Robot POV validation notes",
       "Task Evaluation Run request path",
     ],
+    robotEvalPublication: robotEvalPublicationPackage("triangle-robotics-lab", 2),
+    pipelineManifestStatuses: pipelineManifestStatuses("triangle-robotics-lab"),
+    captureLineage: captureLineage("triangle-robotics-lab"),
+    defaultRobotEvalSelection: {
+      taskId: "pick_known_object",
+      scenarioId: "scenario_pick_known_object_mobile_manipulator_rgb_v1",
+      robotProfileId: "mobile_manipulator_rgb_v1",
+      policyId: "default_fixture_policy",
+    },
   },
 ];
 

@@ -1,16 +1,15 @@
 import { useEffect } from "react";
 import {
   ArrowLeft,
-  ArrowRight,
   CheckCircle2,
   ClipboardList,
   FileText,
   ShieldCheck,
 } from "lucide-react";
 import { SEO } from "@/components/SEO";
+import { RobotEvalJobRequestButton } from "@/components/site/RobotEvalJobRequestButton";
 import { breadcrumbJsonLd, productJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 import {
-  buildTaskEvaluationRunHref,
   getSiteLibrarySite,
   type AccessStatus,
   type ReadinessStatus,
@@ -105,8 +104,6 @@ export default function SiteDetail({ params }: SiteDetailProps) {
     );
   }
 
-  const requestHref = buildTaskEvaluationRunHref(site, "site-detail");
-
   return (
     <>
       <SEO
@@ -165,13 +162,11 @@ export default function SiteDetail({ params }: SiteDetailProps) {
                 <StatusBadge label={`${site.siteType} · ${site.locationLabel}`} className="border-white/20 bg-white/10 text-white" />
               </div>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <a
-                  href={requestHref}
-                  className="inline-flex min-h-12 items-center justify-center bg-[#c7a775] px-5 text-sm font-semibold text-[#0d0d0b] transition hover:bg-[#d8bd8d]"
-                >
-                  Request Task Evaluation Run
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </a>
+                <RobotEvalJobRequestButton
+                  site={site}
+                  source="site-detail"
+                  className="inline-flex min-h-12 items-center justify-center bg-[#c7a775] px-5 text-sm font-semibold text-[#0d0d0b] transition hover:bg-[#d8bd8d] disabled:cursor-not-allowed disabled:opacity-55"
+                />
                 <a
                   href="/proof"
                   className="inline-flex min-h-12 items-center justify-center border border-white/20 px-5 text-sm font-semibold text-white transition hover:bg-white/10"
@@ -198,6 +193,24 @@ export default function SiteDetail({ params }: SiteDetailProps) {
             <DetailTile label="Region" value={site.region} />
             <DetailTile label="Evidence" value={site.evidenceLine} />
             <DetailTile label="Access" value={site.access} />
+            {site.robotEvalPublication ? (
+              <>
+                <DetailTile label="Publication" value="Publication package complete" />
+                <DetailTile label="Thresholds" value="Thresholds attached" />
+                <DetailTile
+                  label="Episode specs"
+                  value={site.robotEvalPublication.preflightSummary.episodeSpecLabel}
+                />
+                <DetailTile
+                  label="CPU preflight"
+                  value={site.robotEvalPublication.preflightSummary.cpuSimulatorLabel}
+                />
+                <DetailTile
+                  label="GPU handoff"
+                  value={site.robotEvalPublication.preflightSummary.gpuHandoffLabel}
+                />
+              </>
+            ) : null}
           </div>
         </section>
 
@@ -278,6 +291,43 @@ export default function SiteDetail({ params }: SiteDetailProps) {
           </div>
         </section>
 
+        {site.robotEvalPublication ? (
+          <section className="border-y border-black/10 bg-white">
+            <div className="mx-auto grid max-w-[88rem] gap-6 px-4 py-10 sm:px-6 lg:grid-cols-[0.36fr_0.64fr] lg:px-10">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  Pipeline status
+                </p>
+                <h2 className="mt-3 text-3xl font-semibold tracking-[-0.03em]">
+                  Manifest-backed request status
+                </h2>
+                <p className="mt-3 text-sm leading-7 text-slate-600">
+                  These statuses come from synced Pipeline artifact slots or fixtures.
+                  They help scope a request before any GPU simulator or owner-system policy run.
+                </p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {(site.pipelineManifestStatuses || []).map((item) => (
+                  <div key={item.label} className="border border-black/10 bg-[#f8f6f1] p-4">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                      {item.label}
+                    </p>
+                    <p className="mt-2 text-sm font-semibold leading-6 text-slate-950">
+                      {item.summary}
+                    </p>
+                    <p className="mt-2 text-xs leading-5 text-slate-600">
+                      Retry: {item.retrySummary}
+                    </p>
+                    <p className="mt-1 text-xs leading-5 text-slate-600">
+                      Failure: {item.failureSummary}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        ) : null}
+
         <section className="border-t border-black/10 bg-[#0d0d0b] text-white">
           <div className="mx-auto grid max-w-[88rem] gap-6 px-4 py-10 sm:px-6 lg:grid-cols-[0.5fr_0.5fr] lg:px-10">
             <div>
@@ -293,12 +343,11 @@ export default function SiteDetail({ params }: SiteDetailProps) {
                 This page helps a robot team choose a site. A Task Evaluation Run still needs request review, access confirmation, task scope, robot profile, threshold context, and owner-system proof before any stronger claim is made.
               </p>
               <div className="flex flex-col gap-3 sm:flex-row">
-                <a
-                  href={requestHref}
-                  className="inline-flex min-h-11 items-center justify-center bg-[#c7a775] px-4 text-sm font-semibold text-[#0d0d0b] transition hover:bg-[#d8bd8d]"
-                >
-                  Request Task Evaluation Run
-                </a>
+                <RobotEvalJobRequestButton
+                  site={site}
+                  source="site-detail"
+                  className="inline-flex min-h-11 items-center justify-center bg-[#c7a775] px-4 text-sm font-semibold text-[#0d0d0b] transition hover:bg-[#d8bd8d] disabled:cursor-not-allowed disabled:opacity-55"
+                />
                 <a
                   href="/sites"
                   className="inline-flex min-h-11 items-center justify-center border border-white/20 px-4 text-sm font-semibold text-white transition hover:bg-white/10"

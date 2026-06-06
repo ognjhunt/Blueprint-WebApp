@@ -25,6 +25,8 @@ pipeline/robot_eval_dataset/
   scenario_family_library.json
   scenario_library.json
   scoring_methodology.json
+  task_thresholds.json
+  publication_readiness.json
   recorded_trace_eval_report.json
   policy_eval_report.json
   robot_pov_evidence_requirements.json
@@ -34,6 +36,26 @@ pipeline/robot_eval_dataset/
   prediction_outcome_ledger.json
   prediction_vs_actual_summary.json
   eval_methodology_summary.md
+pipeline/simulation_automation/
+  scene_asset_inventory.json
+  scene_asset_dependency_audit.json
+  scene_asset_preflight.json
+  scene_asset_inspection.json
+  scene_frame_estimate.json
+  collider_proxy_plan.json
+  cpu_scene_proxy_manifest.json
+  cpu_preflight_scorecard.json
+  task_anchor_proposal_manifest.json
+  episode_spec_manifest.json
+  episode_specs.json
+  spawn_pose_validation_manifest.json
+  cpu_preflight_manifest.json
+  pre_gpu_readiness_summary.json
+  cpu_simulator_preflight_manifest.json
+  gpu_handoff_packet.json
+  gpu_owner_system_proof_schema.json
+  gpu_run_checklist.md
+  owner_gpu_simulator_execution_blocked_manifest.json
 ```
 
 WebApp consumes only synced artifact URIs and advisory summary fields. It does
@@ -59,6 +81,27 @@ Pipeline sync may attach these optional artifact fields:
 - `robot_scenario_family_library_uri`
 - `robot_scenario_library_uri`
 - `robot_scoring_methodology_uri`
+- `robot_eval_task_thresholds_uri`
+- `robot_eval_publication_readiness_uri`
+- `robot_eval_scene_asset_inventory_uri`
+- `robot_eval_scene_asset_dependency_audit_uri`
+- `robot_eval_scene_asset_preflight_uri`
+- `robot_eval_scene_asset_inspection_uri`
+- `robot_eval_scene_frame_estimate_uri`
+- `robot_eval_collider_proxy_plan_uri`
+- `robot_eval_cpu_scene_proxy_manifest_uri`
+- `robot_eval_cpu_preflight_scorecard_uri`
+- `robot_eval_task_anchor_proposal_manifest_uri`
+- `robot_eval_episode_spec_manifest_uri`
+- `robot_eval_episode_specs_uri`
+- `robot_eval_spawn_pose_validation_manifest_uri`
+- `robot_eval_cpu_preflight_manifest_uri`
+- `robot_eval_pre_gpu_readiness_summary_uri`
+- `robot_eval_cpu_simulator_preflight_manifest_uri`
+- `robot_eval_gpu_handoff_packet_uri`
+- `robot_eval_gpu_owner_system_proof_schema_uri`
+- `robot_eval_gpu_run_checklist_uri`
+- `robot_eval_owner_gpu_simulator_execution_blocked_manifest_uri`
 - `recorded_trace_eval_report_uri`
 - `policy_eval_report_uri`
 - `robot_pov_evidence_requirements_uri`
@@ -68,6 +111,10 @@ Pipeline sync may attach these optional artifact fields:
 - `prediction_outcome_ledger_uri`
 - `prediction_vs_actual_summary_uri`
 - `robot_eval_methodology_summary_uri`
+- `robot_eval_job_request_uri`
+- `robot_eval_job_run_manifest_uri`
+- `robot_eval_job_proof_boundary_uri`
+- `robot_eval_job_blocked_manifest_uri`
 
 `deployment_readiness.robot_eval_dataset_summary` may summarize the contract as
 advisory with `dataset_version`, `dataset_state`, `site_card_count`,
@@ -76,6 +123,49 @@ advisory with `dataset_version`, `dataset_state`, `site_card_count`,
 presence must not set `runtime_launchable`, `runtime_registration_status`,
 `native_world_model_status`, `qualified_ready`, `handoff_ready`, or any
 operational readiness state.
+
+`Ready to evaluate` is gated by the complete publication package. WebApp may set
+`ready_to_evaluate_publishable=true` only when the synced artifact family
+includes the dataset manifest, Site/Task/Scenario/Eval Cards, proof boundaries,
+task ontology, scenario family library, scoring methodology,
+`task_thresholds.json`, and `publication_readiness.json`. A partial artifact
+family must stay `publication_blocked_missing_robot_eval_package`.
+
+When a robot team chooses a site/task/scenario/policy from `/sites` or
+`/sites/:slug`, WebApp posts a durable `robot_eval_job_request.v1` to
+`/api/robot-eval/job-requests`. The request includes the selected site package,
+task thresholds, six structured policy submission modalities, the
+`buyer_request_id`, `site_submission_id`, `capture_job_id`, `capture_id`,
+access/entitlement state, fixture-local Pipeline defaults, and proof boundaries.
+Accepted requests are written to Firestore when configured and always export a
+Pipeline-readable local inbox envelope at
+`output/pipeline/robot_eval_job_requests/inbox/*.json` unless
+`ROBOT_EVAL_JOB_REQUEST_INBOX_DIR` overrides the path. Pipeline can consume that
+`robot_eval_job_request_inbox.v1` envelope without a human copy/paste step.
+Pipeline status sync is advisory through
+`deployment_readiness.robot_eval_job_summary` and must not promote simulator
+execution, robot readiness, safety validation, or public claim upgrades.
+
+Sites may also project a per-site manifest status family for privacy, World
+Labs compatibility/support artifacts, materialization, CPU preflight, GPU
+handoff, eval result, and data-package export. Those rows may include
+retry/failure summaries, but the summaries are operational diagnostics only.
+They must not imply simulator execution, safety validation, robot deployment
+readiness, or policy pass/fail outcomes.
+
+`deployment_readiness.robot_eval_preflight_summary` may summarize the CPU-only
+pre-GPU lane with `scene_asset_preflight_status`, `episode_spec_status`,
+`episode_count`, `cpu_simulator_preflight_status`,
+`local_cpu_preflight_smoke_ran`, `collider_backend_labels`,
+`collider_backend_blockers`, dependency counts, `real_collider_proven`,
+`proxy_estimated`, `missing_collider`, `review_required`,
+`ready_for_owner_gpu_preflight`, GPU handoff artifact URIs, install
+instructions, and the preflight artifact URIs above. WebApp must keep
+`owner_gpu_simulator_execution_proven`, `simulator_execution_proven`,
+`robot_readiness_proven`, `safety_validated`, and
+`public_claim_upgrade_allowed` false unless request-scoped owner-system proof
+later supplies simulator traces, robot logs, safety signoff, and
+buyer-approved methodology.
 
 ## Allowed Display
 
@@ -88,6 +178,15 @@ WebApp may display:
 - task count and scenario count
 - card counts and annotation backlog count
 - scoring methodology, recorded trace eval report, and policy eval report URIs
+- task thresholds and publication readiness URIs
+- CPU scene-asset inspection, scene-frame estimate, CPU preflight scorecard,
+  dependency audit, collider/proxy plan, task-anchor proposals, episode specs,
+  spawn validation, GPU handoff packet, owner proof schema, run checklist, and
+  owner-GPU blocked manifest URIs
+- CPU preflight statuses, optional dependency install instructions, dependency
+  warnings, collider/proxy labels, task/spawn proposal status, and
+  collider-backend blockers
+- advisory robot-eval job request and run-status URIs
 - evidence requirements
 - robot-team submission modality requirements and missing-evidence statuses
 - failure taxonomy availability
@@ -105,6 +204,9 @@ These artifacts alone must not be displayed as:
 
 - robot-ready or deployment-ready status
 - simulator execution completed
+- local CPU preflight smoke as completed owner-system simulator execution
+- `ready_for_owner_gpu_preflight` as completed simulator execution
+- a GPU handoff packet as evidence that an owner GPU simulator run occurred
 - safety validation
 - actual robot trial passed
 - submitted policy/container/trace/demo/plugin passed evaluation

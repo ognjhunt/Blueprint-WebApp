@@ -53,6 +53,7 @@ import { csrfCookieHandler, csrfProtection } from "./middleware/csrf";
 import marketplaceEntitlementsRouter from "./routes/marketplace-entitlements";
 import cityLaunchRouter from "./routes/city-launch";
 import publicLaunchRouter from "./routes/public-launch";
+import robotEvalJobRequestsRouter from "./routes/robot-eval-job-requests";
 
 export function registerRoutes(app: Express) {
   app.use(appleAssociationRouter);
@@ -73,6 +74,7 @@ export function registerRoutes(app: Express) {
   app.use("/api/slack", slackEventsRouter);
   app.use("/api/site-worlds", siteWorldsRouter);
   app.use("/api/site-worlds/sessions", publicSiteWorldSessionsRouter);
+  app.use("/api/robot-eval/job-requests", robotEvalJobRequestsRouter);
 
   // API routes for Express
   app.get("/api/csrf", csrfCookieHandler);

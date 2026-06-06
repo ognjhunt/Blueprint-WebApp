@@ -283,6 +283,27 @@ export interface PipelineArtifacts {
   robot_scenario_family_library_uri?: string | null;
   robot_scenario_library_uri?: string | null;
   robot_scoring_methodology_uri?: string | null;
+  robot_eval_task_thresholds_uri?: string | null;
+  robot_eval_publication_readiness_uri?: string | null;
+  robot_eval_scene_asset_inventory_uri?: string | null;
+  robot_eval_scene_asset_dependency_audit_uri?: string | null;
+  robot_eval_scene_asset_preflight_uri?: string | null;
+  robot_eval_scene_asset_inspection_uri?: string | null;
+  robot_eval_scene_frame_estimate_uri?: string | null;
+  robot_eval_collider_proxy_plan_uri?: string | null;
+  robot_eval_cpu_scene_proxy_manifest_uri?: string | null;
+  robot_eval_cpu_preflight_scorecard_uri?: string | null;
+  robot_eval_task_anchor_proposal_manifest_uri?: string | null;
+  robot_eval_episode_spec_manifest_uri?: string | null;
+  robot_eval_episode_specs_uri?: string | null;
+  robot_eval_spawn_pose_validation_manifest_uri?: string | null;
+  robot_eval_cpu_preflight_manifest_uri?: string | null;
+  robot_eval_pre_gpu_readiness_summary_uri?: string | null;
+  robot_eval_cpu_simulator_preflight_manifest_uri?: string | null;
+  robot_eval_gpu_handoff_packet_uri?: string | null;
+  robot_eval_gpu_owner_system_proof_schema_uri?: string | null;
+  robot_eval_gpu_run_checklist_uri?: string | null;
+  robot_eval_owner_gpu_simulator_execution_blocked_manifest_uri?: string | null;
   recorded_trace_eval_report_uri?: string | null;
   policy_eval_report_uri?: string | null;
   robot_pov_evidence_requirements_uri?: string | null;
@@ -292,6 +313,10 @@ export interface PipelineArtifacts {
   prediction_outcome_ledger_uri?: string | null;
   prediction_vs_actual_summary_uri?: string | null;
   robot_eval_methodology_summary_uri?: string | null;
+  robot_eval_job_request_uri?: string | null;
+  robot_eval_job_run_manifest_uri?: string | null;
+  robot_eval_job_proof_boundary_uri?: string | null;
+  robot_eval_job_blocked_manifest_uri?: string | null;
 }
 
 export interface OpsAutomationEnvelope {
@@ -412,6 +437,27 @@ export interface RobotEvalDatasetCardArtifactUris {
   scenario_family_library_uri?: string | null;
   scenario_library_uri?: string | null;
   scoring_methodology_uri?: string | null;
+  task_thresholds_uri?: string | null;
+  publication_readiness_uri?: string | null;
+  scene_asset_inventory_uri?: string | null;
+  scene_asset_dependency_audit_uri?: string | null;
+  scene_asset_preflight_uri?: string | null;
+  scene_asset_inspection_uri?: string | null;
+  scene_frame_estimate_uri?: string | null;
+  collider_proxy_plan_uri?: string | null;
+  cpu_scene_proxy_manifest_uri?: string | null;
+  cpu_preflight_scorecard_uri?: string | null;
+  task_anchor_proposal_manifest_uri?: string | null;
+  episode_spec_manifest_uri?: string | null;
+  episode_specs_uri?: string | null;
+  spawn_pose_validation_manifest_uri?: string | null;
+  cpu_preflight_manifest_uri?: string | null;
+  pre_gpu_readiness_summary_uri?: string | null;
+  cpu_simulator_preflight_manifest_uri?: string | null;
+  gpu_handoff_packet_uri?: string | null;
+  gpu_owner_system_proof_schema_uri?: string | null;
+  gpu_run_checklist_uri?: string | null;
+  owner_gpu_simulator_execution_blocked_manifest_uri?: string | null;
   recorded_trace_eval_report_uri?: string | null;
   policy_eval_report_uri?: string | null;
   robot_team_test_submission_modalities_uri?: string | null;
@@ -422,6 +468,11 @@ export interface RobotEvalDatasetCardArtifactUris {
 export interface RobotEvalDatasetSummary {
   dataset_state?: string | null;
   dataset_statuses?: string[];
+  ready_to_evaluate_publishable?: boolean | null;
+  publication_label?: string | null;
+  required_artifact_status?: string | null;
+  missing_required_artifacts?: string[];
+  missing_proof_labels?: string[];
   task_count?: number | null;
   scenario_count?: number | null;
   site_card_count?: number | null;
@@ -433,6 +484,61 @@ export interface RobotEvalDatasetSummary {
   manifest_uri?: string | null;
   card_artifact_uris?: RobotEvalDatasetCardArtifactUris | null;
   claim_boundary?: Record<string, unknown> | null;
+}
+
+export interface RobotEvalJobSummary {
+  status?: string | null;
+  job_request_uri?: string | null;
+  job_run_manifest_uri?: string | null;
+  proof_boundary_uri?: string | null;
+  blocked_manifest_uri?: string | null;
+  simulator_execution_proven?: boolean | null;
+  robot_readiness_proven?: boolean | null;
+  public_claim_upgrade_allowed?: boolean | null;
+}
+
+export interface RobotEvalPreflightSummary {
+  status?: string | null;
+  scene_asset_preflight_status?: string | null;
+  episode_spec_status?: string | null;
+  episode_count?: number | null;
+  cpu_simulator_preflight_status?: string | null;
+  local_cpu_preflight_smoke_ran?: boolean | null;
+  ready_for_owner_gpu_preflight?: boolean | null;
+  owner_gpu_simulator_execution_proven?: boolean | null;
+  dependency_warning_count?: number | null;
+  missing_dependency_count?: number | null;
+  remote_ref_count?: number | null;
+  real_collider_proven?: boolean | null;
+  proxy_estimated?: boolean | null;
+  missing_collider?: boolean | null;
+  review_required?: boolean | null;
+  collider_backend_labels?: string[];
+  collider_backend_blockers?: string[];
+  install_instructions?: string[];
+  scene_asset_inventory_uri?: string | null;
+  scene_asset_dependency_audit_uri?: string | null;
+  scene_asset_preflight_uri?: string | null;
+  scene_asset_inspection_uri?: string | null;
+  scene_frame_estimate_uri?: string | null;
+  collider_proxy_plan_uri?: string | null;
+  cpu_scene_proxy_manifest_uri?: string | null;
+  cpu_preflight_scorecard_uri?: string | null;
+  task_anchor_proposal_manifest_uri?: string | null;
+  episode_spec_manifest_uri?: string | null;
+  episode_specs_uri?: string | null;
+  spawn_pose_validation_manifest_uri?: string | null;
+  cpu_preflight_manifest_uri?: string | null;
+  pre_gpu_readiness_summary_uri?: string | null;
+  cpu_simulator_preflight_manifest_uri?: string | null;
+  gpu_handoff_packet_uri?: string | null;
+  gpu_owner_system_proof_schema_uri?: string | null;
+  gpu_run_checklist_uri?: string | null;
+  owner_gpu_simulator_execution_blocked_manifest_uri?: string | null;
+  simulator_execution_proven?: boolean | null;
+  robot_readiness_proven?: boolean | null;
+  safety_validated?: boolean | null;
+  public_claim_upgrade_allowed?: boolean | null;
 }
 
 export interface BuyerTrustScore {
@@ -569,6 +675,8 @@ export interface DeploymentReadinessSummary {
   evaluation_prep_summary?: Record<string, unknown> | null;
   alpha_readiness?: Record<string, unknown> | null;
   robot_eval_dataset_summary?: RobotEvalDatasetSummary | null;
+  robot_eval_job_summary?: RobotEvalJobSummary | null;
+  robot_eval_preflight_summary?: RobotEvalPreflightSummary | null;
   preview_status?: ProviderRunStatus | "preview_unavailable" | null;
   provider_run?: ProviderRunSummary | null;
 }

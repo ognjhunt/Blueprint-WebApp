@@ -1,7 +1,11 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import Sites from "@/pages/Sites";
 import SiteDetail from "@/pages/SiteDetail";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("Sites", () => {
   it("renders the captured-site library with the expected filters and CTAs", () => {
@@ -29,11 +33,108 @@ describe("Sites", () => {
       "href",
       "/sites/sw-chi-01",
     );
-    const requestHref =
-      within(harborviewCard as HTMLElement)
-        .getByRole("link", { name: /Request evaluation/i })
-        .getAttribute("href") || "";
-    expect(requestHref).toContain("path=task-evaluation-run");
+    expect(
+      within(harborviewCard as HTMLElement).getByText(/Materialization/i),
+    ).toBeInTheDocument();
+    expect(
+      within(harborviewCard as HTMLElement).getByText(/Site, task, scenario, eval, and threshold manifests attached/i),
+    ).toBeInTheDocument();
+    expect(
+      within(harborviewCard as HTMLElement).getByText(/CPU setup manifests present/i),
+    ).toBeInTheDocument();
+    expect(
+      within(harborviewCard as HTMLElement).getByText(/Awaiting policy\/container\/trace\/demo\/plugin evidence/i),
+    ).toBeInTheDocument();
+    expect(
+      within(harborviewCard as HTMLElement).getByRole("button", {
+        name: /Create eval job request/i,
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("posts a durable robot_eval_job_request when a robot team starts from a site card", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        status: "queued_for_pipeline",
+        jobRequest: {
+          schema_version: "robot_eval_job_request.v1",
+          job_id: "robot-eval-sw-chi-01-place-return-in-bin-fixture",
+        },
+      }),
+    } as Response);
+
+    render(<Sites />);
+
+    const harborviewCard = screen
+      .getByRole("heading", { name: /Harborview Grocery Distribution Annex/i })
+      .closest("article");
+    expect(harborviewCard).not.toBeNull();
+
+    fireEvent.click(
+      within(harborviewCard as HTMLElement).getByRole("button", {
+        name: /Create eval job request/i,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/robot-eval/job-requests",
+        expect.objectContaining({ method: "POST" }),
+      );
+    });
+
+    const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    const body = JSON.parse(String(init.body || "{}"));
+    expect(body.schema_version).toBe("robot_eval_job_request.v1");
+    expect(body.buyer_request_id).toBe(
+      "buyer-request-sw-chi-01-place-return-in-bin-default-fixture-policy",
+    );
+    expect(body.site_package.site_slug).toBe("sw-chi-01");
+    expect(body.site_package.site_submission_id).toBe("site-submission-sw-chi-01");
+    expect(body.site_package.capture_job_id).toBe("capture-job-sw-chi-01");
+    expect(body.site_package.capture_id).toBe("capture-sw-chi-01");
+    expect(body.site_package.buyer_request_id).toBe(body.buyer_request_id);
+    expect(body.site_package.pipeline_prefix).toBe(
+      "/synced-artifacts/sites/sw-chi-01/pipeline",
+    );
+    expect(body.site_package.publication_ready_to_evaluate).toBe(true);
+    expect(body.site_package.cpu_preflight_scorecard_uri).toContain(
+      "/cpu_preflight_scorecard.json",
+    );
+    expect(body.site_package.episode_spec_manifest_uri).toContain(
+      "/episode_spec_manifest.json",
+    );
+    expect(body.pipeline_trigger.cpu_pre_gpu_preflight).toEqual(
+      expect.objectContaining({
+        local_cpu_preflight_smoke_ran: false,
+        simulator_execution_proven: false,
+        robot_readiness_proven: false,
+      }),
+    );
+    expect(body.requested_tasks[0]).toEqual(
+      expect.objectContaining({
+        task_id: "place_return_in_bin",
+        scenario_ids: ["scenario_place_return_in_bin_mobile_manipulator_rgb_v1"],
+      }),
+    );
+    expect(body.owner_system).toEqual(
+      expect.objectContaining({
+        buyer_request_id: body.buyer_request_id,
+        site_submission_id: "site-submission-sw-chi-01",
+        capture_job_id: "capture-job-sw-chi-01",
+        capture_id: "capture-sw-chi-01",
+      }),
+    );
+    expect(Object.keys(body.policy_package)).toEqual([
+      "policy_api_endpoint",
+      "docker_container",
+      "recorded_action_trace",
+      "high_level_skill_trace",
+      "teleop_demo",
+      "sim_controller_plugin",
+    ]);
+    expect(await screen.findByText(/robot-eval-sw-chi-01/i)).toBeInTheDocument();
   });
 
   it("filters by site type, task pack, readiness, access, region, and search", () => {
@@ -64,10 +165,11 @@ describe("Sites", () => {
     ).toBeInTheDocument();
     expect(screen.getAllByText(/Open sample/i).length).toBeGreaterThan(0);
     expect(screen.getByRole("heading", { name: /Available task packs/i })).toBeInTheDocument();
-    const requestRunHref =
-      screen
-        .getAllByRole("link", { name: /Request Task Evaluation Run/i })[0]
-        .getAttribute("href") || "";
-    expect(requestRunHref).toContain("siteSlug=triangle-robotics-lab");
+    expect(
+      screen.getAllByRole("button", { name: /Create eval job request/i })[0],
+    ).toBeInTheDocument();
+    expect(screen.getAllByText(/Materialization/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/CPU setup manifests present/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Post-Training Data Package export awaits request approval/i).length).toBeGreaterThan(0);
   });
 });

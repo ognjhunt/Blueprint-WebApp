@@ -28,6 +28,7 @@ import type {
   OpsAutomationEnvelope,
   ProviderRunStatus,
   RobotEvalDatasetCardArtifactUris,
+  RobotEvalPreflightSummary,
 } from "../types/inbound-request";
 
 // ────────────────────────────────────────────────
@@ -140,6 +141,46 @@ function buildRobotEvalCardArtifactUris(
       artifacts?.robot_scenario_family_library_uri || null,
     scenario_library_uri: artifacts?.robot_scenario_library_uri || null,
     scoring_methodology_uri: artifacts?.robot_scoring_methodology_uri || null,
+    task_thresholds_uri: artifacts?.robot_eval_task_thresholds_uri || null,
+    publication_readiness_uri:
+      artifacts?.robot_eval_publication_readiness_uri || null,
+    scene_asset_inventory_uri:
+      artifacts?.robot_eval_scene_asset_inventory_uri || null,
+    scene_asset_dependency_audit_uri:
+      artifacts?.robot_eval_scene_asset_dependency_audit_uri || null,
+    scene_asset_preflight_uri:
+      artifacts?.robot_eval_scene_asset_preflight_uri || null,
+    scene_asset_inspection_uri:
+      artifacts?.robot_eval_scene_asset_inspection_uri || null,
+    scene_frame_estimate_uri:
+      artifacts?.robot_eval_scene_frame_estimate_uri || null,
+    collider_proxy_plan_uri:
+      artifacts?.robot_eval_collider_proxy_plan_uri || null,
+    cpu_scene_proxy_manifest_uri:
+      artifacts?.robot_eval_cpu_scene_proxy_manifest_uri || null,
+    cpu_preflight_scorecard_uri:
+      artifacts?.robot_eval_cpu_preflight_scorecard_uri || null,
+    task_anchor_proposal_manifest_uri:
+      artifacts?.robot_eval_task_anchor_proposal_manifest_uri || null,
+    episode_spec_manifest_uri:
+      artifacts?.robot_eval_episode_spec_manifest_uri || null,
+    episode_specs_uri: artifacts?.robot_eval_episode_specs_uri || null,
+    spawn_pose_validation_manifest_uri:
+      artifacts?.robot_eval_spawn_pose_validation_manifest_uri || null,
+    cpu_preflight_manifest_uri:
+      artifacts?.robot_eval_cpu_preflight_manifest_uri || null,
+    pre_gpu_readiness_summary_uri:
+      artifacts?.robot_eval_pre_gpu_readiness_summary_uri || null,
+    cpu_simulator_preflight_manifest_uri:
+      artifacts?.robot_eval_cpu_simulator_preflight_manifest_uri || null,
+    gpu_handoff_packet_uri:
+      artifacts?.robot_eval_gpu_handoff_packet_uri || null,
+    gpu_owner_system_proof_schema_uri:
+      artifacts?.robot_eval_gpu_owner_system_proof_schema_uri || null,
+    gpu_run_checklist_uri:
+      artifacts?.robot_eval_gpu_run_checklist_uri || null,
+    owner_gpu_simulator_execution_blocked_manifest_uri:
+      artifacts?.robot_eval_owner_gpu_simulator_execution_blocked_manifest_uri || null,
     recorded_trace_eval_report_uri:
       artifacts?.recorded_trace_eval_report_uri || null,
     policy_eval_report_uri: artifacts?.policy_eval_report_uri || null,
@@ -151,23 +192,194 @@ function buildRobotEvalCardArtifactUris(
   };
 }
 
-function hasRobotEvalCardFamily(artifacts: PipelineArtifacts | undefined): boolean {
-  return Boolean(
-    hasArtifact(artifacts, "robot_eval_site_card_uri") ||
-      hasArtifact(artifacts, "robot_eval_task_cards_uri") ||
-      hasArtifact(artifacts, "robot_eval_scenario_cards_uri") ||
-      hasArtifact(artifacts, "robot_eval_cards_uri") ||
-      hasArtifact(artifacts, "robot_eval_annotation_backlog_uri") ||
-      hasArtifact(artifacts, "robot_eval_proof_boundaries_uri") ||
-      hasArtifact(artifacts, "robot_task_ontology_v1_uri") ||
-      hasArtifact(artifacts, "robot_scenario_family_library_uri") ||
-      hasArtifact(artifacts, "robot_rights_packet_uri") ||
-      hasArtifact(artifacts, "robot_scoring_methodology_uri") ||
-      hasArtifact(artifacts, "recorded_trace_eval_report_uri") ||
-      hasArtifact(artifacts, "policy_eval_report_uri") ||
-      hasArtifact(artifacts, "prediction_vs_actual_summary_uri") ||
-      hasArtifact(artifacts, "robot_team_test_submission_modalities_uri"),
+const ROBOT_EVAL_PUBLICATION_REQUIRED_ARTIFACTS: (keyof PipelineArtifacts)[] = [
+  "robot_eval_dataset_manifest_uri",
+  "robot_eval_site_card_uri",
+  "robot_eval_task_cards_uri",
+  "robot_eval_scenario_cards_uri",
+  "robot_eval_cards_uri",
+  "robot_eval_proof_boundaries_uri",
+  "robot_task_ontology_v1_uri",
+  "robot_scenario_family_library_uri",
+  "robot_scoring_methodology_uri",
+  "robot_eval_task_thresholds_uri",
+  "robot_eval_publication_readiness_uri",
+];
+
+function missingRobotEvalPublicationArtifacts(
+  artifacts: PipelineArtifacts | undefined,
+): string[] {
+  return ROBOT_EVAL_PUBLICATION_REQUIRED_ARTIFACTS.filter(
+    (key) => !hasArtifact(artifacts, key),
   );
+}
+
+function hasAnyRobotEvalJobArtifact(artifacts: PipelineArtifacts | undefined): boolean {
+  return Boolean(
+    hasArtifact(artifacts, "robot_eval_job_request_uri") ||
+      hasArtifact(artifacts, "robot_eval_job_run_manifest_uri") ||
+      hasArtifact(artifacts, "robot_eval_job_proof_boundary_uri") ||
+      hasArtifact(artifacts, "robot_eval_job_blocked_manifest_uri"),
+  );
+}
+
+function hasAnyRobotEvalPreflightArtifact(artifacts: PipelineArtifacts | undefined): boolean {
+  return Boolean(
+    hasArtifact(artifacts, "robot_eval_scene_asset_inventory_uri") ||
+      hasArtifact(artifacts, "robot_eval_scene_asset_dependency_audit_uri") ||
+      hasArtifact(artifacts, "robot_eval_scene_asset_preflight_uri") ||
+    hasArtifact(artifacts, "robot_eval_scene_asset_inspection_uri") ||
+      hasArtifact(artifacts, "robot_eval_scene_frame_estimate_uri") ||
+      hasArtifact(artifacts, "robot_eval_collider_proxy_plan_uri") ||
+      hasArtifact(artifacts, "robot_eval_cpu_scene_proxy_manifest_uri") ||
+      hasArtifact(artifacts, "robot_eval_cpu_preflight_scorecard_uri") ||
+      hasArtifact(artifacts, "robot_eval_task_anchor_proposal_manifest_uri") ||
+      hasArtifact(artifacts, "robot_eval_episode_spec_manifest_uri") ||
+      hasArtifact(artifacts, "robot_eval_episode_specs_uri") ||
+      hasArtifact(artifacts, "robot_eval_spawn_pose_validation_manifest_uri") ||
+      hasArtifact(artifacts, "robot_eval_cpu_preflight_manifest_uri") ||
+      hasArtifact(artifacts, "robot_eval_pre_gpu_readiness_summary_uri") ||
+      hasArtifact(artifacts, "robot_eval_cpu_simulator_preflight_manifest_uri") ||
+      hasArtifact(artifacts, "robot_eval_gpu_handoff_packet_uri") ||
+      hasArtifact(artifacts, "robot_eval_gpu_owner_system_proof_schema_uri") ||
+      hasArtifact(artifacts, "robot_eval_gpu_run_checklist_uri") ||
+      hasArtifact(artifacts, "robot_eval_owner_gpu_simulator_execution_blocked_manifest_uri"),
+  );
+}
+
+function buildRobotEvalPreflightSummary(
+  current: RobotEvalPreflightSummary | null | undefined,
+  artifacts: PipelineArtifacts | undefined,
+): RobotEvalPreflightSummary {
+  const existing = current || {};
+  const sceneAssetInventoryUri =
+    artifacts?.robot_eval_scene_asset_inventory_uri ||
+    existing.scene_asset_inventory_uri ||
+    null;
+  const sceneAssetDependencyAuditUri =
+    artifacts?.robot_eval_scene_asset_dependency_audit_uri ||
+    existing.scene_asset_dependency_audit_uri ||
+    null;
+  const sceneAssetPreflightUri =
+    artifacts?.robot_eval_scene_asset_preflight_uri ||
+    existing.scene_asset_preflight_uri ||
+    null;
+  const sceneAssetInspectionUri =
+    artifacts?.robot_eval_scene_asset_inspection_uri ||
+    existing.scene_asset_inspection_uri ||
+    null;
+  const sceneFrameEstimateUri =
+    artifacts?.robot_eval_scene_frame_estimate_uri ||
+    existing.scene_frame_estimate_uri ||
+    null;
+  const colliderProxyPlanUri =
+    artifacts?.robot_eval_collider_proxy_plan_uri ||
+    existing.collider_proxy_plan_uri ||
+    null;
+  const cpuSceneProxyManifestUri =
+    artifacts?.robot_eval_cpu_scene_proxy_manifest_uri ||
+    existing.cpu_scene_proxy_manifest_uri ||
+    null;
+  const cpuPreflightScorecardUri =
+    artifacts?.robot_eval_cpu_preflight_scorecard_uri ||
+    existing.cpu_preflight_scorecard_uri ||
+    null;
+  const taskAnchorProposalManifestUri =
+    artifacts?.robot_eval_task_anchor_proposal_manifest_uri ||
+    existing.task_anchor_proposal_manifest_uri ||
+    null;
+  const episodeSpecManifestUri =
+    artifacts?.robot_eval_episode_spec_manifest_uri ||
+    existing.episode_spec_manifest_uri ||
+    null;
+  const episodeSpecsUri =
+    artifacts?.robot_eval_episode_specs_uri ||
+    existing.episode_specs_uri ||
+    null;
+  const spawnPoseValidationManifestUri =
+    artifacts?.robot_eval_spawn_pose_validation_manifest_uri ||
+    existing.spawn_pose_validation_manifest_uri ||
+    null;
+  const cpuPreflightManifestUri =
+    artifacts?.robot_eval_cpu_preflight_manifest_uri ||
+    existing.cpu_preflight_manifest_uri ||
+    null;
+  const preGpuReadinessSummaryUri =
+    artifacts?.robot_eval_pre_gpu_readiness_summary_uri ||
+    existing.pre_gpu_readiness_summary_uri ||
+    null;
+  const cpuSimulatorPreflightManifestUri =
+    artifacts?.robot_eval_cpu_simulator_preflight_manifest_uri ||
+    existing.cpu_simulator_preflight_manifest_uri ||
+    null;
+  const gpuHandoffPacketUri =
+    artifacts?.robot_eval_gpu_handoff_packet_uri ||
+    existing.gpu_handoff_packet_uri ||
+    null;
+  const gpuOwnerSystemProofSchemaUri =
+    artifacts?.robot_eval_gpu_owner_system_proof_schema_uri ||
+    existing.gpu_owner_system_proof_schema_uri ||
+    null;
+  const gpuRunChecklistUri =
+    artifacts?.robot_eval_gpu_run_checklist_uri ||
+    existing.gpu_run_checklist_uri ||
+    null;
+  const ownerGpuBlockedManifestUri =
+    artifacts?.robot_eval_owner_gpu_simulator_execution_blocked_manifest_uri ||
+    existing.owner_gpu_simulator_execution_blocked_manifest_uri ||
+    null;
+
+  return {
+    ...existing,
+    status: existing.status || "advisory_cpu_preflight_artifacts_present",
+    scene_asset_preflight_status:
+      existing.scene_asset_preflight_status ||
+      (sceneAssetInspectionUri || cpuPreflightScorecardUri ? "manifest_present" : null),
+    episode_spec_status:
+      existing.episode_spec_status ||
+      (episodeSpecManifestUri ? "manifest_present_review_required" : null),
+    cpu_simulator_preflight_status:
+      existing.cpu_simulator_preflight_status ||
+      (cpuSimulatorPreflightManifestUri ? "manifest_present_optional_smoke" : null),
+    local_cpu_preflight_smoke_ran:
+      existing.local_cpu_preflight_smoke_ran ?? false,
+    ready_for_owner_gpu_preflight:
+      existing.ready_for_owner_gpu_preflight ?? Boolean(preGpuReadinessSummaryUri || gpuHandoffPacketUri),
+    owner_gpu_simulator_execution_proven: false,
+    dependency_warning_count: existing.dependency_warning_count ?? null,
+    missing_dependency_count: existing.missing_dependency_count ?? null,
+    remote_ref_count: existing.remote_ref_count ?? null,
+    real_collider_proven: existing.real_collider_proven ?? false,
+    proxy_estimated: existing.proxy_estimated ?? Boolean(cpuSceneProxyManifestUri),
+    missing_collider: existing.missing_collider ?? null,
+    review_required: existing.review_required ?? true,
+    collider_backend_labels: existing.collider_backend_labels || [],
+    collider_backend_blockers: existing.collider_backend_blockers || [],
+    install_instructions: existing.install_instructions || [],
+    scene_asset_inventory_uri: sceneAssetInventoryUri,
+    scene_asset_dependency_audit_uri: sceneAssetDependencyAuditUri,
+    scene_asset_preflight_uri: sceneAssetPreflightUri,
+    scene_asset_inspection_uri: sceneAssetInspectionUri,
+    scene_frame_estimate_uri: sceneFrameEstimateUri,
+    collider_proxy_plan_uri: colliderProxyPlanUri,
+    cpu_scene_proxy_manifest_uri: cpuSceneProxyManifestUri,
+    cpu_preflight_scorecard_uri: cpuPreflightScorecardUri,
+    task_anchor_proposal_manifest_uri: taskAnchorProposalManifestUri,
+    episode_spec_manifest_uri: episodeSpecManifestUri,
+    episode_specs_uri: episodeSpecsUri,
+    spawn_pose_validation_manifest_uri: spawnPoseValidationManifestUri,
+    cpu_preflight_manifest_uri: cpuPreflightManifestUri,
+    pre_gpu_readiness_summary_uri: preGpuReadinessSummaryUri,
+    cpu_simulator_preflight_manifest_uri: cpuSimulatorPreflightManifestUri,
+    gpu_handoff_packet_uri: gpuHandoffPacketUri,
+    gpu_owner_system_proof_schema_uri: gpuOwnerSystemProofSchemaUri,
+    gpu_run_checklist_uri: gpuRunChecklistUri,
+    owner_gpu_simulator_execution_blocked_manifest_uri: ownerGpuBlockedManifestUri,
+    simulator_execution_proven: false,
+    robot_readiness_proven: false,
+    safety_validated: false,
+    public_claim_upgrade_allowed: false,
+  };
 }
 
 function allDerivedAssetsComplete(derivedAssets: DerivedAssetsAttachment | undefined): boolean {
@@ -555,12 +767,19 @@ export function enrichDeploymentReadinessFromArtifacts(
   }
   if (hasArtifact(artifacts, "robot_eval_dataset_manifest_uri")) {
     const cardArtifactUris = buildRobotEvalCardArtifactUris(artifacts);
-    const cardFamilyPresent = hasRobotEvalCardFamily(artifacts);
+    const missingRequiredArtifacts = missingRobotEvalPublicationArtifacts(artifacts);
+    const packageComplete = missingRequiredArtifacts.length === 0;
     enriched.robot_eval_dataset_summary = {
       ...(enriched.robot_eval_dataset_summary || {}),
       dataset_state:
         enriched.robot_eval_dataset_summary?.dataset_state ||
-        (cardFamilyPresent ? "v0_1_card_family_present" : "advisory_contract_present"),
+        (packageComplete
+          ? "ready_to_evaluate_package_present"
+          : "publication_blocked_missing_robot_eval_package"),
+      ready_to_evaluate_publishable: packageComplete,
+      publication_label: packageComplete ? "Ready to evaluate" : "Needs review",
+      required_artifact_status: packageComplete ? "complete" : "missing",
+      missing_required_artifacts: missingRequiredArtifacts,
       manifest_uri: artifacts?.robot_eval_dataset_manifest_uri || null,
       site_card_count:
         enriched.robot_eval_dataset_summary?.site_card_count ??
@@ -570,6 +789,28 @@ export function enrichDeploymentReadinessFromArtifacts(
         ...cardArtifactUris,
       },
     };
+  }
+  if (hasAnyRobotEvalJobArtifact(artifacts)) {
+    enriched.robot_eval_job_summary = {
+      ...(enriched.robot_eval_job_summary || {}),
+      status: "advisory_job_artifacts_present",
+      job_request_uri: artifacts?.robot_eval_job_request_uri || null,
+      job_run_manifest_uri: artifacts?.robot_eval_job_run_manifest_uri || null,
+      proof_boundary_uri: artifacts?.robot_eval_job_proof_boundary_uri || null,
+      blocked_manifest_uri: artifacts?.robot_eval_job_blocked_manifest_uri || null,
+      simulator_execution_proven: false,
+      robot_readiness_proven: false,
+      public_claim_upgrade_allowed: false,
+    };
+  }
+  if (
+    hasAnyRobotEvalPreflightArtifact(artifacts) ||
+    enriched.robot_eval_preflight_summary
+  ) {
+    enriched.robot_eval_preflight_summary = buildRobotEvalPreflightSummary(
+      enriched.robot_eval_preflight_summary,
+      artifacts,
+    );
   }
 
   // Derived asset status mapping

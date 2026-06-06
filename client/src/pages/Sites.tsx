@@ -11,11 +11,11 @@ import {
   X,
 } from "lucide-react";
 import { SEO } from "@/components/SEO";
+import { RobotEvalJobRequestButton } from "@/components/site/RobotEvalJobRequestButton";
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 import {
   accessFilterOptions,
   buildSubmitSiteHref,
-  buildTaskEvaluationRunHref,
   readinessFilterOptions,
   regionFilterOptions,
   siteLibrarySites,
@@ -113,6 +113,7 @@ function Badge({ label, className }: { label: string; className: string }) {
 }
 
 function SiteCard({ site }: { site: SiteLibrarySite }) {
+  const publication = site.robotEvalPublication;
   return (
     <article className="grid overflow-hidden border border-black/10 bg-white shadow-[0_22px_70px_-56px_rgba(15,23,42,0.45)]">
       <a href={`/sites/${site.slug}`} className="block overflow-hidden bg-slate-100">
@@ -174,6 +175,30 @@ function SiteCard({ site }: { site: SiteLibrarySite }) {
           </div>
         </div>
 
+        {publication ? (
+          <div className="mt-4">
+            <div className="grid gap-px bg-black/10 text-sm sm:grid-cols-2">
+              {(site.pipelineManifestStatuses || []).map((item) => (
+                <div key={item.lane} className="bg-white p-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                    {item.label}
+                  </p>
+                  <p className="mt-1 font-semibold text-slate-950">
+                    {item.summary}
+                  </p>
+                  <p className="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                    {item.status.replace(/_/g, " ")}
+                  </p>
+                </div>
+              ))}
+            </div>
+            <p className="mt-3 text-xs leading-5 text-slate-500">
+              Retry/failure summaries are advisory; they do not imply simulator execution,
+              safety validation, or robot readiness.
+            </p>
+          </div>
+        ) : null}
+
         <div className="mt-auto flex flex-col gap-2 pt-5 sm:flex-row">
           <a
             href={`/sites/${site.slug}`}
@@ -182,12 +207,7 @@ function SiteCard({ site }: { site: SiteLibrarySite }) {
             View site
             <ArrowRight className="ml-2 h-4 w-4" />
           </a>
-          <a
-            href={buildTaskEvaluationRunHref(site, "sites-library-card")}
-            className="inline-flex min-h-11 items-center justify-center border border-black/10 px-4 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
-          >
-            Request evaluation
-          </a>
+          <RobotEvalJobRequestButton site={site} source="sites" />
         </div>
       </div>
     </article>
