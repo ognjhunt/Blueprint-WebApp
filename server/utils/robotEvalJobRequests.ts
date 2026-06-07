@@ -5,6 +5,9 @@ import path from "node:path";
 const JOB_REQUEST_SCHEMA_VERSION = "robot_eval_job_request.v1";
 const JOB_REQUEST_QUEUE_CONTRACT = "robot_eval_job_request_inbox.v1";
 const DEFAULT_FORWARD_TIMEOUT_MS = 10000;
+const FORWARD_CAPTURE_ROOT_ENV = "ROBOT_EVAL_JOB_REQUEST_FORWARD_CAPTURE_ROOT";
+const FORWARD_CAPTURE_ROOT_BY_SITE_ENV =
+  "ROBOT_EVAL_JOB_REQUEST_FORWARD_CAPTURE_ROOT_BY_SITE_JSON";
 
 const CLAIM_BOUNDARY = {
   simulator_execution_proven: false,
@@ -25,6 +28,17 @@ const POLICY_MODALITIES = [
 ] as const;
 
 type PolicyModality = (typeof POLICY_MODALITIES)[number];
+type CaptureRootOverrideResolution =
+  | { ok: true; captureRoot?: string; source?: "site" | "global" }
+  | { ok: false; blockers: string[] };
+type PipelineForwardJobRequestResolution =
+  | {
+      ok: true;
+      jobRequest: Record<string, unknown>;
+      applied: boolean;
+      source?: "site" | "global";
+    }
+  | { ok: false; blockers: string[] };
 
 function slugify(value: string) {
   return value
@@ -437,6 +451,8 @@ export type RobotEvalJobRequestForwardResult = {
   blockers?: string[];
   error_name?: string;
   error_message?: string;
+  capture_root_override_applied?: boolean;
+  capture_root_override_source?: "site" | "global";
 };
 
 function truthy(value: string | undefined) {
@@ -446,6 +462,128 @@ function truthy(value: string | undefined) {
 function intEnv(value: string | undefined, fallback: number) {
   const parsed = Number.parseInt(String(value || ""), 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function parseCaptureRootBySiteEnv() {
+  const raw = String(process.env[FORWARD_CAPTURE_ROOT_BY_SITE_ENV] || "").trim();
+  if (!raw) {
+    return { ok: true as const, overrides: {} as Record<string, string> };
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    if (!hasObject(parsed)) {
+      return {
+        ok: false as const,
+        blockers: [`invalid_env_${FORWARD_CAPTURE_ROOT_BY_SITE_ENV}`],
+      };
+    }
+    const overrides = Object.fromEntries(
+      Object.entries(parsed)
+        .map(([siteSlug, captureRoot]) => [
+          String(siteSlug).trim(),
+          String(captureRoot || "").trim(),
+        ])
+        .filter(([siteSlug, captureRoot]) => siteSlug && captureRoot),
+    );
+    return { ok: true as const, overrides };
+  } catch {
+    return {
+      ok: false as const,
+      blockers: [`invalid_env_${FORWARD_CAPTURE_ROOT_BY_SITE_ENV}`],
+    };
+  }
+}
+
+function captureRootOverrideForJobRequest(
+  jobRequest: Record<string, unknown>,
+): CaptureRootOverrideResolution {
+  const sitePackage = hasObject(jobRequest.site_package) ? jobRequest.site_package : {};
+  const siteSlug = String(sitePackage.site_slug || "").trim();
+  const bySite = parseCaptureRootBySiteEnv();
+  if (!bySite.ok) {
+    return bySite;
+  }
+  if (siteSlug && bySite.overrides[siteSlug]) {
+    return {
+      ok: true as const,
+      captureRoot: bySite.overrides[siteSlug],
+      source: "site" as const,
+    };
+  }
+  const globalCaptureRoot = String(process.env[FORWARD_CAPTURE_ROOT_ENV] || "").trim();
+  if (globalCaptureRoot) {
+    return {
+      ok: true as const,
+      captureRoot: globalCaptureRoot,
+      source: "global" as const,
+    };
+  }
+  return { ok: true as const };
+}
+
+function jobRequestWithPipelineCaptureRoot(
+  jobRequest: Record<string, unknown>,
+): PipelineForwardJobRequestResolution {
+  const override = captureRootOverrideForJobRequest(jobRequest);
+  if (!override.ok) {
+    return override;
+  }
+  if (!override.captureRoot) {
+    return { ok: true as const, jobRequest, applied: false as const };
+  }
+
+  const sitePackage = hasObject(jobRequest.site_package) ? jobRequest.site_package : {};
+  const ownerSystem = hasObject(jobRequest.owner_system) ? jobRequest.owner_system : {};
+  const webappCaptureRoot = String(sitePackage.capture_root || "").trim();
+  return {
+    ok: true as const,
+    applied: true as const,
+    source: override.source,
+    jobRequest: {
+      ...jobRequest,
+      site_package: {
+        ...sitePackage,
+        capture_root: override.captureRoot,
+        webapp_capture_root: webappCaptureRoot || null,
+        capture_root_override_source:
+          override.source === "site"
+            ? `env:${FORWARD_CAPTURE_ROOT_BY_SITE_ENV}`
+            : `env:${FORWARD_CAPTURE_ROOT_ENV}`,
+      },
+      owner_system: {
+        ...ownerSystem,
+        pipeline_control_plane_capture_root: override.captureRoot,
+      },
+    },
+  };
+}
+
+export function robotEvalJobRequestForwardErrorMessage(
+  result: RobotEvalJobRequestForwardResult,
+) {
+  if (result.status === "not_configured") {
+    return "Pipeline forwarding is not configured for this WebApp environment.";
+  }
+  if (result.blockers?.length) {
+    return `Pipeline forwarding blocked: ${result.blockers.join(", ")}`;
+  }
+  if (Array.isArray(result.input_blockers) && result.input_blockers.length) {
+    if (
+      result.input_blockers.includes(
+        "webapp:request_capture_root_does_not_match_control_plane",
+      )
+    ) {
+      return "Pipeline intake blocked this request because the WebApp capture root does not match the active CapturePipeline control-plane capture root.";
+    }
+    return `Pipeline intake blocked this request: ${result.input_blockers.join(", ")}`;
+  }
+  if (result.http_status) {
+    return `CapturePipeline intake returned ${result.http_status}.`;
+  }
+  if (result.error_message) {
+    return `Pipeline forwarding failed: ${result.error_message}`;
+  }
+  return "Pipeline forwarding failed.";
 }
 
 export async function forwardRobotEvalJobRequestToPipeline(params: {
@@ -481,8 +619,20 @@ export async function forwardRobotEvalJobRequestToPipeline(params: {
     };
   }
 
-  const jobId = String(params.jobRequest.job_id || "").trim();
-  const buyerRequestId = String(params.jobRequest.buyer_request_id || "").trim();
+  const forwardJobRequest = jobRequestWithPipelineCaptureRoot(params.jobRequest);
+  if (!forwardJobRequest.ok) {
+    return {
+      status: "blocked",
+      performed: false,
+      endpoint_configured: true,
+      required,
+      blockers: forwardJobRequest.blockers,
+    };
+  }
+
+  const jobRequest = forwardJobRequest.jobRequest as Record<string, unknown>;
+  const jobId = String(jobRequest.job_id || "").trim();
+  const buyerRequestId = String(jobRequest.buyer_request_id || "").trim();
   const envelope = {
     queue_contract: JOB_REQUEST_QUEUE_CONTRACT,
     status: "queued_for_pipeline",
@@ -491,7 +641,7 @@ export async function forwardRobotEvalJobRequestToPipeline(params: {
     buyer_request_id: buyerRequestId,
     pipeline_command: "blueprint-run-robot-eval-job",
     pipeline_consumer: "BlueprintCapturePipeline",
-    job_request: params.jobRequest,
+    job_request: jobRequest,
   };
   const controller = new AbortController();
   const timeout = setTimeout(
@@ -523,6 +673,8 @@ export async function forwardRobotEvalJobRequestToPipeline(params: {
       endpoint_configured: true,
       required,
       http_status: response.status,
+      capture_root_override_applied: forwardJobRequest.applied,
+      capture_root_override_source: forwardJobRequest.source,
     };
     if (typeof detail.accepted === "boolean") {
       result.accepted = detail.accepted;

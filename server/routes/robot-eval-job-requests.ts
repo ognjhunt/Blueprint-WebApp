@@ -3,6 +3,7 @@ import path from "node:path";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import {
   forwardRobotEvalJobRequestToPipeline,
+  robotEvalJobRequestForwardErrorMessage,
   validateRobotEvalJobRequest,
   writeRobotEvalJobRequestInbox,
 } from "../utils/robotEvalJobRequests";
@@ -91,6 +92,7 @@ router.post("/", async (req, res) => {
     return res.status(502).json({
       ok: false,
       status: "pipeline_forward_failed",
+      error: robotEvalJobRequestForwardErrorMessage(pipelineForward),
       durableStore,
       pipelineInbox: inbox,
       pipelineForward,

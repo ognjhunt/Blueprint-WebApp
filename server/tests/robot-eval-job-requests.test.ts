@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   buildRobotEvalJobRequest,
   forwardRobotEvalJobRequestToPipeline,
+  robotEvalJobRequestForwardErrorMessage,
   validateRobotEvalJobRequest,
   writeRobotEvalJobRequestInbox,
 } from "../utils/robotEvalJobRequests";
@@ -351,6 +352,100 @@ describe("buildRobotEvalJobRequest", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("blocks Pipeline forwarding when the site capture-root override env is invalid", async () => {
+    vi.stubEnv("ROBOT_EVAL_JOB_REQUEST_FORWARD_CAPTURE_ROOT_BY_SITE_JSON", "{bad-json");
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+
+    const result = await forwardRobotEvalJobRequestToPipeline({
+      endpointUrl: "http://127.0.0.1:8765/api/live-pipeline/job-requests",
+      token: "test-forward-token",
+      jobRequest: {
+        schema_version: "robot_eval_job_request.v1",
+        job_id: "robot-eval-1",
+        buyer_request_id: "buyer-request-1",
+      },
+      queuedAt: "2026-06-06T00:00:00.000Z",
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        status: "blocked",
+        performed: false,
+        blockers: [
+          "invalid_env_ROBOT_EVAL_JOB_REQUEST_FORWARD_CAPTURE_ROOT_BY_SITE_JSON",
+        ],
+      }),
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("can forward a site request with the active Pipeline control-plane capture root", async () => {
+    vi.stubEnv(
+      "ROBOT_EVAL_JOB_REQUEST_FORWARD_CAPTURE_ROOT_BY_SITE_JSON",
+      JSON.stringify({
+        "sw-chi-01": "/var/lib/blueprint/captures/sw-chi-01/capture-root",
+      }),
+    );
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          accepted: true,
+          status: "staged_for_control_plane",
+          input_blockers: [],
+        }),
+        {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        },
+      ),
+    );
+
+    const result = await forwardRobotEvalJobRequestToPipeline({
+      endpointUrl: "http://127.0.0.1:8765/api/live-pipeline/job-requests",
+      token: "test-forward-token",
+      jobRequest: {
+        schema_version: "robot_eval_job_request.v1",
+        job_id: "robot-eval-sw-chi-01-place-return-in-bin-default-fixture-policy",
+        buyer_request_id: "buyer-request-sw-chi-01-place-return-in-bin-default-fixture-policy",
+        site_package: {
+          site_slug: "sw-chi-01",
+          capture_root: "/synced-artifacts/sites/sw-chi-01",
+        },
+        owner_system: {
+          name: "Blueprint-WebApp",
+        },
+      },
+      queuedAt: "2026-06-06T00:00:00.000Z",
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        status: "forwarded",
+        performed: true,
+        capture_root_override_applied: true,
+        capture_root_override_source: "site",
+      }),
+    );
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(String(init.body));
+    expect(body.job_request.site_package).toEqual(
+      expect.objectContaining({
+        site_slug: "sw-chi-01",
+        capture_root: "/var/lib/blueprint/captures/sw-chi-01/capture-root",
+        webapp_capture_root: "/synced-artifacts/sites/sw-chi-01",
+        capture_root_override_source:
+          "env:ROBOT_EVAL_JOB_REQUEST_FORWARD_CAPTURE_ROOT_BY_SITE_JSON",
+      }),
+    );
+    expect(body.job_request.owner_system).toEqual(
+      expect.objectContaining({
+        name: "Blueprint-WebApp",
+        pipeline_control_plane_capture_root:
+          "/var/lib/blueprint/captures/sw-chi-01/capture-root",
+      }),
+    );
+  });
+
   it("forwards a Pipeline queue envelope with redacted status", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(
@@ -409,5 +504,60 @@ describe("buildRobotEvalJobRequest", () => {
       }),
     );
     expect(body.job_request.schema_version).toBe("robot_eval_job_request.v1");
+  });
+
+  it("treats Pipeline-recorded blocked requests as forwarded", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          accepted: false,
+          status: "blocked",
+          input_blockers: [
+            "webapp:request_capture_root_does_not_match_control_plane",
+          ],
+        }),
+        {
+          status: 202,
+          headers: { "content-type": "application/json" },
+        },
+      ),
+    );
+
+    const result = await forwardRobotEvalJobRequestToPipeline({
+      endpointUrl: "http://127.0.0.1:8765/api/live-pipeline/job-requests",
+      token: "test-forward-token",
+      jobRequest: {
+        schema_version: "robot_eval_job_request.v1",
+        job_id: "robot-eval-1",
+        buyer_request_id: "buyer-request-1",
+      },
+      queuedAt: "2026-06-06T00:00:00.000Z",
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        status: "forwarded",
+        performed: true,
+        http_status: 202,
+        accepted: false,
+        pipeline_status: "blocked",
+        input_blockers: [
+          "webapp:request_capture_root_does_not_match_control_plane",
+        ],
+      }),
+    );
+  });
+
+  it("explains Pipeline input blockers instead of hiding them behind a generic 502", () => {
+    expect(
+      robotEvalJobRequestForwardErrorMessage({
+        status: "failed",
+        performed: false,
+        endpoint_configured: true,
+        required: true,
+        http_status: 422,
+        input_blockers: ["webapp:request_capture_root_does_not_match_control_plane"],
+      }),
+    ).toMatch(/capture root does not match/i);
   });
 });

@@ -171,12 +171,20 @@ Agent-side creative MCP note:
 ### Internal Marketplace + Pipeline
 - `PIPELINE_SYNC_TOKEN`
 - `BLUEPRINT_REQUEST_REVIEW_TOKEN_SECRET`
+- Optional live robot-eval forwarding:
+  - `ROBOT_EVAL_JOB_REQUEST_FORWARD_URL`
+  - `ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN`
+  - `ROBOT_EVAL_JOB_REQUEST_FORWARD_REQUIRED=true`
+  - `ROBOT_EVAL_JOB_REQUEST_FORWARD_TIMEOUT_MS=10000`
+  - `ROBOT_EVAL_JOB_REQUEST_FORWARD_CAPTURE_ROOT_BY_SITE_JSON={"sw-chi-01":"/abs/live/capture/root"}`
+  - Optional single active-root fallback: `ROBOT_EVAL_JOB_REQUEST_FORWARD_CAPTURE_ROOT=/abs/live/capture/root`
 - Optional internal-only fallback: `PIPELINE_SYNC_ALLOW_PLACEHOLDER_REQUESTS=true`
 - Optional internal demo flags: `BLUEPRINT_ENABLE_DEMO_SITE_WORLDS=1`, `BLUEPRINT_DEMO_BUNDLE_PIPELINE_ROOT=/abs/path`, `BLUEPRINT_HOSTED_DEMO_SITE_WORLD_ID=<id>`
 
 Launch-critical note:
 - Leave `PIPELINE_SYNC_ALLOW_PLACEHOLDER_REQUESTS` unset in paid/production flows so pipeline sync fails closed when inbound request bootstrap is missing.
 - Leave demo site-world flags unset in production unless you explicitly want the internal demo world exposed.
+- Live robot-eval forwarding reaches the CapturePipeline intake service only when URL/token are configured. If the Pipeline control plane requires the incoming request to match its active capture root, configure `ROBOT_EVAL_JOB_REQUEST_FORWARD_CAPTURE_ROOT_BY_SITE_JSON`; the forwarded envelope keeps the original WebApp/public root in `site_package.webapp_capture_root` and does not upgrade simulator, safety, or readiness proof.
 
 ### Redis (server, recommended for live hosted sessions)
 - Optional but recommended: `REDIS_URL`
