@@ -59,8 +59,25 @@ describe("RobotTeamEval", () => {
     expect(screen.getByText(/High-level skill traces/i)).toBeInTheDocument();
     expect(screen.getByText(/Teleop demos/i)).toBeInTheDocument();
     expect(screen.getByText(/Sim controller plugin/i)).toBeInTheDocument();
-    expect(screen.getByText(/Artifact refs first/i)).toBeInTheDocument();
-    expect(screen.getByText(/does not prove deployment readiness/i)).toBeInTheDocument();
+    expect(screen.getByText(/Submitted interfaces are inputs/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", {
+        name: /Site package \+ robot profile \+ policy access = eval report\./i,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("img", {
+        name: /humanoid robot in a warehouse evaluation bay/i,
+      }),
+    ).toHaveAttribute(
+      "src",
+      "/editorial/2026-06-06/robot-team-eval-workflow.png",
+    );
+    expect(screen.getByText(/Robot teams keep source code and model weights private/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/^Site package$/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/^Policy API$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^Container \/ private cloud$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^Action trace$/i)).toBeInTheDocument();
   });
 
   it("renders the real-site robot eval workflow and keeps sample report boundaries visible", () => {

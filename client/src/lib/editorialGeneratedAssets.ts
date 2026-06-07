@@ -1,5 +1,6 @@
 const humanoidReadinessBase = "/generated/humanoid-readiness-2026-06-03";
 const robotMosaicHeroBase = "/editorial/2026-06-04";
+const robotTeamEvalBase = "/editorial/2026-06-06";
 
 export const humanoidReadinessAssets = {
   warehouseHero: `${humanoidReadinessBase}/humanoid-warehouse-readiness-hero.png`,
@@ -8,6 +9,7 @@ export const humanoidReadinessAssets = {
   manufacturing: `${humanoidReadinessBase}/humanoid-manufacturing-readiness.png`,
   coldStorage: `${humanoidReadinessBase}/humanoid-cold-storage-readiness.png`,
   hostedDashboard: `${humanoidReadinessBase}/humanoid-hosted-readiness-dashboard.png`,
+  robotTeamEvalWorkflow: `${robotTeamEvalBase}/robot-team-eval-workflow.png`,
   proofBoard: `${humanoidReadinessBase}/humanoid-proof-board.png`,
 } as const;
 

@@ -52,5 +52,8 @@ describe("robotTeamTestSubmission", () => {
     expect(submission?.proofBoundary.blockedClaimUpgrades).toContain(
       "policy_execution_passed_claim",
     );
+    expect(submission?.proofBoundary.operationalReadinessRequires).toContain(
+      "robot profile with geometry, sensors, controllers, and control level, or a clear site-feasibility-only scope",
+    );
   });
 });

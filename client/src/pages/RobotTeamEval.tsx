@@ -8,19 +8,16 @@ import {
   ClipboardList,
   Code2,
   Container,
-  Database,
   FileJson2,
   Gauge,
   GitBranch,
   Layers3,
   Gamepad2,
   Link2,
-  ListChecks,
   Loader2,
   MonitorPlay,
   PackageCheck,
   Route,
-  ShieldCheck,
   TerminalSquare,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -31,11 +28,11 @@ import {
   getRobotEvalMoatTask,
   representativeRobotEvalSites,
   robotEvalDecisionOptions,
-  robotEvalMoatModules,
   robotEvalMoatWorkflowSteps,
 } from "@/data/robotEvalMoat";
 import { siteWorldCards } from "@/data/siteWorlds";
 import { withCsrfHeader } from "@/lib/csrf";
+import { humanoidReadinessAssets } from "@/lib/editorialGeneratedAssets";
 import {
   buildRobotTeamSubmissionInput,
   normalizeRobotTeamTestSubmission,
@@ -57,19 +54,25 @@ const iconByModality: Record<RobotTeamTestSubmissionModalityId, LucideIcon> = {
   sim_controller_plugin: Code2,
 };
 
-const iconByMoatModule: Record<string, LucideIcon> = {
-  rights_packet: ShieldCheck,
-  task_ontology: Database,
-  scenario_family_generator: Layers3,
-  scoring_runner: Gauge,
-  prediction_actual: GitBranch,
-};
-
 const fallbackOutputs = [
   "observation_frames",
   "action_trace",
   "success_failure",
   "export_bundle",
+];
+
+const visualWorkflowSteps = [
+  "Site package",
+  "Robot profile",
+  "Policy access",
+  "Eval report",
+];
+
+const compactIntegrationModes = [
+  "Site package only",
+  "Policy API",
+  "Container / private cloud",
+  "Action trace",
 ];
 
 function initialFieldState(): FieldState {
@@ -394,9 +397,8 @@ export default function RobotTeamEval() {
                 Robot-team test interface
               </h1>
               <p className="mt-6 max-w-3xl text-lg leading-8 text-white/70">
-                Submit a policy endpoint, container, action trace, skill trace,
-                teleop demo, or sim controller as artifact references against one
-                capture-backed site package.
+                Share a safe policy interface against one capture-backed site
+                package. Keep source code and model weights private.
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <a
@@ -414,25 +416,63 @@ export default function RobotTeamEval() {
                 </a>
               </div>
             </div>
-            <div className="self-end rounded-lg border border-white/15 bg-white/8 p-5 shadow-[0_28px_90px_rgba(0,0,0,0.22)]">
-              <div className="flex items-start gap-3">
-                <ShieldCheck className="mt-1 h-5 w-5 text-emerald-300" />
-                <div>
-                  <p className="text-sm font-semibold text-white">Proof boundary</p>
-                  <p className="mt-2 text-sm leading-6 text-white/68">
-                    Blueprint can evaluate submitted references against real-site
-                    packages when source evidence exists. A submission is advisory:
-                    it does not prove deployment readiness, safety validation,
-                    real robot execution, simulator run completion, rights
-                    clearance, or guaranteed thresholds.
-                  </p>
-                </div>
+            <figure className="self-end overflow-hidden rounded-lg border border-white/15 bg-white/8 shadow-[0_28px_90px_rgba(0,0,0,0.22)]">
+              <img
+                src={humanoidReadinessAssets.robotTeamEvalWorkflow}
+                alt="Generated visual of a humanoid robot in a warehouse evaluation bay with site scan overlays and an evaluation dashboard"
+                className="aspect-[16/10] w-full object-cover"
+              />
+            </figure>
+          </div>
+        </section>
+
+        <section
+          aria-labelledby="robot-eval-simple-explainer"
+          className="border-b border-black/10 bg-white"
+        >
+          <div className="mx-auto grid max-w-[118rem] gap-6 px-5 py-8 sm:px-8 lg:grid-cols-[minmax(18rem,0.38fr)_minmax(0,0.62fr)] lg:px-10">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                How simulation evals work
+              </p>
+              <h2
+                id="robot-eval-simple-explainer"
+                className="mt-3 max-w-xl text-3xl font-semibold leading-tight text-slate-950 md:text-4xl"
+              >
+                Site package + robot profile + policy access = eval report.
+              </h2>
+              <p className="mt-4 max-w-xl text-sm leading-6 text-slate-600">
+                Robot teams keep source code and model weights private. Blueprint
+                only needs the least-sensitive interface that still lets the task
+                be scored.
+              </p>
+              <p className="mt-5 border-l-2 border-amber-500 pl-3 text-xs leading-5 text-slate-500">
+                Submitted interfaces are inputs. Stronger claims need run logs,
+                owner-system proof, rights review, and agreed thresholds.
+              </p>
+            </div>
+
+            <div className="flex flex-col justify-center">
+              <div className="grid grid-cols-2 gap-2">
+                {visualWorkflowSteps.map((step, index) => (
+                  <div key={step} className="border border-slate-200 bg-slate-50 p-3">
+                    <p className="text-xs font-semibold uppercase text-slate-400">
+                      {String(index + 1).padStart(2, "0")}
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-slate-950">{step}</p>
+                  </div>
+                ))}
               </div>
-              <div className="mt-5 grid gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-white/58 sm:grid-cols-2">
-                <span className="rounded-md border border-white/10 px-3 py-2">Artifact refs first</span>
-                <span className="rounded-md border border-white/10 px-3 py-2">Missing proof tracked</span>
-                <span className="rounded-md border border-white/10 px-3 py-2">Hosted-session policy</span>
-                <span className="rounded-md border border-white/10 px-3 py-2">Pipeline schema aligned</span>
+
+              <div className="mt-5 flex flex-wrap gap-2">
+                {compactIntegrationModes.map((mode) => (
+                  <span
+                    key={mode}
+                    className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700"
+                  >
+                    {mode}
+                  </span>
+                ))}
               </div>
             </div>
           </div>
@@ -580,21 +620,6 @@ export default function RobotTeamEval() {
               ))}
             </div>
 
-            <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-              {robotEvalMoatModules.map((module) => {
-                const Icon = iconByMoatModule[module.id] || Database;
-                return (
-                  <article
-                    key={module.id}
-                    className="rounded-md border border-slate-200 bg-slate-50 p-4"
-                  >
-                    <Icon className="h-5 w-5 text-slate-500" />
-                    <h3 className="mt-3 text-sm font-semibold text-slate-950">{module.label}</h3>
-                    <p className="mt-2 text-xs leading-5 text-slate-500">{module.summary}</p>
-                  </article>
-                );
-              })}
-            </div>
           </div>
 
           <aside className="h-fit rounded-lg border border-black/10 bg-white p-5 shadow-sm lg:sticky lg:top-24">
@@ -632,28 +657,6 @@ export default function RobotTeamEval() {
                   <p className="mt-1 text-xs leading-5 text-slate-500">{metric.detail}</p>
                 </div>
               ))}
-            </div>
-
-            <div className="mt-5">
-              <div className="flex items-center gap-2">
-                <ListChecks className="h-4 w-4 text-slate-500" />
-                <p className="text-sm font-semibold text-slate-950">Artifact ledger</p>
-              </div>
-              <div className="mt-3 space-y-2">
-                {selectedEvalSite.artifacts.map((artifact) => (
-                  <div
-                    key={artifact.id}
-                    className="rounded-md border border-slate-200 bg-slate-50 p-3"
-                  >
-                    <p className="text-xs font-semibold uppercase text-slate-500">
-                      {artifact.status.replaceAll("_", " ")}
-                    </p>
-                    <p className="mt-1 break-words text-sm font-semibold text-slate-950">
-                      {artifact.fileName}
-                    </p>
-                  </div>
-                ))}
-              </div>
             </div>
 
             <div className="mt-5">
@@ -763,26 +766,31 @@ export default function RobotTeamEval() {
                       </button>
                     </div>
 
-                    <div className="mt-5 grid gap-3">
-                      {definition.fields.map((field) => (
-                        <label key={field.key} className="block">
-                          <span className="mb-1.5 flex items-center justify-between gap-3 text-sm font-semibold text-slate-800">
-                            <span>{field.label}</span>
-                            {field.required ? <span className="text-xs text-slate-400">Required</span> : null}
-                          </span>
-                          <textarea
-                            aria-label={`${definition.label} ${field.label}`}
-                            value={fieldValues[definition.id][field.key] || ""}
-                            onChange={(event) => updateField(definition.id, field.key, event.target.value)}
-                            disabled={!selected}
-                            rows={field.key.toLowerCase().includes("sequence") ? 3 : 2}
-                            placeholder={field.placeholder}
-                            className="w-full resize-y rounded-md border border-slate-300 bg-white px-3 py-2.5 text-sm leading-6 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-950 disabled:bg-slate-50 disabled:text-slate-400"
-                          />
-                          <span className="mt-1.5 block text-xs leading-5 text-slate-500">{field.helper}</span>
-                        </label>
-                      ))}
-                    </div>
+                    {selected ? (
+                      <div className="mt-5 grid gap-3">
+                        {definition.fields.map((field) => (
+                          <label key={field.key} className="block">
+                            <span className="mb-1.5 flex items-center justify-between gap-3 text-sm font-semibold text-slate-800">
+                              <span>{field.label}</span>
+                              {field.required ? <span className="text-xs text-slate-400">Required</span> : null}
+                            </span>
+                            <textarea
+                              aria-label={`${definition.label} ${field.label}`}
+                              value={fieldValues[definition.id][field.key] || ""}
+                              onChange={(event) => updateField(definition.id, field.key, event.target.value)}
+                              rows={field.key.toLowerCase().includes("sequence") ? 3 : 2}
+                              placeholder={field.placeholder}
+                              className="w-full resize-y rounded-md border border-slate-300 bg-white px-3 py-2.5 text-sm leading-6 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-950"
+                            />
+                            <span className="mt-1.5 block text-xs leading-5 text-slate-500">{field.helper}</span>
+                          </label>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="mt-5 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-500">
+                        Add this mode to show the required references.
+                      </p>
+                    )}
 
                     <div className="mt-4 flex flex-wrap items-center gap-2 text-xs font-semibold">
                       <span className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-slate-600">

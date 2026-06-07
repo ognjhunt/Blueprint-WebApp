@@ -15,6 +15,14 @@ describe("Home", () => {
     expect(
       screen.getByText(/Blueprint turns captured facilities into robot task packs/i),
     ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Choose the integration mode/i })).toBeInTheDocument();
+    expect(screen.getByText(/policy API, container, private-cloud run, action trace/i)).toBeInTheDocument();
+    expect(
+      screen.getByAltText(/humanoid robot in a warehouse evaluation bay/i),
+    ).toHaveAttribute(
+      "src",
+      "/editorial/2026-06-06/robot-team-eval-workflow.png",
+    );
     expect(screen.getByText(/^Success rate$/i)).toBeInTheDocument();
     expect(screen.getByText(/^Cycle time$/i)).toBeInTheDocument();
     expect(screen.getByText(/^Intervention rate$/i)).toBeInTheDocument();

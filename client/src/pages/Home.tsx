@@ -81,16 +81,16 @@ const workflowSteps = [
     body: "Use an existing site package, lawful capture, or structured facility request.",
   },
   {
-    title: "Define the task pack",
-    body: "Set the robot profile, task, thresholds, start states, and scenario variations.",
+    title: "Describe the robot and task",
+    body: "Name the robot size, reach, sensors, controller level, task, thresholds, start states, and scenario variations.",
   },
   {
-    title: "Run the policy",
-    body: "Run through a policy API, vendor container, action trace, simulation workflow, or assisted review.",
+    title: "Choose the integration mode",
+    body: "Use a policy API, container, private-cloud run, action trace, or site package only when the team keeps its stack in-house.",
   },
   {
-    title: "Score the scenarios",
-    body: "Measure success, cycle time, intervention points, safety events, and failure modes.",
+    title: "Run or review the scenarios",
+    body: "Measure success, cycle time, intervention points, safety events, and failure modes from simulator traces, action logs, or review evidence.",
   },
   {
     title: "Decide the next proof step",
@@ -274,12 +274,13 @@ export default function Home() {
                 Turn a real site into an evaluation plan.
               </h2>
               <p className="mt-4 text-base leading-7 text-white/72 md:text-lg">
-                Blueprint keeps the workflow compact: one site, one policy, one
-                task pack, scored scenarios, and the next proof step.
+                Blueprint keeps the workflow compact: one site, one robot profile,
+                one task pack, one integration mode, scored scenarios, and the
+                next proof step.
               </p>
               <img
-                src={humanoidReadinessAssets.hostedDashboard}
-                alt="Illustrative dashboard for site policy evaluation"
+                src={humanoidReadinessAssets.robotTeamEvalWorkflow}
+                alt="Generated visual of a humanoid robot in a warehouse evaluation bay with site scan overlays"
                 className="mt-8 aspect-[4/3] w-full border border-white/15 object-cover"
               />
             </div>

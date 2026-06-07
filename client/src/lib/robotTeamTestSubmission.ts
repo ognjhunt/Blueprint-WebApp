@@ -68,7 +68,7 @@ export const ROBOT_TEAM_TEST_SUBMISSION_MODALITY_DEFINITIONS: RobotTeamTestSubmi
     id: "policy_api_endpoint",
     label: "Policy API endpoint",
     shortLabel: "API endpoint",
-    summary: "Reference a callable policy service without pasting secrets into Blueprint.",
+    summary: "Let Blueprint send an observation to your service and receive the next action back. Keep source code and model weights private.",
     missingEvidenceStatus: "needs_policy_api_endpoint_ref",
     requestedOutputs: ["observation_frames", "action_trace", "success_failure", "export_bundle"],
     fields: [
@@ -89,14 +89,14 @@ export const ROBOT_TEAM_TEST_SUBMISSION_MODALITY_DEFINITIONS: RobotTeamTestSubmi
       {
         key: "observationSchemaRef",
         label: "Observation schema URI or JSON ref",
-        helper: "Artifact reference for observation payload shape.",
+        helper: "Artifact reference for what the policy sees: cameras, robot state, task instruction, or other inputs.",
         required: true,
         placeholder: "gs://team-bucket/schemas/observation.v1.json",
       },
       {
         key: "actionSchemaRef",
         label: "Action schema URI or JSON ref",
-        helper: "Artifact reference for action payload shape.",
+        helper: "Artifact reference for what the policy sends back: base motion, arm motion, gripper command, skill, or stop signal.",
         required: true,
         placeholder: "gs://team-bucket/schemas/action.v1.json",
       },
@@ -127,14 +127,14 @@ export const ROBOT_TEAM_TEST_SUBMISSION_MODALITY_DEFINITIONS: RobotTeamTestSubmi
     id: "docker_container",
     label: "Docker container",
     shortLabel: "Container",
-    summary: "Reference a reproducible policy container and its runtime contract.",
+    summary: "Package the policy as a runnable service when the simulator needs low-latency access on the same machine or private network.",
     missingEvidenceStatus: "needs_docker_container_ref",
     requestedOutputs: ["observation_frames", "action_trace", "rollout_video", "export_bundle"],
     fields: [
       {
         key: "imageRef",
         label: "Image / artifact URI",
-        helper: "Registry ref or artifact pointer.",
+        helper: "Registry ref or artifact pointer for the runnable policy service.",
         required: true,
         placeholder: "registry.example.com/team/policy:2026-06-03",
       },
@@ -186,7 +186,7 @@ export const ROBOT_TEAM_TEST_SUBMISSION_MODALITY_DEFINITIONS: RobotTeamTestSubmi
     id: "recorded_action_trace",
     label: "Recorded action traces",
     shortLabel: "Action traces",
-    summary: "Reference offline action traces aligned to Blueprint tasks and observations.",
+    summary: "Share precomputed actions for a task when you cannot connect a live policy yet.",
     missingEvidenceStatus: "needs_recorded_action_trace_ref",
     requestedOutputs: ["observation_frames", "action_trace", "success_failure", "export_bundle"],
     fields: [
@@ -245,7 +245,7 @@ export const ROBOT_TEAM_TEST_SUBMISSION_MODALITY_DEFINITIONS: RobotTeamTestSubmi
     id: "high_level_skill_trace",
     label: "High-level skill traces",
     shortLabel: "Skill traces",
-    summary: "Reference ordered skill-level plans with failure and coverage labels.",
+    summary: "Share steps like navigate, pick, place, or recover when the policy works above low-level joint control.",
     missingEvidenceStatus: "needs_high_level_skill_trace_ref",
     requestedOutputs: ["task_summary", "scenario", "success_failure", "export_bundle"],
     fields: [
@@ -297,7 +297,7 @@ export const ROBOT_TEAM_TEST_SUBMISSION_MODALITY_DEFINITIONS: RobotTeamTestSubmi
     id: "teleop_demo",
     label: "Teleop demos",
     shortLabel: "Teleop",
-    summary: "Reference operator demonstrations and controls with rights/privacy scope.",
+    summary: "Share human-driven demonstrations so Blueprint can compare the site task, controls, labels, and failure points.",
     missingEvidenceStatus: "needs_teleop_demo_ref",
     requestedOutputs: ["observation_frames", "action_trace", "rollout_video", "export_bundle"],
     fields: [
@@ -356,7 +356,7 @@ export const ROBOT_TEAM_TEST_SUBMISSION_MODALITY_DEFINITIONS: RobotTeamTestSubmi
     id: "sim_controller_plugin",
     label: "Sim controller plugin",
     shortLabel: "Sim plugin",
-    summary: "Reference a simulator control plugin without claiming the sim has run.",
+    summary: "Share the adapter that lets a simulator speak your robot controller format without claiming the sim has already run.",
     missingEvidenceStatus: "needs_sim_controller_plugin_ref",
     requestedOutputs: ["observation_frames", "action_trace", "rollout_video", "export_bundle"],
     fields: [
@@ -569,6 +569,7 @@ export function normalizeRobotTeamTestSubmission(
         "guaranteed_threshold_claim",
       ],
       operationalReadinessRequires: [
+        "robot profile with geometry, sensors, controllers, and control level, or a clear site-feasibility-only scope",
         "request-scoped simulator traces or robot trial logs from the owning system",
         "action or teleoperation logs aligned to the exact task and scenario",
         "prediction-vs-actual outcome records",
