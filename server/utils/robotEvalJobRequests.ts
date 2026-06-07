@@ -674,8 +674,10 @@ export async function forwardRobotEvalJobRequestToPipeline(params: {
       required,
       http_status: response.status,
       capture_root_override_applied: forwardJobRequest.applied,
-      capture_root_override_source: forwardJobRequest.source,
     };
+    if (forwardJobRequest.source) {
+      result.capture_root_override_source = forwardJobRequest.source;
+    }
     if (typeof detail.accepted === "boolean") {
       result.accepted = detail.accepted;
     }

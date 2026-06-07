@@ -482,6 +482,7 @@ describe("buildRobotEvalJobRequest", () => {
         pipeline_status: "staged_for_control_plane",
       }),
     );
+    expect(result).not.toHaveProperty("capture_root_override_source");
     expect(JSON.stringify(result)).not.toContain("test-forward-token");
     expect(fetchMock).toHaveBeenCalledWith(
       "http://127.0.0.1:8765/api/live-pipeline/job-requests",
@@ -546,6 +547,7 @@ describe("buildRobotEvalJobRequest", () => {
         ],
       }),
     );
+    expect(result).not.toHaveProperty("capture_root_override_source");
   });
 
   it("explains Pipeline input blockers instead of hiding them behind a generic 502", () => {
