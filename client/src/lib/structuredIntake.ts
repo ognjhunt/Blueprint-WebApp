@@ -94,6 +94,30 @@ function isHighBudget(value: BudgetBucket | "" | null | undefined): boolean {
   return value === "$300K-$1M" || value === ">$1M";
 }
 
+function hasMetricThresholdSignal(input: StructuredIntakeInput): boolean {
+  const details = input.details || "";
+  return (
+    hasText(input.realSiteRobotEvalFit?.taskCardInput?.requiredMetrics)
+    || /\b(success|cycle|intervention|threshold|metric)\b/i.test(details)
+  );
+}
+
+function hasSafetyConstraintSignal(input: StructuredIntakeInput): boolean {
+  const details = input.details || "";
+  return (
+    hasText(input.realSiteRobotEvalFit?.siteCardInput?.safetyConstraints)
+    || /\b(safety|restricted|no-go|exclusion|pinch|proximity)\b/i.test(details)
+  );
+}
+
+function hasEvidenceValidationSignal(input: StructuredIntakeInput): boolean {
+  const details = input.details || "";
+  return (
+    hasText(input.realSiteRobotEvalFit?.evalCardInput?.resultsValidationExpectations)
+    || /\b(evidence|validation|simulator|trace|action log|robot trial|pilot result|human demo)\b/i.test(details)
+  );
+}
+
 function unique(values: string[]): string[] {
   return [...new Set(values.filter(Boolean))];
 }
@@ -216,16 +240,9 @@ function buildProofReadyDecision(
   const fitSite = fit?.siteCardInput;
   const fitTask = fit?.taskCardInput;
   const fitEval = fit?.evalCardInput;
-  const details = input.details || "";
-  const hasMetricThresholds =
-    hasText(fitTask?.requiredMetrics) ||
-    /\b(success|cycle|intervention|threshold|metric)\b/i.test(details);
-  const hasSafetyConstraints =
-    hasText(fitSite?.safetyConstraints) ||
-    /\b(safety|restricted|no-go|exclusion|pinch|proximity)\b/i.test(details);
-  const hasEvidenceValidationNeeds =
-    hasText(fitEval?.resultsValidationExpectations) ||
-    /\b(evidence|validation|simulator|trace|action log|robot trial|pilot result|human demo)\b/i.test(details);
+  const hasMetricThresholds = hasMetricThresholdSignal(input);
+  const hasSafetyConstraints = hasSafetyConstraintSignal(input);
+  const hasEvidenceValidationNeeds = hasEvidenceValidationSignal(input);
   const hasRobotOrStack =
     hasText(input.targetRobotTeam) || hasText(fitEval?.robotOrPolicyTested);
   const hasTaskOrWorkflow =
@@ -388,9 +405,9 @@ export function evaluateStructuredIntake(input: StructuredIntakeInput): Structur
     if (!hasText(input.targetRobotTeam) && !hasText(fitEval?.robotOrPolicyTested)) {
       missingStructuredFields.push("robot_or_stack");
     }
-    if (!hasText(fitTask?.requiredMetrics)) missingStructuredFields.push("metric_thresholds");
-    if (!hasText(fitSite?.safetyConstraints)) missingStructuredFields.push("safety_constraints");
-    if (!hasText(fitEval?.resultsValidationExpectations)) {
+    if (!hasMetricThresholdSignal(input)) missingStructuredFields.push("metric_thresholds");
+    if (!hasSafetyConstraintSignal(input)) missingStructuredFields.push("safety_constraints");
+    if (!hasEvidenceValidationSignal(input)) {
       missingStructuredFields.push("evidence_validation_needs");
     }
     if (input.proofPathPreference === "exact_site_required") {

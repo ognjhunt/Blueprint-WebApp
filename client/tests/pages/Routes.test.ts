@@ -18,6 +18,8 @@ describe("Route registration", () => {
     expect(source).toContain('path: "/privacy"');
     expect(source).toContain('path: "/terms"');
     expect(source).toContain('path: "/sign-in"');
+    expect(source).toContain('path: "/signup/robot-team"');
+    expect(source).toContain('path: "/signup/site-operator"');
   });
 
   it("keeps legacy site-world slugs as redirect aliases", () => {

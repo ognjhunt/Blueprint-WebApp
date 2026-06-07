@@ -40,13 +40,17 @@ describe("Login", () => {
       "href",
       "/capture-app",
     );
-    expect(screen.getByRole("link", { name: /Buyer: Scope your project/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Robot team: Create evaluation account/i })).toHaveAttribute(
+      "href",
+      "/signup/business?buyerType=robot_team&source=login",
+    );
+    expect(screen.getByRole("link", { name: /Site operator: Submit site free/i })).toHaveAttribute(
+      "href",
+      "/signup/business?buyerType=site_operator&source=login",
+    );
+    expect(screen.getByRole("link", { name: /Robot team: Scope before signup/i })).toHaveAttribute(
       "href",
       "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=login",
-    );
-    expect(screen.getByRole("link", { name: /Buyer: Request access/i })).toHaveAttribute(
-      "href",
-      "/signup/business",
     );
   });
 });

@@ -1,21 +1,30 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Header } from "@/components/site/Header";
+
+const authStateMock = vi.hoisted(() => ({
+  currentUser: null as null | { uid: string },
+  userData: null as null | Record<string, any>,
+  tokenClaims: null as null | Record<string, any>,
+  logout: vi.fn(),
+}));
 
 vi.mock("wouter", () => ({
   useLocation: () => ["/", vi.fn()],
 }));
 
 vi.mock("@/contexts/AuthContext", () => ({
-  useAuth: () => ({
-    currentUser: null,
-    userData: null,
-    tokenClaims: null,
-    logout: vi.fn(),
-  }),
+  useAuth: () => authStateMock,
 }));
 
 describe("Header", () => {
+  beforeEach(() => {
+    authStateMock.currentUser = null;
+    authStateMock.userData = null;
+    authStateMock.tokenClaims = null;
+    authStateMock.logout = vi.fn();
+  });
+
   it("keeps the buyer-facing nav focused", () => {
     render(<Header />);
 
@@ -57,9 +66,40 @@ describe("Header", () => {
     expect(screen.queryByRole("link", { name: /^Book call$/i })).not.toBeInTheDocument();
   });
 
-  it("de-emphasizes auth from the main marketing header", () => {
+  it("exposes sign-in and persona-specific signup paths", () => {
     render(<Header />);
 
+    expect(screen.getByRole("link", { name: /Sign in/i })).toHaveAttribute(
+      "href",
+      "/sign-in",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Toggle navigation/i }));
+
+    expect(screen.getByRole("link", { name: /^Sign up: Robot team$/i })).toHaveAttribute(
+      "href",
+      "/signup/business?buyerType=robot_team&source=header-signup",
+    );
+    expect(screen.getByRole("link", { name: /^Sign up: Site operator$/i })).toHaveAttribute(
+      "href",
+      "/signup/business?buyerType=site_operator&source=header-signup",
+    );
+  });
+
+  it("switches the signed-in header toward the account persona workspace", () => {
+    authStateMock.currentUser = { uid: "site-operator-uid" };
+    authStateMock.userData = {
+      buyerType: "site_operator",
+      finishedOnboarding: false,
+      organizationName: "Brightleaf Ops",
+    };
+
+    render(<Header />);
+
+    expect(screen.getAllByRole("link", { name: /Finish site onboarding/i })[0]).toHaveAttribute(
+      "href",
+      "/onboarding",
+    );
     expect(screen.queryByRole("link", { name: /Sign in/i })).not.toBeInTheDocument();
   });
 });

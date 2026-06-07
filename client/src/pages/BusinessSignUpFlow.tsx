@@ -127,12 +127,21 @@ type LegacyPrimaryNeed =
 
 const DEFAULT_BUYER_TYPE: BuyerType = "robot_team";
 const DEFAULT_REQUESTED_LANE: RequestedLane = "deeper_evaluation";
-const BUYER_STEP_LABELS = ["Organization", "Team", "Site & Workflow"] as const;
+const BUYER_STEP_LABELS = ["Organization", "Role", "Site & Workflow"] as const;
 const PROOF_PATH_OPTIONS: Array<{ value: ProofPathPreference; label: string }> = [
   { value: "need_guidance", label: "Need guidance" },
   { value: "exact_site_required", label: "Exact site required" },
   { value: "adjacent_site_acceptable", label: "Adjacent site acceptable" },
 ];
+const COMMERCIALIZATION_BOUNDARY_OPTIONS = [
+  "Private review only",
+  "Anonymized marketplace listing",
+  "Ask before each robot-team use",
+  "Revenue-share review",
+  "Not sure yet",
+] as const;
+
+type CommercializationBoundary = typeof COMMERCIALIZATION_BOUNDARY_OPTIONS[number];
 
 const LEGACY_PRIMARY_NEED_BY_LANE: Record<RequestedLane, LegacyPrimaryNeed> = {
   qualification: "benchmark-packs",
@@ -149,6 +158,26 @@ function isValidEmail(value: string) {
 function isValidPhone(value: string) {
   if (!value.trim()) return true;
   return value.replace(/\D/g, "").length >= 10;
+}
+
+function readInitialBuyerType(): BuyerType {
+  if (typeof window === "undefined") {
+    return DEFAULT_BUYER_TYPE;
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  const rawValue = (params.get("buyerType") || params.get("persona") || "").trim();
+  if (rawValue === "site_operator" || rawValue === "site-operator") {
+    return "site_operator";
+  }
+  if (rawValue === "robot_team" || rawValue === "robot-team") {
+    return "robot_team";
+  }
+  return DEFAULT_BUYER_TYPE;
+}
+
+function defaultRequestedLanesForBuyerType(buyerType: BuyerType): RequestedLane[] {
+  return buyerType === "site_operator" ? ["qualification"] : [DEFAULT_REQUESTED_LANE];
 }
 
 function generateRequestId(): string {
@@ -221,6 +250,7 @@ function StepIndicator({
 
 export default function BusinessSignUpFlow() {
   const [, setLocation] = useLocation();
+  const initialBuyerType = useMemo(() => readInitialBuyerType(), []);
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -234,10 +264,10 @@ export default function BusinessSignUpFlow() {
   const [contactName, setContactName] = useState("");
   const [jobTitle, setJobTitle] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [buyerType, setBuyerType] = useState<BuyerType>(DEFAULT_BUYER_TYPE);
-  const [requestedLanes, setRequestedLanes] = useState<RequestedLane[]>([
-    DEFAULT_REQUESTED_LANE,
-  ]);
+  const [buyerType, setBuyerType] = useState<BuyerType>(initialBuyerType);
+  const [requestedLanes, setRequestedLanes] = useState<RequestedLane[]>(
+    () => defaultRequestedLanesForBuyerType(initialBuyerType),
+  );
   const [companySize, setCompanySize] = useState<CompanySize | "">("");
 
   const [siteName, setSiteName] = useState("");
@@ -249,12 +279,16 @@ export default function BusinessSignUpFlow() {
   const [workflowContext, setWorkflowContext] = useState("");
   const [operatingConstraints, setOperatingConstraints] = useState("");
   const [privacySecurityConstraints, setPrivacySecurityConstraints] = useState("");
+  const [commercializationPreference, setCommercializationPreference] =
+    useState<CommercializationBoundary | "">("");
   const [knownBlockers, setKnownBlockers] = useState("");
   const [targetRobotTeam, setTargetRobotTeam] = useState("");
   const [proofPathPreference, setProofPathPreference] =
     useState<ProofPathPreference>("need_guidance");
   const [timeline, setTimeline] = useState("");
-  const [budgetRange, setBudgetRange] = useState<BudgetRange | "">("");
+  const [budgetRange, setBudgetRange] = useState<BudgetRange | "">(
+    initialBuyerType === "site_operator" ? "Undecided/Unsure" : "",
+  );
   const [referralSource, setReferralSource] = useState<ReferralSource | "">("");
   const searchDemandAttribution = useMemo(() => {
     if (typeof window === "undefined") {
@@ -325,9 +359,20 @@ export default function BusinessSignUpFlow() {
       siteLocation.trim().length > 0 &&
       taskStatement.trim().length > 0 &&
       (buyerType !== "site_operator" || operatingConstraints.trim().length > 0) &&
-      budgetRange !== "" &&
+      (buyerType !== "site_operator" || commercializationPreference.trim().length > 0) &&
+      (buyerType === "site_operator" || budgetRange !== "") &&
       referralSource !== "",
-    [buyerType, operatingConstraints, siteName, siteLocation, targetSiteType, taskStatement, budgetRange, referralSource]
+    [
+      budgetRange,
+      buyerType,
+      commercializationPreference,
+      operatingConstraints,
+      referralSource,
+      siteLocation,
+      siteName,
+      targetSiteType,
+      taskStatement,
+    ]
   );
 
   const handleNext = useCallback(() => {
@@ -416,9 +461,13 @@ export default function BusinessSignUpFlow() {
   const handleBuyerTypeChange = useCallback((value: string) => {
     const nextBuyerType = value as BuyerType;
     setBuyerType(nextBuyerType);
-    setRequestedLanes(nextBuyerType === "site_operator" ? ["qualification"] : [DEFAULT_REQUESTED_LANE]);
+    setRequestedLanes(defaultRequestedLanesForBuyerType(nextBuyerType));
     if (nextBuyerType === "site_operator") {
       setProofPathPreference("need_guidance");
+      setBudgetRange("Undecided/Unsure");
+    } else {
+      setCommercializationPreference("");
+      setBudgetRange((current) => (current === "Undecided/Unsure" ? "" : current));
     }
   }, []);
 
@@ -467,7 +516,8 @@ export default function BusinessSignUpFlow() {
       else if (!siteLocation.trim()) setErrorMessage("Please enter the site location.");
       else if (!taskStatement.trim()) setErrorMessage("Please enter the task statement.");
       else if (buyerType === "site_operator" && !operatingConstraints.trim()) setErrorMessage("Please enter the access rules.");
-      else if (!budgetRange) setErrorMessage("Please select a budget range.");
+      else if (buyerType === "site_operator" && !commercializationPreference.trim()) setErrorMessage("Please select the commercialization boundary.");
+      else if (buyerType === "robot_team" && !budgetRange) setErrorMessage("Please select a budget range.");
       else setErrorMessage("Please tell us how you heard about Blueprint.");
       analyticsEvents.businessSignupFailed({
         stage: "step_validation",
@@ -481,9 +531,11 @@ export default function BusinessSignUpFlow() {
                 ? "missing_task_statement"
                 : buyerType === "site_operator" && !operatingConstraints.trim()
                   ? "missing_access_rules"
-                  : !budgetRange
-                    ? "missing_budget_range"
-                    : "missing_referral_source",
+                  : buyerType === "site_operator" && !commercializationPreference.trim()
+                    ? "missing_commercialization_boundary"
+                    : buyerType === "robot_team" && !budgetRange
+                      ? "missing_budget_range"
+                      : "missing_referral_source",
         buyerType,
         requestedLaneCount: requestedLanes.length,
         ...(signupAnalyticsAttribution
@@ -506,6 +558,7 @@ export default function BusinessSignUpFlow() {
       hasWorkflowContext: Boolean(workflowContext.trim()),
       hasOperatingConstraints: Boolean(operatingConstraints.trim()),
       hasPrivacySecurityConstraints: Boolean(privacySecurityConstraints.trim()),
+      hasCommercializationPreference: Boolean(commercializationPreference.trim()),
       hasKnownBlockers: Boolean(knownBlockers.trim()),
       hasTargetRobotTeam: Boolean(targetRobotTeam.trim()),
       ...(signupAnalyticsAttribution
@@ -540,6 +593,16 @@ export default function BusinessSignUpFlow() {
       const primaryNeeds = requestedLanes.map((lane) => LEGACY_PRIMARY_NEED_BY_LANE[lane]);
       const username = contactName.toLowerCase().replace(/\s+/g, "_");
       const structuredIntakeRequestId = generateRequestId();
+      const structuredDetails =
+        [
+          timeline ? `Timeline: ${timeline}` : null,
+          workflowContext ? `Workflow context: ${workflowContext}` : null,
+          operatingConstraints ? `Operating constraints: ${operatingConstraints}` : null,
+          privacySecurityConstraints ? `Privacy/security constraints: ${privacySecurityConstraints}` : null,
+          knownBlockers ? `Known blockers: ${knownBlockers}` : null,
+        ]
+          .filter(Boolean)
+          .join("\n") || null;
       const structuredIntakeDecision = evaluateStructuredIntake({
         buyerType,
         requestedLanes,
@@ -555,7 +618,8 @@ export default function BusinessSignUpFlow() {
         privacySecurityConstraints,
         knownBlockers,
         targetRobotTeam,
-        details: timeline ? `Timeline: ${timeline}` : null,
+        derivedScenePermission: commercializationPreference || null,
+        details: structuredDetails,
       });
 
       const newUserData: any = {
@@ -593,6 +657,7 @@ export default function BusinessSignUpFlow() {
         workflowContext: workflowContext || undefined,
         operatingConstraints: operatingConstraints || undefined,
         privacySecurityConstraints: privacySecurityConstraints || undefined,
+        derivedScenePermission: commercializationPreference || undefined,
         knownBlockers: knownBlockers || undefined,
         targetRobotTeam: targetRobotTeam || undefined,
         timeline: timeline || undefined,
@@ -629,7 +694,8 @@ export default function BusinessSignUpFlow() {
           privacyRulesConfirmed:
             buyerType === "site_operator"
             && structuredIntakeDecision.siteClaimCriteria.includes("privacy_security_boundary"),
-          commercializationPreferenceSet: false,
+          commercializationPreferenceSet:
+            buyerType === "site_operator" && Boolean(commercializationPreference.trim()),
           teamContactConfirmed: false,
           completeIntakeReview: false,
           reviewQualifiedOpportunities: false,
@@ -698,9 +764,10 @@ export default function BusinessSignUpFlow() {
           workflowContext: workflowContext || undefined,
           operatingConstraints: operatingConstraints || undefined,
           privacySecurityConstraints: privacySecurityConstraints || undefined,
+          derivedScenePermission: commercializationPreference || undefined,
           knownBlockers: knownBlockers || undefined,
           targetRobotTeam: targetRobotTeam || undefined,
-          details: timeline ? `Timeline: ${timeline}` : undefined,
+          details: structuredDetails || undefined,
           context: {
             sourcePageUrl: typeof window !== "undefined" ? window.location.href : "/signup/business",
             referrer: typeof document !== "undefined" ? document.referrer || undefined : undefined,
@@ -756,6 +823,7 @@ export default function BusinessSignUpFlow() {
     budgetRange,
     buyerType,
     companySize,
+    commercializationPreference,
     contactName,
     email,
     jobTitle,
@@ -788,51 +856,84 @@ export default function BusinessSignUpFlow() {
     exit: { opacity: 0, x: -36 },
   };
 
+  const isSiteOperatorSignup = buyerType === "site_operator";
+  const accessLabel = isSiteOperatorSignup
+    ? "Site Operator Access Request"
+    : "Robot Team Access Request";
+  const stepTitle =
+    step === 1
+      ? "Organization details"
+      : step === 2
+        ? isSiteOperatorSignup
+          ? "Role and site lane"
+          : "Team and requested lane"
+        : isSiteOperatorSignup
+          ? "Site boundary intake"
+          : "Site and workflow intake";
+  const stepLead =
+    step === 1
+      ? isSiteOperatorSignup
+        ? "Submit or claim a facility through a private intake that starts with access, privacy, and commercialization boundaries."
+        : "Request exact-site packages or a policy evaluation set through a private, context-rich intake instead of a generic marketplace signup."
+      : step === 2
+        ? isSiteOperatorSignup
+          ? "Tell Blueprint who owns the facility context and whether the first path is private review, listing, or robot-team access review."
+          : "Tell Blueprint who is evaluating the site and which lane should open first."
+        : isSiteOperatorSignup
+          ? "Ground the site submission in one real facility, clear access rules, and the proof boundary you control."
+          : "Ground the request in one real facility, one workflow, and one commercial path.";
+  const visibleRequestedLanes = isSiteOperatorSignup
+    ? REQUESTED_LANES.filter((lane) => lane.value === "qualification")
+    : REQUESTED_LANES;
+
   return (
     <>
       <SEO
-        title="Buyer Access Request | Blueprint"
-        description="Request buyer access for exact-site packages, hosted review, and capture-backed site evaluation."
+        title={`${accessLabel} | Blueprint`}
+        description={
+          isSiteOperatorSignup
+            ? "Create a Blueprint site-operator account to submit a facility, define access boundaries, and review robot-team use."
+            : "Create a Blueprint robot-team account for exact-site robot evaluation runs, hosted review, and post-training data packages."
+        }
         canonical="/signup/business"
         noIndex
       />
 
       <SurfacePage>
-        <SurfaceTopBar eyebrow="Secure Intake" rightLabel="Buyer Access Request" />
+        <SurfaceTopBar eyebrow="Secure Intake" rightLabel={accessLabel} />
         <SurfaceSection className="py-8">
           <SurfaceBrowserFrame>
             <div className="grid xl:grid-cols-[0.64fr_0.36fr]">
               <div className="bg-[#fbf7f0] p-8 lg:p-10">
                 <div className="mx-auto max-w-[42rem]">
-                  <SurfaceMiniLabel>Buyer Access Request</SurfaceMiniLabel>
+                  <SurfaceMiniLabel>{accessLabel}</SurfaceMiniLabel>
                   <h1 className="mt-4 text-[clamp(2.8rem,4vw,4.5rem)] font-semibold tracking-[-0.08em] leading-[0.92] text-[#111110]">
-                    {step === 1
-                      ? "Organization details"
-                      : step === 2
-                        ? "Team and requested lane"
-                        : "Site and workflow intake"}
+                    {stepTitle}
                   </h1>
                   <p className="mt-3 max-w-[34rem] text-sm leading-7 text-black/60">
-                    {step === 1
-                      ? "Request exact-site packages or a policy evaluation set through a private, context-rich intake instead of a generic marketplace signup."
-                      : step === 2
-                        ? "Tell Blueprint who is evaluating the site and which lane should open first."
-                        : "Ground the request in one real facility, one workflow, and one commercial path."}
+                    {stepLead}
                   </p>
 
                   <div className="mt-6 rounded-[1.5rem] border border-black/10 bg-white px-5 py-4 text-sm leading-7 text-black/60">
                     Existing portal users should use sign in instead of creating a second path. If
                     the exact facility and workflow are already known, you can also{" "}
-                    <a href="/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=signup-business" className="font-semibold text-[#111110] underline-offset-4 hover:underline">
-                      request site review
+                    <a
+                      href={
+                        isSiteOperatorSignup
+                          ? "/contact/site-operator?source=signup-business"
+                          : "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=signup-business"
+                      }
+                      className="font-semibold text-[#111110] underline-offset-4 hover:underline"
+                    >
+                      {isSiteOperatorSignup ? "submit the site first" : "request site review"}
                     </a>
                     .
                     <div className="mt-3 flex flex-wrap gap-3 text-sm">
                       <a href="/proof" className="font-semibold text-[#111110] underline-offset-4 hover:underline">
                         Inspect proof
                       </a>
-                      <a href="/world-models" className="font-semibold text-[#111110] underline-offset-4 hover:underline">
-                        Browse catalog
+                      <a href="/sites" className="font-semibold text-[#111110] underline-offset-4 hover:underline">
+                        Browse sites
                       </a>
                     </div>
                   </div>
@@ -1013,7 +1114,7 @@ export default function BusinessSignUpFlow() {
 
                           <div className="space-y-3">
                             <Label className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/45">
-                              Buyer type
+                              Account path
                             </Label>
                             <RadioGroup value={buyerType} onValueChange={handleBuyerTypeChange} className="grid gap-3">
                               {BUYER_TYPES.map((option) => (
@@ -1033,10 +1134,10 @@ export default function BusinessSignUpFlow() {
 
                           <div className="space-y-3">
                             <Label className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/45">
-                              Requested lane
+                              {isSiteOperatorSignup ? "Site review lane" : "Requested lane"}
                             </Label>
                             <div className="grid gap-3">
-                              {REQUESTED_LANES.map((lane) => (
+                              {visibleRequestedLanes.map((lane) => (
                                 <label
                                   key={lane.value}
                                   className="flex cursor-pointer items-start gap-4 rounded-[1.25rem] border border-black/10 bg-white p-4 transition hover:border-black/15"
@@ -1218,24 +1319,56 @@ export default function BusinessSignUpFlow() {
                                 onChange={(event) => setTimeline(event.target.value)}
                               />
                             </div>
-                            <div>
-                              <Label htmlFor="budgetRange" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/45">
-                                Budget range
-                              </Label>
-                              <select
-                                id="budgetRange"
-                                className="mt-2 flex h-12 w-full rounded-[1rem] border border-black/10 bg-white px-4 text-sm text-[#111110]"
-                                value={budgetRange}
-                                onChange={(event) => setBudgetRange(event.target.value as BudgetRange)}
-                              >
-                                <option value="">Select budget range</option>
-                                {BUDGET_RANGE_OPTIONS.map((option) => (
-                                  <option key={option} value={option}>
-                                    {option}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
+                            {isSiteOperatorSignup ? (
+                              <>
+                                <div>
+                                  <Label htmlFor="commercializationPreference" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/45">
+                                    Commercialization boundary
+                                  </Label>
+                                  <select
+                                    id="commercializationPreference"
+                                    className="mt-2 flex h-12 w-full rounded-[1rem] border border-black/10 bg-white px-4 text-sm text-[#111110]"
+                                    value={commercializationPreference}
+                                    onChange={(event) =>
+                                      setCommercializationPreference(event.target.value as CommercializationBoundary)
+                                    }
+                                  >
+                                    <option value="">Select boundary</option>
+                                    {COMMERCIALIZATION_BOUNDARY_OPTIONS.map((option) => (
+                                      <option key={option} value={option}>
+                                        {option}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                                <div className="rounded-[1.25rem] border border-black/10 bg-[#faf6ef] p-4 text-sm leading-6 text-black/60">
+                                  <p className="font-semibold text-[#111110]">Site submission is free.</p>
+                                  <p className="mt-2">
+                                    Blueprint reviews access, privacy, and commercialization boundaries
+                                    before changing public listing or robot-team access.
+                                  </p>
+                                </div>
+                              </>
+                            ) : (
+                              <div>
+                                <Label htmlFor="budgetRange" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/45">
+                                  Budget range
+                                </Label>
+                                <select
+                                  id="budgetRange"
+                                  className="mt-2 flex h-12 w-full rounded-[1rem] border border-black/10 bg-white px-4 text-sm text-[#111110]"
+                                  value={budgetRange}
+                                  onChange={(event) => setBudgetRange(event.target.value as BudgetRange)}
+                                >
+                                  <option value="">Select budget range</option>
+                                  {BUDGET_RANGE_OPTIONS.map((option) => (
+                                    <option key={option} value={option}>
+                                      {option}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            )}
                             <div className="md:col-span-2">
                               <Label htmlFor="referralSource" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/45">
                                 How did you hear about Blueprint?
@@ -1358,8 +1491,12 @@ export default function BusinessSignUpFlow() {
                     {step === 1
                       ? "Open the request with company and account details."
                       : step === 2
-                        ? "Define who is evaluating the site and which lane should open first."
-                        : "Anchor the request in one real facility and one workflow question."}
+                        ? isSiteOperatorSignup
+                          ? "Confirm the site-owner lane before Blueprint reviews access."
+                          : "Define who is evaluating the site and which lane should open first."
+                        : isSiteOperatorSignup
+                          ? "Anchor the free submission in one facility and a clear access boundary."
+                          : "Anchor the request in one real facility and one workflow question."}
                   </p>
                 </div>
               </aside>

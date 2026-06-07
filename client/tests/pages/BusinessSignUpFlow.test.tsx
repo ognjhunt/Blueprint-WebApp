@@ -82,8 +82,20 @@ describe("BusinessSignUpFlow analytics", () => {
       defaultRequestedLane: "deeper_evaluation",
       requestedLaneCount: 1,
     });
-    expect(screen.getAllByText(/Buyer access request/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Robot team access request/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Existing portal users should use sign in instead of creating a second path/i)).toBeInTheDocument();
+  });
+
+  it("preselects the site-operator lane from signup query params", () => {
+    window.history.pushState({}, "", "/signup/business?buyerType=site_operator");
+
+    render(<BusinessSignUpFlow />);
+
+    expect(analyticsEventsMock.businessSignupStarted).toHaveBeenCalledWith({
+      defaultRequestedLane: "qualification",
+      requestedLaneCount: 1,
+    });
+    expect(screen.getAllByText(/Site operator access request/i).length).toBeGreaterThan(0);
   });
 
   it("tracks Austin demand-city context on funnel start when present in the URL", () => {
@@ -165,6 +177,15 @@ describe("BusinessSignUpFlow analytics", () => {
     fireEvent.change(screen.getByLabelText(/Task statement/i), {
       target: { value: "Qualify a tote-picking workflow." },
     });
+    fireEvent.change(screen.getByLabelText(/Workflow context/i), {
+      target: { value: "Need success threshold and cycle-time metric for tote picking." },
+    });
+    fireEvent.change(screen.getByLabelText(/Operating constraints/i), {
+      target: { value: "Safety exclusion zones around humans and forklifts." },
+    });
+    fireEvent.change(screen.getByLabelText(/Known blockers/i), {
+      target: { value: "Need simulator validation evidence and action logs before pilot." },
+    });
     fireEvent.change(screen.getByLabelText(/Target robot team or embodiment/i), {
       target: { value: "AMR fleet" },
     });
@@ -201,6 +222,11 @@ describe("BusinessSignUpFlow analytics", () => {
       budgetBucket: "$50K-$300K",
       proofPathPreference: "exact_site_required",
       targetRobotTeam: "AMR fleet",
+      workflowContext: "Need success threshold and cycle-time metric for tote picking.",
+      operatingConstraints: "Safety exclusion zones around humans and forklifts.",
+      knownBlockers: "Need simulator validation evidence and action logs before pilot.",
+      details:
+        "Workflow context: Need success threshold and cycle-time metric for tote picking.\nOperating constraints: Safety exclusion zones around humans and forklifts.\nKnown blockers: Need simulator validation evidence and action logs before pilot.",
     });
 
     const savedUser = setDocMock.mock.calls[0]?.[1];
@@ -224,10 +250,11 @@ describe("BusinessSignUpFlow analytics", () => {
       budgetRange: "$50K-$300K",
       referralSource: "google",
       hasPhoneNumber: false,
-      hasWorkflowContext: false,
-      hasOperatingConstraints: false,
+      hasWorkflowContext: true,
+      hasOperatingConstraints: true,
       hasPrivacySecurityConstraints: false,
-      hasKnownBlockers: false,
+      hasCommercializationPreference: false,
+      hasKnownBlockers: true,
       hasTargetRobotTeam: true,
       demandAttribution: {
         demandCity: null,
@@ -314,9 +341,11 @@ describe("BusinessSignUpFlow analytics", () => {
     fireEvent.change(screen.getByLabelText(/Privacy and security constraints/i), {
       target: { value: "No employee-only rooms and redact faces." },
     });
-    fireEvent.change(screen.getByLabelText(/Budget range/i), {
-      target: { value: "$50K-$300K" },
+    fireEvent.change(screen.getByLabelText(/Commercialization boundary/i), {
+      target: { value: "Ask before each robot-team use" },
     });
+    expect(screen.getByText(/Site submission is free/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Budget range/i)).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText(/How did you hear about Blueprint\?/i), {
       target: { value: "partner_referral" },
     });
@@ -339,6 +368,7 @@ describe("BusinessSignUpFlow analytics", () => {
       taskStatement: "Claim this facility for escorted robot-team review.",
       operatingConstraints: "Escorted weekday access, no capture before 9am.",
       privacySecurityConstraints: "No employee-only rooms and redact faces.",
+      derivedScenePermission: "Ask before each robot-team use",
     });
 
     const savedUser = setDocMock.mock.calls[0]?.[1];
@@ -355,6 +385,7 @@ describe("BusinessSignUpFlow analytics", () => {
         siteClaimConfirmed: true,
         accessBoundariesDefined: true,
         privacyRulesConfirmed: true,
+        commercializationPreferenceSet: true,
       },
     });
   });

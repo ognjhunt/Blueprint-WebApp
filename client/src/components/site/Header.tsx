@@ -1,17 +1,42 @@
 import { useLocation } from "wouter";
 import { useMemo, useState } from "react";
-import { Menu, X } from "lucide-react";
+import {
+  Bot,
+  ClipboardCheck,
+  LayoutDashboard,
+  LogIn,
+  Menu,
+  ShieldCheck,
+  UserPlus,
+  X,
+} from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { BrandLockup } from "./BrandMark";
 import { primaryNavLinks } from "./navigation";
+
+const signupLinks = [
+  {
+    href: "/signup/business?buyerType=robot_team&source=header-signup",
+    label: "Robot team",
+    description: "Create an account to scope evaluations and data packages.",
+    Icon: Bot,
+  },
+  {
+    href: "/signup/business?buyerType=site_operator&source=header-signup",
+    label: "Site operator",
+    description: "Submit a facility and set access boundaries for free.",
+    Icon: ShieldCheck,
+  },
+] as const;
 
 export function Header() {
   const [location, setLocation] = useLocation();
@@ -44,6 +69,51 @@ export function Header() {
       .toUpperCase();
   }, [userData?.name, userData?.displayName]);
 
+  const userPersona = useMemo(() => {
+    const roleData = userData as
+      | (NonNullable<typeof userData> & { role?: string; roles?: string[] })
+      | null;
+    const isCapturer =
+      roleData?.role === "capturer" || roleData?.roles?.includes("capturer") === true;
+    const requestHref = userData?.structuredIntakeRequestId
+      ? `/requests/${encodeURIComponent(userData.structuredIntakeRequestId)}`
+      : null;
+
+    if (isCapturer) {
+      return {
+        label: "Capture operator",
+        badge: "Capture",
+        workspaceHref: "/capture-app",
+        workspaceLabel: "Open capture app",
+        secondaryHref: "/capture",
+        secondaryLabel: "View capture jobs",
+        requestHref,
+      };
+    }
+
+    if (userData?.buyerType === "site_operator") {
+      return {
+        label: "Site operator",
+        badge: "Site operator",
+        workspaceHref: userData.finishedOnboarding ? "/dashboard" : "/onboarding",
+        workspaceLabel: userData.finishedOnboarding ? "Open site workspace" : "Finish site onboarding",
+        secondaryHref: "/contact/site-operator",
+        secondaryLabel: "Submit another site",
+        requestHref,
+      };
+    }
+
+    return {
+      label: "Robot team",
+      badge: "Robot team",
+      workspaceHref: userData?.finishedOnboarding ? "/dashboard" : "/onboarding",
+      workspaceLabel: userData?.finishedOnboarding ? "Open robot-team workspace" : "Finish robot-team onboarding",
+      secondaryHref: "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=signed-in-header",
+      secondaryLabel: "Request another evaluation",
+      requestHref,
+    };
+  }, [userData]);
+
   const headerCta = useMemo(() => {
     if (
       location === "/capture"
@@ -75,6 +145,13 @@ export function Header() {
       label: "Request evaluation",
     };
   }, [location]);
+
+  const visibleHeaderCta = currentUser
+    ? {
+        href: userPersona.workspaceHref,
+        label: userPersona.workspaceLabel,
+      }
+    : headerCta;
 
   const handleSignOut = async () => {
     await logout();
@@ -114,12 +191,12 @@ export function Header() {
           })}
         </nav>
 
-        <div className="hidden items-center gap-4 xl:flex">
+        <div className="hidden items-center gap-3 xl:flex">
           <a
-            href={headerCta.href}
+            href={visibleHeaderCta.href}
             className="inline-flex items-center justify-center whitespace-nowrap border border-[#c7a775]/55 bg-[#c7a775] px-[1.125rem] py-2.5 text-[13px] font-semibold leading-none text-[#0d0d0b] transition hover:bg-[#d8bd8d]"
           >
-            {headerCta.label}
+            {visibleHeaderCta.label}
           </a>
           {currentUser ? (
             <DropdownMenu>
@@ -143,7 +220,36 @@ export function Header() {
                   </Avatar>
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuContent align="end" className="w-64">
+                <DropdownMenuLabel>
+                  <span className="block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                    {userPersona.badge}
+                  </span>
+                  <span className="mt-1 block truncate text-sm text-slate-950">
+                    {userData?.organizationName || userData?.name || userData?.email || userPersona.label}
+                  </span>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <a href={userPersona.workspaceHref} className="flex items-center gap-2">
+                    <LayoutDashboard className="h-4 w-4" />
+                    {userPersona.workspaceLabel}
+                  </a>
+                </DropdownMenuItem>
+                {userPersona.requestHref ? (
+                  <DropdownMenuItem asChild>
+                    <a href={userPersona.requestHref} className="flex items-center gap-2">
+                      <ClipboardCheck className="h-4 w-4" />
+                      Request room
+                    </a>
+                  </DropdownMenuItem>
+                ) : null}
+                <DropdownMenuItem asChild>
+                  <a href={userPersona.secondaryHref}>
+                    {userPersona.secondaryLabel}
+                  </a>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
                   <a href="/settings">
                     Settings
@@ -155,7 +261,45 @@ export function Header() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          ) : null}
+          ) : (
+            <>
+              <a
+                href="/sign-in"
+                className="inline-flex items-center justify-center gap-2 whitespace-nowrap border border-white/15 px-4 py-2.5 text-[13px] font-semibold leading-none text-white/80 transition hover:border-white/35 hover:text-white"
+              >
+                <LogIn className="h-4 w-4" />
+                Sign in
+              </a>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="inline-flex items-center justify-center gap-2 whitespace-nowrap border border-white/15 bg-white/5 px-4 py-2.5 text-[13px] font-semibold leading-none text-white transition hover:border-white/35 hover:bg-white/10"
+                  >
+                    <UserPlus className="h-4 w-4" />
+                    Sign up
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-72">
+                  <DropdownMenuLabel>Choose access path</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {signupLinks.map(({ href, label, description, Icon }) => (
+                    <DropdownMenuItem key={href} asChild>
+                      <a href={href} className="flex items-start gap-3 py-3">
+                        <Icon className="mt-0.5 h-4 w-4 shrink-0" />
+                        <span>
+                          <span className="block font-semibold">{label}</span>
+                          <span className="mt-1 block text-xs leading-5 text-slate-500">
+                            {description}
+                          </span>
+                        </span>
+                      </a>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
+          )}
         </div>
 
         <button
@@ -189,15 +333,37 @@ export function Header() {
             </div>
 
             <a
-              href={headerCta.href}
+              href={visibleHeaderCta.href}
               className="inline-flex min-h-11 items-center justify-center rounded-none border border-[#c7a775]/55 bg-[#c7a775] px-4 py-2.5 text-center font-semibold text-[#0d0d0b]"
               onClick={() => setOpen(false)}
             >
-              {headerCta.label}
+              {visibleHeaderCta.label}
             </a>
 
             {currentUser ? (
               <>
+                <div className="border border-white/15 px-4 py-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/55">
+                    Signed in as
+                  </p>
+                  <p className="mt-1 text-sm text-white">{userPersona.badge}</p>
+                </div>
+                {userPersona.requestHref ? (
+                  <a
+                    href={userPersona.requestHref}
+                    className="inline-flex min-h-11 items-center justify-center rounded-none border border-white/20 px-4 py-2.5 text-center text-white"
+                    onClick={() => setOpen(false)}
+                  >
+                    Request room
+                  </a>
+                ) : null}
+                <a
+                  href={userPersona.secondaryHref}
+                  className="inline-flex min-h-11 items-center justify-center rounded-none border border-white/20 px-4 py-2.5 text-center text-white"
+                  onClick={() => setOpen(false)}
+                >
+                  {userPersona.secondaryLabel}
+                </a>
                 <a
                   href="/settings"
                   className="inline-flex min-h-11 items-center justify-center rounded-none border border-white/20 px-4 py-2.5 text-center text-white"
@@ -216,7 +382,29 @@ export function Header() {
                   Sign out
                 </button>
               </>
-            ) : null}
+            ) : (
+              <div className="space-y-3 border-t border-white/10 pt-5">
+                <a
+                  href="/sign-in"
+                  className="inline-flex min-h-11 w-full items-center justify-center rounded-none border border-white/20 px-4 py-2.5 text-center text-white"
+                  onClick={() => setOpen(false)}
+                >
+                  Sign in
+                </a>
+                <div className="grid gap-2">
+                  {signupLinks.map(({ href, label }) => (
+                    <a
+                      key={href}
+                      href={href}
+                      className="inline-flex min-h-11 items-center justify-center rounded-none border border-white/20 px-4 py-2.5 text-center text-white"
+                      onClick={() => setOpen(false)}
+                    >
+                      Sign up: {label}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
           </nav>
         </div>
       ) : null}

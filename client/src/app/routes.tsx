@@ -126,6 +126,14 @@ const LegacyLoginRedirect = () => (
   <MarketingRedirect to="/sign-in" />
 );
 
+const RobotTeamSignupRedirect = () => (
+  <MarketingRedirect to="/signup/business?buyerType=robot_team&source=signup-route" />
+);
+
+const SiteOperatorSignupRedirect = () => (
+  <MarketingRedirect to="/signup/business?buyerType=site_operator&source=signup-route" />
+);
+
 const LegacyDocsRedirect = () => (
   <MarketingRedirect to="/proof" />
 );
@@ -219,6 +227,8 @@ export const appRoutes: AppRoute[] = [
   { path: "/login", layout: "public", component: LegacyLoginRedirect },
   { path: "/signup", layout: "public", shell: "bare", component: BusinessSignUpFlow },
   { path: "/signup/business", layout: "public", shell: "bare", component: BusinessSignUpFlow },
+  { path: "/signup/robot-team", layout: "public", shell: "bare", component: RobotTeamSignupRedirect },
+  { path: "/signup/site-operator", layout: "public", shell: "bare", component: SiteOperatorSignupRedirect },
   { path: "/signup/capturer", layout: "public", shell: "bare", component: CapturerSignUpFlow },
   { path: "/onboarding", layout: "protected", component: OnboardingChecklist },
   { path: "/forgot-password", layout: "public", shell: "bare", component: ForgotPassword },

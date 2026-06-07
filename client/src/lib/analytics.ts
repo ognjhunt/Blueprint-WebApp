@@ -635,6 +635,7 @@ export const analyticsEvents = {
     hasWorkflowContext: boolean;
     hasOperatingConstraints: boolean;
     hasPrivacySecurityConstraints: boolean;
+    hasCommercializationPreference: boolean;
     hasKnownBlockers: boolean;
     hasTargetRobotTeam: boolean;
     demandAttribution?: DemandAttribution;
@@ -650,6 +651,7 @@ export const analyticsEvents = {
       has_workflow_context: properties.hasWorkflowContext,
       has_operating_constraints: properties.hasOperatingConstraints,
       has_privacy_security_constraints: properties.hasPrivacySecurityConstraints,
+      has_commercialization_preference: properties.hasCommercializationPreference,
       has_known_blockers: properties.hasKnownBlockers,
       has_target_robot_team: properties.hasTargetRobotTeam,
       ...buildDemandAttributionEventParams(properties.demandAttribution),
