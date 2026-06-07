@@ -2,12 +2,18 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   buildRobotEvalJobRequest,
+  forwardRobotEvalJobRequestToPipeline,
   validateRobotEvalJobRequest,
   writeRobotEvalJobRequestInbox,
 } from "../utils/robotEvalJobRequests";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllEnvs();
+});
 
 describe("buildRobotEvalJobRequest", () => {
   it("creates a durable Pipeline robot_eval_job_request.v1 from a site/task/policy selection", () => {
@@ -298,5 +304,110 @@ describe("buildRobotEvalJobRequest", () => {
     );
     expect(index).toContain("robot_eval_job_request_inbox.v1");
     expect(index).toContain("buyer-request-sw-chi-01-fixture");
+  });
+
+  it("leaves Pipeline forwarding off when no endpoint is configured", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+
+    const result = await forwardRobotEvalJobRequestToPipeline({
+      jobRequest: {
+        schema_version: "robot_eval_job_request.v1",
+        job_id: "robot-eval-1",
+        buyer_request_id: "buyer-request-1",
+      },
+      queuedAt: "2026-06-06T00:00:00.000Z",
+    });
+
+    expect(result).toEqual({
+      status: "not_configured",
+      performed: false,
+      endpoint_configured: false,
+      required: false,
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("blocks Pipeline forwarding when endpoint is configured without a token", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+
+    const result = await forwardRobotEvalJobRequestToPipeline({
+      endpointUrl: "http://127.0.0.1:8765/api/live-pipeline/job-requests",
+      jobRequest: {
+        schema_version: "robot_eval_job_request.v1",
+        job_id: "robot-eval-1",
+        buyer_request_id: "buyer-request-1",
+      },
+      queuedAt: "2026-06-06T00:00:00.000Z",
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        status: "blocked",
+        performed: false,
+        endpoint_configured: true,
+        blockers: ["missing_env_ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN"],
+      }),
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("forwards a Pipeline queue envelope with redacted status", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          accepted: true,
+          status: "staged_for_control_plane",
+          input_blockers: [],
+        }),
+        {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        },
+      ),
+    );
+
+    const result = await forwardRobotEvalJobRequestToPipeline({
+      endpointUrl: "http://127.0.0.1:8765/api/live-pipeline/job-requests",
+      token: "test-forward-token",
+      jobRequest: {
+        schema_version: "robot_eval_job_request.v1",
+        job_id: "robot-eval-1",
+        buyer_request_id: "buyer-request-1",
+      },
+      queuedAt: "2026-06-06T00:00:00.000Z",
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        status: "forwarded",
+        performed: true,
+        endpoint_configured: true,
+        http_status: 200,
+        accepted: true,
+        pipeline_status: "staged_for_control_plane",
+      }),
+    );
+    expect(JSON.stringify(result)).not.toContain("test-forward-token");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:8765/api/live-pipeline/job-requests",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          authorization: "Bearer test-forward-token",
+        }),
+      }),
+    );
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(String(init.body));
+    expect(body).toEqual(
+      expect.objectContaining({
+        queue_contract: "robot_eval_job_request_inbox.v1",
+        status: "queued_for_pipeline",
+        job_id: "robot-eval-1",
+        buyer_request_id: "buyer-request-1",
+        pipeline_consumer: "BlueprintCapturePipeline",
+      }),
+    );
+    expect(body.job_request.schema_version).toBe("robot_eval_job_request.v1");
   });
 });

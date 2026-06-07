@@ -3,6 +3,8 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 const JOB_REQUEST_SCHEMA_VERSION = "robot_eval_job_request.v1";
+const JOB_REQUEST_QUEUE_CONTRACT = "robot_eval_job_request_inbox.v1";
+const DEFAULT_FORWARD_TIMEOUT_MS = 10000;
 
 const CLAIM_BOUNDARY = {
   simulator_execution_proven: false,
@@ -391,7 +393,7 @@ export async function writeRobotEvalJobRequestInbox(params: {
   const jobPath = path.join(params.rootDir, fileName);
   const indexPath = path.join(params.rootDir, "index.jsonl");
   const exportEnvelope = {
-    queue_contract: "robot_eval_job_request_inbox.v1",
+    queue_contract: JOB_REQUEST_QUEUE_CONTRACT,
     status: "queued_for_pipeline",
     queued_at_iso: params.queuedAt,
     job_id: jobId,
@@ -411,7 +413,7 @@ export async function writeRobotEvalJobRequestInbox(params: {
       buyer_request_id: buyerRequestId,
       path: jobPath,
       schema_version: JOB_REQUEST_SCHEMA_VERSION,
-      queue_contract: "robot_eval_job_request_inbox.v1",
+      queue_contract: JOB_REQUEST_QUEUE_CONTRACT,
     })}\n`,
     "utf8",
   );
@@ -421,4 +423,127 @@ export async function writeRobotEvalJobRequestInbox(params: {
     job_request_path: jobPath,
     index_path: indexPath,
   };
+}
+
+export type RobotEvalJobRequestForwardResult = {
+  status: "not_configured" | "blocked" | "forwarded" | "failed";
+  performed: boolean;
+  endpoint_configured: boolean;
+  required: boolean;
+  http_status?: number;
+  accepted?: boolean;
+  pipeline_status?: unknown;
+  input_blockers?: unknown;
+  blockers?: string[];
+  error_name?: string;
+  error_message?: string;
+};
+
+function truthy(value: string | undefined) {
+  return String(value || "").trim().toLowerCase() === "true";
+}
+
+function intEnv(value: string | undefined, fallback: number) {
+  const parsed = Number.parseInt(String(value || ""), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+export async function forwardRobotEvalJobRequestToPipeline(params: {
+  jobRequest: Record<string, unknown>;
+  queuedAt: string;
+  endpointUrl?: string;
+  token?: string;
+  required?: boolean;
+  timeoutMs?: number;
+}): Promise<RobotEvalJobRequestForwardResult> {
+  const endpoint =
+    params.endpointUrl?.trim() ||
+    String(process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_URL || "").trim();
+  const required =
+    params.required ?? truthy(process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_REQUIRED);
+  if (!endpoint) {
+    return {
+      status: "not_configured",
+      performed: false,
+      endpoint_configured: false,
+      required,
+    };
+  }
+
+  const token = params.token ?? String(process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN || "");
+  if (!token.trim()) {
+    return {
+      status: "blocked",
+      performed: false,
+      endpoint_configured: true,
+      required,
+      blockers: ["missing_env_ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN"],
+    };
+  }
+
+  const jobId = String(params.jobRequest.job_id || "").trim();
+  const buyerRequestId = String(params.jobRequest.buyer_request_id || "").trim();
+  const envelope = {
+    queue_contract: JOB_REQUEST_QUEUE_CONTRACT,
+    status: "queued_for_pipeline",
+    queued_at_iso: params.queuedAt,
+    job_id: jobId,
+    buyer_request_id: buyerRequestId,
+    pipeline_command: "blueprint-run-robot-eval-job",
+    pipeline_consumer: "BlueprintCapturePipeline",
+    job_request: params.jobRequest,
+  };
+  const controller = new AbortController();
+  const timeout = setTimeout(
+    () => controller.abort(),
+    params.timeoutMs ??
+      intEnv(process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_TIMEOUT_MS, DEFAULT_FORWARD_TIMEOUT_MS),
+  );
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(envelope),
+      signal: controller.signal,
+    });
+    let payload: Record<string, unknown> = {};
+    try {
+      const parsed = await response.json();
+      payload = hasObject(parsed) ? parsed : {};
+    } catch {
+      payload = {};
+    }
+    const detail = hasObject(payload.detail) ? payload.detail : payload;
+    const result: RobotEvalJobRequestForwardResult = {
+      status: response.ok ? "forwarded" : "failed",
+      performed: response.ok,
+      endpoint_configured: true,
+      required,
+      http_status: response.status,
+    };
+    if (typeof detail.accepted === "boolean") {
+      result.accepted = detail.accepted;
+    }
+    if (detail.status !== undefined) {
+      result.pipeline_status = detail.status;
+    }
+    if (detail.input_blockers !== undefined) {
+      result.input_blockers = detail.input_blockers;
+    }
+    return result;
+  } catch (error) {
+    return {
+      status: "failed",
+      performed: false,
+      endpoint_configured: true,
+      required,
+      error_name: error instanceof Error ? error.name : "UnknownError",
+      error_message: error instanceof Error ? error.message : "Unknown forwarding error",
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
 }

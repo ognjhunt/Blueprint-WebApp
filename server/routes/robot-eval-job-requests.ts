@@ -2,6 +2,7 @@ import { Router } from "express";
 import path from "node:path";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import {
+  forwardRobotEvalJobRequestToPipeline,
   validateRobotEvalJobRequest,
   writeRobotEvalJobRequestInbox,
 } from "../utils/robotEvalJobRequests";
@@ -31,6 +32,10 @@ router.post("/", async (req, res) => {
     jobRequest,
     queuedAt,
   });
+  const pipelineForward = await forwardRobotEvalJobRequestToPipeline({
+    jobRequest,
+    queuedAt,
+  });
   const record = {
     jobRequest,
     schema_version: jobRequest.schema_version,
@@ -55,6 +60,7 @@ router.post("/", async (req, res) => {
     status: "queued_for_pipeline",
     pipeline_command: "blueprint-run-robot-eval-job",
     pipeline_inbox: inbox,
+    pipeline_forward: pipelineForward,
     created_at_iso: queuedAt,
     updated_at_iso: queuedAt,
     proof_boundary: {
@@ -78,13 +84,26 @@ router.post("/", async (req, res) => {
     );
   }
 
+  const durableStore = db
+    ? "firestore.robotEvalJobRequests+pipeline_inbox+optional_pipeline_forward"
+    : "pipeline_inbox+optional_pipeline_forward";
+  if (pipelineForward.required && !pipelineForward.performed) {
+    return res.status(502).json({
+      ok: false,
+      status: "pipeline_forward_failed",
+      durableStore,
+      pipelineInbox: inbox,
+      pipelineForward,
+      jobRequest,
+    });
+  }
+
   return res.status(202).json({
     ok: true,
     status: "queued_for_pipeline",
-    durableStore: db
-      ? "firestore.robotEvalJobRequests+pipeline_inbox"
-      : "pipeline_inbox",
+    durableStore,
     pipelineInbox: inbox,
+    pipelineForward,
     jobRequest,
   });
 });
