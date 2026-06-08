@@ -180,7 +180,7 @@ describe("buildRobotEvalJobRequest", () => {
     expect(validateRobotEvalJobRequest(request).ok).toBe(true);
   });
 
-  it("rejects false-proof upgrades and incomplete policy modality sets", () => {
+  it("rejects false-proof upgrades and incomplete selected policy modalities", () => {
     const invalid = {
       schema_version: "robot_eval_job_request.v1",
       job_id: "robot-eval-invalid",
@@ -198,7 +198,9 @@ describe("buildRobotEvalJobRequest", () => {
           "gs://blueprint/site-packages/sw-chi-01/publication_readiness.json",
       },
       policy_package: {
-        policy_api_endpoint: {},
+        policy_api_endpoint: {
+          observation_schema_ref: "gs://robot-team/schemas/obs.json",
+        },
       },
       proof_boundary: {
         simulator_execution_proven: true,
@@ -215,14 +217,47 @@ describe("buildRobotEvalJobRequest", () => {
     expect(validation.ok).toBe(false);
     expect(validation.errors).toEqual(
       expect.arrayContaining([
-        "policy_package.docker_container is required",
-        "policy_package.recorded_action_trace is required",
-        "policy_package.high_level_skill_trace is required",
-        "policy_package.teleop_demo is required",
-        "policy_package.sim_controller_plugin is required",
+        "policy_package.policy_api_endpoint.endpoint_url is required",
         "proof_boundary.simulator_execution_proven must be false until owner-system proof exists",
       ]),
     );
+  });
+
+  it("accepts one complete robot-team policy modality without requiring the other five", () => {
+    const request = {
+      schema_version: "robot_eval_job_request.v1",
+      job_id: "robot-eval-single-modality",
+      buyer_request_id: "buyer-request-single-modality",
+      site_package: {
+        site_slug: "sw-chi-01",
+        site_id: "site-sw-chi-01",
+        site_submission_id: "site-submission-sw-chi-01",
+        capture_job_id: "capture-job-sw-chi-01",
+        capture_id: "capture-sw-chi-01",
+        buyer_request_id: "buyer-request-single-modality",
+        package_uri: "gs://blueprint/site-packages/sw-chi-01/manifest.json",
+        task_thresholds_uri: "gs://blueprint/site-packages/sw-chi-01/task_thresholds.json",
+        publication_readiness_uri:
+          "gs://blueprint/site-packages/sw-chi-01/publication_readiness.json",
+      },
+      policy_package: {
+        policy_api_endpoint: {
+          endpoint_url: "https://robot-team.example/policy",
+          observation_schema_ref: "gs://robot-team/schemas/obs.json",
+          action_schema_ref: "gs://robot-team/schemas/action.json",
+        },
+      },
+      proof_boundary: {
+        simulator_execution_proven: false,
+        robot_readiness_proven: false,
+        robot_policy_execution_proven: false,
+        physics_contact_validated: false,
+        safety_validated: false,
+        public_claim_upgrade_allowed: false,
+      },
+    };
+
+    expect(validateRobotEvalJobRequest(request)).toEqual({ ok: true, errors: [] });
   });
 
   it("writes a Pipeline-readable inbox envelope and append-only index", async () => {

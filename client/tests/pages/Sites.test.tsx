@@ -76,6 +76,51 @@ describe("Sites", () => {
         name: /Create eval job request/i,
       }),
     );
+    fireEvent.change(within(harborviewCard as HTMLElement).getByLabelText(/Endpoint URL/i), {
+      target: { value: "https://policies.robotteam.dev/v1/action" },
+    });
+    fireEvent.change(
+      within(harborviewCard as HTMLElement).getByLabelText(/Auth handling/i),
+      {
+        target: { value: "Bearer token in redacted robot-team secret ref" },
+      },
+    );
+    fireEvent.change(
+      within(harborviewCard as HTMLElement).getByLabelText(/Observation schema/i),
+      {
+        target: { value: "gs://robot-team/schemas/observation.v1.json" },
+      },
+    );
+    fireEvent.change(
+      within(harborviewCard as HTMLElement).getByLabelText(/Action schema/i),
+      {
+        target: { value: "gs://robot-team/schemas/action.v1.json" },
+      },
+    );
+    fireEvent.change(
+      within(harborviewCard as HTMLElement).getByLabelText(/Rate-limit/i),
+      {
+        target: { value: "200 ms p95, 10 rps" },
+      },
+    );
+    fireEvent.change(
+      within(harborviewCard as HTMLElement).getByLabelText(/Callback \/ log URI/i),
+      {
+        target: { value: "gs://robot-team/blueprint/callbacks/" },
+      },
+    );
+    fireEvent.change(
+      within(harborviewCard as HTMLElement).getByLabelText(/Owner contact/i),
+      {
+        target: { value: "robot-owner@robotteam.dev" },
+      },
+    );
+
+    fireEvent.click(
+      within(harborviewCard as HTMLElement).getByRole("button", {
+        name: /Create eval job request/i,
+      }),
+    );
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
@@ -128,12 +173,16 @@ describe("Sites", () => {
     );
     expect(Object.keys(body.policy_package)).toEqual([
       "policy_api_endpoint",
-      "docker_container",
-      "recorded_action_trace",
-      "high_level_skill_trace",
-      "teleop_demo",
-      "sim_controller_plugin",
     ]);
+    expect(body.policy_package.policy_api_endpoint).toEqual(
+      expect.objectContaining({
+        endpoint_url: "https://policies.robotteam.dev/v1/action",
+        observation_schema_ref: "gs://robot-team/schemas/observation.v1.json",
+        action_schema_ref: "gs://robot-team/schemas/action.v1.json",
+        owner_contact: "robot-owner@robotteam.dev",
+      }),
+    );
+    expect(JSON.stringify(body.policy_package)).not.toMatch(/placeholder/i);
     expect(await screen.findByText(/robot-eval-sw-chi-01/i)).toBeInTheDocument();
   });
 

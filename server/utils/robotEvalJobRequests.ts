@@ -67,6 +67,81 @@ function hasObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function hasSelectedPayload(value: unknown): value is Record<string, unknown> {
+  return (
+    hasObject(value) &&
+    Object.values(value).some((item) => {
+      if (Array.isArray(item)) {
+        return item.length > 0;
+      }
+      return item !== undefined && item !== null && String(item).trim() !== "";
+    })
+  );
+}
+
+function stringField(payload: Record<string, unknown>, ...keys: string[]) {
+  for (const key of keys) {
+    const normalized = String(payload[key] || "").trim();
+    if (normalized) {
+      return normalized;
+    }
+  }
+  return "";
+}
+
+function validateSelectedPolicyModality(
+  modality: PolicyModality,
+  payload: Record<string, unknown>,
+) {
+  const errors: string[] = [];
+  if (modality === "policy_api_endpoint") {
+    const endpointUrl = stringField(payload, "endpoint_url", "endpointUrl", "url");
+    if (!/^https?:\/\//i.test(endpointUrl)) {
+      errors.push("policy_package.policy_api_endpoint.endpoint_url is required");
+    }
+  } else if (modality === "docker_container") {
+    if (!stringField(payload, "image_ref", "imageRef")) {
+      errors.push("policy_package.docker_container.image_ref is required");
+    }
+    if (!stringField(payload, "digest", "digestChecksum").startsWith("sha256:")) {
+      errors.push("policy_package.docker_container.digest is required");
+    }
+  } else if (modality === "recorded_action_trace") {
+    if (!stringField(payload, "trace_manifest_uri", "traceManifestUri")) {
+      errors.push("policy_package.recorded_action_trace.trace_manifest_uri is required");
+    }
+    if (!stringField(payload, "timestamp_alignment", "timestampAlignment")) {
+      errors.push("policy_package.recorded_action_trace.timestamp_alignment is required");
+    }
+  } else if (modality === "high_level_skill_trace") {
+    const sequence = payload.ordered_skill_sequence || payload.orderedSkillSequence;
+    if (!(Array.isArray(sequence) && sequence.length > 0)) {
+      errors.push("policy_package.high_level_skill_trace.ordered_skill_sequence is required");
+    }
+  } else if (modality === "teleop_demo") {
+    if (!stringField(payload, "demo_artifact_uri", "demoArtifactUri")) {
+      errors.push("policy_package.teleop_demo.demo_artifact_uri is required");
+    }
+    if (
+      !stringField(
+        payload,
+        "rights_privacy_attestation",
+        "rightsPrivacyAttestation",
+      )
+    ) {
+      errors.push("policy_package.teleop_demo.rights_privacy_attestation is required");
+    }
+  } else if (modality === "sim_controller_plugin") {
+    if (!stringField(payload, "simulator_framework", "simulatorFramework")) {
+      errors.push("policy_package.sim_controller_plugin.simulator_framework is required");
+    }
+    if (!stringField(payload, "plugin_uri", "pluginUri")) {
+      errors.push("policy_package.sim_controller_plugin.plugin_uri is required");
+    }
+  }
+  return errors;
+}
+
 function sanitizeFileStem(value: string) {
   return slugify(value).slice(0, 160) || "robot-eval-job-request";
 }
@@ -371,10 +446,16 @@ export function validateRobotEvalJobRequest(value: unknown): {
   if (!hasObject(policyPackage)) {
     errors.push("policy_package is required");
   } else {
+    const selectedModalities: PolicyModality[] = [];
     for (const modality of POLICY_MODALITIES) {
-      if (!hasObject(policyPackage[modality])) {
-        errors.push(`policy_package.${modality} is required`);
+      const payload = policyPackage[modality];
+      if (hasSelectedPayload(payload)) {
+        selectedModalities.push(modality);
+        errors.push(...validateSelectedPolicyModality(modality, payload));
       }
+    }
+    if (selectedModalities.length === 0) {
+      errors.push("policy_package must include at least one supported modality");
     }
   }
 

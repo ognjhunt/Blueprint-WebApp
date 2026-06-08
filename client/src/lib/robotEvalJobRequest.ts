@@ -1,15 +1,153 @@
 import type { SiteLibrarySite } from "@/data/siteLibrary";
+import type {
+  RobotTeamTestSubmission,
+  RobotTeamTestSubmissionModalityId,
+} from "@/lib/robotTeamTestSubmission";
 
-const POLICY_DIGEST =
-  "sha256:0000000000000000000000000000000000000000000000000000000000000000";
+type PolicyPackagePayload = Record<string, unknown>;
 
 function kebab(value: string) {
   return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 }
 
+function compactRecord(record: Record<string, unknown>) {
+  return Object.fromEntries(
+    Object.entries(record).filter(([, value]) => {
+      if (Array.isArray(value)) {
+        return value.length > 0;
+      }
+      return value !== undefined && value !== null && String(value).trim() !== "";
+    }),
+  );
+}
+
+function splitList(value: string | undefined) {
+  return String(value || "")
+    .split(/\n|,|->/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function fieldsFor(
+  submission: RobotTeamTestSubmission,
+  modality: RobotTeamTestSubmissionModalityId,
+) {
+  return submission.modalities[modality]?.fields || {};
+}
+
+export function buildPolicyPackageFromRobotTeamSubmission(
+  submission?: RobotTeamTestSubmission | null,
+) {
+  if (!submission) {
+    return {};
+  }
+
+  const policyPackage: Record<RobotTeamTestSubmissionModalityId, PolicyPackagePayload> = {
+    policy_api_endpoint: {},
+    docker_container: {},
+    recorded_action_trace: {},
+    high_level_skill_trace: {},
+    teleop_demo: {},
+    sim_controller_plugin: {},
+  };
+
+  if (submission.selectedModalities.includes("policy_api_endpoint")) {
+    const fields = fieldsFor(submission, "policy_api_endpoint");
+    policyPackage.policy_api_endpoint = compactRecord({
+      endpoint_url: fields.endpointUrl,
+      auth_handling: fields.authHandling,
+      observation_schema_ref: fields.observationSchemaRef,
+      action_schema_ref: fields.actionSchemaRef,
+      runtime_constraints: fields.runtimeConstraints,
+      callback_log_uri: fields.callbackLogUri,
+      owner_contact: fields.ownerContact,
+    });
+  }
+
+  if (submission.selectedModalities.includes("docker_container")) {
+    const fields = fieldsFor(submission, "docker_container");
+    policyPackage.docker_container = compactRecord({
+      image_ref: fields.imageRef,
+      digest: fields.digestChecksum,
+      entrypoint: fields.entrypoint,
+      environment_contract: fields.environmentContract,
+      hardware_needs: fields.hardwareNeeds,
+      io_schema_ref: fields.ioSchemaRef,
+      runtime_notes: fields.runtimeNotes,
+    });
+  }
+
+  if (submission.selectedModalities.includes("recorded_action_trace")) {
+    const fields = fieldsFor(submission, "recorded_action_trace");
+    policyPackage.recorded_action_trace = compactRecord({
+      trace_manifest_uri: fields.traceManifestUri,
+      format: fields.format,
+      task_scenario_mapping: fields.taskScenarioMapping,
+      timestamp_alignment: fields.timestampAlignment,
+      observation_action_alignment: fields.observationActionAlignment,
+      success_failure_labels: fields.successFailureLabels,
+      checksum: fields.checksum,
+    });
+  }
+
+  if (submission.selectedModalities.includes("high_level_skill_trace")) {
+    const fields = fieldsFor(submission, "high_level_skill_trace");
+    policyPackage.high_level_skill_trace = compactRecord({
+      skill_taxonomy_version: fields.skillTaxonomyVersion,
+      ordered_skill_sequence: splitList(fields.orderedSkillSequence),
+      preconditions_postconditions: fields.preconditionsPostconditions,
+      failure_labels: fields.failureLabels,
+      source_type: fields.sourceType,
+      confidence_coverage_note: fields.confidenceCoverageNote,
+    });
+  }
+
+  if (submission.selectedModalities.includes("teleop_demo")) {
+    const fields = fieldsFor(submission, "teleop_demo");
+    policyPackage.teleop_demo = compactRecord({
+      demo_artifact_uri: fields.demoArtifactUri,
+      operator_device: fields.operatorDevice,
+      control_mapping: fields.controlMapping,
+      time_sync: fields.timeSync,
+      task_scenario_mapping: fields.taskScenarioMapping,
+      rights_privacy_attestation: fields.rightsPrivacyAttestation,
+      labels: fields.labels,
+    });
+  }
+
+  if (submission.selectedModalities.includes("sim_controller_plugin")) {
+    const fields = fieldsFor(submission, "sim_controller_plugin");
+    policyPackage.sim_controller_plugin = compactRecord({
+      simulator_framework: fields.simulatorFramework,
+      plugin_uri: fields.pluginUri,
+      supported_control_modes: splitList(fields.supportedControlModes),
+      observation_action_spaces: fields.observationActionSpaces,
+      replay_export_path: fields.replayExportPath,
+      compatibility_notes: fields.compatibilityNotes,
+    });
+  }
+
+  return Object.fromEntries(
+    Object.entries(policyPackage).filter(([, payload]) => Object.keys(payload).length > 0),
+  );
+}
+
+export function robotTeamSubmissionReadyForJobRequest(
+  submission?: RobotTeamTestSubmission | null,
+) {
+  return Boolean(
+    submission &&
+      submission.selectedModalities.length > 0 &&
+      submission.selectedModalities.every(
+        (modality) => submission.modalities[modality]?.reviewStatus === "ready_for_review",
+      ),
+  );
+}
+
 export function buildRobotEvalJobRequestFromSite(
   site: SiteLibrarySite,
   source: { route: string; surface: "sites" | "site-detail" },
+  options: { robotTeamTestSubmission?: RobotTeamTestSubmission | null } = {},
 ) {
   const publication = site.robotEvalPublication;
   const selection = site.defaultRobotEvalSelection;
@@ -91,37 +229,9 @@ export function buildRobotEvalJobRequestFromSite(
       embodiment: "mobile_manipulator",
       sensors: ["rgb", "depth"],
     },
-    policy_package: {
-      policy_api_endpoint: {
-        endpoint_url: "https://robot-team.example/policy-placeholder",
-        observation_schema_ref: "schemas/observation-v1.json",
-        action_schema_ref: "schemas/action-v1.json",
-        runtime_constraints: "fixture_local_default_until_robot_team_uploads_owner_system_policy",
-      },
-      docker_container: {
-        image_ref: "registry.example/robot-team/policy-placeholder:fixture",
-        digest: POLICY_DIGEST,
-        entrypoint: "/run-policy",
-      },
-      recorded_action_trace: {
-        trace_manifest_uri: "gs://robot-team-placeholder/traces/trace-manifest.json",
-        timestamp_alignment: "aligned_to_capture_timestamps",
-        checksum: POLICY_DIGEST,
-      },
-      high_level_skill_trace: {
-        skill_taxonomy_version: "skills-v1",
-        ordered_skill_sequence: ["navigate", "observe", "act"],
-      },
-      teleop_demo: {
-        demo_artifact_uri: "gs://robot-team-placeholder/teleop/demo.json",
-        rights_privacy_attestation: "robot_team_owner_system_required_before_claim_upgrade",
-      },
-      sim_controller_plugin: {
-        simulator_framework: "fixture",
-        plugin_uri: "gs://robot-team-placeholder/plugins/fixture-controller.json",
-        supported_control_modes: ["fixture_replay"],
-      },
-    },
+    policy_package: buildPolicyPackageFromRobotTeamSubmission(
+      options.robotTeamTestSubmission,
+    ),
     operation: "evaluate_only",
     simulator_preference: "fixture",
     cosmos_training_preference: { mode: "export_only" },
@@ -147,6 +257,15 @@ export function buildRobotEvalJobRequestFromSite(
     source: {
       system: "Blueprint-WebApp",
       ...source,
+      robot_team_test_submission: options.robotTeamTestSubmission
+        ? {
+            schema_version: options.robotTeamTestSubmission.schemaVersion,
+            submission_id: options.robotTeamTestSubmission.submissionId || null,
+            selected_modalities: options.robotTeamTestSubmission.selectedModalities,
+            missing_evidence_statuses:
+              options.robotTeamTestSubmission.missingEvidenceStatuses,
+          }
+        : null,
       selection_state: {
         buyer_request_id: buyerRequestId,
         site_slug: site.slug,

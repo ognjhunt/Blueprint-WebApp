@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildPolicyPackageFromRobotTeamSubmission,
+  robotTeamSubmissionReadyForJobRequest,
+} from "@/lib/robotEvalJobRequest";
+import {
   normalizeRobotTeamTestSubmission,
   ROBOT_TEAM_TEST_SUBMISSION_MODALITY_DEFINITIONS,
 } from "@/lib/robotTeamTestSubmission";
@@ -55,5 +59,46 @@ describe("robotTeamTestSubmission", () => {
     expect(submission?.proofBoundary.operationalReadinessRequires).toContain(
       "robot profile with geometry, sensors, controllers, and control level, or a clear site-feasibility-only scope",
     );
+  });
+
+  it("builds a Pipeline policy package from selected concrete refs only", () => {
+    const submission = normalizeRobotTeamTestSubmission({
+      submissionId: "submission-policy-api",
+      siteWorldId: "site-sw-chi-01",
+      taskId: "place_return_in_bin",
+      scenarioId: "scenario_place_return_in_bin_mobile_manipulator_rgb_v1",
+      robotProfileId: "mobile_manipulator_rgb_v1",
+      modalities: {
+        policy_api_endpoint: {
+          selected: true,
+          fields: {
+            endpointUrl: "https://policies.robotteam.dev/v1/action",
+            authHandling: "Bearer token in redacted robot-team secret ref",
+            observationSchemaRef: "gs://robot-team/schemas/observation.v1.json",
+            actionSchemaRef: "gs://robot-team/schemas/action.v1.json",
+            runtimeConstraints: "200 ms p95, 10 rps",
+            callbackLogUri: "gs://robot-team/blueprint/callbacks/",
+            ownerContact: "robot-owner@robotteam.dev",
+          },
+        },
+      },
+    });
+
+    expect(robotTeamSubmissionReadyForJobRequest(submission)).toBe(true);
+    const policyPackage = buildPolicyPackageFromRobotTeamSubmission(submission);
+
+    expect(Object.keys(policyPackage)).toEqual(["policy_api_endpoint"]);
+    expect(policyPackage).toEqual({
+      policy_api_endpoint: {
+        endpoint_url: "https://policies.robotteam.dev/v1/action",
+        auth_handling: "Bearer token in redacted robot-team secret ref",
+        observation_schema_ref: "gs://robot-team/schemas/observation.v1.json",
+        action_schema_ref: "gs://robot-team/schemas/action.v1.json",
+        runtime_constraints: "200 ms p95, 10 rps",
+        callback_log_uri: "gs://robot-team/blueprint/callbacks/",
+        owner_contact: "robot-owner@robotteam.dev",
+      },
+    });
+    expect(JSON.stringify(policyPackage)).not.toMatch(/placeholder/i);
   });
 });
