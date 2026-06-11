@@ -79,27 +79,56 @@ describe("buildRobotEvalJobRequest", () => {
       policySubmission: {
         policy_api_endpoint: {
           endpoint_url: "https://robot-team.example/policy",
+          auth_handling: "Bearer token in redacted robot-team secret ref",
           observation_schema_ref: "gs://robot-team/schemas/obs.json",
           action_schema_ref: "gs://robot-team/schemas/action.json",
+          runtime_constraints: "200 ms p95, 10 rps",
+          callback_log_uri: "gs://robot-team/blueprint/callbacks/",
+          owner_contact: "robot-owner@robotteam.dev",
         },
         docker_container: {
           image_ref: "registry.example/robot/policy:2026-06-06",
           digest: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          entrypoint: "python -m policy_server --port 8080",
+          environment_contract: "OBS_SCHEMA=/schemas/obs.json",
+          hardware_needs: "1x L4, CUDA 12.4, 16 GB RAM",
+          io_schema_ref: "gs://robot-team/schemas/container-io.v1.json",
+          runtime_notes: "Warm up one request before measuring cycle time.",
         },
         recorded_action_trace: {
           trace_manifest_uri: "gs://robot-team/traces/trace.json",
+          format: "jsonl actions",
+          task_scenario_mapping: "trace task maps to Blueprint task and scenario",
           timestamp_alignment: "aligned_to_capture_timestamps",
+          observation_action_alignment: "action[t] consumes observation[t-1]",
+          success_failure_labels: "success, partial, failure",
+          checksum:
+            "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
         },
         high_level_skill_trace: {
           ordered_skill_sequence: ["navigate", "pick", "place"],
+          skill_taxonomy_version: "team.manipulation_skills.v3",
+          preconditions_postconditions: "Pre: tote visible. Post: tote placed.",
+          failure_labels: "failure_perception_occlusion",
+          source_type: "planner_export",
+          confidence_coverage_note: "Covers nominal tote pick.",
         },
         teleop_demo: {
           demo_artifact_uri: "gs://robot-team/demos/demo.json",
+          operator_device: "Certified operator, dual-stick controller",
+          control_mapping: "left stick base xy, trigger gripper",
+          time_sync: "NTP synced, trajectory timestamps in Unix ms",
+          task_scenario_mapping: "demo D001 maps to scenario-1",
           rights_privacy_attestation: "operator_approved_deidentified",
+          labels: "success=true, interventions=0, safety_events=0",
         },
         sim_controller_plugin: {
           simulator_framework: "fixture",
           plugin_uri: "gs://robot-team/plugins/controller.json",
+          supported_control_modes: ["base_velocity", "ee_delta_pose", "binary_gripper"],
+          observation_action_spaces: "obs schema v1, action schema ee_delta_pose_gripper",
+          replay_export_path: "gs://robot-team/sim/replays/",
+          compatibility_notes: "Fixture controller, no contact-rich validation claim.",
         },
       },
       source: {
@@ -152,6 +181,62 @@ describe("buildRobotEvalJobRequest", () => {
       "teleop_demo",
       "sim_controller_plugin",
     ]);
+    expect(request.policy_package).toEqual({
+      policy_api_endpoint: {
+        endpoint_url: "https://robot-team.example/policy",
+        auth_handling: "Bearer token in redacted robot-team secret ref",
+        observation_schema_ref: "gs://robot-team/schemas/obs.json",
+        action_schema_ref: "gs://robot-team/schemas/action.json",
+        runtime_constraints: "200 ms p95, 10 rps",
+        callback_log_uri: "gs://robot-team/blueprint/callbacks/",
+        owner_contact: "robot-owner@robotteam.dev",
+      },
+      docker_container: {
+        image_ref: "registry.example/robot/policy:2026-06-06",
+        digest:
+          "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        entrypoint: "python -m policy_server --port 8080",
+        environment_contract: "OBS_SCHEMA=/schemas/obs.json",
+        hardware_needs: "1x L4, CUDA 12.4, 16 GB RAM",
+        io_schema_ref: "gs://robot-team/schemas/container-io.v1.json",
+        runtime_notes: "Warm up one request before measuring cycle time.",
+      },
+      recorded_action_trace: {
+        trace_manifest_uri: "gs://robot-team/traces/trace.json",
+        format: "jsonl actions",
+        task_scenario_mapping: "trace task maps to Blueprint task and scenario",
+        timestamp_alignment: "aligned_to_capture_timestamps",
+        observation_action_alignment: "action[t] consumes observation[t-1]",
+        success_failure_labels: "success, partial, failure",
+        checksum:
+          "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      },
+      high_level_skill_trace: {
+        ordered_skill_sequence: ["navigate", "pick", "place"],
+        skill_taxonomy_version: "team.manipulation_skills.v3",
+        preconditions_postconditions: "Pre: tote visible. Post: tote placed.",
+        failure_labels: "failure_perception_occlusion",
+        source_type: "planner_export",
+        confidence_coverage_note: "Covers nominal tote pick.",
+      },
+      teleop_demo: {
+        demo_artifact_uri: "gs://robot-team/demos/demo.json",
+        operator_device: "Certified operator, dual-stick controller",
+        control_mapping: "left stick base xy, trigger gripper",
+        time_sync: "NTP synced, trajectory timestamps in Unix ms",
+        task_scenario_mapping: "demo D001 maps to scenario-1",
+        rights_privacy_attestation: "operator_approved_deidentified",
+        labels: "success=true, interventions=0, safety_events=0",
+      },
+      sim_controller_plugin: {
+        simulator_framework: "fixture",
+        plugin_uri: "gs://robot-team/plugins/controller.json",
+        supported_control_modes: ["base_velocity", "ee_delta_pose", "binary_gripper"],
+        observation_action_spaces: "obs schema v1, action schema ee_delta_pose_gripper",
+        replay_export_path: "gs://robot-team/sim/replays/",
+        compatibility_notes: "Fixture controller, no contact-rich validation claim.",
+      },
+    });
     expect(request.pipeline_trigger).toEqual(
       expect.objectContaining({
         status: "queued_for_pipeline",
@@ -161,6 +246,7 @@ describe("buildRobotEvalJobRequest", () => {
         cpu_pre_gpu_preflight: expect.objectContaining({
           cpu_preflight_scorecard_uri:
             "gs://blueprint/site-packages/sw-chi-01/pipeline/simulation_automation/cpu_preflight_scorecard.json",
+          ready_for_owner_gpu_preflight: false,
           local_cpu_preflight_smoke_ran: false,
           simulator_execution_proven: false,
           robot_readiness_proven: false,
@@ -180,6 +266,74 @@ describe("buildRobotEvalJobRequest", () => {
     expect(validateRobotEvalJobRequest(request).ok).toBe(true);
   });
 
+  it("only marks owner GPU preflight ready from an explicit preflight summary", () => {
+    const request = buildRobotEvalJobRequest({
+      sitePackage: {
+        siteSlug: "sw-chi-01",
+        siteId: "site-sw-chi-01",
+        siteName: "Harborview Grocery Distribution Annex",
+        siteSubmissionId: "site-submission-sw-chi-01",
+        captureJobId: "capture-job-sw-chi-01",
+        captureId: "capture-sw-chi-01",
+        captureRoot: "gs://blueprint/site-packages/sw-chi-01",
+        accessState: "request_gated",
+        artifactUris: {
+          manifestUri: "gs://blueprint/site-packages/sw-chi-01/robot_eval_dataset_manifest.json",
+          taskThresholdsUri: "gs://blueprint/site-packages/sw-chi-01/task_thresholds.json",
+          publicationReadinessUri:
+            "gs://blueprint/site-packages/sw-chi-01/publication_readiness.json",
+          gpuHandoffPacketUri:
+            "gs://blueprint/site-packages/sw-chi-01/pipeline/simulation_automation/gpu_handoff_packet.json",
+        },
+        publication: {
+          readyToEvaluatePublishable: true,
+          publicationLabel: "Ready to evaluate",
+        },
+        preflightSummary: {
+          readyForOwnerGpuPreflight: true,
+          localCpuSmokeRan: true,
+        },
+      },
+      selection: {
+        taskId: "place_return_in_bin",
+        scenarioId: "scenario_place_return_in_bin_mobile",
+        robotProfileId: "mobile_manipulator_rgb_v1",
+        policyId: "policy-api-fixture",
+      },
+      robotTeam: {
+        customerId: "robot-team-a",
+        companyName: "Robot Team A",
+      },
+      entitlement: {
+        accessState: "request_gated",
+        approved: true,
+      },
+      policySubmission: {
+        policy_api_endpoint: {
+          endpoint_url: "https://robot-team.example/policy",
+          observation_schema_ref: "gs://robot-team/schemas/obs.json",
+          action_schema_ref: "gs://robot-team/schemas/action.json",
+        },
+      },
+      source: {
+        route: "/sites/sw-chi-01",
+        surface: "sites",
+      },
+    });
+
+    expect(request.pipeline_trigger.cpu_pre_gpu_preflight).toEqual(
+      expect.objectContaining({
+        gpu_handoff_packet_uri:
+          "gs://blueprint/site-packages/sw-chi-01/pipeline/simulation_automation/gpu_handoff_packet.json",
+        ready_for_owner_gpu_preflight: true,
+        local_cpu_preflight_smoke_ran: true,
+        simulator_execution_proven: false,
+        robot_readiness_proven: false,
+      }),
+    );
+    expect(validateRobotEvalJobRequest(request).ok).toBe(true);
+  });
+
   it("rejects false-proof upgrades and incomplete selected policy modalities", () => {
     const invalid = {
       schema_version: "robot_eval_job_request.v1",
@@ -192,6 +346,7 @@ describe("buildRobotEvalJobRequest", () => {
         capture_job_id: "capture-job-sw-chi-01",
         capture_id: "capture-sw-chi-01",
         buyer_request_id: "buyer-request-invalid",
+        capture_root: "",
         package_uri: "gs://blueprint/site-packages/sw-chi-01/manifest.json",
         task_thresholds_uri: "gs://blueprint/site-packages/sw-chi-01/task_thresholds.json",
         publication_readiness_uri:
@@ -217,6 +372,7 @@ describe("buildRobotEvalJobRequest", () => {
     expect(validation.ok).toBe(false);
     expect(validation.errors).toEqual(
       expect.arrayContaining([
+        "site_package.capture_root is required",
         "policy_package.policy_api_endpoint.endpoint_url is required",
         "proof_boundary.simulator_execution_proven must be false until owner-system proof exists",
       ]),
@@ -235,6 +391,7 @@ describe("buildRobotEvalJobRequest", () => {
         capture_job_id: "capture-job-sw-chi-01",
         capture_id: "capture-sw-chi-01",
         buyer_request_id: "buyer-request-single-modality",
+        capture_root: "gs://blueprint/site-packages/sw-chi-01",
         package_uri: "gs://blueprint/site-packages/sw-chi-01/manifest.json",
         task_thresholds_uri: "gs://blueprint/site-packages/sw-chi-01/task_thresholds.json",
         publication_readiness_uri:
@@ -479,6 +636,38 @@ describe("buildRobotEvalJobRequest", () => {
           "/var/lib/blueprint/captures/sw-chi-01/capture-root",
       }),
     );
+  });
+
+  it("blocks forwarding synced-artifact WebApp capture roots unless a Pipeline override is configured", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+
+    const result = await forwardRobotEvalJobRequestToPipeline({
+      endpointUrl: "http://127.0.0.1:8765/api/live-pipeline/job-requests",
+      token: "test-forward-token",
+      jobRequest: {
+        schema_version: "robot_eval_job_request.v1",
+        job_id: "robot-eval-sw-chi-01-place-return-in-bin-default-fixture-policy",
+        buyer_request_id: "buyer-request-sw-chi-01-place-return-in-bin-default-fixture-policy",
+        site_package: {
+          site_slug: "sw-chi-01",
+          capture_root: "/synced-artifacts/sites/sw-chi-01",
+        },
+        owner_system: {
+          name: "Blueprint-WebApp",
+        },
+      },
+      queuedAt: "2026-06-06T00:00:00.000Z",
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        status: "blocked",
+        performed: false,
+        endpoint_configured: true,
+        blockers: ["missing_pipeline_capture_root_override_for_webapp_synced_artifact"],
+      }),
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("forwards a Pipeline queue envelope with redacted status", async () => {

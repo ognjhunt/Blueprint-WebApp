@@ -537,34 +537,15 @@ agents:
             - autonomy-safety
             - find-skills
             - humanizer
-            - product-marketing
             - analytics
-            - cro
             - growth-experiment-engine
             - exact-site-positioning
             - exact-site-messaging
-            - exact-site-cro-research
-            - site-world-creative-production
-            - higgsfield-creative-video
             - writing-plans
             - hermes-kb-workflow
             - meeting-action-extractor
-            - marketing-ideas
-            - marketing-psychology
-            - launch
-            - pricing
-            - referrals
-            - content-strategy
-            - customer-research
             - sales-enablement
             - revops
-            - ads
-            - ad-creative
-            - emails
-            - social
-            - copywriting
-            - copy-editing
-            - ab-testing
     budgetMonthlyCents: 800
   conversion-agent:
     role: engineer
@@ -591,29 +572,15 @@ agents:
             - vercel-react-best-practices
             - web-design-guidelines
             - agent-browser
-            - product-marketing
             - analytics
             - cro
             - growth-experiment-engine
             - exact-site-cro-research
             - exact-site-messaging
-            - site-world-creative-production
-            - writing-plans
             - systematic-debugging
             - requesting-code-review
             - verification-before-completion
-            - karpathy-guidelines
             - taste-skill
-            - ab-testing
-            - copywriting
-            - copy-editing
-            - marketing-psychology
-            - onboarding
-            - signup
-            - paywalls
-            - popups
-            - pricing
-            - site-architecture
     budgetMonthlyCents: 400
   analytics-agent:
     role: engineer
@@ -973,32 +940,14 @@ agents:
             - autonomy-safety
             - find-skills
             - humanizer
-            - product-marketing
-            - analytics
-            - cro
             - robot-team-growth-operations
             - exact-site-positioning
             - exact-site-messaging
             - exact-site-offer-architecture
             - robot-team-outbound-operations
-            - site-world-creative-production
-            - higgsfield-creative-video
             - customer-research
-            - content-strategy
-            - copywriting
-            - copy-editing
-            - cold-email
-            - emails
-            - social
-            - ads
-            - ad-creative
-            - launch
             - sales-enablement
             - revops
-            - referrals
-            - competitors
-            - co-marketing
-            - ab-testing
     budgetMonthlyCents: 200
   site-operator-partnership-agent:
     role: engineer

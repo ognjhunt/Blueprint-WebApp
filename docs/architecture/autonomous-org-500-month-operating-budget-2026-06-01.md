@@ -171,6 +171,20 @@ P2 pause or event-trigger:
 - Duplicate founder reports and broad daily briefs.
 - Non-wedge marketing loops, community update loops, ship-broadcast refreshes, site-operator partnership sweeps, supply/capturer/robot growth refreshes, legacy Notion/metrics shims, and investor updates without a shipped-proof packet.
 
+## Zero-Based Agent Tier Overlay
+
+Current zero-based design packet: `docs/goals/2026-06-10-autonomous-org-zero-based-spine.md`.
+
+The budget compression above remains the declared config envelope, but future changes should not defend the historical org chart. Start from the current wedge and keep only roles that move product/proof, demand/sales, or reliability.
+
+| Tier | Role in the `$173` Paperclip envelope | Budget posture |
+|---|---|---|
+| P0 active | Direct product/proof, demand/sales, and reliability owners for real-site robot evaluation runs and post-training data packages. | Protected first; do not reduce below current proof-bearing operating spine without replacing the function with deterministic software. |
+| P1 event-only/reduced cadence | Lanes that are useful when a concrete issue, live request, proof packet, or weekly synthesis need exists. | Keep paused or reduced cadence; no broad discovery runs. |
+| P2 dormant/merged | Historical, duplicate, writing/reporting, broad supply/growth, or release orchestration lanes. | Keep paused, merged into a stronger owner, or compatibility-only until proof justifies restart. |
+
+This overlay also narrows always-on skill bundles. `growth-lead`, `robot-team-growth-agent`, and `conversion-agent` keep their lane-specific skills and proof/safety tools but drop broad channel/content skills that should only be pulled by specialist owners or explicitly bound issues. Company-library skills and runtime/tooling commands remain documented in `ops/paperclip/control-room-map.md` and should not be counted as true missing skills.
+
 ## Model Ladder
 
 1. Deterministic script first for inventory, cache/cost reports, agent-kit validation, claims guards, KPI/source status, and local budget summary.

@@ -190,6 +190,10 @@ export function buildRobotEvalJobRequest(input: {
       readyToEvaluatePublishable: boolean;
       publicationLabel: string;
     };
+    preflightSummary?: {
+      readyForOwnerGpuPreflight?: boolean | null;
+      localCpuSmokeRan?: boolean | null;
+    };
   };
   selection: {
     taskId: string;
@@ -363,9 +367,11 @@ export function buildRobotEvalJobRequest(input: {
           input.sitePackage.artifactUris.gpuRunChecklistUri || null,
         owner_gpu_simulator_execution_blocked_manifest_uri:
           input.sitePackage.artifactUris.ownerGpuSimulatorExecutionBlockedManifestUri || null,
-        ready_for_owner_gpu_preflight: true,
+        ready_for_owner_gpu_preflight:
+          input.sitePackage.preflightSummary?.readyForOwnerGpuPreflight === true,
         owner_gpu_simulator_execution_proven: false,
-        local_cpu_preflight_smoke_ran: false,
+        local_cpu_preflight_smoke_ran:
+          input.sitePackage.preflightSummary?.localCpuSmokeRan === true,
         simulator_execution_proven: false,
         robot_readiness_proven: false,
       },
@@ -429,6 +435,7 @@ export function validateRobotEvalJobRequest(value: unknown): {
       "capture_job_id",
       "capture_id",
       "buyer_request_id",
+      "capture_root",
       "package_uri",
       "task_thresholds_uri",
       "publication_readiness_uri",
@@ -602,6 +609,16 @@ function captureRootOverrideForJobRequest(
   return { ok: true as const };
 }
 
+function isWebappSyncedArtifactCaptureRoot(value: string) {
+  const normalized = value.trim().replace(/\\/g, "/");
+  return (
+    normalized === "/synced-artifacts" ||
+    normalized.startsWith("/synced-artifacts/") ||
+    normalized === "synced-artifacts" ||
+    normalized.startsWith("synced-artifacts/")
+  );
+}
+
 function jobRequestWithPipelineCaptureRoot(
   jobRequest: Record<string, unknown>,
 ): PipelineForwardJobRequestResolution {
@@ -609,13 +626,19 @@ function jobRequestWithPipelineCaptureRoot(
   if (!override.ok) {
     return override;
   }
+  const sitePackage = hasObject(jobRequest.site_package) ? jobRequest.site_package : {};
+  const webappCaptureRoot = String(sitePackage.capture_root || "").trim();
   if (!override.captureRoot) {
+    if (isWebappSyncedArtifactCaptureRoot(webappCaptureRoot)) {
+      return {
+        ok: false as const,
+        blockers: ["missing_pipeline_capture_root_override_for_webapp_synced_artifact"],
+      };
+    }
     return { ok: true as const, jobRequest, applied: false as const };
   }
 
-  const sitePackage = hasObject(jobRequest.site_package) ? jobRequest.site_package : {};
   const ownerSystem = hasObject(jobRequest.owner_system) ? jobRequest.owner_system : {};
-  const webappCaptureRoot = String(sitePackage.capture_root || "").trim();
   return {
     ok: true as const,
     applied: true as const,

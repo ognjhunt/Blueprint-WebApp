@@ -459,6 +459,7 @@ describe("enrichDeploymentReadinessFromArtifacts", () => {
           "gs://test/robot_eval_episode_spec_manifest_uri.json",
         cpu_simulator_preflight_manifest_uri:
           "gs://test/robot_eval_cpu_simulator_preflight_manifest_uri.json",
+        ready_for_owner_gpu_preflight: false,
         local_cpu_preflight_smoke_ran: false,
         simulator_execution_proven: false,
         robot_readiness_proven: false,

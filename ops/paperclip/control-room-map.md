@@ -47,6 +47,26 @@ Current authored inventory from `ops/paperclip/blueprint-company/.paperclip.yaml
 | True missing desired skills | 0 |
 | Recursive improvement routine | `recursive-agent-improvement-loop` daily dry-run/report-only |
 
+## Zero-Based Operating Spine
+
+Canonical design packet: `docs/goals/2026-06-10-autonomous-org-zero-based-spine.md`.
+
+The current autonomous org should be evaluated from zero against three loops only:
+
+- product/proof: capture-backed request flow, robot-eval handoff, proof packages, hosted review, rights/provenance, and delivery blockers
+- demand/sales: robot-team targets, structured intake, buyer solutions, proof-led conversion, pricing support, and recipient-backed next actions
+- reliability: repo health, CI/review, budget gates, no-change suppression, live-action blockers, and evidence-bearing closeout
+
+Agent tiers:
+
+| Tier | Meaning | Config posture |
+|---|---|---|
+| P0 active | Directly moves the current wedge through product/proof, demand/sales, or reliability. | May run scheduled or active issue paths under the `$173` Paperclip envelope. |
+| P1 event-only/reduced cadence | Useful only with a concrete issue, live request, current proof packet, or reduced weekly synthesis need. | Keep paused or reduced cadence; do not reopen broad work without an explicit Paperclip issue. |
+| P2 dormant/merged | Historical, duplicate, writing/reporting, broad supply/growth, or release orchestration lanes that do not move the current wedge by default. | Keep paused or route to the named owner in the zero-based spine. |
+
+Skill-bundle rule: active lanes get the narrowest bundle that can do the lane's job. Company-library skills and runtime/tooling commands remain intentionally classified below, but they should not be attached broadly to every growth or manager lane by default. The current package trims broad desired-skill bundles from `growth-lead`, `robot-team-growth-agent`, and `conversion-agent`; use the strategy packet before restoring any removed channel/content skills.
+
 ## Desired Skill Resolution Policy
 
 The local inventory must not require live Paperclip to be useful. It classifies every desired skill reference into one of these buckets:

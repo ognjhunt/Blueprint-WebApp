@@ -156,12 +156,12 @@ export function buildRobotEvalJobRequestFromSite(
   }
   const jobId = `robot-eval-${site.slug}-${kebab(selection.taskId)}-${kebab(selection.policyId)}`;
   const buyerRequestId = `buyer-request-${site.slug}-${kebab(selection.taskId)}-${kebab(selection.policyId)}`;
-  const lineage = site.captureLineage || {
-    siteSubmissionId: `site-submission-${site.slug}`,
-    captureJobId: `capture-job-${site.slug}`,
-    captureId: `capture-${site.slug}`,
-    pipelinePrefix: `/synced-artifacts/sites/${site.slug}/pipeline`,
-  };
+  const lineage = site.captureLineage;
+  if (!lineage) {
+    throw new Error(
+      "Capture lineage is required before creating a live robot-eval job request.",
+    );
+  }
 
   return {
     schema_version: "robot_eval_job_request.v1",
@@ -185,6 +185,7 @@ export function buildRobotEvalJobRequestFromSite(
       site_region: site.region,
       access_state: site.access,
       capture_root: `/synced-artifacts/sites/${site.slug}`,
+      capture_lineage_verified: true,
       package_uri: publication.artifactUris.manifestUri,
       publication_ready_to_evaluate: publication.readyToEvaluatePublishable,
       publication_readiness_uri: publication.artifactUris.publicationReadinessUri,
@@ -253,6 +254,7 @@ export function buildRobotEvalJobRequestFromSite(
       site_submission_id: lineage.siteSubmissionId,
       capture_job_id: lineage.captureJobId,
       capture_id: lineage.captureId,
+      capture_lineage_verified: true,
     },
     source: {
       system: "Blueprint-WebApp",

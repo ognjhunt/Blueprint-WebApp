@@ -202,9 +202,9 @@ function robotEvalPublicationPackage(
       episodeSpecLabel: "Episode specs review-required",
       spawnValidationLabel: "Spawn candidates checked",
       cpuSimulatorLabel: "CPU setup manifests",
-      gpuHandoffLabel: "Owner GPU handoff packet ready",
+      gpuHandoffLabel: "Owner GPU handoff review-required",
       localCpuSmokeRan: false,
-      readyForOwnerGpuPreflight: true,
+      readyForOwnerGpuPreflight: false,
       proofBoundaryLabel: "No simulator execution or robot readiness claim",
     },
     artifactUris: {

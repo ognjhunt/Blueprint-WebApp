@@ -59,6 +59,7 @@ Every canonical agent directory under `ops/paperclip/blueprint-company/agents/` 
   - `pipeline-review`
   - `capture-codex`
   - `capture-review`
+- For org design and skill-bundle changes, use `docs/goals/2026-06-10-autonomous-org-zero-based-spine.md` as the current tiering contract before adding broad desired skills or reactivating dormant lanes.
 
 ## Adding New Agents
 When adding a new canonical hire:

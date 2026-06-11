@@ -1,6 +1,6 @@
 # Autonomous Budget Control Status
 
-Generated: 2026-06-01T14:43:54.180Z
+Generated: 2026-06-11T11:54:44.999Z
 State: repo_local_controls_ready_live_action_blocked
 Validation pass: yes
 Repo-local allocation allowed: yes

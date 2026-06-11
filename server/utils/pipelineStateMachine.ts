@@ -344,7 +344,7 @@ function buildRobotEvalPreflightSummary(
     local_cpu_preflight_smoke_ran:
       existing.local_cpu_preflight_smoke_ran ?? false,
     ready_for_owner_gpu_preflight:
-      existing.ready_for_owner_gpu_preflight ?? Boolean(preGpuReadinessSummaryUri || gpuHandoffPacketUri),
+      existing.ready_for_owner_gpu_preflight === true,
     owner_gpu_simulator_execution_proven: false,
     dependency_warning_count: existing.dependency_warning_count ?? null,
     missing_dependency_count: existing.missing_dependency_count ?? null,

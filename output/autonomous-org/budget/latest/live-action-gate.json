@@ -1,6 +1,6 @@
 {
   "schema": "blueprint/autonomous-budget-live-action-gate/v1",
-  "generated_at": "2026-06-01T14:43:52.825Z",
+  "generated_at": "2026-06-10T21:12:18.449Z",
   "state": "live_action_blocked",
   "validation_pass": true,
   "live_action_allowed": false,
@@ -9,7 +9,7 @@
     "no_live_provider_calls_made": true,
     "no_live_mutation_attempted": true,
     "secrets_persisted": false,
-    "strict_live_action_ready_required": false
+    "strict_live_action_ready_required": true
   },
   "budget_cap_usd": 500,
   "codex_oauth_pro_excluded_from_budget": true,
