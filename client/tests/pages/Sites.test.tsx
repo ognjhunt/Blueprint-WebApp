@@ -157,6 +157,62 @@ describe("Sites", () => {
         robot_readiness_proven: false,
       }),
     );
+    expect(body.execution_request).toEqual(
+      expect.objectContaining({
+        webapp_role: "queue_and_forward_only",
+        scheduler_owner: "BlueprintCapturePipeline",
+        queueing: expect.objectContaining({
+          web_request_must_not_wait_for_simulator: true,
+        }),
+        preflight: expect.objectContaining({
+          cpu_preflight_required_before_gpu: true,
+          blocks_gpu_when_missing: true,
+        }),
+        simulator_routing: expect.objectContaining({
+          requested_backend: "pipeline_selected",
+          default_first_pass_backend: "mujoco",
+          default_first_gpu_backend: "mujoco",
+          allowed_backends: expect.arrayContaining(["isaac_sim", "mujoco"]),
+          escalation_backends: expect.arrayContaining(["isaac_sim", "isaac_lab_arena"]),
+          selection_policy: expect.objectContaining({
+            mode: "mujoco_first_unless_proof_requires_isaac",
+            first_pass_backend: "mujoco",
+            escalate_to_isaac_when: expect.arrayContaining([
+              "rich_usd_or_openusd_scene_load_required",
+              "isaac_robot_asset_proof_required",
+            ]),
+          }),
+          proof_boundaries: expect.objectContaining({
+            webapp_request_selects_policy_not_execution: true,
+            mujoco_proof_does_not_clear_isaac_sim_gate: true,
+          }),
+        }),
+        gpu_allocation: expect.objectContaining({
+          allocation_allowed_by_webapp: false,
+          gpu_spend_approved: false,
+          idle_shutdown_required: true,
+        }),
+        artifact_contract: expect.objectContaining({
+          expected_outputs: expect.arrayContaining([
+            "scheduler_decision",
+            "worker_launch_plan",
+            "worker_manifest",
+            "gpu_provider_launch_request",
+            "gpu_provider_launcher_result",
+            "runpod_provider_adapter_result",
+            "gpu_cost_control_ledger",
+            "startup_architecture_audit",
+            "worker_runtime_manifest",
+            "worker_runtime_preflight",
+          ]),
+          startup_artifacts_are_advisory_until_owner_runtime_proof: true,
+          simulator_execution_proven_by_webapp: false,
+          public_claim_upgrade_allowed: false,
+        }),
+      }),
+    );
+    expect(body.simulator_preference).toBe("mujoco_first");
+    expect(body.pipeline_trigger.default_simulator).toBe("mujoco");
     expect(body.requested_tasks[0]).toEqual(
       expect.objectContaining({
         task_id: "place_return_in_bin",

@@ -14,6 +14,10 @@ const DEFAULT_INBOX_DIR = path.resolve(
   "output/pipeline/robot_eval_job_requests/inbox",
 );
 
+function truthy(value: string | undefined) {
+  return String(value || "").trim().toLowerCase() === "true";
+}
+
 router.post("/", async (req, res) => {
   const jobRequest = req.body;
   const validation = validateRobotEvalJobRequest(jobRequest);
@@ -74,7 +78,10 @@ router.post("/", async (req, res) => {
     },
   };
 
-  if (db) {
+  const firestoreWriteDisabled = truthy(
+    process.env.ROBOT_EVAL_JOB_REQUEST_DISABLE_FIRESTORE_WRITE,
+  );
+  if (db && !firestoreWriteDisabled) {
     await db.collection("robotEvalJobRequests").doc(jobId).set(
       {
         ...record,
@@ -85,7 +92,7 @@ router.post("/", async (req, res) => {
     );
   }
 
-  const durableStore = db
+  const durableStore = db && !firestoreWriteDisabled
     ? "firestore.robotEvalJobRequests+pipeline_inbox+optional_pipeline_forward"
     : "pipeline_inbox+optional_pipeline_forward";
   if (pipelineForward.required && !pipelineForward.performed) {

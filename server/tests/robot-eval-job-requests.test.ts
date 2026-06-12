@@ -242,7 +242,7 @@ describe("buildRobotEvalJobRequest", () => {
         status: "queued_for_pipeline",
         command: "blueprint-run-robot-eval-job",
         default_provisioner: "fixture_local",
-        default_simulator: "fixture",
+        default_simulator: "mujoco",
         cpu_pre_gpu_preflight: expect.objectContaining({
           cpu_preflight_scorecard_uri:
             "gs://blueprint/site-packages/sw-chi-01/pipeline/simulation_automation/cpu_preflight_scorecard.json",
@@ -250,6 +250,68 @@ describe("buildRobotEvalJobRequest", () => {
           local_cpu_preflight_smoke_ran: false,
           simulator_execution_proven: false,
           robot_readiness_proven: false,
+        }),
+      }),
+    );
+    expect(request.simulator_preference).toBe("mujoco_first");
+    expect(request.budget).toEqual({ budget_usd: 0, timeout_seconds: 120 });
+    expect(request.execution_request).toEqual(
+      expect.objectContaining({
+        schema_version: "blueprint.robot_eval_execution_request.v1",
+        webapp_role: "queue_and_forward_only",
+        scheduler_owner: "BlueprintCapturePipeline",
+        queueing: expect.objectContaining({
+          mode: "async_job",
+          web_request_must_not_wait_for_simulator: true,
+        }),
+        preflight: expect.objectContaining({
+          cpu_preflight_required_before_gpu: true,
+          blocks_gpu_when_missing: true,
+        }),
+        simulator_routing: expect.objectContaining({
+          requested_backend: "pipeline_selected",
+          default_first_pass_backend: "mujoco",
+          default_first_gpu_backend: "mujoco",
+          allowed_backends: expect.arrayContaining(["isaac_sim", "mujoco"]),
+          escalation_backends: expect.arrayContaining(["isaac_sim", "isaac_lab_arena"]),
+          selection_policy: expect.objectContaining({
+            mode: "mujoco_first_unless_proof_requires_isaac",
+            first_pass_backend: "mujoco",
+            use_mujoco_when: expect.arrayContaining([
+              "cheapest_first_real_simulator_pass",
+              "early_policy_and_spawn_smoke_before_gpu_spend",
+            ]),
+            escalate_to_isaac_when: expect.arrayContaining([
+              "rich_usd_or_openusd_scene_load_required",
+              "isaac_robot_asset_proof_required",
+            ]),
+          }),
+          proof_boundaries: expect.objectContaining({
+            webapp_request_selects_policy_not_execution: true,
+            mujoco_proof_does_not_clear_isaac_sim_gate: true,
+          }),
+        }),
+        gpu_allocation: expect.objectContaining({
+          allocation_allowed_by_webapp: false,
+          gpu_spend_approved: false,
+          idle_shutdown_required: true,
+        }),
+        artifact_contract: expect.objectContaining({
+          expected_outputs: expect.arrayContaining([
+            "scheduler_decision",
+            "worker_launch_plan",
+            "worker_manifest",
+            "gpu_provider_launch_request",
+            "gpu_provider_launcher_result",
+            "runpod_provider_adapter_result",
+            "gpu_cost_control_ledger",
+            "startup_architecture_audit",
+            "worker_runtime_manifest",
+            "worker_runtime_preflight",
+          ]),
+          startup_artifacts_are_advisory_until_owner_runtime_proof: true,
+          simulator_execution_proven_by_webapp: false,
+          public_claim_upgrade_allowed: false,
         }),
       }),
     );
@@ -365,6 +427,31 @@ describe("buildRobotEvalJobRequest", () => {
         safety_validated: false,
         public_claim_upgrade_allowed: false,
       },
+      execution_request: {
+        webapp_role: "runs_simulator",
+        scheduler_owner: "Blueprint-WebApp",
+        preflight: {
+          cpu_preflight_required_before_gpu: false,
+        },
+        simulator_routing: {
+          requested_backend: "isaac_sim",
+          selection_policy: {
+            mode: "isaac_first",
+            first_pass_backend: "isaac_sim",
+          },
+          proof_boundaries: {
+            webapp_request_selects_policy_not_execution: false,
+            mujoco_proof_does_not_clear_isaac_sim_gate: false,
+          },
+        },
+        gpu_allocation: {
+          allocation_allowed_by_webapp: true,
+          gpu_spend_approved: true,
+        },
+        artifact_contract: {
+          public_claim_upgrade_allowed: true,
+        },
+      },
     };
 
     const validation = validateRobotEvalJobRequest(invalid);
@@ -375,6 +462,23 @@ describe("buildRobotEvalJobRequest", () => {
         "site_package.capture_root is required",
         "policy_package.policy_api_endpoint.endpoint_url is required",
         "proof_boundary.simulator_execution_proven must be false until owner-system proof exists",
+        "execution_request.schema_version must be blueprint.robot_eval_execution_request.v1",
+        "execution_request.webapp_role must be queue_and_forward_only",
+        "execution_request.scheduler_owner must be BlueprintCapturePipeline",
+        "execution_request.queueing is required when execution_request is provided",
+        "execution_request.preflight.cpu_preflight_required_before_gpu must be true",
+        "execution_request.preflight.blocks_gpu_when_missing must be true",
+        "execution_request.simulator_routing.requested_backend must be pipeline_selected",
+        "execution_request.simulator_routing.selection_policy.mode must be mujoco_first_unless_proof_requires_isaac",
+        "execution_request.simulator_routing.selection_policy.first_pass_backend must be mujoco",
+        "execution_request.simulator_routing.proof_boundaries.webapp_request_selects_policy_not_execution must be true",
+        "execution_request.simulator_routing.proof_boundaries.mujoco_proof_does_not_clear_isaac_sim_gate must be true",
+        "execution_request.gpu_allocation.allocation_allowed_by_webapp must be false",
+        "execution_request.gpu_allocation.gpu_spend_approved must be false",
+        "execution_request.gpu_allocation.idle_shutdown_required must be true",
+        "execution_request.artifact_contract.public_claim_upgrade_allowed must be false",
+        "execution_request.artifact_contract.startup_artifacts_are_advisory_until_owner_runtime_proof must be true",
+        "execution_request.artifact_contract.simulator_execution_proven_by_webapp must be false",
       ]),
     );
   });

@@ -28,6 +28,100 @@ function splitList(value: string | undefined) {
     .filter(Boolean);
 }
 
+function buildExecutionRequest() {
+  return {
+    schema_version: "blueprint.robot_eval_execution_request.v1",
+    webapp_role: "queue_and_forward_only",
+    scheduler_owner: "BlueprintCapturePipeline",
+    queueing: {
+      mode: "async_job",
+      customer_response: "job_id_and_status_only",
+      web_request_must_not_wait_for_simulator: true,
+    },
+    preflight: {
+      cpu_preflight_required_before_gpu: true,
+      blocks_gpu_when_missing: true,
+      required_artifacts: [
+        "scene_asset_inventory",
+        "scene_asset_dependency_audit",
+        "cpu_preflight_scorecard",
+        "episode_spec_manifest",
+        "gpu_handoff_packet",
+      ],
+    },
+    simulator_routing: {
+      requested_backend: "pipeline_selected",
+      allowed_backends: ["mujoco", "isaac_sim", "isaac_lab_arena", "pybullet", "fixture"],
+      default_first_pass_backend: "mujoco",
+      default_first_gpu_backend: "mujoco",
+      proxy_backends: ["mujoco", "pybullet", "fixture"],
+      escalation_backends: ["isaac_sim", "isaac_lab_arena"],
+      selection_policy: {
+        schema_version: "robot_eval_simulator_selection_policy.v1",
+        mode: "mujoco_first_unless_proof_requires_isaac",
+        first_pass_backend: "mujoco",
+        use_mujoco_when: [
+          "cheapest_first_real_simulator_pass",
+          "fast_cpu_or_low_cost_owner_runtime",
+          "compatible_mjcf_robot_asset_or_default_unitree_g1_smoke",
+          "early_policy_and_spawn_smoke_before_gpu_spend",
+        ],
+        escalate_to_isaac_when: [
+          "rich_usd_or_openusd_scene_load_required",
+          "isaac_robot_asset_proof_required",
+          "rtx_sensor_or_camera_rendering_required",
+          "contact_or_physics_validation_requires_isaac_stack",
+        ],
+        use_isaac_lab_arena_when: [
+          "isaac_lab_arena_batch_rollouts_required",
+          "large_scenario_matrix_or_sharded_eval_required",
+          "owner_arena_result_ingest_required",
+        ],
+      },
+      proof_boundaries: {
+        webapp_request_selects_policy_not_execution: true,
+        mujoco_proof_does_not_clear_isaac_sim_gate: true,
+        simulator_policy_does_not_prove_robot_readiness: true,
+      },
+      isaac_gpu_constraint: "rtx_rt_core_required_no_a100_h100",
+    },
+    gpu_allocation: {
+      mode: "on_demand_with_optional_warm_pool",
+      allocation_owner: "BlueprintCapturePipeline_or_owner_gpu_worker",
+      allocation_allowed_by_webapp: false,
+      gpu_spend_approved: false,
+      max_budget_usd: 0,
+      hard_timeout_seconds: 120,
+      idle_shutdown_required: true,
+      persistent_cache_recommended: true,
+    },
+    artifact_contract: {
+      expected_outputs: [
+        "scheduler_decision",
+        "worker_launch_plan",
+        "worker_manifest",
+        "gpu_provider_launch_request",
+        "gpu_provider_launcher_result",
+        "runpod_provider_adapter_result",
+        "gpu_cost_control_ledger",
+        "startup_architecture_audit",
+        "worker_runtime_manifest",
+        "worker_runtime_preflight",
+        "job_run_manifest",
+        "proof_boundary",
+        "metrics",
+        "trace",
+        "simulator_pov",
+        "stdout_log",
+        "stderr_log",
+      ],
+      startup_artifacts_are_advisory_until_owner_runtime_proof: true,
+      simulator_execution_proven_by_webapp: false,
+      public_claim_upgrade_allowed: false,
+    },
+  };
+}
+
 function fieldsFor(
   submission: RobotTeamTestSubmission,
   modality: RobotTeamTestSubmissionModalityId,
@@ -234,9 +328,10 @@ export function buildRobotEvalJobRequestFromSite(
       options.robotTeamTestSubmission,
     ),
     operation: "evaluate_only",
-    simulator_preference: "fixture",
+    simulator_preference: "mujoco_first",
     cosmos_training_preference: { mode: "export_only" },
     budget: { budget_usd: 0, timeout_seconds: 120 },
+    execution_request: buildExecutionRequest(),
     entitlement: {
       access_state: site.access,
       approved: site.access === "Open sample",
@@ -283,7 +378,7 @@ export function buildRobotEvalJobRequestFromSite(
       status: "queued_for_pipeline",
       command: "blueprint-run-robot-eval-job",
       default_provisioner: "fixture_local",
-      default_simulator: "fixture",
+      default_simulator: "mujoco",
       cpu_pre_gpu_preflight: {
         scene_asset_inventory_uri: publication.artifactUris.sceneAssetInventoryUri,
         scene_asset_dependency_audit_uri:

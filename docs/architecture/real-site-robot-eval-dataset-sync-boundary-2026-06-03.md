@@ -112,6 +112,16 @@ Pipeline sync may attach these optional artifact fields:
 - `prediction_vs_actual_summary_uri`
 - `robot_eval_methodology_summary_uri`
 - `robot_eval_job_request_uri`
+- `robot_eval_scheduler_decision_uri`
+- `robot_eval_worker_launch_plan_uri`
+- `robot_eval_worker_manifest_uri`
+- `robot_eval_gpu_provider_launch_request_uri`
+- `robot_eval_gpu_provider_launcher_result_uri`
+- `robot_eval_runpod_provider_adapter_result_uri`
+- `robot_eval_gpu_cost_control_ledger_uri`
+- `robot_eval_startup_architecture_audit_uri`
+- `robot_eval_worker_runtime_manifest_uri`
+- `robot_eval_worker_runtime_preflight_uri`
 - `robot_eval_job_run_manifest_uri`
 - `robot_eval_job_proof_boundary_uri`
 - `robot_eval_job_blocked_manifest_uri`
@@ -137,14 +147,72 @@ When a robot team chooses a site/task/scenario/policy from `/sites` or
 task thresholds, six structured policy submission modalities, the
 `buyer_request_id`, `site_submission_id`, `capture_job_id`, `capture_id`,
 access/entitlement state, fixture-local Pipeline defaults, and proof boundaries.
+New WebApp-created requests also include
+`execution_request.schema_version=blueprint.robot_eval_execution_request.v1` so
+the handoff explicitly records that WebApp only queues/forwards the job,
+`BlueprintCapturePipeline` owns simulator scheduling and GPU allocation, CPU
+preflight must block GPU spend when required artifacts are missing, and no GPU
+allocation, spend approval, simulator execution, or public claim upgrade is
+granted by the website request itself. This metadata may name Isaac, Isaac
+Lab/Arena, MuJoCo, PyBullet, and fixture/proxy lanes as routing options, but the
+actual backend, worker image, warm-pool/on-demand policy, and artifact proof
+remain Pipeline/owner-system responsibilities.
+Current requests carry a `mujoco_first_unless_proof_requires_isaac` simulator
+selection policy: MuJoCo is the default first real simulator pass for cheap
+policy/spawn smoke, while Isaac Sim and Isaac Lab/Arena are escalation backends
+only when the request names richer USD/OpenUSD, Isaac robot-asset, RTX sensor,
+contact/physics, or batch Arena proof classes. MuJoCo evidence must not clear
+the Isaac-specific, real-robot, safety/contact, or public-claim gates.
 Accepted requests are written to Firestore when configured and always export a
 Pipeline-readable local inbox envelope at
 `output/pipeline/robot_eval_job_requests/inbox/*.json` unless
 `ROBOT_EVAL_JOB_REQUEST_INBOX_DIR` overrides the path. Pipeline can consume that
 `robot_eval_job_request_inbox.v1` envelope without a human copy/paste step.
+For first-GPU startup rehearsals that are not submitted through the public route,
+`npm run pipeline:first-gpu:rehearsal-request -- --capture-root <capture-root>
+--output <queue-envelope.json> --site-slug <slug> --site-submission-id <id>
+--capture-job-id <id> --capture-id <id> --buyer-request-id <id>` exports the
+same queue-envelope contract with `source_kind=local_first_gpu_rehearsal_request`
+and `local_rehearsal_only=true`. That rehearsal exporter proves WebApp request
+construction only; it does not prove live route submission, live forwarding,
+simulator execution, policy execution, robot readiness, safety validation, or
+public claim upgrades.
+
+Before treating live forwarding as startup-ready, run
+`npm run pipeline:forwarding:preflight -- --require-forwarding` with the
+intended `ROBOT_EVAL_JOB_REQUEST_FORWARD_*` environment. This command validates
+the forwarding URL, bearer-token presence, timeout, and capture-root override
+shape and writes a redacted report at
+`output/pipeline/robot_eval_job_requests/forwarding_preflight.json`. Add
+`-- --probe-intake-audit` only for a read-only authenticated
+`GET /api/live-pipeline/intake-audit` against the Pipeline intake service. The
+preflight proves configuration and optional endpoint reachability only; it does
+not submit a job request, allocate GPU workers, run Isaac/MuJoCo, prove route
+submission, or upgrade any simulator, safety, readiness, or public claim.
+After preflight, `npm run pipeline:first-gpu:route-forwarding-proof -- --forward-url <pipeline-intake-url> ...`
+can prove the local WebApp route path by starting a local `/api/robot-eval/job-requests`
+route and POSTing a generated non-rehearsal request into the configured Pipeline
+intake. Use a local/staging intake URL unless a live Pipeline staging side
+effect is explicitly intended. This proves local route submission and Pipeline
+intake staging only; it does not prove production WebApp deployment, GPU
+allocation, simulator execution, policy execution, robot readiness, safety
+validation, or public claim upgrades.
 Pipeline status sync is advisory through
 `deployment_readiness.robot_eval_job_summary` and must not promote simulator
 execution, robot readiness, safety validation, or public claim upgrades.
+`robot_eval_scheduler_decision_uri`, `robot_eval_worker_launch_plan_uri`,
+`robot_eval_worker_manifest_uri`, `robot_eval_gpu_provider_launch_request_uri`,
+`robot_eval_gpu_provider_launcher_result_uri`,
+`robot_eval_runpod_provider_adapter_result_uri`,
+`robot_eval_gpu_cost_control_ledger_uri`,
+`robot_eval_startup_architecture_audit_uri`,
+`robot_eval_worker_runtime_manifest_uri`, and
+`robot_eval_worker_runtime_preflight_uri` describe queued startup intent,
+CPU-preflight gating, worker image/cache choices, provider launch request/result
+shape, provider-adapter request/submission status, required env/secret names,
+GPU constraints, cost-control limits, estimated versus actual GPU time records,
+runtime preflight/finalizer status, and live-action blockers only. They are
+advisory until owner-runtime proof exists and are not simulator-result artifacts.
 
 Sites may also project a per-site manifest status family for privacy, World
 Labs compatibility/support artifacts, materialization, CPU preflight, GPU

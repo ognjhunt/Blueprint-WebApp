@@ -63,6 +63,100 @@ function orderedPolicyPackage(policySubmission: Record<string, unknown>) {
   }, {} as Record<PolicyModality, unknown>);
 }
 
+function buildExecutionRequest() {
+  return {
+    schema_version: "blueprint.robot_eval_execution_request.v1",
+    webapp_role: "queue_and_forward_only",
+    scheduler_owner: "BlueprintCapturePipeline",
+    queueing: {
+      mode: "async_job",
+      customer_response: "job_id_and_status_only",
+      web_request_must_not_wait_for_simulator: true,
+    },
+    preflight: {
+      cpu_preflight_required_before_gpu: true,
+      blocks_gpu_when_missing: true,
+      required_artifacts: [
+        "scene_asset_inventory",
+        "scene_asset_dependency_audit",
+        "cpu_preflight_scorecard",
+        "episode_spec_manifest",
+        "gpu_handoff_packet",
+      ],
+    },
+    simulator_routing: {
+      requested_backend: "pipeline_selected",
+      allowed_backends: ["mujoco", "isaac_sim", "isaac_lab_arena", "pybullet", "fixture"],
+      default_first_pass_backend: "mujoco",
+      default_first_gpu_backend: "mujoco",
+      proxy_backends: ["mujoco", "pybullet", "fixture"],
+      escalation_backends: ["isaac_sim", "isaac_lab_arena"],
+      selection_policy: {
+        schema_version: "robot_eval_simulator_selection_policy.v1",
+        mode: "mujoco_first_unless_proof_requires_isaac",
+        first_pass_backend: "mujoco",
+        use_mujoco_when: [
+          "cheapest_first_real_simulator_pass",
+          "fast_cpu_or_low_cost_owner_runtime",
+          "compatible_mjcf_robot_asset_or_default_unitree_g1_smoke",
+          "early_policy_and_spawn_smoke_before_gpu_spend",
+        ],
+        escalate_to_isaac_when: [
+          "rich_usd_or_openusd_scene_load_required",
+          "isaac_robot_asset_proof_required",
+          "rtx_sensor_or_camera_rendering_required",
+          "contact_or_physics_validation_requires_isaac_stack",
+        ],
+        use_isaac_lab_arena_when: [
+          "isaac_lab_arena_batch_rollouts_required",
+          "large_scenario_matrix_or_sharded_eval_required",
+          "owner_arena_result_ingest_required",
+        ],
+      },
+      proof_boundaries: {
+        webapp_request_selects_policy_not_execution: true,
+        mujoco_proof_does_not_clear_isaac_sim_gate: true,
+        simulator_policy_does_not_prove_robot_readiness: true,
+      },
+      isaac_gpu_constraint: "rtx_rt_core_required_no_a100_h100",
+    },
+    gpu_allocation: {
+      mode: "on_demand_with_optional_warm_pool",
+      allocation_owner: "BlueprintCapturePipeline_or_owner_gpu_worker",
+      allocation_allowed_by_webapp: false,
+      gpu_spend_approved: false,
+      max_budget_usd: 0,
+      hard_timeout_seconds: 120,
+      idle_shutdown_required: true,
+      persistent_cache_recommended: true,
+    },
+    artifact_contract: {
+      expected_outputs: [
+        "scheduler_decision",
+        "worker_launch_plan",
+        "worker_manifest",
+        "gpu_provider_launch_request",
+        "gpu_provider_launcher_result",
+        "runpod_provider_adapter_result",
+        "gpu_cost_control_ledger",
+        "startup_architecture_audit",
+        "worker_runtime_manifest",
+        "worker_runtime_preflight",
+        "job_run_manifest",
+        "proof_boundary",
+        "metrics",
+        "trace",
+        "simulator_pov",
+        "stdout_log",
+        "stderr_log",
+      ],
+      startup_artifacts_are_advisory_until_owner_runtime_proof: true,
+      simulator_execution_proven_by_webapp: false,
+      public_claim_upgrade_allowed: false,
+    },
+  };
+}
+
 function hasObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -323,13 +417,15 @@ export function buildRobotEvalJobRequest(input: {
       approved: input.entitlement.approved,
     },
     operation: "evaluate_only",
-    simulator_preference: "fixture",
+    simulator_preference: "mujoco_first",
     cosmos_training_preference: { mode: "export_only" },
+    budget: { budget_usd: 0, timeout_seconds: 120 },
+    execution_request: buildExecutionRequest(),
     pipeline_trigger: {
       status: "queued_for_pipeline",
       command: "blueprint-run-robot-eval-job",
       default_provisioner: "fixture_local",
-      default_simulator: "fixture",
+      default_simulator: "mujoco",
       cpu_pre_gpu_preflight: {
         scene_asset_inventory_uri:
           input.sitePackage.artifactUris.sceneAssetInventoryUri || null,
@@ -473,6 +569,139 @@ export function validateRobotEvalJobRequest(value: unknown): {
     for (const key of Object.keys(CLAIM_BOUNDARY) as (keyof typeof CLAIM_BOUNDARY)[]) {
       if (proofBoundary[key] !== false) {
         errors.push(`proof_boundary.${key} must be false until owner-system proof exists`);
+      }
+    }
+  }
+
+  if (value.execution_request !== undefined) {
+    const executionRequest = value.execution_request;
+    if (!hasObject(executionRequest)) {
+      errors.push("execution_request must be an object when provided");
+    } else {
+      if (
+        executionRequest.schema_version !==
+        "blueprint.robot_eval_execution_request.v1"
+      ) {
+        errors.push(
+          "execution_request.schema_version must be blueprint.robot_eval_execution_request.v1",
+        );
+      }
+      if (executionRequest.webapp_role !== "queue_and_forward_only") {
+        errors.push("execution_request.webapp_role must be queue_and_forward_only");
+      }
+      if (executionRequest.scheduler_owner !== "BlueprintCapturePipeline") {
+        errors.push("execution_request.scheduler_owner must be BlueprintCapturePipeline");
+      }
+      const queueing = executionRequest.queueing;
+      if (!hasObject(queueing)) {
+        errors.push("execution_request.queueing is required when execution_request is provided");
+      } else {
+        if (queueing.mode !== "async_job") {
+          errors.push("execution_request.queueing.mode must be async_job");
+        }
+        if (queueing.web_request_must_not_wait_for_simulator !== true) {
+          errors.push(
+            "execution_request.queueing.web_request_must_not_wait_for_simulator must be true",
+          );
+        }
+      }
+      const preflight = executionRequest.preflight;
+      if (!hasObject(preflight)) {
+        errors.push("execution_request.preflight is required when execution_request is provided");
+      } else {
+        if (preflight.cpu_preflight_required_before_gpu !== true) {
+          errors.push(
+            "execution_request.preflight.cpu_preflight_required_before_gpu must be true",
+          );
+        }
+        if (preflight.blocks_gpu_when_missing !== true) {
+          errors.push("execution_request.preflight.blocks_gpu_when_missing must be true");
+        }
+      }
+      const simulatorRouting = executionRequest.simulator_routing;
+      if (!hasObject(simulatorRouting)) {
+        errors.push(
+          "execution_request.simulator_routing is required when execution_request is provided",
+        );
+      } else {
+        if (simulatorRouting.requested_backend !== "pipeline_selected") {
+          errors.push(
+            "execution_request.simulator_routing.requested_backend must be pipeline_selected",
+          );
+        }
+        const selectionPolicy = simulatorRouting.selection_policy;
+        if (hasObject(selectionPolicy)) {
+          if (selectionPolicy.mode !== "mujoco_first_unless_proof_requires_isaac") {
+            errors.push(
+              "execution_request.simulator_routing.selection_policy.mode must be mujoco_first_unless_proof_requires_isaac",
+            );
+          }
+          if (selectionPolicy.first_pass_backend !== "mujoco") {
+            errors.push(
+              "execution_request.simulator_routing.selection_policy.first_pass_backend must be mujoco",
+            );
+          }
+        }
+        const proofBoundaries = simulatorRouting.proof_boundaries;
+        if (hasObject(proofBoundaries)) {
+          if (proofBoundaries.webapp_request_selects_policy_not_execution !== true) {
+            errors.push(
+              "execution_request.simulator_routing.proof_boundaries.webapp_request_selects_policy_not_execution must be true",
+            );
+          }
+          if (proofBoundaries.mujoco_proof_does_not_clear_isaac_sim_gate !== true) {
+            errors.push(
+              "execution_request.simulator_routing.proof_boundaries.mujoco_proof_does_not_clear_isaac_sim_gate must be true",
+            );
+          }
+        }
+      }
+      const gpuAllocation = executionRequest.gpu_allocation;
+      if (!hasObject(gpuAllocation)) {
+        errors.push(
+          "execution_request.gpu_allocation is required when execution_request is provided",
+        );
+      } else {
+        if (gpuAllocation.allocation_allowed_by_webapp !== false) {
+          errors.push(
+            "execution_request.gpu_allocation.allocation_allowed_by_webapp must be false",
+          );
+        }
+        if (gpuAllocation.gpu_spend_approved !== false) {
+          errors.push(
+            "execution_request.gpu_allocation.gpu_spend_approved must be false",
+          );
+        }
+        if (gpuAllocation.idle_shutdown_required !== true) {
+          errors.push(
+            "execution_request.gpu_allocation.idle_shutdown_required must be true",
+          );
+        }
+      }
+      const artifactContract = executionRequest.artifact_contract;
+      if (!hasObject(artifactContract)) {
+        errors.push(
+          "execution_request.artifact_contract is required when execution_request is provided",
+        );
+      } else {
+        if (artifactContract.public_claim_upgrade_allowed !== false) {
+          errors.push(
+            "execution_request.artifact_contract.public_claim_upgrade_allowed must be false",
+          );
+        }
+        if (
+          artifactContract.startup_artifacts_are_advisory_until_owner_runtime_proof !==
+          true
+        ) {
+          errors.push(
+            "execution_request.artifact_contract.startup_artifacts_are_advisory_until_owner_runtime_proof must be true",
+          );
+        }
+        if (artifactContract.simulator_execution_proven_by_webapp !== false) {
+          errors.push(
+            "execution_request.artifact_contract.simulator_execution_proven_by_webapp must be false",
+          );
+        }
       }
     }
   }

@@ -520,6 +520,16 @@ describe("enrichDeploymentReadinessFromArtifacts", () => {
   it("syncs robot eval job status artifacts without upgrading proof claims", () => {
     const arts = makeArtifacts([
       "robot_eval_job_request_uri",
+      "robot_eval_scheduler_decision_uri",
+      "robot_eval_worker_launch_plan_uri",
+      "robot_eval_worker_manifest_uri",
+      "robot_eval_gpu_provider_launch_request_uri",
+      "robot_eval_gpu_provider_launcher_result_uri",
+      "robot_eval_runpod_provider_adapter_result_uri",
+      "robot_eval_gpu_cost_control_ledger_uri",
+      "robot_eval_startup_architecture_audit_uri",
+      "robot_eval_worker_runtime_manifest_uri",
+      "robot_eval_worker_runtime_preflight_uri",
       "robot_eval_job_run_manifest_uri",
       "robot_eval_job_proof_boundary_uri",
       "robot_eval_job_blocked_manifest_uri",
@@ -530,6 +540,23 @@ describe("enrichDeploymentReadinessFromArtifacts", () => {
       expect.objectContaining({
         status: "advisory_job_artifacts_present",
         job_request_uri: "gs://test/robot_eval_job_request_uri.json",
+        scheduler_decision_uri: "gs://test/robot_eval_scheduler_decision_uri.json",
+        worker_launch_plan_uri: "gs://test/robot_eval_worker_launch_plan_uri.json",
+        worker_manifest_uri: "gs://test/robot_eval_worker_manifest_uri.json",
+        gpu_provider_launch_request_uri:
+          "gs://test/robot_eval_gpu_provider_launch_request_uri.json",
+        gpu_provider_launcher_result_uri:
+          "gs://test/robot_eval_gpu_provider_launcher_result_uri.json",
+        runpod_provider_adapter_result_uri:
+          "gs://test/robot_eval_runpod_provider_adapter_result_uri.json",
+        gpu_cost_control_ledger_uri:
+          "gs://test/robot_eval_gpu_cost_control_ledger_uri.json",
+        startup_architecture_audit_uri:
+          "gs://test/robot_eval_startup_architecture_audit_uri.json",
+        worker_runtime_manifest_uri:
+          "gs://test/robot_eval_worker_runtime_manifest_uri.json",
+        worker_runtime_preflight_uri:
+          "gs://test/robot_eval_worker_runtime_preflight_uri.json",
         job_run_manifest_uri: "gs://test/robot_eval_job_run_manifest_uri.json",
         proof_boundary_uri: "gs://test/robot_eval_job_proof_boundary_uri.json",
         blocked_manifest_uri: "gs://test/robot_eval_job_blocked_manifest_uri.json",

@@ -217,6 +217,16 @@ function missingRobotEvalPublicationArtifacts(
 function hasAnyRobotEvalJobArtifact(artifacts: PipelineArtifacts | undefined): boolean {
   return Boolean(
     hasArtifact(artifacts, "robot_eval_job_request_uri") ||
+      hasArtifact(artifacts, "robot_eval_scheduler_decision_uri") ||
+      hasArtifact(artifacts, "robot_eval_worker_launch_plan_uri") ||
+      hasArtifact(artifacts, "robot_eval_worker_manifest_uri") ||
+      hasArtifact(artifacts, "robot_eval_gpu_provider_launch_request_uri") ||
+      hasArtifact(artifacts, "robot_eval_gpu_provider_launcher_result_uri") ||
+      hasArtifact(artifacts, "robot_eval_runpod_provider_adapter_result_uri") ||
+      hasArtifact(artifacts, "robot_eval_gpu_cost_control_ledger_uri") ||
+      hasArtifact(artifacts, "robot_eval_startup_architecture_audit_uri") ||
+      hasArtifact(artifacts, "robot_eval_worker_runtime_manifest_uri") ||
+      hasArtifact(artifacts, "robot_eval_worker_runtime_preflight_uri") ||
       hasArtifact(artifacts, "robot_eval_job_run_manifest_uri") ||
       hasArtifact(artifacts, "robot_eval_job_proof_boundary_uri") ||
       hasArtifact(artifacts, "robot_eval_job_blocked_manifest_uri"),
@@ -795,6 +805,23 @@ export function enrichDeploymentReadinessFromArtifacts(
       ...(enriched.robot_eval_job_summary || {}),
       status: "advisory_job_artifacts_present",
       job_request_uri: artifacts?.robot_eval_job_request_uri || null,
+      scheduler_decision_uri: artifacts?.robot_eval_scheduler_decision_uri || null,
+      worker_launch_plan_uri: artifacts?.robot_eval_worker_launch_plan_uri || null,
+      worker_manifest_uri: artifacts?.robot_eval_worker_manifest_uri || null,
+      gpu_provider_launch_request_uri:
+        artifacts?.robot_eval_gpu_provider_launch_request_uri || null,
+      gpu_provider_launcher_result_uri:
+        artifacts?.robot_eval_gpu_provider_launcher_result_uri || null,
+      runpod_provider_adapter_result_uri:
+        artifacts?.robot_eval_runpod_provider_adapter_result_uri || null,
+      gpu_cost_control_ledger_uri:
+        artifacts?.robot_eval_gpu_cost_control_ledger_uri || null,
+      startup_architecture_audit_uri:
+        artifacts?.robot_eval_startup_architecture_audit_uri || null,
+      worker_runtime_manifest_uri:
+        artifacts?.robot_eval_worker_runtime_manifest_uri || null,
+      worker_runtime_preflight_uri:
+        artifacts?.robot_eval_worker_runtime_preflight_uri || null,
       job_run_manifest_uri: artifacts?.robot_eval_job_run_manifest_uri || null,
       proof_boundary_uri: artifacts?.robot_eval_job_proof_boundary_uri || null,
       blocked_manifest_uri: artifacts?.robot_eval_job_blocked_manifest_uri || null,

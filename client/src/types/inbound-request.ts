@@ -314,6 +314,16 @@ export interface PipelineArtifacts {
   prediction_vs_actual_summary_uri?: string | null;
   robot_eval_methodology_summary_uri?: string | null;
   robot_eval_job_request_uri?: string | null;
+  robot_eval_scheduler_decision_uri?: string | null;
+  robot_eval_worker_launch_plan_uri?: string | null;
+  robot_eval_worker_manifest_uri?: string | null;
+  robot_eval_gpu_provider_launch_request_uri?: string | null;
+  robot_eval_gpu_provider_launcher_result_uri?: string | null;
+  robot_eval_runpod_provider_adapter_result_uri?: string | null;
+  robot_eval_gpu_cost_control_ledger_uri?: string | null;
+  robot_eval_startup_architecture_audit_uri?: string | null;
+  robot_eval_worker_runtime_manifest_uri?: string | null;
+  robot_eval_worker_runtime_preflight_uri?: string | null;
   robot_eval_job_run_manifest_uri?: string | null;
   robot_eval_job_proof_boundary_uri?: string | null;
   robot_eval_job_blocked_manifest_uri?: string | null;
@@ -489,6 +499,16 @@ export interface RobotEvalDatasetSummary {
 export interface RobotEvalJobSummary {
   status?: string | null;
   job_request_uri?: string | null;
+  scheduler_decision_uri?: string | null;
+  worker_launch_plan_uri?: string | null;
+  worker_manifest_uri?: string | null;
+  gpu_provider_launch_request_uri?: string | null;
+  gpu_provider_launcher_result_uri?: string | null;
+  runpod_provider_adapter_result_uri?: string | null;
+  gpu_cost_control_ledger_uri?: string | null;
+  startup_architecture_audit_uri?: string | null;
+  worker_runtime_manifest_uri?: string | null;
+  worker_runtime_preflight_uri?: string | null;
   job_run_manifest_uri?: string | null;
   proof_boundary_uri?: string | null;
   blocked_manifest_uri?: string | null;
