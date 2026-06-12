@@ -30,6 +30,8 @@
     "paperclip:backfill-legacy-inbound-request-states": "tsx scripts/paperclip/backfill-legacy-inbound-request-states.ts",
     "pipeline:first-gpu:rehearsal-request": "tsx scripts/pipeline/export-first-gpu-webapp-rehearsal-request.ts",
     "pipeline:first-gpu:route-forwarding-proof": "tsx scripts/pipeline/run-first-gpu-webapp-route-forwarding-proof.ts",
+    "pipeline:first-gpu:owner-agent-request": "tsx scripts/pipeline/run-first-gpu-webapp-route-forwarding-proof.ts --source-kind owner_agent_codex_request",
+    "pipeline:first-gpu:production-route-proof": "tsx scripts/pipeline/run-first-gpu-webapp-route-forwarding-proof.ts --source-kind owner_agent_codex_request",
     "pipeline:forwarding:preflight": "tsx scripts/pipeline/audit-robot-eval-forwarding-readiness.ts",
     "smoke:launch": "node scripts/launch-smoke.mjs",
     "smoke:launch:local": "node scripts/launch-smoke-local.mjs",
