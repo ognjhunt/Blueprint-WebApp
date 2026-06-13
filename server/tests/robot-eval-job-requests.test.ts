@@ -806,6 +806,7 @@ describe("buildRobotEvalJobRequest", () => {
         performed: true,
         endpoint_configured: true,
         http_status: 200,
+        timeout_ms: 60000,
         accepted: true,
         pipeline_status: "staged_for_control_plane",
       }),
@@ -833,6 +834,42 @@ describe("buildRobotEvalJobRequest", () => {
       }),
     );
     expect(body.job_request.schema_version).toBe("robot_eval_job_request.v1");
+  });
+
+  it("keeps the production Pipeline forward timeout floor when env is lower", async () => {
+    vi.stubEnv("ROBOT_EVAL_JOB_REQUEST_FORWARD_TIMEOUT_MS", "10000");
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          accepted: true,
+          status: "staged_for_control_plane",
+          input_blockers: [],
+        }),
+        {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        },
+      ),
+    );
+
+    const result = await forwardRobotEvalJobRequestToPipeline({
+      endpointUrl: "http://127.0.0.1:8765/api/live-pipeline/job-requests",
+      token: "test-forward-token",
+      jobRequest: {
+        schema_version: "robot_eval_job_request.v1",
+        job_id: "robot-eval-1",
+        buyer_request_id: "buyer-request-1",
+      },
+      queuedAt: "2026-06-06T00:00:00.000Z",
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        status: "forwarded",
+        performed: true,
+        timeout_ms: 60000,
+      }),
+    );
   });
 
   it("treats Pipeline-recorded blocked requests as forwarded", async () => {

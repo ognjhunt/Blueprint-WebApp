@@ -768,6 +768,7 @@ export type RobotEvalJobRequestForwardResult = {
   blockers?: string[];
   error_name?: string;
   error_message?: string;
+  timeout_ms?: number;
   capture_root_override_applied?: boolean;
   capture_root_override_source?: "site" | "global";
 };
@@ -779,6 +780,16 @@ function truthy(value: string | undefined) {
 function intEnv(value: string | undefined, fallback: number) {
   const parsed = Number.parseInt(String(value || ""), 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function forwardTimeoutMs(explicitTimeoutMs?: number) {
+  if (explicitTimeoutMs !== undefined) {
+    return explicitTimeoutMs;
+  }
+  return Math.max(
+    intEnv(process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_TIMEOUT_MS, DEFAULT_FORWARD_TIMEOUT_MS),
+    DEFAULT_FORWARD_TIMEOUT_MS,
+  );
 }
 
 function parseCaptureRootBySiteEnv() {
@@ -977,11 +988,8 @@ export async function forwardRobotEvalJobRequestToPipeline(params: {
     job_request: jobRequest,
   };
   const controller = new AbortController();
-  const timeout = setTimeout(
-    () => controller.abort(),
-    params.timeoutMs ??
-      intEnv(process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_TIMEOUT_MS, DEFAULT_FORWARD_TIMEOUT_MS),
-  );
+  const timeoutMs = forwardTimeoutMs(params.timeoutMs);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const response = await fetch(endpoint, {
       method: "POST",
@@ -1006,6 +1014,7 @@ export async function forwardRobotEvalJobRequestToPipeline(params: {
       endpoint_configured: true,
       required,
       http_status: response.status,
+      timeout_ms: timeoutMs,
       capture_root_override_applied: forwardJobRequest.applied,
     };
     if (forwardJobRequest.source) {
@@ -1027,6 +1036,7 @@ export async function forwardRobotEvalJobRequestToPipeline(params: {
       performed: false,
       endpoint_configured: true,
       required,
+      timeout_ms: timeoutMs,
       error_name: error instanceof Error ? error.name : "UnknownError",
       error_message: error instanceof Error ? error.message : "Unknown forwarding error",
     };
