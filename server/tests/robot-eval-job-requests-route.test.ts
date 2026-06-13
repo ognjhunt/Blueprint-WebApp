@@ -176,6 +176,30 @@ describe("robot-eval job request route forwarding", () => {
 
       expect(response.status).toBe(202);
       expect(payload.status).toBe("queued_for_pipeline");
+      expect(payload.durableStore).toEqual(
+        expect.objectContaining({
+          status: "pipeline_inbox_only",
+          performed: false,
+          firestore: expect.objectContaining({
+            status: "not_configured",
+            performed: false,
+            collection: "robotEvalJobRequests",
+            doc_id: jobRequest.job_id,
+          }),
+          pipeline_inbox: expect.objectContaining({
+            status: "stored",
+            performed: true,
+            queue_contract: "robot_eval_job_request_inbox.v1",
+          }),
+          pipeline_forward: expect.objectContaining({
+            status: "forwarded",
+            performed: true,
+            accepted: true,
+            required: true,
+            pipeline_status: "staged_for_control_plane",
+          }),
+        }),
+      );
       expect(payload.pipelineForward).toEqual(
         expect.objectContaining({
           status: "forwarded",
@@ -241,6 +265,29 @@ describe("robot-eval job request route forwarding", () => {
       expect(response.status).toBe(502);
       expect(payload.status).toBe("pipeline_forward_failed");
       expect(payload.error).toMatch(/capture root does not match/i);
+      expect(payload.durableStore).toEqual(
+        expect.objectContaining({
+          status: "pipeline_inbox_only",
+          performed: false,
+          firestore: expect.objectContaining({
+            status: "not_configured",
+            performed: false,
+            collection: "robotEvalJobRequests",
+            doc_id: jobRequest.job_id,
+          }),
+          pipeline_inbox: expect.objectContaining({
+            status: "stored",
+            performed: true,
+            queue_contract: "robot_eval_job_request_inbox.v1",
+          }),
+          pipeline_forward: expect.objectContaining({
+            status: "failed",
+            performed: false,
+            accepted: false,
+            required: true,
+          }),
+        }),
+      );
       expect(payload.pipelineForward).toEqual(
         expect.objectContaining({
           status: "failed",

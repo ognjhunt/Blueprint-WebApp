@@ -18,6 +18,45 @@ function truthy(value: string | undefined) {
   return String(value || "").trim().toLowerCase() === "true";
 }
 
+function buildDurableStoreProof(params: {
+  firestoreWritePerformed: boolean;
+  firestoreWriteDisabled: boolean;
+  firestoreCollection: string;
+  firestoreDocId: string;
+  inbox: Record<string, unknown>;
+  pipelineForward: Record<string, unknown>;
+}) {
+  const inboxStored = Boolean(params.inbox.job_request_path);
+  const pipelineForwardPerformed = params.pipelineForward.performed === true;
+  return {
+    status: params.firestoreWritePerformed ? "stored" : "pipeline_inbox_only",
+    performed: params.firestoreWritePerformed,
+    firestore: {
+      status: params.firestoreWritePerformed
+        ? "stored"
+        : params.firestoreWriteDisabled
+          ? "disabled"
+          : "not_configured",
+      performed: params.firestoreWritePerformed,
+      collection: params.firestoreCollection,
+      doc_id: params.firestoreDocId,
+    },
+    pipeline_inbox: {
+      status: inboxStored ? "stored" : "not_stored",
+      performed: inboxStored,
+      queue_contract: params.inbox.queue_contract || null,
+      job_request_path: params.inbox.job_request_path || null,
+    },
+    pipeline_forward: {
+      status: params.pipelineForward.status || "not_configured",
+      performed: pipelineForwardPerformed,
+      accepted: params.pipelineForward.accepted === true,
+      required: params.pipelineForward.required === true,
+      pipeline_status: params.pipelineForward.pipeline_status || null,
+    },
+  };
+}
+
 router.post("/", async (req, res) => {
   const jobRequest = req.body;
   const validation = validateRobotEvalJobRequest(jobRequest);
@@ -81,6 +120,7 @@ router.post("/", async (req, res) => {
   const firestoreWriteDisabled = truthy(
     process.env.ROBOT_EVAL_JOB_REQUEST_DISABLE_FIRESTORE_WRITE,
   );
+  let firestoreWritePerformed = false;
   if (db && !firestoreWriteDisabled) {
     await db.collection("robotEvalJobRequests").doc(jobId).set(
       {
@@ -90,11 +130,17 @@ router.post("/", async (req, res) => {
       },
       { merge: true },
     );
+    firestoreWritePerformed = true;
   }
 
-  const durableStore = db && !firestoreWriteDisabled
-    ? "firestore.robotEvalJobRequests+pipeline_inbox+optional_pipeline_forward"
-    : "pipeline_inbox+optional_pipeline_forward";
+  const durableStore = buildDurableStoreProof({
+    firestoreWritePerformed,
+    firestoreWriteDisabled,
+    firestoreCollection: "robotEvalJobRequests",
+    firestoreDocId: jobId,
+    inbox,
+    pipelineForward,
+  });
   if (pipelineForward.required && !pipelineForward.performed) {
     return res.status(502).json({
       ok: false,
