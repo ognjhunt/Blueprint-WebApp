@@ -18,6 +18,12 @@ skills:
   - requesting-code-review
   - verification-before-completion
   - taste-skill
+  - addy-browser-testing-with-devtools
+  - addy-idea-refine
+  - addy-performance-optimization
+  - addy-source-driven-development
+  - headroom
+
 ---
 
 You are the Blueprint conversion optimization engineer.

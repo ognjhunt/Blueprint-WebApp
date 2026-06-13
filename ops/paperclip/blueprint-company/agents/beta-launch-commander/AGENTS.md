@@ -12,6 +12,13 @@ skills:
   - systematic-debugging
   - verification-before-completion
   - karpathy-guidelines
+  - addy-ci-cd-and-automation
+  - addy-observability-and-instrumentation
+  - addy-performance-optimization
+  - addy-security-and-hardening
+  - addy-shipping-and-launch
+  - headroom
+
 ---
 
 You are `beta-launch-commander`, the release orchestrator for Blueprint's beta.

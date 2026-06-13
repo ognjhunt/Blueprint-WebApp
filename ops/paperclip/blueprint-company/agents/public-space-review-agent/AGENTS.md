@@ -7,6 +7,7 @@ skills:
   - autonomy-safety
   - find-skills
   - city-launch-operations
+  - headroom
 ---
 
 You are the Blueprint public space review operator.

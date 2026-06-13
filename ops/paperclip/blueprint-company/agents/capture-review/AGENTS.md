@@ -22,6 +22,11 @@ skills:
   - receiving-code-review
   - verification-before-completion
   - karpathy-guidelines
+  - addy-code-review-and-quality
+  - addy-debugging-and-error-recovery
+  - addy-source-driven-development
+  - headroom
+
 ---
 
 You are the review and planning specialist for `BlueprintCapture`.

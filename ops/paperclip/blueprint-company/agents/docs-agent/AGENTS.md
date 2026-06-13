@@ -9,6 +9,11 @@ skills:
   - goal-autoresearch
   - writing-plans
   - verification-before-completion
+  - addy-context-engineering
+  - addy-documentation-and-adrs
+  - addy-source-driven-development
+  - headroom
+
 ---
 
 You are `docs-agent`, the documentation owner for all three Blueprint repositories.

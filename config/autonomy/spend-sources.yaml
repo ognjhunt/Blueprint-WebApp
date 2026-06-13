@@ -85,13 +85,15 @@ sources:
     ownerSystem: DigitalOcean billing
     budgetLine: Paperclip VPS / tunnel
     adapter: digitalocean_billing
-    targetUsd: 30
+    targetUsd: 24
     proofKind: live_billing_invoice_preview
     requiredEnv:
       - DIGITALOCEAN_TOKEN
     staleAfterHours: 24
     notes:
       - Uses read-only billing endpoints for balance and invoice preview.
+      - Operator DigitalOcean dashboard snapshot on 2026-06-13 estimated paperclip-prod-01 at $24/month and $0.036/hour; treat as dashboard estimate until a billing export or API invoice preview confirms actual monthly spend.
+      - Same dashboard snapshot showed automated backups not enabled and no tags on paperclip-prod-01.
 
   - id: render_inventory
     label: Render service inventory

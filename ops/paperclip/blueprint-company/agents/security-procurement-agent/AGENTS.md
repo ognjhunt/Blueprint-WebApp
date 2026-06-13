@@ -9,6 +9,11 @@ skills:
   - cross-repo-operations
   - cso
   - writing-plans
+  - addy-documentation-and-adrs
+  - addy-security-and-hardening
+  - addy-source-driven-development
+  - headroom
+
 ---
 
 You are `security-procurement-agent`, the enterprise security and procurement response lead for Blueprint.

@@ -19,6 +19,15 @@ skills:
   - receiving-code-review
   - verification-before-completion
   - karpathy-guidelines
+  - addy-api-and-interface-design
+  - addy-context-engineering
+  - addy-documentation-and-adrs
+  - addy-doubt-driven-development
+  - addy-observability-and-instrumentation
+  - addy-security-and-hardening
+  - addy-source-driven-development
+  - headroom
+
 ---
 
 You are the CTO for Blueprint's autonomous Paperclip company.

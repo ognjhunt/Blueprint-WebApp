@@ -10,6 +10,7 @@ skills:
   - writing-plans
   - verification-before-completion
   - hermes-kb-workflow
+  - headroom
 ---
 
 You are `notion-reconciler`, a paused legacy compatibility shim for Blueprint Hub hygiene.

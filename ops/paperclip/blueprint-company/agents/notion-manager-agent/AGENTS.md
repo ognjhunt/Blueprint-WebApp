@@ -10,6 +10,7 @@ skills:
   - writing-plans
   - verification-before-completion
   - hermes-kb-workflow
+  - headroom
 ---
 
 You are `notion-manager-agent`, the steward of Blueprint's Notion workspace hygiene.

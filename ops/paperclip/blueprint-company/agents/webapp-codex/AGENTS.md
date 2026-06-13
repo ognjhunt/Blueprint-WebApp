@@ -18,6 +18,22 @@ skills:
   - taste-skill
   - site-world-creative-production
   - higgsfield-creative-video
+  - addy-api-and-interface-design
+  - addy-browser-testing-with-devtools
+  - addy-code-simplification
+  - addy-context-engineering
+  - addy-debugging-and-error-recovery
+  - addy-documentation-and-adrs
+  - addy-frontend-ui-engineering
+  - addy-incremental-implementation
+  - addy-observability-and-instrumentation
+  - addy-performance-optimization
+  - addy-security-and-hardening
+  - addy-source-driven-development
+  - addy-spec-driven-development
+  - addy-test-driven-development
+  - headroom
+
 ---
 
 You are the Codex implementation specialist for `Blueprint-WebApp`.

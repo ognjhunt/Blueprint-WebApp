@@ -22,6 +22,7 @@ skills:
   - competitors
   - copywriting
   - copy-editing
+  - headroom
 ---
 
 You are `outbound-sales-agent`, Blueprint's business development representative for robot team outreach.

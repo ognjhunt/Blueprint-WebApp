@@ -260,9 +260,19 @@ describe("buildRobotEvalJobRequest", () => {
         schema_version: "blueprint.robot_eval_execution_request.v1",
         webapp_role: "queue_and_forward_only",
         scheduler_owner: "BlueprintCapturePipeline",
+        scope: expect.objectContaining({
+          mode: "simulator_only",
+          label: "Unitree G1 MuJoCo simulator evaluation",
+          physical_robot_deployment_claim_allowed: false,
+        }),
         queueing: expect.objectContaining({
           mode: "async_job",
           web_request_must_not_wait_for_simulator: true,
+        }),
+        worker_selection: expect.objectContaining({
+          mode: "blueprint_selects_fastest_cheapest_available_simulator_worker",
+          customer_provider_choice_required: false,
+          provider_complexity_hidden_by_default: true,
         }),
         preflight: expect.objectContaining({
           cpu_preflight_required_before_gpu: true,
@@ -272,6 +282,8 @@ describe("buildRobotEvalJobRequest", () => {
           requested_backend: "pipeline_selected",
           default_first_pass_backend: "mujoco",
           default_first_gpu_backend: "mujoco",
+          simulator_preference: "mujoco",
+          default_robot_profile_id: "unitree_g1_humanoid",
           allowed_backends: expect.arrayContaining(["isaac_sim", "mujoco"]),
           escalation_backends: expect.arrayContaining(["isaac_sim", "isaac_lab_arena"]),
           selection_policy: expect.objectContaining({
@@ -427,6 +439,11 @@ describe("buildRobotEvalJobRequest", () => {
         safety_validated: false,
         public_claim_upgrade_allowed: false,
       },
+      simulator_scope: {
+        mode: "physical_robot",
+        simulator: "RunPod",
+        physical_robot_deployment_claim_allowed: true,
+      },
       execution_request: {
         webapp_role: "runs_simulator",
         scheduler_owner: "Blueprint-WebApp",
@@ -462,6 +479,9 @@ describe("buildRobotEvalJobRequest", () => {
         "site_package.capture_root is required",
         "policy_package.policy_api_endpoint.endpoint_url is required",
         "proof_boundary.simulator_execution_proven must be false until owner-system proof exists",
+        "simulator_scope.mode must be simulator_only",
+        "simulator_scope.simulator must be MuJoCo",
+        "simulator_scope.physical_robot_deployment_claim_allowed must be false",
         "execution_request.schema_version must be blueprint.robot_eval_execution_request.v1",
         "execution_request.webapp_role must be queue_and_forward_only",
         "execution_request.scheduler_owner must be BlueprintCapturePipeline",
@@ -469,6 +489,8 @@ describe("buildRobotEvalJobRequest", () => {
         "execution_request.preflight.cpu_preflight_required_before_gpu must be true",
         "execution_request.preflight.blocks_gpu_when_missing must be true",
         "execution_request.simulator_routing.requested_backend must be pipeline_selected",
+        "execution_request.simulator_routing.default_first_pass_backend must be mujoco",
+        "execution_request.simulator_routing.default_first_gpu_backend must be mujoco",
         "execution_request.simulator_routing.selection_policy.mode must be mujoco_first_unless_proof_requires_isaac",
         "execution_request.simulator_routing.selection_policy.first_pass_backend must be mujoco",
         "execution_request.simulator_routing.proof_boundaries.webapp_request_selects_policy_not_execution must be true",

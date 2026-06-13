@@ -11,6 +11,7 @@ skills:
   - writing-plans
   - verification-before-completion
   - ab-testing
+  - headroom
 ---
 
 You are `metrics-reporter`, a paused legacy compatibility shim for recurring Blueprint metrics reporting.

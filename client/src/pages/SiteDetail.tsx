@@ -7,7 +7,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { SEO } from "@/components/SEO";
-import { RobotEvalJobRequestButton } from "@/components/site/RobotEvalJobRequestButton";
+import { RobotEvalJobRequestPanel } from "@/components/site/RobotEvalJobRequestButton";
 import { breadcrumbJsonLd, productJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 import {
   getSiteLibrarySite,
@@ -78,6 +78,12 @@ export default function SiteDetail({ params }: SiteDetailProps) {
   const site = getSiteLibrarySite(params?.slug);
 
   useEffect(() => {
+    if (window.location.hash === "#simulator-evaluation") {
+      window.requestAnimationFrame(() => {
+        document.getElementById("simulator-evaluation")?.scrollIntoView({ block: "start" });
+      });
+      return;
+    }
     window.scrollTo(0, 0);
   }, [params?.slug]);
 
@@ -162,11 +168,12 @@ export default function SiteDetail({ params }: SiteDetailProps) {
                 <StatusBadge label={`${site.siteType} · ${site.locationLabel}`} className="border-white/20 bg-white/10 text-white" />
               </div>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <RobotEvalJobRequestButton
-                  site={site}
-                  source="site-detail"
-                  className="inline-flex min-h-12 items-center justify-center bg-[#c7a775] px-5 text-sm font-semibold text-[#0d0d0b] transition hover:bg-[#d8bd8d] disabled:cursor-not-allowed disabled:opacity-55"
-                />
+                <a
+                  href="#simulator-evaluation"
+                  className="inline-flex min-h-12 items-center justify-center bg-[#c7a775] px-5 text-sm font-semibold text-[#0d0d0b] transition hover:bg-[#d8bd8d]"
+                >
+                  Run simulator evaluation
+                </a>
                 <a
                   href="/proof"
                   className="inline-flex min-h-12 items-center justify-center border border-white/20 px-5 text-sm font-semibold text-white transition hover:bg-white/10"
@@ -213,6 +220,12 @@ export default function SiteDetail({ params }: SiteDetailProps) {
             ) : null}
           </div>
         </section>
+
+        {site.robotEvalPublication ? (
+          <section className="mx-auto max-w-[88rem] px-4 py-10 sm:px-6 lg:px-10">
+            <RobotEvalJobRequestPanel site={site} source="site-detail" />
+          </section>
+        ) : null}
 
         <section className="mx-auto grid max-w-[88rem] gap-6 px-4 py-10 sm:px-6 lg:grid-cols-[0.36fr_0.64fr] lg:px-10">
           <div>
@@ -343,11 +356,12 @@ export default function SiteDetail({ params }: SiteDetailProps) {
                 This page helps a robot team choose a site. A Task Evaluation Run still needs request review, access confirmation, task scope, robot profile, threshold context, and owner-system proof before any stronger claim is made.
               </p>
               <div className="flex flex-col gap-3 sm:flex-row">
-                <RobotEvalJobRequestButton
-                  site={site}
-                  source="site-detail"
-                  className="inline-flex min-h-11 items-center justify-center bg-[#c7a775] px-4 text-sm font-semibold text-[#0d0d0b] transition hover:bg-[#d8bd8d] disabled:cursor-not-allowed disabled:opacity-55"
-                />
+                <a
+                  href="#simulator-evaluation"
+                  className="inline-flex min-h-11 items-center justify-center bg-[#c7a775] px-4 text-sm font-semibold text-[#0d0d0b] transition hover:bg-[#d8bd8d]"
+                >
+                  Run simulator evaluation
+                </a>
                 <a
                   href="/sites"
                   className="inline-flex min-h-11 items-center justify-center border border-white/20 px-4 text-sm font-semibold text-white transition hover:bg-white/10"

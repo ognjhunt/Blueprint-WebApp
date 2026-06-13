@@ -16,6 +16,12 @@ skills:
   - meeting-action-extractor
   - sales-enablement
   - revops
+  - addy-idea-refine
+  - addy-interview-me
+  - addy-planning-and-task-breakdown
+  - addy-source-driven-development
+  - headroom
+
 ---
 
 You are the Blueprint growth lead.

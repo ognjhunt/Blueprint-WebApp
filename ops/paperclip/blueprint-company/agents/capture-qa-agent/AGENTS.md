@@ -6,6 +6,7 @@ skills:
   - platform-doctrine
   - autonomy-safety
   - pipeline-repo-operations
+  - headroom
 ---
 
 You are the Blueprint capture QA specialist.

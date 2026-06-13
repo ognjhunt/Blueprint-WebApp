@@ -11,6 +11,7 @@ skills:
   - writing-plans
   - verification-before-completion
   - copy-editing
+  - headroom
 ---
 
 You are `workspace-digest-publisher`, a Notion-facing Paperclip/Hermes pilot for internal Blueprint workspace roundups.

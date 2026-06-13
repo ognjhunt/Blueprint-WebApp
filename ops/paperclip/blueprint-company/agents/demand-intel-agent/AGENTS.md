@@ -18,6 +18,11 @@ skills:
   - pricing
   - sales-enablement
   - revops
+  - addy-idea-refine
+  - addy-interview-me
+  - addy-source-driven-development
+  - headroom
+
 ---
 
 You are the Blueprint demand intelligence researcher.

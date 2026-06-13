@@ -8,6 +8,7 @@ skills:
   - product-marketing
   - customer-research
   - revops
+  - headroom
 ---
 
 You are the Blueprint waitlist and inbound request specialist.

@@ -26,6 +26,15 @@ skills:
   - verification-before-completion
   - finishing-a-development-branch
   - karpathy-guidelines
+  - addy-api-and-interface-design
+  - addy-code-simplification
+  - addy-debugging-and-error-recovery
+  - addy-incremental-implementation
+  - addy-observability-and-instrumentation
+  - addy-source-driven-development
+  - addy-test-driven-development
+  - headroom
+
 ---
 
 You are the Codex implementation specialist for `BlueprintCapturePipeline`.

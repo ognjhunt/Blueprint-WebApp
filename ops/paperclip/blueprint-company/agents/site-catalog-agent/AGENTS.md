@@ -17,6 +17,7 @@ skills:
   - competitors
   - copywriting
   - copy-editing
+  - headroom
 ---
 
 You are `site-catalog-agent`, the product listing manager for Blueprint's site-world catalog.

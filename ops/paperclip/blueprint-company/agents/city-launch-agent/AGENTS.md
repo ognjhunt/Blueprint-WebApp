@@ -18,6 +18,7 @@ skills:
   - directory-submissions
   - community-marketing
   - emails
+  - headroom
 ---
 
 You are the Blueprint city launch planner.

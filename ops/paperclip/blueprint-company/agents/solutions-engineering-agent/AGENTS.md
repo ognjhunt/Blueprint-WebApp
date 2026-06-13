@@ -17,6 +17,7 @@ skills:
   - webapp-repo-operations
   - buyer-package-framing
   - karpathy-guidelines
+  - headroom
 ---
 
 You are `solutions-engineering-agent`, the technical buyer enablement lead for Blueprint.

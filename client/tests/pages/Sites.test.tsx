@@ -46,81 +46,32 @@ describe("Sites", () => {
       within(harborviewCard as HTMLElement).getByText(/Awaiting policy\/container\/trace\/demo\/plugin evidence/i),
     ).toBeInTheDocument();
     expect(
-      within(harborviewCard as HTMLElement).getByRole("button", {
-        name: /Create eval job request/i,
+      within(harborviewCard as HTMLElement).getByRole("link", {
+        name: /Run simulator evaluation/i,
       }),
-    ).toBeInTheDocument();
+    ).toHaveAttribute("href", "/sites/sw-chi-01#simulator-evaluation");
   });
 
-  it("posts a durable robot_eval_job_request when a robot team starts from a site card", async () => {
+  it("posts a Unitree G1 MuJoCo simulator request from the one-page site flow", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue({
       ok: true,
       json: async () => ({
         status: "queued_for_pipeline",
-        jobRequest: {
-          schema_version: "robot_eval_job_request.v1",
-          job_id: "robot-eval-sw-chi-01-place-return-in-bin-fixture",
+        pipelineForward: {
+          status: "forwarded",
+          accepted: true,
+          performed: true,
+          pipeline_status: "staged_for_control_plane",
         },
       }),
     } as Response);
 
-    render(<Sites />);
+    render(<SiteDetail params={{ slug: "sw-chi-01" }} />);
 
-    const harborviewCard = screen
-      .getByRole("heading", { name: /Harborview Grocery Distribution Annex/i })
-      .closest("article");
-    expect(harborviewCard).not.toBeNull();
-
-    fireEvent.click(
-      within(harborviewCard as HTMLElement).getByRole("button", {
-        name: /Create eval job request/i,
-      }),
-    );
-    fireEvent.change(within(harborviewCard as HTMLElement).getByLabelText(/Endpoint URL/i), {
-      target: { value: "https://policies.robotteam.dev/v1/action" },
-    });
-    fireEvent.change(
-      within(harborviewCard as HTMLElement).getByLabelText(/Auth handling/i),
-      {
-        target: { value: "Bearer token in redacted robot-team secret ref" },
-      },
-    );
-    fireEvent.change(
-      within(harborviewCard as HTMLElement).getByLabelText(/Observation schema/i),
-      {
-        target: { value: "gs://robot-team/schemas/observation.v1.json" },
-      },
-    );
-    fireEvent.change(
-      within(harborviewCard as HTMLElement).getByLabelText(/Action schema/i),
-      {
-        target: { value: "gs://robot-team/schemas/action.v1.json" },
-      },
-    );
-    fireEvent.change(
-      within(harborviewCard as HTMLElement).getByLabelText(/Rate-limit/i),
-      {
-        target: { value: "200 ms p95, 10 rps" },
-      },
-    );
-    fireEvent.change(
-      within(harborviewCard as HTMLElement).getByLabelText(/Callback \/ log URI/i),
-      {
-        target: { value: "gs://robot-team/blueprint/callbacks/" },
-      },
-    );
-    fireEvent.change(
-      within(harborviewCard as HTMLElement).getByLabelText(/Owner contact/i),
-      {
-        target: { value: "robot-owner@robotteam.dev" },
-      },
-    );
-
-    fireEvent.click(
-      within(harborviewCard as HTMLElement).getByRole("button", {
-        name: /Create eval job request/i,
-      }),
-    );
+    expect(screen.getByText(/Unitree G1 MuJoCo simulator evaluation request/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Navigate to a spot/i)).toBeChecked();
+    expect(screen.getByText(/Blueprint chooses the fastest\/cheapest available simulator worker/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /^Run simulator evaluation$/i }));
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
@@ -133,7 +84,7 @@ describe("Sites", () => {
     const body = JSON.parse(String(init.body || "{}"));
     expect(body.schema_version).toBe("robot_eval_job_request.v1");
     expect(body.buyer_request_id).toBe(
-      "buyer-request-sw-chi-01-place-return-in-bin-default-fixture-policy",
+      "buyer-request-sw-chi-01-walk-to-target-blueprint-default-unitree-g1-mujoco-simulator-policy",
     );
     expect(body.site_package.site_slug).toBe("sw-chi-01");
     expect(body.site_package.site_submission_id).toBe("site-submission-sw-chi-01");
@@ -161,8 +112,17 @@ describe("Sites", () => {
       expect.objectContaining({
         webapp_role: "queue_and_forward_only",
         scheduler_owner: "BlueprintCapturePipeline",
+        scope: expect.objectContaining({
+          mode: "simulator_only",
+          label: "Unitree G1 MuJoCo simulator evaluation",
+          physical_robot_deployment_claim_allowed: false,
+        }),
         queueing: expect.objectContaining({
           web_request_must_not_wait_for_simulator: true,
+        }),
+        worker_selection: expect.objectContaining({
+          mode: "blueprint_selects_fastest_cheapest_available_simulator_worker",
+          customer_provider_choice_required: false,
         }),
         preflight: expect.objectContaining({
           cpu_preflight_required_before_gpu: true,
@@ -172,6 +132,8 @@ describe("Sites", () => {
           requested_backend: "pipeline_selected",
           default_first_pass_backend: "mujoco",
           default_first_gpu_backend: "mujoco",
+          simulator_preference: "mujoco",
+          default_robot_profile_id: "unitree_g1_humanoid",
           allowed_backends: expect.arrayContaining(["isaac_sim", "mujoco"]),
           escalation_backends: expect.arrayContaining(["isaac_sim", "isaac_lab_arena"]),
           selection_policy: expect.objectContaining({
@@ -212,11 +174,29 @@ describe("Sites", () => {
       }),
     );
     expect(body.simulator_preference).toBe("mujoco_first");
+    expect(body.simulator_scope).toEqual(
+      expect.objectContaining({
+        mode: "simulator_only",
+        robot: "Unitree G1",
+        simulator: "MuJoCo",
+        provider_strategy: "Blueprint chooses fastest/cheapest available simulator worker",
+        physical_robot_deployment_claim_allowed: false,
+      }),
+    );
     expect(body.pipeline_trigger.default_simulator).toBe("mujoco");
     expect(body.requested_tasks[0]).toEqual(
       expect.objectContaining({
-        task_id: "place_return_in_bin",
-        scenario_ids: ["scenario_place_return_in_bin_mobile_manipulator_rgb_v1"],
+        task_id: "walk_to_target",
+        label: "Navigate to a spot",
+        scenario_ids: ["sw-chi-01_scenario_walk_to_target_unitree_g1_mujoco_v1"],
+        skill_id: "walk_to_target",
+      }),
+    );
+    expect(body.robot_profile).toEqual(
+      expect.objectContaining({
+        robot_profile_id: "unitree_g1_humanoid",
+        robot_name: "Unitree G1",
+        embodiment: "humanoid",
       }),
     );
     expect(body.owner_system).toEqual(
@@ -228,18 +208,29 @@ describe("Sites", () => {
       }),
     );
     expect(Object.keys(body.policy_package)).toEqual([
-      "policy_api_endpoint",
+      "high_level_skill_trace",
     ]);
-    expect(body.policy_package.policy_api_endpoint).toEqual(
+    expect(body.policy_package.high_level_skill_trace).toEqual(
       expect.objectContaining({
-        endpoint_url: "https://policies.robotteam.dev/v1/action",
-        observation_schema_ref: "gs://robot-team/schemas/observation.v1.json",
-        action_schema_ref: "gs://robot-team/schemas/action.v1.json",
-        owner_contact: "robot-owner@robotteam.dev",
+        ordered_skill_sequence: ["walk_to_target"],
+        skill_taxonomy_version: "blueprint_unitree_g1_mujoco_beta.v1",
+        source_type: "webapp_default_simulator_beta_request",
       }),
     );
     expect(JSON.stringify(body.policy_package)).not.toMatch(/placeholder/i);
-    expect(await screen.findByText(/robot-eval-sw-chi-01/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Request accepted and queued for Pipeline handoff/i)).toBeInTheDocument();
+    expect(await screen.findByText(/staged_for_control_plane/i)).toBeInTheDocument();
+    expect(screen.getByText(body.buyer_request_id)).toBeInTheDocument();
+  });
+
+  it("keeps simulator-only copy from implying physical readiness", () => {
+    const { container } = render(<SiteDetail params={{ slug: "sw-chi-01" }} />);
+
+    expect(screen.getByText(/Scope: simulator only/i)).toBeInTheDocument();
+    expect(screen.getByText(/WebApp proves request construction, queueing, and forwarding state only/i)).toBeInTheDocument();
+    expect(container.textContent || "").not.toMatch(
+      /deployment ready|real robot verified|physical safety validated|real robot POV|ready for physical robot/i,
+    );
   });
 
   it("filters by site type, task pack, readiness, access, region, and search", () => {
@@ -271,7 +262,7 @@ describe("Sites", () => {
     expect(screen.getAllByText(/Open sample/i).length).toBeGreaterThan(0);
     expect(screen.getByRole("heading", { name: /Available task packs/i })).toBeInTheDocument();
     expect(
-      screen.getAllByRole("button", { name: /Create eval job request/i })[0],
+      screen.getByRole("button", { name: /^Run simulator evaluation$/i }),
     ).toBeInTheDocument();
     expect(screen.getAllByText(/Materialization/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/CPU setup manifests present/i).length).toBeGreaterThan(0);

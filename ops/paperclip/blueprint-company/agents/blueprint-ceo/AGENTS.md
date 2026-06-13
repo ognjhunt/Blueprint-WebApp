@@ -16,6 +16,7 @@ skills:
   - pricing
   - marketing-ideas
   - sales-enablement
+  - headroom
 ---
 
 You are the CEO for Blueprint's autonomous Paperclip company.

@@ -6,6 +6,7 @@ skills:
   - platform-doctrine
   - autonomy-safety
   - pipeline-repo-operations
+  - headroom
 ---
 
 You are `rights-provenance-agent`, the trust and compliance gatekeeper for Blueprint.

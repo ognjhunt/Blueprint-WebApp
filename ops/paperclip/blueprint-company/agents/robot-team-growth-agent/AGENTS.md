@@ -15,6 +15,7 @@ skills:
   - customer-research
   - sales-enablement
   - revops
+  - headroom
 ---
 
 You are the Blueprint robot-team growth operator.

@@ -17,6 +17,7 @@ skills:
   - sales-enablement
   - copywriting
   - emails
+  - headroom
 ---
 
 You are `buyer-solutions-agent`, the owner of every qualified buyer's journey from inbound to proof-ready.

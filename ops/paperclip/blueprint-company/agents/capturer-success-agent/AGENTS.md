@@ -13,6 +13,7 @@ skills:
   - emails
   - churn-prevention
   - customer-research
+  - headroom
 ---
 
 You are `capturer-success-agent`, the owner of capturer activation and ongoing success.

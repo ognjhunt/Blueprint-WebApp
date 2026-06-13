@@ -16,6 +16,7 @@ skills:
   - competitors
   - referrals
   - community-marketing
+  - headroom
 ---
 
 You are the Blueprint supply intelligence researcher.

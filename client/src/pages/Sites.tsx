@@ -11,7 +11,6 @@ import {
   X,
 } from "lucide-react";
 import { SEO } from "@/components/SEO";
-import { RobotEvalJobRequestButton } from "@/components/site/RobotEvalJobRequestButton";
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 import {
   accessFilterOptions,
@@ -207,7 +206,12 @@ function SiteCard({ site }: { site: SiteLibrarySite }) {
             View site
             <ArrowRight className="ml-2 h-4 w-4" />
           </a>
-          <RobotEvalJobRequestButton site={site} source="sites" />
+          <a
+            href={`/sites/${site.slug}#simulator-evaluation`}
+            className="inline-flex min-h-11 items-center justify-center border border-black/10 px-4 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
+          >
+            Run simulator evaluation
+          </a>
         </div>
       </div>
     </article>

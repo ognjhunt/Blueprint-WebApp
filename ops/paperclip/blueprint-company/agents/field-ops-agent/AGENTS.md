@@ -6,6 +6,7 @@ skills:
   - platform-doctrine
   - autonomy-safety
   - capture-repo-operations
+  - headroom
 ---
 
 You are the Blueprint field operations coordinator.

@@ -14,6 +14,7 @@ agents:
         timeoutSec: 1800
         paperclipSkillSync:
           desiredSkills:
+            - headroom
             - platform-doctrine
             - autonomy-safety
             - find-skills
@@ -46,6 +47,7 @@ agents:
         timeoutSec: 1800
         paperclipSkillSync:
           desiredSkills:
+            - headroom
             - platform-doctrine
             - autonomy-safety
             - find-skills
@@ -61,6 +63,10 @@ agents:
             - verification-before-completion
             - hermes-kb-workflow
             - meeting-action-extractor
+            - addy-idea-refine
+            - addy-interview-me
+            - addy-planning-and-task-breakdown
+
     budgetMonthlyCents: 1200
   notion-manager-agent:
     role: engineer
@@ -79,6 +85,7 @@ agents:
         timeoutSec: 1800
         paperclipSkillSync:
           desiredSkills:
+            - headroom
             - platform-doctrine
             - autonomy-safety
             - find-skills
@@ -104,6 +111,7 @@ agents:
         timeoutSec: 1800
         paperclipSkillSync:
           desiredSkills:
+            - headroom
             - platform-doctrine
             - autonomy-safety
             - find-skills
@@ -126,6 +134,7 @@ agents:
         dangerouslyBypassApprovalsAndSandbox: true
         paperclipSkillSync:
           desiredSkills:
+            - headroom
             - platform-doctrine
             - autonomy-safety
             - cross-repo-operations
@@ -142,6 +151,14 @@ agents:
             - receiving-code-review
             - verification-before-completion
             - karpathy-guidelines
+            - addy-api-and-interface-design
+            - addy-context-engineering
+            - addy-documentation-and-adrs
+            - addy-doubt-driven-development
+            - addy-observability-and-instrumentation
+            - addy-security-and-hardening
+            - addy-source-driven-development
+
     budgetMonthlyCents: 300
   webapp-codex:
     role: engineer
@@ -159,6 +176,7 @@ agents:
         paperclipGoalPromptEnabled: true
         paperclipSkillSync:
           desiredSkills:
+            - headroom
             - platform-doctrine
             - webapp-repo-operations
             - goal-autoresearch
@@ -174,6 +192,21 @@ agents:
             - taste-skill
             - site-world-creative-production
             - higgsfield-creative-video
+            - addy-api-and-interface-design
+            - addy-browser-testing-with-devtools
+            - addy-code-simplification
+            - addy-context-engineering
+            - addy-debugging-and-error-recovery
+            - addy-documentation-and-adrs
+            - addy-frontend-ui-engineering
+            - addy-incremental-implementation
+            - addy-observability-and-instrumentation
+            - addy-performance-optimization
+            - addy-security-and-hardening
+            - addy-source-driven-development
+            - addy-spec-driven-development
+            - addy-test-driven-development
+
     budgetMonthlyCents: 1200
   webapp-review:
     role: engineer
@@ -191,6 +224,7 @@ agents:
         paperclipGoalPromptEnabled: true
         paperclipSkillSync:
           desiredSkills:
+            - headroom
             - platform-doctrine
             - webapp-repo-operations
             - goal-autoresearch
@@ -204,6 +238,16 @@ agents:
             - verification-before-completion
             - karpathy-guidelines
             - taste-skill
+            - addy-browser-testing-with-devtools
+            - addy-code-review-and-quality
+            - addy-code-simplification
+            - addy-ci-cd-and-automation
+            - addy-documentation-and-adrs
+            - addy-performance-optimization
+            - addy-security-and-hardening
+            - addy-shipping-and-launch
+            - addy-source-driven-development
+
     budgetMonthlyCents: 600
   webapp-ci-watch:
     role: engineer
@@ -218,12 +262,17 @@ agents:
         timeoutSec: 900
         paperclipSkillSync:
           desiredSkills:
+            - headroom
             - platform-doctrine
             - webapp-repo-operations
             - gh-cli
             - investigate
             - verification-before-completion
             - karpathy-guidelines
+            - addy-ci-cd-and-automation
+            - addy-debugging-and-error-recovery
+            - addy-source-driven-development
+
     budgetMonthlyCents: 150
   pipeline-codex:
     role: engineer
@@ -240,6 +289,7 @@ agents:
         paperclipGoalPromptEnabled: true
         paperclipSkillSync:
           desiredSkills:
+            - headroom
             - platform-doctrine
             - pipeline-repo-operations
             - autonomy-safety
@@ -263,6 +313,14 @@ agents:
             - verification-before-completion
             - finishing-a-development-branch
             - karpathy-guidelines
+            - addy-api-and-interface-design
+            - addy-code-simplification
+            - addy-debugging-and-error-recovery
+            - addy-incremental-implementation
+            - addy-observability-and-instrumentation
+            - addy-source-driven-development
+            - addy-test-driven-development
+
     budgetMonthlyCents: 900
   pipeline-review:
     role: engineer
@@ -279,6 +337,7 @@ agents:
         paperclipGoalPromptEnabled: true
         paperclipSkillSync:
           desiredSkills:
+            - headroom
             - platform-doctrine
             - pipeline-repo-operations
             - autonomy-safety
@@ -298,6 +357,10 @@ agents:
             - receiving-code-review
             - verification-before-completion
             - karpathy-guidelines
+            - addy-code-review-and-quality
+            - addy-debugging-and-error-recovery
+            - addy-source-driven-development
+
     budgetMonthlyCents: 400
   pipeline-ci-watch:
     role: engineer
@@ -313,12 +376,17 @@ agents:
         timeoutSec: 900
         paperclipSkillSync:
           desiredSkills:
+            - headroom
             - platform-doctrine
             - pipeline-repo-operations
             - gh-cli
             - investigate
             - verification-before-completion
             - karpathy-guidelines
+            - addy-ci-cd-and-automation
+            - addy-debugging-and-error-recovery
+            - addy-source-driven-development
+
     budgetMonthlyCents: 150
   capture-codex:
     role: engineer
@@ -335,6 +403,7 @@ agents:
         paperclipGoalPromptEnabled: true
         paperclipSkillSync:
           desiredSkills:
+            - headroom
             - platform-doctrine
             - capture-repo-operations
             - autonomy-safety
@@ -358,6 +427,13 @@ agents:
             - verification-before-completion
             - finishing-a-development-branch
             - karpathy-guidelines
+            - addy-api-and-interface-design
+            - addy-code-simplification
+            - addy-debugging-and-error-recovery
+            - addy-incremental-implementation
+            - addy-source-driven-development
+            - addy-test-driven-development
+
     budgetMonthlyCents: 900
   capture-review:
     role: engineer
@@ -374,6 +450,7 @@ agents:
         paperclipGoalPromptEnabled: true
         paperclipSkillSync:
           desiredSkills:
+            - headroom
             - platform-doctrine
             - capture-repo-operations
             - autonomy-safety
@@ -393,6 +470,10 @@ agents:
             - receiving-code-review
             - verification-before-completion
             - karpathy-guidelines
+            - addy-code-review-and-quality
+            - addy-debugging-and-error-recovery
+            - addy-source-driven-development
+
     budgetMonthlyCents: 400
   capture-ci-watch:
     role: engineer
@@ -408,12 +489,17 @@ agents:
         timeoutSec: 900
         paperclipSkillSync:
           desiredSkills:
+            - headroom
             - platform-doctrine
             - capture-repo-operations
             - gh-cli
             - investigate
             - verification-before-completion
             - karpathy-guidelines
+            - addy-ci-cd-and-automation
+            - addy-debugging-and-error-recovery
+            - addy-source-driven-development
+
     budgetMonthlyCents: 150
   ops-lead:
     role: cto
@@ -431,6 +517,7 @@ agents:
         timeoutSec: 1800
         paperclipSkillSync:
           desiredSkills:
+            - headroom
             - platform-doctrine
             - autonomy-safety
             - find-skills
@@ -455,6 +542,7 @@ agents:
         timeoutSec: 1200
         paperclipSkillSync:
           desiredSkills:
+            - headroom
             - platform-doctrine
             - autonomy-safety
             - product-marketing
@@ -475,6 +563,7 @@ agents:
         timeoutSec: 1200
         paperclipSkillSync:
           desiredSkills:
+            - headroom
             - platform-doctrine
             - autonomy-safety
             - pipeline-repo-operations
@@ -493,6 +582,7 @@ agents:
         timeoutSec: 1200
         paperclipSkillSync:
           desiredSkills:
+            - headroom
             - platform-doctrine
             - autonomy-safety
             - capture-repo-operations
@@ -511,6 +601,7 @@ agents:
         timeoutSec: 1200
         paperclipSkillSync:
           desiredSkills:
+            - headroom
             - platform-doctrine
             - autonomy-safety
             - stripe-best-practices
@@ -533,6 +624,7 @@ agents:
         timeoutSec: 1800
         paperclipSkillSync:
           desiredSkills:
+            - headroom
             - platform-doctrine
             - autonomy-safety
             - find-skills
@@ -546,6 +638,11 @@ agents:
             - meeting-action-extractor
             - sales-enablement
             - revops
+            - addy-idea-refine
+            - addy-interview-me
+            - addy-planning-and-task-breakdown
+            - addy-source-driven-development
+
     budgetMonthlyCents: 800
   conversion-agent:
     role: engineer
@@ -566,6 +663,7 @@ agents:
         paperclipGoalPromptEnabled: true
         paperclipSkillSync:
           desiredSkills:
+            - headroom
             - platform-doctrine
             - autonomy-safety
             - gh-cli
@@ -581,6 +679,11 @@ agents:
             - requesting-code-review
             - verification-before-completion
             - taste-skill
+            - addy-browser-testing-with-devtools
+            - addy-idea-refine
+            - addy-performance-optimization
+            - addy-source-driven-development
+
     budgetMonthlyCents: 400
   analytics-agent:
     role: engineer
@@ -598,6 +701,7 @@ agents:
         timeoutSec: 1200
         paperclipSkillSync:
           desiredSkills:
+            - headroom
             - platform-doctrine
             - autonomy-safety
             - find-skills
@@ -625,6 +729,7 @@ agents:
         timeoutSec: 1800
         paperclipSkillSync:
           desiredSkills:
+            - headroom
             - platform-doctrine
             - autonomy-safety
             - find-skills
@@ -658,6 +763,7 @@ agents:
         timeoutSec: 1800
         paperclipSkillSync:
           desiredSkills:
+            - headroom
             - platform-doctrine
             - autonomy-safety
             - find-skills
@@ -693,6 +799,7 @@ agents:
         timeoutSec: 1200
         paperclipSkillSync:
           desiredSkills:
+            - headroom
             - platform-doctrine
             - autonomy-safety
             - find-skills
@@ -719,6 +826,7 @@ agents:
         timeoutSec: 1500
         paperclipSkillSync:
           desiredSkills:
+            - headroom
             - platform-doctrine
             - autonomy-safety
             - find-skills
@@ -745,6 +853,7 @@ agents:
         timeoutSec: 1800
         paperclipSkillSync:
           desiredSkills:
+            - headroom
             - platform-doctrine
             - autonomy-safety
             - find-skills
@@ -758,6 +867,10 @@ agents:
             - competitors
             - pricing
             - marketing-ideas
+            - addy-idea-refine
+            - addy-interview-me
+            - addy-source-driven-development
+
     budgetMonthlyCents: 300
   supply-intel-agent:
     role: engineer
@@ -777,6 +890,7 @@ agents:
         timeoutSec: 1800
         paperclipSkillSync:
           desiredSkills:
+            - headroom
             - platform-doctrine
             - autonomy-safety
             - find-skills
@@ -808,6 +922,7 @@ agents:
         timeoutSec: 1800
         paperclipSkillSync:
           desiredSkills:
+            - headroom
             - platform-doctrine
             - autonomy-safety
             - find-skills
@@ -845,6 +960,7 @@ agents:
         timeoutSec: 1800
         paperclipSkillSync:
           desiredSkills:
+            - headroom
             - platform-doctrine
             - autonomy-safety
             - find-skills
@@ -868,6 +984,7 @@ agents:
         timeoutSec: 1800
         paperclipSkillSync:
           desiredSkills:
+            - headroom
             - platform-doctrine
             - autonomy-safety
             - find-skills
@@ -902,6 +1019,7 @@ agents:
         timeoutSec: 1800
         paperclipSkillSync:
           desiredSkills:
+            - headroom
             - platform-doctrine
             - autonomy-safety
             - find-skills
@@ -917,6 +1035,10 @@ agents:
             - pricing
             - sales-enablement
             - revops
+            - addy-idea-refine
+            - addy-interview-me
+            - addy-source-driven-development
+
     budgetMonthlyCents: 400
   robot-team-growth-agent:
     role: engineer
@@ -936,6 +1058,7 @@ agents:
         timeoutSec: 1800
         paperclipSkillSync:
           desiredSkills:
+            - headroom
             - platform-doctrine
             - autonomy-safety
             - find-skills
@@ -966,6 +1089,7 @@ agents:
         timeoutSec: 1800
         paperclipSkillSync:
           desiredSkills:
+            - headroom
             - platform-doctrine
             - autonomy-safety
             - find-skills
@@ -998,6 +1122,7 @@ agents:
         dangerouslyBypassApprovalsAndSandbox: true
         paperclipSkillSync:
           desiredSkills:
+            - headroom
             - platform-doctrine
             - autonomy-safety
             - cross-repo-operations
@@ -1007,6 +1132,12 @@ agents:
             - systematic-debugging
             - verification-before-completion
             - karpathy-guidelines
+            - addy-ci-cd-and-automation
+            - addy-observability-and-instrumentation
+            - addy-performance-optimization
+            - addy-security-and-hardening
+            - addy-shipping-and-launch
+
     budgetMonthlyCents: 150
   buyer-solutions-agent:
     role: engineer
@@ -1025,6 +1156,7 @@ agents:
         timeoutSec: 1800
         paperclipSkillSync:
           desiredSkills:
+            - headroom
             - platform-doctrine
             - autonomy-safety
             - find-skills
@@ -1059,6 +1191,7 @@ agents:
         timeoutSec: 1800
         paperclipSkillSync:
           desiredSkills:
+            - headroom
             - platform-doctrine
             - autonomy-safety
             - find-skills
@@ -1088,6 +1221,7 @@ agents:
         timeoutSec: 1200
         paperclipSkillSync:
           desiredSkills:
+            - headroom
             - platform-doctrine
             - autonomy-safety
             - pipeline-repo-operations
@@ -1110,12 +1244,17 @@ agents:
         timeoutSec: 1800
         paperclipSkillSync:
           desiredSkills:
+            - headroom
             - platform-doctrine
             - autonomy-safety
             - find-skills
             - cross-repo-operations
             - cso
             - writing-plans
+            - addy-documentation-and-adrs
+            - addy-security-and-hardening
+            - addy-source-driven-development
+
     budgetMonthlyCents: 300
   capturer-success-agent:
     role: engineer
@@ -1135,6 +1274,7 @@ agents:
         timeoutSec: 1800
         paperclipSkillSync:
           desiredSkills:
+            - headroom
             - platform-doctrine
             - autonomy-safety
             - find-skills
@@ -1164,6 +1304,7 @@ agents:
         timeoutSec: 1800
         paperclipSkillSync:
           desiredSkills:
+            - headroom
             - platform-doctrine
             - autonomy-safety
             - find-skills
@@ -1201,6 +1342,7 @@ agents:
         timeoutSec: 1200
         paperclipSkillSync:
           desiredSkills:
+            - headroom
             - platform-doctrine
             - autonomy-safety
             - find-skills
@@ -1233,6 +1375,7 @@ agents:
         timeoutSec: 1800
         paperclipSkillSync:
           desiredSkills:
+            - headroom
             - platform-doctrine
             - autonomy-safety
             - find-skills
@@ -1269,6 +1412,7 @@ agents:
         timeoutSec: 1800
         paperclipSkillSync:
           desiredSkills:
+            - headroom
             - platform-doctrine
             - autonomy-safety
             - find-skills
@@ -1300,6 +1444,7 @@ agents:
         timeoutSec: 1800
         paperclipSkillSync:
           desiredSkills:
+            - headroom
             - platform-doctrine
             - autonomy-safety
             - find-skills
@@ -1333,12 +1478,17 @@ agents:
         paperclipGoalPromptEnabled: true
         paperclipSkillSync:
           desiredSkills:
+            - headroom
             - platform-doctrine
             - autonomy-safety
             - cross-repo-operations
             - goal-autoresearch
             - writing-plans
             - verification-before-completion
+            - addy-context-engineering
+            - addy-documentation-and-adrs
+            - addy-source-driven-development
+
     budgetMonthlyCents: 300
 projects:
   blueprint-executive-ops:

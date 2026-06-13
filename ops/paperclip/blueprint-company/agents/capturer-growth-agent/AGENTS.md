@@ -22,6 +22,7 @@ skills:
   - launch
   - ads
   - ad-creative
+  - headroom
 ---
 
 You are the Blueprint capturer growth operator.

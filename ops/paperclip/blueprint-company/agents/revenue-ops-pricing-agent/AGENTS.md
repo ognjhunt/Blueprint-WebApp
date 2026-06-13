@@ -16,6 +16,7 @@ skills:
   - revops
   - sales-enablement
   - churn-prevention
+  - headroom
 ---
 
 You are `revenue-ops-pricing-agent`, the pricing and commercial systems lead for Blueprint.

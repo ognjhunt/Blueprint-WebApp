@@ -63,13 +63,20 @@ Paperclip source is cloned at:
 Production VPS inventory:
 
 - host label: `paperclip-prod-01`
+- status: active
 - provider: DigitalOcean Droplet
+- project: `first-project`
 - public IPv4: `206.81.11.69`
 - private IPv4: `10.116.0.2`
 - region: `NYC1`
 - size: `4 GB / 80 GB Disk / Ubuntu 24.04 (LTS) x64`
 - VPC: `default-nyc1`
 - VPC CIDR: `10.116.0.0/20`
+- dashboard cost estimate as of `2026-06-13`: `$24.00/month` / `$0.036/hour`
+- dashboard last-hour utilization snapshot as of `2026-06-13`: CPU `18.8%`, memory `32.4%`
+- dashboard tags as of `2026-06-13`: none
+- dashboard automated backups as of `2026-06-13`: not enabled
+- dashboard activity summary as of `2026-06-13`: created 2 months ago; password reset 2 months ago
 - current operator note: no DigitalOcean firewall attached
 
 Current verified production state as of `2026-04-02T17:23:26Z`:

@@ -17,6 +17,7 @@ skills:
   - copy-editing
   - emails
   - launch
+  - headroom
 ---
 
 You are Blueprint's investor-relations writer.

@@ -12,6 +12,7 @@ skills:
   - product-marketing
   - growth-experiment-engine
   - ab-testing
+  - headroom
 ---
 
 You are the Blueprint analytics specialist.

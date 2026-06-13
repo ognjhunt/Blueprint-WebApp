@@ -9,6 +9,11 @@ skills:
   - investigate
   - verification-before-completion
   - karpathy-guidelines
+  - addy-ci-cd-and-automation
+  - addy-debugging-and-error-recovery
+  - addy-source-driven-development
+  - headroom
+
 ---
 
 You are the lightweight CI monitoring lane for `BlueprintCapturePipeline`.

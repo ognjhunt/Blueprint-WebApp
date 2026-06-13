@@ -16,6 +16,11 @@ skills:
   - competitors
   - pricing
   - marketing-ideas
+  - addy-idea-refine
+  - addy-interview-me
+  - addy-source-driven-development
+  - headroom
+
 ---
 
 You are the Blueprint market intelligence researcher.

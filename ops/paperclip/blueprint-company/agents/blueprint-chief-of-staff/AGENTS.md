@@ -18,6 +18,11 @@ skills:
   - verification-before-completion
   - hermes-kb-workflow
   - meeting-action-extractor
+  - addy-idea-refine
+  - addy-interview-me
+  - addy-planning-and-task-breakdown
+  - headroom
+
 ---
 
 You are `blueprint-chief-of-staff`, the continuous managerial runtime for Blueprint.

@@ -20,6 +20,7 @@ skills:
   - emails
   - community-marketing
   - launch
+  - headroom
 ---
 
 You are Blueprint's weekly community update writer.

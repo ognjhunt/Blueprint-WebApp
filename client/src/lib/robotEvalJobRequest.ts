@@ -6,6 +6,30 @@ import type {
 
 type PolicyPackagePayload = Record<string, unknown>;
 
+export type RobotEvalSimulatorTaskSelection = {
+  taskId: string;
+  label: string;
+  scenarioId: string;
+  skillId: string;
+  taskThresholdsUri?: string;
+};
+
+export const DEFAULT_SIMULATOR_EVAL_TASKS = [
+  {
+    taskId: "walk_to_target",
+    label: "Navigate to a spot",
+    scenarioId: "scenario_walk_to_target_unitree_g1_mujoco_v1",
+    skillId: "walk_to_target",
+  },
+] satisfies RobotEvalSimulatorTaskSelection[];
+
+const DEFAULT_SIMULATOR_ROBOT_PROFILE = {
+  id: "unitree_g1_humanoid",
+  label: "Unitree G1",
+  embodiment: "humanoid",
+  sensors: ["rgb", "depth", "proprioception"],
+};
+
 function kebab(value: string) {
   return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 }
@@ -33,10 +57,20 @@ function buildExecutionRequest() {
     schema_version: "blueprint.robot_eval_execution_request.v1",
     webapp_role: "queue_and_forward_only",
     scheduler_owner: "BlueprintCapturePipeline",
+    scope: {
+      mode: "simulator_only",
+      label: "Unitree G1 MuJoCo simulator evaluation",
+      physical_robot_deployment_claim_allowed: false,
+    },
     queueing: {
       mode: "async_job",
       customer_response: "job_id_and_status_only",
       web_request_must_not_wait_for_simulator: true,
+    },
+    worker_selection: {
+      mode: "blueprint_selects_fastest_cheapest_available_simulator_worker",
+      customer_provider_choice_required: false,
+      provider_complexity_hidden_by_default: true,
     },
     preflight: {
       cpu_preflight_required_before_gpu: true,
@@ -54,6 +88,8 @@ function buildExecutionRequest() {
       allowed_backends: ["mujoco", "isaac_sim", "isaac_lab_arena", "pybullet", "fixture"],
       default_first_pass_backend: "mujoco",
       default_first_gpu_backend: "mujoco",
+      simulator_preference: "mujoco",
+      default_robot_profile_id: DEFAULT_SIMULATOR_ROBOT_PROFILE.id,
       proxy_backends: ["mujoco", "pybullet", "fixture"],
       escalation_backends: ["isaac_sim", "isaac_lab_arena"],
       selection_policy: {
@@ -118,6 +154,38 @@ function buildExecutionRequest() {
       startup_artifacts_are_advisory_until_owner_runtime_proof: true,
       simulator_execution_proven_by_webapp: false,
       public_claim_upgrade_allowed: false,
+    },
+  };
+}
+
+export function defaultSimulatorEvalTasksForSite(site: SiteLibrarySite) {
+  const thresholdUri = site.robotEvalPublication?.artifactUris.taskThresholdsUri;
+  return DEFAULT_SIMULATOR_EVAL_TASKS.map((task) => ({
+    ...task,
+    scenarioId: `${site.slug}_${task.scenarioId}`,
+    taskThresholdsUri: thresholdUri,
+  }));
+}
+
+function selectedSimulatorTasksForSite(
+  site: SiteLibrarySite,
+  tasks?: RobotEvalSimulatorTaskSelection[],
+) {
+  const fallback = defaultSimulatorEvalTasksForSite(site);
+  const selected = (tasks && tasks.length ? tasks : fallback).filter((task) =>
+    String(task.taskId || "").trim(),
+  );
+  return selected.length ? selected : fallback;
+}
+
+function buildDefaultSimulatorPolicyPackage(tasks: RobotEvalSimulatorTaskSelection[]) {
+  return {
+    high_level_skill_trace: {
+      ordered_skill_sequence: tasks.map((task) => task.skillId || task.taskId),
+      skill_taxonomy_version: "blueprint_unitree_g1_mujoco_beta.v1",
+      source_type: "webapp_default_simulator_beta_request",
+      confidence_coverage_note:
+        "Default Unitree G1 MuJoCo simulator request only; Pipeline must supply owner-runtime proof before any execution or readiness claim.",
     },
   };
 }
@@ -241,13 +309,23 @@ export function robotTeamSubmissionReadyForJobRequest(
 export function buildRobotEvalJobRequestFromSite(
   site: SiteLibrarySite,
   source: { route: string; surface: "sites" | "site-detail" },
-  options: { robotTeamTestSubmission?: RobotTeamTestSubmission | null } = {},
+  options: {
+    robotTeamTestSubmission?: RobotTeamTestSubmission | null;
+    simulatorTasks?: RobotEvalSimulatorTaskSelection[];
+  } = {},
 ) {
   const publication = site.robotEvalPublication;
-  const selection = site.defaultRobotEvalSelection;
-  if (!publication || !selection || !publication.readyToEvaluatePublishable) {
+  if (!publication || !site.defaultRobotEvalSelection || !publication.readyToEvaluatePublishable) {
     throw new Error("Robot-eval publication package is not ready for this site.");
   }
+  const selectedTasks = selectedSimulatorTasksForSite(site, options.simulatorTasks);
+  const primaryTask = selectedTasks[0];
+  const selection = {
+    taskId: primaryTask.taskId,
+    scenarioId: primaryTask.scenarioId,
+    robotProfileId: DEFAULT_SIMULATOR_ROBOT_PROFILE.id,
+    policyId: "blueprint_default_unitree_g1_mujoco_simulator_policy",
+  };
   const jobId = `robot-eval-${site.slug}-${kebab(selection.taskId)}-${kebab(selection.policyId)}`;
   const buyerRequestId = `buyer-request-${site.slug}-${kebab(selection.taskId)}-${kebab(selection.policyId)}`;
   const lineage = site.captureLineage;
@@ -312,23 +390,32 @@ export function buildRobotEvalJobRequestFromSite(
       artifact_uris: publication.artifactUris,
       missing_proof_labels: publication.missingProofLabels,
     },
-    requested_tasks: [
-      {
-        task_id: selection.taskId,
-        scenario_ids: [selection.scenarioId],
-        task_thresholds_uri: publication.artifactUris.taskThresholdsUri,
-      },
-    ],
+    requested_tasks: selectedTasks.map((task) => ({
+      task_id: task.taskId,
+      label: task.label,
+      scenario_ids: [task.scenarioId],
+      skill_id: task.skillId,
+      task_thresholds_uri: task.taskThresholdsUri || publication.artifactUris.taskThresholdsUri,
+    })),
     robot_profile: {
       robot_profile_id: selection.robotProfileId,
-      embodiment: "mobile_manipulator",
-      sensors: ["rgb", "depth"],
+      robot_name: DEFAULT_SIMULATOR_ROBOT_PROFILE.label,
+      embodiment: DEFAULT_SIMULATOR_ROBOT_PROFILE.embodiment,
+      sensors: DEFAULT_SIMULATOR_ROBOT_PROFILE.sensors,
     },
-    policy_package: buildPolicyPackageFromRobotTeamSubmission(
-      options.robotTeamTestSubmission,
-    ),
+    policy_package: options.robotTeamTestSubmission
+      ? buildPolicyPackageFromRobotTeamSubmission(options.robotTeamTestSubmission)
+      : buildDefaultSimulatorPolicyPackage(selectedTasks),
     operation: "evaluate_only",
     simulator_preference: "mujoco_first",
+    simulator_scope: {
+      mode: "simulator_only",
+      robot: DEFAULT_SIMULATOR_ROBOT_PROFILE.label,
+      simulator: "MuJoCo",
+      customer_label: "Unitree G1 MuJoCo simulator evaluation",
+      provider_strategy: "Blueprint chooses fastest/cheapest available simulator worker",
+      physical_robot_deployment_claim_allowed: false,
+    },
     cosmos_training_preference: { mode: "export_only" },
     budget: { budget_usd: 0, timeout_seconds: 120 },
     execution_request: buildExecutionRequest(),
@@ -371,7 +458,12 @@ export function buildRobotEvalJobRequestFromSite(
         capture_id: lineage.captureId,
         task_id: selection.taskId,
         scenario_id: selection.scenarioId,
+        selected_task_ids: selectedTasks.map((task) => task.taskId),
+        selected_scenario_ids: selectedTasks.map((task) => task.scenarioId),
         policy_id: selection.policyId,
+        robot_profile_id: selection.robotProfileId,
+        simulator: "mujoco",
+        scope: "simulator_only",
       },
     },
     pipeline_trigger: {

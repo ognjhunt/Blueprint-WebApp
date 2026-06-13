@@ -27,6 +27,13 @@ const POLICY_MODALITIES = [
   "sim_controller_plugin",
 ] as const;
 
+const DEFAULT_SIMULATOR_ROBOT_PROFILE = {
+  id: "unitree_g1_humanoid",
+  label: "Unitree G1",
+  embodiment: "humanoid",
+  sensors: ["rgb", "depth", "proprioception"],
+};
+
 type PolicyModality = (typeof POLICY_MODALITIES)[number];
 type CaptureRootOverrideResolution =
   | { ok: true; captureRoot?: string; source?: "site" | "global" }
@@ -68,10 +75,20 @@ function buildExecutionRequest() {
     schema_version: "blueprint.robot_eval_execution_request.v1",
     webapp_role: "queue_and_forward_only",
     scheduler_owner: "BlueprintCapturePipeline",
+    scope: {
+      mode: "simulator_only",
+      label: "Unitree G1 MuJoCo simulator evaluation",
+      physical_robot_deployment_claim_allowed: false,
+    },
     queueing: {
       mode: "async_job",
       customer_response: "job_id_and_status_only",
       web_request_must_not_wait_for_simulator: true,
+    },
+    worker_selection: {
+      mode: "blueprint_selects_fastest_cheapest_available_simulator_worker",
+      customer_provider_choice_required: false,
+      provider_complexity_hidden_by_default: true,
     },
     preflight: {
       cpu_preflight_required_before_gpu: true,
@@ -89,6 +106,8 @@ function buildExecutionRequest() {
       allowed_backends: ["mujoco", "isaac_sim", "isaac_lab_arena", "pybullet", "fixture"],
       default_first_pass_backend: "mujoco",
       default_first_gpu_backend: "mujoco",
+      simulator_preference: "mujoco",
+      default_robot_profile_id: DEFAULT_SIMULATOR_ROBOT_PROFILE.id,
       proxy_backends: ["mujoco", "pybullet", "fixture"],
       escalation_backends: ["isaac_sim", "isaac_lab_arena"],
       selection_policy: {
@@ -409,6 +428,18 @@ export function buildRobotEvalJobRequest(input: {
     ],
     robot_profile: {
       robot_profile_id: input.selection.robotProfileId,
+      robot_name:
+        input.selection.robotProfileId === DEFAULT_SIMULATOR_ROBOT_PROFILE.id
+          ? DEFAULT_SIMULATOR_ROBOT_PROFILE.label
+          : null,
+      embodiment:
+        input.selection.robotProfileId === DEFAULT_SIMULATOR_ROBOT_PROFILE.id
+          ? DEFAULT_SIMULATOR_ROBOT_PROFILE.embodiment
+          : null,
+      sensors:
+        input.selection.robotProfileId === DEFAULT_SIMULATOR_ROBOT_PROFILE.id
+          ? DEFAULT_SIMULATOR_ROBOT_PROFILE.sensors
+          : [],
     },
     policy_package: orderedPolicyPackage(input.policySubmission),
     entitlement: {
@@ -418,6 +449,17 @@ export function buildRobotEvalJobRequest(input: {
     },
     operation: "evaluate_only",
     simulator_preference: "mujoco_first",
+    simulator_scope: {
+      mode: "simulator_only",
+      robot:
+        input.selection.robotProfileId === DEFAULT_SIMULATOR_ROBOT_PROFILE.id
+          ? DEFAULT_SIMULATOR_ROBOT_PROFILE.label
+          : input.selection.robotProfileId,
+      simulator: "MuJoCo",
+      customer_label: "Unitree G1 MuJoCo simulator evaluation",
+      provider_strategy: "Blueprint chooses fastest/cheapest available simulator worker",
+      physical_robot_deployment_claim_allowed: false,
+    },
     cosmos_training_preference: { mode: "export_only" },
     budget: { budget_usd: 0, timeout_seconds: 120 },
     execution_request: buildExecutionRequest(),
@@ -573,6 +615,23 @@ export function validateRobotEvalJobRequest(value: unknown): {
     }
   }
 
+  if (value.simulator_scope !== undefined) {
+    const simulatorScope = value.simulator_scope;
+    if (!hasObject(simulatorScope)) {
+      errors.push("simulator_scope must be an object when provided");
+    } else {
+      if (simulatorScope.mode !== "simulator_only") {
+        errors.push("simulator_scope.mode must be simulator_only");
+      }
+      if (simulatorScope.simulator !== "MuJoCo") {
+        errors.push("simulator_scope.simulator must be MuJoCo");
+      }
+      if (simulatorScope.physical_robot_deployment_claim_allowed !== false) {
+        errors.push("simulator_scope.physical_robot_deployment_claim_allowed must be false");
+      }
+    }
+  }
+
   if (value.execution_request !== undefined) {
     const executionRequest = value.execution_request;
     if (!hasObject(executionRequest)) {
@@ -592,6 +651,17 @@ export function validateRobotEvalJobRequest(value: unknown): {
       if (executionRequest.scheduler_owner !== "BlueprintCapturePipeline") {
         errors.push("execution_request.scheduler_owner must be BlueprintCapturePipeline");
       }
+      const scope = executionRequest.scope;
+      if (hasObject(scope)) {
+        if (scope.mode !== "simulator_only") {
+          errors.push("execution_request.scope.mode must be simulator_only");
+        }
+        if (scope.physical_robot_deployment_claim_allowed !== false) {
+          errors.push(
+            "execution_request.scope.physical_robot_deployment_claim_allowed must be false",
+          );
+        }
+      }
       const queueing = executionRequest.queueing;
       if (!hasObject(queueing)) {
         errors.push("execution_request.queueing is required when execution_request is provided");
@@ -602,6 +672,22 @@ export function validateRobotEvalJobRequest(value: unknown): {
         if (queueing.web_request_must_not_wait_for_simulator !== true) {
           errors.push(
             "execution_request.queueing.web_request_must_not_wait_for_simulator must be true",
+          );
+        }
+      }
+      const workerSelection = executionRequest.worker_selection;
+      if (hasObject(workerSelection)) {
+        if (
+          workerSelection.mode !==
+          "blueprint_selects_fastest_cheapest_available_simulator_worker"
+        ) {
+          errors.push(
+            "execution_request.worker_selection.mode must be blueprint_selects_fastest_cheapest_available_simulator_worker",
+          );
+        }
+        if (workerSelection.customer_provider_choice_required !== false) {
+          errors.push(
+            "execution_request.worker_selection.customer_provider_choice_required must be false",
           );
         }
       }
@@ -627,6 +713,16 @@ export function validateRobotEvalJobRequest(value: unknown): {
         if (simulatorRouting.requested_backend !== "pipeline_selected") {
           errors.push(
             "execution_request.simulator_routing.requested_backend must be pipeline_selected",
+          );
+        }
+        if (simulatorRouting.default_first_pass_backend !== "mujoco") {
+          errors.push(
+            "execution_request.simulator_routing.default_first_pass_backend must be mujoco",
+          );
+        }
+        if (simulatorRouting.default_first_gpu_backend !== "mujoco") {
+          errors.push(
+            "execution_request.simulator_routing.default_first_gpu_backend must be mujoco",
           );
         }
         const selectionPolicy = simulatorRouting.selection_policy;

@@ -16,6 +16,17 @@ skills:
   - verification-before-completion
   - karpathy-guidelines
   - taste-skill
+  - addy-browser-testing-with-devtools
+  - addy-code-review-and-quality
+  - addy-code-simplification
+  - addy-ci-cd-and-automation
+  - addy-documentation-and-adrs
+  - addy-performance-optimization
+  - addy-security-and-hardening
+  - addy-shipping-and-launch
+  - addy-source-driven-development
+  - headroom
+
 ---
 
 You are the review and planning specialist for `Blueprint-WebApp`.

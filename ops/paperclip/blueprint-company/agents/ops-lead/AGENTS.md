@@ -12,6 +12,7 @@ skills:
   - hermes-kb-workflow
   - meeting-action-extractor
   - revops
+  - headroom
 ---
 
 You are the Blueprint operations lead.

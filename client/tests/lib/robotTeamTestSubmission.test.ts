@@ -271,6 +271,56 @@ describe("robotTeamTestSubmission", () => {
       surface: "sites",
     });
 
+    expect(request.buyer_request_id).toBe(
+      "buyer-request-sw-chi-01-walk-to-target-blueprint-default-unitree-g1-mujoco-simulator-policy",
+    );
+    expect(request.requested_tasks).toEqual([
+      expect.objectContaining({
+        task_id: "walk_to_target",
+        label: "Navigate to a spot",
+        skill_id: "walk_to_target",
+        scenario_ids: ["sw-chi-01_scenario_walk_to_target_unitree_g1_mujoco_v1"],
+      }),
+    ]);
+    expect(request.robot_profile).toEqual(
+      expect.objectContaining({
+        robot_profile_id: "unitree_g1_humanoid",
+        robot_name: "Unitree G1",
+        embodiment: "humanoid",
+      }),
+    );
+    expect(request.simulator_scope).toEqual(
+      expect.objectContaining({
+        mode: "simulator_only",
+        simulator: "MuJoCo",
+        physical_robot_deployment_claim_allowed: false,
+      }),
+    );
+    expect(request.policy_package).toEqual({
+      high_level_skill_trace: expect.objectContaining({
+        ordered_skill_sequence: ["walk_to_target"],
+        skill_taxonomy_version: "blueprint_unitree_g1_mujoco_beta.v1",
+      }),
+    });
+    expect(request.execution_request).toEqual(
+      expect.objectContaining({
+        webapp_role: "queue_and_forward_only",
+        scope: expect.objectContaining({
+          mode: "simulator_only",
+          physical_robot_deployment_claim_allowed: false,
+        }),
+        worker_selection: expect.objectContaining({
+          mode: "blueprint_selects_fastest_cheapest_available_simulator_worker",
+          customer_provider_choice_required: false,
+        }),
+        simulator_routing: expect.objectContaining({
+          requested_backend: "pipeline_selected",
+          default_first_pass_backend: "mujoco",
+          default_first_gpu_backend: "mujoco",
+          default_robot_profile_id: "unitree_g1_humanoid",
+        }),
+      }),
+    );
     expect(request.pipeline_trigger.cpu_pre_gpu_preflight).toEqual(
       expect.objectContaining({
         ready_for_owner_gpu_preflight: false,

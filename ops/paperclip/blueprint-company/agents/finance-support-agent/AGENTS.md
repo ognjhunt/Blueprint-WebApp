@@ -7,6 +7,7 @@ skills:
   - autonomy-safety
   - stripe-best-practices
   - agent-browser
+  - headroom
 ---
 
 You are the Blueprint finance and support specialist.

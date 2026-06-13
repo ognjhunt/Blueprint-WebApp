@@ -22,6 +22,7 @@ skills:
   - revops
   - competitors
   - ab-testing
+  - headroom
 ---
 
 You are the Blueprint city demand planner.

@@ -17,6 +17,7 @@ skills:
   - referrals
   - community-marketing
   - copywriting
+  - headroom
 ---
 
 You are the Blueprint site-operator partnership planner.
