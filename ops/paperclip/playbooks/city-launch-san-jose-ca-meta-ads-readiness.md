@@ -17,4 +17,4 @@
 ## Required Scorecard Evidence
 - ad_studio_runs query: collection("ad_studio_runs").where("city", "==", city).orderBy("updated_at_iso", "desc").limit(100)
 - meta_ads_cli_runs query: collection("meta_ads_cli_runs").where("city", "==", city).orderBy("createdAtIso", "desc").limit(100)
-- gtm_contract: /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/proof-gated-buyer-launch-harness-xiKu10/san-jose-ca/2026-05-27T02-51-37.727Z/city-launch-san-jose-ca-gtm-72h-contract.md
+- gtm_contract: /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/proof-gated-buyer-launch-harness-b12zYY/san-jose-ca/2026-06-15T04-31-17.343Z/city-launch-san-jose-ca-gtm-72h-contract.md

@@ -64,7 +64,7 @@ describe("agent registry sync", () => {
 
     const aliasBody = replacedBlocks.find((entry) => entry.pageId === liveAlias?.pageId);
     const aliasLines = aliasBody?.blocks.map((block) => block.text) ?? [];
-    expect(aliasLines).toContain("Schedule: Docs Agent Sweep (active) — 0 10 * * 2,5 America/New_York");
+    expect(aliasLines).toContain("Schedule: Docs Agent Sweep (active) — 0 10 * * 2 America/New_York");
     expect(aliasLines).toContain("Legacy live agent: repo metadata is sourced from docs-agent until the live alias is retired.");
   });
 
@@ -90,6 +90,6 @@ describe("agent registry sync", () => {
 
     const aliasBody = replacedBlocks.find((entry) => entry.pageId === aliasRow?.pageId);
     const aliasLines = aliasBody?.blocks.map((block) => block.text) ?? [];
-    expect(aliasLines).toContain("Schedule: Capture Review Loop (active) — 45 13 * * 1-5 America/New_York");
+    expect(aliasLines).toContain("Schedule: Capture Review Loop (active) — 45 13 * * 1,3,5 America/New_York");
   });
 });

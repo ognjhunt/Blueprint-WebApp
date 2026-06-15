@@ -22,10 +22,13 @@ describe("About", () => {
         name: /Why this matters before the expensive part starts\./i,
       }),
     ).toBeInTheDocument();
-    const worldModelLinks = screen.getAllByRole("link", { name: /Explore world models/i });
-    expect(worldModelLinks.length).toBeGreaterThanOrEqual(1);
-    worldModelLinks.forEach((link) => {
-      expect(link).toHaveAttribute("href", "/world-models");
+    const siteLinks = [
+      ...screen.getAllByRole("link", { name: /Explore sites/i }),
+      ...screen.getAllByRole("link", { name: /Explore site packages/i }),
+    ];
+    expect(siteLinks.length).toBeGreaterThanOrEqual(1);
+    siteLinks.forEach((link) => {
+      expect(link).toHaveAttribute("href", "/sites");
     });
     const contactLinks = screen.getAllByRole("link", { name: /Contact Blueprint/i });
     expect(contactLinks.length).toBeGreaterThanOrEqual(1);

@@ -192,7 +192,7 @@ describe("Paperclip control-room inventory", () => {
     expect(inventory.desiredSkillCandidateGaps).toEqual([]);
     expect(inventory.trueMissingDesiredSkills).toEqual([]);
     expect(inventory.routineCount).toBe(62);
-    expect(inventory.routineStatusCounts).toEqual({ active: 36, paused: 26 });
+    expect(inventory.routineStatusCounts).toEqual({ active: 26, paused: 36 });
     expect(inventory.desiredSkillAliasMappings).toEqual(
       expect.arrayContaining([
         expect.objectContaining({

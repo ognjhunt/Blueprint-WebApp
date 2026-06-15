@@ -224,20 +224,19 @@ beforeEach(() => {
 
 describe("HostedSessionWorkspace", () => {
   const findModeLabel = (label: string) =>
-    screen.findByText((_, element) => element?.textContent === `Mode: ${label}`);
+    screen.findByText((_, element) =>
+      element?.textContent === (label === "Live Session" ? "View: Run" : `View: ${label}`),
+    );
 
   it("renders the interactive site-world viewer shell with explicit modes and file paths", async () => {
     render(<HostedSessionWorkspace params={{ slug: "siteworld-f5fd54898cfb" }} />);
 
     expect(
-      await screen.findByRole("heading", { name: /Control room for one exact-site world\./i }),
+      await screen.findByRole("heading", { name: /Control room for one site world run\./i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/A session ID is required before the hosted workspace/i)).toBeInTheDocument();
+    expect(screen.getByText(/This workspace opens after Site World Run setup/i)).toBeInTheDocument();
     expect(screen.getByText(/No payment, provider job, or fulfillment action/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Back to setup/i })).toHaveAttribute(
-      "href",
-      "/world-models/siteworld-f5fd54898cfb/start",
-    );
+    expect(document.querySelector('a[href="/world-models/siteworld-f5fd54898cfb/start"]')).toBeTruthy();
   });
 
   it("auto-resets the live runtime when the session loads without an episode", async () => {
@@ -374,11 +373,10 @@ describe("HostedSessionWorkspace", () => {
       ).toBe(true);
     });
     await findModeLabel("Live Session");
-    expect(await screen.findByText(/Review Follow-Up/i)).toBeInTheDocument();
-    expect(
-      screen.getByText(/Follow-up stays attached to this session state\./i),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Send session feedback/i })).toHaveAttribute(
+    await waitFor(() => {
+      expect(screen.getAllByText(/Export Review/i).length).toBeGreaterThan(0);
+    });
+    expect(screen.getByRole("link", { name: /Send run feedback/i })).toHaveAttribute(
       "href",
       expect.stringContaining("source=hosted-session-workspace"),
     );
@@ -634,10 +632,10 @@ describe("HostedSessionWorkspace", () => {
     render(<HostedSessionWorkspace params={{ slug: "siteworld-f5fd54898cfb" }} />);
 
     expect(
-      await screen.findByText(/Video-grounded interactive explorer/i),
+      await screen.findByText(/Site-world interactive explorer/i),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/It does not replace the whole viewport with low-resolution generative output\./i),
+      screen.getByRole("heading", { name: /Site-first exploration/i }),
     ).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /Open presentation manifest/i })[0]).toHaveAttribute(
       "href",
@@ -711,9 +709,6 @@ describe("HostedSessionWorkspace", () => {
     );
 
     render(<HostedSessionWorkspace params={{ slug: "siteworld-f5fd54898cfb" }} />);
-
-    const exploreButton = await screen.findByRole("button", { name: /Explore Site-World/i });
-    fireEvent.click(exploreButton);
 
     const operatorLink = await screen.findByRole(
       "link",

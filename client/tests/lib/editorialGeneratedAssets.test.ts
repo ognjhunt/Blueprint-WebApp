@@ -22,9 +22,11 @@ describe("humanoid readiness editorial assets", () => {
   it("keeps public robot visual slots pointed at the humanoid asset set", () => {
     const humanoidAssetValues = Object.values(humanoidReadinessAssets);
 
-    expect(humanoidAssetValues).toHaveLength(7);
+    expect(humanoidAssetValues).toHaveLength(8);
     humanoidAssetValues.forEach((src) => {
-      expect(src).toContain("/generated/humanoid-readiness-2026-06-03/");
+      expect(src).toMatch(
+        /^\/generated\/humanoid-readiness-2026-06-03\/|^\/editorial\/2026-06-06\//,
+      );
     });
 
     const publicRobotVisualSlots = [

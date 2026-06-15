@@ -15,7 +15,7 @@ describe("ExactSiteHostedReview", () => {
 
     expect(
       screen.getByText(
-        /Blueprint packages indoor capture, task suites, robot profiles, site-specific world-model assets, hosted review, and buyer proof around one site/i,
+        /Blueprint packages indoor capture, task suites, robot profiles, generated support assets, hosted review, and buyer proof around one site/i,
       ),
     ).toBeInTheDocument();
 
@@ -53,7 +53,7 @@ describe("ExactSiteHostedReview", () => {
     );
     expect(
       screen
-        .getAllByRole("link", { name: /Request readiness evaluation/i })
+        .getAllByRole("link", { name: /Request evaluation/i })
         .some(
           (link) =>
             link.getAttribute("href")

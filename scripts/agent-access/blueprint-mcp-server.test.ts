@@ -165,7 +165,7 @@ describe("Blueprint MCP server", () => {
     expect(payload).toMatchObject({
       mode: "dry_run",
       action: "request_location_draft",
-      contactUrl: expect.stringContaining("/contact?"),
+      contactUrl: expect.stringContaining("/contact/robot-team?"),
       inboundRequestDraft: {
         buyerType: "robot_team",
         commercialRequestPath: "capture_access",

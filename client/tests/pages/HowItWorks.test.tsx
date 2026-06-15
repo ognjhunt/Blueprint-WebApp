@@ -20,9 +20,9 @@ describe("HowItWorks", () => {
     expect(
       screen
         .getAllByRole("link", { name: /Open sample site package/i })
-        .some((link) => link.getAttribute("href") === "/world-models/siteworld-f5fd54898cfb"),
+        .some((link) => link.getAttribute("href") === "/sites/triangle-robotics-lab"),
     ).toBe(true);
-    expect(screen.getByRole("link", { name: /Request readiness evaluation/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Request evaluation/i })).toHaveAttribute(
       "href",
       expect.stringContaining("/contact?persona=robot-team"),
     );

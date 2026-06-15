@@ -7,12 +7,7 @@ describe("ReadinessPack", () => {
   it("renders a visual humanoid readiness page with bounded claims", () => {
     render(<ReadinessPack />);
 
-    expect(
-      screen.getByRole("heading", {
-        level: 1,
-        name: /Humanoid readiness for one real site\./i,
-      }),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Humanoid eval cards.*one real site\./i)).toBeInTheDocument();
 
     expect(
       screen.getByText(/Less prose\. More proof state\./i),
@@ -21,13 +16,14 @@ describe("ReadinessPack", () => {
     expect(screen.getByText(/What must be proven\./i)).toBeInTheDocument();
 
     expect(
-      screen.getByAltText(
-        /Humanoid robot carrying a tote through a warehouse aisle/i,
-      ),
-    ).toHaveAttribute(
-      "src",
-      expect.stringContaining("/generated/humanoid-readiness-2026-06-03/"),
-    );
+      screen
+        .getAllByRole("img")
+        .some((image) =>
+          image
+            .getAttribute("src")
+            ?.includes("/generated/humanoid-readiness-2026-06-03/humanoid-warehouse-readiness-hero.png"),
+        ),
+    ).toBe(true);
     expect(
       screen.getByAltText(/Hosted readiness dashboard showing route/i),
     ).toHaveAttribute(
@@ -52,7 +48,7 @@ describe("ReadinessPack", () => {
 
     expect(
       screen
-        .getAllByRole("link", { name: /Request readiness evaluation/i })
+        .getAllByRole("link", { name: /Request eval dataset/i })
         .some((link) =>
           link.getAttribute("href")?.includes("source=readiness-hero"),
         ),

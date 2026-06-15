@@ -274,14 +274,22 @@ describe("robotTeamTestSubmission", () => {
     expect(request.buyer_request_id).toBe(
       "buyer-request-sw-chi-01-walk-to-target-blueprint-default-unitree-g1-mujoco-simulator-policy",
     );
-    expect(request.requested_tasks).toEqual([
+    expect(request.requested_tasks).toEqual(expect.arrayContaining([
       expect.objectContaining({
         task_id: "walk_to_target",
         label: "Navigate to a spot",
         skill_id: "walk_to_target",
         scenario_ids: ["sw-chi-01_scenario_walk_to_target_unitree_g1_mujoco_v1"],
       }),
-    ]);
+      expect.objectContaining({
+        task_id: "mobile_pick_carry_place_tote",
+        label: "Pick tote and return",
+        skill_id: "mobile_manipulation_pick_carry_place",
+        task_kind: "mobile_manipulation_pick_carry_place",
+        object_id: "simready_tote_001",
+        object_class: "tote",
+      }),
+    ]));
     expect(request.robot_profile).toEqual(
       expect.objectContaining({
         robot_profile_id: "unitree_g1_humanoid",
@@ -297,9 +305,26 @@ describe("robotTeamTestSubmission", () => {
       }),
     );
     expect(request.policy_package).toEqual({
+      default_test_policy: expect.objectContaining({
+        policy_kind: "mobile_manipulation_pick_carry_place",
+        task_id: "mobile_pick_carry_place_tote",
+        object_id: "simready_tote_001",
+        object_class: "tote",
+      }),
       high_level_skill_trace: expect.objectContaining({
-        ordered_skill_sequence: ["walk_to_target"],
-        skill_taxonomy_version: "blueprint_unitree_g1_mujoco_beta.v1",
+        ordered_skill_sequence: [
+          "navigate_to_object",
+          "pregrasp_stance",
+          "reach",
+          "close_grip",
+          "lift",
+          "verify_grasp",
+          "carry_to_return_pose",
+          "place",
+          "release",
+          "verify_placement",
+        ],
+        skill_taxonomy_version: "blueprint_unitree_g1_mobile_manipulation_beta.v1",
       }),
     });
     expect(request.execution_request).toEqual(

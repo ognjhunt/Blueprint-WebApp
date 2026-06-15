@@ -15,7 +15,7 @@ describe("CaseStudies", () => {
     expect(
       screen
         .getAllByRole("link", { name: /Open sample listing/i })
-        .some((link) => link.getAttribute("href") === "/world-models/siteworld-f5fd54898cfb"),
+        .some((link) => link.getAttribute("href") === "/sites/triangle-robotics-lab"),
     ).toBe(true);
     expect(
       screen

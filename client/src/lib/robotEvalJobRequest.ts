@@ -11,6 +11,10 @@ export type RobotEvalSimulatorTaskSelection = {
   label: string;
   scenarioId: string;
   skillId: string;
+  taskKind?: "navigation" | "mobile_manipulation_pick_carry_place";
+  objectId?: string;
+  objectClass?: string;
+  policyKind?: string;
   taskThresholdsUri?: string;
 };
 
@@ -20,6 +24,17 @@ export const DEFAULT_SIMULATOR_EVAL_TASKS = [
     label: "Navigate to a spot",
     scenarioId: "scenario_walk_to_target_unitree_g1_mujoco_v1",
     skillId: "walk_to_target",
+    taskKind: "navigation",
+  },
+  {
+    taskId: "mobile_pick_carry_place_tote",
+    label: "Pick tote and return",
+    scenarioId: "scenario_mobile_pick_carry_place_tote_unitree_g1_mujoco_v1",
+    skillId: "mobile_manipulation_pick_carry_place",
+    taskKind: "mobile_manipulation_pick_carry_place",
+    objectId: "simready_tote_001",
+    objectClass: "tote",
+    policyKind: "mobile_manipulation_pick_carry_place",
   },
 ] satisfies RobotEvalSimulatorTaskSelection[];
 
@@ -148,6 +163,15 @@ function buildExecutionRequest() {
         "metrics",
         "trace",
         "simulator_pov",
+        "manipulation_object_contracts",
+        "manipulation_policy_tier_matrix",
+        "manipulation_physics_output",
+        "manipulation_contact_manifest",
+        "manipulation_g1_model_manifest",
+        "manipulation_controller_trace",
+        "lucky_g1_reference_adapter_manifest",
+        "lucky_g1_reference_trace",
+        "lucky_g1_reference_video_manifest",
         "stdout_log",
         "stderr_log",
       ],
@@ -179,6 +203,37 @@ function selectedSimulatorTasksForSite(
 }
 
 function buildDefaultSimulatorPolicyPackage(tasks: RobotEvalSimulatorTaskSelection[]) {
+  const manipulationTask = tasks.find(
+    (task) => task.taskKind === "mobile_manipulation_pick_carry_place",
+  );
+  if (manipulationTask) {
+    return {
+      default_test_policy: {
+        policy_kind: manipulationTask.policyKind || "mobile_manipulation_pick_carry_place",
+        task_id: manipulationTask.taskId,
+        object_id: manipulationTask.objectId || "simready_tote_001",
+        object_class: manipulationTask.objectClass || "tote",
+      },
+      high_level_skill_trace: {
+        ordered_skill_sequence: [
+          "navigate_to_object",
+          "pregrasp_stance",
+          "reach",
+          "close_grip",
+          "lift",
+          "verify_grasp",
+          "carry_to_return_pose",
+          "place",
+          "release",
+          "verify_placement",
+        ],
+        skill_taxonomy_version: "blueprint_unitree_g1_mobile_manipulation_beta.v1",
+        source_type: "webapp_default_manipulation_request",
+        confidence_coverage_note:
+          "Default manipulation request only; Pipeline must supply simulator physics, contact traces, or team endpoint proof before any readiness claim.",
+      },
+    };
+  }
   return {
     high_level_skill_trace: {
       ordered_skill_sequence: tasks.map((task) => task.skillId || task.taskId),
@@ -395,8 +450,75 @@ export function buildRobotEvalJobRequestFromSite(
       label: task.label,
       scenario_ids: [task.scenarioId],
       skill_id: task.skillId,
+      task_kind: task.taskKind || "navigation",
+      object_id: task.objectId,
+      object_class: task.objectClass,
       task_thresholds_uri: task.taskThresholdsUri || publication.artifactUris.taskThresholdsUri,
     })),
+    manipulation_task: selectedTasks.some(
+      (task) => task.taskKind === "mobile_manipulation_pick_carry_place",
+    )
+      ? {
+          schema_version: "robot_eval_manipulation_task_request.v1",
+          task_id: "mobile_pick_carry_place_tote",
+          task_kind: "mobile_manipulation_pick_carry_place",
+          object_id: "simready_tote_001",
+          object_class: "tote",
+          object_contract_required: true,
+          default_object_contract_template: "tote.v1",
+          required_phases: [
+            "navigate_to_object",
+            "pregrasp_stance",
+            "reach",
+            "close_grip",
+            "lift",
+            "verify_grasp",
+            "carry_to_return_pose",
+            "place",
+            "release",
+            "verify_placement",
+          ],
+          requested_policy_tiers: [
+            "default_phase_policy",
+            "lucky_g1_reference_or_blueprint_physics",
+            "team_policy_endpoint_or_vla_adapter",
+          ],
+          claim_boundary: {
+            webapp_request_selects_task_not_execution: true,
+            simulator_physics_execution_proven_by_webapp: false,
+            grasp_or_carry_validated_by_webapp: false,
+            robot_readiness_proven_by_webapp: false,
+          },
+        }
+      : undefined,
+    policy_tier_selection: selectedTasks.some(
+      (task) => task.taskKind === "mobile_manipulation_pick_carry_place",
+    )
+      ? {
+          schema_version: "robot_eval_manipulation_policy_tier_selection.v1",
+          requested_tiers: [
+            {
+              tier: 1,
+              tier_id: "default_phase_policy",
+              requested: true,
+            },
+            {
+              tier: 2,
+              tier_id: "lucky_g1_reference_or_blueprint_physics",
+              requested: true,
+              source_repo: "https://github.com/luckyrobots/g1-manipulation-challenge",
+            },
+            {
+              tier: 3,
+              tier_id: "team_policy_endpoint_or_vla_adapter",
+              requested: true,
+              endpoint_configured_by_webapp: robotTeamSubmissionReadyForJobRequest(
+                options.robotTeamTestSubmission,
+              ),
+            },
+          ],
+        }
+      : undefined,
     robot_profile: {
       robot_profile_id: selection.robotProfileId,
       robot_name: DEFAULT_SIMULATOR_ROBOT_PROFILE.label,
