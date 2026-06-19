@@ -277,7 +277,7 @@ function capturerSteps(params: {
       body: sentenceList([
         `Hi ${params.name},`,
         "",
-        "Welcome to Blueprint Capture. The first milestone is not a perfect portfolio. It is one real capture with enough provenance for a Task Evaluation Run or Post-Training Data Package.",
+        "Welcome to Blueprint Capture. The first milestone is not a perfect portfolio. It is one real capture with enough provenance for a Task Evaluation Run or Policy Improvement Run.",
         "",
         `If ${place} is the best starting point, we can route the capture toward QA and repeat-ready guidance once it exists.`,
         "",

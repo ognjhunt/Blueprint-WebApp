@@ -11,7 +11,7 @@ const definitions = [
   {
     term: "Exact-site world model",
     definition:
-      "A digital environment tied to one real indoor facility, public-facing place, or workflow. In the current public story it is the substrate for real-site evaluations, policy runs, optional data exports, and training outputs, with capture provenance, rights, privacy, and package limits kept attached.",
+      "A digital environment tied to one real indoor facility, public-facing place, or workflow. In the current public story it is the substrate for real-site Task Evaluation Runs, sim-only Policy Improvement Runs, and hosted review outputs, with capture provenance, rights, privacy, and scope limits kept attached.",
   },
   {
     term: "Real-site robot eval dataset",
@@ -24,14 +24,14 @@ const definitions = [
       "Pipeline-generated review records for a task/scenario pair that name required metrics, prediction sources, missing outcome proof, and blocked proof upgrades. They are review inputs, not evidence that a robot trial passed.",
   },
   {
-    term: "Deployment readiness advisory",
+    term: "Evaluation planning advisory",
     definition:
-      "A request-scoped pre-pilot estimate for one site/task, robot profile, and threshold set. It can organize success-rate, cycle-time, intervention-rate, safety-threshold, failure-mode, site-modification, data-need, and pilot-protocol questions without claiming the robot is ready to deploy.",
+      "A request-scoped pre-pilot estimate for one site/task, robot profile, and threshold set. It can organize success-rate, cycle-time, intervention-rate, failure-mode, site-modification, data-need, and pilot-protocol questions while keeping claims tied to artifacts.",
   },
   {
     term: "Real-site robot evaluation service",
     definition:
-      "Blueprint's service for testing one robot profile or policy against one capture-backed site, task scope, scenario set, threshold target, optional export bundle, and proof-boundary record.",
+      "Blueprint's service for testing one robot profile or policy against one capture-backed site, task scope, scenario set, threshold target, scenario/results manifest, and proof-boundary record.",
   },
   {
     term: "Policy evaluation record",
@@ -41,7 +41,7 @@ const definitions = [
   {
     term: "Structured robot-team test submission",
     definition:
-      "A hosted-session policy payload that lets a robot team reference one or more review modalities: policy API endpoint, Docker container, recorded action trace, high-level skill trace, teleop demo, or sim controller plugin. These references organize review inputs and do not prove policy execution, simulator completion, safety validation, or deployment readiness.",
+      "A hosted-session policy payload that lets a robot team reference one or more review modalities: policy API endpoint, Docker container, recorded action trace, high-level skill trace, teleop demo, or sim controller plugin. These references organize review inputs and do not prove policy execution, simulator completion, or package outcomes.",
   },
   {
     term: "Evidence-boundary advisory",
@@ -85,7 +85,7 @@ const pages = [
     path: "/",
     title: "Home",
     description:
-      "The core public buyer story: real-site robot evaluation before pilots or deployment, grounded in Task Evaluation Runs, Post-Training Data Packages, free site-operator participation, and proof boundaries.",
+      "The core public buyer story: real-site robot evaluation before pilots or deployment, grounded in Task Evaluation Runs, sim-only Policy Improvement Runs, free site-operator participation, and proof boundaries.",
   },
   {
     path: "/for-robot-teams",
@@ -115,13 +115,13 @@ const pages = [
     path: "/pricing",
     title: "Pricing",
     description:
-      "Simple pricing: robot teams pay for fixed-scope Task Evaluation Runs and Post-Training Data Packages; site operators submit sites for free.",
+      "Simple pricing: robot teams pay for fixed-scope Task Evaluation Runs and sim-only Policy Improvement Runs; site operators submit sites for free.",
   },
   {
     path: "/contact",
-    title: "Request Task Evaluation Or Data Package",
+    title: "Request Task Evaluation Or Policy Improvement",
     description:
-      "Structured intake for Task Evaluation Runs, Post-Training Data Packages, new capture requests, free site-operator participation, robot tasks, thresholds, dynamic conditions, zones, rights/access, pilot outcomes, and desired next step.",
+      "Structured intake for Task Evaluation Runs, Policy Improvement Runs, new capture requests, free site-operator participation, robot tasks, thresholds, dynamic conditions, zones, rights/access, pilot outcomes, and desired next step.",
   },
   {
     path: "/privacy",
@@ -141,7 +141,7 @@ const queryThemes = [
   "test robot policy on a real site before deployment",
   "capture a real site turn it into robot evaluation",
   "test robot policy before a long pilot",
-  "site-specific robot deployment readiness",
+  "site-specific robot evaluation planning",
   "real-site robot evaluation workflow",
   "pre-pilot robot readiness estimate",
   "site task robot policy evaluation",

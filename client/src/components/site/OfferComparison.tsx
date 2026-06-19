@@ -30,21 +30,22 @@ const offerCards = [
     bulletTone: "bg-slate-400",
   },
   {
-    title: "Request a Post-Training Data Package",
-    price: "From $25,000+",
+    title: "Request a Policy Improvement Run",
+    price: "From $35,000 / run",
     description:
-      "Get curated robot POV clips, scenario labels, synthetic variations, failure cases, and export format after evaluation.",
+      "Improve a customer-supplied policy inside a sim-only loop with baseline eval, failure diagnosis, curriculum, sealed testing, and evidence.",
     bullets: [
-      "Curated robot POV clips and scenario labels",
-      "Synthetic variations, failure cases, and task metadata",
-      "Export format matched to the team's stack",
+      "Policy or base model, embodiment, action interface, task, and thresholds",
+      "Source access optional through API, container, private runner, sim plugin, or traces",
+      "Twin and cousin scenarios plus curriculum",
+      "Improved artifact when a trainable interface or approved wrapper path exists",
     ],
-    href: "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=post-training-data-package&path=data-package&requestedOutputs=Post-Training%20Data%20Package",
-    cta: "Request Data Package",
+    href: "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-improvement-run&path=policy-improvement-run&requestedOutputs=Policy%20Improvement%20Run",
+    cta: "Request Policy Improvement",
     icon: Database,
     imageSrc: "/illustrations/offer-site-package-preview.svg",
     imageAlt:
-      "Site package shown as a data bundle with walkthrough frames, geometry files, and rights materials.",
+      "Policy improvement run shown as a baseline result, failure cluster, curriculum, sealed test, and evidence report.",
     accent: "border border-slate-300 bg-white text-slate-900",
     cardTone: "border-slate-200 bg-slate-50",
     bulletTone: "bg-slate-500",
@@ -73,8 +74,8 @@ const offerCards = [
 
 export function OfferComparison({
   eyebrow = "Simple commercial model",
-  title = "Robot teams pay for Task Evaluation Runs and Post-Training Data Packages. Operators are free.",
-  description = "Use a Task Evaluation Run when your team wants a fixed-scope read on one policy across a real-site Task Pack. Request a Post-Training Data Package when your team needs curated data for model improvement. Submit a site for free when you operate the facility.",
+  title = "Robot teams pay for Task Evaluation Runs and Policy Improvement Runs. Operators are free.",
+  description = "Use a Task Evaluation Run when your team wants a fixed-scope read on one policy across a real-site Task Pack. Request a Policy Improvement Run when your team wants Blueprint to improve a supplied policy inside simulation. Submit a site for free when you operate the facility.",
   className = "",
 }: OfferComparisonProps) {
   return (
@@ -145,33 +146,33 @@ export function OfferComparison({
             Compare the paths.
           </p>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-            The same site can support multiple motions. The right first step depends on whether the robot team needs a task evaluation run, a post-training data package, or whether the facility operator is submitting boundaries.
+            The same site can support multiple motions. The right first step depends on whether the robot team needs a task evaluation run, a sim-only policy improvement run, or whether the facility operator is submitting boundaries.
           </p>
         </div>
         <div className="grid gap-px bg-slate-200 lg:grid-cols-[1.05fr_1fr_1fr_1fr]">
           <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-500">Decision point</div>
           <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-900">Task evaluation</div>
-          <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-900">Post-training data</div>
+          <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-900">Policy improvement</div>
           <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-900">Site operator</div>
 
           <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-900">Best when</div>
           <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Your robot team wants one fixed-scope read on policy performance against a scoped Task Pack before field time.</div>
-          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Your robot team wants curated POV clips, labels, variations, and failure cases to improve the model after evaluation.</div>
+          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Your robot team wants Blueprint to improve a supplied policy against a site/task threshold inside simulation.</div>
           <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">You operate the facility and want to submit boundaries before robot-team use is reviewed.</div>
 
           <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-900">Buyer gets first</div>
           <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">A Task Evaluation Run with task-pack results, scenario evidence, failure review, and export outputs.</div>
-          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">A scoped data package for post-training, fine-tuning, regression testing, and failure recovery.</div>
+          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">A baseline eval, failure-mode diagnosis, curriculum, improved artifact, sealed test, and evidence report.</div>
           <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">A free intake path for facility, access, privacy, and commercial-use boundaries.</div>
 
           <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-900">Typical first purchase</div>
           <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">From $6,500 per run.</div>
-          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">From $25,000+ per scoped data package.</div>
+          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">From $35,000 per sim-only run.</div>
           <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Free for site operators.</div>
 
           <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-900">Next step</div>
           <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Confirm the robot policy/profile, task pack, and scenario set for evaluation scoping.</div>
-          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Name the post-training, fine-tuning, or regression outputs your team needs.</div>
+          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Name the policy or base model, embodiment, action interface, target task, and thresholds.</div>
           <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Tell Blueprint the facility, access rules, privacy limits, and commercial posture.</div>
         </div>
       </div>

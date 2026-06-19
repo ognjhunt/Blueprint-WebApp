@@ -135,7 +135,7 @@ export const defaultDatasetDatasheet: Partial<DatasheetInfo> = {
   simulationPlatform: 'NVIDIA Isaac Sim 4.x / Genie Sim 3.0',
   physicsEngine: 'PhysX 5.x',
   renderingPipeline: 'RTX Path Tracing',
-  physicsAccuracy: 'Validated against real-world demonstrations',
+  physicsAccuracy: 'Compared against supplied capture/reference data',
   visualFidelity: 'Multi-view RGB-D, consistent camera calibration',
   semanticCompleteness: 'Full action annotations, language descriptions',
   licenseTerms: 'Standard Blueprint License Agreement',

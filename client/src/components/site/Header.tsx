@@ -27,7 +27,7 @@ const signupLinks = [
   {
     href: "/signup/business?buyerType=robot_team&source=header-signup",
     label: "Robot team",
-    description: "Create an account to scope evaluations and data packages.",
+    description: "Create an account to scope evaluations and policy improvement.",
     Icon: Bot,
   },
   {

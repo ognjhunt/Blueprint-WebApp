@@ -91,6 +91,7 @@ export type RobotEvalForwardingReadinessReport = {
 
 export type RobotEvalForwardingReadinessOptions = {
   env?: Env;
+  warnings?: string[];
   nowIso?: string;
   requireForwarding?: boolean;
   probeIntakeAudit?: boolean;
@@ -130,6 +131,77 @@ function truthy(value: unknown) {
     return value;
   }
   return ["1", "true", "yes", "on"].includes(String(value || "").trim().toLowerCase());
+}
+
+function stripCopiedLineNumberPrefixes(value: string) {
+  let body = value.trim();
+  while (/^\d+\s*\|\s*/.test(body)) {
+    body = body.replace(/^\d+\s*\|\s*/, "").trim();
+  }
+  return body;
+}
+
+export function parseRobotEvalForwardingEnvFile(
+  text: string,
+  source = "env-file",
+): { env: Env; warnings: string[] } {
+  const env: Env = {};
+  const warnings: string[] = [];
+  const keyPattern = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+  text.split(/\r?\n/).forEach((line, index) => {
+    const trimmed = stripCopiedLineNumberPrefixes(line);
+    if (!trimmed || trimmed.startsWith("#")) return;
+
+    const exportPrefix = "export ";
+    const body = trimmed.startsWith(exportPrefix) ? trimmed.slice(exportPrefix.length).trim() : trimmed;
+    const equalsIndex = body.indexOf("=");
+    if (equalsIndex <= 0) {
+      warnings.push(`${source}:${index + 1}:ignored_malformed_env_line`);
+      return;
+    }
+
+    const key = body.slice(0, equalsIndex).trim();
+    if (!keyPattern.test(key)) {
+      warnings.push(`${source}:${index + 1}:ignored_invalid_env_key`);
+      return;
+    }
+
+    let value = body.slice(equalsIndex + 1).trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    env[key] = value;
+  });
+
+  return { env, warnings };
+}
+
+async function loadRobotEvalForwardingEnvFiles(paths: string[]): Promise<{
+  env: Env;
+  warnings: string[];
+}> {
+  const env: Env = {};
+  const warnings: string[] = [];
+  for (const rawPath of paths) {
+    const envPath = path.resolve(rawPath);
+    try {
+      const parsed = parseRobotEvalForwardingEnvFile(
+        await fs.readFile(envPath, "utf8"),
+        envPath,
+      );
+      Object.assign(env, parsed.env);
+      warnings.push(...parsed.warnings);
+    } catch (error) {
+      warnings.push(
+        `${envPath}:unreadable_env_file:${error instanceof Error ? error.name : "UnknownError"}`,
+      );
+    }
+  }
+  return { env, warnings };
 }
 
 function parsePositiveInt(value: string | undefined, fallback: number) {
@@ -289,7 +361,7 @@ export async function auditRobotEvalForwardingReadiness(
   options: RobotEvalForwardingReadinessOptions = {},
 ): Promise<RobotEvalForwardingReadinessReport> {
   const env = options.env || process.env;
-  const warnings: string[] = [];
+  const warnings: string[] = [...(options.warnings || [])];
   const blockers: string[] = [];
   const forwardUrl = String(env.ROBOT_EVAL_JOB_REQUEST_FORWARD_URL || "").trim();
   const token = String(env.ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN || "");
@@ -447,16 +519,24 @@ async function main() {
   if (args.help || args.h) {
     console.log(
       [
-        "Usage: npm run pipeline:forwarding:preflight -- [--require-forwarding] [--probe-intake-audit] [--probe-url <url>] [--output <path>]",
+        "Usage: npm run pipeline:forwarding:preflight -- [--require-forwarding] [--probe-intake-audit] [--probe-url <url>] [--forwarding-env-file <path[,path...]>] [--output <path>]",
         "",
-        "Reads ROBOT_EVAL_JOB_REQUEST_FORWARD_* env vars, writes a redacted JSON readiness report,",
+        "Reads ROBOT_EVAL_JOB_REQUEST_FORWARD_* env vars or dotenv-style --env-file entries, writes a redacted JSON readiness report,",
         "and only performs a read-only GET probe when --probe-intake-audit is supplied.",
       ].join("\n"),
     );
     return;
   }
   const outputPath = stringArg(args, "output", DEFAULT_OUTPUT_PATH);
+  const envFileArg = stringArg(args, "forwarding-env-file");
+  const envFilePaths = envFileArg
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+  const envFiles = await loadRobotEvalForwardingEnvFiles(envFilePaths);
   const report = await auditRobotEvalForwardingReadiness({
+    env: { ...process.env, ...envFiles.env },
+    warnings: envFiles.warnings,
     requireForwarding: args["require-forwarding"] ? true : undefined,
     probeIntakeAudit: Boolean(args["probe-intake-audit"] || args.probe),
     probeUrl: stringArg(args, "probe-url"),

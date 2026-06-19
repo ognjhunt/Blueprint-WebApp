@@ -51,7 +51,7 @@ export default function Blog() {
     <>
       <SEO
         title="Updates | Blueprint"
-        description="Short product notes from Blueprint on capture supply, robot evaluation runs, post-training data packages, hosted access, and buyer workflow."
+        description="Short product notes from Blueprint on capture supply, robot evaluation runs, sim-only policy improvement runs, hosted access, and buyer workflow."
         canonical="/updates"
       />
 

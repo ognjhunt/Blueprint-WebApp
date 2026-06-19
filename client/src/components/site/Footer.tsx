@@ -25,7 +25,7 @@ export function Footer() {
           <p className="text-sm leading-6 text-slate-600">
             {isCaptureJobsRoute
               ? "Capture Jobs links to application and waitlist paths. Site details, route access, and payout eligibility stay review-gated."
-              : "Robot teams pay for evaluations and optional data exports. Site operators can submit facilities and define boundaries for free."}
+              : "Robot teams pay for Task Evaluation Runs and Policy Improvement Runs. Site operators can submit facilities and define boundaries for free."}
           </p>
           <div className="flex flex-col gap-2">
             <a

@@ -226,7 +226,7 @@ export function ExactSitePreviewSection({
             <p className="mt-5 max-w-[32rem] text-sm leading-7 text-white/74">
               A policy evaluation would start from a site-specific task and required thresholds,
               then use the site package to inspect local context before live robot work. These
-              grocery tasks drive sample camera paths only; they do not claim a real robot policy
+              grocery tasks drive sample camera paths only; they do not claim completed policy execution
               has completed the task.
             </p>
           </div>

@@ -21,8 +21,8 @@ const requestHref =
 const hostedHref =
   "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-review&source=home-kiss";
 
-const dataPackageHref =
-  "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=post-training-data-package&path=data-package&requestedOutputs=Post-Training%20Data%20Package&source=home-post-training-data";
+const policyImprovementHref =
+  "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-improvement-run&path=policy-improvement-run&requestedOutputs=Policy%20Improvement%20Run&source=home-policy-improvement";
 
 const operatorHref = "/contact/site-operator?source=home-kiss";
 
@@ -70,8 +70,8 @@ const offerItems: IconBlock[] = [
   {
     icon: PackageCheck,
     label: "02",
-    title: "Post-Training Data Package",
-    body: "Curated robot POV clips, scenario labels, synthetic variations, failure cases, and export format for model improvement.",
+    title: "Policy Improvement Run",
+    body: "Baseline eval, failure diagnosis, twin and cousin scenarios, sim-only curriculum, candidate policy improvement, sealed test, and evidence report.",
   },
 ];
 
@@ -108,12 +108,12 @@ const pricingPlans = [
     cta: "Request Task Evaluation Run",
   },
   {
-    name: "Post-Training Data Package",
-    price: "From $25,000+",
+    name: "Policy Improvement Run",
+    price: "From $35,000 / run",
     summary:
-      "Curated robot POV clips, scenario labels, synthetic variations, failure cases, and matched export format.",
-    href: dataPackageHref,
-    cta: "Request Data Package",
+      "Improve a customer-supplied policy, adapter, task head, distilled skill, or full policy inside a sim-only run.",
+    href: policyImprovementHref,
+    cta: "Request Policy Improvement",
   },
 ];
 
@@ -250,7 +250,7 @@ export default function Home() {
             <SectionHeading
               eyebrow="What Blueprint sells"
               title="Two robot-team products."
-              body="Start with a Task Evaluation Run when you need a scoped answer before field time. Add a Post-Training Data Package when the robot team needs curated data to improve the model."
+              body="Start with a Task Evaluation Run when you need a scoped answer before field time. Add a Policy Improvement Run when the team wants Blueprint to improve a supplied policy inside simulation."
             />
             <div className="mt-8 grid gap-4 md:grid-cols-2">
               {offerItems.map((item) => (
@@ -315,7 +315,7 @@ export default function Home() {
               <SectionHeading
                 eyebrow="Planning ranges"
                 title="Two paid robot-team products. Site operators submit free."
-                body="Task Evaluation Runs start at $6,500 per run. Post-Training Data Packages start at $25,000+. Site operators can submit sites for free."
+                body="Task Evaluation Runs start at $6,500 per run. Policy Improvement Runs start at $35,000 per sim-only run. Site operators can submit sites for free."
               />
               <a
                 href="/pricing"

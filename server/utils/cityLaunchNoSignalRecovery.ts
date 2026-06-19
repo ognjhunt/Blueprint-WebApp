@@ -707,7 +707,7 @@ export function buildNoSignalRecoveryTaskSeeds(input: {
       doneWhen: [
         "A draft campaign pack exists with landing-copy variants, channel drafts, and short video/mock concepts.",
         "Every asset is marked draft-only until live posting, spend, and connector readiness are approved.",
-        "Copy stays proof-led and real-site robot-evaluation/data-package first, not generic growth or qualification-first.",
+        "Copy stays proof-led and real-site robot-evaluation/policy-improvement first, not generic growth or qualification-first.",
       ],
       humanGate:
         "Human review is required for live public posting, paid spend, connector policy readiness, or brand-risk exceptions.",

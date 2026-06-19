@@ -11,7 +11,7 @@ Open Chicago with truthful awareness before expecting replies: make the right pe
 - Public-commercial awareness: many small bounded community placements for public, non-controlled commercial capture with public-area-only framing and explicit privacy/signage guardrails.
 
 ## Core Message
-- Who Blueprint is: a capture-first, real-site robot-evaluation/data-package-first company turning real sites into Task Evaluation Runs, Post-Training Data Packages, exact-site proof assets, and hosted review paths.
+- Who Blueprint is: a capture-first, real-site robot-evaluation/policy-improvement-first company turning real sites into Task Evaluation Runs, Policy Improvement Runs, exact-site proof assets, and hosted review paths.
 - What is launching in Chicago: one narrow city-opening motion around exact-site hosted review, not a broad public city-launch claim.
 - What is in scope: industrial_warehouse with truthful lawful-access posture and bounded public-commercial capture where allowed.
 - What is out of scope: fake traction claims, blanket permission language, private controlled-interior capture without lawful access, and promises beyond actual proof state.

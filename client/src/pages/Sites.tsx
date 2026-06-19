@@ -192,8 +192,8 @@ function SiteCard({ site }: { site: SiteLibrarySite }) {
               ))}
             </div>
             <p className="mt-3 text-xs leading-5 text-slate-500">
-              Retry/failure summaries are advisory; they do not imply simulator execution,
-              safety validation, or robot readiness.
+              Retry/failure summaries are advisory and stay scoped to the referenced
+              simulator/package artifacts.
             </p>
           </div>
         ) : null}

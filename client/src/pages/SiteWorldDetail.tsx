@@ -425,7 +425,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
             name: `${site.siteName} site package`,
             description: `${site.summary} ${getSiteWorldPlainEnglishStatus(site)}`,
             image: editorialRefreshAssets.detailHeroWarehouse,
-            category: "Site-specific robot deployment readiness input",
+            category: "Site-specific robot evaluation planning input",
             properties: [
               { name: "Site", value: site.siteName },
               { name: "Workflow", value: site.taskLane || site.sampleTask },

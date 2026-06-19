@@ -17,7 +17,9 @@ describe("ForRobotIntegrators", () => {
 
     expect(screen.getByText(/^For Robot Teams$/i)).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /Evaluate robot deployment readiness on the real indoor site\./i }),
+      screen.getByRole("heading", {
+        name: /We help robot teams safely adapt foundation policies to real customer sites\./i,
+      }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: /Use exact-site readiness for the work that usually gets expensive late\./i }),

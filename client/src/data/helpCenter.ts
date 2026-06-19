@@ -48,7 +48,7 @@ export const helpCategories: HelpCategory[] = [
     slug: "getting-started",
     title: "Getting Started",
     shortTitle: "Start",
-    description: "Choose the right Blueprint path before a team opens a request, package, or a policy evaluation set.",
+    description: "Choose the right Blueprint path before a team opens a request, improvement run, or policy evaluation set.",
     audience: "New buyers, operators, and capturers",
     iconKey: "rocket",
     primaryActionHref: "/contact?persona=robot-team",
@@ -63,13 +63,13 @@ export const helpCategories: HelpCategory[] = [
   },
   {
     slug: "data-packages",
-    title: "Post-Training Data Packages",
-    shortTitle: "Packages",
-    description: "Understand exact-site packages, included artifacts, licensing, and how package proof should be read.",
+    title: "Policy Improvement Runs",
+    shortTitle: "Policy lift",
+    description: "Understand sim-only policy improvement, included artifacts, licensing, and how proof should be read.",
     audience: "Robot teams and technical evaluators",
     iconKey: "package",
-    primaryActionHref: "/contact?persona=robot-team&interest=post-training-data-package&path=data-package",
-    primaryActionLabel: "Request data package",
+    primaryActionHref: "/contact?persona=robot-team&interest=policy-improvement-run&path=policy-improvement-run",
+    primaryActionLabel: "Request policy improvement",
     articles: [
       "what-is-a-site-world-package",
       "what-a-package-includes",
@@ -159,17 +159,17 @@ export const helpArticles: HelpArticle[] = [
     categorySlug: "getting-started",
     title: "What Blueprint sells",
     description: "The short version of Blueprint's product surface.",
-    summary: "Blueprint sells real-site robot evaluation runs, Post-Training Data Packages, hosted access, and supporting review outputs tied to real capture provenance.",
+    summary: "Blueprint sells real-site robot evaluation runs, sim-only Policy Improvement Runs, hosted access, and supporting review outputs tied to real capture provenance.",
     readTime: "3 min",
     sections: [
       {
         heading: "Start with the site",
-        body: "Blueprint is capture-first and evaluation/data-package-first. The product begins with real capture evidence and turns that evidence into exact-site robot evaluation runs, Post-Training Data Packages, and hosted review paths.",
+        body: "Blueprint is capture-first and evaluation/policy-improvement-first. The product begins with real capture evidence and turns that evidence into exact-site robot evaluation runs, sim-only Policy Improvement Runs, and hosted review paths.",
       },
       {
         heading: "What is primary",
-        body: "The primary buyer output is the real-site robot evaluation run, Post-Training Data Package, or hosted session. Readiness, qualification, generated/model-derived support, and review outputs help teams decide, but they do not replace the capture record.",
-        bullets: ["Task Evaluation Run", "Post-Training Data Package", "Capture provenance", "Rights, privacy, and access context"],
+        body: "The primary buyer output is the real-site robot evaluation run, Policy Improvement Run, or hosted session. Readiness, qualification, generated/model-derived support, and review outputs help teams decide, but they do not replace the capture record.",
+        bullets: ["Task Evaluation Run", "Policy Improvement Run", "Capture provenance", "Rights, privacy, and access context"],
       },
     ],
     relatedArticleSlugs: ["choose-the-right-path", "what-is-a-site-world-package", "package-vs-hosted-evaluation"],
@@ -258,18 +258,22 @@ export const helpArticles: HelpArticle[] = [
   article({
     slug: "what-is-a-site-world-package",
     categorySlug: "data-packages",
-    title: "What is a Post-Training Data Package?",
-    description: "The package concept in plain language.",
-    summary: "A package is a structured output derived from one real site, its capture evidence, and the rights and access context attached to that evidence.",
+    title: "What is a Policy Improvement Run?",
+    description: "The improvement-run concept in plain language.",
+    summary: "A Policy Improvement Run is a sim-only workflow that improves a customer-supplied policy against one real-site task scope and keeps capture evidence, rights, and access context attached.",
     readTime: "3 min",
     sections: [
       {
         heading: "Exact site, not generic scene",
-        body: "Blueprint packages are meant to answer questions about a specific real place. They should not be treated as generic training data or proof for unrelated locations.",
+        body: "Blueprint improvement runs are meant to answer questions about a specific real place, task, robot embodiment, and supplied policy. They should not be treated as generic training data or proof for unrelated locations.",
+      },
+      {
+        heading: "Source access is optional",
+        body: "Full-stack teams can use an API endpoint, container, private-cloud runner, sim plugin, adapter, or action traces instead of handing over source code or model weights.",
       },
       {
         heading: "Evidence stays attached",
-        body: "The package should keep capture provenance, timestamps, routes, device context, rights, and privacy labels visible enough for a buyer to inspect the basis of the output.",
+        body: "The run should keep capture provenance, timestamps, routes, device context, rights, privacy labels, baseline results, candidate artifacts, and sealed-test evidence visible enough for a buyer to inspect the basis of the output.",
       },
     ],
     relatedArticleSlugs: ["what-a-package-includes", "read-package-provenance", "license-scope-basics"],
@@ -277,18 +281,22 @@ export const helpArticles: HelpArticle[] = [
   article({
     slug: "what-a-package-includes",
     categorySlug: "data-packages",
-    title: "What a package can include",
+    title: "What a Policy Improvement Run can include",
     description: "Common deliverables and supporting files.",
-    summary: "Package contents vary by site and scope, but usually center on curated robot POV clips, labels, generated/model-derived variations, failure cases, capture records, route context, metadata, and access instructions.",
+    summary: "Policy Improvement Run contents vary by site and scope, but usually center on baseline evaluation, failure diagnosis, twin/cousin scenarios, curriculum, candidate policy improvement, sealed testing, and an evidence report.",
     readTime: "4 min",
     sections: [
       {
-        heading: "Common package materials",
-        body: "A package may include curated clips, labels, task metadata, generated/model-derived variations, manifests, route context, hosted-session links, and notes about access or restrictions.",
+        heading: "Common run materials",
+        body: "A run may include baseline results, failure taxonomy, twin/cousin scenario manifests, curriculum notes, candidate adapter or policy artifacts, sealed-test results, export notes, and access or restriction details.",
+      },
+      {
+        heading: "Three access modes",
+        body: "Black-box evaluation scores an API endpoint, container, private runner, sim plugin, or action traces without source code. Closed-stack improvement support gives failure clusters, curriculum, regression packs, and recommended training changes for the customer team to apply. Actual improved artifacts require adapter hooks, a task head, fine-tuning API, policy wrapper, controller layer, reward/training entrypoint, or approved distillation from rollouts.",
       },
       {
         heading: "What is not implied",
-        body: "A package listing does not automatically mean a site is cleared for every commercial use, every robot, or live deployment. Check the license and provenance details.",
+        body: "A Policy Improvement Run does not automatically mean a site is cleared for every commercial use, every robot, or live deployment. Check the license, provenance, and proof-boundary details.",
       },
     ],
     relatedArticleSlugs: ["read-package-provenance", "package-vs-hosted-evaluation", "export-and-integration-basics"],
@@ -296,9 +304,9 @@ export const helpArticles: HelpArticle[] = [
   article({
     slug: "read-package-provenance",
     categorySlug: "data-packages",
-    title: "How to read package provenance",
+    title: "How to read run provenance",
     description: "What the evidence labels mean.",
-    summary: "Provenance labels tell you what was captured, when, where possible, by what route or device, and under which review or access boundaries.",
+    summary: "Provenance labels tell you what was captured, what was simulated or generated, which policy artifact was tested, and under which review or access boundaries.",
     readTime: "4 min",
     sections: [
       {
@@ -315,14 +323,14 @@ export const helpArticles: HelpArticle[] = [
   article({
     slug: "package-vs-hosted-evaluation",
     categorySlug: "data-packages",
-    title: "Package access vs policy evaluation set",
+    title: "Policy improvement vs policy evaluation set",
     description: "When to use each buyer path.",
-    summary: "Package access is for inspecting and using deliverables. Hosted evaluation is for reviewing the site through a managed runtime and evidence view.",
+    summary: "Policy improvement is for improving a supplied policy inside simulation. Hosted evaluation is for reviewing the site through a managed runtime and evidence view.",
     readTime: "3 min",
     sections: [
       {
-        heading: "Use package access when",
-        body: "Your team needs files, manifests, metadata, or a licensing conversation around a specific site output.",
+        heading: "Use policy improvement when",
+        body: "Your team has a policy or base model, robot embodiment, action interface, target task, and required success or cycle-time threshold to improve against.",
       },
       {
         heading: "Use a policy evaluation set when",
@@ -345,7 +353,7 @@ export const helpArticles: HelpArticle[] = [
       },
       {
         heading: "No fake readiness",
-        body: "A new-site request is not a promise that coverage, rights, hosted access, or a package already exists. Blueprint will route the request based on real availability.",
+        body: "A new-site request is not a promise that coverage, rights, hosted access, or an improvement run already exists. Blueprint will route the request based on real availability.",
       },
     ],
     relatedArticleSlugs: ["structured-intake-before-calendar", "site-operator-permission", "capture-rules-overview"],
@@ -355,12 +363,12 @@ export const helpArticles: HelpArticle[] = [
     categorySlug: "data-packages",
     title: "Export and integration basics",
     description: "How to think about integration scope.",
-    summary: "Exports depend on the package, license, and technical scope. Ask for the target runtime, format, and integration constraints up front.",
+    summary: "Exports depend on the run, license, policy access method, and technical scope. Ask for the target runtime, format, and integration constraints up front.",
     readTime: "3 min",
     sections: [
       {
         heading: "Export scope varies",
-        body: "Blueprint may expose manifests, media, model assets, route files, or hosted links depending on the package and license scope.",
+        body: "Blueprint may expose manifests, media, candidate adapters, task heads, distilled skills, policy artifacts, route files, or hosted links depending on the run and license scope.",
       },
       {
         heading: "Integration questions",

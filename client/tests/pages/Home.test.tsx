@@ -46,10 +46,10 @@ describe("Home", () => {
       }),
     ).toBeInTheDocument();
     expect(screen.getAllByRole("heading", { name: /Task Evaluation Run/i }).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole("heading", { name: /Post-Training Data Package/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("heading", { name: /Policy Improvement Run/i }).length).toBeGreaterThan(0);
     expect(screen.getByRole("heading", { name: /Two paid robot-team products\. Site operators submit free\./i })).toBeInTheDocument();
     expect(screen.getByText(/From \$6,500 \/ run/i)).toBeInTheDocument();
-    expect(screen.getByText(/From \$25,000\+/i)).toBeInTheDocument();
+    expect(screen.getByText(/From \$35,000 \/ run/i)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Site operators submit sites free\./i })).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {

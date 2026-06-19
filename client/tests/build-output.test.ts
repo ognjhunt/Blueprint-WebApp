@@ -167,7 +167,7 @@ describe("build output", () => {
     expect(llms).not.toContain("https://tryblueprint.io/product");
     expect(llms).not.toContain("https://tryblueprint.io/updates");
     expect(llmsFull).toContain("Secondary marketing URLs are not the primary public buyer surface");
-    expect(llmsFull).toContain("site-specific robot deployment readiness");
+    expect(llmsFull).toContain("site-specific robot evaluation planning");
     expect(llmsFull).toContain("Do not invent customer results");
   });
 
@@ -176,12 +176,12 @@ describe("build output", () => {
     const proofHtml = fs.readFileSync(distPath("proof/index.html"), "utf8");
 
     expect(homeHtml).toContain("Evaluate robots on real sites before deployment.");
-    expect(homeHtml).toContain("Robot teams pay for evaluations and optional data exports");
+    expect(homeHtml).toContain("Policy Improvement Run");
     expect(homeHtml).toContain("Public examples show the workflow shape.");
     expect(homeHtml).toContain("A request packet proves one site");
     expect(homeHtml).toContain('rel="canonical" href="https://tryblueprint.io/"');
     expect(homeHtml).toContain('type="application/ld+json"');
-    expect(proofHtml).toContain("See what supports the site data and policy runs.");
+    expect(proofHtml).toContain("See what supports evaluation and policy improvement runs.");
     expect(proofHtml).toContain("Public samples teach the workflow. Request packets prove one site.");
     expect(proofHtml).toContain("Advisory until stronger proof exists.");
     expect(proofHtml).not.toContain("images.unsplash.com");

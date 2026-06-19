@@ -339,9 +339,13 @@ function normalizeCommercialRequestPath(params: {
   if (
     sourcePageUrl.includes("path=data-package") ||
     sourcePageUrl.includes("path=post-training-data-package") ||
+    sourcePageUrl.includes("path=policy-improvement-run") ||
+    sourcePageUrl.includes("path=policy-lift") ||
     sourcePageUrl.includes("interest=post-training-data-package") ||
     sourcePageUrl.includes("interest=data-package") ||
     sourcePageUrl.includes("interest=data-licensing") ||
+    sourcePageUrl.includes("interest=policy-improvement-run") ||
+    sourcePageUrl.includes("interest=policy-lift") ||
     sourcePageUrl.includes("interest=world-model") ||
     sourcePageUrl.includes("path=world-model") ||
     sourcePageUrl.includes("commercialrequestpath=world_model")
@@ -705,9 +709,9 @@ function confirmationNextSteps(commercialRequestPath: CommercialRequestPath): st
   }
 
   return [
-    "We route the request as a Post-Training Data Package path tied to the submitted buyer, site, task, and robot context.",
-    "We check package proof, rights/privacy, capture availability, included data scope, generated/model-derived support artifacts, and export format before promising access.",
-    "If the record supports it, we move toward package scoping, hosted review, capture planning, or a scoped buyer handoff.",
+    "We route the request as a Policy Improvement Run path tied to the submitted buyer, site, task, robot, policy, and threshold context.",
+    "We check baseline-eval fit, policy access method, rights/privacy, capture availability, candidate improvement scope, sealed-test plan, and export format before promising access.",
+    "If the record supports it, we move toward sim-only improvement scoping, hosted review, capture planning, or a scoped buyer handoff.",
   ];
 }
 
@@ -765,7 +769,7 @@ function generateConfirmationEmailHtml(
                     <tr>
                       <td style="padding:8px 0;">
                         <a href="https://tryblueprint.io/product" style="color:#4f46e5;text-decoration:none;font-size:14px;">Product</a>
-                        <span style="color:#9ca3af;font-size:14px;"> - Task Evaluation Runs, Post-Training Data Packages, hosted review, and proof boundaries</span>
+                        <span style="color:#9ca3af;font-size:14px;"> - Task Evaluation Runs, Policy Improvement Runs, hosted review, and proof boundaries</span>
                       </td>
                     </tr>
                     <tr>
@@ -813,7 +817,7 @@ function generateConfirmationEmailHtml(
 
 /**
  * POST /api/inbound-request
- * Submit a new site submission for capture, evaluation, or data-package scoping
+ * Submit a new site submission for capture, evaluation, or policy-improvement scoping
  */
 router.post("/", async (req: Request, res: Response) => {
   const startTime = Date.now();

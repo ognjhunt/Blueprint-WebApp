@@ -335,9 +335,9 @@ const rules: ClaimRule[] = [
   {
     type: "stale_root_doctrine",
     ownerProofRequired:
-      "Current cross-repo doctrine: Blueprint sells real-site robot Task Evaluation Runs and Post-Training Data Packages; world-model language is internal compatibility or generated/advisory/data-package support.",
+      "Current cross-repo doctrine: Blueprint sells real-site robot Task Evaluation Runs and sim-only Policy Improvement Runs; world-model language is internal compatibility or generated/advisory policy-improvement support.",
     safeReplacement:
-      "Use `capture-first and real-site robot-evaluation/data-package first`; describe world models as support artifacts inside packages, not the primary public offer.",
+      "Use `capture-first and real-site robot-evaluation/policy-improvement first`; describe world models as support artifacts inside scoped runs, not the primary public offer.",
     matches: (line, context) =>
       isRootDoctrineFile(context.relativeFile) && hasStaleRootDoctrineClaim(line),
     allowed: (line) => hasGuardrailContext(line) || hasWorldModelSupportContext(line),
@@ -363,13 +363,13 @@ const rules: ClaimRule[] = [
     ownerProofRequired:
       "Request-scoped owner-system proof for the exact site/task and robot: simulator traces, action logs, robot trials, safety review/signoff, rights/privacy approval, and hosted/runtime artifacts where applicable.",
     safeReplacement:
-      "Use `deployment readiness advisory`, `pre-pilot readiness estimate`, `readiness report`, `task-specific confidence packet`, or `confirmed after review`; operational readiness requires simulator traces, action logs, robot trials, and safety proof.",
+      "Use `evaluation planning advisory`, `pre-pilot estimate`, `task-specific confidence packet`, or `confirmed after review`; proof requires simulator traces, action logs, and owner-system artifacts.",
     matches: (line) =>
       /\b(ready to deploy|deployment[- ]ready|safety validated|collision validated|contact validated|manipulation validated|ran the buyer'?s actual robot policy|simulator execution completed|real customer deployment result|guaranteed success rate|guaranteed cycle time|guaranteed intervention rate|guaranteed safety threshold|success rate guarantee|cycle time guarantee|intervention rate guarantee|safety threshold guarantee)\b/i.test(line),
     allowed: (line) =>
       hasGuardrailContext(line)
-      || /\bdeployment readiness platform\b/i.test(line)
-      || /\bdeployment readiness advisory\b/i.test(line)
+      || /\bevaluation planning platform\b/i.test(line)
+      || /\bevaluation planning advisory\b/i.test(line)
       || /\bpre[- ]pilot readiness estimate\b/i.test(line)
       || /\breadiness report\b/i.test(line)
       || /\btask[- ]specific confidence packet\b/i.test(line)

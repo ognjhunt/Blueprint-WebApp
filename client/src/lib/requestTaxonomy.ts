@@ -45,21 +45,21 @@ export const OPPORTUNITY_STATES = [
 export const REQUESTED_LANE_LABELS = {
   qualification: "Site Access Review",
   preview_simulation: "Preview Simulation",
-  deeper_evaluation: "Site Data / Policy Evaluation",
+  deeper_evaluation: "Task / Policy Evaluation",
   managed_tuning: "Managed Tuning",
-  data_licensing: "Post-Training Data Package",
+  data_licensing: "Policy Improvement Run",
 } as const;
 
 export const REQUESTED_LANE_DESCRIPTIONS = {
   qualification: "Review the site, access path, and blockers before capture or release.",
   preview_simulation: "Prepare a preview asset once the record supports it.",
-  deeper_evaluation: "Request a site data package or policy-evaluation scope.",
+  deeper_evaluation: "Request a Task Evaluation Run or policy-evaluation scope.",
   managed_tuning: "Flag later scenario generation or managed tuning work.",
-  data_licensing: "Request curated robot POV clips, labels, generated variations, failure cases, and export manifests for one scoped package.",
+  data_licensing: "Request baseline evaluation, failure diagnosis, twin/cousin scenarios, sim-only curriculum, policy improvement, sealed testing, and an evidence report.",
 } as const;
 
 export const COMMERCIAL_REQUEST_PATH_LABELS = {
-  world_model: "Post-Training Data Package request",
+  world_model: "Policy Improvement Run request",
   hosted_evaluation: "Policy evaluation request",
   capture_access: "Capture access request",
   site_claim: "Site operator claim",
@@ -67,7 +67,7 @@ export const COMMERCIAL_REQUEST_PATH_LABELS = {
 
 export const COMMERCIAL_REQUEST_PATH_DESCRIPTIONS = {
   world_model:
-    "`world_model` is an internal compatibility lane for Post-Training Data Package requests: curated real-site clips, labels, generated/model-derived variations, failure cases, and export manifests.",
+    "`world_model` is an internal compatibility lane for Policy Improvement Run requests: baseline evaluation, failure diagnosis, twin/cousin scenario generation, sim-only curriculum work, policy improvement, sealed testing, and evidence reporting.",
   hosted_evaluation:
     "Scope a policy-evaluation path after Blueprint confirms site, entitlement, and runtime availability.",
   capture_access:
@@ -79,7 +79,7 @@ export const COMMERCIAL_REQUEST_PATH_DESCRIPTIONS = {
 export const HELP_WITH_LABELS = {
   "benchmark-packs": "Site Review",
   "scene-library": "Preview Simulation",
-  "dataset-packs": "Data Licensing",
+  "dataset-packs": "Policy Improvement",
   "custom-capture": "Capture Request",
   "pilot-exchange-location-brief": "Site Review Brief",
   "pilot-exchange-policy-submission": "Evaluation Package",
@@ -109,7 +109,7 @@ export const CANONICAL_CONTACT_INTEREST_BY_LANE = {
   preview_simulation: "preview-simulation",
   deeper_evaluation: "evaluation-package",
   managed_tuning: "managed-tuning",
-  data_licensing: "data-licensing",
+  data_licensing: "policy-improvement-run",
 } as const;
 
 export const CONTACT_INTEREST_TO_LANE = {
@@ -120,6 +120,8 @@ export const CONTACT_INTEREST_TO_LANE = {
   "world-model": "data_licensing",
   "world-model-package": "data_licensing",
   "post-training-data-package": "data_licensing",
+  "policy-improvement-run": "data_licensing",
+  "policy-lift": "data_licensing",
   "data-package": "data_licensing",
   "capture-access": "deeper_evaluation",
   "evaluation-package": "deeper_evaluation",

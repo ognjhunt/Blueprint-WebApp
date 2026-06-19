@@ -893,7 +893,7 @@ export default function BusinessSignUpFlow() {
         description={
           isSiteOperatorSignup
             ? "Create a Blueprint site-operator account to submit a facility, define access boundaries, and review robot-team use."
-            : "Create a Blueprint robot-team account for exact-site robot evaluation runs, hosted review, and post-training data packages."
+            : "Create a Blueprint robot-team account for exact-site robot evaluation runs, hosted review, and sim-only policy improvement runs."
         }
         canonical="/signup/business"
         noIndex

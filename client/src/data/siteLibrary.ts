@@ -311,9 +311,9 @@ function pipelineManifestStatuses(slug: string): PipelineManifestStatus[] {
     },
     {
       lane: "data_package_export",
-      label: "Data-package export",
+      label: "Policy-improvement export",
       status: "queued",
-      summary: "Post-Training Data Package export awaits request approval",
+      summary: "Policy Improvement Run export awaits request approval",
       artifactUri: `${datasetPrefix}/real_site_robot_eval_dataset_manifest.json`,
       retrySummary: "Retry export after entitlement and package-scope approval.",
       failureSummary: "Export blockers do not change the site capture provenance.",

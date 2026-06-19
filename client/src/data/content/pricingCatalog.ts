@@ -122,13 +122,13 @@ export const premiumCapabilities: PremiumCapability[] = [
     icon: "check-circle",
     benefits: [
       "Automated transfer gap analysis",
-      "Partner lab integration for real-world testing",
+      "Partner lab integration for evaluation workflows",
       "Quality guarantees (50%/70%/85% success tiers)",
     ],
     technicalDetails: [
       "Domain randomization validation",
       "Physics accuracy verification",
-      "Real-world deployment metrics",
+      "Evaluation package metrics",
       "Failure case analysis with remediation",
     ],
     useCases: [
@@ -448,7 +448,7 @@ export const premiumCapabilities: PremiumCapability[] = [
     ],
     technicalDetails: [
       "Physics parameter extraction from USD and Isaac Sim",
-      "Sensor accuracy validation against real-world data",
+      "Sensor accuracy comparison against supplied data",
       "Force/torque profile comparison: simulation vs. real hardware",
       "Contact point clustering and statistics",
       "Domain randomization coverage matrix",
@@ -457,7 +457,7 @@ export const premiumCapabilities: PremiumCapability[] = [
     ],
     useCases: [
       "Pre-deployment transfer gap analysis",
-      "Identifying which simulation aspects need real-world fine-tuning",
+      "Identifying which simulation aspects need more capture or policy evidence",
       "Cross-robot fidelity validation",
       "Reducing sim-to-real transfer risk",
       "Research paper validation and benchmarking",

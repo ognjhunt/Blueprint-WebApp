@@ -9,7 +9,7 @@ describe("ForSiteOperators", () => {
     expect(screen.getByText(/^For Site Operators$/i)).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
-        name: /Control how your facility supports robot evaluation and data packages\./i,
+        name: /Control how your facility supports robot evaluation and policy improvement\./i,
       }),
     ).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /What operators get\./i })).toBeInTheDocument();

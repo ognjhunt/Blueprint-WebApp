@@ -518,7 +518,7 @@ export function buildResearchPrompt(input: {
     `The plan must fit this exact budget envelope. Structured budget_recommendations must total no more than ${formatUsd(input.budgetPolicy.maxTotalApprovedUsd)} unless the plan explicitly stops for founder approval to raise the budget.`,
     ``,
     `Blueprint doctrine and operating context:`,
-    `- capture-first and real-site robot-evaluation/data-package first`,
+    `- capture-first and real-site robot-evaluation/policy-improvement first`,
     `- ${CITY_LAUNCH_CONTROL_PLANE_RULES.priorityWedge.label} is the active wedge`,
     `- optimize for one narrow commercial wedge at a time: one site lane, one workflow lane, one buyer proof path`,
     `- treat city launch as a coordinated proof-motion buildout, not a broad marketplace coverage exercise`,

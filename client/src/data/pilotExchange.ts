@@ -321,7 +321,7 @@ export const pilotExchangeFaq: PilotExchangeFaqItem[] = [
   },
   {
     id: "faq-03",
-    question: "Do third parties help with testing and deployment readiness?",
+    question: "Do third parties help with evaluation setup and package review?",
     answer:
       "Yes. Many teams use third-party integrators, safety assessors, and FAT/SAT witnesses. Blueprint complements those workflows by standardizing pre-qualification artifacts.",
   },
@@ -425,7 +425,7 @@ export const trainingEvidencePoints: TrainingEvidencePoint[] = [
     id: "evidence-03",
     source: "Video Prediction Policy (ICML 2025)",
     sourceUrl: "https://proceedings.mlr.press/v267/wang25dp.html",
-    result: "+31.6% real-world dexterous success",
+    result: "+31.6% dexterous benchmark success",
     note: "Fine-tuning video foundation models with robot data improved dexterous manipulation outcomes; paper also reports +18.6% on CALVIN.",
   },
   {
@@ -461,7 +461,7 @@ export const researchDeltaPoints: ResearchDeltaPoint[] = [
     id: "delta-03",
     study: "VPP (2025)",
     deltaPercent: 31.6,
-    note: "Video Prediction Policy reported +31.6% real-world dexterous success.",
+    note: "Video Prediction Policy reported +31.6% dexterous benchmark success.",
   },
   {
     id: "delta-04",
@@ -503,7 +503,7 @@ export const researchSourceLinks: ResearchSourceLink[] = [
     id: "src-03",
     label: "Video Prediction Policy (ICML 2025)",
     url: "https://proceedings.mlr.press/v267/wang25dp.html",
-    note: "Reports +18.6% on CALVIN and +31.6% real-world dexterous success.",
+    note: "Reports +18.6% on CALVIN and +31.6% dexterous benchmark success.",
   },
   {
     id: "src-04",

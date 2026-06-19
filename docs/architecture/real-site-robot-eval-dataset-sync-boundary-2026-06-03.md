@@ -216,7 +216,7 @@ advisory until owner-runtime proof exists and are not simulator-result artifacts
 
 Sites may also project a per-site manifest status family for privacy, World
 Labs compatibility/support artifacts, materialization, CPU preflight, GPU
-handoff, eval result, and data-package export. Those rows may include
+handoff, eval result, and policy-improvement export. Those rows may include
 retry/failure summaries, but the summaries are operational diagnostics only.
 They must not imply simulator execution, safety validation, robot deployment
 readiness, or policy pass/fail outcomes.

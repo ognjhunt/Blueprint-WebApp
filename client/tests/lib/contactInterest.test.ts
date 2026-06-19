@@ -8,6 +8,7 @@ describe("contact interest mapping", () => {
   it("keeps canonical public interests stable", () => {
     expect(CANONICAL_CONTACT_INTEREST_BY_LANE.qualification).toBe("site-review");
     expect(CANONICAL_CONTACT_INTEREST_BY_LANE.deeper_evaluation).toBe("evaluation-package");
+    expect(CANONICAL_CONTACT_INTEREST_BY_LANE.data_licensing).toBe("policy-improvement-run");
     expect(CANONICAL_CONTACT_INTEREST_BY_LANE.managed_tuning).toBe("managed-tuning");
   });
 
@@ -18,6 +19,8 @@ describe("contact interest mapping", () => {
     expect(normalizeInterestToLane("world-model")).toBe("data_licensing");
     expect(normalizeInterestToLane("world-model-package")).toBe("data_licensing");
     expect(normalizeInterestToLane("post-training-data-package")).toBe("data_licensing");
+    expect(normalizeInterestToLane("policy-improvement-run")).toBe("data_licensing");
+    expect(normalizeInterestToLane("policy-lift")).toBe("data_licensing");
     expect(normalizeInterestToLane("data-package")).toBe("data_licensing");
     expect(normalizeInterestToLane("capture-access")).toBe("deeper_evaluation");
     expect(normalizeInterestToLane("hosted-evaluation")).toBe("deeper_evaluation");

@@ -58,7 +58,7 @@ describe("ReadinessPack", () => {
     ).not.toBeInTheDocument();
     expect(
       screen.queryByText(
-        /Estimate robot deployment readiness before the expensive pilot/i,
+        /Estimate site\/task fit before the expensive pilot/i,
       ),
     ).not.toBeInTheDocument();
   });

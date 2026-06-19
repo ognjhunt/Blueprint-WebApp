@@ -13,7 +13,7 @@ const companyCards = [
   {
     title: "What Blueprint is",
     body:
-      "A product for turning one real facility into Task Evaluation Runs, Post-Training Data Packages, and clear trust details tied to the same capture-backed source record.",
+      "A product for turning one real facility into Task Evaluation Runs, sim-only Policy Improvement Runs, and clear trust details tied to the same capture-backed source record.",
   },
   {
     title: "What Blueprint is not",
@@ -33,7 +33,7 @@ export default function About() {
     <>
       <SEO
         title="About | Blueprint"
-        description="Why Blueprint exists and how it turns real facilities into robot evaluation runs, post-training data packages, and trust details a robot team can evaluate."
+        description="Why Blueprint exists and how it turns real facilities into robot evaluation runs, sim-only policy improvement runs, and trust details a robot team can evaluate."
         canonical="/about"
       />
 

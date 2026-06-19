@@ -93,28 +93,28 @@ describe("contactRequestPrefill", () => {
     expect(url.searchParams.has("access")).toBe(false);
   });
 
-  it("maps legacy world-model params to the Post-Training Data Package lane", () => {
+  it("maps legacy world-model params to the Policy Improvement Run lane", () => {
     const legacyPrefill = parseContactRequestPrefill(
-      "persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&requestedOutputs=Post-Training%20Data%20Package",
+      "persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&requestedOutputs=Policy%20Improvement%20Run",
     );
 
     expect(legacyPrefill).toMatchObject({
       buyerType: "robot_team",
       requestPath: "data-package",
       commercialRequestPath: "world_model",
-      requestedOutputs: "Post-Training Data Package",
+      requestedOutputs: "Policy Improvement Run",
     });
 
     const href = buildContactRequestUrl({
       buyerType: "robot_team",
       requestPath: "world-model",
-      requestedOutputs: "Post-Training Data Package",
+      requestedOutputs: "Policy Improvement Run",
     });
     const url = new URL(href, "https://tryblueprint.local");
 
     expect(url.pathname).toBe("/contact/robot-team");
-    expect(url.searchParams.get("interest")).toBe("post-training-data-package");
-    expect(url.searchParams.get("path")).toBe("data-package");
+    expect(url.searchParams.get("interest")).toBe("policy-improvement-run");
+    expect(url.searchParams.get("path")).toBe("policy-improvement-run");
 
     const draft = buildAgentInboundRequestDraft({
       buyerType: "robot_team",
@@ -129,6 +129,29 @@ describe("contactRequestPrefill", () => {
       requestedLanes: ["data_licensing"],
       taskStatement: "tote transfer",
     });
+  });
+
+  it("maps policy-improvement aliases to the compatibility data lane", () => {
+    const prefill = parseContactRequestPrefill(
+      "persona=robot-team&buyerType=robot_team&interest=policy-improvement-run&path=policy-lift",
+    );
+
+    expect(prefill).toMatchObject({
+      buyerType: "robot_team",
+      requestPath: "data-package",
+      commercialRequestPath: "world_model",
+    });
+
+    const href = buildContactRequestUrl({
+      buyerType: "robot_team",
+      requestPath: "data-package",
+      requestedOutputs: "Policy Improvement Run",
+    });
+    const url = new URL(href, "https://tryblueprint.local");
+
+    expect(url.searchParams.get("interest")).toBe("policy-improvement-run");
+    expect(url.searchParams.get("path")).toBe("policy-improvement-run");
+    expect(url.searchParams.get("requestedOutputs")).toBe("Policy Improvement Run");
   });
 
   it("creates an agent inbound-request draft without access, payment, provider, or hosted grants", () => {

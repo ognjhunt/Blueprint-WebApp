@@ -1092,7 +1092,7 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
               </div>
               <p className="mt-4 text-xs leading-5 text-stone-500">
                 Gated setups become scoped requests. Launching here does not assert provider execution,
-                live simulation success, rights clearance, payment, or robot deployment readiness.
+                live simulation success, rights clearance, payment, or package access.
               </p>
             </section>
           </aside>

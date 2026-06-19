@@ -4,25 +4,25 @@ This file is a public, non-sensitive map of Blueprint's website for AI assistant
 
 ## Product Summary
 
-Blueprint is a capture-first, world-model-product-first company with a narrow public buyer wedge: site-specific robot deployment readiness before an expensive pilot.
+Blueprint is a capture-first, real-site robot-evaluation/data-package company with a narrow public buyer wedge: site-specific robot evaluation planning before an expensive pilot.
 
-The core buyer question is: will this robot work in this real facility, on this task, at the required success rate, cycle time, intervention rate, and safety threshold?
+The core buyer question is: what capture-backed site, task, scenario, simulator, and proof-boundary evidence should a robot team inspect before field time?
 
-Blueprint turns that question into a readiness workflow. The buyer provides or requests one site, one robot task suite, one robot profile, one threshold set, the evidence they already have, and the pilot decision they need. Blueprint packages capture evidence, provenance, rights/privacy posture, site/task context, failure modes, missing proof, and next-step recommendations into an advisory readiness report.
+Blueprint turns that question into an evaluation planning workflow. The buyer provides or requests one site, one robot task suite, one robot profile, one threshold set, the evidence they already have, and the pilot decision they need. Blueprint packages capture evidence, provenance, rights/privacy posture, site/task context, simulator traces when available, failure modes, missing proof, and next-step recommendations into an advisory evaluation report.
 
-Blueprint remains capture-first and world-model-product-first. Readiness does not replace raw capture truth, rights state, provenance, site package boundaries, hosted-session artifacts, or owner-system proof. Qualification, readiness, and hosted review support the product; they do not become unsupported ready-to-deploy, safety-validated, or guaranteed-threshold claims.
+Blueprint remains capture-first and real-site robot-evaluation/data-package first. Evaluation planning does not replace raw capture truth, rights state, provenance, site package boundaries, hosted-session artifacts, or owner-system proof. Qualification, simulator evaluation, and hosted review support the product; they do not become unsupported ready-to-deploy, safety-validated, or guaranteed-threshold claims.
 
-Ground truth means raw capture evidence, timestamps, poses, device metadata, rights/privacy records, provenance, and package or runtime artifacts when they exist. Samples, generated previews, dry-run commerce, catalog matches, and request drafts are support signals. They do not prove customer results, rights clearance, provider execution, payment, package access, hosted fulfillment, deployment readiness, or city-live coverage.
+Ground truth means raw capture evidence, timestamps, poses, device metadata, rights/privacy records, provenance, and package or runtime artifacts when they exist. Samples, generated previews, dry-run commerce, catalog matches, and request drafts are support signals. They do not prove customer results, rights clearance, provider execution, payment, package access, hosted fulfillment, deployment verdicts, or city-live coverage.
 
 ## Buyer-Facing Definitions
 
 ### What is Blueprint?
 
-Blueprint helps robot teams and site operators evaluate deployment readiness before a costly pilot by turning one real site, one task, and one pass bar into a capture-backed readiness report.
+Blueprint helps robot teams and site operators plan site/task evaluation before a costly pilot by turning one real site, one task, and one pass bar into a capture-backed evaluation packet.
 
 ### What does a robot team receive?
 
-A robot team can receive a site/task readiness advisory, capture-backed site package scope, hosted evaluation request, failure-mode report, site modification recommendation, data requirement, short-pilot protocol, or custom benchmark scope. Access, hosted availability, rights, payment, package delivery, provider execution, and operational readiness remain request-specific.
+A robot team can receive a site/task evaluation planning advisory, capture-backed site package scope, hosted evaluation request, failure-mode report, site modification recommendation, data requirement, short-pilot protocol, or custom benchmark scope. Access, hosted availability, rights, payment, package delivery, provider execution, and operational deployment claims remain request-specific.
 
 ### What is a site package?
 
@@ -44,11 +44,11 @@ Public examples are samples unless the page explicitly ties them to an approved 
 
 - `/` - Homepage and core buyer story. Explains the value prop, buyer question, workflow, offer, planning ranges, proof boundary, and request CTA in one place.
 - `/sites` - Blueprint Site Library for browsing captured-site profiles by site type, task pack, readiness, access status, and region before requesting a Task Evaluation Run.
-- `/pricing` - Planning ranges for Site/Task Readiness Review, Hosted Evaluation, and Custom Multi-Site Benchmark.
+- `/pricing` - Planning ranges for Task Evaluation Runs, Post-Training Data Packages, Hosted Evaluation, and Custom Multi-Site Benchmark.
 - `/proof` - Short proof explainer separating public samples, generated support signals, request packets, and owner-system proof.
 - `/for-robot-teams` - Structured robot-team test interface for selecting a capture-backed site/task package and referencing policy API endpoints, Docker containers, recorded action traces, high-level skill traces, teleop demos, or sim controller plugins.
 - `/robot-team/eval` - Direct structured submission URL for creating an eligible hosted session or routing request-gated modalities to contact intake.
-- `/contact` - Structured readiness review intake for the site, workflow, robot profile, thresholds, timeline, evidence needs, rights context, and desired next step.
+- `/contact` - Structured Task Evaluation Run and data-package intake for the site, workflow, robot profile, thresholds, timeline, evidence needs, rights context, and desired next step.
 - `/privacy` and `/terms` - Legal policy pages.
 
 Secondary marketing URLs are not the primary public buyer surface. Routes such as `/product`, `/readiness`, `/how-it-works`, `/world-models`, `/site-worlds`, `/agents`, `/capture`, `/sample-deliverables`, `/launch-map`, `/faq`, `/governance`, `/about`, `/updates`, `/careers`, and `/help` should be treated as hidden, redirected, noindex, or direct-purpose URLs rather than core public IA. Legacy catalog/detail URLs under `/world-models` and `/site-worlds` redirect into `/sites` when they map to a public site profile.
@@ -57,12 +57,12 @@ Secondary marketing URLs are not the primary public buyer surface. Routes such a
 
 Blueprint pages are most relevant to these themes:
 
-- site-specific robot deployment readiness
-- pre-pilot robot readiness estimate
-- site task readiness report
-- warehouse robot readiness evaluation
-- factory robot readiness evaluation
-- success rate, cycle time, intervention rate, and safety threshold for a robot task
+- site-specific robot evaluation planning
+- pre-pilot robot evaluation estimate
+- site task evaluation report
+- warehouse robot evaluation planning
+- factory robot evaluation planning
+- success rate, cycle time, intervention rate, and safety threshold planning for a robot task
 - capture-backed robot evaluation
 - hosted robot evaluation
 - captured site library
@@ -70,11 +70,11 @@ Blueprint pages are most relevant to these themes:
 - robot team test submission interface
 - policy API endpoint or Docker container for robot evaluation
 - recorded action trace, high-level skill trace, teleop demo, or sim controller plugin review
-- robot deployment site evaluation
+- robot site evaluation planning
 - capture provenance for world models
 - site operator robot evaluation boundaries
-- readiness proof boundary
-- request readiness review
+- evaluation proof boundary
+- request Task Evaluation Run
 
 ## Truth Boundaries
 
@@ -98,7 +98,7 @@ The following are not public buyer-content targets: `/product`, `/readiness`, `/
 
 The request/commerce/session lifecycle stays split into request intake, dry-run commerce, and hosted-session lifecycle proof so agents do not mistake intake or dry-run proof for live fulfillment.
 
-`/api/site-worlds/search` remains the public read-only search endpoint behind MCP tool `blueprint.siteWorld.search`. Search, catalog matches, generated URLs, dry-run orders, and public demos are not payment, rights clearance, provider execution, package access, hosted fulfillment, or deployment readiness.
+`/api/site-worlds/search` remains the public read-only search endpoint behind MCP tool `blueprint.siteWorld.search`. Search, catalog matches, generated URLs, dry-run orders, and public demos are not payment, rights clearance, provider execution, package access, hosted fulfillment, or deployment verdicts.
 
 Robot-team agents can create a supported request URL instead of scraping the contact UI. They can also use CLI `request location` or MCP `blueprint.request.locationDraft` to receive a dry-run packet with `contactUrl`, `inboundRequestDraft`, `missingRequiredFields`, `truthBoundaries`, and `submitInstructions`. A generated URL, location draft, or inbound request only records intake. It never grants package access, entitlement, payment, rights clearance, provider execution, fulfillment, live hosted-session availability, private artifact access, or admin access.
 

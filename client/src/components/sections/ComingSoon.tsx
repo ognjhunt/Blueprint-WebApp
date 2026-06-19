@@ -74,7 +74,7 @@ export default function ComingSoon() {
                 <p className="text-zinc-600 leading-relaxed">
                   Blueprint keeps generated media and simulated scenes in a support lane:
                   useful for inspection, training context, and evaluation planning, but not
-                  a substitute for capture provenance or robot deployment proof.
+                  a substitute for capture provenance or Pipeline/runtime proof.
                 </p>
                 <div className="rounded-xl border border-zinc-200 bg-white p-4">
                   <p className="text-sm font-semibold text-zinc-900 mb-3">Two ways to use each scene:</p>

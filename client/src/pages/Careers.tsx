@@ -113,7 +113,7 @@ export default function Careers() {
     <>
       <SEO
         title="Careers | Blueprint"
-        description="Blueprint is hiring founding systems leads for GTM and delivery loops around real-site robot evaluation runs and post-training data packages."
+        description="Blueprint is hiring founding systems leads for GTM and delivery loops around real-site robot evaluation runs and sim-only policy improvement runs."
         canonical="/careers"
       />
 

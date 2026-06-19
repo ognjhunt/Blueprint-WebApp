@@ -5,7 +5,7 @@ Status: repo-local budget and cadence control plan; live billing is awaiting hum
 
 ## Objective
 
-Keep Blueprint's autonomous organization inside a $500/month all-in launch and growth budget while preserving the capture-first, real-site robot-evaluation/data-package operating doctrine. This plan is repo-local only. It does not mutate live Paperclip, Notion, Stripe, Render, Firebase, Redis, provider, email, ad, payment, payout, rights, hosted-session, or city-launch systems.
+Keep Blueprint's autonomous organization inside a $500/month all-in launch and growth budget while preserving the capture-first, real-site robot-evaluation/policy-improvement operating doctrine. This plan is repo-local only. It does not mutate live Paperclip, Notion, Stripe, Render, Firebase, Redis, provider, email, ad, payment, payout, rights, hosted-session, or city-launch systems.
 
 ## Evidence Snapshot
 
@@ -179,7 +179,7 @@ The budget compression above remains the declared config envelope, but future ch
 
 | Tier | Role in the `$173` Paperclip envelope | Budget posture |
 |---|---|---|
-| P0 active | Direct product/proof, demand/sales, and reliability owners for real-site robot evaluation runs and post-training data packages. | Protected first; do not reduce below current proof-bearing operating spine without replacing the function with deterministic software. |
+| P0 active | Direct product/proof, demand/sales, and reliability owners for real-site robot evaluation runs and sim-only policy improvement runs. | Protected first; do not reduce below current proof-bearing operating spine without replacing the function with deterministic software. |
 | P1 event-only/reduced cadence | Lanes that are useful when a concrete issue, live request, proof packet, or weekly synthesis need exists. | Keep paused or reduced cadence; no broad discovery runs. |
 | P2 dormant/merged | Historical, duplicate, writing/reporting, broad supply/growth, or release orchestration lanes. | Keep paused, merged into a stronger owner, or compatibility-only until proof justifies restart. |
 

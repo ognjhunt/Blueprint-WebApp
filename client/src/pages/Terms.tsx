@@ -15,7 +15,7 @@ const sections = [
   {
     title: "Services",
     body:
-      "Blueprint provides software and related services for capture intake, Task Evaluation Runs, Post-Training Data Packages, hosted sessions, and supporting buyer or operator workflows. Specific deliverables, usage rights, and commercial terms may also be set in an order form, statement of work, listing-specific terms, or other written agreement.",
+      "Blueprint provides software and related services for capture intake, Task Evaluation Runs, sim-only Policy Improvement Runs, hosted sessions, and supporting buyer or operator workflows. Specific deliverables, usage rights, and commercial terms may also be set in an order form, statement of work, listing-specific terms, or other written agreement.",
     icon: Briefcase,
   },
   {
@@ -43,7 +43,7 @@ const roleTerms = [
     title: "Buyer schedule",
     items: [
       "Package access, hosted sessions, exports, and license scope are controlled by the listing, checkout, order form, or written agreement.",
-      "Hosted evaluation is decision support, not deployment approval, certification, or safety validation.",
+      "Hosted evaluation is decision support scoped to the package and request artifacts.",
       "Buyer sharing, internal use, and downstream export rights must match the rights sheet or written terms.",
     ],
   },
@@ -70,7 +70,7 @@ export default function Terms() {
     <>
       <SEO
         title="Terms of Service | Blueprint"
-        description="Terms of service for Blueprint robot evaluation runs, post-training data packages, hosted sessions, capture workflows, and related services."
+        description="Terms of service for Blueprint robot evaluation runs, sim-only policy improvement runs, hosted sessions, capture workflows, and related services."
         canonical="/terms"
       />
 

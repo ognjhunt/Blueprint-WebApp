@@ -68,9 +68,9 @@ export const CONTACT_REQUEST_PATH_OPTIONS: Array<{
   },
   {
     value: "data-package",
-    label: "Post-Training Data Package",
-    description: "Scope curated robot POV clips, labels, scenario variations, failure cases, and export format.",
-    cta: "Request data package",
+    label: "Policy Improvement Run",
+    description: "Scope baseline eval, failure diagnosis, sim-only curriculum, candidate policy improvement, sealed testing, and evidence report.",
+    cta: "Request policy improvement",
     buyerType: "robot_team",
     commercialRequestPath: "world_model",
   },
@@ -146,6 +146,8 @@ export function normalizeContactRequestPath(
     normalized === "world-model" ||
     normalized === "world-model-package" ||
     normalized === "post-training-data-package" ||
+    normalized === "policy-improvement-run" ||
+    normalized === "policy-lift" ||
     normalized === "data-package" ||
     normalized === "package-access" ||
     normalized === "data-licensing"
@@ -213,7 +215,11 @@ export function interestForRequestPath(value: ContactRequestPath): string {
   if (value === "hosted-review") return "hosted-evaluation";
   if (value === "new-capture") return "capture-access";
   if (value === "site-question") return "site-review";
-  return "post-training-data-package";
+  return "policy-improvement-run";
+}
+
+export function publicPathForRequestPath(value: ContactRequestPath): string {
+  return value === "data-package" ? "policy-improvement-run" : value;
 }
 
 export function defaultProofPathPreferenceForRequestPath(
@@ -461,7 +467,7 @@ function inferredTaskStatement(input: ContactRequestUrlInput, requestPath: Conta
     return `Request an exact-site capture path for an eval-card dataset around ${primaryNeed}.`;
   }
   if ((requestPath === "data-package" || requestPath === "world-model") && primaryNeed) {
-    return `Request a Post-Training Data Package for ${primaryNeed}.`;
+    return `Request a Policy Improvement Run for ${primaryNeed}.`;
   }
   if (primaryNeed) return `Request a Task Evaluation Run for ${primaryNeed}.`;
   if (siteClass) return `Request a Task Evaluation Run for ${siteClass}.`;
@@ -475,7 +481,7 @@ export function buildContactRequestUrl(input: ContactRequestUrlInput = {}): stri
     persona: buyerType === "site_operator" ? "site-operator" : "robot-team",
     buyerType,
     interest: interestForRequestPath(requestPath),
-    path: requestPath,
+    path: publicPathForRequestPath(requestPath),
     source: clean(input.source) || "agent-request",
   });
   const siteLocation = clean(input.siteLocation || input.location || input.address || input.city);

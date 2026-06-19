@@ -116,6 +116,30 @@ function stringField(value: unknown, key: string) {
   return typeof field === "string" && field.trim() ? field.trim() : undefined;
 }
 
+function objectField(value: unknown, key: string) {
+  if (!value || typeof value !== "object") {
+    return {};
+  }
+  const field = (value as Record<string, unknown>)[key];
+  return field && typeof field === "object" && !Array.isArray(field)
+    ? (field as Record<string, unknown>)
+    : {};
+}
+
+function stringListField(value: unknown, key: string) {
+  if (!value || typeof value !== "object") {
+    return [];
+  }
+  const field = (value as Record<string, unknown>)[key];
+  if (Array.isArray(field)) {
+    return field.map((item) => String(item || "").trim()).filter(Boolean);
+  }
+  if (typeof field === "string" && field.trim()) {
+    return [field.trim()];
+  }
+  return [];
+}
+
 function firstStringField(value: unknown, keys: string[]) {
   for (const key of keys) {
     const result = stringField(value, key);
@@ -192,17 +216,38 @@ function routeProofDatasetSelection(
   siteSlug: string,
   preferredTaskId?: string,
 ) {
+  const taskCardsPath = artifact(captureRoot, "pipeline/robot_eval_dataset/task_cards.json");
+  const scenarioCardsPath = artifact(captureRoot, "pipeline/robot_eval_dataset/scenario_cards.json");
+  const taskCardsPresent = fsSync.existsSync(taskCardsPath);
+  const scenarioCardsPresent = fsSync.existsSync(scenarioCardsPath);
   const taskCards = objectCards(
     readJsonArtifact(captureRoot, "pipeline/robot_eval_dataset/task_cards.json"),
   );
   const scenarioCards = objectCards(
     readJsonArtifact(captureRoot, "pipeline/robot_eval_dataset/scenario_cards.json"),
   );
+  const datasetCardsPresent = taskCardsPresent || scenarioCardsPresent;
+  if (datasetCardsPresent && (!taskCards.length || !scenarioCards.length)) {
+    throw new Error(
+      "Pipeline robot-eval task/scenario cards are present but not usable for route proof selection",
+    );
+  }
+  const availableTaskIds = taskCards.map((card) => stringField(card, "task_id")).filter(Boolean);
   const taskId =
     preferredTaskId ||
-    taskCards.map((card) => stringField(card, "task_id")).find(Boolean) ||
+    availableTaskIds[0] ||
     "walk_to_target";
+  if (datasetCardsPresent && !availableTaskIds.includes(taskId)) {
+    throw new Error(
+      `Requested task_id ${taskId} is not grounded in pipeline/robot_eval_dataset/task_cards.json`,
+    );
+  }
   const taskScenarios = scenarioCards.filter((card) => stringField(card, "task_id") === taskId);
+  if (datasetCardsPresent && !taskScenarios.length) {
+    throw new Error(
+      `No scenario card in pipeline/robot_eval_dataset/scenario_cards.json matches task_id ${taskId}`,
+    );
+  }
   const scenarioPool = taskScenarios.length ? taskScenarios : scenarioCards;
   const humanoidScenario = scenarioPool.find((card) =>
     (stringField(card, "scenario_id") || "").toLowerCase().includes("humanoid"),
@@ -211,7 +256,58 @@ function routeProofDatasetSelection(
     stringField(humanoidScenario, "scenario_id") ||
     scenarioPool.map((card) => stringField(card, "scenario_id")).find(Boolean) ||
     `${siteSlug}_walk_to_target_pose`;
-  return { taskId, scenarioId };
+  return {
+    taskId,
+    scenarioId,
+    source: datasetCardsPresent ? "pipeline_robot_eval_dataset_cards" : "legacy_route_proof_fallback",
+    taskCardCount: taskCards.length,
+    scenarioCardCount: scenarioCards.length,
+  };
+}
+
+function routeProofRightsPrivacyScope(captureRoot: string) {
+  const descriptor = readJsonArtifact(captureRoot, "capture_descriptor.json");
+  const metadata = objectField(descriptor, "metadata");
+  const captureRights = {
+    ...objectField(descriptor, "rights_profile"),
+    ...objectField(descriptor, "capture_rights"),
+    ...objectField(metadata, "capture_rights"),
+  };
+  const consentScope = stringListField(captureRights, "consent_scope");
+  const consentStatus = (stringField(captureRights, "consent_status") || "").toLowerCase();
+  const permissionDocumentUri =
+    stringField(captureRights, "permission_document_uri") ||
+    stringField(captureRights, "evidence_uri") ||
+    null;
+  const simulatorScopeAllowed =
+    consentScope.includes("mujoco_g1_simulator_evaluation_for_this_staged_capture") ||
+    captureRights.external_use_allowed === true;
+  const consentDocumented = ["accepted", "approved", "documented"].includes(consentStatus);
+  const worldlabsInputAudit = objectField(metadata, "worldlabs_input_audit");
+  const inputLabeling = objectField(worldlabsInputAudit, "input_labeling");
+  const privacyProcessing = objectField(metadata, "privacy_processing");
+  const privacySafe =
+    worldlabsInputAudit.privacy_safe_input === true ||
+    inputLabeling.privacy_safe_input === true ||
+    stringField(descriptor, "privacy_status") === "full_frame_redacted_local_proof" ||
+    stringField(privacyProcessing, "status") === "full_frame_redacted_local_proof";
+  const rawBypassUsed =
+    worldlabsInputAudit.raw_video_bypass_used === true ||
+    inputLabeling.raw_video_bypass_used === true;
+  if (!simulatorScopeAllowed || !consentDocumented || !privacySafe || rawBypassUsed) {
+    return undefined;
+  }
+  return {
+    status: "cleared_for_robot_eval",
+    external_use_allowed: true,
+    privacy_scope: "derived_deidentified_environment",
+    consent_scope: consentScope,
+    permission_document_uri: permissionDocumentUri,
+    source: "capture_descriptor.metadata.capture_rights",
+    scope_limited_to_simulator_eval: true,
+    physical_robot_deployment_claim_allowed: false,
+    public_claim_upgrade_allowed: false,
+  };
 }
 
 function routeProofPreflightSummary(captureRoot: string) {
@@ -271,6 +367,7 @@ function buildRequest(args: Args) {
   const datasetSelection = routeProofDatasetSelection(captureRoot, siteSlug, explicitTaskId);
   const taskId = explicitTaskId || datasetSelection.taskId;
   const scenarioId = stringArg(args, "scenario-id", datasetSelection.scenarioId);
+  const rightsPrivacyScope = routeProofRightsPrivacyScope(captureRoot);
   const robotProfileId = stringArg(args, "robot-profile-id", "unitree_g1_humanoid");
   const policyId = stringArg(args, "policy-id", "blueprint_default_walk_to_target_smoke_policy");
   const siteSubmissionId = safeId(
@@ -418,6 +515,7 @@ function buildRequest(args: Args) {
 
   const requestWithRouteEvidence = {
     ...jobRequest,
+    rights_privacy_scope: rightsPrivacyScope || jobRequest.rights_privacy_scope,
     source_kind: sourceKind,
     world_model_context: derived.worldModel,
     source: {
@@ -429,6 +527,7 @@ function buildRequest(args: Args) {
       selection_state: {
         ...((jobRequest.source as { selection_state?: Record<string, unknown> }).selection_state ||
           {}),
+        dataset_selection: datasetSelection,
         source_kind: sourceKind,
         world_id: derived.worldModel.world_id,
         worldlabs_launch_url: derived.worldModel.launch_url,
@@ -470,6 +569,7 @@ function buildProof(params: {
   captureRoot: string;
   sourceKind: string;
   routeUrl: string;
+  forwardUrl: string | null;
   localRouteExercised: boolean;
   remoteWebAppUrl: string | null;
   jobRequest: Record<string, unknown>;
@@ -500,6 +600,17 @@ function buildProof(params: {
       http_status: params.responseStatus,
       route_submission_proven: params.responseStatus === 202,
       full_production_webapp_deployment_proven: productionWebAppRequest && params.responseStatus === 202,
+    },
+    forwarding_endpoint: {
+      endpoint_configured: pipelineForward.endpoint_configured === true,
+      endpoint_url: params.forwardUrl,
+      endpoint_url_source: params.forwardUrl
+        ? "local_script_forward_url"
+        : productionWebAppRequest
+          ? "remote_webapp_runtime_not_exposed"
+          : "not_configured",
+      required: pipelineForward.required === true,
+      token_redacted: true,
     },
     job_request: {
       schema_version: params.jobRequest.schema_version,
@@ -588,6 +699,7 @@ async function main() {
       captureRoot,
       sourceKind,
       routeUrl,
+      forwardUrl: null,
       remoteWebAppUrl,
       localRouteExercised: false,
       jobRequest,
@@ -619,6 +731,7 @@ async function main() {
       captureRoot,
       sourceKind,
       routeUrl,
+      forwardUrl,
       remoteWebAppUrl: null,
       localRouteExercised: true,
       jobRequest,

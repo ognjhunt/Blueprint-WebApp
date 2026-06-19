@@ -43,7 +43,7 @@ export const listingVariationItems = [
 
 export const companyTrustItems = [
   "Blueprint captures indoor facilities and turns them into site-specific data products robot teams can request, evaluate, and license.",
-  "Blueprint sells Task Evaluation Runs and Post-Training Data Packages, not deployment guarantees.",
+  "Blueprint sells Task Evaluation Runs and sim-only Policy Improvement Runs, not deployment guarantees.",
   "Rights, privacy, and usage controls are attached to every listing up front.",
 ];
 

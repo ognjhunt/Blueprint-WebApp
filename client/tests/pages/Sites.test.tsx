@@ -266,6 +266,6 @@ describe("Sites", () => {
     ).toBeInTheDocument();
     expect(screen.getAllByText(/Materialization/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/CPU setup manifests present/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Post-Training Data Package export awaits request approval/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Policy Improvement Run export awaits request approval/i).length).toBeGreaterThan(0);
   });
 });

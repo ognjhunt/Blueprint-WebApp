@@ -111,16 +111,20 @@ describe("Contact page", () => {
     });
   });
 
-  it("maps old robot-team world-model query params to the Post-Training Data Package form", () => {
+  it("maps old robot-team world-model query params to the Policy Improvement Run form", () => {
     mockSearch =
       "?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=site-world-detail&siteName=Harborview+Grocery+Distribution+Annex&targetSiteType=Grocery+distribution&scenario=Walk+to+shelf+staging&requestedOutputs=Runtime+manifest+and+proof+packet&targetRobotTeam=Unitree+G1";
 
     render(<Contact />);
 
     expect(
-      screen.getByRole("heading", { name: /Request a Post-Training Data Package\./i }),
+      screen.getByRole("heading", { name: /Request a Policy Improvement Run\./i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/A Post-Training Data Package means/i)).toBeInTheDocument();
+    expect(screen.getByText(/A Policy Improvement Run means/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Source access is optional/i).length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText(/improved artifacts require a trainable interface or approved wrapper path/i).length,
+    ).toBeGreaterThan(0);
     expect(screen.getByDisplayValue("Harborview Grocery Distribution Annex")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Unitree G1")).toBeInTheDocument();
     expect(screen.getByText(/Prefilled context attached/i)).toBeInTheDocument();
@@ -225,9 +229,9 @@ describe("Contact page", () => {
     });
   });
 
-  it("submits a Post-Training Data Package payload from data-package params", async () => {
+  it("submits a Policy Improvement Run payload from data-package params", async () => {
     mockSearch =
-      "?persona=robot-team&buyerType=robot_team&interest=post-training-data-package&path=data-package&requestedOutputs=Post-Training%20Data%20Package";
+      "?persona=robot-team&buyerType=robot_team&interest=post-training-data-package&path=data-package&requestedOutputs=Policy%20Improvement%20Run";
 
     render(<Contact />);
 
@@ -246,7 +250,7 @@ describe("Contact page", () => {
     fireEvent.change(screen.getByRole("textbox", { name: /Task \+ threshold/i }), {
       target: { value: "Shelf restock failures, robot POV clips, and variation labels." },
     });
-    fireEvent.click(screen.getByRole("button", { name: /Request data package/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Request policy improvement/i }));
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
@@ -255,7 +259,7 @@ describe("Contact page", () => {
       );
     });
 
-    expect(screen.getByText(/Post-Training Data Package request received/i)).toBeInTheDocument();
+    expect(screen.getByText(/Policy Improvement Run request received/i)).toBeInTheDocument();
     expect(submittedBody()).toMatchObject({
       buyerType: "robot_team",
       commercialRequestPath: "world_model",

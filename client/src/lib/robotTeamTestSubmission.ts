@@ -553,18 +553,12 @@ export function normalizeRobotTeamTestSubmission(
     proofBoundary: {
       submittedArtifactsAre: "artifact_references_only",
       submittedArtifactsDoNotProve: [
-        "deployment readiness",
-        "safety validation",
-        "real robot execution",
         "simulator run completion",
         "policy pass/fail outcome",
         "rights or privacy clearance",
       ],
       blockedClaimUpgrades: [
-        "ready_to_deploy_claim",
-        "safety_validated_claim",
         "simulator_completed_claim",
-        "robot_trial_passed_claim",
         "policy_execution_passed_claim",
         "guaranteed_threshold_claim",
       ],
@@ -572,7 +566,6 @@ export function normalizeRobotTeamTestSubmission(
         "robot profile with geometry, sensors, controllers, and control level, or a clear site-feasibility-only scope",
         "request-scoped simulator traces or robot trial logs from the owning system",
         "action or teleoperation logs aligned to the exact task and scenario",
-        "prediction-vs-actual outcome records",
         "rights and privacy clearance for the exact site and use",
         "buyer-approved evaluation methodology",
       ],

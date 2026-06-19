@@ -20,13 +20,13 @@ type ProofItem = {
 };
 
 const requestHref =
-  "/contact?persona=robot-team&buyerType=robot_team&interest=post-training-data-package&path=data-package&requestedOutputs=Proof%20packet%20and%20data%20package&source=proof-kiss";
+  "/contact?persona=robot-team&buyerType=robot_team&interest=policy-improvement-run&path=policy-improvement-run&requestedOutputs=Policy%20Improvement%20Run%20proof%20packet&source=proof-kiss";
 
 const sampleVsRequest = [
   {
-    label: "Site data product",
-    sample: "Illustrative data-package support artifacts, scenario data, export manifest, and proof-boundary shape.",
-    request: "Capture record, task scope, robot profile, thresholds, rights/privacy posture, missing annotations, and proof gaps for one site.",
+    label: "Policy improvement product",
+    sample: "Illustrative baseline, failure taxonomy, curriculum, candidate artifact, sealed-test result, and proof-boundary shape.",
+    request: "Capture record, task scope, robot profile, policy access method, thresholds, rights/privacy posture, and proof gaps for one site.",
   },
   {
     label: "Generated or model-derived output",
@@ -56,8 +56,8 @@ const hierarchy: ProofItem[] = [
   {
     icon: PackageCheck,
     label: "03",
-    title: "Site data package",
-    body: "Manifest, included files, scenario data, linked geometry, proof depth, export limits, and package access review state.",
+    title: "Policy improvement run",
+    body: "Baseline eval, failure modes, twin/cousin scenarios, curriculum, candidate artifacts, sealed tests, export limits, and access review state.",
   },
   {
     icon: Cpu,
@@ -98,7 +98,7 @@ export default function Proof() {
               Proof
             </p>
             <h1 className="mt-4 max-w-4xl text-5xl font-semibold leading-none md:text-7xl">
-              See what supports the site data and policy runs.
+              See what supports evaluation and policy improvement runs.
             </h1>
             <p className="mt-6 max-w-2xl text-lg leading-8 text-white/78">
               Blueprint proof keeps the buyer question grounded: what came from
@@ -110,7 +110,7 @@ export default function Proof() {
                 href={requestHref}
                 className="inline-flex min-h-12 items-center justify-center gap-2 bg-[#d8bd8d] px-5 text-sm font-semibold text-[#111110] transition hover:bg-[#e8cfa1]"
               >
-                Request site data
+                Request policy improvement
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </a>
               <a
@@ -201,7 +201,7 @@ export default function Proof() {
               </h2>
               <p className="mt-4 text-sm leading-7 text-[#5f5a53]">
                 The robot team should be able to see why Blueprint recommends a
-                policy session, more site data, site modification, release
+                policy session, policy improvement, site modification, release
                 comparison, or hold.
               </p>
             </div>
@@ -227,11 +227,10 @@ export default function Proof() {
                 Advisory until stronger proof exists.
               </h2>
               <p className="mt-4 max-w-4xl text-sm leading-7 text-white/74">
-                Blueprint can publish polished site data, scenario, policy-run
-                structure, sample packets, and request paths. It must not claim safety validation.
-                Do not claim simulator execution completed, robot-trial success, or cleared rights.
-                Do not claim hosted-session fulfillment, payment success, or ready to deploy
-                unless the owning systems prove those facts for the request.
+                Blueprint can publish polished site data, scenario, policy-run structure,
+                sample packets, and request paths while keeping each claim tied to
+                owning system artifacts. Sim-only improvement does not by itself
+                prove deployment readiness.
               </p>
               <a
                 href={requestHref}

@@ -25,8 +25,8 @@ type PricingPlan = {
 const taskEvaluationHref =
   "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-review&requestedOutputs=Task%20Evaluation%20Run&source=pricing-task-evaluation";
 
-const dataPackageHref =
-  "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=post-training-data-package&path=data-package&requestedOutputs=Post-Training%20Data%20Package&source=pricing-post-training-data";
+const policyImprovementHref =
+  "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-improvement-run&path=policy-improvement-run&requestedOutputs=Policy%20Improvement%20Run&source=pricing-policy-improvement";
 
 const siteOperatorHref = "/contact/site-operator?source=pricing-site-operator-free";
 
@@ -55,28 +55,27 @@ const plans: PricingPlan[] = [
   },
   {
     icon: Database,
-    name: "Post-Training Data Package",
-    range: "From $25,000+",
+    name: "Policy Improvement Run",
+    range: "From $35,000 / run",
     description:
-      "Curated data to improve a robot policy after evaluation.",
+      "Improve a customer-supplied robot policy inside a sim-only workflow.",
     includes: [
-      "Curated robot POV clips",
-      "Scenario labels",
-      "Synthetic variations",
-      "Failure cases",
-      "Task metadata",
-      "Export format matched to the team's stack",
-      "QA notes and known limitations",
+      "Baseline evaluation and dominant failure-mode diagnosis",
+      "Twin and cousin scenario generation",
+      "Curriculum construction for the target task",
+      "Post-training of an adapter, task head, distilled skill, or complete policy",
+      "Sealed scenario test for candidate versions",
+      "Improved artifact and evidence report",
     ],
     useCases: [
-      "post-training",
-      "fine-tuning",
-      "regression testing",
+      "sim-only policy lift",
+      "customer-supplied policy improvement",
+      "adapter or task-head post-training",
       "failure recovery",
-      "site-specific model improvement",
+      "pilot-threshold preparation",
     ],
-    href: dataPackageHref,
-    cta: "Request Data Package",
+    href: policyImprovementHref,
+    cta: "Request Policy Improvement",
   },
 ];
 
@@ -90,12 +89,30 @@ const toteTransferExamples = [
   "recovery scenarios",
 ];
 
+const policyAccessModes = [
+  {
+    title: "Black-box evaluation",
+    body:
+      "Bring an API endpoint, container, private-cloud runner, sim plugin, or action traces. Blueprint runs the policy against task scenarios and reports baseline score, failures, cycle time, and intervention patterns. No source code required.",
+  },
+  {
+    title: "Closed-stack improvement support",
+    body:
+      "When Blueprint cannot edit the policy directly, we generate twin/cousin scenarios, failure clusters, curriculum, regression packs, and recommended training changes. Your team applies changes internally; Blueprint retests new versions.",
+  },
+  {
+    title: "Actual improved artifact",
+    body:
+      "Available when the team exposes a trainable surface: adapter hooks, task head, fine-tuning API, policy wrapper, controller layer, reward/training entrypoint, or approved distillation from rollouts.",
+  },
+];
+
 export default function Pricing() {
   return (
     <>
       <SEO
         title="Pricing | Blueprint"
-        description="Simple Blueprint pricing for robot teams: Task Evaluation Runs from $6,500 per run and Post-Training Data Packages from $25,000+. Site operators submit sites free."
+        description="Simple Blueprint pricing for robot teams: Task Evaluation Runs from $6,500 per run and Policy Improvement Runs from $35,000 per sim-only run. Site operators submit sites free."
         canonical="/pricing"
         image={`https://tryblueprint.io${humanoidReadinessAssets.hostedDashboard}`}
       />
@@ -117,7 +134,7 @@ export default function Pricing() {
             </h1>
             <p className="mt-6 max-w-2xl text-lg leading-8 text-white/78">
               Blueprint sells two robot-team products: Task Evaluation Runs and
-              Post-Training Data Packages. Site operators can submit sites for
+              Policy Improvement Runs. Site operators can submit sites for
               free.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -129,10 +146,10 @@ export default function Pricing() {
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </a>
               <a
-                href={dataPackageHref}
+                href={policyImprovementHref}
                 className="inline-flex min-h-12 items-center justify-center border border-white/30 px-5 text-sm font-semibold text-white transition hover:bg-white/10"
               >
-                Request Data Package
+                Request Policy Improvement
               </a>
             </div>
           </div>
@@ -212,6 +229,36 @@ export default function Pricing() {
                 </article>
               );
             })}
+          </div>
+        </section>
+
+        <section className="border-y border-black/10 bg-[#111110] px-4 py-14 text-white sm:px-6 lg:px-10">
+          <div className="mx-auto max-w-[88rem]">
+            <div className="grid gap-6 lg:grid-cols-[0.36fr_0.64fr]">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-normal text-[#d8bd8d]">
+                  Full-stack robot teams
+                </p>
+                <h2 className="mt-3 text-4xl font-semibold leading-tight">
+                  Source access is optional.
+                </h2>
+                <p className="mt-4 text-sm leading-7 text-white/72">
+                  Policy Improvement Runs work with customer-supplied policies
+                  through API, container, private runner, adapter, sim plugin,
+                  or action-trace workflows. Producing an improved artifact
+                  requires either a trainable interface or a customer-approved
+                  wrapper/adapter path.
+                </p>
+              </div>
+              <div className="grid gap-4 md:grid-cols-3">
+                {policyAccessModes.map((mode) => (
+                  <article key={mode.title} className="border border-white/15 bg-white/7 p-5">
+                    <h3 className="text-xl font-semibold">{mode.title}</h3>
+                    <p className="mt-4 text-sm leading-7 text-white/72">{mode.body}</p>
+                  </article>
+                ))}
+              </div>
+            </div>
           </div>
         </section>
 
@@ -301,9 +348,9 @@ export default function Pricing() {
                 Evaluation output is advisory.
               </h2>
               <p className="mt-4 max-w-4xl text-sm leading-7 text-white/74">
-                Deployment readiness still depends on simulator traces, action
-                logs, robot trials, safety review, rights clearance, and
-                site-specific approval.
+                Evaluation and improvement outputs stay scoped to simulator
+                traces, action logs, rights clearance, and site-specific package
+                artifacts. Sim-only improvement is not deployment approval.
               </p>
               <a
                 href="/proof"

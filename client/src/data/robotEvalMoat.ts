@@ -115,7 +115,7 @@ const coreArtifacts: RobotEvalMoatArtifact[] = [
     label: "Recorded trace eval report",
     fileName: "recorded_trace_eval_report.json",
     status: "advisory_only",
-    boundary: "Scores supplied traces without proving real robot execution.",
+    boundary: "Scores supplied traces without claiming completed policy execution.",
   },
   {
     id: "policy_eval_report",

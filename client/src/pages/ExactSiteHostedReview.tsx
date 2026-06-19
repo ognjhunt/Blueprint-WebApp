@@ -48,7 +48,7 @@ const categoryValidationRows = [
   {
     title: "Waymo validates counterfactual simulation for roads",
     body:
-      "Autonomous-driving world models show why teams want rare, long-tail, and replayable scenarios before real-world exposure.",
+      "Autonomous-driving world models show why teams want rare, long-tail, and replayable scenarios before committing more pilot budget.",
   },
   {
     title: "Blueprint owns the indoor readiness layer",
@@ -64,7 +64,7 @@ const packageLayers = [
   },
   {
     title: "World-model asset",
-    body: "Model artifacts and previews sit behind stable evaluation and data-package contracts; they inform readiness but do not become ground truth.",
+    body: "Model artifacts and previews sit behind stable evaluation and policy-improvement contracts; they inform readiness but do not become ground truth.",
   },
   {
     title: "Readiness report",
@@ -133,7 +133,7 @@ export default function ExactSiteHostedReview() {
     <>
       <SEO
         title="Product | Blueprint"
-        description="Blueprint turns indoor exact-site capture into Task Evaluation Runs, Post-Training Data Packages, advisory support assets, and pilot decision evidence for robot teams."
+        description="Blueprint turns indoor exact-site capture into Task Evaluation Runs, Policy Improvement Runs, advisory support assets, and pilot decision evidence for robot teams."
         canonical="/product"
         type="product"
         jsonLd={[
@@ -141,7 +141,7 @@ export default function ExactSiteHostedReview() {
             path: "/product",
             name: "Blueprint Product",
             description:
-              "Indoor exact-site capture, Task Evaluation Runs, Post-Training Data Packages, advisory support assets, and pilot decision evidence for robot teams.",
+              "Indoor exact-site capture, Task Evaluation Runs, Policy Improvement Runs, advisory support assets, and pilot decision evidence for robot teams.",
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },
@@ -149,11 +149,11 @@ export default function ExactSiteHostedReview() {
           ]),
           productJsonLd({
             path: "/product",
-            name: "Blueprint Site-Specific Robot Deployment Readiness",
+            name: "Blueprint Site-Specific Robot Evaluation Planning",
             description:
-              "A capture-backed product workflow for indoor exact-site evaluation runs, post-training data packages, generated support assets, and buyer decisions with proof attached.",
+              "A capture-backed product workflow for indoor exact-site evaluation runs, sim-only policy improvement runs, generated support assets, and buyer decisions with proof attached.",
             image: publicCaptureGeneratedAssets.hostedReviewPublicRoute,
-            category: "Site-specific robot deployment readiness platform",
+            category: "Site-specific robot evaluation planning platform",
             properties: [
               { name: "Capture basis", value: "Indoor exact-site capture with provenance metadata" },
               { name: "Readiness scope", value: "Task suite, robot profile, success-rate, cycle-time, intervention-rate, and safety thresholds" },
@@ -392,7 +392,7 @@ export default function ExactSiteHostedReview() {
                 A buyer room for readiness evidence, limits, and next steps.
               </h2>
               <p className="mt-5 max-w-[30rem] text-sm leading-7 text-[#5c5141]">
-                Hosted evaluation is the managed review layer between a listing and a pilot commitment. It turns the package into evidence a robot team can inspect without claiming the robot is ready to deploy.
+                Hosted evaluation is the managed review layer between a listing and a pilot commitment. It turns the package into evidence a robot team can inspect while keeping claims tied to package artifacts.
               </p>
               <a
                 href="/sample-deliverables"

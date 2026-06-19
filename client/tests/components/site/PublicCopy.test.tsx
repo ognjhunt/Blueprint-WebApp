@@ -46,7 +46,8 @@ describe("public real-site evaluation copy", () => {
     expect(screen.getAllByRole("link", { name: /^Proof$/i }).length).toBeGreaterThan(0);
     expect(container).toHaveTextContent(/Real-site robot evaluation/i);
     expect(container).toHaveTextContent(/Task Evaluation Run/i);
-    expect(container).toHaveTextContent(/Post-Training Data Package/i);
+    expect(container).toHaveTextContent(/Policy Improvement Run/i);
+    expect(container).toHaveTextContent(/Robot teams pay for Task Evaluation Runs and Policy Improvement Runs/i);
     expect(container).toHaveTextContent(/Site operators submit sites free/i);
     expect(container).toHaveTextContent(/success rate/i);
     expect(container).toHaveTextContent(/proof/i);
@@ -54,6 +55,7 @@ describe("public real-site evaluation copy", () => {
     expect(container).not.toHaveTextContent(/SimReady/i);
     expect(container).not.toHaveTextContent(/Scenario tests/i);
     expect(container).not.toHaveTextContent(/Site Data Package/i);
+    expect(container).not.toHaveTextContent(/optional data exports/i);
     expect(screen.queryByRole("link", { name: /^Environments$/i })).not.toBeInTheDocument();
     expect(container).not.toHaveTextContent(/decision memo/i);
 

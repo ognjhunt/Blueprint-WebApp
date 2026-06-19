@@ -1022,7 +1022,7 @@ function buildSchemas() {
           type: "object",
           additionalProperties: true,
           description:
-            "Submitted references are artifact pointers only and do not prove readiness, safety, real robot execution, simulator completion, rights clearance, or policy pass/fail outcome.",
+            "Submitted references are artifact pointers only and do not prove simulator completion, rights clearance, package access, or policy pass/fail outcome.",
         },
       },
     },

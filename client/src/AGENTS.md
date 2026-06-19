@@ -9,7 +9,7 @@ Agent discovery: use this file for `client/src/**` details, but root `AGENTS.md`
 Local conventions:
 
 - Start route work in `client/src/app/routes.tsx`.
-- Keep public copy capture-first and real-site robot-evaluation/data-package first. World-model, readiness, qualification, and review language should support the buyer workflow, not lead it.
+- Keep public copy capture-first and real-site robot-evaluation/policy-improvement first. World-model, readiness, qualification, and review language should support the buyer workflow, not lead it.
 - Treat Public Launch Ready and Operational Launch Ready as separate standards. Public Launch Ready is the default posture: public routes may look complete, premium, confident, present-tense, and service-ready even when live backend, provider, city-launch, rights, payment, payout, hosted-session, fulfillment, or support proof remains request-specific.
 - Before making a public page sound smaller or unfinished, ask: "does this sentence invent a specific unsupported fact?" If not, polish the product experience instead of turning operational incompleteness into first-screen apology copy.
 - Do not add broad apology, "not launched yet", "coming soon", "not ready", "we are still building", "future service", "placeholder", "demo only", or "operationally not ready" language because an operational lane still needs request-specific proof.

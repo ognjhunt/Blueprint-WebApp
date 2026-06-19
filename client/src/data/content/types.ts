@@ -220,7 +220,7 @@ export interface DatasetProvenance {
   releaseDate: string;
   lastUpdated: string;
   changelog?: string[];
-  dataSource: 'synthetic' | 'real-world' | 'hybrid';
+  dataSource: 'synthetic' | 'capture' | 'hybrid';
   generationMethod: string;
   qualityValidation: string[];
   knownLimitations: string[];

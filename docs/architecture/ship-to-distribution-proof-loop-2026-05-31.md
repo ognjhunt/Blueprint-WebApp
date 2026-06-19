@@ -138,7 +138,7 @@ type DraftDistributionPacket = {
     | "website_update"
     | "search_update"
     | "internal_summary";
-  wedge: "Site-Specific Robot Deployment Readiness" | "Exact-Site Hosted Review" | "Post-Training Data Package" | string;
+  wedge: "Site-Specific Robot Deployment Readiness" | "Exact-Site Hosted Review" | "Policy Improvement Run" | string;
   audience: string;
   sourceEvidence: string[];
   proofLinks: string[];

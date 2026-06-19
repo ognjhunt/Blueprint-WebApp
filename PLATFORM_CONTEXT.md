@@ -13,21 +13,23 @@
 ### System Framing
 
 - `BlueprintCapture` is the capture client and supply-side evidence collection tool.
-- `BlueprintCapturePipeline` turns capture bundles through the bridge and compatibility contracts into Site Cards, Task Cards, Scenario Cards, Eval Cards, Post-Training Data Package artifacts, generated/model-derived support assets, hosted-session artifacts, and proof boundaries.
-- `Blueprint-WebApp` is the buyer, licensing, ops, and hosted-access surface for Task Evaluation Runs and Post-Training Data Packages.
+- `BlueprintCapturePipeline` turns capture bundles through the bridge and compatibility contracts into Site Cards, Task Cards, Scenario Cards, Eval Cards, Policy Improvement Run artifacts, generated/model-derived support assets, hosted-session artifacts, and proof boundaries.
+- `Blueprint-WebApp` is the buyer, licensing, ops, and hosted-access surface for Task Evaluation Runs and Policy Improvement Runs.
 - `BlueprintValidation` remains optional downstream infrastructure for benchmarking, runtime checks, robot evaluation support, and specialized validation after the primary package or run is scoped.
 
-This platform is capture-first and real-site robot-evaluation/data-package first.
+This platform is capture-first and real-site robot-evaluation/policy-improvement first.
 The bridge materialization contract and GPU compatibility contract are downstream compatibility layers, not sources of capture truth.
-World models, site-world routes, simulation outputs, generated media, editing assets, and model-derived artifacts are allowed as internal compatibility names or support artifacts inside data packages. They are not the primary public offer.
+World models, site-world routes, simulation outputs, generated media, editing assets, and model-derived artifacts are allowed as internal compatibility names or support artifacts inside evaluation and improvement runs. They are not the primary public offer.
 
 ### 2026-06-05 WebApp Commercial Wedge Overlay
 
-`Blueprint-WebApp` may lead its public buyer narrative with the current wedge: **real-site robot evaluation runs and post-training data packages**.
+`Blueprint-WebApp` may lead its public buyer narrative with the current wedge: **real-site robot evaluation runs and sim-only policy improvement runs**.
 
-That public wedge answers two narrow buyer questions: how a robot policy performs against a real-site task before expensive field time, and what curated real-site/generated support data the robot team needs after evaluation to improve the model.
+That public wedge answers two narrow buyer questions: how a robot policy performs against a real-site task before expensive field time, and whether Blueprint can improve that customer-supplied policy inside simulation to move closer to required success and cycle-time thresholds.
 
-This overlay does not make Blueprint qualification-first, readiness-first, or model-checkpoint-first. Task Evaluation Runs and Post-Training Data Packages are commercial buyer workflows built on capture-grounded site packages, task scope, robot profiles, provenance, rights/privacy boundaries, hosted review, and explicit missing-proof labels. A request-scoped advisory can be sold confidently as a product category; a claim that a robot is ready to deploy, safety validated, simulator-completed, or guaranteed to hit thresholds still requires request-scoped owner-system proof.
+This overlay does not make Blueprint qualification-first, readiness-first, or model-checkpoint-first. Task Evaluation Runs and Policy Improvement Runs are commercial buyer workflows built on capture-grounded site packages, task scope, robot profiles, customer-supplied policy access, provenance, rights/privacy boundaries, hosted review, and explicit missing-proof labels. A request-scoped advisory can be sold confidently as a product category; a claim that a robot is ready to deploy, safety validated, simulator-completed, or guaranteed to hit thresholds still requires request-scoped owner-system proof.
+
+Policy Improvement Runs must be source-access optional for full-stack robot teams. Blueprint may support black-box evaluation through an API endpoint, container, private-cloud runner, sim plugin, or action traces; closed-stack improvement support through failure clusters, twin/cousin scenarios, curriculum, regression packs, and recommended training changes; and improved artifacts only when the customer exposes a trainable surface such as adapter hooks, a task head, fine-tuning API, policy wrapper, controller layer, reward/training entrypoint, or approved distillation path. Do not promise that Blueprint directly edits or delivers an improved policy artifact when the customer only provides a black-box runner.
 
 ### Product Center of Gravity
 
@@ -36,7 +38,7 @@ The center of gravity is:
 - broad real-world capture coverage
 - strong capture quality and provenance
 - real-site Task Evaluation Runs for robot teams
-- Post-Training Data Packages with curated robot POV clips, labels, generated/model-derived variations, failure cases, task metadata, QA notes, and export manifests
+- Policy Improvement Runs with baseline evaluation, dominant failure-mode diagnosis, twin/cousin scenarios, curriculum generation, candidate policy improvement, sealed scenario tests, improved artifacts, and evidence reports
 - hosted access for request-scoped review
 - rights, privacy, and commercialization controls
 - buyer-facing product surfaces that make real sites easy to browse, buy, run, and manage
@@ -56,7 +58,7 @@ The center of gravity is not:
 The core business engine is two-sided:
 
 - **Capturers** supply real-site evidence packages.
-- **Robot teams** buy Task Evaluation Runs and Post-Training Data Packages.
+- **Robot teams** buy Task Evaluation Runs and Policy Improvement Runs.
 
 `Site operators` remain important, but they are an optional third lane for:
 
@@ -71,7 +73,7 @@ The platform must support lawful capture and packaging even when a site has not 
 - raw capture, timestamps, poses, device metadata, and provenance are authoritative
 - rights / privacy / consent metadata are authoritative
 - Site Cards, Task Cards, Scenario Cards, Eval Cards, package manifests, generated/model-derived support assets, and hosted-session artifacts are downstream artifacts with explicit proof boundaries
-- Task Evaluation Runs and Post-Training Data Packages are the primary sellable downstream products
+- Task Evaluation Runs and Policy Improvement Runs are the primary sellable downstream products
 - qualification / readiness / review outputs can guide buying, commercialization, and deployment decisions, but they must not override capture truth
 - downstream outputs must not rewrite capture truth or provenance truth
 
@@ -79,7 +81,7 @@ The platform must support lawful capture and packaging even when a site has not 
 
 1. primary product: capture supply and real-site coverage
 2. buyer product: Task Evaluation Runs
-3. buyer product: Post-Training Data Packages
+3. buyer product: Policy Improvement Runs
 4. support layer: hosted review, generated/model-derived data, simulation, editing, augmentation, and world-model compatibility artifacts
 5. downstream support: validation, deeper benchmarking, managed tuning, licensing, and deployment support
 
@@ -87,8 +89,8 @@ The platform must support lawful capture and packaging even when a site has not 
 
 1. A capture is sourced proactively or through a buyer / site / ops request.
 2. `BlueprintCapture` records and uploads a truthful evidence bundle.
-3. `BlueprintCapturePipeline` materializes site/task/scenario/eval artifacts, post-training data artifacts, hosted artifacts, generated/model-derived support assets, and optional trust outputs.
-4. `Blueprint-WebApp` exposes Task Evaluation Runs, Post-Training Data Packages, and those proof-bound artifacts through buyer, ops, licensing, and hosted-session surfaces.
+3. `BlueprintCapturePipeline` materializes site/task/scenario/eval artifacts, policy-improvement artifacts, hosted artifacts, generated/model-derived support assets, and optional trust outputs.
+4. `Blueprint-WebApp` exposes Task Evaluation Runs, Policy Improvement Runs, and those proof-bound artifacts through buyer, ops, licensing, and hosted-session surfaces.
 5. Optional world-model, simulation, deeper evaluation, validation, or managed support follows only when commercially useful and proof-bounded.
 
 ### Practical Rule For Agents
@@ -96,7 +98,7 @@ The platform must support lawful capture and packaging even when a site has not 
 When changing any Blueprint repo, optimize for:
 
 1. stronger real-site capture supply
-2. better Task Evaluation Runs and Post-Training Data Packages
+2. better Task Evaluation Runs and Policy Improvement Runs
 3. stable rights / privacy / provenance contracts
 4. buyer and ops surfaces that make those outputs easy to sell and use
 5. optional trust, readiness, world-model, simulation, generated-data, and validation layers that support the product without becoming the product story

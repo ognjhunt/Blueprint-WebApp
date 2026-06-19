@@ -1297,7 +1297,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
     },
     {
       key: "training",
-      title: "Post-Training Prep",
+      title: "Policy Improvement Prep",
       label: datasetRlds?.manifestUri ? "Artifact-backed" : requestedOutputs.includes("export_bundle") ? "Requested" : "Pending",
       tone: datasetRlds?.manifestUri ? "artifact" as const : requestedOutputs.includes("export_bundle") ? "ready" as const : "pending" as const,
       body: datasetRlds?.manifestUri

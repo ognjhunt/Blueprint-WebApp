@@ -1,9 +1,9 @@
 # San Jose, CA CITY+BUDGET 72h GTM Contract
 
 - status: deterministic launch contract
-- doctrine: capture-first, real-site robot-evaluation/data-package first, proof-led GTM only
+- doctrine: capture-first, real-site robot-evaluation/policy-improvement first, proof-led GTM only
 - city: San Jose, CA
-- launch_run_id: 2026-06-15T04-31-17.343Z
+- launch_run_id: 2026-06-19T01-05-36.177Z
 - budget_tier: zero_budget
 - budget_max_usd: 0
 - founder_approved: true
@@ -26,9 +26,9 @@
 ## 24/48/72h Scorecard Windows
 | Checkpoint | Status | Window end | Run artifact | Canonical artifact |
 | --- | --- | --- | --- | --- |
-| 24h | scheduled_not_due | 2026-06-16T04:31:17.343Z | /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/proof-gated-buyer-launch-harness-b12zYY/san-jose-ca/2026-06-15T04-31-17.343Z/city-launch-san-jose-ca-scorecard-24h.md | /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-san-jose-ca-scorecard-24h.md |
-| 48h | scheduled_not_due | 2026-06-17T04:31:17.343Z | /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/proof-gated-buyer-launch-harness-b12zYY/san-jose-ca/2026-06-15T04-31-17.343Z/city-launch-san-jose-ca-scorecard-48h.md | /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-san-jose-ca-scorecard-48h.md |
-| 72h | scheduled_not_due | 2026-06-18T04:31:17.343Z | /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/proof-gated-buyer-launch-harness-b12zYY/san-jose-ca/2026-06-15T04-31-17.343Z/city-launch-san-jose-ca-scorecard-72h.md | /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-san-jose-ca-scorecard-72h.md |
+| 24h | scheduled_not_due | 2026-06-20T01:05:36.177Z | /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/proof-gated-buyer-launch-harness-P4yjYs/san-jose-ca/2026-06-19T01-05-36.177Z/city-launch-san-jose-ca-scorecard-24h.md | /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-san-jose-ca-scorecard-24h.md |
+| 48h | scheduled_not_due | 2026-06-21T01:05:36.177Z | /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/proof-gated-buyer-launch-harness-P4yjYs/san-jose-ca/2026-06-19T01-05-36.177Z/city-launch-san-jose-ca-scorecard-48h.md | /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-san-jose-ca-scorecard-48h.md |
+| 72h | scheduled_not_due | 2026-06-22T01:05:36.177Z | /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/proof-gated-buyer-launch-harness-P4yjYs/san-jose-ca/2026-06-19T01-05-36.177Z/city-launch-san-jose-ca-scorecard-72h.md | /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-san-jose-ca-scorecard-72h.md |
 
 ## Firestore/Admin Evidence Sources
 | Collection | Query name | Query | Purpose |

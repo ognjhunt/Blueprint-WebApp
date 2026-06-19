@@ -131,9 +131,9 @@ describe("PilotExchange", () => {
     render(<PilotExchange />);
 
     expect(screen.getByRole("heading", { name: /Pay for the job you need\./i })).toBeInTheDocument();
-    expect(screen.getAllByText(/Task Evaluation Runs or Post-Training Data Packages/i).length).toBeGreaterThan(0);
-    expect(screen.getByRole("heading", { name: /^Post-Training Data Package$/i })).toBeInTheDocument();
-    expect(screen.getByText(/Request curated robot POV clips/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Task Evaluation Runs or Policy Improvement Runs/i).length).toBeGreaterThan(0);
+    expect(screen.getByRole("heading", { name: /^Policy Improvement Run$/i })).toBeInTheDocument();
+    expect(screen.getByText(/Improve a customer-supplied policy/i)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Task Evaluation Run/i })).toBeInTheDocument();
     expect(screen.getByText(/Site operators participate for free\./i)).toBeInTheDocument();
 

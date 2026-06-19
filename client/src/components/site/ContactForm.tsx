@@ -162,11 +162,11 @@ function successCopy(commercialRequestPath: CommercialRequestPath) {
 
   if (commercialRequestPath === "world_model") {
     return {
-      title: "Post-Training Data Package request received",
+      title: "Policy Improvement Run request received",
       body:
-        "Blueprint has the site, task, data, and export context needed to recommend a package scope and proof boundary.",
+        "Blueprint has the site, task, robot, policy, threshold, and access context needed to recommend a sim-only improvement scope and proof boundary.",
       next:
-        "Blueprint reviews capture fit, rights posture, included clips and labels, generated variations, export format, and pricing before package work starts.",
+        "Blueprint reviews baseline evaluation fit, policy access method, candidate improvement scope, sealed scenario testing, rights posture, export format, and pricing before improvement work starts.",
     };
   }
 
@@ -930,7 +930,7 @@ export function ContactForm() {
             : persona === "site_operator"
               ? "Submit site free"
               : isDataPackageRequest
-                ? "Request data package"
+                ? "Request policy improvement"
               : "Request evaluation"}
           <ArrowRight className="ml-2 h-4 w-4" />
         </button>

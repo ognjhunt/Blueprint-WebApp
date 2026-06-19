@@ -26,7 +26,7 @@ const useCases = [
   },
   {
     title: "Inspection routes and equipment checks",
-    body: "Scope gauge, valve, equipment-state, and route-inspection evidence without turning visual plausibility into safety validation.",
+    body: "Scope gauge, valve, equipment-state, and route-inspection evidence for evaluation datasets.",
     image: editorialGeneratedAssets.warehouseAisle,
   },
 ];
@@ -94,14 +94,14 @@ export default function ForRobotIntegrators() {
     <>
       <SEO
         title="For Robot Teams | Blueprint"
-        description="Blueprint helps robot teams evaluate site-specific deployment readiness before a costly pilot with capture-backed site packages, readiness reports, and hosted review."
+        description="Blueprint helps robot teams evaluate site/task fit before a costly pilot with capture-backed site packages, evaluation reports, and hosted review."
         canonical="/for-robot-teams"
         jsonLd={[
           webPageJsonLd({
             path: "/for-robot-teams",
             name: "Blueprint for Robot Teams",
             description:
-              "How robotics teams use Blueprint for pre-sales and pre-deployment readiness evaluation, capture-backed site packages, policy evaluation sets, and evidence-gated deployment decisions.",
+              "How robotics teams use Blueprint for pre-sales site/task evaluation, capture-backed site packages, policy evaluation sets, and evidence-gated pilot planning.",
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },
@@ -125,11 +125,11 @@ export default function ForRobotIntegrators() {
               <div className="mx-auto grid h-full max-w-[88rem] gap-10 px-5 py-12 sm:px-8 lg:grid-cols-[0.62fr_0.38fr] lg:px-10 lg:py-16">
                 <div className="flex min-h-[32rem] flex-col justify-end">
                 <EditorialSectionLabel light>For Robot Teams</EditorialSectionLabel>
-                <h1 className="font-editorial mt-6 max-w-[34rem] text-[3.7rem] leading-[0.9] tracking-[-0.06em] text-white sm:text-[5rem]">
-                  Evaluate robot deployment readiness on the real indoor site.
+                <h1 className="font-editorial mt-6 max-w-[38rem] text-[3.35rem] leading-[0.92] tracking-[-0.06em] text-white sm:text-[4.7rem]">
+                  We help robot teams safely adapt foundation policies to real customer sites.
                 </h1>
                 <p className="mt-6 max-w-[30rem] text-base leading-8 text-white/70">
-                  Before a long pilot, Blueprint helps you test the site/task question: required success rate, cycle time, intervention rate, and safety threshold on the actual facility workflow. Capture and provenance stay attached; ready-to-deploy claims stay blocked until owner proof exists.
+                  Before a long pilot, Blueprint helps you frame the site/task question: required success rate, cycle time, intervention rate, and evidence gaps on the facility workflow. Capture and provenance stay attached to the package.
                 </p>
                 <div className="mt-8 flex flex-wrap gap-2">
                   <ProofChip light>Indoor exact sites</ProofChip>
@@ -252,7 +252,7 @@ export default function ForRobotIntegrators() {
 	                light
 	              />
               <p className="mt-8 text-sm leading-7 text-white/70">
-                This path works well for policy fine-tuning, training data generation, release comparison, and policy evaluation sets. It does not replace final on-site safety validation, stack-specific signoff, or live deployment proof.
+                This path works well for policy fine-tuning, training data generation, release comparison, and policy evaluation sets built from site/task evidence.
               </p>
             </div>
             <div className="bg-[#f5f3ef] px-6 py-8 lg:px-8 lg:py-10">

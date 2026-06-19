@@ -22,10 +22,10 @@ const robotNextSteps = [
 ];
 
 const dataPackageNextSteps = [
-  "We review the site/task and data need.",
-  "We confirm capture provenance, rights posture, and export boundary.",
-  "We recommend included clips, labels, generated variations, and package scope.",
-  "You approve pricing and access terms before package work starts.",
+  "We review the supplied policy, robot embodiment, task, and thresholds.",
+  "We confirm the sim-only scope, policy access method, and evidence boundary.",
+  "We recommend the baseline eval, curriculum, candidate count, and sealed-test plan.",
+  "You approve pricing and access terms before improvement work starts.",
 ];
 
 const operatorNextSteps = [
@@ -50,7 +50,7 @@ function PersonaSwitch({ activePersona }: { activePersona: ContactPersona }) {
       persona: "robot_team" as const,
       href: "/contact/robot-team#contact-intake",
       title: "Robot teams",
-      body: "Request an evaluation or data package.",
+      body: "Request an evaluation or policy improvement run.",
       Icon: Bot,
     },
     {
@@ -153,11 +153,17 @@ function ExplainerCard({
       <aside className="border border-black/10 bg-white p-5">
         <ClipboardCheck className="h-5 w-5 text-slate-950" />
         <p className="mt-4 text-sm font-semibold text-slate-950">
-          A Post-Training Data Package means:
+          A Policy Improvement Run means:
         </p>
         <p className="mt-2 text-sm leading-6 text-slate-600">
-          Curated robot POV clips, labels, generated variations, failure cases,
-          and export manifests tied to real-site proof boundaries.
+          Baseline evaluation, failure diagnosis, twin and cousin scenarios,
+          curriculum generation, sim-only post-training, sealed testing, and an
+          evidence report.
+        </p>
+        <p className="mt-3 text-sm leading-6 text-slate-600">
+          Source access is optional. Full-stack teams can use an API endpoint,
+          container, private runner, sim plugin, or action traces; improved
+          artifacts require a trainable interface or approved wrapper path.
         </p>
       </aside>
     );
@@ -226,17 +232,17 @@ export default function Contact() {
   const headline = isSiteOperator
     ? "Submit a Site for Robot Evaluation."
     : isDataPackage
-      ? "Request a Post-Training Data Package."
+      ? "Request a Policy Improvement Run."
     : "Request a Task Evaluation Run.";
   const subhead = isSiteOperator
     ? "Share a facility that robot teams can evaluate against. Participation is free, and you control access boundaries."
     : isDataPackage
-      ? "Scope curated real-site data, generated variations, failure cases, labels, and export manifests for robot model improvement."
+      ? "Scope a sim-only run around a customer-supplied policy. Source access is optional; improved artifacts require a trainable interface or approved wrapper path."
     : "Test one robot policy or profile against a real-site task pack before field time.";
   const intro = isSiteOperator
     ? "Tell us what the site is, where it is, and what access/privacy limits apply. We will review whether it fits the Blueprint site library."
     : isDataPackage
-      ? "Tell us the site type, task, output format, and post-training need. We will reply with the recommended package scope, proof boundary, and next step."
+      ? "Tell us the site type, robot embodiment, action interface, target task, policy access method, and success or cycle-time threshold. We will reply with the recommended sim-only scope and evidence boundary."
     : "Tell us the site type, task, and threshold that matters. We will reply with the recommended scope, scenario count, and next proof step.";
 
   return (
@@ -246,14 +252,14 @@ export default function Contact() {
           isSiteOperator
             ? "Submit a Site for Robot Evaluation | Blueprint"
             : isDataPackage
-              ? "Request a Post-Training Data Package | Blueprint"
+              ? "Request a Policy Improvement Run | Blueprint"
             : "Request a Task Evaluation Run | Blueprint"
         }
         description={
           isSiteOperator
             ? "Submit a facility to Blueprint for free robot-evaluation review with access, privacy, and commercialization boundaries."
             : isDataPackage
-              ? "Request a Blueprint Post-Training Data Package with curated real-site clips, labels, generated variations, failure cases, and export manifests."
+              ? "Request a Blueprint Policy Improvement Run for sim-only baseline evaluation, failure diagnosis, policy improvement, sealed testing, and an evidence report."
             : "Request a Blueprint Task Evaluation Run for one robot policy, real-site task pack, and scenario scope."
         }
         canonical={isSiteOperator ? "/contact/site-operator" : "/contact/robot-team"}
@@ -286,7 +292,7 @@ export default function Contact() {
                 {isSiteOperator
                   ? "Submit site free"
                   : isDataPackage
-                    ? "Request data package"
+                    ? "Request policy improvement"
                     : "Request evaluation"}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </a>
@@ -305,14 +311,14 @@ export default function Contact() {
                 {isSiteOperator
                   ? "Free site submission"
                   : isDataPackage
-                    ? "Post-Training Data Package"
+                    ? "Policy Improvement Run"
                     : "Task Evaluation Run"}
               </div>
               <h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-slate-950">
                 {isSiteOperator
                   ? "Set the site boundary."
                   : isDataPackage
-                    ? "Send the data package request."
+                    ? "Send the policy improvement request."
                     : "Send the evaluation request."}
               </h2>
             </div>

@@ -225,7 +225,7 @@ function HelpHome() {
               Help Center
             </h1>
             <p className="mt-7 max-w-[38rem] text-base leading-8 text-white/72">
-              Find the right route for evaluation runs, post-training data packages, capture
+              Find the right route for evaluation runs, policy improvement, capture
               provenance, billing, access, and runtime issues.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">

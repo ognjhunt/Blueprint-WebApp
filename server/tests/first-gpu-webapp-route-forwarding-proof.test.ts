@@ -188,6 +188,17 @@ describe("first-GPU WebApp route forwarding proof runner", () => {
           scenario_ids: ["scenario_first_gpu_walkthrough_2_humanoid_dual_camera_v1"],
         }),
       ]);
+      expect((forwardedRequest.source as Record<string, unknown>).selection_state).toEqual(
+        expect.objectContaining({
+          dataset_selection: expect.objectContaining({
+            source: "pipeline_robot_eval_dataset_cards",
+            taskId: "first-gpu-walkthrough-2",
+            scenarioId: "scenario_first_gpu_walkthrough_2_humanoid_dual_camera_v1",
+            taskCardCount: 1,
+            scenarioCardCount: 2,
+          }),
+        }),
+      );
       expect(forwardedRequest.local_rehearsal_only).not.toBe(true);
 
       const proof = JSON.parse(await fs.readFile(outputPath, "utf8"));
@@ -197,14 +208,24 @@ describe("first-GPU WebApp route forwarding proof runner", () => {
           status: "forwarded_to_pipeline_intake",
         }),
       );
-      expect(proof.webapp_route).toEqual(
-        expect.objectContaining({
-          local_http_route_exercised: true,
-          http_status: 202,
-          route_submission_proven: true,
-          full_production_webapp_deployment_proven: false,
-        }),
-      );
+    expect(proof.webapp_route).toEqual(
+      expect.objectContaining({
+        local_http_route_exercised: true,
+        http_status: 202,
+        route_submission_proven: true,
+        full_production_webapp_deployment_proven: false,
+      }),
+    );
+    expect(proof.forwarding_endpoint).toEqual(
+      expect.objectContaining({
+        endpoint_configured: true,
+        endpoint_url: `http://127.0.0.1:${port}/api/live-pipeline/job-requests`,
+        endpoint_url_source: "local_script_forward_url",
+        required: true,
+        token_redacted: true,
+      }),
+    );
+    expect(JSON.stringify(proof)).not.toContain("test-forward-token");
       expect(proof.job_request).toEqual(
         expect.objectContaining({
           buyer_request_id: "buyer-request-route-proof-20260611",
@@ -281,6 +302,21 @@ describe("first-GPU WebApp route forwarding proof runner", () => {
         {
           scene_id: "first-gpu-walkthrough-2",
           capture_id: "downloads-walkthrough2-20260611",
+          privacy_status: "full_frame_redacted_local_proof",
+          metadata: {
+            capture_rights: {
+              consent_status: "documented",
+              permission_document_uri: "owner://approval/first-gpu-route-proof",
+              consent_scope: [
+                "isolated_owner_gpu_smoke",
+                "mujoco_g1_simulator_evaluation_for_this_staged_capture",
+              ],
+            },
+            worldlabs_input_audit: {
+              privacy_safe_input: true,
+              raw_video_bypass_used: false,
+            },
+          },
         },
         null,
         2,
@@ -367,10 +403,20 @@ describe("first-GPU WebApp route forwarding proof runner", () => {
       expect(received).toHaveLength(1);
       const forwardedRequest = (received[0].job_request as Record<string, unknown>);
       const sitePackage = forwardedRequest.site_package as Record<string, unknown>;
+      const rightsPrivacyScope = forwardedRequest.rights_privacy_scope as Record<string, unknown>;
       expect(forwardedRequest.source_kind).toBe("owner_agent_codex_request");
       expect(forwardedRequest.buyer_request_id).toMatch(/^owner-agent-buyer-first-gpu-walkthrough-2-/);
       expect(sitePackage.site_submission_id).toMatch(/^owner-agent-site-first-gpu-walkthrough-2-/);
       expect(sitePackage.capture_job_id).toMatch(/^owner-agent-capture-first-gpu-walkthrough-2-/);
+      expect(rightsPrivacyScope).toEqual(
+        expect.objectContaining({
+          status: "cleared_for_robot_eval",
+          external_use_allowed: true,
+          source: "capture_descriptor.metadata.capture_rights",
+          scope_limited_to_simulator_eval: true,
+          public_claim_upgrade_allowed: false,
+        }),
+      );
       expect(forwardedRequest.world_model_context).toEqual(
         expect.objectContaining({
           world_id: "97b00832-7418-4d73-b58f-9b72e6b47562",
@@ -403,6 +449,8 @@ describe("first-GPU WebApp route forwarding proof runner", () => {
         pipelineForward: {
           status: "forwarded",
           performed: true,
+          endpoint_configured: true,
+          required: true,
           accepted: true,
           pipeline_status: "staged_for_control_plane",
           input_blockers: [],
@@ -484,13 +532,22 @@ describe("first-GPU WebApp route forwarding proof runner", () => {
       const request = received[0].body as Record<string, unknown>;
       expect(request.source_kind).toBe("owner_agent_codex_request");
       const proof = JSON.parse(await fs.readFile(outputPath, "utf8"));
-      expect(proof.webapp_route).toEqual(
-        expect.objectContaining({
-          local_http_route_exercised: false,
-          full_production_webapp_deployment_proven: true,
-          remote_webapp_url: `http://127.0.0.1:${port}`,
-        }),
-      );
+    expect(proof.webapp_route).toEqual(
+      expect.objectContaining({
+        local_http_route_exercised: false,
+        full_production_webapp_deployment_proven: true,
+        remote_webapp_url: `http://127.0.0.1:${port}`,
+      }),
+    );
+    expect(proof.forwarding_endpoint).toEqual(
+      expect.objectContaining({
+        endpoint_configured: true,
+        endpoint_url: null,
+        endpoint_url_source: "remote_webapp_runtime_not_exposed",
+        required: true,
+        token_redacted: true,
+      }),
+    );
       expect(proof.proof_boundary).toEqual(
         expect.objectContaining({
           local_webapp_route_forwarding_proven: false,

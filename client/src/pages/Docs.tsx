@@ -15,7 +15,7 @@ const sections = [
   {
     title: "Site package contents",
     body:
-      "The site package gives your team the capture-grounded material needed for evaluation, post-training data work, or your own internal model stack on that facility.",
+      "The site package gives your team the capture-grounded material needed for evaluation, policy improvement, or your own internal model stack on that facility.",
     bullets: [
       "Walkthrough video, timestamps, and camera poses tied to one real facility",
       "Intrinsics, depth, and geometry files when the source capture supports them",

@@ -6,7 +6,7 @@ export const captureGroundedPublicCopy = {
   groundTruthDefinition:
     "Ground truth means raw capture evidence, timestamps, poses, device metadata, rights and privacy records, provenance, and package artifacts or runtime artifacts when they exist.",
   supportSignalBoundary:
-    "Samples, generated previews, dry-run commerce, catalog matches, and request drafts are support signals. They do not prove customer results, rights clearance, provider execution, payment, package access, hosted fulfillment, an operational deployment verdict, safety validation, guaranteed threshold performance, or city-live coverage.",
+    "Samples, generated previews, dry-run commerce, catalog matches, and request drafts are support signals. They do not prove customer results, rights clearance, provider execution, payment, package access, hosted fulfillment, an operational deployment verdict, guaranteed threshold performance, or city-live coverage.",
   publicLaunchReadyBoundary:
     "Public pages can stay polished and present-tense while live availability, rights, payment, provider execution, package access, and fulfillment remain confirmed per site/request.",
   requestBoundary:
@@ -14,7 +14,7 @@ export const captureGroundedPublicCopy = {
   catalogBoundary:
     "Catalog copy can help buyers compare sample, planned, and access-reviewed listings, but operational truth stays with capture provenance, rights/privacy records, package artifacts, runtime evidence, and request review.",
   apiSafety:
-    "This endpoint only returns public, non-sensitive summaries. Do not infer customer results, ratings, prices, live payment state, package availability, hosted fulfillment, rights state, capture provenance, provider execution, robot deployment readiness verdicts, safety validation, threshold guarantees, or deployment proof beyond owner-system evidence.",
+    "This endpoint only returns public, non-sensitive summaries. Do not infer customer results, ratings, prices, live payment state, package availability, hosted fulfillment, rights state, capture provenance, provider execution, threshold guarantees, or package proof beyond owner-system evidence.",
 };
 
 export const captureGroundedRequiredSignals = [
@@ -35,7 +35,6 @@ export const captureGroundedBlockedClaims = [
   "package access",
   "hosted fulfillment",
   "operational deployment verdict",
-  "safety validation",
   "guaranteed threshold performance",
   "city-live coverage",
 ];

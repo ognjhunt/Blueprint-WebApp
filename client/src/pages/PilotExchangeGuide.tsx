@@ -131,7 +131,7 @@ export default function PilotExchangeGuide() {
     <>
       <SEO
         title="Site Opportunities Guide"
-        description="Beginner guide to how Blueprint turns real captured sites into buyer-facing robot evaluation and post-training data-package opportunities."
+        description="Beginner guide to how Blueprint turns real captured sites into buyer-facing robot evaluation and sim-only policy improvement opportunities."
         canonical="/qualified-opportunities-guide"
       />
       <div className="relative min-h-screen bg-white text-zinc-900 font-sans selection:bg-zinc-200 selection:text-zinc-900">
@@ -188,8 +188,8 @@ export default function PilotExchangeGuide() {
               </h2>
               <ul className="space-y-3 text-zinc-600">
                 <li className="flex gap-3"><span className="text-zinc-300 mt-1">•</span> A 100% guarantee of production success.</li>
-                <li className="flex gap-3"><span className="text-zinc-300 mt-1">•</span> A replacement for physical safety validation (SAT).</li>
-                <li className="flex gap-3"><span className="text-zinc-300 mt-1">•</span> A magical shortcut that bypasses real-world edge cases.</li>
+                <li className="flex gap-3"><span className="text-zinc-300 mt-1">•</span> A replacement for your own release process.</li>
+                <li className="flex gap-3"><span className="text-zinc-300 mt-1">•</span> A shortcut that replaces scenario review and package inspection.</li>
               </ul>
             </div>
           </section>

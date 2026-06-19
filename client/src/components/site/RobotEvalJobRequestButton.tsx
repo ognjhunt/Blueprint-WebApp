@@ -244,7 +244,7 @@ export function RobotEvalJobRequestPanel({
               <div>
                 <p className="font-semibold text-slate-950">Scope: simulator only</p>
                 <p className="mt-1 text-xs leading-5 text-slate-600">
-                  No physical deployment, safety validation, or physical robot evidence is claimed by this WebApp request.
+                  This request only builds and forwards the simulator evaluation packet for Pipeline execution.
                 </p>
               </div>
             </div>

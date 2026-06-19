@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   auditRobotEvalForwardingReadiness,
+  parseRobotEvalForwardingEnvFile,
   writeRobotEvalForwardingReadinessReport,
 } from "../../scripts/pipeline/audit-robot-eval-forwarding-readiness";
 
@@ -95,6 +96,56 @@ describe("robot-eval forwarding readiness preflight", () => {
       configured: false,
       redacted: true,
     });
+  });
+
+  it("parses dotenv-style forwarding env files without leaking token values", async () => {
+    const parsed = parseRobotEvalForwardingEnvFile(
+      [
+        "ROBOT_EVAL_JOB_REQUEST_FORWARD_URL=https://pipeline.example/api/live-pipeline/job-requests",
+        'ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN="test-forward-token"',
+        "ROBOT_EVAL_JOB_REQUEST_FORWARD_REQUIRED=true",
+        "not a valid env line",
+      ].join("\n"),
+      "test.env",
+    );
+
+    const report = await auditRobotEvalForwardingReadiness({
+      env: parsed.env,
+      warnings: parsed.warnings,
+    });
+
+    expect(report.status).toBe("ready_for_required_forwarding");
+    expect(report.warnings).toContain("test.env:4:ignored_malformed_env_line");
+    expect(report.configured_env.forward_token).toEqual({
+      configured: true,
+      redacted: true,
+    });
+    expect(JSON.stringify(report)).not.toContain("test-forward-token");
+  });
+
+  it("normalizes copied line-number prefixes before parsing forwarding env files", async () => {
+    const parsed = parseRobotEvalForwardingEnvFile(
+      [
+        "1|1|ROBOT_EVAL_JOB_REQUEST_FORWARD_URL=https://pipeline.example/api/live-pipeline/job-requests",
+        '2|2|ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN="test-forward-token"',
+        "3|3|ROBOT_EVAL_JOB_REQUEST_FORWARD_REQUIRED=true",
+      ].join("\n"),
+      "numbered.env",
+    );
+
+    const report = await auditRobotEvalForwardingReadiness({
+      env: parsed.env,
+      warnings: parsed.warnings,
+    });
+
+    expect(parsed.warnings).toEqual([]);
+    expect(report.status).toBe("ready_for_required_forwarding");
+    expect(report.warnings).toContain("capture_root_override_not_configured");
+    expect(report.configured_env.forward_token).toEqual({
+      configured: true,
+      redacted: true,
+    });
+    expect(JSON.stringify(report)).not.toContain("test-forward-token");
   });
 
   it("fails closed instead of throwing when an intake probe is requested without config", async () => {
