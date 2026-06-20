@@ -179,7 +179,8 @@ describe("Sites", () => {
         mode: "simulator_only",
         robot: "Unitree G1",
         simulator: "MuJoCo",
-        provider_strategy: "Blueprint chooses fastest/cheapest available simulator worker",
+        customer_label: "WAM/VLA policy evaluation with internal MuJoCo adapter",
+        provider_strategy: "Blueprint pipeline selects the replaceable WAM/VLA evaluator backend",
         physical_robot_deployment_claim_allowed: false,
       }),
     );

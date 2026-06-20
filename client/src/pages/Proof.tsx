@@ -1,6 +1,11 @@
 import { SEO } from "@/components/SEO";
 import { humanoidReadinessAssets } from "@/lib/editorialGeneratedAssets";
 import {
+  breadcrumbJsonLd,
+  faqJsonLd,
+  webPageJsonLd,
+} from "@/lib/seoStructuredData";
+import {
   ArrowRight,
   Cpu,
   Database,
@@ -20,7 +25,7 @@ type ProofItem = {
 };
 
 const requestHref =
-  "/contact?persona=robot-team&buyerType=robot_team&interest=policy-improvement-run&path=policy-improvement-run&requestedOutputs=Policy%20Improvement%20Run%20proof%20packet&source=proof-kiss";
+  "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-improvement-run&path=policy-improvement-run&requestedOutputs=Policy%20Improvement%20Run%20proof%20packet&source=proof";
 
 const sampleVsRequest = [
   {
@@ -79,10 +84,39 @@ export default function Proof() {
   return (
     <>
       <SEO
-        title="Proof | Blueprint"
+        title="Proof Boundaries for Robot Evaluation | Blueprint"
         description="A short Blueprint proof explainer separating public samples from request-specific site data, policy-evaluation, and robot-team evidence."
         canonical="/proof"
         image={`https://tryblueprint.io${humanoidReadinessAssets.proofBoard}`}
+        jsonLd={[
+          webPageJsonLd({
+            path: "/proof",
+            name: "Blueprint proof boundaries",
+            description:
+              "Explains the difference between public samples, request-specific packets, owner-system proof, and advisory robot evaluation outputs.",
+          }),
+          breadcrumbJsonLd([
+            { name: "Home", path: "/" },
+            { name: "Proof", path: "/proof" },
+          ]),
+          faqJsonLd([
+            {
+              question: "What does Blueprint proof show?",
+              answer:
+                "Blueprint proof shows capture provenance, rights/privacy posture, package scope, policy-evaluation evidence, missing proof, and the next decision a robot team can make.",
+            },
+            {
+              question: "Are public samples customer proof?",
+              answer:
+                "No. Public samples show product shape and workflow. Request-specific proof is tied to one site, robot profile, task, threshold, and owner-system evidence.",
+            },
+            {
+              question: "Does a sim-only policy improvement prove deployment readiness?",
+              answer:
+                "No. Sim-only improvement is advisory until simulator traces, action logs, robot trials, safety review, rights/privacy proof, and buyer-approved methodology support a stronger claim.",
+            },
+          ]),
+        ]}
       />
 
       <div className="bg-[#f6f1e8] text-[#111110]">
@@ -101,9 +135,10 @@ export default function Proof() {
               See what supports evaluation and policy improvement runs.
             </h1>
             <p className="mt-6 max-w-2xl text-lg leading-8 text-white/78">
-              Blueprint proof keeps the buyer question grounded: what came from
-              capture, what is inferred, what is still missing, and what claim
-              the evidence can actually support.
+              Blueprint proof keeps the buyer question grounded: the Proof
+              boundary separates Public samples from Request packets, capture
+              evidence, owner-system artifacts, and the claim the evidence can
+              actually support.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <a

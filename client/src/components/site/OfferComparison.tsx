@@ -10,17 +10,17 @@ type OfferComparisonProps = {
 
 const offerCards = [
   {
-    title: "Run a Task Evaluation Run",
+    title: "Run a Policy Evaluation Run",
     price: "From $6,500 / run",
     description:
-      "Test one robot policy/profile on one real site against one scoped Task Pack, up to 500 scenarios.",
+      "Rank 1-3 policies or checkpoints on one capture-backed task pack.",
     bullets: [
-      "Unit: 1 site, 1 policy/profile, 1 Task Pack",
-      "Pass/fail results, cycle-time results, intervention notes, and failure review",
-      "Selected rollout evidence and exportable scenario/results manifest",
+      "Unit: 1 site package, 1 task pack, 1 robot embodiment",
+      "100 or 500 WAM-eval episodes",
+      "Policy ranking, failure taxonomy, OOD flags, and validation targets",
     ],
-    href: "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-review",
-    cta: "Request Task Evaluation Run",
+    href: "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=policy-evaluation-run",
+    cta: "Request Policy Evaluation",
     icon: ClipboardCheck,
     imageSrc: "/illustrations/offer-hosted-evaluation-preview.svg",
     imageAlt:
@@ -74,8 +74,8 @@ const offerCards = [
 
 export function OfferComparison({
   eyebrow = "Simple commercial model",
-  title = "Robot teams pay for Task Evaluation Runs and Policy Improvement Runs. Operators are free.",
-  description = "Use a Task Evaluation Run when your team wants a fixed-scope read on one policy across a real-site Task Pack. Request a Policy Improvement Run when your team wants Blueprint to improve a supplied policy inside simulation. Submit a site for free when you operate the facility.",
+  title = "Robot teams pay for Policy Evaluation Runs, validation, and follow-on improvement. Operators are free.",
+  description = "Use a Policy Evaluation Run when your team wants a fixed-scope ranking across a real-site Task Pack. Add validation when you need measured WAM-to-robot agreement. Submit a site for free when you operate the facility.",
   className = "",
 }: OfferComparisonProps) {
   return (
@@ -123,7 +123,7 @@ export function OfferComparison({
                   </li>
                 ))}
               </ul>
-              {card.title === "Run a Task Evaluation Run" ? (
+              {card.title === "Run a Policy Evaluation Run" ? (
                 <p className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-6 text-slate-600">
                   {policyEvaluationSetDefinition}
                 </p>
@@ -146,22 +146,22 @@ export function OfferComparison({
             Compare the paths.
           </p>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-            The same site can support multiple motions. The right first step depends on whether the robot team needs a task evaluation run, a sim-only policy improvement run, or whether the facility operator is submitting boundaries.
+            The same site can support multiple motions. The right first step depends on whether the robot team needs a policy evaluation run, a validated evaluation pack, a follow-on improvement run, or whether the facility operator is submitting boundaries.
           </p>
         </div>
         <div className="grid gap-px bg-slate-200 lg:grid-cols-[1.05fr_1fr_1fr_1fr]">
           <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-500">Decision point</div>
-          <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-900">Task evaluation</div>
+          <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-900">Policy evaluation</div>
           <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-900">Policy improvement</div>
           <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-900">Site operator</div>
 
           <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-900">Best when</div>
-          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Your robot team wants one fixed-scope read on policy performance against a scoped Task Pack before field time.</div>
+          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Your robot team wants one fixed-scope ranking across 1-3 policies or checkpoints before field time.</div>
           <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Your robot team wants Blueprint to improve a supplied policy against a site/task threshold inside simulation.</div>
           <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">You operate the facility and want to submit boundaries before robot-team use is reviewed.</div>
 
           <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-900">Buyer gets first</div>
-          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">A Task Evaluation Run with task-pack results, scenario evidence, failure review, and export outputs.</div>
+          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">A Policy Evaluation Run with rankings, failures, OOD flags, validation targets, and export outputs.</div>
           <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">A baseline eval, failure-mode diagnosis, curriculum, improved artifact, sealed test, and evidence report.</div>
           <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">A free intake path for facility, access, privacy, and commercial-use boundaries.</div>
 
@@ -171,7 +171,7 @@ export function OfferComparison({
           <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Free for site operators.</div>
 
           <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-900">Next step</div>
-          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Confirm the robot policy/profile, task pack, and scenario set for evaluation scoping.</div>
+          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Confirm the policies, robot embodiment, task pack, episode count, and validation mode.</div>
           <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Name the policy or base model, embodiment, action interface, target task, and thresholds.</div>
           <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Tell Blueprint the facility, access rules, privacy limits, and commercial posture.</div>
         </div>

@@ -1,4 +1,5 @@
 import path from "node:path";
+import { siteLibrarySites } from "../../client/src/data/siteLibrary";
 
 export type SitemapRoute = {
   changefreq: "weekly" | "monthly" | "yearly";
@@ -15,13 +16,21 @@ const staticSitemapRoutes: SitemapRoute[] = [
   { path: "/pricing", changefreq: "monthly", priority: 0.8 },
   { path: "/proof", changefreq: "monthly", priority: 0.8 },
   { path: "/for-robot-teams", changefreq: "monthly", priority: 0.8 },
-  { path: "/robot-team/eval", changefreq: "monthly", priority: 0.7 },
-  { path: "/contact", changefreq: "monthly", priority: 0.8 },
+  { path: "/contact/robot-team", changefreq: "monthly", priority: 0.8 },
   { path: "/privacy", changefreq: "yearly", priority: 0.3 },
   { path: "/terms", changefreq: "yearly", priority: 0.3 },
 ];
 
-export const sitemapRoutes: SitemapRoute[] = staticSitemapRoutes;
+const siteLibrarySitemapRoutes: SitemapRoute[] = siteLibrarySites.map((site) => ({
+  path: `/sites/${site.slug}`,
+  changefreq: "monthly",
+  priority: site.readiness === "Ready to evaluate" ? 0.8 : 0.6,
+}));
+
+export const sitemapRoutes: SitemapRoute[] = [
+  ...staticSitemapRoutes,
+  ...siteLibrarySitemapRoutes,
+];
 
 export function getPublicAssetDir(isProduction: boolean) {
   return path.resolve(process.cwd(), isProduction ? "dist/public" : "client/public");

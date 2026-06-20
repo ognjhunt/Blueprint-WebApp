@@ -176,7 +176,7 @@ function ExplainerCard({
         A Policy Evaluation Run means:
       </p>
       <p className="mt-2 text-sm leading-6 text-slate-600">
-        100 or 500 WAM-eval episodes x 1 site package x 1 task pack x 1 robot embodiment x 1-3 policies/checkpoints, with predicted success, policy ranking, failure taxonomy, per-scenario metrics, OOD/uncertainty flags, generated rollout clips, and recommended real-world validation targets.
+        100 or 500 WAM-eval episodes x 1 captured site package x 1 task pack x 1 robot embodiment x 1-3 policies/checkpoints, with predicted success, policy ranking, failure taxonomy, per-scenario metrics, OOD/uncertainty flags, generated rollout clips, and recommended real-world validation targets.
       </p>
     </aside>
   );
@@ -263,6 +263,23 @@ export default function Contact() {
             : "Request a Blueprint Policy Evaluation Run for 100 or 500 WAM-eval episodes across one site package, one task pack, one robot embodiment, and 1-3 policies/checkpoints."
         }
         canonical={isSiteOperator ? "/contact/site-operator" : "/contact/robot-team"}
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "ContactPage",
+          name: isSiteOperator
+            ? "Submit a Site for Robot Evaluation"
+            : isDataPackage
+              ? "Request a Policy Improvement Run"
+              : "Request a Policy Evaluation Run",
+          description: isSiteOperator
+            ? "Submit a facility for Blueprint robot-evaluation review."
+            : isDataPackage
+              ? "Request Blueprint policy improvement support after evaluation."
+              : "Request a Blueprint Policy Evaluation Run for WAM-eval episodes across one captured site package, task pack, robot embodiment, and 1-3 policies.",
+          url: isSiteOperator
+            ? "https://tryblueprint.io/contact/site-operator"
+            : "https://tryblueprint.io/contact/robot-team",
+        }}
       />
 
       <div className="bg-[#f5f3ef] text-slate-950">

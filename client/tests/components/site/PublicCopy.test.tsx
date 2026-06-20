@@ -39,18 +39,17 @@ describe("public real-site evaluation copy", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Evaluate robots on real sites before deployment\./i,
+        name: /Evaluate robot policies before field time\./i,
       }),
     ).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /Request evaluation/i }).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole("link", { name: /^Proof$/i }).length).toBeGreaterThan(0);
-    expect(container).toHaveTextContent(/Real-site robot evaluation/i);
-    expect(container).toHaveTextContent(/Task Evaluation Run/i);
+    expect(container).toHaveTextContent(/WAM\/VLA policy evaluations/i);
+    expect(container).toHaveTextContent(/Policy Evaluation Run/i);
+    expect(container).toHaveTextContent(/Validated Evaluation Pack/i);
     expect(container).toHaveTextContent(/Policy Improvement Run/i);
-    expect(container).toHaveTextContent(/Robot teams pay for Task Evaluation Runs and Policy Improvement Runs/i);
+    expect(container).toHaveTextContent(/Robot teams pay for Policy Evaluation Runs/i);
     expect(container).toHaveTextContent(/Site operators submit sites free/i);
-    expect(container).toHaveTextContent(/success rate/i);
-    expect(container).toHaveTextContent(/proof/i);
+    expect(container).toHaveTextContent(/deployment readiness/i);
     expect(container).not.toHaveTextContent(/digital twin/i);
     expect(container).not.toHaveTextContent(/SimReady/i);
     expect(container).not.toHaveTextContent(/Scenario tests/i);

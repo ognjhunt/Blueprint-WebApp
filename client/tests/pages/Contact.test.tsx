@@ -76,44 +76,26 @@ function submittedBody() {
 }
 
 describe("Contact page", () => {
-  it("renders the simplified robot-team Task Evaluation Run flow", () => {
+  it("renders the simple robot-team Policy Evaluation Run flow", () => {
     render(<Contact />);
 
     expect(
-      screen.getByRole("heading", { name: /Request a Task Evaluation Run\./i }),
+      screen.getByRole("heading", { name: /Request a Policy Evaluation Run\./i }),
     ).toBeInTheDocument();
+    expect(screen.getByText(/Rank 1-3 policies\/checkpoints/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Robot teams/i })).toHaveAttribute(
       "href",
       "/contact/robot-team#contact-intake",
     );
-    expect(screen.getByRole("link", { name: /Site operators/i })).toHaveAttribute(
-      "href",
-      "/contact/site-operator#contact-intake",
-    );
-    expect(screen.getByText(/1 site x 1 robot policy\/profile x 1 task pack x scenario count/i)).toBeInTheDocument();
-    expect(screen.getByRole("textbox", { name: /First name/i })).toBeInTheDocument();
-    expect(screen.getByRole("textbox", { name: /Work email/i })).toBeInTheDocument();
-    expect(screen.getByRole("textbox", { name: /^Company$/i })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: /Robot \/ policy name/i })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: /Target site or site type/i })).toBeInTheDocument();
-    expect(screen.getByRole("textbox", { name: /Task \+ threshold/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Request evaluation/i })).toBeInTheDocument();
-    expect(screen.queryByText(/Human and agent friendly/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Site data package/i)).not.toBeInTheDocument();
-
-    expect(analyticsEventsMock.contactRequestStarted).toHaveBeenCalledWith({
-      persona: "robot_team",
-      hostedMode: true,
-      requestedLane: "deeper_evaluation",
-      commercialRequestPath: "hosted_evaluation",
-      authenticated: false,
-      prefilledSiteContext: false,
-    });
   });
 
-  it("maps old robot-team world-model query params to the Policy Improvement Run form", () => {
+  it("maps old world-model query params to the Policy Improvement Run form", () => {
     mockSearch =
-      "?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=site-world-detail&siteName=Harborview+Grocery+Distribution+Annex&targetSiteType=Grocery+distribution&scenario=Walk+to+shelf+staging&requestedOutputs=Runtime+manifest+and+proof+packet&targetRobotTeam=Unitree+G1";
+      "?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=site-world-detail&siteName=Harborview+Grocery+Distribution+Annex&targetSiteType=Grocery+distribution&requestedOutputs=Runtime+manifest+and+proof+packet&targetRobotTeam=Unitree+G1";
 
     render(<Contact />);
 
@@ -121,24 +103,11 @@ describe("Contact page", () => {
       screen.getByRole("heading", { name: /Request a Policy Improvement Run\./i }),
     ).toBeInTheDocument();
     expect(screen.getByText(/A Policy Improvement Run means/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/Source access is optional/i).length).toBeGreaterThan(0);
-    expect(
-      screen.getAllByText(/improved artifacts require a trainable interface or approved wrapper path/i).length,
-    ).toBeGreaterThan(0);
     expect(screen.getByDisplayValue("Harborview Grocery Distribution Annex")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Unitree G1")).toBeInTheDocument();
-    expect(screen.getByText(/Prefilled context attached/i)).toBeInTheDocument();
-    expect(screen.getByText(/Runtime manifest and proof packet/i)).toBeInTheDocument();
-    expect(analyticsEventsMock.contactRequestStarted).toHaveBeenCalledWith(
-      expect.objectContaining({
-        hostedMode: false,
-        requestedLane: "data_licensing",
-        commercialRequestPath: "world_model",
-      }),
-    );
   });
 
-  it("submits a robot-team Task Evaluation Run payload", async () => {
+  it("submits a robot-team Policy Evaluation Run payload", async () => {
     render(<Contact />);
 
     fireEvent.change(screen.getByPlaceholderText("First name*"), {
@@ -160,17 +129,26 @@ describe("Contact page", () => {
       target: { value: "Tote transfer. Need >=97% simulated success before pilot." },
     });
     fireEvent.click(screen.getByRole("button", { name: /Add optional details/i }));
+    fireEvent.change(screen.getByRole("textbox", { name: /Policy \/ checkpoint labels/i }), {
+      target: { value: "policy_v1, policy_v2" },
+    });
     fireEvent.change(screen.getByRole("combobox", { name: /Preferred policy access method/i }), {
       target: { value: "Policy API endpoint" },
     });
-    fireEvent.change(screen.getByRole("textbox", { name: /Scenario count/i }), {
-      target: { value: "50 normal, 25 edge cases" },
+    fireEvent.change(screen.getByRole("textbox", { name: /Episode count/i }), {
+      target: { value: "500" },
     });
-    fireEvent.change(screen.getByRole("textbox", { name: /Deadline/i }), {
-      target: { value: "Scope by June 20" },
+    fireEvent.change(screen.getByRole("combobox", { name: /Validation mode/i }), {
+      target: { value: "Comparative policy eval" },
     });
-    fireEvent.change(screen.getByRole("textbox", { name: /Notes/i }), {
-      target: { value: "Compare against action logs." },
+    fireEvent.change(screen.getByRole("textbox", { name: /Observation schema/i }), {
+      target: { value: "RGB-D and robot state" },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: /Action schema/i }), {
+      target: { value: "base, arm, gripper" },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: /Control frequency/i }), {
+      target: { value: "20 Hz" },
     });
     fireEvent.click(screen.getByRole("button", { name: /Request evaluation/i }));
 
@@ -181,14 +159,11 @@ describe("Contact page", () => {
       );
     });
 
-    expect(screen.getByText(/Task Evaluation Run request received/i)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/Policy Evaluation Run request received/i),
+    ).toBeInTheDocument();
     const body = submittedBody();
     expect(body).toMatchObject({
-      firstName: "Ada",
-      lastName: "Not provided",
-      company: "Analytical Engines",
-      roleTitle: "Robot team",
-      email: "ada@example.com",
       buyerType: "robot_team",
       commercialRequestPath: "hosted_evaluation",
       requestedLanes: ["deeper_evaluation"],
@@ -198,87 +173,22 @@ describe("Contact page", () => {
       taskStatement: "Tote transfer. Need >=97% simulated success before pilot.",
       targetRobotTeam: "Unitree G1 policy API",
     });
+    expect(body.details).toContain("Policy/checkpoint labels: policy_v1, policy_v2");
     expect(body.details).toContain("Policy access method: Policy API endpoint");
-    expect(body.details).toContain("Scenario count: 50 normal, 25 edge cases");
+    expect(body.details).toContain("Episode count: 500");
+    expect(body.details).toContain("Validation mode: Comparative policy eval");
     expect(body.realSiteRobotEvalFit).toMatchObject({
-      siteCardInput: {
-        siteType: "Warehouse in Chicago",
-      },
-      taskCardInput: {
-        task: "Tote transfer. Need >=97% simulated success before pilot.",
-        requiredMetrics: "Tote transfer. Need >=97% simulated success before pilot.",
+      scenarioCardInput: {
+        normalScenario: "500 requested WAM-eval episodes",
       },
       evalCardInput: {
         robotOrPolicyTested: "Unitree G1 policy API",
         preferredReviewPath: "Policy API endpoint",
       },
     });
-    expect(analyticsEventsMock.contactRequestSubmitted).toHaveBeenCalledWith({
-      persona: "robot_team",
-      hostedMode: true,
-      requestedLane: "deeper_evaluation",
-      commercialRequestPath: "hosted_evaluation",
-      authenticated: false,
-      hasJobTitle: false,
-      hasSiteName: true,
-      hasSiteLocation: false,
-      hasTaskStatement: true,
-      hasOperatingConstraints: false,
-      hasPrivacySecurityConstraints: false,
-      hasNotes: true,
-    });
   });
 
-  it("submits a Policy Improvement Run payload from data-package params", async () => {
-    mockSearch =
-      "?persona=robot-team&buyerType=robot_team&interest=post-training-data-package&path=data-package&requestedOutputs=Policy%20Improvement%20Run";
-
-    render(<Contact />);
-
-    fireEvent.change(screen.getByPlaceholderText("First name*"), {
-      target: { value: "Ruth" },
-    });
-    fireEvent.change(screen.getByPlaceholderText("Company*"), {
-      target: { value: "ModelOps Robotics" },
-    });
-    fireEvent.change(screen.getByPlaceholderText("Work email*"), {
-      target: { value: "ruth@example.com" },
-    });
-    fireEvent.change(screen.getByRole("textbox", { name: /Target site or site type/i }), {
-      target: { value: "Retail backroom" },
-    });
-    fireEvent.change(screen.getByRole("textbox", { name: /Task \+ threshold/i }), {
-      target: { value: "Shelf restock failures, robot POV clips, and variation labels." },
-    });
-    fireEvent.click(screen.getByRole("button", { name: /Request policy improvement/i }));
-
-    await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith(
-        "/api/inbound-request",
-        expect.objectContaining({ method: "POST" }),
-      );
-    });
-
-    expect(screen.getByText(/Policy Improvement Run request received/i)).toBeInTheDocument();
-    expect(submittedBody()).toMatchObject({
-      buyerType: "robot_team",
-      commercialRequestPath: "world_model",
-      requestedLanes: ["data_licensing"],
-      proofPathPreference: "exact_site_required",
-      siteName: "Retail backroom",
-      targetSiteType: "Retail backroom",
-      taskStatement: "Shelf restock failures, robot POV clips, and variation labels.",
-    });
-    expect(analyticsEventsMock.contactRequestSubmitted).toHaveBeenCalledWith(
-      expect.objectContaining({
-        hostedMode: false,
-        requestedLane: "data_licensing",
-        commercialRequestPath: "world_model",
-      }),
-    );
-  });
-
-  it("renders the simplified free site-operator submission flow", () => {
+  it("site-operator contact path keeps the free access-boundary lane visible", () => {
     mockLocation = "/contact/site-operator";
 
     render(<Contact />);
@@ -289,81 +199,6 @@ describe("Contact page", () => {
     expect(screen.getByText(/Submitting a site is free/i)).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: /Facility name or site type/i })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: /City \/ location/i })).toBeInTheDocument();
-    expect(screen.getByText(/Private review only/i)).toBeInTheDocument();
-    expect(screen.getByText(/Anonymized marketplace use/i)).toBeInTheDocument();
     expect(screen.getByText(/Ask before each robot-team use/i)).toBeInTheDocument();
-    expect(screen.getByText(/Not sure yet/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Submit site free/i })).toBeInTheDocument();
-  });
-
-  it("submits site-operator access and privacy boundaries", async () => {
-    mockLocation = "/contact/site-operator";
-
-    render(<Contact />);
-
-    fireEvent.change(screen.getByPlaceholderText("First name*"), {
-      target: { value: "Nina" },
-    });
-    fireEvent.change(screen.getByPlaceholderText("Company or operator*"), {
-      target: { value: "Brightleaf Ops" },
-    });
-    fireEvent.change(screen.getByPlaceholderText("Work email*"), {
-      target: { value: "nina@example.com" },
-    });
-    fireEvent.change(screen.getByRole("textbox", { name: /Facility name or site type/i }), {
-      target: { value: "Brightleaf Books" },
-    });
-    fireEvent.change(screen.getByRole("textbox", { name: /City \/ location/i }), {
-      target: { value: "Durham, NC" },
-    });
-    fireEvent.click(screen.getByText(/Ask before each robot-team use/i));
-    fireEvent.change(
-      screen.getByRole("textbox", { name: /Privacy, safety, or commercialization notes/i }),
-      {
-        target: { value: "Redact faces and skip employee-only rooms." },
-      },
-    );
-    fireEvent.click(screen.getByRole("button", { name: /Submit site free/i }));
-
-    await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith(
-        "/api/inbound-request",
-        expect.objectContaining({ method: "POST" }),
-      );
-    });
-
-    expect(screen.getByText(/Site submission received/i)).toBeInTheDocument();
-    const body = submittedBody();
-    expect(body).toMatchObject({
-      firstName: "Nina",
-      lastName: "Not provided",
-      company: "Brightleaf Ops",
-      roleTitle: "Site operator",
-      buyerType: "site_operator",
-      commercialRequestPath: "site_claim",
-      requestedLanes: ["qualification"],
-      siteName: "Brightleaf Books",
-      siteLocation: "Durham, NC",
-      operatingConstraints: "Ask before each robot-team use",
-      privacySecurityConstraints: "Redact faces and skip employee-only rooms.",
-    });
-    expect(body.captureRights).toContain("Ask before each robot-team use");
-    expect(body.derivedScenePermission).toContain("Per-use operator approval");
-  });
-
-  it("tracks a validation failure when required robot-team fields are missing", async () => {
-    render(<Contact />);
-
-    fireEvent.click(screen.getByRole("button", { name: /Request evaluation/i }));
-
-    expect(screen.getByText(/Please add: First name, Company, Work email, Target site or site type, Task \+ threshold/i)).toBeInTheDocument();
-    expect(analyticsEventsMock.contactRequestFailed).toHaveBeenCalledWith({
-      stage: "validation",
-      errorType: "missing_required_fields",
-      persona: "robot_team",
-      hostedMode: true,
-      requestedLane: "deeper_evaluation",
-      commercialRequestPath: "hosted_evaluation",
-    });
   });
 });

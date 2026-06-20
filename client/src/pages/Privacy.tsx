@@ -1,5 +1,6 @@
 import { Mail, Shield, SlidersHorizontal, SquareStack, Waypoints } from "lucide-react";
 import { SEO } from "@/components/SEO";
+import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 import {
   SurfaceBrowserFrame,
   SurfaceCard,
@@ -68,6 +69,18 @@ export default function Privacy() {
         title="Privacy Policy | Blueprint"
         description="Privacy policy for Blueprint's website, capture workflows, robot evaluation runs, sim-only policy improvement runs, hosted sessions, and related services."
         canonical="/privacy"
+        jsonLd={[
+          webPageJsonLd({
+            path: "/privacy",
+            name: "Blueprint privacy policy",
+            description:
+              "Privacy policy for Blueprint website, capture workflows, robot evaluation runs, policy improvement runs, hosted sessions, and related services.",
+          }),
+          breadcrumbJsonLd([
+            { name: "Home", path: "/" },
+            { name: "Privacy", path: "/privacy" },
+          ]),
+        ]}
       />
 
       <SurfacePage>

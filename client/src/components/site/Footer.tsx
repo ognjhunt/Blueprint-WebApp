@@ -20,12 +20,12 @@ export function Footer() {
           <p className="text-sm leading-6 text-slate-600">
             {isCaptureJobsRoute
               ? "Blueprint routes approved capture work, site requests, and evaluation packages from real capture evidence."
-              : "Blueprint helps robot teams evaluate policies and scenarios on capture-backed real facilities before pilots or deployment."}
+              : "Blueprint helps robot teams rank policies on capture-backed real-site task packs before field time."}
           </p>
           <p className="text-sm leading-6 text-slate-600">
             {isCaptureJobsRoute
               ? "Capture Jobs links to application and waitlist paths. Site details, route access, and payout eligibility stay review-gated."
-              : "Robot teams pay for Task Evaluation Runs and Policy Improvement Runs. Site operators can submit facilities and define boundaries for free."}
+              : "Robot teams pay for Policy Evaluation Runs, Validated Evaluation Packs, and Policy Improvement Runs. Site operators submit sites free."}
           </p>
           <div className="flex flex-col gap-2">
             <a

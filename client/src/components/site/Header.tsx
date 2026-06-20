@@ -108,7 +108,7 @@ export function Header() {
       badge: "Robot team",
       workspaceHref: userData?.finishedOnboarding ? "/dashboard" : "/onboarding",
       workspaceLabel: userData?.finishedOnboarding ? "Open robot-team workspace" : "Finish robot-team onboarding",
-      secondaryHref: "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=signed-in-header",
+      secondaryHref: "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=policy-evaluation-run&source=signed-in-header",
       secondaryLabel: "Request another evaluation",
       requestHref,
     };
@@ -141,7 +141,7 @@ export function Header() {
     }
 
     return {
-      href: "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=header",
+      href: "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=policy-evaluation-run&source=header",
       label: "Request evaluation",
     };
   }, [location]);

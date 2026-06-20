@@ -5,13 +5,13 @@ export const sitePackageDefinition =
   "A site package gives a robot team capture-grounded site context, scenario data, provenance, rights posture, and export limits for one real site.";
 
 export const hostedEvaluationDefinition =
-  "A Task Evaluation Run is the fixed-scope path for testing one robot policy/profile on one real site against one scoped Task Pack.";
+  "A Policy Evaluation Run is the fixed-scope path for ranking 1-3 robot policies or checkpoints on one capture-backed site task pack.";
 
 export const categoryValidationDefinition =
   "Street View-grounded world models make outdoor places easier for agents to explore; Blueprint focuses the same site-specific logic on indoor spaces that need lawful capture, provenance, and rights review.";
 
 export const policyEvaluationSetDefinition =
-  "A Task Evaluation Run covers one site, one robot policy/profile, one scoped Task Pack, and up to 500 scenarios, with pass/fail results, cycle-time results, intervention and failure notes, selected rollout evidence, and export framing.";
+  "A Policy Evaluation Run covers one site package, one task pack, one robot embodiment, and 100 or 500 WAM-eval episodes, with policy ranking, predicted success, failure taxonomy, OOD flags, recommended validation targets, and export framing.";
 
 export const sitePackageIncludes = [
   "Walkthrough video, timestamps, and camera poses tied to one real facility",
@@ -21,8 +21,8 @@ export const sitePackageIncludes = [
 ];
 
 export const hostedEvaluationOutputs = [
-  "One policy/profile reviewed against the same exact site's scoped task pack",
-  "Up to 500 scenarios/episodes, with failure review and checkpoint comparison",
+  "1-3 policies or checkpoints reviewed against the same exact site's scoped task pack",
+  "100 or 500 WAM-eval episodes, with failure review and checkpoint comparison",
   "Scenario/results manifest and export generation tied to the site",
   "A policy-evaluation path selected after request review",
 ];
@@ -43,7 +43,7 @@ export const listingVariationItems = [
 
 export const companyTrustItems = [
   "Blueprint captures indoor facilities and turns them into site-specific data products robot teams can request, evaluate, and license.",
-  "Blueprint sells Task Evaluation Runs and sim-only Policy Improvement Runs, not deployment guarantees.",
+  "Blueprint sells Policy Evaluation Runs, Validated Evaluation Packs, and follow-on Policy Improvement Runs, not deployment guarantees.",
   "Rights, privacy, and usage controls are attached to every listing up front.",
 ];
 

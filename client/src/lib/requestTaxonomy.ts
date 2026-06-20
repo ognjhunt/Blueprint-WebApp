@@ -53,7 +53,7 @@ export const REQUESTED_LANE_LABELS = {
 export const REQUESTED_LANE_DESCRIPTIONS = {
   qualification: "Review the site, access path, and blockers before capture or release.",
   preview_simulation: "Prepare a preview asset once the record supports it.",
-  deeper_evaluation: "Request a Task Evaluation Run or policy-evaluation scope.",
+  deeper_evaluation: "Request a Policy Evaluation Run or validation scope.",
   managed_tuning: "Flag later scenario generation or managed tuning work.",
   data_licensing: "Request baseline evaluation, failure diagnosis, twin/cousin scenarios, sim-only curriculum, policy improvement, sealed testing, and an evidence report.",
 } as const;

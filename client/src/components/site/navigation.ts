@@ -1,18 +1,18 @@
 export const primaryNavLinks = [
-  { href: "/#how-it-works", label: "How it works" },
+  { href: "/for-robot-teams", label: "Robot teams" },
   { href: "/sites", label: "Sites" },
-  { href: "/#pricing", label: "Pricing" },
+  { href: "/pricing", label: "Pricing" },
 ];
 
 export const headerUtilityLinks = [
   {
-    href: "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=header",
+    href: "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=policy-evaluation-run&source=header",
     label: "Request evaluation",
   },
 ];
 
 export const footerProductLinks = [
-  { href: "/#how-it-works", label: "How it works" },
+  { href: "/for-robot-teams", label: "Robot teams" },
   { href: "/sites", label: "Sites" },
   { href: "/pricing", label: "Pricing" },
   { href: "/proof", label: "Proof" },
@@ -20,7 +20,7 @@ export const footerProductLinks = [
 
 export const footerCompanyLinks = [
   {
-    href: "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=footer",
+    href: "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=policy-evaluation-run&source=footer",
     label: "Request evaluation",
   },
   { href: "/contact/site-operator", label: "Submit site free" },

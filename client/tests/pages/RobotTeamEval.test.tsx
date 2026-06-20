@@ -32,91 +32,34 @@ vi.mock("@/lib/firebase", () => ({
 
 afterEach(() => {
   vi.restoreAllMocks();
-  vi.unstubAllGlobals();
   setLocationMock.mockReset();
 });
 
 describe("RobotTeamEval", () => {
-  function representativeSiteSelect() {
-    return screen.getByRole("combobox", { name: "Representative site" });
-  }
-
-  function canonicalTaskSelect() {
-    return screen.getByRole("combobox", { name: "Canonical task" });
-  }
-
-  function scenarioFamilySelect() {
-    return screen.getByRole("combobox", { name: "Scenario family" });
-  }
-
-  it("renders the six structured robot-team submission modalities", () => {
+  it("renders the simplified policy evaluation form", () => {
     render(<RobotTeamEval />);
 
-    expect(screen.getByRole("heading", { name: /Robot-team test interface/i })).toBeInTheDocument();
-    expect(screen.getByText(/Policy API endpoint/i)).toBeInTheDocument();
-    expect(screen.getByText(/Docker container/i)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Recorded action traces/i })).toBeInTheDocument();
-    expect(screen.getByText(/High-level skill traces/i)).toBeInTheDocument();
-    expect(screen.getByText(/Teleop demos/i)).toBeInTheDocument();
-    expect(screen.getByText(/Sim controller plugin/i)).toBeInTheDocument();
-    expect(screen.getByText(/Submitted interfaces are inputs/i)).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
-        name: /Site package \+ robot profile \+ policy access = eval report\./i,
+        name: /Evaluate robot policies before field time\./i,
       }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("img", {
-        name: /humanoid robot in a warehouse evaluation bay/i,
-      }),
-    ).toHaveAttribute(
-      "src",
-      "/editorial/2026-06-06/robot-team-eval-workflow.png",
+    expect(screen.getByRole("heading", { name: /Evaluation setup/i })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: /Site package/i })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: /Policy \/ checkpoint labels/i })).toHaveValue(
+      "primary-policy",
     );
-    expect(screen.getByText(/Robot teams keep source code and model weights private/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/^Site package$/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/^Policy API$/i)).toBeInTheDocument();
-    expect(screen.getByText(/^Container \/ private cloud$/i)).toBeInTheDocument();
-    expect(screen.getByText(/^Action trace$/i)).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: /Episode count/i })).toHaveValue("100");
+    expect(screen.getByRole("combobox", { name: /Validation mode/i })).toHaveValue(
+      "comparative_policy_eval",
+    );
+    expect(screen.getAllByText(/Policy API endpoint/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Docker container/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Model checkpoint/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/do not prove safety validation/i)).toBeInTheDocument();
   });
 
-  it("renders the real-site robot eval workflow and keeps sample report boundaries visible", () => {
-    render(<RobotTeamEval />);
-
-    expect(
-      screen.getByRole("heading", { name: /Choose site, task, and scenario family/i }),
-    ).toBeInTheDocument();
-    expect(representativeSiteSelect()).toHaveValue("robot-eval-warehouse");
-    expect(canonicalTaskSelect()).toHaveValue("warehouse-move-tote");
-    expect(scenarioFamilySelect()).toHaveValue("warehouse-blocked-path");
-    expect(screen.getAllByText(/policy_eval_report\.json/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/prediction_vs_actual_summary\.json/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Unsafe proximity/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Pilot/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Tune/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Hold/i).length).toBeGreaterThan(0);
-  });
-
-  it("updates the task and scenario controls when a representative site changes", () => {
-    render(<RobotTeamEval />);
-
-    fireEvent.change(representativeSiteSelect(), {
-      target: { value: "robot-eval-hospital" },
-    });
-
-    expect(canonicalTaskSelect()).toHaveValue("hospital-room-delivery");
-    expect(scenarioFamilySelect()).toHaveValue("hospital-dim-corridor");
-    expect(screen.getAllByText(/Cherry Creek Hospital Supply Annex/i).length).toBeGreaterThan(0);
-
-    fireEvent.change(canonicalTaskSelect(), {
-      target: { value: "hospital-door-entry" },
-    });
-
-    expect(screen.getAllByText(/open_door_enter_room/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Door entry is completed/i)).toBeInTheDocument();
-  });
-
-  it("creates a hosted-session request with normalized robot-team submission policy", async () => {
+  it("creates a hosted-session request with normalized policy evaluation payload", async () => {
     const fetchMock = vi.fn(async () =>
       new Response(
         JSON.stringify({
@@ -125,10 +68,34 @@ describe("RobotTeamEval", () => {
         { status: 201, headers: { "Content-Type": "application/json" } },
       ),
     );
-    vi.stubGlobal("fetch", fetchMock);
+    vi.spyOn(globalThis, "fetch").mockImplementation(fetchMock as typeof fetch);
 
     render(<RobotTeamEval />);
 
+    fireEvent.change(screen.getByRole("textbox", { name: /Policy \/ checkpoint labels/i }), {
+      target: { value: "warehouse-policy, baseline-policy, ignored-fourth" },
+    });
+    fireEvent.change(screen.getByRole("combobox", { name: /Episode count/i }), {
+      target: { value: "500" },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: /Observation schema ref/i }), {
+      target: { value: "gs://robot-team/schemas/top-observation.v1.json" },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: /Action schema ref/i }), {
+      target: { value: "gs://robot-team/schemas/top-action.v1.json" },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: /Control frequency/i }), {
+      target: { value: "20 Hz" },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: /Robot embodiment/i }), {
+      target: { value: "mobile manipulator" },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: /Task instruction/i }), {
+      target: { value: "pick tote from shelf" },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: /Success criteria/i }), {
+      target: { value: "tote placed without safety event" },
+    });
     fireEvent.change(screen.getByLabelText("Policy API endpoint Endpoint URL"), {
       target: { value: "https://robot-team.example/policy" },
     });
@@ -165,16 +132,36 @@ describe("RobotTeamEval", () => {
     const submission = policy.robotTeamTestSubmission as Record<string, unknown>;
 
     expect(body.sessionMode).toBe("runtime_only");
+    expect(body.requestedOutputs).toEqual([
+      "policy_ranking",
+      "failure_taxonomy",
+      "ood_uncertainty_flags",
+      "validation_targets",
+    ]);
+    expect(policy.proofBoundary).toEqual(expect.stringContaining("Virtual WAM/VLA outputs"));
     expect(submission.schemaVersion).toBe("blueprint.robot_team_test_submission.v1");
     expect(submission.selectedModalities).toEqual(["policy_api_endpoint"]);
-    expect(submission.missingEvidenceStatuses).toEqual([]);
-    expect(submission.pipelineDatasetSchemaRefs).toContain("robot_team_test_submission_modalities.v0.1");
-    expect(body.notes).toEqual(expect.stringContaining("Representative eval workflow"));
+    expect(submission.policyLabels).toEqual([
+      "warehouse-policy",
+      "baseline-policy",
+      "ignored-fourth",
+    ]);
+    expect(submission.episodeCount).toBe("500");
+    expect(submission.validationMode).toBe("comparative_policy_eval");
+    expect(submission.observationSchemaRef).toBe(
+      "gs://robot-team/schemas/top-observation.v1.json",
+    );
+    expect(submission.actionSchemaRef).toBe(
+      "gs://robot-team/schemas/top-action.v1.json",
+    );
+    expect(submission.controlFrequency).toBe("20 Hz");
+    expect(submission.robotEmbodiment).toBe("mobile manipulator");
+    expect(submission.taskInstruction).toBe("pick tote from shelf");
+    expect(submission.successCriteria).toBe("tote placed without safety event");
   });
 
-  it("surfaces the existing intake fallback when direct session creation is blocked", async () => {
-    vi.stubGlobal(
-      "fetch",
+  it("surfaces the intake fallback when direct session creation is blocked", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(
       vi.fn(async () =>
         new Response(
           JSON.stringify({
@@ -183,7 +170,7 @@ describe("RobotTeamEval", () => {
           }),
           { status: 409, headers: { "Content-Type": "application/json" } },
         ),
-      ),
+      ) as typeof fetch,
     );
 
     render(<RobotTeamEval />);
@@ -191,9 +178,9 @@ describe("RobotTeamEval", () => {
     fireEvent.click(screen.getByRole("button", { name: /Create hosted session/i }));
 
     expect(await screen.findByText(/Runtime path is request-gated/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Submit intake request/i })).toHaveAttribute(
+    expect(screen.getAllByRole("link", { name: /Submit intake request/i })[0]).toHaveAttribute(
       "href",
-      expect.stringContaining("/contact?"),
+      expect.stringContaining("source=robot-team-eval"),
     );
   });
 });

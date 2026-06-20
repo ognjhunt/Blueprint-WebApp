@@ -40,6 +40,7 @@ const helperClassName = "mt-1.5 text-xs leading-5 text-slate-500";
 const policyAccessMethods = [
   "Policy API endpoint",
   "Docker container",
+  "Model checkpoint",
   "Recorded action trace",
   "High-level skill trace",
   "Teleop demo",
@@ -183,11 +184,11 @@ function successCopy(commercialRequestPath: CommercialRequestPath) {
   }
 
   return {
-    title: "Task Evaluation Run request received",
+    title: "Policy Evaluation Run request received",
     body:
-      "Blueprint has the site, task, policy, and threshold context needed to recommend a scope, scenario count, and next proof step.",
+      "Blueprint has the site, task, policy, episode count, and validation context needed to recommend a scoped evaluation path.",
     next:
-      "Blueprint reviews site/task fit, recommends scope and scenario count, then confirms access and pricing terms before execution.",
+      "Blueprint reviews site/task fit, recommends episode count and validation mode, then confirms access and pricing terms before execution.",
   };
 }
 
@@ -248,10 +249,14 @@ export function ContactForm() {
   const [targetSiteType, setTargetSiteType] = useState("");
   const [taskStatement, setTaskStatement] = useState("");
   const [targetRobotTeam, setTargetRobotTeam] = useState("");
+  const [policyLabels, setPolicyLabels] = useState("");
   const [policyAccessMethod, setPolicyAccessMethod] = useState("");
   const [scenarioCount, setScenarioCount] = useState("");
   const [episodeCount, setEpisodeCount] = useState("");
   const [validationMode, setValidationMode] = useState("");
+  const [observationSchema, setObservationSchema] = useState("");
+  const [actionSchema, setActionSchema] = useState("");
+  const [controlFrequency, setControlFrequency] = useState("");
   const [deadline, setDeadline] = useState("");
   const [notes, setNotes] = useState("");
   const [accessBoundary, setAccessBoundary] = useState("");
@@ -420,10 +425,14 @@ export function ContactForm() {
     }
 
     const optionalDetails = [
+      policyLabels.trim() ? `Policy/checkpoint labels: ${policyLabels.trim()}` : "",
       policyAccessMethod.trim() ? `Policy access method: ${policyAccessMethod.trim()}` : "",
       scenarioCount.trim() ? `Scenario count: ${scenarioCount.trim()}` : "",
       episodeCount.trim() ? `Episode count: ${episodeCount.trim()}` : "",
       validationMode.trim() ? `Validation mode: ${validationMode.trim()}` : "",
+      observationSchema.trim() ? `Observation schema: ${observationSchema.trim()}` : "",
+      actionSchema.trim() ? `Action schema: ${actionSchema.trim()}` : "",
+      controlFrequency.trim() ? `Control frequency: ${controlFrequency.trim()}` : "",
       deadline.trim() ? `Deadline: ${deadline.trim()}` : "",
       notes.trim() ? `Notes: ${notes.trim()}` : "",
     ].filter(Boolean).join("\n");
@@ -439,11 +448,11 @@ export function ContactForm() {
         requiredMetrics: taskStatement.trim(),
       },
       scenarioCardInput: {
-        normalScenario: [
-          scenarioCount.trim() ? `${scenarioCount.trim()} requested scenarios` : "",
-          episodeCount.trim() ? `${episodeCount.trim()} requested episodes` : "",
-          validationMode.trim() ? `${validationMode.trim()} validation mode` : "",
-        ].filter(Boolean).join("; "),
+        normalScenario: episodeCount.trim()
+          ? `${episodeCount.trim()} requested WAM-eval episodes`
+          : scenarioCount.trim()
+            ? `${scenarioCount.trim()} requested scenarios`
+            : "",
       },
       evalCardInput: {
         robotOrPolicyTested: targetRobotTeam.trim(),
@@ -726,6 +735,18 @@ export function ContactForm() {
           {showOptionalDetails ? (
             <div className="grid gap-4 border-t border-black/10 pt-5 md:grid-cols-2">
               <div>
+                <label htmlFor="contact-policy-labels" className={labelClassName}>
+                  Policy / checkpoint labels
+                </label>
+                <input
+                  id="contact-policy-labels"
+                  className={inputClassName}
+                  placeholder="policy_v1, policy_v2"
+                  value={policyLabels}
+                  onChange={(event) => setPolicyLabels(event.target.value)}
+                />
+              </div>
+              <div>
                 <label htmlFor="contact-policy-access-method" className={labelClassName}>
                   Preferred policy access method
                 </label>
@@ -744,31 +765,16 @@ export function ContactForm() {
                 </select>
               </div>
               <div>
-                <label htmlFor="contact-scenario-count" className={labelClassName}>
-                  Scenario count
-                </label>
-                <input
-                  id="contact-scenario-count"
-                  className={inputClassName}
-                  placeholder="Example: 50 normal, 25 edge cases"
-                  value={scenarioCount}
-                  onChange={(event) => setScenarioCount(event.target.value)}
-                />
-              </div>
-              <div>
                 <label htmlFor="contact-episode-count" className={labelClassName}>
                   Episode count
                 </label>
-                <select
+                <input
                   id="contact-episode-count"
                   className={inputClassName}
+                  placeholder="100, 500, or custom"
                   value={episodeCount}
                   onChange={(event) => setEpisodeCount(event.target.value)}
-                >
-                  <option value="">Not selected</option>
-                  <option value="100">100</option>
-                  <option value="500">500</option>
-                </select>
+                />
               </div>
               <div>
                 <label htmlFor="contact-validation-mode" className={labelClassName}>
@@ -781,10 +787,58 @@ export function ContactForm() {
                   onChange={(event) => setValidationMode(event.target.value)}
                 >
                   <option value="">Not selected</option>
-                  <option value="virtual_preflight">Virtual preflight</option>
-                  <option value="comparative_policy_eval">Comparative policy eval</option>
-                  <option value="real_rollout_validated">Real rollout validated</option>
+                  <option value="Virtual preflight">Virtual preflight</option>
+                  <option value="Comparative policy eval">Comparative policy eval</option>
+                  <option value="Real rollout validated">Real rollout validated</option>
                 </select>
+              </div>
+              <div>
+                <label htmlFor="contact-observation-schema" className={labelClassName}>
+                  Observation schema
+                </label>
+                <input
+                  id="contact-observation-schema"
+                  className={inputClassName}
+                  placeholder="RGB-D, robot state, task instruction"
+                  value={observationSchema}
+                  onChange={(event) => setObservationSchema(event.target.value)}
+                />
+              </div>
+              <div>
+                <label htmlFor="contact-action-schema" className={labelClassName}>
+                  Action schema
+                </label>
+                <input
+                  id="contact-action-schema"
+                  className={inputClassName}
+                  placeholder="base, arm, gripper"
+                  value={actionSchema}
+                  onChange={(event) => setActionSchema(event.target.value)}
+                />
+              </div>
+              <div>
+                <label htmlFor="contact-control-frequency" className={labelClassName}>
+                  Control frequency
+                </label>
+                <input
+                  id="contact-control-frequency"
+                  className={inputClassName}
+                  placeholder="20 Hz"
+                  value={controlFrequency}
+                  onChange={(event) => setControlFrequency(event.target.value)}
+                />
+              </div>
+              <div>
+                <label htmlFor="contact-scenario-count" className={labelClassName}>
+                  Scenario count
+                </label>
+                <input
+                  id="contact-scenario-count"
+                  className={inputClassName}
+                  placeholder="Example: 50 normal, 25 edge cases"
+                  value={scenarioCount}
+                  onChange={(event) => setScenarioCount(event.target.value)}
+                />
               </div>
               <div>
                 <label htmlFor="contact-deadline" className={labelClassName}>

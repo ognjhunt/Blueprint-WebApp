@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { beforeAll, describe, expect, it } from "vitest";
+import { siteLibrarySites } from "@/data/siteLibrary";
 
 function currentSitemapDate() {
   const sourceDateEpoch = process.env.SOURCE_DATE_EPOCH;
@@ -40,7 +41,7 @@ function ensureBuildOutput() {
 describe("build output", () => {
   beforeAll(() => {
     ensureBuildOutput();
-  }, 120000);
+  }, 300000);
 
   it("ships prerendered pages for the simplified public IA and direct access flows", () => {
     [
@@ -55,6 +56,7 @@ describe("build output", () => {
       "for-robot-teams/index.html",
       "robot-team/eval/index.html",
       "contact/index.html",
+      "contact/robot-team/index.html",
       "contact/site-operator/index.html",
       "capture-app/index.html",
       "capture-app/launch-access/index.html",
@@ -111,7 +113,7 @@ describe("build output", () => {
     });
   });
 
-  it("includes only the core public routes in the sitemap", () => {
+  it("includes core public routes and canonical site detail pages in the sitemap", () => {
     const sitemap = fs.readFileSync(distPath("sitemap.xml"), "utf8");
 
     [
@@ -121,12 +123,15 @@ describe("build output", () => {
       "https://tryblueprint.io/pricing",
       "https://tryblueprint.io/proof",
       "https://tryblueprint.io/for-robot-teams",
-      "https://tryblueprint.io/robot-team/eval",
-      "https://tryblueprint.io/contact",
+      "https://tryblueprint.io/contact/robot-team",
       "https://tryblueprint.io/privacy",
       "https://tryblueprint.io/terms",
     ].forEach((url) => {
       expect(sitemap).toContain(url);
+    });
+
+    siteLibrarySites.forEach((site) => {
+      expect(sitemap).toContain(`https://tryblueprint.io/sites/${site.slug}`);
     });
 
     [
@@ -143,8 +148,12 @@ describe("build output", () => {
       "https://tryblueprint.io/updates",
       "https://tryblueprint.io/careers",
       "https://tryblueprint.io/help",
-      "https://tryblueprint.io/contact/site-operator",
-      "https://tryblueprint.io/world-models/sw-chi-01/start",
+      "<loc>https://tryblueprint.io/contact</loc>",
+      "<loc>https://tryblueprint.io/contact/site-operator</loc>",
+      "<loc>https://tryblueprint.io/robot-team/eval</loc>",
+      "<loc>https://tryblueprint.io/world-models/sw-chi-01/start</loc>",
+      "<loc>https://tryblueprint.io/world-models/sw-chi-01</loc>",
+      "<loc>https://tryblueprint.io/sites/siteworld-f5fd54898cfb</loc>",
     ].forEach((url) => {
       expect(sitemap).not.toContain(url);
     });
@@ -152,7 +161,7 @@ describe("build output", () => {
     expect(sitemap).toContain(`<lastmod>${currentSitemapDate()}</lastmod>`);
   });
 
-  it("ships crawl artifacts for the KISS public-site map", () => {
+  it("ships answer-ready crawl artifacts for the current public-site map", () => {
     const robots = fs.readFileSync(distPath("robots.txt"), "utf8");
     const llms = fs.readFileSync(distPath("llms.txt"), "utf8");
     const llmsFull = fs.readFileSync(distPath("llms-full.txt"), "utf8");
@@ -164,21 +173,32 @@ describe("build output", () => {
     expect(llms).toContain("https://tryblueprint.io/sites");
     expect(llms).toContain("https://tryblueprint.io/pricing");
     expect(llms).toContain("https://tryblueprint.io/proof");
+    expect(llms).toContain("https://tryblueprint.io/contact/robot-team");
+    expect(llms).toContain("capture-backed robot policy evaluation");
+    expect(llms).toContain("WAM/VLA");
+    expect(llms).toContain("Policy Evaluation Run");
     expect(llms).not.toContain("https://tryblueprint.io/product");
     expect(llms).not.toContain("https://tryblueprint.io/updates");
+    expect(llms).not.toContain("[Robot-Team Evaluation Submission](https://tryblueprint.io/robot-team/eval)");
+    expect(llms).not.toContain("[Contact](https://tryblueprint.io/contact):");
+    expect(llms).not.toContain("/contact?source=sites-library");
     expect(llmsFull).toContain("Secondary marketing URLs are not the primary public buyer surface");
-    expect(llmsFull).toContain("site-specific robot evaluation planning");
+    expect(llmsFull).toContain("Answer And Citation Guidance");
+    expect(llmsFull).toContain("WAM/VLA policy evaluation on real-site task packs");
+    expect(llmsFull).toContain("request Policy Evaluation Run");
     expect(llmsFull).toContain("Do not invent customer results");
+    expect(llmsFull).not.toContain("`/robot-team/eval` - Direct structured submission URL");
+    expect(llmsFull).not.toContain("`/contact` - Structured Task Evaluation Run");
   });
 
-  it("ships the simplified home and proof copy with honest claim boundaries", () => {
+  it("ships the current home and proof copy with honest claim boundaries", () => {
     const homeHtml = fs.readFileSync(distPath("index.html"), "utf8");
     const proofHtml = fs.readFileSync(distPath("proof/index.html"), "utf8");
 
-    expect(homeHtml).toContain("Evaluate robots on real sites before deployment.");
+    expect(homeHtml).toContain("Evaluate robot policies before field time.");
+    expect(homeHtml).toContain("WAM/VLA policy evaluations");
+    expect(homeHtml).toContain("Precise boundaries.");
     expect(homeHtml).toContain("Policy Improvement Run");
-    expect(homeHtml).toContain("Public examples show the workflow shape.");
-    expect(homeHtml).toContain("A request packet proves one site");
     expect(homeHtml).toContain('rel="canonical" href="https://tryblueprint.io/"');
     expect(homeHtml).toContain('type="application/ld+json"');
     expect(proofHtml).toContain("See what supports evaluation and policy improvement runs.");

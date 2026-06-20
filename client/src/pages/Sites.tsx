@@ -268,7 +268,7 @@ export default function Sites() {
   return (
     <>
       <SEO
-        title="Sites | Blueprint"
+        title="Captured Site Library for Robot Evaluation | Blueprint"
         description="Browse captured sites and Task Packs available for robot-team evaluation requests."
         canonical="/sites"
         image="/generated/editorial/grocery-fulfillment.png"
@@ -277,7 +277,7 @@ export default function Sites() {
             path: "/sites",
             name: "Blueprint Site Library",
             description:
-              "Captured-site library for robot teams to browse site types, task packs, readiness, access status, and request Task Evaluation Runs.",
+              "Captured-site library for robot teams to browse site types, task packs, readiness, access status, and request Policy Evaluation Runs.",
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },
@@ -297,11 +297,11 @@ export default function Sites() {
                 Browse captured sites for robot evaluation.
               </h1>
               <p className="mt-5 max-w-[42rem] text-base leading-7 text-white/75 sm:text-lg">
-                Find real-site Task Packs your robot policy can be evaluated against. Filter by site type, task, readiness, and access status.
+                This captured-site library helps robot teams choose real-site Task Packs for a Policy Evaluation Run. Filter by site type, task, readiness, and access status.
               </p>
               <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <a
-                  href="/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=task-evaluation-run&source=sites-hero"
+                  href="/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=policy-evaluation-run&requestedOutputs=Policy%20Evaluation%20Run&source=sites-hero"
                   className="inline-flex min-h-12 items-center justify-center bg-[#c7a775] px-5 text-sm font-semibold text-[#0d0d0b] transition hover:bg-[#d8bd8d]"
                 >
                   Request evaluation
@@ -433,7 +433,7 @@ export default function Sites() {
                   Remove filters
                 </button>
                 <a
-                  href="/contact?persona=robot-team&buyerType=robot_team&interest=capture-access&path=new-capture&source=sites-empty"
+                  href="/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=capture-access&path=new-capture&source=sites-empty"
                   className="inline-flex min-h-11 items-center justify-center bg-slate-950 px-4 text-sm font-semibold text-white transition hover:bg-slate-800"
                 >
                   Request new site
@@ -471,7 +471,7 @@ export default function Sites() {
                 {
                   icon: CheckCircle2,
                   title: "Confirm scope",
-                  body: "Blueprint confirms access posture, evidence, and Task Evaluation Run boundaries.",
+                  body: "Blueprint confirms access posture, evidence, and Policy Evaluation Run boundaries.",
                 },
               ].map((item) => (
                 <div key={item.title} className="border border-black/10 bg-[#f8f6f1] p-5">
@@ -507,7 +507,7 @@ export default function Sites() {
                   See proof details
                 </a>
                 <a
-                  href="/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=task-evaluation-run&source=sites-bottom"
+                  href="/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=policy-evaluation-run&requestedOutputs=Policy%20Evaluation%20Run&source=sites-bottom"
                   className="inline-flex min-h-11 items-center justify-center bg-[#c7a775] px-4 text-sm font-semibold text-[#0d0d0b] transition hover:bg-[#d8bd8d]"
                 >
                   Request evaluation

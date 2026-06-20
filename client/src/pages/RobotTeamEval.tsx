@@ -1,36 +1,8 @@
 import { useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { useLocation } from "wouter";
-import {
-  ArrowRight,
-  Bot,
-  CheckCircle2,
-  ClipboardList,
-  Code2,
-  Container,
-  FileJson2,
-  Gauge,
-  GitBranch,
-  Layers3,
-  Gamepad2,
-  Link2,
-  Loader2,
-  MonitorPlay,
-  PackageCheck,
-  Route,
-  Cpu,
-  TerminalSquare,
-} from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { ArrowRight, CheckCircle2, Loader2 } from "lucide-react";
 import { SEO } from "@/components/SEO";
-import {
-  getRobotEvalMoatScenarioFamily,
-  getRobotEvalMoatSite,
-  getRobotEvalMoatTask,
-  representativeRobotEvalSites,
-  robotEvalDecisionOptions,
-  robotEvalMoatWorkflowSteps,
-} from "@/data/robotEvalMoat";
 import { siteWorldCards } from "@/data/siteWorlds";
 import { withCsrfHeader } from "@/lib/csrf";
 import { humanoidReadinessAssets } from "@/lib/editorialGeneratedAssets";
@@ -39,7 +11,9 @@ import {
   normalizeRobotTeamTestSubmission,
   ROBOT_TEAM_TEST_SUBMISSION_MODALITY_DEFINITIONS,
   type RobotTeamTestSubmission,
+  type RobotTeamTestSubmissionEpisodeCount,
   type RobotTeamTestSubmissionModalityId,
+  type RobotTeamTestSubmissionValidationMode,
 } from "@/lib/robotTeamTestSubmission";
 import type { CreateHostedSessionRequest } from "@/types/hostedSession";
 
@@ -47,121 +21,35 @@ type FieldState = Record<
   RobotTeamTestSubmissionModalityId,
   Record<string, string>
 >;
-type EnabledState = Record<RobotTeamTestSubmissionModalityId, boolean>;
 
-type RunSetupState = {
-  policyLabels: string;
-  episodeCount: "100" | "500" | "custom";
-  customEpisodeCount: string;
-  validationMode:
-    | "virtual_preflight"
-    | "comparative_policy_eval"
-    | "real_rollout_validated";
-  observationSchemaRef: string;
-  actionSchemaRef: string;
-  controlFrequency: string;
-  robotEmbodiment: string;
-  gripper: string;
-  cameraSetup: string;
-  intrinsicsExtrinsicsRef: string;
-  sitePackageTarget: string;
-  taskInstruction: string;
-  startStateConstraints: string;
-  successCriteria: string;
-};
-
-const iconByModality: Record<RobotTeamTestSubmissionModalityId, LucideIcon> = {
-  policy_api_endpoint: Link2,
-  docker_container: Container,
-  recorded_action_trace: ClipboardList,
-  high_level_skill_trace: Route,
-  teleop_demo: Gamepad2,
-  sim_controller_plugin: Code2,
-  model_checkpoint: Cpu,
-};
-
-const fallbackOutputs = [
-  "observation_frames",
-  "action_trace",
-  "success_failure",
-  "export_bundle",
-];
-
-const visualWorkflowSteps = [
-  "Site package",
-  "Robot profile",
-  "Policy access",
-  "Eval report",
-];
-
-const compactIntegrationModes = [
-  "Site package only",
-  "Policy API",
-  "Container / private cloud",
-  "Action trace",
-];
-
-function initialFieldState(): FieldState {
-  return Object.fromEntries(
-    ROBOT_TEAM_TEST_SUBMISSION_MODALITY_DEFINITIONS.map((definition) => [
+const accessModes = ROBOT_TEAM_TEST_SUBMISSION_MODALITY_DEFINITIONS.filter(
+  (definition) =>
+    ["policy_api_endpoint", "docker_container", "model_checkpoint"].includes(
       definition.id,
-      Object.fromEntries(definition.fields.map((field) => [field.key, ""])),
-    ]),
-  ) as FieldState;
-}
+    ),
+);
 
-function initialRunSetupState(): RunSetupState {
-  return {
-    policyLabels: "primary-policy",
-    episodeCount: "100",
-    customEpisodeCount: "",
-    validationMode: "virtual_preflight",
-    observationSchemaRef: "",
-    actionSchemaRef: "",
-    controlFrequency: "",
-    robotEmbodiment: "",
-    gripper: "",
-    cameraSetup: "",
-    intrinsicsExtrinsicsRef: "",
-    sitePackageTarget: "",
-    taskInstruction: "",
-    startStateConstraints: "",
-    successCriteria: "",
-  };
-}
+const sitePackages = [
+  { id: "siteworld-f5fd54898cfb", label: "Warehouse tote transfer" },
+  { id: siteWorldCards[1]?.id || "retail-backroom", label: "Retail backroom pick" },
+  { id: siteWorldCards[2]?.id || "lab-bench", label: "Lab bench handoff" },
+];
 
-function runSetupInput(setup: RunSetupState) {
-  return {
-    ...setup,
-    policyLabels: setup.policyLabels.split(/[\n,]/),
-  };
-}
-
-function initialEnabledState(): EnabledState {
-  return Object.fromEntries(
-    ROBOT_TEAM_TEST_SUBMISSION_MODALITY_DEFINITIONS.map((definition) => [
-      definition.id,
-      definition.id === "policy_api_endpoint",
-    ]),
-  ) as EnabledState;
+function createSubmissionId() {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return `robot-team-test-${crypto.randomUUID()}`;
+  }
+  return `robot-team-test-${Date.now()}`;
 }
 
 function publicDemoSiteWorldIds() {
-  const ids = new Set<string>();
-  if (
-    import.meta.env.MODE !== "production" ||
-    import.meta.env.VITE_ENABLE_DEMO_SITE_WORLDS === "1"
-  ) {
-    ids.add("siteworld-f5fd54898cfb");
-  }
+  const ids = new Set<string>(["siteworld-f5fd54898cfb"]);
   const envSiteWorldId = String(
     import.meta.env.VITE_HOSTED_DEMO_SITE_WORLD_ID ||
       import.meta.env.BLUEPRINT_HOSTED_DEMO_SITE_WORLD_ID ||
       "",
   ).trim();
-  if (envSiteWorldId) {
-    ids.add(envSiteWorldId);
-  }
+  if (envSiteWorldId) ids.add(envSiteWorldId);
   return ids;
 }
 
@@ -170,9 +58,7 @@ function isPublicDemoSiteWorldId(siteWorldId: string) {
 }
 
 async function getFirebaseIdToken(): Promise<string> {
-  if (typeof window === "undefined") {
-    return "";
-  }
+  if (typeof window === "undefined") return "";
 
   try {
     const firebase = await import("@/lib/firebase");
@@ -184,102 +70,77 @@ async function getFirebaseIdToken(): Promise<string> {
   }
 }
 
-function createSubmissionId() {
-  if (typeof crypto !== "undefined" && crypto.randomUUID) {
-    return `robot-team-test-${crypto.randomUUID()}`;
-  }
-  return `robot-team-test-${Date.now()}`;
+function initialFieldState(): FieldState {
+  return Object.fromEntries(
+    ROBOT_TEAM_TEST_SUBMISSION_MODALITY_DEFINITIONS.map((definition) => [
+      definition.id,
+      Object.fromEntries(definition.fields.map((field) => [field.key, ""])),
+    ]),
+  ) as FieldState;
 }
 
-function selectedSiteDefaultId() {
-  const publicDemo = siteWorldCards.find(
-    (site) => site.id === "siteworld-f5fd54898cfb",
+function selectedSiteWorld(siteWorldId: string) {
+  return (
+    siteWorldCards.find((site) => site.id === siteWorldId) ||
+    siteWorldCards.find((site) => site.id === "siteworld-f5fd54898cfb") ||
+    siteWorldCards[0]
   );
-  return publicDemo?.id || siteWorldCards[0]?.id || "";
 }
 
-function buildRequestReviewHref(params: {
-  siteName: string;
-  siteAddress: string;
-  taskText: string;
-  robotName: string;
+function splitLabels(value: string) {
+  return value
+    .split(/[\n,]/)
+    .map((label) => label.trim())
+    .filter(Boolean);
+}
+
+function intakeHref(params: {
   submission: RobotTeamTestSubmission | null;
+  selectedMode: RobotTeamTestSubmissionModalityId;
 }) {
-  const selectedModes =
-    params.submission?.selectedModalities.join(", ") ||
-    "structured robot-team test";
-  const missing =
-    params.submission?.missingEvidenceStatuses.join(", ") ||
-    "none recorded yet";
-  const setup = params.submission
-    ? [
-        `policyLabels=${params.submission.policyLabels.join(", ") || "none entered"}`,
-        `episodeCount=${params.submission.episodeCount}${params.submission.customEpisodeCount ? ` (${params.submission.customEpisodeCount})` : ""}`,
-        `validationMode=${params.submission.validationMode}`,
-        `observationSchemaRef=${params.submission.observationSchemaRef || "none entered"}`,
-        `actionSchemaRef=${params.submission.actionSchemaRef || "none entered"}`,
-        `controlFrequency=${params.submission.controlFrequency || "none entered"}`,
-        `robotEmbodiment=${params.submission.robotEmbodiment || "none entered"}`,
-        `gripper=${params.submission.gripper || "none entered"}`,
-        `cameraSetup=${params.submission.cameraSetup || "none entered"}`,
-        `intrinsicsExtrinsicsRef=${params.submission.intrinsicsExtrinsicsRef || "none entered"}`,
-        `sitePackageTarget=${params.submission.sitePackageTarget || "none entered"}`,
-        `taskInstruction=${params.submission.taskInstruction || "none entered"}`,
-        `startStateConstraints=${params.submission.startStateConstraints || "none entered"}`,
-        `successCriteria=${params.submission.successCriteria || "none entered"}`,
-      ].join("\n")
-    : "no run setup entered";
-  const structuredRefs = params.submission
-    ? params.submission.selectedModalities
-        .map((modalityId) => {
-          const modality = params.submission?.modalities[modalityId];
-          const fields = Object.entries(modality?.fields || {})
-            .filter(([, value]) => Boolean(value))
-            .map(([key, value]) => `${key}=${value}`);
-          return `${modalityId}: ${fields.length ? fields.join("; ") : "no refs entered"}`;
-        })
-        .join("\n")
-    : "no structured refs entered";
+  const mode = params.submission?.modalities[params.selectedMode];
+  const fieldSummary = Object.entries(mode?.fields || {})
+    .filter(([, value]) => Boolean(value))
+    .map(([key, value]) => `${key}=${value}`)
+    .join("; ");
   const query = new URLSearchParams({
     persona: "robot-team",
     buyerType: "robot_team",
     interest: "policy-evaluation-run",
     path: "policy-evaluation-run",
     source: "robot-team-eval",
+    requestedOutputs: "Policy Evaluation Run",
     episodeCount: params.submission?.episodeCount || "100",
-    validationMode: params.submission?.validationMode || "virtual_preflight",
-    siteName: params.siteName,
-    siteLocation: params.siteAddress,
-    targetRobotTeam: params.robotName,
-    taskStatement: `Robot-team structured test submission for ${params.taskText}`,
-    requestedOutputs:
-      "Policy Evaluation Run",
-    message: `Selected modalities: ${selectedModes}\nMissing evidence statuses: ${missing}\nRun setup:\n${setup}\nStructured refs:\n${structuredRefs}`,
+    validationMode: params.submission?.validationMode || "comparative_policy_eval",
+    message: [
+      `policyLabels=${params.submission?.policyLabels.join(", ") || "none entered"}`,
+      `accessMode=${params.selectedMode}`,
+      fieldSummary,
+    ]
+      .filter(Boolean)
+      .join("\n"),
   });
-  return `/contact?${query.toString()}`;
-}
-
-function uniqueOutputs(values: string[]) {
-  return Array.from(new Set(values.filter(Boolean)));
+  return `/contact/robot-team?${query.toString()}`;
 }
 
 export default function RobotTeamEval() {
   const [, setLocation] = useLocation();
-  const initialEvalSite = representativeRobotEvalSites[0];
-  const [selectedSiteId, setSelectedSiteId] = useState(selectedSiteDefaultId);
-  const [evalSiteId, setEvalSiteId] = useState(initialEvalSite.id);
-  const [evalTaskId, setEvalTaskId] = useState(initialEvalSite.tasks[0].id);
-  const [evalScenarioFamilyId, setEvalScenarioFamilyId] = useState(
-    initialEvalSite.scenarioFamilies[0].id,
-  );
-  const [enabled, setEnabled] = useState<EnabledState>(() =>
-    initialEnabledState(),
-  );
+  const [siteWorldId, setSiteWorldId] = useState("siteworld-f5fd54898cfb");
+  const [policyLabels, setPolicyLabels] = useState("primary-policy");
+  const [episodeCount, setEpisodeCount] =
+    useState<RobotTeamTestSubmissionEpisodeCount>("100");
+  const [validationMode, setValidationMode] =
+    useState<RobotTeamTestSubmissionValidationMode>("comparative_policy_eval");
+  const [observationSchemaRef, setObservationSchemaRef] = useState("");
+  const [actionSchemaRef, setActionSchemaRef] = useState("");
+  const [controlFrequency, setControlFrequency] = useState("");
+  const [robotEmbodiment, setRobotEmbodiment] = useState("");
+  const [taskInstruction, setTaskInstruction] = useState("");
+  const [successCriteria, setSuccessCriteria] = useState("");
+  const [accessMode, setAccessMode] =
+    useState<RobotTeamTestSubmissionModalityId>("policy_api_endpoint");
   const [fieldValues, setFieldValues] = useState<FieldState>(() =>
     initialFieldState(),
-  );
-  const [runSetup, setRunSetup] = useState<RunSetupState>(() =>
-    initialRunSetupState(),
   );
   const [status, setStatus] = useState<
     "idle" | "submitting" | "created" | "blocked"
@@ -288,47 +149,42 @@ export default function RobotTeamEval() {
   const [lastSubmission, setLastSubmission] =
     useState<RobotTeamTestSubmission | null>(null);
 
-  const selectedSite = useMemo(
-    () =>
-      siteWorldCards.find((site) => site.id === selectedSiteId) ||
-      siteWorldCards[0],
-    [selectedSiteId],
-  );
-  const selectedRobot =
-    selectedSite?.robotProfiles[0] || selectedSite?.sampleRobotProfile || null;
-  const selectedTask = selectedSite?.taskCatalog[0] || null;
-  const selectedScenario = selectedSite?.scenarioCatalog[0] || null;
-  const selectedStartState = selectedSite?.startStateCatalog[0] || null;
-  const selectedEvalSite = useMemo(
-    () => getRobotEvalMoatSite(evalSiteId),
-    [evalSiteId],
-  );
-  const selectedEvalTask = useMemo(
-    () => getRobotEvalMoatTask(selectedEvalSite, evalTaskId),
-    [evalTaskId, selectedEvalSite],
-  );
-  const selectedEvalScenarioFamily = useMemo(
-    () =>
-      getRobotEvalMoatScenarioFamily(selectedEvalSite, evalScenarioFamilyId),
-    [evalScenarioFamilyId, selectedEvalSite],
-  );
+  const site = useMemo(() => selectedSiteWorld(siteWorldId), [siteWorldId]);
+  const robot = site?.robotProfiles[0] || site?.sampleRobotProfile || null;
+  const task = site?.taskCatalog[0] || null;
+  const scenario = site?.scenarioCatalog[0] || null;
+  const startState = site?.startStateCatalog[0] || null;
+  const selectedAccessMode =
+    accessModes.find((definition) => definition.id === accessMode) ||
+    accessModes[0];
 
-  const currentSubmission = useMemo(() => {
-    if (!selectedSite || !selectedRobot || !selectedTask || !selectedScenario) {
-      return null;
-    }
+  const submissionPreview = useMemo(() => {
+    if (!site || !robot || !task || !scenario) return null;
     return normalizeRobotTeamTestSubmission(
       buildRobotTeamSubmissionInput({
-        siteWorldId: selectedSite.id,
-        taskId: selectedTask.id,
-        scenarioId: selectedScenario.id,
-        robotProfileId: selectedRobot.id || "",
-        ...runSetupInput(runSetup),
+        siteWorldId: site.id,
+        taskId: task.id,
+        scenarioId: scenario.id,
+        robotProfileId: robot.id || "",
+        policyLabels: splitLabels(policyLabels),
+        episodeCount,
+        validationMode,
+        observationSchemaRef,
+        actionSchemaRef,
+        controlFrequency,
+        robotEmbodiment,
+        gripper: "",
+        cameraSetup: "",
+        intrinsicsExtrinsicsRef: "",
+        sitePackageTarget: site.siteName,
+        taskInstruction,
+        startStateConstraints: "",
+        successCriteria,
         modalities: Object.fromEntries(
           ROBOT_TEAM_TEST_SUBMISSION_MODALITY_DEFINITIONS.map((definition) => [
             definition.id,
             {
-              selected: enabled[definition.id],
+              selected: definition.id === accessMode,
               fields: fieldValues[definition.id],
             },
           ]),
@@ -336,54 +192,28 @@ export default function RobotTeamEval() {
       }),
     );
   }, [
-    enabled,
+    accessMode,
+    actionSchemaRef,
+    controlFrequency,
+    episodeCount,
     fieldValues,
-    runSetup,
-    selectedRobot,
-    selectedScenario,
-    selectedSite,
-    selectedTask,
+    observationSchemaRef,
+    policyLabels,
+    robot,
+    robotEmbodiment,
+    scenario,
+    site,
+    successCriteria,
+    task,
+    taskInstruction,
+    validationMode,
   ]);
 
-  const requestReviewHref = buildRequestReviewHref({
-    siteName: selectedSite?.siteName || "Blueprint site package",
-    siteAddress: selectedSite?.siteAddress || "",
-    taskText:
-      selectedEvalTask?.label ||
-      selectedTask?.taskText ||
-      "selected robot task",
-    robotName: selectedRobot?.displayName || "robot profile",
-    submission: lastSubmission || currentSubmission,
-  });
-
-  const updateEvalSite = (siteId: string) => {
-    const nextSite = getRobotEvalMoatSite(siteId);
-    setEvalSiteId(nextSite.id);
-    setEvalTaskId(nextSite.tasks[0].id);
-    setEvalScenarioFamilyId(nextSite.scenarioFamilies[0].id);
-    if (
-      siteWorldCards.some((site) => site.id === nextSite.catalogSiteWorldId)
-    ) {
-      setSelectedSiteId(nextSite.catalogSiteWorldId);
-    }
-  };
-
-  const updateRunSetup = <Key extends keyof RunSetupState>(
-    key: Key,
-    value: RunSetupState[Key],
-  ) => {
-    setRunSetup((current) => ({ ...current, [key]: value }));
-  };
-
-  const updateField = (
-    modalityId: RobotTeamTestSubmissionModalityId,
-    fieldKey: string,
-    value: string,
-  ) => {
+  const updateAccessField = (fieldKey: string, value: string) => {
     setFieldValues((current) => ({
       ...current,
-      [modalityId]: {
-        ...current[modalityId],
+      [accessMode]: {
+        ...current[accessMode],
         [fieldKey]: value,
       },
     }));
@@ -394,33 +224,38 @@ export default function RobotTeamEval() {
     setStatus("submitting");
     setStatusMessage("");
 
-    if (
-      !selectedSite ||
-      !selectedRobot ||
-      !selectedTask ||
-      !selectedScenario ||
-      !selectedStartState
-    ) {
+    if (!site || !robot || !task || !scenario || !startState) {
       setStatus("blocked");
-      setStatusMessage(
-        "Select a site package with task, scenario, start-state, and robot-profile records.",
-      );
+      setStatusMessage("Select a site package with task and robot records.");
       return;
     }
 
     const submission = normalizeRobotTeamTestSubmission(
       buildRobotTeamSubmissionInput({
         submissionId: createSubmissionId(),
-        siteWorldId: selectedSite.id,
-        taskId: selectedTask.id,
-        scenarioId: selectedScenario.id,
-        robotProfileId: selectedRobot.id || "",
-        ...runSetupInput(runSetup),
+        siteWorldId: site.id,
+        taskId: task.id,
+        scenarioId: scenario.id,
+        robotProfileId: robot.id || "",
+        policyLabels: splitLabels(policyLabels),
+        episodeCount,
+        validationMode,
+        observationSchemaRef,
+        actionSchemaRef,
+        controlFrequency,
+        robotEmbodiment,
+        gripper: "",
+        cameraSetup: "",
+        intrinsicsExtrinsicsRef: "",
+        sitePackageTarget: site.siteName,
+        taskInstruction,
+        startStateConstraints: "",
+        successCriteria,
         modalities: Object.fromEntries(
           ROBOT_TEAM_TEST_SUBMISSION_MODALITY_DEFINITIONS.map((definition) => [
             definition.id,
             {
-              selected: enabled[definition.id],
+              selected: definition.id === accessMode,
               fields: fieldValues[definition.id],
             },
           ]),
@@ -428,63 +263,57 @@ export default function RobotTeamEval() {
       }),
     );
 
-    if (!submission || submission.selectedModalities.length === 0) {
-      setLastSubmission(submission);
+    if (!submission) {
       setStatus("blocked");
-      setStatusMessage("Select at least one submission modality.");
+      setStatusMessage("Add a policy access method before creating a session.");
       return;
     }
 
     setLastSubmission(submission);
-    const requestedOutputs = uniqueOutputs([
-      ...fallbackOutputs,
-      ...submission.requestedOutputs,
-    ]);
     const requestPayload: CreateHostedSessionRequest = {
-      siteWorldId: selectedSite.id,
+      siteWorldId: site.id,
       sessionMode: "runtime_only",
       runtimeUi: null,
-      robotProfileId: selectedRobot.id || "",
-      taskId: selectedTask.id,
-      scenarioId: selectedScenario.id,
-      startStateId: selectedStartState.id,
-      requestedBackend: selectedSite.defaultRuntimeBackend,
-      requestedOutputs,
+      robotProfileId: robot.id || "",
+      taskId: task.id,
+      scenarioId: scenario.id,
+      startStateId: startState.id,
+      requestedBackend: site.defaultRuntimeBackend,
+      requestedOutputs: [
+        "policy_ranking",
+        "failure_taxonomy",
+        "ood_uncertainty_flags",
+        "validation_targets",
+      ],
       exportModes: ["raw_bundle", "rlds_dataset"],
       runtimeSessionConfig: {
-        canonical_package_uri: selectedSite.siteWorldSpecUri || null,
+        canonical_package_uri: site.siteWorldSpecUri || null,
         canonical_package_version: null,
         prompt: null,
         trajectory: null,
         presentation_model: null,
         debug_mode: false,
-        unsafe_allow_blocked_site_world: isPublicDemoSiteWorldId(
-          selectedSite.id,
-        ),
+        unsafe_allow_blocked_site_world: isPublicDemoSiteWorldId(site.id),
       },
       policy: {
         runMode: "robot_team_structured_test_submission",
         robotTeamTestSubmission: submission,
         proofBoundary:
-          "Advisory review only. Submitted references are not deployment, safety, robot-run, sim-run, rights, or guaranteed-threshold proof.",
+          "Virtual WAM/VLA outputs rank policies; they do not prove safety validation, deployment approval, universal SRCC, or real-world success.",
       },
-      notes: [
-        `Robot-team test submission modalities: ${submission.selectedModalities.join(", ")}`,
-        `Representative eval workflow: ${selectedEvalSite.siteName} / ${selectedEvalTask.label} / ${selectedEvalScenarioFamily.label}`,
-      ].join("\n"),
+      notes: `Policy Evaluation Run: ${submission.policyLabels.join(", ")}`,
     };
 
     try {
       const token = await getFirebaseIdToken();
-      const usePublicDemoRoutes = isPublicDemoSiteWorldId(selectedSite.id);
-      if (!token && !usePublicDemoRoutes) {
-        throw new Error(
-          "Direct session creation needs robot-team access for this protected site package.",
-        );
+      const publicDemoRoute = isPublicDemoSiteWorldId(site.id);
+      if (!token && !publicDemoRoute) {
+        throw new Error("Runtime path is request-gated.");
       }
+
       const response = await fetch("/api/site-worlds/sessions", {
         method: "POST",
-        headers: usePublicDemoRoutes
+        headers: publicDemoRoute
           ? { "Content-Type": "application/json" }
           : {
               ...(await withCsrfHeader({ "Content-Type": "application/json" })),
@@ -501,21 +330,16 @@ export default function RobotTeamEval() {
         throw new Error(
           Array.isArray(payload.blockers) && payload.blockers.length > 0
             ? payload.blockers.join(", ")
-            : payload.error ||
-                "Hosted-session creation is request-gated for this package.",
+            : payload.error || "Runtime path is request-gated.",
         );
       }
       setStatus("created");
-      setStatusMessage(
-        "Hosted session created with the structured robot-team test submission attached.",
-      );
+      setStatusMessage("Hosted session created.");
       setLocation(payload.workspaceUrl);
     } catch (error) {
       setStatus("blocked");
       setStatusMessage(
-        error instanceof Error
-          ? error.message
-          : "Direct session creation is request-gated.",
+        error instanceof Error ? error.message : "Runtime path is request-gated.",
       );
     }
   };
@@ -523,778 +347,332 @@ export default function RobotTeamEval() {
   return (
     <>
       <SEO
-        title="Robot-Team Test Interface | Blueprint"
-        description="Submit policy APIs, containers, action traces, skill traces, teleop demos, and sim-controller plugins against Blueprint real-site robot eval packages."
+        title="Policy Evaluation Run for Robot Teams | Blueprint"
+        description="Create a capture-backed WAM/VLA Policy Evaluation Run with a policy API, container, or model checkpoint."
         canonical="/for-robot-teams"
+        image={`https://tryblueprint.io${humanoidReadinessAssets.robotTeamEvalWorkflow}`}
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "WebPage",
+          name: "Policy Evaluation Run for Robot Teams",
+          description:
+            "Create a capture-backed WAM/VLA Policy Evaluation Run with a policy API, Docker container, or model checkpoint.",
+          url: "https://tryblueprint.io/for-robot-teams",
+        }}
       />
 
-      <main className="min-h-screen bg-[#f2f0e8] text-slate-950">
-        <section className="border-b border-black/10 bg-[#101412] text-white">
-          <div className="mx-auto grid max-w-[118rem] gap-8 px-5 py-12 sm:px-8 lg:grid-cols-[minmax(0,0.58fr)_minmax(22rem,0.42fr)] lg:px-10">
+      <main className="bg-white text-slate-950">
+        <section className="border-b border-slate-200">
+          <div className="mx-auto grid max-w-7xl gap-10 px-5 py-14 md:grid-cols-[1fr_0.9fr] md:items-center md:px-8">
             <div>
-              <div className="inline-flex items-center gap-2 rounded-md border border-white/15 px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-white/70">
-                <Bot className="h-4 w-4" />
-                Robot-team eval
-              </div>
-              <h1 className="mt-6 max-w-[12ch] text-[clamp(3.2rem,7vw,7.5rem)] font-semibold leading-[0.86] tracking-[-0.06em]">
-                Robot-team test interface
+              <p className="text-sm font-semibold text-amber-700">
+                Robot teams
+              </p>
+              <h1 className="mt-4 max-w-3xl text-5xl font-semibold leading-tight tracking-normal md:text-6xl">
+                Evaluate robot policies before field time.
               </h1>
-              <p className="mt-6 max-w-3xl text-lg leading-8 text-white/70">
-                Share a safe policy interface against one capture-backed site
-                package. Keep source code and model weights private.
+              <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-600">
+                Connect a policy API, container, or model checkpoint. Blueprint
+                runs it against a captured site task pack and returns ranking,
+                failures, and validation targets.
               </p>
-              <div className="mt-8 flex flex-wrap gap-3">
-                <a
-                  href="#robot-team-submission"
-                  className="inline-flex min-h-12 items-center justify-center rounded-md bg-white px-5 text-sm font-semibold text-slate-950 transition hover:bg-white/90"
-                >
-                  Open submission
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </a>
-                <a
-                  href={requestReviewHref}
-                  className="inline-flex min-h-12 items-center justify-center rounded-md border border-white/20 px-5 text-sm font-semibold text-white transition hover:bg-white/10"
-                >
-                  Request review
-                </a>
-              </div>
             </div>
-            <figure className="self-end overflow-hidden rounded-lg border border-white/15 bg-white/8 shadow-[0_28px_90px_rgba(0,0,0,0.22)]">
-              <img
-                src={humanoidReadinessAssets.robotTeamEvalWorkflow}
-                alt="Generated visual of a humanoid robot in a warehouse evaluation bay with site scan overlays and an evaluation dashboard"
-                className="aspect-[16/10] w-full object-cover"
-              />
-            </figure>
+            <img
+              src={humanoidReadinessAssets.robotTeamEvalWorkflow}
+              alt="Humanoid robot in a warehouse evaluation bay"
+              className="aspect-[4/3] w-full border border-slate-200 object-cover"
+            />
+          </div>
+        </section>
+
+        <section className="border-b border-slate-200 bg-slate-50">
+          <div className="mx-auto grid max-w-7xl gap-4 px-5 py-8 md:grid-cols-3 md:px-8">
+            {["Capture-backed task pack", "100 / 500 WAM-eval episodes", "Rank 1-3 policies"].map(
+              (item) => (
+                <div key={item} className="border border-slate-200 bg-white p-4">
+                  <CheckCircle2
+                    className="h-5 w-5 text-emerald-600"
+                    aria-hidden="true"
+                  />
+                  <p className="mt-3 text-sm font-semibold">{item}</p>
+                </div>
+              ),
+            )}
           </div>
         </section>
 
         <section
-          aria-labelledby="robot-eval-simple-explainer"
-          className="border-b border-black/10 bg-white"
-        >
-          <div className="mx-auto grid max-w-[118rem] gap-6 px-5 py-8 sm:px-8 lg:grid-cols-[minmax(18rem,0.38fr)_minmax(0,0.62fr)] lg:px-10">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                How simulation evals work
-              </p>
-              <h2
-                id="robot-eval-simple-explainer"
-                className="mt-3 max-w-xl text-3xl font-semibold leading-tight text-slate-950 md:text-4xl"
-              >
-                Site package + robot profile + policy access = eval report.
-              </h2>
-              <p className="mt-4 max-w-xl text-sm leading-6 text-slate-600">
-                Robot teams keep source code and model weights private.
-                Blueprint only needs the least-sensitive interface that still
-                lets the task be scored.
-              </p>
-              <p className="mt-5 border-l-2 border-amber-500 pl-3 text-xs leading-5 text-slate-500">
-                Submitted interfaces are inputs. Stronger claims need run logs,
-                owner-system proof, rights review, and agreed thresholds.
-              </p>
-            </div>
-
-            <div className="flex flex-col justify-center">
-              <div className="grid grid-cols-2 gap-2">
-                {visualWorkflowSteps.map((step, index) => (
-                  <div
-                    key={step}
-                    className="border border-slate-200 bg-slate-50 p-3"
-                  >
-                    <p className="text-xs font-semibold uppercase text-slate-400">
-                      {String(index + 1).padStart(2, "0")}
-                    </p>
-                    <p className="mt-1 text-sm font-semibold text-slate-950">
-                      {step}
-                    </p>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-5 flex flex-wrap gap-2">
-                {compactIntegrationModes.map((mode) => (
-                  <span
-                    key={mode}
-                    className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700"
-                  >
-                    {mode}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section
-          aria-labelledby="real-site-robot-eval-workflow"
-          className="mx-auto grid max-w-[118rem] gap-6 px-5 py-7 sm:px-8 lg:grid-cols-[minmax(0,1fr)_25rem] lg:px-10"
-        >
-          <div className="min-w-0 rounded-lg border border-black/10 bg-white p-5 shadow-sm">
-            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-              <div>
-                <p className="text-[11px] font-semibold uppercase text-slate-500">
-                  Real-site eval moat MVP
-                </p>
-                <h2
-                  id="real-site-robot-eval-workflow"
-                  className="mt-2 max-w-3xl text-3xl font-semibold text-slate-950"
-                >
-                  Choose site, task, and scenario family
-                </h2>
-                <p className="mt-3 max-w-4xl text-sm leading-6 text-slate-600">
-                  The product loop stays artifact-first: representative site
-                  package, canonical task ID, scenario family, submitted policy
-                  or trace references, advisory report, and a scoped pilot,
-                  tune, or hold decision.
-                </p>
-              </div>
-              <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold uppercase text-amber-900">
-                Advisory sample
-              </div>
-            </div>
-
-            <div className="mt-5 grid gap-4 lg:grid-cols-3">
-              <label className="block">
-                <span className="mb-2 block text-sm font-semibold text-slate-800">
-                  Representative site
-                </span>
-                <select
-                  aria-label="Representative site"
-                  value={selectedEvalSite.id}
-                  onChange={(event) => updateEvalSite(event.target.value)}
-                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-950"
-                >
-                  {representativeRobotEvalSites.map((site) => (
-                    <option key={site.id} value={site.id}>
-                      {site.siteType} - {site.siteName}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="block">
-                <span className="mb-2 block text-sm font-semibold text-slate-800">
-                  Canonical task
-                </span>
-                <select
-                  aria-label="Canonical task"
-                  value={selectedEvalTask.id}
-                  onChange={(event) => setEvalTaskId(event.target.value)}
-                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-950"
-                >
-                  {selectedEvalSite.tasks.map((task) => (
-                    <option key={task.id} value={task.id}>
-                      {task.label} - {task.canonicalTaskId}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="block">
-                <span className="mb-2 block text-sm font-semibold text-slate-800">
-                  Scenario family
-                </span>
-                <select
-                  aria-label="Scenario family"
-                  value={selectedEvalScenarioFamily.id}
-                  onChange={(event) =>
-                    setEvalScenarioFamilyId(event.target.value)
-                  }
-                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-950"
-                >
-                  {selectedEvalSite.scenarioFamilies.map((scenarioFamily) => (
-                    <option key={scenarioFamily.id} value={scenarioFamily.id}>
-                      {scenarioFamily.label} -{" "}
-                      {scenarioFamily.generatedScenarioCount} variants
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-
-            <div className="mt-5 grid gap-3 xl:grid-cols-[minmax(0,0.7fr)_minmax(18rem,0.3fr)]">
-              <div className="rounded-md border border-slate-200 bg-slate-50 p-4">
-                <div className="flex items-center gap-2 text-sm font-semibold text-slate-950">
-                  <Layers3 className="h-4 w-4 text-slate-500" />
-                  {selectedEvalScenarioFamily.label}
-                </div>
-                <p className="mt-2 text-sm leading-6 text-slate-600">
-                  {selectedEvalScenarioFamily.sampleScenario}
-                </p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {selectedEvalScenarioFamily.variationIds.map(
-                    (variationId) => (
-                      <span
-                        key={variationId}
-                        className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-600"
-                      >
-                        {variationId.replaceAll("_", " ")}
-                      </span>
-                    ),
-                  )}
-                </div>
-              </div>
-              <div className="rounded-md border border-slate-200 bg-slate-50 p-4">
-                <p className="text-xs font-semibold uppercase text-slate-500">
-                  Task success
-                </p>
-                <p className="mt-2 text-sm font-semibold leading-6 text-slate-950">
-                  {selectedEvalTask.successDefinition}
-                </p>
-                <p className="mt-3 text-xs font-semibold uppercase text-slate-500">
-                  Required evidence
-                </p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {selectedEvalTask.requiredEvidence.map((evidence) => (
-                    <span
-                      key={evidence}
-                      className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-600"
-                    >
-                      {evidence.replaceAll("_", " ")}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-5 grid gap-3 md:grid-cols-3 xl:grid-cols-6">
-              {robotEvalMoatWorkflowSteps.map((step, index) => (
-                <article
-                  key={step.id}
-                  className="rounded-md border border-slate-200 bg-white p-3"
-                >
-                  <p className="text-[11px] font-semibold uppercase text-slate-400">
-                    Step {index + 1}
-                  </p>
-                  <h3 className="mt-1 text-sm font-semibold text-slate-950">
-                    {step.label}
-                  </h3>
-                  <p className="mt-2 break-words text-xs font-semibold text-slate-500">
-                    {step.artifact}
-                  </p>
-                </article>
-              ))}
-            </div>
-          </div>
-
-          <aside className="h-fit rounded-lg border border-black/10 bg-white p-5 shadow-sm lg:sticky lg:top-24">
-            <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-slate-950 text-white">
-                <Gauge className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-slate-950">
-                  Advisory eval report
-                </p>
-                <p className="mt-1 text-xs leading-5 text-slate-500">
-                  Representative policy_eval_report.json output for the selected
-                  workflow.
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-5 space-y-3">
-              {selectedEvalSite.evalReport.map((metric) => (
-                <div
-                  key={metric.id}
-                  className={`rounded-md border p-3 ${
-                    metric.status === "blocked"
-                      ? "border-amber-200 bg-amber-50"
-                      : "border-slate-200 bg-slate-50"
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <p className="text-sm font-semibold text-slate-950">
-                      {metric.label}
-                    </p>
-                    <span className="shrink-0 text-xs font-semibold uppercase text-slate-500">
-                      {metric.status}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-lg font-semibold text-slate-950">
-                    {metric.value}
-                  </p>
-                  <p className="mt-1 text-xs leading-5 text-slate-500">
-                    {metric.detail}
-                  </p>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-5">
-              <div className="flex items-center gap-2">
-                <GitBranch className="h-4 w-4 text-slate-500" />
-                <p className="text-sm font-semibold text-slate-950">
-                  Decision options
-                </p>
-              </div>
-              <div className="mt-3 grid gap-2">
-                {robotEvalDecisionOptions.map((option) => (
-                  <div
-                    key={option.id}
-                    className="rounded-md border border-slate-200 bg-slate-50 p-3"
-                  >
-                    <p className="text-sm font-semibold text-slate-950">
-                      {option.label}
-                    </p>
-                    <p className="mt-1 text-xs leading-5 text-slate-500">
-                      {option.criteria}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </aside>
-        </section>
-
-        <form
           id="robot-team-submission"
-          onSubmit={createHostedSession}
-          className="mx-auto grid max-w-[118rem] gap-6 px-5 py-7 sm:px-8 lg:grid-cols-[minmax(0,1fr)_24rem] lg:px-10"
+          className="mx-auto grid max-w-7xl gap-8 px-5 py-12 md:grid-cols-[0.9fr_0.55fr] md:px-8"
         >
-          <div className="min-w-0 space-y-5">
-            <section className="rounded-lg border border-black/10 bg-white p-5 shadow-sm">
-              <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                    Site package
-                  </p>
-                  <h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em]">
-                    Choose the real-site package and task context
-                  </h2>
-                  <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-                    The submission is attached to a siteWorldId, taskId,
-                    scenarioId, startStateId, robotProfileId, and requested
-                    output list.
-                  </p>
-                </div>
-                <PackageCheck className="hidden h-10 w-10 text-slate-400 md:block" />
+          <form
+            className="border border-slate-200 p-5 md:p-6"
+            onSubmit={createHostedSession}
+          >
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h2 className="text-3xl font-semibold">Evaluation setup</h2>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  Keep it simple. Pick the pack, policy access method, and
+                  episode count.
+                </p>
               </div>
-              <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,0.7fr)_minmax(0,0.3fr)]">
-                <label className="block">
-                  <span className="mb-2 block text-sm font-semibold text-slate-800">
-                    Package
-                  </span>
-                  <select
-                    value={selectedSite?.id || selectedSiteId}
-                    onChange={(event) => setSelectedSiteId(event.target.value)}
-                    className="w-full rounded-md border border-slate-300 bg-white px-3 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-950"
-                  >
-                    {siteWorldCards.map((site) => (
-                      <option key={site.id} value={site.id}>
-                        {site.siteName} - {site.sampleTask}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <div className="rounded-md border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                    Selected robot
-                  </p>
-                  <p className="mt-2 text-sm font-semibold text-slate-950">
-                    {selectedRobot?.displayName || "Robot profile required"}
-                  </p>
-                  <p className="mt-1 text-xs leading-5 text-slate-500">
-                    {selectedRobot?.actionSpaceSummary ||
-                      "Action space pending."}
-                  </p>
-                </div>
-              </div>
-            </section>
+              <a
+                href={intakeHref({
+                  submission: lastSubmission || submissionPreview,
+                  selectedMode: accessMode,
+                })}
+                className="inline-flex min-h-10 items-center justify-center border border-slate-300 px-3 text-sm font-semibold text-slate-950 hover:bg-slate-50"
+              >
+                Submit intake request
+              </a>
+            </div>
 
-            <section className="rounded-lg border border-black/10 bg-white p-5 shadow-sm">
-              <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                    Run setup
-                  </p>
-                  <h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em]">
-                    Describe the policy, robot, sensors, and success contract
-                  </h2>
-                  <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-                    These top-level fields travel with every modality so the
-                    handoff keeps policy labels, episode counts, schema refs,
-                    robot embodiment, camera setup, and task criteria separate
-                    from artifact-specific refs.
-                  </p>
-                </div>
-              </div>
-              <div className="mt-5 grid gap-4 lg:grid-cols-3">
-                <label className="block">
-                  <span className="mb-2 block text-sm font-semibold text-slate-800">
-                    Policy labels
-                  </span>
-                  <textarea
-                    aria-label="Policy labels"
-                    value={runSetup.policyLabels}
-                    onChange={(event) =>
-                      updateRunSetup("policyLabels", event.target.value)
-                    }
-                    rows={2}
-                    placeholder="primary-policy, baseline-policy, ablation-policy"
-                    className="w-full resize-y rounded-md border border-slate-300 bg-white px-3 py-2.5 text-sm leading-6 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-950"
-                  />
-                  <span className="mt-1.5 block text-xs leading-5 text-slate-500">
-                    Enter 1-3 non-empty labels separated by commas or new lines.
-                  </span>
-                </label>
-                <label className="block">
-                  <span className="mb-2 block text-sm font-semibold text-slate-800">
-                    Episode count
-                  </span>
-                  <select
-                    aria-label="Episode count"
-                    value={runSetup.episodeCount}
-                    onChange={(event) =>
-                      updateRunSetup(
-                        "episodeCount",
-                        event.target.value as RunSetupState["episodeCount"],
-                      )
-                    }
-                    className="w-full rounded-md border border-slate-300 bg-white px-3 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-950"
-                  >
-                    <option value="100">100 episodes</option>
-                    <option value="500">500 episodes</option>
-                    <option value="custom">Custom</option>
-                  </select>
-                </label>
-                <label className="block">
-                  <span className="mb-2 block text-sm font-semibold text-slate-800">
-                    Custom episode count
-                  </span>
-                  <input
-                    aria-label="Custom episode count"
-                    value={runSetup.customEpisodeCount}
-                    onChange={(event) =>
-                      updateRunSetup("customEpisodeCount", event.target.value)
-                    }
-                    disabled={runSetup.episodeCount !== "custom"}
-                    placeholder="250"
-                    className="w-full rounded-md border border-slate-300 bg-white px-3 py-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-950 disabled:bg-slate-100 disabled:text-slate-400"
-                  />
-                </label>
-                <label className="block">
-                  <span className="mb-2 block text-sm font-semibold text-slate-800">
-                    Validation mode
-                  </span>
-                  <select
-                    aria-label="Validation mode"
-                    value={runSetup.validationMode}
-                    onChange={(event) =>
-                      updateRunSetup(
-                        "validationMode",
-                        event.target.value as RunSetupState["validationMode"],
-                      )
-                    }
-                    className="w-full rounded-md border border-slate-300 bg-white px-3 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-950"
-                  >
-                    <option value="virtual_preflight">Virtual preflight</option>
-                    <option value="comparative_policy_eval">
-                      Comparative policy eval
+            <div className="mt-6 grid gap-4 md:grid-cols-2">
+              <label className="grid gap-2 text-sm font-semibold">
+                Site package
+                <select
+                  value={siteWorldId}
+                  onChange={(event) => setSiteWorldId(event.target.value)}
+                  className="min-h-11 border border-slate-300 bg-white px-3 text-sm font-normal"
+                >
+                  {sitePackages.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
                     </option>
-                    <option value="real_rollout_validated">
-                      Real rollout validated
-                    </option>
-                  </select>
-                </label>
-                {(
-                  [
-                    [
-                      "observationSchemaRef",
-                      "Observation schema ref",
-                      "gs://team-bucket/schemas/observation.v1.json",
-                    ],
-                    [
-                      "actionSchemaRef",
-                      "Action schema ref",
-                      "gs://team-bucket/schemas/action.v1.json",
-                    ],
-                    [
-                      "controlFrequency",
-                      "Control frequency",
-                      "20 Hz control loop",
-                    ],
-                    [
-                      "robotEmbodiment",
-                      "Robot embodiment",
-                      "Mobile manipulator with 7-DoF arm",
-                    ],
-                    ["gripper", "Gripper", "parallel jaw gripper"],
-                    [
-                      "cameraSetup",
-                      "Camera setup",
-                      "wrist RGB-D + mast stereo",
-                    ],
-                    [
-                      "intrinsicsExtrinsicsRef",
-                      "Intrinsics / extrinsics ref",
-                      "gs://team-bucket/calibration/cameras.json",
-                    ],
-                    [
-                      "sitePackageTarget",
-                      "Site package target",
-                      "Cold-storage pick aisle package",
-                    ],
-                    [
-                      "taskInstruction",
-                      "Task instruction",
-                      "Pick tote from shelf and place onto cart",
-                    ],
-                    [
-                      "startStateConstraints",
-                      "Start-state constraints",
-                      "Robot starts at aisle entry; tote visible",
-                    ],
-                    [
-                      "successCriteria",
-                      "Success criteria",
-                      "Tote placed on cart without safety event",
-                    ],
-                  ] as const
-                ).map(([key, label, placeholder]) => (
-                  <label key={key} className="block">
-                    <span className="mb-2 block text-sm font-semibold text-slate-800">
-                      {label}
-                    </span>
-                    <textarea
-                      aria-label={label}
-                      value={runSetup[key]}
-                      onChange={(event) =>
-                        updateRunSetup(key, event.target.value)
-                      }
-                      rows={2}
-                      placeholder={placeholder}
-                      className="w-full resize-y rounded-md border border-slate-300 bg-white px-3 py-2.5 text-sm leading-6 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-950"
+                  ))}
+                </select>
+              </label>
+
+              <label className="grid gap-2 text-sm font-semibold">
+                Policy / checkpoint labels
+                <input
+                  value={policyLabels}
+                  onChange={(event) => setPolicyLabels(event.target.value)}
+                  className="min-h-11 border border-slate-300 px-3 text-sm font-normal"
+                  placeholder="policy_v1, policy_v2"
+                />
+              </label>
+
+              <label className="grid gap-2 text-sm font-semibold">
+                Episode count
+                <select
+                  value={episodeCount}
+                  onChange={(event) =>
+                    setEpisodeCount(
+                      event.target.value as RobotTeamTestSubmissionEpisodeCount,
+                    )
+                  }
+                  className="min-h-11 border border-slate-300 bg-white px-3 text-sm font-normal"
+                >
+                  <option value="100">100</option>
+                  <option value="500">500</option>
+                  <option value="custom">Custom</option>
+                </select>
+              </label>
+
+              <label className="grid gap-2 text-sm font-semibold">
+                Validation mode
+                <select
+                  value={validationMode}
+                  onChange={(event) =>
+                    setValidationMode(
+                      event.target.value as RobotTeamTestSubmissionValidationMode,
+                    )
+                  }
+                  className="min-h-11 border border-slate-300 bg-white px-3 text-sm font-normal"
+                >
+                  <option value="comparative_policy_eval">
+                    Comparative policy eval
+                  </option>
+                  <option value="virtual_preflight">Virtual preflight</option>
+                  <option value="real_rollout_validated">
+                    Real rollout validated
+                  </option>
+                </select>
+              </label>
+
+              <label className="grid gap-2 text-sm font-semibold">
+                Observation schema ref
+                <input
+                  value={observationSchemaRef}
+                  onChange={(event) => setObservationSchemaRef(event.target.value)}
+                  className="min-h-11 border border-slate-300 px-3 text-sm font-normal"
+                  placeholder="gs://team/schemas/observation.json"
+                />
+              </label>
+
+              <label className="grid gap-2 text-sm font-semibold">
+                Action schema ref
+                <input
+                  value={actionSchemaRef}
+                  onChange={(event) => setActionSchemaRef(event.target.value)}
+                  className="min-h-11 border border-slate-300 px-3 text-sm font-normal"
+                  placeholder="gs://team/schemas/action.json"
+                />
+              </label>
+
+              <label className="grid gap-2 text-sm font-semibold">
+                Control frequency
+                <input
+                  value={controlFrequency}
+                  onChange={(event) => setControlFrequency(event.target.value)}
+                  className="min-h-11 border border-slate-300 px-3 text-sm font-normal"
+                  placeholder="20 Hz"
+                />
+              </label>
+
+              <label className="grid gap-2 text-sm font-semibold">
+                Robot embodiment
+                <input
+                  value={robotEmbodiment}
+                  onChange={(event) => setRobotEmbodiment(event.target.value)}
+                  className="min-h-11 border border-slate-300 px-3 text-sm font-normal"
+                  placeholder="mobile manipulator"
+                />
+              </label>
+
+              <label className="grid gap-2 text-sm font-semibold md:col-span-2">
+                Task instruction
+                <input
+                  value={taskInstruction}
+                  onChange={(event) => setTaskInstruction(event.target.value)}
+                  className="min-h-11 border border-slate-300 px-3 text-sm font-normal"
+                  placeholder="pick tote from shelf"
+                />
+              </label>
+
+              <label className="grid gap-2 text-sm font-semibold md:col-span-2">
+                Success criteria
+                <input
+                  value={successCriteria}
+                  onChange={(event) => setSuccessCriteria(event.target.value)}
+                  className="min-h-11 border border-slate-300 px-3 text-sm font-normal"
+                  placeholder="tote placed without safety event"
+                />
+              </label>
+            </div>
+
+            <div className="mt-8">
+              <h3 className="text-xl font-semibold">Policy access</h3>
+              <div className="mt-3 grid gap-3 md:grid-cols-3">
+                {accessModes.map((mode) => (
+                  <label
+                    key={mode.id}
+                    className={`cursor-pointer border p-4 ${
+                      accessMode === mode.id
+                        ? "border-slate-950 bg-slate-950 text-white"
+                        : "border-slate-200 bg-white text-slate-950"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="accessMode"
+                      value={mode.id}
+                      checked={accessMode === mode.id}
+                      onChange={() => setAccessMode(mode.id)}
+                      className="sr-only"
                     />
+                    <span className="text-sm font-semibold">{mode.label}</span>
+                    <span className="mt-2 block text-xs leading-5 opacity-75">
+                      {mode.summary}
+                    </span>
                   </label>
                 ))}
               </div>
-            </section>
-
-            <section className="grid gap-4 xl:grid-cols-2">
-              {ROBOT_TEAM_TEST_SUBMISSION_MODALITY_DEFINITIONS.map(
-                (definition, index) => {
-                  const Icon = iconByModality[definition.id];
-                  const normalized =
-                    currentSubmission?.modalities[definition.id];
-                  const selected = enabled[definition.id];
-                  return (
-                    <article
-                      key={definition.id}
-                      className={`rounded-lg border bg-white p-5 shadow-sm transition ${
-                        selected ? "border-slate-950" : "border-black/10"
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex min-w-0 items-start gap-3">
-                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-slate-50">
-                            <Icon className="h-5 w-5 text-slate-700" />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                              Modality {index + 1}
-                            </p>
-                            <h3 className="mt-1 text-lg font-semibold tracking-[-0.02em] text-slate-950">
-                              {definition.label}
-                            </h3>
-                            <p className="mt-2 text-sm leading-6 text-slate-600">
-                              {definition.summary}
-                            </p>
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setEnabled((current) => ({
-                              ...current,
-                              [definition.id]: !current[definition.id],
-                            }))
-                          }
-                          className={`inline-flex min-h-10 shrink-0 items-center rounded-md border px-3 text-xs font-semibold uppercase tracking-[0.12em] ${
-                            selected
-                              ? "border-emerald-600 bg-emerald-50 text-emerald-800"
-                              : "border-slate-200 bg-white text-slate-500"
-                          }`}
-                        >
-                          {selected ? "Selected" : "Add"}
-                        </button>
-                      </div>
-
-                      {selected ? (
-                        <div className="mt-5 grid gap-3">
-                          {definition.fields.map((field) => (
-                            <label key={field.key} className="block">
-                              <span className="mb-1.5 flex items-center justify-between gap-3 text-sm font-semibold text-slate-800">
-                                <span>{field.label}</span>
-                                {field.required ? (
-                                  <span className="text-xs text-slate-400">
-                                    Required
-                                  </span>
-                                ) : null}
-                              </span>
-                              <textarea
-                                aria-label={`${definition.label} ${field.label}`}
-                                value={
-                                  fieldValues[definition.id][field.key] || ""
-                                }
-                                onChange={(event) =>
-                                  updateField(
-                                    definition.id,
-                                    field.key,
-                                    event.target.value,
-                                  )
-                                }
-                                rows={
-                                  field.key.toLowerCase().includes("sequence")
-                                    ? 3
-                                    : 2
-                                }
-                                placeholder={field.placeholder}
-                                className="w-full resize-y rounded-md border border-slate-300 bg-white px-3 py-2.5 text-sm leading-6 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-950"
-                              />
-                              <span className="mt-1.5 block text-xs leading-5 text-slate-500">
-                                {field.helper}
-                              </span>
-                            </label>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="mt-5 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-500">
-                          Add this mode to show the required references.
-                        </p>
-                      )}
-
-                      <div className="mt-4 flex flex-wrap items-center gap-2 text-xs font-semibold">
-                        <span className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-slate-600">
-                          {normalized?.reviewStatus.replaceAll("_", " ") ||
-                            "not selected"}
-                        </span>
-                        {normalized?.missingEvidenceStatus ? (
-                          <span className="rounded-md border border-amber-300 bg-amber-50 px-2.5 py-1 text-amber-800">
-                            {normalized.missingEvidenceStatus}
-                          </span>
-                        ) : null}
-                      </div>
-                    </article>
-                  );
-                },
-              )}
-            </section>
-          </div>
-
-          <aside className="h-fit rounded-lg border border-black/10 bg-white p-5 shadow-sm lg:sticky lg:top-24">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-slate-950 text-white">
-                <TerminalSquare className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-slate-950">
-                  Submission summary
-                </p>
-                <p className="text-xs text-slate-500">Policy payload preview</p>
-              </div>
             </div>
 
-            <div className="mt-5 space-y-3 text-sm">
-              <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">
-                  Site
-                </p>
-                <p className="mt-1 break-words font-semibold text-slate-950">
-                  {selectedSite?.siteName}
-                </p>
-              </div>
-              <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">
-                  Task
-                </p>
-                <p className="mt-1 break-words font-semibold text-slate-950">
-                  {selectedEvalTask.label}
-                </p>
-                <p className="mt-1 break-words text-xs font-semibold text-slate-500">
-                  {selectedEvalTask.canonicalTaskId}
-                </p>
-              </div>
-              <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">
-                  Scenario family
-                </p>
-                <p className="mt-1 break-words font-semibold text-slate-950">
-                  {selectedEvalScenarioFamily.label}
-                </p>
-                <p className="mt-1 break-words text-xs font-semibold text-slate-500">
-                  {selectedEvalScenarioFamily.generatedScenarioCount} generated
-                  variants
-                </p>
-              </div>
-              <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">
-                  Selected modalities
-                </p>
-                <p className="mt-1 break-words font-semibold text-slate-950">
-                  {currentSubmission?.selectedModalities.length
-                    ? currentSubmission.selectedModalities.join(", ")
-                    : "None selected"}
-                </p>
-              </div>
-              <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">
-                  Missing evidence
-                </p>
-                <p className="mt-1 break-words font-semibold text-slate-950">
-                  {currentSubmission?.missingEvidenceStatuses.length
-                    ? currentSubmission.missingEvidenceStatuses.join(", ")
-                    : "No schema gaps from selected modalities"}
-                </p>
-              </div>
+            <div className="mt-6 grid gap-4 md:grid-cols-2">
+              {selectedAccessMode.fields.map((field) => (
+                <label key={field.key} className="grid gap-2 text-sm font-semibold">
+                  {selectedAccessMode.label} {field.label}
+                  <input
+                    value={fieldValues[accessMode][field.key] || ""}
+                    onChange={(event) =>
+                      updateAccessField(field.key, event.target.value)
+                    }
+                    className="min-h-11 border border-slate-300 px-3 text-sm font-normal"
+                    placeholder={field.placeholder}
+                  />
+                </label>
+              ))}
             </div>
 
             {statusMessage ? (
               <div
-                className={`mt-5 rounded-md border p-3 text-sm leading-6 ${
-                  status === "created"
-                    ? "border-emerald-300 bg-emerald-50 text-emerald-800"
-                    : "border-amber-300 bg-amber-50 text-amber-900"
-                }`}
+                className="mt-5 border border-amber-300 bg-amber-50 p-4 text-sm font-semibold text-amber-900"
+                role="status"
               >
-                {status === "created" ? (
-                  <CheckCircle2 className="mb-2 h-4 w-4" />
-                ) : (
-                  <FileJson2 className="mb-2 h-4 w-4" />
-                )}
                 {statusMessage}
               </div>
             ) : null}
 
-            <button
-              type="submit"
-              disabled={status === "submitting"}
-              className="mt-5 inline-flex min-h-12 w-full items-center justify-center rounded-md bg-slate-950 px-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
-            >
-              {status === "submitting" ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creating
-                </>
-              ) : (
-                <>
-                  Create hosted session
-                  <MonitorPlay className="ml-2 h-4 w-4" />
-                </>
-              )}
-            </button>
-            <a
-              href={requestReviewHref}
-              className="mt-3 inline-flex min-h-12 w-full items-center justify-center rounded-md border border-slate-300 px-4 text-sm font-semibold text-slate-950 transition hover:border-slate-950"
-            >
-              Submit intake request
-            </a>
-            <p className="mt-4 text-xs leading-5 text-slate-500">
-              Direct creation uses the existing hosted-session endpoint.
-              Protected packages still require robot-team access or entitlement
-              proof.
-            </p>
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+              <button
+                type="submit"
+                disabled={status === "submitting"}
+                className="inline-flex min-h-12 items-center justify-center gap-2 bg-slate-950 px-5 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {status === "submitting" ? (
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                ) : null}
+                Create hosted session
+              </button>
+              <a
+                href={intakeHref({
+                  submission: lastSubmission || submissionPreview,
+                  selectedMode: accessMode,
+                })}
+                className="inline-flex min-h-12 items-center justify-center gap-2 border border-slate-300 px-5 text-sm font-semibold text-slate-950 hover:bg-slate-50"
+              >
+                Submit intake request
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </a>
+            </div>
+          </form>
+
+          <aside className="space-y-4">
+            <div className="border border-slate-200 bg-slate-50 p-5">
+              <h2 className="text-2xl font-semibold">Run summary</h2>
+              <dl className="mt-4 space-y-3 text-sm">
+                <div className="flex justify-between gap-4">
+                  <dt className="text-slate-500">Site</dt>
+                  <dd className="text-right font-semibold">
+                    {site?.siteName || "Selected package"}
+                  </dd>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <dt className="text-slate-500">Task</dt>
+                  <dd className="text-right font-semibold">
+                    {task?.taskText || "Selected task"}
+                  </dd>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <dt className="text-slate-500">Policies</dt>
+                  <dd className="text-right font-semibold">
+                    {submissionPreview?.policyLabels.join(", ") ||
+                      "primary-policy"}
+                  </dd>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <dt className="text-slate-500">Mode</dt>
+                  <dd className="text-right font-semibold">
+                    {validationMode.replaceAll("_", " ")}
+                  </dd>
+                </div>
+              </dl>
+            </div>
+
+            <div className="border border-slate-200 p-5">
+              <h2 className="text-2xl font-semibold">Boundary</h2>
+              <p className="mt-3 text-sm leading-7 text-slate-600">
+                Virtual WAM/VLA outputs rank policies; they do not prove safety
+                validation, deployment approval, universal SRCC, or real-world
+                success.
+              </p>
+            </div>
           </aside>
-        </form>
+        </section>
       </main>
     </>
   );

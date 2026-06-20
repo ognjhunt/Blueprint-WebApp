@@ -114,7 +114,7 @@ export default function SiteDetail({ params }: SiteDetailProps) {
     <>
       <SEO
         title={`${site.name} | Sites | Blueprint`}
-        description={`${site.name} is a captured-site profile for robot-team Task Evaluation Run requests.`}
+        description={`${site.name} is a captured-site profile for robot-team Policy Evaluation Run requests.`}
         canonical={`/sites/${site.slug}`}
         image={site.thumbnailSrc}
         type="product"
@@ -131,7 +131,7 @@ export default function SiteDetail({ params }: SiteDetailProps) {
           ]),
           productJsonLd({
             path: `/sites/${site.slug}`,
-            name: `${site.name} Task Evaluation Run`,
+            name: `${site.name} Policy Evaluation Run`,
             description: site.summary,
             image: site.thumbnailSrc,
             category: "Captured site for robot evaluation",
@@ -161,6 +161,11 @@ export default function SiteDetail({ params }: SiteDetailProps) {
               </h1>
               <p className="mt-5 max-w-[38rem] text-base leading-7 text-white/75">
                 {site.summary}
+              </p>
+              <p className="mt-3 max-w-[38rem] text-sm leading-6 text-white/65">
+                This {site.siteType.toLowerCase()} robot evaluation page maps
+                available task packs to a Policy Evaluation Run request for one
+                robot profile and validation boundary.
               </p>
               <div className="mt-6 flex flex-wrap gap-2">
                 <StatusBadge label={site.readiness} className={readinessTone[site.readiness]} />
@@ -236,7 +241,7 @@ export default function SiteDetail({ params }: SiteDetailProps) {
               Available task packs
             </h2>
             <p className="mt-3 text-sm leading-7 text-slate-600">
-              These are the tasks a robot team can scope into a Task Evaluation Run request for this site.
+              These are the tasks a robot team can scope into a Policy Evaluation Run request for this site.
             </p>
           </div>
           <div className="grid gap-3">
@@ -353,7 +358,7 @@ export default function SiteDetail({ params }: SiteDetailProps) {
             </div>
             <div className="space-y-5 text-sm leading-7 text-white/72">
               <p>
-                This page helps a robot team choose a site. A Task Evaluation Run still needs request review, access confirmation, task scope, robot profile, threshold context, and owner-system proof before any stronger claim is made.
+                This page helps a robot team choose a site. A Policy Evaluation Run still needs request review, access confirmation, task scope, robot profile, threshold context, and owner-system proof before any stronger claim is made.
               </p>
               <div className="flex flex-col gap-3 sm:flex-row">
                 <a

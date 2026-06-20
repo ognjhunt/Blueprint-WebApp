@@ -1,5 +1,6 @@
 import { BadgeDollarSign, Briefcase, Gavel, Landmark, Mail, ShieldCheck } from "lucide-react";
 import { SEO } from "@/components/SEO";
+import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 import {
   SurfaceBrowserFrame,
   SurfaceCard,
@@ -72,6 +73,18 @@ export default function Terms() {
         title="Terms of Service | Blueprint"
         description="Terms of service for Blueprint robot evaluation runs, sim-only policy improvement runs, hosted sessions, capture workflows, and related services."
         canonical="/terms"
+        jsonLd={[
+          webPageJsonLd({
+            path: "/terms",
+            name: "Blueprint terms of service",
+            description:
+              "Terms of service for Blueprint robot evaluation runs, policy improvement runs, hosted sessions, capture workflows, and related services.",
+          }),
+          breadcrumbJsonLd([
+            { name: "Home", path: "/" },
+            { name: "Terms", path: "/terms" },
+          ]),
+        ]}
       />
 
       <SurfacePage>
