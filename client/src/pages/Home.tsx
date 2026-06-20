@@ -120,7 +120,7 @@ const pricingPlans = [
     price: "Scoped after evaluation",
     summary:
       "Adds paired real robot rollouts and reports Pearson/Spearman/SRCC or rank-fidelity, MAE, confidence bounds, validity envelope, and failure-mode agreement only for the validated envelope.",
-    href: "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=validated-evaluation-pack&path=policy-evaluation-run&requestedOutputs=Validated%20Evaluation%20Pack&source=home-pricing-validated-evaluation",
+    href: "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&requestedOutputs=Policy%20Evaluation%20Run&episodeCount=500&validationMode=real_rollout_validated&source=home-pricing-validated-evaluation",
     cta: "Request validated pack",
   },
 ];

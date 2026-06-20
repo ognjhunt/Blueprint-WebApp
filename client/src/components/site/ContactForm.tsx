@@ -145,6 +145,8 @@ function buildRouteDetails(prefill: ReturnType<typeof parseContactRequestPrefill
   return [
     prefill.scenario ? `Scenario: ${prefill.scenario}` : "",
     prefill.requestedOutputs ? `Requested outputs: ${prefill.requestedOutputs}` : "",
+    prefill.episodeCount ? `Episode count: ${prefill.episodeCount}` : "",
+    prefill.validationMode ? `Validation mode: ${prefill.validationMode}` : "",
     prefill.message ? `Message: ${prefill.message}` : "",
   ].filter(Boolean).join("\n");
 }
@@ -248,6 +250,8 @@ export function ContactForm() {
   const [targetRobotTeam, setTargetRobotTeam] = useState("");
   const [policyAccessMethod, setPolicyAccessMethod] = useState("");
   const [scenarioCount, setScenarioCount] = useState("");
+  const [episodeCount, setEpisodeCount] = useState("");
+  const [validationMode, setValidationMode] = useState("");
   const [deadline, setDeadline] = useState("");
   const [notes, setNotes] = useState("");
   const [accessBoundary, setAccessBoundary] = useState("");
@@ -308,6 +312,14 @@ export function ContactForm() {
     if (!policyAccessMethod && fit?.evalCardInput?.preferredReviewPath) {
       setPolicyAccessMethod(fit.evalCardInput.preferredReviewPath);
     }
+    if (!episodeCount && requestPrefill.episodeCount) {
+      setEpisodeCount(requestPrefill.episodeCount);
+      setShowOptionalDetails(true);
+    }
+    if (!validationMode && requestPrefill.validationMode) {
+      setValidationMode(requestPrefill.validationMode);
+      setShowOptionalDetails(true);
+    }
     if (!notes && routeDetails) {
       setNotes(routeDetails);
       setShowOptionalDetails(true);
@@ -323,6 +335,7 @@ export function ContactForm() {
     company,
     currentUser,
     email,
+    episodeCount,
     firstName,
     lastName,
     notes,
@@ -336,6 +349,7 @@ export function ContactForm() {
     targetSiteType,
     taskStatement,
     userData,
+    validationMode,
   ]);
 
   useEffect(() => {
@@ -408,6 +422,8 @@ export function ContactForm() {
     const optionalDetails = [
       policyAccessMethod.trim() ? `Policy access method: ${policyAccessMethod.trim()}` : "",
       scenarioCount.trim() ? `Scenario count: ${scenarioCount.trim()}` : "",
+      episodeCount.trim() ? `Episode count: ${episodeCount.trim()}` : "",
+      validationMode.trim() ? `Validation mode: ${validationMode.trim()}` : "",
       deadline.trim() ? `Deadline: ${deadline.trim()}` : "",
       notes.trim() ? `Notes: ${notes.trim()}` : "",
     ].filter(Boolean).join("\n");
@@ -423,9 +439,11 @@ export function ContactForm() {
         requiredMetrics: taskStatement.trim(),
       },
       scenarioCardInput: {
-        normalScenario: scenarioCount.trim()
-          ? `${scenarioCount.trim()} requested scenarios`
-          : "",
+        normalScenario: [
+          scenarioCount.trim() ? `${scenarioCount.trim()} requested scenarios` : "",
+          episodeCount.trim() ? `${episodeCount.trim()} requested episodes` : "",
+          validationMode.trim() ? `${validationMode.trim()} validation mode` : "",
+        ].filter(Boolean).join("; "),
       },
       evalCardInput: {
         robotOrPolicyTested: targetRobotTeam.trim(),
@@ -736,6 +754,37 @@ export function ContactForm() {
                   value={scenarioCount}
                   onChange={(event) => setScenarioCount(event.target.value)}
                 />
+              </div>
+              <div>
+                <label htmlFor="contact-episode-count" className={labelClassName}>
+                  Episode count
+                </label>
+                <select
+                  id="contact-episode-count"
+                  className={inputClassName}
+                  value={episodeCount}
+                  onChange={(event) => setEpisodeCount(event.target.value)}
+                >
+                  <option value="">Not selected</option>
+                  <option value="100">100</option>
+                  <option value="500">500</option>
+                </select>
+              </div>
+              <div>
+                <label htmlFor="contact-validation-mode" className={labelClassName}>
+                  Validation mode
+                </label>
+                <select
+                  id="contact-validation-mode"
+                  className={inputClassName}
+                  value={validationMode}
+                  onChange={(event) => setValidationMode(event.target.value)}
+                >
+                  <option value="">Not selected</option>
+                  <option value="virtual_preflight">Virtual preflight</option>
+                  <option value="comparative_policy_eval">Comparative policy eval</option>
+                  <option value="real_rollout_validated">Real rollout validated</option>
+                </select>
               </div>
               <div>
                 <label htmlFor="contact-deadline" className={labelClassName}>

@@ -243,16 +243,17 @@ function buildRequestReviewHref(params: {
   const query = new URLSearchParams({
     persona: "robot-team",
     buyerType: "robot_team",
-    interest: "hosted-evaluation",
-    path: "hosted-evaluation",
+    interest: "policy-evaluation-run",
+    path: "policy-evaluation-run",
     source: "robot-team-eval",
+    episodeCount: params.submission?.episodeCount || "100",
+    validationMode: params.submission?.validationMode || "virtual_preflight",
     siteName: params.siteName,
     siteLocation: params.siteAddress,
     targetRobotTeam: params.robotName,
     taskStatement: `Robot-team structured test submission for ${params.taskText}`,
     requestedOutputs:
-      params.submission?.requestedOutputs.join(", ") ||
-      fallbackOutputs.join(", "),
+      "Policy Evaluation Run",
     message: `Selected modalities: ${selectedModes}\nMissing evidence statuses: ${missing}\nRun setup:\n${setup}\nStructured refs:\n${structuredRefs}`,
   });
   return `/contact?${query.toString()}`;

@@ -8,7 +8,7 @@ import {
 describe("contactRequestPrefill", () => {
   it("parses agent-friendly location, workflow, source, buyer type, and path aliases", () => {
     const prefill = parseContactRequestPrefill(
-      "source=site-worlds&buyerType=robot_team&path=hosted-review&location=123%20Unknown%20St&workflow=warehouse%20tote&message=Need%20a%20review&siteType=warehouse&requiredMetrics=97%25%20success&robotOrPolicy=Unitree%20G1%20policy&validationExpectations=sim%20trace",
+      "source=site-worlds&buyerType=robot_team&path=hosted-review&location=123%20Unknown%20St&workflow=warehouse%20tote&message=Need%20a%20review&episodeCount=500&validationMode=comparative_policy_eval&requestedOutputs=Policy%20Evaluation%20Run&siteType=warehouse&requiredMetrics=97%25%20success&robotOrPolicy=Unitree%20G1%20policy&validationExpectations=sim%20trace",
     );
 
     expect(prefill).toMatchObject({
@@ -20,6 +20,9 @@ describe("contactRequestPrefill", () => {
       workflow: "warehouse tote",
       taskStatement: "warehouse tote",
       message: "Need a review",
+      requestedOutputs: "Policy Evaluation Run",
+      episodeCount: "500",
+      validationMode: "comparative_policy_eval",
       primaryNeed: "123 Unknown St",
       realSiteRobotEvalFit: {
         siteCardInput: {
@@ -65,6 +68,8 @@ describe("contactRequestPrefill", () => {
           resultsValidationExpectations: "Simulator traces and action logs.",
         },
       },
+      episodeCount: "100",
+      validationMode: "virtual_preflight",
       message: "Scope hosted review without granting access.",
     });
     const url = new URL(href, "https://tryblueprint.local");
@@ -72,7 +77,8 @@ describe("contactRequestPrefill", () => {
     expect(url.pathname).toBe("/contact/robot-team");
     expect(url.searchParams.get("source")).toBe("site-worlds");
     expect(url.searchParams.get("buyerType")).toBe("robot_team");
-    expect(url.searchParams.get("path")).toBe("hosted-review");
+    expect(url.searchParams.get("interest")).toBe("policy-evaluation-run");
+    expect(url.searchParams.get("path")).toBe("policy-evaluation-run");
     expect(url.searchParams.get("location")).toBe("123 Unknown St");
     expect(url.searchParams.get("siteLocation")).toBe("123 Unknown St");
     expect(url.searchParams.get("workflow")).toBe("warehouse tote");
@@ -88,9 +94,41 @@ describe("contactRequestPrefill", () => {
     expect(url.searchParams.get("robotOrPolicy")).toBe("robot-team agent");
     expect(url.searchParams.get("preferredReviewPath")).toBe("Hosted review first.");
     expect(url.searchParams.get("validationExpectations")).toBe("Simulator traces and action logs.");
+    expect(url.searchParams.get("requestedOutputs")).toBe("Policy Evaluation Run");
+    expect(url.searchParams.get("episodeCount")).toBe("100");
+    expect(url.searchParams.get("validationMode")).toBe("virtual_preflight");
     expect(url.searchParams.get("proofPathPreference")).toBe("exact_site_required");
     expect(url.searchParams.has("entitlementId")).toBe(false);
     expect(url.searchParams.has("access")).toBe(false);
+  });
+
+  it("maps rebuilt Policy Evaluation Run query labels to hosted evaluation state", () => {
+    const prefill = parseContactRequestPrefill(
+      "persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&requestedOutputs=Policy%20Evaluation%20Run&episodeCount=500&validationMode=real_rollout_validated",
+      "/contact/robot-team",
+    );
+
+    expect(prefill).toMatchObject({
+      buyerType: "robot_team",
+      requestPath: "hosted-review",
+      commercialRequestPath: "hosted_evaluation",
+      requestedOutputs: "Policy Evaluation Run",
+      episodeCount: "500",
+      validationMode: "real_rollout_validated",
+    });
+
+    const genericContactPrefill = parseContactRequestPrefill(
+      "persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&requestedOutputs=Policy%20Evaluation%20Run&episodeCount=100&validationMode=virtual_preflight",
+      "/contact",
+    );
+
+    expect(genericContactPrefill).toMatchObject({
+      requestPath: "hosted-review",
+      commercialRequestPath: "hosted_evaluation",
+      requestedOutputs: "Policy Evaluation Run",
+      episodeCount: "100",
+      validationMode: "virtual_preflight",
+    });
   });
 
   it("maps legacy world-model params to the Policy Improvement Run lane", () => {
