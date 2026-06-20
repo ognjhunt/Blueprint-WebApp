@@ -18,7 +18,7 @@ const robotNextSteps = [
   "We review the site/task fit.",
   "We recommend scope and scenario count.",
   "You approve pricing and access terms.",
-  "We run the evaluation or prepare the site/task package.",
+  "We run the Policy Evaluation Run or scope a Validated Evaluation Pack when paired robot rollouts are needed.",
 ];
 
 const dataPackageNextSteps = [
@@ -50,7 +50,7 @@ function PersonaSwitch({ activePersona }: { activePersona: ContactPersona }) {
       persona: "robot_team" as const,
       href: "/contact/robot-team#contact-intake",
       title: "Robot teams",
-      body: "Request an evaluation or policy improvement run.",
+      body: "Request a Policy Evaluation Run or follow-on pack.",
       Icon: Bot,
     },
     {
@@ -173,10 +173,10 @@ function ExplainerCard({
     <aside className="border border-black/10 bg-white p-5">
       <ClipboardCheck className="h-5 w-5 text-slate-950" />
       <p className="mt-4 text-sm font-semibold text-slate-950">
-        A Task Evaluation Run means:
+        A Policy Evaluation Run means:
       </p>
       <p className="mt-2 text-sm leading-6 text-slate-600">
-        1 site x 1 robot policy/profile x 1 task pack x scenario count.
+        100 or 500 WAM-eval episodes x 1 site package x 1 task pack x 1 robot embodiment x 1-3 policies/checkpoints, with predicted success, policy ranking, failure taxonomy, per-scenario metrics, OOD/uncertainty flags, generated rollout clips, and recommended real-world validation targets.
       </p>
     </aside>
   );
@@ -233,17 +233,17 @@ export default function Contact() {
     ? "Submit a Site for Robot Evaluation."
     : isDataPackage
       ? "Request a Policy Improvement Run."
-    : "Request a Task Evaluation Run.";
+    : "Request a Policy Evaluation Run.";
   const subhead = isSiteOperator
     ? "Share a facility that robot teams can evaluate against. Participation is free, and you control access boundaries."
     : isDataPackage
       ? "Scope a sim-only run around a customer-supplied policy. Source access is optional; improved artifacts require a trainable interface or approved wrapper path."
-    : "Test one robot policy or profile against a real-site task pack before field time.";
+    : "Rank 1-3 policies/checkpoints on a real-site task pack before field time with 100 or 500 WAM-eval episodes.";
   const intro = isSiteOperator
     ? "Tell us what the site is, where it is, and what access/privacy limits apply. We will review whether it fits the Blueprint site library."
     : isDataPackage
       ? "Tell us the site type, robot embodiment, action interface, target task, policy access method, and success or cycle-time threshold. We will reply with the recommended sim-only scope and evidence boundary."
-    : "Tell us the site type, task, and threshold that matters. We will reply with the recommended scope, scenario count, and next proof step.";
+    : "Tell us the site type, task, robot embodiment, policies/checkpoints, and threshold that matters. We will reply with the recommended 100- or 500-episode scope and next validation step.";
 
   return (
     <>
@@ -253,14 +253,14 @@ export default function Contact() {
             ? "Submit a Site for Robot Evaluation | Blueprint"
             : isDataPackage
               ? "Request a Policy Improvement Run | Blueprint"
-            : "Request a Task Evaluation Run | Blueprint"
+            : "Request a Policy Evaluation Run | Blueprint"
         }
         description={
           isSiteOperator
             ? "Submit a facility to Blueprint for free robot-evaluation review with access, privacy, and commercialization boundaries."
             : isDataPackage
               ? "Request a Blueprint Policy Improvement Run for sim-only baseline evaluation, failure diagnosis, policy improvement, sealed testing, and an evidence report."
-            : "Request a Blueprint Task Evaluation Run for one robot policy, real-site task pack, and scenario scope."
+            : "Request a Blueprint Policy Evaluation Run for 100 or 500 WAM-eval episodes across one site package, one task pack, one robot embodiment, and 1-3 policies/checkpoints."
         }
         canonical={isSiteOperator ? "/contact/site-operator" : "/contact/robot-team"}
       />
@@ -312,7 +312,7 @@ export default function Contact() {
                   ? "Free site submission"
                   : isDataPackage
                     ? "Policy Improvement Run"
-                    : "Task Evaluation Run"}
+                    : "Policy Evaluation Run"}
               </div>
               <h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-slate-950">
                 {isSiteOperator

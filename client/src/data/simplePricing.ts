@@ -1,5 +1,5 @@
 export type SimplePricingOption = {
-  id: "capture" | "world-models" | "simulation" | "site-operator";
+  id: "capture" | "world-models" | "simulation" | "validated-evaluation" | "site-operator";
   step: string;
   name: string;
   internalName: string;
@@ -31,13 +31,13 @@ export const simplePricingOptions: SimplePricingOption[] = [
   },
   {
     id: "world-models",
-    step: "Policy lift",
+    step: "Follow-on improvement",
     name: "Policy Improvement Run",
     internalName: "Sim-only Policy Improvement",
     price: "$35,000",
     unit: "per sim-only run",
     payer: "Robot team / OEM / integrator",
-    summary: "Improve a customer-supplied policy, adapter, task head, distilled skill, or complete policy inside simulation.",
+    summary: "Follow-on work after evaluation: improve a customer-supplied policy, adapter, task head, distilled skill, or complete policy inside simulation.",
     includes: [
       "Baseline evaluation and dominant failure-mode diagnosis",
       "Twin and cousin scenarios plus curriculum",
@@ -47,19 +47,36 @@ export const simplePricingOptions: SimplePricingOption[] = [
   },
   {
     id: "simulation",
-    step: "Evaluation run",
-    name: "Task Evaluation Run",
-    internalName: "Real-Site Task Evaluation",
+    step: "Primary evaluation",
+    name: "Policy Evaluation Run",
+    internalName: "Real-Site Policy Evaluation",
     price: "$6,500",
-    unit: "per run",
+    unit: "per 100-episode run",
     payer: "Robot team / OEM / integrator",
     summary:
-      "Evaluate one robot policy/profile on one real site against one scoped Task Pack.",
+      "Rank 1-3 policies/checkpoints on one captured real-site task pack before field time.",
     includes: [
-      "Unit: 1 site, 1 robot policy/profile, 1 Task Pack",
-      "Up to 500 scenarios",
-      "Pass/fail results, cycle-time results, intervention and failure notes",
-      "Scenario/results manifest and availability confirmed per request before evaluation starts",
+      "100 or 500 WAM-eval episodes",
+      "Unit: 1 site package, 1 task pack, 1 robot embodiment, 1-3 policies/checkpoints",
+      "Predicted success, policy ranking, failure taxonomy, and per-scenario metrics",
+      "OOD/uncertainty flags, generated rollout clips, and recommended real-world validation targets",
+    ],
+  },
+  {
+    id: "validated-evaluation",
+    step: "Validated evaluation",
+    name: "Validated Evaluation Pack",
+    internalName: "Paired Real Robot Validation",
+    price: "Scoped",
+    unit: "after evaluation",
+    payer: "Robot team / OEM / integrator",
+    summary:
+      "Add paired real robot rollouts and quantitative validity reporting for the validated envelope only.",
+    includes: [
+      "Paired real robot rollouts",
+      "Pearson/Spearman/SRCC or rank-fidelity",
+      "MAE, confidence bounds, validity envelope, and failure-mode agreement",
+      "Reports validity only for the validated robot/task/site envelope",
     ],
   },
   {
@@ -83,6 +100,7 @@ export const simplePricingOptions: SimplePricingOption[] = [
 export function getPricingContactInterest(id: SimplePricingOption["id"]): string {
   if (id === "capture") return "capturer-signup";
   if (id === "site-operator") return "site-review";
-  if (id === "simulation") return "hosted-evaluation";
+  if (id === "simulation") return "policy-evaluation-run";
+  if (id === "validated-evaluation") return "validated-evaluation-pack";
   return "world-model";
 }
