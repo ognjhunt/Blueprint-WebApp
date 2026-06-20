@@ -8,6 +8,8 @@ import {
   onAuthStateChanged,
   signOut,
   sendPasswordResetEmail as firebaseSendPasswordResetEmail,
+  browserLocalPersistence,
+  setPersistence as firebasePersistence,
   User as FirebaseUser,
 } from "firebase/auth";
 import {
@@ -79,6 +81,7 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 export const sendPasswordResetEmail = firebaseSendPasswordResetEmail;
+export { browserLocalPersistence, firebasePersistence };
 
 // Log Firebase service initialization
 logDebug(

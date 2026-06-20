@@ -1,11 +1,7 @@
 import * as React from "react"; // Import all of React as React
 import { createContext, useContext } from "react"; // Keep these as is, or change to React.createContext etc. later if needed
 import { useLocation } from "wouter";
-import {
-  browserLocalPersistence,
-  setPersistence as firebasePersistence,
-} from "firebase/auth";
-import { IdTokenResult, User as FirebaseUser } from "firebase/auth";
+import type { IdTokenResult, User as FirebaseUser } from "firebase/auth";
 import type { UserData } from "@/lib/firebase";
 import { resolveOperatorQaAuth } from "@/lib/operatorQaAuth";
 
@@ -45,6 +41,92 @@ function loadFirebaseClientModule(): Promise<FirebaseClientModule> {
   return firebaseClientModulePromise;
 }
 
+const authSensitivePathPatterns = [
+  /^\/portal(?:\/|$)/,
+  /^\/settings(?:\/|$)/,
+  /^\/requests\/[^/]+(?:\/|$)/,
+  /^\/capture-app(?:\/|$)/,
+];
+
+const authRequiredPathPatterns = [
+  /^\/admin(?:\/|$)/,
+  /^\/dashboard(?:\/|$)/,
+  /^\/onboarding(?:\/|$)/,
+];
+
+function isAuthSensitivePath(path: string) {
+  return authSensitivePathPatterns.some((pattern) => pattern.test(path));
+}
+
+function isAuthRequiredPath(path: string) {
+  return authRequiredPathPatterns.some((pattern) => pattern.test(path));
+}
+
+function storageHasFirebaseAuthSession(storage: Storage | null | undefined) {
+  if (!storage) {
+    return false;
+  }
+
+  try {
+    for (let index = 0; index < storage.length; index += 1) {
+      const key = storage.key(index);
+      if (key && key.startsWith("firebase:authUser:")) {
+        return true;
+      }
+    }
+  } catch {
+    return false;
+  }
+
+  return false;
+}
+
+function hasPersistedFirebaseAuthSession() {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  return (
+    storageHasFirebaseAuthSession(window.localStorage) ||
+    storageHasFirebaseAuthSession(window.sessionStorage)
+  );
+}
+
+function scheduleIdleTask(task: () => void) {
+  if (typeof window === "undefined") {
+    return () => {};
+  }
+
+  if ("requestIdleCallback" in window) {
+    const idleId = window.requestIdleCallback(task, { timeout: 2_500 });
+    return () => window.cancelIdleCallback(idleId);
+  }
+
+  const timeoutId = globalThis.setTimeout(task, 1_500);
+  return () => globalThis.clearTimeout(timeoutId);
+}
+
+function schedulePostLoadIdleTask(task: () => void) {
+  if (typeof window === "undefined") {
+    return () => {};
+  }
+
+  if (document.readyState === "complete") {
+    return scheduleIdleTask(task);
+  }
+
+  let cancelIdleTask = () => {};
+  const runTask = () => {
+    cancelIdleTask = scheduleIdleTask(task);
+  };
+  window.addEventListener("load", runTask, { once: true });
+
+  return () => {
+    window.removeEventListener("load", runTask);
+    cancelIdleTask();
+  };
+}
+
 export function useAuth() {
   const context = React.useContext(AuthContext);
   if (!context) {
@@ -56,6 +138,12 @@ export function useAuth() {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   // VITE_BLUEPRINT_OPERATOR_QA_FAKE_AUTH is a dev-only bypass for local operator QA.
   const operatorQaAuth = React.useMemo(() => resolveOperatorQaAuth(viteEnv), []);
+  const [location, setLocation] = useLocation();
+  const initializeAuthImmediately =
+    !operatorQaAuth.enabled &&
+    typeof window !== "undefined" &&
+    (isAuthRequiredPath(location) ||
+      (isAuthSensitivePath(location) && hasPersistedFirebaseAuthSession()));
 
   // Set persistence to LOCAL
   React.useEffect(() => {
@@ -65,14 +153,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const initPersistence = async () => {
       try {
-        const { auth } = await loadFirebaseClientModule();
+        const { auth, browserLocalPersistence, firebasePersistence } =
+          await loadFirebaseClientModule();
         await firebasePersistence(auth, browserLocalPersistence);
       } catch (error) {
         console.error("Error setting persistence:", error);
       }
     };
-    initPersistence();
-  }, [operatorQaAuth.enabled]);
+    if (initializeAuthImmediately) {
+      void initPersistence();
+      return;
+    }
+
+    return schedulePostLoadIdleTask(() => {
+      void initPersistence();
+    });
+  }, [initializeAuthImmediately, operatorQaAuth.enabled]);
   const [currentUser, setCurrentUser] = React.useState<FirebaseUser | null>(
     operatorQaAuth.enabled ? (operatorQaAuth.currentUser as FirebaseUser) : null,
   );
@@ -83,9 +179,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     operatorQaAuth.enabled ? operatorQaAuth.tokenClaims : null,
   );
   const [loading, setLoading] = React.useState(
-    operatorQaAuth.enabled ? false : typeof window !== "undefined",
+    operatorQaAuth.enabled ? false : initializeAuthImmediately,
   );
-  const [, setLocation] = useLocation();
 
   const normalizeUserData = React.useCallback((data: UserData | null) => {
     if (!data) {
@@ -219,10 +314,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     let isMounted = true;
-    let fallbackTimeout: ReturnType<typeof setTimeout> | null = setTimeout(() => {
-      console.warn("Auth initialization timed out. Rendering app without auth state.");
-      setLoading(false);
-    }, 8000);
+    let fallbackTimeout: ReturnType<typeof setTimeout> | null = null;
     let unsubscribe = () => {};
 
     const clearFallbackTimeout = () => {
@@ -232,59 +324,75 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
-    void (async () => {
-      try {
-        const firebase = await loadFirebaseClientModule();
-        unsubscribe = firebase.onAuthStateChanged(
-          firebase.auth,
-          async (user) => {
-            if (!isMounted) {
-              return;
-            }
+    const startAuthListener = () => {
+      fallbackTimeout = setTimeout(() => {
+        console.warn("Auth initialization timed out. Rendering app without auth state.");
+        setLoading(false);
+      }, 8000);
 
-            setCurrentUser(user);
-            if (user) {
-              try {
-                const [userData, tokenResult] = await Promise.all([
-                  firebase.getUserData(user.uid),
-                  user.getIdTokenResult().catch(() => null),
-                ]);
-                if (!isMounted) {
-                  return;
-                }
-                setUserData(normalizeUserData(userData));
-                setTokenClaims(tokenResult?.claims || null);
-              } catch (error) {
-                console.error("Error fetching user data:", error);
+      void (async () => {
+        try {
+          const firebase = await loadFirebaseClientModule();
+          unsubscribe = firebase.onAuthStateChanged(
+            firebase.auth,
+            async (user) => {
+              if (!isMounted) {
+                return;
               }
-            } else {
-              setUserData(null);
-              setTokenClaims(null);
-            }
-            clearFallbackTimeout();
+
+              setCurrentUser(user);
+              if (user) {
+                try {
+                  const [userData, tokenResult] = await Promise.all([
+                    firebase.getUserData(user.uid),
+                    user.getIdTokenResult().catch(() => null),
+                  ]);
+                  if (!isMounted) {
+                    return;
+                  }
+                  setUserData(normalizeUserData(userData));
+                  setTokenClaims(tokenResult?.claims || null);
+                } catch (error) {
+                  console.error("Error fetching user data:", error);
+                }
+              } else {
+                setUserData(null);
+                setTokenClaims(null);
+              }
+              clearFallbackTimeout();
+              setLoading(false);
+            },
+            (error) => {
+              console.error("Auth state change listener error:", error);
+              clearFallbackTimeout();
+              setLoading(false);
+            },
+          );
+        } catch (error) {
+          console.error("Failed to initialize auth state listener:", error);
+          clearFallbackTimeout();
+          if (isMounted) {
             setLoading(false);
-          },
-          (error) => {
-            console.error("Auth state change listener error:", error);
-            clearFallbackTimeout();
-            setLoading(false);
-          },
-        );
-      } catch (error) {
-        console.error("Failed to initialize auth state listener:", error);
-        clearFallbackTimeout();
-        if (isMounted) {
-          setLoading(false);
+          }
         }
-      }
-    })();
+      })();
+    };
+
+    const cancelScheduledAuthListener = initializeAuthImmediately
+      ? (startAuthListener(), () => {})
+      : schedulePostLoadIdleTask(startAuthListener);
+
+    if (!initializeAuthImmediately) {
+      setLoading(false);
+    }
 
     return () => {
       isMounted = false;
+      cancelScheduledAuthListener();
       clearFallbackTimeout();
       unsubscribe();
     };
-  }, [normalizeUserData, operatorQaAuth]);
+  }, [initializeAuthImmediately, normalizeUserData, operatorQaAuth]);
 
   async function signIn(email: string, password: string) {
     try {
@@ -299,6 +407,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const firebase = await loadFirebaseClientModule();
       const user = await firebase.loginWithEmailAndPassword(email, password);
       console.log("User signed in successfully:", user.uid);
+      setCurrentUser(user);
 
       let userDataRecord: UserData | null = null;
       try {
@@ -343,6 +452,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const firebase = await loadFirebaseClientModule();
       const user = await firebase.registerWithEmailAndPassword(email, password, name);
       console.log("User registered successfully:", user.uid);
+      setCurrentUser(user);
 
       let userDataRecord: UserData | null = null;
       try {
@@ -390,6 +500,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const firebase = await loadFirebaseClientModule();
       const user = await firebase.signInWithGoogle();
       console.log("User signed in with Google successfully:", user.uid);
+      setCurrentUser(user);
       let userDataRecord: UserData | null = null;
 
       try {
@@ -474,6 +585,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const firebase = await loadFirebaseClientModule();
       await firebase.logOut();
+      setCurrentUser(null);
       setUserData(null);
       setTokenClaims(null);
       console.log("User logged out successfully");

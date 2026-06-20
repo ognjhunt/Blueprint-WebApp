@@ -46,11 +46,32 @@ export function serveStatic(app: Express, distPathOverride?: string) {
   const distPath =
     distPathOverride ?? path.resolve(__dirname, "..", "dist", "public");
   const indexPath = path.resolve(distPath, "index.html");
+  const htmlCache = new Map<string, string | null>();
 
   if (!fs.existsSync(distPath)) {
     throw new Error(
       `Could not find the build directory: ${distPath}, make sure to build the client first`
     );
+  }
+
+  const readCachedHtml = (filePath: string) => {
+    if (htmlCache.has(filePath)) {
+      return htmlCache.get(filePath) ?? null;
+    }
+
+    try {
+      const html = fs.readFileSync(filePath, "utf8");
+      htmlCache.set(filePath, html);
+      return html;
+    } catch {
+      htmlCache.set(filePath, null);
+      return null;
+    }
+  };
+
+  const indexHtml = readCachedHtml(indexPath);
+  if (!indexHtml) {
+    throw new Error(`Could not read the built client index: ${indexPath}`);
   }
 
   app.use(express.static(distPath, { redirect: false }));
@@ -75,12 +96,14 @@ export function serveStatic(app: Express, distPathOverride?: string) {
         relativeToDist === "index.html" ||
         (!relativeToDist.startsWith("..") && !path.isAbsolute(relativeToDist));
 
-      if (isWithinDist && fs.existsSync(candidateHtmlPath)) {
-        res.sendFile(candidateHtmlPath);
+      const candidateHtml =
+        isWithinDist ? readCachedHtml(candidateHtmlPath) : null;
+      if (candidateHtml) {
+        res.status(200).type("html").send(candidateHtml);
         return;
       }
     }
 
-    res.sendFile(indexPath);
+    res.status(200).type("html").send(indexHtml);
   });
 }

@@ -72,14 +72,13 @@ describe("build output", () => {
     });
   });
 
-  it("does not prerender removed secondary marketing surfaces", () => {
+  it("ships lightweight secondary public aliases without legacy dynamic shells", () => {
     [
       "product/index.html",
       "readiness/index.html",
       "how-it-works/index.html",
       "world-models/index.html",
       "world-models/sw-chi-01/index.html",
-      "world-models/siteworld-f5fd54898cfb/index.html",
       "contact/index.html",
       "agents/index.html",
       "sample-deliverables/index.html",
@@ -90,6 +89,12 @@ describe("build output", () => {
       "updates/index.html",
       "careers/index.html",
       "help/index.html",
+    ].forEach((file) => {
+      expect(fs.existsSync(distPath(file))).toBe(true);
+    });
+
+    [
+      "world-models/siteworld-f5fd54898cfb/index.html",
       "help/article/choose-the-right-path/index.html",
     ].forEach((file) => {
       expect(fs.existsSync(distPath(file))).toBe(false);
@@ -203,9 +208,11 @@ describe("build output", () => {
     expect(homeHtml).toContain("Policy Improvement Run");
     expect(homeHtml).toContain('rel="canonical" href="https://tryblueprint.io/"');
     expect(homeHtml).toContain('type="application/ld+json"');
-    expect(proofHtml).toContain("See what supports evaluation and policy improvement runs.");
-    expect(proofHtml).toContain("Public samples teach the workflow. Request packets prove one site.");
-    expect(proofHtml).toContain("Advisory until stronger proof exists.");
+    expect(proofHtml).toContain("Inspect proof before access");
+    expect(proofHtml).toContain(
+      "Blueprint proof pages separate sample material, request-scoped artifacts, capture provenance, rights context, and operational fulfillment state.",
+    );
+    expect(proofHtml).toContain("Request a review");
     expect(proofHtml).not.toContain("images.unsplash.com");
   });
 });

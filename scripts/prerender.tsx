@@ -13,16 +13,12 @@ import { SiteLayout } from "../client/src/components/site/SiteLayout";
 import Home from "../client/src/pages/Home";
 import Capture from "../client/src/pages/Capture";
 import CaptureAppPlaceholder from "../client/src/pages/CaptureAppPlaceholder";
-import CaptureLaunchAccess from "../client/src/pages/CaptureLaunchAccess";
-import Pricing from "../client/src/pages/Pricing";
 import Contact from "../client/src/pages/Contact";
-import Proof from "../client/src/pages/Proof";
 import Sites from "../client/src/pages/Sites";
 import SiteDetail from "../client/src/pages/SiteDetail";
 import Privacy from "../client/src/pages/Privacy";
 import Terms from "../client/src/pages/Terms";
 import Login from "../client/src/pages/Login";
-import RobotTeamEval from "../client/src/pages/RobotTeamEval";
 import { siteLibrarySites } from "../client/src/data/siteLibrary";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -117,6 +113,43 @@ function BareStaticPage({
   );
 }
 
+function MinimalStaticPage({
+  title,
+  description,
+  heading,
+  body,
+  primaryHref,
+  primaryLabel,
+  canonical,
+  noIndex = false,
+}: {
+  title: string;
+  description: string;
+  heading: string;
+  body: string;
+  primaryHref: string;
+  primaryLabel: string;
+  canonical?: string;
+  noIndex?: boolean;
+}) {
+  return (
+    <>
+      <Helmet>
+        <title>{title}</title>
+        <meta name="description" content={description} />
+        {canonical ? <link rel="canonical" href={`https://tryblueprint.io${canonical}`} /> : null}
+        {noIndex ? <meta name="robots" content="noindex, nofollow" /> : null}
+      </Helmet>
+      <main>
+        <a href="/">Blueprint</a>
+        <h1>{heading}</h1>
+        <p>{body}</p>
+        <a href={primaryHref}>{primaryLabel}</a>
+      </main>
+    </>
+  );
+}
+
 const PrerenderPortal = () => (
   <BareStaticPage
     title="Portal | Blueprint"
@@ -201,34 +234,352 @@ const PrerenderForgotPassword = () => (
   />
 );
 
+const PrerenderPricingSummary = () => (
+  <MinimalStaticPage
+    title="Pricing | Blueprint"
+    description="Request-scoped pricing for exact-site robot evaluation packages and hosted review."
+    heading="Request-scoped package pricing"
+    body="Blueprint prices exact-site package and hosted-review work around the requested site, robot profile, workflow lane, capture provenance, rights, and export scope."
+    primaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package"
+    primaryLabel="Request pricing"
+    canonical="/pricing"
+  />
+);
+
+const PrerenderProofSummary = () => (
+  <MinimalStaticPage
+    title="Proof | Blueprint"
+    description="Inspect Blueprint proof boundaries for capture-backed site packages and hosted robot evaluation."
+    heading="Inspect proof before access"
+    body="Blueprint proof pages separate sample material, request-scoped artifacts, capture provenance, rights context, and operational fulfillment state."
+    primaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package"
+    primaryLabel="Request a review"
+    canonical="/proof"
+  />
+);
+
+const PrerenderCaptureLaunchAccessSummary = () => (
+  <MinimalStaticPage
+    title="Capture Launch Access | Blueprint"
+    description="Request Blueprint Capture launch access for approved city and site capture workflows."
+    heading="Request capture launch access"
+    body="Blueprint Capture access is review-based and tied to lawful public-facing routes, privacy rules, city coverage, and downstream package usefulness."
+    primaryHref="/capture-app/launch-access"
+    primaryLabel="Request access"
+    canonical="/capture-app/launch-access"
+  />
+);
+
+const PrerenderRobotTeamEvalSummary = () => (
+  <MinimalStaticPage
+    title="Robot Team Evaluation | Blueprint"
+    description="Request a capture-backed exact-site robot evaluation package from Blueprint."
+    heading="Exact-site evaluation for robot teams"
+    body="Blueprint helps robot teams inspect a request-scoped site package, workflow, capture provenance, rights context, and hosted review path before pilot decisions."
+    primaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package"
+    primaryLabel="Request evaluation"
+    canonical="/robot-team/eval"
+  />
+);
+
+const PrerenderAdminCityLaunchSummary = () => (
+  <MinimalStaticPage
+    title="City Launch Scorecard | Blueprint"
+    description="Protected city-launch scorecard shell for Blueprint operators."
+    heading="City launch scorecard"
+    body="This protected operations route loads the city-launch scorecard for approved Blueprint operators after sign-in."
+    primaryHref="/sign-in"
+    primaryLabel="Sign in"
+    canonical="/admin/city-launch/austin"
+    noIndex
+  />
+);
+
+const PrerenderAdminQueueSummary = () => (
+  <MinimalStaticPage
+    title="Admin Queue | Blueprint"
+    description="Protected Blueprint admin queue shell."
+    heading="Protected admin queue"
+    body="This protected operations route loads approved Blueprint queue details after sign-in."
+    primaryHref="/sign-in"
+    primaryLabel="Sign in"
+    canonical="/admin/leads"
+    noIndex
+  />
+);
+
+const PrerenderFallbackSummary = () => (
+  <MinimalStaticPage
+    title="Blueprint"
+    description="Blueprint exact-site robot evaluation route."
+    heading="Blueprint"
+    body="This route loads the matching Blueprint surface after the app boots."
+    primaryHref="/"
+    primaryLabel="Go home"
+    noIndex
+  />
+);
+
+const PrerenderHomeSummary = () => (
+  <MinimalStaticPage
+    title="Blueprint | Exact-Site Robot Evaluation"
+    description="Blueprint routes robot teams to capture-backed exact-site packages and hosted review."
+    heading="Exact-site robot evaluation"
+    body="Blueprint connects robot teams with capture-backed site packages, proof boundaries, request paths, and hosted review for one real place and task."
+    primaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package"
+    primaryLabel="Request a review"
+    canonical="/"
+  />
+);
+
+function makePrerenderSiteAccessSummary(site: (typeof siteLibrarySites)[number]) {
+  return function PrerenderSiteAccessSummary() {
+    return (
+      <MinimalStaticPage
+        title={`${site.name} Access | Blueprint`}
+        description={`Request access to the ${site.name} exact-site package and hosted evaluation workspace.`}
+        heading="Request site package access"
+        body={`${site.name} is shown as a request-scoped exact-site package surface. Access, export scope, rights, and hosted review depend on the approved buyer request.`}
+        primaryHref={`/sites/${site.slug}`}
+        primaryLabel="View site package"
+        canonical={`/sites/${site.slug}`}
+      />
+    );
+  };
+}
+
+const captureAliasRoutes = [
+  "/capture-jobs",
+  "/capture-network",
+  "/capturer",
+  "/capturers",
+  "/capturer-access",
+  "/become-a-capturer",
+  "/for-capturers",
+  "/earn",
+].map((routePath) => ({ path: routePath, component: Capture }));
+
+const contactAliasRoutes = [
+  "/launch-map",
+  "/city/austin",
+  "/agents",
+  "/contact",
+  "/help",
+  "/help/contact",
+  "/help/category/capture",
+  "/help/article/package-access",
+  "/book-exact-site-review",
+  "/careers",
+  "/partners",
+].map((routePath) => ({ path: routePath, component: Contact }));
+
+const homeAliasRoutes = [
+  "/for-robot-integrators",
+  "/product",
+  "/readiness",
+  "/readiness-pack",
+  "/exact-site-hosted-review",
+  "/how-it-works",
+  "/about",
+  "/updates",
+  "/blog",
+  "/solutions",
+  "/quality-standard",
+].map((routePath) => ({ path: routePath, component: PrerenderHomeSummary, shell: "bare" as const }));
+
+const proofAliasRoutes = [
+  "/sample-evaluation",
+  "/sample-deliverables",
+  "/case-studies",
+  "/faq",
+  "/governance",
+  "/docs",
+  "/qualified-opportunities",
+  "/qualified-opportunities-guide",
+  "/pilot-exchange",
+  "/pilot-exchange-guide",
+  "/environments",
+].map((routePath) => ({ path: routePath, component: PrerenderProofSummary, shell: "bare" as const }));
+
 const staticRoutes: StaticRoute[] = [
   { path: "/", component: Home },
+  ...homeAliasRoutes,
   { path: "/capture", component: Capture },
+  ...captureAliasRoutes,
   { path: "/capture-app", component: CaptureAppPlaceholder },
-  { path: "/capture-app/launch-access", component: CaptureLaunchAccess },
-  { path: "/pricing", component: Pricing },
+  { path: "/capture-app/launch-access", component: PrerenderCaptureLaunchAccessSummary, shell: "bare" },
+  { path: "/pricing", component: PrerenderPricingSummary, shell: "bare" },
   { path: "/sites", component: Sites },
+  { path: "/world-models", component: Sites },
+  { path: "/site-worlds", component: Sites },
+  { path: "/marketplace", component: Sites },
   ...siteLibrarySites.map((site) => ({
     path: `/sites/${site.slug}`,
     component: SiteDetail as ComponentType<any>,
     props: { params: { slug: site.slug } },
   })),
-  { path: "/proof", component: Proof },
-  { path: "/for-robot-teams", component: RobotTeamEval },
-  { path: "/robot-team/eval", component: RobotTeamEval },
+  ...siteLibrarySites.flatMap((site) =>
+    [
+      `/world-models/${site.slug}`,
+      `/world-models/${site.slug}/start`,
+      `/site-worlds/${site.slug}`,
+      `/site-worlds/${site.slug}/start`,
+      `/site-worlds/${site.slug}/workspace`,
+    ].map((routePath) => ({
+      path: routePath,
+      component: makePrerenderSiteAccessSummary(site),
+      shell: "bare" as const,
+    })),
+  ),
+  { path: "/proof", component: PrerenderProofSummary, shell: "bare" },
+  ...proofAliasRoutes,
+  { path: "/for-robot-teams", component: PrerenderRobotTeamEvalSummary, shell: "bare" },
+  { path: "/robot-team/eval", component: PrerenderRobotTeamEvalSummary, shell: "bare" },
+  { path: "/for-site-operators", component: Contact },
+  ...contactAliasRoutes,
   { path: "/contact/robot-team", component: Contact },
   { path: "/contact/site-operator", component: Contact },
   { path: "/sign-in", component: Login },
+  { path: "/login", component: Login },
   { path: "/portal", component: PrerenderPortal, shell: "bare" },
   { path: "/signup", component: PrerenderBusinessSignup, shell: "bare" },
   { path: "/signup/business", component: PrerenderBusinessSignup, shell: "bare" },
+  { path: "/signup/robot-team", component: PrerenderBusinessSignup, shell: "bare" },
+  { path: "/signup/site-operator", component: PrerenderBusinessSignup, shell: "bare" },
   { path: "/signup/capturer", component: PrerenderCapturerSignup, shell: "bare" },
   { path: "/forgot-password", component: PrerenderForgotPassword, shell: "bare" },
   { path: "/privacy", component: Privacy, shell: "bare" },
   { path: "/terms", component: Terms, shell: "bare" },
+  { path: "/admin/leads", component: PrerenderAdminQueueSummary, shell: "bare" },
+  { path: "/admin/leads/perf-request", component: PrerenderAdminQueueSummary, shell: "bare" },
+  { path: "/admin/submissions", component: PrerenderAdminQueueSummary, shell: "bare" },
+  { path: "/admin/submissions/perf-request", component: PrerenderAdminQueueSummary, shell: "bare" },
+  { path: "/admin/city-launch/austin", component: PrerenderAdminCityLaunchSummary, shell: "bare" },
+  { path: "/__blueprint-performance-fallback__", component: PrerenderFallbackSummary, shell: "bare" },
 ];
 
 const rootPattern = /<div id="root"><\/div>/;
+
+type DeferredClientAsset = {
+  href: string;
+  crossorigin: boolean;
+};
+
+type DeferredClientEntry = {
+  src: string;
+  crossorigin: boolean;
+};
+
+function shouldDeferStylesheet(href: string) {
+  return href.startsWith("/assets/");
+}
+
+function deferClientBoot(template: string) {
+  const entries: DeferredClientEntry[] = [];
+  const modulePreloads: DeferredClientAsset[] = [];
+  const stylesheets: DeferredClientAsset[] = [];
+  let html = template.replace(
+    /\s*<script\b([^>]*\btype="module"[^>]*)><\/script>/gi,
+    (match, attributes: string) => {
+      const src = attributes.match(/\bsrc="([^"]+)"/i)?.[1];
+      if (!src) {
+        return match;
+      }
+      entries.push({
+        src,
+        crossorigin: /\bcrossorigin\b/i.test(attributes),
+      });
+      return "";
+    },
+  );
+
+  html = html.replace(
+    /\s*<link\b([^>]*\brel="modulepreload"[^>]*)>/gi,
+    (match, attributes: string) => {
+      const href = attributes.match(/\bhref="([^"]+)"/i)?.[1];
+      if (!href) {
+        return match;
+      }
+      modulePreloads.push({
+        href,
+        crossorigin: /\bcrossorigin\b/i.test(attributes),
+      });
+      return "";
+    },
+  );
+
+  html = html.replace(
+    /\s*<link\b([^>]*\brel="stylesheet"[^>]*)>/gi,
+    (match, attributes: string) => {
+      const href = attributes.match(/\bhref="([^"]+)"/i)?.[1];
+      if (!href || !shouldDeferStylesheet(href)) {
+        return match;
+      }
+      stylesheets.push({
+        href,
+        crossorigin: /\bcrossorigin\b/i.test(attributes),
+      });
+      return "";
+    },
+  );
+
+  if (entries.length === 0 && modulePreloads.length === 0 && stylesheets.length === 0) {
+    return html;
+  }
+
+  const payload = JSON.stringify({ entries, modulePreloads, stylesheets });
+  const bootstrap = `<script data-blueprint-deferred-client-boot>
+(() => {
+  const bootDelayMs = 1000;
+  const assets = ${payload};
+  let booted = false;
+  let bootTimer = 0;
+  const appendStylesheet = ({ href, crossorigin }) => {
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = href;
+    if (crossorigin) link.crossOrigin = "";
+    document.head.appendChild(link);
+  };
+  const appendModulePreload = ({ href, crossorigin }) => {
+    const link = document.createElement("link");
+    link.rel = "modulepreload";
+    link.href = href;
+    if (crossorigin) link.crossOrigin = "";
+    document.head.appendChild(link);
+  };
+  const appendModuleScript = ({ src, crossorigin }) => {
+    const script = document.createElement("script");
+    script.type = "module";
+    script.src = src;
+    if (crossorigin) script.crossOrigin = "";
+    document.head.appendChild(script);
+  };
+  const boot = () => {
+    if (booted) return;
+    booted = true;
+    if (bootTimer) window.clearTimeout(bootTimer);
+    assets.stylesheets.forEach(appendStylesheet);
+    assets.modulePreloads.forEach(appendModulePreload);
+    assets.entries.forEach(appendModuleScript);
+  };
+  const bootOnInteraction = () => boot();
+  const scheduleBoot = () => {
+    bootTimer = window.setTimeout(boot, bootDelayMs);
+  };
+  ["pointerdown", "keydown", "touchstart", "focusin"].forEach((eventName) => {
+    window.addEventListener(eventName, bootOnInteraction, { once: true, capture: true });
+  });
+  if (document.readyState === "complete") {
+    scheduleBoot();
+  } else {
+    window.addEventListener("load", scheduleBoot, { once: true });
+  }
+})();
+</script>`;
+
+  return html.replace("</body>", `${bootstrap}\n  </body>`);
+}
 
 function routePathToFile(distPath: string, routePath: string) {
   if (routePath === "/") {
@@ -287,10 +638,16 @@ function stripDefaultSeo(template: string) {
     .replace(/<link\s+rel="canonical"[^>]*>\s*/i, "");
 }
 
+function stripViteThemeStyle(template: string) {
+  return template.replace(/\s*<style\s+data-vite-theme[^>]*>[\s\S]*?<\/style>\s*/i, "\n");
+}
+
 async function main() {
   const distPath = path.resolve(__dirname, "..", "dist", "public");
   const templatePath = path.join(distPath, "index.html");
-  const template = stripDefaultSeo(await fs.promises.readFile(templatePath, "utf8"));
+  const template = deferClientBoot(
+    stripViteThemeStyle(stripDefaultSeo(await fs.promises.readFile(templatePath, "utf8"))),
+  );
 
   if (!rootPattern.test(template)) {
     throw new Error("Could not locate the root element in the built HTML template.");

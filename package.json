@@ -11,6 +11,7 @@
     "render:site-motion-loop:poster": "npm exec --package=@remotion/cli@4.0.438 -- remotion still proof-reel/index.ts BlueprintSiteMotionLoop --output client/public/proof/blueprint-site-motion-loop-poster.png --frame=42 --public-dir client/public",
     "start": "NODE_ENV=production node dist/index.js",
     "check": "tsc -p tsconfig.full.json --noEmit",
+    "perf:pages": "tsx scripts/measure-page-load-performance.ts",
     "smoke:agent": "tsx scripts/agent-runtime-smoke.ts",
     "agent:contract": "tsx scripts/agent-access/generate-agent-openapi.ts",
     "agent:cli": "tsx scripts/agent-access/blueprint-agent-cli.ts",

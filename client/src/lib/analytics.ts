@@ -1,4 +1,3 @@
-import posthog from "posthog-js";
 import {
   getDemandAttributionFromSearchParams,
   hasDemandAttribution,
@@ -32,6 +31,21 @@ const POSTHOG_HOST =
 let gaInitialized = false;
 let posthogInitialized = false;
 let analyticsSessionId: string | null = null;
+let posthogClient: typeof import("posthog-js").default | null = null;
+let posthogClientPromise: Promise<typeof import("posthog-js").default> | null = null;
+
+async function loadPostHogClient() {
+  if (posthogClient) {
+    return posthogClient;
+  }
+
+  if (!posthogClientPromise) {
+    posthogClientPromise = import("posthog-js").then((module) => module.default);
+  }
+
+  posthogClient = await posthogClientPromise;
+  return posthogClient;
+}
 
 function analyticsRuntimeEnabled() {
   return viteEnv.DEV !== true || Boolean(viteEnv.VITE_ENABLE_ANALYTICS);
@@ -184,12 +198,13 @@ function applyGaConsent(consent: AnalyticsConsent | null | undefined) {
   });
 }
 
-function ensurePostHogLoaded(consent: AnalyticsConsent | null | undefined) {
+async function ensurePostHogLoaded(consent: AnalyticsConsent | null | undefined) {
   if (!analyticsRuntimeEnabled() || !hasConfiguredPostHog() || posthogInitialized) {
     return;
   }
 
   const normalized = normalizeConsent(consent);
+  const posthog = await loadPostHogClient();
   posthog.init(POSTHOG_PROJECT_TOKEN, {
     api_host: POSTHOG_HOST,
     defaults: "2026-01-30",
@@ -204,19 +219,24 @@ function ensurePostHogLoaded(consent: AnalyticsConsent | null | undefined) {
 }
 
 function applyPostHogConsent(consent: AnalyticsConsent | null | undefined) {
-  if (!analyticsRuntimeEnabled() || !hasConfiguredPostHog() || !posthogInitialized) {
+  if (
+    !analyticsRuntimeEnabled() ||
+    !hasConfiguredPostHog() ||
+    !posthogInitialized ||
+    !posthogClient
+  ) {
     return;
   }
 
   const normalized = normalizeConsent(consent);
-  posthog.set_config({
+  posthogClient.set_config({
     persistence: normalized.analytics ? "localStorage+cookie" : "memory",
   });
 
   if (normalized.analytics) {
-    posthog.opt_in_capturing();
+    posthogClient.opt_in_capturing();
   } else {
-    posthog.opt_out_capturing();
+    posthogClient.opt_out_capturing();
   }
 }
 
@@ -227,8 +247,9 @@ export function initializeAnalytics(consent: AnalyticsConsent | null | undefined
 
   ensureGaLoaded();
   applyGaConsent(consent);
-  ensurePostHogLoaded(consent);
-  applyPostHogConsent(consent);
+  void ensurePostHogLoaded(consent).then(() => {
+    applyPostHogConsent(consent);
+  });
 }
 
 export function updateAnalyticsConsent(consent: AnalyticsConsent | null | undefined) {
@@ -244,8 +265,8 @@ export function trackPageView(path: string, title?: string) {
     });
   }
 
-  if (posthogInitialized && hasConfiguredPostHog()) {
-    posthog.capture("$pageview", {
+  if (posthogInitialized && hasConfiguredPostHog() && posthogClient) {
+    posthogClient.capture("$pageview", {
       path,
       title,
       current_url: window.location.href,
@@ -263,8 +284,8 @@ export function trackEvent(
     window.gtag("event", eventName, parameters);
   }
 
-  if (posthogInitialized && hasConfiguredPostHog()) {
-    posthog.capture(eventName, parameters);
+  if (posthogInitialized && hasConfiguredPostHog() && posthogClient) {
+    posthogClient.capture(eventName, parameters);
   }
 
   void ingestFirstPartyEvent(eventName, parameters);

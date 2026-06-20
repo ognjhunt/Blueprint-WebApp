@@ -14,7 +14,7 @@ const policyApiFields = {
   "Policy API endpoint Owner contact": "robot-owner@example.com",
 };
 
-test("robot-team eval interface renders and submits normalized hosted-session policy", async ({
+test("robot-team eval route is simple and submits normalized policy payload", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
@@ -35,27 +35,20 @@ test("robot-team eval interface renders and submits normalized hosted-session po
   await page.goto("/for-robot-teams");
 
   await expect(
-    page.getByRole("heading", { name: "Robot-team test interface" }),
+    page.getByRole("heading", {
+      name: "Evaluate robot policies before field time.",
+    }),
   ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Evaluation setup" })).toBeVisible();
   await expect(page.getByText("Policy API endpoint").first()).toBeVisible();
   await expect(page.getByText("Docker container").first()).toBeVisible();
-  await expect(page.getByText("Recorded action traces").first()).toBeVisible();
-  await expect(page.getByText("High-level skill traces").first()).toBeVisible();
-  await expect(page.getByText("Teleop demos").first()).toBeVisible();
-  await expect(page.getByText("Sim controller plugin").first()).toBeVisible();
   await expect(page.getByText("Model checkpoint").first()).toBeVisible();
-  await expect(
-    page.getByText(/does not prove deployment readiness/i),
-  ).toBeVisible();
+  await expect(page.getByText(/do not prove safety validation/i)).toBeVisible();
 
   await page
-    .getByLabel("Policy labels")
-    .fill("warehouse-policy, baseline-policy, ignored-fourth, ignored-fifth");
-  await page.getByLabel("Episode count").selectOption("custom");
-  await page.getByLabel("Custom episode count").fill("250");
-  await page
-    .getByLabel("Validation mode")
-    .selectOption("comparative_policy_eval");
+    .getByLabel("Policy / checkpoint labels")
+    .fill("warehouse-policy, baseline-policy, ignored-fourth");
+  await page.getByLabel("Episode count").selectOption("500");
   await page
     .getByLabel("Observation schema ref")
     .fill("gs://robot-team/schemas/top-observation.v1.json");
@@ -64,16 +57,7 @@ test("robot-team eval interface renders and submits normalized hosted-session po
     .fill("gs://robot-team/schemas/top-action.v1.json");
   await page.getByLabel("Control frequency").fill("20 Hz");
   await page.getByLabel("Robot embodiment").fill("mobile manipulator");
-  await page.getByLabel("Gripper").fill("parallel jaw");
-  await page.getByLabel("Camera setup").fill("wrist RGB-D and mast stereo");
-  await page
-    .getByLabel("Intrinsics / extrinsics ref")
-    .fill("gs://robot-team/calibration/cameras.json");
-  await page.getByLabel("Site package target").fill("cold-storage pick aisle");
   await page.getByLabel("Task instruction").fill("pick tote from shelf");
-  await page
-    .getByLabel("Start-state constraints")
-    .fill("robot starts at aisle entry");
   await page
     .getByLabel("Success criteria")
     .fill("tote placed without safety event");
@@ -85,22 +69,16 @@ test("robot-team eval interface renders and submits normalized hosted-session po
   await page.getByRole("button", { name: /Create hosted session/i }).click();
   await expect(page.getByText(/Runtime path is request-gated/i)).toBeVisible();
   await expect(
-    page.getByRole("link", { name: /Submit intake request/i }),
+    page.getByRole("link", { name: /Submit intake request/i }).first(),
   ).toHaveAttribute("href", /source=robot-team-eval/);
-  const intakeHref = await page
-    .getByRole("link", { name: /Submit intake request/i })
-    .getAttribute("href");
-  expect(decodeURIComponent(intakeHref || "")).toContain(
-    "endpointUrl=https://robot-team.example/policy",
-  );
-  expect(decodeURIComponent(intakeHref || "")).toContain(
-    "policyLabels=warehouse-policy, baseline-policy, ignored-fourth",
-  );
-  expect(decodeURIComponent(intakeHref || "")).toContain(
-    "validationMode=comparative_policy_eval",
-  );
 
   expect(observedBody?.sessionMode).toBe("runtime_only");
+  expect(observedBody?.requestedOutputs).toEqual([
+    "policy_ranking",
+    "failure_taxonomy",
+    "ood_uncertainty_flags",
+    "validation_targets",
+  ]);
   const policy = observedBody?.policy as Record<string, unknown>;
   const submission = policy.robotTeamTestSubmission as Record<string, unknown>;
   expect(submission.schemaVersion).toBe(
@@ -112,8 +90,7 @@ test("robot-team eval interface renders and submits normalized hosted-session po
     "baseline-policy",
     "ignored-fourth",
   ]);
-  expect(submission.episodeCount).toBe("custom");
-  expect(submission.customEpisodeCount).toBe("250");
+  expect(submission.episodeCount).toBe("500");
   expect(submission.validationMode).toBe("comparative_policy_eval");
   expect(submission.observationSchemaRef).toBe(
     "gs://robot-team/schemas/top-observation.v1.json",
@@ -123,28 +100,18 @@ test("robot-team eval interface renders and submits normalized hosted-session po
   );
   expect(submission.controlFrequency).toBe("20 Hz");
   expect(submission.robotEmbodiment).toBe("mobile manipulator");
-  expect(submission.gripper).toBe("parallel jaw");
-  expect(submission.cameraSetup).toBe("wrist RGB-D and mast stereo");
-  expect(submission.intrinsicsExtrinsicsRef).toBe(
-    "gs://robot-team/calibration/cameras.json",
-  );
-  expect(submission.sitePackageTarget).toBe("cold-storage pick aisle");
   expect(submission.taskInstruction).toBe("pick tote from shelf");
-  expect(submission.startStateConstraints).toBe("robot starts at aisle entry");
   expect(submission.successCriteria).toBe("tote placed without safety event");
-  expect(submission.pipelineDatasetSchemaRefs).toContain(
-    "robot_team_test_submission_modalities.v0.1",
-  );
 });
 
-test("robot-team eval canonical submission route is usable on mobile", async ({
-  page,
-}) => {
+test("robot-team eval route is usable on mobile", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/robot-team/eval");
 
   await expect(
-    page.getByRole("heading", { name: "Robot-team test interface" }),
+    page.getByRole("heading", {
+      name: "Evaluate robot policies before field time.",
+    }),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: /Create hosted session/i }),

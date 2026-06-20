@@ -1,0 +1,3055 @@
+{
+  "status": "FAIL",
+  "startedAt": "2026-06-20T05:57:30.128Z",
+  "finishedAt": "2026-06-20T05:58:37.245Z",
+  "args": {
+    "baseUrl": "http://127.0.0.1:5187",
+    "budgetMs": 50,
+    "samples": 3,
+    "timeoutMs": 5000,
+    "warmupTimeoutMs": 1000,
+    "outputDir": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/performance/page-load/latest",
+    "runOutputDir": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/performance/page-load/runs/2026-06-20T05-57-30-120Z",
+    "allowFail": true,
+    "includeProtected": true,
+    "includeFallback": true
+  },
+  "measurements": [
+    {
+      "routePath": "/",
+      "measuredPath": "/",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/",
+      "passed": false,
+      "medianReadyMs": 95.7,
+      "medianLoadMs": 95.7,
+      "medianDomContentLoadedMs": 58.9,
+      "medianResponseEndMs": 14.6,
+      "samples": [
+        54.6,
+        125.8,
+        95.7
+      ],
+      "loadSamples": [
+        54.6,
+        125.8,
+        95.7
+      ],
+      "domContentLoadedSamples": [
+        31.2,
+        58.9,
+        69.5
+      ],
+      "responseEndSamples": [
+        6.9,
+        14.6,
+        23.7
+      ]
+    },
+    {
+      "routePath": "/launch-map",
+      "measuredPath": "/launch-map",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/contact/robot-team?persona=robot-team&source=server-redirect",
+      "passed": false,
+      "medianReadyMs": 142.2,
+      "medianLoadMs": 142.2,
+      "medianDomContentLoadedMs": 142,
+      "medianResponseEndMs": 19.4,
+      "samples": [
+        142.2,
+        196.4,
+        111.8
+      ],
+      "loadSamples": [
+        142.2,
+        196.4,
+        111.8
+      ],
+      "domContentLoadedSamples": [
+        142,
+        196.2,
+        111.5
+      ],
+      "responseEndSamples": [
+        19.4,
+        114.6,
+        12.7
+      ]
+    },
+    {
+      "routePath": "/capture",
+      "measuredPath": "/capture",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/capture",
+      "passed": false,
+      "medianReadyMs": 63.6,
+      "medianLoadMs": 63.6,
+      "medianDomContentLoadedMs": 52.2,
+      "medianResponseEndMs": 11,
+      "samples": [
+        66.9,
+        61.8,
+        63.6
+      ],
+      "loadSamples": [
+        66.9,
+        61.8,
+        63.6
+      ],
+      "domContentLoadedSamples": [
+        52.2,
+        42.5,
+        63.5
+      ],
+      "responseEndSamples": [
+        11.9,
+        11,
+        10
+      ]
+    },
+    {
+      "routePath": "/capture-app",
+      "measuredPath": "/capture-app",
+      "layout": "public",
+      "shell": "bare",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/capture-app",
+      "passed": false,
+      "medianReadyMs": 131.5,
+      "medianLoadMs": 131.5,
+      "medianDomContentLoadedMs": 118.1,
+      "medianResponseEndMs": 28.6,
+      "samples": [
+        187.3,
+        131.1,
+        131.5
+      ],
+      "loadSamples": [
+        187.3,
+        131.1,
+        131.5
+      ],
+      "domContentLoadedSamples": [
+        118.1,
+        57.8,
+        123.6
+      ],
+      "responseEndSamples": [
+        39.5,
+        28.6,
+        17.5
+      ]
+    },
+    {
+      "routePath": "/capture-app/launch-access",
+      "measuredPath": "/capture-app/launch-access",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/capture-app/launch-access",
+      "passed": false,
+      "medianReadyMs": 116.1,
+      "medianLoadMs": 116.1,
+      "medianDomContentLoadedMs": 88.9,
+      "medianResponseEndMs": 28.8,
+      "samples": [
+        116.1,
+        326.5,
+        114.2
+      ],
+      "loadSamples": [
+        116.1,
+        326.5,
+        114.2
+      ],
+      "domContentLoadedSamples": [
+        116,
+        66.4,
+        88.9
+      ],
+      "responseEndSamples": [
+        9.4,
+        28.8,
+        31.2
+      ]
+    },
+    {
+      "routePath": "/capture-jobs",
+      "measuredPath": "/capture-jobs",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/capture",
+      "passed": false,
+      "medianReadyMs": 170.8,
+      "medianLoadMs": 170.8,
+      "medianDomContentLoadedMs": 170.7,
+      "medianResponseEndMs": 51.1,
+      "samples": [
+        170.8,
+        188.4,
+        95
+      ],
+      "loadSamples": [
+        170.8,
+        188.4,
+        95
+      ],
+      "domContentLoadedSamples": [
+        170.7,
+        188.3,
+        80
+      ],
+      "responseEndSamples": [
+        51.1,
+        131.6,
+        9.4
+      ]
+    },
+    {
+      "routePath": "/capture-network",
+      "measuredPath": "/capture-network",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/capture",
+      "passed": false,
+      "medianReadyMs": 87.6,
+      "medianLoadMs": 87.6,
+      "medianDomContentLoadedMs": 75.8,
+      "medianResponseEndMs": 41.8,
+      "samples": [
+        75.9,
+        87.6,
+        92.9
+      ],
+      "loadSamples": [
+        75.9,
+        87.6,
+        92.9
+      ],
+      "domContentLoadedSamples": [
+        75.8,
+        72.6,
+        92.7
+      ],
+      "responseEndSamples": [
+        35.8,
+        41.8,
+        44.4
+      ]
+    },
+    {
+      "routePath": "/capturer",
+      "measuredPath": "/capturer",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/capture",
+      "passed": false,
+      "medianReadyMs": 58.3,
+      "medianLoadMs": 58.3,
+      "medianDomContentLoadedMs": 41.6,
+      "medianResponseEndMs": 16.9,
+      "samples": [
+        47.2,
+        58.3,
+        93.2
+      ],
+      "loadSamples": [
+        47.2,
+        58.3,
+        93.2
+      ],
+      "domContentLoadedSamples": [
+        33.3,
+        41.6,
+        79.2
+      ],
+      "responseEndSamples": [
+        10.5,
+        16.9,
+        33.7
+      ]
+    },
+    {
+      "routePath": "/capturers",
+      "measuredPath": "/capturers",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/capture",
+      "passed": false,
+      "medianReadyMs": 58.9,
+      "medianLoadMs": 58.9,
+      "medianDomContentLoadedMs": 58.7,
+      "medianResponseEndMs": 16.5,
+      "samples": [
+        57.8,
+        58.9,
+        223.8
+      ],
+      "loadSamples": [
+        57.8,
+        58.9,
+        223.8
+      ],
+      "domContentLoadedSamples": [
+        57.6,
+        58.7,
+        223.6
+      ],
+      "responseEndSamples": [
+        16.5,
+        14,
+        57.2
+      ]
+    },
+    {
+      "routePath": "/capturer-access",
+      "measuredPath": "/capturer-access",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/capture",
+      "passed": false,
+      "medianReadyMs": 122.1,
+      "medianLoadMs": 122.1,
+      "medianDomContentLoadedMs": 121.9,
+      "medianResponseEndMs": 48.5,
+      "samples": [
+        122.1,
+        221.4,
+        95
+      ],
+      "loadSamples": [
+        122.1,
+        221.4,
+        95
+      ],
+      "domContentLoadedSamples": [
+        121.9,
+        221.3,
+        94.8
+      ],
+      "responseEndSamples": [
+        48.5,
+        65.4,
+        23.5
+      ]
+    },
+    {
+      "routePath": "/become-a-capturer",
+      "measuredPath": "/become-a-capturer",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/capture",
+      "passed": false,
+      "medianReadyMs": 89.4,
+      "medianLoadMs": 89.4,
+      "medianDomContentLoadedMs": 89.3,
+      "medianResponseEndMs": 29.8,
+      "samples": [
+        92.1,
+        89.4,
+        64.8
+      ],
+      "loadSamples": [
+        92.1,
+        89.4,
+        64.8
+      ],
+      "domContentLoadedSamples": [
+        91.9,
+        89.3,
+        50.7
+      ],
+      "responseEndSamples": [
+        31.1,
+        29.8,
+        21.6
+      ]
+    },
+    {
+      "routePath": "/for-capturers",
+      "measuredPath": "/for-capturers",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/capture",
+      "passed": false,
+      "medianReadyMs": 50.9,
+      "medianLoadMs": 50.9,
+      "medianDomContentLoadedMs": 36.8,
+      "medianResponseEndMs": 10.8,
+      "samples": [
+        48.8,
+        67.3,
+        50.9
+      ],
+      "loadSamples": [
+        48.8,
+        67.3,
+        50.9
+      ],
+      "domContentLoadedSamples": [
+        31.4,
+        67.1,
+        36.8
+      ],
+      "responseEndSamples": [
+        10.3,
+        22.9,
+        10.8
+      ]
+    },
+    {
+      "routePath": "/earn",
+      "measuredPath": "/earn",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/capture",
+      "passed": false,
+      "medianReadyMs": 52.8,
+      "medianLoadMs": 52.8,
+      "medianDomContentLoadedMs": 38.8,
+      "medianResponseEndMs": 12.1,
+      "samples": [
+        52.8,
+        60.2,
+        49.1
+      ],
+      "loadSamples": [
+        52.8,
+        60.2,
+        49.1
+      ],
+      "domContentLoadedSamples": [
+        38.8,
+        45.2,
+        35.2
+      ],
+      "responseEndSamples": [
+        11.6,
+        16.4,
+        12.1
+      ]
+    },
+    {
+      "routePath": "/city/:citySlug",
+      "measuredPath": "/city/austin",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/city/austin",
+      "passed": false,
+      "medianReadyMs": 80.1,
+      "medianLoadMs": 80.1,
+      "medianDomContentLoadedMs": 65.4,
+      "medianResponseEndMs": 10.7,
+      "samples": [
+        43.7,
+        80.1,
+        118.2
+      ],
+      "loadSamples": [
+        43.7,
+        80.1,
+        118.2
+      ],
+      "domContentLoadedSamples": [
+        39.5,
+        65.4,
+        78.8
+      ],
+      "responseEndSamples": [
+        8,
+        15.7,
+        10.7
+      ]
+    },
+    {
+      "routePath": "/sites",
+      "measuredPath": "/sites",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/sites",
+      "passed": false,
+      "medianReadyMs": 71.7,
+      "medianLoadMs": 71.7,
+      "medianDomContentLoadedMs": 71.5,
+      "medianResponseEndMs": 14.3,
+      "samples": [
+        71.7,
+        110.4,
+        56.7
+      ],
+      "loadSamples": [
+        71.7,
+        110.4,
+        56.7
+      ],
+      "domContentLoadedSamples": [
+        71.5,
+        91.5,
+        56.5
+      ],
+      "responseEndSamples": [
+        14.3,
+        15.4,
+        11.1
+      ]
+    },
+    {
+      "routePath": "/sites/:slug",
+      "measuredPath": "/sites/sw-chi-01",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/sites/sw-chi-01",
+      "passed": false,
+      "medianReadyMs": 95.3,
+      "medianLoadMs": 95.3,
+      "medianDomContentLoadedMs": 63.3,
+      "medianResponseEndMs": 15.9,
+      "samples": [
+        490.8,
+        95.3,
+        95.3
+      ],
+      "loadSamples": [
+        490.8,
+        95.3,
+        95.3
+      ],
+      "domContentLoadedSamples": [
+        121.5,
+        63.3,
+        62.6
+      ],
+      "responseEndSamples": [
+        60.2,
+        15.9,
+        13.2
+      ]
+    },
+    {
+      "routePath": "/world-models",
+      "measuredPath": "/world-models",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/sites",
+      "passed": false,
+      "medianReadyMs": 137,
+      "medianLoadMs": 137,
+      "medianDomContentLoadedMs": 136.7,
+      "medianResponseEndMs": 49.5,
+      "samples": [
+        137,
+        222.9,
+        82.2
+      ],
+      "loadSamples": [
+        137,
+        222.9,
+        82.2
+      ],
+      "domContentLoadedSamples": [
+        136.7,
+        222.8,
+        82.1
+      ],
+      "responseEndSamples": [
+        49.5,
+        105.7,
+        26.4
+      ]
+    },
+    {
+      "routePath": "/world-models/:slug",
+      "measuredPath": "/world-models/sw-chi-01",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/sites/sw-chi-01",
+      "passed": false,
+      "medianReadyMs": 90,
+      "medianLoadMs": 90,
+      "medianDomContentLoadedMs": 64.8,
+      "medianResponseEndMs": 18.5,
+      "samples": [
+        70.7,
+        102.3,
+        90
+      ],
+      "loadSamples": [
+        70.7,
+        102.3,
+        90
+      ],
+      "domContentLoadedSamples": [
+        70.5,
+        58.6,
+        64.8
+      ],
+      "responseEndSamples": [
+        18.8,
+        18.5,
+        15.3
+      ]
+    },
+    {
+      "routePath": "/world-models/:slug/start",
+      "measuredPath": "/world-models/sw-chi-01/start",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/world-models/sw-chi-01/start",
+      "passed": false,
+      "medianReadyMs": 74,
+      "medianLoadMs": 74,
+      "medianDomContentLoadedMs": 48.9,
+      "medianResponseEndMs": 14,
+      "samples": [
+        66.8,
+        125.1,
+        74
+      ],
+      "loadSamples": [
+        66.8,
+        125.1,
+        74
+      ],
+      "domContentLoadedSamples": [
+        48.9,
+        102,
+        42.3
+      ],
+      "responseEndSamples": [
+        6.6,
+        34.7,
+        14
+      ]
+    },
+    {
+      "routePath": "/world-models/:slug/workspace",
+      "measuredPath": "/world-models/sw-chi-01/workspace",
+      "layout": "public",
+      "shell": "bare",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/world-models/sw-chi-01/workspace",
+      "passed": false,
+      "medianReadyMs": 65.9,
+      "medianLoadMs": 65.9,
+      "medianDomContentLoadedMs": 49,
+      "medianResponseEndMs": 10.7,
+      "samples": [
+        65.9,
+        41.5,
+        66.2
+      ],
+      "loadSamples": [
+        65.9,
+        41.5,
+        66.2
+      ],
+      "domContentLoadedSamples": [
+        49,
+        35.2,
+        54.6
+      ],
+      "responseEndSamples": [
+        10.7,
+        10.4,
+        13
+      ]
+    },
+    {
+      "routePath": "/site-worlds",
+      "measuredPath": "/site-worlds",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/sites",
+      "passed": false,
+      "medianReadyMs": 71.4,
+      "medianLoadMs": 71.4,
+      "medianDomContentLoadedMs": 71.2,
+      "medianResponseEndMs": 11.1,
+      "samples": [
+        71.4,
+        73.8,
+        52.2
+      ],
+      "loadSamples": [
+        71.4,
+        73.8,
+        52.2
+      ],
+      "domContentLoadedSamples": [
+        71.2,
+        73.7,
+        36.1
+      ],
+      "responseEndSamples": [
+        15.2,
+        10.8,
+        11.1
+      ]
+    },
+    {
+      "routePath": "/site-worlds/:slug",
+      "measuredPath": "/site-worlds/sw-chi-01",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/sites/sw-chi-01",
+      "passed": false,
+      "medianReadyMs": 85.6,
+      "medianLoadMs": 85.6,
+      "medianDomContentLoadedMs": 61.7,
+      "medianResponseEndMs": 13.5,
+      "samples": [
+        85.6,
+        56.4,
+        89.1
+      ],
+      "loadSamples": [
+        85.6,
+        56.4,
+        89.1
+      ],
+      "domContentLoadedSamples": [
+        83.5,
+        41.4,
+        61.7
+      ],
+      "responseEndSamples": [
+        37.2,
+        13.5,
+        9.4
+      ]
+    },
+    {
+      "routePath": "/site-worlds/:slug/start",
+      "measuredPath": "/site-worlds/sw-chi-01/start",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/world-models/sw-chi-01/start",
+      "passed": false,
+      "medianReadyMs": 205.1,
+      "medianLoadMs": 205.1,
+      "medianDomContentLoadedMs": 138.1,
+      "medianResponseEndMs": 14.3,
+      "samples": [
+        353.2,
+        205.1,
+        44.9
+      ],
+      "loadSamples": [
+        353.2,
+        205.1,
+        44.9
+      ],
+      "domContentLoadedSamples": [
+        138.1,
+        173.9,
+        44.8
+      ],
+      "responseEndSamples": [
+        14.3,
+        113.1,
+        9.2
+      ]
+    },
+    {
+      "routePath": "/site-worlds/:slug/workspace",
+      "measuredPath": "/site-worlds/sw-chi-01/workspace",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/world-models/sw-chi-01/workspace",
+      "passed": false,
+      "medianReadyMs": 93.4,
+      "medianLoadMs": 93.4,
+      "medianDomContentLoadedMs": 76.8,
+      "medianResponseEndMs": 24.1,
+      "samples": [
+        93,
+        93.4,
+        100.2
+      ],
+      "loadSamples": [
+        93,
+        93.4,
+        100.2
+      ],
+      "domContentLoadedSamples": [
+        86.5,
+        76.8,
+        67.2
+      ],
+      "responseEndSamples": [
+        50.5,
+        24.1,
+        22.2
+      ]
+    },
+    {
+      "routePath": "/for-site-operators",
+      "measuredPath": "/for-site-operators",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/contact/site-operator",
+      "passed": false,
+      "medianReadyMs": 108.7,
+      "medianLoadMs": 108.7,
+      "medianDomContentLoadedMs": 108.6,
+      "medianResponseEndMs": 51.2,
+      "samples": [
+        49.3,
+        140.6,
+        108.7
+      ],
+      "loadSamples": [
+        49.3,
+        140.6,
+        108.7
+      ],
+      "domContentLoadedSamples": [
+        49,
+        140.4,
+        108.6
+      ],
+      "responseEndSamples": [
+        11.4,
+        61.6,
+        51.2
+      ]
+    },
+    {
+      "routePath": "/for-robot-teams",
+      "measuredPath": "/for-robot-teams",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/for-robot-teams",
+      "passed": false,
+      "medianReadyMs": 221.9,
+      "medianLoadMs": 221.9,
+      "medianDomContentLoadedMs": 92.4,
+      "medianResponseEndMs": 24.9,
+      "samples": [
+        221.9,
+        111.9,
+        276.2
+      ],
+      "loadSamples": [
+        221.9,
+        111.9,
+        276.2
+      ],
+      "domContentLoadedSamples": [
+        92.4,
+        76.4,
+        212.6
+      ],
+      "responseEndSamples": [
+        24.9,
+        15.9,
+        75.6
+      ]
+    },
+    {
+      "routePath": "/robot-team/eval",
+      "measuredPath": "/robot-team/eval",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/robot-team/eval",
+      "passed": false,
+      "medianReadyMs": 275.6,
+      "medianLoadMs": 275.6,
+      "medianDomContentLoadedMs": 190.3,
+      "medianResponseEndMs": 51.4,
+      "samples": [
+        340.5,
+        275.6,
+        186.5
+      ],
+      "loadSamples": [
+        340.5,
+        275.6,
+        186.5
+      ],
+      "domContentLoadedSamples": [
+        190.3,
+        227.1,
+        131.4
+      ],
+      "responseEndSamples": [
+        51.4,
+        75.4,
+        22.3
+      ]
+    },
+    {
+      "routePath": "/for-robot-integrators",
+      "measuredPath": "/for-robot-integrators",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/",
+      "passed": false,
+      "medianReadyMs": 87.9,
+      "medianLoadMs": 87.9,
+      "medianDomContentLoadedMs": 66,
+      "medianResponseEndMs": 18.7,
+      "samples": [
+        87.9,
+        156.7,
+        66.2
+      ],
+      "loadSamples": [
+        87.9,
+        156.7,
+        66.2
+      ],
+      "domContentLoadedSamples": [
+        60.7,
+        123,
+        66
+      ],
+      "responseEndSamples": [
+        18.7,
+        52.6,
+        17.3
+      ]
+    },
+    {
+      "routePath": "/product",
+      "measuredPath": "/product",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/",
+      "passed": false,
+      "medianReadyMs": 76.6,
+      "medianLoadMs": 76.6,
+      "medianDomContentLoadedMs": 65.3,
+      "medianResponseEndMs": 19.9,
+      "samples": [
+        76.6,
+        93.6,
+        57.3
+      ],
+      "loadSamples": [
+        76.6,
+        93.6,
+        57.3
+      ],
+      "domContentLoadedSamples": [
+        65.3,
+        69.1,
+        52.5
+      ],
+      "responseEndSamples": [
+        22.6,
+        19.9,
+        12.7
+      ]
+    },
+    {
+      "routePath": "/readiness",
+      "measuredPath": "/readiness",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/",
+      "passed": false,
+      "medianReadyMs": 70.6,
+      "medianLoadMs": 70.6,
+      "medianDomContentLoadedMs": 65.3,
+      "medianResponseEndMs": 18.6,
+      "samples": [
+        70.6,
+        113.2,
+        55.4
+      ],
+      "loadSamples": [
+        70.6,
+        113.2,
+        55.4
+      ],
+      "domContentLoadedSamples": [
+        65.3,
+        103.2,
+        44.2
+      ],
+      "responseEndSamples": [
+        14.9,
+        33.3,
+        18.6
+      ]
+    },
+    {
+      "routePath": "/readiness-pack",
+      "measuredPath": "/readiness-pack",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/",
+      "passed": false,
+      "medianReadyMs": 79.3,
+      "medianLoadMs": 79.3,
+      "medianDomContentLoadedMs": 59.5,
+      "medianResponseEndMs": 16.5,
+      "samples": [
+        79.3,
+        101.3,
+        52.4
+      ],
+      "loadSamples": [
+        79.3,
+        101.3,
+        52.4
+      ],
+      "domContentLoadedSamples": [
+        64.2,
+        59.5,
+        46.6
+      ],
+      "responseEndSamples": [
+        16.5,
+        16.3,
+        18.3
+      ]
+    },
+    {
+      "routePath": "/agents",
+      "measuredPath": "/agents",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/contact/robot-team?persona=robot-team&source=server-redirect",
+      "passed": true,
+      "medianReadyMs": 49.8,
+      "medianLoadMs": 49.8,
+      "medianDomContentLoadedMs": 49.6,
+      "medianResponseEndMs": 14.1,
+      "samples": [
+        85.5,
+        49.8,
+        44.2
+      ],
+      "loadSamples": [
+        85.5,
+        49.8,
+        44.2
+      ],
+      "domContentLoadedSamples": [
+        85.3,
+        49.6,
+        38.5
+      ],
+      "responseEndSamples": [
+        22.4,
+        11,
+        14.1
+      ]
+    },
+    {
+      "routePath": "/pricing",
+      "measuredPath": "/pricing",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/pricing",
+      "passed": false,
+      "medianReadyMs": 61.2,
+      "medianLoadMs": 61.2,
+      "medianDomContentLoadedMs": 46.3,
+      "medianResponseEndMs": 8.4,
+      "samples": [
+        66.3,
+        61.2,
+        60.2
+      ],
+      "loadSamples": [
+        66.3,
+        61.2,
+        60.2
+      ],
+      "domContentLoadedSamples": [
+        46.3,
+        34.4,
+        49.8
+      ],
+      "responseEndSamples": [
+        8.4,
+        8.4,
+        10
+      ]
+    },
+    {
+      "routePath": "/sample-evaluation",
+      "measuredPath": "/sample-evaluation",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/proof",
+      "passed": false,
+      "medianReadyMs": 100,
+      "medianLoadMs": 100,
+      "medianDomContentLoadedMs": 65.7,
+      "medianResponseEndMs": 23.7,
+      "samples": [
+        100,
+        162.1,
+        91.5
+      ],
+      "loadSamples": [
+        100,
+        162.1,
+        91.5
+      ],
+      "domContentLoadedSamples": [
+        62.6,
+        117.6,
+        65.7
+      ],
+      "responseEndSamples": [
+        8.4,
+        75.2,
+        23.7
+      ]
+    },
+    {
+      "routePath": "/sample-deliverables",
+      "measuredPath": "/sample-deliverables",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/proof",
+      "passed": false,
+      "medianReadyMs": 135.4,
+      "medianLoadMs": 135.4,
+      "medianDomContentLoadedMs": 82.9,
+      "medianResponseEndMs": 16.5,
+      "samples": [
+        69.1,
+        435.4,
+        135.4
+      ],
+      "loadSamples": [
+        69.1,
+        435.4,
+        135.4
+      ],
+      "domContentLoadedSamples": [
+        39,
+        113.5,
+        82.9
+      ],
+      "responseEndSamples": [
+        11.8,
+        18.1,
+        16.5
+      ]
+    },
+    {
+      "routePath": "/case-studies",
+      "measuredPath": "/case-studies",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/proof",
+      "passed": false,
+      "medianReadyMs": 304.6,
+      "medianLoadMs": 304.6,
+      "medianDomContentLoadedMs": 178.3,
+      "medianResponseEndMs": 56.7,
+      "samples": [
+        622,
+        304.6,
+        90.7
+      ],
+      "loadSamples": [
+        622,
+        304.6,
+        90.7
+      ],
+      "domContentLoadedSamples": [
+        272.6,
+        178.3,
+        72.6
+      ],
+      "responseEndSamples": [
+        137.3,
+        56.7,
+        24.4
+      ]
+    },
+    {
+      "routePath": "/contact",
+      "measuredPath": "/contact",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/contact/robot-team",
+      "passed": false,
+      "medianReadyMs": 281.8,
+      "medianLoadMs": 281.8,
+      "medianDomContentLoadedMs": 281.5,
+      "medianResponseEndMs": 94.9,
+      "samples": [
+        103.5,
+        306.5,
+        281.8
+      ],
+      "loadSamples": [
+        103.5,
+        306.5,
+        281.8
+      ],
+      "domContentLoadedSamples": [
+        103.3,
+        306.3,
+        281.5
+      ],
+      "responseEndSamples": [
+        50.8,
+        113,
+        94.9
+      ]
+    },
+    {
+      "routePath": "/contact/robot-team",
+      "measuredPath": "/contact/robot-team",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/contact/robot-team",
+      "passed": false,
+      "medianReadyMs": 103,
+      "medianLoadMs": 103,
+      "medianDomContentLoadedMs": 102.9,
+      "medianResponseEndMs": 46.6,
+      "samples": [
+        43.9,
+        129.8,
+        103
+      ],
+      "loadSamples": [
+        43.9,
+        129.8,
+        103
+      ],
+      "domContentLoadedSamples": [
+        43.8,
+        129.6,
+        102.9
+      ],
+      "responseEndSamples": [
+        6.8,
+        57.7,
+        46.6
+      ]
+    },
+    {
+      "routePath": "/contact/site-operator",
+      "measuredPath": "/contact/site-operator",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/contact/site-operator",
+      "passed": true,
+      "medianReadyMs": 45.5,
+      "medianLoadMs": 45.5,
+      "medianDomContentLoadedMs": 38.8,
+      "medianResponseEndMs": 17.4,
+      "samples": [
+        45.5,
+        69.3,
+        42.3
+      ],
+      "loadSamples": [
+        45.5,
+        69.3,
+        42.3
+      ],
+      "domContentLoadedSamples": [
+        38.8,
+        69.1,
+        36.5
+      ],
+      "responseEndSamples": [
+        14.3,
+        17.4,
+        18.2
+      ]
+    },
+    {
+      "routePath": "/help",
+      "measuredPath": "/help",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/contact/robot-team?persona=robot-team&source=server-redirect",
+      "passed": false,
+      "medianReadyMs": 65.7,
+      "medianLoadMs": 65.7,
+      "medianDomContentLoadedMs": 65.6,
+      "medianResponseEndMs": 21.5,
+      "samples": [
+        47.3,
+        65.7,
+        83.5
+      ],
+      "loadSamples": [
+        47.3,
+        65.7,
+        83.5
+      ],
+      "domContentLoadedSamples": [
+        41,
+        65.6,
+        83.4
+      ],
+      "responseEndSamples": [
+        11.4,
+        21.5,
+        28.2
+      ]
+    },
+    {
+      "routePath": "/help/contact",
+      "measuredPath": "/help/contact",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/contact/robot-team?persona=robot-team&source=server-redirect",
+      "passed": false,
+      "medianReadyMs": 90.1,
+      "medianLoadMs": 90.1,
+      "medianDomContentLoadedMs": 90,
+      "medianResponseEndMs": 25.9,
+      "samples": [
+        67,
+        90.1,
+        104.6
+      ],
+      "loadSamples": [
+        67,
+        90.1,
+        104.6
+      ],
+      "domContentLoadedSamples": [
+        66.8,
+        90,
+        104.4
+      ],
+      "responseEndSamples": [
+        16.1,
+        38.6,
+        25.9
+      ]
+    },
+    {
+      "routePath": "/help/category/:categorySlug",
+      "measuredPath": "/help/category/capture",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/contact/robot-team?persona=robot-team&source=server-redirect",
+      "passed": false,
+      "medianReadyMs": 58.6,
+      "medianLoadMs": 58.6,
+      "medianDomContentLoadedMs": 53.3,
+      "medianResponseEndMs": 26.3,
+      "samples": [
+        61.3,
+        44.9,
+        58.6
+      ],
+      "loadSamples": [
+        61.3,
+        44.9,
+        58.6
+      ],
+      "domContentLoadedSamples": [
+        55.4,
+        39,
+        53.3
+      ],
+      "responseEndSamples": [
+        26.3,
+        13.7,
+        26.4
+      ]
+    },
+    {
+      "routePath": "/help/article/:articleSlug",
+      "measuredPath": "/help/article/package-access",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/contact/robot-team?persona=robot-team&source=server-redirect",
+      "passed": false,
+      "medianReadyMs": 110,
+      "medianLoadMs": 110,
+      "medianDomContentLoadedMs": 109.7,
+      "medianResponseEndMs": 40.6,
+      "samples": [
+        250.3,
+        110,
+        51.2
+      ],
+      "loadSamples": [
+        250.3,
+        110,
+        51.2
+      ],
+      "domContentLoadedSamples": [
+        250.1,
+        109.7,
+        51.1
+      ],
+      "responseEndSamples": [
+        79.6,
+        40.6,
+        9
+      ]
+    },
+    {
+      "routePath": "/exact-site-hosted-review",
+      "measuredPath": "/exact-site-hosted-review",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/",
+      "passed": false,
+      "medianReadyMs": 88.9,
+      "medianLoadMs": 88.9,
+      "medianDomContentLoadedMs": 69.1,
+      "medianResponseEndMs": 15.4,
+      "samples": [
+        123.9,
+        55.8,
+        88.9
+      ],
+      "loadSamples": [
+        123.9,
+        55.8,
+        88.9
+      ],
+      "domContentLoadedSamples": [
+        69.1,
+        41.4,
+        88.9
+      ],
+      "responseEndSamples": [
+        15.4,
+        7.6,
+        50.2
+      ]
+    },
+    {
+      "routePath": "/book-exact-site-review",
+      "measuredPath": "/book-exact-site-review",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=book-exact-site-review",
+      "passed": false,
+      "medianReadyMs": 50.4,
+      "medianLoadMs": 50.4,
+      "medianDomContentLoadedMs": 46.2,
+      "medianResponseEndMs": 16.3,
+      "samples": [
+        100.4,
+        46.3,
+        50.4
+      ],
+      "loadSamples": [
+        100.4,
+        46.3,
+        50.4
+      ],
+      "domContentLoadedSamples": [
+        100.3,
+        46.2,
+        44.8
+      ],
+      "responseEndSamples": [
+        39.7,
+        16.3,
+        13.2
+      ]
+    },
+    {
+      "routePath": "/how-it-works",
+      "measuredPath": "/how-it-works",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/",
+      "passed": false,
+      "medianReadyMs": 60.6,
+      "medianLoadMs": 60.6,
+      "medianDomContentLoadedMs": 48.4,
+      "medianResponseEndMs": 9.1,
+      "samples": [
+        48.1,
+        60.6,
+        193.4
+      ],
+      "loadSamples": [
+        48.1,
+        60.6,
+        193.4
+      ],
+      "domContentLoadedSamples": [
+        48,
+        48.4,
+        125.8
+      ],
+      "responseEndSamples": [
+        9.1,
+        8.9,
+        58.1
+      ]
+    },
+    {
+      "routePath": "/proof",
+      "measuredPath": "/proof",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/proof",
+      "passed": false,
+      "medianReadyMs": 111,
+      "medianLoadMs": 111,
+      "medianDomContentLoadedMs": 70.3,
+      "medianResponseEndMs": 14.7,
+      "samples": [
+        111,
+        138.8,
+        62.7
+      ],
+      "loadSamples": [
+        111,
+        138.8,
+        62.7
+      ],
+      "domContentLoadedSamples": [
+        74.2,
+        70.3,
+        56.6
+      ],
+      "responseEndSamples": [
+        33.3,
+        14.7,
+        10.5
+      ]
+    },
+    {
+      "routePath": "/faq",
+      "measuredPath": "/faq",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/proof",
+      "passed": false,
+      "medianReadyMs": 112.2,
+      "medianLoadMs": 112.2,
+      "medianDomContentLoadedMs": 68.3,
+      "medianResponseEndMs": 28.1,
+      "samples": [
+        112.2,
+        59.2,
+        120.5
+      ],
+      "loadSamples": [
+        112.2,
+        59.2,
+        120.5
+      ],
+      "domContentLoadedSamples": [
+        68.3,
+        45.2,
+        75.7
+      ],
+      "responseEndSamples": [
+        28.1,
+        14.3,
+        29.5
+      ]
+    },
+    {
+      "routePath": "/governance",
+      "measuredPath": "/governance",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/proof",
+      "passed": false,
+      "medianReadyMs": 128.2,
+      "medianLoadMs": 128.2,
+      "medianDomContentLoadedMs": 89.9,
+      "medianResponseEndMs": 41.9,
+      "samples": [
+        75.1,
+        150,
+        128.2
+      ],
+      "loadSamples": [
+        75.1,
+        150,
+        128.2
+      ],
+      "domContentLoadedSamples": [
+        73.2,
+        98.7,
+        89.9
+      ],
+      "responseEndSamples": [
+        24.2,
+        41.9,
+        49.1
+      ]
+    },
+    {
+      "routePath": "/about",
+      "measuredPath": "/about",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/",
+      "passed": false,
+      "medianReadyMs": 99.9,
+      "medianLoadMs": 99.9,
+      "medianDomContentLoadedMs": 68.9,
+      "medianResponseEndMs": 20.4,
+      "samples": [
+        89.6,
+        139,
+        99.9
+      ],
+      "loadSamples": [
+        89.6,
+        139,
+        99.9
+      ],
+      "domContentLoadedSamples": [
+        66.3,
+        83.1,
+        68.9
+      ],
+      "responseEndSamples": [
+        20.4,
+        20.9,
+        16.6
+      ]
+    },
+    {
+      "routePath": "/docs",
+      "measuredPath": "/docs",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/proof",
+      "passed": false,
+      "medianReadyMs": 116.9,
+      "medianLoadMs": 116.9,
+      "medianDomContentLoadedMs": 90.1,
+      "medianResponseEndMs": 28.2,
+      "samples": [
+        116.9,
+        130,
+        104.8
+      ],
+      "loadSamples": [
+        116.9,
+        130,
+        104.8
+      ],
+      "domContentLoadedSamples": [
+        90.1,
+        61.6,
+        104.7
+      ],
+      "responseEndSamples": [
+        31.5,
+        11.2,
+        28.2
+      ]
+    },
+    {
+      "routePath": "/updates",
+      "measuredPath": "/updates",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/",
+      "passed": false,
+      "medianReadyMs": 113.3,
+      "medianLoadMs": 113.3,
+      "medianDomContentLoadedMs": 82.4,
+      "medianResponseEndMs": 33.9,
+      "samples": [
+        113.3,
+        82.6,
+        173.1
+      ],
+      "loadSamples": [
+        113.3,
+        82.6,
+        173.1
+      ],
+      "domContentLoadedSamples": [
+        70.7,
+        82.4,
+        104.5
+      ],
+      "responseEndSamples": [
+        17.4,
+        37.2,
+        33.9
+      ]
+    },
+    {
+      "routePath": "/blog",
+      "measuredPath": "/blog",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/",
+      "passed": false,
+      "medianReadyMs": 165.3,
+      "medianLoadMs": 165.3,
+      "medianDomContentLoadedMs": 116.2,
+      "medianResponseEndMs": 30.6,
+      "samples": [
+        222,
+        54.7,
+        165.3
+      ],
+      "loadSamples": [
+        222,
+        54.7,
+        165.3
+      ],
+      "domContentLoadedSamples": [
+        116.9,
+        42.9,
+        116.2
+      ],
+      "responseEndSamples": [
+        39.2,
+        12,
+        30.6
+      ]
+    },
+    {
+      "routePath": "/careers",
+      "measuredPath": "/careers",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/contact/robot-team?persona=robot-team&source=server-redirect",
+      "passed": false,
+      "medianReadyMs": 56.1,
+      "medianLoadMs": 56.1,
+      "medianDomContentLoadedMs": 55.9,
+      "medianResponseEndMs": 15.9,
+      "samples": [
+        56.1,
+        77.5,
+        45.9
+      ],
+      "loadSamples": [
+        56.1,
+        77.5,
+        45.9
+      ],
+      "domContentLoadedSamples": [
+        55.9,
+        77.4,
+        45.7
+      ],
+      "responseEndSamples": [
+        15.9,
+        18,
+        11.9
+      ]
+    },
+    {
+      "routePath": "/solutions",
+      "measuredPath": "/solutions",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/",
+      "passed": false,
+      "medianReadyMs": 104.9,
+      "medianLoadMs": 104.9,
+      "medianDomContentLoadedMs": 85.7,
+      "medianResponseEndMs": 22.1,
+      "samples": [
+        138,
+        99.1,
+        104.9
+      ],
+      "loadSamples": [
+        138,
+        99.1,
+        104.9
+      ],
+      "domContentLoadedSamples": [
+        60.7,
+        85.7,
+        94.5
+      ],
+      "responseEndSamples": [
+        14.2,
+        22.1,
+        48.5
+      ]
+    },
+    {
+      "routePath": "/quality-standard",
+      "measuredPath": "/quality-standard",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/",
+      "passed": false,
+      "medianReadyMs": 80.4,
+      "medianLoadMs": 80.4,
+      "medianDomContentLoadedMs": 71.7,
+      "medianResponseEndMs": 26.6,
+      "samples": [
+        80.4,
+        97.3,
+        49.2
+      ],
+      "loadSamples": [
+        80.4,
+        97.3,
+        49.2
+      ],
+      "domContentLoadedSamples": [
+        78.9,
+        71.7,
+        43.6
+      ],
+      "responseEndSamples": [
+        36.8,
+        26.6,
+        17.2
+      ]
+    },
+    {
+      "routePath": "/qualified-opportunities",
+      "measuredPath": "/qualified-opportunities",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/proof",
+      "passed": false,
+      "medianReadyMs": 150.6,
+      "medianLoadMs": 150.6,
+      "medianDomContentLoadedMs": 105.5,
+      "medianResponseEndMs": 20,
+      "samples": [
+        144.2,
+        158.1,
+        150.6
+      ],
+      "loadSamples": [
+        144.2,
+        158.1,
+        150.6
+      ],
+      "domContentLoadedSamples": [
+        62.6,
+        108.6,
+        105.5
+      ],
+      "responseEndSamples": [
+        14.9,
+        42.9,
+        20
+      ]
+    },
+    {
+      "routePath": "/qualified-opportunities-guide",
+      "measuredPath": "/qualified-opportunities-guide",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/proof",
+      "passed": false,
+      "medianReadyMs": 97.8,
+      "medianLoadMs": 97.8,
+      "medianDomContentLoadedMs": 50.6,
+      "medianResponseEndMs": 16.7,
+      "samples": [
+        155.5,
+        97.8,
+        64.5
+      ],
+      "loadSamples": [
+        155.5,
+        97.8,
+        64.5
+      ],
+      "domContentLoadedSamples": [
+        87.7,
+        50.6,
+        40.2
+      ],
+      "responseEndSamples": [
+        46.2,
+        16.7,
+        10.1
+      ]
+    },
+    {
+      "routePath": "/pilot-exchange",
+      "measuredPath": "/pilot-exchange",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/proof",
+      "passed": false,
+      "medianReadyMs": 105.7,
+      "medianLoadMs": 105.7,
+      "medianDomContentLoadedMs": 73.6,
+      "medianResponseEndMs": 16,
+      "samples": [
+        105.7,
+        85.8,
+        119.9
+      ],
+      "loadSamples": [
+        105.7,
+        85.8,
+        119.9
+      ],
+      "domContentLoadedSamples": [
+        87.9,
+        54.7,
+        73.6
+      ],
+      "responseEndSamples": [
+        9.6,
+        16,
+        20.6
+      ]
+    },
+    {
+      "routePath": "/pilot-exchange-guide",
+      "measuredPath": "/pilot-exchange-guide",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/proof",
+      "passed": false,
+      "medianReadyMs": 97.5,
+      "medianLoadMs": 97.5,
+      "medianDomContentLoadedMs": 86.2,
+      "medianResponseEndMs": 29.3,
+      "samples": [
+        97.5,
+        97.2,
+        163.3
+      ],
+      "loadSamples": [
+        97.5,
+        97.2,
+        163.3
+      ],
+      "domContentLoadedSamples": [
+        86.2,
+        44.3,
+        120.3
+      ],
+      "responseEndSamples": [
+        29.3,
+        15.5,
+        47.1
+      ]
+    },
+    {
+      "routePath": "/partners",
+      "measuredPath": "/partners",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/contact/robot-team",
+      "passed": false,
+      "medianReadyMs": 55.6,
+      "medianLoadMs": 55.6,
+      "medianDomContentLoadedMs": 51.7,
+      "medianResponseEndMs": 12.5,
+      "samples": [
+        56.9,
+        55.6,
+        52.3
+      ],
+      "loadSamples": [
+        56.9,
+        55.6,
+        52.3
+      ],
+      "domContentLoadedSamples": [
+        51.7,
+        55.5,
+        47.2
+      ],
+      "responseEndSamples": [
+        12.5,
+        13.6,
+        11.7
+      ]
+    },
+    {
+      "routePath": "/environments",
+      "measuredPath": "/environments",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/proof",
+      "passed": false,
+      "medianReadyMs": 92.9,
+      "medianLoadMs": 92.9,
+      "medianDomContentLoadedMs": 89.6,
+      "medianResponseEndMs": 23.1,
+      "samples": [
+        106.8,
+        92.9,
+        64.8
+      ],
+      "loadSamples": [
+        106.8,
+        92.9,
+        64.8
+      ],
+      "domContentLoadedSamples": [
+        89.6,
+        92.8,
+        64.7
+      ],
+      "responseEndSamples": [
+        23.1,
+        24.4,
+        17.7
+      ]
+    },
+    {
+      "routePath": "/marketplace",
+      "measuredPath": "/marketplace",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/sites",
+      "passed": false,
+      "medianReadyMs": 78.2,
+      "medianLoadMs": 78.2,
+      "medianDomContentLoadedMs": 78.1,
+      "medianResponseEndMs": 26.4,
+      "samples": [
+        120.1,
+        62.2,
+        78.2
+      ],
+      "loadSamples": [
+        120.1,
+        62.2,
+        78.2
+      ],
+      "domContentLoadedSamples": [
+        120,
+        45.1,
+        78.1
+      ],
+      "responseEndSamples": [
+        39.5,
+        17.5,
+        26.4
+      ]
+    },
+    {
+      "routePath": "/portal",
+      "measuredPath": "/portal",
+      "layout": "public",
+      "shell": "bare",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/portal",
+      "passed": false,
+      "medianReadyMs": 89.2,
+      "medianLoadMs": 89.2,
+      "medianDomContentLoadedMs": 89.1,
+      "medianResponseEndMs": 38.7,
+      "samples": [
+        127.2,
+        89.2,
+        39.4
+      ],
+      "loadSamples": [
+        127.2,
+        89.2,
+        39.4
+      ],
+      "domContentLoadedSamples": [
+        127.1,
+        89.1,
+        36.8
+      ],
+      "responseEndSamples": [
+        38.7,
+        54.2,
+        14.5
+      ]
+    },
+    {
+      "routePath": "/sign-in",
+      "measuredPath": "/sign-in",
+      "layout": "public",
+      "shell": "bare",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/sign-in",
+      "passed": false,
+      "medianReadyMs": 95.1,
+      "medianLoadMs": 95.1,
+      "medianDomContentLoadedMs": 71.9,
+      "medianResponseEndMs": 13.7,
+      "samples": [
+        95.1,
+        74.3,
+        224
+      ],
+      "loadSamples": [
+        95.1,
+        74.3,
+        224
+      ],
+      "domContentLoadedSamples": [
+        42.3,
+        74.1,
+        71.9
+      ],
+      "responseEndSamples": [
+        7.7,
+        13.7,
+        26.5
+      ]
+    },
+    {
+      "routePath": "/login",
+      "measuredPath": "/login",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/login",
+      "passed": false,
+      "medianReadyMs": 69.7,
+      "medianLoadMs": 69.7,
+      "medianDomContentLoadedMs": 48.1,
+      "medianResponseEndMs": 9.8,
+      "samples": [
+        69.7,
+        150.8,
+        45.6
+      ],
+      "loadSamples": [
+        69.7,
+        150.8,
+        45.6
+      ],
+      "domContentLoadedSamples": [
+        48.1,
+        106.5,
+        39.4
+      ],
+      "responseEndSamples": [
+        9.8,
+        30.4,
+        8.2
+      ]
+    },
+    {
+      "routePath": "/signup",
+      "measuredPath": "/signup",
+      "layout": "public",
+      "shell": "bare",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/signup",
+      "passed": false,
+      "medianReadyMs": 64.2,
+      "medianLoadMs": 64.2,
+      "medianDomContentLoadedMs": 64,
+      "medianResponseEndMs": 8.1,
+      "samples": [
+        102,
+        64.2,
+        34.9
+      ],
+      "loadSamples": [
+        102,
+        64.2,
+        34.9
+      ],
+      "domContentLoadedSamples": [
+        101.9,
+        64,
+        32.1
+      ],
+      "responseEndSamples": [
+        25.7,
+        8.1,
+        6.9
+      ]
+    },
+    {
+      "routePath": "/signup/business",
+      "measuredPath": "/signup/business",
+      "layout": "public",
+      "shell": "bare",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/signup/business",
+      "passed": true,
+      "medianReadyMs": 46.9,
+      "medianLoadMs": 46.9,
+      "medianDomContentLoadedMs": 44.1,
+      "medianResponseEndMs": 14,
+      "samples": [
+        58.3,
+        36.2,
+        46.9
+      ],
+      "loadSamples": [
+        58.3,
+        36.2,
+        46.9
+      ],
+      "domContentLoadedSamples": [
+        58.1,
+        36,
+        44.1
+      ],
+      "responseEndSamples": [
+        20,
+        8.6,
+        14
+      ]
+    },
+    {
+      "routePath": "/signup/robot-team",
+      "measuredPath": "/signup/robot-team",
+      "layout": "public",
+      "shell": "bare",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/signup/robot-team",
+      "passed": false,
+      "medianReadyMs": 89.3,
+      "medianLoadMs": 89.3,
+      "medianDomContentLoadedMs": 70.1,
+      "medianResponseEndMs": 17.1,
+      "samples": [
+        89.3,
+        122.8,
+        49.5
+      ],
+      "loadSamples": [
+        89.3,
+        122.8,
+        49.5
+      ],
+      "domContentLoadedSamples": [
+        70.1,
+        103.1,
+        44.1
+      ],
+      "responseEndSamples": [
+        17.8,
+        17.1,
+        10.4
+      ]
+    },
+    {
+      "routePath": "/signup/site-operator",
+      "measuredPath": "/signup/site-operator",
+      "layout": "public",
+      "shell": "bare",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/signup/site-operator",
+      "passed": false,
+      "medianReadyMs": 162.8,
+      "medianLoadMs": 162.8,
+      "medianDomContentLoadedMs": 141.4,
+      "medianResponseEndMs": 37.4,
+      "samples": [
+        141.7,
+        162.8,
+        278.3
+      ],
+      "loadSamples": [
+        141.7,
+        162.8,
+        278.3
+      ],
+      "domContentLoadedSamples": [
+        141.4,
+        79.5,
+        181.9
+      ],
+      "responseEndSamples": [
+        96.1,
+        37.4,
+        6.2
+      ]
+    },
+    {
+      "routePath": "/signup/capturer",
+      "measuredPath": "/signup/capturer",
+      "layout": "public",
+      "shell": "bare",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/signup/capturer",
+      "passed": false,
+      "medianReadyMs": 61.4,
+      "medianLoadMs": 61.4,
+      "medianDomContentLoadedMs": 58.7,
+      "medianResponseEndMs": 19.9,
+      "samples": [
+        73.7,
+        57.8,
+        61.4
+      ],
+      "loadSamples": [
+        73.7,
+        57.8,
+        61.4
+      ],
+      "domContentLoadedSamples": [
+        73.6,
+        57.6,
+        58.7
+      ],
+      "responseEndSamples": [
+        32.3,
+        19.9,
+        10
+      ]
+    },
+    {
+      "routePath": "/onboarding",
+      "measuredPath": "/onboarding",
+      "layout": "protected",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/onboarding",
+      "passed": false,
+      "medianReadyMs": 170.2,
+      "medianLoadMs": 170.2,
+      "medianDomContentLoadedMs": 97,
+      "medianResponseEndMs": 16.1,
+      "samples": [
+        170.2,
+        159.1,
+        223.2
+      ],
+      "loadSamples": [
+        170.2,
+        159.1,
+        223.2
+      ],
+      "domContentLoadedSamples": [
+        96.7,
+        97,
+        122.6
+      ],
+      "responseEndSamples": [
+        40.8,
+        16.1,
+        9.9
+      ]
+    },
+    {
+      "routePath": "/forgot-password",
+      "measuredPath": "/forgot-password",
+      "layout": "public",
+      "shell": "bare",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/forgot-password",
+      "passed": true,
+      "medianReadyMs": 44.7,
+      "medianLoadMs": 44.7,
+      "medianDomContentLoadedMs": 44.6,
+      "medianResponseEndMs": 7.9,
+      "samples": [
+        31.1,
+        44.7,
+        77.6
+      ],
+      "loadSamples": [
+        31.1,
+        44.7,
+        77.6
+      ],
+      "domContentLoadedSamples": [
+        31.1,
+        44.6,
+        77.4
+      ],
+      "responseEndSamples": [
+        6.1,
+        7.9,
+        36.6
+      ]
+    },
+    {
+      "routePath": "/privacy",
+      "measuredPath": "/privacy",
+      "layout": "public",
+      "shell": "bare",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/privacy",
+      "passed": false,
+      "medianReadyMs": 171.4,
+      "medianLoadMs": 171.4,
+      "medianDomContentLoadedMs": 117.9,
+      "medianResponseEndMs": 49.1,
+      "samples": [
+        188.8,
+        171.4,
+        138.1
+      ],
+      "loadSamples": [
+        188.8,
+        171.4,
+        138.1
+      ],
+      "domContentLoadedSamples": [
+        188.6,
+        117.9,
+        86.5
+      ],
+      "responseEndSamples": [
+        82.6,
+        48.3,
+        49.1
+      ]
+    },
+    {
+      "routePath": "/terms",
+      "measuredPath": "/terms",
+      "layout": "public",
+      "shell": "bare",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/terms",
+      "passed": false,
+      "medianReadyMs": 105,
+      "medianLoadMs": 105,
+      "medianDomContentLoadedMs": 93.4,
+      "medianResponseEndMs": 45.8,
+      "samples": [
+        248.4,
+        105,
+        104.3
+      ],
+      "loadSamples": [
+        248.4,
+        105,
+        104.3
+      ],
+      "domContentLoadedSamples": [
+        85.1,
+        93.4,
+        104.2
+      ],
+      "responseEndSamples": [
+        24.6,
+        51.8,
+        45.8
+      ]
+    },
+    {
+      "routePath": "/settings",
+      "measuredPath": "/settings",
+      "layout": "public",
+      "shell": "bare",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/settings",
+      "passed": false,
+      "medianReadyMs": 76.8,
+      "medianLoadMs": 76.8,
+      "medianDomContentLoadedMs": 56.2,
+      "medianResponseEndMs": 6.5,
+      "samples": [
+        76.8,
+        168.3,
+        57.9
+      ],
+      "loadSamples": [
+        76.8,
+        168.3,
+        57.9
+      ],
+      "domContentLoadedSamples": [
+        67.3,
+        56.2,
+        47.5
+      ],
+      "responseEndSamples": [
+        32.7,
+        6.5,
+        6.1
+      ]
+    },
+    {
+      "routePath": "/requests/:requestId",
+      "measuredPath": "/requests/perf-request",
+      "layout": "public",
+      "shell": "bare",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/requests/perf-request",
+      "passed": false,
+      "medianReadyMs": 133.8,
+      "medianLoadMs": 133.8,
+      "medianDomContentLoadedMs": 102.5,
+      "medianResponseEndMs": 48.5,
+      "samples": [
+        142.9,
+        59.8,
+        133.8
+      ],
+      "loadSamples": [
+        142.9,
+        59.8,
+        133.8
+      ],
+      "domContentLoadedSamples": [
+        142.7,
+        47.7,
+        102.5
+      ],
+      "responseEndSamples": [
+        89.1,
+        8.1,
+        48.5
+      ]
+    },
+    {
+      "routePath": "/requests/:requestId/evidence",
+      "measuredPath": "/requests/perf-request/evidence",
+      "layout": "public",
+      "shell": "bare",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/requests/perf-request/evidence",
+      "passed": false,
+      "medianReadyMs": 160.3,
+      "medianLoadMs": 160.3,
+      "medianDomContentLoadedMs": 64.9,
+      "medianResponseEndMs": 29.1,
+      "samples": [
+        131.3,
+        160.3,
+        213.1
+      ],
+      "loadSamples": [
+        131.3,
+        160.3,
+        213.1
+      ],
+      "domContentLoadedSamples": [
+        64.9,
+        62.3,
+        122.9
+      ],
+      "responseEndSamples": [
+        17.5,
+        29.9,
+        29.1
+      ]
+    },
+    {
+      "routePath": "/requests/:requestId/qualification",
+      "measuredPath": "/requests/perf-request/qualification",
+      "layout": "public",
+      "shell": "bare",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/requests/perf-request/qualification",
+      "passed": false,
+      "medianReadyMs": 86.6,
+      "medianLoadMs": 86.6,
+      "medianDomContentLoadedMs": 86.4,
+      "medianResponseEndMs": 42.2,
+      "samples": [
+        61.5,
+        131,
+        86.6
+      ],
+      "loadSamples": [
+        61.5,
+        131,
+        86.6
+      ],
+      "domContentLoadedSamples": [
+        61.3,
+        89.1,
+        86.4
+      ],
+      "responseEndSamples": [
+        23.3,
+        42.5,
+        42.2
+      ]
+    },
+    {
+      "routePath": "/requests/:requestId/preview",
+      "measuredPath": "/requests/perf-request/preview",
+      "layout": "public",
+      "shell": "bare",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/requests/perf-request/preview",
+      "passed": false,
+      "medianReadyMs": 131.2,
+      "medianLoadMs": 131.2,
+      "medianDomContentLoadedMs": 64.9,
+      "medianResponseEndMs": 10,
+      "samples": [
+        218.4,
+        131.2,
+        70.9
+      ],
+      "loadSamples": [
+        218.4,
+        131.2,
+        70.9
+      ],
+      "domContentLoadedSamples": [
+        51.4,
+        119.3,
+        64.9
+      ],
+      "responseEndSamples": [
+        8.9,
+        88.3,
+        10
+      ]
+    },
+    {
+      "routePath": "/admin/leads",
+      "measuredPath": "/admin/leads",
+      "layout": "protected",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/admin/leads",
+      "passed": false,
+      "medianReadyMs": 57,
+      "medianLoadMs": 57,
+      "medianDomContentLoadedMs": 46.3,
+      "medianResponseEndMs": 7.8,
+      "samples": [
+        57,
+        103.6,
+        40.8
+      ],
+      "loadSamples": [
+        57,
+        103.6,
+        40.8
+      ],
+      "domContentLoadedSamples": [
+        46.3,
+        99.3,
+        40.6
+      ],
+      "responseEndSamples": [
+        7.8,
+        12.2,
+        5.7
+      ]
+    },
+    {
+      "routePath": "/admin/leads/:requestId",
+      "measuredPath": "/admin/leads/perf-request",
+      "layout": "protected",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/admin/leads/perf-request",
+      "passed": false,
+      "medianReadyMs": 140.3,
+      "medianLoadMs": 140.3,
+      "medianDomContentLoadedMs": 108.3,
+      "medianResponseEndMs": 41.9,
+      "samples": [
+        140.3,
+        309.1,
+        113.8
+      ],
+      "loadSamples": [
+        140.3,
+        309.1,
+        113.8
+      ],
+      "domContentLoadedSamples": [
+        108.3,
+        168.2,
+        71.7
+      ],
+      "responseEndSamples": [
+        41.9,
+        91.8,
+        6.7
+      ]
+    },
+    {
+      "routePath": "/admin/submissions",
+      "measuredPath": "/admin/submissions",
+      "layout": "protected",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/admin/submissions",
+      "passed": false,
+      "medianReadyMs": 110.8,
+      "medianLoadMs": 110.8,
+      "medianDomContentLoadedMs": 83,
+      "medianResponseEndMs": 8.7,
+      "samples": [
+        63.8,
+        110.8,
+        197.7
+      ],
+      "loadSamples": [
+        63.8,
+        110.8,
+        197.7
+      ],
+      "domContentLoadedSamples": [
+        43,
+        88.8,
+        83
+      ],
+      "responseEndSamples": [
+        6.9,
+        44.5,
+        8.7
+      ]
+    },
+    {
+      "routePath": "/admin/submissions/:requestId",
+      "measuredPath": "/admin/submissions/perf-request",
+      "layout": "protected",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/admin/submissions/perf-request",
+      "passed": false,
+      "medianReadyMs": 154.4,
+      "medianLoadMs": 154.4,
+      "medianDomContentLoadedMs": 95.6,
+      "medianResponseEndMs": 26.9,
+      "samples": [
+        275.9,
+        127.9,
+        154.4
+      ],
+      "loadSamples": [
+        275.9,
+        127.9,
+        154.4
+      ],
+      "domContentLoadedSamples": [
+        197.1,
+        95.6,
+        78.7
+      ],
+      "responseEndSamples": [
+        30.3,
+        26.9,
+        20
+      ]
+    },
+    {
+      "routePath": "/admin/growth-ops-scorecard",
+      "measuredPath": "/admin/growth-ops-scorecard",
+      "layout": "protected",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/admin/growth-ops-scorecard",
+      "passed": false,
+      "medianReadyMs": 97.2,
+      "medianLoadMs": 97.2,
+      "medianDomContentLoadedMs": 78.8,
+      "medianResponseEndMs": 11.1,
+      "samples": [
+        111.3,
+        97.2,
+        59.8
+      ],
+      "loadSamples": [
+        111.3,
+        97.2,
+        59.8
+      ],
+      "domContentLoadedSamples": [
+        106.7,
+        78.8,
+        53.6
+      ],
+      "responseEndSamples": [
+        7.4,
+        31.7,
+        11.1
+      ]
+    },
+    {
+      "routePath": "/admin/company-metrics",
+      "measuredPath": "/admin/company-metrics",
+      "layout": "protected",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/admin/company-metrics",
+      "passed": false,
+      "medianReadyMs": 128.2,
+      "medianLoadMs": 128.2,
+      "medianDomContentLoadedMs": 72.1,
+      "medianResponseEndMs": 28.6,
+      "samples": [
+        128.2,
+        117.8,
+        144.6
+      ],
+      "loadSamples": [
+        128.2,
+        117.8,
+        144.6
+      ],
+      "domContentLoadedSamples": [
+        72.1,
+        117.6,
+        62.9
+      ],
+      "responseEndSamples": [
+        28.6,
+        46.3,
+        15.3
+      ]
+    },
+    {
+      "routePath": "/admin/city-launch/austin",
+      "measuredPath": "/admin/city-launch/austin",
+      "layout": "protected",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/admin/city-launch/austin",
+      "passed": false,
+      "medianReadyMs": 144.1,
+      "medianLoadMs": 144.1,
+      "medianDomContentLoadedMs": 83.4,
+      "medianResponseEndMs": 13.8,
+      "samples": [
+        144.1,
+        166,
+        141.2
+      ],
+      "loadSamples": [
+        144.1,
+        166,
+        141.2
+      ],
+      "domContentLoadedSamples": [
+        50.3,
+        83.4,
+        87.9
+      ],
+      "responseEndSamples": [
+        13.8,
+        7.2,
+        15.9
+      ]
+    },
+    {
+      "routePath": "/admin/city-launch/:citySlug",
+      "measuredPath": "/admin/city-launch/austin",
+      "layout": "protected",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/admin/city-launch/austin",
+      "passed": false,
+      "medianReadyMs": 106.6,
+      "medianLoadMs": 106.6,
+      "medianDomContentLoadedMs": 48.9,
+      "medianResponseEndMs": 9.8,
+      "samples": [
+        139.2,
+        99.9,
+        106.6
+      ],
+      "loadSamples": [
+        139.2,
+        99.9,
+        106.6
+      ],
+      "domContentLoadedSamples": [
+        46.7,
+        48.9,
+        76
+      ],
+      "responseEndSamples": [
+        9.8,
+        7.2,
+        27.6
+      ]
+    },
+    {
+      "routePath": "/admin/growth-studio",
+      "measuredPath": "/admin/growth-studio",
+      "layout": "protected",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/admin/growth-studio",
+      "passed": false,
+      "medianReadyMs": 132.7,
+      "medianLoadMs": 132.7,
+      "medianDomContentLoadedMs": 105,
+      "medianResponseEndMs": 21,
+      "samples": [
+        184.6,
+        132.7,
+        63.8
+      ],
+      "loadSamples": [
+        184.6,
+        132.7,
+        63.8
+      ],
+      "domContentLoadedSamples": [
+        105,
+        116.9,
+        63.7
+      ],
+      "responseEndSamples": [
+        17.1,
+        23.4,
+        21
+      ]
+    },
+    {
+      "routePath": "/dashboard",
+      "measuredPath": "/dashboard",
+      "layout": "protected",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/dashboard",
+      "passed": false,
+      "medianReadyMs": 165.4,
+      "medianLoadMs": 165.4,
+      "medianDomContentLoadedMs": 70.1,
+      "medianResponseEndMs": 23.1,
+      "samples": [
+        180.7,
+        165.4,
+        54.7
+      ],
+      "loadSamples": [
+        180.7,
+        165.4,
+        54.7
+      ],
+      "domContentLoadedSamples": [
+        70.1,
+        113.8,
+        37.3
+      ],
+      "responseEndSamples": [
+        23.1,
+        23.4,
+        8.7
+      ]
+    },
+    {
+      "routePath": "/off-waitlist-signup",
+      "measuredPath": "/off-waitlist-signup",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/off-waitlist-signup",
+      "passed": false,
+      "medianReadyMs": 153.3,
+      "medianLoadMs": 153.3,
+      "medianDomContentLoadedMs": 77.8,
+      "medianResponseEndMs": 11.5,
+      "samples": [
+        129,
+        163.5,
+        153.3
+      ],
+      "loadSamples": [
+        129,
+        163.5,
+        153.3
+      ],
+      "domContentLoadedSamples": [
+        64.9,
+        141,
+        77.8
+      ],
+      "responseEndSamples": [
+        11.5,
+        32.4,
+        7.9
+      ]
+    },
+    {
+      "routePath": "(404 fallback)",
+      "measuredPath": "/__blueprint-performance-fallback__",
+      "layout": "public",
+      "shell": "site",
+      "status": 200,
+      "finalUrl": "http://127.0.0.1:5187/__blueprint-performance-fallback__",
+      "passed": false,
+      "medianReadyMs": 86.1,
+      "medianLoadMs": 86.1,
+      "medianDomContentLoadedMs": 74.8,
+      "medianResponseEndMs": 26.4,
+      "samples": [
+        407.6,
+        86.1,
+        74.8
+      ],
+      "loadSamples": [
+        407.6,
+        86.1,
+        74.8
+      ],
+      "domContentLoadedSamples": [
+        243.6,
+        69.7,
+        74.8
+      ],
+      "responseEndSamples": [
+        142.4,
+        20.7,
+        26.4
+      ]
+    }
+  ]
+}
