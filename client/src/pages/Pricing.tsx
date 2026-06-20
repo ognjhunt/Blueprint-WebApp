@@ -22,10 +22,10 @@ type PricingPlan = {
 };
 
 const policyEvaluationHref =
-  "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=hosted-review&requestedOutputs=Policy%20Evaluation%20Run&episodeCount=500&source=pricing-policy-evaluation";
+  "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&requestedOutputs=Policy%20Evaluation%20Run&episodeCount=500&source=pricing-policy-evaluation";
 
 const validatedEvaluationHref =
-  "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=validated-evaluation-pack&path=hosted-review&requestedOutputs=Validated%20Evaluation%20Pack&source=pricing-validated-evaluation";
+  "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&requestedOutputs=Policy%20Evaluation%20Run&episodeCount=500&validationMode=real_rollout_validated&source=pricing-validated-evaluation";
 
 const policyImprovementHref =
   "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-improvement-run&path=policy-improvement-run&requestedOutputs=Policy%20Improvement%20Run&source=pricing-policy-improvement";

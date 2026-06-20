@@ -32,6 +32,8 @@ export type ContactRequestPrefill = {
   targetRobotTeam: string;
   scenario: string;
   requestedOutputs: string;
+  episodeCount: string;
+  validationMode: string;
   message: string;
   proofPathPreference: ProofPathPreference | "";
   realSiteRobotEvalFit: RealSiteRobotEvalFitInput | null;
@@ -110,6 +112,8 @@ const DEFAULT_PREFILL: ContactRequestPrefill = {
   targetRobotTeam: "",
   scenario: "",
   requestedOutputs: "",
+  episodeCount: "",
+  validationMode: "",
   message: "",
   proofPathPreference: "",
   realSiteRobotEvalFit: null,
@@ -158,6 +162,7 @@ export function normalizeContactRequestPath(
   if (
     normalized === "hosted-review" ||
     normalized === "hosted-evaluation" ||
+    normalized === "policy-evaluation-run" ||
     normalized === "hosted-session" ||
     normalized === "evaluation-package"
   ) {
@@ -212,13 +217,14 @@ export function requestPathToBuyerType(value: ContactRequestPath): BuyerType {
 }
 
 export function interestForRequestPath(value: ContactRequestPath): string {
-  if (value === "hosted-review") return "hosted-evaluation";
+  if (value === "hosted-review") return "policy-evaluation-run";
   if (value === "new-capture") return "capture-access";
   if (value === "site-question") return "site-review";
   return "policy-improvement-run";
 }
 
 export function publicPathForRequestPath(value: ContactRequestPath): string {
+  if (value === "hosted-review") return "policy-evaluation-run";
   return value === "data-package" ? "policy-improvement-run" : value;
 }
 
@@ -440,6 +446,8 @@ export function parseContactRequestPrefill(
     targetRobotTeam: getParam(params, ["targetRobotTeam", "robot", "robotTeam"]),
     scenario: getParam(params, ["scenario"]),
     requestedOutputs: getParam(params, ["requestedOutputs", "outputs"]),
+    episodeCount: getParam(params, ["episodeCount", "episodes"]),
+    validationMode: getParam(params, ["validationMode", "validation"]),
     message,
     proofPathPreference: parseProofPathPreference(
       getParam(params, ["proofPathPreference"]),
@@ -504,7 +512,11 @@ export function buildContactRequestUrl(input: ContactRequestUrlInput = {}): stri
   if (taskStatement) params.set("taskStatement", taskStatement);
   if (input.targetRobotTeam) params.set("targetRobotTeam", clean(input.targetRobotTeam));
   if (input.scenario) params.set("scenario", clean(input.scenario));
-  if (input.requestedOutputs) params.set("requestedOutputs", clean(input.requestedOutputs));
+  const requestedOutputs = clean(input.requestedOutputs) ||
+    (requestPath === "hosted-review" ? "Policy Evaluation Run" : "");
+  if (requestedOutputs) params.set("requestedOutputs", requestedOutputs);
+  if (input.episodeCount) params.set("episodeCount", clean(input.episodeCount));
+  if (input.validationMode) params.set("validationMode", clean(input.validationMode));
   if (input.message) params.set("message", clean(input.message));
   appendRobotFitParams(params, realSiteRobotEvalFit);
   params.set(
