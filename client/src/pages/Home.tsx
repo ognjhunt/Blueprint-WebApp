@@ -16,13 +16,13 @@ import {
 import type { LucideIcon } from "lucide-react";
 
 const requestHref =
-  "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-review&requestedOutputs=Task%20Evaluation%20Run&source=home-kiss";
+  "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&requestedOutputs=Policy%20Evaluation%20Run&episodeCount=500&source=home-policy-evaluation";
 
 const hostedHref =
-  "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-review&source=home-kiss";
+  "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&requestedOutputs=Policy%20Evaluation%20Run&episodeCount=100&source=home-policy-evaluation-secondary";
 
-const policyImprovementHref =
-  "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-improvement-run&path=policy-improvement-run&requestedOutputs=Policy%20Improvement%20Run&source=home-policy-improvement";
+const pricingHref =
+  "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&requestedOutputs=Policy%20Evaluation%20Run&episodeCount=500&source=home-pricing-policy-evaluation";
 
 const operatorHref = "/contact/site-operator?source=home-kiss";
 
@@ -36,84 +36,84 @@ type IconBlock = {
 const buyerBars: IconBlock[] = [
   {
     icon: Target,
-    label: "Success rate",
-    title: "Can the robot complete the task often enough?",
-    body: "The evaluation starts with the pass bar the robot team actually needs.",
-  },
-  {
-    icon: Clock,
-    label: "Cycle time",
-    title: "Can it keep up with the site rhythm?",
-    body: "Blueprint frames the task against target timing, bottlenecks, and site drift.",
+    label: "Predicted success",
+    title: "Which policy is most likely to complete the task?",
+    body: "Rank 1-3 policies/checkpoints against the same captured task pack before field time.",
   },
   {
     icon: Gauge,
-    label: "Intervention rate",
-    title: "Where will people still need to step in?",
-    body: "Blueprint keeps assist points visible instead of hiding them behind a score.",
+    label: "Policy ranking",
+    title: "Which checkpoint deserves validation first?",
+    body: "Compare per-scenario metrics, rank order, and uncertainty flags instead of relying on a single aggregate score.",
+  },
+  {
+    icon: Clock,
+    label: "Failure taxonomy",
+    title: "Where does behavior break down?",
+    body: "Group collisions, stalls, perception misses, recovery loops, and timing misses into a reviewable failure map.",
   },
   {
     icon: ShieldCheck,
-    label: "Safety threshold",
-    title: "What still needs review before field exposure?",
-    body: "Safety stays scoped to the request and does not become a blanket validation claim.",
+    label: "Validation targets",
+    title: "What should real-world rollouts test next?",
+    body: "Use OOD flags and scenario metrics to choose the smallest useful set of robot-time validation targets.",
   },
 ];
 
 const offerItems: IconBlock[] = [
   {
     icon: Route,
-    label: "01",
-    title: "Task Evaluation Run",
-    body: "One site, one robot policy/profile, one Task Pack, and up to 500 scenarios.",
+    label: "Scope",
+    title: "Policy Evaluation Run",
+    body: "100 or 500 WAM-eval episodes across 1 site package, 1 task pack, 1 robot embodiment, and 1-3 policies/checkpoints.",
   },
   {
     icon: PackageCheck,
-    label: "02",
-    title: "Policy Improvement Run",
-    body: "Baseline eval, failure diagnosis, twin and cousin scenarios, sim-only curriculum, candidate policy improvement, sealed test, and evidence report.",
+    label: "Outputs",
+    title: "Ranked policy evidence packet",
+    body: "Predicted success, policy ranking, failure taxonomy, per-scenario metrics, OOD/uncertainty flags, generated rollout clips, and recommended real-world validation targets.",
   },
 ];
 
 const workflowSteps = [
   {
-    title: "Start with a real site",
-    body: "Use an existing site package, lawful capture, or structured facility request.",
+    title: "Select the captured task pack",
+    body: "Anchor the run to 1 real-site package and 1 task pack with clear starts, goals, constraints, and scenario variants.",
   },
   {
-    title: "Describe the robot and task",
-    body: "Name the robot size, reach, sensors, controller level, task, thresholds, start states, and scenario variations.",
+    title: "Lock robot embodiment and policies",
+    body: "Choose 1 robot embodiment and submit 1-3 policies/checkpoints for the same evaluation envelope.",
   },
   {
-    title: "Choose the integration mode",
-    body: "Use a policy API, container, private-cloud run, action trace, or site package only when the team keeps its stack in-house.",
+    title: "Pick 100 or 500 WAM-eval episodes",
+    body: "Use the smaller run for fast ranking and the larger run when scenario coverage or failure discovery needs more depth.",
   },
   {
-    title: "Run or review the scenarios",
-    body: "Measure success, cycle time, intervention points, safety events, and failure modes from simulator traces, action logs, or review evidence.",
+    title: "Review rankings and failures",
+    body: "Inspect predicted success, rank order, failure taxonomy, per-scenario metrics, OOD/uncertainty flags, and generated rollout clips.",
   },
   {
-    title: "Decide the next proof step",
-    body: "Proceed to pilot, request more data, tune on the exported set, or hold until blockers clear.",
+    title: "Choose real-world validation targets",
+    body: "WAM/VLA output ranks and discovers failures before robot time; field validation targets stay scoped to the same robot/task/site envelope.",
   },
 ];
 
 const pricingPlans = [
   {
-    name: "Task Evaluation Run",
+    name: "100 WAM-eval episodes",
     price: "From $6,500 / run",
     summary:
-      "Test one robot policy/profile against one real-site Task Pack, up to 500 scenarios.",
+      "Policy Evaluation Run for 1 site package, 1 task pack, 1 robot embodiment, and 1-3 policies/checkpoints when you need fast pre-field ranking.",
     href: hostedHref,
-    cta: "Request Task Evaluation Run",
+    cta: "Request 100-episode run",
   },
   {
-    name: "Policy Improvement Run",
-    price: "From $35,000 / run",
+    name: "500 WAM-eval episodes",
+    price: "From $18,000 / run",
     summary:
-      "Improve a customer-supplied policy, adapter, task head, distilled skill, or full policy inside a sim-only run.",
-    href: policyImprovementHref,
-    cta: "Request Policy Improvement",
+      "Expanded Policy Evaluation Run with deeper failure discovery, per-scenario metrics, OOD/uncertainty flags, rollout clips, and validation target recommendations.",
+    href: pricingHref,
+    cta: "Request 500-episode run",
   },
 ];
 
@@ -165,7 +165,7 @@ export default function Home() {
     <>
       <SEO
         title="Real-Site Robot Evaluation | Blueprint"
-        description="Blueprint helps robot teams test policies and scenarios on capture-backed site packages before pilots or deployment. Site operators participate free."
+        description="Blueprint helps robot teams evaluate and rank 1-3 policies on captured real-site task packs with 100 or 500 WAM-eval episodes before field time."
         canonical="/"
         image={`https://tryblueprint.io${humanoidReadinessAssets.warehouseHero}`}
         jsonLd={{
@@ -173,7 +173,7 @@ export default function Home() {
           "@type": "WebPage",
           name: "Blueprint Real-Site Robot Evaluation",
           description:
-            "Blueprint helps robot teams test policies and scenarios on capture-backed site packages before pilots or deployment. Site operators participate free.",
+            "Blueprint helps robot teams evaluate and rank 1-3 policies on captured real-site task packs with 100 or 500 WAM-eval episodes before field time.",
           url: "https://tryblueprint.io/",
         }}
       />
@@ -196,23 +196,25 @@ export default function Home() {
                 Real-site robot evaluation
               </p>
               <h1 className="mt-5 text-5xl font-semibold leading-none md:text-7xl">
-                Evaluate robots on real sites before deployment.
+                Evaluate and rank robot policies on captured real-site task
+                packs before field time.
               </h1>
               <p className="mt-6 max-w-2xl text-lg leading-8 text-white/82 md:text-xl">
-                Blueprint turns captured facilities into robot task packs so
-                teams can test policies, find failure modes, and prepare for
-                shorter field pilots.
+                Blueprint runs Policy Evaluation Runs: 100 or 500 WAM-eval
+                episodes across 1 site package, 1 task pack, 1 robot embodiment,
+                and 1-3 policies/checkpoints.
               </p>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-white/70">
-                Robot teams pay for evaluations. Site operators can submit sites
-                free.
+                Outputs include predicted success, policy ranking, failure
+                taxonomy, per-scenario metrics, OOD/uncertainty flags, generated
+                rollout clips, and recommended real-world validation targets.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <a
                   href={requestHref}
                   className="inline-flex min-h-12 items-center justify-center gap-2 bg-[#d8bd8d] px-5 text-sm font-semibold text-[#111110] transition hover:bg-[#e8cfa1]"
                 >
-                  Request evaluation
+                  Request policy evaluation
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </a>
                 <a
@@ -230,11 +232,12 @@ export default function Home() {
           <div className="mx-auto max-w-[88rem]">
             <div className="border border-black/10 bg-[#f8f4ec] p-5">
               <p className="text-xs font-semibold uppercase tracking-normal text-[#8b6f42]">
-                Task Evaluation Run
+                Policy Evaluation Run
               </p>
               <p className="mt-2 text-xl font-semibold leading-snug text-[#111110] md:text-2xl">
-                One Task Evaluation Run = 1 site × 1 robot policy/profile × 1
-                Task Pack × up to 500 scenarios.
+                One Policy Evaluation Run = 100 or 500 WAM-eval episodes × 1
+                site package × 1 task pack × 1 robot embodiment × 1-3
+                policies/checkpoints.
               </p>
             </div>
             <div className="mt-4 grid gap-4 md:grid-cols-4">
@@ -245,12 +248,15 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="px-4 py-16 sm:px-6 lg:px-10" data-home-section="offer">
+        <section
+          className="px-4 py-16 sm:px-6 lg:px-10"
+          data-home-section="offer"
+        >
           <div className="mx-auto max-w-[88rem]">
             <SectionHeading
               eyebrow="What Blueprint sells"
-              title="Two robot-team products."
-              body="Start with a Task Evaluation Run when you need a scoped answer before field time. Add a Policy Improvement Run when the team wants Blueprint to improve a supplied policy inside simulation."
+              title="One primary pre-field offer."
+              body="Use a Policy Evaluation Run to compare checkpoints on captured real-site tasks, find the failure modes worth fixing, and pick the scenarios that deserve robot time next."
             />
             <div className="mt-8 grid gap-4 md:grid-cols-2">
               {offerItems.map((item) => (
@@ -271,12 +277,12 @@ export default function Home() {
                 How it works
               </p>
               <h2 className="mt-3 text-4xl font-semibold leading-tight md:text-5xl">
-                Turn a real site into an evaluation plan.
+                Turn a captured task pack into a policy ranking.
               </h2>
               <p className="mt-4 text-base leading-7 text-white/72 md:text-lg">
-                Blueprint keeps the workflow compact: one site, one robot profile,
-                one task pack, one integration mode, scored scenarios, and the
-                next proof step.
+                Blueprint keeps the run compact: 1 site package, 1 task pack, 1
+                robot embodiment, 1-3 policies/checkpoints, 100 or 500 WAM-eval
+                episodes, and a ranked evidence packet.
               </p>
               <img
                 src={humanoidReadinessAssets.robotTeamEvalWorkflow}
@@ -314,8 +320,8 @@ export default function Home() {
             <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
               <SectionHeading
                 eyebrow="Planning ranges"
-                title="Two paid robot-team products. Site operators submit free."
-                body="Task Evaluation Runs start at $6,500 per run. Policy Improvement Runs start at $35,000 per sim-only run. Site operators can submit sites for free."
+                title="Policy Evaluation Run pricing preview."
+                body="Choose 100 or 500 WAM-eval episodes for 1 site package, 1 task pack, 1 robot embodiment, and 1-3 policies/checkpoints. Site operators submit sites free."
               />
               <a
                 href="/pricing"
@@ -327,7 +333,10 @@ export default function Home() {
             </div>
             <div className="mt-8 grid gap-4 lg:grid-cols-2">
               {pricingPlans.map((plan) => (
-                <article key={plan.name} className="border border-black/10 bg-white p-6">
+                <article
+                  key={plan.name}
+                  className="border border-black/10 bg-white p-6"
+                >
                   <h3 className="text-2xl font-semibold text-[#111110]">
                     {plan.name}
                   </h3>
@@ -348,15 +357,18 @@ export default function Home() {
               ))}
             </div>
             <div className="mt-4 grid gap-4 border border-black/10 bg-white p-5 md:grid-cols-[0.22fr_0.78fr]">
-              <Building2 className="h-8 w-8 text-[#8b6f42]" aria-hidden="true" />
+              <Building2
+                className="h-8 w-8 text-[#8b6f42]"
+                aria-hidden="true"
+              />
               <div>
                 <h3 className="text-2xl font-semibold text-[#111110]">
                   Site operators submit sites free.
                 </h3>
                 <p className="mt-3 text-sm leading-6 text-[#5f5a53]">
-                  Facility owners can submit or claim a site, define privacy/access
-                  boundaries, and review commercial-use terms before anything is
-                  shared.
+                  Facility owners can submit or claim a site, define
+                  privacy/access boundaries, and review commercial-use terms
+                  before anything is shared.
                 </p>
                 <a
                   href={`${operatorHref}-pricing`}
@@ -379,8 +391,8 @@ export default function Home() {
             <div className="grid gap-8 border border-black/10 bg-[#f8f4ec] p-6 md:grid-cols-[0.42fr_0.58fr] md:p-8">
               <SectionHeading
                 eyebrow="Evidence boundary"
-                title="Public examples show the workflow shape."
-                body="A request packet proves one site, robot profile, task pack, thresholds, rights posture, and missing proof. Evaluation output remains advisory until supported by simulator traces, action logs, robot trials, safety review, and runtime evidence."
+                title="Keep WAM/VLA claims inside their proof boundary."
+                body="WAM/VLA output ranks and discovers failures before robot time. Quantitative Pearson/Spearman/SRCC/rank-fidelity claims require paired real-world validation rollouts and apply only to the validated robot/task/site envelope. Generated rollout clips are support media, not proof."
               />
               <div className="flex flex-col justify-end gap-3 sm:flex-row md:items-end">
                 <a
@@ -406,12 +418,12 @@ export default function Home() {
                 First request
               </p>
               <h2 className="mt-3 text-4xl font-semibold leading-tight md:text-5xl">
-                Have one real site or task to evaluate?
+                Have policies to rank before field time?
               </h2>
               <p className="mt-4 max-w-2xl text-base leading-7 text-white/72 md:text-lg">
-                Bring one site, task, robot profile, and target threshold. We'll
-                recommend the right evaluation scope, scenario count, and next
-                proof step.
+                Bring 1 site package, 1 task pack, 1 robot embodiment, and 1-3
+                policies/checkpoints. We'll recommend 100 or 500 WAM-eval
+                episodes and the real-world validation targets to inspect next.
               </p>
             </div>
             <div className="flex flex-col justify-center gap-3 sm:flex-row md:flex-col">
@@ -419,7 +431,7 @@ export default function Home() {
                 href={requestHref}
                 className="inline-flex min-h-12 items-center justify-center gap-2 bg-[#d8bd8d] px-5 text-sm font-semibold text-[#111110] transition hover:bg-[#e8cfa1]"
               >
-                Request evaluation
+                Request policy evaluation
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </a>
               <a
