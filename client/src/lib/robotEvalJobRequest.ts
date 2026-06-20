@@ -45,6 +45,36 @@ const DEFAULT_SIMULATOR_ROBOT_PROFILE = {
   sensors: ["rgb", "depth", "proprioception"],
 };
 
+const EVALUATOR_BACKEND_NEUTRAL_FIELDS = {
+  evaluation_scope: {
+    mode: "virtual_policy_evaluation",
+    public_label: "WAM/VLA policy evaluation",
+    physical_robot_deployment_claim_allowed: false,
+  },
+  wam_evaluator_backend: "pipeline_selected",
+  allowed_evaluator_backends: [
+    "wam_policy_runtime",
+    "vla_policy_runtime",
+    "mujoco_policy_adapter",
+    "isaac_policy_adapter",
+    "newton_policy_adapter",
+    "fixture_policy_adapter",
+  ],
+  optional_physics_state_authority: {
+    mode: "optional_sanity_check",
+    allowed_authorities: ["mujoco", "isaac", "newton"],
+    required_for_request_acceptance: false,
+    proof_role: "physics_state_sanity_check_only",
+  },
+  proof_boundaries: {
+    virtual_evaluation_proves_deployment_readiness: false,
+    virtual_evaluation_proves_safety_validation: false,
+    virtual_evaluation_is_policy_evidence_only: true,
+    deployment_readiness_requires_owner_system_proof: true,
+    safety_validation_requires_separate_qualified_review: true,
+  },
+};
+
 function kebab(value: string) {
   return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 }
@@ -72,6 +102,13 @@ function buildExecutionRequest() {
     schema_version: "blueprint.robot_eval_execution_request.v1",
     webapp_role: "queue_and_forward_only",
     scheduler_owner: "BlueprintCapturePipeline",
+    evaluation_scope: EVALUATOR_BACKEND_NEUTRAL_FIELDS.evaluation_scope,
+    wam_evaluator_backend: EVALUATOR_BACKEND_NEUTRAL_FIELDS.wam_evaluator_backend,
+    allowed_evaluator_backends: EVALUATOR_BACKEND_NEUTRAL_FIELDS.allowed_evaluator_backends,
+    optional_physics_state_authority:
+      EVALUATOR_BACKEND_NEUTRAL_FIELDS.optional_physics_state_authority,
+    proof_boundaries: EVALUATOR_BACKEND_NEUTRAL_FIELDS.proof_boundaries,
+    // Legacy/internal compatibility for existing pipeline consumers that still read simulator scope.
     scope: {
       mode: "simulator_only",
       label: "Unitree G1 MuJoCo simulator evaluation",
@@ -98,6 +135,7 @@ function buildExecutionRequest() {
         "gpu_handoff_packet",
       ],
     },
+    // Legacy/internal compatibility for existing pipeline consumers that still read simulator routing.
     simulator_routing: {
       requested_backend: "pipeline_selected",
       allowed_backends: ["mujoco", "isaac_sim", "isaac_lab_arena", "pybullet", "fixture"],
@@ -133,6 +171,8 @@ function buildExecutionRequest() {
         webapp_request_selects_policy_not_execution: true,
         mujoco_proof_does_not_clear_isaac_sim_gate: true,
         simulator_policy_does_not_prove_robot_readiness: true,
+        virtual_evaluation_does_not_prove_deployment_readiness: true,
+        virtual_evaluation_does_not_prove_safety_validation: true,
       },
       isaac_gpu_constraint: "rtx_rt_core_required_no_a100_h100",
     },
@@ -529,13 +569,19 @@ export function buildRobotEvalJobRequestFromSite(
       ? buildPolicyPackageFromRobotTeamSubmission(options.robotTeamTestSubmission)
       : buildDefaultSimulatorPolicyPackage(selectedTasks),
     operation: "evaluate_only",
+    evaluation_scope: EVALUATOR_BACKEND_NEUTRAL_FIELDS.evaluation_scope,
+    wam_evaluator_backend: EVALUATOR_BACKEND_NEUTRAL_FIELDS.wam_evaluator_backend,
+    allowed_evaluator_backends: EVALUATOR_BACKEND_NEUTRAL_FIELDS.allowed_evaluator_backends,
+    optional_physics_state_authority:
+      EVALUATOR_BACKEND_NEUTRAL_FIELDS.optional_physics_state_authority,
+    // Legacy/internal compatibility for existing consumers; public product copy should use WAM/VLA policy evaluation.
     simulator_preference: "mujoco_first",
     simulator_scope: {
       mode: "simulator_only",
       robot: DEFAULT_SIMULATOR_ROBOT_PROFILE.label,
       simulator: "MuJoCo",
-      customer_label: "Unitree G1 MuJoCo simulator evaluation",
-      provider_strategy: "Blueprint chooses fastest/cheapest available simulator worker",
+      customer_label: "WAM/VLA policy evaluation with internal MuJoCo adapter",
+      provider_strategy: "Blueprint pipeline selects the replaceable WAM/VLA evaluator backend",
       physical_robot_deployment_claim_allowed: false,
     },
     cosmos_training_preference: { mode: "export_only" },
@@ -629,6 +675,8 @@ export function buildRobotEvalJobRequestFromSite(
       },
     },
     proof_boundary: {
+      virtual_evaluation_proves_deployment_readiness: false,
+      virtual_evaluation_proves_safety_validation: false,
       simulator_execution_proven: false,
       robot_readiness_proven: false,
       robot_policy_execution_proven: false,

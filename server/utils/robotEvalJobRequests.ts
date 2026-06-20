@@ -15,6 +15,8 @@ const CLAIM_BOUNDARY = {
   robot_policy_execution_proven: false,
   physics_contact_validated: false,
   safety_validated: false,
+  virtual_evaluation_proves_deployment_readiness: false,
+  virtual_evaluation_proves_safety_validation: false,
   public_claim_upgrade_allowed: false,
 };
 
@@ -32,6 +34,36 @@ const DEFAULT_SIMULATOR_ROBOT_PROFILE = {
   label: "Unitree G1",
   embodiment: "humanoid",
   sensors: ["rgb", "depth", "proprioception"],
+};
+
+const EVALUATOR_BACKEND_NEUTRAL_FIELDS = {
+  evaluation_scope: {
+    mode: "virtual_policy_evaluation",
+    public_label: "WAM/VLA policy evaluation",
+    physical_robot_deployment_claim_allowed: false,
+  },
+  wam_evaluator_backend: "pipeline_selected",
+  allowed_evaluator_backends: [
+    "wam_policy_runtime",
+    "vla_policy_runtime",
+    "mujoco_policy_adapter",
+    "isaac_policy_adapter",
+    "newton_policy_adapter",
+    "fixture_policy_adapter",
+  ],
+  optional_physics_state_authority: {
+    mode: "optional_sanity_check",
+    allowed_authorities: ["mujoco", "isaac", "newton"],
+    required_for_request_acceptance: false,
+    proof_role: "physics_state_sanity_check_only",
+  },
+  proof_boundaries: {
+    virtual_evaluation_proves_deployment_readiness: false,
+    virtual_evaluation_proves_safety_validation: false,
+    virtual_evaluation_is_policy_evidence_only: true,
+    deployment_readiness_requires_owner_system_proof: true,
+    safety_validation_requires_separate_qualified_review: true,
+  },
 };
 
 type PolicyModality = (typeof POLICY_MODALITIES)[number];
@@ -75,6 +107,13 @@ function buildExecutionRequest() {
     schema_version: "blueprint.robot_eval_execution_request.v1",
     webapp_role: "queue_and_forward_only",
     scheduler_owner: "BlueprintCapturePipeline",
+    evaluation_scope: EVALUATOR_BACKEND_NEUTRAL_FIELDS.evaluation_scope,
+    wam_evaluator_backend: EVALUATOR_BACKEND_NEUTRAL_FIELDS.wam_evaluator_backend,
+    allowed_evaluator_backends: EVALUATOR_BACKEND_NEUTRAL_FIELDS.allowed_evaluator_backends,
+    optional_physics_state_authority:
+      EVALUATOR_BACKEND_NEUTRAL_FIELDS.optional_physics_state_authority,
+    proof_boundaries: EVALUATOR_BACKEND_NEUTRAL_FIELDS.proof_boundaries,
+    // Legacy/internal compatibility for existing pipeline consumers that still read simulator scope.
     scope: {
       mode: "simulator_only",
       label: "Unitree G1 MuJoCo simulator evaluation",
@@ -101,6 +140,7 @@ function buildExecutionRequest() {
         "gpu_handoff_packet",
       ],
     },
+    // Legacy/internal compatibility for existing pipeline consumers that still read simulator routing.
     simulator_routing: {
       requested_backend: "pipeline_selected",
       allowed_backends: ["mujoco", "isaac_sim", "isaac_lab_arena", "pybullet", "fixture"],
@@ -136,6 +176,8 @@ function buildExecutionRequest() {
         webapp_request_selects_policy_not_execution: true,
         mujoco_proof_does_not_clear_isaac_sim_gate: true,
         simulator_policy_does_not_prove_robot_readiness: true,
+        virtual_evaluation_does_not_prove_deployment_readiness: true,
+        virtual_evaluation_does_not_prove_safety_validation: true,
       },
       isaac_gpu_constraint: "rtx_rt_core_required_no_a100_h100",
     },
@@ -448,6 +490,12 @@ export function buildRobotEvalJobRequest(input: {
       approved: input.entitlement.approved,
     },
     operation: "evaluate_only",
+    evaluation_scope: EVALUATOR_BACKEND_NEUTRAL_FIELDS.evaluation_scope,
+    wam_evaluator_backend: EVALUATOR_BACKEND_NEUTRAL_FIELDS.wam_evaluator_backend,
+    allowed_evaluator_backends: EVALUATOR_BACKEND_NEUTRAL_FIELDS.allowed_evaluator_backends,
+    optional_physics_state_authority:
+      EVALUATOR_BACKEND_NEUTRAL_FIELDS.optional_physics_state_authority,
+    // Legacy/internal compatibility for existing consumers; public product copy should use WAM/VLA policy evaluation.
     simulator_preference: "mujoco_first",
     simulator_scope: {
       mode: "simulator_only",
@@ -456,8 +504,8 @@ export function buildRobotEvalJobRequest(input: {
           ? DEFAULT_SIMULATOR_ROBOT_PROFILE.label
           : input.selection.robotProfileId,
       simulator: "MuJoCo",
-      customer_label: "Unitree G1 MuJoCo simulator evaluation",
-      provider_strategy: "Blueprint chooses fastest/cheapest available simulator worker",
+      customer_label: "WAM/VLA policy evaluation with internal MuJoCo adapter",
+      provider_strategy: "Blueprint pipeline selects the replaceable WAM/VLA evaluator backend",
       physical_robot_deployment_claim_allowed: false,
     },
     cosmos_training_preference: { mode: "export_only" },
@@ -604,12 +652,57 @@ export function validateRobotEvalJobRequest(value: unknown): {
     }
   }
 
+
+  const evaluationScope = value.evaluation_scope;
+  if (evaluationScope !== undefined && !hasObject(evaluationScope)) {
+    errors.push("evaluation_scope must be an object when provided");
+  } else if (hasObject(evaluationScope)) {
+    if (evaluationScope.mode !== "virtual_policy_evaluation") {
+      errors.push("evaluation_scope.mode must be virtual_policy_evaluation");
+    }
+    if (evaluationScope.physical_robot_deployment_claim_allowed !== false) {
+      errors.push(
+        "evaluation_scope.physical_robot_deployment_claim_allowed must be false",
+      );
+    }
+  }
+  if (
+    value.wam_evaluator_backend !== undefined &&
+    value.wam_evaluator_backend !== "pipeline_selected"
+  ) {
+    errors.push("wam_evaluator_backend must be pipeline_selected");
+  }
+  if (
+    value.allowed_evaluator_backends !== undefined &&
+    (!Array.isArray(value.allowed_evaluator_backends) ||
+      !value.allowed_evaluator_backends.includes("wam_policy_runtime") ||
+      !value.allowed_evaluator_backends.includes("vla_policy_runtime"))
+  ) {
+    errors.push(
+      "allowed_evaluator_backends must include replaceable WAM and VLA policy runtimes",
+    );
+  }
+  const physicsStateAuthority = value.optional_physics_state_authority;
+  if (physicsStateAuthority !== undefined && !hasObject(physicsStateAuthority)) {
+    errors.push("optional_physics_state_authority must be an object when provided");
+  } else if (
+    hasObject(physicsStateAuthority) &&
+    physicsStateAuthority.required_for_request_acceptance !== false
+  ) {
+    errors.push(
+      "optional_physics_state_authority.required_for_request_acceptance must be false",
+    );
+  }
+
   const proofBoundary = value.proof_boundary;
   if (!hasObject(proofBoundary)) {
     errors.push("proof_boundary is required");
   } else {
     for (const key of Object.keys(CLAIM_BOUNDARY) as (keyof typeof CLAIM_BOUNDARY)[]) {
-      if (proofBoundary[key] !== false) {
+      const optionalVirtualBoundary =
+        key === "virtual_evaluation_proves_deployment_readiness" ||
+        key === "virtual_evaluation_proves_safety_validation";
+      if (proofBoundary[key] !== false && !(optionalVirtualBoundary && proofBoundary[key] === undefined)) {
         errors.push(`proof_boundary.${key} must be false until owner-system proof exists`);
       }
     }
@@ -650,6 +743,50 @@ export function validateRobotEvalJobRequest(value: unknown): {
       }
       if (executionRequest.scheduler_owner !== "BlueprintCapturePipeline") {
         errors.push("execution_request.scheduler_owner must be BlueprintCapturePipeline");
+      }
+      const executionEvaluationScope = executionRequest.evaluation_scope;
+      if (!hasObject(executionEvaluationScope)) {
+        errors.push("execution_request.evaluation_scope is required when execution_request is provided");
+      } else {
+        if (executionEvaluationScope.mode !== "virtual_policy_evaluation") {
+          errors.push(
+            "execution_request.evaluation_scope.mode must be virtual_policy_evaluation",
+          );
+        }
+        if (executionEvaluationScope.physical_robot_deployment_claim_allowed !== false) {
+          errors.push(
+            "execution_request.evaluation_scope.physical_robot_deployment_claim_allowed must be false",
+          );
+        }
+      }
+      if (executionRequest.wam_evaluator_backend !== "pipeline_selected") {
+        errors.push("execution_request.wam_evaluator_backend must be pipeline_selected");
+      }
+      if (
+        !Array.isArray(executionRequest.allowed_evaluator_backends) ||
+        !executionRequest.allowed_evaluator_backends.includes("wam_policy_runtime") ||
+        !executionRequest.allowed_evaluator_backends.includes("vla_policy_runtime")
+      ) {
+        errors.push(
+          "execution_request.allowed_evaluator_backends must include replaceable WAM and VLA policy runtimes",
+        );
+      }
+      const executionProofBoundaries = executionRequest.proof_boundaries;
+      if (!hasObject(executionProofBoundaries)) {
+        errors.push("execution_request.proof_boundaries is required when execution_request is provided");
+      } else {
+        if (
+          executionProofBoundaries.virtual_evaluation_proves_deployment_readiness !== false
+        ) {
+          errors.push(
+            "execution_request.proof_boundaries.virtual_evaluation_proves_deployment_readiness must be false",
+          );
+        }
+        if (executionProofBoundaries.virtual_evaluation_proves_safety_validation !== false) {
+          errors.push(
+            "execution_request.proof_boundaries.virtual_evaluation_proves_safety_validation must be false",
+          );
+        }
       }
       const scope = executionRequest.scope;
       if (hasObject(scope)) {
