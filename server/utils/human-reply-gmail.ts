@@ -14,6 +14,15 @@ type GmailReplyWatchStatus = {
   reason: string | null;
 };
 
+type GmailOAuthError = {
+  response?: {
+    data?: {
+      error?: unknown;
+      error_description?: unknown;
+    };
+  };
+};
+
 export type GmailOAuthDurabilityStatus = GmailReplyWatchStatus & {
   oauth_publishing_status: "unknown" | "testing" | "production";
   production_ready: boolean;
@@ -64,6 +73,36 @@ function getGmailOAuthClient() {
   const client = new google.auth.OAuth2(config.clientId, config.clientSecret);
   client.setCredentials({ refresh_token: config.refreshToken });
   return client;
+}
+
+function getGmailOAuthErrorReason(error: unknown) {
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === "string"
+        ? error
+        : "";
+  const responseData = (error as GmailOAuthError).response?.data;
+  const oauthError = typeof responseData?.error === "string" ? trimValue(responseData.error) : "";
+  const oauthDescription =
+    typeof responseData?.error_description === "string"
+      ? trimValue(responseData.error_description)
+      : "";
+  const normalized = [oauthError, oauthDescription, message].join(" ").toLowerCase();
+
+  if (normalized.includes("invalid_grant")) {
+    return "Gmail OAuth refresh token was rejected with invalid_grant. Rotate BLUEPRINT_HUMAN_REPLY_GMAIL_REFRESH_TOKEN for the approved mailbox to restore the email watcher.";
+  }
+
+  if (normalized.includes("invalid_client") || normalized.includes("unauthorized_client")) {
+    return "Gmail OAuth client credentials were rejected. Verify BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_ID and BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_SECRET before enabling the email watcher.";
+  }
+
+  if (message) {
+    return `Gmail profile lookup failed: ${message}`;
+  }
+
+  return "Gmail profile lookup failed before the approved mailbox could be verified.";
 }
 
 function decodeBase64Url(value: string | null | undefined) {
@@ -146,7 +185,18 @@ export async function getHumanReplyGmailStatus(): Promise<GmailReplyWatchStatus>
   }
 
   const gmail = google.gmail({ version: "v1", auth: client });
-  const profile = await gmail.users.getProfile({ userId: "me" });
+  let profile;
+  try {
+    profile = await gmail.users.getProfile({ userId: "me" });
+  } catch (error) {
+    return {
+      enabled: true,
+      configured: false,
+      approved_identity: config.approvedEmail,
+      mailbox_email: null,
+      reason: getGmailOAuthErrorReason(error),
+    };
+  }
   const mailboxEmail = trimValue(profile.data.emailAddress) || null;
 
   if (!mailboxEmail) {

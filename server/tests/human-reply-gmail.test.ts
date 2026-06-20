@@ -73,6 +73,34 @@ describe("human reply gmail status", () => {
     expect(status.reason).toContain("cannot be set to hlfabhunt@gmail.com");
   });
 
+  it("fails closed when the gmail refresh token is rejected", async () => {
+    vi.stubEnv("BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_ID", "client-id");
+    vi.stubEnv("BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_SECRET", "client-secret");
+    vi.stubEnv("BLUEPRINT_HUMAN_REPLY_GMAIL_REFRESH_TOKEN", "refresh-token");
+    getProfileMock.mockRejectedValue(
+      Object.assign(new Error("invalid_grant"), {
+        response: {
+          data: {
+            error: "invalid_grant",
+            error_description: "Bad Request",
+          },
+        },
+      }),
+    );
+
+    const { getHumanReplyGmailDurabilityStatus, listHumanReplyGmailMessages } = await import(
+      "../utils/human-reply-gmail"
+    );
+    const status = await getHumanReplyGmailDurabilityStatus();
+
+    expect(status.production_ready).toBe(false);
+    expect(status.configured).toBe(false);
+    expect(status.reason).toContain("invalid_grant");
+    expect(status.reason).toContain("BLUEPRINT_HUMAN_REPLY_GMAIL_REFRESH_TOKEN");
+    await expect(listHumanReplyGmailMessages()).rejects.toThrow("invalid_grant");
+    expect(listMessagesMock).not.toHaveBeenCalled();
+  });
+
   it("accepts the approved mailbox identity", async () => {
     vi.stubEnv("BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_ID", "client-id");
     vi.stubEnv("BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_SECRET", "client-secret");
