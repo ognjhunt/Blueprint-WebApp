@@ -29,9 +29,24 @@ const definitions = [
       "A request-scoped pre-pilot estimate for one site/task, robot profile, and threshold set. It can organize success-rate, cycle-time, intervention-rate, failure-mode, site-modification, data-need, and pilot-protocol questions while keeping claims tied to artifacts.",
   },
   {
+    term: "Capture-backed policy/checkpoint evaluation infrastructure",
+    definition:
+      "Blueprint helps robot teams rank policies and checkpoints before field time by pairing capture-backed real-site task packs with WAM/VLA evaluator backends, fixed episode envelopes, and explicit proof boundaries.",
+  },
+  {
     term: "Real-site robot evaluation service",
     definition:
-      "Blueprint's service for testing one robot profile or policy against one capture-backed site, task scope, scenario set, threshold target, scenario/results manifest, and proof-boundary record.",
+      "Blueprint's service for ranking one robot policy or checkpoint against one capture-backed site, task scope, scenario set, threshold target, WAM/VLA evaluator backend, scenario/results manifest, and proof-boundary record before field time.",
+  },
+  {
+    term: "Policy Evaluation Run",
+    definition:
+      "A fixed-scope 100 or 500 episode evaluation run for one policy or checkpoint against a capture-backed real-site task pack, evaluator backend, metrics envelope, and scenario/results manifest. It ranks candidates for review and does not claim live provider execution, deployment readiness, or guaranteed outcomes.",
+  },
+  {
+    term: "Validated Evaluation Pack",
+    definition:
+      "A buyer-facing pack that pairs real-world rollout evidence with envelope-scoped correlation metrics for the matched evaluation scope. The pack reports scoped correlation signals and proof limits; it does not claim universal SRCC, safety validation, deployment readiness, or guaranteed field outcomes.",
   },
   {
     term: "Policy evaluation record",
@@ -85,13 +100,13 @@ const pages = [
     path: "/",
     title: "Home",
     description:
-      "The core public buyer story: real-site robot evaluation before pilots or deployment, grounded in Task Evaluation Runs, sim-only Policy Improvement Runs, free site-operator participation, and proof boundaries.",
+      "The core public buyer story: capture-backed policy/checkpoint evaluation infrastructure that helps robot teams rank candidates before field time using real-site task packs, WAM/VLA evaluator backends, 100/500 episode Policy Evaluation Runs, and proof boundaries.",
   },
   {
     path: "/for-robot-teams",
     title: "Robot-Team Test Interface",
     description:
-      "Buyer-facing interface for selecting a capture-backed site/task package and referencing policy API, Docker, recorded trace, skill trace, teleop demo, or sim-controller-plugin evidence before hosted-session creation or intake fallback.",
+      "Buyer-facing interface for selecting capture-backed real-site task packs and referencing policy API, Docker, recorded trace, skill trace, teleop demo, or sim-controller-plugin evidence for WAM/VLA-backed evaluation intake.",
   },
   {
     path: "/robot-team/eval",
@@ -103,7 +118,7 @@ const pages = [
     path: "/sites",
     title: "Sites",
     description:
-      "Blueprint Site Library for browsing captured-site profiles by site type, task pack, readiness, access status, and region before requesting a Task Evaluation Run.",
+      "Blueprint Site Library for browsing captured-site profiles by site type, task pack, access status, and region before requesting a Policy Evaluation Run.",
   },
   {
     path: "/proof",
@@ -115,13 +130,13 @@ const pages = [
     path: "/pricing",
     title: "Pricing",
     description:
-      "Simple pricing: robot teams pay for fixed-scope Task Evaluation Runs and sim-only Policy Improvement Runs; site operators submit sites for free.",
+      "Simple pricing for fixed-scope 100/500 episode Policy Evaluation Runs and Validated Evaluation Packs with paired real-world rollouts and envelope-scoped correlation metrics; site operators submit sites for free.",
   },
   {
     path: "/contact",
-    title: "Request Task Evaluation Or Policy Improvement",
+    title: "Request Policy Evaluation Or Validated Pack",
     description:
-      "Structured intake for Task Evaluation Runs, Policy Improvement Runs, new capture requests, free site-operator participation, robot tasks, thresholds, dynamic conditions, zones, rights/access, pilot outcomes, and desired next step.",
+      "Structured intake for Policy Evaluation Runs, Validated Evaluation Packs, new capture requests, free site-operator participation, robot tasks, thresholds, dynamic conditions, zones, rights/access, rollout evidence, and desired next step.",
   },
   {
     path: "/privacy",
@@ -138,18 +153,24 @@ const pages = [
 const queryThemes = [
   "real-site robot evaluation",
   "real-site robot evaluation service",
-  "test robot policy on a real site before deployment",
+  "rank robot policies before field time",
+  "rank robot checkpoints before field time",
   "capture a real site turn it into robot evaluation",
   "test robot policy before a long pilot",
-  "site-specific robot evaluation planning",
+  "capture-backed policy checkpoint evaluation infrastructure",
   "real-site robot evaluation workflow",
-  "pre-pilot robot readiness estimate",
+  "capture-backed real-site task packs",
   "site task robot policy evaluation",
   "warehouse robot evaluation",
   "factory robot scenario tests",
-  "success rate cycle time intervention safety threshold robot task",
+  "success rate cycle time intervention envelope metrics robot task",
   "capture-backed site evaluation for robot teams",
   "capture-backed robot policy evaluation",
+  "WAM VLA evaluator backends",
+  "100 episode Policy Evaluation Run",
+  "500 episode Policy Evaluation Run",
+  "Validated Evaluation Pack paired real-world rollouts",
+  "envelope scoped correlation metrics robot evaluation",
   "robot team test submission interface",
   "policy API endpoint Docker container robot eval",
   "recorded action trace high level skill trace teleop demo",
@@ -161,12 +182,12 @@ const queryThemes = [
   "browse captured sites for robot evaluation",
   "Task Evaluation Run request",
   "robot fine-tuning data for one site",
-  "robot deployment site evaluation",
+  "robot policy checkpoint ranking before field time",
   "capture provenance for world models",
   "site operator robot evaluation boundaries",
   "site operators free Blueprint",
   "request robot site evaluation",
-  "readiness proof boundary",
+  "policy checkpoint evaluation proof boundary",
 ];
 
 const privateOrNoindex = [
