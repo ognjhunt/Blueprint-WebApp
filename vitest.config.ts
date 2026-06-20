@@ -1,50 +1,51 @@
 /// <reference types="vitest" />
-import { defineConfig } from 'vitest/config'
-import react from '@vitejs/plugin-react'
-import path from 'path'
+import { defineConfig } from "vitest/config";
+import react from "@vitejs/plugin-react";
+import path from "path";
 
 const __dirname = import.meta.dirname;
 
 export default defineConfig({
   plugins: [react()],
-    test: {
+  test: {
     globals: true,
-    environment: 'happy-dom',
-    setupFiles: './client/tests/setup.ts',
+    environment: "happy-dom",
+    setupFiles: "./client/tests/setup.ts",
     css: true,
     testTimeout: 60000,
     hookTimeout: 120000,
     include: [
-      'client/tests/**/*.{test,spec}.{ts,tsx,js,jsx}',
-      'server/tests/**/*.{test,spec}.{ts,tsx,js,jsx}',
-      'scripts/**/*.{test,spec}.{ts,tsx,js,jsx}',
-      'ops/paperclip/plugins/blueprint-automation/src/**/*.{test,spec}.{ts,tsx,js,jsx}',
+      "client/tests/**/*.{test,spec}.{ts,tsx,js,jsx}",
+      "client/src/lib/**/*.{test,spec}.{ts,tsx,js,jsx}",
+      "server/tests/**/*.{test,spec}.{ts,tsx,js,jsx}",
+      "scripts/**/*.{test,spec}.{ts,tsx,js,jsx}",
+      "ops/paperclip/plugins/blueprint-automation/src/**/*.{test,spec}.{ts,tsx,js,jsx}",
     ],
     exclude: [
-      'e2e/**',
-      'node_modules/**',
-      'dist/**',
-      'paperclip-desktop/**',
-      '.claude/**',
-      '.worktrees/**',
-      'coverage/**',
-      'test-results/**',
+      "e2e/**",
+      "node_modules/**",
+      "dist/**",
+      "paperclip-desktop/**",
+      ".claude/**",
+      ".worktrees/**",
+      "coverage/**",
+      "test-results/**",
     ],
     coverage: {
-      provider: 'v8',
-      reporter: ['text', 'json', 'html'],
-      reportsDirectory: './coverage',
+      provider: "v8",
+      reporter: ["text", "json", "html"],
+      reportsDirectory: "./coverage",
       exclude: [
-        'e2e/**',
-        'node_modules/**',
-        'dist/**',
-        'paperclip-desktop/**',
-        '.claude/**',
-        '.worktrees/**',
-        'coverage/**',
-        'test-results/**',
-        'scripts/launch-preflight.mjs',
-        'scripts/launch-smoke.mjs',
+        "e2e/**",
+        "node_modules/**",
+        "dist/**",
+        "paperclip-desktop/**",
+        ".claude/**",
+        ".worktrees/**",
+        "coverage/**",
+        "test-results/**",
+        "scripts/launch-preflight.mjs",
+        "scripts/launch-smoke.mjs",
       ],
       thresholds: {
         lines: 25.5,
@@ -59,4 +60,4 @@ export default defineConfig({
       "@": path.resolve(__dirname, "client", "src"),
     },
   },
-})
+});

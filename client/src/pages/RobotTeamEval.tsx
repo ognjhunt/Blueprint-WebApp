@@ -18,6 +18,7 @@ import {
   MonitorPlay,
   PackageCheck,
   Route,
+  Cpu,
   TerminalSquare,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -42,8 +43,32 @@ import {
 } from "@/lib/robotTeamTestSubmission";
 import type { CreateHostedSessionRequest } from "@/types/hostedSession";
 
-type FieldState = Record<RobotTeamTestSubmissionModalityId, Record<string, string>>;
+type FieldState = Record<
+  RobotTeamTestSubmissionModalityId,
+  Record<string, string>
+>;
 type EnabledState = Record<RobotTeamTestSubmissionModalityId, boolean>;
+
+type RunSetupState = {
+  policyLabels: string;
+  episodeCount: "100" | "500" | "custom";
+  customEpisodeCount: string;
+  validationMode:
+    | "virtual_preflight"
+    | "comparative_policy_eval"
+    | "real_rollout_validated";
+  observationSchemaRef: string;
+  actionSchemaRef: string;
+  controlFrequency: string;
+  robotEmbodiment: string;
+  gripper: string;
+  cameraSetup: string;
+  intrinsicsExtrinsicsRef: string;
+  sitePackageTarget: string;
+  taskInstruction: string;
+  startStateConstraints: string;
+  successCriteria: string;
+};
 
 const iconByModality: Record<RobotTeamTestSubmissionModalityId, LucideIcon> = {
   policy_api_endpoint: Link2,
@@ -52,6 +77,7 @@ const iconByModality: Record<RobotTeamTestSubmissionModalityId, LucideIcon> = {
   high_level_skill_trace: Route,
   teleop_demo: Gamepad2,
   sim_controller_plugin: Code2,
+  model_checkpoint: Cpu,
 };
 
 const fallbackOutputs = [
@@ -84,6 +110,33 @@ function initialFieldState(): FieldState {
   ) as FieldState;
 }
 
+function initialRunSetupState(): RunSetupState {
+  return {
+    policyLabels: "primary-policy",
+    episodeCount: "100",
+    customEpisodeCount: "",
+    validationMode: "virtual_preflight",
+    observationSchemaRef: "",
+    actionSchemaRef: "",
+    controlFrequency: "",
+    robotEmbodiment: "",
+    gripper: "",
+    cameraSetup: "",
+    intrinsicsExtrinsicsRef: "",
+    sitePackageTarget: "",
+    taskInstruction: "",
+    startStateConstraints: "",
+    successCriteria: "",
+  };
+}
+
+function runSetupInput(setup: RunSetupState) {
+  return {
+    ...setup,
+    policyLabels: setup.policyLabels.split(/[\n,]/),
+  };
+}
+
 function initialEnabledState(): EnabledState {
   return Object.fromEntries(
     ROBOT_TEAM_TEST_SUBMISSION_MODALITY_DEFINITIONS.map((definition) => [
@@ -95,13 +148,16 @@ function initialEnabledState(): EnabledState {
 
 function publicDemoSiteWorldIds() {
   const ids = new Set<string>();
-  if (import.meta.env.MODE !== "production" || import.meta.env.VITE_ENABLE_DEMO_SITE_WORLDS === "1") {
+  if (
+    import.meta.env.MODE !== "production" ||
+    import.meta.env.VITE_ENABLE_DEMO_SITE_WORLDS === "1"
+  ) {
     ids.add("siteworld-f5fd54898cfb");
   }
   const envSiteWorldId = String(
-    import.meta.env.VITE_HOSTED_DEMO_SITE_WORLD_ID
-      || import.meta.env.BLUEPRINT_HOSTED_DEMO_SITE_WORLD_ID
-      || "",
+    import.meta.env.VITE_HOSTED_DEMO_SITE_WORLD_ID ||
+      import.meta.env.BLUEPRINT_HOSTED_DEMO_SITE_WORLD_ID ||
+      "",
   ).trim();
   if (envSiteWorldId) {
     ids.add(envSiteWorldId);
@@ -120,7 +176,9 @@ async function getFirebaseIdToken(): Promise<string> {
 
   try {
     const firebase = await import("@/lib/firebase");
-    return firebase.auth?.currentUser ? await firebase.auth.currentUser.getIdToken() : "";
+    return firebase.auth?.currentUser
+      ? await firebase.auth.currentUser.getIdToken()
+      : "";
   } catch {
     return "";
   }
@@ -134,7 +192,9 @@ function createSubmissionId() {
 }
 
 function selectedSiteDefaultId() {
-  const publicDemo = siteWorldCards.find((site) => site.id === "siteworld-f5fd54898cfb");
+  const publicDemo = siteWorldCards.find(
+    (site) => site.id === "siteworld-f5fd54898cfb",
+  );
   return publicDemo?.id || siteWorldCards[0]?.id || "";
 }
 
@@ -145,8 +205,30 @@ function buildRequestReviewHref(params: {
   robotName: string;
   submission: RobotTeamTestSubmission | null;
 }) {
-  const selectedModes = params.submission?.selectedModalities.join(", ") || "structured robot-team test";
-  const missing = params.submission?.missingEvidenceStatuses.join(", ") || "none recorded yet";
+  const selectedModes =
+    params.submission?.selectedModalities.join(", ") ||
+    "structured robot-team test";
+  const missing =
+    params.submission?.missingEvidenceStatuses.join(", ") ||
+    "none recorded yet";
+  const setup = params.submission
+    ? [
+        `policyLabels=${params.submission.policyLabels.join(", ") || "none entered"}`,
+        `episodeCount=${params.submission.episodeCount}${params.submission.customEpisodeCount ? ` (${params.submission.customEpisodeCount})` : ""}`,
+        `validationMode=${params.submission.validationMode}`,
+        `observationSchemaRef=${params.submission.observationSchemaRef || "none entered"}`,
+        `actionSchemaRef=${params.submission.actionSchemaRef || "none entered"}`,
+        `controlFrequency=${params.submission.controlFrequency || "none entered"}`,
+        `robotEmbodiment=${params.submission.robotEmbodiment || "none entered"}`,
+        `gripper=${params.submission.gripper || "none entered"}`,
+        `cameraSetup=${params.submission.cameraSetup || "none entered"}`,
+        `intrinsicsExtrinsicsRef=${params.submission.intrinsicsExtrinsicsRef || "none entered"}`,
+        `sitePackageTarget=${params.submission.sitePackageTarget || "none entered"}`,
+        `taskInstruction=${params.submission.taskInstruction || "none entered"}`,
+        `startStateConstraints=${params.submission.startStateConstraints || "none entered"}`,
+        `successCriteria=${params.submission.successCriteria || "none entered"}`,
+      ].join("\n")
+    : "no run setup entered";
   const structuredRefs = params.submission
     ? params.submission.selectedModalities
         .map((modalityId) => {
@@ -168,8 +250,10 @@ function buildRequestReviewHref(params: {
     siteLocation: params.siteAddress,
     targetRobotTeam: params.robotName,
     taskStatement: `Robot-team structured test submission for ${params.taskText}`,
-    requestedOutputs: params.submission?.requestedOutputs.join(", ") || fallbackOutputs.join(", "),
-    message: `Selected modalities: ${selectedModes}\nMissing evidence statuses: ${missing}\nStructured refs:\n${structuredRefs}`,
+    requestedOutputs:
+      params.submission?.requestedOutputs.join(", ") ||
+      fallbackOutputs.join(", "),
+    message: `Selected modalities: ${selectedModes}\nMissing evidence statuses: ${missing}\nRun setup:\n${setup}\nStructured refs:\n${structuredRefs}`,
   });
   return `/contact?${query.toString()}`;
 }
@@ -187,27 +271,44 @@ export default function RobotTeamEval() {
   const [evalScenarioFamilyId, setEvalScenarioFamilyId] = useState(
     initialEvalSite.scenarioFamilies[0].id,
   );
-  const [enabled, setEnabled] = useState<EnabledState>(() => initialEnabledState());
-  const [fieldValues, setFieldValues] = useState<FieldState>(() => initialFieldState());
-  const [status, setStatus] = useState<"idle" | "submitting" | "created" | "blocked">("idle");
+  const [enabled, setEnabled] = useState<EnabledState>(() =>
+    initialEnabledState(),
+  );
+  const [fieldValues, setFieldValues] = useState<FieldState>(() =>
+    initialFieldState(),
+  );
+  const [runSetup, setRunSetup] = useState<RunSetupState>(() =>
+    initialRunSetupState(),
+  );
+  const [status, setStatus] = useState<
+    "idle" | "submitting" | "created" | "blocked"
+  >("idle");
   const [statusMessage, setStatusMessage] = useState("");
-  const [lastSubmission, setLastSubmission] = useState<RobotTeamTestSubmission | null>(null);
+  const [lastSubmission, setLastSubmission] =
+    useState<RobotTeamTestSubmission | null>(null);
 
   const selectedSite = useMemo(
-    () => siteWorldCards.find((site) => site.id === selectedSiteId) || siteWorldCards[0],
+    () =>
+      siteWorldCards.find((site) => site.id === selectedSiteId) ||
+      siteWorldCards[0],
     [selectedSiteId],
   );
-  const selectedRobot = selectedSite?.robotProfiles[0] || selectedSite?.sampleRobotProfile || null;
+  const selectedRobot =
+    selectedSite?.robotProfiles[0] || selectedSite?.sampleRobotProfile || null;
   const selectedTask = selectedSite?.taskCatalog[0] || null;
   const selectedScenario = selectedSite?.scenarioCatalog[0] || null;
   const selectedStartState = selectedSite?.startStateCatalog[0] || null;
-  const selectedEvalSite = useMemo(() => getRobotEvalMoatSite(evalSiteId), [evalSiteId]);
+  const selectedEvalSite = useMemo(
+    () => getRobotEvalMoatSite(evalSiteId),
+    [evalSiteId],
+  );
   const selectedEvalTask = useMemo(
     () => getRobotEvalMoatTask(selectedEvalSite, evalTaskId),
     [evalTaskId, selectedEvalSite],
   );
   const selectedEvalScenarioFamily = useMemo(
-    () => getRobotEvalMoatScenarioFamily(selectedEvalSite, evalScenarioFamilyId),
+    () =>
+      getRobotEvalMoatScenarioFamily(selectedEvalSite, evalScenarioFamilyId),
     [evalScenarioFamilyId, selectedEvalSite],
   );
 
@@ -221,6 +322,7 @@ export default function RobotTeamEval() {
         taskId: selectedTask.id,
         scenarioId: selectedScenario.id,
         robotProfileId: selectedRobot.id || "",
+        ...runSetupInput(runSetup),
         modalities: Object.fromEntries(
           ROBOT_TEAM_TEST_SUBMISSION_MODALITY_DEFINITIONS.map((definition) => [
             definition.id,
@@ -232,12 +334,23 @@ export default function RobotTeamEval() {
         ),
       }),
     );
-  }, [enabled, fieldValues, selectedRobot, selectedScenario, selectedSite, selectedTask]);
+  }, [
+    enabled,
+    fieldValues,
+    runSetup,
+    selectedRobot,
+    selectedScenario,
+    selectedSite,
+    selectedTask,
+  ]);
 
   const requestReviewHref = buildRequestReviewHref({
     siteName: selectedSite?.siteName || "Blueprint site package",
     siteAddress: selectedSite?.siteAddress || "",
-    taskText: selectedEvalTask?.label || selectedTask?.taskText || "selected robot task",
+    taskText:
+      selectedEvalTask?.label ||
+      selectedTask?.taskText ||
+      "selected robot task",
     robotName: selectedRobot?.displayName || "robot profile",
     submission: lastSubmission || currentSubmission,
   });
@@ -247,9 +360,18 @@ export default function RobotTeamEval() {
     setEvalSiteId(nextSite.id);
     setEvalTaskId(nextSite.tasks[0].id);
     setEvalScenarioFamilyId(nextSite.scenarioFamilies[0].id);
-    if (siteWorldCards.some((site) => site.id === nextSite.catalogSiteWorldId)) {
+    if (
+      siteWorldCards.some((site) => site.id === nextSite.catalogSiteWorldId)
+    ) {
       setSelectedSiteId(nextSite.catalogSiteWorldId);
     }
+  };
+
+  const updateRunSetup = <Key extends keyof RunSetupState>(
+    key: Key,
+    value: RunSetupState[Key],
+  ) => {
+    setRunSetup((current) => ({ ...current, [key]: value }));
   };
 
   const updateField = (
@@ -271,9 +393,17 @@ export default function RobotTeamEval() {
     setStatus("submitting");
     setStatusMessage("");
 
-    if (!selectedSite || !selectedRobot || !selectedTask || !selectedScenario || !selectedStartState) {
+    if (
+      !selectedSite ||
+      !selectedRobot ||
+      !selectedTask ||
+      !selectedScenario ||
+      !selectedStartState
+    ) {
       setStatus("blocked");
-      setStatusMessage("Select a site package with task, scenario, start-state, and robot-profile records.");
+      setStatusMessage(
+        "Select a site package with task, scenario, start-state, and robot-profile records.",
+      );
       return;
     }
 
@@ -284,6 +414,7 @@ export default function RobotTeamEval() {
         taskId: selectedTask.id,
         scenarioId: selectedScenario.id,
         robotProfileId: selectedRobot.id || "",
+        ...runSetupInput(runSetup),
         modalities: Object.fromEntries(
           ROBOT_TEAM_TEST_SUBMISSION_MODALITY_DEFINITIONS.map((definition) => [
             definition.id,
@@ -326,7 +457,9 @@ export default function RobotTeamEval() {
         trajectory: null,
         presentation_model: null,
         debug_mode: false,
-        unsafe_allow_blocked_site_world: isPublicDemoSiteWorldId(selectedSite.id),
+        unsafe_allow_blocked_site_world: isPublicDemoSiteWorldId(
+          selectedSite.id,
+        ),
       },
       policy: {
         runMode: "robot_team_structured_test_submission",
@@ -344,7 +477,9 @@ export default function RobotTeamEval() {
       const token = await getFirebaseIdToken();
       const usePublicDemoRoutes = isPublicDemoSiteWorldId(selectedSite.id);
       if (!token && !usePublicDemoRoutes) {
-        throw new Error("Direct session creation needs robot-team access for this protected site package.");
+        throw new Error(
+          "Direct session creation needs robot-team access for this protected site package.",
+        );
       }
       const response = await fetch("/api/site-worlds/sessions", {
         method: "POST",
@@ -365,15 +500,22 @@ export default function RobotTeamEval() {
         throw new Error(
           Array.isArray(payload.blockers) && payload.blockers.length > 0
             ? payload.blockers.join(", ")
-            : payload.error || "Hosted-session creation is request-gated for this package.",
+            : payload.error ||
+                "Hosted-session creation is request-gated for this package.",
         );
       }
       setStatus("created");
-      setStatusMessage("Hosted session created with the structured robot-team test submission attached.");
+      setStatusMessage(
+        "Hosted session created with the structured robot-team test submission attached.",
+      );
       setLocation(payload.workspaceUrl);
     } catch (error) {
       setStatus("blocked");
-      setStatusMessage(error instanceof Error ? error.message : "Direct session creation is request-gated.");
+      setStatusMessage(
+        error instanceof Error
+          ? error.message
+          : "Direct session creation is request-gated.",
+      );
     }
   };
 
@@ -442,9 +584,9 @@ export default function RobotTeamEval() {
                 Site package + robot profile + policy access = eval report.
               </h2>
               <p className="mt-4 max-w-xl text-sm leading-6 text-slate-600">
-                Robot teams keep source code and model weights private. Blueprint
-                only needs the least-sensitive interface that still lets the task
-                be scored.
+                Robot teams keep source code and model weights private.
+                Blueprint only needs the least-sensitive interface that still
+                lets the task be scored.
               </p>
               <p className="mt-5 border-l-2 border-amber-500 pl-3 text-xs leading-5 text-slate-500">
                 Submitted interfaces are inputs. Stronger claims need run logs,
@@ -455,11 +597,16 @@ export default function RobotTeamEval() {
             <div className="flex flex-col justify-center">
               <div className="grid grid-cols-2 gap-2">
                 {visualWorkflowSteps.map((step, index) => (
-                  <div key={step} className="border border-slate-200 bg-slate-50 p-3">
+                  <div
+                    key={step}
+                    className="border border-slate-200 bg-slate-50 p-3"
+                  >
                     <p className="text-xs font-semibold uppercase text-slate-400">
                       {String(index + 1).padStart(2, "0")}
                     </p>
-                    <p className="mt-1 text-sm font-semibold text-slate-950">{step}</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-950">
+                      {step}
+                    </p>
                   </div>
                 ))}
               </div>
@@ -496,9 +643,9 @@ export default function RobotTeamEval() {
                 </h2>
                 <p className="mt-3 max-w-4xl text-sm leading-6 text-slate-600">
                   The product loop stays artifact-first: representative site
-                  package, canonical task ID, scenario family, submitted policy or
-                  trace references, advisory report, and a scoped pilot, tune, or
-                  hold decision.
+                  package, canonical task ID, scenario family, submitted policy
+                  or trace references, advisory report, and a scoped pilot,
+                  tune, or hold decision.
                 </p>
               </div>
               <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold uppercase text-amber-900">
@@ -548,12 +695,15 @@ export default function RobotTeamEval() {
                 <select
                   aria-label="Scenario family"
                   value={selectedEvalScenarioFamily.id}
-                  onChange={(event) => setEvalScenarioFamilyId(event.target.value)}
+                  onChange={(event) =>
+                    setEvalScenarioFamilyId(event.target.value)
+                  }
                   className="w-full rounded-md border border-slate-300 bg-white px-3 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-950"
                 >
                   {selectedEvalSite.scenarioFamilies.map((scenarioFamily) => (
                     <option key={scenarioFamily.id} value={scenarioFamily.id}>
-                      {scenarioFamily.label} - {scenarioFamily.generatedScenarioCount} variants
+                      {scenarioFamily.label} -{" "}
+                      {scenarioFamily.generatedScenarioCount} variants
                     </option>
                   ))}
                 </select>
@@ -570,14 +720,16 @@ export default function RobotTeamEval() {
                   {selectedEvalScenarioFamily.sampleScenario}
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {selectedEvalScenarioFamily.variationIds.map((variationId) => (
-                    <span
-                      key={variationId}
-                      className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-600"
-                    >
-                      {variationId.replaceAll("_", " ")}
-                    </span>
-                  ))}
+                  {selectedEvalScenarioFamily.variationIds.map(
+                    (variationId) => (
+                      <span
+                        key={variationId}
+                        className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-600"
+                      >
+                        {variationId.replaceAll("_", " ")}
+                      </span>
+                    ),
+                  )}
                 </div>
               </div>
               <div className="rounded-md border border-slate-200 bg-slate-50 p-4">
@@ -612,14 +764,15 @@ export default function RobotTeamEval() {
                   <p className="text-[11px] font-semibold uppercase text-slate-400">
                     Step {index + 1}
                   </p>
-                  <h3 className="mt-1 text-sm font-semibold text-slate-950">{step.label}</h3>
+                  <h3 className="mt-1 text-sm font-semibold text-slate-950">
+                    {step.label}
+                  </h3>
                   <p className="mt-2 break-words text-xs font-semibold text-slate-500">
                     {step.artifact}
                   </p>
                 </article>
               ))}
             </div>
-
           </div>
 
           <aside className="h-fit rounded-lg border border-black/10 bg-white p-5 shadow-sm lg:sticky lg:top-24">
@@ -628,9 +781,12 @@ export default function RobotTeamEval() {
                 <Gauge className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-slate-950">Advisory eval report</p>
+                <p className="text-sm font-semibold text-slate-950">
+                  Advisory eval report
+                </p>
                 <p className="mt-1 text-xs leading-5 text-slate-500">
-                  Representative policy_eval_report.json output for the selected workflow.
+                  Representative policy_eval_report.json output for the selected
+                  workflow.
                 </p>
               </div>
             </div>
@@ -646,7 +802,9 @@ export default function RobotTeamEval() {
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <p className="text-sm font-semibold text-slate-950">{metric.label}</p>
+                    <p className="text-sm font-semibold text-slate-950">
+                      {metric.label}
+                    </p>
                     <span className="shrink-0 text-xs font-semibold uppercase text-slate-500">
                       {metric.status}
                     </span>
@@ -654,7 +812,9 @@ export default function RobotTeamEval() {
                   <p className="mt-1 text-lg font-semibold text-slate-950">
                     {metric.value}
                   </p>
-                  <p className="mt-1 text-xs leading-5 text-slate-500">{metric.detail}</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">
+                    {metric.detail}
+                  </p>
                 </div>
               ))}
             </div>
@@ -662,13 +822,22 @@ export default function RobotTeamEval() {
             <div className="mt-5">
               <div className="flex items-center gap-2">
                 <GitBranch className="h-4 w-4 text-slate-500" />
-                <p className="text-sm font-semibold text-slate-950">Decision options</p>
+                <p className="text-sm font-semibold text-slate-950">
+                  Decision options
+                </p>
               </div>
               <div className="mt-3 grid gap-2">
                 {robotEvalDecisionOptions.map((option) => (
-                  <div key={option.id} className="rounded-md border border-slate-200 bg-slate-50 p-3">
-                    <p className="text-sm font-semibold text-slate-950">{option.label}</p>
-                    <p className="mt-1 text-xs leading-5 text-slate-500">{option.criteria}</p>
+                  <div
+                    key={option.id}
+                    className="rounded-md border border-slate-200 bg-slate-50 p-3"
+                  >
+                    <p className="text-sm font-semibold text-slate-950">
+                      {option.label}
+                    </p>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">
+                      {option.criteria}
+                    </p>
                   </div>
                 ))}
               </div>
@@ -692,15 +861,18 @@ export default function RobotTeamEval() {
                     Choose the real-site package and task context
                   </h2>
                   <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-                    The submission is attached to a siteWorldId, taskId, scenarioId,
-                    startStateId, robotProfileId, and requested output list.
+                    The submission is attached to a siteWorldId, taskId,
+                    scenarioId, startStateId, robotProfileId, and requested
+                    output list.
                   </p>
                 </div>
                 <PackageCheck className="hidden h-10 w-10 text-slate-400 md:block" />
               </div>
               <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,0.7fr)_minmax(0,0.3fr)]">
                 <label className="block">
-                  <span className="mb-2 block text-sm font-semibold text-slate-800">Package</span>
+                  <span className="mb-2 block text-sm font-semibold text-slate-800">
+                    Package
+                  </span>
                   <select
                     value={selectedSite?.id || selectedSiteId}
                     onChange={(event) => setSelectedSiteId(event.target.value)}
@@ -714,97 +886,297 @@ export default function RobotTeamEval() {
                   </select>
                 </label>
                 <div className="rounded-md border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Selected robot</p>
-                  <p className="mt-2 text-sm font-semibold text-slate-950">{selectedRobot?.displayName || "Robot profile required"}</p>
-                  <p className="mt-1 text-xs leading-5 text-slate-500">{selectedRobot?.actionSpaceSummary || "Action space pending."}</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                    Selected robot
+                  </p>
+                  <p className="mt-2 text-sm font-semibold text-slate-950">
+                    {selectedRobot?.displayName || "Robot profile required"}
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">
+                    {selectedRobot?.actionSpaceSummary ||
+                      "Action space pending."}
+                  </p>
                 </div>
               </div>
             </section>
 
-            <section className="grid gap-4 xl:grid-cols-2">
-              {ROBOT_TEAM_TEST_SUBMISSION_MODALITY_DEFINITIONS.map((definition, index) => {
-                const Icon = iconByModality[definition.id];
-                const normalized = currentSubmission?.modalities[definition.id];
-                const selected = enabled[definition.id];
-                return (
-                  <article
-                    key={definition.id}
-                    className={`rounded-lg border bg-white p-5 shadow-sm transition ${
-                      selected ? "border-slate-950" : "border-black/10"
-                    }`}
+            <section className="rounded-lg border border-black/10 bg-white p-5 shadow-sm">
+              <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                    Run setup
+                  </p>
+                  <h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em]">
+                    Describe the policy, robot, sensors, and success contract
+                  </h2>
+                  <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                    These top-level fields travel with every modality so the
+                    handoff keeps policy labels, episode counts, schema refs,
+                    robot embodiment, camera setup, and task criteria separate
+                    from artifact-specific refs.
+                  </p>
+                </div>
+              </div>
+              <div className="mt-5 grid gap-4 lg:grid-cols-3">
+                <label className="block">
+                  <span className="mb-2 block text-sm font-semibold text-slate-800">
+                    Policy labels
+                  </span>
+                  <textarea
+                    aria-label="Policy labels"
+                    value={runSetup.policyLabels}
+                    onChange={(event) =>
+                      updateRunSetup("policyLabels", event.target.value)
+                    }
+                    rows={2}
+                    placeholder="primary-policy, baseline-policy, ablation-policy"
+                    className="w-full resize-y rounded-md border border-slate-300 bg-white px-3 py-2.5 text-sm leading-6 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-950"
+                  />
+                  <span className="mt-1.5 block text-xs leading-5 text-slate-500">
+                    Enter 1-3 non-empty labels separated by commas or new lines.
+                  </span>
+                </label>
+                <label className="block">
+                  <span className="mb-2 block text-sm font-semibold text-slate-800">
+                    Episode count
+                  </span>
+                  <select
+                    aria-label="Episode count"
+                    value={runSetup.episodeCount}
+                    onChange={(event) =>
+                      updateRunSetup(
+                        "episodeCount",
+                        event.target.value as RunSetupState["episodeCount"],
+                      )
+                    }
+                    className="w-full rounded-md border border-slate-300 bg-white px-3 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-950"
                   >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex min-w-0 items-start gap-3">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-slate-50">
-                          <Icon className="h-5 w-5 text-slate-700" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                            Modality {index + 1}
-                          </p>
-                          <h3 className="mt-1 text-lg font-semibold tracking-[-0.02em] text-slate-950">
-                            {definition.label}
-                          </h3>
-                          <p className="mt-2 text-sm leading-6 text-slate-600">{definition.summary}</p>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setEnabled((current) => ({
-                            ...current,
-                            [definition.id]: !current[definition.id],
-                          }))
-                        }
-                        className={`inline-flex min-h-10 shrink-0 items-center rounded-md border px-3 text-xs font-semibold uppercase tracking-[0.12em] ${
-                          selected
-                            ? "border-emerald-600 bg-emerald-50 text-emerald-800"
-                            : "border-slate-200 bg-white text-slate-500"
-                        }`}
-                      >
-                        {selected ? "Selected" : "Add"}
-                      </button>
-                    </div>
+                    <option value="100">100 episodes</option>
+                    <option value="500">500 episodes</option>
+                    <option value="custom">Custom</option>
+                  </select>
+                </label>
+                <label className="block">
+                  <span className="mb-2 block text-sm font-semibold text-slate-800">
+                    Custom episode count
+                  </span>
+                  <input
+                    aria-label="Custom episode count"
+                    value={runSetup.customEpisodeCount}
+                    onChange={(event) =>
+                      updateRunSetup("customEpisodeCount", event.target.value)
+                    }
+                    disabled={runSetup.episodeCount !== "custom"}
+                    placeholder="250"
+                    className="w-full rounded-md border border-slate-300 bg-white px-3 py-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-950 disabled:bg-slate-100 disabled:text-slate-400"
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-2 block text-sm font-semibold text-slate-800">
+                    Validation mode
+                  </span>
+                  <select
+                    aria-label="Validation mode"
+                    value={runSetup.validationMode}
+                    onChange={(event) =>
+                      updateRunSetup(
+                        "validationMode",
+                        event.target.value as RunSetupState["validationMode"],
+                      )
+                    }
+                    className="w-full rounded-md border border-slate-300 bg-white px-3 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-950"
+                  >
+                    <option value="virtual_preflight">Virtual preflight</option>
+                    <option value="comparative_policy_eval">
+                      Comparative policy eval
+                    </option>
+                    <option value="real_rollout_validated">
+                      Real rollout validated
+                    </option>
+                  </select>
+                </label>
+                {(
+                  [
+                    [
+                      "observationSchemaRef",
+                      "Observation schema ref",
+                      "gs://team-bucket/schemas/observation.v1.json",
+                    ],
+                    [
+                      "actionSchemaRef",
+                      "Action schema ref",
+                      "gs://team-bucket/schemas/action.v1.json",
+                    ],
+                    [
+                      "controlFrequency",
+                      "Control frequency",
+                      "20 Hz control loop",
+                    ],
+                    [
+                      "robotEmbodiment",
+                      "Robot embodiment",
+                      "Mobile manipulator with 7-DoF arm",
+                    ],
+                    ["gripper", "Gripper", "parallel jaw gripper"],
+                    [
+                      "cameraSetup",
+                      "Camera setup",
+                      "wrist RGB-D + mast stereo",
+                    ],
+                    [
+                      "intrinsicsExtrinsicsRef",
+                      "Intrinsics / extrinsics ref",
+                      "gs://team-bucket/calibration/cameras.json",
+                    ],
+                    [
+                      "sitePackageTarget",
+                      "Site package target",
+                      "Cold-storage pick aisle package",
+                    ],
+                    [
+                      "taskInstruction",
+                      "Task instruction",
+                      "Pick tote from shelf and place onto cart",
+                    ],
+                    [
+                      "startStateConstraints",
+                      "Start-state constraints",
+                      "Robot starts at aisle entry; tote visible",
+                    ],
+                    [
+                      "successCriteria",
+                      "Success criteria",
+                      "Tote placed on cart without safety event",
+                    ],
+                  ] as const
+                ).map(([key, label, placeholder]) => (
+                  <label key={key} className="block">
+                    <span className="mb-2 block text-sm font-semibold text-slate-800">
+                      {label}
+                    </span>
+                    <textarea
+                      aria-label={label}
+                      value={runSetup[key]}
+                      onChange={(event) =>
+                        updateRunSetup(key, event.target.value)
+                      }
+                      rows={2}
+                      placeholder={placeholder}
+                      className="w-full resize-y rounded-md border border-slate-300 bg-white px-3 py-2.5 text-sm leading-6 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-950"
+                    />
+                  </label>
+                ))}
+              </div>
+            </section>
 
-                    {selected ? (
-                      <div className="mt-5 grid gap-3">
-                        {definition.fields.map((field) => (
-                          <label key={field.key} className="block">
-                            <span className="mb-1.5 flex items-center justify-between gap-3 text-sm font-semibold text-slate-800">
-                              <span>{field.label}</span>
-                              {field.required ? <span className="text-xs text-slate-400">Required</span> : null}
-                            </span>
-                            <textarea
-                              aria-label={`${definition.label} ${field.label}`}
-                              value={fieldValues[definition.id][field.key] || ""}
-                              onChange={(event) => updateField(definition.id, field.key, event.target.value)}
-                              rows={field.key.toLowerCase().includes("sequence") ? 3 : 2}
-                              placeholder={field.placeholder}
-                              className="w-full resize-y rounded-md border border-slate-300 bg-white px-3 py-2.5 text-sm leading-6 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-950"
-                            />
-                            <span className="mt-1.5 block text-xs leading-5 text-slate-500">{field.helper}</span>
-                          </label>
-                        ))}
+            <section className="grid gap-4 xl:grid-cols-2">
+              {ROBOT_TEAM_TEST_SUBMISSION_MODALITY_DEFINITIONS.map(
+                (definition, index) => {
+                  const Icon = iconByModality[definition.id];
+                  const normalized =
+                    currentSubmission?.modalities[definition.id];
+                  const selected = enabled[definition.id];
+                  return (
+                    <article
+                      key={definition.id}
+                      className={`rounded-lg border bg-white p-5 shadow-sm transition ${
+                        selected ? "border-slate-950" : "border-black/10"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex min-w-0 items-start gap-3">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-slate-50">
+                            <Icon className="h-5 w-5 text-slate-700" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                              Modality {index + 1}
+                            </p>
+                            <h3 className="mt-1 text-lg font-semibold tracking-[-0.02em] text-slate-950">
+                              {definition.label}
+                            </h3>
+                            <p className="mt-2 text-sm leading-6 text-slate-600">
+                              {definition.summary}
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setEnabled((current) => ({
+                              ...current,
+                              [definition.id]: !current[definition.id],
+                            }))
+                          }
+                          className={`inline-flex min-h-10 shrink-0 items-center rounded-md border px-3 text-xs font-semibold uppercase tracking-[0.12em] ${
+                            selected
+                              ? "border-emerald-600 bg-emerald-50 text-emerald-800"
+                              : "border-slate-200 bg-white text-slate-500"
+                          }`}
+                        >
+                          {selected ? "Selected" : "Add"}
+                        </button>
                       </div>
-                    ) : (
-                      <p className="mt-5 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-500">
-                        Add this mode to show the required references.
-                      </p>
-                    )}
 
-                    <div className="mt-4 flex flex-wrap items-center gap-2 text-xs font-semibold">
-                      <span className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-slate-600">
-                        {normalized?.reviewStatus.replaceAll("_", " ") || "not selected"}
-                      </span>
-                      {normalized?.missingEvidenceStatus ? (
-                        <span className="rounded-md border border-amber-300 bg-amber-50 px-2.5 py-1 text-amber-800">
-                          {normalized.missingEvidenceStatus}
+                      {selected ? (
+                        <div className="mt-5 grid gap-3">
+                          {definition.fields.map((field) => (
+                            <label key={field.key} className="block">
+                              <span className="mb-1.5 flex items-center justify-between gap-3 text-sm font-semibold text-slate-800">
+                                <span>{field.label}</span>
+                                {field.required ? (
+                                  <span className="text-xs text-slate-400">
+                                    Required
+                                  </span>
+                                ) : null}
+                              </span>
+                              <textarea
+                                aria-label={`${definition.label} ${field.label}`}
+                                value={
+                                  fieldValues[definition.id][field.key] || ""
+                                }
+                                onChange={(event) =>
+                                  updateField(
+                                    definition.id,
+                                    field.key,
+                                    event.target.value,
+                                  )
+                                }
+                                rows={
+                                  field.key.toLowerCase().includes("sequence")
+                                    ? 3
+                                    : 2
+                                }
+                                placeholder={field.placeholder}
+                                className="w-full resize-y rounded-md border border-slate-300 bg-white px-3 py-2.5 text-sm leading-6 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-950"
+                              />
+                              <span className="mt-1.5 block text-xs leading-5 text-slate-500">
+                                {field.helper}
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="mt-5 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-500">
+                          Add this mode to show the required references.
+                        </p>
+                      )}
+
+                      <div className="mt-4 flex flex-wrap items-center gap-2 text-xs font-semibold">
+                        <span className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-slate-600">
+                          {normalized?.reviewStatus.replaceAll("_", " ") ||
+                            "not selected"}
                         </span>
-                      ) : null}
-                    </div>
-                  </article>
-                );
-              })}
+                        {normalized?.missingEvidenceStatus ? (
+                          <span className="rounded-md border border-amber-300 bg-amber-50 px-2.5 py-1 text-amber-800">
+                            {normalized.missingEvidenceStatus}
+                          </span>
+                        ) : null}
+                      </div>
+                    </article>
+                  );
+                },
+              )}
             </section>
           </div>
 
@@ -814,18 +1186,26 @@ export default function RobotTeamEval() {
                 <TerminalSquare className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-slate-950">Submission summary</p>
+                <p className="text-sm font-semibold text-slate-950">
+                  Submission summary
+                </p>
                 <p className="text-xs text-slate-500">Policy payload preview</p>
               </div>
             </div>
 
             <div className="mt-5 space-y-3 text-sm">
               <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">Site</p>
-                <p className="mt-1 break-words font-semibold text-slate-950">{selectedSite?.siteName}</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">
+                  Site
+                </p>
+                <p className="mt-1 break-words font-semibold text-slate-950">
+                  {selectedSite?.siteName}
+                </p>
               </div>
               <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">Task</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">
+                  Task
+                </p>
                 <p className="mt-1 break-words font-semibold text-slate-950">
                   {selectedEvalTask.label}
                 </p>
@@ -834,16 +1214,21 @@ export default function RobotTeamEval() {
                 </p>
               </div>
               <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">Scenario family</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">
+                  Scenario family
+                </p>
                 <p className="mt-1 break-words font-semibold text-slate-950">
                   {selectedEvalScenarioFamily.label}
                 </p>
                 <p className="mt-1 break-words text-xs font-semibold text-slate-500">
-                  {selectedEvalScenarioFamily.generatedScenarioCount} generated variants
+                  {selectedEvalScenarioFamily.generatedScenarioCount} generated
+                  variants
                 </p>
               </div>
               <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">Selected modalities</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">
+                  Selected modalities
+                </p>
                 <p className="mt-1 break-words font-semibold text-slate-950">
                   {currentSubmission?.selectedModalities.length
                     ? currentSubmission.selectedModalities.join(", ")
@@ -851,7 +1236,9 @@ export default function RobotTeamEval() {
                 </p>
               </div>
               <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">Missing evidence</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">
+                  Missing evidence
+                </p>
                 <p className="mt-1 break-words font-semibold text-slate-950">
                   {currentSubmission?.missingEvidenceStatuses.length
                     ? currentSubmission.missingEvidenceStatuses.join(", ")
@@ -868,7 +1255,11 @@ export default function RobotTeamEval() {
                     : "border-amber-300 bg-amber-50 text-amber-900"
                 }`}
               >
-                {status === "created" ? <CheckCircle2 className="mb-2 h-4 w-4" /> : <FileJson2 className="mb-2 h-4 w-4" />}
+                {status === "created" ? (
+                  <CheckCircle2 className="mb-2 h-4 w-4" />
+                ) : (
+                  <FileJson2 className="mb-2 h-4 w-4" />
+                )}
                 {statusMessage}
               </div>
             ) : null}
@@ -897,8 +1288,9 @@ export default function RobotTeamEval() {
               Submit intake request
             </a>
             <p className="mt-4 text-xs leading-5 text-slate-500">
-              Direct creation uses the existing hosted-session endpoint. Protected
-              packages still require robot-team access or entitlement proof.
+              Direct creation uses the existing hosted-session endpoint.
+              Protected packages still require robot-team access or entitlement
+              proof.
             </p>
           </aside>
         </form>

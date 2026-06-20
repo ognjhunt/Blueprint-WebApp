@@ -306,6 +306,7 @@ export function buildPolicyPackageFromRobotTeamSubmission(
     high_level_skill_trace: {},
     teleop_demo: {},
     sim_controller_plugin: {},
+    model_checkpoint: {},
   };
 
   if (submission.selectedModalities.includes("policy_api_endpoint")) {
@@ -369,6 +370,19 @@ export function buildPolicyPackageFromRobotTeamSubmission(
       task_scenario_mapping: fields.taskScenarioMapping,
       rights_privacy_attestation: fields.rightsPrivacyAttestation,
       labels: fields.labels,
+    });
+  }
+
+  if (submission.selectedModalities.includes("model_checkpoint")) {
+    const fields = fieldsFor(submission, "model_checkpoint");
+    policyPackage.model_checkpoint = compactRecord({
+      artifact_uri: fields.artifactUri,
+      digest_checksum: fields.digestChecksum,
+      framework_runtime: fields.frameworkRuntime,
+      model_card_policy_interface_notes: fields.modelCardPolicyInterfaceNotes,
+      observation_schema_ref: fields.observationSchemaRef,
+      action_schema_ref: fields.actionSchemaRef,
+      owner_contact: fields.ownerContact,
     });
   }
 
