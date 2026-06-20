@@ -60,8 +60,8 @@ export const CONTACT_REQUEST_PATH_OPTIONS: Array<{
 }> = [
   {
     value: "hosted-review",
-    label: "Task Evaluation Run",
-    description: "Share a policy API, container, action trace, or assisted review path for one site/task.",
+    label: "Policy Evaluation Run",
+    description: "Request 100 or 500 WAM-eval episodes for 1 site package, 1 task pack, 1 robot embodiment, and 1-3 policies/checkpoints.",
     cta: "Request evaluation",
     buyerType: "robot_team",
     commercialRequestPath: "hosted_evaluation",
@@ -461,7 +461,7 @@ function inferredTaskStatement(input: ContactRequestUrlInput, requestPath: Conta
   }
   if (workflow) return workflow;
   if (requestPath === "hosted-review" && primaryNeed) {
-    return `Request a Task Evaluation Run for ${primaryNeed}.`;
+    return `Request a Policy Evaluation Run for ${primaryNeed}.`;
   }
   if (requestPath === "new-capture" && primaryNeed) {
     return `Request an exact-site capture path for an eval-card dataset around ${primaryNeed}.`;
@@ -469,8 +469,8 @@ function inferredTaskStatement(input: ContactRequestUrlInput, requestPath: Conta
   if ((requestPath === "data-package" || requestPath === "world-model") && primaryNeed) {
     return `Request a Policy Improvement Run for ${primaryNeed}.`;
   }
-  if (primaryNeed) return `Request a Task Evaluation Run for ${primaryNeed}.`;
-  if (siteClass) return `Request a Task Evaluation Run for ${siteClass}.`;
+  if (primaryNeed) return `Request a Policy Evaluation Run for ${primaryNeed}.`;
+  if (siteClass) return `Request a Policy Evaluation Run for ${siteClass}.`;
   return "";
 }
 

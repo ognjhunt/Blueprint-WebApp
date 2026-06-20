@@ -4,7 +4,6 @@ import {
   ArrowRight,
   Building2,
   ClipboardCheck,
-  Database,
   Layers3,
   ShieldCheck,
 } from "lucide-react";
@@ -22,8 +21,11 @@ type PricingPlan = {
   cta: string;
 };
 
-const taskEvaluationHref =
-  "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-review&requestedOutputs=Task%20Evaluation%20Run&source=pricing-task-evaluation";
+const policyEvaluationHref =
+  "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=hosted-review&requestedOutputs=Policy%20Evaluation%20Run&episodeCount=500&source=pricing-policy-evaluation";
+
+const validatedEvaluationHref =
+  "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=validated-evaluation-pack&path=hosted-review&requestedOutputs=Validated%20Evaluation%20Pack&source=pricing-validated-evaluation";
 
 const policyImprovementHref =
   "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-improvement-run&path=policy-improvement-run&requestedOutputs=Policy%20Improvement%20Run&source=pricing-policy-improvement";
@@ -33,49 +35,42 @@ const siteOperatorHref = "/contact/site-operator?source=pricing-site-operator-fr
 const plans: PricingPlan[] = [
   {
     icon: ClipboardCheck,
-    name: "Task Evaluation Run",
+    name: "Policy Evaluation Run",
     range: "From $6,500 / run",
     description:
-      "Test one robot policy/profile against one real-site Task Pack.",
+      "Rank 1-3 policies/checkpoints before field time with 100 or 500 WAM-eval episodes.",
     unit:
-      "One Task Evaluation Run = 1 site × 1 robot policy/profile × 1 Task Pack × up to 500 scenarios.",
+      "One Policy Evaluation Run = 100 or 500 WAM-eval episodes × 1 site package × 1 task pack × 1 robot embodiment × 1-3 policies/checkpoints.",
     includes: [
-      "Scenario manifest",
-      "Start-state and variation set",
-      "Target threshold set",
-      "Pass/fail results",
-      "Cycle-time results",
-      "Intervention and failure notes",
-      "Selected rollout evidence",
-      "Exportable scenario/results manifest",
-      "Short findings summary",
+      "Predicted success",
+      "Policy ranking",
+      "Failure taxonomy",
+      "Per-scenario metrics",
+      "OOD/uncertainty flags",
+      "Generated rollout clips",
+      "Recommended real-world validation targets",
     ],
-    href: taskEvaluationHref,
-    cta: "Request Task Evaluation Run",
+    href: policyEvaluationHref,
+    cta: "Request Policy Evaluation Run",
   },
   {
-    icon: Database,
-    name: "Policy Improvement Run",
-    range: "From $35,000 / run",
+    icon: ShieldCheck,
+    name: "Validated Evaluation Pack",
+    range: "Scoped after evaluation",
     description:
-      "Improve a customer-supplied robot policy inside a sim-only workflow.",
+      "Pair WAM-eval results with real robot rollouts for the same validated robot/task/site envelope.",
+    unit:
+      "Includes paired real robot rollouts; quantitative validity claims apply only inside the validated envelope.",
     includes: [
-      "Baseline evaluation and dominant failure-mode diagnosis",
-      "Twin and cousin scenario generation",
-      "Curriculum construction for the target task",
-      "Post-training of an adapter, task head, distilled skill, or complete policy",
-      "Sealed scenario test for candidate versions",
-      "Improved artifact and evidence report",
+      "Paired real robot rollout evidence",
+      "Pearson/Spearman/SRCC or rank-fidelity",
+      "MAE and confidence bounds",
+      "Validity envelope",
+      "Failure-mode agreement",
+      "Validated-envelope-only reporting",
     ],
-    useCases: [
-      "sim-only policy lift",
-      "customer-supplied policy improvement",
-      "adapter or task-head post-training",
-      "failure recovery",
-      "pilot-threshold preparation",
-    ],
-    href: policyImprovementHref,
-    cta: "Request Policy Improvement",
+    href: validatedEvaluationHref,
+    cta: "Request Validated Pack",
   },
 ];
 
@@ -112,7 +107,7 @@ export default function Pricing() {
     <>
       <SEO
         title="Pricing | Blueprint"
-        description="Simple Blueprint pricing for robot teams: Task Evaluation Runs from $6,500 per run and Policy Improvement Runs from $35,000 per sim-only run. Site operators submit sites free."
+        description="Simple Blueprint pricing for robot teams: Policy Evaluation Runs with 100 or 500 WAM-eval episodes and Validated Evaluation Packs with paired real robot rollouts. Site operators submit sites free."
         canonical="/pricing"
         image={`https://tryblueprint.io${humanoidReadinessAssets.hostedDashboard}`}
       />
@@ -133,23 +128,21 @@ export default function Pricing() {
               Simple pricing for real-site robot evaluation.
             </h1>
             <p className="mt-6 max-w-2xl text-lg leading-8 text-white/78">
-              Blueprint sells two robot-team products: Task Evaluation Runs and
-              Policy Improvement Runs. Site operators can submit sites for
-              free.
+              Blueprint sells Policy Evaluation Runs first, then Validated Evaluation Packs when paired real robot rollouts are needed. Policy Improvement Runs are follow-on work after evaluation.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <a
-                href={taskEvaluationHref}
+                href={policyEvaluationHref}
                 className="inline-flex min-h-12 items-center justify-center gap-2 bg-[#d8bd8d] px-5 text-sm font-semibold text-[#111110] transition hover:bg-[#e8cfa1]"
               >
-                Request Task Evaluation Run
+                Request Policy Evaluation Run
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </a>
               <a
-                href={policyImprovementHref}
+                href={validatedEvaluationHref}
                 className="inline-flex min-h-12 items-center justify-center border border-white/30 px-5 text-sm font-semibold text-white transition hover:bg-white/10"
               >
-                Request Policy Improvement
+                Request Validated Pack
               </a>
             </div>
           </div>
@@ -237,17 +230,13 @@ export default function Pricing() {
             <div className="grid gap-6 lg:grid-cols-[0.36fr_0.64fr]">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-normal text-[#d8bd8d]">
-                  Full-stack robot teams
+                  After evaluation
                 </p>
                 <h2 className="mt-3 text-4xl font-semibold leading-tight">
-                  Source access is optional.
+                  Policy Improvement Run is follow-on work.
                 </h2>
                 <p className="mt-4 text-sm leading-7 text-white/72">
-                  Policy Improvement Runs work with customer-supplied policies
-                  through API, container, private runner, adapter, sim plugin,
-                  or action-trace workflows. Producing an improved artifact
-                  requires either a trainable interface or a customer-approved
-                  wrapper/adapter path.
+                  Move into improvement only after a Policy Evaluation Run identifies the failure modes, scenario clusters, and validation targets worth fixing. Customer-supplied policies can connect through API, container, private runner, adapter, sim plugin, or action-trace workflows; improved artifacts require a trainable interface or approved wrapper path.
                 </p>
               </div>
               <div className="grid gap-4 md:grid-cols-3">
@@ -274,8 +263,7 @@ export default function Pricing() {
               </h2>
               <p className="mt-4 text-sm leading-6 text-[#5f5a53]">
                 Scenario = one test attempt. Task Pack = the full set of
-                scenarios for that job. Task Evaluation Run = one policy tested
-                against one Task Pack.
+                scenarios for that job. Policy Evaluation Run = 1-3 policies/checkpoints tested against one Task Pack with 100 or 500 WAM-eval episodes.
               </p>
             </div>
             <div className="grid gap-4">
@@ -302,9 +290,7 @@ export default function Pricing() {
               <article className="border border-black/10 bg-white p-5">
                 <h3 className="text-xl font-semibold">Multi-task pricing</h3>
                 <p className="mt-3 text-sm leading-6 text-[#5f5a53]">
-                  Need the same policy tested across multiple Task Packs? Ask
-                  for a bundle. A common bundle is 3 Task Evaluation Runs on the
-                  same site and policy from $18,000.
+                  Need the same policy set tested across multiple Task Packs? Ask for a bundle. Validated Evaluation Packs add paired real robot rollouts and report fidelity only for the validated envelope.
                 </p>
               </article>
             </div>

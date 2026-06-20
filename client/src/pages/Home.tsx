@@ -100,7 +100,7 @@ const workflowSteps = [
 
 const pricingPlans = [
   {
-    name: "100 WAM-eval episodes",
+    name: "Policy Evaluation Run — 100 WAM-eval episodes",
     price: "From $6,500 / run",
     summary:
       "Policy Evaluation Run for 1 site package, 1 task pack, 1 robot embodiment, and 1-3 policies/checkpoints when you need fast pre-field ranking.",
@@ -108,12 +108,20 @@ const pricingPlans = [
     cta: "Request 100-episode run",
   },
   {
-    name: "500 WAM-eval episodes",
+    name: "Policy Evaluation Run — 500 WAM-eval episodes",
     price: "From $18,000 / run",
     summary:
       "Expanded Policy Evaluation Run with deeper failure discovery, per-scenario metrics, OOD/uncertainty flags, rollout clips, and validation target recommendations.",
     href: pricingHref,
     cta: "Request 500-episode run",
+  },
+  {
+    name: "Validated Evaluation Pack",
+    price: "Scoped after evaluation",
+    summary:
+      "Adds paired real robot rollouts and reports Pearson/Spearman/SRCC or rank-fidelity, MAE, confidence bounds, validity envelope, and failure-mode agreement only for the validated envelope.",
+    href: "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=validated-evaluation-pack&path=policy-evaluation-run&requestedOutputs=Validated%20Evaluation%20Pack&source=home-pricing-validated-evaluation",
+    cta: "Request validated pack",
   },
 ];
 
@@ -331,7 +339,7 @@ export default function Home() {
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </a>
             </div>
-            <div className="mt-8 grid gap-4 lg:grid-cols-2">
+            <div className="mt-8 grid gap-4 lg:grid-cols-3">
               {pricingPlans.map((plan) => (
                 <article
                   key={plan.name}
@@ -379,6 +387,42 @@ export default function Home() {
                 </a>
               </div>
             </div>
+          </div>
+        </section>
+
+
+        <section
+          id="after-evaluation"
+          className="border-y border-black/10 bg-white px-4 py-16 sm:px-6 lg:px-10"
+          data-home-section="after-evaluation"
+        >
+          <div className="mx-auto grid max-w-[88rem] gap-8 lg:grid-cols-[0.42fr_0.58fr]">
+            <SectionHeading
+              eyebrow="After evaluation"
+              title="Move to improvement only after the ranking identifies what to fix."
+              body="Policy Improvement Runs are follow-on work: use the Policy Evaluation Run to find the dominant failure modes, scenario clusters, and validation targets first, then scope sim-only curriculum, candidate improvement, sealed testing, and evidence reporting for a customer-supplied policy."
+            />
+            <article className="border border-black/10 bg-[#f8f4ec] p-6">
+              <p className="text-xs font-semibold uppercase tracking-normal text-[#8b6f42]">
+                Follow-on product
+              </p>
+              <h3 className="mt-4 text-3xl font-semibold text-[#111110]">
+                Policy Improvement Run
+              </h3>
+              <p className="mt-4 text-sm leading-7 text-[#5f5a53]">
+                Baseline evaluation, failure diagnosis, twin/cousin scenarios,
+                curriculum generation, sim-only post-training, sealed testing,
+                and an evidence report stay scoped to the evaluated site/task/robot
+                envelope and are not a deployment guarantee.
+              </p>
+              <a
+                href="/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-improvement-run&path=policy-improvement-run&requestedOutputs=Policy%20Improvement%20Run&source=home-after-evaluation-policy-improvement"
+                className="mt-6 inline-flex min-h-11 items-center justify-center gap-2 border border-black/15 bg-white px-4 text-sm font-semibold text-[#111110] transition hover:bg-[#f0e7d8]"
+              >
+                Scope follow-on improvement
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </a>
+            </article>
           </div>
         </section>
 
