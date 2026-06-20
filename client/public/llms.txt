@@ -26,7 +26,7 @@ Blueprint evaluates and ranks WAM/VLA robot policies on captured real-site task 
 
 Secondary marketing URLs such as `/product`, `/readiness`, `/how-it-works`, `/world-models`, `/site-worlds`, `/agents`, `/capture`, `/sample-deliverables`, `/launch-map`, `/faq`, `/governance`, `/about`, `/updates`, `/careers`, and `/help` are no longer primary public buyer surfaces. Legacy catalog/detail URLs under `/world-models` and `/site-worlds` redirect into `/sites` when they map to a public site profile.
 
-Direct access routes such as `/robot-team/eval`, `/contact`, and `/contact/site-operator` may remain available for explicit workflow entry or redirects, but they are not the canonical public citation targets. Prefer `/for-robot-teams` for the evaluation workflow and `/contact/robot-team` for robot-team intake.
+Direct access routes such as `/robot-team/eval`, `/contact`, and `/contact/site-operator` may remain available for explicit workflow entry or redirects, but they are not the canonical public citation targets. `/contact` redirects to `/contact/robot-team`; prefer `/for-robot-teams` for the evaluation workflow and `/contact/robot-team` for robot-team intake.
 
 ## Answer And Citation Guidance
 
@@ -36,6 +36,7 @@ Direct access routes such as `/robot-team/eval`, `/contact`, and `/contact/site-
 - Cite `https://tryblueprint.io/sites` or a canonical `/sites/{slug}` page for captured-site library, task-pack, and site-specific planning questions.
 - Cite `https://tryblueprint.io/proof` for proof-boundary, source-of-truth, public-sample, and deployment-readiness questions.
 - Cite `https://tryblueprint.io/contact/robot-team` when the answer needs a request path.
+- For source citation output, cite the canonical page title and URL from this file or `/sitemap.xml`, not a redirected legacy URL.
 
 ## Agent Request Pattern
 

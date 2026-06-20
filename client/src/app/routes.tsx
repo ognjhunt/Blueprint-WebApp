@@ -51,7 +51,7 @@ const ProofRedirect = () => <MarketingRedirect to="/proof" />;
 const SitesRedirect = () => <MarketingRedirect to="/sites" />;
 
 const ContactRedirect = () => (
-  <MarketingRedirect to="/contact?persona=robot-team&source=public-route-redirect" />
+  <MarketingRedirect to="/contact/robot-team?persona=robot-team&source=public-route-redirect" />
 );
 
 const LegacyCaptureJobsRedirect = () => (
@@ -68,7 +68,7 @@ const LegacyPilotExchangeGuideRedirect = () => (
 );
 
 const LegacyPartnersRedirect = () => (
-  <MarketingRedirect to="/contact" />
+  <MarketingRedirect to="/contact/robot-team" />
 );
 
 const LegacyEnvironmentsRedirect = () => (
@@ -115,7 +115,7 @@ const LegacyProofStoryRedirect = () => (
 );
 
 const LegacyBookExactSiteReviewRedirect = () => (
-  <MarketingRedirect to="/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=book-exact-site-review" />
+  <MarketingRedirect to="/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=book-exact-site-review" />
 );
 
 const LegacyBlogRedirect = () => (
@@ -189,7 +189,7 @@ export const appRoutes: AppRoute[] = [
   { path: "/sample-evaluation", layout: "public", component: LegacyProofStoryRedirect },
   { path: "/sample-deliverables", layout: "public", component: ProofRedirect },
   { path: "/case-studies", layout: "public", component: LegacyProofStoryRedirect },
-  { path: "/contact", layout: "public", component: Contact },
+  { path: "/contact", layout: "public", component: ContactRedirect },
   { path: "/contact/robot-team", layout: "public", component: Contact },
   { path: "/contact/site-operator", layout: "public", component: Contact },
   { path: "/help", layout: "public", component: ContactRedirect },

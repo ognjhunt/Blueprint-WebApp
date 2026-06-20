@@ -14,8 +14,20 @@ test('legacy environments route redirects to proof instead of the removed catalo
 
   await expect(page).toHaveURL(/\/proof$/);
   await expect(
-    page.getByRole('heading', { name: /See what supports the site data and policy runs\./i }),
+    page.getByRole('heading', { name: /See what supports evaluation and policy improvement runs\./i }),
   ).toBeVisible();
+});
+
+test('legacy contact route redirects to the canonical robot-team intake', async ({ request }) => {
+  const response = await request.get(
+    '/contact?persona=robot-team&source=server-redirect',
+    { maxRedirects: 0 },
+  );
+
+  expect(response.status()).toBe(301);
+  expect(response.headers().location).toBe(
+    '/contact/robot-team?persona=robot-team&source=server-redirect',
+  );
 });
 
 test('public routes work with trailing slashes', async ({ page }) => {
@@ -24,7 +36,7 @@ test('public routes work with trailing slashes', async ({ page }) => {
   await expect(page).toHaveURL(/\/proof\/?$/);
   await expect(
     page.getByRole('heading', {
-      name: /See what supports the site data and policy runs\./i,
+      name: /See what supports evaluation and policy improvement runs\./i,
     }),
   ).toBeVisible();
 });

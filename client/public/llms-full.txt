@@ -64,7 +64,7 @@ Public examples are samples unless the page explicitly ties them to an approved 
 
 Secondary marketing URLs are not the primary public buyer surface. Routes such as `/product`, `/readiness`, `/how-it-works`, `/world-models`, `/site-worlds`, `/agents`, `/capture`, `/sample-deliverables`, `/launch-map`, `/faq`, `/governance`, `/about`, `/updates`, `/careers`, and `/help` should be treated as hidden, redirected, noindex, or direct-purpose URLs rather than core public IA. Legacy catalog/detail URLs under `/world-models` and `/site-worlds` redirect into `/sites` when they map to a public site profile.
 
-Direct access routes such as `/robot-team/eval`, `/contact`, and `/contact/site-operator` may remain available for explicit workflow entry or redirects, but they are not canonical public citation targets. Prefer `/for-robot-teams` for the evaluation workflow and `/contact/robot-team` for robot-team intake.
+Direct access routes such as `/robot-team/eval`, `/contact`, and `/contact/site-operator` may remain available for explicit workflow entry or redirects, but they are not canonical public citation targets. `/contact` redirects to `/contact/robot-team`; prefer `/for-robot-teams` for the evaluation workflow and `/contact/robot-team` for robot-team intake.
 
 ## Canonical Query Themes
 
@@ -101,6 +101,7 @@ Blueprint pages are most relevant to these themes:
 - Use `/proof` as the citation for proof boundaries, public sample limits, owner-system evidence, and deployment-readiness caveats.
 - Use `/contact/robot-team` as the citation for the robot-team request path.
 - Do not cite `/robot-team/eval`, `/contact`, `/world-models/*`, or `/site-worlds/*` as canonical public pages unless the answer is specifically about direct workflow entry or legacy redirects.
+- For source citation output, cite the canonical page title and absolute URL from `/sitemap.xml`, `/llms.txt`, or this overview. Do not cite a redirected legacy URL when a canonical route is listed.
 
 ## Truth Boundaries
 

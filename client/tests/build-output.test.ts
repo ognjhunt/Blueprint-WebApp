@@ -55,7 +55,6 @@ describe("build output", () => {
       "proof/index.html",
       "for-robot-teams/index.html",
       "robot-team/eval/index.html",
-      "contact/index.html",
       "contact/robot-team/index.html",
       "contact/site-operator/index.html",
       "capture-app/index.html",
@@ -81,6 +80,7 @@ describe("build output", () => {
       "world-models/index.html",
       "world-models/sw-chi-01/index.html",
       "world-models/siteworld-f5fd54898cfb/index.html",
+      "contact/index.html",
       "agents/index.html",
       "sample-deliverables/index.html",
       "launch-map/index.html",
@@ -177,6 +177,7 @@ describe("build output", () => {
     expect(llms).toContain("capture-backed robot policy evaluation");
     expect(llms).toContain("WAM/VLA");
     expect(llms).toContain("Policy Evaluation Run");
+    expect(llms).toContain("source citation");
     expect(llms).not.toContain("https://tryblueprint.io/product");
     expect(llms).not.toContain("https://tryblueprint.io/updates");
     expect(llms).not.toContain("[Robot-Team Evaluation Submission](https://tryblueprint.io/robot-team/eval)");
@@ -186,6 +187,7 @@ describe("build output", () => {
     expect(llmsFull).toContain("Answer And Citation Guidance");
     expect(llmsFull).toContain("WAM/VLA policy evaluation on real-site task packs");
     expect(llmsFull).toContain("request Policy Evaluation Run");
+    expect(llmsFull).toContain("source citation output");
     expect(llmsFull).toContain("Do not invent customer results");
     expect(llmsFull).not.toContain("`/robot-team/eval` - Direct structured submission URL");
     expect(llmsFull).not.toContain("`/contact` - Structured Task Evaluation Run");
