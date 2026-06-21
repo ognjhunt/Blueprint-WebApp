@@ -190,7 +190,7 @@ describe("build output", () => {
     expect(llms).not.toContain("/contact?source=sites-library");
     expect(llmsFull).toContain("Secondary marketing URLs are not the primary public buyer surface");
     expect(llmsFull).toContain("Answer And Citation Guidance");
-    expect(llmsFull).toContain("WAM/VLA policy evaluation on real-site task packs");
+    expect(llmsFull).toContain("test and rank policies on captured real-site task packs");
     expect(llmsFull).toContain("request Policy Evaluation Run");
     expect(llmsFull).toContain("source citation output");
     expect(llmsFull).toContain("Do not invent customer results");
@@ -202,17 +202,17 @@ describe("build output", () => {
     const homeHtml = fs.readFileSync(distPath("index.html"), "utf8");
     const proofHtml = fs.readFileSync(distPath("proof/index.html"), "utf8");
 
-    expect(homeHtml).toContain("Evaluate robot policies before field time.");
-    expect(homeHtml).toContain("WAM/VLA policy evaluations");
-    expect(homeHtml).toContain("Precise boundaries.");
-    expect(homeHtml).toContain("Policy Improvement Run");
+    expect(homeHtml).toContain("Test robot policies before field time.");
+    expect(homeHtml).toContain("Use captured real-site tasks to see what works.");
+    expect(homeHtml).toContain("Same task. Same robot. Clear winner.");
+    expect(homeHtml).toContain("Pick winner");
     expect(homeHtml).toContain('rel="canonical" href="https://tryblueprint.io/"');
     expect(homeHtml).toContain('type="application/ld+json"');
-    expect(proofHtml).toContain("Inspect proof before access");
+    expect(proofHtml).toContain("Proof stays scoped");
     expect(proofHtml).toContain(
-      "Blueprint proof pages separate sample material, request-scoped artifacts, capture provenance, rights context, and operational fulfillment state.",
+      "Generated clips help review. Real-world validation requires the matched robot, task, and site envelope.",
     );
-    expect(proofHtml).toContain("Request a review");
+    expect(proofHtml).toContain("Start");
     expect(proofHtml).not.toContain("images.unsplash.com");
   });
 });

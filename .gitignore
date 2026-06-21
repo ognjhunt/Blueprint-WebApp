@@ -66,3 +66,5 @@ client/public/generated/*
 !client/public/generated/2026-05-13-brand-system/**
 !client/public/generated/humanoid-readiness-2026-06-03/
 !client/public/generated/humanoid-readiness-2026-06-03/**
+!client/public/generated/wam-policy-eval-2026-06-21/
+!client/public/generated/wam-policy-eval-2026-06-21/**

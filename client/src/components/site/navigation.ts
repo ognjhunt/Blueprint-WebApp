@@ -1,7 +1,8 @@
 export const primaryNavLinks = [
-  { href: "/for-robot-teams", label: "Robot teams" },
-  { href: "/sites", label: "Sites" },
+  { href: "/for-robot-teams", label: "Evaluate" },
   { href: "/pricing", label: "Pricing" },
+  { href: "/sites", label: "Sites" },
+  { href: "/proof", label: "Proof" },
 ];
 
 export const headerUtilityLinks = [

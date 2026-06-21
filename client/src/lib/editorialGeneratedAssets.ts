@@ -1,6 +1,13 @@
 const humanoidReadinessBase = "/generated/humanoid-readiness-2026-06-03";
 const robotMosaicHeroBase = "/editorial/2026-06-04";
 const robotTeamEvalBase = "/editorial/2026-06-06";
+const wamPolicyEvalBase = "/generated/wam-policy-eval-2026-06-21";
+
+export const wamPolicyEvalAssets = {
+  hero: `${wamPolicyEvalBase}/figure03-style-hero.png`,
+  siteTask: `${wamPolicyEvalBase}/figure03-style-site-task.png`,
+  rolloutStrip: `${wamPolicyEvalBase}/figure03-style-rollout-strip.png`,
+} as const;
 
 export const humanoidReadinessAssets = {
   warehouseHero: `${humanoidReadinessBase}/humanoid-warehouse-readiness-hero.png`,
@@ -18,6 +25,9 @@ export const robotMosaicHeroAssets = {
 } as const;
 
 export const editorialGeneratedAssets = {
+  wamPolicyEvalHero: wamPolicyEvalAssets.hero,
+  wamPolicyEvalSiteTask: wamPolicyEvalAssets.siteTask,
+  wamPolicyEvalRolloutStrip: wamPolicyEvalAssets.rolloutStrip,
   robotMosaicHero: robotMosaicHeroAssets.industrialScenarioMosaic,
   homeHero:
     "/generated/2026-05-13-brand-system/blueprint-hero-proof-room-gpt-image-2.png",

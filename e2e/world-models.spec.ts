@@ -5,7 +5,7 @@ test('world models catalog route redirects to the Sites library', async ({ page 
 
   await expect(page).toHaveURL(/\/sites$/);
   await expect(
-    page.getByRole('heading', { name: /Browse captured sites for robot evaluation\./i }),
+    page.getByRole('heading', { name: /Pick a captured place\./i }),
   ).toBeVisible();
 });
 
@@ -14,7 +14,7 @@ test('world-model detail route redirects to the matching site detail while hoste
 
   await expect(page).toHaveURL(/\/sites\/sw-chi-01$/);
   await expect(
-    page.getByRole('heading', { name: /Harborview Grocery Distribution Annex/i }),
+    page.getByText(/Harborview Grocery Distribution Annex/i).first(),
   ).toBeVisible();
 });
 

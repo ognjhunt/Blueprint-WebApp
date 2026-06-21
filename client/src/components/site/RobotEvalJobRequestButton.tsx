@@ -218,23 +218,23 @@ export function RobotEvalJobRequestPanel({
 
   return (
     <section
-      id="simulator-evaluation"
+      id="policy-run-request"
       className={`scroll-mt-28 border border-black/10 bg-[#f8f6f1] p-4 sm:p-5 ${className}`}
-      aria-labelledby="simulator-evaluation-title"
+      aria-labelledby="policy-run-request-title"
     >
       <div className="grid gap-4 lg:grid-cols-[0.42fr_0.58fr]">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-            Site/task simulator run
+            Site/task policy run
           </p>
           <h2
-            id="simulator-evaluation-title"
+            id="policy-run-request-title"
             className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-slate-950"
           >
-            Run simulator evaluation
+            Request policy run
           </h2>
           <p className="mt-3 text-sm leading-6 text-slate-600">
-            Submit a Unitree G1 MuJoCo simulator evaluation request for this captured site.
+            Submit a policy-evaluation request for this captured site.
             Blueprint queues the request here and forwards it to Pipeline for scheduling.
           </p>
 
@@ -242,9 +242,9 @@ export function RobotEvalJobRequestPanel({
             <div className="flex items-start gap-3 border border-black/10 bg-white p-3">
               <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-slate-950" />
               <div>
-                <p className="font-semibold text-slate-950">Scope: simulator only</p>
+                <p className="font-semibold text-slate-950">Scope: virtual evaluation</p>
                 <p className="mt-1 text-xs leading-5 text-slate-600">
-                  This request only builds and forwards the simulator evaluation packet for Pipeline execution.
+                  This request builds and forwards the evaluation packet for Pipeline execution.
                 </p>
               </div>
             </div>
@@ -253,7 +253,7 @@ export function RobotEvalJobRequestPanel({
               <div>
                 <p className="font-semibold text-slate-950">Worker: Blueprint selected</p>
                 <p className="mt-1 text-xs leading-5 text-slate-600">
-                  Blueprint chooses the fastest/cheapest available simulator worker for the request.
+                  Blueprint chooses the evaluation worker for the request.
                 </p>
               </div>
             </div>
@@ -297,7 +297,7 @@ export function RobotEvalJobRequestPanel({
                             checked ? "text-white/75" : "text-slate-600"
                           }`}
                         >
-                          {task.skillId} · simulator-only Unitree G1 MuJoCo pass
+                          {task.skillId} · virtual policy-evaluation pass
                         </span>
                       </span>
                     </label>
@@ -313,7 +313,7 @@ export function RobotEvalJobRequestPanel({
               className="inline-flex min-h-12 items-center justify-center bg-slate-950 px-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-55"
             >
               <PlayCircle className="mr-2 h-4 w-4" />
-              {status.kind === "submitting" ? "Submitting request" : "Run simulator evaluation"}
+              {status.kind === "submitting" ? "Submitting request" : "Request policy run"}
             </button>
 
             {status.kind === "error" ? (

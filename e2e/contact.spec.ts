@@ -28,13 +28,13 @@ const mockInboundSubmission = async (page: import('@playwright/test').Page) => {
 };
 
 test('contact page leads with a simple robot-team Policy Evaluation Run flow', async ({ page }) => {
-  await page.goto('/contact', { waitUntil: 'domcontentloaded' });
+  await page.goto('/contact/robot-team', { waitUntil: 'domcontentloaded' });
 
   await expect(
-    page.getByRole('heading', { name: /Request a Policy Evaluation Run\./i }),
+    page.getByRole('heading', { name: /Tell us what to test\./i }),
   ).toBeVisible();
-  await expect(page.locator('main').getByRole('link', { name: /Robot teams/i }).first()).toBeVisible();
-  await expect(page.locator('main').getByRole('link', { name: /Site operators/i }).first()).toBeVisible();
+  await expect(page.locator('main').getByRole('link', { name: /Robot team/i }).first()).toBeVisible();
+  await expect(page.locator('main').getByRole('link', { name: /Site owner/i }).first()).toBeVisible();
   await expect(page.getByRole('textbox', { name: /Robot \/ policy name/i })).toBeVisible();
   await expect(page.getByRole('textbox', { name: /Target site or site type/i })).toBeVisible();
   await expect(page.getByRole('textbox', { name: /Task \+ threshold/i })).toBeVisible();
@@ -46,9 +46,9 @@ test('site-operator contact path keeps the free access-boundary lane visible', a
   await page.goto('/contact/site-operator', { waitUntil: 'domcontentloaded' });
 
   await expect(
-    page.getByRole('heading', { name: /Submit a Site for Robot Evaluation\./i }),
+    page.getByRole('heading', { name: /Share a place to test robots\./i }),
   ).toBeVisible();
-  await expect(page.getByText(/Submitting a site is free/i)).toBeVisible();
+  await expect(page.getByText(/Submit a site for free\. You control access/i)).toBeVisible();
   await expect(page.getByRole('textbox', { name: /Facility name or site type/i })).toBeVisible();
   await expect(page.getByRole('textbox', { name: /City \/ location/i })).toBeVisible();
   await expect(page.getByText(/Ask before each robot-team use/i)).toBeVisible();
@@ -58,7 +58,7 @@ test('site-operator contact path keeps the free access-boundary lane visible', a
 test('robot-team contact form submits a Policy Evaluation Run payload through a mocked endpoint', async ({ page }) => {
   const submissions = await mockInboundSubmission(page);
 
-  await page.goto('/contact', { waitUntil: 'domcontentloaded' });
+  await page.goto('/contact/robot-team', { waitUntil: 'domcontentloaded' });
 
   await page.getByPlaceholder('First name*').fill('Ada');
   await page.getByPlaceholder('Company*').fill('Analytical Engines');
@@ -67,7 +67,7 @@ test('robot-team contact form submits a Policy Evaluation Run payload through a 
   await page.getByRole('textbox', { name: /Target site or site type/i }).fill('Warehouse in Chicago');
   await page
     .getByRole('textbox', { name: /Task \+ threshold/i })
-    .fill('Tote transfer. Need >=97% simulated success before pilot.');
+    .fill('Tote transfer. Need a clear winner before field time.');
   await page.getByRole('button', { name: /Add optional details/i }).click();
   await page.getByRole('textbox', { name: /Policy \/ checkpoint labels/i }).fill('policy_v1, policy_v2');
   await page.getByRole('combobox', { name: /Preferred policy access method/i }).selectOption('Policy API endpoint');
@@ -87,11 +87,11 @@ test('robot-team contact form submits a Policy Evaluation Run payload through a 
     requestedLanes: ['deeper_evaluation'],
     proofPathPreference: 'exact_site_required',
     siteName: 'Warehouse in Chicago',
-    taskStatement: 'Tote transfer. Need >=97% simulated success before pilot.',
+    taskStatement: 'Tote transfer. Need a clear winner before field time.',
     targetRobotTeam: 'Unitree G1 policy API',
     realSiteRobotEvalFit: {
       scenarioCardInput: {
-        normalScenario: '500 requested WAM-eval episodes',
+        normalScenario: '500 requested policy-evaluation episodes',
       },
       evalCardInput: {
         robotOrPolicyTested: 'Unitree G1 policy API',

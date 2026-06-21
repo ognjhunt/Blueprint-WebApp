@@ -9,24 +9,32 @@ describe("Home", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Evaluate robot policies before field time\./i,
+        name: /Test robot policies before field time\./i,
       }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/runs WAM\/VLA policy evaluations on captured real-site task packs/i),
+      screen.getByText(/Use captured real-site tasks to see what works/i),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Create evaluation run/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /^Start$/i })).toHaveAttribute(
       "href",
-      "/for-robot-teams",
+      expect.stringContaining("/contact/robot-team"),
     );
-    expect(screen.getByText(/100 \/ 500/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/1-3/i).length).toBeGreaterThan(0);
+    expect(screen.getByRole("link", { name: /See pricing/i })).toHaveAttribute(
+      "href",
+      "/pricing",
+    );
+    expect(screen.getByText(/Capture site/i)).toBeInTheDocument();
+    expect(screen.getByText(/Run policies/i)).toBeInTheDocument();
+    expect(screen.getByText(/Pick winner/i)).toBeInTheDocument();
+    expect(screen.getByText(/100 episodes/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/500 episodes/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/1-3 policies/i).length).toBeGreaterThan(0);
     expect(
-      screen.getAllByRole("heading", { name: /^Policy Evaluation Run$/i }).length,
-    ).toBeGreaterThan(0);
-    expect(screen.getByText(/Policy ranking, failures, OOD flags/i)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Precise boundaries\./i })).toBeInTheDocument();
-    expect(screen.getByText(/do not prove safety, deployment readiness, universal SRCC/i)).toBeInTheDocument();
+      screen.getByRole("heading", { name: /Same task\. Same robot\. Clear winner\./i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Generated clips help review results/i)).toBeInTheDocument();
+    expect(screen.getByText(/do not approve deployment, safety, or guaranteed real-world success/i)).toBeInTheDocument();
     expect(screen.queryByText(/Site Data Package/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/WAM\/VLA/i)).not.toBeInTheDocument();
   });
 });

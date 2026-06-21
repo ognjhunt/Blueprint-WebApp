@@ -46,22 +46,6 @@
   }
 }
 
-.brand-paper {
-  background-color: var(--brand-paper);
-}
-
-.brand-ink {
-  background-color: var(--brand-ink);
-}
-
-.brand-hairline {
-  border-color: color-mix(in srgb, var(--brand-ink) 12%, transparent);
-}
-
-.brand-focus-frame {
-  position: relative;
-}
-
 .brand-focus-frame::before,
 .brand-focus-frame::after {
   content: "";

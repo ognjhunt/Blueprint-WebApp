@@ -11,7 +11,7 @@ const definitions = [
   {
     term: "Exact-site world model",
     definition:
-      "A digital environment tied to one real indoor facility, public-facing place, or workflow. In the current public story it is the substrate for real-site Task Evaluation Runs, sim-only Policy Improvement Runs, and hosted review outputs, with capture provenance, rights, privacy, and scope limits kept attached.",
+      "A digital environment tied to one real indoor facility, public-facing place, or workflow. In the current public story it supports captured task packs, policy evaluation, generated review media, and advisory outputs while provenance, rights, privacy, and scope limits stay attached.",
   },
   {
     term: "Real-site robot eval dataset",
@@ -36,12 +36,12 @@ const definitions = [
   {
     term: "Real-site robot evaluation service",
     definition:
-      "Blueprint's service for ranking one robot policy or checkpoint against one capture-backed site, task scope, scenario set, threshold target, WAM/VLA evaluator backend, scenario/results manifest, and proof-boundary record before field time.",
+      "Blueprint's service for ranking robot policies or checkpoints against one capture-backed site, task scope, threshold target, evaluator backend, results manifest, and proof-boundary record before field time.",
   },
   {
     term: "Policy Evaluation Run",
     definition:
-      "A fixed-scope 100 or 500 episode evaluation run for one policy or checkpoint against a capture-backed real-site task pack, evaluator backend, metrics envelope, and scenario/results manifest. It ranks candidates for review and does not claim live provider execution, deployment readiness, or guaranteed outcomes.",
+      "A fixed-scope 100 or 500 episode evaluation run for 1-3 policies or checkpoints against one captured real-site task pack. It ranks candidates for review and does not claim deployment readiness, safety validation, or guaranteed outcomes.",
   },
   {
     term: "Validated Evaluation Pack",
@@ -100,13 +100,13 @@ const pages = [
     path: "/",
     title: "Home",
     description:
-      "The core public buyer story: capture-backed policy/checkpoint evaluation infrastructure that helps robot teams rank candidates before field time using real-site task packs, WAM/VLA evaluator backends, 100/500 episode Policy Evaluation Runs, and proof boundaries.",
+      "Blueprint helps robot teams test robot policies before field time using captured real-site task packs, 100/500 episode runs, and scoped proof boundaries.",
   },
   {
     path: "/for-robot-teams",
-    title: "Robot-Team Test Interface",
+    title: "Start a Policy Evaluation",
     description:
-      "Buyer-facing interface for selecting capture-backed real-site task packs and referencing policy API, Docker, recorded trace, skill trace, teleop demo, or sim-controller-plugin evidence for WAM/VLA-backed evaluation intake.",
+      "Simple four-step setup for choosing a site task, adding policies, naming the robot, choosing episodes, and attaching policy access details when available.",
   },
   {
     path: "/robot-team/eval",
@@ -118,25 +118,25 @@ const pages = [
     path: "/sites",
     title: "Sites",
     description:
-      "Blueprint Site Library for browsing captured-site profiles by site type, task pack, access status, and region before requesting a Policy Evaluation Run.",
+      "Captured places and task packs robot teams can use to request a Policy Evaluation Run.",
   },
   {
     path: "/proof",
     title: "Proof",
     description:
-      "Short proof explainer separating public samples, generated support signals, request packets, and owner-system proof.",
+      "Short proof explainer: website samples, request packets, and real robot validation stay separate.",
   },
   {
     path: "/pricing",
     title: "Pricing",
     description:
-      "Simple pricing for fixed-scope 100/500 episode Policy Evaluation Runs and Validated Evaluation Packs with paired real-world rollouts and envelope-scoped correlation metrics; site operators submit sites for free.",
+      "Pick a run: test policies, validate with robot rollouts, or improve after failure review.",
   },
   {
     path: "/contact",
-    title: "Request Policy Evaluation Or Validated Pack",
+    title: "Start a Request",
     description:
-      "Structured intake for Policy Evaluation Runs, Validated Evaluation Packs, new capture requests, free site-operator participation, robot tasks, thresholds, dynamic conditions, zones, rights/access, rollout evidence, and desired next step.",
+      "Short intake for robot teams to tell Blueprint what to test, or for site operators to share a place for review.",
   },
   {
     path: "/privacy",

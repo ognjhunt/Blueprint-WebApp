@@ -5,7 +5,7 @@ import { ArrowRight, CheckCircle2, Loader2 } from "lucide-react";
 import { SEO } from "@/components/SEO";
 import { siteWorldCards } from "@/data/siteWorlds";
 import { withCsrfHeader } from "@/lib/csrf";
-import { humanoidReadinessAssets } from "@/lib/editorialGeneratedAssets";
+import { wamPolicyEvalAssets } from "@/lib/editorialGeneratedAssets";
 import {
   buildRobotTeamSubmissionInput,
   normalizeRobotTeamTestSubmission,
@@ -23,16 +23,30 @@ type FieldState = Record<
 >;
 
 const accessModes = ROBOT_TEAM_TEST_SUBMISSION_MODALITY_DEFINITIONS.filter(
-  (definition) =>
-    ["policy_api_endpoint", "docker_container", "model_checkpoint"].includes(
-      definition.id,
-    ),
+  (definition) => Boolean(definition.id),
 );
+
+const shortAccessLabels: Record<RobotTeamTestSubmissionModalityId, string> = {
+  policy_api_endpoint: "API",
+  docker_container: "Docker",
+  model_checkpoint: "Checkpoint",
+  recorded_action_trace: "Trace",
+  high_level_skill_trace: "Skill trace",
+  teleop_demo: "Teleop",
+  sim_controller_plugin: "Sim plugin",
+};
 
 const sitePackages = [
   { id: "siteworld-f5fd54898cfb", label: "Warehouse tote transfer" },
   { id: siteWorldCards[1]?.id || "retail-backroom", label: "Retail backroom pick" },
   { id: siteWorldCards[2]?.id || "lab-bench", label: "Lab bench handoff" },
+];
+
+const steps = [
+  ["1", "Pick task"],
+  ["2", "Add policies"],
+  ["3", "Tell us robot"],
+  ["4", "Choose episodes"],
 ];
 
 function createSubmissionId() {
@@ -154,8 +168,13 @@ export default function RobotTeamEval() {
   const [actionSchemaRef, setActionSchemaRef] = useState("");
   const [controlFrequency, setControlFrequency] = useState("");
   const [robotEmbodiment, setRobotEmbodiment] = useState("");
+  const [gripper, setGripper] = useState("");
+  const [cameraSetup, setCameraSetup] = useState("");
+  const [intrinsicsExtrinsicsRef, setIntrinsicsExtrinsicsRef] = useState("");
   const [taskInstruction, setTaskInstruction] = useState("");
+  const [startStateConstraints, setStartStateConstraints] = useState("");
   const [successCriteria, setSuccessCriteria] = useState("");
+  const [customEpisodeCount, setCustomEpisodeCount] = useState("");
   const [accessMode, setAccessMode] =
     useState<RobotTeamTestSubmissionModalityId>("policy_api_endpoint");
   const [fieldValues, setFieldValues] = useState<FieldState>(() =>
@@ -187,17 +206,18 @@ export default function RobotTeamEval() {
         robotProfileId: robot.id || "",
         policyLabels: splitLabels(policyLabels),
         episodeCount,
+        customEpisodeCount,
         validationMode,
         observationSchemaRef,
         actionSchemaRef,
         controlFrequency,
         robotEmbodiment,
-        gripper: "",
-        cameraSetup: "",
-        intrinsicsExtrinsicsRef: "",
+        gripper,
+        cameraSetup,
+        intrinsicsExtrinsicsRef,
         sitePackageTarget: site.siteName,
         taskInstruction,
-        startStateConstraints: "",
+        startStateConstraints,
         successCriteria,
         modalities: Object.fromEntries(
           ROBOT_TEAM_TEST_SUBMISSION_MODALITY_DEFINITIONS.map((definition) => [
@@ -213,15 +233,20 @@ export default function RobotTeamEval() {
   }, [
     accessMode,
     actionSchemaRef,
+    cameraSetup,
     controlFrequency,
+    customEpisodeCount,
     episodeCount,
     fieldValues,
+    gripper,
+    intrinsicsExtrinsicsRef,
     observationSchemaRef,
     policyLabels,
     robot,
     robotEmbodiment,
     scenario,
     site,
+    startStateConstraints,
     successCriteria,
     task,
     taskInstruction,
@@ -258,17 +283,18 @@ export default function RobotTeamEval() {
         robotProfileId: robot.id || "",
         policyLabels: splitLabels(policyLabels),
         episodeCount,
+        customEpisodeCount,
         validationMode,
         observationSchemaRef,
         actionSchemaRef,
         controlFrequency,
         robotEmbodiment,
-        gripper: "",
-        cameraSetup: "",
-        intrinsicsExtrinsicsRef: "",
+        gripper,
+        cameraSetup,
+        intrinsicsExtrinsicsRef,
         sitePackageTarget: site.siteName,
         taskInstruction,
-        startStateConstraints: "",
+        startStateConstraints,
         successCriteria,
         modalities: Object.fromEntries(
           ROBOT_TEAM_TEST_SUBMISSION_MODALITY_DEFINITIONS.map((definition) => [
@@ -367,7 +393,7 @@ export default function RobotTeamEval() {
         title="Policy Evaluation Run for Robot Teams | Blueprint"
         description="Create a capture-backed WAM/VLA Policy Evaluation Run with a policy API, container, or model checkpoint."
         canonical="/for-robot-teams"
-        image={`https://tryblueprint.io${humanoidReadinessAssets.robotTeamEvalWorkflow}`}
+        image={`https://tryblueprint.io${wamPolicyEvalAssets.siteTask}`}
         jsonLd={{
           "@context": "https://schema.org",
           "@type": "WebPage",
@@ -380,78 +406,63 @@ export default function RobotTeamEval() {
 
       <main className="bg-white text-slate-950">
         <section className="border-b border-slate-200">
-          <div className="mx-auto grid max-w-7xl gap-10 px-5 py-14 md:grid-cols-[1fr_0.9fr] md:items-center md:px-8">
+          <div className="mx-auto grid max-w-[88rem] gap-10 px-5 py-12 md:grid-cols-[0.78fr_1.22fr] md:items-center md:px-8 md:py-16">
             <div>
-              <p className="text-sm font-semibold text-amber-700">
-                Robot teams
-              </p>
-              <h1 className="mt-4 max-w-3xl text-5xl font-semibold leading-tight tracking-normal md:text-6xl">
-                Evaluate robot policies before field time.
+              <h1 className="max-w-[11ch] text-5xl font-semibold leading-[0.95] tracking-normal sm:text-6xl">
+                Start an evaluation.
               </h1>
-              <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-600">
-                Connect a policy API, container, or model checkpoint. Blueprint
-                runs it against a captured site task pack and returns ranking,
-                failures, and validation targets.
+              <p className="mt-5 max-w-md text-lg leading-8 text-slate-600">
+                We rank your policies on the same captured tasks.
               </p>
+              <a
+                href="#robot-team-submission"
+                className="mt-8 inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 text-sm font-semibold text-white hover:bg-blue-700"
+              >
+                Start
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </a>
             </div>
             <img
-              src={humanoidReadinessAssets.robotTeamEvalWorkflow}
-              alt="Humanoid robot in a warehouse evaluation bay"
-              className="aspect-[4/3] w-full border border-slate-200 object-cover"
+              src={wamPolicyEvalAssets.siteTask}
+              alt="Realistic humanoid robot loading a dishwasher in a captured site task"
+              className="aspect-[16/9] w-full rounded-lg border border-slate-200 object-cover"
             />
           </div>
         </section>
 
         <section className="border-b border-slate-200 bg-slate-50">
-          <div className="mx-auto grid max-w-7xl gap-4 px-5 py-8 md:grid-cols-3 md:px-8">
-            {["Capture-backed task pack", "100 / 500 WAM-eval episodes", "Rank 1-3 policies"].map(
-              (item) => (
-                <div key={item} className="border border-slate-200 bg-white p-4">
-                  <CheckCircle2
-                    className="h-5 w-5 text-emerald-600"
-                    aria-hidden="true"
-                  />
-                  <p className="mt-3 text-sm font-semibold">{item}</p>
-                </div>
-              ),
-            )}
+          <div className="mx-auto grid max-w-[88rem] gap-3 px-5 py-6 sm:grid-cols-4 md:px-8">
+            {steps.map(([number, label]) => (
+              <div key={label} className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white p-4">
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-sm font-semibold text-white">
+                  {number}
+                </span>
+                <span className="text-sm font-semibold">{label}</span>
+              </div>
+            ))}
           </div>
         </section>
 
         <section
           id="robot-team-submission"
-          className="mx-auto grid max-w-7xl gap-8 px-5 py-12 md:grid-cols-[0.9fr_0.55fr] md:px-8"
+          className="mx-auto grid max-w-[88rem] gap-8 px-5 py-10 md:grid-cols-[minmax(0,0.72fr)_minmax(20rem,0.28fr)] md:px-8"
         >
           <form
-            className="border border-slate-200 p-5 md:p-6"
+            className="rounded-lg border border-slate-200 bg-white p-5 md:p-6"
             onSubmit={createHostedSession}
           >
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <h2 className="text-3xl font-semibold">Evaluation setup</h2>
-                <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Keep it simple. Pick the pack, policy access method, and
-                  episode count.
-                </p>
-              </div>
-              <a
-                href={intakeHref({
-                  submission: lastSubmission || submissionPreview,
-                  selectedMode: accessMode,
-                })}
-                className="inline-flex min-h-10 items-center justify-center border border-slate-300 px-3 text-sm font-semibold text-slate-950 hover:bg-slate-50"
-              >
-                Submit intake request
-              </a>
-            </div>
+            <h2 className="text-3xl font-semibold">Four steps.</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              Add the minimum now. Attach technical details if you have them.
+            </p>
 
             <div className="mt-6 grid gap-4 md:grid-cols-2">
               <label className="grid gap-2 text-sm font-semibold">
-                Site package
+                1 Pick a site/task
                 <select
                   value={siteWorldId}
                   onChange={(event) => setSiteWorldId(event.target.value)}
-                  className="min-h-11 border border-slate-300 bg-white px-3 text-sm font-normal"
+                  className="min-h-12 rounded-lg border border-slate-300 bg-white px-3 text-sm font-normal"
                 >
                   {sitePackages.map((option) => (
                     <option key={option.id} value={option.id}>
@@ -462,17 +473,27 @@ export default function RobotTeamEval() {
               </label>
 
               <label className="grid gap-2 text-sm font-semibold">
-                Policy / checkpoint labels
+                2 Add policies
                 <input
                   value={policyLabels}
                   onChange={(event) => setPolicyLabels(event.target.value)}
-                  className="min-h-11 border border-slate-300 px-3 text-sm font-normal"
-                  placeholder="policy_v1, policy_v2"
+                  className="min-h-12 rounded-lg border border-slate-300 px-3 text-sm font-normal"
+                  placeholder="Policy A, Policy B"
                 />
               </label>
 
               <label className="grid gap-2 text-sm font-semibold">
-                Episode count
+                3 Tell us the robot
+                <input
+                  value={robotEmbodiment}
+                  onChange={(event) => setRobotEmbodiment(event.target.value)}
+                  className="min-h-12 rounded-lg border border-slate-300 px-3 text-sm font-normal"
+                  placeholder="Figure 03 humanoid"
+                />
+              </label>
+
+              <label className="grid gap-2 text-sm font-semibold">
+                4 Choose episodes
                 <select
                   value={episodeCount}
                   onChange={(event) =>
@@ -480,106 +501,25 @@ export default function RobotTeamEval() {
                       event.target.value as RobotTeamTestSubmissionEpisodeCount,
                     )
                   }
-                  className="min-h-11 border border-slate-300 bg-white px-3 text-sm font-normal"
+                  className="min-h-12 rounded-lg border border-slate-300 bg-white px-3 text-sm font-normal"
                 >
-                  <option value="100">100</option>
-                  <option value="500">500</option>
+                  <option value="100">100 episodes</option>
+                  <option value="500">500 episodes</option>
                   <option value="custom">Custom</option>
                 </select>
               </label>
-
-              <label className="grid gap-2 text-sm font-semibold">
-                Validation mode
-                <select
-                  value={validationMode}
-                  onChange={(event) =>
-                    setValidationMode(
-                      event.target.value as RobotTeamTestSubmissionValidationMode,
-                    )
-                  }
-                  className="min-h-11 border border-slate-300 bg-white px-3 text-sm font-normal"
-                >
-                  <option value="comparative_policy_eval">
-                    Comparative policy eval
-                  </option>
-                  <option value="virtual_preflight">Virtual preflight</option>
-                  <option value="real_rollout_validated">
-                    Real rollout validated
-                  </option>
-                </select>
-              </label>
-
-              <label className="grid gap-2 text-sm font-semibold">
-                Observation schema ref
-                <input
-                  value={observationSchemaRef}
-                  onChange={(event) => setObservationSchemaRef(event.target.value)}
-                  className="min-h-11 border border-slate-300 px-3 text-sm font-normal"
-                  placeholder="gs://team/schemas/observation.json"
-                />
-              </label>
-
-              <label className="grid gap-2 text-sm font-semibold">
-                Action schema ref
-                <input
-                  value={actionSchemaRef}
-                  onChange={(event) => setActionSchemaRef(event.target.value)}
-                  className="min-h-11 border border-slate-300 px-3 text-sm font-normal"
-                  placeholder="gs://team/schemas/action.json"
-                />
-              </label>
-
-              <label className="grid gap-2 text-sm font-semibold">
-                Control frequency
-                <input
-                  value={controlFrequency}
-                  onChange={(event) => setControlFrequency(event.target.value)}
-                  className="min-h-11 border border-slate-300 px-3 text-sm font-normal"
-                  placeholder="20 Hz"
-                />
-              </label>
-
-              <label className="grid gap-2 text-sm font-semibold">
-                Robot embodiment
-                <input
-                  value={robotEmbodiment}
-                  onChange={(event) => setRobotEmbodiment(event.target.value)}
-                  className="min-h-11 border border-slate-300 px-3 text-sm font-normal"
-                  placeholder="mobile manipulator"
-                />
-              </label>
-
-              <label className="grid gap-2 text-sm font-semibold md:col-span-2">
-                Task instruction
-                <input
-                  value={taskInstruction}
-                  onChange={(event) => setTaskInstruction(event.target.value)}
-                  className="min-h-11 border border-slate-300 px-3 text-sm font-normal"
-                  placeholder="pick tote from shelf"
-                />
-              </label>
-
-              <label className="grid gap-2 text-sm font-semibold md:col-span-2">
-                Success criteria
-                <input
-                  value={successCriteria}
-                  onChange={(event) => setSuccessCriteria(event.target.value)}
-                  className="min-h-11 border border-slate-300 px-3 text-sm font-normal"
-                  placeholder="tote placed without safety event"
-                />
-              </label>
             </div>
 
-            <div className="mt-8">
-              <h3 className="text-xl font-semibold">Policy access</h3>
-              <div className="mt-3 grid gap-3 md:grid-cols-3">
+            <div className="mt-6">
+              <h3 className="text-sm font-semibold">Policy access</h3>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                 {accessModes.map((mode) => (
                   <label
                     key={mode.id}
-                    className={`cursor-pointer border p-4 ${
+                    className={`cursor-pointer rounded-lg border px-3 py-3 text-sm font-semibold ${
                       accessMode === mode.id
-                        ? "border-slate-950 bg-slate-950 text-white"
-                        : "border-slate-200 bg-white text-slate-950"
+                        ? "border-blue-600 bg-blue-600 text-white"
+                        : "border-slate-200 bg-white text-slate-950 hover:bg-slate-50"
                     }`}
                   >
                     <input
@@ -590,34 +530,166 @@ export default function RobotTeamEval() {
                       onChange={() => setAccessMode(mode.id)}
                       className="sr-only"
                     />
-                    <span className="text-sm font-semibold">{mode.label}</span>
-                    <span className="mt-2 block text-xs leading-5 opacity-75">
-                      {mode.summary}
-                    </span>
+                    {shortAccessLabels[mode.id]}
                   </label>
                 ))}
               </div>
             </div>
 
-            <div className="mt-6 grid gap-4 md:grid-cols-2">
-              {selectedAccessMode.fields.map((field) => (
-                <label key={field.key} className="grid gap-2 text-sm font-semibold">
-                  {selectedAccessMode.label} {field.label}
-                  <input
-                    value={fieldValues[accessMode][field.key] || ""}
+            <details className="mt-6 rounded-lg border border-slate-200 bg-slate-50 p-4">
+              <summary className="cursor-pointer text-sm font-semibold text-slate-950">
+                Advanced details
+              </summary>
+              <div className="mt-5 grid gap-4 md:grid-cols-2">
+                {episodeCount === "custom" ? (
+                  <label className="grid gap-2 text-sm font-semibold">
+                    Custom episode count
+                    <input
+                      value={customEpisodeCount}
+                      onChange={(event) => setCustomEpisodeCount(event.target.value)}
+                      className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm font-normal"
+                      placeholder="750"
+                    />
+                  </label>
+                ) : null}
+
+                <label className="grid gap-2 text-sm font-semibold">
+                  Validation mode
+                  <select
+                    value={validationMode}
                     onChange={(event) =>
-                      updateAccessField(field.key, event.target.value)
+                      setValidationMode(
+                        event.target.value as RobotTeamTestSubmissionValidationMode,
+                      )
                     }
-                    className="min-h-11 border border-slate-300 px-3 text-sm font-normal"
-                    placeholder={field.placeholder}
+                    className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-normal"
+                  >
+                    <option value="comparative_policy_eval">
+                      Comparative policy eval
+                    </option>
+                    <option value="virtual_preflight">Virtual preflight</option>
+                    <option value="real_rollout_validated">
+                      Real-rollout validated
+                    </option>
+                  </select>
+                </label>
+
+                <label className="grid gap-2 text-sm font-semibold">
+                  Observation schema
+                  <input
+                    value={observationSchemaRef}
+                    onChange={(event) => setObservationSchemaRef(event.target.value)}
+                    className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm font-normal"
+                    placeholder="gs://team/schemas/observation.json"
                   />
                 </label>
-              ))}
-            </div>
+
+                <label className="grid gap-2 text-sm font-semibold">
+                  Action schema
+                  <input
+                    value={actionSchemaRef}
+                    onChange={(event) => setActionSchemaRef(event.target.value)}
+                    className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm font-normal"
+                    placeholder="gs://team/schemas/action.json"
+                  />
+                </label>
+
+                <label className="grid gap-2 text-sm font-semibold">
+                  Control frequency
+                  <input
+                    value={controlFrequency}
+                    onChange={(event) => setControlFrequency(event.target.value)}
+                    className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm font-normal"
+                    placeholder="20 Hz"
+                  />
+                </label>
+
+                <label className="grid gap-2 text-sm font-semibold">
+                  Gripper / EOAT
+                  <input
+                    value={gripper}
+                    onChange={(event) => setGripper(event.target.value)}
+                    className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm font-normal"
+                    placeholder="two-finger gripper"
+                  />
+                </label>
+
+                <label className="grid gap-2 text-sm font-semibold">
+                  Cameras
+                  <input
+                    value={cameraSetup}
+                    onChange={(event) => setCameraSetup(event.target.value)}
+                    className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm font-normal"
+                    placeholder="front RGB-D, wrist camera"
+                  />
+                </label>
+
+                <label className="grid gap-2 text-sm font-semibold">
+                  Intrinsics / extrinsics
+                  <input
+                    value={intrinsicsExtrinsicsRef}
+                    onChange={(event) => setIntrinsicsExtrinsicsRef(event.target.value)}
+                    className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm font-normal"
+                    placeholder="gs://team/calibration/cameras.yaml"
+                  />
+                </label>
+
+                <label className="grid gap-2 text-sm font-semibold">
+                  Task instruction
+                  <input
+                    value={taskInstruction}
+                    onChange={(event) => setTaskInstruction(event.target.value)}
+                    className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm font-normal"
+                    placeholder="pick tote from shelf"
+                  />
+                </label>
+
+                <label className="grid gap-2 text-sm font-semibold">
+                  Start-state constraints
+                  <input
+                    value={startStateConstraints}
+                    onChange={(event) => setStartStateConstraints(event.target.value)}
+                    className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm font-normal"
+                    placeholder="tote starts on lower shelf"
+                  />
+                </label>
+
+                <label className="grid gap-2 text-sm font-semibold md:col-span-2">
+                  Success criteria
+                  <input
+                    value={successCriteria}
+                    onChange={(event) => setSuccessCriteria(event.target.value)}
+                    className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm font-normal"
+                    placeholder="object placed in target zone; no collision; timeout under 120s"
+                  />
+                </label>
+
+                <div className="md:col-span-2">
+                  <h4 className="text-sm font-semibold">
+                    {selectedAccessMode.label} details
+                  </h4>
+                  <div className="mt-3 grid gap-4 md:grid-cols-2">
+                    {selectedAccessMode.fields.map((field) => (
+                      <label key={field.key} className="grid gap-2 text-sm font-semibold">
+                        {selectedAccessMode.label} {field.label}
+                        <input
+                          value={fieldValues[accessMode][field.key] || ""}
+                          onChange={(event) =>
+                            updateAccessField(field.key, event.target.value)
+                          }
+                          className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm font-normal"
+                          placeholder={field.placeholder}
+                        />
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </details>
 
             {statusMessage ? (
               <div
-                className="mt-5 border border-amber-300 bg-amber-50 p-4 text-sm font-semibold text-amber-900"
+                className="mt-5 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm font-semibold text-amber-900"
                 role="status"
               >
                 {statusMessage}
@@ -628,36 +700,33 @@ export default function RobotTeamEval() {
               <button
                 type="submit"
                 disabled={status === "submitting"}
-                className="inline-flex min-h-12 items-center justify-center gap-2 bg-slate-950 px-5 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {status === "submitting" ? (
                   <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
                 ) : null}
-                Create hosted session
+                Send request
               </button>
               <a
                 href={intakeHref({
                   submission: lastSubmission || submissionPreview,
                   selectedMode: accessMode,
                 })}
-                className="inline-flex min-h-12 items-center justify-center gap-2 border border-slate-300 px-5 text-sm font-semibold text-slate-950 hover:bg-slate-50"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg border border-slate-300 px-5 text-sm font-semibold text-slate-950 hover:bg-slate-50"
               >
-                Submit intake request
+                Contact instead
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </a>
             </div>
           </form>
 
           <aside className="space-y-4">
-            <div className="border border-slate-200 bg-slate-50 p-5">
-              <h2 className="text-2xl font-semibold">Run summary</h2>
-              <dl className="mt-4 space-y-3 text-sm">
-                <div className="flex justify-between gap-4">
-                  <dt className="text-slate-500">Site</dt>
-                  <dd className="text-right font-semibold">
-                    {site?.siteName || "Selected package"}
-                  </dd>
-                </div>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-5">
+              <h2 className="text-2xl font-semibold">Preview</h2>
+              <p className="mt-3 text-sm leading-6 text-slate-600">
+                Same task. Same robot. Same episode count.
+              </p>
+              <dl className="mt-5 space-y-3 text-sm">
                 <div className="flex justify-between gap-4">
                   <dt className="text-slate-500">Task</dt>
                   <dd className="text-right font-semibold">
@@ -668,24 +737,23 @@ export default function RobotTeamEval() {
                   <dt className="text-slate-500">Policies</dt>
                   <dd className="text-right font-semibold">
                     {submissionPreview?.policyLabels.join(", ") ||
-                      "primary-policy"}
+                      "Policy A"}
                   </dd>
                 </div>
                 <div className="flex justify-between gap-4">
-                  <dt className="text-slate-500">Mode</dt>
+                  <dt className="text-slate-500">Episodes</dt>
                   <dd className="text-right font-semibold">
-                    {validationMode.replaceAll("_", " ")}
+                    {episodeCount === "custom" ? customEpisodeCount || "Custom" : episodeCount}
                   </dd>
                 </div>
               </dl>
             </div>
 
-            <div className="border border-slate-200 p-5">
+            <div className="rounded-lg border border-slate-200 p-5">
               <h2 className="text-2xl font-semibold">Boundary</h2>
               <p className="mt-3 text-sm leading-7 text-slate-600">
-                Virtual WAM/VLA outputs rank policies; they do not prove safety
-                validation, deployment approval, universal SRCC, or real-world
-                success.
+                Results guide what to test next. They do not approve deployment
+                or safety.
               </p>
             </div>
           </aside>

@@ -167,9 +167,9 @@ function successCopy(commercialRequestPath: CommercialRequestPath) {
     return {
       title: "Policy Improvement Run request received",
       body:
-        "Blueprint has the site, task, robot, policy, threshold, and access context needed to recommend a sim-only improvement scope and proof boundary.",
+        "Blueprint has the site, task, robot, policy, threshold, and access context needed to recommend an improvement scope and proof boundary.",
       next:
-        "Blueprint reviews baseline evaluation fit, policy access method, candidate improvement scope, sealed scenario testing, rights posture, export format, and pricing before improvement work starts.",
+        "Blueprint reviews baseline fit, policy access method, candidate scope, test plan, rights posture, export format, and pricing before improvement work starts.",
     };
   }
 
@@ -449,7 +449,7 @@ export function ContactForm() {
       },
       scenarioCardInput: {
         normalScenario: episodeCount.trim()
-          ? `${episodeCount.trim()} requested WAM-eval episodes`
+          ? `${episodeCount.trim()} requested policy-evaluation episodes`
           : scenarioCount.trim()
             ? `${scenarioCount.trim()} requested scenarios`
             : "",
@@ -710,7 +710,7 @@ export function ContactForm() {
             <textarea
               id="contact-task"
               className={textareaClassName}
-              placeholder="Example: Tote transfer in a warehouse. Need >=97% simulated success before a 90% real-site pilot gate."
+              placeholder="Example: Tote transfer in a warehouse. Need a clear winner before field time."
               aria-required="true"
               value={taskStatement}
               onChange={(event) => setTaskStatement(event.target.value)}

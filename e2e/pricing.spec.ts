@@ -7,20 +7,22 @@ test("pricing page presents the simple policy evaluation package ladder", async 
 
   await expect(
     page.getByRole("heading", {
-      name: "Simple packages for robot policy evaluation.",
+      name: "Pick a run.",
     }),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Policy Evaluation Run" }),
+    page.getByRole("heading", { name: "Test policies" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Validated Evaluation Pack" }),
+    page.getByRole("heading", { name: "Validate with robot" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Policy Improvement Run" }),
+    page.getByRole("heading", { name: "Improve policy" }),
   ).toBeVisible();
-  await expect(page.getByText(/Virtual results do not guarantee/i)).toBeVisible();
+  await expect(page.getByText(/100 episodes/i)).toBeVisible();
+  await expect(page.getByText(/500 episodes/i)).toBeVisible();
+  await expect(page.getByText(/Virtual results do not approve deployment or safety/i)).toBeVisible();
   await expect(
-    page.getByRole("link", { name: /Submit site free/i }).first(),
+    page.getByRole("link", { name: /Submit site/i }).first(),
   ).toHaveAttribute("href", /\/contact\/site-operator/);
 });

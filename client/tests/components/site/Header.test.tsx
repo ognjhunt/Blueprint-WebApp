@@ -28,7 +28,7 @@ describe("Header", () => {
   it("keeps the buyer-facing nav focused", () => {
     render(<Header />);
 
-    expect(screen.getByRole("link", { name: /^Robot teams$/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /^Evaluate$/i })).toHaveAttribute(
       "href",
       "/for-robot-teams",
     );
@@ -40,7 +40,11 @@ describe("Header", () => {
       "href",
       "/pricing",
     );
-    expect(screen.queryByRole("link", { name: /^Proof$/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^Proof$/i })).toHaveAttribute(
+      "href",
+      "/proof",
+    );
+    expect(screen.queryByRole("link", { name: /^Robot teams$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /^Product$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /^Readiness$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /^Site packages$/i })).not.toBeInTheDocument();
@@ -57,7 +61,7 @@ describe("Header", () => {
   it("uses a reduced proof-first action rail in the header", () => {
     render(<Header />);
 
-    const requestLink = screen.getAllByRole("link", { name: /Request evaluation/i })[0];
+    const requestLink = screen.getAllByRole("link", { name: /^Start$/i })[0];
     expect(requestLink).toHaveAttribute(
       "href",
       "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=policy-evaluation-run&source=header",

@@ -13,14 +13,14 @@ describe("Sites", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Browse captured sites for robot evaluation\./i,
+        name: /Pick a captured place\./i,
       }),
     ).toBeInTheDocument();
     expect(
-      screen.getByPlaceholderText(/Search sites, tasks, locations, or use cases/i),
+      screen.getByPlaceholderText(/Search sites or tasks/i),
     ).toBeInTheDocument();
 
-    for (const label of ["Site type", "Task pack", "Readiness", "Access", "Region"]) {
+    for (const label of ["Place", "Task", "Ready", "Access", "Region"]) {
       expect(screen.getByLabelText(label)).toBeInTheDocument();
     }
 
@@ -28,28 +28,17 @@ describe("Sites", () => {
       .getByRole("heading", { name: /Harborview Grocery Distribution Annex/i })
       .closest("article");
     expect(harborviewCard).not.toBeNull();
-    expect(within(harborviewCard as HTMLElement).getByText(/500 ready/i)).toBeInTheDocument();
+    expect(within(harborviewCard as HTMLElement).getByText(/Ready to evaluate/i)).toBeInTheDocument();
+    expect(within(harborviewCard as HTMLElement).getByText(/Request-gated/i)).toBeInTheDocument();
     expect(within(harborviewCard as HTMLElement).getByRole("link", { name: /View site/i })).toHaveAttribute(
       "href",
       "/sites/sw-chi-01",
     );
     expect(
-      within(harborviewCard as HTMLElement).getByText(/Materialization/i),
-    ).toBeInTheDocument();
-    expect(
-      within(harborviewCard as HTMLElement).getByText(/Site, task, scenario, eval, and threshold manifests attached/i),
-    ).toBeInTheDocument();
-    expect(
-      within(harborviewCard as HTMLElement).getByText(/CPU setup manifests present/i),
-    ).toBeInTheDocument();
-    expect(
-      within(harborviewCard as HTMLElement).getByText(/Awaiting policy\/container\/trace\/demo\/plugin evidence/i),
-    ).toBeInTheDocument();
-    expect(
       within(harborviewCard as HTMLElement).getByRole("link", {
-        name: /Run simulator evaluation/i,
+        name: /Use task pack/i,
       }),
-    ).toHaveAttribute("href", "/sites/sw-chi-01#simulator-evaluation");
+    ).toHaveAttribute("href", expect.stringContaining("/contact/robot-team"));
   });
 
   it("posts a Unitree G1 MuJoCo simulator request from the one-page site flow", async () => {
@@ -68,10 +57,10 @@ describe("Sites", () => {
 
     render(<SiteDetail params={{ slug: "sw-chi-01" }} />);
 
-    expect(screen.getByText(/Unitree G1 MuJoCo simulator evaluation request/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Request policy run/i).length).toBeGreaterThan(0);
     expect(screen.getByLabelText(/Navigate to a spot/i)).toBeChecked();
-    expect(screen.getByText(/Blueprint chooses the fastest\/cheapest available simulator worker/i)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /^Run simulator evaluation$/i }));
+    expect(screen.getByText(/Blueprint chooses the evaluation worker/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /^Request policy run$/i }));
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
@@ -227,7 +216,7 @@ describe("Sites", () => {
   it("keeps simulator-only copy from implying physical readiness", () => {
     const { container } = render(<SiteDetail params={{ slug: "sw-chi-01" }} />);
 
-    expect(screen.getByText(/Scope: simulator only/i)).toBeInTheDocument();
+    expect(screen.getByText(/Scope: virtual evaluation/i)).toBeInTheDocument();
     expect(screen.getByText(/WebApp proves request construction, queueing, and forwarding state only/i)).toBeInTheDocument();
     expect(container.textContent || "").not.toMatch(
       /deployment ready|real robot verified|physical safety validated|real robot POV|ready for physical robot/i,
@@ -237,17 +226,17 @@ describe("Sites", () => {
   it("filters by site type, task pack, readiness, access, region, and search", () => {
     render(<Sites />);
 
-    fireEvent.change(screen.getByLabelText("Site type"), { target: { value: "Hospital" } });
+    fireEvent.change(screen.getByLabelText("Place"), { target: { value: "Hospital" } });
     expect(screen.getByText(/Piedmont Hospital Supply Hallway/i)).toBeInTheDocument();
     expect(screen.queryByText(/Harborview Grocery Distribution Annex/i)).not.toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText("Site type"), { target: { value: "All" } });
-    fireEvent.change(screen.getByLabelText("Task pack"), { target: { value: "Pick/place" } });
+    fireEvent.change(screen.getByLabelText("Place"), { target: { value: "All" } });
+    fireEvent.change(screen.getByLabelText("Task"), { target: { value: "Pick/place" } });
     expect(screen.getByText(/Triangle Robotics Lab/i)).toBeInTheDocument();
     expect(screen.queryByText(/Motor City Battery Staging Cell/i)).not.toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText("Task pack"), { target: { value: "All" } });
-    fireEvent.change(screen.getByLabelText("Readiness"), { target: { value: "Capture complete" } });
+    fireEvent.change(screen.getByLabelText("Task"), { target: { value: "All" } });
+    fireEvent.change(screen.getByLabelText("Ready"), { target: { value: "Capture complete" } });
     expect(screen.getByText(/Motor City Battery Staging Cell/i)).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("Access"), { target: { value: "Open sample" } });
@@ -258,15 +247,13 @@ describe("Sites", () => {
     render(<SiteDetail params={{ slug: "siteworld-f5fd54898cfb" }} />);
 
     expect(
-      screen.getByRole("heading", { name: /Triangle Robotics Lab/i }),
+      screen.getByText(/Triangle Robotics Lab/i),
     ).toBeInTheDocument();
-    expect(screen.getAllByText(/Open sample/i).length).toBeGreaterThan(0);
-    expect(screen.getByRole("heading", { name: /Available task packs/i })).toBeInTheDocument();
+    expect(screen.getByText(/Lab · Southeast/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Task pack/i })).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /^Run simulator evaluation$/i }),
+      screen.getByRole("button", { name: /^Request policy run$/i }),
     ).toBeInTheDocument();
-    expect(screen.getAllByText(/Materialization/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/CPU setup manifests present/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Policy Improvement Run export awaits request approval/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Generated clips help review/i)).toBeInTheDocument();
   });
 });

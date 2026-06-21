@@ -237,11 +237,11 @@ const PrerenderForgotPassword = () => (
 const PrerenderPricingSummary = () => (
   <MinimalStaticPage
     title="Pricing | Blueprint"
-    description="Request-scoped pricing for exact-site robot evaluation packages and hosted review."
-    heading="Request-scoped package pricing"
-    body="Blueprint prices exact-site package and hosted-review work around the requested site, robot profile, workflow lane, capture provenance, rights, and export scope."
-    primaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package"
-    primaryLabel="Request pricing"
+    description="Pick a Blueprint run: test policies, validate with robot rollouts, or improve after failure review."
+    heading="Pick a run"
+    body="Start with virtual policy testing on captured tasks. Add real robot validation when needed."
+    primaryHref="/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run"
+    primaryLabel="Start"
     canonical="/pricing"
   />
 );
@@ -249,11 +249,11 @@ const PrerenderPricingSummary = () => (
 const PrerenderProofSummary = () => (
   <MinimalStaticPage
     title="Proof | Blueprint"
-    description="Inspect Blueprint proof boundaries for capture-backed site packages and hosted robot evaluation."
-    heading="Inspect proof before access"
-    body="Blueprint proof pages separate sample material, request-scoped artifacts, capture provenance, rights context, and operational fulfillment state."
-    primaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package"
-    primaryLabel="Request a review"
+    description="Blueprint keeps policy evaluation claims scoped to the site, task, robot, and evidence behind each run."
+    heading="Proof stays scoped"
+    body="Generated clips help review. Real-world validation requires the matched robot, task, and site envelope."
+    primaryHref="/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run"
+    primaryLabel="Start"
     canonical="/proof"
   />
 );
@@ -273,11 +273,11 @@ const PrerenderCaptureLaunchAccessSummary = () => (
 const PrerenderRobotTeamEvalSummary = () => (
   <MinimalStaticPage
     title="Robot Team Evaluation | Blueprint"
-    description="Request a capture-backed exact-site robot evaluation package from Blueprint."
-    heading="Exact-site evaluation for robot teams"
-    body="Blueprint helps robot teams inspect a request-scoped site package, workflow, capture provenance, rights context, and hosted review path before pilot decisions."
-    primaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package"
-    primaryLabel="Request evaluation"
+    description="Start a four-step policy evaluation request for a captured task pack."
+    heading="Start an evaluation"
+    body="Pick a site task, add policies, tell us the robot, and choose 100 or 500 episodes."
+    primaryHref="/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run"
+    primaryLabel="Start"
     canonical="/robot-team/eval"
   />
 );
@@ -322,12 +322,12 @@ const PrerenderFallbackSummary = () => (
 
 const PrerenderHomeSummary = () => (
   <MinimalStaticPage
-    title="Blueprint | Exact-Site Robot Evaluation"
-    description="Blueprint routes robot teams to capture-backed exact-site packages and hosted review."
-    heading="Exact-site robot evaluation"
-    body="Blueprint connects robot teams with capture-backed site packages, proof boundaries, request paths, and hosted review for one real place and task."
-    primaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package"
-    primaryLabel="Request a review"
+    title="Blueprint | Test Robot Policies Before Field Time"
+    description="Blueprint helps robot teams test and rank policies on captured real-site task packs before field time."
+    heading="Test robot policies before field time"
+    body="Use captured real-site tasks to see what works before the robot goes onsite."
+    primaryHref="/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run"
+    primaryLabel="Start"
     canonical="/"
   />
 );

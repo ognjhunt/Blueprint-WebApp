@@ -16,7 +16,7 @@ const offerCards = [
       "Rank 1-3 policies or checkpoints on one capture-backed task pack.",
     bullets: [
       "Unit: 1 site package, 1 task pack, 1 robot embodiment",
-      "100 or 500 WAM-eval episodes",
+      "100 or 500 policy-evaluation episodes",
       "Policy ranking, failure taxonomy, OOD flags, and validation targets",
     ],
     href: "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=policy-evaluation-run",
@@ -30,15 +30,15 @@ const offerCards = [
     bulletTone: "bg-slate-400",
   },
   {
-    title: "Request a Policy Improvement Run",
+    title: "Improve policy after evaluation",
     price: "From $35,000 / run",
     description:
-      "Improve a customer-supplied policy inside a sim-only loop with baseline eval, failure diagnosis, curriculum, sealed testing, and evidence.",
+      "Use scoped failures to plan the next policy update and compare the next candidate.",
     bullets: [
       "Policy or base model, embodiment, action interface, task, and thresholds",
       "Source access optional through API, container, private runner, sim plugin, or traces",
-      "Twin and cousin scenarios plus curriculum",
-      "Improved artifact when a trainable interface or approved wrapper path exists",
+      "Failure clusters, next tests, and candidate comparison",
+      "Improved artifact only when a trainable interface or approved wrapper path exists",
     ],
     href: "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-improvement-run&path=policy-improvement-run&requestedOutputs=Policy%20Improvement%20Run",
     cta: "Request Policy Improvement",
@@ -157,7 +157,7 @@ export function OfferComparison({
 
           <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-900">Best when</div>
           <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Your robot team wants one fixed-scope ranking across 1-3 policies or checkpoints before field time.</div>
-          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Your robot team wants Blueprint to improve a supplied policy against a site/task threshold inside simulation.</div>
+          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Your robot team wants Blueprint to use scoped failures to plan and compare the next policy candidate.</div>
           <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">You operate the facility and want to submit boundaries before robot-team use is reviewed.</div>
 
           <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-900">Buyer gets first</div>
@@ -167,7 +167,7 @@ export function OfferComparison({
 
           <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-900">Typical first purchase</div>
           <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">From $6,500 per run.</div>
-          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">From $35,000 per sim-only run.</div>
+          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Scoped after the evaluation run.</div>
           <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Free for site operators.</div>
 
           <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-900">Next step</div>

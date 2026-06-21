@@ -4,13 +4,13 @@ This file is a public, non-sensitive map of Blueprint's website for AI assistant
 
 ## Product Summary
 
-Blueprint is a capture-first, real-site robot-evaluation company with a narrow public buyer wedge: evaluating and ranking WAM/VLA robot policies on captured real-site task packs before field time.
+Blueprint is a capture-first robot-evaluation company. It helps robot teams test and rank policies on captured real-site task packs before field time.
 
-The core buyer question is: which policy should a robot team trust enough to advance toward real validation, and what capture-backed site, task, scenario, simulator, failure, and proof-boundary evidence supports that decision?
+The core buyer question is: which policy should advance toward real validation, and what captured task, failure, and proof-boundary evidence supports that decision?
 
-Blueprint turns that question into a Policy Evaluation Run. The buyer provides or requests one captured site/task pack, one robot profile, 1-3 WAM/VLA policies or checkpoints, the evaluation volume, the evidence they already have, and the validation decision they need. Blueprint packages capture evidence, provenance, rights/privacy posture, site/task context, 100 or 500 WAM-eval episodes, failure taxonomy, OOD flags, missing proof, and next-step recommendations into an advisory evaluation report.
+Blueprint turns that question into a Policy Evaluation Run. The buyer provides or requests one captured site/task pack, one robot profile, 1-3 policies or checkpoints, 100 or 500 episodes, and the validation decision they need. Blueprint returns a policy ranking, failure notes, OOD flags, and recommended real-world validation targets.
 
-Blueprint remains capture-first and real-site robot-evaluation first. Policy evaluation does not replace raw capture truth, rights state, provenance, site package boundaries, hosted-session artifacts, or owner-system proof. Qualification, simulator evaluation, WAM/VLA rankings, and hosted review support the product; they do not become unsupported ready-to-deploy, safety-validated, or guaranteed-threshold claims.
+Blueprint remains capture-first and real-site robot-evaluation first. Policy evaluation does not replace raw capture truth, rights state, provenance, site package boundaries, hosted-session artifacts, or owner-system proof. Virtual rankings and generated clips support review; they do not become unsupported ready-to-deploy, safety-validated, or guaranteed-threshold claims.
 
 Ground truth means raw capture evidence, timestamps, poses, device metadata, rights/privacy records, provenance, and package or runtime artifacts when they exist. Samples, generated previews, dry-run commerce, catalog matches, and request drafts are support signals. They do not prove customer results, rights clearance, provider execution, payment, package access, hosted fulfillment, deployment verdicts, or city-live coverage.
 
@@ -26,7 +26,7 @@ A robot team can receive a Policy Evaluation Run, Validated Evaluation Pack, Pol
 
 ### What is a Policy Evaluation Run?
 
-A Policy Evaluation Run compares 1-3 WAM/VLA policies or checkpoints on one captured real-site task pack using 100 or 500 virtual episodes. Outputs can include ranked results, failure categories, OOD flags, policy-specific notes, evidence references, and a validation boundary. It is advisory review and does not prove deployment readiness, safety, real-world success, or universal WAM-to-robot correlation.
+A Policy Evaluation Run compares 1-3 policies or checkpoints on one captured real-site task pack using 100 or 500 virtual episodes. Outputs can include ranked results, failure categories, OOD flags, policy-specific notes, evidence references, and a validation boundary. It is advisory review and does not prove deployment readiness, safety, real-world success, or universal WAM-to-robot correlation.
 
 ### What is a Validated Evaluation Pack?
 
@@ -34,7 +34,7 @@ A Validated Evaluation Pack is a larger request-specific scope that can pair WAM
 
 ### What is a Policy Improvement Run?
 
-A Policy Improvement Run is a follow-on sim-only workflow for baseline evaluation, failure diagnosis, candidate policy improvement, sealed testing, and an evidence report. It is not a deployment approval.
+A Policy Improvement Run is follow-on work after evaluation identifies failures worth fixing. It is not a deployment approval.
 
 ### What is a site package?
 
@@ -54,12 +54,12 @@ Public examples are samples unless the page explicitly ties them to an approved 
 
 ## Important Public Pages
 
-- `/` - Homepage and core buyer story. Explains capture-backed WAM/VLA policy evaluation, real-site task packs, offer shape, proof boundary, and request CTA in one place.
-- `/sites` - Blueprint Site Library for browsing captured-site profiles by site type, task pack, readiness, access status, and region before requesting a Policy Evaluation Run.
-- `/pricing` - Planning ranges for Policy Evaluation Runs, Validated Evaluation Packs, and Policy Improvement Runs.
-- `/proof` - Short proof explainer separating public samples, generated support signals, request packets, and owner-system proof.
-- `/for-robot-teams` - Structured robot-team policy evaluation page for selecting a capture-backed site/task package and referencing policy API endpoints, Docker containers, model checkpoints, recorded action traces, high-level skill traces, teleop demos, or sim controller plugins.
-- `/contact/robot-team` - Structured Policy Evaluation Run, Validated Evaluation Pack, and Policy Improvement Run intake for the site, workflow, robot profile, thresholds, timeline, evidence needs, rights context, and desired next step.
+- `/` - Homepage and core buyer story: test robot policies before field time.
+- `/sites` - Captured places and task packs for Policy Evaluation Run requests.
+- `/pricing` - Pick a run: test policies, validate with robot, or improve policy.
+- `/proof` - Short proof explainer separating website samples, request packets, and real robot validation.
+- `/for-robot-teams` - Four-step setup for site/task, policies, robot, episodes, and optional policy access details.
+- `/contact/robot-team` - Short intake for robot teams to tell Blueprint what to test.
 - `/privacy` and `/terms` - Legal policy pages.
 
 Secondary marketing URLs are not the primary public buyer surface. Routes such as `/product`, `/readiness`, `/how-it-works`, `/world-models`, `/site-worlds`, `/agents`, `/capture`, `/sample-deliverables`, `/launch-map`, `/faq`, `/governance`, `/about`, `/updates`, `/careers`, and `/help` should be treated as hidden, redirected, noindex, or direct-purpose URLs rather than core public IA. Legacy catalog/detail URLs under `/world-models` and `/site-worlds` redirect into `/sites` when they map to a public site profile.

@@ -5,7 +5,7 @@ test('legacy marketplace route redirects to the Sites library', async ({ page })
 
   await expect(page).toHaveURL(/\/sites$/);
   await expect(
-    page.getByRole('heading', { name: /Browse captured sites for robot evaluation\./i }),
+    page.getByRole('heading', { name: /Pick a captured place\./i }),
   ).toBeVisible();
 });
 
@@ -14,7 +14,7 @@ test('legacy environments route redirects to proof instead of the removed catalo
 
   await expect(page).toHaveURL(/\/proof$/);
   await expect(
-    page.getByRole('heading', { name: /See what supports evaluation and policy improvement runs\./i }),
+    page.getByRole('heading', { name: /Proof stays scoped\./i }),
   ).toBeVisible();
 });
 
@@ -36,7 +36,7 @@ test('public routes work with trailing slashes', async ({ page }) => {
   await expect(page).toHaveURL(/\/proof\/?$/);
   await expect(
     page.getByRole('heading', {
-      name: /See what supports evaluation and policy improvement runs\./i,
+      name: /Proof stays scoped\./i,
     }),
   ).toBeVisible();
 });

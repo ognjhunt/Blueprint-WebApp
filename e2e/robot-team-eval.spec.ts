@@ -39,27 +39,28 @@ test("robot-team eval route is simple and submits normalized policy payload", as
 
   await expect(
     page.getByRole("heading", {
-      name: "Evaluate robot policies before field time.",
+      name: "Start an evaluation.",
     }),
   ).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Evaluation setup" })).toBeVisible();
-  await expect(page.getByText("Policy API endpoint").first()).toBeVisible();
-  await expect(page.getByText("Docker container").first()).toBeVisible();
-  await expect(page.getByText("Model checkpoint").first()).toBeVisible();
-  await expect(page.getByText(/do not prove safety validation/i)).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Four steps." })).toBeVisible();
+  await expect(page.getByText("API").first()).toBeVisible();
+  await expect(page.getByText("Docker").first()).toBeVisible();
+  await expect(page.getByText("Checkpoint").first()).toBeVisible();
+  await expect(page.getByText(/Results guide what to test next/i)).toBeVisible();
 
   await page
-    .getByLabel("Policy / checkpoint labels")
+    .getByLabel("2 Add policies")
     .fill("warehouse-policy, baseline-policy, ignored-fourth");
-  await page.getByLabel("Episode count").selectOption("500");
+  await page.getByLabel("4 Choose episodes").selectOption("500");
+  await page.getByText("Advanced details").click();
   await page
-    .getByLabel("Observation schema ref")
+    .getByLabel("Observation schema", { exact: true })
     .fill("gs://robot-team/schemas/top-observation.v1.json");
   await page
-    .getByLabel("Action schema ref")
+    .getByLabel("Action schema", { exact: true })
     .fill("gs://robot-team/schemas/top-action.v1.json");
   await page.getByLabel("Control frequency").fill("20 Hz");
-  await page.getByLabel("Robot embodiment").fill("mobile manipulator");
+  await page.getByLabel("3 Tell us the robot").fill("mobile manipulator");
   await page.getByLabel("Task instruction").fill("pick tote from shelf");
   await page
     .getByLabel("Success criteria")
@@ -69,13 +70,13 @@ test("robot-team eval route is simple and submits normalized policy payload", as
     await page.getByLabel(label).fill(value);
   }
 
-  await page.getByRole("button", { name: /Create hosted session/i }).click();
+  await page.getByRole("button", { name: /Send request/i }).click();
   await expect(
     page.getByText(/Hosted session access is request-gated/i),
   ).toBeVisible();
   await expect(page.getByText(/confirm runtime access, rights, pricing/i)).toBeVisible();
   await expect(
-    page.getByRole("link", { name: /Submit intake request/i }).first(),
+    page.getByRole("link", { name: /Contact instead/i }).first(),
   ).toHaveAttribute("href", /source=robot-team-eval/);
 
   expect(observedBody?.sessionMode).toBe("runtime_only");
@@ -116,11 +117,11 @@ test("robot-team eval route is usable on mobile", async ({ page }) => {
 
   await expect(
     page.getByRole("heading", {
-      name: "Evaluate robot policies before field time.",
+      name: "Start an evaluation.",
     }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: /Create hosted session/i }),
+    page.getByRole("button", { name: /Send request/i }),
   ).toBeVisible();
 
   const hasHorizontalOverflow = await page.evaluate(() => {

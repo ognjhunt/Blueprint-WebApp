@@ -80,12 +80,16 @@ describe("Contact page", () => {
     render(<Contact />);
 
     expect(
-      screen.getByRole("heading", { name: /Request a Policy Evaluation Run\./i }),
+      screen.getByRole("heading", { name: /Tell us what to test\./i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Rank 1-3 policies\/checkpoints/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Robot teams/i })).toHaveAttribute(
+    expect(screen.getByText(/We will recommend the right policy run/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Robot team/i })).toHaveAttribute(
       "href",
       "/contact/robot-team#contact-intake",
+    );
+    expect(screen.getByRole("link", { name: /Site owner/i })).toHaveAttribute(
+      "href",
+      "/contact/site-operator#contact-intake",
     );
     expect(screen.getByRole("textbox", { name: /Robot \/ policy name/i })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: /Target site or site type/i })).toBeInTheDocument();
@@ -100,9 +104,9 @@ describe("Contact page", () => {
     render(<Contact />);
 
     expect(
-      screen.getByRole("heading", { name: /Request a Policy Improvement Run\./i }),
+      screen.getByRole("heading", { name: /Improve a policy\./i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/A Policy Improvement Run means/i)).toBeInTheDocument();
+    expect(screen.getByText(/Start with the failures worth fixing/i)).toBeInTheDocument();
     expect(screen.getByDisplayValue("Harborview Grocery Distribution Annex")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Unitree G1")).toBeInTheDocument();
   });
@@ -126,7 +130,7 @@ describe("Contact page", () => {
       target: { value: "Warehouse in Chicago" },
     });
     fireEvent.change(screen.getByRole("textbox", { name: /Task \+ threshold/i }), {
-      target: { value: "Tote transfer. Need >=97% simulated success before pilot." },
+      target: { value: "Tote transfer. Need a clear winner before field time." },
     });
     fireEvent.click(screen.getByRole("button", { name: /Add optional details/i }));
     fireEvent.change(screen.getByRole("textbox", { name: /Policy \/ checkpoint labels/i }), {
@@ -170,7 +174,7 @@ describe("Contact page", () => {
       proofPathPreference: "exact_site_required",
       siteName: "Warehouse in Chicago",
       targetSiteType: "Warehouse in Chicago",
-      taskStatement: "Tote transfer. Need >=97% simulated success before pilot.",
+      taskStatement: "Tote transfer. Need a clear winner before field time.",
       targetRobotTeam: "Unitree G1 policy API",
     });
     expect(body.details).toContain("Policy/checkpoint labels: policy_v1, policy_v2");
@@ -179,7 +183,7 @@ describe("Contact page", () => {
     expect(body.details).toContain("Validation mode: Comparative policy eval");
     expect(body.realSiteRobotEvalFit).toMatchObject({
       scenarioCardInput: {
-        normalScenario: "500 requested WAM-eval episodes",
+        normalScenario: "500 requested policy-evaluation episodes",
       },
       evalCardInput: {
         robotOrPolicyTested: "Unitree G1 policy API",
@@ -194,9 +198,9 @@ describe("Contact page", () => {
     render(<Contact />);
 
     expect(
-      screen.getByRole("heading", { name: /Submit a Site for Robot Evaluation\./i }),
+      screen.getByRole("heading", { name: /Share a place to test robots\./i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Submitting a site is free/i)).toBeInTheDocument();
+    expect(screen.getByText(/Submit a site for free\. You control access/i)).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: /Facility name or site type/i })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: /City \/ location/i })).toBeInTheDocument();
     expect(screen.getByText(/Ask before each robot-team use/i)).toBeInTheDocument();

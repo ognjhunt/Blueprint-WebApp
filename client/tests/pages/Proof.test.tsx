@@ -7,37 +7,26 @@ describe("Proof page", () => {
     render(<Proof />);
 
     expect(
-      screen.getByRole("heading", { name: /See what supports evaluation and policy improvement runs\./i }),
+      screen.getByRole("heading", { name: /Proof stays scoped\./i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/what came from capture, what is inferred, what is still missing/i),
+      screen.getByText(/Every claim belongs to one site, task, robot, and evidence set/i),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", {
-        name: /Public samples teach the workflow\. Request packets prove one site\./i,
-      }),
-    ).toBeInTheDocument();
-    expect(screen.getAllByText(/^Public sample$/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/^Request-specific proof$/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/Capture provenance/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Rights and privacy posture/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/Policy evaluation/i).length).toBeGreaterThan(0);
+    expect(screen.getByRole("heading", { name: /^Website$/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Request packet$/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Robot validation$/i })).toBeInTheDocument();
+    expect(screen.getByText(/Scopes one site, task, and robot/i)).toBeInTheDocument();
   });
 
   it("keeps the claim boundary and request CTA visible", () => {
     render(<Proof />);
 
     expect(
-      screen.getByRole("heading", { name: /Advisory until stronger proof exists\./i }),
+      screen.getByRole("heading", { name: /What we do not claim\./i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/keeping each claim tied to owning system artifacts/i)).toBeInTheDocument();
-    expect(screen.getByText(/Hold until the proof gap is resolved/i)).toBeInTheDocument();
+    expect(screen.getByText(/Virtual evaluations do not approve deployment, safety, universal SRCC/i)).toBeInTheDocument();
     expect(
-      screen.getAllByRole("link", { name: /Request policy improvement/i })[0],
-    ).toHaveAttribute("href", expect.stringContaining("/contact?persona=robot-team"));
-    expect(screen.getByRole("link", { name: /Request a proof packet/i })).toHaveAttribute(
-      "href",
-      expect.stringContaining("path=policy-improvement-run"),
-    );
+      screen.getAllByRole("link", { name: /^Start$/i })[0],
+    ).toHaveAttribute("href", expect.stringContaining("/contact/robot-team"));
   });
 });

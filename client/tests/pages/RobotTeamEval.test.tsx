@@ -41,22 +41,24 @@ describe("RobotTeamEval", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Evaluate robot policies before field time\./i,
+        name: /Start an evaluation\./i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Evaluation setup/i })).toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: /Site package/i })).toBeInTheDocument();
-    expect(screen.getByRole("textbox", { name: /Policy \/ checkpoint labels/i })).toHaveValue(
+    expect(screen.getByRole("heading", { name: /Four steps\./i })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: /1 Pick a site\/task/i })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: /2 Add policies/i })).toHaveValue(
       "primary-policy",
     );
-    expect(screen.getByRole("combobox", { name: /Episode count/i })).toHaveValue("100");
+    expect(screen.getByRole("textbox", { name: /3 Tell us the robot/i })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: /4 Choose episodes/i })).toHaveValue("100");
+    fireEvent.click(screen.getByText(/Advanced details/i));
     expect(screen.getByRole("combobox", { name: /Validation mode/i })).toHaveValue(
       "comparative_policy_eval",
     );
-    expect(screen.getAllByText(/Policy API endpoint/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Docker container/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Model checkpoint/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/do not prove safety validation/i)).toBeInTheDocument();
+    for (const label of ["API", "Docker", "Checkpoint", "Trace", "Skill trace", "Teleop", "Sim plugin"]) {
+      expect(screen.getByText(label)).toBeInTheDocument();
+    }
+    expect(screen.getByText(/Results guide what to test next/i)).toBeInTheDocument();
   });
 
   it("creates a hosted-session request with normalized policy evaluation payload", async () => {
@@ -72,22 +74,23 @@ describe("RobotTeamEval", () => {
 
     render(<RobotTeamEval />);
 
-    fireEvent.change(screen.getByRole("textbox", { name: /Policy \/ checkpoint labels/i }), {
+    fireEvent.change(screen.getByRole("textbox", { name: /2 Add policies/i }), {
       target: { value: "warehouse-policy, baseline-policy, ignored-fourth" },
     });
-    fireEvent.change(screen.getByRole("combobox", { name: /Episode count/i }), {
+    fireEvent.change(screen.getByRole("combobox", { name: /4 Choose episodes/i }), {
       target: { value: "500" },
     });
-    fireEvent.change(screen.getByRole("textbox", { name: /Observation schema ref/i }), {
+    fireEvent.click(screen.getByText(/Advanced details/i));
+    fireEvent.change(screen.getByRole("textbox", { name: /^Observation schema$/i }), {
       target: { value: "gs://robot-team/schemas/top-observation.v1.json" },
     });
-    fireEvent.change(screen.getByRole("textbox", { name: /Action schema ref/i }), {
+    fireEvent.change(screen.getByRole("textbox", { name: /^Action schema$/i }), {
       target: { value: "gs://robot-team/schemas/top-action.v1.json" },
     });
     fireEvent.change(screen.getByRole("textbox", { name: /Control frequency/i }), {
       target: { value: "20 Hz" },
     });
-    fireEvent.change(screen.getByRole("textbox", { name: /Robot embodiment/i }), {
+    fireEvent.change(screen.getByRole("textbox", { name: /3 Tell us the robot/i }), {
       target: { value: "mobile manipulator" },
     });
     fireEvent.change(screen.getByRole("textbox", { name: /Task instruction/i }), {
@@ -118,7 +121,7 @@ describe("RobotTeamEval", () => {
       target: { value: "robot-owner@example.com" },
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /Create hosted session/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Send request/i }));
 
     await waitFor(() => {
       expect(setLocationMock).toHaveBeenCalledWith(
@@ -177,13 +180,13 @@ describe("RobotTeamEval", () => {
 
     render(<RobotTeamEval />);
 
-    fireEvent.click(screen.getByRole("button", { name: /Create hosted session/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Send request/i }));
 
     expect(
       await screen.findByText(/Hosted session access is request-gated/i),
     ).toBeInTheDocument();
     expect(screen.getByText(/confirm runtime access, rights, pricing/i)).toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: /Submit intake request/i })[0]).toHaveAttribute(
+    expect(screen.getAllByRole("link", { name: /Contact instead/i })[0]).toHaveAttribute(
       "href",
       expect.stringContaining("source=robot-team-eval"),
     );

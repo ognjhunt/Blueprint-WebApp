@@ -8,17 +8,21 @@ describe("Pricing", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Simple packages for robot policy evaluation\./i,
+        name: /Pick a run\./i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /^Policy Evaluation Run$/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /^Validated Evaluation Pack$/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /^Policy Improvement Run$/i })).toBeInTheDocument();
-    expect(screen.getByText(/From \$6,500 \/ run/i)).toBeInTheDocument();
-    expect(screen.getByText(/100 or 500 virtual episodes/i)).toBeInTheDocument();
-    expect(screen.getByText(/Pearson\/Spearman or rank-fidelity/i)).toBeInTheDocument();
-    expect(screen.getByText(/Virtual results do not guarantee real-world success/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Submit site free/i })).toHaveAttribute(
+    expect(screen.getByRole("heading", { name: /^Test policies$/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Validate with robot$/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Improve policy$/i })).toBeInTheDocument();
+    expect(screen.getByText(/Policy Evaluation Run/i)).toBeInTheDocument();
+    expect(screen.getByText(/Validated Evaluation Pack/i)).toBeInTheDocument();
+    expect(screen.getByText(/Policy Improvement Run/i)).toBeInTheDocument();
+    expect(screen.getByText(/100 episodes/i)).toBeInTheDocument();
+    expect(screen.getByText(/500 episodes/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Real rollouts/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Confidence bounds/i)).toBeInTheDocument();
+    expect(screen.getByText(/Virtual results do not approve deployment or safety/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Submit site/i })).toHaveAttribute(
       "href",
       expect.stringContaining("/contact/site-operator"),
     );
