@@ -39,8 +39,25 @@ type WorkerDefinition = {
   defaultBatchSize: number;
   maxBatchSize?: number;
   defaultStartupDelayMs: number;
-  run: (params: { limit: number }) => Promise<{ processedCount: number; failedCount: number }>;
+  run: (params: { limit: number }) => Promise<WorkerRunResult>;
 };
+
+type WorkerRunResult = {
+  processedCount: number;
+  failedCount: number;
+  blockedCount?: number;
+  reason?: string | null;
+};
+
+function normalizeWorkerResultReason(reason: unknown) {
+  return typeof reason === "string" && reason.trim() ? reason.trim() : null;
+}
+
+function normalizeWorkerBlockedCount(blockedCount: unknown) {
+  return typeof blockedCount === "number" && Number.isFinite(blockedCount)
+    ? Math.max(0, blockedCount)
+    : 0;
+}
 
 async function persistWorkerStatus(
   workerKey: string,
@@ -423,9 +440,12 @@ export function startOpsAutomationScheduler() {
           });
           logger.info(meta, `Starting ${worker.key} automation run`);
           const result = await worker.run({ limit: batchSize });
+          const blockedCount = normalizeWorkerBlockedCount(result.blockedCount);
+          const resultReason = normalizeWorkerResultReason(result.reason);
+          const completedStatus = resultReason || blockedCount > 0 ? "blocked" : "idle";
           await persistWorkerStatus(worker.key, {
             enabled: true,
-            status: "idle",
+            status: completedStatus,
             interval_ms: intervalMs,
             batch_size: batchSize,
             startup_delay_ms: startupDelayMs,
@@ -436,12 +456,14 @@ export function startOpsAutomationScheduler() {
             last_run_duration_ms: Date.now() - runStartedAt,
             last_processed_count: result.processedCount,
             last_failed_count: result.failedCount,
+            last_blocked_count: blockedCount,
+            last_result_reason: resultReason,
             last_error: null,
           });
           await maybeAlertOnWorkerStatusTransition({
             workerKey: worker.key,
             previousStatus: lastKnownStatus,
-            nextStatus: "idle",
+            nextStatus: completedStatus,
             intervalMs,
             batchSize,
             runNumber,
@@ -449,12 +471,14 @@ export function startOpsAutomationScheduler() {
             failedCount: result.failedCount,
             error: null,
           });
-          lastKnownStatus = "idle";
+          lastKnownStatus = completedStatus;
           logger.info(
             attachRequestMeta({
               ...meta,
               processedCount: result.processedCount,
               failedCount: result.failedCount,
+              blockedCount,
+              resultReason,
             }),
             `Completed ${worker.key} automation run`,
           );
@@ -470,6 +494,8 @@ export function startOpsAutomationScheduler() {
             last_run_completed_at_iso: new Date().toISOString(),
             last_run_completed_at: admin.firestore.FieldValue.serverTimestamp(),
             last_run_duration_ms: Date.now() - runStartedAt,
+            last_blocked_count: null,
+            last_result_reason: null,
             last_error: error instanceof Error ? error.message : String(error),
           });
           await maybeAlertOnWorkerStatusTransition({

@@ -26,9 +26,15 @@ const env = validateEnv();
 // Log Firehose configuration status at startup
 const firehoseConfig = buildFirehoseConfig();
 if (firehoseConfig) {
-  console.log(`Firehose configured successfully. Base URL: ${firehoseConfig.baseUrl}`);
+  logger.info(
+    { event: "firehose_configured", baseUrl: firehoseConfig.baseUrl },
+    "Firehose configured successfully",
+  );
 } else {
-  console.warn("Firehose not configured: missing FIREHOSE_API_TOKEN or FIREHOSE_BASE_URL. Firehose signals will be skipped.");
+  logger.warn(
+    { event: "firehose_config_unavailable" },
+    "Firehose not configured: missing FIREHOSE_API_TOKEN or FIREHOSE_BASE_URL. Firehose signals will be skipped.",
+  );
 }
 
 const app = express();

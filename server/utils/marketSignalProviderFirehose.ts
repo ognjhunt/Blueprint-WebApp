@@ -3,6 +3,7 @@ import {
   type FirehoseConfig,
 } from "../../ops/paperclip/plugins/blueprint-automation/src/marketing-integrations";
 import { getConfiguredEnvValue } from "../config/env";
+import { logger } from "../logger";
 import type {
   MarketSignalFetchResult,
   MarketSignalProvider,
@@ -31,7 +32,10 @@ export async function fetchFirehoseMarketSignals(input: {
   const config = buildFirehoseConfig();
   if (!config) {
     // Return empty result instead of throwing to allow Analytics Daily to proceed with other sources
-    console.warn("Firehose is not configured: missing FIREHOSE_API_TOKEN or FIREHOSE_BASE_URL. Skipping Firehose signals.");
+    logger.warn(
+      { event: "firehose_market_signals_config_unavailable", topic: input.topic },
+      "Firehose is not configured: missing FIREHOSE_API_TOKEN or FIREHOSE_BASE_URL. Skipping Firehose signals.",
+    );
     return {
       providerKey: "firehose",
       signals: [],
@@ -61,7 +65,10 @@ export async function fetchFirehoseMarketSignals(input: {
       signals,
     };
   } catch (error) {
-    console.error("Firehose signal fetch failed:", error);
+    logger.error(
+      { event: "firehose_market_signals_fetch_failed", topic: input.topic, err: error },
+      "Firehose signal fetch failed",
+    );
     return {
       providerKey: "firehose",
       signals: [],

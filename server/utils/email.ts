@@ -16,6 +16,57 @@ interface SendEmailOptions {
 
 let cachedTransporter: nodemailer.Transporter | null = null;
 
+const EMAIL_PATTERN = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
+
+function redactEmails(value: string) {
+  return value.replace(EMAIL_PATTERN, "[REDACTED_EMAIL]");
+}
+
+function emailDomain(value?: string) {
+  if (!value) {
+    return null;
+  }
+  const match = value.match(EMAIL_PATTERN)?.[0];
+  const domain = match?.split("@").pop()?.trim().toLowerCase();
+  return domain || null;
+}
+
+function serializeEmailError(error: unknown) {
+  const errorObj = error instanceof Error ? error : new Error(String(error));
+  return {
+    name: errorObj.name,
+    message: redactEmails(errorObj.message).slice(0, 500),
+  };
+}
+
+function buildEmailLogContext({
+  event,
+  provider,
+  to,
+  subject,
+  text,
+  html,
+  replyTo,
+  attachments,
+  sendGridCategories,
+  sendGridCustomArgs,
+}: SendEmailOptions & { event: string; provider: "sendgrid" | "smtp" | "none" }) {
+  return {
+    event,
+    provider,
+    recipientDomain: emailDomain(to),
+    replyToDomain: emailDomain(replyTo),
+    subjectLength: subject.length,
+    textLength: text.length,
+    htmlLength: html?.length ?? 0,
+    hasText: text.length > 0,
+    hasHtml: Boolean(html),
+    attachmentCount: attachments?.length ?? 0,
+    sendGridCategoryCount: sendGridCategories?.length ?? 0,
+    sendGridCustomArgKeys: Object.keys(sendGridCustomArgs ?? {}).sort(),
+  };
+}
+
 export type CityLaunchSenderVerificationStatus =
   | "verified"
   | "unverified"
@@ -63,7 +114,10 @@ function getTransporter() {
   const pass = process.env.SMTP_PASS;
 
   if (!host || !port || !user || !pass) {
-    logger.warn("SMTP environment variables are not fully configured.");
+    logger.warn(
+      { event: "email_smtp_config_unavailable", provider: "smtp" },
+      "SMTP environment variables are not fully configured.",
+    );
     return null;
   }
 
@@ -228,10 +282,41 @@ async function sendViaSendGrid({
       throw new Error(`SendGrid returned ${response.status}: ${body}`);
     }
 
-    logger.info({ to, subject, replyTo }, "Email dispatched via SendGrid");
+    logger.info(
+      buildEmailLogContext({
+        event: "email_dispatched",
+        provider: "sendgrid",
+        to,
+        subject,
+        text,
+        html,
+        replyTo,
+        attachments,
+        sendGridCategories,
+        sendGridCustomArgs,
+      }),
+      "Email dispatched via SendGrid",
+    );
     return { sent: true };
   } catch (error) {
-    logger.error({ error, to, subject, replyTo }, "Failed to send email via SendGrid");
+    logger.error(
+      {
+        ...buildEmailLogContext({
+          event: "email_dispatch_failed",
+          provider: "sendgrid",
+          to,
+          subject,
+          text,
+          html,
+          replyTo,
+          attachments,
+          sendGridCategories,
+          sendGridCustomArgs,
+        }),
+        err: serializeEmailError(error),
+      },
+      "Failed to send email via SendGrid",
+    );
     return { sent: false, error };
   }
 }
@@ -267,7 +352,21 @@ export async function sendEmail({
   const transporter = getTransporter();
 
   if (!transporter) {
-    logger.info({ to, subject, text, replyTo }, "Email transport not configured; logging message");
+    logger.info(
+      buildEmailLogContext({
+        event: "email_transport_unconfigured",
+        provider: "none",
+        to,
+        subject,
+        text,
+        html,
+        replyTo,
+        attachments,
+        sendGridCategories,
+        sendGridCustomArgs,
+      }),
+      "Email transport not configured; message not sent",
+    );
     return { sent: false };
   }
 
@@ -287,10 +386,41 @@ export async function sendEmail({
       attachments,
     });
 
-    logger.info({ to, subject, replyTo }, "Email dispatched");
+    logger.info(
+      buildEmailLogContext({
+        event: "email_dispatched",
+        provider: "smtp",
+        to,
+        subject,
+        text,
+        html,
+        replyTo,
+        attachments,
+        sendGridCategories,
+        sendGridCustomArgs,
+      }),
+      "Email dispatched",
+    );
     return { sent: true };
   } catch (error) {
-    logger.error({ error, to, subject, replyTo }, "Failed to send email");
+    logger.error(
+      {
+        ...buildEmailLogContext({
+          event: "email_dispatch_failed",
+          provider: "smtp",
+          to,
+          subject,
+          text,
+          html,
+          replyTo,
+          attachments,
+          sendGridCategories,
+          sendGridCustomArgs,
+        }),
+        err: serializeEmailError(error),
+      },
+      "Failed to send email",
+    );
     return { sent: false, error };
   }
 }

@@ -3,6 +3,7 @@ import multer from "multer";
 import path from "path";
 
 import { HTTP_STATUS } from "../constants/http-status";
+import { attachRequestMeta, logger } from "../logger";
 import { sendEmail } from "../utils/email";
 import {
   buildIdempotencyKey,
@@ -84,6 +85,16 @@ export default function applyHandler(req: Request, res: Response) {
     if (uploadError) {
       const errorMessage =
         uploadError instanceof Error ? uploadError.message : "Failed to upload file";
+      logger.warn(
+        attachRequestMeta({
+          event: "application_resume_rejected",
+          requestId: res.locals?.requestId,
+          method: req.method,
+          path: req.originalUrl || req.path,
+          uploadError: errorMessage,
+        }),
+        "Application resume upload rejected",
+      );
       return res.status(400).json({ error: errorMessage });
     }
 
@@ -101,14 +112,50 @@ export default function applyHandler(req: Request, res: Response) {
       const applicantEmail = typeof contactEmail === "string" ? contactEmail.trim() : "";
 
       if (!applicantName || !applicantPortfolio || !jobRole || !jobEmail || !applicantEmail) {
+        logger.warn(
+          attachRequestMeta({
+            event: "application_submission_rejected",
+            requestId: res.locals?.requestId,
+            method: req.method,
+            path: req.originalUrl || req.path,
+            reason: "missing_required_fields",
+            hasApplicantName: Boolean(applicantName),
+            hasPortfolio: Boolean(applicantPortfolio),
+            hasRole: Boolean(jobRole),
+            hasJobEmail: Boolean(jobEmail),
+            hasApplicantEmail: Boolean(applicantEmail),
+          }),
+          "Application submission rejected",
+        );
         return res.status(400).json({ error: "Missing required fields" });
       }
 
       if (!isValidEmailAddress(jobEmail) || !isValidEmailAddress(applicantEmail)) {
+        logger.warn(
+          attachRequestMeta({
+            event: "application_submission_rejected",
+            requestId: res.locals?.requestId,
+            method: req.method,
+            path: req.originalUrl || req.path,
+            reason: "invalid_email_format",
+            applicationRole: jobRole,
+          }),
+          "Application submission rejected",
+        );
         return res.status(400).json({ error: "Invalid email format" });
       }
 
       const file = (req as RequestWithFile).file ?? null;
+      const logContext = attachRequestMeta({
+        event: "application_submission_received",
+        requestId: res.locals?.requestId,
+        method: req.method,
+        path: req.originalUrl || req.path,
+        applicationRole: jobRole,
+        hasResume: Boolean(file),
+        resumeMimeType: file?.mimetype ?? null,
+        resumeSize: file?.size ?? null,
+      });
       const { key: idempotencyKey, ttlMs: idempotencyTtlMs } = buildIdempotencyKey({
         scope: "apply",
         email: applicantEmail,
@@ -126,6 +173,14 @@ export default function applyHandler(req: Request, res: Response) {
 
       const cachedResponse = await fetchIdempotencyResponse(idempotencyKey);
       if (cachedResponse) {
+        logger.info(
+          {
+            ...logContext,
+            event: "application_submission_idempotency_hit",
+            cachedStatus: cachedResponse.status,
+          },
+          "Application submission reused idempotent response",
+        );
         return res.status(cachedResponse.status).json(cachedResponse.body);
       }
 
@@ -218,12 +273,7 @@ export default function applyHandler(req: Request, res: Response) {
         replyTo: "ohstnhunt@gmail.com",
       });
 
-      return res.status(HTTP_STATUS.ACCEPTED).json({
-        success: true,
-        sent,
-        confirmationSent: confirmationResult.sent,
-      });
-      const responseStatus = sent ? 200 : 202;
+      const responseStatus = HTTP_STATUS.ACCEPTED;
       const responseBody = {
         success: true,
         sent,
@@ -236,9 +286,29 @@ export default function applyHandler(req: Request, res: Response) {
         ttlMs: idempotencyTtlMs,
       });
 
+      logger.info(
+        {
+          ...logContext,
+          sent,
+          confirmationSent: confirmationResult.sent,
+        },
+        "Application submission received",
+      );
+
       return res.status(responseStatus).json(responseBody);
     } catch (error) {
-      console.error(error);
+      logger.error(
+        {
+          ...attachRequestMeta({
+            event: "application_submission_failed",
+            requestId: res.locals?.requestId,
+            method: req.method,
+            path: req.originalUrl || req.path,
+          }),
+          err: error,
+        },
+        "Application submission failed",
+      );
       return res.status(500).json({ error: "Failed to process application" });
     }
   });

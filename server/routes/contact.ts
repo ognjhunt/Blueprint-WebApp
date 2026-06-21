@@ -2,8 +2,14 @@ import { Request, Response } from "express";
 import { randomUUID } from "node:crypto";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { HTTP_STATUS } from "../constants/http-status";
+import { attachRequestMeta, logger } from "../logger";
 import { sendEmail } from "../utils/email";
 import { isValidEmailAddress } from "../utils/validation";
+
+function emailDomain(value: string) {
+  const domain = value.split("@").pop()?.trim().toLowerCase();
+  return domain || null;
+}
 
 export default async function contactHandler(req: Request, res: Response) {
   if (req.method !== "POST") {
@@ -63,6 +69,18 @@ export default async function contactHandler(req: Request, res: Response) {
   if (!company) missingFields.push("Company");
 
   if (missingFields.length > 0) {
+    logger.warn(
+      attachRequestMeta({
+        event: "contact_submission_rejected",
+        requestId: res.locals?.requestId,
+        method: req.method,
+        path: req.originalUrl || req.path,
+        requestSource,
+        reason: "missing_required_fields",
+        missingFields,
+      }),
+      "Contact submission rejected",
+    );
     return res.status(400).json({
       error: `Missing required fields: ${missingFields.join(", ")}`,
     });
@@ -70,6 +88,17 @@ export default async function contactHandler(req: Request, res: Response) {
 
   const emailValue = typeof email === "string" ? email.trim() : "";
   if (!emailValue || !isValidEmailAddress(emailValue)) {
+    logger.warn(
+      attachRequestMeta({
+        event: "contact_submission_rejected",
+        requestId: res.locals?.requestId,
+        method: req.method,
+        path: req.originalUrl || req.path,
+        requestSource,
+        reason: "invalid_email_format",
+      }),
+      "Contact submission rejected",
+    );
     return res.status(400).json({ error: "Invalid email format" });
   }
   const normalizedCountry =
@@ -229,6 +258,25 @@ export default async function contactHandler(req: Request, res: Response) {
   const to = process.env.CONTACT_TO ?? "ops@tryblueprint.io";
   const subject = `Blueprint request from ${company}`;
   const summary = summaryLines.join("\n");
+  const safeRequestType =
+    typeof (req.body?.requestType ?? requestType) === "string"
+      ? String(req.body?.requestType ?? requestType)
+      : null;
+  const logContext = attachRequestMeta({
+    event: "contact_submission_received",
+    requestId: res.locals?.requestId,
+    method: req.method,
+    path: req.originalUrl || req.path,
+    requestSource,
+    requestType: safeRequestType,
+    emailDomain: emailDomain(emailValue),
+    country: normalizedCountry,
+    hasMessage: typeof message === "string" && message.trim().length > 0,
+    useCaseCount: useCaseList.length,
+    interactionCount: interactionList.length,
+    targetPolicyCount: policies.length,
+    desiredCategoryCount: categories.length,
+  });
 
   const logEntry = {
     requestSource,
@@ -252,24 +300,53 @@ export default async function contactHandler(req: Request, res: Response) {
 
   try {
     if (!db) {
-      console.warn(
+      logger.warn(
+        {
+          ...logContext,
+          event: "contact_submission_firestore_unavailable",
+          durableRecord: "marketplaceWishlist",
+        },
         "Firebase Admin SDK not initialized. Skipping contact submission logging.",
       );
     } else {
-      await db
+      const recordRef = await db
         .collection("ops")
         .doc("marketplaceWishlist")
         .collection("requests")
         .add(logEntry);
+      logger.info(
+        {
+          ...logContext,
+          event: "contact_submission_wishlist_recorded",
+          contactLogId: recordRef.id,
+        },
+        "Contact submission wishlist record persisted",
+      );
     }
   } catch (error: any) {
-    console.error("Failed to log contact submission to Firestore:", error);
+    logger.warn(
+      {
+        ...logContext,
+        event: "contact_submission_firestore_write_failed",
+        durableRecord: "marketplaceWishlist",
+        err: error,
+      },
+      "Failed to log contact submission to Firestore",
+    );
   }
 
   let offWaitlistUrl: string | null = null;
 
   if (requestSource === "website-contact-form") {
     if (!db) {
+      logger.error(
+        {
+          ...logContext,
+          event: "contact_form_firestore_required_unavailable",
+          durableRecord: "contactRequests",
+        },
+        "Contact form Firestore records unavailable",
+      );
       return res
         .status(HTTP_STATUS.SERVICE_UNAVAILABLE)
         .json({ error: "Service temporarily unavailable" });
@@ -359,8 +436,25 @@ export default async function contactHandler(req: Request, res: Response) {
         createdAt: timestamp,
         updatedAt: timestamp,
       });
+      logger.info(
+        {
+          ...logContext,
+          event: "contact_form_records_created",
+          offWaitlistUrlCreated: Boolean(offWaitlistUrl),
+          sceneRecordCreated: true,
+        },
+        "Contact form durable records created",
+      );
     } catch (error) {
-      console.error("Failed to create contact-form Firestore records:", error);
+      logger.error(
+        {
+          ...logContext,
+          event: "contact_form_firestore_write_failed",
+          durableRecord: "contactRequests",
+          err: error,
+        },
+        "Failed to create contact-form Firestore records",
+      );
       return res
         .status(HTTP_STATUS.SERVICE_UNAVAILABLE)
         .json({ error: "Unable to process contact request right now" });
@@ -449,6 +543,17 @@ export default async function contactHandler(req: Request, res: Response) {
       replyTo: "ohstnhunt@gmail.com",
     });
   }
+
+  logger.info(
+    {
+      ...logContext,
+      event: "contact_submission_email_processed",
+      sent,
+      confirmationAttempted: Boolean(email),
+      offWaitlistUrlCreated: Boolean(offWaitlistUrl),
+    },
+    "Contact submission email processing completed",
+  );
 
   return res.status(HTTP_STATUS.ACCEPTED).json({
     success: true,

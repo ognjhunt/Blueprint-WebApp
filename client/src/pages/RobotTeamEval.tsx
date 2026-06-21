@@ -57,6 +57,25 @@ function isPublicDemoSiteWorldId(siteWorldId: string) {
   return publicDemoSiteWorldIds().has(String(siteWorldId || "").trim());
 }
 
+const hostedSessionRequestGatedMessage =
+  "Hosted session access is request-gated for this package. Submit an intake request so Blueprint can confirm runtime access, rights, pricing, and proof boundaries before opening a session.";
+
+function hostedSessionErrorMessage(error: unknown) {
+  const message =
+    error instanceof Error ? error.message : "Runtime path is request-gated.";
+  const normalized = message.toLowerCase();
+  if (
+    normalized.includes("runtime path is request-gated") ||
+    normalized.includes("reachable runtime handle") ||
+    normalized.includes("missing authenticated user") ||
+    normalized.includes("unauthorized") ||
+    normalized.includes("forbidden")
+  ) {
+    return hostedSessionRequestGatedMessage;
+  }
+  return message;
+}
+
 async function getFirebaseIdToken(): Promise<string> {
   if (typeof window === "undefined") return "";
 
@@ -338,9 +357,7 @@ export default function RobotTeamEval() {
       setLocation(payload.workspaceUrl);
     } catch (error) {
       setStatus("blocked");
-      setStatusMessage(
-        error instanceof Error ? error.message : "Runtime path is request-gated.",
-      );
+      setStatusMessage(hostedSessionErrorMessage(error));
     }
   };
 

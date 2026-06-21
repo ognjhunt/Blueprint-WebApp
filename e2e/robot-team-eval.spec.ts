@@ -26,8 +26,11 @@ test("robot-team eval route is simple and submits normalized policy payload", as
       status: 409,
       contentType: "application/json",
       body: JSON.stringify({
-        error: "Runtime path is request-gated.",
-        blockers: ["Runtime path is request-gated."],
+        error:
+          "The site-world registration does not include a reachable runtime handle.",
+        blockers: [
+          "The site-world registration does not include a reachable runtime handle.",
+        ],
       }),
     });
   });
@@ -67,7 +70,10 @@ test("robot-team eval route is simple and submits normalized policy payload", as
   }
 
   await page.getByRole("button", { name: /Create hosted session/i }).click();
-  await expect(page.getByText(/Runtime path is request-gated/i)).toBeVisible();
+  await expect(
+    page.getByText(/Hosted session access is request-gated/i),
+  ).toBeVisible();
+  await expect(page.getByText(/confirm runtime access, rights, pricing/i)).toBeVisible();
   await expect(
     page.getByRole("link", { name: /Submit intake request/i }).first(),
   ).toHaveAttribute("href", /source=robot-team-eval/);

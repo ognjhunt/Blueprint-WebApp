@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { logger } from "../../logger";
 
 const apiKey = process.env.GOOGLE_PLACES_API_KEY;
 
@@ -57,7 +58,16 @@ export default async function handler(
       .status(404)
       .json({ error: "No images available from Google APIs" });
   } catch (error: any) {
-    console.error("Error fetching location image:", error);
+    logger.error(
+      {
+        event: "google_places_image_fetch_failed",
+        addressLength:
+          typeof req.query.address === "string" ? req.query.address.length : 0,
+        hasBusinessName: typeof req.query.businessName === "string" && req.query.businessName.length > 0,
+        err: error,
+      },
+      "Error fetching location image",
+    );
     return res
       .status(500)
       .json({ error: "Server error fetching location image." });

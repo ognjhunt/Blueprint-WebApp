@@ -1,5 +1,6 @@
 import { Request, Response, Router } from "express";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+import { logger } from "../logger";
 import {
   listCreatorPayouts,
   mapCreatorPayoutStatusForLedger,
@@ -475,7 +476,15 @@ router.post("/city-launch/candidate-signals", async (req: Request, res: Response
     source: "creator_city_launch_candidate_signals",
   }).then((handoff) => {
     if (handoff.error) {
-      console.error("City launch candidate Paperclip handoff failed", handoff.error);
+      logger.error(
+        {
+          event: "city_launch_candidate_paperclip_handoff_failed",
+          source: "creator_city_launch_candidate_signals",
+          candidateCount: result.length,
+          err: handoff.error,
+        },
+        "City launch candidate Paperclip handoff failed",
+      );
     }
   });
   return res.status(201).json({ candidates: result, review });

@@ -184,10 +184,28 @@ function hostedSessionCreateErrorStatus(error: HostedSessionRuntimeError) {
   if (error.code === "invalid_robot_team_test_submission" || error.code === "robot_team_test_modality_required") {
     return 400;
   }
-  if (error.code.startsWith("missing") || error.code.includes("not_launchable")) {
+  if (
+    error.code.startsWith("missing") ||
+    error.code.includes("missing") ||
+    error.code.includes("not_launchable") ||
+    error.code.includes("unlaunchable")
+  ) {
     return 409;
   }
   return 500;
+}
+
+function hostedSessionCreateError(error: unknown) {
+  if (error instanceof HostedSessionRuntimeError) {
+    return error;
+  }
+  if (error instanceof HostedSessionOrchestratorError) {
+    return new HostedSessionRuntimeError(error.code, error.message);
+  }
+  if (error instanceof Error) {
+    return new HostedSessionRuntimeError("session_create_failed", error.message);
+  }
+  return new HostedSessionRuntimeError("session_create_failed", "Failed to create hosted session.");
 }
 
 async function ensureRobotTeamOrAdminAccess(res: Response): Promise<HostedSessionAccessUser> {
@@ -2200,12 +2218,7 @@ publicSiteWorldSessionsRouter.post("/", async (req, res, next) => {
       .status(201)
       .json(buildSessionCreateResponse((await loadHostedSession(finalizedRecord.sessionId)) || finalizedRecord));
   } catch (error) {
-    const hostedError =
-      error instanceof HostedSessionRuntimeError
-        ? error
-        : error instanceof Error
-          ? new HostedSessionRuntimeError("session_create_failed", error.message)
-          : new HostedSessionRuntimeError("session_create_failed", "Failed to create hosted session.");
+    const hostedError = hostedSessionCreateError(error);
     const status = hostedSessionCreateErrorStatus(hostedError);
     return res.status(status).json({ error: hostedError.message, code: hostedError.code });
   }
@@ -2869,12 +2882,7 @@ protectedRouter.post("/", async (req: Request, res: Response) => {
       .status(201)
       .json(buildSessionCreateResponse((await loadHostedSession(finalizedRecord.sessionId)) || finalizedRecord));
   } catch (error) {
-    const hostedError =
-      error instanceof HostedSessionRuntimeError
-        ? error
-        : error instanceof Error
-          ? new HostedSessionRuntimeError("session_create_failed", error.message)
-          : new HostedSessionRuntimeError("session_create_failed", "Failed to create hosted session.");
+    const hostedError = hostedSessionCreateError(error);
     const status = hostedSessionCreateErrorStatus(hostedError);
     return res.status(status).json({ error: hostedError.message, code: hostedError.code });
   }

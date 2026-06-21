@@ -1,6 +1,7 @@
 import crypto from "crypto";
 
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+import { logger } from "../logger";
 import { getRateLimitRedisClient } from "./rate-limit-redis";
 
 const DEFAULT_IDEMPOTENCY_WINDOW_MS = 10 * 60 * 1000;
@@ -70,6 +71,14 @@ const isRecordExpired = (record?: IdempotencyRecord | null) => {
   return Date.now() > expiresAt;
 };
 
+const idempotencyLogContext = (key: string, store: "redis" | "firestore") => {
+  const [, scope] = key.split(":");
+  return {
+    idempotencyScope: scope || "unknown",
+    store,
+  };
+};
+
 export const fetchIdempotencyResponse = async (
   key: string,
 ): Promise<IdempotencyResponse | null> => {
@@ -82,7 +91,14 @@ export const fetchIdempotencyResponse = async (
         return JSON.parse(cached) as IdempotencyResponse;
       }
     } catch (error) {
-      console.warn("Failed to read idempotency key from Redis:", error);
+      logger.warn(
+        {
+          event: "idempotency_read_failed",
+          ...idempotencyLogContext(key, "redis"),
+          err: error,
+        },
+        "Failed to read idempotency key from Redis",
+      );
     }
   }
 
@@ -106,7 +122,14 @@ export const fetchIdempotencyResponse = async (
       body: data.body,
     };
   } catch (error) {
-    console.warn("Failed to read idempotency key from Firestore:", error);
+    logger.warn(
+      {
+        event: "idempotency_read_failed",
+        ...idempotencyLogContext(key, "firestore"),
+        err: error,
+      },
+      "Failed to read idempotency key from Firestore",
+    );
     return null;
   }
 };
@@ -128,7 +151,14 @@ export const storeIdempotencyResponse = async ({
         PX: ttlMs,
       });
     } catch (error) {
-      console.warn("Failed to store idempotency key in Redis:", error);
+      logger.warn(
+        {
+          event: "idempotency_store_failed",
+          ...idempotencyLogContext(key, "redis"),
+          err: error,
+        },
+        "Failed to store idempotency key in Redis",
+      );
     }
   }
 
@@ -143,6 +173,13 @@ export const storeIdempotencyResponse = async ({
       expiresAt: admin.firestore.Timestamp.fromMillis(Date.now() + ttlMs),
     });
   } catch (error) {
-    console.warn("Failed to store idempotency key in Firestore:", error);
+    logger.warn(
+      {
+        event: "idempotency_store_failed",
+        ...idempotencyLogContext(key, "firestore"),
+        err: error,
+      },
+      "Failed to store idempotency key in Firestore",
+    );
   }
 };

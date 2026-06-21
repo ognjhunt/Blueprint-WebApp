@@ -18,6 +18,7 @@ const runGapClosureLoop = vi.hoisted(() => vi.fn());
 const runHumanReplyEmailWatcher = vi.hoisted(() => vi.fn());
 const runOperatingGraphProjectionLoop = vi.hoisted(() => vi.fn());
 const sendSlackMessage = vi.hoisted(() => vi.fn());
+const workerStatusSetMock = vi.hoisted(() => vi.fn());
 const workerFailureAlertState = vi.hoisted(() => new Map<string, string>());
 const maybeAlertOnWorkerStatusTransition = vi.hoisted(() =>
   vi.fn(async (params: {
@@ -72,19 +73,6 @@ const maybeAlertOnWorkerStatusTransition = vi.hoisted(() =>
     }
   }),
 );
-const firebaseAdminMock = vi.hoisted(() => ({
-  default: {
-    firestore: {
-      FieldValue: {
-        serverTimestamp: () => "timestamp",
-      },
-    },
-  },
-  dbAdmin: null,
-  authAdmin: null,
-}));
-
-vi.mock("../../client/src/lib/firebaseAdmin", () => firebaseAdminMock);
 
 vi.mock("../utils/ops-alerts", () => ({
   maybeAlertOnWorkerStatusTransition,
@@ -92,7 +80,14 @@ vi.mock("../utils/ops-alerts", () => ({
 
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({
   authAdmin: null,
-  dbAdmin: null,
+  dbAdmin: {
+    collection: vi.fn((collectionName: string) => ({
+      doc: vi.fn((docId: string) => ({
+        set: (payload: Record<string, unknown>, options: Record<string, unknown>) =>
+          workerStatusSetMock(collectionName, docId, payload, options),
+      })),
+    })),
+  },
   default: {
     firestore: {
       FieldValue: {
@@ -154,6 +149,8 @@ vi.mock("../utils/slack", () => ({
 
 beforeEach(() => {
   vi.useFakeTimers();
+  workerStatusSetMock.mockReset();
+  workerFailureAlertState.clear();
   runWaitlistAutomationLoop.mockResolvedValue({ processedCount: 1, failedCount: 0 });
   runInboundQualificationLoop.mockResolvedValue({ processedCount: 2, failedCount: 0 });
   runSupportTriageLoop.mockResolvedValue({ processedCount: 3, failedCount: 0 });
@@ -262,6 +259,51 @@ describe("ops automation scheduler", () => {
     await vi.advanceTimersByTimeAsync(60_000);
 
     expect(runHumanReplyEmailWatcher).toHaveBeenCalledWith({ limit: 25 });
+
+    stop();
+  });
+
+  it("persists blocked worker metadata when the human reply watcher fails closed", async () => {
+    const reason =
+      "Gmail OAuth refresh token was rejected with invalid_grant. Rotate BLUEPRINT_HUMAN_REPLY_GMAIL_REFRESH_TOKEN.";
+    vi.stubEnv("BLUEPRINT_HUMAN_REPLY_GMAIL_WATCHER_ENABLED", "1");
+    vi.stubEnv("BLUEPRINT_HUMAN_REPLY_GMAIL_WATCHER_STARTUP_DELAY_MS", "0");
+    runHumanReplyEmailWatcher.mockResolvedValueOnce({
+      processedCount: 0,
+      failedCount: 0,
+      blockedCount: 0,
+      reason,
+    });
+
+    const { startOpsAutomationScheduler } = await import("../utils/opsAutomationScheduler");
+    const stop = startOpsAutomationScheduler();
+
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    const blockedStatusCall = workerStatusSetMock.mock.calls.find(
+      ([collectionName, docId, payload]) =>
+        collectionName === "opsAutomationWorkerStatus"
+        && docId === "human_reply_email"
+        && payload?.status === "blocked",
+    );
+    expect(blockedStatusCall).toBeTruthy();
+    expect(blockedStatusCall?.[2]).toEqual(
+      expect.objectContaining({
+        status: "blocked",
+        last_processed_count: 0,
+        last_failed_count: 0,
+        last_blocked_count: 0,
+        last_result_reason: reason,
+        last_error: null,
+      }),
+    );
+    expect(maybeAlertOnWorkerStatusTransition).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workerKey: "human_reply_email",
+        nextStatus: "blocked",
+        failedCount: 0,
+      }),
+    );
 
     stop();
   });

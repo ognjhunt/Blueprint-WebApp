@@ -165,8 +165,10 @@ describe("RobotTeamEval", () => {
       vi.fn(async () =>
         new Response(
           JSON.stringify({
-            error: "Runtime path is request-gated.",
-            blockers: ["Runtime path is request-gated."],
+            error: "The site-world registration does not include a reachable runtime handle.",
+            blockers: [
+              "The site-world registration does not include a reachable runtime handle.",
+            ],
           }),
           { status: 409, headers: { "Content-Type": "application/json" } },
         ),
@@ -177,7 +179,10 @@ describe("RobotTeamEval", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /Create hosted session/i }));
 
-    expect(await screen.findByText(/Runtime path is request-gated/i)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/Hosted session access is request-gated/i),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/confirm runtime access, rights, pricing/i)).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /Submit intake request/i })[0]).toHaveAttribute(
       "href",
       expect.stringContaining("source=robot-team-eval"),

@@ -1864,6 +1864,40 @@ describe("site world session routes", () => {
     }
   });
 
+  it("returns 409 when runtime creation reaches a missing runtime handle", async () => {
+    const orchestrator = await import("../utils/hosted-session-orchestrator");
+    vi.mocked(orchestrator.createHostedSessionRun).mockRejectedValueOnce(
+      new orchestrator.HostedSessionOrchestratorError(
+        "runtime_handle_missing",
+        "The site-world registration does not include a reachable runtime handle.",
+      ),
+    );
+
+    const { server, baseUrl } = await startServer();
+    try {
+      const response = await fetch(`${baseUrl}/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          siteWorldId: "sw-chi-01",
+          sessionMode: "runtime_only",
+          robotProfileId: "other_sample",
+          taskId: "sw-chi-01-task-1",
+          scenarioId: "sw-chi-01-scenario-1",
+          startStateId: "sw-chi-01-start-1",
+        }),
+      });
+      const payload = (await response.json()) as Record<string, unknown>;
+      expect(response.status).toBe(409);
+      expect(payload.code).toBe("runtime_handle_missing");
+      expect(payload.error).toBe(
+        "The site-world registration does not include a reachable runtime handle.",
+      );
+    } finally {
+      await stopServer(server);
+    }
+  });
+
   it("creates an artifact-backed presentation demo session when no UI URL is configured", async () => {
     state.presentationLaunchConfig = {
       manifest: {},

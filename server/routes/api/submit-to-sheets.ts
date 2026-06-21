@@ -4,6 +4,7 @@
 
 import { Request, Response } from "express";
 import { google } from "googleapis";
+import { logger } from "../../logger";
 
 export default async function handler(
   req: Request,
@@ -70,7 +71,14 @@ export default async function handler(
 
     res.status(200).json({ message: "Success" });
   } catch (error: any) {
-    console.error("Sheets API Error:", error);
+    logger.error(
+      {
+        event: "sheets_append_failed",
+        hasSpreadsheetId: Boolean(process.env.SPREADSHEET_ID),
+        err: error,
+      },
+      "Sheets API Error",
+    );
     res.status(500).json({ message: "Error", error: error.message });
   }
 }

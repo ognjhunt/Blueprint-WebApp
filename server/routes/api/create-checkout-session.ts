@@ -19,6 +19,7 @@ import {
   markBuyerOrderCheckoutFailure,
 } from "../../utils/accounting";
 import { stripeAvailable } from "../../constants/stripe";
+import { logger } from "../../logger";
 
 type PaymentSessionType = "onboarding" | "legacy-hourly" | "marketplace";
 
@@ -215,6 +216,8 @@ export default async function handler(req: Request, res: Response) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
+  const body = (req.body || {}) as CheckoutRequestBody;
+
   try {
     // Check Stripe availability before proceeding
     if (!stripeAvailable) {
@@ -228,7 +231,6 @@ export default async function handler(req: Request, res: Response) {
 
     const stripe = getStripeClient();
 
-    const body = (req.body || {}) as CheckoutRequestBody;
     const sessionType: PaymentSessionType =
       body.sessionType || (body.totalCost ? "legacy-hourly" : "onboarding");
 
@@ -672,7 +674,18 @@ export default async function handler(req: Request, res: Response) {
 
     return res.status(400).json({ error: "Invalid checkout session payload" });
   } catch (error) {
-    console.error("Error creating Stripe session:", error);
+    logger.error(
+      {
+        event: "stripe_checkout_session_create_failed",
+        sessionType: body.sessionType ?? null,
+        marketplaceSku:
+          typeof body.marketplaceItem?.sku === "string" ? body.marketplaceItem.sku : null,
+        marketplaceItemType:
+          typeof body.marketplaceItem?.itemType === "string" ? body.marketplaceItem.itemType : null,
+        err: error,
+      },
+      "Error creating Stripe session",
+    );
     const errorMessage =
       error instanceof Error ? error.message : "Internal Server Error";
     return res.status(500).json({ error: errorMessage });

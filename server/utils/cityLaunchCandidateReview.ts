@@ -10,6 +10,7 @@ import {
   type CityLaunchNotificationDispatchResult,
 } from "./cityLaunchNotifications";
 import { slugifyCityName } from "./cityLaunchProfiles";
+import { logger } from "../logger";
 
 type ReviewDecision = "keep_in_review" | "promote" | "reject";
 
@@ -442,7 +443,15 @@ export async function reviewCityLaunchCandidateBatch(input: {
           failedCount: prospects.length,
           records: [],
         });
-        console.error("City launch notification dispatch failed", error);
+        logger.error(
+          {
+            event: "city_launch_notification_dispatch_failed",
+            city,
+            prospectCount: prospects.length,
+            err: error,
+          },
+          "City launch notification dispatch failed",
+        );
       }
     }
   }
