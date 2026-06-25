@@ -33,6 +33,52 @@ const steps = [
   ["Pick next test", "Pilot, tune, recapture, or hold."],
 ];
 
+const povClipTileClasses = [
+  "lg:col-span-2 lg:row-span-2",
+  "lg:col-span-1 lg:row-span-1",
+  "lg:col-span-2 lg:row-span-1",
+  "lg:col-span-1 lg:row-span-2",
+  "lg:col-span-1 lg:row-span-1",
+  "lg:col-span-2 lg:row-span-1",
+  "lg:col-span-1 lg:row-span-1",
+  "lg:col-span-1 lg:row-span-1",
+  "lg:col-span-1 lg:row-span-1",
+  "lg:col-span-1 lg:row-span-1",
+  "lg:col-span-2 lg:row-span-1",
+] as const;
+
+function PovClipMosaic({
+  className,
+  decorative = false,
+}: {
+  className?: string;
+  decorative?: boolean;
+}) {
+  return (
+    <div
+      aria-hidden={decorative ? "true" : undefined}
+      className={`grid ${className ?? ""}`}
+    >
+      {wamPolicyEvalAssets.povClips.map((clip, index) => (
+        <figure
+          key={clip.src}
+          className={`overflow-hidden rounded-md border border-white/10 bg-slate-900 shadow-[0_22px_60px_-44px_rgba(15,23,42,0.85)] ${
+            povClipTileClasses[index] ?? ""
+          }`}
+        >
+          <img
+            src={clip.src}
+            alt={decorative ? "" : clip.alt}
+            loading="lazy"
+            decoding="async"
+            className="h-full w-full object-cover"
+          />
+        </figure>
+      ))}
+    </div>
+  );
+}
+
 export default function Home() {
   return (
     <>
@@ -172,22 +218,51 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="border-y border-slate-200 bg-slate-950 text-white">
-          <div className="mx-auto grid max-w-[88rem] gap-6 px-5 py-10 md:grid-cols-[1fr_auto] md:items-center md:px-8">
-            <div>
-              <h2 className="text-3xl font-semibold">See the clips.</h2>
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
-                Generated clips help review results. They are not real-world
-                proof.
-              </p>
-            </div>
-            <a
-              href="/for-robot-teams"
-              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-white px-5 text-sm font-semibold text-slate-950 hover:bg-slate-100"
+        <section
+          className="relative overflow-hidden border-y border-slate-900 bg-slate-950 text-white"
+          data-home-section="clips"
+        >
+          <div
+            className="pointer-events-none absolute inset-y-0 right-0 hidden w-[72%] lg:block"
+            aria-hidden="true"
+          >
+            <div className="absolute inset-0 z-10 bg-gradient-to-r from-slate-950 via-slate-950/65 to-slate-950/10" />
+            <div
+              className="absolute inset-0 opacity-85"
+              style={{
+                maskImage:
+                  "linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.35) 22%, black 46%, black 100%)",
+                WebkitMaskImage:
+                  "linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.35) 22%, black 46%, black 100%)",
+              }}
             >
-              Evaluate
-              <Play className="h-4 w-4" aria-hidden="true" />
-            </a>
+              <PovClipMosaic
+                decorative
+                className="h-full grid-cols-5 auto-rows-fr gap-2 p-3"
+              />
+            </div>
+          </div>
+
+          <div className="relative z-20 mx-auto grid max-w-[88rem] gap-10 px-5 py-14 md:px-8 lg:min-h-[38rem] lg:grid-cols-[0.42fr_0.58fr] lg:items-center lg:py-20">
+            <div className="max-w-xl">
+              <h2 className="text-4xl font-semibold leading-tight sm:text-5xl">
+                See the clips.
+              </h2>
+              <p className="mt-5 text-base leading-8 text-slate-300">
+                Generated first-person POV clips make policy failures easier to
+                review across factory, warehouse, industrial, and home-task
+                variants. They are review media, not real-world proof.
+              </p>
+              <a
+                href="/for-robot-teams"
+                className="mt-8 inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-white px-5 text-sm font-semibold text-slate-950 hover:bg-slate-100"
+              >
+                Evaluate
+                <Play className="h-4 w-4" aria-hidden="true" />
+              </a>
+            </div>
+
+            <PovClipMosaic className="grid-cols-2 auto-rows-[7.5rem] gap-2 sm:grid-cols-3 sm:auto-rows-[9rem] lg:hidden" />
           </div>
         </section>
 
