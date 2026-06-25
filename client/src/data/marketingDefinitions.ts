@@ -11,7 +11,7 @@ export const categoryValidationDefinition =
   "Street View-grounded world models make outdoor places easier for agents to explore; Blueprint focuses the same site-specific logic on indoor spaces that need lawful capture, provenance, and rights review.";
 
 export const policyEvaluationSetDefinition =
-  "A Policy Evaluation Run covers one site package, one task pack, one robot embodiment, and 100 or 500 WAM-eval episodes, with policy ranking, predicted success, failure taxonomy, OOD flags, recommended validation targets, and export framing.";
+  "A Policy Evaluation Run covers one site package, one task pack, one robot embodiment, and a scoped episode count. The subscription path supports repeated eval cycles up to the agreed policy cap; the lite path stays ranking-only.";
 
 export const sitePackageIncludes = [
   "Walkthrough video, timestamps, and camera poses tied to one real facility",
@@ -43,7 +43,7 @@ export const listingVariationItems = [
 
 export const companyTrustItems = [
   "Blueprint captures indoor facilities and turns them into site-specific data products robot teams can request, evaluate, and license.",
-  "Blueprint sells Policy Evaluation Runs, Validated Evaluation Packs, and follow-on Policy Improvement Runs, not deployment guarantees.",
+  "Blueprint sells robot-team evaluation subscriptions, lite quick-look evals, scoped Policy Improvement Runs, site supply reviews, and yearly site monitoring, not deployment guarantees.",
   "Rights, privacy, and usage controls are attached to every listing up front.",
 ];
 

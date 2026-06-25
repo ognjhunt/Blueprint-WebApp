@@ -42,17 +42,17 @@ test('contact page leads with a simple robot-team Policy Evaluation Run flow', a
   await expect(page.getByText(/Site data package/i)).toHaveCount(0);
 });
 
-test('site-operator contact path keeps the free access-boundary lane visible', async ({ page }) => {
+test('site-operator contact path keeps the low-cost access-boundary lane visible', async ({ page }) => {
   await page.goto('/contact/site-operator', { waitUntil: 'domcontentloaded' });
 
   await expect(
     page.getByRole('heading', { name: /Share a place to test robots\./i }),
   ).toBeVisible();
-  await expect(page.getByText(/Submit a site for free\. You control access/i)).toBeVisible();
+  await expect(page.getByText(/Start a \$5,000\/site supply review or scope separate yearly monitoring\. You control access/i)).toBeVisible();
   await expect(page.getByRole('textbox', { name: /Facility name or site type/i })).toBeVisible();
   await expect(page.getByRole('textbox', { name: /City \/ location/i })).toBeVisible();
   await expect(page.getByText(/Ask before each robot-team use/i)).toBeVisible();
-  await expect(page.getByRole('button', { name: /Submit site free/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Start site review/i })).toBeVisible();
 });
 
 test('robot-team contact form submits a Policy Evaluation Run payload through a mocked endpoint', async ({ page }) => {

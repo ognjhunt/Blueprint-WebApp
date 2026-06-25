@@ -17,11 +17,62 @@ export type RobotTeamTestSubmissionValidationMode =
   | "comparative_policy_eval"
   | "real_rollout_validated";
 
+export type RobotTeamTestSubmissionHardwareIntegrationMode =
+  | "reference_public_robot"
+  | "private_asset_hosted_by_blueprint"
+  | "customer_hosted_sealed_eval_capsule"
+  | "physical_robot_evidence_bridge";
+
+export type RobotTeamTestSubmissionSiteIpProtectionLevel =
+  | "blueprint_hosted"
+  | "sealed_eval_capsule"
+  | "redacted_anchor_packet";
+
+export type RobotTeamPrivateHardwareIntegration = {
+  schemaVersion: "private_hardware_integration_plan.v1";
+  integrationMode: RobotTeamTestSubmissionHardwareIntegrationMode;
+  integrationLabel: string;
+  siteIpProtectionLevel: RobotTeamTestSubmissionSiteIpProtectionLevel;
+  siteIpProtectionLabel: string;
+  robotEmbodimentPackRef?: string;
+  customerHostedConnectorRef?: string;
+  blueprintIpControls: {
+    rawCaptureBundleSharedWithCustomer: false;
+    fullResolutionSceneMeshSharedByDefault: false;
+    fullScoringHarnessSharedByDefault: false;
+    sealedAuditScenariosDisclosedToCustomer: false;
+    exportedPacketIsLeastPrivilege: true;
+    signedExpiringArtifactUrlsRequired: true;
+    packetWatermarkingOrRequestBindingRequired: true;
+    customerVisiblePacketFields: string[];
+    withheldByDefault: string[];
+  };
+  customerHardwareControls: {
+    customerPrivateRobotModelMayRemainCustomerSide: boolean;
+    customerPrivateRobotAssetsRequiredByBlueprint: boolean;
+    blueprintHostsCustomerRobotAsset: boolean;
+    customerHostsPrivateRuntimeOrHardwareBridge: boolean;
+    privateRobotAssetInputsIfShared: string[];
+  };
+  requiredConnectorEvidence: string[];
+  claimBoundary: {
+    customerHostedConnectorOutputsAreOwnerEvidence: true;
+    customerHostedConnectorDoesNotExportBlueprintRawSceneIp: true;
+    robotModelOrUrdfPresenceAloneIsNotHardwareReadiness: true;
+    physicalRobotReadinessRequiresAcceptedRealRobotEvidence: true;
+    blueprintScenePacketIsNotUnboundedSiteAssetDelivery: true;
+  };
+};
+
 export type RobotTeamTestSubmissionRunSetup = {
   policyLabels: string[];
   episodeCount: RobotTeamTestSubmissionEpisodeCount;
   customEpisodeCount?: string;
   validationMode: RobotTeamTestSubmissionValidationMode;
+  hardwareIntegrationMode: RobotTeamTestSubmissionHardwareIntegrationMode;
+  siteIpProtectionLevel: RobotTeamTestSubmissionSiteIpProtectionLevel;
+  robotEmbodimentPackRef: string;
+  customerHostedConnectorRef: string;
   observationSchemaRef: string;
   actionSchemaRef: string;
   controlFrequency: string;
@@ -80,6 +131,11 @@ export type RobotTeamTestSubmission = {
   episodeCount: RobotTeamTestSubmissionEpisodeCount;
   customEpisodeCount?: string;
   validationMode: RobotTeamTestSubmissionValidationMode;
+  hardwareIntegrationMode: RobotTeamTestSubmissionHardwareIntegrationMode;
+  siteIpProtectionLevel: RobotTeamTestSubmissionSiteIpProtectionLevel;
+  robotEmbodimentPackRef: string;
+  customerHostedConnectorRef: string;
+  privateHardwareIntegration: RobotTeamPrivateHardwareIntegration;
   observationSchemaRef: string;
   actionSchemaRef: string;
   controlFrequency: string;
@@ -570,6 +626,71 @@ export const ROBOT_TEAM_TEST_SUBMISSION_MODALITY_DEFINITIONS: RobotTeamTestSubmi
     },
   ];
 
+const HARDWARE_INTEGRATION_MODES: Record<
+  RobotTeamTestSubmissionHardwareIntegrationMode,
+  {
+    label: string;
+    defaultSiteIpProtectionLevel: RobotTeamTestSubmissionSiteIpProtectionLevel;
+    customerPrivateRobotAssetsRequired: boolean;
+    blueprintHostsRobotAsset: boolean;
+    customerHostsPrivateRuntime: boolean;
+    summary: string;
+  }
+> = {
+  reference_public_robot: {
+    label: "Reference public robot",
+    defaultSiteIpProtectionLevel: "blueprint_hosted",
+    customerPrivateRobotAssetsRequired: false,
+    blueprintHostsRobotAsset: false,
+    customerHostsPrivateRuntime: false,
+    summary: "Use public/reference assets such as Unitree G1 for plumbing and demos.",
+  },
+  private_asset_hosted_by_blueprint: {
+    label: "Private asset hosted by Blueprint",
+    defaultSiteIpProtectionLevel: "blueprint_hosted",
+    customerPrivateRobotAssetsRequired: true,
+    blueprintHostsRobotAsset: true,
+    customerHostsPrivateRuntime: false,
+    summary:
+      "Share an NDA-bound robot embodiment pack so Blueprint can run the private evaluation.",
+  },
+  customer_hosted_sealed_eval_capsule: {
+    label: "Customer-hosted sealed eval capsule",
+    defaultSiteIpProtectionLevel: "sealed_eval_capsule",
+    customerPrivateRobotAssetsRequired: false,
+    blueprintHostsRobotAsset: false,
+    customerHostsPrivateRuntime: true,
+    summary:
+      "Keep the private robot model and simulator inside your environment while returning owner proof.",
+  },
+  physical_robot_evidence_bridge: {
+    label: "Physical robot evidence bridge",
+    defaultSiteIpProtectionLevel: "redacted_anchor_packet",
+    customerPrivateRobotAssetsRequired: false,
+    blueprintHostsRobotAsset: false,
+    customerHostsPrivateRuntime: true,
+    summary:
+      "Run the hardware bridge and return camera/action/outcome evidence by scenario.",
+  },
+};
+
+const SITE_IP_PROTECTION_LEVELS: Record<
+  RobotTeamTestSubmissionSiteIpProtectionLevel,
+  { label: string }
+> = {
+  blueprint_hosted: { label: "Blueprint-hosted harness" },
+  sealed_eval_capsule: { label: "Sealed eval capsule" },
+  redacted_anchor_packet: { label: "Redacted anchor packet" },
+};
+
+export const ROBOT_TEAM_HARDWARE_INTEGRATION_OPTIONS = Object.entries(
+  HARDWARE_INTEGRATION_MODES,
+).map(([id, definition]) => ({
+  id: id as RobotTeamTestSubmissionHardwareIntegrationMode,
+  label: definition.label,
+  summary: definition.summary,
+}));
+
 const fieldDefinitionsByModality = Object.fromEntries(
   ROBOT_TEAM_TEST_SUBMISSION_MODALITY_DEFINITIONS.map((definition) => [
     definition.id,
@@ -685,6 +806,104 @@ function normalizeValidationMode(
     : "virtual_preflight";
 }
 
+function normalizeHardwareIntegrationMode(
+  value: unknown,
+): RobotTeamTestSubmissionHardwareIntegrationMode {
+  const text = normalizeString(value, 120);
+  return text in HARDWARE_INTEGRATION_MODES
+    ? (text as RobotTeamTestSubmissionHardwareIntegrationMode)
+    : "customer_hosted_sealed_eval_capsule";
+}
+
+function normalizeSiteIpProtectionLevel(
+  value: unknown,
+  mode: RobotTeamTestSubmissionHardwareIntegrationMode,
+): RobotTeamTestSubmissionSiteIpProtectionLevel {
+  const text = normalizeString(value, 120);
+  return text in SITE_IP_PROTECTION_LEVELS
+    ? (text as RobotTeamTestSubmissionSiteIpProtectionLevel)
+    : HARDWARE_INTEGRATION_MODES[mode].defaultSiteIpProtectionLevel;
+}
+
+function privateHardwareIntegrationPlan(params: {
+  hardwareIntegrationMode: RobotTeamTestSubmissionHardwareIntegrationMode;
+  siteIpProtectionLevel: RobotTeamTestSubmissionSiteIpProtectionLevel;
+  robotEmbodimentPackRef: string;
+  customerHostedConnectorRef: string;
+}): RobotTeamPrivateHardwareIntegration {
+  const mode = HARDWARE_INTEGRATION_MODES[params.hardwareIntegrationMode];
+  const protection = SITE_IP_PROTECTION_LEVELS[params.siteIpProtectionLevel];
+
+  return {
+    schemaVersion: "private_hardware_integration_plan.v1",
+    integrationMode: params.hardwareIntegrationMode,
+    integrationLabel: mode.label,
+    siteIpProtectionLevel: params.siteIpProtectionLevel,
+    siteIpProtectionLabel: protection.label,
+    robotEmbodimentPackRef: params.robotEmbodimentPackRef || undefined,
+    customerHostedConnectorRef: params.customerHostedConnectorRef || undefined,
+    blueprintIpControls: {
+      rawCaptureBundleSharedWithCustomer: false,
+      fullResolutionSceneMeshSharedByDefault: false,
+      fullScoringHarnessSharedByDefault: false,
+      sealedAuditScenariosDisclosedToCustomer: false,
+      exportedPacketIsLeastPrivilege: true,
+      signedExpiringArtifactUrlsRequired: true,
+      packetWatermarkingOrRequestBindingRequired: true,
+      customerVisiblePacketFields: [
+        "task_id",
+        "scenario_eval_run_id",
+        "redacted_scene_anchors_or_proxy_assets",
+        "observation_schema",
+        "action_schema",
+        "success_criteria",
+        "cycle_time_and_intervention_thresholds",
+        "evidence_envelope_contract",
+      ],
+      withheldByDefault: [
+        "raw_capture_bundle",
+        "full_site_geometry_or_dense_scene_assets",
+        "capturer_or_site_private_metadata",
+        "full_scoring_harness_implementation",
+        "sealed_audit_scenario_seeds",
+        "hidden_failure_labels_or_verifier_weights",
+      ],
+    },
+    customerHardwareControls: {
+      customerPrivateRobotModelMayRemainCustomerSide: mode.customerHostsPrivateRuntime,
+      customerPrivateRobotAssetsRequiredByBlueprint:
+        mode.customerPrivateRobotAssetsRequired,
+      blueprintHostsCustomerRobotAsset: mode.blueprintHostsRobotAsset,
+      customerHostsPrivateRuntimeOrHardwareBridge: mode.customerHostsPrivateRuntime,
+      privateRobotAssetInputsIfShared: [
+        "URDF_MJCF_or_USD",
+        "kinematic_and_dynamic_limits",
+        "collision_meshes_or_proxy_collision_shapes",
+        "camera_frames_intrinsics_extrinsics",
+        "sensor_topics_or_observation_schema",
+        "action_command_schema_units_frequency_limits",
+        "controller_reset_and_safety_envelope",
+      ],
+    },
+    requiredConnectorEvidence: [
+      "camera_video_or_frame_refs_by_scenario_eval_run_id",
+      "action_or_skill_logs_with_timestamps",
+      "robot_state_or_joint_state_logs_when_available",
+      "observation_action_alignment_summary",
+      "outcome_labels_and_failure_modes",
+      "checksums_for_returned_artifacts",
+      "owner_or_operator_attestation",
+    ],
+    claimBoundary: {
+      customerHostedConnectorOutputsAreOwnerEvidence: true,
+      customerHostedConnectorDoesNotExportBlueprintRawSceneIp: true,
+      robotModelOrUrdfPresenceAloneIsNotHardwareReadiness: true,
+      physicalRobotReadinessRequiresAcceptedRealRobotEvidence: true,
+      blueprintScenePacketIsNotUnboundedSiteAssetDelivery: true,
+    },
+  };
+}
+
 function normalizePolicyLabels(value: unknown) {
   const source = Array.isArray(value)
     ? value
@@ -731,6 +950,17 @@ export function normalizeRobotTeamTestSubmission(
   const selectedDefinitions = selectedModalities.map(
     (id) => fieldDefinitionsByModality[id],
   );
+  const hardwareIntegrationMode = normalizeHardwareIntegrationMode(
+    value.hardwareIntegrationMode,
+  );
+  const siteIpProtectionLevel = normalizeSiteIpProtectionLevel(
+    value.siteIpProtectionLevel,
+    hardwareIntegrationMode,
+  );
+  const robotEmbodimentPackRef = normalizeString(value.robotEmbodimentPackRef);
+  const customerHostedConnectorRef = normalizeString(
+    value.customerHostedConnectorRef,
+  );
   const missingEvidenceStatuses = uniqueStrings([
     ...selectedModalities
       .map((id) => modalities[id].missingEvidenceStatus)
@@ -754,6 +984,16 @@ export function normalizeRobotTeamTestSubmission(
         ? normalizeString(value.customEpisodeCount, 80) || undefined
         : undefined,
     validationMode: normalizeValidationMode(value.validationMode),
+    hardwareIntegrationMode,
+    siteIpProtectionLevel,
+    robotEmbodimentPackRef,
+    customerHostedConnectorRef,
+    privateHardwareIntegration: privateHardwareIntegrationPlan({
+      hardwareIntegrationMode,
+      siteIpProtectionLevel,
+      robotEmbodimentPackRef,
+      customerHostedConnectorRef,
+    }),
     observationSchemaRef: normalizeString(value.observationSchemaRef),
     actionSchemaRef: normalizeString(value.actionSchemaRef),
     controlFrequency: normalizeString(value.controlFrequency),
@@ -787,8 +1027,10 @@ export function normalizeRobotTeamTestSubmission(
         "simulator_completed_claim",
         "policy_execution_passed_claim",
         "guaranteed_threshold_claim",
+        "unbounded_scene_or_scoring_harness_export_claim",
       ],
       operationalReadinessRequires: [
+        "Blueprint-hosted harness or sealed least-privilege eval capsule; raw capture and full scoring harness are not exported by default",
         "robot profile with geometry, sensors, controllers, and control level, or a clear site-feasibility-only scope",
         "request-scoped simulator traces or robot trial logs from the owning system",
         "action or teleoperation logs aligned to the exact task and scenario",
@@ -809,6 +1051,10 @@ export function buildRobotTeamSubmissionInput(params: {
   episodeCount?: unknown;
   customEpisodeCount?: unknown;
   validationMode?: unknown;
+  hardwareIntegrationMode?: unknown;
+  siteIpProtectionLevel?: unknown;
+  robotEmbodimentPackRef?: unknown;
+  customerHostedConnectorRef?: unknown;
   observationSchemaRef?: unknown;
   actionSchemaRef?: unknown;
   controlFrequency?: unknown;
@@ -841,6 +1087,15 @@ export function buildRobotTeamSubmissionInput(params: {
     customEpisodeCount:
       normalizeString(params.customEpisodeCount, 80) || undefined,
     validationMode: normalizeValidationMode(params.validationMode),
+    hardwareIntegrationMode: normalizeHardwareIntegrationMode(
+      params.hardwareIntegrationMode,
+    ),
+    siteIpProtectionLevel: normalizeSiteIpProtectionLevel(
+      params.siteIpProtectionLevel,
+      normalizeHardwareIntegrationMode(params.hardwareIntegrationMode),
+    ),
+    robotEmbodimentPackRef: normalizeString(params.robotEmbodimentPackRef),
+    customerHostedConnectorRef: normalizeString(params.customerHostedConnectorRef),
     observationSchemaRef: normalizeString(params.observationSchemaRef),
     actionSchemaRef: normalizeString(params.actionSchemaRef),
     controlFrequency: normalizeString(params.controlFrequency),

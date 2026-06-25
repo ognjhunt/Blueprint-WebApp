@@ -42,17 +42,35 @@ test("robot-team eval route is simple and submits normalized policy payload", as
       name: "Start an evaluation.",
     }),
   ).toBeVisible();
+  await expect(page.getByText(/\$15,000\/month/i)).toBeVisible();
+  await expect(page.getByText(/\$5,000-\$8,000 quick-look/i)).toBeVisible();
   await expect(page.getByRole("heading", { name: "Four steps." })).toBeVisible();
   await expect(page.getByText("API").first()).toBeVisible();
   await expect(page.getByText("Docker").first()).toBeVisible();
   await expect(page.getByText("Checkpoint").first()).toBeVisible();
   await expect(page.getByText(/Results guide what to test next/i)).toBeVisible();
+  await expect(
+    page.getByRole("heading", {
+      name: "Private robots without handing over either side's IP.",
+    }),
+  ).toBeVisible();
+  await expect(page.getByText(/the full scoring harness, hidden failure labels/i)).toBeVisible();
+  await expect(
+    page.getByLabel("5 Protect hardware and site IP"),
+  ).toHaveValue("customer_hosted_sealed_eval_capsule");
+  await expect(page.getByText(/raw captures, full scenes, scoring harnesses/i)).toBeVisible();
 
   await page
     .getByLabel("2 Add policies")
     .fill("warehouse-policy, baseline-policy, ignored-fourth");
   await page.getByLabel("4 Choose episodes").selectOption("500");
+  await page
+    .getByLabel("5 Protect hardware and site IP")
+    .selectOption("physical_robot_evidence_bridge");
   await page.getByText("Advanced details").click();
+  await page
+    .getByLabel("Site IP protection")
+    .selectOption("redacted_anchor_packet");
   await page
     .getByLabel("Observation schema", { exact: true })
     .fill("gs://robot-team/schemas/top-observation.v1.json");
@@ -65,6 +83,9 @@ test("robot-team eval route is simple and submits normalized policy payload", as
   await page
     .getByLabel("Success criteria")
     .fill("tote placed without safety event");
+  await page
+    .getByLabel("Customer-hosted connector ref")
+    .fill("gs://robot-team/blueprint/connector-contract.json");
 
   for (const [label, value] of Object.entries(policyApiFields)) {
     await page.getByLabel(label).fill(value);
@@ -99,6 +120,21 @@ test("robot-team eval route is simple and submits normalized policy payload", as
   ]);
   expect(submission.episodeCount).toBe("500");
   expect(submission.validationMode).toBe("comparative_policy_eval");
+  expect(submission.hardwareIntegrationMode).toBe(
+    "physical_robot_evidence_bridge",
+  );
+  expect(submission.siteIpProtectionLevel).toBe("redacted_anchor_packet");
+  expect(submission.customerHostedConnectorRef).toBe(
+    "gs://robot-team/blueprint/connector-contract.json",
+  );
+  expect(submission.privateHardwareIntegration).toMatchObject({
+    integrationMode: "physical_robot_evidence_bridge",
+    siteIpProtectionLevel: "redacted_anchor_packet",
+    blueprintIpControls: {
+      rawCaptureBundleSharedWithCustomer: false,
+      fullScoringHarnessSharedByDefault: false,
+    },
+  });
   expect(submission.observationSchemaRef).toBe(
     "gs://robot-team/schemas/top-observation.v1.json",
   );

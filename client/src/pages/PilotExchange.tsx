@@ -11,7 +11,11 @@ import {
   pilotTimelines,
   policySubmissions,
 } from "@/data/pilotExchange";
-import { getPricingContactInterest, simplePricingOptions } from "@/data/simplePricing";
+import {
+  getPricingContactInterest,
+  simplePricingOptions,
+  type SimplePricingOption,
+} from "@/data/simplePricing";
 import type {
   InboundRequestPayload,
   SubmitInboundRequestResponse,
@@ -51,6 +55,34 @@ import {
 type FilterValue<T extends string> = "all" | T;
 type SubmissionStatus = "idle" | "loading" | "success" | "error";
 type ExchangeTab = "briefs" | "policies";
+
+function pricingContactHref(optionId: SimplePricingOption["id"]) {
+  if (optionId === "site-operator") {
+    return "/contact/site-operator?source=qualified-opportunities&requestedOutputs=Site%20Supply%20Review";
+  }
+  if (optionId === "site-monitoring") {
+    return "/contact/site-operator?source=qualified-opportunities&requestedOutputs=Site%20Monitoring%20Subscription";
+  }
+
+  const params = new URLSearchParams({
+    persona: "robot-team",
+    buyerType: "robot_team",
+    interest: getPricingContactInterest(optionId),
+    path: "policy-evaluation-run",
+    source: "qualified-opportunities",
+  });
+
+  if (optionId === "simulation") {
+    params.set("requestedOutputs", "Robot Team Subscription");
+  } else if (optionId === "world-models") {
+    params.set("requestedOutputs", "Lite Quick-Look Eval");
+    params.set("episodeCount", "50");
+  } else if (optionId === "validated-evaluation") {
+    params.set("requestedOutputs", "Single Site Evaluation");
+  }
+
+  return `/contact/robot-team?${params.toString()}`;
+}
 
 interface BaseLeadFormState {
   firstName: string;
@@ -541,8 +573,11 @@ export default function PilotExchange() {
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">Simple pricing</p>
               <h2 className="mt-3 text-3xl font-bold tracking-tight text-zinc-950">Pay for the job you need.</h2>
               <p className="mt-3 text-base leading-7 text-zinc-600">
-                This page sits downstream of capture and world-model packaging. Robot teams pay for
-                Policy Evaluation Runs or Policy Improvement Runs only when the site is real.
+                This page sits downstream of capture and world-model packaging.
+                Robot teams subscribe for repeated eval cycles or start with a
+                cheap quick-look only when the site is real. Operators can add
+                yearly monitoring once a deployed site needs repeated policy
+                update checks.
               </p>
             </div>
 
@@ -554,8 +589,8 @@ export default function PilotExchange() {
               </div>
               <div className="rounded-2xl border border-zinc-200 bg-white p-5">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">Robot teams</p>
-                <p className="mt-2 text-2xl font-bold text-zinc-950">Pay for task runs or policy improvement</p>
-                <p className="mt-2 text-sm text-zinc-600">Start with the brief, then buy a Policy Evaluation Run or sim-only Policy Improvement Run only when justified.</p>
+                <p className="mt-2 text-2xl font-bold text-zinc-950">Subscribe for repeated evals</p>
+                <p className="mt-2 text-sm text-zinc-600">Use the brief to pick the $15k/month plan, a $5k-$8k quick-look, or a scoped single-site eval.</p>
               </div>
             </div>
 
@@ -593,14 +628,14 @@ export default function PilotExchange() {
                       </Button>
                     ) : (
                       <a
-                        href={
-                          option.id === "site-operator"
-                            ? "/contact/site-operator?source=qualified-opportunities"
-                            : `/contact?interest=${getPricingContactInterest(option.id)}&source=qualified-opportunities`
-                        }
+                        href={pricingContactHref(option.id)}
                         className="mt-5 inline-flex w-full items-center justify-center rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-100"
                       >
-                        {option.id === "site-operator" ? "Submit site free" : "Talk to sales"}
+                        {option.id === "site-operator"
+                          ? "Start site review"
+                          : option.id === "site-monitoring"
+                            ? "Scope monitoring"
+                            : "Talk to sales"}
                       </a>
                     )}
                   </div>
@@ -610,16 +645,30 @@ export default function PilotExchange() {
 
             <div className="mt-6 rounded-2xl border border-zinc-200 bg-white p-5">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">Operator side</p>
-              <h3 className="mt-2 text-xl font-bold text-zinc-950">Site operators participate for free.</h3>
+              <h3 className="mt-2 text-xl font-bold text-zinc-950">Site operators start at $5,000/site; monitoring covers repeated checks.</h3>
               <p className="mt-3 max-w-3xl text-sm leading-6 text-zinc-600">
-                Operators can submit a facility, set access windows, define restricted areas, and review commercial posture without paying Blueprint. Paid usage starts when robot teams buy Policy Evaluation Runs or Policy Improvement Runs.
+                Operators can submit a facility, set access windows, define
+                restricted areas, and review commercial posture through a cheap
+                supply-creation lane. Robot-team usage still stays scoped to
+                subscriptions, quick-look evals, or reviewed single-site evals.
+                After a site is deployed, monitoring is $30,000-$40,000/year
+                per deployed site for multiple policy-update checks up to the
+                agreed annual cap.
               </p>
-              <a
-                href="/contact/site-operator?source=qualified-opportunities"
-                className="mt-5 inline-flex items-center justify-center rounded-lg border border-zinc-300 bg-zinc-50 px-4 py-2.5 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-100"
-              >
-                Submit site free
-              </a>
+              <div className="mt-5 flex flex-wrap gap-3">
+                <a
+                  href="/contact/site-operator?source=qualified-opportunities&requestedOutputs=Site%20Supply%20Review"
+                  className="inline-flex items-center justify-center rounded-lg border border-zinc-300 bg-zinc-50 px-4 py-2.5 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-100"
+                >
+                  Start site review
+                </a>
+                <a
+                  href="/contact/site-operator?source=qualified-opportunities&requestedOutputs=Site%20Monitoring%20Subscription"
+                  className="inline-flex items-center justify-center rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-100"
+                >
+                  Scope monitoring
+                </a>
+              </div>
             </div>
           </section>
 

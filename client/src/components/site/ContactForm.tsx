@@ -157,9 +157,9 @@ function successCopy(commercialRequestPath: CommercialRequestPath) {
     return {
       title: "Site submission received",
       body:
-        "Blueprint has the facility, location, and access boundary needed for a free site review.",
+        "Blueprint has the facility, location, and access boundary needed for a $5,000/site supply review or separate yearly monitoring scope.",
       next:
-        "Blueprint reviews the site and boundary, then confirms what can be captured, listed, or shared with robot teams.",
+        "Blueprint reviews the site and boundary, then confirms what can be captured, listed, or shared with robot teams before any downstream use.",
     };
   }
 
@@ -1031,7 +1031,7 @@ export function ContactForm() {
           {status === "loading"
             ? "Submitting..."
             : persona === "site_operator"
-              ? "Submit site free"
+              ? "Start site review"
               : isDataPackageRequest
                 ? "Request policy improvement"
               : "Request evaluation"}

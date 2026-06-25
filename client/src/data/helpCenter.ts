@@ -612,13 +612,18 @@ export const helpArticles: HelpArticle[] = [
     slug: "pricing-basics",
     categorySlug: "billing-and-access",
     title: "Pricing basics",
-    description: "How to approach package and hosted-review pricing.",
-    summary: "Pricing depends on package scope, hosted access, licensing, integration support, and whether the request needs custom review.",
+    description: "How to approach subscription, quick-look, site-supply, and monitoring pricing.",
+    summary:
+      "Blueprint leads with a $15,000/month robot-team subscription, keeps $5,000-$8,000 quick-look evals as a conversion ramp, prices operator site supply at $5,000/site, and offers $30,000-$40,000/year monitoring per deployed site for multiple policy-update checks.",
     readTime: "3 min",
     sections: [
       {
         heading: "Scope drives price",
-        body: "Exact-site access, package rights, policy evaluation scope, export needs, and managed support all affect price. Use the pricing page for the current public offer shape.",
+        body: "Robot teams subscribe when they run repeated eval cycles. Lite quick-look evals cover a small first pass, site operators can start a low-cost supply review without turning site access into a large consulting project, and deployed sites can add yearly regression monitoring when they need multiple policy-update checks.",
+      },
+      {
+        heading: "Current public anchors",
+        body: "The public anchors are $15,000/month for recurring robot-team evaluation infrastructure, $5,000-$8,000 for a quick-look eval, $5,000/site for operator supply review, and $30,000-$40,000/year per deployed site for monitoring multiple policy-update checks. Overage, validation, and custom support stay request-scoped.",
       },
       {
         heading: "Ask with context",

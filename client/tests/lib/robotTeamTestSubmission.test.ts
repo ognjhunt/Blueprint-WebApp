@@ -54,9 +54,24 @@ describe("robotTeamTestSubmission", () => {
     expect(submission?.pipelineDatasetSchemaRefs).toContain(
       "robot_team_test_submission_modalities.v0.1",
     );
+    expect(submission?.hardwareIntegrationMode).toBe(
+      "customer_hosted_sealed_eval_capsule",
+    );
+    expect(submission?.siteIpProtectionLevel).toBe("sealed_eval_capsule");
+    expect(submission?.privateHardwareIntegration.blueprintIpControls).toMatchObject({
+      rawCaptureBundleSharedWithCustomer: false,
+      fullScoringHarnessSharedByDefault: false,
+      sealedAuditScenariosDisclosedToCustomer: false,
+    });
     expect(submission?.proofBoundary.submittedArtifactsAre).toBe("artifact_references_only");
     expect(submission?.proofBoundary.blockedClaimUpgrades).toContain(
       "policy_execution_passed_claim",
+    );
+    expect(submission?.proofBoundary.blockedClaimUpgrades).toContain(
+      "unbounded_scene_or_scoring_harness_export_claim",
+    );
+    expect(submission?.proofBoundary.operationalReadinessRequires).toContain(
+      "Blueprint-hosted harness or sealed least-privilege eval capsule; raw capture and full scoring harness are not exported by default",
     );
     expect(submission?.proofBoundary.operationalReadinessRequires).toContain(
       "robot profile with geometry, sensors, controllers, and control level, or a clear site-feasibility-only scope",
@@ -248,6 +263,63 @@ describe("robotTeamTestSubmission", () => {
       },
     });
     expect(JSON.stringify(policyPackage)).not.toMatch(/placeholder/i);
+  });
+
+  it("serializes private hardware integration into Pipeline job requests", () => {
+    const submission = normalizeRobotTeamTestSubmission({
+      submissionId: "submission-private-hardware",
+      siteWorldId: "site-sw-chi-01",
+      taskId: "place_return_in_bin",
+      scenarioId: "scenario_place_return_in_bin_mobile_manipulator_rgb_v1",
+      robotProfileId: "private-humanoid",
+      hardwareIntegrationMode: "customer_hosted_sealed_eval_capsule",
+      siteIpProtectionLevel: "sealed_eval_capsule",
+      customerHostedConnectorRef: "gs://robot-team/blueprint/connector-contract.json",
+      modalities: {
+        policy_api_endpoint: {
+          selected: true,
+          fields: {
+            endpointUrl: "https://policies.robotteam.dev/v1/action",
+            authHandling: "Bearer token in redacted robot-team secret ref",
+            observationSchemaRef: "gs://robot-team/schemas/observation.v1.json",
+            actionSchemaRef: "gs://robot-team/schemas/action.v1.json",
+            runtimeConstraints: "200 ms p95, 10 rps",
+            callbackLogUri: "gs://robot-team/blueprint/callbacks/",
+            ownerContact: "robot-owner@robotteam.dev",
+          },
+        },
+      },
+    });
+    const site = siteLibrarySites[0];
+    const request = buildRobotEvalJobRequestFromSite(
+      site,
+      { route: `/sites/${site.slug}`, surface: "sites" },
+      { robotTeamTestSubmission: submission },
+    );
+
+    expect(request.private_hardware_integration).toEqual(
+      expect.objectContaining({
+        schema_version: "private_hardware_integration_plan.v1",
+        integration_mode: "customer_hosted_sealed_eval_capsule",
+        site_ip_protection_level: "sealed_eval_capsule",
+        customer_hosted_connector_ref:
+          "gs://robot-team/blueprint/connector-contract.json",
+      }),
+    );
+    expect(request.private_hardware_integration?.blueprint_ip_controls).toEqual(
+      expect.objectContaining({
+        raw_capture_bundle_shared_with_customer: false,
+        full_resolution_scene_mesh_shared_by_default: false,
+        full_scoring_harness_shared_by_default: false,
+        sealed_audit_scenarios_disclosed_to_customer: false,
+      }),
+    );
+    expect(request.source.robot_team_test_submission).toEqual(
+      expect.objectContaining({
+        private_hardware_integration_mode: "customer_hosted_sealed_eval_capsule",
+        site_ip_protection_level: "sealed_eval_capsule",
+      }),
+    );
   });
 
   it("refuses to synthesize fallback capture lineage for live robot-eval job requests", () => {

@@ -62,9 +62,10 @@ export const CONTACT_REQUEST_PATH_OPTIONS: Array<{
 }> = [
   {
     value: "hosted-review",
-    label: "Policy Evaluation Run",
-    description: "Rank 1-3 policies on one captured task pack.",
-    cta: "Start evaluation",
+    label: "Robot Team Subscription",
+    description:
+      "Scope the $15k/month evaluation plan or a standalone quick-look eval.",
+    cta: "Start evaluation scope",
     buyerType: "robot_team",
     commercialRequestPath: "hosted_evaluation",
   },
@@ -86,9 +87,9 @@ export const CONTACT_REQUEST_PATH_OPTIONS: Array<{
   },
   {
     value: "site-question",
-    label: "Site operator submission",
-    description: "Share a place for free review.",
-    cta: "Submit site",
+    label: "Site Supply Review",
+    description: "Start a $5,000/site supply review or scope separate yearly monitoring.",
+    cta: "Start site review",
     buyerType: "site_operator",
     commercialRequestPath: "site_claim",
   },

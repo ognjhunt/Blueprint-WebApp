@@ -23,6 +23,9 @@ describe("robot-team test submission", () => {
         episodeCount: "custom",
         customEpisodeCount: "250",
         validationMode: "comparative_policy_eval",
+        hardwareIntegrationMode: "private_asset_hosted_by_blueprint",
+        siteIpProtectionLevel: "blueprint_hosted",
+        robotEmbodimentPackRef: "s3://team/private/embodiment-pack.json",
         observationSchemaRef: "gs://team/schemas/obs.json",
         actionSchemaRef: "gs://team/schemas/action.json",
         controlFrequency: "20 Hz",
@@ -59,6 +62,21 @@ describe("robot-team test submission", () => {
     expect(submission?.episodeCount).toBe("custom");
     expect(submission?.customEpisodeCount).toBe("250");
     expect(submission?.validationMode).toBe("comparative_policy_eval");
+    expect(submission?.hardwareIntegrationMode).toBe("private_asset_hosted_by_blueprint");
+    expect(submission?.siteIpProtectionLevel).toBe("blueprint_hosted");
+    expect(submission?.robotEmbodimentPackRef).toBe(
+      "s3://team/private/embodiment-pack.json",
+    );
+    expect(submission?.privateHardwareIntegration.customerHardwareControls).toMatchObject({
+      customerPrivateRobotAssetsRequiredByBlueprint: true,
+      blueprintHostsCustomerRobotAsset: true,
+      customerPrivateRobotModelMayRemainCustomerSide: false,
+    });
+    expect(submission?.privateHardwareIntegration.blueprintIpControls).toMatchObject({
+      rawCaptureBundleSharedWithCustomer: false,
+      fullResolutionSceneMeshSharedByDefault: false,
+      fullScoringHarnessSharedByDefault: false,
+    });
     expect(submission?.observationSchemaRef).toBe("gs://team/schemas/obs.json");
     expect(submission?.actionSchemaRef).toBe("gs://team/schemas/action.json");
     expect(submission?.controlFrequency).toBe("20 Hz");

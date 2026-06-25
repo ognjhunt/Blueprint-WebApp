@@ -292,6 +292,67 @@ function fieldsFor(
   return submission.modalities[modality]?.fields || {};
 }
 
+function buildPrivateHardwareIntegrationForPipeline(
+  submission?: RobotTeamTestSubmission | null,
+) {
+  const integration = submission?.privateHardwareIntegration;
+  if (!integration) return null;
+
+  return {
+    schema_version: integration.schemaVersion,
+    integration_mode: integration.integrationMode,
+    integration_label: integration.integrationLabel,
+    site_ip_protection_level: integration.siteIpProtectionLevel,
+    site_ip_protection_label: integration.siteIpProtectionLabel,
+    robot_embodiment_pack_ref: integration.robotEmbodimentPackRef || null,
+    customer_hosted_connector_ref: integration.customerHostedConnectorRef || null,
+    blueprint_ip_controls: {
+      raw_capture_bundle_shared_with_customer:
+        integration.blueprintIpControls.rawCaptureBundleSharedWithCustomer,
+      full_resolution_scene_mesh_shared_by_default:
+        integration.blueprintIpControls.fullResolutionSceneMeshSharedByDefault,
+      full_scoring_harness_shared_by_default:
+        integration.blueprintIpControls.fullScoringHarnessSharedByDefault,
+      sealed_audit_scenarios_disclosed_to_customer:
+        integration.blueprintIpControls.sealedAuditScenariosDisclosedToCustomer,
+      exported_packet_is_least_privilege:
+        integration.blueprintIpControls.exportedPacketIsLeastPrivilege,
+      signed_expiring_artifact_urls_required:
+        integration.blueprintIpControls.signedExpiringArtifactUrlsRequired,
+      packet_watermarking_or_request_binding_required:
+        integration.blueprintIpControls.packetWatermarkingOrRequestBindingRequired,
+      customer_visible_packet_fields:
+        integration.blueprintIpControls.customerVisiblePacketFields,
+      withheld_by_default: integration.blueprintIpControls.withheldByDefault,
+    },
+    customer_hardware_controls: {
+      customer_private_robot_model_may_remain_customer_side:
+        integration.customerHardwareControls.customerPrivateRobotModelMayRemainCustomerSide,
+      customer_private_robot_assets_required_by_blueprint:
+        integration.customerHardwareControls.customerPrivateRobotAssetsRequiredByBlueprint,
+      blueprint_hosts_customer_robot_asset:
+        integration.customerHardwareControls.blueprintHostsCustomerRobotAsset,
+      customer_hosts_private_runtime_or_hardware_bridge:
+        integration.customerHardwareControls.customerHostsPrivateRuntimeOrHardwareBridge,
+      private_robot_asset_inputs_if_shared:
+        integration.customerHardwareControls.privateRobotAssetInputsIfShared,
+    },
+    required_connector_evidence: integration.requiredConnectorEvidence,
+    claim_boundary: {
+      customer_hosted_connector_outputs_are_owner_evidence:
+        integration.claimBoundary.customerHostedConnectorOutputsAreOwnerEvidence,
+      customer_hosted_connector_does_not_export_blueprint_raw_scene_ip:
+        integration.claimBoundary.customerHostedConnectorDoesNotExportBlueprintRawSceneIp,
+      robot_model_or_urdf_presence_alone_is_not_hardware_readiness:
+        integration.claimBoundary.robotModelOrUrdfPresenceAloneIsNotHardwareReadiness,
+      physical_robot_readiness_requires_accepted_real_robot_evidence:
+        integration.claimBoundary.physicalRobotReadinessRequiresAcceptedRealRobotEvidence,
+      blueprint_scene_packet_is_not_unbounded_site_asset_delivery:
+        integration.claimBoundary.blueprintScenePacketIsNotUnboundedSiteAssetDelivery,
+    },
+  };
+}
+
 export function buildPolicyPackageFromRobotTeamSubmission(
   submission?: RobotTeamTestSubmission | null,
 ) {
@@ -582,6 +643,9 @@ export function buildRobotEvalJobRequestFromSite(
     policy_package: options.robotTeamTestSubmission
       ? buildPolicyPackageFromRobotTeamSubmission(options.robotTeamTestSubmission)
       : buildDefaultSimulatorPolicyPackage(selectedTasks),
+    private_hardware_integration: buildPrivateHardwareIntegrationForPipeline(
+      options.robotTeamTestSubmission,
+    ),
     operation: "evaluate_only",
     evaluation_scope: EVALUATOR_BACKEND_NEUTRAL_FIELDS.evaluation_scope,
     wam_evaluator_backend: EVALUATOR_BACKEND_NEUTRAL_FIELDS.wam_evaluator_backend,
@@ -628,6 +692,10 @@ export function buildRobotEvalJobRequestFromSite(
             schema_version: options.robotTeamTestSubmission.schemaVersion,
             submission_id: options.robotTeamTestSubmission.submissionId || null,
             selected_modalities: options.robotTeamTestSubmission.selectedModalities,
+            private_hardware_integration_mode:
+              options.robotTeamTestSubmission.hardwareIntegrationMode,
+            site_ip_protection_level:
+              options.robotTeamTestSubmission.siteIpProtectionLevel,
             missing_evidence_statuses:
               options.robotTeamTestSubmission.missingEvidenceStatuses,
           }

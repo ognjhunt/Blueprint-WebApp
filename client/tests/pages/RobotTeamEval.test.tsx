@@ -44,6 +44,8 @@ describe("RobotTeamEval", () => {
         name: /Start an evaluation\./i,
       }),
     ).toBeInTheDocument();
+    expect(screen.getByText(/\$15,000\/month/i)).toBeInTheDocument();
+    expect(screen.getByText(/\$5,000-\$8,000 quick-look/i)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Four steps\./i })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: /1 Pick a site\/task/i })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: /2 Add policies/i })).toHaveValue(
@@ -51,9 +53,23 @@ describe("RobotTeamEval", () => {
     );
     expect(screen.getByRole("textbox", { name: /3 Tell us the robot/i })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: /4 Choose episodes/i })).toHaveValue("100");
+    expect(screen.getByRole("combobox", { name: /5 Protect hardware and site IP/i })).toHaveValue(
+      "customer_hosted_sealed_eval_capsule",
+    );
+    expect(
+      screen.getByRole("heading", {
+        name: /Private robots without handing over either side's IP\./i,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Customer-hosted sealed capsule/i)).toBeInTheDocument();
+    expect(screen.getByText(/the full scoring harness, hidden failure labels/i)).toBeInTheDocument();
+    expect(screen.getByText(/raw captures, full scenes, scoring harnesses/i)).toBeInTheDocument();
     fireEvent.click(screen.getByText(/Advanced details/i));
     expect(screen.getByRole("combobox", { name: /Validation mode/i })).toHaveValue(
       "comparative_policy_eval",
+    );
+    expect(screen.getByRole("combobox", { name: /Site IP protection/i })).toHaveValue(
+      "sealed_eval_capsule",
     );
     for (const label of ["API", "Docker", "Checkpoint", "Trace", "Skill trace", "Teleop", "Sim plugin"]) {
       expect(screen.getByText(label)).toBeInTheDocument();
@@ -80,6 +96,9 @@ describe("RobotTeamEval", () => {
     fireEvent.change(screen.getByRole("combobox", { name: /4 Choose episodes/i }), {
       target: { value: "500" },
     });
+    fireEvent.change(screen.getByRole("combobox", { name: /5 Protect hardware and site IP/i }), {
+      target: { value: "physical_robot_evidence_bridge" },
+    });
     fireEvent.click(screen.getByText(/Advanced details/i));
     fireEvent.change(screen.getByRole("textbox", { name: /^Observation schema$/i }), {
       target: { value: "gs://robot-team/schemas/top-observation.v1.json" },
@@ -98,6 +117,12 @@ describe("RobotTeamEval", () => {
     });
     fireEvent.change(screen.getByRole("textbox", { name: /Success criteria/i }), {
       target: { value: "tote placed without safety event" },
+    });
+    fireEvent.change(screen.getByRole("combobox", { name: /Site IP protection/i }), {
+      target: { value: "redacted_anchor_packet" },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: /Customer-hosted connector ref/i }), {
+      target: { value: "gs://robot-team/blueprint/connector-contract.json" },
     });
     fireEvent.change(screen.getByLabelText("Policy API endpoint Endpoint URL"), {
       target: { value: "https://robot-team.example/policy" },
@@ -151,6 +176,22 @@ describe("RobotTeamEval", () => {
     ]);
     expect(submission.episodeCount).toBe("500");
     expect(submission.validationMode).toBe("comparative_policy_eval");
+    expect(submission.hardwareIntegrationMode).toBe("physical_robot_evidence_bridge");
+    expect(submission.siteIpProtectionLevel).toBe("redacted_anchor_packet");
+    expect(submission.customerHostedConnectorRef).toBe(
+      "gs://robot-team/blueprint/connector-contract.json",
+    );
+    expect(submission.privateHardwareIntegration).toMatchObject({
+      integrationMode: "physical_robot_evidence_bridge",
+      siteIpProtectionLevel: "redacted_anchor_packet",
+      blueprintIpControls: {
+        rawCaptureBundleSharedWithCustomer: false,
+        fullScoringHarnessSharedByDefault: false,
+      },
+      claimBoundary: {
+        customerHostedConnectorDoesNotExportBlueprintRawSceneIp: true,
+      },
+    });
     expect(submission.observationSchemaRef).toBe(
       "gs://robot-team/schemas/top-observation.v1.json",
     );

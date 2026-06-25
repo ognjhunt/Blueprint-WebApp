@@ -24,7 +24,7 @@ export const footerCompanyLinks = [
     href: "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=policy-evaluation-run&source=footer",
     label: "Request evaluation",
   },
-  { href: "/contact/site-operator", label: "Submit site free" },
+  { href: "/contact/site-operator", label: "Start site review" },
   { href: "/capture", label: "Capture Jobs" },
 ];
 

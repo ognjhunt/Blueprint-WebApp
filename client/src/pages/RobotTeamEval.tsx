@@ -9,10 +9,13 @@ import { wamPolicyEvalAssets } from "@/lib/editorialGeneratedAssets";
 import {
   buildRobotTeamSubmissionInput,
   normalizeRobotTeamTestSubmission,
+  ROBOT_TEAM_HARDWARE_INTEGRATION_OPTIONS,
   ROBOT_TEAM_TEST_SUBMISSION_MODALITY_DEFINITIONS,
   type RobotTeamTestSubmission,
   type RobotTeamTestSubmissionEpisodeCount,
+  type RobotTeamTestSubmissionHardwareIntegrationMode,
   type RobotTeamTestSubmissionModalityId,
+  type RobotTeamTestSubmissionSiteIpProtectionLevel,
   type RobotTeamTestSubmissionValidationMode,
 } from "@/lib/robotTeamTestSubmission";
 import type { CreateHostedSessionRequest } from "@/types/hostedSession";
@@ -47,6 +50,25 @@ const steps = [
   ["2", "Add policies"],
   ["3", "Tell us robot"],
   ["4", "Choose episodes"],
+  ["5", "Protect IP"],
+];
+
+const privateHardwareRows = [
+  {
+    title: "Blueprint-hosted private asset",
+    body:
+      "Share a private Robot Embodiment Pack under NDA when you want Blueprint to compose the robot into a private hosted run.",
+  },
+  {
+    title: "Customer-hosted sealed capsule",
+    body:
+      "Keep your robot model, simulator, controller, and policy runtime inside your environment while returning normalized owner proof.",
+  },
+  {
+    title: "Physical robot evidence bridge",
+    body:
+      "Return camera refs, action logs, robot state, timestamps, outcomes, checksums, and operator attestation by scenario ID.",
+  },
 ];
 
 function createSubmissionId() {
@@ -148,6 +170,8 @@ function intakeHref(params: {
     message: [
       `policyLabels=${params.submission?.policyLabels.join(", ") || "none entered"}`,
       `accessMode=${params.selectedMode}`,
+      `hardwareIntegration=${params.submission?.hardwareIntegrationMode || "customer_hosted_sealed_eval_capsule"}`,
+      `siteIpProtection=${params.submission?.siteIpProtectionLevel || "sealed_eval_capsule"}`,
       fieldSummary,
     ]
       .filter(Boolean)
@@ -164,6 +188,15 @@ export default function RobotTeamEval() {
     useState<RobotTeamTestSubmissionEpisodeCount>("100");
   const [validationMode, setValidationMode] =
     useState<RobotTeamTestSubmissionValidationMode>("comparative_policy_eval");
+  const [hardwareIntegrationMode, setHardwareIntegrationMode] =
+    useState<RobotTeamTestSubmissionHardwareIntegrationMode>(
+      "customer_hosted_sealed_eval_capsule",
+    );
+  const [siteIpProtectionLevel, setSiteIpProtectionLevel] =
+    useState<RobotTeamTestSubmissionSiteIpProtectionLevel>("sealed_eval_capsule");
+  const [robotEmbodimentPackRef, setRobotEmbodimentPackRef] = useState("");
+  const [customerHostedConnectorRef, setCustomerHostedConnectorRef] =
+    useState("");
   const [observationSchemaRef, setObservationSchemaRef] = useState("");
   const [actionSchemaRef, setActionSchemaRef] = useState("");
   const [controlFrequency, setControlFrequency] = useState("");
@@ -208,6 +241,10 @@ export default function RobotTeamEval() {
         episodeCount,
         customEpisodeCount,
         validationMode,
+        hardwareIntegrationMode,
+        siteIpProtectionLevel,
+        robotEmbodimentPackRef,
+        customerHostedConnectorRef,
         observationSchemaRef,
         actionSchemaRef,
         controlFrequency,
@@ -239,6 +276,7 @@ export default function RobotTeamEval() {
     episodeCount,
     fieldValues,
     gripper,
+    hardwareIntegrationMode,
     intrinsicsExtrinsicsRef,
     observationSchemaRef,
     policyLabels,
@@ -248,9 +286,12 @@ export default function RobotTeamEval() {
     site,
     startStateConstraints,
     successCriteria,
+    siteIpProtectionLevel,
     task,
     taskInstruction,
     validationMode,
+    robotEmbodimentPackRef,
+    customerHostedConnectorRef,
   ]);
 
   const updateAccessField = (fieldKey: string, value: string) => {
@@ -285,6 +326,10 @@ export default function RobotTeamEval() {
         episodeCount,
         customEpisodeCount,
         validationMode,
+        hardwareIntegrationMode,
+        siteIpProtectionLevel,
+        robotEmbodimentPackRef,
+        customerHostedConnectorRef,
         observationSchemaRef,
         actionSchemaRef,
         controlFrequency,
@@ -412,7 +457,9 @@ export default function RobotTeamEval() {
                 Start an evaluation.
               </h1>
               <p className="mt-5 max-w-md text-lg leading-8 text-slate-600">
-                We rank your policies on the same captured tasks.
+                Subscribe at $15,000/month when eval cycles become
+                infrastructure, or start with a $5,000-$8,000 quick-look for
+                one policy.
               </p>
               <a
                 href="#robot-team-submission"
@@ -431,7 +478,7 @@ export default function RobotTeamEval() {
         </section>
 
         <section className="border-b border-slate-200 bg-slate-50">
-          <div className="mx-auto grid max-w-[88rem] gap-3 px-5 py-6 sm:grid-cols-4 md:px-8">
+          <div className="mx-auto grid max-w-[88rem] gap-3 px-5 py-6 sm:grid-cols-5 md:px-8">
             {steps.map(([number, label]) => (
               <div key={label} className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white p-4">
                 <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-sm font-semibold text-white">
@@ -440,6 +487,32 @@ export default function RobotTeamEval() {
                 <span className="text-sm font-semibold">{label}</span>
               </div>
             ))}
+          </div>
+        </section>
+
+        <section className="border-b border-slate-200 bg-white">
+          <div className="mx-auto grid max-w-[88rem] gap-8 px-5 py-10 md:grid-cols-[0.38fr_0.62fr] md:px-8">
+            <div>
+              <h2 className="text-3xl font-semibold leading-tight">
+                Private robots without handing over either side's IP.
+              </h2>
+              <p className="mt-4 text-sm leading-7 text-slate-600">
+                Customer-hosted connectors receive a sealed, least-privilege
+                eval packet: task IDs, scenario run IDs, redacted scene anchors,
+                schemas, thresholds, and the evidence contract. Raw captures,
+                full scene assets, the full scoring harness, hidden failure labels,
+                and sealed audit seeds stay withheld by default.
+              </p>
+            </div>
+            <div className="grid gap-3 md:grid-cols-3">
+              {privateHardwareRows.map((row) => (
+                <article key={row.title} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <CheckCircle2 className="h-5 w-5 text-blue-600" aria-hidden="true" />
+                  <h3 className="mt-4 text-sm font-semibold text-slate-950">{row.title}</h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">{row.body}</p>
+                </article>
+              ))}
+            </div>
           </div>
         </section>
 
@@ -453,7 +526,9 @@ export default function RobotTeamEval() {
           >
             <h2 className="text-3xl font-semibold">Four steps.</h2>
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              Add the minimum now. Attach technical details if you have them.
+              Add the minimum now. We will recommend subscription scope,
+              quick-look scope, or a single-site eval based on your task and
+              policy cadence.
             </p>
 
             <div className="mt-6 grid gap-4 md:grid-cols-2">
@@ -507,6 +582,39 @@ export default function RobotTeamEval() {
                   <option value="500">500 episodes</option>
                   <option value="custom">Custom</option>
                 </select>
+              </label>
+
+              <label className="grid gap-2 text-sm font-semibold md:col-span-2">
+                5 Protect hardware and site IP
+                <select
+                  value={hardwareIntegrationMode}
+                  onChange={(event) => {
+                    const nextMode = event.target
+                      .value as RobotTeamTestSubmissionHardwareIntegrationMode;
+                    setHardwareIntegrationMode(nextMode);
+                    if (nextMode === "reference_public_robot") {
+                      setSiteIpProtectionLevel("blueprint_hosted");
+                    } else if (nextMode === "private_asset_hosted_by_blueprint") {
+                      setSiteIpProtectionLevel("blueprint_hosted");
+                    } else if (nextMode === "physical_robot_evidence_bridge") {
+                      setSiteIpProtectionLevel("redacted_anchor_packet");
+                    } else if (nextMode === "customer_hosted_sealed_eval_capsule") {
+                      setSiteIpProtectionLevel("sealed_eval_capsule");
+                    }
+                  }}
+                  className="min-h-12 rounded-lg border border-slate-300 bg-white px-3 text-sm font-normal"
+                >
+                  {ROBOT_TEAM_HARDWARE_INTEGRATION_OPTIONS.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <span className="text-xs font-normal leading-5 text-slate-500">
+                  Customer-hosted connectors receive a sealed, least-privilege packet;
+                  raw captures, full scenes, scoring harnesses, and sealed audit seeds
+                  stay withheld by default.
+                </span>
               </label>
             </div>
 
@@ -572,6 +680,46 @@ export default function RobotTeamEval() {
                       Real-rollout validated
                     </option>
                   </select>
+                </label>
+
+                <label className="grid gap-2 text-sm font-semibold">
+                  Site IP protection
+                  <select
+                    value={siteIpProtectionLevel}
+                    onChange={(event) =>
+                      setSiteIpProtectionLevel(
+                        event.target
+                          .value as RobotTeamTestSubmissionSiteIpProtectionLevel,
+                      )
+                    }
+                    className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-normal"
+                  >
+                    <option value="blueprint_hosted">Blueprint-hosted harness</option>
+                    <option value="sealed_eval_capsule">Sealed eval capsule</option>
+                    <option value="redacted_anchor_packet">Redacted anchor packet</option>
+                  </select>
+                </label>
+
+                <label className="grid gap-2 text-sm font-semibold">
+                  Robot embodiment pack ref
+                  <input
+                    value={robotEmbodimentPackRef}
+                    onChange={(event) => setRobotEmbodimentPackRef(event.target.value)}
+                    className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm font-normal"
+                    placeholder="s3://team/private/robot-embodiment-pack.json"
+                  />
+                </label>
+
+                <label className="grid gap-2 text-sm font-semibold">
+                  Customer-hosted connector ref
+                  <input
+                    value={customerHostedConnectorRef}
+                    onChange={(event) =>
+                      setCustomerHostedConnectorRef(event.target.value)
+                    }
+                    className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm font-normal"
+                    placeholder="gs://team/blueprint/connector-contract.json"
+                  />
                 </label>
 
                 <label className="grid gap-2 text-sm font-semibold">
@@ -728,6 +876,12 @@ export default function RobotTeamEval() {
               </p>
               <dl className="mt-5 space-y-3 text-sm">
                 <div className="flex justify-between gap-4">
+                  <dt className="text-slate-500">Commercial path</dt>
+                  <dd className="text-right font-semibold">
+                    Subscription or quick-look
+                  </dd>
+                </div>
+                <div className="flex justify-between gap-4">
                   <dt className="text-slate-500">Task</dt>
                   <dd className="text-right font-semibold">
                     {task?.taskText || "Selected task"}
@@ -746,6 +900,13 @@ export default function RobotTeamEval() {
                     {episodeCount === "custom" ? customEpisodeCount || "Custom" : episodeCount}
                   </dd>
                 </div>
+                <div className="flex justify-between gap-4">
+                  <dt className="text-slate-500">Hardware/IP</dt>
+                  <dd className="text-right font-semibold">
+                    {submissionPreview?.privateHardwareIntegration.integrationLabel ||
+                      "Sealed eval capsule"}
+                  </dd>
+                </div>
               </dl>
             </div>
 
@@ -753,7 +914,8 @@ export default function RobotTeamEval() {
               <h2 className="text-2xl font-semibold">Boundary</h2>
               <p className="mt-3 text-sm leading-7 text-slate-600">
                 Results guide what to test next. They do not approve deployment
-                or safety.
+                or safety, and customer-hosted runs do not receive raw Blueprint
+                site scenes or the full scoring harness by default.
               </p>
             </div>
           </aside>

@@ -245,7 +245,7 @@ export default function Login() {
                         <ArrowRight className="h-4 w-4" />
                       </a>
                       <a href="/signup/business?buyerType=site_operator&source=login" className="flex items-center justify-between text-black/70 transition hover:text-black">
-                        <span>Site operator: Submit site free</span>
+                        <span>Site operator: Start site review</span>
                         <ArrowRight className="h-4 w-4" />
                       </a>
                       <a href="/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=login" className="flex items-center justify-between text-black/70 transition hover:text-black">

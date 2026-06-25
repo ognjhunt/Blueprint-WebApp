@@ -131,11 +131,14 @@ describe("PilotExchange", () => {
     render(<PilotExchange />);
 
     expect(screen.getByRole("heading", { name: /Pay for the job you need\./i })).toBeInTheDocument();
-    expect(screen.getAllByText(/Policy Evaluation Runs or Policy Improvement Runs/i).length).toBeGreaterThan(0);
-    expect(screen.getByRole("heading", { name: /^Policy Improvement Run$/i })).toBeInTheDocument();
-    expect(screen.getByText(/Improve a customer-supplied policy/i)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Policy Evaluation Run/i })).toBeInTheDocument();
-    expect(screen.getByText(/Site operators participate for free\./i)).toBeInTheDocument();
+    expect(screen.getAllByText(/subscribe for repeated eval cycles/i).length).toBeGreaterThan(0);
+    expect(screen.getByRole("heading", { name: /^Robot Team Subscription$/i })).toBeInTheDocument();
+    expect(screen.getByText(/\$15,000/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Lite Quick-Look Eval$/i })).toBeInTheDocument();
+    expect(screen.getByText(/\$5,000-\$8,000/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Site Monitoring Subscription$/i })).toBeInTheDocument();
+    expect(screen.getAllByText(/\$30,000-\$40,000/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Site operators start at \$5,000\/site; monitoring covers repeated checks\./i)).toBeInTheDocument();
 
     fireEvent.click(screen.getAllByRole("button", { name: /Review this site/i })[0]);
 

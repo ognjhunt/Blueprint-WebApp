@@ -89,6 +89,51 @@ const includedItems = [
   "Failure-mode report, site modification recommendations, data requirements, and short-pilot protocol tied back to source capture",
 ];
 
+const pricingRows = [
+  {
+    title: "Robot-team subscription",
+    price: "$15,000/month",
+    body:
+      "Unlimited evaluation cycles during active development up to the agreed active-policy cap, with overage pricing above the cap.",
+  },
+  {
+    title: "Lite quick-look eval",
+    price: "$5,000-$8,000/eval",
+    body:
+      "~50 episodes for one policy with a ranking-only report. No failure taxonomy, calibration, or deployment guarantee.",
+  },
+  {
+    title: "Site supply review",
+    price: "$5,000/site",
+    body:
+      "Low-cost operator-side supply creation for facilities that can become useful robot-team evaluation targets.",
+  },
+  {
+    title: "Site monitoring subscription",
+    price: "$30,000-$40,000/year/site",
+    body:
+      "Yearly operator-side monitoring for deployed sites when multiple new policy versions need site-specific report cards.",
+  },
+];
+
+const privateHardwareRows = [
+  {
+    title: "Blueprint-hosted private asset",
+    body:
+      "If your team can share a private Robot Embodiment Pack under NDA, Blueprint can host the robot asset inside a private eval lane while keeping raw capture and scoring internals controlled.",
+  },
+  {
+    title: "Customer-hosted sealed capsule",
+    body:
+      "For closed stacks, keep your URDF/MJCF/USD, simulator, controller, and policy runtime in your environment. Blueprint sends a least-privilege eval packet and receives owner proof.",
+  },
+  {
+    title: "Physical robot evidence bridge",
+    body:
+      "For hardware runs, your bridge returns camera refs, action logs, robot state, timestamps, outcomes, checksums, and operator attestation joined to exact scenario IDs.",
+  },
+];
+
 export default function ForRobotIntegrators() {
   return (
     <>
@@ -138,7 +183,7 @@ export default function ForRobotIntegrators() {
                 </div>
                 <div className="mt-8 flex flex-wrap gap-3">
                   <a
-                    href="/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=robot-teams-hero"
+                    href="/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&requestedOutputs=Robot%20Team%20Subscription&source=robot-teams-hero"
                     className="inline-flex items-center justify-center bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
                   >
                     Request evaluation
@@ -187,6 +232,61 @@ export default function ForRobotIntegrators() {
                 <p className="mt-3 text-sm leading-7 text-slate-600">{step.body}</p>
               </article>
             ))}
+          </div>
+        </section>
+
+        <section className="border-y border-black/10 bg-white">
+          <div className="mx-auto grid max-w-[88rem] gap-px px-5 py-10 sm:px-8 lg:grid-cols-[0.34fr_0.66fr] lg:px-10 lg:py-12">
+            <div className="bg-[#f5f3ef] px-6 py-8 lg:px-8 lg:py-10">
+              <EditorialSectionIntro
+                eyebrow="Pricing"
+                title="Subscriptions first; quick-look evals only as the ramp."
+                description="Robot teams should treat Blueprint as recurring evaluation infrastructure when policy development is active. The cheap first run exists to prove fit, not to become the default purchase."
+              />
+            </div>
+            <div className="grid gap-px bg-black/10 md:grid-cols-2 xl:grid-cols-4">
+              {pricingRows.map((row) => (
+                <article key={row.title} className="bg-white p-6">
+                  <p className="text-sm font-semibold text-slate-500">{row.title}</p>
+                  <h2 className="mt-3 text-2xl font-semibold text-slate-950">
+                    {row.price}
+                  </h2>
+                  <p className="mt-4 text-sm leading-7 text-slate-600">{row.body}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="border-y border-black/10 bg-white">
+          <div className="mx-auto grid max-w-[88rem] gap-px px-5 py-10 sm:px-8 lg:grid-cols-[0.36fr_0.64fr] lg:px-10 lg:py-12">
+            <div className="bg-slate-950 px-6 py-8 text-white lg:px-8 lg:py-10">
+              <EditorialSectionIntro
+                eyebrow="Private hardware"
+                title="Closed robot stacks do not require either side to hand over everything."
+                description="Blueprint protects its site, scenario, and harness IP while robot teams keep private robot models, controllers, and hardware bridges inside their own environment when needed."
+                light
+              />
+              <div className="mt-8 space-y-3 text-sm leading-7 text-white/70">
+                <p>
+                  Customer-hosted connectors receive a sealed, least-privilege packet:
+                  task IDs, scenario run IDs, redacted scene anchors, schemas,
+                  thresholds, and the evidence contract.
+                </p>
+                <p>
+                  Raw captures, full scene assets, the full scoring harness, hidden
+                  failure labels, and sealed audit seeds stay withheld by default.
+                </p>
+              </div>
+            </div>
+            <div className="grid gap-px bg-black/10 md:grid-cols-3">
+              {privateHardwareRows.map((row) => (
+                <article key={row.title} className="bg-[#f5f3ef] p-6">
+                  <h2 className="text-base font-semibold text-slate-950">{row.title}</h2>
+                  <p className="mt-3 text-sm leading-7 text-slate-600">{row.body}</p>
+                </article>
+              ))}
+            </div>
           </div>
         </section>
 
@@ -276,7 +376,7 @@ export default function ForRobotIntegrators() {
             description="Start in the site-package catalog when you want to evaluate current proof, or request a readiness evaluation when a facility, robot, and task threshold are already in scope."
             imageSrc={editorialGeneratedAssets.homeHero}
             imageAlt="Hosted evaluation still"
-            primaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=robot-teams-bottom"
+            primaryHref="/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&requestedOutputs=Robot%20Team%20Subscription&source=robot-teams-bottom"
             primaryLabel="Request evaluation"
             secondaryHref="/world-models"
             secondaryLabel="Browse site packages"

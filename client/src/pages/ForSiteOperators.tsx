@@ -10,7 +10,8 @@ import { editorialGeneratedAssets } from "@/lib/editorialGeneratedAssets";
 import { ArrowRight } from "lucide-react";
 
 const benefits = [
-  "Turn the facility into a sellable digital asset without losing control of the rules.",
+  "Turn the facility into a $5,000/site supply review without losing control of the rules.",
+  "Add $30,000-$40,000/year per deployed site only when a live site needs multiple policy-update checks under a monitoring cap.",
   "Keep scheduling, privacy, permission, and downstream-usage boundaries explicit.",
   "Approve commercialization only when the operator can actually read the scope.",
 ];
@@ -70,7 +71,11 @@ export default function ForSiteOperators() {
                   Control how your facility supports robot evaluation and policy improvement.
                 </h1>
                 <p className="mt-6 max-w-[30rem] text-base leading-8 text-white/70">
-                  Register the site, define access and privacy rules, and decide whether Blueprint can commercialize approved capture under terms you can actually inspect.
+                  Start a $5,000/site supply review, define access and privacy
+                  rules, and decide whether Blueprint can commercialize approved
+                  capture under terms you can actually inspect. If the site
+                  becomes deployed, scope yearly monitoring separately for
+                  repeated policy-update checks.
                 </p>
                 <div className="mt-8 flex flex-wrap gap-2">
                   <ProofChip light>Access stays explicit</ProofChip>
@@ -98,7 +103,7 @@ export default function ForSiteOperators() {
             description="The point is to make site control easy to see without turning the page into legal fine print."
             className="max-w-3xl"
           />
-          <div className="mt-8 grid gap-4 lg:grid-cols-3">
+          <div className="mt-8 grid gap-4 lg:grid-cols-4">
             {benefits.map((item, index) => (
               <div
                 key={item}
@@ -163,11 +168,11 @@ export default function ForSiteOperators() {
           <EditorialCtaBand
             eyebrow="Next step"
             title="Bring the facility into scope without losing the boundary."
-            description="Use the operator path when you need to talk through site participation, privacy, capture windows, or commercial posture."
+            description="Use the $5,000/site operator path when you need to talk through site participation, privacy, capture windows, or commercial posture. Use yearly monitoring only when a deployed site needs multiple policy-update checks."
             imageSrc={editorialGeneratedAssets.operatorControlEntry}
             imageAlt="Operator facility image"
             primaryHref="/contact/site-operator"
-            primaryLabel="List your site"
+            primaryLabel="Start site review"
             secondaryHref="/governance"
             secondaryLabel="Review rights and privacy"
             dark={false}

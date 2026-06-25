@@ -23,14 +23,14 @@ function PersonaSwitch({ activePersona }: { activePersona: ContactPersona }) {
       persona: "robot_team" as const,
       href: "/contact/robot-team#contact-intake",
       title: "Robot team",
-      body: "Test policies.",
+      body: "Subscribe or quick-look.",
       Icon: Bot,
     },
     {
       persona: "site_operator" as const,
       href: "/contact/site-operator#contact-intake",
       title: "Site owner",
-      body: "Share a place.",
+      body: "Supply or monitoring.",
       Icon: MapPin,
     },
   ];
@@ -83,10 +83,10 @@ export default function Contact() {
       ? "Improve a policy."
       : "Tell us what to test.";
   const subhead = isSiteOperator
-    ? "Submit a site for free. You control access."
+    ? "Start a $5,000/site supply review or scope separate yearly monitoring. You control access."
     : isImprovement
       ? "Start with the failures worth fixing."
-      : "We will recommend the right policy run.";
+      : "We will recommend the right subscription or quick-look path.";
 
   const steps = isSiteOperator
     ? ["Place", "Boundary", "Review"]
@@ -174,7 +174,7 @@ export default function Contact() {
             <div className="mt-4 grid gap-3 text-sm font-semibold">
               {(isSiteOperator
                 ? ["We review the place.", "You approve access.", "Robot-team use stays scoped."]
-                : ["We check the task.", "We pick 100 or 500 episodes.", "You get a scoped run plan."]
+                : ["We check the task.", "We scope subscription or lite eval.", "You get a priced run plan."]
               ).map((item, index) => (
                 <div key={item} className="flex gap-3">
                   <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-xs text-white">

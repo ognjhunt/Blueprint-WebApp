@@ -44,7 +44,7 @@ describe("Login", () => {
       "href",
       "/signup/business?buyerType=robot_team&source=login",
     );
-    expect(screen.getByRole("link", { name: /Site operator: Submit site free/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Site operator: Start site review/i })).toHaveAttribute(
       "href",
       "/signup/business?buyerType=site_operator&source=login",
     );

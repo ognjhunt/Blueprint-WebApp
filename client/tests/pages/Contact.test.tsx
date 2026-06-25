@@ -82,7 +82,7 @@ describe("Contact page", () => {
     expect(
       screen.getByRole("heading", { name: /Tell us what to test\./i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/We will recommend the right policy run/i)).toBeInTheDocument();
+    expect(screen.getByText(/We will recommend the right subscription or quick-look path/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Robot team/i })).toHaveAttribute(
       "href",
       "/contact/robot-team#contact-intake",
@@ -192,7 +192,7 @@ describe("Contact page", () => {
     });
   });
 
-  it("site-operator contact path keeps the free access-boundary lane visible", () => {
+  it("site-operator contact path keeps the low-cost access-boundary lane visible", () => {
     mockLocation = "/contact/site-operator";
 
     render(<Contact />);
@@ -200,9 +200,10 @@ describe("Contact page", () => {
     expect(
       screen.getByRole("heading", { name: /Share a place to test robots\./i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Submit a site for free\. You control access/i)).toBeInTheDocument();
+    expect(screen.getByText(/Start a \$5,000\/site supply review or scope separate yearly monitoring\. You control access/i)).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: /Facility name or site type/i })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: /City \/ location/i })).toBeInTheDocument();
     expect(screen.getByText(/Ask before each robot-team use/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Start site review/i })).toBeInTheDocument();
   });
 });
