@@ -64,7 +64,7 @@ export const CONTACT_REQUEST_PATH_OPTIONS: Array<{
     value: "hosted-review",
     label: "Robot Team Subscription",
     description:
-      "Scope the $15k/month evaluation plan or a standalone quick-look eval.",
+      "Scope recurring comparison for your own checkpoints, other teams, or vendor policies.",
     cta: "Start evaluation scope",
     buyerType: "robot_team",
     commercialRequestPath: "hosted_evaluation",
@@ -72,7 +72,7 @@ export const CONTACT_REQUEST_PATH_OPTIONS: Array<{
   {
     value: "data-package",
     label: "Policy Improvement Run",
-    description: "Use failures to plan the next policy update.",
+    description: "Use comparison failures to plan the next policy update.",
     cta: "Improve policy",
     buyerType: "robot_team",
     commercialRequestPath: "world_model",
@@ -88,7 +88,8 @@ export const CONTACT_REQUEST_PATH_OPTIONS: Array<{
   {
     value: "site-question",
     label: "Site Supply Review",
-    description: "Start a $5,000/site supply review or scope separate yearly monitoring.",
+    description:
+      "Start a $5,000/site supply review or scope monitoring for repeated policy-update checks.",
     cta: "Start site review",
     buyerType: "site_operator",
     commercialRequestPath: "site_claim",

@@ -1,20 +1,36 @@
 import { SEO } from "@/components/SEO";
+import {
+  robotPolicyComparisonUseCases,
+  robotPolicyEvaluationBoundary,
+  robotPolicyResearchSignals,
+} from "@/data/robotPolicyEvaluationClaims";
 import { wamPolicyEvalAssets } from "@/lib/editorialGeneratedAssets";
-import { ArrowRight, CheckCircle2, Play, Trophy } from "lucide-react";
+import {
+  ArrowRight,
+  CheckCircle2,
+  ExternalLink,
+  Play,
+  Trophy,
+} from "lucide-react";
 
 const startHref =
   "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&requestedOutputs=Policy%20Evaluation%20Run&episodeCount=500&source=home";
 
-const policies = [
-  ["Policy B", "82%", "winner"],
-  ["Policy A", "61%", ""],
-  ["Policy C", "32%", ""],
+const policies: Array<{
+  label: string;
+  rank: string;
+  barWidth: string;
+  state?: "winner";
+}> = [
+  { label: "Vendor B", rank: "1st", barWidth: "88%", state: "winner" },
+  { label: "Team v4", rank: "2nd", barWidth: "66%" },
+  { label: "Team v3", rank: "3rd", barWidth: "38%" },
 ];
 
 const steps = [
   ["Capture site", "A real task pack."],
-  ["Run policies", "100 or 500 episodes."],
-  ["Pick winner", "Know what to test next."],
+  ["Compare policies", "Your team, vendors, or checkpoints."],
+  ["Pick next test", "Pilot, tune, recapture, or hold."],
 ];
 
 export default function Home() {
@@ -22,7 +38,7 @@ export default function Home() {
     <>
       <SEO
         title="Blueprint | Test Robot Policies Before Field Time"
-        description="Blueprint helps robot teams test and rank 1-3 policies on captured real-site task packs before field time."
+        description="Blueprint helps robot teams and site operators compare policies on captured real-site task packs before field time without claiming deployment approval."
         canonical="/"
         image={`https://tryblueprint.io${wamPolicyEvalAssets.hero}`}
         jsonLd={{
@@ -30,7 +46,7 @@ export default function Home() {
           "@type": "WebPage",
           name: "Blueprint Robot Policy Evaluation",
           description:
-            "Capture-backed policy evaluation for ranking robot policies before field time.",
+            "Capture-backed policy evaluation for comparing robot policies before field time.",
           url: "https://tryblueprint.io/",
         }}
       />
@@ -43,7 +59,8 @@ export default function Home() {
                 Test robot policies before field time.
               </h1>
               <p className="mt-5 max-w-md text-lg leading-8 text-slate-600">
-                Use captured real-site tasks to see what works.
+                Compare your policy against earlier checkpoints, another team,
+                or a vendor runner on the same captured task pack.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <a
@@ -71,7 +88,7 @@ export default function Home() {
               <figcaption className="absolute bottom-4 left-4 right-4 max-w-sm rounded-lg border border-white/45 bg-white/92 p-4 shadow-sm backdrop-blur">
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-sm font-semibold text-slate-950">
-                    Policy score
+                    Policy rank
                   </p>
                   <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700">
                     <Trophy className="h-3.5 w-3.5" aria-hidden="true" />
@@ -79,16 +96,16 @@ export default function Home() {
                   </span>
                 </div>
                 <div className="mt-3 grid gap-2">
-                  {policies.map(([label, score, state]) => (
-                    <div key={label} className="grid grid-cols-[4.5rem_1fr_3rem] items-center gap-3 text-sm">
-                      <span className="font-semibold">{label}</span>
+                  {policies.map((policy) => (
+                    <div key={policy.label} className="grid grid-cols-[4.5rem_1fr_3rem] items-center gap-3 text-sm">
+                      <span className="font-semibold">{policy.label}</span>
                       <span className="h-2 overflow-hidden rounded-full bg-slate-200">
                         <span
-                          className={`block h-full rounded-full ${state ? "bg-blue-600" : "bg-slate-400"}`}
-                          style={{ width: score }}
+                          className={`block h-full rounded-full ${policy.state ? "bg-blue-600" : "bg-slate-400"}`}
+                          style={{ width: policy.barWidth }}
                         />
                       </span>
-                      <span className="text-right font-semibold">{score}</span>
+                      <span className="text-right font-semibold">{policy.rank}</span>
                     </div>
                   ))}
                 </div>
@@ -114,14 +131,15 @@ export default function Home() {
         <section className="mx-auto grid max-w-[88rem] gap-8 px-5 py-12 md:grid-cols-[0.82fr_1.18fr] md:items-center md:px-8">
           <div>
             <h2 className="max-w-xl text-4xl font-semibold leading-tight">
-              Same task. Same robot. Clear winner.
+              Same task. Same robot. Clear comparison.
             </h2>
             <p className="mt-4 max-w-xl text-base leading-7 text-slate-600">
-              Compare 1-3 policies on one captured task pack before using robot
+              Compare your own policy versions or policies submitted by other
+              teams under one captured site/task envelope before using robot
               time.
             </p>
             <div className="mt-6 flex flex-wrap gap-2 text-sm font-semibold">
-              {["100 episodes", "500 episodes", "1-3 policies"].map((item) => (
+              {["100 episodes", "500 episodes", "own or vendor policies"].map((item) => (
                 <span key={item} className="rounded-lg border border-slate-200 px-3 py-2">
                   {item}
                 </span>
@@ -132,13 +150,24 @@ export default function Home() {
             {[
               ["Failure", "What broke?"],
               ["OOD", "What changed?"],
-              ["Next test", "Where to try?"],
+              ["Site ops", "Who gets field time?"],
             ].map(([title, body]) => (
               <div key={title} className="rounded-lg border border-slate-200 bg-slate-50 p-5">
                 <CheckCircle2 className="h-5 w-5 text-blue-600" aria-hidden="true" />
                 <h3 className="mt-4 text-xl font-semibold">{title}</h3>
                 <p className="mt-2 text-sm text-slate-600">{body}</p>
               </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="border-y border-slate-200 bg-slate-50">
+          <div className="mx-auto grid max-w-[88rem] gap-4 px-5 py-10 md:grid-cols-3 md:px-8">
+            {robotPolicyComparisonUseCases.map((item) => (
+              <article key={item.title} className="rounded-lg border border-slate-200 bg-white p-5">
+                <h2 className="text-2xl font-semibold">{item.title}</h2>
+                <p className="mt-3 text-sm leading-6 text-slate-600">{item.body}</p>
+              </article>
             ))}
           </div>
         </section>
@@ -162,10 +191,36 @@ export default function Home() {
           </div>
         </section>
 
+        <section className="mx-auto grid max-w-[88rem] gap-4 px-5 py-10 md:grid-cols-[0.38fr_0.62fr] md:px-8">
+          <div>
+            <h2 className="text-3xl font-semibold">Why now.</h2>
+            <p className="mt-3 text-sm leading-7 text-slate-600">
+              Recent world-model evaluation work makes the ranking workflow
+              credible enough to use as a decision aid, while the proof boundary
+              still matters.
+            </p>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            {robotPolicyResearchSignals.map((signal) => (
+              <a
+                key={signal.label}
+                href={signal.href}
+                className="rounded-lg border border-slate-200 bg-white p-5 hover:bg-slate-50"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <h3 className="text-xl font-semibold">{signal.label}</h3>
+                  <ExternalLink className="h-4 w-4 shrink-0 text-slate-400" aria-hidden="true" />
+                </div>
+                <p className="mt-3 text-sm font-semibold text-blue-700">{signal.stat}</p>
+                <p className="mt-2 text-sm leading-6 text-slate-600">{signal.body}</p>
+              </a>
+            ))}
+          </div>
+        </section>
+
         <section className="mx-auto max-w-[88rem] px-5 py-10 md:px-8">
           <p className="max-w-4xl text-sm font-semibold leading-6 text-slate-700">
-            Boundary: virtual results guide what to test next. They do not
-            approve deployment, safety, or guaranteed real-world success.
+            Boundary: {robotPolicyEvaluationBoundary}
           </p>
         </section>
       </main>

@@ -23,14 +23,14 @@ function PersonaSwitch({ activePersona }: { activePersona: ContactPersona }) {
       persona: "robot_team" as const,
       href: "/contact/robot-team#contact-intake",
       title: "Robot team",
-      body: "Subscribe or quick-look.",
+      body: "Compare policies.",
       Icon: Bot,
     },
     {
       persona: "site_operator" as const,
       href: "/contact/site-operator#contact-intake",
       title: "Site owner",
-      body: "Supply or monitoring.",
+      body: "Supply or monitor.",
       Icon: MapPin,
     },
   ];
@@ -78,19 +78,19 @@ export default function Contact() {
     persona === "robot_team" && prefill.requestPath === "data-package";
 
   const headline = isSiteOperator
-    ? "Share a place to test robots."
+    ? "Share a place for policy comparison."
     : isImprovement
       ? "Improve a policy."
-      : "Tell us what to test.";
+      : "Tell us what policies to compare.";
   const subhead = isSiteOperator
-    ? "Start a $5,000/site supply review or scope separate yearly monitoring. You control access."
+    ? "Start a $5,000/site supply review or scope yearly monitoring for repeated policy-update and vendor-comparison checks. You control access."
     : isImprovement
       ? "Start with the failures worth fixing."
-      : "We will recommend the right subscription or quick-look path.";
+      : "We will recommend the right subscription, quick-look, or site-ops comparison path.";
 
   const steps = isSiteOperator
-    ? ["Place", "Boundary", "Review"]
-    : ["Task", "Policies", "Episodes"];
+    ? ["Place", "Boundary", "Policy use"]
+    : ["Task", "Policy set", "Episodes"];
 
   return (
     <>
@@ -174,7 +174,7 @@ export default function Contact() {
             <div className="mt-4 grid gap-3 text-sm font-semibold">
               {(isSiteOperator
                 ? ["We review the place.", "You approve access.", "Robot-team use stays scoped."]
-                : ["We check the task.", "We scope subscription or lite eval.", "You get a priced run plan."]
+                : ["We check the task.", "We scope the comparison.", "You get a priced run plan."]
               ).map((item, index) => (
                 <div key={item} className="flex gap-3">
                   <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-xs text-white">

@@ -363,9 +363,9 @@ const rules: ClaimRule[] = [
     ownerProofRequired:
       "Request-scoped owner-system proof for the exact site/task and robot: simulator traces, action logs, robot trials, safety review/signoff, rights/privacy approval, and hosted/runtime artifacts where applicable.",
     safeReplacement:
-      "Use `evaluation planning advisory`, `pre-pilot estimate`, `task-specific confidence packet`, or `confirmed after review`; proof requires simulator traces, action logs, and owner-system artifacts.",
+      "Use `evaluation planning advisory`, `pre-pilot estimate`, `task-specific confidence packet`, or `confirmed after review`; proof requires simulator traces, action logs, and owner-system artifacts. Research correlations must not be described as real-world accuracy.",
     matches: (line) =>
-      /\b(ready to deploy|deployment[- ]ready|safety validated|collision validated|contact validated|manipulation validated|ran the buyer'?s actual robot policy|simulator execution completed|real customer deployment result|guaranteed success rate|guaranteed cycle time|guaranteed intervention rate|guaranteed safety threshold|success rate guarantee|cycle time guarantee|intervention rate guarantee|safety threshold guarantee)\b/i.test(line),
+      /\b(ready to deploy|deployment[- ]ready|safety validated|collision validated|contact validated|manipulation validated|ran the buyer'?s actual robot policy|simulator execution completed|real customer deployment result|real[- ]world accuracy|accuracy guarantee|guaranteed accuracy|guaranteed success rate|guaranteed cycle time|guaranteed intervention rate|guaranteed safety threshold|success rate guarantee|cycle time guarantee|intervention rate guarantee|safety threshold guarantee)\b/i.test(line),
     allowed: (line) =>
       hasGuardrailContext(line)
       || /\bevaluation planning platform\b/i.test(line)

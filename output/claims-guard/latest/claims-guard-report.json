@@ -533,6 +533,7 @@
     "output/performance/page-load/runs/2026-06-20T06-37-33-334Z/page-load-performance.md",
     "output/performance/page-load/runs/2026-06-20T06-38-28-172Z/page-load-performance.json",
     "output/performance/page-load/runs/2026-06-20T06-38-28-172Z/page-load-performance.md",
+    "output/pipeline/robot_eval_job_requests/forwarding_preflight.json",
     "scripts/gtm/apply-first-send-approvals.ts",
     "scripts/gtm/audit-exact-site-hosted-review-pilot.ts",
     "scripts/gtm/expand-gtm-targets.ts",

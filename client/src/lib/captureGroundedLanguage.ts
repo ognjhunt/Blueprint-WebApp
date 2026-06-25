@@ -1,12 +1,12 @@
 export const captureGroundedPublicCopy = {
   productSummary:
-    "Blueprint owns the real-site robot evaluation dataset and workflow: it turns lawful indoor capture, site/task scope, robot profiles, and buyer thresholds into Site, Task, Scenario, and Eval Cards for robot teams and site operators.",
+    "Blueprint owns the real-site robot evaluation dataset and workflow: it turns lawful indoor capture, site/task scope, robot profiles, buyer thresholds, and submitted policy references into Site, Task, Scenario, Eval, and comparison artifacts for robot teams and site operators.",
   seoDescription:
-    "Blueprint helps robot teams and site operators turn a specific site and task into a real-site robot evaluation dataset and workflow while keeping capture provenance, rights, privacy, evidence, and access boundaries attached.",
+    "Blueprint helps robot teams and site operators turn a specific site, task, and policy set into a real-site robot evaluation workflow while keeping capture provenance, rights, privacy, evidence, and access boundaries attached.",
   groundTruthDefinition:
     "Ground truth means raw capture evidence, timestamps, poses, device metadata, rights and privacy records, provenance, and package artifacts or runtime artifacts when they exist.",
   supportSignalBoundary:
-    "Samples, generated previews, dry-run commerce, catalog matches, and request drafts are support signals. They do not prove customer results, rights clearance, provider execution, payment, package access, hosted fulfillment, an operational deployment verdict, guaranteed threshold performance, or city-live coverage.",
+    "Samples, generated previews, dry-run commerce, catalog matches, request drafts, research correlations, and virtual comparison scores are support signals. They do not prove customer results, rights clearance, provider execution, payment, package access, hosted fulfillment, an operational deployment verdict, real-world accuracy, guaranteed threshold performance, or city-live coverage.",
   publicLaunchReadyBoundary:
     "Public pages can stay polished and present-tense while live availability, rights, payment, provider execution, package access, and fulfillment remain confirmed per site/request.",
   requestBoundary:
@@ -35,6 +35,7 @@ export const captureGroundedBlockedClaims = [
   "package access",
   "hosted fulfillment",
   "operational deployment verdict",
+  "real-world accuracy",
   "guaranteed threshold performance",
   "city-live coverage",
 ];

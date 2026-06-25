@@ -3,6 +3,11 @@ import type { FormEvent } from "react";
 import { useLocation } from "wouter";
 import { ArrowRight, CheckCircle2, Loader2 } from "lucide-react";
 import { SEO } from "@/components/SEO";
+import {
+  robotPolicyComparisonUseCases,
+  robotPolicyEvaluationBoundary,
+  robotPolicyResearchSignals,
+} from "@/data/robotPolicyEvaluationClaims";
 import { siteWorldCards } from "@/data/siteWorlds";
 import { withCsrfHeader } from "@/lib/csrf";
 import { wamPolicyEvalAssets } from "@/lib/editorialGeneratedAssets";
@@ -371,8 +376,10 @@ export default function RobotTeamEval() {
       requestedBackend: site.defaultRuntimeBackend,
       requestedOutputs: [
         "policy_ranking",
+        "comparative_policy_eval",
         "failure_taxonomy",
         "ood_uncertainty_flags",
+        "site_ops_comparison_packet",
         "validation_targets",
       ],
       exportModes: ["raw_bundle", "rlds_dataset"],
@@ -389,7 +396,7 @@ export default function RobotTeamEval() {
         runMode: "robot_team_structured_test_submission",
         robotTeamTestSubmission: submission,
         proofBoundary:
-          "Virtual WAM/VLA outputs rank policies; they do not prove safety validation, deployment approval, universal SRCC, or real-world success.",
+          "Virtual WAM/VLA outputs rank policies and diagnose failures; they do not prove safety validation, deployment approval, universal correlation, real-world accuracy, or real-world success.",
       },
       notes: `Policy Evaluation Run: ${submission.policyLabels.join(", ")}`,
     };
@@ -436,7 +443,7 @@ export default function RobotTeamEval() {
     <>
       <SEO
         title="Policy Evaluation Run for Robot Teams | Blueprint"
-        description="Create a capture-backed WAM/VLA Policy Evaluation Run with a policy API, container, or model checkpoint."
+        description="Create a capture-backed Policy Evaluation Run to compare your own checkpoints, other teams, or vendor policies on the same site/task envelope."
         canonical="/for-robot-teams"
         image={`https://tryblueprint.io${wamPolicyEvalAssets.siteTask}`}
         jsonLd={{
@@ -444,7 +451,7 @@ export default function RobotTeamEval() {
           "@type": "WebPage",
           name: "Policy Evaluation Run for Robot Teams",
           description:
-            "Create a capture-backed WAM/VLA Policy Evaluation Run with a policy API, Docker container, or model checkpoint.",
+            "Create a capture-backed Policy Evaluation Run with a policy API, Docker container, model checkpoint, trace, or sealed customer-hosted connector.",
           url: "https://tryblueprint.io/for-robot-teams",
         }}
       />
@@ -454,12 +461,12 @@ export default function RobotTeamEval() {
           <div className="mx-auto grid max-w-[88rem] gap-10 px-5 py-12 md:grid-cols-[0.78fr_1.22fr] md:items-center md:px-8 md:py-16">
             <div>
               <h1 className="max-w-[11ch] text-5xl font-semibold leading-[0.95] tracking-normal sm:text-6xl">
-                Start an evaluation.
+                Compare policies on one site task.
               </h1>
               <p className="mt-5 max-w-md text-lg leading-8 text-slate-600">
-                Subscribe at $15,000/month when eval cycles become
-                infrastructure, or start with a $5,000-$8,000 quick-look for
-                one policy.
+                Rank your own checkpoints, another internal team, or a vendor
+                policy inside the same captured task envelope. The output guides
+                field-time decisions without claiming real-world accuracy.
               </p>
               <a
                 href="#robot-team-submission"
@@ -516,6 +523,60 @@ export default function RobotTeamEval() {
           </div>
         </section>
 
+        <section className="border-b border-slate-200 bg-slate-50">
+          <div className="mx-auto grid max-w-[88rem] gap-8 px-5 py-10 md:grid-cols-[0.36fr_0.64fr] md:px-8">
+            <div>
+              <h2 className="text-3xl font-semibold leading-tight">
+                Why comparison matters.
+              </h2>
+              <p className="mt-4 text-sm leading-7 text-slate-600">
+                Site ops needs a fair way to compare what gets robot time:
+                your latest checkpoint, another team's runner, a vendor
+                submission, or a baseline trace. Blueprint keeps the site,
+                task, robot, episodes, thresholds, and missing-proof labels
+                constant.
+              </p>
+            </div>
+            <div className="grid gap-3 md:grid-cols-3">
+              {robotPolicyComparisonUseCases.map((item) => (
+                <article key={item.title} className="rounded-lg border border-slate-200 bg-white p-4">
+                  <CheckCircle2 className="h-5 w-5 text-blue-600" aria-hidden="true" />
+                  <h3 className="mt-4 text-sm font-semibold text-slate-950">{item.title}</h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">{item.body}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="border-b border-slate-200 bg-white">
+          <div className="mx-auto grid max-w-[88rem] gap-4 px-5 py-8 md:grid-cols-[0.34fr_0.66fr] md:px-8">
+            <div>
+              <h2 className="text-3xl font-semibold leading-tight">
+                Research signal, not a guarantee.
+              </h2>
+              <p className="mt-4 text-sm leading-7 text-slate-600">
+                The public claim is that policy-evaluation worlds are becoming
+                useful ranking and diagnosis tools. It is not that Blueprint
+                can promise a percentage-point real-world outcome.
+              </p>
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              {robotPolicyResearchSignals.map((signal) => (
+                <a
+                  key={signal.label}
+                  href={signal.href}
+                  className="rounded-lg border border-slate-200 bg-slate-50 p-5 hover:bg-white"
+                >
+                  <h3 className="text-xl font-semibold">{signal.label}</h3>
+                  <p className="mt-3 text-sm font-semibold text-blue-700">{signal.stat}</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">{signal.body}</p>
+                </a>
+              ))}
+            </div>
+          </div>
+        </section>
+
         <section
           id="robot-team-submission"
           className="mx-auto grid max-w-[88rem] gap-8 px-5 py-10 md:grid-cols-[minmax(0,0.72fr)_minmax(20rem,0.28fr)] md:px-8"
@@ -527,8 +588,8 @@ export default function RobotTeamEval() {
             <h2 className="text-3xl font-semibold">Four steps.</h2>
             <p className="mt-2 text-sm leading-6 text-slate-600">
               Add the minimum now. We will recommend subscription scope,
-              quick-look scope, or a single-site eval based on your task and
-              policy cadence.
+              quick-look scope, or a single-site comparison based on your task,
+              policy cadence, and site-operator decision path.
             </p>
 
             <div className="mt-6 grid gap-4 md:grid-cols-2">
@@ -913,9 +974,9 @@ export default function RobotTeamEval() {
             <div className="rounded-lg border border-slate-200 p-5">
               <h2 className="text-2xl font-semibold">Boundary</h2>
               <p className="mt-3 text-sm leading-7 text-slate-600">
-                Results guide what to test next. They do not approve deployment
-                or safety, and customer-hosted runs do not receive raw Blueprint
-                site scenes or the full scoring harness by default.
+                {robotPolicyEvaluationBoundary} Customer-hosted runs do not
+                receive raw Blueprint site scenes or the full scoring harness by
+                default.
               </p>
             </div>
           </aside>

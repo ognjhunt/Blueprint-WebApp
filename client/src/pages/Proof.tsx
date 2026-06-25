@@ -1,4 +1,8 @@
 import { SEO } from "@/components/SEO";
+import {
+  robotPolicyEvaluationBoundary,
+  robotPolicyResearchSignals,
+} from "@/data/robotPolicyEvaluationClaims";
 import { wamPolicyEvalAssets } from "@/lib/editorialGeneratedAssets";
 import {
   breadcrumbJsonLd,
@@ -11,9 +15,9 @@ const requestHref =
   "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&source=proof";
 
 const proofLayers = [
-  ["Website", "Shows the product shape."],
-  ["Request packet", "Scopes one site, task, and robot."],
-  ["Robot validation", "Adds real rollouts when needed."],
+  ["Research signal", "World-model policy evaluation is becoming useful for ranking."],
+  ["Request packet", "Scopes one site, task, robot, policy set, and threshold."],
+  ["Owner proof", "Adds simulator traces, action logs, or real rollouts when needed."],
 ];
 
 export default function Proof() {
@@ -37,14 +41,14 @@ export default function Proof() {
           ]),
           faqJsonLd([
             {
-              question: "Do generated clips prove robot success?",
+              question: "Does the 0.929 result mean Blueprint claims 93% real-world accuracy?",
               answer:
-                "No. Generated clips are support media for review. Real-world validation requires evidence from the exact robot, task, and site envelope.",
+                "No. SC3-Eval reports a 0.929 closed-loop Pearson correlation across seven real-world VLA policies. Blueprint cites it as research evidence for ranking workflows, not as a real-world accuracy guarantee.",
             },
             {
               question: "What does a Policy Evaluation Run prove?",
               answer:
-                "It ranks policies inside a scoped virtual evaluation. It does not approve deployment or safety.",
+                "It compares policies inside a scoped site, task, robot, and threshold envelope. It does not approve deployment, safety, or guaranteed real-world success.",
             },
           ]),
         ]}
@@ -58,7 +62,8 @@ export default function Proof() {
                 Proof stays scoped.
               </h1>
               <p className="mt-5 max-w-md text-lg leading-8 text-slate-600">
-                Every claim belongs to one site, task, robot, and evidence set.
+                The 0.929/93% research number is correlation evidence, not an
+                accuracy or deployment claim.
               </p>
               <a
                 href={requestHref}
@@ -86,15 +91,41 @@ export default function Proof() {
           ))}
         </section>
 
+        <section className="border-y border-slate-200 bg-slate-50">
+          <div className="mx-auto grid max-w-[88rem] gap-4 px-5 py-10 md:grid-cols-[0.34fr_0.66fr] md:px-8">
+            <div>
+              <h2 className="text-3xl font-semibold">What we cite.</h2>
+              <p className="mt-3 text-sm leading-7 text-slate-600">
+                These papers support the category: generated or virtual policy
+                rollouts can be useful for comparing policies and diagnosing
+                failures. Blueprint still requires request-scoped evidence for
+                stronger operational claims.
+              </p>
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              {robotPolicyResearchSignals.map((signal) => (
+                <a
+                  key={signal.label}
+                  href={signal.href}
+                  className="rounded-lg border border-slate-200 bg-white p-5 hover:bg-slate-50"
+                >
+                  <h3 className="text-xl font-semibold">{signal.label}</h3>
+                  <p className="mt-3 text-sm font-semibold text-blue-700">{signal.stat}</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">{signal.body}</p>
+                </a>
+              ))}
+            </div>
+          </div>
+        </section>
+
         <section className="border-y border-slate-200 bg-slate-950 text-white">
           <div className="mx-auto grid max-w-[88rem] gap-6 px-5 py-10 md:grid-cols-[auto_1fr] md:items-start md:px-8">
             <ShieldCheck className="h-10 w-10 text-blue-300" aria-hidden="true" />
             <div>
               <h2 className="text-3xl font-semibold">What we do not claim.</h2>
               <p className="mt-4 max-w-4xl text-sm leading-7 text-slate-300">
-                Virtual evaluations do not approve deployment, safety, universal
-                SRCC, or guaranteed real-world success. Validated packs report
-                metrics only inside the matched robot, task, and site envelope.
+                {robotPolicyEvaluationBoundary} Validated packs report metrics
+                only inside the matched robot, task, and site envelope.
               </p>
             </div>
           </div>

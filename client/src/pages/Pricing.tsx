@@ -1,4 +1,5 @@
 import { SEO } from "@/components/SEO";
+import { robotPolicyEvaluationBoundary } from "@/data/robotPolicyEvaluationClaims";
 import { wamPolicyEvalAssets } from "@/lib/editorialGeneratedAssets";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
 
@@ -8,9 +9,10 @@ const plans = [
     product: "Core plan",
     price: "$15,000 / month",
     line:
-      "Unlimited eval cycles for active development, up to the agreed policy cap.",
+      "Recurring comparison infrastructure for active policy development, up to the agreed policy cap.",
     choices: [
-      "Unlimited evals up to policy cap",
+      "Compare team, checkpoint, and vendor policies",
+      "Unlimited eval cycles up to policy cap",
       "Overage pricing above the cap",
       "Failure taxonomy and regression tracking",
     ],
@@ -22,11 +24,11 @@ const plans = [
     product: "Conversion ramp",
     price: "$5,000-$8,000 / eval",
     line:
-      "A low-friction first run for one policy before a subscription decision.",
+      "A low-friction first comparison before a subscription decision.",
     choices: [
       "~50 episodes",
-      "1 policy",
-      "Ranking-only report; no failure taxonomy or calibration",
+      "1-2 policies or checkpoints",
+      "Ranking-only report; failure taxonomy and calibration stay in subscription scope",
     ],
     tone: "border-emerald-200 bg-emerald-50 text-emerald-700",
     href: "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&requestedOutputs=Lite%20Quick-Look%20Eval&episodeCount=50&source=pricing",
@@ -36,7 +38,7 @@ const plans = [
     product: "Site operator",
     price: "$5,000 / site",
     line:
-      "A cheap supply-side path for operators who can make useful sites available to robot teams.",
+      "A supply-side path for operators who can make useful sites available for policy comparison.",
     choices: [
       "Facility, access, and privacy review",
       "Capture and commercialization posture",
@@ -50,9 +52,10 @@ const plans = [
     product: "Operator recurring",
     price: "$30,000-$40,000 / site / year",
     line:
-      "Annual monitoring for an active deployed site, not a repeat of the $5k supply review.",
+      "Annual site-ops monitoring when repeated policy-update or vendor-comparison checks are needed.",
     choices: [
       "Multiple policy-update checks up to agreed annual cap",
+      "Internal-team and vendor policy comparisons",
       "Per-site report card for change management",
       "Cheaper per check than repeated one-off monitoring evals",
       "Still bounded to reviewed site, task, and access scope",
@@ -67,7 +70,7 @@ export default function Pricing() {
     <>
       <SEO
         title="Pricing | Blueprint"
-        description="Blueprint pricing for robot-team evaluation subscriptions, lite quick-look evals, low-cost site supply reviews, and yearly per-site monitoring."
+        description="Blueprint pricing for robot-team policy-comparison subscriptions, lite quick-look evals, low-cost site supply reviews, and yearly site-ops monitoring."
         canonical="/pricing"
         image={`https://tryblueprint.io${wamPolicyEvalAssets.rolloutStrip}`}
         jsonLd={{
@@ -75,7 +78,7 @@ export default function Pricing() {
           "@type": "WebPage",
           name: "Blueprint Pricing",
           description:
-            "Subscription-first pricing for robot-team evaluation infrastructure, lite quick-look evals, site supply reviews, and yearly per-site monitoring.",
+            "Subscription-first pricing for robot-team policy-comparison infrastructure, lite quick-look evals, site supply reviews, and yearly site-ops monitoring.",
           url: "https://tryblueprint.io/pricing",
         }}
       />
@@ -88,11 +91,12 @@ export default function Pricing() {
                 Evaluation infrastructure, not one-off tax.
               </h1>
               <p className="mt-5 max-w-md text-lg leading-8 text-slate-600">
-                Robot teams subscribe when evals become part of the development
-                loop. Lite evals and single-site reviews stay available as the
-                ramp into that subscription. Site operators start with a cheap
-                supply review, then add yearly monitoring only when a deployed
-                site needs repeated policy-update checks.
+                Robot teams subscribe when comparing policies becomes part of
+                the development loop. Lite evals and single-site reviews stay
+                available as the ramp into that subscription. Site operators
+                start with a supply review, then add yearly monitoring only
+                when a site needs repeated policy-update or vendor-comparison
+                checks.
               </p>
             </div>
             <img
@@ -142,10 +146,11 @@ export default function Pricing() {
               <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
                 The operator path is priced for supply creation: $5,000 per
                 site review, with access, privacy, and commercial-use boundaries
-                confirmed before any robot-team use. If a site becomes deployed,
-                yearly monitoring covers multiple policy-update checks up to an
-                agreed cap, so the subscription is a lower per-check price than
-                repeated one-off monitoring evals.
+                confirmed before any robot-team use. If a site needs ongoing
+                policy-update or vendor-comparison checks, yearly monitoring
+                covers multiple scoped reviews up to an agreed cap, so the
+                subscription is a lower per-check price than repeated one-off
+                monitoring evals.
               </p>
             </div>
             <a
@@ -161,8 +166,7 @@ export default function Pricing() {
           <p className="max-w-4xl text-sm font-semibold leading-6 text-slate-700">
             Subscription evals, quick-look evals, site reviews, and yearly site
             monitoring apply only inside the chosen site, task, robot,
-            policy-access mode, and proof boundary. Virtual results do not
-            approve deployment or safety.
+            policy-access mode, and proof boundary. {robotPolicyEvaluationBoundary}
           </p>
         </section>
       </main>

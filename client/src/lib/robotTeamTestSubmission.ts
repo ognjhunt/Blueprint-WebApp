@@ -1021,11 +1021,13 @@ export function normalizeRobotTeamTestSubmission(
       submittedArtifactsDoNotProve: [
         "simulator run completion",
         "policy pass/fail outcome",
+        "real-world accuracy percentage",
         "rights or privacy clearance",
       ],
       blockedClaimUpgrades: [
         "simulator_completed_claim",
         "policy_execution_passed_claim",
+        "paper_correlation_as_blueprint_accuracy_claim",
         "guaranteed_threshold_claim",
         "unbounded_scene_or_scoring_harness_export_claim",
       ],
