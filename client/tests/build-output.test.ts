@@ -200,6 +200,7 @@ describe("build output", () => {
 
   it("ships the current home and proof copy with honest claim boundaries", () => {
     const homeHtml = fs.readFileSync(distPath("index.html"), "utf8");
+    const pricingHtml = fs.readFileSync(distPath("pricing/index.html"), "utf8");
     const proofHtml = fs.readFileSync(distPath("proof/index.html"), "utf8");
 
     expect(homeHtml).toContain("Test robot policies before field time.");
@@ -208,6 +209,10 @@ describe("build output", () => {
     expect(homeHtml).toContain("Pick winner");
     expect(homeHtml).toContain('rel="canonical" href="https://tryblueprint.io/"');
     expect(homeHtml).toContain('type="application/ld+json"');
+    expect(pricingHtml).toContain("Evaluation infrastructure, not one-off tax.");
+    expect(pricingHtml).toContain("Robot teams subscribe when evals become part of the development loop.");
+    expect(pricingHtml).toContain("$5,000/site supply review");
+    expect(pricingHtml).not.toContain("Pick a run");
     expect(proofHtml).toContain("Proof stays scoped");
     expect(proofHtml).toContain(
       "Generated clips help review. Real-world validation requires the matched robot, task, and site envelope.",

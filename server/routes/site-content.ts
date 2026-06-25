@@ -130,7 +130,7 @@ const pages = [
     path: "/pricing",
     title: "Pricing",
     description:
-      "Pick a run: test policies, validate with robot rollouts, or improve after failure review.",
+      "Subscription-first pricing for robot-team eval infrastructure, lite quick-look evals, $5,000/site operator supply reviews, and yearly deployed-site monitoring.",
   },
   {
     path: "/contact",

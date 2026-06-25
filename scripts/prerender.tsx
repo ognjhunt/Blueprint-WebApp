@@ -237,11 +237,11 @@ const PrerenderForgotPassword = () => (
 const PrerenderPricingSummary = () => (
   <MinimalStaticPage
     title="Pricing | Blueprint"
-    description="Pick a Blueprint run: test policies, validate with robot rollouts, or improve after failure review."
-    heading="Pick a run"
-    body="Start with virtual policy testing on captured tasks. Add real robot validation when needed."
-    primaryHref="/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run"
-    primaryLabel="Start"
+    description="Blueprint pricing for robot-team evaluation subscriptions, lite quick-look evals, low-cost site supply reviews, and yearly per-site monitoring."
+    heading="Evaluation infrastructure, not one-off tax."
+    body="Robot teams subscribe when evals become part of the development loop. Lite evals and single-site reviews stay available as the ramp. Site operators start with a $5,000/site supply review, then add yearly monitoring only when a deployed site needs repeated policy-update checks."
+    primaryHref="/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&requestedOutputs=Robot%20Team%20Subscription&source=pricing-prerender"
+    primaryLabel="Request subscription"
     canonical="/pricing"
   />
 );
