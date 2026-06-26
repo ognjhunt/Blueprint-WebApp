@@ -506,39 +506,54 @@ describe("buildRobotEvalJobRequest", () => {
   });
 
   it("accepts one complete robot-team policy modality without requiring the other five", () => {
-    const request = {
-      schema_version: "robot_eval_job_request.v1",
-      job_id: "robot-eval-single-modality",
-      buyer_request_id: "buyer-request-single-modality",
-      site_package: {
-        site_slug: "sw-chi-01",
-        site_id: "site-sw-chi-01",
-        site_submission_id: "site-submission-sw-chi-01",
-        capture_job_id: "capture-job-sw-chi-01",
-        capture_id: "capture-sw-chi-01",
-        buyer_request_id: "buyer-request-single-modality",
-        capture_root: "gs://blueprint/site-packages/sw-chi-01",
-        package_uri: "gs://blueprint/site-packages/sw-chi-01/manifest.json",
-        task_thresholds_uri: "gs://blueprint/site-packages/sw-chi-01/task_thresholds.json",
-        publication_readiness_uri:
-          "gs://blueprint/site-packages/sw-chi-01/publication_readiness.json",
+    const request = buildRobotEvalJobRequest({
+      buyerRequestId: "buyer-request-single-modality",
+      sitePackage: {
+        siteSlug: "sw-chi-01",
+        siteId: "site-sw-chi-01",
+        siteName: "Harborview Grocery Distribution Annex",
+        siteSubmissionId: "site-submission-sw-chi-01",
+        captureJobId: "capture-job-sw-chi-01",
+        captureId: "capture-sw-chi-01",
+        captureRoot: "gs://blueprint/site-packages/sw-chi-01",
+        accessState: "request_gated",
+        artifactUris: {
+          manifestUri: "gs://blueprint/site-packages/sw-chi-01/manifest.json",
+          taskThresholdsUri: "gs://blueprint/site-packages/sw-chi-01/task_thresholds.json",
+          publicationReadinessUri:
+            "gs://blueprint/site-packages/sw-chi-01/publication_readiness.json",
+        },
+        publication: {
+          readyToEvaluatePublishable: true,
+          publicationLabel: "Ready to evaluate",
+        },
       },
-      policy_package: {
+      selection: {
+        taskId: "place_return_in_bin",
+        scenarioId: "scenario_place_return_in_bin_mobile",
+        robotProfileId: "mobile_manipulator_rgb_v1",
+        policyId: "policy-api-fixture",
+      },
+      robotTeam: {
+        customerId: "robot-team-a",
+        companyName: "Robot Team A",
+      },
+      entitlement: {
+        accessState: "request_gated",
+        approved: true,
+      },
+      policySubmission: {
         policy_api_endpoint: {
           endpoint_url: "https://robot-team.example/policy",
           observation_schema_ref: "gs://robot-team/schemas/obs.json",
           action_schema_ref: "gs://robot-team/schemas/action.json",
         },
       },
-      proof_boundary: {
-        simulator_execution_proven: false,
-        rank_fidelity_result_proven: false,
-        robot_policy_execution_proven: false,
-        physics_contact_validated: false,
-        non_ranking_operational_claim_validated: false,
-        public_claim_upgrade_allowed: false,
+      source: {
+        route: "/sites/sw-chi-01",
+        surface: "sites",
       },
-    };
+    });
 
     expect(validateRobotEvalJobRequest(request)).toEqual({ ok: true, errors: [] });
   });

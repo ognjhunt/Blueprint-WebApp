@@ -1,7 +1,7 @@
 # Cross-Source Claims Guard Report
 
 Root: `/Users/nijelhunt_1/workspace/Blueprint-WebApp`
-Scanned files: 457
+Scanned files: 466
 Findings: 0
 
 ## Target Surfaces
@@ -17,6 +17,7 @@ Findings: 0
 | root_doctrine | `docs/ai-tooling-adoption-implementation-2026-04-07.md` | scanned |
 | root_doctrine | `docs/ai-skills-governance-2026-04-07.md` | scanned |
 | webapp_pages | `client/src/pages` | scanned |
+| webapp_pages | `client/src/data/content` | scanned |
 | webapp_pages | `client/src/data/content/publicPages.ts` | scanned |
 | webapp_pages | `client/src/lib/proofEvidence.ts` | scanned |
 | capture_public_copy_docs | `../BlueprintCapture/docs/PUBLIC_COPY_TRUTH_INDEX_2026-05-24.md` | scanned |

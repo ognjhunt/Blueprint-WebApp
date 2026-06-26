@@ -31,6 +31,38 @@ describe("cross-source claims guard", () => {
     expect(result.findingsByType.support_guarantee_claim).toBeGreaterThan(0);
   });
 
+  it("blocks standalone Sim2Real guarantee claims", async () => {
+    const result = await scanClaims({
+      rootDir: repoRoot,
+      targets: ["scripts/claims/fixtures/negative/unsupported-quality-guarantee-claim.md"],
+      writeReports: false,
+    });
+
+    expect(result.findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "unsupported_rank_fidelity_claim",
+        }),
+      ]),
+    );
+  });
+
+  it("blocks public rank-fidelity report claims", async () => {
+    const result = await scanClaims({
+      rootDir: repoRoot,
+      targets: ["scripts/claims/fixtures/negative/unsupported-rank-fidelity-report-claim.md"],
+      writeReports: false,
+    });
+
+    expect(result.findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "unsupported_rank_fidelity_claim",
+        }),
+      ]),
+    );
+  });
+
   it("preserves confident Public Launch Ready copy with request-scoped proof boundaries", async () => {
     const result = await scanClaims({
       rootDir: repoRoot,
@@ -86,6 +118,7 @@ describe("cross-source claims guard", () => {
     const targets = buildDefaultScanTargets(repoRoot).map((target) => target.relativePath);
 
     expect(targets).toContain("client/src/pages");
+    expect(targets).toContain("client/src/data/content");
     expect(targets).toContain("AGENTS.md");
     expect(targets).toContain("PLATFORM_CONTEXT.md");
     expect(targets).toContain("WORLD_MODEL_STRATEGY_CONTEXT.md");

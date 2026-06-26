@@ -115,7 +115,7 @@ export const premiumCapabilities: PremiumCapability[] = [
     description:
       "Automated sim-to-real transfer validation with partner lab testing.",
     detailedDescription:
-      "Complete validation framework with automated reporting, partner lab integration, and quality guarantees. Based on NVIDIA research showing 5%→87% improvement with proper domain randomization.",
+      "Complete validation framework with automated reporting, partner lab integration, and quality target reporting. Based on NVIDIA research showing 5%→87% improvement with proper domain randomization.",
     price: 8500,
     priceDisplay: "+$8,500",
     tier: "immediate",
@@ -123,7 +123,7 @@ export const premiumCapabilities: PremiumCapability[] = [
     benefits: [
       "Automated transfer gap analysis",
       "Partner lab integration for evaluation workflows",
-      "Quality guarantees (50%/70%/85% success tiers)",
+      "Quality target reporting (50%/70%/85% review tiers)",
     ],
     technicalDetails: [
       "Domain randomization validation",
@@ -662,7 +662,7 @@ export const premiumCapabilities: PremiumCapability[] = [
       "Foundation model teams validating datasets",
       "Robotics companies launching premium data products",
       "Research institutions publishing benchmark datasets",
-      "Enterprise deployments requiring data quality guarantees",
+      "Enterprise deployments requiring data quality targets",
       "Licensing dataset to multiple organizations",
     ],
     requiresScene: true,
@@ -807,7 +807,7 @@ export const bundleTiers: BundleTierConfig[] = [
       "Multi-embodiment retargeting (unlimited robots)",
       "Dedicated engineering support",
       "Quarterly roadmap input",
-      "SLA guarantees (99.5% availability)",
+      "SLA targets (99.5% availability)",
       "Custom metric computation & aggregation",
     ],
     ctaLabel: "Talk to Founders",
@@ -837,7 +837,7 @@ export const bundleFeatureMatrix: BundleFeature[] = [
   { name: "Premium Analytics Bundle", description: "All 6 analytics modules + executive reporting (valued at $80k separately)", includedIn: ["foundation"] },
 
   // === Advanced Capabilities ===
-  { name: "Sim2Real Validation", description: "Transfer gap analysis + guarantees", includedIn: ["enterprise", "foundation"] },
+  { name: "Sim2Real Validation", description: "Transfer gap analysis + advisory review targets", includedIn: ["enterprise", "foundation"] },
   { name: "Tactile Sensor Data", description: "GelSight/DIGIT simulation", includedIn: ["enterprise", "foundation"] },
   { name: "Contact-Rich Tasks", description: "Peg-in-hole, assembly, insertion", includedIn: ["enterprise", "foundation"] },
   { name: "Custom Robot Support", description: "URDF→USD + episode retargeting", includedIn: ["enterprise", "foundation"] },

@@ -171,6 +171,7 @@ function SearchSuggestionButton({
     <button
       type="button"
       role="option"
+      aria-selected={false}
       className="grid w-full gap-2 border-b border-black/10 px-4 py-3 text-left transition last:border-b-0 hover:bg-[#f5f3ef] focus:bg-[#f5f3ef] focus:outline-none sm:grid-cols-[1fr_auto]"
       onMouseDown={(event) => event.preventDefault()}
       onClick={() => onSelect(suggestion)}

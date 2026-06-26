@@ -16,7 +16,7 @@ const definitions = [
   {
     term: "Real-site robot eval dataset",
     definition:
-      "The Pipeline-owned Site Card, Task Card, Scenario Card, Eval Card, annotation backlog, prediction/outcome ledger, and robot-team submission modality artifact for one capture-backed site/task scope. WebApp may display the package and missing-evidence shape but cannot upgrade it into generated-world rank fidelity.",
+      "The Pipeline-owned Site Card, Task Card, Scenario Card, Eval Card, annotation backlog, prediction/outcome ledger, and robot-team submission modality artifact for one capture-backed site/task scope. WebApp may display the package and missing-evidence shape but cannot upgrade it into generated-world policy-ranking proof.",
   },
   {
     term: "Eval Cards",
@@ -41,12 +41,12 @@ const definitions = [
   {
     term: "Policy Evaluation Run",
     definition:
-      "A fixed-scope 100 or 500 episode evaluation run for 1-3 policies or checkpoints against one captured real-site task pack. It ranks candidates for review and does not claim generated-world rank fidelity, off-scope validation, or guaranteed outcomes.",
+      "A fixed-scope 100 or 500 episode evaluation run for 1-3 policies or checkpoints against one captured real-site task pack. It ranks candidates for review and does not claim deployment proof, off-scope validation, or guaranteed outcomes.",
   },
   {
     term: "Validated Evaluation Pack",
     definition:
-      "A buyer-facing pack that pairs real-world rollout evidence with envelope-scoped correlation metrics for the matched evaluation scope. The pack reports scoped correlation signals and proof limits; it does not claim universal SRCC, off-scope validation, generated-world rank fidelity, or guaranteed field outcomes.",
+      "A buyer-facing pack that can attach owner-system rollout evidence and envelope-scoped correlation metrics when those artifacts exist for the matched evaluation scope. The pack reports scoped correlation signals and proof limits; it does not claim universal SRCC, off-scope validation, generated-world policy-ranking proof, or guaranteed field outcomes.",
   },
   {
     term: "Policy evaluation record",
@@ -169,7 +169,7 @@ const queryThemes = [
   "WAM VLA evaluator backends",
   "100 episode Policy Evaluation Run",
   "500 episode Policy Evaluation Run",
-  "Validated Evaluation Pack paired real-world rollouts",
+  "Validated Evaluation Pack with owner-system evidence when available",
   "envelope scoped correlation metrics robot evaluation",
   "robot team test submission interface",
   "policy API endpoint Docker container robot eval",

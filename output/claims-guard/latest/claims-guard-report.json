@@ -47,6 +47,11 @@
       "sourceGroup": "webapp_pages"
     },
     {
+      "relativePath": "client/src/data/content",
+      "absolutePath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/client/src/data/content",
+      "sourceGroup": "webapp_pages"
+    },
+    {
       "relativePath": "client/src/data/content/publicPages.ts",
       "absolutePath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/client/src/data/content/publicPages.ts",
       "sourceGroup": "webapp_pages"
@@ -94,7 +99,14 @@
     "README.md",
     "WORLD_MODEL_STRATEGY_CONTEXT.md",
     "client/src/AGENTS.md",
+    "client/src/data/content/environmentCatalog.ts",
+    "client/src/data/content/index.ts",
+    "client/src/data/content/licensing.ts",
+    "client/src/data/content/marketplaceCatalog.ts",
+    "client/src/data/content/pricingCatalog.ts",
     "client/src/data/content/publicPages.ts",
+    "client/src/data/content/trainingCatalog.ts",
+    "client/src/data/content/types.ts",
     "client/src/lib/proofEvidence.ts",
     "client/src/pages/About.tsx",
     "client/src/pages/Agents.tsx",
@@ -534,6 +546,8 @@
     "output/performance/page-load/runs/2026-06-20T06-38-28-172Z/page-load-performance.json",
     "output/performance/page-load/runs/2026-06-20T06-38-28-172Z/page-load-performance.md",
     "output/pipeline/robot_eval_job_requests/forwarding_preflight.json",
+    "output/pipeline/robot_eval_job_requests/forwarding_preflight.local_secret_setup.json",
+    "output/pipeline/robot_eval_job_requests/forwarding_preflight.local_secret_setup.probe.json",
     "scripts/gtm/apply-first-send-approvals.ts",
     "scripts/gtm/audit-exact-site-hosted-review-pilot.ts",
     "scripts/gtm/expand-gtm-targets.ts",

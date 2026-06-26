@@ -27,7 +27,7 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { Mail, Eye } from "lucide-react";
+import { AlertTriangle, Eye, File, Mail } from "lucide-react";
 import { getGoogleGenerativeAiKey } from "@/lib/client-env";
 
 const GOOGLE_GENERATIVE_AI_KEY = getGoogleGenerativeAiKey();

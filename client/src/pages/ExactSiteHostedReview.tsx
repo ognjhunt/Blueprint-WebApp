@@ -180,7 +180,7 @@ export default function ExactSiteHostedReview() {
                     Blueprint product
                   </p>
                   <h1 className="font-editorial mt-5 max-w-[42rem] text-[2.85rem] leading-[0.98] tracking-normal text-white sm:text-[4.65rem] lg:text-[5.45rem] lg:leading-[0.94]">
-                    Turn the exact site into a rank-fidelity report.
+                    Turn the exact site into a policy-ranking request.
                   </h1>
                   <p className="mt-5 max-w-[35rem] text-base leading-7 text-white/82 sm:leading-8">
                     Blueprint packages indoor capture, task suites, robot profiles, generated support assets, hosted review, and buyer proof around one site so teams can evaluate policies before field time.

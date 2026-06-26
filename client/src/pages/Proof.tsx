@@ -15,7 +15,7 @@ const requestHref =
   "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&source=proof";
 
 const proofLayers = [
-  ["Research signal", "World-model policy evaluation is becoming useful for ranking."],
+  ["Research signal", "Generated-observation review can support policy comparisons."],
   ["Request packet", "Scopes one site, task, robot, policy set, and threshold."],
   ["Owner proof", "Adds simulator traces, action logs, or real rollouts when needed."],
 ];
@@ -46,9 +46,9 @@ export default function Proof() {
                 "No. SC3-Eval reports a 0.929 closed-loop Pearson correlation across seven VLA policies. Blueprint cites it as research evidence for ranking workflows, not as an external accuracy guarantee.",
             },
             {
-              question: "What does a Policy Evaluation Run prove?",
+              question: "What does a Policy Evaluation Run return?",
               answer:
-                "It ranks policies inside a scoped site, task, robot, and threshold envelope. The claim is generated-world policy-evaluation rank fidelity for that scope, reported with MMRV, Spearman, and Pearson when measured.",
+                "It returns a capture-backed evaluation artifact for one scoped site, task, robot, and threshold envelope. Any simulator-backed policy-ranking result stays advisory until request-scoped owner-system proof is attached and reported.",
             },
           ]),
         ]}

@@ -61,7 +61,7 @@ export const licenseTiers: LicenseTierConfig[] = [
       'Unlimited internal deployment',
       'Custom integration support',
       'Dedicated account manager',
-      'SLA guarantees',
+      'SLA targets',
       'On-premise delivery option',
       'Custom data format conversion',
       'Priority feature requests',

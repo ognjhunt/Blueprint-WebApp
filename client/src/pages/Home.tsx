@@ -84,7 +84,7 @@ export default function Home() {
     <>
       <SEO
         title="Blueprint | Test Robot Policies Before Field Time"
-        description="Blueprint helps robot teams and site operators compare policies on captured real-site task packs and report generated-world policy-evaluation rank fidelity when measured."
+        description="Blueprint helps robot teams and site operators compare policies on captured real-site task packs and request simulator-backed policy-ranking support with proof boundaries attached."
         canonical="/"
         image={`https://tryblueprint.io${wamPolicyEvalAssets.hero}`}
         jsonLd={{

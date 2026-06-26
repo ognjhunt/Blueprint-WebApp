@@ -29,6 +29,52 @@ const POLICY_MODALITIES = [
   "sim_controller_plugin",
 ] as const;
 
+export const ROBOT_EVAL_PIPELINE_EXPECTED_OUTPUTS = [
+  "scheduler_decision",
+  "worker_launch_plan",
+  "worker_manifest",
+  "gpu_provider_launch_request",
+  "gpu_provider_launcher_result",
+  "runpod_provider_adapter_result",
+  "gpu_cost_control_ledger",
+  "startup_architecture_audit",
+  "worker_runtime_manifest",
+  "worker_runtime_preflight",
+  "job_run_manifest",
+  "proof_boundary",
+  "proof_boundary.json",
+  "proof_boundaries.json",
+  "scenario_eval_matrix.json",
+  "policy_ranking_scorecard.json",
+  "candidate_selection_report.json",
+  "wam_eval_claim_boundary.json",
+  "post_training_data_package_export_manifest.json",
+  "metrics",
+  "trace",
+  "simulator_pov",
+  "manipulation_object_contracts",
+  "manipulation_policy_tier_matrix",
+  "manipulation_physics_output",
+  "manipulation_contact_manifest",
+  "manipulation_g1_model_manifest",
+  "manipulation_controller_trace",
+  "lucky_g1_reference_adapter_manifest",
+  "lucky_g1_reference_trace",
+  "lucky_g1_reference_video_manifest",
+  "stdout_log",
+  "stderr_log",
+] as const;
+
+const REQUIRED_ARTIFACT_CONTRACT_OUTPUTS = [
+  "scenario_eval_matrix.json",
+  "policy_ranking_scorecard.json",
+  "candidate_selection_report.json",
+  "wam_eval_claim_boundary.json",
+  "post_training_data_package_export_manifest.json",
+  "proof_boundary.json",
+  "proof_boundaries.json",
+] as const;
+
 const DEFAULT_SIMULATOR_ROBOT_PROFILE = {
   id: "unitree_g1_humanoid",
   label: "Unitree G1",
@@ -192,26 +238,12 @@ function buildExecutionRequest() {
       persistent_cache_recommended: true,
     },
     artifact_contract: {
-      expected_outputs: [
-        "scheduler_decision",
-        "worker_launch_plan",
-        "worker_manifest",
-        "gpu_provider_launch_request",
-        "gpu_provider_launcher_result",
-        "runpod_provider_adapter_result",
-        "gpu_cost_control_ledger",
-        "startup_architecture_audit",
-        "worker_runtime_manifest",
-        "worker_runtime_preflight",
-        "job_run_manifest",
-        "proof_boundary",
-        "metrics",
-        "trace",
-        "simulator_pov",
-        "stdout_log",
-        "stderr_log",
-      ],
+      expected_outputs: [...ROBOT_EVAL_PIPELINE_EXPECTED_OUTPUTS],
+      webapp_queues_and_forwards_only: true,
+      pipeline_owns_execution_ranking_and_artifacts: true,
       startup_artifacts_are_advisory_until_owner_runtime_proof: true,
+      ranking_outputs_are_advisory_until_owner_system_proof: true,
+      ptdp_export_manifest_does_not_prove_delivery_or_training: true,
       simulator_execution_proven_by_webapp: false,
       public_claim_upgrade_allowed: false,
     },
@@ -725,11 +757,10 @@ export function validateRobotEvalJobRequest(value: unknown): {
     }
   }
 
-  if (value.execution_request !== undefined) {
-    const executionRequest = value.execution_request;
-    if (!hasObject(executionRequest)) {
-      errors.push("execution_request must be an object when provided");
-    } else {
+  const executionRequest = value.execution_request;
+  if (!hasObject(executionRequest)) {
+    errors.push("execution_request is required");
+  } else {
       if (
         executionRequest.schema_version !==
         "blueprint.robot_eval_execution_request.v1"
@@ -917,6 +948,34 @@ export function validateRobotEvalJobRequest(value: unknown): {
           "execution_request.artifact_contract is required when execution_request is provided",
         );
       } else {
+        if (!Array.isArray(artifactContract.expected_outputs)) {
+          errors.push(
+            "execution_request.artifact_contract.expected_outputs must be an array",
+          );
+        } else {
+          const expectedOutputs = new Set(
+            artifactContract.expected_outputs.map((output) => String(output)),
+          );
+          for (const output of REQUIRED_ARTIFACT_CONTRACT_OUTPUTS) {
+            if (!expectedOutputs.has(output)) {
+              errors.push(
+                `execution_request.artifact_contract.expected_outputs must include ${output}`,
+              );
+            }
+          }
+        }
+        if (artifactContract.webapp_queues_and_forwards_only !== true) {
+          errors.push(
+            "execution_request.artifact_contract.webapp_queues_and_forwards_only must be true",
+          );
+        }
+        if (
+          artifactContract.pipeline_owns_execution_ranking_and_artifacts !== true
+        ) {
+          errors.push(
+            "execution_request.artifact_contract.pipeline_owns_execution_ranking_and_artifacts must be true",
+          );
+        }
         if (artifactContract.public_claim_upgrade_allowed !== false) {
           errors.push(
             "execution_request.artifact_contract.public_claim_upgrade_allowed must be false",
@@ -930,12 +989,27 @@ export function validateRobotEvalJobRequest(value: unknown): {
             "execution_request.artifact_contract.startup_artifacts_are_advisory_until_owner_runtime_proof must be true",
           );
         }
+        if (
+          artifactContract.ranking_outputs_are_advisory_until_owner_system_proof !==
+          true
+        ) {
+          errors.push(
+            "execution_request.artifact_contract.ranking_outputs_are_advisory_until_owner_system_proof must be true",
+          );
+        }
+        if (
+          artifactContract.ptdp_export_manifest_does_not_prove_delivery_or_training !==
+          true
+        ) {
+          errors.push(
+            "execution_request.artifact_contract.ptdp_export_manifest_does_not_prove_delivery_or_training must be true",
+          );
+        }
         if (artifactContract.simulator_execution_proven_by_webapp !== false) {
           errors.push(
             "execution_request.artifact_contract.simulator_execution_proven_by_webapp must be false",
           );
         }
-      }
     }
   }
 

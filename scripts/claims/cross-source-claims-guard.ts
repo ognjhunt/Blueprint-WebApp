@@ -321,6 +321,13 @@ function hasStaleRootDoctrineClaim(line: string) {
   return false;
 }
 
+function hasSim2RealGuaranteeClaim(line: string) {
+  return (
+    /\b(sim2real|sim[- ]to[- ]real|transfer gap|transfer confidence|transfer risk|simulator[- ]backed|simulation[- ]backed)\b[\s\S]{0,100}\b(guarantee|guarantees|guaranteed|success tiers?)\b/i.test(line)
+    || /\b(guarantee|guarantees|guaranteed|success tiers?)\b[\s\S]{0,100}\b(sim2real|sim[- ]to[- ]real|transfer gap|transfer confidence|transfer risk|simulator[- ]backed|simulation[- ]backed)\b/i.test(line)
+  );
+}
+
 const rules: ClaimRule[] = [
   {
     type: "no_change_churn",
@@ -363,9 +370,10 @@ const rules: ClaimRule[] = [
     ownerProofRequired:
       "Request-scoped owner-system proof for the exact site/task and robot: simulator traces, action logs, robot trials, safety review/signoff, rights/privacy approval, and hosted/runtime artifacts where applicable.",
     safeReplacement:
-      "Use `evaluation planning advisory`, `pre-pilot estimate`, `task-specific confidence packet`, or `confirmed after review`; proof requires simulator traces, action logs, and owner-system artifacts. Research correlations must not be described as real-world accuracy.",
+      "Use `evaluation planning advisory`, `simulator-backed comparison`, `support artifact`, `pre-pilot estimate`, `task-specific confidence packet`, or `confirmed after review`; proof requires simulator traces, action logs, and owner-system artifacts. Research correlations must not be described as real-world accuracy or quality guarantees.",
     matches: (line) =>
-      /\b(ranked in generated-world policy evaluation|deployment[- ]ready|off-scope validated|collision validated|contact validated|manipulation validated|ran the buyer'?s actual robot policy|simulator execution completed|real customer deployment result|real[- ]world accuracy|accuracy guarantee|guaranteed accuracy|guaranteed success rate|guaranteed cycle time|guaranteed intervention rate|guaranteed safety threshold|success rate guarantee|cycle time guarantee|intervention rate guarantee|safety threshold guarantee)\b/i.test(line),
+      /\b(ranked in generated-world policy evaluation|generated-world policy-evaluation rank fidelity|generated-world rank fidelity|rank[- ]fidelity (?:report|result|verdict|score|claim|proof)|deployment[- ]ready|off-scope validated|collision validated|contact validated|manipulation validated|ran the buyer'?s actual robot policy|simulator execution completed|real customer deployment result|real[- ]world accuracy|accuracy guarantee|guaranteed accuracy|quality guarantee|quality guarantees|success tiers?|guaranteed success rate|guaranteed cycle time|guaranteed intervention rate|guaranteed safety threshold|success rate guarantee|cycle time guarantee|intervention rate guarantee|safety threshold guarantee)\b/i.test(line)
+      || hasSim2RealGuaranteeClaim(line),
     allowed: (line) =>
       hasGuardrailContext(line)
       || /\bevaluation planning platform\b/i.test(line)
@@ -376,6 +384,8 @@ const rules: ClaimRule[] = [
       || /\bevidence[- ]backed recommendation\b/i.test(line)
       || /\bconfirmed after review\b/i.test(line)
       || /\brequires? simulator traces\b/i.test(line)
+      || /\bcan imply\b[\s\S]{0,160}\bneeds?\b/i.test(line)
+      || /\brollout planning,\s*generated-world rank-fidelity result,\s*or field-travel commitments\b/i.test(line)
       || /\badvisory\b/i.test(line),
   },
   {
@@ -511,6 +521,7 @@ export function buildDefaultScanTargets(rootDir = process.cwd()): ScanTarget[] {
     ["docs/ai-tooling-adoption-implementation-2026-04-07.md", "root_doctrine"],
     ["docs/ai-skills-governance-2026-04-07.md", "root_doctrine"],
     ["client/src/pages", "webapp_pages"],
+    ["client/src/data/content", "webapp_pages"],
     ["client/src/data/content/publicPages.ts", "webapp_pages"],
     ["client/src/lib/proofEvidence.ts", "webapp_pages"],
     ["../BlueprintCapture/docs/PUBLIC_COPY_TRUTH_INDEX_2026-05-24.md", "capture_public_copy_docs"],

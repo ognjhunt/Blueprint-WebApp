@@ -396,7 +396,7 @@ export default function RobotTeamEval() {
         runMode: "robot_team_structured_test_submission",
         robotTeamTestSubmission: submission,
         proofBoundary:
-          "Virtual WAM/VLA outputs rank policies and diagnose failures; rank fidelity is scoped to the measured generated-world policy evaluation and reported with MMRV, Spearman, and Pearson when available.",
+          "Generated-observation review can compare policies and diagnose failures inside the measured scope; Blueprint reports simulator-backed comparison support with MMRV, Spearman, and Pearson when owner-system evidence is available.",
       },
       notes: `Policy Evaluation Run: ${submission.policyLabels.join(", ")}`,
     };

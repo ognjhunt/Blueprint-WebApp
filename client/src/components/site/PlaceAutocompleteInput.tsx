@@ -301,6 +301,7 @@ export function PlaceAutocompleteInput({
                 key={prediction.place_id}
                 type="button"
                 role="option"
+                aria-selected={prediction.description === value}
                 className="block w-full px-4 py-3 text-left text-sm text-zinc-800 transition hover:bg-zinc-50 focus:bg-zinc-50 focus:outline-none"
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => handlePredictionSelect(prediction)}
