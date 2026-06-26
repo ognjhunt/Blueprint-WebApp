@@ -60,7 +60,7 @@ Future agents should not reintroduce:
 - simulation-first or generic dataset-exchange framing as the lead story;
 - route plans centered on removed or legacy public pages instead of the current `/world-models` and `/product` surface;
 - CTAs that imply completed purchase, open entitlement, cleared rights, live payout, or fulfilled hosted access before the owning system proves it;
-- provider-completed or deployment-ready claims when only a request path, sample, local artifact, or generated preview exists;
+- provider-completed or policy-ranking-ready claims when only a request path, sample, local artifact, or generated preview exists;
 - broad apology, not-launched, placeholder, or operationally-not-ready copy on public first screens when a claim-level qualifier would be more accurate.
 
 ## Safe Public Language

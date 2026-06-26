@@ -5,7 +5,7 @@ Blueprint evaluates and ranks WAM/VLA robot policies on captured real-site task 
 ## Core Definitions
 
 - Policy Evaluation Run: a capture-backed advisory request that compares 1-3 WAM/VLA policies or checkpoints on one captured real-site task pack using 100 or 500 virtual episodes, failure taxonomy, OOD flags, and validation boundaries.
-- Validated Evaluation Pack: an expanded evaluation scope that can add paired real robot rollouts and rank-fidelity metrics when the request-specific proof supports it.
+- Validated Evaluation Pack: an expanded evaluation scope that can add paired hardware rollouts and rank-fidelity metrics when the request-specific proof supports it.
 - Policy Improvement Run: a follow-on sim-only workflow for baseline evaluation, failure diagnosis, candidate improvement, sealed testing, and an evidence report.
 - Site package: walkthrough media, route context, poses, metadata, geometry when available, rights/privacy posture, provenance, and export scope for one site.
 - Hosted evaluation: a managed buyer review room for a site package when package, entitlement, and runtime proof support that request.

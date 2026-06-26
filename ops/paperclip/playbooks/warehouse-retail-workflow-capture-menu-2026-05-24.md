@@ -26,7 +26,7 @@ Reply with the one workflow lane your team would want captured and hosted first.
 - Proof-ready control rows may point at labeled sample reviews as representative proof shape.
 - Demand-sourced rows must say Blueprint does not have a target-specific capture, package, or hosted review yet.
 - Recipient-backed evidence proves only the address source. It does not prove buyer intent, permission, customer status, or approval to make unsupported claims.
-- Do not claim deployment readiness, rights clearance, provider execution, city readiness, package access, hosted-session fulfillment, replies, traction, qualified calls, or live availability from this draft menu.
+- Do not claim generated-world rank fidelity, rights clearance, provider execution, city readiness, package access, hosted-session fulfillment, replies, traction, qualified calls, or live availability from this draft menu.
 
 ## Row Mapping
 

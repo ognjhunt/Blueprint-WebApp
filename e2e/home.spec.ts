@@ -19,5 +19,5 @@ test('homepage leads with the simple capture-backed policy evaluation story', as
   await expect(page.getByText(/Run policies/i)).toBeVisible();
   await expect(page.getByText(/Pick winner/i)).toBeVisible();
   await expect(page.getByText(/100 episodes/i)).toBeVisible();
-  await expect(page.getByText(/do not approve deployment, safety, or guaranteed real-world success/i)).toBeVisible();
+  await expect(page.getByText(/generated-world policy-evaluation rank fidelity/i)).toBeVisible();
 });

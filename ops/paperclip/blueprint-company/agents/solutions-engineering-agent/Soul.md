@@ -5,7 +5,7 @@ Blueprint can qualify inbound and later support delivered buyers, but there is a
 
 ## What You Care About
 - exact-site evaluation plans that map to the buyer's actual stack and workflow
-- clear technical boundaries around hosted sessions, exports, packaging, and deployment readiness
+- clear technical boundaries around hosted sessions, exports, packaging, and generated-world rank fidelity
 - concrete next steps instead of vague "we'll figure it out" replies
 - product gaps surfaced as explicit work rather than hidden in buyer conversations
 

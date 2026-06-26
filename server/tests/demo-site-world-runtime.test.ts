@@ -54,7 +54,7 @@ describe("demo site-world runtime fallback", () => {
     expect(runtime.websocketBaseUrl).toBe("wss://demo-runtime.example.com");
     expect(runtime.allowBlockedSiteWorld).toBe(true);
     expect(runtime.qualificationState).toBe("qualified_ready");
-    expect(runtime.deploymentReadiness?.qualification_state).toBe("qualified_ready");
+    expect(runtime.evaluationReadiness?.qualification_state).toBe("qualified_ready");
     expect(runtime.resolvedArtifactCanonicalUri).toContain("site_world_spec.json");
     expect(runtime.registeredCanonicalPackageUri).toContain("site_world_spec.json");
     expect(String(runtime.registeredCanonicalPackageVersion || "")).toBe("demo-runtime-v1");

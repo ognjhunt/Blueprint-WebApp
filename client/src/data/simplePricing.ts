@@ -118,7 +118,7 @@ export const simplePricingOptions: SimplePricingOption[] = [
       "Multiple policy-update checks up to the agreed annual cap",
       "New policy version triggers a site-specific regression eval",
       "Report card for operator change-management review",
-      "No deployment approval, safety validation, or rights clearance guarantee",
+      "No generated-world rank-fidelity result, off-scope validation, or rights clearance guarantee",
     ],
   },
 ];

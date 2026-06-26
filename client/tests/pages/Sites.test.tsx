@@ -94,7 +94,7 @@ describe("Sites", () => {
       expect.objectContaining({
         local_cpu_preflight_smoke_ran: false,
         simulator_execution_proven: false,
-        robot_readiness_proven: false,
+        rank_fidelity_result_proven: false,
       }),
     );
     expect(body.execution_request).toEqual(
@@ -213,13 +213,13 @@ describe("Sites", () => {
     expect(screen.getByText(body.buyer_request_id)).toBeInTheDocument();
   });
 
-  it("keeps simulator-only copy from implying physical readiness", () => {
+  it("keeps simulator-only copy from implying generated-world rank fidelity", () => {
     const { container } = render(<SiteDetail params={{ slug: "sw-chi-01" }} />);
 
     expect(screen.getByText(/Scope: virtual evaluation/i)).toBeInTheDocument();
     expect(screen.getByText(/WebApp proves request construction, queueing, and forwarding state only/i)).toBeInTheDocument();
     expect(container.textContent || "").not.toMatch(
-      /deployment ready|real robot verified|physical safety validated|real robot POV|ready for physical robot/i,
+      /policy-ranking ready|real robot verified|physical off-scope validated|real robot POV|ready for physical robot/i,
     );
   });
 

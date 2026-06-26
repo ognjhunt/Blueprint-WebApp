@@ -38,7 +38,7 @@
       "manifest_uri": "gs://bucket/scenes/scene-1/captures/cap-1/pipeline/preview_simulation/preview_simulation_manifest.json"
     }
   },
-  "deployment_readiness": {
+  "evaluation_readiness": {
     "privacy_processing": {
       "status": "person_removed",
       "mode": "removal",
@@ -55,7 +55,7 @@
         "capture_grounded_ready",
         "needs_action_logs",
         "needs_actual_outcome",
-        "review_only_no_robot_readiness"
+        "review_only_no_rank_fidelity"
       ],
       "site_card_count": 1,
       "task_card_count": 1,

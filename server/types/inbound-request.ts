@@ -542,7 +542,7 @@ export interface RobotEvalJobSummary {
   proof_boundary_uri?: string | null;
   blocked_manifest_uri?: string | null;
   simulator_execution_proven?: boolean | null;
-  robot_readiness_proven?: boolean | null;
+  rank_fidelity_result_proven?: boolean | null;
   public_claim_upgrade_allowed?: boolean | null;
 }
 
@@ -585,8 +585,8 @@ export interface RobotEvalPreflightSummary {
   gpu_run_checklist_uri?: string | null;
   owner_gpu_simulator_execution_blocked_manifest_uri?: string | null;
   simulator_execution_proven?: boolean | null;
-  robot_readiness_proven?: boolean | null;
-  safety_validated?: boolean | null;
+  rank_fidelity_result_proven?: boolean | null;
+  non_ranking_operational_claim_validated?: boolean | null;
   public_claim_upgrade_allowed?: boolean | null;
 }
 
@@ -693,7 +693,7 @@ export interface PrivacyProcessingSummary {
   fail_closed?: boolean | null;
 }
 
-export interface DeploymentReadinessSummary {
+export interface EvaluationReadinessSummary {
   qualification_state?: QualificationState;
   opportunity_state?: OpportunityState;
   capture_source?: string | null;
@@ -790,7 +790,7 @@ export interface InboundRequest {
   ops?: OpsSummary;
   pipeline?: PipelineAttachment;
   derived_assets?: DerivedAssetsAttachment;
-  deployment_readiness?: DeploymentReadinessSummary;
+  evaluation_readiness?: EvaluationReadinessSummary;
   debug: {
     schemaVersion: number;
   };
@@ -1062,7 +1062,7 @@ export interface InboundRequestListItem {
   ops?: OpsSummary;
   pipeline?: PipelineAttachment;
   derived_assets?: DerivedAssetsAttachment;
-  deployment_readiness?: DeploymentReadinessSummary;
+  evaluation_readiness?: EvaluationReadinessSummary;
 }
 
 export interface UpdateRequestStatusPayload {

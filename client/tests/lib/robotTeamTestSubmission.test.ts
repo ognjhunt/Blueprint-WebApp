@@ -423,7 +423,7 @@ describe("robotTeamTestSubmission", () => {
         ready_for_owner_gpu_preflight: false,
         owner_gpu_simulator_execution_proven: false,
         simulator_execution_proven: false,
-        robot_readiness_proven: false,
+        rank_fidelity_result_proven: false,
       }),
     );
   });

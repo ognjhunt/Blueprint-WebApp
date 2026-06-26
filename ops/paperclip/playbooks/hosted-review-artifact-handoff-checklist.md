@@ -94,7 +94,7 @@ Before the buyer receives a hosted review or asynchronous handoff, verify each i
 - Pricing and commercial terms are not implied unless a human owner has already taken them forward.
 - Site access, operator approvals, and permissions are not implied unless already cleared.
 - Delivery timing is not implied unless the delivery owner and dependency state are explicit.
-- Rollout claims, deployment readiness, and signoff language are not implied from a hosted review alone.
+- Rollout claims, generated-world rank fidelity, and signoff language are not implied from a hosted review alone.
 
 ## What Ops Can Truthfully Hand Off Now
 - Review URL or hosted walkthrough path that already exists.
@@ -109,7 +109,7 @@ Before the buyer receives a hosted review or asynchronous handoff, verify each i
 - Site-operator outreach, permission exceptions, or access negotiations.
 - Custom artifact exports or buyer-specific packaging not already present.
 - Integration promises into the buyer's stack.
-- Rollout planning, deployment approval, or field-travel commitments.
+- Rollout planning, generated-world rank-fidelity result, or field-travel commitments.
 - Contracting, commercialization, privacy exceptions, or billing.
 
 ## Suggested Artifact Categories For The Handoff Note

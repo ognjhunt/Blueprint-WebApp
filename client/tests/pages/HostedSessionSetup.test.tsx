@@ -83,7 +83,7 @@ describe("HostedSessionSetup", () => {
     expect(screen.getAllByText(/World Studio/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Observation frames/i).length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: /Start Policy Evaluation Set/i })).toBeInTheDocument();
-    expect(screen.getByText(/does not create provider execution, payment, rights clearance, or robot-readiness proof/i)).toBeInTheDocument();
+    expect(screen.getByText(/does not create provider execution, payment, rights clearance, or rank-fidelity proof/i)).toBeInTheDocument();
   });
 
   it("renders structured readiness blockers for demo and runtime launch", async () => {

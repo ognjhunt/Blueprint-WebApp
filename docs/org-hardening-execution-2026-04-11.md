@@ -323,7 +323,7 @@ Real unresolved items:
 - a real live inbound request can be traced to the exact bridge gap:
   - request record exists
   - pipeline attachment exists
-  - deployment readiness exists
+  - generated-world rank fidelity exists
   - proof-path / buyer-review / queue envelope does not
 - the repo-state proof-path contract was overstating hosted-review readiness before this continuation; that contract is now tightened in code
 

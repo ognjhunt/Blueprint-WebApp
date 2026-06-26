@@ -193,7 +193,7 @@ These web sources were fetched/read as approved read-only context on 2026-05-31.
 | `web:polycam:enterprise-solutions:20260531` | `https://poly.cam/solutions` | competitor positioning, supply/capturer | Polycam markets enterprise 3D capture using photogrammetry/LiDAR, smartphone capture, collaboration, user management, and security posture. | That Polycam outputs are valid robotics world models or that Blueprint has enterprise controls. |
 | `web:cisco-world-labs:spatial-intelligence-investment:20260531` | `https://investor.cisco.com/files/doc_news/Cisco-Invests-in-Spatial-Intelligence-Pioneer-World-Labs-2025.pdf` | competitor positioning, market context | Cisco described World Labs as developing Large World Models for spatial intelligence and 3D physical-world interaction. | Blueprint backend comparison, customer adoption, or product readiness. |
 | `web:kuka:amr-logistics-production:20260531` | `https://www.kuka.com/en-us/products/amr-autonomous-mobile-robotics` | robot teams, exact-site categories | KUKA positions AMRs for intralogistics, production, warehousing, manufacturing, healthcare, and retail. | Buyer demand for Blueprint or exact-site capture priority. |
-| `web:boston-dynamics:spot-inspection:20260531` | `https://bostondynamics.com/solutions/inspection` | robot teams, exact-site categories | Boston Dynamics positions Spot for industrial inspection, predictive maintenance, sensing, and facility operations. | Blueprint fit, buyer contact readiness, or deployment readiness. |
+| `web:boston-dynamics:spot-inspection:20260531` | `https://bostondynamics.com/solutions/inspection` | robot teams, exact-site categories | Boston Dynamics positions Spot for industrial inspection, predictive maintenance, sensing, and facility operations. | Blueprint fit, buyer contact readiness, or generated-world rank fidelity. |
 | `web:agility:gxo-digit-deployment:20260531` | `https://www.agilityrobotics.com/content/gxo-signs-industry-first-multi-year-agreement-with-agility-robotics` | robot teams, exact-site categories | Agility/GXO announced Digit deployment in logistics operations and a workflow around facility mapping, workflow definition, and fleet management. | Any sales opportunity for Blueprint or exact target contact. |
 | `web:massrobotics:amr-interoperability-standard:20260531` | `https://www.massrobotics.org/autonomous-mobile-robot-standards-published-by-massrobotics/` | robot teams, procurement/security | AMR interoperability discussions include shared spaces, fleet managers, JSON/WebSockets, security, firewall, bandwidth, and dashboard needs. | Blueprint standards compliance or integration support. |
 | `web:kled:mobile-data-marketplace:20260531` | `https://www.kled.ai/product` | supply/capturer | Kled describes mobile data contribution, photo/video/file upload, curated labeling tasks, dashboards, and earnings tracking. | Legal classification, payout policy, or Blueprint capturer viability. |
@@ -615,7 +615,7 @@ Blocked unless exact owner proof exists:
 - "This provider execution is complete"
 - "Blueprint is SOC 2/ISO/HIPAA/GDPR/CCPA compliant"
 - "Blueprint has a signed DPA/SLA/pen-test"
-- "This package is deployment-ready"
+- "This package is rank-fidelity-scored"
 
 ### Safe Public-Wedge Language
 

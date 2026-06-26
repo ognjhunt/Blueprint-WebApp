@@ -1,7 +1,7 @@
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { storageAdmin } from "../../client/src/lib/firebaseAdmin";
 import { getConfiguredEnvValue } from "../config/env";
-import type { DeploymentReadinessSummary, PipelineAttachment, QualificationState } from "../types/inbound-request";
+import type { EvaluationReadinessSummary, PipelineAttachment, QualificationState } from "../types/inbound-request";
 import type {
   RobotProfile,
   RuntimeManifestSummary,
@@ -82,7 +82,7 @@ export interface HostedRuntimeResolution {
   presentationDemoBlockers: string[];
   priceLabel?: string | null;
   qualificationState?: QualificationState | null;
-  deploymentReadiness?: DeploymentReadinessSummary | null;
+  evaluationReadiness?: EvaluationReadinessSummary | null;
   readinessDecisionUri?: string | null;
   humanActionsRequiredUri?: string | null;
 }
@@ -508,11 +508,11 @@ export async function resolveHostedRuntime(siteWorldId: string): Promise<HostedR
     priceLabel: site.packages[1]?.priceLabel ?? null,
     qualificationState:
       hostedSessionOverride?.qualificationState
-      || parseQualificationState(inbound?.data?.qualification_state || site.deploymentReadiness?.qualification_state),
-    deploymentReadiness:
+      || parseQualificationState(inbound?.data?.qualification_state || site.evaluationReadiness?.qualification_state),
+    evaluationReadiness:
       hostedSessionOverride
-        ? site.deploymentReadiness || null
-        : (inbound?.data?.deployment_readiness as DeploymentReadinessSummary | undefined) || site.deploymentReadiness || null,
+        ? site.evaluationReadiness || null
+        : (inbound?.data?.evaluation_readiness as EvaluationReadinessSummary | undefined) || site.evaluationReadiness || null,
     readinessDecisionUri: String(artifacts.readiness_decision_uri || "").trim() || null,
     humanActionsRequiredUri: String(artifacts.human_actions_required_uri || "").trim() || null,
   };

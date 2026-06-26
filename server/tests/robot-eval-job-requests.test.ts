@@ -249,7 +249,7 @@ describe("buildRobotEvalJobRequest", () => {
           ready_for_owner_gpu_preflight: false,
           local_cpu_preflight_smoke_ran: false,
           simulator_execution_proven: false,
-          robot_readiness_proven: false,
+          rank_fidelity_result_proven: false,
         }),
       }),
     );
@@ -330,10 +330,10 @@ describe("buildRobotEvalJobRequest", () => {
     expect(request.proof_boundary).toEqual(
       expect.objectContaining({
         simulator_execution_proven: false,
-        robot_readiness_proven: false,
+        rank_fidelity_result_proven: false,
         robot_policy_execution_proven: false,
         physics_contact_validated: false,
-        safety_validated: false,
+        non_ranking_operational_claim_validated: false,
         public_claim_upgrade_allowed: false,
       }),
     );
@@ -402,7 +402,7 @@ describe("buildRobotEvalJobRequest", () => {
         ready_for_owner_gpu_preflight: true,
         local_cpu_preflight_smoke_ran: true,
         simulator_execution_proven: false,
-        robot_readiness_proven: false,
+        rank_fidelity_result_proven: false,
       }),
     );
     expect(validateRobotEvalJobRequest(request).ok).toBe(true);
@@ -433,10 +433,10 @@ describe("buildRobotEvalJobRequest", () => {
       },
       proof_boundary: {
         simulator_execution_proven: true,
-        robot_readiness_proven: false,
+        rank_fidelity_result_proven: false,
         robot_policy_execution_proven: false,
         physics_contact_validated: false,
-        safety_validated: false,
+        non_ranking_operational_claim_validated: false,
         public_claim_upgrade_allowed: false,
       },
       simulator_scope: {
@@ -532,10 +532,10 @@ describe("buildRobotEvalJobRequest", () => {
       },
       proof_boundary: {
         simulator_execution_proven: false,
-        robot_readiness_proven: false,
+        rank_fidelity_result_proven: false,
         robot_policy_execution_proven: false,
         physics_contact_validated: false,
-        safety_validated: false,
+        non_ranking_operational_claim_validated: false,
         public_claim_upgrade_allowed: false,
       },
     };

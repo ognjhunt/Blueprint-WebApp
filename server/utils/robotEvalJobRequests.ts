@@ -11,12 +11,12 @@ const FORWARD_CAPTURE_ROOT_BY_SITE_ENV =
 
 const CLAIM_BOUNDARY = {
   simulator_execution_proven: false,
-  robot_readiness_proven: false,
+  rank_fidelity_result_proven: false,
   robot_policy_execution_proven: false,
   physics_contact_validated: false,
-  safety_validated: false,
-  virtual_evaluation_proves_deployment_readiness: false,
-  virtual_evaluation_proves_safety_validation: false,
+  non_ranking_operational_claim_validated: false,
+  virtual_evaluation_proves_evaluation_readiness: false,
+  virtual_evaluation_proves_non_ranking_operational_claim: false,
   public_claim_upgrade_allowed: false,
 };
 
@@ -58,11 +58,11 @@ const EVALUATOR_BACKEND_NEUTRAL_FIELDS = {
     proof_role: "physics_state_sanity_check_only",
   },
   proof_boundaries: {
-    virtual_evaluation_proves_deployment_readiness: false,
-    virtual_evaluation_proves_safety_validation: false,
+    virtual_evaluation_proves_evaluation_readiness: false,
+    virtual_evaluation_proves_non_ranking_operational_claim: false,
     virtual_evaluation_is_policy_evidence_only: true,
-    deployment_readiness_requires_owner_system_proof: true,
-    safety_validation_requires_separate_qualified_review: true,
+    evaluation_readiness_requires_owner_system_proof: true,
+    non_ranking_operational_claim_requires_separate_qualified_review: true,
   },
 };
 
@@ -175,9 +175,9 @@ function buildExecutionRequest() {
       proof_boundaries: {
         webapp_request_selects_policy_not_execution: true,
         mujoco_proof_does_not_clear_isaac_sim_gate: true,
-        simulator_policy_does_not_prove_robot_readiness: true,
-        virtual_evaluation_does_not_prove_deployment_readiness: true,
-        virtual_evaluation_does_not_prove_safety_validation: true,
+        simulator_policy_does_not_prove_rank_fidelity: true,
+        virtual_evaluation_does_not_prove_evaluation_readiness: true,
+        virtual_evaluation_does_not_prove_non_ranking_operational_claim: true,
       },
       isaac_gpu_constraint: "rtx_rt_core_required_no_a100_h100",
     },
@@ -559,7 +559,7 @@ export function buildRobotEvalJobRequest(input: {
         local_cpu_preflight_smoke_ran:
           input.sitePackage.preflightSummary?.localCpuSmokeRan === true,
         simulator_execution_proven: false,
-        robot_readiness_proven: false,
+        rank_fidelity_result_proven: false,
       },
     },
     rights_privacy_scope: {
@@ -700,8 +700,8 @@ export function validateRobotEvalJobRequest(value: unknown): {
   } else {
     for (const key of Object.keys(CLAIM_BOUNDARY) as (keyof typeof CLAIM_BOUNDARY)[]) {
       const optionalVirtualBoundary =
-        key === "virtual_evaluation_proves_deployment_readiness" ||
-        key === "virtual_evaluation_proves_safety_validation";
+        key === "virtual_evaluation_proves_evaluation_readiness" ||
+        key === "virtual_evaluation_proves_non_ranking_operational_claim";
       if (proofBoundary[key] !== false && !(optionalVirtualBoundary && proofBoundary[key] === undefined)) {
         errors.push(`proof_boundary.${key} must be false until owner-system proof exists`);
       }
@@ -776,15 +776,15 @@ export function validateRobotEvalJobRequest(value: unknown): {
         errors.push("execution_request.proof_boundaries is required when execution_request is provided");
       } else {
         if (
-          executionProofBoundaries.virtual_evaluation_proves_deployment_readiness !== false
+          executionProofBoundaries.virtual_evaluation_proves_evaluation_readiness !== false
         ) {
           errors.push(
-            "execution_request.proof_boundaries.virtual_evaluation_proves_deployment_readiness must be false",
+            "execution_request.proof_boundaries.virtual_evaluation_proves_evaluation_readiness must be false",
           );
         }
-        if (executionProofBoundaries.virtual_evaluation_proves_safety_validation !== false) {
+        if (executionProofBoundaries.virtual_evaluation_proves_non_ranking_operational_claim !== false) {
           errors.push(
-            "execution_request.proof_boundaries.virtual_evaluation_proves_safety_validation must be false",
+            "execution_request.proof_boundaries.virtual_evaluation_proves_non_ranking_operational_claim must be false",
           );
         }
       }

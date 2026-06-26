@@ -474,13 +474,13 @@ export function extractSupportCase(docId: string, data: SupportDoc): ExportedCas
 }
 
 function buildPreviewInput(requestId: string, decrypted: InboundRequest): PreviewDiagnosisInput {
-  const deploymentReadiness =
-    decrypted.deployment_readiness && typeof decrypted.deployment_readiness === "object"
-      ? decrypted.deployment_readiness
+  const evaluationReadiness =
+    decrypted.evaluation_readiness && typeof decrypted.evaluation_readiness === "object"
+      ? decrypted.evaluation_readiness
       : {};
   const providerRun =
-    deploymentReadiness.provider_run && typeof deploymentReadiness.provider_run === "object"
-      ? deploymentReadiness.provider_run
+    evaluationReadiness.provider_run && typeof evaluationReadiness.provider_run === "object"
+      ? evaluationReadiness.provider_run
       : {};
   const artifacts =
     decrypted.pipeline?.artifacts && typeof decrypted.pipeline.artifacts === "object"
@@ -494,8 +494,8 @@ function buildPreviewInput(requestId: string, decrypted: InboundRequest): Previe
         ? decrypted.pipeline.scene_id
         : null,
     preview_status:
-      typeof deploymentReadiness.preview_status === "string"
-        ? deploymentReadiness.preview_status
+      typeof evaluationReadiness.preview_status === "string"
+        ? evaluationReadiness.preview_status
         : null,
     provider_name:
       typeof providerRun.provider_name === "string" ? providerRun.provider_name : null,
@@ -566,9 +566,9 @@ export async function extractPreviewCase(
         rawData.ops_automation && typeof rawData.ops_automation === "object"
           ? (rawData.ops_automation as InboundRequest["ops_automation"])
           : undefined,
-      deployment_readiness:
-        rawData.deployment_readiness && typeof rawData.deployment_readiness === "object"
-          ? (rawData.deployment_readiness as InboundRequest["deployment_readiness"])
+      evaluation_readiness:
+        rawData.evaluation_readiness && typeof rawData.evaluation_readiness === "object"
+          ? (rawData.evaluation_readiness as InboundRequest["evaluation_readiness"])
           : undefined,
       pipeline:
         rawData.pipeline && typeof rawData.pipeline === "object"
@@ -632,8 +632,8 @@ export async function extractPreviewCase(
       updated_at: toIsoString((rawData as Record<string, unknown>).updatedAt),
       ops_automation_status: opsAutomation.status ?? null,
       preview_status:
-        decrypted.deployment_readiness && typeof decrypted.deployment_readiness === "object"
-          ? (decrypted.deployment_readiness as Record<string, unknown>).preview_status ?? null
+        decrypted.evaluation_readiness && typeof decrypted.evaluation_readiness === "object"
+          ? (decrypted.evaluation_readiness as Record<string, unknown>).preview_status ?? null
           : null,
     },
   };

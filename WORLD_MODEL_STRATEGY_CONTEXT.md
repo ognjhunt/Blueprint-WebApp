@@ -138,7 +138,7 @@ For the current stage, prioritize:
 5. stable product contracts that survive backend swaps
 6. generated/model-derived data, world-model, simulation, and readiness support where thresholds and evidence gaps matter
 
-Do not spend disproportionate time pushing generic qualification/readiness into the lead product story. The approved WebApp lead story is narrower: site-specific robot deployment readiness for concrete warehouse, factory, material-handling, inspection, and vendor/site-operator evaluation loops.
+Do not spend disproportionate time pushing generic qualification/readiness into the lead product story. The approved WebApp lead story is narrower: sim-only policy ranking for concrete warehouse, factory, material-handling, inspection, and vendor/site-operator evaluation loops.
 
 ## Data Priority
 

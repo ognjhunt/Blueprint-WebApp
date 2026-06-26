@@ -8,7 +8,7 @@ export type ClaimType =
   | "stale_root_doctrine"
   | "unsupported_hosted_session_proof"
   | "public_copy_proof_drift"
-  | "unsupported_robot_readiness_claim"
+  | "unsupported_rank_fidelity_claim"
   | "unsupported_robot_eval_dataset_claim"
   | "stale_payment_payout_provider_doc"
   | "city_live_claim"
@@ -359,13 +359,13 @@ const rules: ClaimRule[] = [
       || /\bplanning ranges\b/i.test(line),
   },
   {
-    type: "unsupported_robot_readiness_claim",
+    type: "unsupported_rank_fidelity_claim",
     ownerProofRequired:
       "Request-scoped owner-system proof for the exact site/task and robot: simulator traces, action logs, robot trials, safety review/signoff, rights/privacy approval, and hosted/runtime artifacts where applicable.",
     safeReplacement:
       "Use `evaluation planning advisory`, `pre-pilot estimate`, `task-specific confidence packet`, or `confirmed after review`; proof requires simulator traces, action logs, and owner-system artifacts. Research correlations must not be described as real-world accuracy.",
     matches: (line) =>
-      /\b(ready to deploy|deployment[- ]ready|safety validated|collision validated|contact validated|manipulation validated|ran the buyer'?s actual robot policy|simulator execution completed|real customer deployment result|real[- ]world accuracy|accuracy guarantee|guaranteed accuracy|guaranteed success rate|guaranteed cycle time|guaranteed intervention rate|guaranteed safety threshold|success rate guarantee|cycle time guarantee|intervention rate guarantee|safety threshold guarantee)\b/i.test(line),
+      /\b(ranked in generated-world policy evaluation|deployment[- ]ready|off-scope validated|collision validated|contact validated|manipulation validated|ran the buyer'?s actual robot policy|simulator execution completed|real customer deployment result|real[- ]world accuracy|accuracy guarantee|guaranteed accuracy|guaranteed success rate|guaranteed cycle time|guaranteed intervention rate|guaranteed safety threshold|success rate guarantee|cycle time guarantee|intervention rate guarantee|safety threshold guarantee)\b/i.test(line),
     allowed: (line) =>
       hasGuardrailContext(line)
       || /\bevaluation planning platform\b/i.test(line)
@@ -386,7 +386,7 @@ const rules: ClaimRule[] = [
       "Use `real-site robot evaluation card workflow assembled for advisory review` or `Site, Task, Scenario, and Eval Cards with proof boundaries attached`; operational proof still requires simulator, action, robot-trial, safety, rights, and outcome records.",
     matches: (line) =>
       /\b(real[- ]site robot eval(?:uation)? dataset|robot eval(?:uation)? dataset|Site Cards?|Task Cards?|Scenario Cards?|Eval Cards?|eval[- ]card(?:s)?|card family)\b/i.test(line)
-      && /\b(simulator execution(?: completed| proof)?|robot policy execution|action[- ]policy readiness|policy execution proof|robot trial(?: passed| proof)?|safety validated|safety validation|collision validated|contact validated|deployment[- ]ready|ready to deploy|operational robot proof|operational proof|guaranteed success rate|guaranteed cycle time|guaranteed intervention rate|guaranteed safety threshold)\b/i.test(line),
+      && /\b(simulator execution(?: completed| proof)?|robot policy execution|action[- ]policy readiness|policy execution proof|robot trial(?: passed| proof)?|off-scope validated|off-scope validation|collision validated|contact validated|deployment[- ]ready|ranked in generated-world policy evaluation|operational robot proof|operational proof|guaranteed success rate|guaranteed cycle time|guaranteed intervention rate|guaranteed safety threshold)\b/i.test(line),
     allowed: (line) =>
       hasGuardrailContext(line)
       || /\badvisory\b/i.test(line)

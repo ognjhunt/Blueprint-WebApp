@@ -2832,19 +2832,19 @@ export default function AdminLeads() {
                   </div>
                 </div>
 
-                {selectedLead.deployment_readiness ? (
+                {selectedLead.evaluation_readiness ? (
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="rounded-xl border border-zinc-200 p-4">
                       <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Buyer trust</p>
                       <p className="mt-2 text-3xl font-semibold text-zinc-950">
-                        {selectedLead.deployment_readiness.buyer_trust_score?.score ?? "N/A"}
+                        {selectedLead.evaluation_readiness.buyer_trust_score?.score ?? "N/A"}
                       </p>
                       <p className="mt-1 text-sm text-zinc-600">
-                        {selectedLead.deployment_readiness.buyer_trust_score?.band ?? "unknown"} confidence
+                        {selectedLead.evaluation_readiness.buyer_trust_score?.band ?? "unknown"} confidence
                       </p>
-                      {selectedLead.deployment_readiness.buyer_trust_score?.reasons?.length ? (
+                      {selectedLead.evaluation_readiness.buyer_trust_score?.reasons?.length ? (
                         <ul className="mt-3 list-disc space-y-1 pl-4 text-sm text-zinc-600">
-                          {selectedLead.deployment_readiness.buyer_trust_score.reasons.map((reason) => (
+                          {selectedLead.evaluation_readiness.buyer_trust_score.reasons.map((reason) => (
                             <li key={reason}>{reason}</li>
                           ))}
                         </ul>
@@ -2853,14 +2853,14 @@ export default function AdminLeads() {
                     <div className="rounded-xl border border-zinc-200 p-4">
                       <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Preview run</p>
                       <p className="mt-2 text-sm text-zinc-700">
-                        Status: {selectedLead.deployment_readiness.preview_status || "not_requested"}
+                        Status: {selectedLead.evaluation_readiness.preview_status || "not_requested"}
                       </p>
                       <p className="mt-1 text-sm text-zinc-700">
-                        Provider: {selectedLead.deployment_readiness.provider_run?.provider_name || "none"}
+                        Provider: {selectedLead.evaluation_readiness.provider_run?.provider_name || "none"}
                       </p>
-                      {selectedLead.deployment_readiness.provider_run?.failure_reason ? (
+                      {selectedLead.evaluation_readiness.provider_run?.failure_reason ? (
                         <p className="mt-3 text-sm text-rose-700">
-                          {selectedLead.deployment_readiness.provider_run.failure_reason}
+                          {selectedLead.evaluation_readiness.provider_run.failure_reason}
                         </p>
                       ) : null}
                     </div>

@@ -41,14 +41,14 @@ export default function Proof() {
           ]),
           faqJsonLd([
             {
-              question: "Does the 0.929 result mean Blueprint claims 93% real-world accuracy?",
+              question: "Does the 0.929 result mean Blueprint claims 93% external accuracy?",
               answer:
-                "No. SC3-Eval reports a 0.929 closed-loop Pearson correlation across seven real-world VLA policies. Blueprint cites it as research evidence for ranking workflows, not as a real-world accuracy guarantee.",
+                "No. SC3-Eval reports a 0.929 closed-loop Pearson correlation across seven VLA policies. Blueprint cites it as research evidence for ranking workflows, not as an external accuracy guarantee.",
             },
             {
               question: "What does a Policy Evaluation Run prove?",
               answer:
-                "It compares policies inside a scoped site, task, robot, and threshold envelope. It does not approve deployment, safety, or guaranteed real-world success.",
+                "It ranks policies inside a scoped site, task, robot, and threshold envelope. The claim is generated-world policy-evaluation rank fidelity for that scope, reported with MMRV, Spearman, and Pearson when measured.",
             },
           ]),
         ]}

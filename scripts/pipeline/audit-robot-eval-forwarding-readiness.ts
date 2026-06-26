@@ -84,7 +84,7 @@ export type RobotEvalForwardingReadinessReport = {
     no_pipeline_mutation_requested: true;
     no_gpu_allocated: true;
     no_simulator_execution_proven: true;
-    no_robot_readiness_proven: true;
+    no_rank_fidelity_result_proven: true;
     no_public_claim_upgrade_allowed: true;
   };
 };
@@ -498,7 +498,7 @@ export async function auditRobotEvalForwardingReadiness(
       no_pipeline_mutation_requested: true,
       no_gpu_allocated: true,
       no_simulator_execution_proven: true,
-      no_robot_readiness_proven: true,
+      no_rank_fidelity_result_proven: true,
       no_public_claim_upgrade_allowed: true,
     },
   };

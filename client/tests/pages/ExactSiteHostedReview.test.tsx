@@ -9,7 +9,7 @@ describe("ExactSiteHostedReview", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Turn the exact site into a robot-readiness report\./i,
+        name: /Turn the exact site into a rank-fidelity report\./i,
       }),
     ).toBeInTheDocument();
 

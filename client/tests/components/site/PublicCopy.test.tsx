@@ -43,13 +43,13 @@ describe("public real-site evaluation copy", () => {
       }),
     ).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /^Start$/i }).length).toBeGreaterThan(0);
-    expect(container).toHaveTextContent(/Use captured real-site tasks to see what works/i);
+    expect(container).toHaveTextContent(/Compare your policy against earlier checkpoints/i);
     expect(container).toHaveTextContent(/Capture site/i);
-    expect(container).toHaveTextContent(/Run policies/i);
-    expect(container).toHaveTextContent(/Pick winner/i);
+    expect(container).toHaveTextContent(/Compare policies/i);
+    expect(container).toHaveTextContent(/Pick next test/i);
     expect(container).toHaveTextContent(/100 episodes/i);
     expect(container).toHaveTextContent(/500 episodes/i);
-    expect(container).toHaveTextContent(/do not approve deployment, safety, or guaranteed real-world success/i);
+    expect(container).toHaveTextContent(/rank-fidelity result outside the measured evaluation scope/i);
     expect(container).not.toHaveTextContent(/WAM\/VLA/i);
     expect(container).not.toHaveTextContent(/digital twin/i);
     expect(container).not.toHaveTextContent(/SimReady/i);

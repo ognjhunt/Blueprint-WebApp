@@ -46,7 +46,7 @@ Use current web research again before making specific new external claims, but t
 - OpenAI GPT Image 2 docs: `gpt-image-2` is the current state-of-the-art OpenAI image generation/editing model with text/image input and image output. Repo docs already route Codex-executed brand/frontend image work to Codex desktop OAuth-backed `gpt-image-2` by default.
 - NVIDIA Cosmos 3 launch and technical docs: Cosmos 3 combines vision reasoning, world generation, and action prediction for physical AI; it is useful for synthetic data, post-training, closed-loop simulation, world action models, and vision reasoning, but it does not replace Blueprint's capture/provenance truth.
 - Gartner's January 21, 2026 humanoid forecast says deployments through 2028 remain limited: fewer than 100 companies progress beyond experimentation, fewer than 20 go live in production for supply-chain/manufacturing humanoid use cases, and most production deployments are tightly controlled. This supports a focused concierge/service wedge, not a giant self-serve marketplace.
-- Figure/BMW, Agility/Toyota, 1X world-model work, Agile Robots/Cosmos, and FieldAI/NVIDIA all support the thesis that serious robot teams need site/task-specific data, evaluation, and failure discovery. They do not support claiming Blueprint has already run live robot policies or proven deployment readiness.
+- Figure/BMW, Agility/Toyota, 1X world-model work, Agile Robots/Cosmos, and FieldAI/NVIDIA all support the thesis that serious robot teams need site/task-specific data, evaluation, and failure discovery. They do not support claiming Blueprint has already run live robot policies or proven generated-world rank fidelity.
 
 ## Current Repo Audit Summary
 
@@ -61,7 +61,7 @@ Start by verifying these because the repo may have changed:
 - High-word-count public pages create a bloated first impression: `Home.tsx` is about 1100 lines, `SiteWorlds.tsx` about 1000, `Pricing.tsx` about 650, `Proof.tsx` about 630, `ReadinessPack.tsx` about 575, `ExactSiteHostedReview.tsx` about 500, plus many supporting pages.
 - Existing tests are coupled to public copy: `client/tests/pages/Home.test.tsx`, `Pricing.test.tsx`, `ExactSiteHostedReview.test.tsx`, `ReadinessPack.test.tsx`, `Proof.test.tsx`, `SiteWorlds.test.tsx`, and `e2e/brand-polish.spec.ts` will likely need updates.
 - Existing visual assets are good enough to start from: `client/public/generated/humanoid-readiness-2026-06-03/`, `client/src/lib/editorialGeneratedAssets.ts`, and `client/src/lib/siteEditorialContent.ts`. Use `gpt-image-2` only if the current assets cannot carry the simplified story.
-- The newest doctrine adds the public wedge: Blueprint may lead with "site-specific robot deployment readiness" as an advisory buyer workflow grounded in capture-backed site packages, task scope, robot profiles, thresholds, provenance, rights/privacy boundaries, hosted review, and missing-proof labels.
+- The newest doctrine adds the public wedge: Blueprint may lead with "sim-only policy ranking" as an advisory buyer workflow grounded in capture-backed site packages, task scope, robot profiles, thresholds, provenance, rights/privacy boundaries, hosted review, and missing-proof labels.
 
 ## Product Direction For The Revamp
 
@@ -146,7 +146,7 @@ Preferred public headline options:
 
 - "Know what breaks before the robot pilot."
 - "Pre-pilot readiness for one real site."
-- "Test robot readiness against the real facility."
+- "Test generated-world rank fidelity against the real facility."
 
 Preferred subcopy:
 
@@ -155,10 +155,10 @@ Preferred subcopy:
 
 Avoid:
 
-- "We guarantee deployment readiness."
-- "Safety validated."
+- "We guarantee generated-world rank fidelity."
+- "Non-ranking validated."
 - "Simulator execution completed."
-- "The robot is ready to deploy."
+- "The robot is ranked in generated-world policy evaluation."
 - "We ran your actual robot policy."
 - "Live marketplace."
 - "Active city coverage."
@@ -211,7 +211,7 @@ Image generation rules:
 - Generate only polished illustrative public-site assets, not "proof" assets.
 - Save assets under `client/public/generated/public-site-kiss-2026-06-03/`.
 - Add a small source/readme note if new generated assets are added.
-- Do not present generated robot scenes as live robot-trial proof, safety validation, customer deployment evidence, rights clearance, or proof that a specific robot is ready to deploy.
+- Do not present generated robot scenes as live robot-trial proof, off-scope validation, customer deployment evidence, rights clearance, or proof that a specific robot is ranked in generated-world policy evaluation.
 - If image generation fails or requires unavailable OAuth/tooling, do not block the revamp. Use existing assets and layout polish.
 
 Visual style:

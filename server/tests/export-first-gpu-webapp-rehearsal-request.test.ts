@@ -59,7 +59,7 @@ describe("first-GPU WebApp rehearsal request exporter", () => {
           live_webapp_forwarding_proven: false,
           simulator_execution_proven: false,
           robot_policy_execution_proven: false,
-          robot_readiness_proven: false,
+          rank_fidelity_result_proven: false,
           public_claim_upgrade_allowed: false,
         }),
       );
@@ -119,7 +119,7 @@ describe("first-GPU WebApp rehearsal request exporter", () => {
           webapp_route_submission_proven: false,
           live_webapp_forwarding_proven: false,
           simulator_execution_proven: false,
-          robot_readiness_proven: false,
+          rank_fidelity_result_proven: false,
           public_claim_upgrade_allowed: false,
         }),
       );

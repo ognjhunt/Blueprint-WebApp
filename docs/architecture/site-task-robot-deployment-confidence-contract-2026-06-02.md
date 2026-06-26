@@ -11,7 +11,7 @@ This document does not authorize live provider jobs, model downloads, deployment
 - Codex `/goal` is currently a goal-oriented task workflow with an objective, status tracking, and resumable execution. For Blueprint, that means the deliverable must be a bounded repo-local improvement with explicit proof and stop rules, not a hidden live workflow.
 - Cosmos 3 and adjacent world-model systems are useful candidate reasoner, generator, evaluator, and action-model layers around existing capture artifacts. They do not make a generated clip, future frame, or synthetic trajectory ground truth.
 - Current humanoid deployment evidence in the market is strongest when it points to named operational customers, tasks, service agreements, safety controls, and repeated runtime proof. Blueprint should not turn visual plausibility into deployment claims without comparable site/task evidence.
-- World-model evaluation needs held-out validation, action evidence, simulator traces, or robot trials depending on the claim. Visual realism alone is not enough for contact, collision, safety, or deployment readiness.
+- World-model evaluation needs held-out validation, action evidence, simulator traces, or robot trials depending on the claim. Visual realism alone is not enough for contact, collision, safety, or generated-world rank fidelity.
 
 ## Cross-Repo Ownership
 

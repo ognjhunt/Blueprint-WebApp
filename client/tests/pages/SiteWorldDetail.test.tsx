@@ -23,13 +23,13 @@ function buildSiteWorld(overrides: Partial<PublicSiteWorldRecord> = {}): PublicS
   const base = getSiteWorldById("sw-chi-01") as PublicSiteWorldRecord;
   return {
     ...base,
-    deploymentReadiness: {
+    evaluationReadiness: {
       native_world_model_primary: true,
       native_world_model_status: "primary_ready",
       provider_fallback_only: true,
       provider_fallback_preview_status: "fallback_available",
-      ...(base.deploymentReadiness || {}),
-      ...((overrides.deploymentReadiness as Record<string, unknown> | undefined) || {}),
+      ...(base.evaluationReadiness || {}),
+      ...((overrides.evaluationReadiness as Record<string, unknown> | undefined) || {}),
     },
     artifactExplorer: {
       status: "partial",

@@ -26,15 +26,15 @@ A robot team can receive a Policy Evaluation Run, Validated Evaluation Pack, Pol
 
 ### What is a Policy Evaluation Run?
 
-A Policy Evaluation Run compares 1-3 policies or checkpoints on one captured real-site task pack using 100 or 500 virtual episodes. Outputs can include ranked results, failure categories, OOD flags, policy-specific notes, evidence references, and a validation boundary. It is advisory review and does not prove deployment readiness, safety, real-world success, or universal WAM-to-robot correlation.
+A Policy Evaluation Run compares 1-3 policies or checkpoints on one captured real-site task pack using 100 or 500 virtual episodes. Outputs can include ranked results, failure categories, OOD flags, policy-specific notes, evidence references, and a validation boundary. It is advisory review and does not prove generated-world rank fidelity, safety, rank fidelity, or universal WAM-to-robot correlation.
 
 ### What is a Validated Evaluation Pack?
 
-A Validated Evaluation Pack is a larger request-specific scope that can pair WAM/VLA evaluation with real robot rollouts and rank-fidelity metrics when the required access, rights, provider/runtime, and owner-system proof exists. It should not be described as complete merely because the public pricing page describes the offer.
+A Validated Evaluation Pack is a larger request-specific scope that can pair WAM/VLA evaluation with hardware rollouts and rank-fidelity metrics when the required access, rights, provider/runtime, and owner-system proof exists. It should not be described as complete merely because the public pricing page describes the offer.
 
 ### What is a Policy Improvement Run?
 
-A Policy Improvement Run is follow-on work after evaluation identifies failures worth fixing. It is not a deployment approval.
+A Policy Improvement Run is follow-on work after evaluation identifies failures worth fixing. It is not a generated-world rank-fidelity result.
 
 ### What is a site package?
 
@@ -107,7 +107,7 @@ Blueprint pages are most relevant to these themes:
 
 - Do not describe generated or sample assets as customer proof.
 - Do not claim a deployment guarantee.
-- Do not claim safety validation, simulator execution completed, robot-trial success, provider execution, or cleared rights unless owner-system evidence proves it.
+- Do not claim off-scope validation, simulator execution completed, robot-trial success, provider execution, or cleared rights unless owner-system evidence proves it.
 - Do not claim a site is buyer-ready only because it appears in public copy.
 - Do not imply package files, raw exports, private request consoles, admin surfaces, or hosted workspaces are publicly accessible.
 - Do not treat public demo agent flows as protected customer access, provider success, rights clearance, or deployment proof.

@@ -459,7 +459,7 @@ export default function ReadinessPack() {
                 >
                   <img
                     src={lane.image}
-                    alt={`${lane.title} humanoid robot readiness scene`}
+                    alt={`${lane.title} humanoid generated-world rank fidelity scene`}
                     className="aspect-[16/9] w-full object-cover"
                     loading="lazy"
                   />
@@ -528,7 +528,7 @@ export default function ReadinessPack() {
             <div className="overflow-hidden border border-white/10">
               <img
                 src={humanoidReadinessAssets.proofBoard}
-                alt="Humanoid robot readiness proof board with route, rights, thresholds, blockers, and provenance"
+                alt="Humanoid generated-world rank fidelity proof board with route, rights, thresholds, blockers, and provenance"
                 className="h-full min-h-[18rem] w-full object-cover"
                 loading="lazy"
               />
@@ -542,7 +542,7 @@ export default function ReadinessPack() {
               </h2>
               <p className="mt-4 max-w-[31rem] text-sm leading-7 text-white/70">
                 Blueprint shows what is inspectable now and what must be proven
-                before a stronger robot-readiness claim can be made.
+                before a stronger rank-fidelity claim can be made.
               </p>
               <div className="mt-7 flex flex-col gap-3 sm:flex-row">
                 <a

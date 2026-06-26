@@ -396,7 +396,7 @@ export default function RobotTeamEval() {
         runMode: "robot_team_structured_test_submission",
         robotTeamTestSubmission: submission,
         proofBoundary:
-          "Virtual WAM/VLA outputs rank policies and diagnose failures; they do not prove safety validation, deployment approval, universal correlation, real-world accuracy, or real-world success.",
+          "Virtual WAM/VLA outputs rank policies and diagnose failures; rank fidelity is scoped to the measured generated-world policy evaluation and reported with MMRV, Spearman, and Pearson when available.",
       },
       notes: `Policy Evaluation Run: ${submission.policyLabels.join(", ")}`,
     };
@@ -558,7 +558,7 @@ export default function RobotTeamEval() {
               <p className="mt-4 text-sm leading-7 text-slate-600">
                 The public claim is that policy-evaluation worlds are becoming
                 useful ranking and diagnosis tools. It is not that Blueprint
-                can promise a percentage-point real-world outcome.
+                can promise a percentage-point policy-ranking outcome.
               </p>
             </div>
             <div className="grid gap-3 md:grid-cols-2">

@@ -71,7 +71,7 @@ Generated demand-sourced rows should use a prefilled `/contact` URL with the tar
 | --- | --- |
 | "This sample is not our site." | Correct. It is a labeled proof shape, not buyer-specific proof. The ask is which exact site or workflow would make the review relevant. |
 | "Do you already have our facility captured?" | Only say yes if the ledger row and artifact prove it. Otherwise say Blueprint would need to capture the site first. |
-| "Can you prove deployment readiness?" | Do not claim readiness. Offer capture proof, package review, hosted evaluation scope, and explicit limits. |
+| "Can you prove generated-world rank fidelity?" | Do not claim readiness. Offer capture proof, package review, hosted evaluation scope, and explicit limits. |
 | "Can you send pricing or contract terms?" | Route to human review or revenue-ops pricing. Do not put pricing or contract commitments in first-touch copy. |
 | "Do you have rights or permission for this site?" | Answer only from the artifact and rights/provenance record. If unclear, route to rights/provenance review. |
 | "Can we see a live hosted session now?" | Offer only the supported labeled sample or request-gated hosted path. Do not promise live availability until entitlement, proof, and runtime checks pass. |
@@ -98,5 +98,5 @@ Blocked claims:
 - no fake contacts, fake sends, fake replies, or fake buyer proof
 - no claim that samples are customer results
 - no claim that demand-sourced rows have hosted reviews ready
-- no guarantee of model capability, provider readiness, deployment readiness, or city readiness
+- no guarantee of model capability, provider readiness, generated-world rank fidelity, or city readiness
 - no pricing, rights, permission, privacy, legal, or paid-spend commitments

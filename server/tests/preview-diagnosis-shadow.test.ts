@@ -9,7 +9,7 @@ const previewDoc = {
   id: "request-1",
   data: () => ({
     requestId: "request-1",
-    deployment_readiness: {
+    evaluation_readiness: {
       provider_run: {
         status: "failed",
       },
@@ -88,7 +88,7 @@ describe("preview diagnosis AutoAgent shadow", () => {
 
     decryptInboundRequestForAdmin.mockResolvedValue({
       requestId: "request-1",
-      deployment_readiness: {
+      evaluation_readiness: {
         preview_status: "failed",
         provider_run: {
           status: "failed",
@@ -214,7 +214,7 @@ describe("preview diagnosis AutoAgent shadow", () => {
 
     decryptInboundRequestForAdmin.mockResolvedValue({
       requestId: "request-1",
-      deployment_readiness: {
+      evaluation_readiness: {
         preview_status: "failed",
         provider_run: {
           status: "failed",

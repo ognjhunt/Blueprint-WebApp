@@ -4,7 +4,7 @@
 - Firestore: site-world sessions, buyer accounts, access entitlements, usage events
 - WebApp: hosted session logs, buyer dashboard activity, support requests
 - Paperclip: buyer health issues, feedback issues
-- Pipeline: deployment_readiness, site_world_health (when relevant to buyer issues)
+- Pipeline: evaluation_readiness, site_world_health (when relevant to buyer issues)
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/PLATFORM_CONTEXT.md`
 
 ## Actions You Own

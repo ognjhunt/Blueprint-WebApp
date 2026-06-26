@@ -115,8 +115,8 @@ async function persistWorldLabsState(params: {
 
   const currentPipeline = jsonObject(params.request.pipeline);
   const currentArtifacts = jsonObject(currentPipeline.artifacts);
-  const currentDeploymentReadiness = jsonObject(params.request.deployment_readiness);
-  const currentProviderRun = jsonObject(currentDeploymentReadiness.provider_run);
+  const currentEvaluationReadiness = jsonObject(params.request.evaluation_readiness);
+  const currentProviderRun = jsonObject(currentEvaluationReadiness.provider_run);
 
   const updatedPipeline = {
     ...currentPipeline,
@@ -134,8 +134,8 @@ async function persistWorldLabsState(params: {
     synced_at: admin.firestore.FieldValue.serverTimestamp(),
   };
 
-  const updatedDeploymentReadiness = {
-    ...currentDeploymentReadiness,
+  const updatedEvaluationReadiness = {
+    ...currentEvaluationReadiness,
     provider_run: {
       ...currentProviderRun,
       provider_name: "world_labs",
@@ -159,7 +159,7 @@ async function persistWorldLabsState(params: {
 
   await db?.collection("inboundRequests").doc(params.requestId).update({
     pipeline: updatedPipeline,
-    deployment_readiness: updatedDeploymentReadiness,
+    evaluation_readiness: updatedEvaluationReadiness,
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
 

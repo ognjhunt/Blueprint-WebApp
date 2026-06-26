@@ -255,7 +255,7 @@ describe("pipeline integration routes", () => {
                 "gs://bucket/scenes/scene-1/captures/cap-1/privacy/final_walkthrough.mov",
             }),
           }),
-          deployment_readiness: expect.objectContaining({
+          evaluation_readiness: expect.objectContaining({
             privacy_processing: expect.objectContaining({
               status: "person_removed",
             }),
@@ -330,8 +330,8 @@ describe("pipeline integration routes", () => {
       ...pipelineAttachmentFixture,
       qualification_state: "",
       opportunity_state: "",
-      deployment_readiness: {
-        ...(pipelineAttachmentFixture.deployment_readiness as Record<string, unknown>),
+      evaluation_readiness: {
+        ...(pipelineAttachmentFixture.evaluation_readiness as Record<string, unknown>),
         qualification_state: "qualified_ready",
         opportunity_state: "handoff_ready",
       },
@@ -502,7 +502,7 @@ describe("pipeline integration routes", () => {
               status: "prep_ready",
             }),
           }),
-          deployment_readiness: expect.objectContaining({
+          evaluation_readiness: expect.objectContaining({
             privacy_processing: expect.objectContaining({
               status: "person_removed",
             }),

@@ -301,7 +301,7 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
   }
 
   const request = loadedRequest;
-  const readiness = request.deployment_readiness;
+  const readiness = request.evaluation_readiness;
   const ops = request.ops;
   const structuredIntake = request.structured_intake;
   const trustScore = readiness?.buyer_trust_score;

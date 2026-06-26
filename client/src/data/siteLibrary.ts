@@ -178,7 +178,7 @@ const defaultMissingProofLabels = [
   "needs_high_level_skill_trace_ref",
   "needs_teleop_demo_ref",
   "needs_sim_controller_plugin_ref",
-  "review_only_no_robot_readiness",
+  "review_only_no_rank_fidelity",
 ];
 
 function robotEvalPublicationPackage(
@@ -192,7 +192,7 @@ function robotEvalPublicationPackage(
     publicationLabel: "Ready to evaluate",
     taskThresholdSummary: {
       taskThresholdCount,
-      thresholdPolicy: "Repo-synced task thresholds are evaluation gates, not robot-readiness claims.",
+      thresholdPolicy: "Repo-synced task thresholds are evaluation gates, not rank-fidelity claims.",
     },
     missingProofLabels: defaultMissingProofLabels,
     preflightSummary: {
@@ -205,7 +205,7 @@ function robotEvalPublicationPackage(
       gpuHandoffLabel: "Owner GPU handoff review-required",
       localCpuSmokeRan: false,
       readyForOwnerGpuPreflight: false,
-      proofBoundaryLabel: "No simulator execution or robot readiness claim",
+      proofBoundaryLabel: "No simulator execution or generated-world rank fidelity claim",
     },
     artifactUris: {
       manifestUri: `${datasetPrefix}/robot_eval_dataset_manifest.json`,
@@ -271,7 +271,7 @@ function pipelineManifestStatuses(slug: string): PipelineManifestStatus[] {
       summary: "Compatibility artifacts are support evidence only",
       artifactUri: `${simulationPrefix}/scene_asset_dependency_audit.json`,
       retrySummary: "Retry after dependency audit or generated-support asset refresh.",
-      failureSummary: "Dependency failures do not prove or disprove robot readiness.",
+      failureSummary: "Dependency failures do not prove or disprove generated-world rank fidelity.",
     },
     {
       lane: "materialization",

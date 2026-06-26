@@ -91,7 +91,7 @@ function runtimeFixture(overrides: Partial<HostedRuntimeResolution> = {}): Hoste
     presentationDemoBlockers: [],
     priceLabel: "$16/session-hour",
     qualificationState: "qualified_ready",
-    deploymentReadiness: {
+    evaluationReadiness: {
       qualification_state: "qualified_ready",
       missing_evidence: [],
       recapture_required: false,

@@ -105,15 +105,15 @@ export function isPlannedCatalogSiteWorld(site: PublicSiteWorldRecord) {
     !isPublicSampleSiteWorld(site)
     && !isCommercialExemplarSiteWorld(site)
     && site.dataSource !== "pipeline"
-    && !site.deploymentReadiness
+    && !site.evaluationReadiness
   );
 }
 
 function hasRestrictionSignals(site: PublicSiteWorldRecord) {
-  const hasRightsMetadata = Boolean(site.deploymentReadiness?.rights_and_compliance);
-  const exportEntitlements = site.deploymentReadiness?.rights_and_compliance?.export_entitlements || [];
-  const consentScope = site.deploymentReadiness?.rights_and_compliance?.consent_scope || [];
-  const qualificationState = site.deploymentReadiness?.qualification_state;
+  const hasRightsMetadata = Boolean(site.evaluationReadiness?.rights_and_compliance);
+  const exportEntitlements = site.evaluationReadiness?.rights_and_compliance?.export_entitlements || [];
+  const consentScope = site.evaluationReadiness?.rights_and_compliance?.consent_scope || [];
+  const qualificationState = site.evaluationReadiness?.qualification_state;
 
   return (
     qualificationState === "qualified_risky"
@@ -124,11 +124,11 @@ function hasRestrictionSignals(site: PublicSiteWorldRecord) {
 }
 
 function needsRefreshReview(site: PublicSiteWorldRecord) {
-  const qualificationState = site.deploymentReadiness?.qualification_state;
+  const qualificationState = site.evaluationReadiness?.qualification_state;
   return (
     qualificationState === "needs_refresh"
-    || site.deploymentReadiness?.recapture_required === true
-    || (site.deploymentReadiness?.missing_evidence || []).length > 0
+    || site.evaluationReadiness?.recapture_required === true
+    || (site.evaluationReadiness?.missing_evidence || []).length > 0
   );
 }
 
@@ -199,7 +199,7 @@ export function getSiteWorldProofDepth(site: PublicSiteWorldRecord) {
   if (isCommercialExemplarSiteWorld(site)) return "Request-reviewed exemplar with listing proof fields + request-scoped hosted request path";
   if (isPlannedCatalogSiteWorld(site)) return "Planned profile; proof opens after capture/package review";
   if (site.worldLabsPreview?.launchUrl) return "Listing + hosted request path disclosure + fallback preview";
-  if (site.deploymentReadiness?.native_world_model_primary) return "Listing + hosted request path disclosure";
+  if (site.evaluationReadiness?.native_world_model_primary) return "Listing + hosted request path disclosure";
   return "Listing only";
 }
 
@@ -228,17 +228,17 @@ export function getSiteWorldFreshnessSummary(site: PublicSiteWorldRecord) {
     return "Planned; freshness set after capture review";
   }
 
-  if (site.deploymentReadiness?.recapture_required) {
+  if (site.evaluationReadiness?.recapture_required) {
     return "Recapture required before commercial use";
   }
 
-  const freshnessDate = String(site.deploymentReadiness?.freshness_date || "").trim();
+  const freshnessDate = String(site.evaluationReadiness?.freshness_date || "").trim();
   if (freshnessDate) {
     return `Freshness dated ${freshnessDate.slice(0, 10)}`;
   }
 
-  if (site.deploymentReadiness?.recapture_status) {
-    return `Recapture status: ${site.deploymentReadiness.recapture_status.replaceAll("_", " ")}`;
+  if (site.evaluationReadiness?.recapture_status) {
+    return `Recapture status: ${site.evaluationReadiness.recapture_status.replaceAll("_", " ")}`;
   }
 
   return "Freshness confirmed during request review";
@@ -321,7 +321,7 @@ export function getSiteWorldReadinessDisclosure(site: PublicSiteWorldRecord) {
     "Hosted launch is checked separately against entitlement, account type, hosted-session availability, and production configuration.",
   ];
 
-  if (site.deploymentReadiness?.export_readiness_status === "ready") {
+  if (site.evaluationReadiness?.export_readiness_status === "ready") {
     parts.unshift("Exports are documented on this listing.");
   }
 
@@ -395,7 +395,7 @@ export function getSiteWorldPlainEnglishProof(site: PublicSiteWorldRecord) {
 }
 
 export function getSiteWorldPlainEnglishRestrictions(site: PublicSiteWorldRecord) {
-  if (site.deploymentReadiness?.recapture_required) {
+  if (site.evaluationReadiness?.recapture_required) {
     return "Refresh work is still part of the commercial conversation for this site.";
   }
 
@@ -419,7 +419,7 @@ export function getSiteWorldPackageAccessSummary(site: PublicSiteWorldRecord) {
     return "Package access starts after the exact-site request, capture package, and rights/privacy review are in place.";
   }
 
-  if (site.deploymentReadiness?.export_readiness_status === "ready") {
+  if (site.evaluationReadiness?.export_readiness_status === "ready") {
     return "Package path is documented, with release still tied to rights and buyer scope.";
   }
 
@@ -450,7 +450,7 @@ export function getSiteWorldHostedAccessDisclosure(
     };
   }
 
-  if (site.deploymentReadiness?.native_world_model_primary) {
+  if (site.evaluationReadiness?.native_world_model_primary) {
     return {
       label: "Hosted request path",
       summary:
@@ -503,9 +503,9 @@ export function getSiteWorldBuyerFlowDisclosure(
     };
   }
 
-  if (site.dataSource === "pipeline" || site.deploymentReadiness) {
+  if (site.dataSource === "pipeline" || site.evaluationReadiness) {
     return {
-      proofLabel: site.deploymentReadiness?.export_readiness_status === "ready"
+      proofLabel: site.evaluationReadiness?.export_readiness_status === "ready"
         ? "Pipeline-backed proof fields"
         : "Pipeline-backed metadata",
       packageAccess:

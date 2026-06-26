@@ -102,16 +102,16 @@ function humanizeLabel(value?: string | null, fallback = "Request-scoped") {
 }
 
 function formatCaptureDate(site: PublicSiteWorldRecord) {
-  return formatDateValue(site.deploymentReadiness?.freshness_date);
+  return formatDateValue(site.evaluationReadiness?.freshness_date);
 }
 
 function formatReviewDate(site: PublicSiteWorldRecord) {
-  return formatDateValue(site.deploymentReadiness?.freshness_date);
+  return formatDateValue(site.evaluationReadiness?.freshness_date);
 }
 
 function formatFreshnessState(site: PublicSiteWorldRecord) {
-  if (site.deploymentReadiness?.recapture_required) return "Recapture required";
-  return humanizeLabel(site.deploymentReadiness?.recapture_status);
+  if (site.evaluationReadiness?.recapture_required) return "Recapture required";
+  return humanizeLabel(site.evaluationReadiness?.recapture_status);
 }
 
 const sampleArtifactLinks = [

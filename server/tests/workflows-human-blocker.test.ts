@@ -75,7 +75,7 @@ describe("workflow human blocker adoption", () => {
   it("dispatches the standard blocker packet for preview diagnosis human-review outputs", async () => {
     decryptInboundRequestForAdmin.mockResolvedValue({
       requestId: "request-1",
-      deployment_readiness: {
+      evaluation_readiness: {
         provider_run: {
           status: "failed",
         },

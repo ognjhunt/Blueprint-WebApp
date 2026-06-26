@@ -109,10 +109,10 @@ router.post("/", async (req, res) => {
     updated_at_iso: queuedAt,
     proof_boundary: {
       simulator_execution_proven: false,
-      robot_readiness_proven: false,
+      rank_fidelity_result_proven: false,
       robot_policy_execution_proven: false,
       physics_contact_validated: false,
-      safety_validated: false,
+      non_ranking_operational_claim_validated: false,
       public_claim_upgrade_allowed: false,
     },
   };

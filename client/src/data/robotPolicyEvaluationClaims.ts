@@ -1,5 +1,5 @@
 export const robotPolicyEvaluationBoundary =
-  "Blueprint uses policy-evaluation research as category evidence for ranking and diagnostic workflows. It does not turn a virtual score into a real-world accuracy guarantee, deployment approval, or safety validation.";
+  "Blueprint uses policy-evaluation research as category evidence for ranking and diagnostic workflows. It does not turn a virtual score into a universal accuracy guarantee or a rank-fidelity result outside the measured evaluation scope.";
 
 export const robotPolicyComparisonUseCases = [
   {

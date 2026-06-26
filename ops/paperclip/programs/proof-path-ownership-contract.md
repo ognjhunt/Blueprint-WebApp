@@ -26,7 +26,7 @@ CTO owns the contract, the cross-repo blocker map, and the rule that the bridge 
   Responsibility: no silent contract drift between repos
 - `Hosted review readiness`
   Owner: `pipeline-codex` for evidence generation; `webapp-codex` for buyer-facing consumption
-  Truth source: deployment readiness, derived assets, hosted readiness endpoints, site-world launch readiness
+  Truth source: generated-world rank fidelity, derived assets, hosted readiness endpoints, site-world launch readiness
   Responsibility: readiness labels stay grounded in actual artifacts and runtime checks
 - `Buyer-visible state`
   Owner: `webapp-codex`

@@ -27,7 +27,7 @@ import { logGrowthEvent } from "../utils/growth-events";
 import type {
   DerivedAssetEntry,
   DerivedAssetsAttachment,
-  DeploymentReadinessSummary,
+  EvaluationReadinessSummary,
   OpportunityState,
   PipelineAttachment,
   PipelineArtifacts,
@@ -165,17 +165,17 @@ function buildDerivedAssets(
   return next;
 }
 
-function buildDeploymentReadiness(
+function buildEvaluationReadiness(
   body: Record<string, unknown>,
-  current?: DeploymentReadinessSummary
-): DeploymentReadinessSummary | undefined {
-  const readiness = body.deployment_readiness;
+  current?: EvaluationReadinessSummary
+): EvaluationReadinessSummary | undefined {
+  const readiness = body.evaluation_readiness;
   if (!readiness || typeof readiness !== "object") {
     return current;
   }
   return {
     ...(current || {}),
-    ...(readiness as DeploymentReadinessSummary),
+    ...(readiness as EvaluationReadinessSummary),
   };
 }
 
@@ -295,10 +295,10 @@ router.post("/attachments", requirePipelineToken, async (req: Request, res: Resp
     const qualificationState = String(parsedBody.qualification_state || "").trim();
     const opportunityState = String(parsedBody.opportunity_state || "").trim();
     const readinessQualificationState = String(
-      parsedBody.deployment_readiness?.qualification_state || "",
+      parsedBody.evaluation_readiness?.qualification_state || "",
     ).trim();
     const readinessOpportunityState = String(
-      parsedBody.deployment_readiness?.opportunity_state || "",
+      parsedBody.evaluation_readiness?.opportunity_state || "",
     ).trim();
 
     if (!siteSubmissionId && !requestId) {
@@ -368,9 +368,9 @@ router.post("/attachments", requirePipelineToken, async (req: Request, res: Resp
       parsedBody,
       currentData?.derived_assets as DerivedAssetsAttachment | undefined
     );
-    const deploymentReadiness = buildDeploymentReadiness(
+    const evaluationReadiness = buildEvaluationReadiness(
       parsedBody,
-      currentData?.deployment_readiness as DeploymentReadinessSummary | undefined
+      currentData?.evaluation_readiness as EvaluationReadinessSummary | undefined
     );
     const nextQualificationState = authoritativeStateUpdate
       ? (nextQualificationStateSource as QualificationState)
@@ -415,7 +415,7 @@ router.post("/attachments", requirePipelineToken, async (req: Request, res: Resp
     const stateTransition = computePipelineStateTransition({
       artifacts: pipeline.artifacts,
       derivedAssets: derivedAssets || (currentData?.derived_assets as DerivedAssetsAttachment | undefined),
-      deploymentReadiness: deploymentReadiness || (currentData?.deployment_readiness as DeploymentReadinessSummary | undefined),
+      evaluationReadiness: evaluationReadiness || (currentData?.evaluation_readiness as EvaluationReadinessSummary | undefined),
       authoritativeStateUpdate,
       explicitQualificationState: parsedBody.qualification_state,
       explicitOpportunityState: parsedBody.opportunity_state,
@@ -424,7 +424,7 @@ router.post("/attachments", requirePipelineToken, async (req: Request, res: Resp
       currentProofPath,
       currentOps,
       currentDerivedAssets: currentData?.derived_assets as DerivedAssetsAttachment | undefined,
-      currentDeploymentReadiness: currentData?.deployment_readiness as DeploymentReadinessSummary | undefined,
+      currentEvaluationReadiness: currentData?.evaluation_readiness as EvaluationReadinessSummary | undefined,
     });
 
     const finalQualificationState = authoritativeStateUpdate
@@ -451,15 +451,15 @@ router.post("/attachments", requirePipelineToken, async (req: Request, res: Resp
       updatePayload.derived_assets = derivedAssets;
     }
 
-    if (stateTransition.deploymentReadiness) {
-      updatePayload.deployment_readiness = stateTransition.deploymentReadiness;
-    } else if (deploymentReadiness) {
-      updatePayload.deployment_readiness = deploymentReadiness;
+    if (stateTransition.evaluationReadiness) {
+      updatePayload.evaluation_readiness = stateTransition.evaluationReadiness;
+    } else if (evaluationReadiness) {
+      updatePayload.evaluation_readiness = evaluationReadiness;
     }
 
     const payoutRecommendationSource =
-      (stateTransition.deploymentReadiness || deploymentReadiness) && typeof (stateTransition.deploymentReadiness || deploymentReadiness) === "object"
-        ? ((stateTransition.deploymentReadiness || deploymentReadiness) as Record<string, unknown>)
+      (stateTransition.evaluationReadiness || evaluationReadiness) && typeof (stateTransition.evaluationReadiness || evaluationReadiness) === "object"
+        ? ((stateTransition.evaluationReadiness || evaluationReadiness) as Record<string, unknown>)
         : null;
     const payoutRecommendation =
       payoutRecommendationSource &&
@@ -761,7 +761,7 @@ router.post("/attachments", requirePipelineToken, async (req: Request, res: Resp
       opportunity_state: nextOpportunityState,
       pipeline,
       derived_assets: derivedAssets,
-      deployment_readiness: deploymentReadiness,
+      evaluation_readiness: evaluationReadiness,
     });
   } catch (error) {
     if (error instanceof ZodError) {
@@ -796,7 +796,7 @@ router.get("/status/:requestId", requirePipelineToken, async (req: Request, res:
 
     const pipeline = data.pipeline as (PipelineAttachment | undefined);
     const derivedAssets = data.derived_assets as (DerivedAssetsAttachment | undefined);
-    const deploymentReadiness = data.deployment_readiness as (DeploymentReadinessSummary | undefined);
+    const evaluationReadiness = data.evaluation_readiness as (EvaluationReadinessSummary | undefined);
     const ops = data.ops as (Record<string, unknown> | undefined);
 
     const hostedReviewReadiness = checkHostedReviewReadiness({
@@ -807,7 +807,7 @@ router.get("/status/:requestId", requirePipelineToken, async (req: Request, res:
     const stateTransition = computePipelineStateTransition({
       artifacts: pipeline?.artifacts,
       derivedAssets,
-      deploymentReadiness,
+      evaluationReadiness,
       authoritativeStateUpdate: false,
       currentQualificationState: data.qualification_state as QualificationState | undefined,
       currentOpportunityState: data.opportunity_state as OpportunityState | undefined,
@@ -824,7 +824,7 @@ router.get("/status/:requestId", requirePipelineToken, async (req: Request, res:
         human_commercial_handoff_at: null,
       },
       currentOps: ops,
-      currentDeploymentReadiness: deploymentReadiness,
+      currentEvaluationReadiness: evaluationReadiness,
     });
 
     return res.json({
@@ -844,7 +844,7 @@ router.get("/status/:requestId", requirePipelineToken, async (req: Request, res:
         requiresHumanReview: stateTransition.requiresHumanReview,
       },
       ops: stateTransition.opsUpdate.opsAutomation,
-      deployment_readiness: stateTransition.deploymentReadiness,
+      evaluation_readiness: stateTransition.evaluationReadiness,
       pipelineSyncedAt: pipeline?.synced_at,
     });
   } catch (error) {

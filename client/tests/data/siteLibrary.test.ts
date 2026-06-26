@@ -37,7 +37,7 @@ describe("siteLibrary robot eval publication gate", () => {
           episodeSpecLabel: "Episode specs review-required",
           cpuSimulatorLabel: "CPU setup manifests",
           localCpuSmokeRan: false,
-          proofBoundaryLabel: "No simulator execution or robot readiness claim",
+          proofBoundaryLabel: "No simulator execution or generated-world rank fidelity claim",
         }),
       );
       expect(site.defaultRobotEvalSelection).toEqual(

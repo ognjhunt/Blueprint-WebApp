@@ -164,9 +164,9 @@ const BASE_FORBIDDEN_CLAIMS = [
   "live Cosmos or provider execution by the WebApp evaluator",
   "model download or model execution by the WebApp evaluator",
   "generated world-model output as ground truth",
-  "robot deployment readiness without linked action, safety, rights, and runtime proof",
-  "contact, collision, or safety validation from visual plausibility alone",
-  "real-site robot eval cards as simulator execution, robot trial, or safety validation proof",
+  "policy ranking without linked action, rights, runtime proof, and ranking metrics",
+  "contact, collision, or off-scope validation from visual plausibility alone",
+  "real-site robot eval cards as simulator execution, robot trial, or off-scope validation proof",
   "rights, privacy, payment, payout, hosted-session, city coverage, or provider completion without owner-system records",
 ];
 
@@ -292,7 +292,7 @@ function evaluateCaptureProvenance(input: SiteTaskDeploymentConfidenceInput) {
     blocker: "Capture provenance record is required for site/task confidence.",
   });
   recordUri(family, "rights_consent_record", capture.rightsConsentUri, {
-    blocker: "Rights and consent record is required before buyer or robot-readiness claims.",
+    blocker: "Rights and consent record is required before buyer or rank-fidelity claims.",
   });
   recordUri(family, "capture_upload_complete", capture.captureUploadCompleteUri, {
     blocker: "Capture upload completion proof is required before downstream readiness.",
@@ -480,7 +480,7 @@ function evaluateWorldModel(input: SiteTaskDeploymentConfidenceInput) {
   if (robotEval.safetyValidationProven === true) {
     addUnique(
       family.blockers,
-      "WebApp advisory evaluator cannot upgrade robot-eval cards into safety validation proof.",
+      "WebApp advisory evaluator cannot upgrade robot-eval cards into off-scope validation proof.",
     );
   }
   if (robotEval.realPilotOutcomeProven === true && !hasText(input.deploymentEvidence?.robotTrialUri)) {
@@ -692,9 +692,9 @@ function buildClaims(state: SiteTaskConfidenceState, input: SiteTaskDeploymentCo
   }
 
   if (state === "operational_deployment_ready") {
-    addUnique(allowed, "site/task operational deployment readiness with linked owner proof");
+    addUnique(allowed, "site/task operational generated-world rank fidelity with linked owner proof");
   } else {
-    addUnique(forbidden, "public robot deployment-ready claim");
+    addUnique(forbidden, "public robot rank-fidelity-scored claim");
     addUnique(forbidden, "contact, collision, safety, or manipulation readiness claim");
   }
 
@@ -707,10 +707,10 @@ function buildClaims(state: SiteTaskConfidenceState, input: SiteTaskDeploymentCo
   }
 
   if (claimIntent.has("public_deployment_ready") && state !== "operational_deployment_ready") {
-    addUnique(warnings, "Requested public deployment-ready intent is not supported by this packet.");
+    addUnique(warnings, "Requested public rank-fidelity-scored intent is not supported by this packet.");
   }
   if (claimIntent.has("contact_collision_eval") && state !== "operational_deployment_ready") {
-    addUnique(warnings, "Requested contact/collision intent needs safety and robot/runtime proof.");
+    addUnique(warnings, "Requested contact/collision intent needs owner runtime proof.");
   }
   if (claimIntent.has("robot_action_policy") && state === "visual_world_model_review_ready") {
     addUnique(warnings, "Requested robot action-policy intent needs action evidence and simulator or robot-trial proof.");

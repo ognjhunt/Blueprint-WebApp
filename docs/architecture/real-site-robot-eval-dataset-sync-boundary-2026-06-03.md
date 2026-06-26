@@ -126,7 +126,7 @@ Pipeline sync may attach these optional artifact fields:
 - `robot_eval_job_proof_boundary_uri`
 - `robot_eval_job_blocked_manifest_uri`
 
-`deployment_readiness.robot_eval_dataset_summary` may summarize the contract as
+`evaluation_readiness.robot_eval_dataset_summary` may summarize the contract as
 advisory with `dataset_version`, `dataset_state`, `site_card_count`,
 `task_card_count`, `scenario_card_count`, `eval_card_count`,
 `annotation_backlog_count`, `manifest_uri`, and `card_artifact_uris`. Its
@@ -175,7 +175,7 @@ For first-GPU startup rehearsals that are not submitted through the public route
 same queue-envelope contract with `source_kind=local_first_gpu_rehearsal_request`
 and `local_rehearsal_only=true`. That rehearsal exporter proves WebApp request
 construction only; it does not prove live route submission, live forwarding,
-simulator execution, policy execution, robot readiness, safety validation, or
+simulator execution, policy execution, generated-world rank fidelity, off-scope validation, or
 public claim upgrades.
 
 Before treating live forwarding as startup-ready, run
@@ -195,11 +195,11 @@ route and POSTing a generated non-rehearsal request into the configured Pipeline
 intake. Use a local/staging intake URL unless a live Pipeline staging side
 effect is explicitly intended. This proves local route submission and Pipeline
 intake staging only; it does not prove production WebApp deployment, GPU
-allocation, simulator execution, policy execution, robot readiness, safety
+allocation, simulator execution, policy execution, generated-world rank fidelity, safety
 validation, or public claim upgrades.
 Pipeline status sync is advisory through
-`deployment_readiness.robot_eval_job_summary` and must not promote simulator
-execution, robot readiness, safety validation, or public claim upgrades.
+`evaluation_readiness.robot_eval_job_summary` and must not promote simulator
+execution, generated-world rank fidelity, off-scope validation, or public claim upgrades.
 `robot_eval_scheduler_decision_uri`, `robot_eval_worker_launch_plan_uri`,
 `robot_eval_worker_manifest_uri`, `robot_eval_gpu_provider_launch_request_uri`,
 `robot_eval_gpu_provider_launcher_result_uri`,
@@ -218,10 +218,10 @@ Sites may also project a per-site manifest status family for privacy, World
 Labs compatibility/support artifacts, materialization, CPU preflight, GPU
 handoff, eval result, and policy-improvement export. Those rows may include
 retry/failure summaries, but the summaries are operational diagnostics only.
-They must not imply simulator execution, safety validation, robot deployment
+They must not imply simulator execution, off-scope validation, robot deployment
 readiness, or policy pass/fail outcomes.
 
-`deployment_readiness.robot_eval_preflight_summary` may summarize the CPU-only
+`evaluation_readiness.robot_eval_preflight_summary` may summarize the CPU-only
 pre-GPU lane with `scene_asset_preflight_status`, `episode_spec_status`,
 `episode_count`, `cpu_simulator_preflight_status`,
 `local_cpu_preflight_smoke_ran`, `collider_backend_labels`,
@@ -230,7 +230,7 @@ pre-GPU lane with `scene_asset_preflight_status`, `episode_spec_status`,
 `ready_for_owner_gpu_preflight`, GPU handoff artifact URIs, install
 instructions, and the preflight artifact URIs above. WebApp must keep
 `owner_gpu_simulator_execution_proven`, `simulator_execution_proven`,
-`robot_readiness_proven`, `safety_validated`, and
+`rank_fidelity_result_proven`, `non_ranking_operational_claim_validated`, and
 `public_claim_upgrade_allowed` false unless request-scoped owner-system proof
 later supplies simulator traces, robot logs, safety signoff, and
 buyer-approved methodology.
@@ -270,12 +270,12 @@ WebApp may display:
 
 These artifacts alone must not be displayed as:
 
-- robot-ready or deployment-ready status
+- robot-ready or rank-fidelity-scored status
 - simulator execution completed
 - local CPU preflight smoke as completed owner-system simulator execution
 - `ready_for_owner_gpu_preflight` as completed simulator execution
 - a GPU handoff packet as evidence that an owner GPU simulator run occurred
-- safety validation
+- off-scope validation
 - actual robot trial passed
 - submitted policy/container/trace/demo/plugin passed evaluation
 - guaranteed success rate, cycle time, intervention rate, or safety threshold
@@ -293,4 +293,4 @@ npm run test -- server/tests/pipeline-state-machine.test.ts
 ```
 
 It asserts robot-eval dataset artifact presence remains advisory-only and does
-not promote runtime or deployment readiness fields.
+not promote runtime or generated-world rank fidelity fields.

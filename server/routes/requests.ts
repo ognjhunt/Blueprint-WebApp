@@ -273,7 +273,7 @@ router.get("/:requestId", async (req: Request, res: Response) => {
       ops_automation: decrypted.ops_automation || null,
       pipeline: decrypted.pipeline || null,
       derived_assets: decrypted.derived_assets || null,
-      deployment_readiness: decrypted.deployment_readiness || null,
+      evaluation_readiness: decrypted.evaluation_readiness || null,
       buyer_review_access: {
         buyer_review_url: decrypted.buyer_review_access?.buyer_review_url || null,
         token_issued_at: normalizeTimestamp(decrypted.buyer_review_access?.token_issued_at),

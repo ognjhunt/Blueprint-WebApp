@@ -59,7 +59,7 @@ Technical buyers across all markets consistently demand:
 ### Medium-Term Strategic Signals
 - **Smart city infrastructure buildout**: Municipal investments in digital twin platforms and urban AI computing will drive demand for comprehensive site documentation that integrates with these systems.
 - **Autonomous vehicle fleet expansion**: Scaling AV fleets across cities creates sustained need for high-fidelity urban mapping and real-time infrastructure data synchronization.
-- **Public-private partnership maturation**: Urban automation partnerships between cities and robotics firms will evolve toward requiring exact-site validation before deployment approvals.
+- **Public-private partnership maturation**: Urban automation partnerships between cities and robotics firms will evolve toward requiring exact-site validation before 90%+ sim-only policy-ranking signoffs.
 
 ### Key Cross-City Takeaway
 The robotics market is shifting from broad awareness campaigns to proof-led technical evaluation. Buyers increasingly treat world-model credibility as a function of exact-site proof quality, replayability, and provenance clarity—not generic AI capabilities. Blueprint's competitive advantage lies in delivering inspectable, versioned, site-specific proof that technical buyers can directly integrate into their validation workflows, particularly in complex urban environments where competitors lack site-specific depth.

@@ -27,7 +27,7 @@ World models, site-world routes, simulation outputs, generated media, editing as
 
 That public wedge answers two narrow buyer questions: how a robot policy performs against a real-site task before expensive field time, and whether Blueprint can improve that customer-supplied policy inside simulation to move closer to required success and cycle-time thresholds.
 
-This overlay does not make Blueprint qualification-first, readiness-first, or model-checkpoint-first. Task Evaluation Runs and Policy Improvement Runs are commercial buyer workflows built on capture-grounded site packages, task scope, robot profiles, customer-supplied policy access, provenance, rights/privacy boundaries, hosted review, and explicit missing-proof labels. A request-scoped advisory can be sold confidently as a product category; a claim that a robot is ready to deploy, safety validated, simulator-completed, or guaranteed to hit thresholds still requires request-scoped owner-system proof.
+This overlay does not make Blueprint qualification-first, readiness-first, or model-checkpoint-first. Task Evaluation Runs and Policy Improvement Runs are commercial buyer workflows built on capture-grounded site packages, task scope, robot profiles, customer-supplied policy access, provenance, rights/privacy boundaries, hosted review, and explicit missing-proof labels. A request-scoped advisory can be sold confidently as a product category; a claim that a robot is ranked in generated-world policy evaluation, off-scope validated, simulator-completed, or guaranteed to hit thresholds still requires request-scoped owner-system proof.
 
 Policy Improvement Runs must be source-access optional for full-stack robot teams. Blueprint may support black-box evaluation through an API endpoint, container, private-cloud runner, sim plugin, or action traces; closed-stack improvement support through failure clusters, twin/cousin scenarios, curriculum, regression packs, and recommended training changes; and improved artifacts only when the customer exposes a trainable surface such as adapter hooks, a task head, fine-tuning API, policy wrapper, controller layer, reward/training entrypoint, or approved distillation path. Do not promise that Blueprint directly edits or delivers an improved policy artifact when the customer only provides a black-box runner.
 
@@ -51,7 +51,7 @@ The center of gravity is not:
 - not world models as the primary public product or a generic world-model marketplace
 - one-off model demos disconnected from real capture
 - a single permanent world-model backend
-- unsupported robot-readiness verdicts, safety validation, or guaranteed threshold claims
+- unsupported rank-fidelity verdicts, off-scope validation, or guaranteed threshold claims
 
 ### Market Structure
 

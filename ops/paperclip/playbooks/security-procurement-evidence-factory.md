@@ -138,7 +138,7 @@ Block these unless a current owner artifact and required human gate are attached
 - Current production secret configuration, uptime, incident history, or live Render/Firebase/Stripe/Redis state from repo docs alone.
 - Automatic deletion completion, subject access fulfillment, or privacy-law interpretation.
 - All captures rights-cleared, unrestricted commercial use, or buyer-specific clearance without exact rights/provenance evidence.
-- Guaranteed hosted-session availability, package access open, provider execution complete, payment success, payout success, customer proof, or deployment readiness without owning-system proof.
+- Guaranteed hosted-session availability, package access open, provider execution complete, payment success, payout success, customer proof, or generated-world rank fidelity without owning-system proof.
 - Roadmap promises framed as current controls.
 
 ## Deterministic Claim Checks

@@ -1621,7 +1621,7 @@ export async function runPreviewDiagnosisLoop(params?: { limit?: number }) {
 
   const snapshot = await db
     .collection("inboundRequests")
-    .where("deployment_readiness.provider_run.status", "==", "failed")
+    .where("evaluation_readiness.provider_run.status", "==", "failed")
     .limit(Math.max(1, Math.min(params?.limit ?? 10, 25)))
     .get();
 
@@ -1630,13 +1630,13 @@ export async function runPreviewDiagnosisLoop(params?: { limit?: number }) {
 
   for (const doc of snapshot.docs) {
     const decrypted = (await decryptInboundRequestForAdmin(doc.data() as any)) as InboundRequest;
-    const deploymentReadiness =
-      decrypted.deployment_readiness && typeof decrypted.deployment_readiness === "object"
-        ? decrypted.deployment_readiness
+    const evaluationReadiness =
+      decrypted.evaluation_readiness && typeof decrypted.evaluation_readiness === "object"
+        ? decrypted.evaluation_readiness
         : {};
     const providerRun =
-      deploymentReadiness.provider_run && typeof deploymentReadiness.provider_run === "object"
-        ? deploymentReadiness.provider_run
+      evaluationReadiness.provider_run && typeof evaluationReadiness.provider_run === "object"
+        ? evaluationReadiness.provider_run
         : {};
     const artifacts =
       decrypted.pipeline?.artifacts && typeof decrypted.pipeline.artifacts === "object"
@@ -1650,8 +1650,8 @@ export async function runPreviewDiagnosisLoop(params?: { limit?: number }) {
           ? decrypted.pipeline.scene_id
           : null,
       preview_status:
-        typeof deploymentReadiness.preview_status === "string"
-          ? deploymentReadiness.preview_status
+        typeof evaluationReadiness.preview_status === "string"
+          ? evaluationReadiness.preview_status
           : null,
       provider_name:
         typeof providerRun.provider_name === "string" ? providerRun.provider_name : null,

@@ -4,7 +4,7 @@ import { dbAdmin as db, storageAdmin } from "../../client/src/lib/firebaseAdmin"
 import { siteWorldCards, type SiteWorldCard, type SiteWorldPackage } from "../../client/src/data/siteWorlds";
 import { getConfiguredEnvValue, isEnvFlagEnabled } from "../config/env";
 import type {
-  DeploymentReadinessSummary,
+  EvaluationReadinessSummary,
   InboundRequest,
   InboundRequestStored,
   OpportunityState,
@@ -923,7 +923,7 @@ function deriveBenchmarkStatus(benchmarkSuite: ArtifactJson, pipeline: PipelineA
 }
 
 function deriveRecapture(recaptureDiff: ArtifactJson, qualificationState: QualificationState): {
-  status: DeploymentReadinessSummary["recapture_status"];
+  status: EvaluationReadinessSummary["recapture_status"];
   required: boolean;
   missingEvidence: string[];
 } {
@@ -933,7 +933,7 @@ function deriveRecapture(recaptureDiff: ArtifactJson, qualificationState: Qualif
 
   if (typeof recaptureDiff?.status === "string") {
     return {
-      status: recaptureDiff.status as DeploymentReadinessSummary["recapture_status"],
+      status: recaptureDiff.status as EvaluationReadinessSummary["recapture_status"],
       required: Boolean(recaptureDiff?.recapture_required),
       missingEvidence,
     };
@@ -946,7 +946,7 @@ function deriveRecapture(recaptureDiff: ArtifactJson, qualificationState: Qualif
   return { status: "not_requested", required: false, missingEvidence: [] };
 }
 
-function buildDeploymentReadiness({
+function buildEvaluationReadiness({
   request,
   qualificationState,
   opportunityState,
@@ -974,7 +974,7 @@ function buildDeploymentReadiness({
   siteWorldHealth: ArtifactJson;
   worldLabsPreview?: SiteWorldCard["worldLabsPreview"];
   template?: SiteWorldCard;
-}): DeploymentReadinessSummary & {
+}): EvaluationReadinessSummary & {
   qualification_state: QualificationState;
   opportunity_state: OpportunityState;
   exports_available: string[];
@@ -1295,7 +1295,7 @@ async function buildLiveRecord(
       readArtifactJson(resolveRuntimeDemoManifestUri(pipeline)),
     ]);
 
-  const readiness = buildDeploymentReadiness({
+  const readiness = buildEvaluationReadiness({
     request,
     qualificationState,
     opportunityState,
@@ -1478,7 +1478,7 @@ async function buildLiveRecord(
       pipeline?.artifacts.worldlabs_world_manifest_uri,
       "worldlabs/worldlabs_world_manifest.json",
     ) || null;
-  const refreshedReadiness = buildDeploymentReadiness({
+  const refreshedReadiness = buildEvaluationReadiness({
     request,
     qualificationState,
     opportunityState,
@@ -1561,7 +1561,7 @@ async function buildLiveRecord(
       String(siteNormalization?.summary || "").trim() ||
       template?.summary ||
       "Qualified site packaged for deployment-readiness review and downstream evaluation.",
-    bestFor: template?.bestFor || "Deployment readiness review on one exact site.",
+    bestFor: template?.bestFor || "Policy ranking readiness review on one exact site.",
     runtime: refreshedReadiness.runtime_label,
     defaultRuntimeBackend: runtimeManifest.defaultBackend,
     availableRuntimeBackends: runtimeManifest.launchableBackends,
@@ -1587,7 +1587,7 @@ async function buildLiveRecord(
     siteWorldRegistrationUri,
     siteWorldHealthUri,
     dataSource: "pipeline",
-    deploymentReadiness: refreshedReadiness,
+    evaluationReadiness: refreshedReadiness,
   };
 }
 

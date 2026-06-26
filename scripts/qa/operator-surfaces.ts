@@ -670,7 +670,7 @@ function requestFixture(overrides: {
           overrides.qualificationState === "qualified_ready" ? "2026-05-26T10:15:00.000Z" : null,
       },
     },
-    deployment_readiness: {
+    evaluation_readiness: {
       qualification_state: overrides.qualificationState,
       opportunity_state: overrides.opportunityState,
       capture_source: "local_fixture",

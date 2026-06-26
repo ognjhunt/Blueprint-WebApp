@@ -2,7 +2,7 @@
 
 ## Primary Sources
 - Firestore: site_worlds collection (listings, metadata, availability status)
-- Pipeline artifacts: qualification_summary, derived_assets, deployment_readiness, site_world_spec
+- Pipeline artifacts: qualification_summary, derived_assets, evaluation_readiness, site_world_spec
 - WebApp: SiteWorlds page, admin site-worlds view
 - Paperclip: rights clearance issues, buyer journey issues
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/PLATFORM_CONTEXT.md`

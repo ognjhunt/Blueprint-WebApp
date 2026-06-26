@@ -137,7 +137,7 @@ const state = vi.hoisted(() => {
   let releaseHostedSessionUpdateGate: (() => void) | null = null;
   const inboundRequestData = {
     qualification_state: "qualified_ready",
-    deployment_readiness: {
+    evaluation_readiness: {
       qualification_state: "qualified_ready",
       missing_evidence: [],
       recapture_required: false,
@@ -664,7 +664,7 @@ afterEach(async () => {
     expiresAt: "2026-03-12T02:00:00Z",
   };
   state.inboundRequestData.qualification_state = "qualified_ready";
-  state.inboundRequestData.deployment_readiness = {
+  state.inboundRequestData.evaluation_readiness = {
     qualification_state: "qualified_ready",
     missing_evidence: [],
     recapture_required: false,
@@ -1784,7 +1784,7 @@ describe("site world session routes", () => {
 
   it("reports qualification and human-action blockers in launch readiness", async () => {
     state.inboundRequestData.qualification_state = "not_ready_yet";
-    state.inboundRequestData.deployment_readiness = {
+    state.inboundRequestData.evaluation_readiness = {
       qualification_state: "not_ready_yet",
       missing_evidence: ["operator walkthrough"],
       recapture_required: true,

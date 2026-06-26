@@ -2446,7 +2446,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
               <p className="mt-4 max-w-3xl text-sm leading-7 text-white/65">
                 Select the site world, run or inspect a scenario, generate data where runtime
                 evidence exists, prepare post-training artifacts, evaluate task output, and review
-                exports without overstating live simulation or robot readiness.
+                exports without overstating live simulation or generated-world rank fidelity.
               </p>
               <p className="mt-3 text-lg font-semibold text-white">{site.siteName}</p>
               <p className="mt-1 text-sm text-white/50">{site.siteAddress}</p>
@@ -2615,22 +2615,22 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                   <div className="mt-4 grid gap-3 sm:grid-cols-2">
                     <DetailPill label="Scene" value={site.sceneId} />
                     <DetailPill label="Capture" value={site.captureId} />
-                    <DetailPill label="Readiness" value={humanizeValue(site.deploymentReadiness?.qualification_state, "qualified")} />
+                    <DetailPill label="Readiness" value={humanizeValue(site.evaluationReadiness?.qualification_state, "qualified")} />
                     <DetailPill label="Health" value={humanizeValue(sessionRecord?.runtimeHandle?.health_status || site.runtimeManifest?.healthStatus, "unknown")} />
                     <DetailPill
                       label="Native"
                       value={
-                        site.deploymentReadiness?.native_world_model_primary
+                        site.evaluationReadiness?.native_world_model_primary
                           ? "Primary ready"
-                          : humanizeValue(site.deploymentReadiness?.native_world_model_status, "not ready")
+                          : humanizeValue(site.evaluationReadiness?.native_world_model_status, "not ready")
                       }
                     />
                     <DetailPill
                       label="Fallback"
                       value={
-                        site.deploymentReadiness?.provider_fallback_only
+                        site.evaluationReadiness?.provider_fallback_only
                           ? "Fallback only"
-                          : humanizeValue(site.deploymentReadiness?.provider_fallback_preview_status, "not requested")
+                          : humanizeValue(site.evaluationReadiness?.provider_fallback_preview_status, "not requested")
                       }
                     />
                   </div>

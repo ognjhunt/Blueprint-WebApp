@@ -67,11 +67,11 @@ const EVALUATOR_BACKEND_NEUTRAL_FIELDS = {
     proof_role: "physics_state_sanity_check_only",
   },
   proof_boundaries: {
-    virtual_evaluation_proves_deployment_readiness: false,
-    virtual_evaluation_proves_safety_validation: false,
+    virtual_evaluation_proves_evaluation_readiness: false,
+    virtual_evaluation_proves_non_ranking_operational_claim: false,
     virtual_evaluation_is_policy_evidence_only: true,
-    deployment_readiness_requires_owner_system_proof: true,
-    safety_validation_requires_separate_qualified_review: true,
+    evaluation_readiness_requires_owner_system_proof: true,
+    non_ranking_operational_claim_requires_separate_qualified_review: true,
   },
 };
 
@@ -170,9 +170,9 @@ function buildExecutionRequest() {
       proof_boundaries: {
         webapp_request_selects_policy_not_execution: true,
         mujoco_proof_does_not_clear_isaac_sim_gate: true,
-        simulator_policy_does_not_prove_robot_readiness: true,
-        virtual_evaluation_does_not_prove_deployment_readiness: true,
-        virtual_evaluation_does_not_prove_safety_validation: true,
+        simulator_policy_does_not_prove_rank_fidelity: true,
+        virtual_evaluation_does_not_prove_evaluation_readiness: true,
+        virtual_evaluation_does_not_prove_non_ranking_operational_claim: true,
       },
       isaac_gpu_constraint: "rtx_rt_core_required_no_a100_h100",
     },
@@ -345,7 +345,7 @@ function buildPrivateHardwareIntegrationForPipeline(
         integration.claimBoundary.customerHostedConnectorDoesNotExportBlueprintRawSceneIp,
       robot_model_or_urdf_presence_alone_is_not_hardware_readiness:
         integration.claimBoundary.robotModelOrUrdfPresenceAloneIsNotHardwareReadiness,
-      physical_robot_readiness_requires_accepted_real_robot_evidence:
+      generated_world_rank_fidelity_requires_accepted_real_robot_evidence:
         integration.claimBoundary.physicalRobotReadinessRequiresAcceptedRealRobotEvidence,
       blueprint_scene_packet_is_not_unbounded_site_asset_delivery:
         integration.claimBoundary.blueprintScenePacketIsNotUnboundedSiteAssetDelivery,
@@ -602,7 +602,7 @@ export function buildRobotEvalJobRequestFromSite(
             webapp_request_selects_task_not_execution: true,
             simulator_physics_execution_proven_by_webapp: false,
             grasp_or_carry_validated_by_webapp: false,
-            robot_readiness_proven_by_webapp: false,
+            rank_fidelity_result_proven_by_webapp: false,
           },
         }
       : undefined,
@@ -753,17 +753,17 @@ export function buildRobotEvalJobRequestFromSite(
         local_cpu_preflight_smoke_ran:
           publication.preflightSummary.localCpuSmokeRan,
         simulator_execution_proven: false,
-        robot_readiness_proven: false,
+        rank_fidelity_result_proven: false,
       },
     },
     proof_boundary: {
-      virtual_evaluation_proves_deployment_readiness: false,
-      virtual_evaluation_proves_safety_validation: false,
+      virtual_evaluation_proves_evaluation_readiness: false,
+      virtual_evaluation_proves_non_ranking_operational_claim: false,
       simulator_execution_proven: false,
-      robot_readiness_proven: false,
+      rank_fidelity_result_proven: false,
       robot_policy_execution_proven: false,
       physics_contact_validated: false,
-      safety_validated: false,
+      non_ranking_operational_claim_validated: false,
       public_claim_upgrade_allowed: false,
     },
   };

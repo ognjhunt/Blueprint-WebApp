@@ -53,7 +53,7 @@ describe("robot eval manipulation request builder", () => {
     expect(request.manipulation_task.claim_boundary).toMatchObject({
       simulator_physics_execution_proven_by_webapp: false,
       grasp_or_carry_validated_by_webapp: false,
-      robot_readiness_proven_by_webapp: false,
+      rank_fidelity_result_proven_by_webapp: false,
     });
   });
 });

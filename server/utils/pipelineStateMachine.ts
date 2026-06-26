@@ -21,7 +21,7 @@ import type {
   PipelineAttachment,
   DerivedAssetsAttachment,
   DerivedAssetEntry,
-  DeploymentReadinessSummary,
+  EvaluationReadinessSummary,
   QualificationState,
   OpportunityState,
   ProofPathMilestones,
@@ -386,8 +386,8 @@ function buildRobotEvalPreflightSummary(
     gpu_run_checklist_uri: gpuRunChecklistUri,
     owner_gpu_simulator_execution_blocked_manifest_uri: ownerGpuBlockedManifestUri,
     simulator_execution_proven: false,
-    robot_readiness_proven: false,
-    safety_validated: false,
+    rank_fidelity_result_proven: false,
+    non_ranking_operational_claim_validated: false,
     public_claim_upgrade_allowed: false,
   };
 }
@@ -406,19 +406,19 @@ function allDerivedAssetsComplete(derivedAssets: DerivedAssetsAttachment | undef
 
 /**
  * Infer qualification state based on available pipeline artifacts and
- * deployment readiness data. This only applies when the authoritative_state_update
+ * generated-world rank fidelity data. This only applies when the authoritative_state_update
  * flag was NOT provided (meaning the pipeline is reporting evidence but not
  * making a formal state declaration).
  */
 export function inferQualificationStateFromArtifacts(args: {
   artifacts?: PipelineArtifacts;
-  deploymentReadiness?: DeploymentReadinessSummary;
+  evaluationReadiness?: EvaluationReadinessSummary;
   derivedAssets?: DerivedAssetsAttachment;
   current?: QualificationState;
 }): QualificationState {
   // If there's an explicit readiness state, respect it
-  if (args.deploymentReadiness) {
-    const explicitState = args.deploymentReadiness.qualification_state;
+  if (args.evaluationReadiness) {
+    const explicitState = args.evaluationReadiness.qualification_state;
     if (explicitState && isQualificationState(explicitState)) {
       return explicitState;
     }
@@ -473,11 +473,11 @@ export function inferQualificationStateFromArtifacts(args: {
 export function inferOpportunityState(args: {
   qualificationState: QualificationState;
   artifacts?: PipelineArtifacts;
-  deploymentReadiness?: DeploymentReadinessSummary;
+  evaluationReadiness?: EvaluationReadinessSummary;
 }): OpportunityState {
   // Explicit readiness state wins
-  if (args.deploymentReadiness?.opportunity_state) {
-    const explicitState = args.deploymentReadiness.opportunity_state;
+  if (args.evaluationReadiness?.opportunity_state) {
+    const explicitState = args.evaluationReadiness.opportunity_state;
     if (isOpportunityState(explicitState)) {
       return explicitState;
     }
@@ -628,7 +628,7 @@ export interface OpsEnvelopeUpdate {
 
 export function computeOpsEnvelopeFromPipeline(args: {
   artifacts?: PipelineArtifacts;
-  deploymentReadiness?: DeploymentReadinessSummary;
+  evaluationReadiness?: EvaluationReadinessSummary;
   qualificationState?: QualificationState;
   currentOps?: Record<string, unknown>;
 }): OpsEnvelopeUpdate {
@@ -642,7 +642,7 @@ export function computeOpsEnvelopeFromPipeline(args: {
     },
   };
 
-  const { artifacts, deploymentReadiness } = args;
+  const { artifacts, evaluationReadiness } = args;
   const totalArtifacts = countPresentArtifacts(artifacts);
   const coreCount = artifactsInGroup(artifacts, CORE_ARTIFACT_GROUPS.capture_and_qa) +
     artifactsInGroup(artifacts, CORE_ARTIFACT_GROUPS.privacy_and_rights) +
@@ -695,7 +695,7 @@ export function computeOpsEnvelopeFromPipeline(args: {
   }
 
   // Recapture required?
-  if (deploymentReadiness?.recapture_required) {
+  if (evaluationReadiness?.recapture_required) {
     result.recaptureRequired = true;
     result.captureStatus = "needs_recapture";
     result.nextStep = "Capture quality insufficient — review recapture_diff and request re-capture.";
@@ -726,17 +726,17 @@ export function computeOpsEnvelopeFromPipeline(args: {
 }
 
 // ────────────────────────────────────────────────
-// Deployment readiness summary enrichment
+// Policy ranking readiness summary enrichment
 // ────────────────────────────────────────────────
 
-export function enrichDeploymentReadinessFromArtifacts(
-  current: DeploymentReadinessSummary | undefined,
+export function enrichEvaluationReadinessFromArtifacts(
+  current: EvaluationReadinessSummary | undefined,
   artifacts: PipelineArtifacts | undefined,
   derivedAssets: DerivedAssetsAttachment | undefined
-): DeploymentReadinessSummary | undefined {
+): EvaluationReadinessSummary | undefined {
   if (!artifacts && !derivedAssets) return current;
 
-  const enriched: DeploymentReadinessSummary = {
+  const enriched: EvaluationReadinessSummary = {
     ...(current || {}),
   };
 
@@ -826,7 +826,7 @@ export function enrichDeploymentReadinessFromArtifacts(
       proof_boundary_uri: artifacts?.robot_eval_job_proof_boundary_uri || null,
       blocked_manifest_uri: artifacts?.robot_eval_job_blocked_manifest_uri || null,
       simulator_execution_proven: false,
-      robot_readiness_proven: false,
+      rank_fidelity_result_proven: false,
       public_claim_upgrade_allowed: false,
     };
   }
@@ -874,7 +874,7 @@ export interface PipelineStateTransition {
   opportunityState: OpportunityState;
   opsUpdate: OpsEnvelopeUpdate;
   proofPathUpdate: MilestoneStampResult;
-  deploymentReadiness: DeploymentReadinessSummary | undefined;
+  evaluationReadiness: EvaluationReadinessSummary | undefined;
   requiresHumanReview: boolean;
   recommendedAction: string;
   artifactCount: { total: number; core: number };
@@ -891,7 +891,7 @@ export interface PipelineStateTransition {
 export function computePipelineStateTransition(args: {
   artifacts?: PipelineArtifacts;
   derivedAssets?: DerivedAssetsAttachment;
-  deploymentReadiness?: DeploymentReadinessSummary;
+  evaluationReadiness?: EvaluationReadinessSummary;
   authoritativeStateUpdate: boolean;
   explicitQualificationState?: string;
   explicitOpportunityState?: string;
@@ -900,9 +900,9 @@ export function computePipelineStateTransition(args: {
   currentProofPath?: ProofPathMilestones;
   currentOps?: Record<string, unknown>;
   currentDerivedAssets?: DerivedAssetsAttachment;
-  currentDeploymentReadiness?: DeploymentReadinessSummary;
+  currentEvaluationReadiness?: EvaluationReadinessSummary;
 }): PipelineStateTransition {
-  const { artifacts, derivedAssets, deploymentReadiness, authoritativeStateUpdate } = args;
+  const { artifacts, derivedAssets, evaluationReadiness, authoritativeStateUpdate } = args;
 
   // Step 1: Determine qualification state
   let qualificationState: QualificationState;
@@ -913,7 +913,7 @@ export function computePipelineStateTransition(args: {
   } else {
     qualificationState = inferQualificationStateFromArtifacts({
       artifacts,
-      deploymentReadiness,
+      evaluationReadiness,
       derivedAssets,
       current: args.currentQualificationState,
     });
@@ -923,12 +923,12 @@ export function computePipelineStateTransition(args: {
   const opportunityState = authoritativeStateUpdate && args.explicitOpportunityState
     ? (isOpportunityState(args.explicitOpportunityState)
       ? args.explicitOpportunityState
-      : inferOpportunityState({ qualificationState, artifacts, deploymentReadiness }))
-    : inferOpportunityState({ qualificationState, artifacts, deploymentReadiness });
+      : inferOpportunityState({ qualificationState, artifacts, evaluationReadiness }))
+    : inferOpportunityState({ qualificationState, artifacts, evaluationReadiness });
 
-  // Step 3: Enrich deployment readiness
-  const currentDR = deploymentReadiness || args.currentDeploymentReadiness;
-  const enrichedDR = enrichDeploymentReadinessFromArtifacts(
+  // Step 3: Enrich generated-world rank fidelity
+  const currentDR = evaluationReadiness || args.currentEvaluationReadiness;
+  const enrichedDR = enrichEvaluationReadinessFromArtifacts(
     currentDR,
     artifacts,
     derivedAssets
@@ -958,7 +958,7 @@ export function computePipelineStateTransition(args: {
   // Step 5: Compute ops envelope
   const opsUpdate = computeOpsEnvelopeFromPipeline({
     artifacts,
-    deploymentReadiness: enrichedDR,
+    evaluationReadiness: enrichedDR,
     qualificationState,
     currentOps: args.currentOps,
   });
@@ -999,7 +999,7 @@ export function computePipelineStateTransition(args: {
     proofMotionStalled = true;
     stallReason = "recapture_required";
   } else if (
-    deploymentReadiness?.recapture_required &&
+    evaluationReadiness?.recapture_required &&
     !opsUpdate.recaptureRequired
   ) {
     proofMotionStalled = true;
@@ -1011,7 +1011,7 @@ export function computePipelineStateTransition(args: {
     opportunityState,
     opsUpdate,
     proofPathUpdate,
-    deploymentReadiness: enrichedDR,
+    evaluationReadiness: enrichedDR,
     requiresHumanReview: opsUpdate.opsAutomation.requires_human_review ?? true,
     recommendedAction,
     artifactCount: {

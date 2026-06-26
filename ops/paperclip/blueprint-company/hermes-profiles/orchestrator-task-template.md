@@ -6,7 +6,7 @@ Use this when Hermes Kanban/default-assignee routing becomes available. Until th
 
 1. Confirm `hermes kanban --help` exists.
 2. Confirm the local Hermes profile surface can store a profile `description`.
-3. Confirm the task can run without live side effects, or cite the command-safety approval that allows them.
+3. Confirm the task can run without live side effects, or cite the command-off-scope approval that allows them.
 4. Confirm Paperclip remains the execution record.
 
 If any item fails, stop and create/leave a blocked Paperclip issue instead of mutating Hermes live state.
@@ -46,7 +46,7 @@ Blocker id policy:
 - Use a durable blocker id for human-gated, provider-gated, credential-gated, rights/privacy, send, payment, payout, or hosted-runtime stops.
 
 Side-effect gate:
-- No live send/payment/provider/Notion/Paperclip/Render/Firebase/VPS mutation unless command-safety approval is explicit.
+- No live send/payment/provider/Notion/Paperclip/Render/Firebase/VPS mutation unless command-off-scope approval is explicit.
 
 Closeout owner:
 -

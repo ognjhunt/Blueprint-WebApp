@@ -31,7 +31,7 @@ describe("ReadinessPack", () => {
       expect.stringContaining("humanoid-hosted-readiness-dashboard.png"),
     );
     expect(
-      screen.getByAltText(/Humanoid robot readiness proof board/i),
+      screen.getByAltText(/Humanoid generated-world rank fidelity proof board/i),
     ).toHaveAttribute(
       "src",
       expect.stringContaining("humanoid-proof-board.png"),

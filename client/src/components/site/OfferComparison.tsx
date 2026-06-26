@@ -79,7 +79,7 @@ const offerCards = [
       "Separate from the $5k one-time supply review",
       "Multiple policy-update checks up to the agreed annual cap",
       "Customer pushes a new policy version and Blueprint evaluates against the reviewed site scope",
-      "Report cards cover regressions without turning eval output into deployment approval",
+      "Report cards cover regressions without turning eval output into generated-world rank-fidelity result",
     ],
     href: "/contact/site-operator?requestedOutputs=Site%20Monitoring%20Subscription",
     cta: "Scope monitoring",

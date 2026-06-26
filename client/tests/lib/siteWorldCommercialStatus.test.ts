@@ -58,8 +58,8 @@ describe("siteWorldCommercialStatus", () => {
     expect(
       getSiteWorldHostedAccessDisclosure({
         ...site!,
-        deploymentReadiness: {
-          ...(site!.deploymentReadiness || {}),
+        evaluationReadiness: {
+          ...(site!.evaluationReadiness || {}),
           native_world_model_primary: true,
         },
       }),

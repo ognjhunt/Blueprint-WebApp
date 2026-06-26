@@ -93,7 +93,7 @@ describe("site/task robot deployment confidence package", () => {
     expect(packet.allowed_claims).toContain(
       "capture-grounded visual world-model review package is ready for human inspection",
     );
-    expect(packet.forbidden_claims).toContain("public robot deployment-ready claim");
+    expect(packet.forbidden_claims).toContain("public robot rank-fidelity-scored claim");
     expect(packet.forbidden_claims).toContain("contact, collision, safety, or manipulation readiness claim");
     expect(packet.next_evidence_moves).toContain(
       "Attach simulator traces, action logs, or robot-trial records before deployment confidence claims.",
@@ -159,7 +159,7 @@ describe("site/task robot deployment confidence package", () => {
       "WebApp advisory evaluator cannot upgrade robot-eval cards into robot policy execution proof.",
     );
     expect(packet.blockers).toContain(
-      "WebApp advisory evaluator cannot upgrade robot-eval cards into safety validation proof.",
+      "WebApp advisory evaluator cannot upgrade robot-eval cards into off-scope validation proof.",
     );
   });
 
@@ -210,12 +210,12 @@ describe("site/task robot deployment confidence package", () => {
     expect(packet.state).toBe("blocked");
     expect(packet.evidence.capture_provenance.status).toBe("blocked");
     expect(packet.blockers).toContain("Capture provenance record is required for site/task confidence.");
-    expect(packet.blockers).toContain("Rights and consent record is required before buyer or robot-readiness claims.");
+    expect(packet.blockers).toContain("Rights and consent record is required before buyer or rank-fidelity claims.");
     expect(packet.blockers).toContain("Capture upload completion proof is required before downstream readiness.");
     expect(packet.forbidden_claims).toContain("rights-cleared public or commercial deployment claim");
   });
 
-  it("rejects deployment-ready public intent without full owner-system proof", () => {
+  it("rejects rank-fidelity-scored public intent without full owner-system proof", () => {
     const packet = buildSiteTaskDeploymentConfidencePackage(
       visualReviewFixture({
         worldModelEval: {
@@ -231,9 +231,9 @@ describe("site/task robot deployment confidence package", () => {
 
     expect(packet.state).toBe("deployment_confidence_advisory");
     expect(packet.allowed_claims).toContain("site/task deployment confidence advisory is available for human review");
-    expect(packet.forbidden_claims).toContain("public robot deployment-ready claim");
+    expect(packet.forbidden_claims).toContain("public robot rank-fidelity-scored claim");
     expect(packet.forbidden_claims).toContain("contact, collision, safety, or manipulation readiness claim");
-    expect(packet.warnings).toContain("Requested public deployment-ready intent is not supported by this packet.");
-    expect(packet.warnings).toContain("Requested contact/collision intent needs safety and robot/runtime proof.");
+    expect(packet.warnings).toContain("Requested public rank-fidelity-scored intent is not supported by this packet.");
+    expect(packet.warnings).toContain("Requested contact/collision intent needs owner runtime proof.");
   });
 });

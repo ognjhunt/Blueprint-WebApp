@@ -437,7 +437,7 @@ function availabilityForSite(site: SiteWorldCard) {
 }
 
 function readinessForSite(site: SiteWorldCard) {
-  const readiness = site.deploymentReadiness;
+  const readiness = site.evaluationReadiness;
   const values = [
     readiness?.qualification_state,
     readiness?.opportunity_state,
@@ -986,7 +986,7 @@ function sortResults(results: SiteWorldSearchResult[], sort: SiteWorldSearchSort
   };
   const readinessRank = (site: SiteWorldCard) => {
     if (site.runtimeManifest?.launchable) return 3;
-    if (site.deploymentReadiness?.native_world_model_primary) return 2;
+    if (site.evaluationReadiness?.native_world_model_primary) return 2;
     return 1;
   };
 

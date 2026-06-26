@@ -128,7 +128,7 @@ describe("autoagent historical case exporter helpers", () => {
         rationale: "Provider-side artifact issue.",
         internal_summary: "Provider escalation needed.",
       },
-      deployment_readiness: {
+      evaluation_readiness: {
         preview_status: "failed",
         provider_run: {
           provider_name: "worldlabs",

@@ -196,7 +196,7 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
   const [scenarioId, setScenarioId] = useState("");
   const [startStateId, setStartStateId] = useState("");
   const [requestedBackend, setRequestedBackend] = useState("");
-  const [runMode, setRunMode] = useState<"simulation" | "robot_readiness_review">("simulation");
+  const [runMode, setRunMode] = useState<"simulation" | "rank_fidelity_review">("simulation");
   const [runSeed, setRunSeed] = useState(42);
   const [episodeCount, setEpisodeCount] = useState(10);
   const [maxSteps, setMaxSteps] = useState(600);
@@ -354,7 +354,7 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
           episodeCount,
           maxSteps,
         },
-        proofBoundary: "No provider execution, live simulation, or robot-readiness claim until owner-system artifacts exist.",
+        proofBoundary: "No provider execution, live simulation, or rank-fidelity claim until owner-system artifacts exist.",
       },
       taskId,
       scenarioId,
@@ -633,7 +633,7 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
                         {site.runtimeManifest?.launchable ? "Launch checks available" : "Request review before launch"}
                       </p>
                       <p className="mt-2 text-sm leading-6 text-stone-600">
-                        Cameras: {cameraSummary || "camera list pending"}. Rights, entitlement, provider, and robot-readiness claims remain proof-gated per request.
+                        Cameras: {cameraSummary || "camera list pending"}. Rights, entitlement, provider, and rank-fidelity claims remain proof-gated per request.
                       </p>
                     </div>
                   </div>
@@ -758,16 +758,16 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
                       </button>
                       <button
                         type="button"
-                        onClick={() => setRunMode("robot_readiness_review")}
+                        onClick={() => setRunMode("rank_fidelity_review")}
                         className={`rounded-md border px-4 py-3 text-left text-sm transition ${
-                          runMode === "robot_readiness_review"
+                          runMode === "rank_fidelity_review"
                             ? "border-amber-600 bg-amber-50 text-amber-950"
                             : "border-stone-300 bg-white text-stone-700 hover:border-stone-950"
                         }`}
                       >
-                        <span className="block font-semibold">Robot readiness review</span>
+                        <span className="block font-semibold">Rank-fidelity review</span>
                         <span className="mt-1 block text-xs leading-5 text-stone-500">
-                          Routes a review. No readiness claim is created here.
+                          Routes a generated-world policy-evaluation review.
                         </span>
                       </button>
                     </div>
@@ -974,7 +974,7 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
                     Proof boundary
                   </div>
                   <p className="mt-2 text-white/64">
-                    This setup does not create provider execution, payment, rights clearance, or robot-readiness proof by itself.
+                    This setup does not create provider execution, payment, rights clearance, or rank-fidelity proof by itself.
                   </p>
                 </div>
               </div>

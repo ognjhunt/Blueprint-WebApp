@@ -693,7 +693,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 | **Model** | Hermes (DeepSeek V4 Pro direct primary, DeepSeek V4 Flash fallback before Codex fallback) |
 | **Status** | New |
 
-**Purpose:** Owns technical buyer enablement inside the buyer-solutions thread from proof-ready to implementation-ready. Converts buyer stack questions, hosted-session requirements, export expectations, and deployment readiness into explicit evaluation plans and integration checklists grounded in the product and artifacts that already exist.
+**Purpose:** Owns technical buyer enablement inside the buyer-solutions thread from proof-ready to implementation-ready. Converts buyer stack questions, hosted-session requirements, export expectations, and 90%+ sim-only policy-ranking agreement into explicit evaluation plans and integration checklists grounded in the product and artifacts that already exist.
 
 **Why this is an agent (not just product docs):** Technical buyers do not only need a proof pack. They need someone to connect a real site package and hosted review path to their stack, eval workflow, and implementation plan. That requires judgment across buyer context, current product behavior, and artifact reality.
 
@@ -940,8 +940,8 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - Experiment priority queue → Conversion Optimizer
 - Research briefs → Market Intelligence and Demand Intelligence agents
 - Buyer-city sequencing priorities → City Demand agent
-- Site-Specific Robot Deployment Readiness GTM pilot ledger and audit closeout when the bounded 14-day pilot is active
-- Site-Specific Robot Deployment Readiness buyer-loop report with target count, recipient-backed contacts, founder approval queue, sends, replies, hosted-evaluation starts, qualified calls, readiness-report requests, next actions, and the 100-touch decision gap
+- Sim-Only Policy Ranking GTM pilot ledger and audit closeout when the bounded 14-day pilot is active
+- Sim-Only Policy Ranking buyer-loop report with target count, recipient-backed contacts, founder approval queue, sends, replies, hosted-evaluation starts, qualified calls, readiness-report requests, next actions, and the 100-touch decision gap
 - Lifecycle cadence policy decisions for `lifecycle_email_cadences`, including pause/skip rules, suppression posture, and human-review routing
 - Explicit pause or restart decisions for non-core growth lanes
 - Funnel health dashboard updates → Notion
@@ -1219,7 +1219,7 @@ Operator submission does not require a meeting, but private access, rights, priv
 
 **Purpose:** Runs an autoresearch-style experiment loop on the webapp and capture app. Tests CTAs, onboarding flows, signup copy, pricing page layout, and any measurable surface.
 
-**Repo-side `/goal` posture:** Enabled only for bounded Blueprint-WebApp CRO work with an explicit page or flow, hypothesis, target metric, guardrail, rollback path, browser-verification target, and proof-bearing closeout. It must stop on missing baselines or sample-size plans, live analytics needs, deployment approval, payment/rights/privacy surfaces, unsupported public claims, or generated-visual execution that belongs with `webapp-codex`.
+**Repo-side `/goal` posture:** Enabled only for bounded Blueprint-WebApp CRO work with an explicit page or flow, hypothesis, target metric, guardrail, rollback path, browser-verification target, and proof-bearing closeout. It must stop on missing baselines or sample-size plans, live analytics needs, 90%+ sim-only policy-ranking signoff, payment/rights/privacy surfaces, unsupported public claims, or generated-visual execution that belongs with `webapp-codex`.
 
 **Autoresearch loop:**
 ```

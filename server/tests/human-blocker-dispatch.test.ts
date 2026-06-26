@@ -231,8 +231,8 @@ describe("human blocker dispatch", () => {
       mirror_to_slack: true,
       packet: {
         blockerId: "blocker-slack-dm",
-        title: "Preview deployment approval needed",
-        summary: "A preview deployment approval needs a fast founder reply.",
+        title: "Preview generated-world rank-fidelity result needed",
+        summary: "A preview generated-world rank-fidelity result needs a fast founder reply.",
         recommendedAnswer: "Approve the bounded preview smoke.",
         exactResponseNeeded: "Reply APPROVE or REJECT.",
         whyBlocked: "The preview smoke touches a human-gated production boundary.",

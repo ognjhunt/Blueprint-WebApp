@@ -104,7 +104,7 @@ describe("RequestConsole", () => {
             quote_status: "not_started",
             next_step: "Keep package files blocked until rights and hosted-session state are attached.",
           },
-          deployment_readiness: {
+          evaluation_readiness: {
             buyer_trust_score: {
               score: 64,
               band: "medium",

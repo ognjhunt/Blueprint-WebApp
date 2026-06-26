@@ -197,7 +197,7 @@ async function main() {
       webapp_route_submission_proven: false,
       live_webapp_forwarding_proven: false,
       simulator_execution_proven: false,
-      robot_readiness_proven: false,
+      rank_fidelity_result_proven: false,
       public_claim_upgrade_allowed: false,
     },
   };
@@ -227,7 +227,7 @@ async function main() {
       live_webapp_forwarding_proven: false,
       simulator_execution_proven: false,
       robot_policy_execution_proven: false,
-      robot_readiness_proven: false,
+      rank_fidelity_result_proven: false,
       public_claim_upgrade_allowed: false,
     },
   };

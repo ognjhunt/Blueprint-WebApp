@@ -34,7 +34,7 @@ Date: 2026-06-03
 - Core buyer question: one real facility, one task suite, one robot profile, one threshold set.
 - Use existing generated humanoid readiness assets from `client/public/generated/humanoid-readiness-2026-06-03/`.
 - No new generated imagery unless existing assets fail browser verification.
-- Proof language stays Public Launch Ready while blocking operational claims about deployment readiness, safety validation, provider runs, rights clearance, payment, fulfillment, or real customers.
+- Proof language stays Public Launch Ready while blocking operational claims about generated-world rank fidelity, off-scope validation, provider runs, rights clearance, payment, fulfillment, or real customers.
 
 ## Planned Verification
 

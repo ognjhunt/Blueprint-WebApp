@@ -10,7 +10,7 @@ Scope: source/video candidates for possible Blueprint public-site use. This file
 
 - Prefer material that can be downloaded, self-hosted, and attributed cleanly.
 - Treat YouTube, NVIDIA blog embeds, GitHub release attachments, and project-page videos as link/embed candidates unless a license or rights holder explicitly permits clipping, editing, or self-hosting.
-- Label all third-party simulation media as third-party simulation/evaluation context. It is not Blueprint capture proof, customer proof, provider execution proof, robot safety validation, or deployment-readiness proof.
+- Label all third-party simulation media as third-party simulation/evaluation context. It is not Blueprint capture proof, customer proof, provider execution proof, robot off-scope validation, or deployment-readiness proof.
 - For the current public-site wedge, humanoid robot visuals are preferred when they fit the page, but proof/technical sections can use manipulator-arm videos when they explain scenario evaluation or sim-first validation better than a humanoid clip.
 
 ## Best Immediate Candidate
@@ -244,8 +244,8 @@ Avoid:
 
 - "Blueprint ran this policy"
 - "Customer deployment"
-- "Safety validated"
-- "Ready to deploy"
+- "Non-ranking validated"
+- "Generated-world rank fidelity"
 - "Real-site result"
 - "Captured by Blueprint"
 

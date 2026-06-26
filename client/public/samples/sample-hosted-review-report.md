@@ -43,7 +43,7 @@ Example sample only. This is not a customer report, deployment guarantee, safety
 - The buyer question was whether a grocery-specific hosted review was worth scoping before sending a field team.
 - The sample answer was "yes, hosted review first," while raw-media export and commercial sharing stay review-gated.
 - A real buyer report depends on the listing, available capture files, requested robot setup, and scoped rights/export review.
-- Hosted review reduces uncertainty before deeper deployment work; it does not replace safety validation, on-site signoff, or stack-specific testing.
+- Hosted review reduces uncertainty before deeper deployment work; it does not replace off-scope validation, on-site signoff, or stack-specific testing.
 
 ## Public Capture Guardrails
 

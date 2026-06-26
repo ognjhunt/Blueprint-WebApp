@@ -101,7 +101,7 @@ Supported modalities:
 | `teleop_demo` | Demo artifact, operator/device, control mapping, time sync, task/scenario mapping, rights/privacy attestation, labels. |
 | `sim_controller_plugin` | Simulator framework, plugin reference, supported control modes, observation/action spaces, replay/export path, compatibility notes. |
 
-The Pipeline schema truth for these modalities is `robot_team_test_submission_modalities.v0.1` and the WebApp policy field is `policy.robotTeamTestSubmission`. Submitted references are artifact pointers only. They do not prove policy execution, simulator completion, real robot execution, safety validation, rights/privacy clearance, or deployment readiness. Missing modality evidence is surfaced as fail-closed statuses such as `needs_policy_api_endpoint_ref`, `needs_docker_container_ref`, `needs_recorded_action_trace_ref`, `needs_high_level_skill_trace_ref`, `needs_teleop_demo_ref`, and `needs_sim_controller_plugin_ref`.
+The Pipeline schema truth for these modalities is `robot_team_test_submission_modalities.v0.1` and the WebApp policy field is `policy.robotTeamTestSubmission`. Submitted references are artifact pointers only. They do not prove policy execution, simulator completion, hardware execution, off-scope validation, rights/privacy clearance, or generated-world rank fidelity. Missing modality evidence is surfaced as fail-closed statuses such as `needs_policy_api_endpoint_ref`, `needs_docker_container_ref`, `needs_recorded_action_trace_ref`, `needs_high_level_skill_trace_ref`, `needs_teleop_demo_ref`, and `needs_sim_controller_plugin_ref`.
 
 ## MCP Stdio Config
 

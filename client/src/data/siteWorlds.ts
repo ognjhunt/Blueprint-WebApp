@@ -1,4 +1,4 @@
-import type { DeploymentReadinessSummary } from "../types/inbound-request";
+import type { EvaluationReadinessSummary } from "../types/inbound-request";
 import type {
   ArtifactExplorerSummary,
   RobotObservationCamera,
@@ -163,7 +163,7 @@ export type SiteWorldCard = {
   packages: [SiteWorldPackage, SiteWorldPackage];
   agentCommerce?: SiteWorldAgentCommerce;
   dataSource?: "static" | "pipeline";
-  deploymentReadiness?: DeploymentReadinessSummary;
+  evaluationReadiness?: EvaluationReadinessSummary;
   presentationDemoReadiness?: {
     launchable: boolean;
     blockers: string[];
@@ -419,7 +419,7 @@ function buildHostedDemoOverrideCard(): SiteWorldCard | null {
       sampleRobot: "Mobile manipulator with head RGB camera",
     }),
     dataSource: "pipeline",
-    deploymentReadiness: {
+    evaluationReadiness: {
       qualification_state: HOSTED_DEMO_QUALIFICATION_STATE,
       opportunity_state: "not_applicable",
       benchmark_coverage_status: "partial",
@@ -1241,7 +1241,7 @@ if (DEMO_SITE_WORLDS_ENABLED || SITE_WORLD_FIXTURE_MODE !== "production") {
     sampleRobot: "Mobile manipulator with head and wrist cameras",
   }),
   dataSource: "pipeline",
-  deploymentReadiness: {
+  evaluationReadiness: {
     qualification_state: "qualified_ready",
     opportunity_state: "handoff_ready",
     benchmark_coverage_status: "ready",

@@ -71,7 +71,7 @@ Secrets are expected to live in the Render service environment, not in `render.y
 
 Blueprint's current product doctrine treats raw capture, timestamps, poses, device metadata, provenance, rights, privacy, and consent metadata as authoritative. Hosted-session artifacts and site-specific world-model packages are sellable downstream products, but they do not rewrite capture/provenance truth.
 
-Buyer-facing proof can describe the workflow, packet shape, and request path. It must not imply that a specific buyer site is rights-cleared, commercially unrestricted, provider-executed, deployment-ready, package-access-open, or hosted-session-fulfilled unless the exact record has supporting proof from the system that owns that fact.
+Buyer-facing proof can describe the workflow, packet shape, and request path. It must not imply that a specific buyer site is rights-cleared, commercially unrestricted, provider-executed, rank-fidelity-scored, package-access-open, or hosted-session-fulfilled unless the exact record has supporting proof from the system that owns that fact.
 
 ## Missing Evidence And Blockers
 

@@ -17,7 +17,7 @@ import {
   inferOpportunityState,
   stampProofPathMilestones,
   computeOpsEnvelopeFromPipeline,
-  enrichDeploymentReadinessFromArtifacts,
+  enrichEvaluationReadinessFromArtifacts,
   growthEventsForStamps,
 } from "../utils/pipelineStateMachine";
 import type { PipelineArtifacts, ProofPathMilestones } from "../types/inbound-request";
@@ -316,9 +316,9 @@ describe("computeOpsEnvelopeFromPipeline", () => {
     expect(result.rightsStatus).toBe("verified");
   });
 
-  it("flags recapture when deployment_readiness says so", () => {
+  it("flags recapture when evaluation_readiness says so", () => {
     const result = computeOpsEnvelopeFromPipeline({
-      deploymentReadiness: { recapture_required: true },
+      evaluationReadiness: { recapture_required: true },
     });
     expect(result.recaptureRequired).toBe(true);
   });
@@ -330,19 +330,19 @@ describe("computeOpsEnvelopeFromPipeline", () => {
   });
 });
 
-// ── enrichDeploymentReadinessFromArtifacts tests ──
+// ── enrichEvaluationReadinessFromArtifacts tests ──
 
-describe("enrichDeploymentReadinessFromArtifacts", () => {
+describe("enrichEvaluationReadinessFromArtifacts", () => {
   it("sets native_world_model_status when worldlabs manifest exists", () => {
     const arts = makeArtifacts(["worldlabs_world_manifest_uri"]);
-    const enriched = enrichDeploymentReadinessFromArtifacts(undefined, arts, undefined);
+    const enriched = enrichEvaluationReadinessFromArtifacts(undefined, arts, undefined);
     expect(enriched?.native_world_model_status).toBe("primary_ready");
     expect(enriched?.native_world_model_primary).toBe(true);
   });
 
   it("sets runtime_launchable when runtime_demo_manifest exists", () => {
     const arts = makeArtifacts(["runtime_demo_manifest_uri"]);
-    const enriched = enrichDeploymentReadinessFromArtifacts(undefined, arts, undefined);
+    const enriched = enrichEvaluationReadinessFromArtifacts(undefined, arts, undefined);
     expect(enriched?.runtime_launchable).toBe(true);
   });
 
@@ -351,7 +351,7 @@ describe("enrichDeploymentReadinessFromArtifacts", () => {
       "robot_eval_dataset_manifest_uri",
       "robot_eval_site_card_uri",
     ]);
-    const enriched = enrichDeploymentReadinessFromArtifacts(undefined, arts, undefined);
+    const enriched = enrichEvaluationReadinessFromArtifacts(undefined, arts, undefined);
 
     expect(enriched?.robot_eval_dataset_summary?.dataset_state).toBe(
       "publication_blocked_missing_robot_eval_package",
@@ -396,7 +396,7 @@ describe("enrichDeploymentReadinessFromArtifacts", () => {
       "prediction_outcome_ledger_uri",
       "prediction_vs_actual_summary_uri",
     ]);
-    const enriched = enrichDeploymentReadinessFromArtifacts(undefined, arts, undefined);
+    const enriched = enrichEvaluationReadinessFromArtifacts(undefined, arts, undefined);
     expect(enriched?.robot_eval_dataset_summary?.dataset_state).toBe(
       "ready_to_evaluate_package_present"
     );
@@ -462,8 +462,8 @@ describe("enrichDeploymentReadinessFromArtifacts", () => {
         ready_for_owner_gpu_preflight: false,
         local_cpu_preflight_smoke_ran: false,
         simulator_execution_proven: false,
-        robot_readiness_proven: false,
-        safety_validated: false,
+        rank_fidelity_result_proven: false,
+        non_ranking_operational_claim_validated: false,
         public_claim_upgrade_allowed: false,
       }),
     );
@@ -475,7 +475,7 @@ describe("enrichDeploymentReadinessFromArtifacts", () => {
       "robot_eval_episode_spec_manifest_uri",
       "robot_eval_cpu_simulator_preflight_manifest_uri",
     ]);
-    const enriched = enrichDeploymentReadinessFromArtifacts(
+    const enriched = enrichEvaluationReadinessFromArtifacts(
       {
         robot_eval_preflight_summary: {
           scene_asset_preflight_status: "blocked",
@@ -489,8 +489,8 @@ describe("enrichDeploymentReadinessFromArtifacts", () => {
             "python -m pip install pybullet",
           ],
           simulator_execution_proven: true,
-          robot_readiness_proven: true,
-          safety_validated: true,
+          rank_fidelity_result_proven: true,
+          non_ranking_operational_claim_validated: true,
           public_claim_upgrade_allowed: true,
         },
       },
@@ -510,8 +510,8 @@ describe("enrichDeploymentReadinessFromArtifacts", () => {
           "python -m pip install pybullet",
         ],
         simulator_execution_proven: false,
-        robot_readiness_proven: false,
-        safety_validated: false,
+        rank_fidelity_result_proven: false,
+        non_ranking_operational_claim_validated: false,
         public_claim_upgrade_allowed: false,
       }),
     );
@@ -534,7 +534,7 @@ describe("enrichDeploymentReadinessFromArtifacts", () => {
       "robot_eval_job_proof_boundary_uri",
       "robot_eval_job_blocked_manifest_uri",
     ]);
-    const enriched = enrichDeploymentReadinessFromArtifacts(undefined, arts, undefined);
+    const enriched = enrichEvaluationReadinessFromArtifacts(undefined, arts, undefined);
 
     expect(enriched?.robot_eval_job_summary).toEqual(
       expect.objectContaining({
@@ -561,7 +561,7 @@ describe("enrichDeploymentReadinessFromArtifacts", () => {
         proof_boundary_uri: "gs://test/robot_eval_job_proof_boundary_uri.json",
         blocked_manifest_uri: "gs://test/robot_eval_job_blocked_manifest_uri.json",
         simulator_execution_proven: false,
-        robot_readiness_proven: false,
+        rank_fidelity_result_proven: false,
         public_claim_upgrade_allowed: false,
       }),
     );
@@ -569,7 +569,7 @@ describe("enrichDeploymentReadinessFromArtifacts", () => {
 
   it("sets benchmark_coverage_status to ready when benchmark_suite exists", () => {
     const arts = makeArtifacts(["benchmark_suite_manifest_uri"]);
-    const enriched = enrichDeploymentReadinessFromArtifacts(undefined, arts, undefined);
+    const enriched = enrichEvaluationReadinessFromArtifacts(undefined, arts, undefined);
     expect(enriched?.benchmark_coverage_status).toBe("ready");
   });
 
@@ -581,13 +581,13 @@ describe("enrichDeploymentReadinessFromArtifacts", () => {
       },
       synced_at: "2026-04-05T00:00:00.000Z",
     };
-    const enriched = enrichDeploymentReadinessFromArtifacts(undefined, undefined, derivedAssets);
+    const enriched = enrichEvaluationReadinessFromArtifacts(undefined, undefined, derivedAssets);
     expect(enriched?.preview_status).toBe("processing");
   });
 
   it("returns current when no artifacts or derived assets provided", () => {
     const current = { qualification_state: "submitted" as const };
-    expect(enrichDeploymentReadinessFromArtifacts(current, undefined, undefined)).toBe(current);
+    expect(enrichEvaluationReadinessFromArtifacts(current, undefined, undefined)).toBe(current);
   });
 });
 
@@ -741,7 +741,7 @@ describe("computePipelineStateTransition", () => {
   it("detects stall when recapture is required", () => {
     const transition = computePipelineStateTransition({
       authoritativeStateUpdate: false,
-      deploymentReadiness: { recapture_required: true },
+      evaluationReadiness: { recapture_required: true },
       currentProofPath: emptyProofPath(),
     });
     expect(transition.proofMotionStalled).toBe(true);

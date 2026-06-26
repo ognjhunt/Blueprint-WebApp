@@ -107,7 +107,7 @@ const robotEvalJobSummarySchema = z.object({
   proof_boundary_uri: z.string().nullable().optional(),
   blocked_manifest_uri: z.string().nullable().optional(),
   simulator_execution_proven: z.boolean().nullable().optional(),
-  robot_readiness_proven: z.boolean().nullable().optional(),
+  rank_fidelity_result_proven: z.boolean().nullable().optional(),
   public_claim_upgrade_allowed: z.boolean().nullable().optional(),
 }).passthrough();
 
@@ -150,12 +150,12 @@ const robotEvalPreflightSummarySchema = z.object({
   gpu_run_checklist_uri: z.string().nullable().optional(),
   owner_gpu_simulator_execution_blocked_manifest_uri: z.string().nullable().optional(),
   simulator_execution_proven: z.boolean().nullable().optional(),
-  robot_readiness_proven: z.boolean().nullable().optional(),
-  safety_validated: z.boolean().nullable().optional(),
+  rank_fidelity_result_proven: z.boolean().nullable().optional(),
+  non_ranking_operational_claim_validated: z.boolean().nullable().optional(),
   public_claim_upgrade_allowed: z.boolean().nullable().optional(),
 }).passthrough();
 
-const deploymentReadinessSchema = z.object({
+const evaluationReadinessSchema = z.object({
   qualification_state: z.string().optional(),
   opportunity_state: z.string().optional(),
   buyer_trust_score: buyerTrustScoreSchema.optional(),
@@ -185,7 +185,7 @@ export const pipelineAttachmentSyncPayloadSchema = z.object({
   authoritative_state_update: z.boolean().optional().default(false),
   artifacts: z.record(z.unknown()).optional().default({}),
   derived_assets: z.record(derivedAssetEntrySchema).optional().default({}),
-  deployment_readiness: deploymentReadinessSchema.optional(),
+  evaluation_readiness: evaluationReadinessSchema.optional(),
 });
 
 export type PipelineAttachmentSyncPayload = z.infer<

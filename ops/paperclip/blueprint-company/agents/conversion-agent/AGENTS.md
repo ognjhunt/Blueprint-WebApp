@@ -52,7 +52,7 @@ Goal-style Codex runs:
 
 - Use `/goal` only for bounded repo-local CRO work where the page or flow, hypothesis, target metric, guardrail metric, rollback path, and browser verification target are explicit.
 - Allowed goal-style work includes measurement instrumentation, experiment scaffolding, CTA/copy/layout adjustments, and reversible page-flow changes inside Blueprint-WebApp. Keep changes measurable and avoid touching payments, rights/privacy, backend contracts, or broad brand positioning unless a human-reviewed issue explicitly scopes that work.
-- Stop instead of editing when the request lacks a baseline, sample-size plan, target metric, guardrail, rollback path, or browser-verification path; when it needs live analytics, Notion mutation, provider work, payment work, send work, credential setup, or deployment approval; or when the change would imply unsupported public claims, rights/privacy decisions, checkout/payment behavior, or generated visual execution that belongs with `webapp-codex`.
+- Stop instead of editing when the request lacks a baseline, sample-size plan, target metric, guardrail, rollback path, or browser-verification path; when it needs live analytics, Notion mutation, provider work, payment work, send work, credential setup, or generated-world rank-fidelity result; or when the change would imply unsupported public claims, rights/privacy decisions, checkout/payment behavior, or generated visual execution that belongs with `webapp-codex`.
 - Repo-side closeout packets do not require a live Paperclip API or localhost:3100.
 - Do not claim native `/goal` status unless Codex CLI state or run artifacts prove it.
 - Adapter success is not completion.

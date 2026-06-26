@@ -23,7 +23,7 @@ import {
 } from "../agents/action-executor";
 import type {
   DerivedAssetsAttachment,
-  DeploymentReadinessSummary,
+  EvaluationReadinessSummary,
   InboundRequest,
   InboundRequestStored,
   ProofPathMilestones,
@@ -527,7 +527,7 @@ function normalizeDecryptedRequest(decrypted: InboundRequest) {
         : "world_model");
   const pipeline = normalizePipelineAttachment(decrypted.pipeline);
   const derivedAssets = normalizeDerivedAssets(decrypted.derived_assets);
-  const deploymentReadiness = normalizeDeploymentReadiness(decrypted.deployment_readiness);
+  const evaluationReadiness = normalizeEvaluationReadiness(decrypted.evaluation_readiness);
   const queueKey =
     (typeof decrypted.queue_key === "string" && decrypted.queue_key.trim()) ||
     (typeof decrypted.ops_automation?.queue === "string" && decrypted.ops_automation.queue.trim()) ||
@@ -582,7 +582,7 @@ function normalizeDecryptedRequest(decrypted: InboundRequest) {
     },
     pipeline,
     derived_assets: derivedAssets,
-    deployment_readiness: deploymentReadiness,
+    evaluation_readiness: evaluationReadiness,
   };
 }
 
@@ -650,11 +650,11 @@ function normalizeDerivedAssets(raw: unknown): DerivedAssetsAttachment | undefin
   };
 }
 
-function normalizeDeploymentReadiness(raw: unknown): DeploymentReadinessSummary | undefined {
+function normalizeEvaluationReadiness(raw: unknown): EvaluationReadinessSummary | undefined {
   if (!raw || typeof raw !== "object") {
     return undefined;
   }
-  return { ...(raw as DeploymentReadinessSummary) };
+  return { ...(raw as EvaluationReadinessSummary) };
 }
 
 function parseCoordinate(value: unknown): number | null {
@@ -939,7 +939,7 @@ router.get("/", requireAdmin, async (req: Request, res: Response) => {
           },
           pipeline: decrypted.pipeline,
           derived_assets: decrypted.derived_assets,
-          deployment_readiness: decrypted.deployment_readiness,
+          evaluation_readiness: decrypted.evaluation_readiness,
         } satisfies InboundRequestListItem;
       })
     );
@@ -1333,7 +1333,7 @@ router.get("/:requestId", requireAdmin, async (req: Request, res: Response) => {
       enrichment: decrypted.enrichment,
       pipeline: decrypted.pipeline,
       derived_assets: decrypted.derived_assets,
-      deployment_readiness: decrypted.deployment_readiness,
+      evaluation_readiness: decrypted.evaluation_readiness,
       events: {
         confirmationEmailSentAt:
           decrypted.events.confirmationEmailSentAt?.toDate?.()?.toISOString() ||
@@ -1541,7 +1541,7 @@ router.post("/:requestId/trigger-preview", requireAdmin, async (req: Request, re
     }
 
     const current = (doc.data() as Record<string, unknown>) || {};
-    const deploymentReadiness = normalizeDeploymentReadiness(current.deployment_readiness) || {};
+    const evaluationReadiness = normalizeEvaluationReadiness(current.evaluation_readiness) || {};
     const derivedAssets = normalizeDerivedAssets(current.derived_assets) || {};
 
     await requestRef.update({
@@ -1554,11 +1554,11 @@ router.post("/:requestId/trigger-preview", requireAdmin, async (req: Request, re
         },
         synced_at: admin.firestore.FieldValue.serverTimestamp(),
       },
-      deployment_readiness: {
-        ...deploymentReadiness,
+      evaluation_readiness: {
+        ...evaluationReadiness,
         preview_status: "queued",
         provider_run: {
-          ...(deploymentReadiness.provider_run || {}),
+          ...(evaluationReadiness.provider_run || {}),
           status: "queued",
           provider_name: "world_model_provider",
         },

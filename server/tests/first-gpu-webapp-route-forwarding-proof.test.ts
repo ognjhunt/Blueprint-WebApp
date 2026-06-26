@@ -248,7 +248,7 @@ describe("first-GPU WebApp route forwarding proof runner", () => {
           simulator_execution_proven: false,
           robot_policy_execution_proven: false,
           real_robot_pov_evidence_proven: false,
-          safety_validated: false,
+          non_ranking_operational_claim_validated: false,
           customer_delivery_readiness_proven: false,
           public_claim_upgrade_allowed: false,
         }),
@@ -557,7 +557,7 @@ describe("first-GPU WebApp route forwarding proof runner", () => {
           simulator_execution_proven: false,
           robot_policy_execution_proven: false,
           real_robot_pov_evidence_proven: false,
-          safety_validated: false,
+          non_ranking_operational_claim_validated: false,
         }),
       );
     } finally {

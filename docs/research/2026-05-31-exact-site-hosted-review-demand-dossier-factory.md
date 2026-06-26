@@ -200,7 +200,7 @@ These outlines are drafts for future local dossier generation. They are not buye
 - `buyer workflow`: warehouse aisle, tote movement, or staging workflow for humanoid deployment review
 - `lead magnet`: warehouse AMR sample hosted-review path plus capture ask
 - `dossier sections`: warehouse workflow fit, sample artifact boundaries, capture-ask refinement, stack/review questions, reply-durability blocker
-- `blocked claims`: Agility-specific site capture, buyer-specific package, integration support, deployment readiness
+- `blocked claims`: Agility-specific site capture, buyer-specific package, integration support, generated-world rank fidelity
 - `next_truth_move`: founder approval decision, then capture-question refinement if the sample is not close enough
 
 ### 4. Boston Dynamics Case-Handling Capture Ask
@@ -233,7 +233,7 @@ These outlines are drafts for future local dossier generation. They are not buye
 - `buyer workflow`: material-movement route, staging lane, or dock-to-line workflow
 - `lead magnet`: city/site opportunity brief
 - `dossier sections`: route-review use case, capture site requirements, proof-pack handoff shape, compatibility questions, reply-durability blocker
-- `blocked claims`: exact route captured, hosted session live, buyer-specific review, deployment readiness
+- `blocked claims`: exact route captured, hosted session live, buyer-specific review, generated-world rank fidelity
 - `next_truth_move`: clarify whether a route-based proof pack should precede outbound
 
 ### 7. Diligent Robotics Healthcare Service Route Capture Ask

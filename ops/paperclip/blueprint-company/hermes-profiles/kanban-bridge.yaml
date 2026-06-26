@@ -47,7 +47,7 @@ childTrace:
     - "Acceptance criteria: observable repo, artifact, runtime, or buyer-facing result."
     - "Proof path expectation: exact file path, command output, artifact URI, issue id, run id, ledger key, or hosted id expected at closeout."
     - "Blocker id policy: durable blocker id required for human-gated or external-gated stops; use none only when no blocker exists."
-    - "Side-effect gate: command-safety approval state for any live send/payment/provider/Notion/Paperclip/Render/Firebase/VPS mutation."
+    - "Side-effect gate: command-off-scope approval state for any live send/payment/provider/Notion/Paperclip/Render/Firebase/VPS mutation."
     - "Closeout owner: agent/profile responsible for resolving or blocking the child."
     - "Residual risk: what remains unverified or outside the child scope."
 approvedPaperclipTools:
@@ -83,7 +83,7 @@ prohibitions:
   - "No broad queue scans from narrow issue-bound prompts."
   - "No child task without a responsible Paperclip agent/profile."
   - "No fake sends, payments, provider artifacts, hosted-session proof, capture provenance, rights clearance, or city activation."
-  - "No live side effects without command-safety approval and the required human gate."
+  - "No live side effects without command-off-scope approval and the required human gate."
   - "No Codex fallback for all agents; preserve Hermes/DeepSeek lanes where configured."
   - "No claims that Hermes Kanban/profile descriptions are live-synced while local commands are unavailable."
 closeoutContract:

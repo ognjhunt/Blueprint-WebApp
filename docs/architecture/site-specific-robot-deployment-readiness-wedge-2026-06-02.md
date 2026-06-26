@@ -1,4 +1,4 @@
-# Site-Specific Robot Deployment Readiness Wedge
+# Generated-World Policy Evaluation Wedge
 
 Date: 2026-06-02
 
@@ -10,14 +10,14 @@ Blueprint-WebApp's first PMF wedge is a **real-site robot evaluation dataset and
 
 The public buyer question is:
 
-> Before I bring this robot into my facility for a long expensive pilot, how likely is it to hit my required success rate, cycle time, intervention rate, and safety threshold on my actual tasks?
+> Before I spend field time, which policy is most likely to hit my required success rate, cycle time, and intervention threshold on my captured tasks?
 
-The site may confidently sell this category, workflow, and request path. It must not invent operational robot-readiness proof.
+The site may confidently sell this category, workflow, and request path. It must not invent generated-world rank fidelity proof.
 
 ## What Blueprint Sells Publicly
 
 - Site Card, Task Cards, Scenario Cards, Eval Cards, annotation backlog, and proof boundaries for one real facility, task suite, and robot profile.
-- Deployment readiness advisories and pre-pilot readiness estimates as support-layer interpretations of the cards.
+- Sim-only policy-ranking advisories and pre-pilot comparison estimates as support-layer interpretations of the cards.
 - Capture-backed site packages that ground the advisory.
 - Hosted evaluation and buyer review rooms when entitlement, package, and runtime proof supports them.
 - Failure-mode reports, site modification recommendations, training/post-training data requirements, short-pilot protocols, and vendor comparisons when scoped.
@@ -56,7 +56,7 @@ Avoid initial public claims around broad general humanoid capability, complex de
 
 Use humanoid robot scenes as the default public robot visual for this wedge. Good visuals show a humanoid robot inside a specific indoor site, with the surrounding task, route, obstacles, fixtures, bins, carts, shelves, doors, docks, or equipment visible enough for the buyer to understand what readiness is being evaluated.
 
-Generated humanoid imagery may show the product category and buyer workflow. It must not be presented as live robot-trial proof, safety validation, customer deployment proof, cleared rights, or proof that a specific robot is ready to deploy. Generated readiness dashboards, route maps, score bands, and proof boards are sample/advisory UI unless owner-system evidence exists for that request.
+Generated humanoid imagery may show the product category and buyer workflow. It must not be presented as evidence that a specific policy passed the ranking gate. Generated dashboards, route maps, score bands, and proof boards are sample/advisory UI unless owner-system evidence exists for that request.
 
 Non-humanoid robot visuals should be scoped to pages that explicitly discuss another robot class. They should not become the default public posture for the readiness wedge.
 
@@ -69,8 +69,8 @@ Non-humanoid robot visuals should be scoped to pages that explicitly discuss ano
 
 ## Blocked Unless Owner-System Proof Exists
 
-- This robot is ready to deploy.
-- Safety validated.
+- Unsupported field rollout claims.
+- Off-scope validation claims.
 - Collision, contact, or manipulation validated.
 - We ran the buyer's actual robot policy.
 - Simulator execution completed.
@@ -82,7 +82,7 @@ Non-humanoid robot visuals should be scoped to pages that explicitly discuss ano
 
 Use:
 
-- deployment readiness advisory
+- generated-world rank fidelity
 - pre-pilot readiness estimate
 - real-site eval cards for advisory review
 - task-specific confidence packet
@@ -99,7 +99,7 @@ Do not use broad apology copy such as "not launched yet" or "demo only" in hero 
 3. Site package manifest, routes, geometry/depth/assets where available, and export limits.
 4. Task suite, robot profile, thresholds, and scenario variations.
 5. Hosted review observations or runtime artifacts where available.
-6. Simulator traces, action logs, robot trials, and safety review for operational readiness upgrades.
+6. Simulator traces, action logs, and policy-ranking metrics for stronger ranking claims.
 7. Buyer decision: short pilot, site modification, more evidence, vendor comparison, recapture, or hold.
 
-Repo-local tests and samples can prove public wording and guardrail behavior. They do not prove operational robot readiness.
+Repo-local tests and samples can prove public wording and guardrail behavior. They do not prove generated-world rank fidelity unless the ranking gate is part of the test.

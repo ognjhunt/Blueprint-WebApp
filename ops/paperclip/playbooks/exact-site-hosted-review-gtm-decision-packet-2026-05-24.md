@@ -82,7 +82,7 @@ Do not send these current drafts in the first decision batch. They are not rejec
 | Target | Reason |
 | --- | --- |
 | `gtm-009-diligent-healthcare-service-route` - Diligent Robotics | Healthcare routes carry privacy and permission sensitivity. Needs a healthcare-specific rights/privacy-safe artifact before first touch. |
-| `gtm-knightscope-identify-a-patrol-route-lobby-parking-or-facility-security-workflow-wort` - Knightscope | Security/patrol workflows can imply safety, surveillance, or deployment readiness. Needs a separate security/procurement-safe artifact before outreach. |
+| `gtm-knightscope-identify-a-patrol-route-lobby-parking-or-facility-security-workflow-wort` - Knightscope | Security/patrol workflows can imply safety, surveillance, or generated-world rank fidelity. Needs a separate security/procurement-safe artifact before outreach. |
 
 ### Lower Priority
 

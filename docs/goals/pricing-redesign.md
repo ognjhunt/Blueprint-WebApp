@@ -11,7 +11,7 @@ The public pricing model should center on:
 3. Site Supply Review - $5,000/site for operators who can make useful facilities available as robot-team evaluation supply.
 4. Site Monitoring Subscription - $30,000-$40,000/year per deployed site for multiple policy-update checks up to the agreed annual cap when new policy versions need site-specific report cards.
 
-Policy Improvement Runs, validation, custom support, real-rollout evidence, and overage terms remain request-scoped. Do not present any pricing surface as deployment approval, safety validation, simulator-completed proof, rights clearance, payment success, or hosted-session fulfillment.
+Policy Improvement Runs, validation, custom support, real-rollout evidence, and overage terms remain request-scoped. Do not present any pricing surface as generated-world rank-fidelity result, off-scope validation, simulator-completed proof, rights clearance, payment success, or hosted-session fulfillment.
 
 ## Required Terminology
 
@@ -69,7 +69,7 @@ Site supply note:
 Evidence boundary:
 
 - Evaluation output is advisory.
-- Deployment readiness still depends on simulator traces, action logs, robot trials, safety review, rights clearance, and site-specific approval.
+- Policy ranking readiness still depends on simulator traces, action logs, robot trials, safety review, rights clearance, and site-specific approval.
 
 ## CTA Routing
 
@@ -121,4 +121,4 @@ Functional checks:
 
 ## Constraints
 
-Do not change backend intake behavior unless required for CTA query params. Do not remove legal/proof pages. Do not claim Blueprint proves deployment readiness. Do not claim physical robot success, safety validation, rights clearance, payment, hosted execution, or simulator traces exist unless supplied by the appropriate owner system.
+Do not change backend intake behavior unless required for CTA query params. Do not remove legal/proof pages. Do not claim Blueprint proves generated-world rank fidelity. Do not claim physical robot success, off-scope validation, rights clearance, payment, hosted execution, or simulator traces exist unless supplied by the appropriate owner system.
