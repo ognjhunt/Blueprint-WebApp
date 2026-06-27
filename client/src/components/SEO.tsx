@@ -1,4 +1,4 @@
-import { Helmet } from "react-helmet";
+import { Helmet } from "@/lib/helmet";
 
 export type JsonLdValue = Record<string, unknown>;
 

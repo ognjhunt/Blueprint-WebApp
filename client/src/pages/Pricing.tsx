@@ -1,67 +1,156 @@
 import { SEO } from "@/components/SEO";
-import { robotPolicyEvaluationBoundary } from "@/data/robotPolicyEvaluationClaims";
-import { wamPolicyEvalAssets } from "@/lib/editorialGeneratedAssets";
-import { ArrowRight, CheckCircle2 } from "lucide-react";
+import {
+  Button,
+  Eyebrow,
+  ProofBoundary,
+  StatusChip,
+} from "@/components/blueprint";
+import {
+  EditorialCtaBand,
+  EditorialFaq,
+  EditorialSectionIntro,
+  MonochromeMedia,
+  ProofChip,
+} from "@/components/site/editorial";
+import { TileGrid } from "@/components/site/TileGrid";
+import { ArrowRight, Check } from "lucide-react";
 
-const plans = [
+type Tier = {
+  name: string;
+  price: string;
+  unit: string;
+  tagline: string;
+  features: string[];
+  note: string;
+  cta: string;
+  href: string;
+  highlighted?: boolean;
+};
+
+const tiers: Tier[] = [
   {
-    title: "Robot team subscription",
-    product: "Core plan",
-    price: "$15,000 / month",
-    line:
-      "Recurring comparison infrastructure for active policy development, up to the agreed policy cap.",
-    choices: [
+    name: "Quick-look eval",
+    price: "$5–8k",
+    unit: "/ eval",
+    tagline: "A low-friction first comparison before any subscription decision.",
+    features: [
+      "~50 episodes on one packaged site",
+      "1–2 policies or checkpoints",
+      "Ranking-only report",
+      "Review-support media included",
+    ],
+    note: "Failure taxonomy and calibration stay in subscription scope.",
+    cta: "Request a quick-look",
+    href: "/contact?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&requestedOutputs=Quick-Look%20Eval&episodeCount=50&source=pricing",
+  },
+  {
+    name: "Robot-team subscription",
+    price: "$15k",
+    unit: "/ mo",
+    tagline: "Recurring comparison infrastructure for active policy development.",
+    features: [
       "Compare team, checkpoint, and vendor policies",
       "Unlimited eval cycles up to policy cap",
-      "Overage pricing above the cap",
       "Failure taxonomy and regression tracking",
+      "Overage pricing above the cap",
+      "Priority capture and recapture routing",
     ],
-    tone: "border-blue-200 bg-blue-50 text-blue-700",
-    href: "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&requestedOutputs=Robot%20Team%20Subscription&source=pricing",
+    note: "Overage pricing applies above the agreed policy cap.",
+    cta: "Start a subscription",
+    href: "/contact?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&requestedOutputs=Robot%20Team%20Subscription&source=pricing",
+    highlighted: true,
   },
   {
-    title: "Lite quick-look eval",
-    product: "Conversion ramp",
-    price: "$5,000-$8,000 / eval",
-    line:
-      "A low-friction first comparison before a subscription decision.",
-    choices: [
-      "~50 episodes",
-      "1-2 policies or checkpoints",
-      "Ranking-only report; failure taxonomy and calibration stay in subscription scope",
-    ],
-    tone: "border-emerald-200 bg-emerald-50 text-emerald-700",
-    href: "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&requestedOutputs=Lite%20Quick-Look%20Eval&episodeCount=50&source=pricing",
-  },
-  {
-    title: "Site supply review",
-    product: "Site operator",
-    price: "$5,000 / site",
-    line:
-      "A supply-side path for operators who can make useful sites available for policy comparison.",
-    choices: [
+    name: "Site supply",
+    price: "$5k",
+    unit: "/ site",
+    tagline: "A supply-side path for operators with useful sites to make available.",
+    features: [
       "Facility, access, and privacy review",
       "Capture and commercialization posture",
-      "No deployment or rights guarantee until reviewed",
+      "Rights packet drafted with the operator",
+      "Payout terms set before any buyer use",
     ],
-    tone: "border-amber-200 bg-amber-50 text-amber-700",
-    href: "/contact/site-operator?source=pricing&requestedOutputs=Site%20Supply%20Review",
+    note: "No deployment or rights guarantee until the site is reviewed.",
+    cta: "Start a site review",
+    href: "/contact?persona=site-operator&requestedOutputs=Site%20Supply%20Review&source=pricing",
   },
   {
-    title: "Site monitoring subscription",
-    product: "Operator recurring",
-    price: "$30,000-$40,000 / site / year",
-    line:
-      "Annual site-ops monitoring when repeated policy-update or vendor-comparison checks are needed.",
-    choices: [
-      "Multiple policy-update checks up to agreed annual cap",
-      "Internal-team and vendor policy comparisons",
+    name: "Site monitoring",
+    price: "$30–40k",
+    unit: "/ site / yr",
+    tagline: "Annual monitoring when a site needs repeated policy-update checks.",
+    features: [
+      "Multiple scoped checks up to annual cap",
+      "Internal-team and vendor comparisons",
       "Per-site report card for change management",
-      "Cheaper per check than repeated one-off monitoring evals",
-      "Still bounded to reviewed site, task, and access scope",
+      "Lower per-check price than one-off evals",
     ],
-    tone: "border-cyan-200 bg-cyan-50 text-cyan-700",
-    href: "/contact/site-operator?source=pricing&requestedOutputs=Site%20Monitoring%20Subscription",
+    note: "Still bounded to the reviewed site, task, and access scope.",
+    cta: "Discuss monitoring",
+    href: "/contact?persona=site-operator&requestedOutputs=Site%20Monitoring%20Subscription&source=pricing",
+  },
+];
+
+type AddOn = {
+  name: string;
+  meter: string;
+  body: string;
+};
+
+const addOns: AddOn[] = [
+  {
+    name: "Per-task deep probe (PTDP)",
+    meter: "per_task · +$2.5k",
+    body: "An expanded probe on a single Task Card — more episodes and scenario variations to harden the ranking on the cases that matter most.",
+  },
+  {
+    name: "Hosted review session",
+    meter: "per_session · +$1.2k",
+    body: "A guided walk through a run's rank-fidelity output, failure clusters, and review media with the Blueprint evaluation team.",
+  },
+  {
+    name: "Generated media pack",
+    meter: "per_pack · +$800",
+    body: "Rendered support clips that help reviewers reason about a run. Always labeled as review support, never as real-world proof of an outcome.",
+  },
+  {
+    name: "Validated data package",
+    meter: "per_export · +$3k",
+    body: "An export-ready data package with provenance, rights packet, and coverage flags attached, scoped to your access window.",
+  },
+];
+
+const faqItems = [
+  {
+    question: "Why is the subscription the primary tier?",
+    answer:
+      "Most value shows up when comparing policies is part of the development loop, not a one-off. Quick-look evals and single-site reviews exist as the ramp into the subscription, where regression tracking and failure taxonomy live.",
+  },
+  {
+    question: "What exactly am I paying for in an eval?",
+    answer:
+      "A rank-fidelity comparison of policies against a real captured site — episode runs, failure clusters, and review media. It is an estimate of relative readiness, not a guarantee of field success or a deployment-ready claim.",
+  },
+  {
+    question: "How does site supply pricing work?",
+    answer:
+      "Operators start with a $5k supply review covering facility, access, privacy, and commercialization posture. Rights and payout terms are confirmed before any robot-team use. Monitoring is a separate, recurring option.",
+  },
+  {
+    question: "Is generated media ever counted as proof?",
+    answer:
+      "No. Generated and simulated media are review support only and are always labeled as such. The raw capture is the single source of ground truth across every tier and add-on.",
+  },
+  {
+    question: "Are episode counts and prices fixed?",
+    answer:
+      "The figures here are illustrative ranges. Final episode counts, policy caps, and pricing are set per engagement against the reviewed site, task, robot profile, and access scope.",
+  },
+  {
+    question: "What happens after an eval?",
+    answer:
+      "Every run ends in an actionable decision: export the data package, request a recapture, narrow the scenario, or move toward a field pilot — with the proof boundary attached.",
   },
 ];
 
@@ -70,106 +159,246 @@ export default function Pricing() {
     <>
       <SEO
         title="Pricing | Blueprint"
-        description="Blueprint pricing for robot-team policy-comparison subscriptions, lite quick-look evals, low-cost site supply reviews, and yearly site-ops monitoring."
+        description="Priced as evaluation infrastructure: quick-look evals, a robot-team subscription, site supply reviews, and yearly site monitoring — bounded to the reviewed site, task, and access scope."
         canonical="/pricing"
-        image={`https://tryblueprint.io${wamPolicyEvalAssets.rolloutStrip}`}
-        jsonLd={{
-          "@context": "https://schema.org",
-          "@type": "WebPage",
-          name: "Blueprint Pricing",
-          description:
-            "Subscription-first pricing for robot-team policy-comparison infrastructure, lite quick-look evals, site supply reviews, and yearly site-ops monitoring.",
-          url: "https://tryblueprint.io/pricing",
-        }}
       />
 
-      <main className="bg-white text-slate-950">
-        <section className="border-b border-slate-200">
-          <div className="mx-auto grid max-w-[88rem] gap-10 px-5 py-12 md:grid-cols-[0.75fr_1.25fr] md:items-center md:px-8 md:py-16">
-            <div>
-              <h1 className="text-5xl font-semibold leading-none tracking-normal sm:text-6xl">
-                Evaluation infrastructure, not one-off tax.
-              </h1>
-              <p className="mt-5 max-w-md text-lg leading-8 text-slate-600">
-                Robot teams subscribe when comparing policies becomes part of
-                the development loop. Lite evals and single-site reviews stay
-                available as the ramp into that subscription. Site operators
-                start with a supply review, then add yearly monitoring only
-                when a site needs repeated policy-update or vendor-comparison
-                checks.
-              </p>
+      {/* Hero */}
+      <section className="bg-canvas">
+        <div className="mx-auto grid max-w-[88rem] gap-10 px-5 py-16 sm:px-8 lg:grid-cols-[1fr_0.85fr] lg:items-center lg:px-10 lg:py-24">
+          <div>
+            <Eyebrow tone="brass" rule>
+              Pricing
+            </Eyebrow>
+            <h1 className="mt-5 font-display text-[clamp(2.6rem,5vw,4.4rem)] font-medium leading-[1.02] tracking-[-0.045em] text-ink-900">
+              Priced as evaluation infrastructure.
+            </h1>
+            <p className="mt-5 max-w-[34rem] text-[1.05rem] leading-[1.7] text-ink-500">
+              Robot teams subscribe when comparing policies becomes part of the
+              development loop. Quick-look evals and single-site reviews are the ramp in.
+              Operators start with a supply review and add monitoring only when a site
+              needs repeated checks.
+            </p>
+            <div className="mt-7 flex flex-wrap gap-2">
+              <ProofChip>Capture-backed comparisons</ProofChip>
+              <ProofChip>Rank fidelity, not guarantees</ProofChip>
+              <ProofChip>Scope-bounded access</ProofChip>
             </div>
-            <img
-              src={wamPolicyEvalAssets.rolloutStrip}
-              alt="Three generated support clips of a realistic humanoid robot running task variations"
-              className="aspect-[16/6] w-full rounded-lg border border-slate-200 object-cover"
-            />
           </div>
-        </section>
+          <MonochromeMedia
+            src="/redesign/pov/factory-conveyor.jpg"
+            alt="Factory conveyor line"
+            loading="eager"
+            radius="lg"
+            overlay="soft"
+            className="aspect-[16/11] w-full border border-line"
+          />
+        </div>
+      </section>
 
-        <section className="mx-auto grid max-w-[88rem] gap-4 px-5 py-10 md:grid-cols-2 md:px-8 lg:grid-cols-4">
-          {plans.map((plan) => (
-            <article key={plan.title} className="rounded-lg border border-slate-200 bg-white p-6">
-              <div className={`inline-flex rounded-lg border px-3 py-2 text-sm font-semibold ${plan.tone}`}>
-                {plan.product}
-              </div>
-              <p className="mt-6 text-3xl font-semibold tracking-normal">
-                {plan.price}
-              </p>
-              <h2 className="mt-6 text-3xl font-semibold tracking-normal">
-                {plan.title}
-              </h2>
-              <p className="mt-3 text-base leading-7 text-slate-600">{plan.line}</p>
-              <div className="mt-6 grid gap-2">
-                {plan.choices.map((choice) => (
-                  <div key={choice} className="flex items-center gap-2 text-sm font-semibold text-slate-800">
-                    <CheckCircle2 className="h-4 w-4 text-blue-600" aria-hidden="true" />
-                    {choice}
+      {/* Tiers */}
+      <section className="border-y border-line bg-paper">
+        <div className="mx-auto max-w-[88rem] px-5 py-16 sm:px-8 lg:px-10 lg:py-24">
+          <EditorialSectionIntro
+            eyebrow="Tiers"
+            title="Four ways to engage."
+            description="One subscription for active robot teams, plus lighter on-ramps and the operator supply path. All figures are illustrative ranges, set per engagement."
+          />
+
+          <TileGrid cols={4} className="mt-12 rounded-lg">
+            {tiers.map((tier) => {
+              const onInk = tier.highlighted;
+              return (
+                <article
+                  key={tier.name}
+                  className={
+                    onInk
+                      ? "flex h-full flex-col bg-ink p-6 text-[color:var(--text-on-ink)]"
+                      : "flex h-full flex-col bg-white p-6"
+                  }
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <Eyebrow tone={onInk ? "onInk" : "muted"}>Tier</Eyebrow>
+                    {onInk ? (
+                      <StatusChip
+                        tone="ink"
+                        square
+                        dot={false}
+                        className="border-brass/50 bg-transparent text-brass"
+                      >
+                        Primary
+                      </StatusChip>
+                    ) : null}
                   </div>
-                ))}
+
+                  <h3
+                    className={
+                      onInk
+                        ? "mt-5 text-title-m font-semibold tracking-tight text-[color:var(--text-on-ink)]"
+                        : "mt-5 text-title-m font-semibold tracking-tight text-ink-900"
+                    }
+                  >
+                    {tier.name}
+                  </h3>
+
+                  <div className="mt-4 flex items-baseline gap-1">
+                    <span
+                      className={
+                        onInk
+                          ? "font-mono text-[2rem] font-medium leading-none tracking-[-0.02em] text-[color:var(--text-on-ink)]"
+                          : "font-mono text-[2rem] font-medium leading-none tracking-[-0.02em] text-ink-900"
+                      }
+                    >
+                      {tier.price}
+                    </span>
+                    <span
+                      className={
+                        onInk
+                          ? "font-mono text-[0.9rem] text-ink-300"
+                          : "font-mono text-[0.9rem] text-ink-400"
+                      }
+                    >
+                      {tier.unit}
+                    </span>
+                  </div>
+
+                  <p
+                    className={
+                      onInk
+                        ? "mt-4 text-sm leading-[1.6] text-[color:var(--text-on-ink)] opacity-80"
+                        : "mt-4 text-sm leading-[1.6] text-ink-500"
+                    }
+                  >
+                    {tier.tagline}
+                  </p>
+
+                  <ul className="mt-5 flex flex-col gap-2.5">
+                    {tier.features.map((feature) => (
+                      <li key={feature} className="flex items-start gap-2.5">
+                        <Check
+                          className="mt-0.5 h-4 w-4 shrink-0 text-brass"
+                          strokeWidth={2}
+                          aria-hidden="true"
+                        />
+                        <span
+                          className={
+                            onInk
+                              ? "text-[13px] leading-[1.5] text-[color:var(--text-on-ink)] opacity-90"
+                              : "text-[13px] leading-[1.5] text-ink-700"
+                          }
+                        >
+                          {feature}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <p
+                    className={
+                      onInk
+                        ? "mt-5 border-t border-white/10 pt-4 text-[12px] leading-[1.5] text-ink-300"
+                        : "mt-5 border-t border-line-soft pt-4 text-[12px] leading-[1.5] text-ink-400"
+                    }
+                  >
+                    {tier.note}
+                  </p>
+
+                  <div className="mt-auto pt-6">
+                    <Button
+                      asChild
+                      variant={onInk ? "brass" : "secondary"}
+                      size="md"
+                      full
+                    >
+                      <a href={tier.href}>
+                        {tier.cta}
+                        <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                      </a>
+                    </Button>
+                  </div>
+                </article>
+              );
+            })}
+          </TileGrid>
+        </div>
+      </section>
+
+      {/* Add-ons */}
+      <section className="bg-canvas">
+        <div className="mx-auto max-w-[88rem] px-5 py-16 sm:px-8 lg:px-10 lg:py-24">
+          <EditorialSectionIntro
+            eyebrow="Add-ons"
+            title="Extend a run when you need more depth."
+            description="Optional units layered onto any tier. Each is metered and priced per use, with the proof boundary intact."
+          />
+
+          <TileGrid cols={2} className="mt-12">
+            {addOns.map((addOn) => (
+              <div key={addOn.name} className="flex h-full flex-col gap-3 bg-white p-6">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h3 className="text-title-m font-semibold tracking-tight text-ink-900">
+                    {addOn.name}
+                  </h3>
+                  <span className="inline-flex items-center gap-2 border border-line bg-inset px-[0.6rem] py-1 font-mono text-[11px] uppercase tracking-[0.08em] text-ink-600">
+                    <span
+                      aria-hidden="true"
+                      className="h-[0.4rem] w-[0.4rem] shrink-0 rounded-full bg-brass"
+                    />
+                    {addOn.meter}
+                  </span>
+                </div>
+                <p className="text-sm leading-[1.65] text-ink-500">{addOn.body}</p>
               </div>
-              <a
-                href={plan.href}
-                className="mt-7 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-800"
-              >
-                Start
-                <ArrowRight className="h-4 w-4" aria-hidden="true" />
-              </a>
-            </article>
-          ))}
-        </section>
+            ))}
+          </TileGrid>
 
-        <section className="border-y border-slate-200 bg-slate-50">
-          <div className="mx-auto grid max-w-[88rem] gap-6 px-5 py-10 md:grid-cols-[1fr_auto] md:items-center md:px-8">
-            <div>
-              <h2 className="text-3xl font-semibold">Site review is one-time; monitoring is recurring.</h2>
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-                The operator path is priced for supply creation: $5,000 per
-                site review, with access, privacy, and commercial-use boundaries
-                confirmed before any robot-team use. If a site needs ongoing
-                policy-update or vendor-comparison checks, yearly monitoring
-                covers multiple scoped reviews up to an agreed cap, so the
-                subscription is a lower per-check price than repeated one-off
-                monitoring evals.
-              </p>
-            </div>
-            <a
-              href="/contact/site-operator?source=pricing"
-              className="inline-flex min-h-12 items-center justify-center rounded-lg border border-slate-300 bg-white px-5 text-sm font-semibold text-slate-950 hover:bg-slate-100"
-            >
-              Start site review
-            </a>
-          </div>
-        </section>
+          <ProofBoundary
+            level="info"
+            title="What you're buying"
+            className="mt-10"
+          >
+            <p>
+              Every tier and add-on buys a capture-backed comparison against a real,
+              packaged site — rank fidelity, failure clusters, and review-support media.
+              It is an estimate of relative readiness, not a deployment-ready claim or a
+              guarantee of field success.
+            </p>
+            <p className="mt-3 font-mono text-[13px] text-ink-700">
+              All access is bounded to the reviewed site, task, robot profile,
+              policy-access mode, and proof boundary. Figures shown are illustrative
+              ranges (e.g. RUN-2049 · 100/500 episodes · $6.5k/$15k).
+            </p>
+          </ProofBoundary>
+        </div>
+      </section>
 
-        <section className="mx-auto max-w-[88rem] px-5 py-10 md:px-8">
-          <p className="max-w-4xl text-sm font-semibold leading-6 text-slate-700">
-            Subscription evals, quick-look evals, site reviews, and yearly site
-            monitoring apply only inside the chosen site, task, robot,
-            policy-access mode, and proof boundary. {robotPolicyEvaluationBoundary}
-          </p>
-        </section>
-      </main>
+      {/* FAQ */}
+      <section className="border-y border-line bg-paper">
+        <div className="mx-auto max-w-[88rem] px-5 py-16 sm:px-8 lg:px-10 lg:py-24">
+          <EditorialFaq
+            title="Pricing FAQ"
+            description="The model, the boundaries, and what the numbers do and do not promise."
+            items={faqItems}
+          />
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className="bg-canvas">
+        <div className="mx-auto max-w-[88rem] px-5 pb-20 sm:px-8 lg:px-10 lg:pb-28">
+          <EditorialCtaBand
+            eyebrow="Pick your on-ramp"
+            title="Start with a quick-look or scope a subscription."
+            description="Tell us the site, task, and policies you want to compare. We'll come back with episode counts, a policy cap, and pricing for your scope."
+            imageSrc="/redesign/pov/packing-cell.jpg"
+            imageAlt="Robotic packing cell"
+            primaryHref="/contact?persona=robot-team&interest=policy-evaluation-run&source=pricing"
+            primaryLabel="Request evaluation"
+            secondaryHref="/how-it-works"
+            secondaryLabel="See how it works"
+          />
+        </div>
+      </section>
     </>
   );
 }

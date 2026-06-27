@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from "react";
-import { Helmet } from "react-helmet";
+import { Helmet } from "@/lib/helmet";
 import { syntheticDatasets, type SyntheticDataset } from "@/data/content";
 import {
   ArrowLeft,

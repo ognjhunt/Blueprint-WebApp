@@ -1,148 +1,195 @@
-import { SEO } from "@/components/SEO";
+import { Helmet } from "@/lib/helmet";
+import { ArrowRight } from "lucide-react";
+
+import { Button, Eyebrow } from "@/components/blueprint";
 import {
   EditorialCtaBand,
   EditorialSectionIntro,
-  EditorialSectionLabel,
   MonochromeMedia,
-  ProofChip,
 } from "@/components/site/editorial";
-import { editorialGeneratedAssets } from "@/lib/editorialGeneratedAssets";
-import { ArrowRight } from "lucide-react";
+import { TileGrid } from "@/components/site/TileGrid";
 
-const companyCards = [
-  {
-    title: "What Blueprint is",
-    body:
-      "A product for turning one real facility into Policy Evaluation Runs, sim-only Policy Improvement Runs, and clear trust details tied to the same capture-backed source record.",
-  },
-  {
-    title: "What Blueprint is not",
-    body:
-      "Not a generic AI marketplace, not a model demo, and not a deployment guarantee pretending uncertainty has disappeared.",
-  },
+const statStrip = [
+  { label: "Episodes / run", value: "100–500", caption: "Per policy evaluation" },
+  { label: "Rank correlation", value: "0.929", caption: "Sim-to-site fidelity" },
+  { label: "Surfaces", value: "4", caption: "Site · Task · Scenario · Eval" },
+  { label: "Proof boundary", value: "Always on", caption: "Review support, not proof" },
 ];
 
-const storySteps = [
-  "A robot team has one real facility and one workflow question before a field visit starts.",
-  "Blueprint's job is to make that site usable earlier through truthful proof, package framing, and policy evaluation sets.",
-  "That lets the team decide whether to keep moving on the exact site instead of spending time on vague assumptions.",
+const principles = [
+  {
+    eyebrow: "Principle 01",
+    label: "Capture first, claim later.",
+    description:
+      "Every world model starts from one real place. We package the capture truth — where, when, how, and under what rights — before any evaluation output is shown.",
+  },
+  {
+    eyebrow: "Principle 02",
+    label: "Estimates, never guarantees.",
+    description:
+      "Policy comparison is framed as rank fidelity and predicted success on captured tasks. We do not promise field deployment or guaranteed outcomes.",
+  },
+  {
+    eyebrow: "Principle 03",
+    label: "Generated media is review support.",
+    description:
+      "Simulated and generated frames help a team read a run. They are always labeled as review support — never presented as real-world proof.",
+  },
+  {
+    eyebrow: "Principle 04",
+    label: "Rights stay attached.",
+    description:
+      "Rights, privacy, provenance, and hosted-access boundaries travel with the listing and manifest, not with marketing copy.",
+  },
 ];
 
 export default function About() {
   return (
     <>
-      <SEO
-        title="About | Blueprint"
-        description="Why Blueprint exists and how it turns real facilities into robot evaluation runs, sim-only policy improvement runs, and trust details a robot team can evaluate."
-        canonical="/about"
-      />
+      <Helmet>
+        <title>About | Blueprint</title>
+        <meta
+          name="description"
+          content="Why Blueprint exists: turning one real facility into capture-backed policy evaluation runs with rights, privacy, and provenance kept visible."
+        />
+        <link rel="canonical" href="https://tryblueprint.io/about" />
+      </Helmet>
 
-      <div className="bg-[#f5f3ef] text-slate-950">
-        <section className="border-b border-black/10">
-          <MonochromeMedia
-            src={editorialGeneratedAssets.homeHero}
-            alt="About Blueprint hero"
-            className="min-h-[40rem] rounded-none"
-            loading="eager"
-            imageClassName="min-h-[40rem]"
-            overlayClassName="bg-[linear-gradient(90deg,rgba(0,0,0,0.82)_0%,rgba(0,0,0,0.58)_34%,rgba(0,0,0,0.18)_78%)]"
-          >
-            <div className="absolute inset-0">
-              <div className="mx-auto grid h-full max-w-[88rem] gap-10 px-5 py-12 sm:px-8 lg:grid-cols-[0.62fr_0.38fr] lg:px-10 lg:py-16">
-                <div className="flex min-h-[32rem] flex-col justify-end">
-                <EditorialSectionLabel light>About Blueprint</EditorialSectionLabel>
-                <h1 className="font-editorial mt-6 max-w-[36rem] text-[3.7rem] leading-[0.9] tracking-[-0.06em] text-white sm:text-[5rem]">
-                  Blueprint exists to make one real site legible earlier.
-                </h1>
-                <p className="mt-6 max-w-[30rem] text-base leading-8 text-white/70">
-                  Blueprint helps robot teams evaluate one exact facility sooner, choose the right product path, and keep rights, privacy, provenance, and hosted-access boundaries readable along the way.
-                </p>
-                <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-                  <a
-                    href="/sites"
-                    className="inline-flex w-full items-center justify-center bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100 sm:w-auto"
-                  >
-                    Explore sites
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </a>
-                  <a
-                    href="/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-review&source=about-hero"
-                    className="inline-flex w-full items-center justify-center border border-white/20 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10 sm:w-auto"
-                  >
-                    Contact Blueprint
-                  </a>
-                </div>
-              </div>
-                <div className="hidden flex-wrap content-end gap-2 lg:flex lg:justify-end">
-                  <ProofChip light>Real-site products</ProofChip>
-                  <ProofChip light>Rights and provenance stay visible</ProofChip>
-                  <ProofChip light>Built for serious robot-team decisions</ProofChip>
-                </div>
-              </div>
-            </div>
-          </MonochromeMedia>
-        </section>
-
-        <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
-          <div className="grid gap-4 lg:grid-cols-[0.38fr_0.62fr]">
-            <div className="bg-slate-950 p-6 text-white">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Founder note</p>
-              <h2 className="font-editorial mt-4 text-[2.4rem] leading-[0.94] tracking-[-0.04em]">
-                Built by Nijel Hunt.
-              </h2>
-              <p className="mt-4 text-sm leading-7 text-white/70">
-                Background in robotics simulation, 3D capture, and deployment operations. Blueprint is built around the gap between an interesting robotics demo and serious site-specific deployment work.
+      <div className="bg-canvas text-ink">
+        {/* Hero — prose, max-w-prose (44rem) */}
+        <section className="border-b border-line">
+          <div className="mx-auto max-w-[88rem] px-5 py-16 sm:px-8 lg:px-10 lg:py-24">
+            <div className="max-w-prose">
+              <Eyebrow tone="brass" rule>
+                About Blueprint
+              </Eyebrow>
+              <h1 className="font-editorial mt-6 text-[clamp(2.6rem,5vw,4.2rem)] font-medium leading-[0.96] tracking-[-0.045em] text-ink">
+                Blueprint turns one real site into a decision a robot team can trust.
+              </h1>
+              <p className="mt-6 text-lg leading-[1.7] text-ink-600">
+                A robot team usually has one facility and one workflow question before a
+                field visit. Blueprint exists to make that exact site legible earlier — as
+                capture-backed evaluation runs, with rights, privacy, and provenance kept
+                readable the whole way through.
               </p>
-            </div>
-            <div className="bg-white p-6">
-              <EditorialSectionIntro
-                eyebrow="Company framing"
-                title="What Blueprint is and what it is not."
-              />
-              <div className="mt-6 grid gap-4 md:grid-cols-2">
-                {companyCards.map((card) => (
-                  <div key={card.title} className="border border-black/10 bg-[#f5f3ef] p-5">
-                    <h2 className="font-editorial text-[1.9rem] leading-[0.95] tracking-[-0.04em] text-slate-950">
-                      {card.title}
-                    </h2>
-                    <p className="mt-4 text-sm leading-7 text-slate-600">{card.body}</p>
-                  </div>
-                ))}
+              <p className="mt-4 text-lg leading-[1.7] text-ink-600">
+                We are not a generic AI marketplace, a model demo, or a deployment
+                guarantee. We package capture truth and frame policy comparison as honest
+                estimates, so the next test is chosen on evidence instead of assumption.
+              </p>
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                <Button asChild variant="brass" size="lg">
+                  <a href="/sites">
+                    Explore site packages
+                    <ArrowRight className="ml-2 h-5 w-5" />
+                  </a>
+                </Button>
+                <Button asChild variant="secondary" size="lg">
+                  <a href="/how-it-works">See how it works</a>
+                </Button>
               </div>
             </div>
           </div>
         </section>
 
-        <section className="border-y border-black/10 bg-white">
-          <div className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
-            <EditorialSectionIntro
-              eyebrow="Decision story"
-              title="Why this matters before the expensive part starts."
-              className="max-w-3xl"
-            />
-            <div className="mt-8 grid gap-4 md:grid-cols-3">
-              {storySteps.map((step, index) => (
-                <div key={step} className="bg-[#f5f3ef] p-6">
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">0{index + 1}</p>
-                  <p className="mt-4 text-sm leading-7 text-slate-700">{step}</p>
+        {/* 4-col stat strip — mono values, hairline-separated */}
+        <section className="border-b border-line">
+          <div className="mx-auto max-w-[88rem] px-5 sm:px-8 lg:px-10">
+            <dl className="grid grid-cols-1 divide-y divide-line sm:grid-cols-2 sm:divide-y-0 lg:grid-cols-4 lg:divide-x lg:divide-line">
+              {statStrip.map((stat, index) => (
+                <div
+                  key={stat.label}
+                  className={
+                    "flex flex-col gap-2 py-8 lg:px-8 " +
+                    (index === 0 ? "lg:pl-0" : "") +
+                    (index % 2 === 1 ? " sm:border-l sm:border-line lg:border-l-0" : "")
+                  }
+                >
+                  <dt className="text-micro font-semibold uppercase tracking-eyebrow text-ink-400">
+                    {stat.label}
+                  </dt>
+                  <dd className="font-mono text-[2rem] font-medium leading-none tracking-tight text-ink">
+                    {stat.value}
+                  </dd>
+                  <p className="text-[13px] leading-snug text-ink-500">{stat.caption}</p>
                 </div>
               ))}
+            </dl>
+          </div>
+        </section>
+
+        {/* Mission editorial — image + Newsreader pull quote */}
+        <section className="border-b border-line bg-white">
+          <div className="mx-auto grid max-w-[88rem] items-stretch gap-4 px-5 py-12 sm:px-8 lg:grid-cols-[0.46fr_0.54fr] lg:px-10 lg:py-16">
+            <MonochromeMedia
+              src="/redesign/robot-hero.png"
+              alt="Robot at work inside a captured real-world site (review support, not real-world proof)"
+              className="min-h-[24rem] lg:min-h-[30rem]"
+              imageClassName="min-h-[24rem] lg:min-h-[30rem]"
+              overlay="soft"
+            >
+              <span className="absolute bottom-3 left-3 inline-flex items-center gap-2 rounded-sm border border-white/15 bg-black/40 px-[0.6rem] py-1 font-mono text-[11px] uppercase tracking-[0.14em] text-[color:var(--text-on-ink)]">
+                Review support · not real-world proof
+              </span>
+            </MonochromeMedia>
+            <div className="flex flex-col justify-center lg:pl-4">
+              <Eyebrow tone="muted" rule>
+                The mission
+              </Eyebrow>
+              <blockquote className="font-editorial mt-6 text-[clamp(1.8rem,3vw,2.8rem)] font-medium leading-[1.08] tracking-[-0.035em] text-ink">
+                “The expensive part of robotics is field time. Our job is to make one real
+                site usable before that clock starts — with proof a serious team can
+                actually read.”
+              </blockquote>
+              <p className="mt-6 max-w-[34rem] text-[15px] leading-[1.7] text-ink-600">
+                Blueprint was built by Nijel Hunt around the gap between an interesting
+                robotics demo and serious, site-specific deployment work. Background in
+                robotics simulation, 3D capture, and deployment operations.
+              </p>
             </div>
           </div>
         </section>
 
-        <section className="mx-auto max-w-[88rem] px-5 pb-12 sm:px-8 lg:px-10 lg:pb-14">
+        {/* Principles — 2-col TileGrid */}
+        <section className="mx-auto max-w-[88rem] px-5 py-12 sm:px-8 lg:px-10 lg:py-16">
+          <EditorialSectionIntro
+            eyebrow="What we hold to"
+            title="Four principles that keep the product honest."
+            description="These are the rules that decide what Blueprint shows, what it labels, and what it refuses to claim."
+            className="max-w-3xl"
+          />
+          <TileGrid cols={2} className="mt-8">
+            {principles.map((item) => (
+              <div key={item.label} className="flex h-full flex-col gap-5 bg-white p-6 lg:p-8">
+                <span className="text-micro font-semibold uppercase tracking-eyebrow text-brass-deep">
+                  {item.eyebrow}
+                </span>
+                <div>
+                  <h3 className="font-editorial text-[1.7rem] leading-[1.02] tracking-[-0.035em] text-ink">
+                    {item.label}
+                  </h3>
+                  <p className="mt-4 text-[15px] leading-[1.7] text-ink-500">
+                    {item.description}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </TileGrid>
+        </section>
+
+        {/* CTA band */}
+        <section className="mx-auto max-w-[88rem] px-5 pb-14 sm:px-8 lg:px-10 lg:pb-20">
           <EditorialCtaBand
             eyebrow="Next step"
-            title="Start with the public proof or bring one exact site/task."
-            description="Browse site packages if you want to evaluate the proof style first, or contact Blueprint when the readiness question is already known."
-            imageSrc={editorialGeneratedAssets.scopingRoom}
-            imageAlt="Blueprint scoping room"
+            title="Start with the public proof or bring one exact site."
+            description="Browse site packages to evaluate the proof style first, or contact Blueprint when the readiness question is already known."
+            imageSrc="/redesign/pov/factory-conveyor.jpg"
+            imageAlt="Captured factory conveyor site (review support, not real-world proof)"
             primaryHref="/sites"
             primaryLabel="Explore site packages"
-            secondaryHref="/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-review&source=about-bottom"
+            secondaryHref="/contact/robot-team"
             secondaryLabel="Request evaluation"
-            dark={false}
+            dark
           />
         </section>
       </div>

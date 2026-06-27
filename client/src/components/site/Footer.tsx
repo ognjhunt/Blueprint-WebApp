@@ -1,90 +1,79 @@
 import {
   footerCompanyLinks,
+  footerEvidenceLinks,
   footerProductLinks,
-  footerSupportLinks,
 } from "./navigation";
 import { BrandLockup } from "./BrandMark";
-import { useLocation } from "wouter";
+
+type FooterColumn = {
+  heading: string;
+  links: ReadonlyArray<{ href: string; label: string }>;
+};
+
+const footerColumns: FooterColumn[] = [
+  { heading: "Product", links: footerProductLinks },
+  { heading: "Evidence", links: footerEvidenceLinks },
+  { heading: "Company", links: footerCompanyLinks },
+];
 
 export function Footer() {
-  const [location] = useLocation();
-  const isCaptureJobsRoute = location === "/capture";
-
   return (
-    <footer className="border-t border-black/10 bg-[#f5f1e8]">
-      <div className="mx-auto grid max-w-[88rem] gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[1.35fr_0.82fr_0.82fr_0.82fr] lg:px-10">
-        <div className="max-w-sm space-y-4">
-          <a href="/" className="inline-flex text-slate-950" aria-label="Blueprint home">
-            <BrandLockup compact />
+    <footer className="bg-[#0d0d0b] text-[#f3efe6]">
+      <div className="mx-auto grid max-w-[88rem] gap-12 px-7 pb-10 pt-14 sm:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1fr_1fr]">
+        <div className="max-w-sm space-y-5">
+          <a
+            href="/"
+            className="inline-flex text-[#f3efe6]"
+            aria-label="Blueprint home"
+          >
+            <BrandLockup tone="paper" compact />
           </a>
-          <p className="text-sm leading-6 text-slate-600">
-            {isCaptureJobsRoute
-              ? "Blueprint routes approved capture work, site requests, and evaluation packages from real capture evidence."
-              : "Blueprint helps robot teams rank policies on capture-backed real-site task packs before field time."}
+          <p className="font-editorial text-[1.05rem] leading-7 text-[#f3efe6]/80">
+            Blueprint captures real indoor sites and packages them into evaluation
+            evidence, so robot teams can rank policies on real-site task packs before
+            field time.
           </p>
-          <p className="text-sm leading-6 text-slate-600">
-            {isCaptureJobsRoute
-              ? "Capture Jobs links to application and waitlist paths. Site details, route access, and payout eligibility stay review-gated."
-              : "Robot teams subscribe for recurring evals or start with quick-look runs. Site operators can start $5,000/site supply reviews or add yearly monitoring for deployed sites."}
-          </p>
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2 text-sm">
             <a
               href="mailto:hello@tryblueprint.io"
-              className="inline-flex text-sm font-semibold text-slate-800 transition hover:text-slate-950"
+              className="inline-flex font-semibold text-[#f3efe6]/80 transition hover:text-[#f3efe6]"
             >
               hello@tryblueprint.io
             </a>
             <a
               href="https://www.linkedin.com/company/blueprintsim/"
-              className="inline-flex text-sm font-semibold text-slate-800 transition hover:text-slate-950"
+              className="inline-flex font-semibold text-[#f3efe6]/80 transition hover:text-[#f3efe6]"
             >
               LinkedIn
             </a>
           </div>
         </div>
 
-        <nav className="space-y-3 text-sm text-slate-700">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-            Product
-          </p>
-          {footerProductLinks.map((link) => (
-            <a key={link.href} href={link.href} className="block transition hover:text-slate-900">
-              {link.label}
-            </a>
-          ))}
-        </nav>
-
-        <nav className="space-y-3 text-sm text-slate-700">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-            Contact
-          </p>
-          {footerCompanyLinks.map((link) => (
-            <a key={link.href} href={link.href} className="block transition hover:text-slate-900">
-              {link.label}
-            </a>
-          ))}
-        </nav>
-
-        <nav className="space-y-3 text-sm text-slate-700">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-            Legal
-          </p>
-          {footerSupportLinks.map((link) => (
-            <a key={link.href} href={link.href} className="block transition hover:text-slate-900">
-              {link.label}
-            </a>
-          ))}
-        </nav>
+        {footerColumns.map((column) => (
+          <nav key={column.heading} className="space-y-4">
+            <p className="text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-[#f3efe6]/45">
+              {column.heading}
+            </p>
+            <ul className="space-y-3">
+              {column.links.map((link) => (
+                <li key={`${column.heading}-${link.href}`}>
+                  <a
+                    href={link.href}
+                    className="text-sm text-[#f3efe6]/70 transition hover:text-[#f3efe6]"
+                  >
+                    {link.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        ))}
       </div>
 
-      <div className="border-t border-black/10 bg-white py-4">
-        <div className="mx-auto flex max-w-[88rem] flex-col items-start gap-2 px-4 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-10">
-          <p>© {new Date().getFullYear()} Blueprint, Inc. All rights reserved.</p>
-          <p>
-            {isCaptureJobsRoute
-              ? "Capture first. Route availability and payout eligibility stay review-gated."
-              : "Capture first. Robot-team evaluations and session claims stay evidence-gated."}
-          </p>
+      <div className="border-t border-white/10">
+        <div className="mx-auto flex max-w-[88rem] flex-col gap-2 px-7 py-5 font-mono text-[0.7rem] text-[#f3efe6]/55 sm:flex-row sm:items-center sm:justify-between">
+          <p>&copy; {new Date().getFullYear()} Blueprint Robotics, Inc.</p>
+          <p>Generated &amp; simulated media is review support &mdash; not real-world proof.</p>
         </div>
       </div>
     </footer>

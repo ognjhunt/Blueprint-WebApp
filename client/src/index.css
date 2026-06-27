@@ -4,19 +4,156 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 225 15% 10%;
-    --muted: 210 14% 96%;
-    --muted-foreground: 225 8% 38%;
-    --border: 210 16% 90%;
-    --accent: 37 36% 61%;
-    --accent-foreground: 48 24% 8%;
+    /* ============================================================
+       shadcn/ui HSL role vars — REMAPPED to Blueprint values.
+       Format is "H S% L%" (no hsl() wrapper); Tailwind wraps them.
+       ============================================================ */
+    --background: 42 50% 96%; /* paper-1 #faf7f0 */
+    --foreground: 60 8% 5%; /* ink-900 #0d0d0b */
+    --card: 0 0% 100%; /* #ffffff */
+    --card-foreground: 60 8% 5%; /* ink-900 */
+    --popover: 0 0% 100%; /* #ffffff */
+    --popover-foreground: 60 8% 5%; /* ink-900 */
+    --primary: 211 64% 40%; /* action blue #2563a6 */
+    --primary-foreground: 0 0% 100%; /* #ffffff */
+    --secondary: 42 39% 94%; /* inset/brand paper #f5f1e8 */
+    --secondary-foreground: 60 8% 5%; /* ink-900 */
+    --muted: 44 33% 91%; /* #f0ece1 */
+    --muted-foreground: 49 6% 35%; /* #5f5d54 */
+    --accent: 39 33% 88%; /* bone #ebe4d7 */
+    --accent-foreground: 60 8% 5%; /* ink-900 */
+    --destructive: 5 60% 38%; /* blocker clay #9b3027 */
+    --destructive-foreground: 0 0% 100%; /* #ffffff */
+    --border: 41 25% 83%; /* #ded7c8 */
+    --input: 41 20% 73%; /* #c8bfac */
+    --ring: 36 36% 48%; /* brass-deep #a8854f */
+    --radius: 0.5rem;
     --heading: 220 20% 8%;
+
+    /* ============================================================
+       Blueprint — Layer 1: raw brand scales
+       ============================================================ */
+    /* Brand core */
     --brand-ink: #0d0d0b;
     --brand-paper: #f5f1e8;
     --brand-bone: #ebe4d7;
     --brand-brass: #c7a775;
     --brand-graphite: #1a1a17;
+    --bp-ink: #0d0d0b;
+    --bp-graphite: #1a1a17;
+    --bp-paper: #f5f1e8;
+    --bp-bone: #ebe4d7;
+    --bp-brass: #c7a775;
+    --bp-brass-deep: #a8854f;
+    --bp-brass-lit: #d8bd8d;
+
+    /* Ink ramp (warm near-black neutral) */
+    --bp-ink-900: #0d0d0b;
+    --bp-ink-800: #1a1a17;
+    --bp-ink-700: #2b2b27;
+    --bp-ink-600: #45443d;
+    --bp-ink-500: #5f5d54;
+    --bp-ink-400: #817e72;
+    --bp-ink-300: #a8a496;
+    --bp-ink-200: #cdc9bb;
+    --bp-ink-100: #e4dfd2;
+    --bp-ink-050: #f0ece1;
+
+    /* Paper ramp (surfaces) */
+    --bp-paper-0: #ffffff;
+    --bp-paper-1: #faf7f0;
+    --bp-paper-2: #f5f1e8;
+    --bp-paper-3: #ebe4d7;
+    --bp-paper-4: #ded5c4;
+
+    /* Hairline borders */
+    --bp-line: #ded7c8;
+    --bp-line-soft: #ebe4d7;
+    --bp-line-strong: #c8bfac;
+    --bp-line-ink: rgba(255, 255, 255, 0.1);
+
+    /* Signal — Proof (green) */
+    --bp-proof-700: #1f6b4f;
+    --bp-proof-600: #2a7d5e;
+    --bp-proof-500: #3a9170;
+    --bp-proof-100: #dcebe3;
+    --bp-proof-050: #eef5f1;
+    /* Signal — Caution (amber) */
+    --bp-warn-700: #9a6a16;
+    --bp-warn-600: #b8821f;
+    --bp-warn-500: #d09a2c;
+    --bp-warn-100: #f3e7cb;
+    --bp-warn-050: #faf3e2;
+    /* Signal — Blocker (clay) */
+    --bp-block-700: #9b3027;
+    --bp-block-600: #b63d32;
+    --bp-block-500: #cf5247;
+    --bp-block-100: #f1d9d5;
+    --bp-block-050: #faeae7;
+    /* Signal — Info / action (blue) */
+    --bp-info-700: #1f4f8f;
+    --bp-info-600: #2563a6;
+    --bp-info-500: #3a79c2;
+    --bp-info-100: #d7e4f2;
+    --bp-info-050: #eaf1f9;
+    /* Neutral chip */
+    --bp-slate-700: #3a3a33;
+    --bp-slate-100: #e7e2d6;
+
+    /* ============================================================
+       Blueprint — Layer 2: semantic aliases (consume these)
+       ============================================================ */
+    /* Text */
+    --text-strong: var(--bp-ink-900);
+    --text-body: var(--bp-ink-800);
+    --text-muted: var(--bp-ink-500);
+    --text-faint: var(--bp-ink-400);
+    --text-on-ink: #f3efe6;
+    --text-on-brass: var(--bp-ink-900);
+    --text-link: var(--bp-brass-deep);
+
+    /* Surfaces */
+    --surface-canvas: var(--bp-paper-1);
+    --surface-card: var(--bp-paper-0);
+    --surface-inset: var(--bp-paper-2);
+    --surface-sunken: var(--bp-paper-3);
+    --surface-ink: var(--bp-ink-900);
+    --surface-graphite: var(--bp-ink-800);
+
+    /* Borders */
+    --border-default: var(--bp-line);
+    --border-soft: var(--bp-line-soft);
+    --border-strong: var(--bp-line-strong);
+    --border-ink: var(--bp-line-ink);
+
+    /* Accent / brand */
+    --accent-deep: var(--bp-brass-deep);
+    --accent-lit: var(--bp-brass-lit);
+
+    /* Semantic actions */
+    --action: var(--bp-info-600);
+    --action-hover: var(--bp-info-700);
+
+    /* Status families → fg + bg + border */
+    --proof-fg: var(--bp-proof-700);
+    --proof-bg: var(--bp-proof-050);
+    --proof-bd: var(--bp-proof-100);
+    --warn-fg: var(--bp-warn-700);
+    --warn-bg: var(--bp-warn-050);
+    --warn-bd: var(--bp-warn-100);
+    --block-fg: var(--bp-block-700);
+    --block-bg: var(--bp-block-050);
+    --block-bd: var(--bp-block-100);
+    --info-fg: var(--bp-info-700);
+    --info-bg: var(--bp-info-050);
+    --info-bd: var(--bp-info-100);
+    --neutral-fg: var(--bp-slate-700);
+    --neutral-bg: var(--bp-paper-3);
+    --neutral-bd: var(--bp-line);
+
+    /* Motion tokens (for motif classes) */
+    --bp-dur-page: 600ms;
+    --bp-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   body {
@@ -91,6 +228,68 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* ============================================================
+   Blueprint brand motifs (new). Existing .evidence-rule,
+   .brand-focus-frame, .fade-up helpers above are kept intact.
+   ============================================================ */
+
+/* Evidence grid: faint brass plate grid for hero / section / dark
+   backgrounds. Low opacity so it reads as registration, not decoration. */
+.bp-evidence-grid {
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--bp-brass) 30%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--bp-brass) 30%, transparent) 1px, transparent 1px);
+  background-size: 4.5rem 4.5rem;
+}
+
+/* Corner registration marks: top-left + bottom-right brass L's. */
+.bp-focus-frame {
+  position: relative;
+}
+.bp-focus-frame::before,
+.bp-focus-frame::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  width: 1.15rem;
+  height: 1.15rem;
+  border-color: color-mix(in srgb, var(--bp-brass) 80%, white 6%);
+}
+.bp-focus-frame::before {
+  left: 1rem;
+  top: 1rem;
+  border-left-width: 1px;
+  border-top-width: 1px;
+}
+.bp-focus-frame::after {
+  right: 1rem;
+  bottom: 1rem;
+  border-right-width: 1px;
+  border-bottom-width: 1px;
+}
+
+/* Entrance: 16px rise over 600ms. Gated behind reduced-motion below. */
+.bp-fade-up {
+  opacity: 0;
+  transform: translateY(16px);
+  animation: bp-fade-up var(--bp-dur-page) var(--bp-ease-out) forwards;
+}
+@keyframes bp-fade-up {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bp-fade-up,
+  .fade-up {
+    animation: none;
+    opacity: 1;
+    transform: none;
   }
 }
 

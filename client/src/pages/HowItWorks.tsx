@@ -1,465 +1,450 @@
 import { SEO } from "@/components/SEO";
 import {
-  EditorialSectionLabel,
+  Eyebrow,
+  ProofBoundary,
+  StatusChip,
+} from "@/components/blueprint";
+import {
+  EditorialCtaBand,
+  EditorialSectionIntro,
   MonochromeMedia,
   ProofChip,
   RouteTraceOverlay,
 } from "@/components/site/editorial";
-import { publicDemoHref } from "@/lib/marketingProof";
+import { TileGrid } from "@/components/site/TileGrid";
 import {
-  editorialGeneratedAssets,
-  humanoidReadinessAssets,
-} from "@/lib/editorialGeneratedAssets";
-import { ArrowRight } from "lucide-react";
+  Boxes,
+  ClipboardList,
+  FileCheck2,
+  GitCompareArrows,
+  MapPin,
+  ShieldCheck,
+} from "lucide-react";
 
-const chapterCards = [
-  {
-    id: "01",
-    title: "Capture",
-    body: "Blueprint starts with the real indoor route, not an abstract benchmark.",
-    proof: "Walkthrough media · timestamps · capture notes",
-  },
-  {
-    id: "02",
-    title: "Package",
-    body: "The capture becomes a site-specific package with provenance and limits attached.",
-    proof: "Manifest · route context · rights and privacy notes",
-  },
-  {
-    id: "03",
-    title: "Review",
-    body: "Robot teams inspect scenarios, replay notes, observations, and hosted outputs.",
-    proof: "Hosted path · scenario notes · visible blockers",
-  },
-  {
-    id: "04",
-    title: "Decide",
-    body: "The request ends in package access, export scope, recapture, or a narrower follow-up.",
-    proof: "Export request · recapture call · next-step record",
-  },
-];
-
-const audienceRows = [
-  {
-    title: "Robot teams",
-    body: "Use Blueprint to evaluate the indoor site, task, proof chain, and hosted review path before committing field time or integration budget.",
-  },
-  {
-    title: "Robot agents",
-    body: "Use public or protected contracts to discover site-world records, inspect truth labels, and request hosted-session actions only inside the supported API surface.",
-  },
-  {
-    title: "Blueprint agents",
-    body: "Route intake, proof, rights, capture, and follow-up work without inventing availability, provider success, clearance, or launch outcomes.",
-  },
-];
-
-function ChapterLabel({
-  id,
-  title,
-  body,
-  proof,
-}: {
-  id: string;
+type PipelineStep = {
+  step: string;
+  badge: string;
   title: string;
   body: string;
-  proof: string;
-}) {
-  return (
-    <div className="border-r border-black/10 bg-[#f3f1ec] px-6 py-8 lg:px-8 lg:py-10">
-      <p className="text-[3rem] leading-none tracking-[-0.05em] text-slate-300">
-        {id}
-      </p>
-      <h2 className="font-editorial mt-4 text-[3.4rem] leading-[0.92] tracking-[-0.05em] text-slate-950">
-        {title}
-      </h2>
-      <p className="mt-6 max-w-[15rem] text-base leading-7 text-slate-700">
-        {body}
-      </p>
-      <div className="mt-10 border-t border-black/10 pt-4">
-        <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
-          Sample values
-        </p>
-        <p className="mt-2 text-sm leading-6 text-slate-500">{proof}</p>
-      </div>
-    </div>
-  );
-}
+  src: string;
+  alt: string;
+  proof: string[];
+};
 
-function PackagePanel() {
-  return (
-    <div className="grid h-full place-items-center bg-[#f8f6f2] p-6 lg:p-10">
-      <div className="grid max-w-[42rem] gap-4 md:grid-cols-[0.6fr_0.4fr]">
-        <div className="rotate-[-3deg] rounded-[1.8rem] border border-black/10 bg-white p-6 shadow-[0_26px_50px_-36px_rgba(15,23,42,0.22)]">
-          <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
-            Sample manifest
-          </p>
-          <h3 className="mt-5 text-2xl font-semibold text-slate-950">
-            Indoor route request
-          </h3>
-          <div className="mt-6 grid gap-y-3 text-sm text-slate-700">
-            <div className="flex justify-between border-b border-black/5 pb-3">
-              <span>Capture basis</span>
-              <span>Walkthrough</span>
-            </div>
-            <div className="flex justify-between border-b border-black/5 pb-3">
-              <span>Package ID</span>
-              <span>Sample only</span>
-            </div>
-            <div className="flex justify-between border-b border-black/5 pb-3">
-              <span>Route</span>
-              <span>Review-scoped</span>
-            </div>
-            <div className="flex justify-between border-b border-black/5 pb-3">
-              <span>Depth</span>
-              <span>When available</span>
-            </div>
-            <div className="flex justify-between border-b border-black/5 pb-3">
-              <span>Rights</span>
-              <span>Attached</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Version</span>
-              <span>1.0.0</span>
-            </div>
-          </div>
-        </div>
-        <div className="space-y-4">
-          <div className="rounded-[1.8rem] border border-black/10 bg-slate-950 p-6 text-white shadow-[0_24px_44px_-34px_rgba(15,23,42,0.5)]">
-            <p className="text-[11px] uppercase tracking-[0.2em] text-white/45">
-              Package
-            </p>
-            <p className="mt-4 text-2xl font-semibold">Blueprint package</p>
-            <p className="mt-5 text-sm leading-7 text-white/70">
-              Versioned route context, geometry when available, metadata,
-              rights, and exports tied to one exact site.
-            </p>
-          </div>
-          <div className="rounded-[1.8rem] border border-black/10 bg-white p-6 shadow-[0_20px_38px_-30px_rgba(15,23,42,0.16)]">
-            <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
-              Rights sheet
-            </p>
-            <p className="mt-4 text-lg font-semibold text-slate-950">
-              Use scope attached
-            </p>
-            <p className="mt-3 text-sm leading-6 text-slate-600">
-              Example scope only. Real rights and export sharing remain listing-
-              and request-scoped.
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+const pipelineSteps: PipelineStep[] = [
+  {
+    step: "01",
+    badge: "Capture",
+    title: "Capture the real indoor site.",
+    body: "A vetted capturer walks the exact route a robot would run — recording the walkthrough, geometry where it is available, timestamps, and the conditions on the floor. The capture is the source of truth everything downstream points back to.",
+    src: "/redesign/pov/route-scan.jpg",
+    alt: "Capturer walking an indoor facility route",
+    proof: [
+      "Walkthrough media",
+      "Capture timestamps",
+      "Floor conditions and notes",
+    ],
+  },
+  {
+    step: "02",
+    badge: "Package",
+    title: "Package the proof and the limits.",
+    body: "The raw capture becomes a versioned, site-specific package: a Site Card, Task Cards, scenario context, and a rights packet. Provenance and missing-evidence flags travel with it so nothing is implied that the capture cannot support.",
+    src: "/redesign/pov/warehouse-tote.jpg",
+    alt: "Warehouse tote handling station",
+    proof: [
+      "Site and Task Cards",
+      "Provenance record",
+      "Rights and privacy packet",
+    ],
+  },
+  {
+    step: "03",
+    badge: "Evaluate",
+    title: "Evaluate policies against the site.",
+    body: "Robot teams compare policies, checkpoints, and vendor runners on the packaged site. The output is a rank-fidelity comparison with failure clusters and review media — an estimate of relative readiness, never a guarantee of field success.",
+    src: "/redesign/pov/machine-tending.jpg",
+    alt: "Robot arm tending a machine cell",
+    proof: [
+      "Policy rank comparison",
+      "Failure clusters",
+      "Review-support media",
+    ],
+  },
+  {
+    step: "04",
+    badge: "Decide",
+    title: "Decide the next test.",
+    body: "Every run ends in a decision a team can act on: export the data package, request a recapture, narrow the scenario, or move to a field pilot. The proof boundary stays attached so the decision is grounded in what was actually captured.",
+    src: "/redesign/pov/loading-dock.jpg",
+    alt: "Loading dock staging area",
+    proof: [
+      "Export request",
+      "Recapture call",
+      "Next-test record",
+    ],
+  },
+];
 
-function DeliverPanel() {
-  return (
-    <div className="grid h-full place-items-center bg-[#f5f3ef] p-6 lg:p-10">
-      <div className="grid max-w-[44rem] gap-6 md:grid-cols-[0.58fr_0.42fr]">
-        <div className="space-y-3">
-          {[
-            "World model (optimized)",
-            "Route and task notes",
-            "Asset bundle",
-            "Metadata & maps",
-            "Hosted review notes",
-            "Export decision",
-          ].map((item, index) => (
-            <div
-              key={item}
-              className="rounded-[1.1rem] border border-white/10 bg-slate-950 px-5 py-4 text-sm font-medium text-white shadow-[0_18px_34px_-28px_rgba(15,23,42,0.55)]"
-              style={{ marginLeft: `${index * 8}px` }}
-            >
-              {item}
-            </div>
-          ))}
-        </div>
-        <div className="space-y-4">
-          <div className="rounded-[1.7rem] border border-black/10 bg-slate-950 p-6 text-white shadow-[0_24px_42px_-32px_rgba(15,23,42,0.52)]">
-            <p className="text-[11px] uppercase tracking-[0.2em] text-white/40">
-              World model card
-            </p>
-            <p className="mt-5 text-[1.75rem] font-semibold leading-tight">
-              Plant 7 world model
-            </p>
-            <p className="mt-3 text-sm text-white/55">
-              Sample only · request-scoped access
-            </p>
-          </div>
-          <div className="rounded-[1.3rem] border border-black/10 bg-white px-5 py-4 shadow-[0_16px_28px_-24px_rgba(15,23,42,0.18)]">
-            <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
-              Export bundle
-            </p>
-            <p className="mt-3 text-sm leading-6 text-slate-700">
-              MP4 sessions, JSON maps, ZIP observations, logs, and package
-              metadata ready to review.
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+type VocabularyTile = {
+  eyebrow: string;
+  term: string;
+  mono: string;
+  body: string;
+};
+
+const vocabulary: VocabularyTile[] = [
+  {
+    eyebrow: "Package object",
+    term: "Site Card",
+    mono: "site_card",
+    body: "The facility itself — route context, geometry where available, and the access conditions that define the environment.",
+  },
+  {
+    eyebrow: "Package object",
+    term: "Task Card",
+    mono: "task_card",
+    body: "A single job to evaluate on the site, with the start state, success condition, and constraints made explicit.",
+  },
+  {
+    eyebrow: "Package object",
+    term: "Scenario Card",
+    mono: "scenario_card",
+    body: "A parameterized variation of a task — clutter, lighting, or starting pose — used to probe robustness across conditions.",
+  },
+  {
+    eyebrow: "Package object",
+    term: "Eval Card",
+    mono: "eval_card",
+    body: "The record of one comparison run: policies, episode counts, thresholds, and the rank-fidelity result.",
+  },
+  {
+    eyebrow: "Trust artifact",
+    term: "Rights packet",
+    mono: "rights_packet",
+    body: "The use-scope, consent, and commercialization terms attached to the capture and carried into every export.",
+  },
+  {
+    eyebrow: "Trust artifact",
+    term: "Provenance record",
+    mono: "provenance_record",
+    body: "The chain of custody — capturer, device, timestamps, and processing steps — proving where each value came from.",
+  },
+];
+
+type TruthRow = {
+  num: string;
+  label: string;
+  tone: "proof" | "info" | "warn";
+  chip: string;
+  accent: string;
+  body: string;
+};
+
+const truthHierarchy: TruthRow[] = [
+  {
+    num: "01",
+    label: "Raw capture",
+    tone: "proof",
+    chip: "Proof",
+    accent: "#1f6b4f",
+    body: "The recorded walkthrough, geometry, and timestamps from the real site. This is the only ground truth — everything else is derived from or measured against it.",
+  },
+  {
+    num: "02",
+    label: "Derived data",
+    tone: "info",
+    chip: "Info",
+    accent: "#2563a6",
+    body: "Maps, segmentations, and metrics computed from the capture. Reliable for review, but labeled as derived so it is never mistaken for the raw record itself.",
+  },
+  {
+    num: "03",
+    label: "Sim preflight",
+    tone: "warn",
+    chip: "Advisory",
+    accent: "#9a6a16",
+    body: "Simulated rollouts run before field time. Useful for ranking and triage, but an estimate of relative readiness — not a measurement of how the policy behaves on the floor.",
+  },
+  {
+    num: "04",
+    label: "Generated media",
+    tone: "warn",
+    chip: "Review support",
+    accent: "#9a6a16",
+    body: "Rendered or generated clips that help a reviewer reason about a run. Always labeled as review support, never presented as real-world proof of an outcome.",
+  },
+];
+
+const surfaceTiles = [
+  {
+    eyebrow: "Surface",
+    label: "Capture",
+    description:
+      "The SwiftUI capture app vetted capturers use to record the route, with live coverage and provenance cues.",
+    href: "/for-site-operators",
+  },
+  {
+    eyebrow: "Surface",
+    label: "Buyer app",
+    description:
+      "Where robot teams configure runs per site, compare policies, and export data packages inside their access scope.",
+    href: "/for-robot-teams",
+  },
+  {
+    eyebrow: "Surface",
+    label: "Ops console",
+    description:
+      "Internal queue, evidence review, and proof-safe buyer handoff — keeping rights and coverage visible end to end.",
+    href: "/contact",
+  },
+  {
+    eyebrow: "Surface",
+    label: "Public listings",
+    description:
+      "Sample site packages anyone can inspect to see how capture, framing, and the proof boundary hold together.",
+    href: "/pricing",
+  },
+];
 
 export default function HowItWorks() {
   return (
     <>
       <SEO
         title="How It Works | Blueprint"
-        description="See how Blueprint moves from indoor capture to site package, grounded world model, hosted review, and export or recapture decision."
+        description="Capture first, package the proof, evaluate policies, and decide the next test. See how Blueprint moves from a real indoor capture to a rank-fidelity comparison without overclaiming readiness."
         canonical="/how-it-works"
       />
 
-      <div className="bg-[#f3f1ec] text-slate-950">
-        <section className="border-b border-black/10 bg-[radial-gradient(circle_at_top_left,_rgba(0,0,0,0.06),_transparent_28%),linear-gradient(180deg,#f7f5f1_0%,#efede7_100%)]">
-          <div className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
-            <div className="grid gap-8 lg:grid-cols-[0.37fr_0.63fr]">
-              <div className="pt-16 lg:pt-24">
-                <EditorialSectionLabel>How It Works</EditorialSectionLabel>
-                <h1 className="font-editorial mt-8 text-[3.8rem] leading-[0.9] tracking-[-0.06em] sm:text-[5.2rem]">
-                  Indoor capture to readiness report.
-                </h1>
-                <p className="mt-6 max-w-[18rem] text-sm uppercase tracking-[0.2em] text-slate-500">
-                  Street View grounds outdoor places. Blueprint captures indoor
-                  routes robots need.
-                </p>
-                <p className="mt-5 max-w-[19rem] text-xs leading-6 text-slate-500">
-                  Any sample values on this page are illustrative unless a
-                  listing marks them as approved real-site proof.
-                </p>
-              </div>
+      {/* Hero */}
+      <section className="relative isolate overflow-hidden bg-ink">
+        <MonochromeMedia
+          src="/redesign/pov/route-scan.jpg"
+          alt="Capturer scanning an indoor facility route"
+          loading="eager"
+          radius="none"
+          overlay="heroL"
+          className="absolute inset-0 h-full w-full"
+          imageClassName="h-full w-full"
+        />
+        <RouteTraceOverlay className="opacity-90" />
+        <div className="relative mx-auto flex min-h-[34rem] max-w-[88rem] flex-col justify-end px-5 pb-14 pt-28 sm:px-8 lg:px-10 lg:pb-20 lg:pt-36">
+          <div className="max-w-[44rem]">
+            <Eyebrow tone="onInk" rule>
+              How it works
+            </Eyebrow>
+            <h1 className="mt-5 font-display text-[clamp(2.6rem,5vw,4.4rem)] font-medium leading-[1.02] tracking-[-0.045em] text-[color:var(--text-on-ink)]">
+              Capture first. Package the proof. Decide the next test.
+            </h1>
+            <p className="mt-5 max-w-[34rem] text-[1.05rem] leading-[1.7] text-[color:var(--text-on-ink)] opacity-80">
+              Blueprint turns one real indoor capture into a versioned, rights-attached
+              package that robot teams can evaluate against — so the next test is a
+              decision, not a guess.
+            </p>
+            <div className="mt-7 flex flex-wrap gap-2">
+              <ProofChip light>Capture-backed</ProofChip>
+              <ProofChip light>Provenance attached</ProofChip>
+              <ProofChip light>Rank fidelity, not guarantees</ProofChip>
+            </div>
+          </div>
+        </div>
+      </section>
 
-              <div className="relative min-h-[34rem]">
-                <div className="absolute right-[4%] top-0 z-20 rotate-[1deg] rounded-[0.2rem] bg-white px-5 py-4 shadow-[0_16px_30px_-20px_rgba(15,23,42,0.24)]">
-                  <p className="font-editorial text-[1.1rem] italic">
-                    Sample flow: indoor route
-                  </p>
-                  <p className="mt-2 text-sm text-slate-700">
-                    Capture basis: request-scoped
-                  </p>
-                  <p className="text-sm text-slate-700">
-                    Proof: labeled sample
-                  </p>
-                </div>
-                <div className="absolute left-[22%] right-[8%] top-[2.5rem] rounded-[1.3rem] border border-black/10 bg-white p-3 shadow-[0_24px_44px_-26px_rgba(15,23,42,0.2)]">
-                  <div className="grid gap-3 md:grid-cols-3">
-                    {[
-                      editorialGeneratedAssets.warehouseAisle,
-                      editorialGeneratedAssets.proofBoardDeliverables,
-                      humanoidReadinessAssets.loadingDock,
-                    ].map((src) => (
-                      <MonochromeMedia
-                        key={src}
-                        src={src}
-                        alt="Capture frame"
-                        className="aspect-[4/3] border border-black/10"
-                        overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.06),rgba(0,0,0,0.2))]"
-                      />
-                    ))}
-                  </div>
-                </div>
-                <div className="absolute left-4 right-4 top-[11rem] z-10 rotate-[-2deg] overflow-hidden rounded-[1.4rem] border border-black/10 bg-slate-950 p-4 shadow-[0_28px_50px_-28px_rgba(15,23,42,0.4)] sm:left-[18%] sm:right-auto">
-                  <svg
-                    viewBox="0 0 380 220"
-                    className="h-[11.5rem] w-full max-w-[18rem] sm:h-[13rem] sm:w-[18rem]"
+      {/* Pipeline */}
+      <section className="bg-canvas">
+        <div className="mx-auto max-w-[88rem] px-5 py-16 sm:px-8 lg:px-10 lg:py-24">
+          <EditorialSectionIntro
+            eyebrow="The pipeline"
+            title="Four steps from real site to a decision."
+            description="Each step produces an artifact the next one depends on. Nothing is asserted that the capture cannot support."
+          />
+
+          <div className="mt-12 flex flex-col gap-px overflow-hidden rounded-md border border-line bg-[#ded7c8]">
+            {pipelineSteps.map((stage) => (
+              <article
+                key={stage.step}
+                className="grid bg-white lg:grid-cols-[0.34fr_0.66fr]"
+              >
+                <div className="relative min-h-[15rem] border-b border-line lg:border-b-0 lg:border-r">
+                  <MonochromeMedia
+                    src={stage.src}
+                    alt={stage.alt}
+                    radius="none"
+                    overlay="bg"
+                    className="h-full w-full"
+                    imageClassName="h-full w-full"
+                  />
+                  <StatusChip
+                    tone="ink"
+                    square
+                    dot={false}
+                    className="absolute left-4 top-4 border-brass/40 bg-ink text-brass"
                   >
-                    <rect
-                      x="18"
-                      y="18"
-                      width="344"
-                      height="184"
-                      rx="22"
-                      fill="rgba(255,255,255,0.03)"
-                    />
-                    <path
-                      d="M28 44H352"
-                      stroke="rgba(255,255,255,0.12)"
-                      strokeDasharray="6 8"
-                    />
-                    <path
-                      d="M52 176C112 176 118 74 182 74C228 74 230 138 298 138C322 138 334 108 342 108"
-                      fill="none"
-                      stroke="rgba(255,255,255,0.88)"
-                      strokeWidth="5"
-                      strokeLinecap="round"
-                    />
-                    {[52, 182, 298, 342].map((cx, index) => (
-                      <circle
-                        key={cx}
-                        cx={cx}
-                        cy={[176, 74, 138, 108][index]}
-                        r="7"
-                        fill="white"
-                      />
-                    ))}
-                  </svg>
+                    Step {stage.step} · {stage.badge}
+                  </StatusChip>
                 </div>
-                <div className="absolute bottom-0 left-[10%] right-0 grid gap-3 rounded-[1.4rem] border border-black/10 bg-white/90 p-3 shadow-[0_18px_36px_-22px_rgba(15,23,42,0.16)] md:grid-cols-5">
-                  {[
-                    editorialGeneratedAssets.warehouseAisle,
-                    editorialGeneratedAssets.proofBoardDeliverables,
-                    humanoidReadinessAssets.loadingDock,
-                    editorialGeneratedAssets.operatorControlEntry,
-                    editorialGeneratedAssets.groceryBackroom,
-                  ].map((src, index) => (
-                    <MonochromeMedia
-                      key={`${src}-${index}`}
-                      src={src}
-                      alt="Timeline frame"
-                      className="aspect-[16/10] border border-black/10"
-                      overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.06),rgba(0,0,0,0.14))]"
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="mx-auto max-w-[88rem] border-x border-black/10">
-          <div className="grid min-h-[32rem] lg:grid-cols-[0.32fr_0.68fr]">
-            <ChapterLabel {...chapterCards[0]} />
-            <div className="relative border-t border-black/10 lg:border-t-0">
-              <MonochromeMedia
-                src={editorialGeneratedAssets.operatorControlEntry}
-                alt="Capture proof"
-                className="h-full rounded-none"
-                imageClassName="h-full"
-                overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.14),rgba(0,0,0,0.42))]"
-              >
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.14),transparent_52%)]" />
-                <div className="absolute inset-y-0 left-[8%] w-px bg-white/25" />
-                <div className="absolute inset-y-0 left-[18%] w-px bg-white/20" />
-                <div className="absolute inset-y-0 right-[18%] w-px bg-white/20" />
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_26%_40%,rgba(255,255,255,0.18)_0_2px,transparent_2px_100%)] bg-[size:14px_14px] opacity-40" />
-                <div className="absolute bottom-6 right-6 w-[10rem] rounded-[1.1rem] border border-white/15 bg-black/40 p-3 text-white">
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-white/50">
-                    Scan path
+                <div className="flex flex-col justify-center gap-4 p-6 lg:p-10">
+                  <Eyebrow tone="brass">{stage.badge}</Eyebrow>
+                  <h3 className="font-display text-[1.7rem] font-medium leading-[1.05] tracking-[-0.03em] text-ink-900">
+                    {stage.title}
+                  </h3>
+                  <p className="max-w-[40rem] text-[15px] leading-[1.7] text-ink-500">
+                    {stage.body}
                   </p>
-                  <div className="mt-3 rounded-[0.9rem] border border-white/10 bg-black/50 p-2">
-                    <svg viewBox="0 0 140 110" className="h-20 w-full">
-                      <path
-                        d="M10 90C26 90 22 26 50 26C76 26 78 82 114 82C124 82 130 56 132 56"
-                        fill="none"
-                        stroke="rgba(255,255,255,0.82)"
-                        strokeWidth="4"
-                        strokeLinecap="round"
-                      />
-                    </svg>
+                  <ul className="mt-1 flex flex-wrap gap-2">
+                    {stage.proof.map((item) => (
+                      <li
+                        key={item}
+                        className="inline-flex items-center gap-2 border border-line bg-inset px-[0.6rem] py-1 font-mono text-[11px] uppercase tracking-[0.08em] text-ink-600"
+                      >
+                        <span
+                          aria-hidden="true"
+                          className="h-[0.4rem] w-[0.4rem] shrink-0 rounded-full bg-brass"
+                        />
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Vocabulary */}
+      <section className="border-y border-line bg-paper">
+        <div className="mx-auto max-w-[88rem] px-5 py-16 sm:px-8 lg:px-10 lg:py-24">
+          <EditorialSectionIntro
+            eyebrow="The vocabulary"
+            title="The objects a package is built from."
+            description="Every Blueprint package is assembled from the same named parts. The mono identifiers are how each object is referenced across the app, the API, and the manifest."
+          />
+
+          <TileGrid cols={3} className="mt-12">
+            {vocabulary.map((item) => {
+              const Icon =
+                item.mono === "site_card"
+                  ? MapPin
+                  : item.mono === "task_card"
+                    ? ClipboardList
+                    : item.mono === "scenario_card"
+                      ? GitCompareArrows
+                      : item.mono === "eval_card"
+                        ? FileCheck2
+                        : item.mono === "rights_packet"
+                          ? ShieldCheck
+                          : Boxes;
+              return (
+                <div key={item.mono} className="flex h-full flex-col gap-4 bg-white p-6">
+                  <div className="flex items-center justify-between">
+                    <Eyebrow tone="muted">{item.eyebrow}</Eyebrow>
+                    <Icon
+                      className="h-5 w-5 text-brass"
+                      strokeWidth={1.75}
+                      aria-hidden="true"
+                    />
+                  </div>
+                  <div>
+                    <h3 className="text-title-m font-semibold tracking-tight text-ink-900">
+                      {item.term}
+                    </h3>
+                    <p className="mt-1 font-mono text-[13px] text-ink-500">
+                      {item.mono}
+                    </p>
+                  </div>
+                  <p className="text-sm leading-[1.65] text-ink-500">{item.body}</p>
+                </div>
+              );
+            })}
+          </TileGrid>
+        </div>
+      </section>
+
+      {/* Truth hierarchy */}
+      <section className="bg-canvas">
+        <div className="mx-auto max-w-[88rem] px-5 py-16 sm:px-8 lg:px-10 lg:py-24">
+          <EditorialSectionIntro
+            eyebrow="Truth hierarchy"
+            title="Not every value is proof."
+            description="Blueprint keeps a strict order of trust. The raw capture is the only ground truth; everything derived, simulated, or generated is labeled as exactly that."
+          />
+
+          <div className="mt-12 grid gap-8 lg:grid-cols-[0.62fr_0.38fr] lg:items-start">
+            <div className="flex flex-col gap-3">
+              {truthHierarchy.map((row) => (
+                <div
+                  key={row.num}
+                  className="flex items-start gap-4 rounded-sm border border-line bg-white p-5"
+                  style={{ borderLeft: `3px solid ${row.accent}` }}
+                >
+                  <span className="font-mono text-[1.4rem] font-medium leading-none text-ink-300">
+                    {row.num}
+                  </span>
+                  <div className="flex min-w-0 flex-col gap-2">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <h3 className="text-[1.05rem] font-semibold tracking-[-0.02em] text-ink-900">
+                        {row.label}
+                      </h3>
+                      <StatusChip tone={row.tone} square>
+                        {row.chip}
+                      </StatusChip>
+                    </div>
+                    <p className="text-sm leading-[1.65] text-ink-500">{row.body}</p>
                   </div>
                 </div>
-              </MonochromeMedia>
-            </div>
-          </div>
-
-          <div className="grid min-h-[26rem] border-t border-black/10 lg:grid-cols-[0.32fr_0.68fr]">
-            <ChapterLabel {...chapterCards[1]} />
-            <div className="border-t border-black/10 lg:border-t-0">
-              <PackagePanel />
-            </div>
-          </div>
-
-          <div className="grid min-h-[28rem] border-t border-black/10 lg:grid-cols-[0.32fr_0.68fr]">
-            <ChapterLabel {...chapterCards[2]} />
-            <div className="relative border-t border-black/10 bg-slate-950 lg:border-t-0">
-              <MonochromeMedia
-                src={humanoidReadinessAssets.manufacturing}
-                alt="Run overlay"
-                className="h-full rounded-none"
-                imageClassName="h-full"
-                overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.2),rgba(0,0,0,0.62))]"
-              >
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.16)_0_1px,transparent_1px_100%)] bg-[size:12px_12px] opacity-40" />
-                <RouteTraceOverlay className="opacity-90" />
-                <div className="absolute bottom-6 right-6 w-[13rem] rounded-[1.2rem] border border-white/10 bg-black/40 p-4 text-white shadow-[0_18px_36px_-24px_rgba(0,0,0,0.5)]">
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">
-                    World model preview
-                  </p>
-                  <p className="mt-4 text-sm leading-6 text-white/70">
-                    Route overlays, robot pose, and site geometry remain tied to
-                    the same package truth.
-                  </p>
-                </div>
-              </MonochromeMedia>
-            </div>
-          </div>
-
-          <div className="grid min-h-[26rem] border-t border-black/10 lg:grid-cols-[0.32fr_0.68fr]">
-            <ChapterLabel {...chapterCards[3]} />
-            <div className="border-t border-black/10 lg:border-t-0">
-              <DeliverPanel />
-            </div>
-          </div>
-        </section>
-
-        <section className="border-y border-black/10 bg-white">
-          <div className="mx-auto grid max-w-[88rem] gap-px px-5 py-10 sm:px-8 lg:grid-cols-[0.34fr_0.66fr] lg:px-10 lg:py-12">
-            <div className="bg-slate-950 px-6 py-8 text-white lg:px-8 lg:py-10">
-              <EditorialSectionLabel light>
-                Who uses the flow
-              </EditorialSectionLabel>
-              <h2 className="font-editorial mt-5 text-[3rem] leading-[0.95] tracking-[-0.05em]">
-                Teams, robot agents, and Blueprint agents have different jobs.
-              </h2>
-              <p className="mt-5 text-sm leading-7 text-white/70">
-                The workflow keeps product buyers, API-driven robot agents, and
-                internal routing agents separate so no page implies unsupported
-                access or automated fulfillment.
-              </p>
-            </div>
-            <div className="grid gap-px bg-black/10 md:grid-cols-3">
-              {audienceRows.map((row) => (
-                <article key={row.title} className="bg-white p-6">
-                  <h3 className="text-base font-semibold text-slate-950">
-                    {row.title}
-                  </h3>
-                  <p className="mt-3 text-sm leading-7 text-slate-600">
-                    {row.body}
-                  </p>
-                </article>
               ))}
             </div>
-          </div>
-        </section>
 
-        <section className="mx-auto max-w-[88rem] px-5 pb-16 pt-8 sm:px-8 lg:px-10 lg:pb-20">
-          <div className="grid gap-6 overflow-hidden rounded-[2rem] border border-black/10 bg-slate-950 px-6 py-8 text-white lg:grid-cols-[0.5fr_0.5fr] lg:px-8">
-            <MonochromeMedia
-              src={humanoidReadinessAssets.loadingDock}
-              alt="Call to action background"
-              className="min-h-[14rem] border border-white/10"
-              overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.16),rgba(0,0,0,0.52))]"
-            />
-            <div className="flex flex-col justify-center">
-              <ProofChip light>Real site. Real route. Real package.</ProofChip>
-              <h2 className="font-editorial mt-5 text-[3rem] leading-[0.95] tracking-[-0.05em]">
-                See the indoor site before field time.
-              </h2>
-              <p className="mt-4 max-w-[28rem] text-sm leading-7 text-white/70">
-                The public sample listing shows how capture, package framing,
-                and policy evaluation sets stay attached to one facility without
-                claiming live fulfillment.
+            <ProofBoundary
+              level="proof"
+              title="Never overclaimed"
+              icon={ShieldCheck}
+              className="lg:sticky lg:top-24"
+            >
+              <p>
+                Derived metrics, simulated preflight, and generated media are useful for
+                review and ranking — but they are always labeled as such and never
+                presented as real-world proof of an outcome.
               </p>
-              <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-                <a
-                  href={publicDemoHref}
-                  className="inline-flex items-center justify-center rounded-full bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
-                >
-                  Open sample site package
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </a>
-                <a
-                  href="/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=how-it-works"
-                  className="inline-flex items-center justify-center rounded-full border border-white/15 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/5"
-                >
-                  Request evaluation
-                </a>
-              </div>
-            </div>
+              <p className="mt-3">
+                Blueprint reports rank fidelity and estimates of relative readiness. It
+                does not claim a policy is &ldquo;deployment ready&rdquo; or guarantee
+                field success.
+              </p>
+            </ProofBoundary>
           </div>
-        </section>
-      </div>
+        </div>
+      </section>
+
+      {/* Four surfaces */}
+      <section className="border-y border-line bg-paper">
+        <div className="mx-auto max-w-[88rem] px-5 py-16 sm:px-8 lg:px-10 lg:py-24">
+          <EditorialSectionIntro
+            eyebrow="Four surfaces"
+            title="One pipeline, four places it shows up."
+            description="The same capture-first truth chain runs across every surface — from the capturer's phone to the public listing."
+          />
+          <TileGrid cols={4} items={surfaceTiles} className="mt-12" />
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className="bg-canvas">
+        <div className="mx-auto max-w-[88rem] px-5 pb-20 sm:px-8 lg:px-10 lg:pb-28">
+          <EditorialCtaBand
+            eyebrow="See it on a real site"
+            title="Inspect a sample package before you commit field time."
+            description="Open a public sample site package to see how capture, framing, and the proof boundary stay attached — or request an evaluation for your own policies."
+            imageSrc="/redesign/pov/inspection-bench.jpg"
+            imageAlt="Inspection bench workstation"
+            primaryHref="/pricing"
+            primaryLabel="See pricing"
+            secondaryHref="/contact?persona=robot-team&source=how-it-works"
+            secondaryLabel="Request evaluation"
+          />
+        </div>
+      </section>
     </>
   );
 }

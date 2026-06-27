@@ -3,7 +3,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import type { ComponentType } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { Helmet } from "react-helmet";
+import { Helmet, HelmetProvider, type HelmetServerState } from "../client/src/lib/helmet";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Router } from "wouter";
 
@@ -593,21 +593,27 @@ function renderRoute(route: StaticRoute) {
   const Page = route.component;
   const page = <Page {...(route.props || {})} />;
   const content = route.shell === "bare" ? page : <SiteLayout>{page}</SiteLayout>;
+  const helmetContext: { helmet?: HelmetServerState } = {};
   const markup = renderToStaticMarkup(
-    <Router ssrPath={route.path}>
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          {content}
-        </AuthProvider>
-      </QueryClientProvider>
-    </Router>,
+    <HelmetProvider context={helmetContext}>
+      <Router ssrPath={route.path}>
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>
+            {content}
+          </AuthProvider>
+        </QueryClientProvider>
+      </Router>
+    </HelmetProvider>,
   );
-  const helmet = Helmet.renderStatic();
+  const helmet = helmetContext.helmet;
 
   return { markup, helmet };
 }
 
-function injectHelmet(template: string, helmet: ReturnType<typeof Helmet.renderStatic>) {
+function injectHelmet(template: string, helmet: HelmetServerState | undefined) {
+  if (!helmet) {
+    return template;
+  }
   const injectedHead = [
     helmet.title.toString(),
     helmet.priority?.toString?.() ?? "",

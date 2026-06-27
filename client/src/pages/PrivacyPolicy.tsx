@@ -12,7 +12,7 @@ import { toast } from "sonner"; // You'll need to install sonner: npm install so
 import { Toaster } from "sonner";
 import ContactForm from "@/components/sections/ContactForm"; // Import your ContactForm
 import Footer from "@/components/Footer";
-import { Helmet } from "react-helmet";
+import { Helmet } from "@/lib/helmet";
 import {
   Rocket,
   MapPin,

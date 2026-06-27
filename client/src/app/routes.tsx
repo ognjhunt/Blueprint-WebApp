@@ -40,6 +40,34 @@ const AdminCompanyMetrics = lazy(() => import("../pages/AdminCompanyMetrics"));
 const Dashboard = lazy(() => import("../pages/Dashboard"));
 const OffWaitlistSignUpFlow = lazy(() => import("../pages/OffWaitlistSignUpFlow"));
 const RequestConsole = lazy(() => import("../pages/RequestConsole"));
+const DesignSystem = lazy(() => import("../pages/DesignSystem"));
+
+// Redesign — public pages (distinct surfaces per SCREENS.md)
+const About = lazy(() => import("../pages/About"));
+const Governance = lazy(() => import("../pages/Governance"));
+const HowItWorks = lazy(() => import("../pages/HowItWorks"));
+const ForRobotTeams = lazy(() => import("../pages/ForRobotTeams"));
+const ForSiteOperators = lazy(() => import("../pages/ForSiteOperators"));
+const JoinBlueprint = lazy(() => import("../pages/JoinBlueprint"));
+
+// Redesign — buyer app (mock-data demo surfaces)
+const AppOverview = lazy(() => import("../pages/app/Overview"));
+const AppRuns = lazy(() => import("../pages/app/Runs"));
+const AppRunDetail = lazy(() => import("../pages/app/RunDetail"));
+const AppSitePacks = lazy(() => import("../pages/app/SitePacks"));
+const AppSiteDetail = lazy(() => import("../pages/app/SiteDetail"));
+const AppPolicies = lazy(() => import("../pages/app/Policies"));
+const AppDataPackages = lazy(() => import("../pages/app/DataPackages"));
+const AppEntitlements = lazy(() => import("../pages/app/Entitlements"));
+
+// Redesign — ops console (mock-data demo surfaces)
+const OpsQueue = lazy(() => import("../pages/ops/Queue"));
+const OpsCaptureSupply = lazy(() => import("../pages/ops/CaptureSupply"));
+const OpsCityLaunch = lazy(() => import("../pages/ops/CityLaunch"));
+const OpsEvidenceReview = lazy(() => import("../pages/ops/EvidenceReview"));
+const OpsBuyerHandoff = lazy(() => import("../pages/ops/BuyerHandoff"));
+const OpsSpendControls = lazy(() => import("../pages/ops/SpendControls"));
+
 const NotFound = lazy(() => import("../pages/NotFound"));
 
 const HomeRedirect = () => <MarketingRedirect to="/" />;
@@ -175,8 +203,8 @@ export const appRoutes: AppRoute[] = [
   { path: "/site-worlds/:slug/workspace", layout: "public", component: LegacySiteLibraryDetailRedirect },
 
   // Persona pages
-  { path: "/for-site-operators", layout: "public", component: LegacyForSiteOperatorsRedirect },
-  { path: "/for-robot-teams", layout: "public", component: RobotTeamEval },
+  { path: "/for-site-operators", layout: "public", component: ForSiteOperators },
+  { path: "/for-robot-teams", layout: "public", component: ForRobotTeams },
   { path: "/robot-team/eval", layout: "public", component: RobotTeamEval },
   { path: "/for-robot-integrators", layout: "public", component: LegacyForRobotIntegratorsRedirect },
 
@@ -198,11 +226,11 @@ export const appRoutes: AppRoute[] = [
   { path: "/help/article/:articleSlug", layout: "public", component: ContactRedirect },
   { path: "/exact-site-hosted-review", layout: "public", component: LegacyHostedReviewRedirect },
   { path: "/book-exact-site-review", layout: "public", component: LegacyBookExactSiteReviewRedirect },
-  { path: "/how-it-works", layout: "public", component: HowItWorksRedirect },
+  { path: "/how-it-works", layout: "public", component: HowItWorks },
   { path: "/proof", layout: "public", component: Proof },
   { path: "/faq", layout: "public", component: ProofRedirect },
-  { path: "/governance", layout: "public", component: ProofRedirect },
-  { path: "/about", layout: "public", component: HomeRedirect },
+  { path: "/governance", layout: "public", component: Governance },
+  { path: "/about", layout: "public", component: About },
   { path: "/docs", layout: "public", component: LegacyDocsRedirect },
   { path: "/updates", layout: "public", component: HomeRedirect },
   { path: "/blog", layout: "public", component: LegacyBlogRedirect },
@@ -253,11 +281,33 @@ export const appRoutes: AppRoute[] = [
 
   // Dashboard
   { path: "/dashboard", layout: "protected", component: Dashboard },
+  { path: "/internal/design-system", layout: "public", shell: "bare", component: DesignSystem },
   {
     path: "/off-waitlist-signup",
     layout: "public",
     component: OffWaitlistSignUpFlow,
   },
+
+  // Redesign — sign-up (two-pane stepped wizard)
+  { path: "/join", layout: "public", shell: "bare", component: JoinBlueprint },
+
+  // Redesign — buyer app (mock-data demo; own app shell, no SiteLayout)
+  { path: "/app", layout: "public", shell: "bare", component: AppOverview },
+  { path: "/app/runs", layout: "public", shell: "bare", component: AppRuns },
+  { path: "/app/runs/:runId", layout: "public", shell: "bare", component: AppRunDetail },
+  { path: "/app/packs", layout: "public", shell: "bare", component: AppSitePacks },
+  { path: "/app/packs/:siteId", layout: "public", shell: "bare", component: AppSiteDetail },
+  { path: "/app/policies", layout: "public", shell: "bare", component: AppPolicies },
+  { path: "/app/data", layout: "public", shell: "bare", component: AppDataPackages },
+  { path: "/app/entitlements", layout: "public", shell: "bare", component: AppEntitlements },
+
+  // Redesign — ops console (mock-data demo; own ops shell, no SiteLayout)
+  { path: "/ops", layout: "public", shell: "bare", component: OpsQueue },
+  { path: "/ops/supply", layout: "public", shell: "bare", component: OpsCaptureSupply },
+  { path: "/ops/city-launch", layout: "public", shell: "bare", component: OpsCityLaunch },
+  { path: "/ops/evidence", layout: "public", shell: "bare", component: OpsEvidenceReview },
+  { path: "/ops/handoff", layout: "public", shell: "bare", component: OpsBuyerHandoff },
+  { path: "/ops/spend", layout: "public", shell: "bare", component: OpsSpendControls },
 
   // 404
   { layout: "public", component: NotFound },

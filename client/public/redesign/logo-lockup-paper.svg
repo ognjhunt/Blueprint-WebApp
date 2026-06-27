@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 64" role="img" aria-label="Blueprint">
+  <g><rect x="6" y="8" width="14" height="20" fill="#f3efe6"></rect><rect x="6" y="36" width="14" height="20" fill="#f3efe6"></rect><path d="M23 8h19.2C51.5 8 58 13.3 58 21.6c0 5.3-2.8 9.3-8 11.4 6 2 9.2 6.4 9.2 12.8C59.2 54.7 52.4 60 42 60H23V8Zm12.2 10.1v11.5h6.4c3.7 0 5.7-2.1 5.7-5.8 0-3.5-2-5.7-5.7-5.7h-6.4Zm0 21v11.1h7.1c3.8 0 6.1-2 6.1-5.5s-2.3-5.6-6.1-5.6h-7.1Z" fill="#f3efe6" fill-rule="evenodd"></path></g>
+  <text x="74" y="42" font-family="Manrope, Inter, sans-serif" font-size="34" font-weight="600" letter-spacing="-1.2" fill="#f3efe6">Blueprint</text>
+</svg>

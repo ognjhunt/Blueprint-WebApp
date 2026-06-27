@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 
 import { ArrowRight } from "lucide-react";
 
@@ -26,6 +26,10 @@ type MonochromeMediaProps = {
   overlayClassName?: string;
   children?: ReactNode;
   loading?: "eager" | "lazy";
+  /** Overlay gradient preset. `bg` top-to-dark · `heroL` left-dark for hero text · `soft` faint. */
+  overlay?: "bg" | "heroL" | "soft" | "none";
+  /** Border radius preset. Default `md`; use `none` for full-bleed. */
+  radius?: "none" | "md" | "lg" | "xl";
 };
 
 type MonochromeVideoProps = {
@@ -36,6 +40,8 @@ type MonochromeVideoProps = {
   videoClassName?: string;
   overlayClassName?: string;
   children?: ReactNode;
+  overlay?: "bg" | "heroL" | "soft" | "none";
+  radius?: "none" | "md" | "lg" | "xl";
 };
 
 type ProofChipProps = {
@@ -94,6 +100,23 @@ type FaqProps = {
   className?: string;
 };
 
+const radiusClass = {
+  none: "rounded-none",
+  md: "rounded-md",
+  lg: "rounded-lg",
+  xl: "rounded-xl",
+} as const;
+
+const overlayClass = {
+  // top -> dark, for captioned media
+  bg: "bg-[linear-gradient(180deg,rgba(13,13,11,0.04),rgba(13,13,11,0.46))]",
+  // left -> dark, anchors hero text on the left
+  heroL: "bg-[linear-gradient(90deg,rgba(13,13,11,0.78),rgba(13,13,11,0.28)_46%,rgba(13,13,11,0.06))]",
+  // faint wash
+  soft: "bg-[linear-gradient(180deg,rgba(13,13,11,0.02),rgba(13,13,11,0.16))]",
+  none: "",
+} as const;
+
 export function EditorialSectionLabel({
   children,
   light = false,
@@ -103,7 +126,7 @@ export function EditorialSectionLabel({
     <p
       className={cn(
         "text-[11px] font-semibold uppercase tracking-[0.24em]",
-        light ? "text-white opacity-70" : "text-slate-500",
+        light ? "text-[color:var(--text-on-ink)] opacity-70" : "text-ink-500",
         className,
       )}
     >
@@ -124,8 +147,9 @@ export function EditorialSectionIntro({
       <EditorialSectionLabel light={light}>{eyebrow}</EditorialSectionLabel>
       <h2
         className={cn(
-          "font-editorial mt-4 text-4xl tracking-[-0.05em] sm:text-[3.35rem]",
-          light ? "text-white" : "text-slate-950",
+          "mt-4 font-display font-medium leading-[1.02] tracking-[-0.03em]",
+          "text-[clamp(2rem,3.2vw,3.1rem)]",
+          light ? "text-[color:var(--text-on-ink)]" : "text-ink-900",
         )}
       >
         {title}
@@ -133,8 +157,8 @@ export function EditorialSectionIntro({
       {description ? (
         <p
           className={cn(
-            "mt-4 max-w-2xl text-sm leading-7",
-            light ? "text-white opacity-80" : "text-slate-600",
+            "mt-4 max-w-[40rem] text-[15px] leading-[1.7]",
+            light ? "text-[color:var(--text-on-ink)] opacity-80" : "text-ink-500",
           )}
         >
           {description}
@@ -152,24 +176,37 @@ export function MonochromeMedia({
   overlayClassName,
   children,
   loading = "lazy",
+  overlay = "bg",
+  radius = "md",
 }: MonochromeMediaProps) {
   return (
-    <div className={cn("relative overflow-hidden rounded-[2rem]", className)}>
+    <div
+      className={cn(
+        "relative overflow-hidden",
+        radiusClass[radius],
+        className,
+      )}
+    >
       <img
         src={src}
         alt={alt}
         loading={loading}
         className={cn(
-          "h-full w-full object-cover grayscale contrast-[1.02] brightness-[0.82]",
+          "h-full w-full object-cover grayscale contrast-[1.03] brightness-[0.82]",
           imageClassName,
         )}
       />
-      <div
-        className={cn(
-          "pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.05),rgba(0,0,0,0.45))]",
-          overlayClassName,
-        )}
-      />
+      {overlay !== "none" ? (
+        <div
+          className={cn(
+            "pointer-events-none absolute inset-0",
+            overlayClass[overlay],
+            overlayClassName,
+          )}
+        />
+      ) : overlayClassName ? (
+        <div className={cn("pointer-events-none absolute inset-0", overlayClassName)} />
+      ) : null}
       {children}
     </div>
   );
@@ -183,9 +220,17 @@ export function MonochromeVideo({
   videoClassName,
   overlayClassName,
   children,
+  overlay = "bg",
+  radius = "md",
 }: MonochromeVideoProps) {
   return (
-    <div className={cn("relative overflow-hidden rounded-[2rem] bg-slate-950", className)}>
+    <div
+      className={cn(
+        "relative overflow-hidden bg-ink",
+        radiusClass[radius],
+        className,
+      )}
+    >
       <video
         aria-label={title}
         autoPlay
@@ -195,18 +240,23 @@ export function MonochromeVideo({
         controls={false}
         poster={poster}
         className={cn(
-          "h-full w-full object-cover grayscale contrast-[1.02] brightness-[0.82]",
+          "h-full w-full object-cover grayscale contrast-[1.03] brightness-[0.82]",
           videoClassName,
         )}
       >
         <source src={src} type="video/mp4" />
       </video>
-      <div
-        className={cn(
-          "pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.05),rgba(0,0,0,0.45))]",
-          overlayClassName,
-        )}
-      />
+      {overlay !== "none" ? (
+        <div
+          className={cn(
+            "pointer-events-none absolute inset-0",
+            overlayClass[overlay],
+            overlayClassName,
+          )}
+        />
+      ) : overlayClassName ? (
+        <div className={cn("pointer-events-none absolute inset-0", overlayClassName)} />
+      ) : null}
       {children}
     </div>
   );
@@ -220,41 +270,47 @@ export function ProofChip({
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em]",
+        "inline-flex items-center gap-2 rounded-sm border px-[0.6rem] py-1 text-[11px] font-semibold uppercase tracking-[0.14em]",
         light
-          ? "border-white/[0.26] bg-black/[0.32] text-white"
-          : "border-black/10 bg-white/[0.88] text-slate-600",
+          ? "border-white/15 bg-black/30 text-[color:var(--text-on-ink)]"
+          : "border-line-strong bg-white/90 text-ink-600",
         className,
       )}
     >
+      <span
+        aria-hidden="true"
+        className="h-[0.4rem] w-[0.4rem] shrink-0 rounded-full bg-brass"
+      />
       {children}
     </span>
   );
 }
 
-export function EditorialMetricStrip({
-  items,
-  className,
-}: MetricStripProps) {
+export function EditorialMetricStrip({ items, className }: MetricStripProps) {
   return (
     <div
       className={cn(
-        "grid gap-px overflow-hidden rounded-[1.9rem] border border-black/10 bg-black/10 md:grid-cols-2 xl:grid-cols-4",
+        "grid gap-px overflow-hidden rounded-md border border-line bg-[#ded7c8] md:grid-cols-2 xl:grid-cols-4",
         className,
       )}
     >
       {items.map((item) => (
         <div key={item.label} className="bg-white px-5 py-5">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-ink-400">
             {item.label}
           </p>
-          <p className="mt-2 text-sm leading-6 text-slate-700">{item.detail}</p>
+          <p className="mt-2 text-sm leading-6 text-ink-600">{item.detail}</p>
         </div>
       ))}
     </div>
   );
 }
 
+/**
+ * RouteTraceOverlay — the capture-path motif. A brass dashed SVG polyline through
+ * ~5 nodes; the stroke-dashoffset animates in over ~2.6s as the signature hero
+ * flourish. Falls back to a static fully-drawn line under reduced motion.
+ */
 export function RouteTraceOverlay({
   className,
   light = true,
@@ -262,72 +318,131 @@ export function RouteTraceOverlay({
   className?: string;
   light?: boolean;
 }) {
+  const reactId = useId();
+  const gradientId = `bp-route-${reactId}`;
+  const pathRef = useRef<SVGPathElement | null>(null);
+  const [length, setLength] = useState(0);
+  const [reduced, setReduced] = useState(true);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setReduced(media.matches);
+    const handle = (event: MediaQueryListEvent) => setReduced(event.matches);
+    media.addEventListener?.("change", handle);
+    return () => media.removeEventListener?.("change", handle);
+  }, []);
+
+  useEffect(() => {
+    if (pathRef.current) {
+      setLength(pathRef.current.getTotalLength());
+    }
+  }, []);
+
+  const nodes: Array<[number, number]> = [
+    [122, 352],
+    [318, 268],
+    [548, 410],
+    [792, 302],
+    [972, 356],
+  ];
+
+  const linePath =
+    "M122 352C223 352 232 268 318 268C423 268 408 410 548 410C672 410 676 302 792 302C880 302 904 348 972 356";
+
+  const stroke = light ? "var(--bp-brass)" : "var(--bp-brass-deep)";
+  const nodeFill = light ? "var(--bp-brass-lit)" : "var(--bp-brass-deep)";
+  const animate = !reduced && length > 0;
+
   return (
     <svg
       viewBox="0 0 1200 520"
       aria-hidden="true"
+      preserveAspectRatio="xMidYMid slice"
       className={cn("pointer-events-none absolute inset-0 h-full w-full", className)}
     >
+      <defs>
+        <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor={stroke} stopOpacity="0.35" />
+          <stop offset="100%" stopColor={stroke} stopOpacity="0.95" />
+        </linearGradient>
+      </defs>
       <path
-        d="M122 352C223 352 232 268 318 268C423 268 408 410 548 410C672 410 676 302 792 302C910 302 930 392 1084 392"
+        ref={pathRef}
+        d={linePath}
         fill="none"
-        stroke={light ? "rgba(255,255,255,0.84)" : "rgba(15,23,42,0.88)"}
-        strokeWidth="4"
+        stroke={`url(#${gradientId})`}
+        strokeWidth="2.5"
         strokeLinecap="round"
         strokeLinejoin="round"
+        strokeDasharray="10 9"
+        style={
+          animate
+            ? {
+                strokeDashoffset: length,
+                animation: "bp-route-trace 2600ms cubic-bezier(0.16,1,0.3,1) forwards",
+              }
+            : undefined
+        }
       />
-      {[122, 318, 548, 792, 972].map((cx, index) => (
-        <g key={cx}>
-          <circle
-            cx={cx}
-            cy={[352, 268, 410, 302, 356][index]}
-            r="9"
-            fill={light ? "rgba(255,255,255,0.92)" : "rgba(15,23,42,0.92)"}
-          />
-          <circle
-            cx={cx}
-            cy={[352, 268, 410, 302, 356][index]}
-            r="22"
-            fill={light ? "rgba(255,255,255,0.12)" : "rgba(15,23,42,0.12)"}
-          />
+      {nodes.map(([cx, cy], index) => (
+        <g key={`${cx}-${cy}`}>
+          <circle cx={cx} cy={cy} r="14" fill={stroke} fillOpacity="0.12" />
+          <circle cx={cx} cy={cy} r="5.5" fill={nodeFill} />
+          {index === 0 || index === nodes.length - 1 ? (
+            <circle
+              cx={cx}
+              cy={cy}
+              r="9"
+              fill="none"
+              stroke={stroke}
+              strokeWidth="1"
+              strokeOpacity="0.6"
+            />
+          ) : null}
         </g>
       ))}
+      <style>{`
+        @keyframes bp-route-trace { to { stroke-dashoffset: 0; } }
+        @media (prefers-reduced-motion: reduce) {
+          svg [style*="bp-route-trace"] { animation: none !important; stroke-dashoffset: 0 !important; }
+        }
+      `}</style>
     </svg>
   );
 }
 
-export function EditorialFilmstrip({
-  frames,
-  className,
-}: FilmstripProps) {
+export function EditorialFilmstrip({ frames, className }: FilmstripProps) {
+  const perf =
+    "h-1.5 bg-[repeating-linear-gradient(90deg,rgba(255,255,255,0.18)_0_8px,transparent_8px_20px)]";
   return (
     <div
       className={cn(
-        "rounded-[1.8rem] border border-white/10 bg-black/55 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]",
+        "rounded-lg border border-white/10 bg-ink p-4 shadow-ink",
         className,
       )}
     >
-      <div className="mb-3 h-2 rounded-full bg-[linear-gradient(90deg,rgba(255,255,255,0.16)_0_8px,transparent_8px_20px)] bg-[length:20px_100%]" />
+      <div className={cn("mb-3 rounded-xs", perf)} />
       <div className="grid gap-3 md:grid-cols-5">
         {frames.map((frame) => (
           <div
             key={`${frame.src}-${frame.time || frame.title || frame.alt}`}
-            className="overflow-hidden rounded-[1.1rem] border border-white/10 bg-black"
+            className="overflow-hidden rounded-md border border-white/10 bg-black"
           >
             <img
               src={frame.src}
               alt={frame.alt}
               loading="lazy"
-              className="aspect-[16/9] w-full object-cover grayscale"
+              className="aspect-[16/9] w-full object-cover grayscale contrast-[1.03] brightness-[0.82]"
             />
-            <div className="flex items-center justify-between px-3 py-2 text-[11px] font-medium uppercase tracking-[0.16em] text-white/60">
+            <div className="flex items-center justify-between px-3 py-2 font-mono text-[11px] uppercase tracking-[0.14em] text-white/60">
               <span>{frame.time || frame.title || "Frame"}</span>
               <span>{frame.title || "Review"}</span>
             </div>
           </div>
         ))}
       </div>
-      <div className="mt-3 h-2 rounded-full bg-[linear-gradient(90deg,rgba(255,255,255,0.16)_0_8px,transparent_8px_20px)] bg-[length:20px_100%]" />
+      <div className={cn("mt-3 rounded-xs", perf)} />
     </div>
   );
 }
@@ -347,14 +462,11 @@ export function EditorialCtaBand({
   dark = true,
   className,
 }: CtaBandProps) {
-  const textTone = dark ? "text-white" : "text-slate-950";
-  const bodyTone = dark ? "text-white/75" : "text-slate-600";
-
   return (
     <section
       className={cn(
-        "relative overflow-hidden rounded-[2.2rem] border border-black/10 px-6 py-8 shadow-[0_26px_70px_-52px_rgba(15,23,42,0.48)] sm:px-8 lg:px-10 lg:py-10",
-        dark ? "bg-slate-950" : "bg-white",
+        "relative overflow-hidden rounded-xl border px-6 py-8 shadow-lg sm:px-8 lg:px-10 lg:py-10",
+        dark ? "border-white/10 bg-ink" : "border-line bg-white",
         className,
       )}
     >
@@ -363,40 +475,46 @@ export function EditorialCtaBand({
           src={imageSrc}
           alt={imageAlt}
           loading="eager"
-          className="h-full rounded-none"
+          radius="none"
+          overlay="none"
+          className="h-full"
           imageClassName="h-full"
-          overlayClassName={dark ? "bg-[linear-gradient(90deg,rgba(15,23,42,0.85),rgba(15,23,42,0.14))]" : "bg-[linear-gradient(90deg,rgba(255,255,255,0.82),rgba(255,255,255,0.12))]"}
+          overlayClassName={
+            dark
+              ? "bg-[linear-gradient(90deg,rgba(13,13,11,0.96),rgba(13,13,11,0.55)_42%,rgba(13,13,11,0.12))]"
+              : "bg-[linear-gradient(90deg,rgba(245,241,232,0.96),rgba(245,241,232,0.5)_42%,rgba(245,241,232,0.1))]"
+          }
         />
       </div>
       <div className="relative max-w-[34rem]">
-        <EditorialSectionLabel light={dark}>{eyebrow}</EditorialSectionLabel>
-        <h2 className={cn("font-editorial mt-4 text-4xl tracking-[-0.05em] sm:text-[3rem]", textTone)}>
-          {title}
-        </h2>
-        <p className={cn("mt-4 text-sm leading-7", bodyTone)}>{description}</p>
+        <EditorialSectionIntro
+          eyebrow={eyebrow}
+          title={title}
+          description={description}
+          light={dark}
+        />
         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
           <a
             href={primaryHref}
             onClick={primaryOnClick}
             className={cn(
-              "inline-flex items-center justify-center rounded-full px-6 py-3 text-sm font-semibold transition",
-              dark
-                ? "bg-white text-slate-950 hover:bg-slate-100"
-                : "bg-slate-950 text-white hover:bg-slate-800",
+              "inline-flex h-[2.625rem] items-center justify-center gap-2 rounded-sm bg-brass px-[1.125rem] text-sm font-semibold tracking-[-0.01em] text-ink",
+              "transition-[background-color,transform] duration-200 ease-standard hover:bg-brass-lit active:translate-y-px",
             )}
           >
             {primaryLabel}
-            <ArrowRight className="ml-2 h-4 w-4" />
+            <ArrowRight className="h-4 w-4" />
           </a>
           {secondaryHref && secondaryLabel ? (
             <a
               href={secondaryHref}
               onClick={secondaryOnClick}
               className={cn(
-                "inline-flex items-center justify-center rounded-full border px-6 py-3 text-sm font-semibold transition",
+                "inline-flex h-[2.625rem] items-center justify-center rounded-sm px-[1.125rem] text-sm font-semibold tracking-[-0.01em]",
+                "transition-[background-color,transform] duration-200 ease-standard active:translate-y-px",
                 dark
-                  ? "border-white/15 text-white hover:bg-white/5"
-                  : "border-black/10 text-slate-950 hover:bg-slate-50",
+                  ? "text-[color:var(--text-on-ink)] hover:bg-white/5"
+                  : "text-ink hover:bg-inset",
               )}
             >
               {secondaryLabel}
@@ -417,23 +535,23 @@ export function EditorialFaq({
   return (
     <div
       className={cn(
-        "grid gap-6 rounded-[2rem] border border-black/10 bg-white p-6 shadow-[0_20px_60px_-42px_rgba(15,23,42,0.22)] lg:grid-cols-[0.34fr_0.66fr]",
+        "grid gap-6 rounded-lg border border-line bg-white p-6 shadow-md lg:grid-cols-[0.34fr_0.66fr]",
         className,
       )}
     >
       <div>
         <EditorialSectionLabel>{title}</EditorialSectionLabel>
         {description ? (
-          <p className="mt-4 text-sm leading-7 text-slate-600">{description}</p>
+          <p className="mt-4 text-sm leading-[1.7] text-ink-500">{description}</p>
         ) : null}
       </div>
-      <div className="divide-y divide-black/10">
+      <div className="divide-y divide-line-soft">
         {items.map((item, index) => (
           <article key={`${item.question}-${index}`} className="py-4">
-            <h3 className="text-left text-base font-medium text-slate-900">
+            <h3 className="text-left text-base font-medium text-ink-900">
               {item.question}
             </h3>
-            <p className="mt-2 text-sm leading-7 text-slate-600">
+            <p className="mt-2 text-sm leading-[1.7] text-ink-500">
               {item.answer}
             </p>
           </article>
