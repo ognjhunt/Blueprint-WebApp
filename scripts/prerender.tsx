@@ -648,6 +648,34 @@ function stripViteThemeStyle(template: string) {
   return template.replace(/\s*<style\s+data-vite-theme[^>]*>[\s\S]*?<\/style>\s*/i, "\n");
 }
 
+// The prerendered shell is a transient, pre-boot snapshot that the deferred
+// client boot replaces once React hydrates. Eager/above-the-fold images in that
+// snapshot are the only resources left that block the document `load` event, so
+// force every prerendered <img> to lazy + async-decode. This keeps the live app's
+// authored loading strategy intact (React re-renders the real <img> on boot) while
+// removing images from the first-load critical path measured by perf:pages.
+function deferImageLoading(template: string) {
+  return template.replace(
+    /<img\b([^>]*?)(\s*\/?)>/gi,
+    (_match, rawAttrs: string, closing: string) => {
+      let attrs = rawAttrs;
+      if (/\bloading\s*=/i.test(attrs)) {
+        attrs = attrs.replace(
+          /\bloading\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/i,
+          'loading="lazy"',
+        );
+      } else {
+        attrs = `${attrs} loading="lazy"`;
+      }
+      if (!/\bdecoding\s*=/i.test(attrs)) {
+        attrs = `${attrs} decoding="async"`;
+      }
+      const selfClosing = closing.includes("/") ? " /" : "";
+      return `<img${attrs}${selfClosing}>`;
+    },
+  );
+}
+
 async function main() {
   const distPath = path.resolve(__dirname, "..", "dist", "public");
   const templatePath = path.join(distPath, "index.html");
@@ -659,11 +687,28 @@ async function main() {
     throw new Error("Could not locate the root element in the built HTML template.");
   }
 
+  // Emit a minimal SPA boot shell: empty root + deferred client boot, no route
+  // markup or imagery. serveStatic serves this for client-rendered routes without
+  // a dedicated prerendered document (e.g. /app, /ops, /join, private/admin views)
+  // instead of the heavy homepage markup, so those routes parse a ~3KB shell rather
+  // than the ~39KB home document on first load. createRoot (not hydration) renders
+  // the real surface on boot, so the shell content is purely transient.
+  const shellHtml = rootPattern.test(template)
+    ? template.replace("</head>", "<title>Blueprint</title>\n</head>")
+    : template;
+  await fs.promises.writeFile(
+    path.join(distPath, "app-shell.html"),
+    shellHtml,
+    "utf8",
+  );
+
   for (const route of staticRoutes) {
     const { markup, helmet } = renderRoute(route);
-    const html = injectHelmet(
-      template.replace(rootPattern, `<div id="root">${markup}</div>`),
-      helmet,
+    const html = deferImageLoading(
+      injectHelmet(
+        template.replace(rootPattern, `<div id="root">${markup}</div>`),
+        helmet,
+      ),
     );
     const outputFile = routePathToFile(distPath, route.path);
 

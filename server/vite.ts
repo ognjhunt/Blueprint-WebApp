@@ -74,6 +74,11 @@ export function serveStatic(app: Express, distPathOverride?: string) {
     throw new Error(`Could not read the built client index: ${indexPath}`);
   }
 
+  // Minimal SPA boot shell (empty root + deferred boot, no homepage markup/images).
+  // Used as the catch-all fallback for client-rendered routes that have no dedicated
+  // prerendered document, so they parse a ~3KB shell instead of the ~39KB homepage.
+  const shellHtml = readCachedHtml(path.resolve(distPath, "app-shell.html")) ?? indexHtml;
+
   app.use(express.static(distPath, { redirect: false }));
 
   // fall through to route-specific HTML first, then the SPA shell.
@@ -104,6 +109,6 @@ export function serveStatic(app: Express, distPathOverride?: string) {
       }
     }
 
-    res.status(200).type("html").send(indexHtml);
+    res.status(200).type("html").send(shellHtml);
   });
 }
