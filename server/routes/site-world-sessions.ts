@@ -25,7 +25,7 @@ import {
   setLiveHostedSession,
 } from "../utils/hosted-session-live-store";
 import { createHostedSessionUiToken, getHostedSessionUiCookieName, parseCookies, verifyHostedSessionUiToken } from "../utils/hosted-session-ui-auth";
-import { HostedSessionRuntimeError, readHostedRuntimeArtifactJson, resolveHostedRuntime } from "../utils/hosted-session-runtime";
+import { HostedSessionRuntimeError, resolveHostedRuntime } from "../utils/hosted-session-runtime";
 import {
   PresentationDemoRuntimeError,
   launchPresentationDemoRuntime,
@@ -82,6 +82,7 @@ import {
   normalizeEpisodeSummary,
 } from "../utils/hosted-session-summaries";
 import { runtimeBinaryRequest } from "../utils/hosted-session-runtime-transport";
+import { authoritativeFrameArtifactUriForSession } from "../utils/hosted-session-artifacts";
 
 const protectedRouter = Router();
 export const publicSiteWorldSessionsRouter = Router();
@@ -643,65 +644,6 @@ function buildSessionCreateResponse(record: HostedSessionRecord) {
     uiMode: record.presentationRuntime?.status === "live" ? "embedded" : "redirect",
     workspaceUrl: buildWorkspaceUrl(record.site.siteWorldId, record.sessionId),
   };
-}
-
-function preferredPublishedArtifactBucket(session: HostedSessionRecord) {
-  const candidates = [
-    session.siteModel?.siteWorldHealthUri,
-    session.siteModel?.siteWorldSpecUri,
-    session.launchContext.site_world_health_uri,
-    session.launchContext.site_world_spec_uri,
-  ];
-  for (const candidate of candidates) {
-    const value = String(candidate || "").trim();
-    if (!value.startsWith("gs://")) {
-      continue;
-    }
-    const { bucket } = parseGsUri(value);
-    if (bucket && bucket !== "local-blueprint") {
-      return bucket;
-    }
-  }
-  return null;
-}
-
-function normalizePublishedArtifactUri(uri: string, session: HostedSessionRecord) {
-  const normalized = String(uri || "").trim();
-  if (!normalized.startsWith("gs://local-blueprint/")) {
-    return normalized;
-  }
-  const publishedBucket = preferredPublishedArtifactBucket(session);
-  if (!publishedBucket) {
-    return normalized;
-  }
-  const { objectPath } = parseGsUri(normalized);
-  return `gs://${publishedBucket}/${objectPath}`;
-}
-
-async function authoritativeFrameArtifactUriForSession(session: HostedSessionRecord, cameraId: string) {
-  const healthPayload =
-    (await readHostedRuntimeArtifactJson(session.siteModel?.siteWorldHealthUri || session.launchContext.site_world_health_uri)) || {};
-  const canonicalWorldModel =
-    healthPayload.canonical_world_model && typeof healthPayload.canonical_world_model === "object"
-      ? (healthPayload.canonical_world_model as Record<string, unknown>)
-      : {};
-  const supportingAssets = Array.isArray(canonicalWorldModel.supporting_assets)
-    ? (canonicalWorldModel.supporting_assets as Array<Record<string, unknown>>)
-    : [];
-  const expectedName = `${cameraId}-frame0.png`;
-  const supportingMatch = supportingAssets.find((asset) => String(asset?.name || "").trim() === expectedName);
-  const supportingUri = String(supportingMatch?.uri || "").trim();
-  if (supportingUri) {
-    return normalizePublishedArtifactUri(supportingUri, session);
-  }
-  const primaryAssetUri = String(canonicalWorldModel.primary_asset_uri || "").trim();
-  if (!primaryAssetUri.startsWith("gs://")) {
-    return null;
-  }
-  if (!primaryAssetUri.endsWith(".mp4")) {
-    return normalizePublishedArtifactUri(primaryAssetUri, session);
-  }
-  return normalizePublishedArtifactUri(primaryAssetUri.replace(/\.mp4$/i, "-frame0.png"), session);
 }
 
 async function maybeServeCanonicalRenderFrame(session: HostedSessionRecord, req: Request, res: Response) {
