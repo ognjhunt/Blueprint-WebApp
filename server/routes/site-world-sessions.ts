@@ -83,6 +83,15 @@ import {
 } from "../utils/hosted-session-summaries";
 import { runtimeBinaryRequest } from "../utils/hosted-session-runtime-transport";
 import { authoritativeFrameArtifactUriForSession } from "../utils/hosted-session-artifacts";
+import {
+  isPublicDemoSession,
+  isPublicDemoSiteWorldId,
+  isReusablePresentationSession,
+  isSessionExpired,
+  normalizeSessionMode,
+  presentationSessionKey,
+  sessionUsesPresentationDemo,
+} from "../utils/hosted-session-predicates";
 
 const protectedRouter = Router();
 export const publicSiteWorldSessionsRouter = Router();
@@ -113,16 +122,6 @@ function shouldUseAsyncRuntimeMutations() {
   return process.env.BLUEPRINT_HOSTED_SESSION_ASYNC_RUNTIME_MUTATIONS === "1" || process.env.NODE_ENV === "production";
 }
 
-function toIsoString(value: unknown) {
-  if (!value) return null;
-  if (typeof value === "string") return value;
-  if (value instanceof Date) return value.toISOString();
-  if (typeof value === "object" && value !== null && "toDate" in value && typeof (value as { toDate: () => Date }).toDate === "function") {
-    return (value as { toDate: () => Date }).toDate().toISOString();
-  }
-  return String(value);
-}
-
 async function loadUserProfile(uid: string) {
   if (!db) {
     return null;
@@ -133,22 +132,6 @@ async function loadUserProfile(uid: string) {
     return null;
   }
   return userDoc.data() as Record<string, unknown>;
-}
-
-const PUBLIC_DEMO_SITE_WORLD_IDS = new Set<string>();
-if (process.env.NODE_ENV !== "production" || process.env.BLUEPRINT_ENABLE_DEMO_SITE_WORLDS === "1") {
-  PUBLIC_DEMO_SITE_WORLD_IDS.add("siteworld-f5fd54898cfb");
-}
-if (process.env.BLUEPRINT_HOSTED_DEMO_SITE_WORLD_ID?.trim()) {
-  PUBLIC_DEMO_SITE_WORLD_IDS.add(process.env.BLUEPRINT_HOSTED_DEMO_SITE_WORLD_ID.trim());
-}
-
-function isPublicDemoSiteWorldId(siteWorldId: string) {
-  return PUBLIC_DEMO_SITE_WORLD_IDS.has(String(siteWorldId || "").trim());
-}
-
-function isPublicDemoSession(session: HostedSessionRecord | null | undefined) {
-  return Boolean(session && isPublicDemoSiteWorldId(session.site.siteWorldId));
 }
 
 function currentFirebaseUser(res: Response) {
@@ -542,32 +525,6 @@ export async function loadHostedSession(sessionId: string): Promise<HostedSessio
   syncPresentationSessionIndex(record);
   await setLiveHostedSession(record);
   return record;
-}
-
-function normalizeSessionMode(value: unknown): HostedSessionMode {
-  return value === "presentation_demo" ? "presentation_demo" : "runtime_only";
-}
-
-function sessionUsesPresentationDemo(session: HostedSessionRecord) {
-  return session.sessionMode === "presentation_demo";
-}
-
-function isSessionExpired(session: HostedSessionRecord) {
-  const expiresAt = toIsoString(session.presentationRuntime?.expiresAt);
-  return Boolean(expiresAt && new Date(expiresAt).getTime() <= Date.now());
-}
-
-function isReusablePresentationSession(session: HostedSessionRecord, uid: string, siteWorldId: string) {
-  if (!sessionUsesPresentationDemo(session)) return false;
-  if (session.createdBy.uid !== uid) return false;
-  if (session.site.siteWorldId !== siteWorldId) return false;
-  if (session.status === "stopped" || session.status === "failed") return false;
-  if (isSessionExpired(session)) return false;
-  return true;
-}
-
-function presentationSessionKey(uid: string, siteWorldId: string) {
-  return `${uid}:${siteWorldId}`;
 }
 
 function syncPresentationSessionIndex(record: HostedSessionRecord) {
