@@ -1,10 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { execFile as execFileCallback } from "node:child_process";
 import http from "node:http";
 import https from "node:https";
 import type { IncomingMessage } from "node:http";
 import type { Duplex } from "node:stream";
-import { promisify } from "node:util";
 import { Router, Request, Response } from "express";
 import admin, { dbAdmin as db, storageAdmin } from "../../client/src/lib/firebaseAdmin";
 import { attachRequestMeta, logger } from "../logger";
@@ -83,6 +81,7 @@ import {
   normalizeBatchSummary,
   normalizeEpisodeSummary,
 } from "../utils/hosted-session-summaries";
+import { runtimeBinaryRequest } from "../utils/hosted-session-runtime-transport";
 
 const protectedRouter = Router();
 export const publicSiteWorldSessionsRouter = Router();
@@ -90,7 +89,6 @@ const inMemorySessions = new Map<string, HostedSessionRecord>();
 const activePresentationSessionIndex = new Map<string, string>();
 const pendingSessionMirrors = new Map<string, Promise<void>>();
 const pendingRuntimeOperations = new Map<string, Promise<void>>();
-const execFile = promisify(execFileCallback);
 
 export function resetHostedSessionRouteState() {
   inMemorySessions.clear();
@@ -644,109 +642,6 @@ function buildSessionCreateResponse(record: HostedSessionRecord) {
     uiReady: record.presentationRuntime?.status === "live",
     uiMode: record.presentationRuntime?.status === "live" ? "embedded" : "redirect",
     workspaceUrl: buildWorkspaceUrl(record.site.siteWorldId, record.sessionId),
-  };
-}
-
-function shouldUseNodeRuntimeHttp() {
-  return process.env.BLUEPRINT_HOSTED_SESSION_USE_NODE_HTTP === "1" || process.env.NODE_ENV === "production";
-}
-
-function shouldUseCurlRuntimeHttp() {
-  return process.env.BLUEPRINT_HOSTED_SESSION_USE_CURL === "1" || process.env.NODE_ENV === "production";
-}
-
-async function runtimeBinaryRequest(url: string, timeoutMs: number) {
-  if (!shouldUseNodeRuntimeHttp()) {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
-    try {
-      const response = await fetch(url, { signal: controller.signal });
-      return {
-        statusCode: response.status,
-        headers: Object.fromEntries(response.headers.entries()) as Record<string, string>,
-        body: Buffer.from(await response.arrayBuffer()),
-      };
-    } finally {
-      clearTimeout(timeout);
-    }
-  }
-
-  if (shouldUseCurlRuntimeHttp()) {
-    const { stdout } = await execFile(
-      "curl",
-      [
-        "--silent",
-        "--show-error",
-        "--location",
-        "--http1.1",
-        "--max-time",
-        String(Math.ceil(timeoutMs / 1000)),
-        "--write-out",
-        "\n__BLUEPRINT_STATUS__:%{http_code}",
-        url,
-      ],
-      {
-        encoding: "buffer",
-        maxBuffer: 20 * 1024 * 1024,
-      },
-    );
-    const marker = Buffer.from("\n__BLUEPRINT_STATUS__:");
-    const markerIndex = stdout.lastIndexOf(marker);
-    if (markerIndex < 0) {
-      throw new Error("curl runtime render request did not return an HTTP status marker");
-    }
-    const statusCode = Number(stdout.subarray(markerIndex + marker.length).toString("utf-8").trim() || "0");
-    return {
-      statusCode,
-      headers: {} as Record<string, string>,
-      body: stdout.subarray(0, markerIndex),
-    };
-  }
-
-  const target = new URL(url);
-  const requestFn = target.protocol === "https:" ? https.request : http.request;
-  return await new Promise<{ statusCode: number; headers: http.IncomingHttpHeaders; body: Buffer }>((resolve, reject) => {
-    const request = requestFn(
-      target,
-      {
-        method: "GET",
-        headers: { connection: "close" },
-        timeout: timeoutMs,
-      },
-      (response) => {
-        const chunks: Buffer[] = [];
-        response.on("data", (chunk) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
-        response.on("end", () => {
-          resolve({
-            statusCode: response.statusCode || 500,
-            headers: response.headers,
-            body: Buffer.concat(chunks),
-          });
-        });
-      },
-    );
-    request.on("timeout", () => {
-      request.destroy(new Error(`Timed out after ${timeoutMs}ms waiting for runtime render.`));
-    });
-    request.on("error", reject);
-    request.end();
-  });
-}
-
-async function readRuntimeErrorDetail(response: globalThis.Response) {
-  const contentType = String(response.headers.get("content-type") || "").toLowerCase();
-  if (contentType.includes("application/json")) {
-    const payload = (await response.json().catch(() => null)) as Record<string, unknown> | null;
-    const detail = String(payload?.detail || payload?.error || `Runtime request failed: ${response.status}`).trim();
-    return {
-      code: String(payload?.code || "runtime_render_failed"),
-      detail,
-    };
-  }
-  const text = await response.text().catch(() => "");
-  return {
-    code: "runtime_render_failed",
-    detail: text.trim() || `Runtime request failed: ${response.status}`,
   };
 }
 
