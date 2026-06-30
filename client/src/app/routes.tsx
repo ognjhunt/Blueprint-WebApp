@@ -21,7 +21,19 @@ export type PreloadableComponent<P = any> = LazyExoticComponent<ComponentType<P>
 function lazyRoute<P = any>(
   loader: () => Promise<{ default: ComponentType<P> }>,
 ): PreloadableComponent<P> {
-  return Object.assign(lazy(loader), { preload: loader });
+  // Memoized so a manual preload() call and React.lazy's own internal
+  // call (on first render of this component) resolve the exact same
+  // promise — calling the raw loader twice would only warm the module
+  // cache, not React.lazy's internal payload, so React would still
+  // suspend on a fresh, separate thenable.
+  let modulePromise: Promise<{ default: ComponentType<P> }> | undefined;
+  const load = () => {
+    if (!modulePromise) {
+      modulePromise = loader();
+    }
+    return modulePromise;
+  };
+  return Object.assign(lazy(load), { preload: load });
 }
 
 const Home = lazyRoute(() => import("../pages/Home"));

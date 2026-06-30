@@ -87,11 +87,14 @@ const rootElement = document.getElementById("root")!;
 // real first paint before the JS bundle runs. Hydrating it isn't viable here
 // (prerendering uses renderToStaticMarkup, which emits no hydration markers),
 // so we clear it and do a client render instead. Clearing immediately and
-// rendering would otherwise flash a blank screen + LoadingScreen fallback
-// while the matched route's lazy chunk loads, so we preload that chunk first
-// and only swap once it (or a timeout) resolves — turning two visible paints
-// into one.
+// rendering would otherwise flash the prerendered markup to blank + a
+// LoadingScreen fallback while the matched route's lazy chunk loads, so when
+// there's prerendered markup worth protecting we preload that chunk first and
+// only swap once it (or a timeout) resolves. Routes with no prerendered markup
+// (app-shell.html) have nothing to protect, so they mount immediately and get
+// the normal Suspense LoadingScreen fallback like before.
 const ROUTE_PRELOAD_TIMEOUT_MS = 3000;
+const hasPrerenderedMarkup = rootElement.hasChildNodes();
 
 function mountApp() {
   if (rootElement.hasChildNodes()) {
@@ -100,7 +103,7 @@ function mountApp() {
   createRoot(rootElement).render(app);
 }
 
-const routePreload = preloadMatchedRoute(window.location.pathname);
+const routePreload = hasPrerenderedMarkup ? preloadMatchedRoute(window.location.pathname) : null;
 if (routePreload) {
   const timeout = new Promise((resolve) => setTimeout(resolve, ROUTE_PRELOAD_TIMEOUT_MS));
   Promise.race([routePreload, timeout])
