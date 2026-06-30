@@ -8,53 +8,46 @@ describe("Governance", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Proof stays attached\./i,
+        name: /Rights, privacy, and provenance — kept visible\./i,
       }),
     ).toBeInTheDocument();
 
     expect(screen.getAllByText(/^Rights stay explicit$/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/^Hosted access stays bounded$/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/^No trust claims beyond the listing$/i).length).toBeGreaterThan(0);
-
-    expect(
-      screen.getByRole("heading", { name: /What a buyer can read before access\./i }),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/Provenance and freshness/i)).toBeInTheDocument();
-    expect(screen.getByText(/Rights and restrictions/i)).toBeInTheDocument();
-    expect(screen.getByText(/Hosted-access boundary/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/Redaction and retention/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Public-facing capture/i)).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: /The rules are practical, not just legal copy\./i }),
-    ).toBeInTheDocument();
+    expect(screen.getAllByText(/^No claims beyond the listing$/i).length).toBeGreaterThan(0);
 
     expect(
       screen.getByRole("heading", {
-        name: /What Blueprint shows and what it does not claim\./i,
+        name: /Every world model passes the same four gates\./i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Published today/i)).toBeInTheDocument();
-    expect(screen.getByText(/Not claimed/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/^Rights$/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/^Privacy$/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/^Provenance$/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/^Scope limits$/i).length).toBeGreaterThan(0);
+
+    expect(
+      screen.getByRole("heading", { name: /Six commitments we hold on every world model\./i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/What stays attached to a listing/i)).toBeInTheDocument();
+    expect(screen.getByText(/Rights packet · example/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/We label generated and simulated media as review support/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/We honor takedown, refresh, redaction, and revocation requests/i),
+    ).toBeInTheDocument();
+
+    expect(
+      screen.getByRole("heading", { name: /The line we will not cross\./i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/No capture of restricted or private areas/i),
+    ).toBeInTheDocument();
     expect(
       screen.getByText(
-        /Any certification or compliance posture Blueprint has not published explicitly/i,
+        /it does not claim deployment readiness, safety certification, or guaranteed outcomes/i,
       ),
     ).toBeInTheDocument();
-
-    expect(
-      screen.getByRole("heading", { name: /What proof is included with every public world-model listing\?/i }),
-    ).toBeInTheDocument();
-    expect(
-      screen
-        .getAllByRole("link", { name: /Open sample listing/i })
-        .some((link) => link.getAttribute("href") === "/world-models"),
-    ).toBe(true);
-
-    expect(
-      screen.getByRole("heading", {
-        name: /The trust details become files and fields, not vague promises\./i,
-      }),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/Operator participation sheet/i)).toBeInTheDocument();
   });
 });

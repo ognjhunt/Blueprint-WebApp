@@ -6,21 +6,21 @@ describe("ForSiteOperators", () => {
   it("renders the simplified site-operator persona page", () => {
     render(<ForSiteOperators />);
 
-    expect(screen.getByText(/^For Site Operators$/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/^For Site Operators$/i).length).toBeGreaterThan(0);
     expect(
       screen.getByRole("heading", {
-        name: /Control how your facility supports robot evaluation and policy improvement\./i,
+        name: /Supply a real site without losing the boundary\./i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /What operators get\./i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /How it works and what you control\./i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /From a facility to a controlled supply site\./i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Operator approval stays attached, not inferred\./i })).toBeInTheDocument();
     expect(screen.getByText(/Register the facility/i)).toBeInTheDocument();
     expect(screen.getByText(/Approve capture windows/i)).toBeInTheDocument();
-    expect(screen.getByText(/Keep scheduling, privacy, permission, and downstream-usage boundaries explicit\./i)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /What kinds of spaces fit\./i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /List your site/i })).toHaveAttribute(
+    expect(screen.getByText(/Turn a facility into a captured evaluation site — and keep/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /The facilities that make strong packages\./i })).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: /Start site review/i })[0]).toHaveAttribute(
       "href",
-      "/contact/site-operator",
+      "/contact/site-operator?source=for-site-operators",
     );
     expect(screen.queryByText(/^Revenue share$/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Any indoor facility qualifies/i)).not.toBeInTheDocument();

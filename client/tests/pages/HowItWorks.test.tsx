@@ -8,25 +8,38 @@ describe("HowItWorks", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Indoor capture to readiness report\./i,
+        name: /Capture first\. Package the proof\. Decide the next test\./i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /^Capture$/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /^Package$/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /^Review$/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /^Decide$/i })).toBeInTheDocument();
-    expect(screen.getByText(/Real site\. Real route\. Real package\./i)).toBeInTheDocument();
-    expect(screen.getByText(/See the indoor site before field time\./i)).toBeInTheDocument();
     expect(
-      screen
-        .getAllByRole("link", { name: /Open sample site package/i })
-        .some((link) => link.getAttribute("href") === "/sites/triangle-robotics-lab"),
-    ).toBe(true);
+      screen.getByRole("heading", { name: /^Capture the real indoor site\.$/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /^Package the proof and the limits\.$/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /^Evaluate policies against the site\.$/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /^Decide the next test\.$/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Four steps from real site to a decision\./i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Not every value is proof\./i),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /See pricing/i })).toHaveAttribute(
+      "href",
+      "/pricing",
+    );
     expect(screen.getByRole("link", { name: /Request evaluation/i })).toHaveAttribute(
       "href",
       expect.stringContaining("/contact?persona=robot-team"),
     );
-    expect(screen.getByText(/Teams, robot agents, and Blueprint agents have different jobs\./i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Blueprint turns one real indoor capture into a versioned, rights-attached/i),
+    ).toBeInTheDocument();
     expect(screen.queryByText(/Proof stories/i)).not.toBeInTheDocument();
   });
 });

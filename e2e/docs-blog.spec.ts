@@ -6,18 +6,18 @@ test("docs page is publicly reachable", async ({ page }) => {
   await expect(page).toHaveURL(/\/proof\/?$/);
   await expect(
     page.getByRole("heading", {
-      name: /See what is attached to the world model before you buy\./i,
+      name: /Proof stays scoped\./i,
     }),
   ).toBeVisible();
 });
 
-test("blog alias redirects to updates", async ({ page }) => {
+test("blog alias redirects to home", async ({ page }) => {
   await page.goto("/blog", { waitUntil: "domcontentloaded" });
 
-  await expect(page).toHaveURL(/\/updates\/?$/);
+  await expect(page).toHaveURL(/\/$/);
   await expect(
     page.getByRole("heading", {
-      name: /Notes on exact-site world models\./i,
+      name: /Test robot policies before field time\./i,
     }),
   ).toBeVisible();
 });

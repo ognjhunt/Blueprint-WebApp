@@ -172,6 +172,18 @@ describe("Paperclip control-room inventory", () => {
     expect(markdown).toContain("| missing-skill | 1 | webapp-codex |");
   });
 
+  // `trueMissingDesiredSkills` resolves desired skills against on-disk roots that include
+  // DEFAULT_GLOBAL_SKILL_ROOTS / DEFAULT_PLUGIN_SKILL_ROOTS under os.homedir() (~/.codex/...,
+  // ~/.claude/...) per the policy in ops/paperclip/control-room-map.md#desired-skill-resolution-policy.
+  // Those caches only exist on a provisioned developer/ops machine that has actually used
+  // Codex/Claude interactively; a stateless CI runner or fresh agent sandbox has no $HOME state
+  // beyond the repo checkout, so this assertion cannot pass there regardless of repo content
+  // (none of the 5 currently-unresolved skills exist among the 64 repo-committed company skills
+  // either). This is a pre-existing CI-environment gap, not a regression from this change — see
+  // the same-shaped gap documented for Firebase test credentials in .github/workflows/ci.yml's
+  // e2e job. Resolving it for real means either provisioning those caches in CI, or a deliberate
+  // policy decision (alias / company-library / runtime-tooling classification) for the 5 skills,
+  // neither of which is something to make unilaterally here.
   it("classifies the authored Blueprint package without ambiguous desired-skill gaps", () => {
     const inventory = buildControlRoomInventory();
 

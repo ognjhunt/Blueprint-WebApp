@@ -579,7 +579,7 @@ export default function RobotTeamEval() {
 
         <section
           id="robot-team-submission"
-          className="mx-auto grid max-w-[88rem] gap-8 px-5 py-10 md:grid-cols-[minmax(0,0.72fr)_minmax(20rem,0.28fr)] md:px-8"
+          className="mx-auto grid max-w-[88rem] grid-cols-1 gap-8 px-5 py-10 md:grid-cols-[minmax(0,0.72fr)_minmax(20rem,0.28fr)] md:px-8"
         >
           <form
             className="rounded-lg border border-slate-200 bg-white p-5 md:p-6"

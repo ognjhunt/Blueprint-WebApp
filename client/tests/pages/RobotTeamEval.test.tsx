@@ -41,11 +41,9 @@ describe("RobotTeamEval", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Start an evaluation\./i,
+        name: /Compare policies on one site task\./i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/\$15,000\/month/i)).toBeInTheDocument();
-    expect(screen.getByText(/\$5,000-\$8,000 quick-look/i)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Four steps\./i })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: /1 Pick a site\/task/i })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: /2 Add policies/i })).toHaveValue(
@@ -74,7 +72,7 @@ describe("RobotTeamEval", () => {
     for (const label of ["API", "Docker", "Checkpoint", "Trace", "Skill trace", "Teleop", "Sim plugin"]) {
       expect(screen.getByText(label)).toBeInTheDocument();
     }
-    expect(screen.getByText(/Results guide what to test next/i)).toBeInTheDocument();
+    expect(screen.getByText(/Same task\. Same robot\. Same episode count\./i)).toBeInTheDocument();
   });
 
   it("creates a hosted-session request with normalized policy evaluation payload", async () => {
@@ -162,11 +160,15 @@ describe("RobotTeamEval", () => {
     expect(body.sessionMode).toBe("runtime_only");
     expect(body.requestedOutputs).toEqual([
       "policy_ranking",
+      "comparative_policy_eval",
       "failure_taxonomy",
       "ood_uncertainty_flags",
+      "site_ops_comparison_packet",
       "validation_targets",
     ]);
-    expect(policy.proofBoundary).toEqual(expect.stringContaining("Virtual WAM/VLA outputs"));
+    expect(policy.proofBoundary).toEqual(
+      expect.stringContaining("Generated-observation review can compare policies and diagnose failures"),
+    );
     expect(submission.schemaVersion).toBe("blueprint.robot_team_test_submission.v1");
     expect(submission.selectedModalities).toEqual(["policy_api_endpoint"]);
     expect(submission.policyLabels).toEqual([

@@ -8,33 +8,29 @@ describe("About", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Blueprint exists to make one real site legible earlier\./i,
+        name: /Blueprint turns one real site into a decision a robot team can trust\./i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Built by Nijel Hunt/i)).toBeInTheDocument();
+    expect(screen.getByText(/built by Nijel Hunt/i)).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /What Blueprint is and what it is not\./i }),
+      screen.getByRole("heading", { name: /Four principles that keep the product honest\./i }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /^What Blueprint is$/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /^What Blueprint is not$/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Capture first, claim later\.$/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Rights stay attached\.$/i })).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
-        name: /Why this matters before the expensive part starts\./i,
+        name: /Start with the public proof or bring one exact site\./i,
       }),
     ).toBeInTheDocument();
-    const siteLinks = [
-      ...screen.getAllByRole("link", { name: /Explore sites/i }),
-      ...screen.getAllByRole("link", { name: /Explore site packages/i }),
-    ];
+    const siteLinks = screen.getAllByRole("link", { name: /Explore site packages/i });
     expect(siteLinks.length).toBeGreaterThanOrEqual(1);
     siteLinks.forEach((link) => {
       expect(link).toHaveAttribute("href", "/sites");
     });
-    const contactLinks = screen.getAllByRole("link", { name: /Contact Blueprint/i });
+    const contactLinks = screen.getAllByRole("link", { name: /Request evaluation/i });
     expect(contactLinks.length).toBeGreaterThanOrEqual(1);
     contactLinks.forEach((link) => {
-      expect(link).toHaveAttribute("href", expect.stringContaining("/contact?persona=robot-team"));
-      expect(link).toHaveAttribute("href", expect.stringContaining("buyerType=robot_team"));
+      expect(link).toHaveAttribute("href", "/contact/robot-team");
     });
 
     expect(screen.queryByText(/Company fact/i)).not.toBeInTheDocument();

@@ -1,5 +1,17 @@
 import '@testing-library/jest-dom';
 import { afterEach, beforeEach, vi } from "vitest";
+import type { ReactNode } from "react";
+
+// react-helmet-async's <Helmet> requires a <HelmetProvider> ancestor; without one its
+// context default is `{}`, so HelmetDispatcher.init() crashes on `helmetInstances.add()`.
+// Page/component tests render pages standalone (no app-level provider). Mock the shared
+// @/lib/helmet shim (not just @/components/SEO) since several pages import Helmet directly.
+// Real SEO/meta output is covered separately by build-output.test.ts against the actual
+// prerendered HTML.
+vi.mock("@/lib/helmet", () => ({
+  Helmet: () => null,
+  HelmetProvider: ({ children }: { children?: ReactNode }) => children,
+}));
 
 const DEFAULT_LAYOUT_WIDTH = 800;
 const DEFAULT_LAYOUT_HEIGHT = 400;
