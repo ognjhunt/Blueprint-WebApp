@@ -45,10 +45,10 @@ describe("brand polish QA harness contract", () => {
 
     const agentsRoute = harness.publicQaRoutes.find((route: { path: string }) => route.path === "/agents");
     expect(agentsRoute).toMatchObject({
-      expectedHeading: "Robot-team agent access.",
+      expectedHeading: "Tell us what policies to compare.",
       requiredCtas: expect.arrayContaining([
-        { label: "Request agent access", hrefStartsWith: "/contact" },
-        { label: "Open contract", hrefStartsWith: "/agent-access.openapi.json" },
+        { label: "Compare policies on a real site.", hrefStartsWith: "/contact/robot-team" },
+        { label: "Supply or monitor a facility.", hrefStartsWith: "/contact/site-operator" },
       ]),
     });
 

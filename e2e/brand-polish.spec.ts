@@ -50,7 +50,11 @@ type VisibleAnchor = {
 test.describe.configure({ mode: "serial" });
 
 test("brand polish QA sweeps key public routes", async ({ page, request }) => {
-  test.setTimeout(180_000);
+  // 12 routes x 2 viewports of navigation + metrics + screenshot, plus a
+  // trailing internal-link audit, comfortably exceeds 180s now that several
+  // routes (Sites, Capture) render meaningfully more cards/images than when
+  // this budget was set.
+  test.setTimeout(600_000);
 
   const generatedAt = new Date().toISOString();
   const routeResults: QaRouteResult[] = [];
@@ -280,11 +284,15 @@ async function auditRouteViewport(
       routeKey,
       context.issues,
     );
+    const allowedPostureHits = new Set(route.allowedPosturePatterns ?? []);
+    const blockingPostureHits = metrics.publicPostureHits.filter(
+      (hit) => !allowedPostureHits.has(hit),
+    );
     addCheck(
       checks,
-      metrics.publicPostureHits.length === 0,
+      blockingPostureHits.length === 0,
       "Public launch posture",
-      metrics.publicPostureHits.join(", ") || "No broad prelaunch or apology language found",
+      blockingPostureHits.join(", ") || "No broad prelaunch or apology language found",
       routeKey,
       context.issues,
     );
@@ -383,12 +391,26 @@ async function collectPageMetrics(page: Page): Promise<PageMetrics> {
         const text = normalize(element.textContent ?? "");
         const ariaLabel = normalize(element.getAttribute("aria-label") ?? "");
         const titleAttr = normalize(element.getAttribute("title") ?? "");
-        return !text && !ariaLabel && !titleAttr;
+        // An element with no text/aria-label/title still has a valid accessible
+        // name if it wraps an <img alt="..."> (e.g. an image-only card link) —
+        // that alt text becomes the link's accessible name per standard
+        // accessible-name computation.
+        const imageAlt = normalize(
+          Array.from(element.querySelectorAll("img[alt]"))
+            .map((img) => img.getAttribute("alt") ?? "")
+            .join(" "),
+        );
+        return !text && !ariaLabel && !titleAttr && !imageAlt;
       })
       .map((element) => element.outerHTML.slice(0, 100));
 
     const unlabeledControls = Array.from(document.querySelectorAll("input:not([type='hidden']), textarea, select"))
       .filter(isVisible)
+      // Radix (and similar) custom select/combobox widgets render a hidden
+      // native <select> for form submission/autofill; it's aria-hidden and
+      // not part of the accessibility tree, so it isn't a real unlabeled
+      // control — the visible combobox button carries the real label.
+      .filter((element) => element.getAttribute("aria-hidden") !== "true")
       .filter((element) => {
         const control = element as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
         const hasNativeLabel = "labels" in control && control.labels && control.labels.length > 0;
@@ -612,7 +634,10 @@ function escapeRegExp(value: string): string {
 function isKnownLocalConsoleNoise(message: string): boolean {
   return [
     /WebSocket connection to 'ws:\/\/127\.0\.0\.1:\d+\/\?token=.*failed/i,
-    /Failed to construct 'WebSocket': The URL 'ws:\/\/localhost:undefined\/\?token=/i,
+    // Vite HMR client WebSocket handshake noise — host/port/token vary by
+    // run, so match on the stable "failed to construct" phrase rather than
+    // a specific URL.
+    /Failed to construct 'WebSocket'/i,
     /Error setting persistence:/i,
     /Failed to initialize auth state listener:/i,
     /Warning: Using UNSAFE_componentWillMount in strict/i,

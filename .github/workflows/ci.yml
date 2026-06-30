@@ -83,6 +83,9 @@ jobs:
       - name: Run E2E tests
         run: npm run test:e2e
 
+      - name: Run operator-surfaces QA (fake-auth bypass)
+        run: npm run qa:operator
+
 
   build:
     runs-on: ubuntu-latest

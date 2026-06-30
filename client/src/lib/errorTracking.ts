@@ -138,7 +138,12 @@ class ErrorTrackingService {
     // In development, log to console with full details
     if (this.environment === "development") {
       console.group(`[ErrorTracking] ${context.level || "error"}: ${error.message}`);
-      console.error(error);
+      // Pass the message as a string, not the Error object — clientLogger's
+      // console wrapper only preserves the original text for string
+      // arguments; a raw object collapses to a generic "Client log entry"
+      // and loses content that downstream noise filters match against (e.g.
+      // known Vite HMR WebSocket failures in constrained dev environments).
+      console.error(`${error.name}: ${error.message}\n${error.stack ?? ""}`);
       if (context.componentStack) {
         console.log("Component Stack:", context.componentStack);
       }
