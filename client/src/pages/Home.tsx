@@ -100,13 +100,17 @@ export default function Home() {
       <main className="bg-canvas text-ink-900">
         {/* (1) Hero — full-bleed monochrome media with animated route trace */}
         <section className="relative">
+          {/* Height tracks robot-hero.png's native 1672x941 ratio (56.28vw) above the
+              ~1308px width where that ratio exceeds 46rem, so object-cover stops
+              cropping more of the image as the viewport gets wider; 70rem caps how
+              tall the hero gets on ultrawide/4K screens. */}
           <MonochromeMedia
             src="/redesign/robot-hero.png"
             alt="Humanoid robot moving a tote inside a captured indoor facility"
             loading="eager"
             overlay="heroL"
             radius="none"
-            className="h-[46rem] w-full"
+            className="h-[clamp(46rem,56.28vw,70rem)] w-full"
             imageClassName="h-full"
           >
             <RouteTraceOverlay className="opacity-90" />
