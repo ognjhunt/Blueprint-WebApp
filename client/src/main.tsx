@@ -13,7 +13,7 @@ import { Analytics } from "./components/Analytics";
 import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { installClientLogger } from "./utils/clientLogger";
-import { appRoutes } from "./app/routes";
+import { appRoutes, preloadMatchedRoute } from "./app/routes";
 
 installClientLogger();
 
@@ -83,13 +83,32 @@ const app = (
 
 const rootElement = document.getElementById("root")!;
 
-// Prerendered HTML serves SEO crawlers that don't run JS.
-// Lazy-loaded routes inside Suspense produce a LoadingScreen fallback on first
-// render, which never matches the prerendered markup. React's hydration then
-// fails and leaves duplicate DOM nodes. Clearing the prerendered content and
-// using createRoot avoids the mismatch entirely — the JS bundle renders the
-// real page almost immediately.
-if (rootElement.hasChildNodes()) {
-  rootElement.textContent = "";
+// Prerendered HTML serves SEO crawlers that don't run JS, and gives users a
+// real first paint before the JS bundle runs. Hydrating it isn't viable here
+// (prerendering uses renderToStaticMarkup, which emits no hydration markers),
+// so we clear it and do a client render instead. Clearing immediately and
+// rendering would otherwise flash the prerendered markup to blank + a
+// LoadingScreen fallback while the matched route's lazy chunk loads, so when
+// there's prerendered markup worth protecting we preload that chunk first and
+// only swap once it (or a timeout) resolves. Routes with no prerendered markup
+// (app-shell.html) have nothing to protect, so they mount immediately and get
+// the normal Suspense LoadingScreen fallback like before.
+const ROUTE_PRELOAD_TIMEOUT_MS = 3000;
+const hasPrerenderedMarkup = rootElement.hasChildNodes();
+
+function mountApp() {
+  if (rootElement.hasChildNodes()) {
+    rootElement.textContent = "";
+  }
+  createRoot(rootElement).render(app);
 }
-createRoot(rootElement).render(app);
+
+const routePreload = hasPrerenderedMarkup ? preloadMatchedRoute(window.location.pathname) : null;
+if (routePreload) {
+  const timeout = new Promise((resolve) => setTimeout(resolve, ROUTE_PRELOAD_TIMEOUT_MS));
+  Promise.race([routePreload, timeout])
+    .catch(() => {})
+    .then(mountApp);
+} else {
+  mountApp();
+}
