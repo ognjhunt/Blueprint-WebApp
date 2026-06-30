@@ -460,127 +460,6 @@ const staticRoutes: StaticRoute[] = [
 
 const rootPattern = /<div id="root"><\/div>/;
 
-type DeferredClientAsset = {
-  href: string;
-  crossorigin: boolean;
-};
-
-type DeferredClientEntry = {
-  src: string;
-  crossorigin: boolean;
-};
-
-function shouldDeferStylesheet(href: string) {
-  return href.startsWith("/assets/");
-}
-
-function deferClientBoot(template: string) {
-  const entries: DeferredClientEntry[] = [];
-  const modulePreloads: DeferredClientAsset[] = [];
-  const stylesheets: DeferredClientAsset[] = [];
-  let html = template.replace(
-    /\s*<script\b([^>]*\btype="module"[^>]*)><\/script>/gi,
-    (match, attributes: string) => {
-      const src = attributes.match(/\bsrc="([^"]+)"/i)?.[1];
-      if (!src) {
-        return match;
-      }
-      entries.push({
-        src,
-        crossorigin: /\bcrossorigin\b/i.test(attributes),
-      });
-      return "";
-    },
-  );
-
-  html = html.replace(
-    /\s*<link\b([^>]*\brel="modulepreload"[^>]*)>/gi,
-    (match, attributes: string) => {
-      const href = attributes.match(/\bhref="([^"]+)"/i)?.[1];
-      if (!href) {
-        return match;
-      }
-      modulePreloads.push({
-        href,
-        crossorigin: /\bcrossorigin\b/i.test(attributes),
-      });
-      return "";
-    },
-  );
-
-  html = html.replace(
-    /\s*<link\b([^>]*\brel="stylesheet"[^>]*)>/gi,
-    (match, attributes: string) => {
-      const href = attributes.match(/\bhref="([^"]+)"/i)?.[1];
-      if (!href || !shouldDeferStylesheet(href)) {
-        return match;
-      }
-      stylesheets.push({
-        href,
-        crossorigin: /\bcrossorigin\b/i.test(attributes),
-      });
-      return "";
-    },
-  );
-
-  if (entries.length === 0 && modulePreloads.length === 0 && stylesheets.length === 0) {
-    return html;
-  }
-
-  const payload = JSON.stringify({ entries, modulePreloads, stylesheets });
-  const bootstrap = `<script data-blueprint-deferred-client-boot>
-(() => {
-  const bootDelayMs = 1000;
-  const assets = ${payload};
-  let booted = false;
-  let bootTimer = 0;
-  const appendStylesheet = ({ href, crossorigin }) => {
-    const link = document.createElement("link");
-    link.rel = "stylesheet";
-    link.href = href;
-    if (crossorigin) link.crossOrigin = "";
-    document.head.appendChild(link);
-  };
-  const appendModulePreload = ({ href, crossorigin }) => {
-    const link = document.createElement("link");
-    link.rel = "modulepreload";
-    link.href = href;
-    if (crossorigin) link.crossOrigin = "";
-    document.head.appendChild(link);
-  };
-  const appendModuleScript = ({ src, crossorigin }) => {
-    const script = document.createElement("script");
-    script.type = "module";
-    script.src = src;
-    if (crossorigin) script.crossOrigin = "";
-    document.head.appendChild(script);
-  };
-  const boot = () => {
-    if (booted) return;
-    booted = true;
-    if (bootTimer) window.clearTimeout(bootTimer);
-    assets.stylesheets.forEach(appendStylesheet);
-    assets.modulePreloads.forEach(appendModulePreload);
-    assets.entries.forEach(appendModuleScript);
-  };
-  const bootOnInteraction = () => boot();
-  const scheduleBoot = () => {
-    bootTimer = window.setTimeout(boot, bootDelayMs);
-  };
-  ["pointerdown", "keydown", "touchstart", "focusin"].forEach((eventName) => {
-    window.addEventListener(eventName, bootOnInteraction, { once: true, capture: true });
-  });
-  if (document.readyState === "complete") {
-    scheduleBoot();
-  } else {
-    window.addEventListener("load", scheduleBoot, { once: true });
-  }
-})();
-</script>`;
-
-  return html.replace("</body>", `${bootstrap}\n  </body>`);
-}
-
 function routePathToFile(distPath: string, routePath: string) {
   if (routePath === "/") {
     return path.join(distPath, "index.html");
@@ -648,8 +527,8 @@ function stripViteThemeStyle(template: string) {
   return template.replace(/\s*<style\s+data-vite-theme[^>]*>[\s\S]*?<\/style>\s*/i, "\n");
 }
 
-// The prerendered shell is a transient, pre-boot snapshot that the deferred
-// client boot replaces once React hydrates. Eager/above-the-fold images in that
+// The prerendered shell is a transient snapshot that the client JS bundle
+// replaces on boot (see main.tsx). Eager/above-the-fold images in that
 // snapshot are the only resources left that block the document `load` event, so
 // force every prerendered <img> to lazy + async-decode. This keeps the live app's
 // authored loading strategy intact (React re-renders the real <img> on boot) while
@@ -679,16 +558,16 @@ function deferImageLoading(template: string) {
 async function main() {
   const distPath = path.resolve(__dirname, "..", "dist", "public");
   const templatePath = path.join(distPath, "index.html");
-  const template = deferClientBoot(
-    stripViteThemeStyle(stripDefaultSeo(await fs.promises.readFile(templatePath, "utf8"))),
+  const template = stripViteThemeStyle(
+    stripDefaultSeo(await fs.promises.readFile(templatePath, "utf8")),
   );
 
   if (!rootPattern.test(template)) {
     throw new Error("Could not locate the root element in the built HTML template.");
   }
 
-  // Emit a minimal SPA boot shell: empty root + deferred client boot, no route
-  // markup or imagery. serveStatic serves this for client-rendered routes without
+  // Emit a minimal SPA boot shell: empty root, no route markup or imagery.
+  // serveStatic serves this for client-rendered routes without
   // a dedicated prerendered document (e.g. /app, /ops, /join, private/admin views)
   // instead of the heavy homepage markup, so those routes parse a ~3KB shell rather
   // than the ~39KB home document on first load. createRoot (not hydration) renders

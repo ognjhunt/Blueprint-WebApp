@@ -1,5 +1,5 @@
 import { lazy } from "react";
-import type { ComponentType } from "react";
+import type { ComponentType, LazyExoticComponent } from "react";
 import { MarketingRedirect } from "../pages/MarketingRedirect";
 import { getSiteLibrarySite } from "../data/siteLibrary";
 
@@ -11,64 +11,77 @@ export type AppRoute = {
   component: ComponentType<any>;
 };
 
-const Home = lazy(() => import("../pages/Home"));
-const Capture = lazy(() => import("../pages/Capture"));
-const CaptureAppPlaceholder = lazy(() => import("../pages/CaptureAppPlaceholder"));
-const CaptureLaunchAccess = lazy(() => import("../pages/CaptureLaunchAccess"));
-const BusinessSignUpFlow = lazy(() => import("../pages/BusinessSignUpFlow"));
-const CapturerSignUpFlow = lazy(() => import("../pages/CapturerSignUpFlow"));
-const OnboardingChecklist = lazy(() => import("../pages/OnboardingChecklist"));
-const HostedSessionSetup = lazy(() => import("../pages/HostedSessionSetup"));
-const HostedSessionWorkspace = lazy(() => import("../pages/HostedSessionWorkspace"));
-const RobotTeamEval = lazy(() => import("../pages/RobotTeamEval"));
-const Sites = lazy(() => import("../pages/Sites"));
-const SiteDetail = lazy(() => import("../pages/SiteDetail"));
-const Pricing = lazy(() => import("../pages/Pricing"));
-const Contact = lazy(() => import("../pages/Contact"));
-const Proof = lazy(() => import("../pages/Proof"));
-const Portal = lazy(() => import("../pages/Portal"));
-const Login = lazy(() => import("../pages/Login"));
-const ForgotPassword = lazy(() => import("../pages/ForgotPassword"));
-const Privacy = lazy(() => import("../pages/Privacy"));
-const Terms = lazy(() => import("../pages/Terms"));
-const Settings = lazy(() => import("../pages/Settings"));
-const AdminLeads = lazy(() => import("../pages/AdminLeads"));
-const AdminGrowthOpsScorecard = lazy(() => import("../pages/AdminGrowthOpsScorecard"));
-const AdminAustinLaunchScorecard = lazy(() => import("../pages/AdminAustinLaunchScorecard"));
-const AdminGrowthStudio = lazy(() => import("../pages/AdminGrowthStudio"));
-const AdminCompanyMetrics = lazy(() => import("../pages/AdminCompanyMetrics"));
-const Dashboard = lazy(() => import("../pages/Dashboard"));
-const OffWaitlistSignUpFlow = lazy(() => import("../pages/OffWaitlistSignUpFlow"));
-const RequestConsole = lazy(() => import("../pages/RequestConsole"));
-const DesignSystem = lazy(() => import("../pages/DesignSystem"));
+// A lazy route component that also exposes its raw module loader, so
+// main.tsx can preload the matched route's chunk before swapping out the
+// prerendered markup — avoiding a Suspense-fallback flash on first paint.
+export type PreloadableComponent<P = any> = LazyExoticComponent<ComponentType<P>> & {
+  preload: () => Promise<unknown>;
+};
+
+function lazyRoute<P = any>(
+  loader: () => Promise<{ default: ComponentType<P> }>,
+): PreloadableComponent<P> {
+  return Object.assign(lazy(loader), { preload: loader });
+}
+
+const Home = lazyRoute(() => import("../pages/Home"));
+const Capture = lazyRoute(() => import("../pages/Capture"));
+const CaptureAppPlaceholder = lazyRoute(() => import("../pages/CaptureAppPlaceholder"));
+const CaptureLaunchAccess = lazyRoute(() => import("../pages/CaptureLaunchAccess"));
+const BusinessSignUpFlow = lazyRoute(() => import("../pages/BusinessSignUpFlow"));
+const CapturerSignUpFlow = lazyRoute(() => import("../pages/CapturerSignUpFlow"));
+const OnboardingChecklist = lazyRoute(() => import("../pages/OnboardingChecklist"));
+const HostedSessionSetup = lazyRoute(() => import("../pages/HostedSessionSetup"));
+const HostedSessionWorkspace = lazyRoute(() => import("../pages/HostedSessionWorkspace"));
+const RobotTeamEval = lazyRoute(() => import("../pages/RobotTeamEval"));
+const Sites = lazyRoute(() => import("../pages/Sites"));
+const SiteDetail = lazyRoute(() => import("../pages/SiteDetail"));
+const Pricing = lazyRoute(() => import("../pages/Pricing"));
+const Contact = lazyRoute(() => import("../pages/Contact"));
+const Proof = lazyRoute(() => import("../pages/Proof"));
+const Portal = lazyRoute(() => import("../pages/Portal"));
+const Login = lazyRoute(() => import("../pages/Login"));
+const ForgotPassword = lazyRoute(() => import("../pages/ForgotPassword"));
+const Privacy = lazyRoute(() => import("../pages/Privacy"));
+const Terms = lazyRoute(() => import("../pages/Terms"));
+const Settings = lazyRoute(() => import("../pages/Settings"));
+const AdminLeads = lazyRoute(() => import("../pages/AdminLeads"));
+const AdminGrowthOpsScorecard = lazyRoute(() => import("../pages/AdminGrowthOpsScorecard"));
+const AdminAustinLaunchScorecard = lazyRoute(() => import("../pages/AdminAustinLaunchScorecard"));
+const AdminGrowthStudio = lazyRoute(() => import("../pages/AdminGrowthStudio"));
+const AdminCompanyMetrics = lazyRoute(() => import("../pages/AdminCompanyMetrics"));
+const Dashboard = lazyRoute(() => import("../pages/Dashboard"));
+const OffWaitlistSignUpFlow = lazyRoute(() => import("../pages/OffWaitlistSignUpFlow"));
+const RequestConsole = lazyRoute(() => import("../pages/RequestConsole"));
+const DesignSystem = lazyRoute(() => import("../pages/DesignSystem"));
 
 // Redesign — public pages (distinct surfaces per SCREENS.md)
-const About = lazy(() => import("../pages/About"));
-const Governance = lazy(() => import("../pages/Governance"));
-const HowItWorks = lazy(() => import("../pages/HowItWorks"));
-const ForRobotTeams = lazy(() => import("../pages/ForRobotTeams"));
-const ForSiteOperators = lazy(() => import("../pages/ForSiteOperators"));
-const JoinBlueprint = lazy(() => import("../pages/JoinBlueprint"));
+const About = lazyRoute(() => import("../pages/About"));
+const Governance = lazyRoute(() => import("../pages/Governance"));
+const HowItWorks = lazyRoute(() => import("../pages/HowItWorks"));
+const ForRobotTeams = lazyRoute(() => import("../pages/ForRobotTeams"));
+const ForSiteOperators = lazyRoute(() => import("../pages/ForSiteOperators"));
+const JoinBlueprint = lazyRoute(() => import("../pages/JoinBlueprint"));
 
 // Redesign — buyer app (mock-data demo surfaces)
-const AppOverview = lazy(() => import("../pages/app/Overview"));
-const AppRuns = lazy(() => import("../pages/app/Runs"));
-const AppRunDetail = lazy(() => import("../pages/app/RunDetail"));
-const AppSitePacks = lazy(() => import("../pages/app/SitePacks"));
-const AppSiteDetail = lazy(() => import("../pages/app/SiteDetail"));
-const AppPolicies = lazy(() => import("../pages/app/Policies"));
-const AppDataPackages = lazy(() => import("../pages/app/DataPackages"));
-const AppEntitlements = lazy(() => import("../pages/app/Entitlements"));
+const AppOverview = lazyRoute(() => import("../pages/app/Overview"));
+const AppRuns = lazyRoute(() => import("../pages/app/Runs"));
+const AppRunDetail = lazyRoute(() => import("../pages/app/RunDetail"));
+const AppSitePacks = lazyRoute(() => import("../pages/app/SitePacks"));
+const AppSiteDetail = lazyRoute(() => import("../pages/app/SiteDetail"));
+const AppPolicies = lazyRoute(() => import("../pages/app/Policies"));
+const AppDataPackages = lazyRoute(() => import("../pages/app/DataPackages"));
+const AppEntitlements = lazyRoute(() => import("../pages/app/Entitlements"));
 
 // Redesign — ops console (mock-data demo surfaces)
-const OpsQueue = lazy(() => import("../pages/ops/Queue"));
-const OpsCaptureSupply = lazy(() => import("../pages/ops/CaptureSupply"));
-const OpsCityLaunch = lazy(() => import("../pages/ops/CityLaunch"));
-const OpsEvidenceReview = lazy(() => import("../pages/ops/EvidenceReview"));
-const OpsBuyerHandoff = lazy(() => import("../pages/ops/BuyerHandoff"));
-const OpsSpendControls = lazy(() => import("../pages/ops/SpendControls"));
+const OpsQueue = lazyRoute(() => import("../pages/ops/Queue"));
+const OpsCaptureSupply = lazyRoute(() => import("../pages/ops/CaptureSupply"));
+const OpsCityLaunch = lazyRoute(() => import("../pages/ops/CityLaunch"));
+const OpsEvidenceReview = lazyRoute(() => import("../pages/ops/EvidenceReview"));
+const OpsBuyerHandoff = lazyRoute(() => import("../pages/ops/BuyerHandoff"));
+const OpsSpendControls = lazyRoute(() => import("../pages/ops/SpendControls"));
 
-const NotFound = lazy(() => import("../pages/NotFound"));
+const NotFound = lazyRoute(() => import("../pages/NotFound"));
 
 const HomeRedirect = () => <MarketingRedirect to="/" />;
 
@@ -312,3 +325,31 @@ export const appRoutes: AppRoute[] = [
   // 404
   { layout: "public", component: NotFound },
 ];
+
+function hasPreload(component: ComponentType<any>): component is PreloadableComponent {
+  return typeof (component as { preload?: unknown }).preload === "function";
+}
+
+// Mirrors wouter's <Switch>/<Route> first-match-wins semantics (literal
+// segments plus `:param` segments) so main.tsx can resolve the same route
+// the live <Router> will render, without rendering it.
+export function matchAppRoute(pathname: string): AppRoute | undefined {
+  const segments = pathname.split("/").filter(Boolean);
+  const staticMatch = appRoutes.find((route) => {
+    if (!route.path) return false;
+    const routeSegments = route.path.split("/").filter(Boolean);
+    if (routeSegments.length !== segments.length) return false;
+    return routeSegments.every(
+      (segment, index) => segment.startsWith(":") || segment === segments[index],
+    );
+  });
+
+  return staticMatch ?? appRoutes.find((route) => !route.path);
+}
+
+// Preloads the JS chunk for the route matching `pathname`, if it's lazy. Used
+// on initial boot so the first client render doesn't suspend (see main.tsx).
+export function preloadMatchedRoute(pathname: string): Promise<unknown> | null {
+  const component = matchAppRoute(pathname)?.component;
+  return component && hasPreload(component) ? component.preload() : null;
+}
