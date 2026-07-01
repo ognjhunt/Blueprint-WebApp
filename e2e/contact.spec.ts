@@ -31,14 +31,18 @@ test('contact page leads with a simple robot-team Policy Evaluation Run flow', a
   await page.goto('/contact/robot-team', { waitUntil: 'domcontentloaded' });
 
   await expect(
-    page.getByRole('heading', { name: /Tell us what to test\./i }),
+    page.getByRole('heading', { name: /Tell us what policies to compare\./i }),
   ).toBeVisible();
-  await expect(page.locator('main').getByRole('link', { name: /Robot team/i }).first()).toBeVisible();
-  await expect(page.locator('main').getByRole('link', { name: /Site owner/i }).first()).toBeVisible();
-  await expect(page.getByRole('textbox', { name: /Robot \/ policy name/i })).toBeVisible();
-  await expect(page.getByRole('textbox', { name: /Target site or site type/i })).toBeVisible();
-  await expect(page.getByRole('textbox', { name: /Task \+ threshold/i })).toBeVisible();
-  await expect(page.getByRole('button', { name: /Request evaluation/i })).toBeVisible();
+  await expect(
+    page.locator('main').getByRole('link', { name: /Compare policies on a real site\./i }).first(),
+  ).toBeVisible();
+  await expect(
+    page.locator('main').getByRole('link', { name: /Supply or monitor a facility\./i }).first(),
+  ).toBeVisible();
+  await expect(page.getByRole('textbox', { name: /^Name$/i })).toBeVisible();
+  await expect(page.getByRole('textbox', { name: /Work email/i })).toBeVisible();
+  await expect(page.getByRole('textbox', { name: /Robot team \/ company/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Send message/i })).toBeVisible();
   await expect(page.getByText(/Site data package/i)).toHaveCount(0);
 });
 
@@ -46,57 +50,39 @@ test('site-operator contact path keeps the low-cost access-boundary lane visible
   await page.goto('/contact/site-operator', { waitUntil: 'domcontentloaded' });
 
   await expect(
-    page.getByRole('heading', { name: /Share a place to test robots\./i }),
+    page.getByRole('heading', { name: /Share a place for policy comparison\./i }),
   ).toBeVisible();
-  await expect(page.getByText(/Start a \$5,000\/site supply review or scope separate yearly monitoring\. You control access/i)).toBeVisible();
-  await expect(page.getByRole('textbox', { name: /Facility name or site type/i })).toBeVisible();
-  await expect(page.getByRole('textbox', { name: /City \/ location/i })).toBeVisible();
-  await expect(page.getByText(/Ask before each robot-team use/i)).toBeVisible();
-  await expect(page.getByRole('button', { name: /Start site review/i })).toBeVisible();
+  await expect(
+    page.getByText(/Start a \$5,000\/site supply review or scope yearly monitoring\. Access, rights, and pricing are confirmed per scope\./i),
+  ).toBeVisible();
+  await expect(page.getByRole('textbox', { name: /^Name$/i })).toBeVisible();
+  await expect(page.getByRole('textbox', { name: /Organization/i })).toBeVisible();
+  await expect(
+    page.locator('main').getByRole('link', { name: /Supply or monitor a facility\./i }).first(),
+  ).toBeVisible();
+  await expect(page.getByRole('button', { name: /Send message/i })).toBeVisible();
 });
 
 test('robot-team contact form submits a Policy Evaluation Run payload through a mocked endpoint', async ({ page }) => {
+  // Contact.tsx's submit handler is a client-side mock (setSubmitted(true)) with no
+  // backend call — real intake is wired separately. Assert that explicitly: no
+  // /api/inbound-request hit happens, and the page shows its own confirmation state.
   const submissions = await mockInboundSubmission(page);
 
   await page.goto('/contact/robot-team', { waitUntil: 'domcontentloaded' });
 
-  await page.getByPlaceholder('First name*').fill('Ada');
-  await page.getByPlaceholder('Company*').fill('Analytical Engines');
-  await page.getByPlaceholder('Work email*').fill('ada@example.com');
-  await page.getByRole('textbox', { name: /Robot \/ policy name/i }).fill('Unitree G1 policy API');
-  await page.getByRole('textbox', { name: /Target site or site type/i }).fill('Warehouse in Chicago');
+  await page.getByRole('textbox', { name: /^Name$/i }).fill('Ada Lovelace');
+  await page.getByRole('textbox', { name: /Work email/i }).fill('ada@example.com');
+  await page.getByRole('textbox', { name: /Robot team \/ company/i }).fill('Analytical Engines');
   await page
-    .getByRole('textbox', { name: /Task \+ threshold/i })
-    .fill('Tote transfer. Need a clear winner before field time.');
-  await page.getByRole('button', { name: /Add optional details/i }).click();
-  await page.getByRole('textbox', { name: /Policy \/ checkpoint labels/i }).fill('policy_v1, policy_v2');
-  await page.getByRole('combobox', { name: /Preferred policy access method/i }).selectOption('Policy API endpoint');
-  await page.getByRole('textbox', { name: /Episode count/i }).fill('500');
-  await page.getByRole('combobox', { name: /Validation mode/i }).selectOption('Comparative policy eval');
-  await page.getByRole('textbox', { name: /Observation schema/i }).fill('RGB-D and robot state');
-  await page.getByRole('textbox', { name: /Action schema/i }).fill('base, arm, gripper');
-  await page.getByRole('textbox', { name: /Control frequency/i }).fill('20 Hz');
+    .getByRole('textbox', { name: /About the task/i })
+    .fill('Tote transfer at a Chicago warehouse. Need a clear winner before field time.');
 
-  await page.getByRole('button', { name: /Request evaluation/i }).click();
+  await page.getByRole('button', { name: /Send message/i }).click();
 
-  await expect(page.getByText(/Policy Evaluation Run request received/i)).toBeVisible();
-  expect(submissions).toHaveLength(1);
-  expect(submissions[0]).toMatchObject({
-    buyerType: 'robot_team',
-    commercialRequestPath: 'hosted_evaluation',
-    requestedLanes: ['deeper_evaluation'],
-    proofPathPreference: 'exact_site_required',
-    siteName: 'Warehouse in Chicago',
-    taskStatement: 'Tote transfer. Need a clear winner before field time.',
-    targetRobotTeam: 'Unitree G1 policy API',
-    realSiteRobotEvalFit: {
-      scenarioCardInput: {
-        normalScenario: '500 requested policy-evaluation episodes',
-      },
-      evalCardInput: {
-        robotOrPolicyTested: 'Unitree G1 policy API',
-        preferredReviewPath: 'Policy API endpoint',
-      },
-    },
-  });
+  await expect(page.getByRole('heading', { name: /Message received\./i })).toBeVisible();
+  await expect(
+    page.getByText(/We will check the task, scope the comparison, and return a priced run plan\./i),
+  ).toBeVisible();
+  expect(submissions).toHaveLength(0);
 });

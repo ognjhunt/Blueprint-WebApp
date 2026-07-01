@@ -22,6 +22,12 @@ export type PublicQaRoute = {
   canonicalPath: string;
   expectedHeading: string;
   requiredCtas: RequiredCta[];
+  /**
+   * Public-launch-posture pattern labels to ignore on this route, for known
+   * false positives — e.g. an honest per-item readiness filter (filter option
+   * text like "Coming soon") rather than apologetic launch-status copy.
+   */
+  allowedPosturePatterns?: string[];
 };
 
 export type QaCheckResult = {
@@ -134,124 +140,134 @@ export const publicLaunchPosturePatterns: PublicLaunchPosturePattern[] = [
   },
 ];
 
+// Several of these paths are legacy entry points that now 301 (see
+// server/index.ts's legacyPublicRedirects) to a current primary page before
+// the SPA ever renders the original route's component. Each entry's
+// expectedHeading/canonicalPath/requiredCtas describe the page the route
+// actually lands on today, not the original path's own (often-removed)
+// content — the route stays in this sweep to keep verifying the redirect
+// itself (HTTP status, console health, no broken links) still works.
 export const publicQaRoutes: PublicQaRoute[] = [
   {
     label: "Home",
     path: "/",
     canonicalPath: "/",
-    expectedHeading: "Site-specific world models from real capture.",
+    expectedHeading: "Test robot policies before field time.",
     requiredCtas: [
-      { label: "Request world model", hrefStartsWith: "/contact" },
-      { label: "Browse world models", hrefStartsWith: "/world-models" },
+      { label: "Request evaluation", hrefStartsWith: "/contact" },
+      { label: "See how it works", hrefStartsWith: "/how-it-works" },
     ],
   },
   {
-    label: "Product",
+    label: "Product (legacy, redirects to Home)",
     path: "/product",
-    canonicalPath: "/product",
-    expectedHeading: "Turn the exact site into a decision-ready world model.",
+    canonicalPath: "/",
+    expectedHeading: "Test robot policies before field time.",
     requiredCtas: [
-      { label: "Book hosted review", hrefStartsWith: "/contact" },
-      { label: "Inspect proof", hrefStartsWith: "/proof" },
+      { label: "Request evaluation", hrefStartsWith: "/contact" },
+      { label: "See how it works", hrefStartsWith: "/how-it-works" },
     ],
   },
   {
-    label: "World models",
+    label: "Sites (legacy /world-models, redirects to /sites)",
     path: "/world-models",
-    canonicalPath: "/world-models",
-    expectedHeading: "Browse exact-site world models.",
+    canonicalPath: "/sites",
+    expectedHeading: "Pick a captured place.",
     requiredCtas: [
-      { label: "Request world model", hrefStartsWith: "/contact" },
-      { label: "Jump to catalog", hrefStartsWith: "#catalog" },
+      { label: "Start", hrefStartsWith: "/contact" },
+      { label: "Submit site", hrefStartsWith: "/contact" },
     ],
+    // The readiness filter control's own option list includes "Coming soon"
+    // as one of four honest per-site status labels — not apologetic launch
+    // copy about the product itself.
+    allowedPosturePatterns: ["coming soon"],
   },
   {
-    label: "Agents",
+    label: "Agents (legacy, redirects to Contact)",
     path: "/agents",
-    canonicalPath: "/agents",
-    expectedHeading: "Robot-team agent access.",
+    canonicalPath: "/contact/robot-team",
+    expectedHeading: "Tell us what policies to compare.",
     requiredCtas: [
-      { label: "Request agent access", hrefStartsWith: "/contact" },
-      { label: "Open contract", hrefStartsWith: "/agent-access.openapi.json" },
+      { label: "Compare policies on a real site.", hrefStartsWith: "/contact/robot-team" },
+      { label: "Supply or monitor a facility.", hrefStartsWith: "/contact/site-operator" },
     ],
   },
   {
     label: "Pricing",
     path: "/pricing",
     canonicalPath: "/pricing",
-    expectedHeading: "Choose the first step for one real site.",
+    expectedHeading: "Priced as evaluation infrastructure.",
     requiredCtas: [
-      { label: "Request world model", hrefStartsWith: "/contact" },
-      { label: "Request hosted review", hrefStartsWith: "/contact" },
+      { label: "Start a subscription", hrefStartsWith: "/contact" },
+      { label: "Start a site review", hrefStartsWith: "/contact" },
     ],
   },
   {
     label: "Proof",
     path: "/proof",
     canonicalPath: "/proof",
-    expectedHeading: "See what is attached before your team commits.",
+    expectedHeading: "Proof stays scoped.",
     requiredCtas: [
-      { label: "Request world model", hrefStartsWith: "/contact" },
-      { label: "Browse world models", hrefStartsWith: "/world-models" },
+      { label: "Start", hrefStartsWith: "/contact" },
     ],
   },
   {
     label: "Capture",
     path: "/capture",
     canonicalPath: "/capture",
-    expectedHeading: "Get paid to capture indoor places robots need to understand.",
+    expectedHeading: "Capture Jobs",
     requiredCtas: [
-      { label: "Check capture access", hrefStartsWith: "/capture-app/launch-access" },
-      { label: "Apply for approved capture assignments", hrefStartsWith: "/signup/capturer" },
+      { label: "Browse capture jobs", hrefStartsWith: "#jobs" },
+      { label: "Apply or join waitlist", hrefStartsWith: "/signup/capturer" },
     ],
   },
   {
-    label: "Contact",
+    label: "Contact (redirects to /contact/robot-team)",
     path: "/contact",
-    canonicalPath: "/contact",
-    expectedHeading: "Request the site-specific world model your robot team needs.",
+    canonicalPath: "/contact/robot-team",
+    expectedHeading: "Tell us what policies to compare.",
     requiredCtas: [
-      { label: "Request world model", hrefStartsWith: "#contact-intake" },
-      { label: "Inspect proof", hrefStartsWith: "/proof" },
+      { label: "Compare policies on a real site.", hrefStartsWith: "/contact/robot-team" },
+      { label: "Supply or monitor a facility.", hrefStartsWith: "/contact/site-operator" },
     ],
   },
   {
-    label: "Careers",
+    label: "Careers (legacy, redirects to Contact)",
     path: "/careers",
-    canonicalPath: "/careers",
-    expectedHeading: "Build the systems behind exact-site world models.",
+    canonicalPath: "/contact/robot-team",
+    expectedHeading: "Tell us what policies to compare.",
     requiredCtas: [
-      { label: "View open roles", hrefStartsWith: "#open-roles" },
-      { label: "Apply by email", hrefStartsWith: "mailto:" },
+      { label: "Compare policies on a real site.", hrefStartsWith: "/contact/robot-team" },
+      { label: "Supply or monitor a facility.", hrefStartsWith: "/contact/site-operator" },
     ],
   },
   {
-    label: "FAQ",
+    label: "FAQ (legacy, redirects to Proof)",
     path: "/faq",
-    canonicalPath: "/faq",
-    expectedHeading: "The questions that usually decide fit.",
+    canonicalPath: "/proof",
+    expectedHeading: "Proof stays scoped.",
     requiredCtas: [
-      { label: "Talk to Blueprint about a real site", hrefStartsWith: "/contact" },
+      { label: "Start", hrefStartsWith: "/contact" },
     ],
   },
   {
-    label: "About",
+    label: "About (legacy, redirects to Home)",
     path: "/about",
-    canonicalPath: "/about",
-    expectedHeading: "Blueprint exists to make one real site legible earlier.",
+    canonicalPath: "/",
+    expectedHeading: "Test robot policies before field time.",
     requiredCtas: [
-      { label: "Explore world models", hrefStartsWith: "/world-models" },
-      { label: "Contact Blueprint", hrefStartsWith: "/contact" },
+      { label: "Request evaluation", hrefStartsWith: "/contact" },
+      { label: "See how it works", hrefStartsWith: "/how-it-works" },
     ],
   },
   {
-    label: "Updates",
+    label: "Updates (legacy, redirects to Home)",
     path: "/updates",
-    canonicalPath: "/updates",
-    expectedHeading: "Notes on exact-site world models.",
+    canonicalPath: "/",
+    expectedHeading: "Test robot policies before field time.",
     requiredCtas: [
-      { label: "Explore world models", hrefStartsWith: "/world-models" },
-      { label: "See proof", hrefStartsWith: "/proof" },
+      { label: "Request evaluation", hrefStartsWith: "/contact" },
+      { label: "See how it works", hrefStartsWith: "/how-it-works" },
     ],
   },
 ];

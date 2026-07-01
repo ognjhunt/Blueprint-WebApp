@@ -28,29 +28,30 @@ describe("Header", () => {
   it("keeps the buyer-facing nav focused", () => {
     render(<Header />);
 
-    expect(screen.getByRole("link", { name: /^Evaluate$/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /^For Robot Teams$/i })).toHaveAttribute(
       "href",
       "/for-robot-teams",
     );
-    expect(screen.getByRole("link", { name: /^Sites$/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /^For Site Operators$/i })).toHaveAttribute(
       "href",
-      "/sites",
+      "/for-site-operators",
+    );
+    expect(screen.getByRole("link", { name: /^How it works$/i })).toHaveAttribute(
+      "href",
+      "/how-it-works",
     );
     expect(screen.getByRole("link", { name: /^Pricing$/i })).toHaveAttribute(
       "href",
       "/pricing",
     );
-    expect(screen.getByRole("link", { name: /^Proof$/i })).toHaveAttribute(
-      "href",
-      "/proof",
-    );
+    expect(screen.queryByRole("link", { name: /^Evaluate$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /^Sites$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /^Proof$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /^Robot teams$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /^Product$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /^Readiness$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /^Site packages$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /^Capture$/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /^For robot teams$/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /^For site operators$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /^For capturers$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /^Sample Listing$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /^Deliverables$/i })).not.toBeInTheDocument();
@@ -61,7 +62,7 @@ describe("Header", () => {
   it("uses a reduced proof-first action rail in the header", () => {
     render(<Header />);
 
-    const requestLink = screen.getAllByRole("link", { name: /^Start$/i })[0];
+    const requestLink = screen.getAllByRole("link", { name: /^Request evaluation$/i })[0];
     expect(requestLink).toHaveAttribute(
       "href",
       "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=policy-evaluation-run&source=header",

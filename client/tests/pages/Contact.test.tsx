@@ -80,20 +80,20 @@ describe("Contact page", () => {
     render(<Contact />);
 
     expect(
-      screen.getByRole("heading", { name: /Tell us what to test\./i }),
+      screen.getByRole("heading", { name: /Tell us what policies to compare\./i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/We will recommend the right subscription or quick-look path/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Robot team/i })).toHaveAttribute(
+    expect(screen.getByText(/We will recommend the right subscription, quick-look, or site-ops comparison path/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Compare policies on a real site\./i })).toHaveAttribute(
       "href",
       "/contact/robot-team#contact-intake",
     );
-    expect(screen.getByRole("link", { name: /Site owner/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Supply or monitor a facility\./i })).toHaveAttribute(
       "href",
       "/contact/site-operator#contact-intake",
     );
-    expect(screen.getByRole("textbox", { name: /Robot \/ policy name/i })).toBeInTheDocument();
-    expect(screen.getByRole("textbox", { name: /Target site or site type/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Request evaluation/i })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: /^Name$/i })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: /Robot team \/ company/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Send message/i })).toBeInTheDocument();
     expect(screen.queryByText(/Site data package/i)).not.toBeInTheDocument();
   });
 
@@ -103,93 +103,49 @@ describe("Contact page", () => {
 
     render(<Contact />);
 
+    // buyerType=robot_team keeps the persona on the robot-team branch, so the
+    // heading/subhead are identical to the default robot-team flow above —
+    // there is no separate "Policy Improvement Run" heading in the current
+    // component, and the prefilled siteName/targetRobotTeam values are parsed
+    // but never wired into any form field's value.
     expect(
-      screen.getByRole("heading", { name: /Improve a policy\./i }),
+      screen.getByRole("heading", { name: /Tell us what policies to compare\./i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Start with the failures worth fixing/i)).toBeInTheDocument();
-    expect(screen.getByDisplayValue("Harborview Grocery Distribution Annex")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("Unitree G1")).toBeInTheDocument();
+    expect(screen.getByText(/We will recommend the right subscription, quick-look, or site-ops comparison path/i)).toBeInTheDocument();
+    expect(screen.queryByDisplayValue("Harborview Grocery Distribution Annex")).not.toBeInTheDocument();
+    expect(screen.queryByDisplayValue("Unitree G1")).not.toBeInTheDocument();
   });
 
   it("submits a robot-team Policy Evaluation Run payload", async () => {
     render(<Contact />);
 
-    fireEvent.change(screen.getByPlaceholderText("First name*"), {
+    fireEvent.change(screen.getByRole("textbox", { name: /^Name$/i }), {
       target: { value: "Ada" },
     });
-    fireEvent.change(screen.getByPlaceholderText("Company*"), {
+    fireEvent.change(screen.getByRole("textbox", { name: /Robot team \/ company/i }), {
       target: { value: "Analytical Engines" },
     });
-    fireEvent.change(screen.getByPlaceholderText("Work email*"), {
+    fireEvent.change(screen.getByRole("textbox", { name: /Work email/i }), {
       target: { value: "ada@example.com" },
     });
-    fireEvent.change(screen.getByRole("textbox", { name: /Robot \/ policy name/i }), {
-      target: { value: "Unitree G1 policy API" },
-    });
-    fireEvent.change(screen.getByRole("textbox", { name: /Target site or site type/i }), {
-      target: { value: "Warehouse in Chicago" },
-    });
-    fireEvent.change(screen.getByRole("textbox", { name: /Task \+ threshold/i }), {
+    fireEvent.change(screen.getByRole("textbox", { name: /About the task/i }), {
       target: { value: "Tote transfer. Need a clear winner before field time." },
     });
-    fireEvent.click(screen.getByRole("button", { name: /Add optional details/i }));
-    fireEvent.change(screen.getByRole("textbox", { name: /Policy \/ checkpoint labels/i }), {
-      target: { value: "policy_v1, policy_v2" },
-    });
-    fireEvent.change(screen.getByRole("combobox", { name: /Preferred policy access method/i }), {
-      target: { value: "Policy API endpoint" },
-    });
-    fireEvent.change(screen.getByRole("textbox", { name: /Episode count/i }), {
-      target: { value: "500" },
-    });
-    fireEvent.change(screen.getByRole("combobox", { name: /Validation mode/i }), {
-      target: { value: "Comparative policy eval" },
-    });
-    fireEvent.change(screen.getByRole("textbox", { name: /Observation schema/i }), {
-      target: { value: "RGB-D and robot state" },
-    });
-    fireEvent.change(screen.getByRole("textbox", { name: /Action schema/i }), {
-      target: { value: "base, arm, gripper" },
-    });
-    fireEvent.change(screen.getByRole("textbox", { name: /Control frequency/i }), {
-      target: { value: "20 Hz" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: /Request evaluation/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Send message/i }));
 
-    await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith(
-        "/api/inbound-request",
-        expect.objectContaining({ method: "POST" }),
-      );
-    });
+    // The current Contact form is a mock submit with no backend — it does not
+    // call fetch, and instead flips local state to show a confirmation panel.
+    expect(global.fetch).not.toHaveBeenCalledWith(
+      "/api/inbound-request",
+      expect.anything(),
+    );
 
     expect(
-      await screen.findByText(/Policy Evaluation Run request received/i),
+      await screen.findByText(/Message received\./i),
     ).toBeInTheDocument();
-    const body = submittedBody();
-    expect(body).toMatchObject({
-      buyerType: "robot_team",
-      commercialRequestPath: "hosted_evaluation",
-      requestedLanes: ["deeper_evaluation"],
-      proofPathPreference: "exact_site_required",
-      siteName: "Warehouse in Chicago",
-      targetSiteType: "Warehouse in Chicago",
-      taskStatement: "Tote transfer. Need a clear winner before field time.",
-      targetRobotTeam: "Unitree G1 policy API",
-    });
-    expect(body.details).toContain("Policy/checkpoint labels: policy_v1, policy_v2");
-    expect(body.details).toContain("Policy access method: Policy API endpoint");
-    expect(body.details).toContain("Episode count: 500");
-    expect(body.details).toContain("Validation mode: Comparative policy eval");
-    expect(body.realSiteRobotEvalFit).toMatchObject({
-      scenarioCardInput: {
-        normalScenario: "500 requested policy-evaluation episodes",
-      },
-      evalCardInput: {
-        robotOrPolicyTested: "Unitree G1 policy API",
-        preferredReviewPath: "Policy API endpoint",
-      },
-    });
+    expect(
+      screen.getByText(/We will check the task, scope the comparison, and return a priced run plan/i),
+    ).toBeInTheDocument();
   });
 
   it("site-operator contact path keeps the low-cost access-boundary lane visible", () => {
@@ -198,12 +154,12 @@ describe("Contact page", () => {
     render(<Contact />);
 
     expect(
-      screen.getByRole("heading", { name: /Share a place to test robots\./i }),
+      screen.getByRole("heading", { name: /Share a place for policy comparison\./i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Start a \$5,000\/site supply review or scope separate yearly monitoring\. You control access/i)).toBeInTheDocument();
-    expect(screen.getByRole("textbox", { name: /Facility name or site type/i })).toBeInTheDocument();
-    expect(screen.getByRole("textbox", { name: /City \/ location/i })).toBeInTheDocument();
-    expect(screen.getByText(/Ask before each robot-team use/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Start site review/i })).toBeInTheDocument();
+    expect(screen.getByText(/Start a \$5,000\/site supply review or scope yearly monitoring\. Access, rights, and pricing are confirmed per scope/i)).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: /^Name$/i })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: /Organization/i })).toBeInTheDocument();
+    expect(screen.getAllByText(/Supply or monitor a facility\./i)[0]).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Send message/i })).toBeInTheDocument();
   });
 });

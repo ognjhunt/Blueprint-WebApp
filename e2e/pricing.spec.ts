@@ -7,30 +7,32 @@ test("pricing page presents the subscription-first robot-team pricing ladder", a
 
   await expect(
     page.getByRole("heading", {
-      name: "Evaluation infrastructure, not one-off tax.",
+      name: "Priced as evaluation infrastructure.",
     }),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Robot team subscription" }),
+    page.getByRole("heading", { name: "Robot-team subscription" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Lite quick-look eval" }),
+    page.getByRole("heading", { name: "Quick-look eval" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Site supply review" }),
+    page.getByRole("heading", { name: "Site supply", exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Site monitoring subscription" }),
+    page.getByRole("heading", { name: "Site monitoring", exact: true }),
   ).toBeVisible();
-  await expect(page.getByText(/\$15,000 \/ month/i)).toBeVisible();
-  await expect(page.getByText(/\$5,000-\$8,000 \/ eval/i)).toBeVisible();
-  await expect(page.getByText(/\$5,000 \/ site/i)).toBeVisible();
-  await expect(page.getByText(/\$30,000-\$40,000 \/ site \/ year/i)).toBeVisible();
+  await expect(page.getByText(/^\$15k$/i)).toBeVisible();
+  await expect(page.getByText(/^\$5–8k$/i)).toBeVisible();
+  await expect(page.getByText(/^\$5k$/i)).toBeVisible();
+  await expect(page.getByText(/^\$30–40k$/i)).toBeVisible();
   await expect(page.getByText(/Overage pricing above the cap/i)).toBeVisible();
-  await expect(page.getByText(/Multiple policy-update checks up to agreed annual cap/i)).toBeVisible();
-  await expect(page.getByText(/Site review is one-time; monitoring is recurring/i)).toBeVisible();
-  await expect(page.getByText(/Virtual results do not approve deployment or safety/i)).toBeVisible();
+  await expect(page.getByText(/Multiple scoped checks up to annual cap/i)).toBeVisible();
+  await expect(page.getByText(/Monitoring is a separate, recurring option\./i)).toBeVisible();
   await expect(
-    page.getByRole("link", { name: /Start site review/i }).first(),
-  ).toHaveAttribute("href", /\/contact\/site-operator/);
+    page.getByText(/not a deployment-ready claim or a/i),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: /Start a site review/i }).first(),
+  ).toHaveAttribute("href", /persona=site-operator/);
 });

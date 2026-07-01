@@ -204,9 +204,11 @@ describe("build output", () => {
     const proofHtml = fs.readFileSync(distPath("proof/index.html"), "utf8");
 
     expect(homeHtml).toContain("Test robot policies before field time.");
-    expect(homeHtml).toContain("Use captured real-site tasks to see what works.");
-    expect(homeHtml).toContain("Same task. Same robot. Clear winner.");
-    expect(homeHtml).toContain("Pick winner");
+    expect(homeHtml).toContain(
+      "Compare your policy against earlier checkpoints, another team, or a vendor runner on the same captured task pack",
+    );
+    expect(homeHtml).toContain("One captured envelope. A clear policy ranking.");
+    expect(homeHtml).toContain("Decide the next test");
     expect(homeHtml).toContain('rel="canonical" href="https://tryblueprint.io/"');
     expect(homeHtml).toContain('type="application/ld+json"');
     expect(pricingHtml).toContain("Evaluation infrastructure, not one-off tax.");

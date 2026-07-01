@@ -8,25 +8,32 @@ describe("Pricing", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Evaluation infrastructure, not one-off tax\./i,
+        name: /Priced as evaluation infrastructure\./i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /^Robot team subscription$/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /^Lite quick-look eval$/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /^Site supply review$/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /^Site monitoring subscription$/i })).toBeInTheDocument();
-    expect(screen.getByText(/\$15,000 \/ month/i)).toBeInTheDocument();
-    expect(screen.getByText(/\$5,000-\$8,000 \/ eval/i)).toBeInTheDocument();
-    expect(screen.getByText(/\$5,000 \/ site/i)).toBeInTheDocument();
-    expect(screen.getByText(/\$30,000-\$40,000 \/ site \/ year/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Robot-team subscription$/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Quick-look eval$/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Site supply$/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Site monitoring$/i })).toBeInTheDocument();
+    expect(screen.getByText(/^\$15k$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^\/ mo$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^\$5–8k$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^\/ eval$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^\$5k$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^\/ site$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^\$30–40k$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^\/ site \/ yr$/i)).toBeInTheDocument();
     expect(screen.getByText(/Overage pricing above the cap/i)).toBeInTheDocument();
-    expect(screen.getByText(/Ranking-only report; no failure taxonomy or calibration/i)).toBeInTheDocument();
-    expect(screen.getByText(/Multiple policy-update checks up to agreed annual cap/i)).toBeInTheDocument();
-    expect(screen.getByText(/Site review is one-time; monitoring is recurring/i)).toBeInTheDocument();
-    expect(screen.getByText(/Virtual results do not approve deployment or safety/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Start site review/i })).toHaveAttribute(
+    expect(screen.getByText(/^Ranking-only report$/i)).toBeInTheDocument();
+    expect(screen.getByText(/Failure taxonomy and calibration stay in subscription scope\./i)).toBeInTheDocument();
+    expect(screen.getByText(/Multiple scoped checks up to annual cap/i)).toBeInTheDocument();
+    expect(screen.getByText(/Monitoring is a separate, recurring option\./i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/not a deployment-ready claim or a\s+guarantee of field success/i),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Start a site review/i })).toHaveAttribute(
       "href",
-      expect.stringContaining("/contact/site-operator"),
+      expect.stringContaining("persona=site-operator"),
     );
     expect(screen.queryByText(/Site Data Package/i)).not.toBeInTheDocument();
   });

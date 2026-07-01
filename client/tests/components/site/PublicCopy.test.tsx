@@ -42,14 +42,13 @@ describe("public real-site evaluation copy", () => {
         name: /Test robot policies before field time\./i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: /^Start$/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: /^Request evaluation$/i }).length).toBeGreaterThan(0);
     expect(container).toHaveTextContent(/Compare your policy against earlier checkpoints/i);
-    expect(container).toHaveTextContent(/Capture site/i);
-    expect(container).toHaveTextContent(/Compare policies/i);
-    expect(container).toHaveTextContent(/Pick next test/i);
-    expect(container).toHaveTextContent(/100 episodes/i);
+    expect(container).toHaveTextContent(/Capture the site/i);
+    expect(container).toHaveTextContent(/Run the comparison/i);
+    expect(container).toHaveTextContent(/Decide the next test/i);
     expect(container).toHaveTextContent(/500 episodes/i);
-    expect(container).toHaveTextContent(/rank-fidelity result outside the measured evaluation scope/i);
+    expect(container).toHaveTextContent(/policy-ranking result outside the measured evaluation scope/i);
     expect(container).not.toHaveTextContent(/WAM\/VLA/i);
     expect(container).not.toHaveTextContent(/digital twin/i);
     expect(container).not.toHaveTextContent(/SimReady/i);

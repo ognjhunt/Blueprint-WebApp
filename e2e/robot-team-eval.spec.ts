@@ -35,20 +35,18 @@ test("robot-team eval route is simple and submits normalized policy payload", as
     });
   });
 
-  await page.goto("/for-robot-teams");
+  await page.goto("/robot-team/eval");
 
   await expect(
     page.getByRole("heading", {
-      name: "Start an evaluation.",
+      name: "Compare policies on one site task.",
     }),
   ).toBeVisible();
-  await expect(page.getByText(/\$15,000\/month/i)).toBeVisible();
-  await expect(page.getByText(/\$5,000-\$8,000 quick-look/i)).toBeVisible();
   await expect(page.getByRole("heading", { name: "Four steps." })).toBeVisible();
   await expect(page.getByText("API").first()).toBeVisible();
   await expect(page.getByText("Docker").first()).toBeVisible();
   await expect(page.getByText("Checkpoint").first()).toBeVisible();
-  await expect(page.getByText(/Results guide what to test next/i)).toBeVisible();
+  await expect(page.getByText(/Same task\. Same robot\. Same episode count\./i)).toBeVisible();
   await expect(
     page.getByRole("heading", {
       name: "Private robots without handing over either side's IP.",
@@ -103,8 +101,10 @@ test("robot-team eval route is simple and submits normalized policy payload", as
   expect(observedBody?.sessionMode).toBe("runtime_only");
   expect(observedBody?.requestedOutputs).toEqual([
     "policy_ranking",
+    "comparative_policy_eval",
     "failure_taxonomy",
     "ood_uncertainty_flags",
+    "site_ops_comparison_packet",
     "validation_targets",
   ]);
   const policy = observedBody?.policy as Record<string, unknown>;
@@ -153,7 +153,7 @@ test("robot-team eval route is usable on mobile", async ({ page }) => {
 
   await expect(
     page.getByRole("heading", {
-      name: "Start an evaluation.",
+      name: "Compare policies on one site task.",
     }),
   ).toBeVisible();
   await expect(

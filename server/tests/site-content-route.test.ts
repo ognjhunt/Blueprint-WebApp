@@ -38,7 +38,7 @@ describe("site-content route", () => {
 
       expect(payload.summary).toContain("real-site robot evaluation dataset and workflow");
       expect(payload.summary).toContain("lawful indoor capture");
-      expect(payload.summary).toContain("Site, Task, Scenario, and Eval Cards");
+      expect(payload.summary).toContain("Site, Task, Scenario, Eval, and comparison artifacts");
       expect(payload.definitions).toEqual(
         expect.arrayContaining([
           expect.objectContaining({

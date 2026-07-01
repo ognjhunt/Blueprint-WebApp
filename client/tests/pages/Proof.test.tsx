@@ -10,12 +10,12 @@ describe("Proof page", () => {
       screen.getByRole("heading", { name: /Proof stays scoped\./i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/Every claim belongs to one site, task, robot, and evidence set/i),
+      screen.getByText(/research number is correlation evidence, not an[\s\S]*accuracy or deployment claim/i),
     ).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /^Website$/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Research signal$/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /^Request packet$/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /^Robot validation$/i })).toBeInTheDocument();
-    expect(screen.getByText(/Scopes one site, task, and robot/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Owner proof$/i })).toBeInTheDocument();
+    expect(screen.getByText(/Scopes one site, task, robot, policy set, and threshold/i)).toBeInTheDocument();
   });
 
   it("keeps the claim boundary and request CTA visible", () => {
@@ -24,7 +24,9 @@ describe("Proof page", () => {
     expect(
       screen.getByRole("heading", { name: /What we do not claim\./i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Virtual evaluations do not approve deployment, safety, universal SRCC/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/does not turn a virtual score into a universal accuracy guarantee/i),
+    ).toBeInTheDocument();
     expect(
       screen.getAllByRole("link", { name: /^Start$/i })[0],
     ).toHaveAttribute("href", expect.stringContaining("/contact/robot-team"));

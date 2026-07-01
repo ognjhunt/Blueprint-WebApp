@@ -14,6 +14,14 @@ const webServerEnvPrefix = [
 
 export default defineConfig({
   testDir: './e2e',
+  // operator-surfaces.spec.ts renders authenticated internal/admin surfaces
+  // and requires VITE_BLUEPRINT_OPERATOR_QA_FAKE_AUTH=1 (no real Firebase
+  // credentials exist in CI or most dev setups) plus its own isolated
+  // server/port — both set up by `npm run qa:operator`
+  // (scripts/qa/run-operator-surfaces.ts), which targets this file directly.
+  // Exclude it from the default sweep so a plain `playwright test` run
+  // doesn't try to load it without that bypass and fail on missing auth.
+  testIgnore: operatorQaFakeAuthEnabled ? undefined : ['**/operator-surfaces.spec.ts'],
   timeout: 60_000,
   expect: {
     timeout: 10_000,

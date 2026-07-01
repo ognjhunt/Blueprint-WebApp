@@ -13,25 +13,20 @@ describe("Home", () => {
       }),
     ).toBeInTheDocument();
     expect(screen.getByText(/Compare your policy against earlier checkpoints/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /^Start$/i })).toHaveAttribute(
+    expect(screen.getAllByRole("link", { name: /^Request evaluation$/i })[0]).toHaveAttribute(
       "href",
       expect.stringContaining("/contact/robot-team"),
     );
-    expect(screen.getByRole("link", { name: /See pricing/i })).toHaveAttribute(
-      "href",
-      "/pricing",
-    );
-    expect(screen.getByText(/Capture site/i)).toBeInTheDocument();
-    expect(screen.getByText(/Compare policies/i)).toBeInTheDocument();
-    expect(screen.getByText(/Pick next test/i)).toBeInTheDocument();
-    expect(screen.getByText(/100 episodes/i)).toBeInTheDocument();
+    expect(screen.getByText(/Capture the site/i)).toBeInTheDocument();
+    expect(screen.getByText(/Run the comparison/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Decide the next test/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/500 episodes/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/own or vendor policies/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/policies submitted by other teams and vendors/i).length).toBeGreaterThan(0);
     expect(
-      screen.getByRole("heading", { name: /Same task\. Same robot\. Clear comparison\./i }),
+      screen.getByRole("heading", { name: /One captured envelope\. A clear policy ranking\./i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Generated first-person POV clips/i)).toBeInTheDocument();
-    expect(screen.getByText(/rank-fidelity result outside the measured evaluation scope/i)).toBeInTheDocument();
+    expect(screen.getByText(/First-person POV clips/i)).toBeInTheDocument();
+    expect(screen.getByText(/policy-ranking result outside the measured evaluation scope/i)).toBeInTheDocument();
     expect(screen.queryByText(/Site Data Package/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/WAM\/VLA/i)).not.toBeInTheDocument();
   });

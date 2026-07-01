@@ -1,21 +1,14 @@
 import { test, expect } from "@playwright/test";
 
-test("exact-site hosted review route keeps the sample-review selector path stable", async ({ page }) => {
+test("exact-site hosted review route redirects to home", async ({ page }) => {
   await page.goto("/exact-site-hosted-review", { waitUntil: "networkidle" });
 
-  await expect(page).toHaveURL(/\/product$/);
+  // The standalone "/product" page is gone; LegacyHostedReviewRedirect now sends
+  // this legacy path to the home page (targeting the "/#how-it-works" anchor).
+  await expect(page).toHaveURL(/\/$/);
   await expect(
     page.getByRole("heading", {
-      name: /Turn the exact site into a decision-ready world model\./i,
+      name: /Test robot policies before field time\./i,
     }),
   ).toBeVisible();
-  await expect(
-    page.getByRole("link", { name: /Inspect proof/i }).first(),
-  ).toHaveAttribute("href", "/proof");
-  await expect(
-    page.getByRole("link", { name: /Book hosted review/i }).first(),
-  ).toHaveAttribute(
-    "href",
-    "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=product",
-  );
 });
