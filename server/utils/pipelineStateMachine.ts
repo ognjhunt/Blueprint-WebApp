@@ -121,7 +121,7 @@ function getDerivedAssetStatus(derivedAssets: DerivedAssetsAttachment | undefine
   return entry?.status ?? null;
 }
 
-function buildRobotEvalCardArtifactUris(
+export function buildRobotEvalCardArtifactUris(
   artifacts: PipelineArtifacts | undefined,
 ): RobotEvalDatasetCardArtifactUris {
   return {
@@ -212,6 +212,12 @@ function missingRobotEvalPublicationArtifacts(
   return ROBOT_EVAL_PUBLICATION_REQUIRED_ARTIFACTS.filter(
     (key) => !hasArtifact(artifacts, key),
   );
+}
+
+export function robotEvalPublicationPackageComplete(
+  artifacts: PipelineArtifacts | undefined,
+): boolean {
+  return missingRobotEvalPublicationArtifacts(artifacts).length === 0;
 }
 
 function hasAnyRobotEvalJobArtifact(artifacts: PipelineArtifacts | undefined): boolean {

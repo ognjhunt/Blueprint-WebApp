@@ -1,8 +1,9 @@
 // @vitest-environment node
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import express from "express";
 import { createServer } from "http";
 import type { Server } from "node:http";
+import { createHmac } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -25,6 +26,7 @@ const state = vi.hoisted(() => ({
     payload: Record<string, unknown>;
     options?: Record<string, unknown>;
   }>,
+  collectionDocData: {} as Record<string, Record<string, Record<string, unknown>>>,
   notesAdds: [] as Array<Record<string, unknown>>,
   storageText: "",
   storageShouldFail: false,
@@ -68,6 +70,13 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
       return {
         doc: (id?: string) => ({
           id: id || "mock-doc-id",
+          get: async () => {
+            const data = state.collectionDocData[name]?.[id || "mock-doc-id"];
+            return {
+              exists: Boolean(data),
+              data: () => data || {},
+            };
+          },
           set: async (payload: Record<string, unknown>, options?: Record<string, unknown>) => {
             state.collectionWrites.push({
               collection: name,
@@ -155,10 +164,12 @@ afterEach(() => {
   state.docUpdate.mockReset();
   state.docUpdate.mockResolvedValue(undefined);
   state.collectionWrites = [];
+  state.collectionDocData = {};
   state.notesAdds = [];
   state.storageText = "";
   state.storageShouldFail = false;
   delete process.env.PIPELINE_SYNC_TOKEN;
+  delete process.env.PIPELINE_SYNC_ALLOWED_GCS_PREFIXES;
   delete process.env.PIPELINE_SYNC_ALLOW_PLACEHOLDER_REQUESTS;
   delete process.env.BLUEPRINT_CAPTURE_HANDOFF_TOKEN_SECRET;
   delete process.env.APP_URL;
@@ -166,6 +177,22 @@ afterEach(() => {
 
 function findCollectionWrites(collection: string) {
   return state.collectionWrites.filter((entry) => entry.collection === collection);
+}
+
+function signedPipelineRequest(body: Record<string, unknown>, secret = "secret") {
+  const rawBody = JSON.stringify(body);
+  const timestamp = new Date().toISOString();
+  const signature = createHmac("sha256", secret)
+    .update(`${timestamp}.${rawBody}`)
+    .digest("hex");
+  return {
+    headers: {
+      "Content-Type": "application/json",
+      "X-Blueprint-Pipeline-Timestamp": timestamp,
+      "X-Blueprint-Pipeline-Signature": `sha256=${signature}`,
+    },
+    body: rawBody,
+  };
 }
 
 const fixturePath = path.resolve(
@@ -177,7 +204,31 @@ const pipelineAttachmentFixture = JSON.parse(
   fs.readFileSync(fixturePath, "utf-8"),
 ) as Record<string, unknown>;
 
+function withCompleteRobotEvalPublicationArtifacts(payload: Record<string, unknown>) {
+  return {
+    ...payload,
+    artifacts: {
+      ...((payload.artifacts as Record<string, unknown>) || {}),
+      robot_eval_dataset_manifest_uri: "gs://bucket/robot-eval/dataset_manifest.json",
+      robot_eval_site_card_uri: "gs://bucket/robot-eval/site_card.json",
+      robot_eval_task_cards_uri: "gs://bucket/robot-eval/task_cards.json",
+      robot_eval_scenario_cards_uri: "gs://bucket/robot-eval/scenario_cards.json",
+      robot_eval_cards_uri: "gs://bucket/robot-eval/eval_cards.json",
+      robot_eval_proof_boundaries_uri: "gs://bucket/robot-eval/proof_boundaries.json",
+      robot_task_ontology_v1_uri: "gs://bucket/robot-eval/task_ontology_v1.json",
+      robot_scenario_family_library_uri: "gs://bucket/robot-eval/scenario_family_library.json",
+      robot_scoring_methodology_uri: "gs://bucket/robot-eval/scoring_methodology.json",
+      robot_eval_task_thresholds_uri: "gs://bucket/robot-eval/task_thresholds.json",
+      robot_eval_publication_readiness_uri: "gs://bucket/robot-eval/publication_readiness.json",
+    },
+  };
+}
+
 describe("pipeline integration routes", () => {
+  beforeEach(() => {
+    process.env.PIPELINE_SYNC_ALLOWED_GCS_PREFIXES = "gs://bucket/";
+  });
+
   it("accepts the shared pipeline attachment payload fixture", () => {
     expect(() => parsePipelineAttachmentSyncPayload(pipelineAttachmentFixture)).not.toThrow();
   });
@@ -216,21 +267,25 @@ describe("pipeline integration routes", () => {
         }),
       },
     ];
+    state.collectionDocData = {
+      capture_submissions: {
+        "cap-1": {
+          creator_id: "creator-auth-123",
+        },
+      },
+    };
     const { server, baseUrl } = await startServer(() => import("../routes/internal-pipeline"));
+    const signedRequest = signedPipelineRequest({
+      ...pipelineAttachmentFixture,
+      buyer_request_id: "buyer-req-123",
+      capture_job_id: "job-1",
+      authoritative_state_update: false,
+    });
 
     try {
       const response = await fetch(`${baseUrl}/attachments`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Blueprint-Pipeline-Token": "secret",
-        },
-        body: JSON.stringify({
-          ...pipelineAttachmentFixture,
-          buyer_request_id: "buyer-req-123",
-          capture_job_id: "job-1",
-          authoritative_state_update: false,
-        }),
+        ...signedRequest,
       });
 
       expect(response.status).toBe(200);
@@ -308,6 +363,104 @@ describe("pipeline integration routes", () => {
     }
   }, 60_000);
 
+  it("publishes qualified robot-eval packages into marketplace inventory", async () => {
+    process.env.PIPELINE_SYNC_TOKEN = "secret";
+    const update = vi.fn().mockResolvedValue(undefined);
+    state.queryDocs = [
+      {
+        ref: { id: "req-1", update },
+        data: () => ({
+          requestId: "req-1",
+          status: "qualified_ready",
+          qualification_state: "qualified_ready",
+          opportunity_state: "handoff_ready",
+          site_submission_id: "req-1",
+          buyer_request_id: "buyer-req-123",
+          request: {
+            buyerType: "robot_team",
+            siteName: "Durham Facility",
+            siteLocation: "Durham, NC",
+          },
+          context: {
+            demandCity: "Durham, NC",
+          },
+          pipeline: {
+            scene_id: "scene-0",
+            capture_id: "cap-0",
+            pipeline_prefix: "scenes/scene-0/captures/cap-0/pipeline",
+            artifacts: {},
+          },
+        }),
+      },
+    ];
+    const { server, baseUrl } = await startServer(() => import("../routes/internal-pipeline"));
+    const payload = withCompleteRobotEvalPublicationArtifacts({
+      ...pipelineAttachmentFixture,
+      creator_id: "creator-auth-123",
+      buyer_request_id: "buyer-req-123",
+      capture_job_id: "job-1",
+      authoritative_state_update: false,
+    });
+
+    try {
+      const signedRequest = signedPipelineRequest(payload);
+      const response = await fetch(`${baseUrl}/attachments`, {
+        method: "POST",
+        ...signedRequest,
+      });
+
+      expect(response.status).toBe(200);
+      await expect(response.json()).resolves.toEqual(
+        expect.objectContaining({
+          marketplace_publication: {
+            sku: "robot-eval-cap-1",
+          },
+          capture_creator_linkage: {
+            capture_id: "cap-1",
+            creator_id: "creator-auth-123",
+          },
+        }),
+      );
+      for (const collection of ["publishedMarketplaceInventory", "marketplace_items"]) {
+        expect(findCollectionWrites(collection)).toEqual([
+          expect.objectContaining({
+            id: "robot-eval-cap-1",
+            payload: expect.objectContaining({
+              sku: "robot-eval-cap-1",
+              itemType: "training",
+              status: "published",
+              fulfillment_status: "artifact_ready",
+              request_id: "req-1",
+              capture_id: "cap-1",
+              artifact_uris: expect.objectContaining({
+                publication_readiness_uri:
+                  "gs://bucket/robot-eval/publication_readiness.json",
+              }),
+            }),
+            options: { merge: true },
+          }),
+        ]);
+      }
+      expect(findCollectionWrites("creatorProfiles")).toEqual([
+        expect.objectContaining({
+          id: "creator-auth-123",
+          payload: expect.objectContaining({
+            creator_id: "creator-auth-123",
+            uid: "creator-auth-123",
+            last_capture_id: "cap-1",
+            native_capture_identity: expect.objectContaining({
+              source: "pipeline_sync",
+              last_capture_id: "cap-1",
+            }),
+          }),
+          options: { merge: true },
+        }),
+      ]);
+    } finally {
+      await stopServer(server);
+    }
+  }, 60_000);
+
   it("updates qualification truth only when authoritative_state_update is true", async () => {
     process.env.PIPELINE_SYNC_TOKEN = "secret";
     const update = vi.fn().mockResolvedValue(undefined);
@@ -338,13 +491,10 @@ describe("pipeline integration routes", () => {
     };
 
     try {
+      const signedRequest = signedPipelineRequest(payload);
       const response = await fetch(`${baseUrl}/attachments`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Blueprint-Pipeline-Token": "secret",
-        },
-        body: JSON.stringify(payload),
+        ...signedRequest,
       });
 
       expect(response.status).toBe(200);
@@ -373,13 +523,10 @@ describe("pipeline integration routes", () => {
     const { server, baseUrl } = await startServer(() => import("../routes/internal-pipeline"));
 
     try {
+      const signedRequest = signedPipelineRequest(pipelineAttachmentFixture);
       const response = await fetch(`${baseUrl}/attachments`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Blueprint-Pipeline-Token": "secret",
-        },
-        body: JSON.stringify(pipelineAttachmentFixture),
+        ...signedRequest,
       });
 
       expect(response.status).toBe(409);
@@ -401,16 +548,13 @@ describe("pipeline integration routes", () => {
     const { server, baseUrl } = await startServer(() => import("../routes/internal-pipeline"));
 
     try {
+      const signedRequest = signedPipelineRequest({
+        ...pipelineAttachmentFixture,
+        buyer_request_id: "",
+      });
       const response = await fetch(`${baseUrl}/attachments`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Blueprint-Pipeline-Token": "secret",
-        },
-        body: JSON.stringify({
-          ...pipelineAttachmentFixture,
-          buyer_request_id: "",
-        }),
+        ...signedRequest,
       });
 
       expect(response.status).toBe(400);
@@ -432,16 +576,13 @@ describe("pipeline integration routes", () => {
     const { server, baseUrl } = await startServer(() => import("../routes/internal-pipeline"));
 
     try {
+      const signedRequest = signedPipelineRequest({
+        ...pipelineAttachmentFixture,
+        capture_job_id: "",
+      });
       const response = await fetch(`${baseUrl}/attachments`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Blueprint-Pipeline-Token": "secret",
-        },
-        body: JSON.stringify({
-          ...pipelineAttachmentFixture,
-          capture_job_id: "",
-        }),
+        ...signedRequest,
       });
 
       expect(response.status).toBe(400);
@@ -467,13 +608,10 @@ describe("pipeline integration routes", () => {
     const { server, baseUrl } = await startServer(() => import("../routes/internal-pipeline"));
 
     try {
+      const signedRequest = signedPipelineRequest(pipelineAttachmentFixture);
       const response = await fetch(`${baseUrl}/attachments`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Blueprint-Pipeline-Token": "secret",
-        },
-        body: JSON.stringify(pipelineAttachmentFixture),
+        ...signedRequest,
       });
 
       expect(response.status).toBe(200);

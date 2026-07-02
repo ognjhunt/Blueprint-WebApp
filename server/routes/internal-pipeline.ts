@@ -22,6 +22,8 @@ import {
   computePipelineStateTransition,
   checkHostedReviewReadiness,
   growthEventsForStamps,
+  buildRobotEvalCardArtifactUris,
+  robotEvalPublicationPackageComplete,
 } from "../utils/pipelineStateMachine";
 import { logGrowthEvent } from "../utils/growth-events";
 import type {
@@ -41,6 +43,10 @@ import {
   deriveCityContext,
   deriveStablePackageId,
 } from "../utils/buyerOutcomes";
+import {
+  validatePipelineArtifactUris,
+  verifyPipelineSyncRequest,
+} from "../utils/pipelineSyncSecurity";
 
 const router = Router();
 
@@ -96,10 +102,12 @@ function isDerivedAssetStatus(
 }
 
 function requirePipelineToken(req: Request, res: Response, next: () => void) {
-  const expected = (process.env.PIPELINE_SYNC_TOKEN || "").trim();
-  const provided = String(req.header("X-Blueprint-Pipeline-Token") || "").trim();
-  if (!expected || provided != expected) {
-    return res.status(401).json({ error: "Unauthorized" });
+  const result = verifyPipelineSyncRequest(req);
+  if (!result.ok) {
+    return res.status(result.status).json({
+      error: result.message,
+      code: result.code,
+    });
   }
   next();
 }
@@ -280,6 +288,161 @@ function buildPlaceholderInboundRequest(params: {
   };
 }
 
+function marketplaceSkuFromPipeline(params: {
+  requestId: string;
+  captureId?: string | null;
+  sceneId?: string | null;
+}) {
+  const raw = String(params.captureId || params.sceneId || params.requestId || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return `robot-eval-${raw || "package"}`;
+}
+
+async function publishQualifiedMarketplaceInventory(params: {
+  requestId: string;
+  currentData?: Record<string, unknown>;
+  pipeline: PipelineAttachment;
+  qualificationState: QualificationState;
+  evaluationReadiness?: EvaluationReadinessSummary;
+}) {
+  if (!db) {
+    return null;
+  }
+  if (
+    params.qualificationState !== "qualified_ready" ||
+    !robotEvalPublicationPackageComplete(params.pipeline.artifacts)
+  ) {
+    return null;
+  }
+
+  const request = params.currentData?.request as Record<string, unknown> | undefined;
+  const context = params.currentData?.context as Record<string, unknown> | undefined;
+  const siteName = String(request?.siteName || params.pipeline.scene_id || params.requestId).trim();
+  const siteLocation = String(request?.siteLocation || context?.demandCity || "").trim();
+  const sku = marketplaceSkuFromPipeline({
+    requestId: params.requestId,
+    captureId: params.pipeline.capture_id,
+    sceneId: params.pipeline.scene_id,
+  });
+  const artifactUris = buildRobotEvalCardArtifactUris(params.pipeline.artifacts);
+  const record = {
+    sku,
+    type: "training",
+    itemType: "training",
+    title: `${siteName} robot evaluation package`,
+    description:
+      "Qualified captured-site robot evaluation artifact package. Publication means required dataset card artifacts are present; it is not a deployment approval or physical-robot safety validation.",
+    locationType: siteLocation || "Captured site",
+    objectTags: ["robot-evaluation", "captured-site", "qualified-ready"],
+    policySlugs: [],
+    tags: ["robot-evaluation", "capture-backed"],
+    deliverables: ["dataset cards", "proof boundaries", "rights packet"],
+    dataFormat: "Blueprint robot evaluation package",
+    trajectoryLength: "Captured-site artifact package",
+    sensorModalities: ["rgb", "metadata"],
+    price: 0,
+    inStock: true,
+    status: "published",
+    delivery_mode: "buyer_artifact_access",
+    fulfillment_status: "artifact_ready",
+    rights_status: "publishable_artifact_packet_present",
+    source: "pipeline_state_machine",
+    request_id: params.requestId,
+    site_submission_id:
+      String(params.currentData?.site_submission_id || params.requestId).trim() || params.requestId,
+    buyer_request_id:
+      String(params.pipeline.buyer_request_id || params.currentData?.buyer_request_id || "").trim() || null,
+    capture_job_id: String(params.pipeline.capture_job_id || "").trim() || null,
+    scene_id: String(params.pipeline.scene_id || "").trim() || null,
+    capture_id: String(params.pipeline.capture_id || "").trim() || null,
+    pipeline_prefix: String(params.pipeline.pipeline_prefix || "").trim() || null,
+    artifact_uris: artifactUris,
+    evaluation_readiness: params.evaluationReadiness || null,
+    published_at: admin.firestore.FieldValue.serverTimestamp(),
+    updated_at: admin.firestore.FieldValue.serverTimestamp(),
+  };
+
+  await Promise.all([
+    db.collection("publishedMarketplaceInventory").doc(sku).set(record, { merge: true }),
+    db.collection("marketplace_items").doc(sku).set(record, { merge: true }),
+  ]);
+  return { sku };
+}
+
+async function upsertCaptureCreatorLinkage(params: {
+  requestId: string;
+  currentData?: Record<string, unknown>;
+  pipeline: PipelineAttachment;
+  parsedBody: Record<string, unknown>;
+  rawBody?: Record<string, unknown>;
+}) {
+  if (!db) {
+    return null;
+  }
+  const captureId = String(params.pipeline.capture_id || params.parsedBody.capture_id || "").trim();
+  if (!captureId) {
+    return null;
+  }
+
+  const captureRef = db.collection("capture_submissions").doc(captureId) as FirebaseFirestore.DocumentReference & {
+    get?: () => Promise<FirebaseFirestore.DocumentSnapshot>;
+  };
+  let creatorId = "";
+  try {
+    const existing = typeof captureRef.get === "function" ? await captureRef.get() : null;
+    creatorId =
+      String(existing?.data()?.creator_id || params.rawBody?.creator_id || "").trim();
+  } catch {
+    creatorId = String(params.rawBody?.creator_id || "").trim();
+  }
+
+  const siteSubmissionId =
+    String(
+      params.parsedBody.site_submission_id ||
+        params.currentData?.site_submission_id ||
+        params.requestId ||
+        "",
+    ).trim() || params.requestId;
+  const payload = {
+    capture_id: captureId,
+    ...(creatorId ? { creator_id: creatorId } : {}),
+    scene_id: String(params.pipeline.scene_id || params.parsedBody.scene_id || "").trim() || null,
+    site_submission_id: siteSubmissionId,
+    buyer_request_id:
+      String(params.pipeline.buyer_request_id || params.parsedBody.buyer_request_id || "").trim() || null,
+    capture_job_id:
+      String(params.pipeline.capture_job_id || params.parsedBody.capture_job_id || "").trim() || null,
+    pipeline_prefix: String(params.pipeline.pipeline_prefix || "").trim() || null,
+    lifecycle: {
+      pipeline_handoff_published_at: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    updated_at: admin.firestore.FieldValue.serverTimestamp(),
+  };
+
+  await captureRef.set(payload, { merge: true });
+  if (creatorId) {
+    await db.collection("creatorProfiles").doc(creatorId).set(
+      {
+        creator_id: creatorId,
+        uid: creatorId,
+        last_capture_id: captureId,
+        last_site_submission_id: siteSubmissionId,
+        native_capture_identity: {
+          source: "pipeline_sync",
+          linked_at: admin.firestore.FieldValue.serverTimestamp(),
+          last_capture_id: captureId,
+        },
+        updated_at: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    );
+  }
+  return { capture_id: captureId, creator_id: creatorId || null };
+}
+
 router.post("/attachments", requirePipelineToken, async (req: Request, res: Response) => {
   try {
     if (!db) {
@@ -288,6 +451,14 @@ router.post("/attachments", requirePipelineToken, async (req: Request, res: Resp
 
     const body = (req.body ?? {}) as Record<string, unknown>;
     const parsedBody = parsePipelineAttachmentSyncPayload(body);
+    const artifactUriViolations = validatePipelineArtifactUris(parsedBody);
+    if (artifactUriViolations.length > 0) {
+      return res.status(400).json({
+        error: "Pipeline artifact URIs must resolve under the configured Blueprint GCS bucket prefix.",
+        code: "invalid_pipeline_artifact_uri",
+        violations: artifactUriViolations,
+      });
+    }
     const siteSubmissionId = String(parsedBody.site_submission_id || "").trim();
     const requestId = String(parsedBody.request_id || "").trim();
     const missingUpstreamLinks = missingPipelineUpstreamLinks(parsedBody);
@@ -548,6 +719,22 @@ router.post("/attachments", requirePipelineToken, async (req: Request, res: Resp
       await docRef.update(updatePayload);
     }
 
+    const captureCreatorLinkage = await upsertCaptureCreatorLinkage({
+      requestId: docRef.id,
+      currentData: currentData || undefined,
+      pipeline,
+      parsedBody,
+      rawBody: body,
+    });
+
+    const marketplacePublication = await publishQualifiedMarketplaceInventory({
+      requestId: docRef.id,
+      currentData: currentData || undefined,
+      pipeline,
+      qualificationState: finalQualificationState,
+      evaluationReadiness,
+    });
+
     // Emit growth events for newly stamped milestones and stall detection
     const requestIdForEvent = docRef.id;
     const cityForEvent =
@@ -757,8 +944,10 @@ router.post("/attachments", requirePipelineToken, async (req: Request, res: Resp
       ok: true,
       requestId: docRef.id,
       site_submission_id: siteSubmissionId || requestId,
-      qualification_state: nextQualificationState,
-      opportunity_state: nextOpportunityState,
+      qualification_state: finalQualificationState,
+      opportunity_state: finalOpportunityState,
+      capture_creator_linkage: captureCreatorLinkage,
+      marketplace_publication: marketplacePublication,
       pipeline,
       derived_assets: derivedAssets,
       evaluation_readiness: evaluationReadiness,
