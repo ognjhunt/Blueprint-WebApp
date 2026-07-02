@@ -11,14 +11,6 @@ import {
 import { useToast } from "@/hooks/use-toast";
 
 import {
-  getStorage,
-  ref,
-  uploadBytesResumable,
-  uploadBytes,
-  getDownloadURL,
-  listAll,
-} from "firebase/storage";
-import {
   doc,
   updateDoc,
   arrayUnion,
@@ -27,6 +19,7 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { uploadAppStorageObject } from "@/lib/storageUpload";
 import { AlertTriangle, Eye, File, Mail } from "lucide-react";
 import { getGoogleGenerativeAiKey } from "@/lib/client-env";
 
@@ -281,69 +274,28 @@ export const MenuConfigScreen = ({ onSave, initialData = {} }) => {
     setUploadProgress(0);
 
     try {
-      // Upload file to Firebase Storage
-      const storage = getStorage();
-      const storageRef = ref(storage, `menus/${Date.now()}_${file.name}`);
+      const upload = await uploadAppStorageObject({
+        path: `menus/${Date.now()}_${file.name}`,
+        data: file,
+        fileName: file.name,
+        contentType: file.type,
+        onProgress: setUploadProgress,
+      });
 
-      // Use uploadBytesResumable instead of uploadBytes for progress monitoring
-      const uploadTask = uploadBytesResumable(storageRef, file);
+      console.log("File uploaded successfully. Download URL:", upload.url);
 
-      // Monitor upload progress
-      uploadTask.on(
-        "state_changed",
-        (snapshot) => {
-          const progress =
-            (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          setUploadProgress(Math.round(progress));
-        },
-        (error) => {
-          // Handle errors
-          console.error("Error uploading file:", error);
-          setError(`Upload failed: ${error.message}`);
+      handleChange("menuPdfUrl", upload.url);
+      setConfigData((prev) => ({
+        ...prev,
+        menuPdfUrl: upload.url,
+      }));
 
-          toast({
-            title: "Upload Failed",
-            description: "There was an error uploading your file.",
-            variant: "destructive",
-            duration: 5000,
-          });
-
-          setLoading(false);
-        },
-        async () => {
-          try {
-            // Handle successful upload completion
-            // Get download URL after upload completes
-            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-
-            console.log(
-              "File uploaded successfully. Download URL:",
-              downloadURL,
-            );
-
-            // Update config data - make sure this happens AFTER we get the URL
-            handleChange("menuPdfUrl", downloadURL);
-
-            // Force a state update to ensure the component re-renders
-            setConfigData((prev) => ({
-              ...prev,
-              menuPdfUrl: downloadURL,
-            }));
-
-            toast({
-              title: "Upload Successful",
-              description: "Your menu file has been uploaded successfully.",
-              variant: "success",
-              duration: 5000,
-            });
-          } catch (error) {
-            console.error("Error getting download URL:", error);
-            setError("Upload completed but couldn't get download URL");
-          } finally {
-            setLoading(false);
-          }
-        },
-      );
+      toast({
+        title: "Upload Successful",
+        description: "Your menu file has been uploaded successfully.",
+        variant: "success",
+        duration: 5000,
+      });
     } catch (error) {
       console.error("Error setting up upload:", error);
       setError("Failed to upload file. Please try again.");
@@ -423,7 +375,7 @@ export const MenuConfigScreen = ({ onSave, initialData = {} }) => {
         throw new Error(data.message || "Failed to download PDF");
       }
 
-      // PDF download successful, now upload to Firebase Storage
+      // PDF download successful, now upload to configured storage
       setScrapingStatus("PDF downloaded. Uploading to storage...");
 
       // Convert base64 to blob
@@ -432,16 +384,15 @@ export const MenuConfigScreen = ({ onSave, initialData = {} }) => {
       );
       const blob = await base64Response.blob();
 
-      // Upload to Firebase Storage
-      const storage = getStorage();
-      const storageRef = ref(storage, `menus/url_${Date.now()}.pdf`);
-      await uploadBytes(storageRef, blob);
-
-      // Get download URL
-      const downloadURL = await getDownloadURL(storageRef);
+      const upload = await uploadAppStorageObject({
+        path: `menus/url_${Date.now()}.pdf`,
+        data: blob,
+        fileName: "menu.pdf",
+        contentType: "application/pdf",
+      });
 
       // Update config data
-      handleChange("menuPdfUrl", downloadURL);
+      handleChange("menuPdfUrl", upload.url);
 
       toast({
         title: "PDF Downloaded",
@@ -4269,6 +4220,8 @@ export const EventsConfigScreen = ({ onSave, initialData = {} }) => {
         variant: "destructive",
         duration: 5000,
       });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -7272,7 +7225,6 @@ export const ExhibitInfoConfigScreen = ({
   const [isGeneratingAnswer, setIsGeneratingAnswer] = useState(false);
 
   const fileInputRef = useRef(null);
-  const storage = getStorage();
 
   const handleChange = (field, value) => {
     setConfigData((prev) => ({
@@ -7925,20 +7877,18 @@ export const ExhibitInfoConfigScreen = ({
 
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        const fileRef = ref(
-          storage,
-          `blueprints/${blueprintId}/exhibits/${Date.now()}_${file.name}`,
-        );
-
-        // Upload file
-        await uploadBytes(fileRef, file);
-        const downloadURL = await getDownloadURL(fileRef);
+        const upload = await uploadAppStorageObject({
+          path: `blueprints/${blueprintId}/exhibits/${Date.now()}_${file.name}`,
+          data: file,
+          fileName: file.name,
+          contentType: file.type,
+        });
 
         uploadedFiles.push({
           id: `file_${Date.now()}_${i}`,
           name: file.name,
           type: file.type,
-          url: downloadURL,
+          url: upload.url,
           uploadDate: new Date().toISOString(),
         });
       }
@@ -8943,7 +8893,6 @@ export const AudioToursConfigScreen = ({
   const [playingAudio, setPlayingAudio] = useState(null);
   const audioInputRef = useRef(null);
   const audioPlayerRef = useRef(null);
-  const storage = getStorage();
 
   const handleChange = (field, value) => {
     setConfigData((prev) => ({
@@ -8981,21 +8930,18 @@ export const AudioToursConfigScreen = ({
           continue;
         }
 
-        // Create storage reference
-        const fileRef = ref(
-          storage,
-          `blueprints/${blueprintId}/audio-tours/${Date.now()}_${file.name}`,
-        );
-
-        // Upload file
-        await uploadBytes(fileRef, file);
-        const downloadURL = await getDownloadURL(fileRef);
+        const upload = await uploadAppStorageObject({
+          path: `blueprints/${blueprintId}/audio-tours/${Date.now()}_${file.name}`,
+          data: file,
+          fileName: file.name,
+          contentType: file.type,
+        });
 
         // Add to uploaded files array
         uploadedAudio.push({
           id: `audio_${Date.now()}_${i}`,
           name: file.name,
-          url: downloadURL,
+          url: upload.url,
           duration: "Unknown", // We could calculate this if needed
           uploadDate: new Date().toISOString(),
           transcript: "", // Will be filled in later if needed
@@ -9136,18 +9082,15 @@ export const AudioToursConfigScreen = ({
     if (!file) return;
 
     try {
-      // Create storage reference
-      const fileRef = ref(
-        storage,
-        `blueprints/${blueprintId}/audio-tours/sources/${Date.now()}_${file.name}`,
-      );
-
-      // Upload file
-      await uploadBytes(fileRef, file);
-      const downloadURL = await getDownloadURL(fileRef);
+      const upload = await uploadAppStorageObject({
+        path: `blueprints/${blueprintId}/audio-tours/sources/${Date.now()}_${file.name}`,
+        data: file,
+        fileName: file.name,
+        contentType: file.type,
+      });
 
       // Update the stop with the file info
-      updateTourStop(stopId, "sourceUrl", downloadURL);
+      updateTourStop(stopId, "sourceUrl", upload.url);
       updateTourStop(stopId, "sourceType", "file");
       updateTourStop(stopId, "sourceFileName", file.name);
     } catch (error) {

@@ -88,6 +88,15 @@ describe("marketplace entitlements route", () => {
           kind: "download",
           label: "Download Scene Package",
         }),
+        entitlements: [
+          expect.objectContaining({
+            id: "ent-1",
+            access: expect.objectContaining({
+              kind: "download",
+              label: "Download Scene Package",
+            }),
+          }),
+        ],
       });
     } finally {
       await stopServer(server);

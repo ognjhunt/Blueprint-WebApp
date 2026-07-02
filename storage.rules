@@ -1,0 +1,93 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn()
+        && (
+          request.auth.token.admin == true
+          || request.auth.token.role == "admin"
+          || (request.auth.token.roles is list && request.auth.token.roles.hasAny(["admin"]))
+        );
+    }
+
+    function ownsUserPath(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function blueprintDocExists(blueprintId) {
+      return firestore.exists(/databases/(default)/documents/blueprints/$(blueprintId));
+    }
+
+    function blueprintDoc(blueprintId) {
+      return firestore.get(/databases/(default)/documents/blueprints/$(blueprintId));
+    }
+
+    function ownsBlueprint(blueprintId) {
+      return isSignedIn()
+        && blueprintDocExists(blueprintId)
+        && (
+          blueprintDoc(blueprintId).data.host == request.auth.uid
+          || blueprintDoc(blueprintId).data.ownerId == request.auth.uid
+          || blueprintDoc(blueprintId).data.createdBy == request.auth.uid
+          || blueprintDoc(blueprintId).data.userId == request.auth.uid
+        );
+    }
+
+    function boundedUpload(maxBytes) {
+      return request.resource != null && request.resource.size <= maxBytes;
+    }
+
+    // Current signup/config flows write under blueprints/{blueprintId}/...
+    // Access follows the owning Firestore blueprint record.
+    match /blueprints/{blueprintId}/{filePath=**} {
+      allow read: if isAdmin() || ownsBlueprint(blueprintId);
+      allow create, update: if (isAdmin() || ownsBlueprint(blueprintId))
+        && boundedUpload(100 * 1024 * 1024);
+      allow delete: if isAdmin() || ownsBlueprint(blueprintId);
+    }
+
+    // Owner-scoped app artifact buckets for capture, onboarding, and account
+    // uploads. Unknown users cannot read or write another user's subtree.
+    match /users/{userId}/{filePath=**} {
+      allow read, write: if isAdmin() || ownsUserPath(userId);
+    }
+
+    match /accounts/{userId}/{filePath=**} {
+      allow read, write: if isAdmin() || ownsUserPath(userId);
+    }
+
+    match /captures/{userId}/{filePath=**} {
+      allow read: if isAdmin() || ownsUserPath(userId);
+      allow create, update: if (isAdmin() || ownsUserPath(userId))
+        && boundedUpload(500 * 1024 * 1024);
+      allow delete: if isAdmin() || ownsUserPath(userId);
+    }
+
+    match /capture-artifacts/{userId}/{filePath=**} {
+      allow read: if isAdmin() || ownsUserPath(userId);
+      allow create, update: if (isAdmin() || ownsUserPath(userId))
+        && boundedUpload(500 * 1024 * 1024);
+      allow delete: if isAdmin() || ownsUserPath(userId);
+    }
+
+    // Legacy menu-upload flow has no owner segment. Keep it authenticated and
+    // bounded until the client path is migrated to an owner-scoped prefix.
+    match /menus/{fileName} {
+      allow read: if isAdmin() || isSignedIn();
+      allow create, update: if (isAdmin() || isSignedIn())
+        && boundedUpload(10 * 1024 * 1024);
+      allow delete: if isAdmin();
+    }
+
+    // No public catch-all. New Storage prefixes must choose an owner/proof
+    // model before they become client-writable.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

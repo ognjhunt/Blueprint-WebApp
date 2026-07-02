@@ -887,13 +887,14 @@ function RobotStep({
             onCheckedChange={(v) => update("advisorySim", v === true)}
           />
           <p className="mt-2 text-caption text-ink-500">
-            Sim preflight is review support, labeled as a prediction — never a
-            deployment-ready guarantee.
+            Sim preflight is a labeled support artifact for review, not a field
+            approval.
           </p>
         </div>
         <ProofBoundary level="warn" title="Estimates, not guarantees">
-          Run outputs are framed as predicted success and rank fidelity. Blueprint
-          does not claim guaranteed field performance.
+          Run outputs are framed as task-specific confidence packets and
+          simulator-backed comparison support. Blueprint does not claim
+          guaranteed field performance.
         </ProofBoundary>
       </>
     );

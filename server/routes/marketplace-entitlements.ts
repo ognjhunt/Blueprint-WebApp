@@ -98,13 +98,17 @@ router.get("/current", async (req: Request, res: Response) => {
       return sku === requestedSku || sku.startsWith(`${requestedSku}-`);
     });
 
-  const primary: Record<string, unknown> | null = entitlements[0] || null;
+  const hydratedEntitlements = entitlements.map((entitlement) => ({
+    ...entitlement,
+    access: resolveAccessUrl(entitlement),
+  }));
+  const primary: Record<string, unknown> | null = hydratedEntitlements[0] || null;
   const access = primary ? resolveAccessUrl(primary) : null;
 
   return res.status(200).json({
     entitlement: primary,
     access,
-    entitlements,
+    entitlements: hydratedEntitlements,
   });
 });
 

@@ -61,7 +61,7 @@ import {
 } from "firebase/firestore";
 import { GoogleOAuthProvider, GoogleLogin } from "@react-oauth/google";
 import { db } from "@/lib/firebase";
-import { getStorage, ref, uploadBytes } from "firebase/storage";
+import { uploadAppStorageObject } from "@/lib/storageUpload";
 import {
   triggerLindyWebhook,
   type LindyWebhookPayload,
@@ -785,12 +785,12 @@ type WaitlistValidationResponse = {
           phone: phoneNumber.trim(),
         });
 
-        const storage = getStorage();
-        const placeholderRef = ref(
-          storage,
-          `blueprints/${blueprintId}/placeholder.txt`,
-        );
-        await uploadBytes(placeholderRef, new Uint8Array());
+        await uploadAppStorageObject({
+          path: `blueprints/${blueprintId}/placeholder.txt`,
+          data: new Uint8Array(),
+          fileName: "placeholder.txt",
+          contentType: "text/plain",
+        });
 
         await setDoc(doc(db, "demoBookings", demoBookingId), {
           id: demoBookingId,

@@ -75,7 +75,7 @@ const ForRobotTeams = lazyRoute(() => import("../pages/ForRobotTeams"));
 const ForSiteOperators = lazyRoute(() => import("../pages/ForSiteOperators"));
 const JoinBlueprint = lazyRoute(() => import("../pages/JoinBlueprint"));
 
-// Redesign — buyer app (mock-data demo surfaces)
+// Redesign — buyer app (entitlement-backed protected surfaces)
 const AppOverview = lazyRoute(() => import("../pages/app/Overview"));
 const AppRuns = lazyRoute(() => import("../pages/app/Runs"));
 const AppRunDetail = lazyRoute(() => import("../pages/app/RunDetail"));
@@ -316,15 +316,15 @@ export const appRoutes: AppRoute[] = [
   // Redesign — sign-up (two-pane stepped wizard)
   { path: "/join", layout: "public", shell: "bare", component: JoinBlueprint },
 
-  // Redesign — buyer app (mock-data demo; own app shell, no SiteLayout)
-  { path: "/app", layout: "public", shell: "bare", component: AppOverview },
-  { path: "/app/runs", layout: "public", shell: "bare", component: AppRuns },
-  { path: "/app/runs/:runId", layout: "public", shell: "bare", component: AppRunDetail },
-  { path: "/app/packs", layout: "public", shell: "bare", component: AppSitePacks },
-  { path: "/app/packs/:siteId", layout: "public", shell: "bare", component: AppSiteDetail },
-  { path: "/app/policies", layout: "public", shell: "bare", component: AppPolicies },
-  { path: "/app/data", layout: "public", shell: "bare", component: AppDataPackages },
-  { path: "/app/entitlements", layout: "public", shell: "bare", component: AppEntitlements },
+  // Redesign — buyer app; own app shell, no SiteLayout
+  { path: "/app", layout: "protected", shell: "bare", component: AppOverview },
+  { path: "/app/runs", layout: "protected", shell: "bare", component: AppRuns },
+  { path: "/app/runs/:runId", layout: "protected", shell: "bare", component: AppRunDetail },
+  { path: "/app/packs", layout: "protected", shell: "bare", component: AppSitePacks },
+  { path: "/app/packs/:siteId", layout: "protected", shell: "bare", component: AppSiteDetail },
+  { path: "/app/policies", layout: "protected", shell: "bare", component: AppPolicies },
+  { path: "/app/data", layout: "protected", shell: "bare", component: AppDataPackages },
+  { path: "/app/entitlements", layout: "protected", shell: "bare", component: AppEntitlements },
 
   // Redesign — ops console (mock-data demo; own ops shell, no SiteLayout)
   { path: "/ops", layout: "public", shell: "bare", component: OpsQueue },
