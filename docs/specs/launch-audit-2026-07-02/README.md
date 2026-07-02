@@ -6,6 +6,21 @@ capture→package pipeline, world-model backends (OSCAR / SC3-Eval alignment, Co
 adapter), data curation quality, and launch-gate integrity. This one covers the buyer,
 payments, and ops surface.
 
+## CI health note (found during this audit)
+
+`main` CI has been **red since at least 2026-06-25**: the `test` job fails on
+`scripts/paperclip/control-room-inventory.test.ts:205` — `trueMissingDesiredSkills`
+expects `[]` but five agent-desired skills no longer resolve (`agent-browser`, `browse`,
+`humanizer`, `stripe-best-practices`, `vercel-react-best-practices`). `browse` and
+`vercel-react-best-practices` have alias definitions (`control-room-inventory.ts:43-54`)
+whose local/plugin skill targets appear to have been removed from the scanned skill set;
+the other three have no alias or deferral classification. Resolution is a skills-governance
+decision (restore the local/plugin skills, add aliases, or classify as intentional
+deferrals per `ops/paperclip/control-room-map.md#desired-skill-resolution-policy`) — it
+should be made deliberately per `docs/ai-skills-governance-2026-04-07.md`, not patched to
+green. Until fixed, every PR (including this one) shows a red `test` check unrelated to
+its diff — which also weakens the launch-gate value of CI itself.
+
 Verified healthy in this audit (no action needed):
 
 - `npm run check` (full typecheck) passes clean on a fresh install.
