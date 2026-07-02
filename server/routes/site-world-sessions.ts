@@ -51,10 +51,6 @@ import {
 } from "../utils/hosted-session-orchestrator";
 import { parseGsUri } from "../utils/pipeline-dashboard";
 import {
-  findProvisionedHostedSessionEntitlement,
-  type AgentEntitlementProof,
-} from "../utils/robot-agent-commerce";
-import {
   buildLaunchReadiness,
   buildPresentationDemoReadiness,
   buildPresentationLaunchState,
@@ -62,10 +58,7 @@ import {
 import {
   appendCanonicalPackageMismatch,
   buildFailureDiagnostic,
-  hostedAccessStatus,
   hostedRuntimeEntitlementIds,
-  hostedSessionEntitlementIds,
-  isHostedAccessError,
   selectLaunchReadinessBlockerCode,
 } from "../utils/hosted-session-route-helpers";
 import {
@@ -92,6 +85,10 @@ import {
   presentationSessionKey,
   sessionUsesPresentationDemo,
 } from "../utils/hosted-session-predicates";
+import {
+  createHostedSessionAccess,
+  type HostedSessionLaunchAccess,
+} from "../utils/hosted-session-access";
 
 const protectedRouter = Router();
 export const publicSiteWorldSessionsRouter = Router();
@@ -122,51 +119,8 @@ function shouldUseAsyncRuntimeMutations() {
   return process.env.BLUEPRINT_HOSTED_SESSION_ASYNC_RUNTIME_MUTATIONS === "1" || process.env.NODE_ENV === "production";
 }
 
-async function loadUserProfile(uid: string) {
-  if (!db) {
-    return null;
-  }
-
-  const userDoc = await db.collection("users").doc(uid).get();
-  if (!userDoc.exists) {
-    return null;
-  }
-  return userDoc.data() as Record<string, unknown>;
-}
-
-function currentFirebaseUser(res: Response) {
-  return res.locals.firebaseUser as
-    | { uid?: string; email?: string; admin?: boolean }
-    | undefined;
-}
-
-const PROVISIONED_HOSTED_ENTITLEMENT_REQUIRED =
-  "A provisioned hosted-session entitlement is required for protected site-world launch.";
-
-type HostedSessionAccessUser = {
-  uid: string;
-  email: string | null;
-  admin: boolean;
-};
-
-type HostedSessionLaunchAccess = HostedSessionAccessUser & {
-  entitled: boolean;
-  entitlement: AgentEntitlementProof | null;
-  accessSource: "admin" | "session_owner" | "agent_dry_run" | "firestore" | "public_demo" | "none";
-  blockers: string[];
-};
-
-function sendHostedAccessError(res: Response, error: unknown) {
-  if (!isHostedAccessError(error)) {
-    return false;
-  }
-  const hostedError = error as HostedSessionRuntimeError;
-  res.status(hostedAccessStatus(hostedError)).json({
-    error: hostedError.message,
-    code: hostedError.code,
-  });
-  return true;
-}
+const { sendHostedAccessError, ensureLaunchAccess, getLaunchAccessState } =
+  createHostedSessionAccess({ loadHostedSession });
 
 function hostedSessionCreateErrorStatus(error: HostedSessionRuntimeError) {
   if (error.code === "forbidden" || error.code === "entitlement_required" || error.code === "session_access_denied") {
@@ -200,126 +154,6 @@ function hostedSessionCreateError(error: unknown) {
     return new HostedSessionRuntimeError("session_create_failed", error.message);
   }
   return new HostedSessionRuntimeError("session_create_failed", "Failed to create hosted session.");
-}
-
-async function ensureRobotTeamOrAdminAccess(res: Response): Promise<HostedSessionAccessUser> {
-  const firebaseUser = currentFirebaseUser(res);
-  if (!firebaseUser?.uid) {
-    throw new HostedSessionRuntimeError("unauthorized", "Missing authenticated user.");
-  }
-
-  if (firebaseUser.admin) {
-    return {
-      uid: firebaseUser.uid,
-      email: firebaseUser.email || null,
-      admin: true,
-    };
-  }
-
-  const profile = await loadUserProfile(firebaseUser.uid);
-  const buyerType = String(profile?.buyerType || "").trim();
-  if (buyerType !== "robot_team") {
-    throw new HostedSessionRuntimeError(
-      "forbidden",
-      "Hosted sessions are only available to robot-team accounts.",
-    );
-  }
-
-  return {
-    uid: firebaseUser.uid,
-    email: firebaseUser.email || null,
-    admin: false,
-  };
-}
-
-async function ensureLaunchAccess(
-  req: Request,
-  res: Response,
-  options: {
-    siteWorldIds?: Array<string | null | undefined>;
-    entitlementId?: string | null;
-    session?: HostedSessionRecord | null;
-    requireEntitlement?: boolean;
-  } = {},
-): Promise<HostedSessionLaunchAccess> {
-  const user = await ensureRobotTeamOrAdminAccess(res);
-  if (user.admin) {
-    return {
-      ...user,
-      entitled: true,
-      entitlement: null,
-      accessSource: "admin",
-      blockers: [],
-    };
-  }
-
-  const session =
-    options.session === undefined && req.params.sessionId
-      ? await loadHostedSession(String(req.params.sessionId || ""))
-      : options.session || null;
-  if (session?.createdBy?.uid === user.uid) {
-    return {
-      ...user,
-      entitled: true,
-      entitlement: null,
-      accessSource: "session_owner",
-      blockers: [],
-    };
-  }
-
-  const entitlement = await findProvisionedHostedSessionEntitlement({
-    buyerUserId: user.uid,
-    siteWorldIds: options.siteWorldIds?.length ? options.siteWorldIds : hostedSessionEntitlementIds(session),
-    entitlementId: options.entitlementId,
-  });
-  if (entitlement) {
-    return {
-      ...user,
-      entitled: true,
-      entitlement,
-      accessSource: entitlement.source,
-      blockers: [],
-    };
-  }
-
-  if (options.requireEntitlement || session) {
-    throw new HostedSessionRuntimeError(
-      session ? "session_access_denied" : "entitlement_required",
-      session
-        ? "Session access requires the creating robot-team account, admin access, or a matching provisioned entitlement."
-        : PROVISIONED_HOSTED_ENTITLEMENT_REQUIRED,
-    );
-  }
-
-  return {
-    ...user,
-    entitled: false,
-    entitlement: null,
-    accessSource: "none",
-    blockers: [PROVISIONED_HOSTED_ENTITLEMENT_REQUIRED],
-  };
-}
-
-async function getLaunchAccessState(req: Request, res: Response, siteWorldId: string) {
-  try {
-    return await ensureLaunchAccess(req, res, {
-      siteWorldIds: [siteWorldId],
-      requireEntitlement: false,
-    });
-  } catch (error) {
-    if (error instanceof HostedSessionRuntimeError && (error.code === "forbidden" || error.code === "unauthorized")) {
-      return {
-        uid: currentFirebaseUser(res)?.uid || null,
-        email: currentFirebaseUser(res)?.email || null,
-        admin: false,
-        entitled: false,
-        entitlement: null,
-        accessSource: "none",
-        blockers: [error.message],
-      };
-    }
-    throw error;
-  }
 }
 
 async function writeSession(record: HostedSessionRecord) {

@@ -15,7 +15,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { BrandMark } from "@/components/site/BrandMark";
-import { buyerUser, notifications, planUsage } from "./mockData";
+import { useAuth } from "@/contexts/AuthContext";
 
 /* -------------------------------------------------------------------------- */
 /*  Nav model                                                                 */
@@ -109,40 +109,18 @@ function SidebarNav({ active, onNavigate }: SidebarBodyProps) {
 }
 
 function SidebarPlanCard() {
-  const pct = Math.min(
-    100,
-    Math.round((planUsage.runsUsed / planUsage.runsIncluded) * 100),
-  );
   return (
     <div className="mx-3 mb-4 mt-auto rounded-none border border-white/10 bg-white/[0.04] p-3.5">
       <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#a8a496]">
-        {planUsage.planName}
+        Entitlement access
       </div>
       <div className="mt-1 font-mono text-[0.78rem] text-[#f3efe6]">
-        {planUsage.priceLabel}
+        Stripe-backed
       </div>
 
-      <div className="mt-3 flex items-baseline justify-between font-mono text-[0.72rem] text-[#cdc9bb]">
-        <span>{planUsage.usageLabel}</span>
-        <span className="text-[#f3efe6]">
-          {planUsage.runsUsed}/{planUsage.runsIncluded}
-        </span>
-      </div>
-      <div
-        className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-white/10"
-        role="progressbar"
-        aria-valuenow={pct}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-label="Runs used this cycle"
-      >
-        <div
-          className="h-full rounded-full bg-brass transition-[width] duration-[350ms] ease-out"
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-      <div className="mt-2 font-mono text-[0.68rem] text-[#817e72]">
-        Renews {planUsage.renews}
+      <div className="mt-3 text-[0.78rem] leading-[1.45] text-[#cdc9bb]">
+        Routes unlock from marketplace entitlements written after payment
+        provisioning.
       </div>
     </div>
   );
@@ -169,7 +147,41 @@ interface TopbarProps {
   onOpenMenu: () => void;
 }
 
+function displayNameForUser({
+  currentUser,
+  userData,
+}: Pick<ReturnType<typeof useAuth>, "currentUser" | "userData">) {
+  const metadataName = String(userData?.name || userData?.displayName || "").trim();
+  return (
+    metadataName ||
+    currentUser?.displayName ||
+    currentUser?.email ||
+    "Blueprint buyer"
+  );
+}
+
+function initialsForName(value: string) {
+  const normalized = value.trim();
+  if (!normalized) {
+    return "BP";
+  }
+  const parts = normalized.includes("@")
+    ? normalized.split("@")[0].split(/[._-]+/)
+    : normalized.split(/\s+/);
+  return parts
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("")
+    .padEnd(2, "P")
+    .slice(0, 2);
+}
+
 function Topbar({ breadcrumb, onOpenMenu }: TopbarProps) {
+  const { currentUser, userData } = useAuth();
+  const displayName = displayNameForUser({ currentUser, userData });
+  const initials = initialsForName(displayName);
+
   return (
     <header className="flex h-14 shrink-0 items-center justify-between border-b border-line bg-white px-4 lg:px-6">
       <div className="flex min-w-0 items-center gap-2">
@@ -192,19 +204,9 @@ function Topbar({ breadcrumb, onOpenMenu }: TopbarProps) {
         <button
           type="button"
           className="relative flex h-9 w-9 items-center justify-center rounded-none text-ink-600 hover:bg-sunken focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-action"
-          aria-label={
-            notifications.hasBlocker
-              ? `Notifications, ${notifications.count} unread including a blocker`
-              : "Notifications"
-          }
+          aria-label="Notifications"
         >
           <Bell className="h-[1.15rem] w-[1.15rem]" strokeWidth={1.75} aria-hidden="true" />
-          {notifications.hasBlocker ? (
-            <span
-              aria-hidden="true"
-              className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full border border-white bg-block-fg"
-            />
-          ) : null}
         </button>
 
         <div className="flex items-center gap-2.5">
@@ -212,10 +214,10 @@ function Topbar({ breadcrumb, onOpenMenu }: TopbarProps) {
             aria-hidden="true"
             className="flex h-8 w-8 items-center justify-center rounded-full bg-info-bg font-mono text-[0.72rem] font-semibold text-info-fg"
           >
-            {buyerUser.initials}
+            {initials}
           </span>
           <span className="hidden text-[0.82rem] font-semibold leading-none text-ink-800 sm:inline">
-            {buyerUser.name}
+            {displayName}
           </span>
         </div>
       </div>

@@ -8,6 +8,7 @@ import multer from "multer";
 import B2 from "backblaze-b2";
 
 import { attachRequestMeta, logger } from "../../logger";
+import { readSecretFromEnv } from "../../utils/storage-provider";
 
 const MAX_FILE_SIZE_BYTES = Number(process.env.B2_MAX_FILE_SIZE_BYTES ?? 10 * 1024 * 1024);
 const AUTH_CACHE_TTL_MS = Number(process.env.B2_AUTH_CACHE_TTL_MS ?? 30 * 60 * 1000);
@@ -25,8 +26,12 @@ const upload = multer({
 });
 
 const b2 = new B2({
-  applicationKeyId: process.env.B2_KEY_ID || "",
-  applicationKey: process.env.B2_APP_KEY || "",
+  applicationKeyId: readSecretFromEnv(["BACKBLAZE_B2_KEY_ID", "B2_KEY_ID"]),
+  applicationKey: readSecretFromEnv([
+    "BACKBLAZE_B2_APPLICATION_KEY",
+    "B2_APP_KEY",
+    "B2_APPLICATION_KEY",
+  ]),
 });
 
 type UploadTarget = {
@@ -109,7 +114,10 @@ export default function handler(req: Request, res: Response) {
       return res.status(400).json({ error: "No file uploaded" });
     }
 
-    if (!process.env.B2_BUCKET_ID || !process.env.B2_BUCKET_NAME) {
+    const bucketId = readSecretFromEnv(["BACKBLAZE_B2_BUCKET_ID", "B2_BUCKET_ID"]);
+    const bucketName = readSecretFromEnv(["BACKBLAZE_B2_BUCKET_NAME", "B2_BUCKET_NAME"]);
+
+    if (!bucketId || !bucketName) {
       logger.error(logContext, "Missing B2 configuration");
       await removeFile(file.path);
       return res.status(500).json({ error: "Service temporarily unavailable" });
@@ -120,7 +128,7 @@ export default function handler(req: Request, res: Response) {
     const fileName = path.posix.join(safeFolder, file.filename);
 
     try {
-      const target = await getUploadTarget(process.env.B2_BUCKET_ID);
+      const target = await getUploadTarget(bucketId);
 
       const fileStream = fs.createReadStream(file.path);
       await b2.uploadFile({
@@ -131,7 +139,7 @@ export default function handler(req: Request, res: Response) {
         contentType: file.mimetype,
       });
 
-      const publicUrl = `https://f005.backblazeb2.com/file/${process.env.B2_BUCKET_NAME}/${fileName}`;
+      const publicUrl = `https://f005.backblazeb2.com/file/${bucketName}/${fileName}`;
 
       logger.info(
         attachRequestMeta({

@@ -54,6 +54,25 @@ describe("Route registration", () => {
     expect(source).toContain('path: "/off-waitlist-signup"');
   });
 
+  it("keeps buyer app routes protected", () => {
+    const routesPath = path.resolve(process.cwd(), "client/src/app/routes.tsx");
+    const source = fs.readFileSync(routesPath, "utf-8");
+
+    for (const route of [
+      "/app",
+      "/app/runs",
+      "/app/runs/:runId",
+      "/app/packs",
+      "/app/packs/:siteId",
+      "/app/policies",
+      "/app/data",
+      "/app/entitlements",
+    ]) {
+      expect(source).toContain(`path: "${route}", layout: "protected"`);
+      expect(source).not.toContain(`path: "${route}", layout: "public"`);
+    }
+  });
+
   it("keeps the capturer signup slug and capture app handoff routes reachable", () => {
     const routesPath = path.resolve(process.cwd(), "client/src/app/routes.tsx");
     const source = fs.readFileSync(routesPath, "utf-8");

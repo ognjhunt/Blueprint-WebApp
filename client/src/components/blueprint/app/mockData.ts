@@ -1,12 +1,12 @@
-// Buyer-app mock data — rich, illustrative, backend-free.
+// Legacy buyer-app mock data — rich, illustrative, backend-free.
 //
-// Single source of truth for every BUYER APP screen (Overview, Evaluation Runs,
-// Site & Task Packs, Site detail, Run detail, Policies, Data Packages,
-// Entitlements). Screens READ from here; do not mutate at runtime.
+// Design reference for the original buyer app screens. Live /app routes must
+// use entitlement-backed APIs and must not present these values as operational
+// buyer state.
 //
 // Values are realistic but clearly illustrative (RUN-2049, 100/500 episodes,
-// correlation 0.929, $6.5k/$15k). All generated / simulated media referenced
-// here is review support, never real-world proof.
+// $6.5k/$15k). All generated / simulated media referenced here is review
+// support, never real-world proof.
 
 import type { StatusChipProps } from "@/components/blueprint";
 
@@ -452,7 +452,7 @@ export const runDetailMetrics: MetricTile[] = [
   },
 ];
 
-/** Policy comparison bars for the Run summary tab (correlation 0.929 to field). */
+/** Policy comparison bars for the legacy design-only run summary tab. */
 export interface PolicyRank {
   label: string;
   value: number;
@@ -472,9 +472,9 @@ export const policyComparison: PolicyRank[] = [
 
 /** Rank-fidelity note paired with the comparison. */
 export const rankFidelity = {
-  correlation: "0.929",
+  correlation: "research-only",
   caption:
-    "Observed rank correlation between Blueprint predicted success and field results across prior validated runs. Predicts ordering, not guaranteed field success.",
+    "SC3-Eval-style rank ordering references belong on proof surfaces, not live buyer app metrics.",
 };
 
 export interface FailureCluster {

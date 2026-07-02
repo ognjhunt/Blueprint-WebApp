@@ -69,6 +69,26 @@ Provide one of the following, or run on Cloud Run / Cloud Functions with an atta
 Launch-critical note:
 - Buyer checkout auth, marketplace entitlements, pipeline attachment sync, creator ledgers, and inbound request persistence all depend on Firebase Admin being live in production.
 
+### Storage Provider
+- `BLUEPRINT_STORAGE_PROVIDER=firebase` keeps client uploads on Firebase Storage.
+- `VITE_BLUEPRINT_STORAGE_PROVIDER=firebase` should match the public client build when Firebase Storage is active.
+- `BLUEPRINT_STORAGE_PROVIDER=backblaze` switches protected browser uploads through `/api/storage/uploads` and stores objects in Backblaze B2.
+- `VITE_BLUEPRINT_STORAGE_PROVIDER=backblaze` switches the client upload helper from direct Firebase Storage SDK writes to the protected server route.
+
+Backblaze B2 server env, required only when the provider is `backblaze`:
+- `BACKBLAZE_B2_KEY_ID`
+- `BACKBLAZE_B2_APPLICATION_KEY`
+- `BACKBLAZE_B2_BUCKET_ID`
+- `BACKBLAZE_B2_BUCKET_NAME`
+- Optional: `BACKBLAZE_B2_KEY_NAME`, `BACKBLAZE_B2_PUBLIC_BASE_URL`
+- Secret-file variants are supported for sensitive values: `BACKBLAZE_B2_KEY_ID_FILE`, `BACKBLAZE_B2_APPLICATION_KEY_FILE`, `BACKBLAZE_B2_BUCKET_ID_FILE`, and `BACKBLAZE_B2_BUCKET_NAME_FILE`.
+
+Compatibility aliases for the older upload route remain supported: `B2_KEY_ID`, `B2_APP_KEY`, `B2_APPLICATION_KEY`, `B2_BUCKET_ID`, and `B2_BUCKET_NAME`.
+
+Launch-critical note:
+- Do not expose Backblaze application keys through `VITE_*` variables. The browser only receives the provider selector; Backblaze credentials stay server-side.
+- When switching to Backblaze, keep Firebase Auth/Admin configured. The Backblaze upload route uses Firebase bearer auth and mirrors the Storage ownership model server-side.
+
 ### Field Encryption (server)
 - one of:
   - `FIELD_ENCRYPTION_MASTER_KEY`

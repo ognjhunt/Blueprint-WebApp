@@ -49,6 +49,7 @@ const authSensitivePathPatterns = [
 ];
 
 const authRequiredPathPatterns = [
+  /^\/app(?:\/|$)/,
   /^\/admin(?:\/|$)/,
   /^\/dashboard(?:\/|$)/,
   /^\/onboarding(?:\/|$)/,

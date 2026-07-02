@@ -116,7 +116,7 @@ const vocabulary: VocabularyTile[] = [
     eyebrow: "Package object",
     term: "Eval Card",
     mono: "eval_card",
-    body: "The record of one comparison run: policies, episode counts, thresholds, and the rank-fidelity result.",
+    body: "The record of one comparison run: policies, episode counts, thresholds, and the simulator-backed comparison support.",
   },
   {
     eyebrow: "Trust artifact",
