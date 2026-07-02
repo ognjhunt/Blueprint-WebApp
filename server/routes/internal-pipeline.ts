@@ -44,11 +44,13 @@ import {
   deriveStablePackageId,
 } from "../utils/buyerOutcomes";
 import {
+  createPipelineSyncRateLimiter,
   validatePipelineArtifactUris,
   verifyPipelineSyncRequest,
 } from "../utils/pipelineSyncSecurity";
 
 const router = Router();
+const pipelineSyncRateLimiter = createPipelineSyncRateLimiter();
 
 const AUTO_CREATED_CONTACT = {
   firstName: "Pipeline",
@@ -443,7 +445,11 @@ async function upsertCaptureCreatorLinkage(params: {
   return { capture_id: captureId, creator_id: creatorId || null };
 }
 
-router.post("/attachments", requirePipelineToken, async (req: Request, res: Response) => {
+router.post(
+  "/attachments",
+  pipelineSyncRateLimiter,
+  requirePipelineToken,
+  async (req: Request, res: Response) => {
   try {
     if (!db) {
       return res.status(500).json({ error: "Database not available" });
@@ -959,7 +965,8 @@ router.post("/attachments", requirePipelineToken, async (req: Request, res: Resp
     logger.error({ error }, "Failed to attach pipeline metadata");
     return res.status(500).json({ error: "Failed to attach pipeline metadata" });
   }
-});
+  },
+);
 
 /**
  * GET /api/internal/pipeline/status/:requestId
@@ -967,7 +974,11 @@ router.post("/attachments", requirePipelineToken, async (req: Request, res: Resp
  * Inspect the current pipeline bridge state for a request: artifact inventory,
  * milestone status, hosted review readiness, and recommended next action.
  */
-router.get("/status/:requestId", requirePipelineToken, async (req: Request, res: Response) => {
+router.get(
+  "/status/:requestId",
+  pipelineSyncRateLimiter,
+  requirePipelineToken,
+  async (req: Request, res: Response) => {
   try {
     if (!db) {
       return res.status(500).json({ error: "Database not available" });
@@ -1040,7 +1051,8 @@ router.get("/status/:requestId", requirePipelineToken, async (req: Request, res:
     logger.error({ error }, "Failed to retrieve pipeline status");
     return res.status(500).json({ error: "Failed to retrieve pipeline status" });
   }
-});
+  },
+);
 
 /**
  * GET /api/internal/pipeline/hosted-readiness/:siteSubmissionId

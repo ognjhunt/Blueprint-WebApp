@@ -8,11 +8,13 @@ import {
   writeRobotEvalJobRequestInbox,
 } from "../utils/robotEvalJobRequests";
 import {
+  createPipelineSyncRateLimiter,
   validatePipelineArtifactUris,
   verifyPipelineSyncRequest,
 } from "../utils/pipelineSyncSecurity";
 
 const router = Router();
+const pipelineSyncRateLimiter = createPipelineSyncRateLimiter();
 const DEFAULT_INBOX_DIR = path.resolve(
   process.cwd(),
   "output/pipeline/robot_eval_job_requests/inbox",
@@ -224,7 +226,11 @@ router.get("/:jobId/status", async (req, res) => {
   return res.json(statusResponse(jobId, (snapshot.data() || {}) as Record<string, unknown>));
 });
 
-router.post("/:jobId/pipeline-status", requirePipelineSync, async (req, res) => {
+router.post(
+  "/:jobId/pipeline-status",
+  pipelineSyncRateLimiter,
+  requirePipelineSync,
+  async (req, res) => {
   if (!db) {
     return res.status(503).json({
       error: "Robot eval job status store is not configured.",
@@ -277,6 +283,7 @@ router.post("/:jobId/pipeline-status", requirePipelineSync, async (req, res) => 
 
   await db.collection("robotEvalJobRequests").doc(jobId).set(update, { merge: true });
   return res.json(statusResponse(jobId, update));
-});
+  },
+);
 
 export default router;

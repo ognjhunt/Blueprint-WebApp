@@ -167,4 +167,50 @@ describe("robot eval job request status routes", () => {
       await stopServer(server);
     }
   });
+
+  it("rate limits repeated pipeline status callbacks", async () => {
+    vi.stubEnv("PIPELINE_SYNC_TOKEN", "secret");
+    vi.stubEnv("PIPELINE_SYNC_ALLOWED_GCS_PREFIXES", "gs://bucket/");
+    vi.stubEnv("PIPELINE_SYNC_RATE_LIMIT_MAX", "1");
+    vi.stubEnv("PIPELINE_SYNC_RATE_LIMIT_WINDOW_MS", "60000");
+    state.docs.set("job-1", {
+      status: "queued_for_pipeline",
+      created_at_iso: "2026-07-02T00:00:00.000Z",
+    });
+    const { server, baseUrl } = await startRoute();
+    const body = {
+      job_id: "job-1",
+      pipeline_status: "running",
+      result_artifacts: {
+        status_manifest_uri: "gs://bucket/results/status.json",
+      },
+    };
+
+    try {
+      const first = await fetch(
+        `${baseUrl}/api/robot-eval/job-requests/job-1/pipeline-status`,
+        {
+          method: "POST",
+          ...signedPipelineRequest(body),
+        },
+      );
+      expect(first.status).toBe(200);
+
+      const second = await fetch(
+        `${baseUrl}/api/robot-eval/job-requests/job-1/pipeline-status`,
+        {
+          method: "POST",
+          ...signedPipelineRequest(body),
+        },
+      );
+      expect(second.status).toBe(429);
+      await expect(second.json()).resolves.toEqual(
+        expect.objectContaining({
+          code: "pipeline_sync_rate_limited",
+        }),
+      );
+    } finally {
+      await stopServer(server);
+    }
+  });
 });

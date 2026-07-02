@@ -1,7 +1,11 @@
 import crypto from "crypto";
 import type { Request } from "express";
+import rateLimit from "express-rate-limit";
+import { createRateLimitRedisStore } from "./rate-limit-redis";
 
 const DEFAULT_MAX_SKEW_MS = 5 * 60 * 1000;
+const DEFAULT_RATE_LIMIT_WINDOW_MS = 5 * 60 * 1000;
+const DEFAULT_RATE_LIMIT_MAX = 60;
 
 export interface PipelineSyncAuthResult {
   ok: boolean;
@@ -198,4 +202,29 @@ export function validatePipelineArtifactUris(payload: Record<string, unknown>): 
     violations,
   );
   return violations;
+}
+
+function numberFromEnv(name: string, fallback: number): number {
+  const value = Number(process.env[name]);
+  return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
+export function createPipelineSyncRateLimiter() {
+  return rateLimit({
+    windowMs: numberFromEnv(
+      "PIPELINE_SYNC_RATE_LIMIT_WINDOW_MS",
+      DEFAULT_RATE_LIMIT_WINDOW_MS,
+    ),
+    limit: numberFromEnv("PIPELINE_SYNC_RATE_LIMIT_MAX", DEFAULT_RATE_LIMIT_MAX),
+    standardHeaders: true,
+    legacyHeaders: false,
+    store: createRateLimitRedisStore("rl:pipeline-sync:"),
+    skip: (req) => req.method === "OPTIONS",
+    handler: (_req, res) => {
+      res.status(429).json({
+        error: "Too many pipeline sync requests. Please retry later.",
+        code: "pipeline_sync_rate_limited",
+      });
+    },
+  });
 }
