@@ -11,7 +11,7 @@ import { TileGrid } from "@/components/site/TileGrid";
 
 const statStrip = [
   { label: "Robot data vs. text", value: "~1B×", caption: "Smaller than internet text (Bessemer)" },
-  { label: "Sim-to-site rank", value: "0.929", caption: "Correlation to real ordering" },
+  { label: "Sim-to-site rank", value: "0.929", caption: "Generated-world vs. real ordering (SC3-Eval)" },
   { label: "One real eval", value: "2,500+", caption: "Rollouts + 100+ human hours (AutoEval)" },
   { label: "Reliability bar", value: "99.99%", caption: "What industrial buyers expect (Bain)" },
 ];
@@ -21,7 +21,7 @@ const rungs = [
     step: "01",
     phase: "Today",
     title: "Know which policy will actually work — before field time.",
-    body: "Blueprint's Task Evaluation Runs rank robot policies on a real captured site against your task suite, success rate, cycle time, and intervention thresholds. Ranking is the honest unit: published research shows simulated rankings correlate with real ones at r ≈ 0.92–0.94, and our capture-grounded runs report a ~0.929 sim-to-site rank correlation.",
+    body: "Blueprint's Task Evaluation Runs rank robot policies on a real captured site against your task suite, success rate, cycle time, and intervention thresholds. Ranking is the honest unit — and a generated world can now do it: 2026 research (SC3-Eval, from NVIDIA and Physical Intelligence; OSCAR, from Peking University and NVIDIA) shows video world models predicting real policy rankings at a Pearson correlation up to 0.98 in-distribution. The ~0.929 rank fidelity we report sits squarely in that regime.",
     proof: "Rank fidelity & predicted success — an estimate, never a guaranteed field outcome.",
   },
   {
@@ -35,7 +35,7 @@ const rungs = [
     step: "03",
     phase: "Horizon",
     title: "Predict real-world performance, and generate the data to improve it.",
-    body: "Every deployment decision routed through Blueprint is a labeled, ground-truth outcome. That proprietary, multi-site capture is the scarcest input in robotics — and research shows policy generalization scales with the diversity of real environments, not raw demo count. It powers site-specific post-training data and, over time, calibrated prediction: getting a 95% eval to mean ~95% in the real world.",
+    body: "Every deployment decision routed through Blueprint is a labeled, ground-truth outcome. That proprietary, multi-site capture is the scarcest input in robotics — and research shows policy generalization scales with the diversity of real environments, not raw demo count. Today's evaluators are strong in-distribution but weaker on unfamiliar sites (SC3-Eval drops from 0.98 to ~0.87 out-of-distribution); every site we capture pulls more of the real world in-distribution. That is what powers site-specific post-training data and, over time, calibrated prediction: getting a 95% eval to mean ~95% in the real world.",
     proof: "Calibrated prediction depends on multi-year world-model progress. We publish the dependency, not a promise.",
   },
   {
@@ -182,9 +182,11 @@ export default function Vision() {
               </blockquote>
               <p className="mt-6 max-w-[34rem] text-[15px] leading-[1.7] text-ink-600">
                 A single rigorous real-world evaluation of one policy can take thousands of rollouts
-                and a hundred hours of human labor. There is no neutral, site-specific way to compare
-                policies today. That gap is where Blueprint starts — and the proprietary outcome data
-                it generates is what lets us climb.
+                and a hundred hours of human labor. New research from NVIDIA, Physical Intelligence,
+                and leading universities — SC3-Eval and OSCAR (2026) — shows a generated world can now
+                predict real policy rankings, which is exactly what a neutral, site-specific evaluator
+                needs. That is where Blueprint starts, and the proprietary outcome data it generates is
+                what lets us climb.
               </p>
             </div>
           </div>
