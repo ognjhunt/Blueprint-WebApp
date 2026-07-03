@@ -35,6 +35,7 @@ export const footerEvidenceLinks = [
 ];
 
 export const footerCompanyLinks = [
+  { href: "/vision", label: "Vision" },
   {
     href: "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=policy-evaluation-run&source=footer",
     label: "Request evaluation",

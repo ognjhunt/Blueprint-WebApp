@@ -69,6 +69,7 @@ const DesignSystem = lazyRoute(() => import("../pages/DesignSystem"));
 
 // Redesign — public pages (distinct surfaces per SCREENS.md)
 const About = lazyRoute(() => import("../pages/About"));
+const Vision = lazyRoute(() => import("../pages/Vision"));
 const Governance = lazyRoute(() => import("../pages/Governance"));
 const HowItWorks = lazyRoute(() => import("../pages/HowItWorks"));
 const ForRobotTeams = lazyRoute(() => import("../pages/ForRobotTeams"));
@@ -256,6 +257,7 @@ export const appRoutes: AppRoute[] = [
   { path: "/faq", layout: "public", component: ProofRedirect },
   { path: "/governance", layout: "public", component: Governance },
   { path: "/about", layout: "public", component: About },
+  { path: "/vision", layout: "public", component: Vision },
   { path: "/docs", layout: "public", component: LegacyDocsRedirect },
   { path: "/updates", layout: "public", component: HomeRedirect },
   { path: "/blog", layout: "public", component: LegacyBlogRedirect },
