@@ -1,7 +1,7 @@
 # San Jose, CA No-Signal Recovery
 
 - status: not_triggered
-- evaluated_at: 2026-06-19T01:05:37.024Z
+- evaluated_at: 2026-07-03T21:05:11.709Z
 - trigger_rule: no positive applicant/capturer/reply/operator signal after 3 days or 2 sent direct-outreach actions
 - reason: Not triggered because San Jose, CA has not reached 3 days since first send or 2 sent direct-outreach actions.
 - dispatch_status: not_applicable

@@ -3,7 +3,7 @@
 - status: deterministic launch contract
 - doctrine: capture-first, real-site robot-evaluation/policy-improvement first, proof-led GTM only
 - city: Durham, NC
-- launch_run_id: 2026-06-19T01-05-37.214Z
+- launch_run_id: 2026-07-03T21-05-13.641Z
 - budget_tier: zero_budget
 - budget_max_usd: 0
 - founder_approved: true
@@ -26,9 +26,9 @@
 ## 24/48/72h Scorecard Windows
 | Checkpoint | Status | Window end | Run artifact | Canonical artifact |
 | --- | --- | --- | --- | --- |
-| 24h | scheduled_not_due | 2026-06-20T01:05:37.214Z | /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/no-signal-city-launch-harness-W1EvpL/durham-nc/2026-06-19T01-05-37.214Z/city-launch-durham-nc-scorecard-24h.md | /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-scorecard-24h.md |
-| 48h | scheduled_not_due | 2026-06-21T01:05:37.214Z | /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/no-signal-city-launch-harness-W1EvpL/durham-nc/2026-06-19T01-05-37.214Z/city-launch-durham-nc-scorecard-48h.md | /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-scorecard-48h.md |
-| 72h | scheduled_not_due | 2026-06-22T01:05:37.214Z | /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/no-signal-city-launch-harness-W1EvpL/durham-nc/2026-06-19T01-05-37.214Z/city-launch-durham-nc-scorecard-72h.md | /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-scorecard-72h.md |
+| 24h | scheduled_not_due | 2026-07-04T21:05:13.641Z | /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/no-signal-city-launch-harness-0DYXMR/durham-nc/2026-07-03T21-05-13.641Z/city-launch-durham-nc-scorecard-24h.md | /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-scorecard-24h.md |
+| 48h | scheduled_not_due | 2026-07-05T21:05:13.641Z | /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/no-signal-city-launch-harness-0DYXMR/durham-nc/2026-07-03T21-05-13.641Z/city-launch-durham-nc-scorecard-48h.md | /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-scorecard-48h.md |
+| 72h | scheduled_not_due | 2026-07-06T21:05:13.641Z | /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/no-signal-city-launch-harness-0DYXMR/durham-nc/2026-07-03T21-05-13.641Z/city-launch-durham-nc-scorecard-72h.md | /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-scorecard-72h.md |
 
 ## Firestore/Admin Evidence Sources
 | Collection | Query name | Query | Purpose |

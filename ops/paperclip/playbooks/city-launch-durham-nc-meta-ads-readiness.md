@@ -17,4 +17,4 @@
 ## Required Scorecard Evidence
 - ad_studio_runs query: collection("ad_studio_runs").where("city", "==", city).orderBy("updated_at_iso", "desc").limit(100)
 - meta_ads_cli_runs query: collection("meta_ads_cli_runs").where("city", "==", city).orderBy("createdAtIso", "desc").limit(100)
-- gtm_contract: /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/no-signal-city-launch-harness-W1EvpL/durham-nc/2026-06-19T01-05-37.214Z/city-launch-durham-nc-gtm-72h-contract.md
+- gtm_contract: /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/no-signal-city-launch-harness-0DYXMR/durham-nc/2026-07-03T21-05-13.641Z/city-launch-durham-nc-gtm-72h-contract.md

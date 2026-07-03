@@ -4,10 +4,10 @@
 - evidence_boundary: checkpoint placeholder only until the window closes and the first-party collections below are queried
 - city: Durham, NC
 - city_slug: durham-nc
-- launch_run_id: 2026-06-19T01-05-37.214Z
+- launch_run_id: 2026-07-03T21-05-13.641Z
 - checkpoint_hour: 24
-- window_start_iso: 2026-06-19T01:05:37.214Z
-- window_end_iso: 2026-06-20T01:05:37.214Z
+- window_start_iso: 2026-07-03T21:05:13.641Z
+- window_end_iso: 2026-07-04T21:05:13.641Z
 
 ## Prompt-To-Artifact Contract
 - canonical city launch plan and activation payload must be linked from the launch manifest.
