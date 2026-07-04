@@ -58,40 +58,48 @@ function makeQueryDoc(collection: string, id: string, data: StoredDoc) {
   };
 }
 
+function makeDocRef(collectionName: string, id: string) {
+  return {
+    id,
+    __collection: collectionName,
+    get: async () => {
+      const data = readDoc(collectionName, id);
+      return {
+        id,
+        exists: Boolean(data),
+        data: () => (data ? clone(data) : undefined),
+      };
+    },
+    set: async (payload: StoredDoc, options?: { merge?: boolean }) => {
+      const existing = readDoc(collectionName, id) || {};
+      state.docs.set(
+        docKey(collectionName, id),
+        options?.merge ? deepMerge(existing, payload) : clone(payload),
+      );
+    },
+    update: async (payload: StoredDoc) => {
+      const existing = readDoc(collectionName, id) || {};
+      state.docs.set(docKey(collectionName, id), deepMerge(existing, payload));
+    },
+    create: async (payload: StoredDoc) => {
+      const key = docKey(collectionName, id);
+      if (state.docs.has(key)) {
+        const error = new Error("already exists") as Error & { code?: string };
+        error.code = "already-exists";
+        throw error;
+      }
+      state.docs.set(key, clone(payload));
+    },
+  };
+}
+
+type MockDocRef = ReturnType<typeof makeDocRef>;
+
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({
   default: {},
   dbAdmin: {
     collection: (collectionName: string) => ({
-      doc: (id: string) => ({
-        get: async () => {
-          const data = readDoc(collectionName, id);
-          return {
-            id,
-            exists: Boolean(data),
-            data: () => (data ? clone(data) : undefined),
-          };
-        },
-        set: async (payload: StoredDoc, options?: { merge?: boolean }) => {
-          const existing = readDoc(collectionName, id) || {};
-          state.docs.set(
-            docKey(collectionName, id),
-            options?.merge ? deepMerge(existing, payload) : clone(payload),
-          );
-        },
-        update: async (payload: StoredDoc) => {
-          const existing = readDoc(collectionName, id) || {};
-          state.docs.set(docKey(collectionName, id), deepMerge(existing, payload));
-        },
-        create: async (payload: StoredDoc) => {
-          const key = docKey(collectionName, id);
-          if (state.docs.has(key)) {
-            const error = new Error("already exists") as Error & { code?: string };
-            error.code = "already-exists";
-            throw error;
-          }
-          state.docs.set(key, clone(payload));
-        },
-      }),
+      doc: (id: string) => makeDocRef(collectionName, id),
       where: (field: string, op: string, value: unknown) => ({
         get: async () => {
           if (op !== "==") {
@@ -112,6 +120,62 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
         },
       }),
     }),
+    // Minimal serializable-transaction emulation: reads see live state, writes
+    // are buffered and committed atomically once the callback resolves.
+    runTransaction: async <T>(
+      updateFn: (tx: {
+        get: (ref: MockDocRef) => Promise<{
+          id: string;
+          exists: boolean;
+          data: () => StoredDoc | undefined;
+        }>;
+        set: (
+          ref: MockDocRef,
+          payload: StoredDoc,
+          options?: { merge?: boolean },
+        ) => void;
+        update: (ref: MockDocRef, payload: StoredDoc) => void;
+      }) => Promise<T>,
+    ): Promise<T> => {
+      const writes: Array<() => void> = [];
+      const tx = {
+        get: async (ref: MockDocRef) => {
+          const data = readDoc(ref.__collection, ref.id);
+          return {
+            id: ref.id,
+            exists: Boolean(data),
+            data: () => (data ? clone(data) : undefined),
+          };
+        },
+        set: (
+          ref: MockDocRef,
+          payload: StoredDoc,
+          options?: { merge?: boolean },
+        ) => {
+          writes.push(() => {
+            const existing = readDoc(ref.__collection, ref.id) || {};
+            state.docs.set(
+              docKey(ref.__collection, ref.id),
+              options?.merge ? deepMerge(existing, payload) : clone(payload),
+            );
+          });
+        },
+        update: (ref: MockDocRef, payload: StoredDoc) => {
+          writes.push(() => {
+            const existing = readDoc(ref.__collection, ref.id) || {};
+            state.docs.set(
+              docKey(ref.__collection, ref.id),
+              deepMerge(existing, payload),
+            );
+          });
+        },
+      };
+      const result = await updateFn(tx);
+      for (const write of writes) {
+        write();
+      }
+      return result;
+    },
   },
 }));
 

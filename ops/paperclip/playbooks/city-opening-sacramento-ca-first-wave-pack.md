@@ -5,7 +5,7 @@
 
 ## Warehouse / Facility Direct Awareness
 - no named buyer-side targets are materialized yet; keep this lane in draft preparation only.
-- target site anchors currently available: Northgate Logistics.
+- no named site anchors are materialized yet; avoid pretending a target list is complete.
 
 ## Public-Commercial Bounded Placements
 - placement class 1: local city/community groups where public commercial walkthroughs can be discussed without implying private access.

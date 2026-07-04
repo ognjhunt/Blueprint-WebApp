@@ -4,10 +4,10 @@
 - evidence_boundary: checkpoint placeholder only until the window closes and the first-party collections below are queried
 - city: Austin, TX
 - city_slug: austin-tx
-- launch_run_id: 2026-07-03T21-04-02.975Z
+- launch_run_id: 2026-07-04T10-41-08.099Z
 - checkpoint_hour: 72
-- window_start_iso: 2026-07-03T21:04:02.975Z
-- window_end_iso: 2026-07-06T21:04:02.975Z
+- window_start_iso: 2026-07-04T10:41:08.099Z
+- window_end_iso: 2026-07-07T10:41:08.099Z
 
 ## Prompt-To-Artifact Contract
 - canonical city launch plan and activation payload must be linked from the launch manifest.

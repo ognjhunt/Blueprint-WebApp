@@ -207,12 +207,22 @@ describe("stripe treasury funding", () => {
           amount: 4500,
           destination: "acct_creator_123",
         }),
+        // WEB-01: transfer carries a deterministic idempotency key derived from
+        // the disbursement so a retried request cannot double-transfer.
+        expect.objectContaining({
+          idempotencyKey: "creator-payout-transfer:disb_123",
+        }),
       );
       expect(state.payoutCreate).toHaveBeenCalledWith(
         expect.objectContaining({
           amount: 4500,
         }),
-        { stripeAccount: "acct_creator_123" },
+        // WEB-01: payout carries a deterministic idempotency key derived from
+        // the disbursement so a retried request cannot double-pay.
+        {
+          stripeAccount: "acct_creator_123",
+          idempotencyKey: "creator-payout:disb_123",
+        },
       );
       expect(state.markFunded).toHaveBeenCalled();
       expect(state.finalize).toHaveBeenCalledWith({

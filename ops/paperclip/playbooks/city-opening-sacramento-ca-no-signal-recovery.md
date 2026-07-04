@@ -1,7 +1,7 @@
 # Sacramento, CA No-Signal Recovery
 
 - status: not_triggered
-- evaluated_at: 2026-07-03T21:06:37.610Z
+- evaluated_at: 2026-07-04T10:41:08.561Z
 - trigger_rule: no positive applicant/capturer/reply/operator signal after 3 days or 2 sent direct-outreach actions
 - reason: Not triggered because Sacramento, CA has not reached 3 days since first send or 2 sent direct-outreach actions.
 - dispatch_status: not_applicable

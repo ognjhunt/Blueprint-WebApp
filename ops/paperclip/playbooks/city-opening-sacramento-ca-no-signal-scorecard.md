@@ -1,7 +1,7 @@
 # Sacramento, CA City-Opening No-Signal Scorecard
 
 - status: not_triggered
-- evaluated_at: 2026-07-03T21:06:37.610Z
+- evaluated_at: 2026-07-04T10:41:08.561Z
 - trigger_rule: no positive applicant/capturer/reply/operator signal after 3 days or 2 sent direct-outreach actions
 
 ## Outcome Counters
