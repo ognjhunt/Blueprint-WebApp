@@ -34,7 +34,14 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
       }),
     }),
   },
-  authAdmin: null,
+  // WEB-02: verifyFirebaseToken needs authAdmin. Treat the Bearer token as the uid;
+  // "invalid" throws (rejected token). admin uid grants the admin bypass.
+  authAdmin: {
+    verifyIdToken: async (token: string) => {
+      if (token === "invalid") throw new Error("invalid token");
+      return { uid: token, admin: token === "admin-user" };
+    },
+  },
 }));
 
 async function startRoute(): Promise<{ server: Server; baseUrl: string }> {
@@ -80,10 +87,11 @@ afterEach(() => {
 });
 
 describe("robot eval job request status routes", () => {
-  it("returns buyer-readable job status from the durable store", async () => {
+  it("returns job status to the owning buyer (authenticated)", async () => {
     state.docs.set("job-1", {
       status: "queued_for_pipeline",
       pipeline_status: "staged_for_control_plane",
+      buyer_user_id: "buyer-1",
       created_at_iso: "2026-07-02T00:00:00.000Z",
       proof_boundary: {
         simulator_execution_proven: false,
@@ -92,7 +100,9 @@ describe("robot eval job request status routes", () => {
     const { server, baseUrl } = await startRoute();
 
     try {
-      const response = await fetch(`${baseUrl}/api/robot-eval/job-requests/job-1/status`);
+      const response = await fetch(`${baseUrl}/api/robot-eval/job-requests/job-1/status`, {
+        headers: { Authorization: "Bearer buyer-1" },
+      });
       await expect(response.json()).resolves.toEqual(
         expect.objectContaining({
           ok: true,
@@ -104,6 +114,50 @@ describe("robot eval job request status routes", () => {
           }),
         }),
       );
+      expect(response.status).toBe(200);
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("WEB-02: rejects an unauthenticated status request (401)", async () => {
+    state.docs.set("job-1", { status: "queued_for_pipeline", buyer_user_id: "buyer-1" });
+    const { server, baseUrl } = await startRoute();
+    try {
+      const response = await fetch(`${baseUrl}/api/robot-eval/job-requests/job-1/status`);
+      expect(response.status).toBe(401);
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("WEB-02: forbids a non-owner buyer from reading another buyer's job (403)", async () => {
+    state.docs.set("job-1", {
+      status: "queued_for_pipeline",
+      buyer_user_id: "buyer-1",
+      result_artifacts: { policy_ranking_scorecard_uri: "gs://bucket/secret.json" },
+    });
+    const { server, baseUrl } = await startRoute();
+    try {
+      const response = await fetch(`${baseUrl}/api/robot-eval/job-requests/job-1/status`, {
+        headers: { Authorization: "Bearer buyer-2" },
+      });
+      expect(response.status).toBe(403);
+      await expect(response.json()).resolves.toEqual(
+        expect.objectContaining({ code: "robot_eval_job_forbidden" }),
+      );
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("WEB-02: allows an admin to read any job", async () => {
+    state.docs.set("job-1", { status: "queued_for_pipeline", buyer_user_id: "buyer-1" });
+    const { server, baseUrl } = await startRoute();
+    try {
+      const response = await fetch(`${baseUrl}/api/robot-eval/job-requests/job-1/status`, {
+        headers: { Authorization: "Bearer admin-user" },
+      });
       expect(response.status).toBe(200);
     } finally {
       await stopServer(server);

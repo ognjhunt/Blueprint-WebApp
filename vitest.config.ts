@@ -12,7 +12,13 @@ export default defineConfig({
     environment: "happy-dom",
     setupFiles: "./client/tests/setup.ts",
     css: true,
-    testTimeout: 60000,
+    // WEB-03: the core-flow integration tests (inbound-request, pipeline-routes,
+    // headless-hosted-session-smoke) do real per-request crypto + field-encryption +
+    // growth-event I/O. Each passes in ~14-35s in isolation, but under parallel CPU
+    // contention they crossed the old 60s cap and reddened CI (documented since
+    // ~2026-06-25). Give them headroom so contention-induced slowness no longer
+    // trips a spurious timeout. Deeper follow-up: mock the heavy per-request crypto.
+    testTimeout: 120000,
     hookTimeout: 120000,
     include: [
       "client/tests/**/*.{test,spec}.{ts,tsx,js,jsx}",

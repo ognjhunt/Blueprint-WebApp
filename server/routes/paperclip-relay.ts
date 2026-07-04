@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "node:crypto";
 import type { Request, Response } from "express";
 
 const PAPERCLIP_OPS_FIRESTORE_WEBHOOK_URL = (
@@ -11,11 +12,22 @@ export async function paperclipOpsFirestoreRelayHandler(req: Request, res: Respo
   if (!PAPERCLIP_OPS_FIRESTORE_WEBHOOK_URL) {
     return res.status(503).json({ error: "Paperclip Firestore relay is not configured." });
   }
-  if (PAPERCLIP_OPS_FIRESTORE_RELAY_SECRET) {
-    const expected = `Bearer ${PAPERCLIP_OPS_FIRESTORE_RELAY_SECRET}`;
-    if (req.get("authorization") !== expected) {
-      return res.status(401).json({ error: "Paperclip Firestore relay authorization failed." });
-    }
+  // WEB-05: fail CLOSED. Previously the Bearer check was nested inside
+  // `if (SECRET)`, so an unset/rotated secret silently turned this internal ops
+  // relay into an open proxy into the Paperclip webhook. Require the secret, and
+  // compare in constant time to avoid a timing side-channel.
+  if (!PAPERCLIP_OPS_FIRESTORE_RELAY_SECRET) {
+    return res.status(503).json({ error: "Paperclip Firestore relay secret is not configured." });
+  }
+  const expected = `Bearer ${PAPERCLIP_OPS_FIRESTORE_RELAY_SECRET}`;
+  const provided = req.get("authorization") || "";
+  const expectedBuf = Buffer.from(expected);
+  const providedBuf = Buffer.from(provided);
+  if (
+    providedBuf.length !== expectedBuf.length ||
+    !timingSafeEqual(providedBuf, expectedBuf)
+  ) {
+    return res.status(401).json({ error: "Paperclip Firestore relay authorization failed." });
   }
 
   try {

@@ -17,7 +17,10 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
     },
   },
   dbAdmin: null,
-  authAdmin: null,
+  // WEB-02: POST now requires an authenticated buyer (verifyFirebaseToken).
+  authAdmin: {
+    verifyIdToken: async (token: string) => ({ uid: token }),
+  },
 }));
 
 type StartedServer = {
@@ -169,7 +172,7 @@ describe("robot-eval job request route forwarding", () => {
     try {
       const response = await fetch(`${route.baseUrl}/api/robot-eval/job-requests`, {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: { "content-type": "application/json", authorization: "Bearer robot-team-a" },
         body: JSON.stringify(jobRequest),
       });
       const payload = await response.json();
@@ -257,7 +260,7 @@ describe("robot-eval job request route forwarding", () => {
     try {
       const response = await fetch(`${route.baseUrl}/api/robot-eval/job-requests`, {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: { "content-type": "application/json", authorization: "Bearer robot-team-a" },
         body: JSON.stringify(jobRequest),
       });
       const payload = await response.json();

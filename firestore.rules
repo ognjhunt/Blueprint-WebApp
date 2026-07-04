@@ -1,20 +1,50 @@
 rules_version = '2';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CANONICAL Firestore ruleset for Firebase project `blueprint-8c1ca`.
+//
+// This file is the SINGLE canonical ruleset deployed to the (default) Firestore
+// instance. It is a SUPERSET of what both clients need:
+//   • the iOS capturer app  (BlueprintCapture)  — via the Firebase client SDK
+//   • the Blueprint WebApp                       — via the Firebase client SDK
+//
+// It MUST be kept byte-identical in both repos:
+//   • BlueprintCapture/firestore.rules
+//   • Blueprint-WebApp/firestore.rules
+// because `firebase deploy --only firestore:rules` is last-writer-wins for the
+// whole project — whichever repo deploys, the deployed rules must still permit
+// every collection each client reads/writes. See beta blocker XR-01.
+//
+// Admin-SDK access (Cloud Functions / server routes) BYPASSES these rules and
+// needs no allow rule here. Only client-SDK (rule-governed) access is modeled.
+//
+// Parity is enforced by:
+//   Blueprint-WebApp/scripts/check-firestore-rules-parity.sh
+// ─────────────────────────────────────────────────────────────────────────────
+
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // ─── Helpers ────────────────────────────────────────────────────────────
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Alias kept for parity with historical WebApp rules.
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
+    function isAdmin() {
+      return isSignedIn()
+        && (request.auth.token.admin == true
+          || request.auth.token.role in ['admin', 'ops']
+          || (request.auth.token.keys().hasAny(['roles'])
+            && request.auth.token.roles.hasAny(['admin', 'ops'])));
     }
 
-    function isAdmin() {
-      return isAuthenticated() &&
-        (request.auth.token.admin == true ||
-         request.auth.token.role in ['admin', 'ops'] ||
-         (request.auth.token.keys().hasAny(['roles']) &&
-          request.auth.token.roles.hasAny(['admin', 'ops'])));
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
     }
 
     function isStringField(field) {
@@ -65,26 +95,55 @@ service cloud.firestore {
       return data.keys().hasOnly(captureSubmissionClientKeys());
     }
 
+    // ─── Users ──────────────────────────────────────────────────────────────
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId);
+      // Clients may update their own non-financial fields.
+      // Financial fields (stats.availableBalance, stats.totalEarnings, etc.)
+      // are written only by Cloud Functions via the Admin SDK, which bypasses
+      // these rules entirely.
+      allow update: if isOwner(userId)
+        && !request.resource.data.diff(resource.data).affectedKeys()
+            .hasAny(['stats']);
+
+      // Referral sub-collection: owner reads only; writes are server-side only.
+      match /referrals/{referredUserId} {
+        allow read: if isOwner(userId);
+        allow write: if false;
+      }
+    }
+
+    // ─── Referral code lookup ────────────────────────────────────────────────
+    // Auth comes before the invite code step, so any authenticated user can
+    // look up whether a code is valid. Unauthenticated enumeration is blocked.
+    match /referralCodes/{code} {
+      allow read: if isSignedIn();
+      allow write: if false; // written only by server (Admin SDK)
+    }
+
+    // ─── Capture jobs (curated opportunities) ───────────────────────────────
+    match /capture_jobs/{jobId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    // ─── WebApp server-owned control-plane records ─────────────────────────
     match /contactRequests/{id} {
       allow read: if isAdmin();
       allow create, update, delete: if false;
     }
 
-    // Inbound requests collection - lead pipeline
-    // Writes are only allowed via server-side (Admin SDK)
-    // Reads are restricted to admin users
     match /inboundRequests/{requestId} {
       allow read: if isAdmin();
-      allow write: if false; // Server-side only via Admin SDK
+      allow write: if false;
 
-      // Notes subcollection
       match /notes/{noteId} {
         allow read: if isAdmin();
-        allow write: if false; // Server-side only via Admin SDK
+        allow write: if false;
       }
     }
 
-    // Lead routing configuration - admin only
     match /leadRoutingConfig/{ruleId} {
       allow read, write: if isAdmin();
     }
@@ -93,27 +152,12 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // KPI/live-source collections are server-owned. Admin SDK routes, not
-    // client Firestore reads, provide any approved operational access.
     match /action_ledger/{id} {
       allow read, write: if false;
     }
 
     match /hostedSessions/{id} {
       allow read, write: if false;
-    }
-
-    match /capture_submissions/{id} {
-      allow read: if isAuthenticated()
-        && resource.data.creator_id == request.auth.uid;
-      allow create: if isOwner(request.resource.data.creator_id)
-        && hasOnlyCaptureSubmissionClientKeys(request.resource.data);
-      allow update: if isOwner(resource.data.creator_id)
-        && request.resource.data.creator_id == resource.data.creator_id
-        && hasOnlyCaptureSubmissionClientKeys(request.resource.data)
-        && request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(captureSubmissionClientKeys());
-      allow delete: if false;
     }
 
     match /operatingGraphEvents/{id} {
@@ -152,16 +196,61 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // ─── Scenes ──────────────────────────────────────────────────────────────
+    // WebApp clients may create/update/delete scenes; iOS clients read them.
+    // (WebApp server writes go through the Admin SDK and bypass these rules.)
     match /scenes/{id} {
       allow create: if isAuthenticated() && hasValidSceneCreatePayload();
       allow read: if isAuthenticated();
       allow update, delete: if isAuthenticated();
     }
 
-    match /users/{userId} {
-      allow create, read, update: if isAuthenticated() && request.auth.uid == userId;
+    // ─── Capture submissions ─────────────────────────────────────────────────
+    // Clients may create their own submissions and read their own.
+    // Status transitions (approved, paid, etc.) and payout fields are
+    // written only by backend services via the Admin SDK.
+    match /capture_submissions/{captureId} {
+      allow read: if isSignedIn()
+        && resource.data.creator_id == request.auth.uid;
+      allow create: if isOwner(request.resource.data.creator_id)
+        && hasOnlyCaptureSubmissionClientKeys(request.resource.data);
+      allow update: if isOwner(resource.data.creator_id)
+        && request.resource.data.creator_id == resource.data.creator_id
+        && hasOnlyCaptureSubmissionClientKeys(request.resource.data)
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(captureSubmissionClientKeys());
+      allow delete: if false; // backend only
     }
 
+    // ─── Reservations ───────────────────────────────────────────────────────
+    match /reservations/{targetId} {
+      allow read, write: if isOwner(resource.data.userId)
+        || isOwner(request.resource.data.userId);
+    }
+
+    // ─── Target state ───────────────────────────────────────────────────────
+    match /target_state/{targetId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    // ─── Sessions ───────────────────────────────────────────────────────────
+    match /sessions/{sessionId} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    // ─── Session events ──────────────────────────────────────────────────────
+    match /sessionEvents/{eventId} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn();
+      allow update, delete: if false;
+    }
+
+    // ─── Default deny ────────────────────────────────────────────────────────
+    // Any collection not matched above is denied to client-SDK access.
+    // Admin-SDK (Cloud Functions / server routes) bypasses this.
     match /{document=**} {
       allow read, write: if false;
     }

@@ -1119,10 +1119,15 @@ export async function beginCreatorPayoutDisbursement(params: {
     };
   }
 
-  const entries = (await listCreatorPayouts(params.creatorId)).filter((entry) =>
-    ["approved", "disbursement_failed"].includes(entry.status),
-  );
-  if (entries.length === 0) {
+  // Gather candidate entry ids outside the transaction (a Firestore transaction
+  // cannot run the collection query itself). Every entry's status is then
+  // re-read *inside* the transaction and re-checked before any write, so the
+  // read-then-write double-pay race (WEB-01) cannot open a window between
+  // selection and the in_transit flip.
+  const candidateEntryIds = (await listCreatorPayouts(params.creatorId))
+    .filter((entry) => ["approved", "disbursement_failed"].includes(entry.status))
+    .map((entry) => entry.id);
+  if (candidateEntryIds.length === 0) {
     return null;
   }
 
@@ -1131,79 +1136,112 @@ export async function beginCreatorPayoutDisbursement(params: {
     Math.floor(params.requestedAmountCents || 0),
   );
 
-  const selectedEntries: CreatorPayoutRecord[] = [];
-  let runningTotal = 0;
-  for (const entry of entries) {
-    if (entry.approved_amount_cents <= 0) {
-      continue;
-    }
-    if (
-      requestedAmountCents > 0 &&
-      runningTotal + entry.approved_amount_cents > requestedAmountCents &&
-      selectedEntries.length > 0
-    ) {
-      break;
-    }
-    selectedEntries.push(entry);
-    runningTotal += entry.approved_amount_cents;
-    if (requestedAmountCents > 0 && runningTotal >= requestedAmountCents) {
-      break;
-    }
-  }
+  // Statuses that mean an entry is already claimed by another disbursement and
+  // must never be swept into a new one.
+  const TERMINAL_OR_IN_FLIGHT_STATUSES = new Set<CreatorPayoutStatus>([
+    "in_transit",
+    "paid",
+  ]);
+  const ELIGIBLE_STATUSES = new Set<CreatorPayoutStatus>([
+    "approved",
+    "disbursement_failed",
+  ]);
 
-  if (selectedEntries.length === 0 || runningTotal <= 0) {
-    return null;
-  }
-
-  const createdAt = nowIso();
-  const disbursement: CreatorPayoutDisbursementRecord = {
-    id: crypto.randomUUID(),
-    creator_id: params.creatorId,
-    stripe_connect_account_id: params.stripeConnectAccountId,
-    payout_entry_ids: selectedEntries.map((entry) => entry.id),
-    requested_amount_cents: requestedAmountCents || runningTotal,
-    disbursed_amount_cents: runningTotal,
-    status: "initiated",
-    stripe_payout_id: null,
-    stripe_transfer_id: null,
-    treasury_status: "awaiting_platform_funds",
-    funded_at: null,
-    treasury_failure_reason: null,
-    platform_available_balance_cents: null,
-    created_at: createdAt,
-    updated_at: createdAt,
-    paid_at: null,
-    failed_at: null,
-    canceled_at: null,
-    failure_reason: null,
-    last_webhook_event_id: null,
-    last_webhook_event_type: null,
-  };
-
-  await firestore
+  const disbursementRef = firestore
     .collection(CREATOR_PAYOUT_DISBURSEMENT_COLLECTION)
-    .doc(disbursement.id)
-    .set(disbursement, { merge: true });
+    .doc(crypto.randomUUID());
 
-  await Promise.all(
-    selectedEntries.map((entry) =>
-      firestore
-        .collection(CREATOR_PAYOUT_COLLECTION)
-        .doc(entry.id)
-        .set(
-          {
-            status: "in_transit",
-            disbursement_id: disbursement.id,
-            stripe_connect_account_id: params.stripeConnectAccountId,
-            updated_at: createdAt,
-            failure_reason: null,
-          },
-          { merge: true },
-        ),
-    ),
-  );
+  const result = await firestore.runTransaction<{
+    disbursement: CreatorPayoutDisbursementRecord;
+    entries: CreatorPayoutRecord[];
+  } | null>(async (tx) => {
+    // Re-read each candidate atomically. Firestore serializes transactions that
+    // touch the same documents, so a concurrent disbursement that already
+    // flipped an entry to in_transit will be observed here and skipped.
+    const refs = candidateEntryIds.map((entryId) =>
+      firestore.collection(CREATOR_PAYOUT_COLLECTION).doc(entryId),
+    );
+    const snapshots = await Promise.all(refs.map((ref) => tx.get(ref)));
 
-  return { disbursement, entries: selectedEntries };
+    const selectedEntries: CreatorPayoutRecord[] = [];
+    let runningTotal = 0;
+    for (const snapshot of snapshots) {
+      if (!snapshot.exists) {
+        continue;
+      }
+      const entry = copyCreatorPayout(snapshot.data() as Record<string, unknown>);
+      if (
+        TERMINAL_OR_IN_FLIGHT_STATUSES.has(entry.status) ||
+        !ELIGIBLE_STATUSES.has(entry.status)
+      ) {
+        continue;
+      }
+      if (entry.approved_amount_cents <= 0) {
+        continue;
+      }
+      if (
+        requestedAmountCents > 0 &&
+        runningTotal + entry.approved_amount_cents > requestedAmountCents &&
+        selectedEntries.length > 0
+      ) {
+        break;
+      }
+      selectedEntries.push(entry);
+      runningTotal += entry.approved_amount_cents;
+      if (requestedAmountCents > 0 && runningTotal >= requestedAmountCents) {
+        break;
+      }
+    }
+
+    if (selectedEntries.length === 0 || runningTotal <= 0) {
+      return null;
+    }
+
+    const createdAt = nowIso();
+    const disbursement: CreatorPayoutDisbursementRecord = {
+      id: disbursementRef.id,
+      creator_id: params.creatorId,
+      stripe_connect_account_id: params.stripeConnectAccountId,
+      payout_entry_ids: selectedEntries.map((entry) => entry.id),
+      requested_amount_cents: requestedAmountCents || runningTotal,
+      disbursed_amount_cents: runningTotal,
+      status: "initiated",
+      stripe_payout_id: null,
+      stripe_transfer_id: null,
+      treasury_status: "awaiting_platform_funds",
+      funded_at: null,
+      treasury_failure_reason: null,
+      platform_available_balance_cents: null,
+      created_at: createdAt,
+      updated_at: createdAt,
+      paid_at: null,
+      failed_at: null,
+      canceled_at: null,
+      failure_reason: null,
+      last_webhook_event_id: null,
+      last_webhook_event_type: null,
+    };
+
+    tx.set(disbursementRef, disbursement, { merge: true });
+
+    for (const entry of selectedEntries) {
+      tx.set(
+        firestore.collection(CREATOR_PAYOUT_COLLECTION).doc(entry.id),
+        {
+          status: "in_transit",
+          disbursement_id: disbursement.id,
+          stripe_connect_account_id: params.stripeConnectAccountId,
+          updated_at: createdAt,
+          failure_reason: null,
+        },
+        { merge: true },
+      );
+    }
+
+    return { disbursement, entries: selectedEntries };
+  });
+
+  return result;
 }
 
 export async function finalizeCreatorPayoutDisbursement(params: {

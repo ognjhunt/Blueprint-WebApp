@@ -634,44 +634,11 @@ export default async function handler(req: Request, res: Response) {
       return res.json({ sessionId: session.id, sessionUrl: session.url });
     }
 
-    const { totalCost, hours, costPerHour } = body;
-    if (
-      typeof totalCost === "number" &&
-      typeof hours === "number" &&
-      typeof costPerHour === "number"
-    ) {
-      const session = await stripe.checkout.sessions.create({
-        payment_method_types: ["card"],
-        mode: "payment",
-        line_items: [
-          {
-            price_data: {
-              currency: "usd",
-              product_data: {
-                name: "Blueprint Plus Plan",
-                description: `${hours} hours at $${costPerHour.toFixed(2)}/hour`,
-              },
-              unit_amount: Math.round(totalCost * 100),
-            },
-            quantity: 1,
-          },
-        ],
-        metadata: {
-          plan: "plus",
-          hours: hours.toString(),
-          costPerHour: costPerHour.toString(),
-        },
-        success_url: resolveUrl(
-          originBase,
-          body.successPath,
-          "/pricing?success=true",
-        ),
-        cancel_url: resolveUrl(originBase, body.cancelPath, "/pricing?canceled=true"),
-      });
-
-      return res.json({ sessionId: session.id, sessionUrl: session.url });
-    }
-
+    // WEB-07: the legacy "hourly plus plan" path charged a client-supplied
+    // `totalCost` with no server-side validation, letting a caller set their own
+    // price. It has no remaining client caller (the marketplace path above is the
+    // real one, and it recomputes+rejects mismatched prices server-side), so it is
+    // removed. Any legacy caller now gets a 400 instead of a self-priced checkout.
     return res.status(400).json({ error: "Invalid checkout session payload" });
   } catch (error) {
     logger.error(

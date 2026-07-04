@@ -161,6 +161,8 @@ const evaluationReadinessSchema = z.object({
   buyer_trust_score: buyerTrustScoreSchema.optional(),
   qualification_summary: z.record(z.unknown()).nullable().optional(),
   capture_quality_summary: z.record(z.unknown()).nullable().optional(),
+  // PIPE-02: rights/privacy verdict the WebApp gates buyer-facing progression on.
+  rights_review_status: z.enum(["cleared", "needs_review", "blocked"]).nullable().optional(),
   rights_and_compliance: z.record(z.unknown()).optional(),
   privacy_processing: z.record(z.unknown()).optional(),
   missing_evidence: z.array(z.string()).optional(),

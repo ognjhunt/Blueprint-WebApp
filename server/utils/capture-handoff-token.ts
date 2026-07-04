@@ -8,14 +8,28 @@ export interface CaptureHandoffTokenPayload {
   nonce: string;
 }
 
+const DEV_FALLBACK_HANDOFF_SECRET = "blueprint-capture-handoff-dev-secret";
+
 function getSecret() {
-  return (
+  const secret =
     process.env.BLUEPRINT_CAPTURE_HANDOFF_TOKEN_SECRET ||
     process.env.BLUEPRINT_REQUEST_REVIEW_TOKEN_SECRET ||
     process.env.BLUEPRINT_SESSION_UI_TOKEN_SECRET ||
     process.env.PIPELINE_SYNC_TOKEN ||
-    "blueprint-capture-handoff-dev-secret"
-  );
+    "";
+  if (!secret) {
+    // WEB-09: capture-handoff tokens hand a specific job to a capturer. Signing them
+    // with a public constant would let anyone forge a handoff, so fail closed in
+    // production rather than silently falling back to the dev secret.
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(
+        "Capture handoff token secret is not configured. Set BLUEPRINT_CAPTURE_HANDOFF_TOKEN_SECRET " +
+          "(or one of BLUEPRINT_REQUEST_REVIEW_TOKEN_SECRET / BLUEPRINT_SESSION_UI_TOKEN_SECRET / PIPELINE_SYNC_TOKEN).",
+      );
+    }
+    return DEV_FALLBACK_HANDOFF_SECRET;
+  }
+  return secret;
 }
 
 function toBase64Url(value: string) {

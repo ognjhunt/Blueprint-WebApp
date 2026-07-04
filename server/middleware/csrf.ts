@@ -39,8 +39,19 @@ export const csrfProtection = (req: Request, res: Response, next: NextFunction) 
     return next();
   }
 
+  // WEB-06: the native-client exemption must not be a pure request-controlled
+  // header — an attacker could set it to disable CSRF on every csrfProtection route.
+  // Only honor it for a request that also presents a Bearer Authorization token.
+  // Bearer-authenticated requests are inherently CSRF-safe (a cross-site request
+  // cannot forge a custom Authorization header without a CORS preflight), and real
+  // native clients authenticate with a Firebase Bearer token, so this preserves the
+  // legitimate path while closing the spoof.
   const nativeClient = String(req.header(NATIVE_CLIENT_HEADER_NAME) || "").trim().toLowerCase();
-  if (nativeClient === "ios" || nativeClient === "android" || nativeClient === "blueprint-capture") {
+  const hasBearerAuth = /^Bearer\s+\S/i.test(req.header("authorization") || "");
+  if (
+    hasBearerAuth &&
+    (nativeClient === "ios" || nativeClient === "android" || nativeClient === "blueprint-capture")
+  ) {
     return next();
   }
 

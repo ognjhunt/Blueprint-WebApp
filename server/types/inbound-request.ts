@@ -701,6 +701,10 @@ export interface EvaluationReadinessSummary {
   buyer_trust_score?: BuyerTrustScore;
   qualification_summary?: Record<string, unknown> | null;
   capture_quality_summary?: Record<string, unknown> | null;
+  // PIPE-02: the rights/privacy verdict from the pipeline's rights_provenance_review.
+  // The WebApp must gate buyer/reviewer-facing progression on the VERDICT, not on the
+  // mere presence of a rights-report URI (a needs_review capture still emits the URI).
+  rights_review_status?: "cleared" | "needs_review" | "blocked" | null;
   benchmark_coverage_status?: "missing" | "partial" | "ready" | null;
   benchmark_task_count?: number | null;
   export_readiness_status?: "missing" | "partial" | "ready" | null;

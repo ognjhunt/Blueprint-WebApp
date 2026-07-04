@@ -504,16 +504,24 @@ router.post("/account/instant_payout", async (req, res) => {
             });
           }
 
-          const transfer = await stripeContext.stripe.transfers.create({
-            amount: disbursement.disbursement.disbursed_amount_cents,
-            currency: "usd",
-            destination: stripeContext.accountId,
-            transfer_group: `creator-payout:${disbursement.disbursement.id}`,
-            metadata: {
-              creator_id: stripeContext.creatorId,
-              disbursement_id: disbursement.disbursement.id,
+          const transfer = await stripeContext.stripe.transfers.create(
+            {
+              amount: disbursement.disbursement.disbursed_amount_cents,
+              currency: "usd",
+              destination: stripeContext.accountId,
+              transfer_group: `creator-payout:${disbursement.disbursement.id}`,
+              metadata: {
+                creator_id: stripeContext.creatorId,
+                disbursement_id: disbursement.disbursement.id,
+              },
             },
-          });
+            {
+              // Deterministic key derived from the disbursement (which is itself
+              // derived from the selected entry set). A retried/duplicated
+              // request cannot create a second transfer for the same money.
+              idempotencyKey: `creator-payout-transfer:${disbursement.disbursement.id}`,
+            },
+          );
 
           await markCreatorPayoutDisbursementFunded({
             disbursementId: disbursement.disbursement.id,
@@ -533,7 +541,13 @@ router.post("/account/instant_payout", async (req, res) => {
               disbursement_id: disbursement.disbursement.id,
             },
           },
-          { stripeAccount: stripeContext.accountId },
+          {
+            stripeAccount: stripeContext.accountId,
+            // Deterministic key derived from the disbursement so a retried or
+            // duplicated request cannot create a second payout for the same
+            // money (WEB-01).
+            idempotencyKey: `creator-payout:${disbursement.disbursement.id}`,
+          },
         );
 
         await finalizeCreatorPayoutDisbursement({

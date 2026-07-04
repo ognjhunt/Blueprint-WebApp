@@ -41,6 +41,10 @@ export const scenes: Scene[] = [
     replicator: "Semantic labels for appliances, storage, surfaces",
     testedWith: "Simulation QA suite",
     leadTime: "5 business days",
+    // WEB-12: this is the ONLY public download in the catalog and it is a demo /
+    // marketing sample, intentionally ungated. Real purchased deliverables are NOT
+    // served from public URLs — they go through the entitlement-gated hosted-session
+    // path (server/utils/hosted-session-access.ts). Do not add real buyer artifacts here.
     download: "https://tryblueprint.io/assets/modular-kitchen-line.usdz",
     ctaText: "Request this scene",
     seo: "SimReady commercial kitchen line with articulated appliances for robotics training.",

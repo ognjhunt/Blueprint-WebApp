@@ -1,6 +1,7 @@
 import { Request, Response, Router } from "express";
 import path from "node:path";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+import verifyFirebaseToken from "../middleware/verifyFirebaseToken";
 import {
   forwardRobotEvalJobRequestToPipeline,
   robotEvalJobRequestForwardErrorMessage,
@@ -96,7 +97,12 @@ function statusResponse(jobId: string, data: Record<string, unknown>) {
   };
 }
 
-router.post("/", async (req, res) => {
+// WEB-02: require an authenticated buyer to submit an eval job. Previously
+// unauthenticated, which let anyone inject robot_eval_job_request records and
+// trigger pipeline forwarding. The buyer's uid is attributed to the record so the
+// status route can enforce ownership. (The machine-only /:jobId/pipeline-status
+// callback keeps its HMAC guard instead of a Firebase token.)
+router.post("/", verifyFirebaseToken, async (req, res) => {
   const jobRequest = req.body;
   const validation = validateRobotEvalJobRequest(jobRequest);
   if (!validation.ok) {
@@ -106,6 +112,9 @@ router.post("/", async (req, res) => {
     });
   }
 
+  const buyerUserId = String(
+    (res.locals.firebaseUser as { uid?: string } | undefined)?.uid || "",
+  ).trim();
   const jobId = String(jobRequest.job_id || "").trim();
   const buyerRequestId = String(jobRequest.buyer_request_id || "").trim();
 
@@ -123,6 +132,7 @@ router.post("/", async (req, res) => {
     jobRequest,
     schema_version: jobRequest.schema_version,
     job_id: jobId,
+    buyer_user_id: buyerUserId,
     buyer_request_id: buyerRequestId,
     site_slug:
       typeof jobRequest.site_package === "object" && jobRequest.site_package !== null
@@ -202,7 +212,9 @@ router.post("/", async (req, res) => {
   });
 });
 
-router.get("/:jobId/status", async (req, res) => {
+// WEB-02: require auth + ownership. Previously unauthenticated, which leaked
+// result_artifacts and proof_boundary of any job to anyone who knew a jobId.
+router.get("/:jobId/status", verifyFirebaseToken, async (req, res) => {
   if (!db) {
     return res.status(503).json({
       error: "Robot eval job status store is not configured.",
@@ -223,7 +235,21 @@ router.get("/:jobId/status", async (req, res) => {
     });
   }
 
-  return res.json(statusResponse(jobId, (snapshot.data() || {}) as Record<string, unknown>));
+  const data = (snapshot.data() || {}) as Record<string, unknown>;
+  const firebaseUser = res.locals.firebaseUser as
+    | { uid?: string; admin?: boolean; role?: string }
+    | undefined;
+  const callerUid = String(firebaseUser?.uid || "");
+  const ownerUid = String(data.buyer_user_id || "");
+  const isAdmin = firebaseUser?.admin === true || firebaseUser?.role === "admin";
+  if (!isAdmin && (!ownerUid || ownerUid !== callerUid)) {
+    return res.status(403).json({
+      error: "You do not have access to this robot eval job request.",
+      code: "robot_eval_job_forbidden",
+    });
+  }
+
+  return res.json(statusResponse(jobId, data));
 });
 
 router.post(

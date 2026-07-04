@@ -6,7 +6,7 @@
  * captures, mobile capture state, field ops, and payout exceptions in real time.
  */
 import { onDocumentCreated, onDocumentWritten } from "firebase-functions/v2/firestore";
-import { defineString } from "firebase-functions/params";
+import { defineString, defineSecret } from "firebase-functions/params";
 
 const paperclipWebhookUrl = defineString("PAPERCLIP_OPS_FIRESTORE_WEBHOOK_URL", {
   description:
@@ -14,10 +14,12 @@ const paperclipWebhookUrl = defineString("PAPERCLIP_OPS_FIRESTORE_WEBHOOK_URL", 
     "https://www.tryblueprint.io/api/paperclip/ops-firestore-relay",
 });
 
-defineString("PAPERCLIP_OPS_FIRESTORE_RELAY_SECRET", {
-  description: "Shared bearer secret for the stable Firestore -> webapp -> Paperclip relay.",
-  default: "",
-});
+// WEB-11: store the relay bearer secret in Cloud Secret Manager (defineSecret),
+// not a plaintext functions .env. Each function that relays declares it in `secrets:`
+// so the value is mounted at runtime from Secret Manager. Set/rotate it with:
+//   firebase functions:secrets:set PAPERCLIP_OPS_FIRESTORE_RELAY_SECRET
+// (WEB-13: still read via .value() at call time.)
+const paperclipRelaySecret = defineSecret("PAPERCLIP_OPS_FIRESTORE_RELAY_SECRET");
 
 async function forwardToPaperclip(event, collection, eventName) {
   const url = paperclipWebhookUrl.value();
@@ -37,7 +39,7 @@ async function forwardToPaperclip(event, collection, eventName) {
   };
 
   try {
-    const relaySecret = process.env.PAPERCLIP_OPS_FIRESTORE_RELAY_SECRET || "";
+    const relaySecret = paperclipRelaySecret.value() || "";
     const res = await fetch(url, {
       method: "POST",
       headers: {
@@ -55,48 +57,48 @@ async function forwardToPaperclip(event, collection, eventName) {
 
 // Waitlist signups
 export const onWaitlistCreated = onDocumentCreated(
-  { document: "waitlistTokens/{docId}", region: "us-central1" },
+  { document: "waitlistTokens/{docId}", region: "us-central1", secrets: [paperclipRelaySecret] },
   (event) => forwardToPaperclip(event, "waitlistTokens", "waitlist.created"),
 );
 
 // Inbound capture/access requests
 export const onRequestCreated = onDocumentCreated(
-  { document: "inboundRequests/{docId}", region: "us-central1" },
+  { document: "inboundRequests/{docId}", region: "us-central1", secrets: [paperclipRelaySecret] },
   (event) => forwardToPaperclip(event, "inboundRequests", "request.created"),
 );
 
 // Completed captures (scenes)
 export const onCaptureCompleted = onDocumentCreated(
-  { document: "scenes/{docId}", region: "us-central1" },
+  { document: "scenes/{docId}", region: "us-central1", secrets: [paperclipRelaySecret] },
   (event) => forwardToPaperclip(event, "scenes", "capture.completed"),
 );
 
 export const onCaptureSubmissionWritten = onDocumentWritten(
-  { document: "capture_submissions/{docId}", region: "us-central1" },
+  { document: "capture_submissions/{docId}", region: "us-central1", secrets: [paperclipRelaySecret] },
   (event) => forwardToPaperclip(event, "capture_submissions", "mobile.capture_submission_written"),
 );
 
 export const onSessionEventWritten = onDocumentWritten(
-  { document: "sessionEvents/{docId}", region: "us-central1" },
+  { document: "sessionEvents/{docId}", region: "us-central1", secrets: [paperclipRelaySecret] },
   (event) => forwardToPaperclip(event, "sessionEvents", "mobile.session_event_written"),
 );
 
 export const onCreatorProfileWritten = onDocumentWritten(
-  { document: "creatorProfiles/{docId}", region: "us-central1" },
+  { document: "creatorProfiles/{docId}", region: "us-central1", secrets: [paperclipRelaySecret] },
   (event) => forwardToPaperclip(event, "creatorProfiles", "mobile.creator_profile_written"),
 );
 
 export const onCaptureJobWritten = onDocumentWritten(
-  { document: "capture_jobs/{docId}", region: "us-central1" },
+  { document: "capture_jobs/{docId}", region: "us-central1", secrets: [paperclipRelaySecret] },
   (event) => forwardToPaperclip(event, "capture_jobs", "mobile.capture_job_written"),
 );
 
 export const onCreatorPayoutWritten = onDocumentWritten(
-  { document: "creatorPayouts/{docId}", region: "us-central1" },
+  { document: "creatorPayouts/{docId}", region: "us-central1", secrets: [paperclipRelaySecret] },
   (event) => forwardToPaperclip(event, "creatorPayouts", "mobile.creator_payout_written"),
 );
 
 export const onCreatorCaptureWritten = onDocumentWritten(
-  { document: "creatorCaptures/{docId}", region: "us-central1" },
+  { document: "creatorCaptures/{docId}", region: "us-central1", secrets: [paperclipRelaySecret] },
   (event) => forwardToPaperclip(event, "creatorCaptures", "mobile.creator_capture_written"),
 );

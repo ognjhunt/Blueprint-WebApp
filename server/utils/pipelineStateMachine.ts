@@ -433,6 +433,13 @@ export function inferQualificationStateFromArtifacts(args: {
   const { artifacts } = args;
   if (!artifacts) return args.current || "submitted";
 
+  // PIPE-02: gate on the rights/privacy VERDICT, not just artifact presence. A
+  // needs_review/blocked capture still emits rights/preview URIs, so presence alone
+  // must not advance it to a buyer/reviewer-facing "ready" state. When the pipeline
+  // reports a non-cleared verdict, the best this capture can be is in_review.
+  const rightsReviewStatus = args.evaluationReadiness?.rights_review_status;
+  const rightsBlocked = rightsReviewStatus != null && rightsReviewStatus !== "cleared";
+
   // Check for quality report evidence
   const hasQualityReport = hasArtifact(artifacts, "qualification_quality_report_uri") 
     || hasArtifact(artifacts, "qualification_summary_uri");
@@ -450,12 +457,13 @@ export function inferQualificationStateFromArtifacts(args: {
   }
 
   // Launch gate summary signals a concrete readiness decision
-  if (hasLaunchGate) {
+  if (hasLaunchGate && !rightsBlocked) {
     return "qa_passed";
   }
 
-  // World model output means we have a functional site world
-  if (hasWorldModelOutput && hasCaptureQuality && hasRightsReport) {
+  // World model output means we have a functional site world — but only if rights
+  // are actually cleared, not merely reported (PIPE-02).
+  if (hasWorldModelOutput && hasCaptureQuality && hasRightsReport && !rightsBlocked) {
     return "qualified_ready";
   }
 
@@ -526,6 +534,7 @@ export function stampProofPathMilestones(args: {
   artifacts?: PipelineArtifacts;
   qualificationState?: QualificationState;
   derivedAssets?: DerivedAssetsAttachment;
+  rightsReviewStatus?: "cleared" | "needs_review" | "blocked" | null;
 }): MilestoneStampResult {
   const proofPath = { ...args.currentProofPath };
   const stampedThisSync: (keyof ProofPathMilestones)[] = [];
@@ -570,6 +579,7 @@ export function stampProofPathMilestones(args: {
     checkHostedReviewReadiness({
       artifacts: args.artifacts,
       derivedAssets: args.derivedAssets,
+      rightsReviewStatus: args.rightsReviewStatus,
     }).ready
   );
 
@@ -959,6 +969,7 @@ export function computePipelineStateTransition(args: {
     artifacts,
     qualificationState,
     derivedAssets,
+    rightsReviewStatus: evaluationReadiness?.rights_review_status,
   });
 
   // Step 5: Compute ops envelope
@@ -1042,8 +1053,15 @@ export interface HostedReviewReadiness {
 export function checkHostedReviewReadiness(args: {
   artifacts?: PipelineArtifacts;
   derivedAssets?: DerivedAssetsAttachment;
+  rightsReviewStatus?: "cleared" | "needs_review" | "blocked" | null;
 }): HostedReviewReadiness {
   const blockers: string[] = [];
+
+  // PIPE-02: hosted review is buyer/reviewer-facing, so a non-cleared rights/privacy
+  // verdict blocks it regardless of which preview artifacts are present.
+  if (args.rightsReviewStatus != null && args.rightsReviewStatus !== "cleared") {
+    blockers.push(`rights_review:${args.rightsReviewStatus}`);
+  }
 
   if (!hasArtifact(args.artifacts, "preview_manifest_uri")) {
     blockers.push("preview_manifest_uri");

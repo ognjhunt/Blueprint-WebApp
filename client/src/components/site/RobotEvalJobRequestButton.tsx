@@ -177,9 +177,24 @@ export function RobotEvalJobRequestPanel({
 
     try {
       setStatus({ kind: "submitting" });
+      // WEB-02: the endpoint now requires an authenticated buyer. Attach the
+      // Firebase ID token; prompt sign-in if there is no current user.
+      const firebase = await import("@/lib/firebase");
+      const currentUser = firebase.auth?.currentUser ?? null;
+      if (!currentUser) {
+        setStatus({
+          kind: "error",
+          message: "Please sign in as a robot team to submit an evaluation job.",
+        });
+        return;
+      }
+      const { withFirebaseAuthHeaders } = await import("@/lib/firebaseAuthHeaders");
+      const headers = await withFirebaseAuthHeaders(currentUser, {
+        "Content-Type": "application/json",
+      });
       const response = await fetch("/api/robot-eval/job-requests", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(jobRequest),
       });
       const data = (await response.json().catch(() => ({}))) as Record<string, unknown>;

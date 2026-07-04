@@ -63,6 +63,41 @@ describe("inferQualificationStateFromArtifacts", () => {
     expect(inferQualificationStateFromArtifacts({ artifacts: arts })).toBe("qualified_ready");
   });
 
+  it("PIPE-02: withholds qualified_ready when rights_review_status is not cleared", () => {
+    const arts = makeArtifacts([
+      "worldlabs_world_manifest_uri",
+      "capture_quality_summary_uri",
+      "rights_and_compliance_summary_uri",
+    ]);
+    // Same artifacts present, but the pipeline reports a non-cleared verdict.
+    expect(
+      inferQualificationStateFromArtifacts({
+        artifacts: arts,
+        evaluationReadiness: { rights_review_status: "needs_review" },
+      }),
+    ).not.toBe("qualified_ready");
+    expect(
+      inferQualificationStateFromArtifacts({
+        artifacts: arts,
+        evaluationReadiness: { rights_review_status: "blocked" },
+      }),
+    ).not.toBe("qualified_ready");
+  });
+
+  it("PIPE-02: still qualified_ready when rights_review_status is cleared", () => {
+    const arts = makeArtifacts([
+      "worldlabs_world_manifest_uri",
+      "capture_quality_summary_uri",
+      "rights_and_compliance_summary_uri",
+    ]);
+    expect(
+      inferQualificationStateFromArtifacts({
+        artifacts: arts,
+        evaluationReadiness: { rights_review_status: "cleared" },
+      }),
+    ).toBe("qualified_ready");
+  });
+
   it("returns in_review when handoff is available", () => {
     const arts = makeArtifacts(["opportunity_handoff_uri"]);
     expect(inferQualificationStateFromArtifacts({ artifacts: arts })).toBe("in_review");
@@ -611,6 +646,20 @@ describe("checkHostedReviewReadiness", () => {
     const arts = makeArtifacts(["preview_manifest_uri"]);
     const result = checkHostedReviewReadiness({ artifacts: arts });
     expect(result.ready).toBe(false);
+  });
+
+  it("PIPE-02: not ready when rights_review_status is not cleared, even with previews", () => {
+    const arts = makeArtifacts(["preview_manifest_uri", "worldlabs_launch_url"]);
+    const result = checkHostedReviewReadiness({ artifacts: arts, rightsReviewStatus: "needs_review" });
+    expect(result.ready).toBe(false);
+    expect(result.blockers).toContain("rights_review:needs_review");
+  });
+
+  it("PIPE-02: ready when previews exist and rights are cleared", () => {
+    const arts = makeArtifacts(["preview_manifest_uri", "worldlabs_launch_url"]);
+    const result = checkHostedReviewReadiness({ artifacts: arts, rightsReviewStatus: "cleared" });
+    expect(result.ready).toBe(true);
+    expect(result.blockers).toHaveLength(0);
   });
 });
 

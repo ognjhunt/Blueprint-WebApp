@@ -1,4 +1,5 @@
 import { Router } from "express";
+import verifyFirebaseToken from "../middleware/verifyFirebaseToken";
 import { buildRobotAgentAccessManifest, buildRobotAgentOpenApiContract } from "../utils/robot-agent-contract";
 import { getPublicSiteWorldById } from "../utils/site-worlds";
 import {
@@ -115,12 +116,22 @@ router.get("/commerce/entitlements/:entitlementId", (req, res) => {
   return res.status(200).json({ entitlement });
 });
 
-router.get("/commerce/entitlement-readiness", async (req, res) => {
+// WEB-04: this route reads real `marketplaceEntitlements`, so it must be
+// authenticated and scoped to the caller. Previously it took `buyerUserId` from an
+// attacker-controlled query param with no auth — an IDOR that leaked any buyer's
+// entitlement (buyer_email, order_id, sku, title) by supplying their UID. The buyer
+// is now derived from the verified Firebase token; the query `buyerUserId` is ignored.
+router.get("/commerce/entitlement-readiness", verifyFirebaseToken, async (req, res) => {
   const siteWorldId = String(req.query.siteWorldId || "").trim();
   const entitlementId = String(req.query.entitlementId || "").trim();
-  const buyerUserId = String(req.query.buyerUserId || "agent-dry-run-buyer").trim();
+  const buyerUserId = String(
+    (res.locals.firebaseUser as { uid?: string } | undefined)?.uid || "",
+  ).trim();
   if (!siteWorldId || !entitlementId) {
     return res.status(400).json({ error: "siteWorldId and entitlementId are required" });
+  }
+  if (!buyerUserId) {
+    return res.status(401).json({ error: "Authenticated buyer is required." });
   }
   const entitlement = await findProvisionedHostedSessionEntitlement({
     buyerUserId,
@@ -129,7 +140,7 @@ router.get("/commerce/entitlement-readiness", async (req, res) => {
   });
   const entitled = Boolean(entitlement);
   return res.status(200).json({
-    mode: "dry_run",
+    mode: "authenticated_buyer_scoped",
     siteWorldId,
     product: normalizeAgentCommerceProduct(String(req.query.product || "")),
     entitlement,

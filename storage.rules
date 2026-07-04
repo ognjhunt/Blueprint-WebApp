@@ -75,13 +75,23 @@ service firebase.storage {
       allow delete: if isAdmin() || ownsUserPath(userId);
     }
 
-    // Legacy menu-upload flow has no owner segment. Keep it authenticated and
-    // bounded until the client path is migrated to an owner-scoped prefix.
+    // WEB-08: owner-scoped by object metadata so one signed-in user cannot read or
+    // overwrite another user's menu upload. The flat namespace has no owner path
+    // segment, so ownership is enforced via the `owner` custom metadata (stamped by
+    // the server signed-URL upload). Legacy objects without `owner` metadata are no
+    // longer readable/updatable by non-admins — fail closed.
     match /menus/{fileName} {
-      allow read: if isAdmin() || isSignedIn();
-      allow create, update: if (isAdmin() || isSignedIn())
+      allow read: if isAdmin()
+        || (isSignedIn() && resource.metadata.owner == request.auth.uid);
+      allow create: if isSignedIn()
+        && request.resource.metadata.owner == request.auth.uid
         && boundedUpload(10 * 1024 * 1024);
-      allow delete: if isAdmin();
+      allow update: if isAdmin()
+        || (isSignedIn()
+            && resource.metadata.owner == request.auth.uid
+            && request.resource.metadata.owner == request.auth.uid);
+      allow delete: if isAdmin()
+        || (isSignedIn() && resource.metadata.owner == request.auth.uid);
     }
 
     // No public catch-all. New Storage prefixes must choose an owner/proof
