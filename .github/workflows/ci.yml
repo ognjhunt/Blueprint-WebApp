@@ -31,10 +31,9 @@ jobs:
           set -euo pipefail
           git init BlueprintContracts
           cd BlueprintContracts
-          git remote add origin "https://github.com/${CONTRACTS_REPOSITORY}.git"
-          auth_header="AUTHORIZATION: bearer ${CONTRACTS_TOKEN}"
+          git remote add origin "https://x-access-token:${CONTRACTS_TOKEN}@github.com/${CONTRACTS_REPOSITORY}.git"
           fetch_ref="${CONTRACTS_REF:-main}"
-          if git -c http.extraheader="${auth_header}" fetch --depth=1 origin "${fetch_ref}"; then
+          if git fetch --depth=1 origin "${fetch_ref}"; then
             echo "Using BlueprintContracts ref ${fetch_ref}"
           else
             echo "::error::BlueprintContracts ref '${fetch_ref}' was not available. Push a matching Contracts branch/ref or set CONTRACTS_REF; refusing to validate against an implicit fallback."
