@@ -1,5 +1,5 @@
 import { Request, Response, Router } from "express";
-import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+import admin, { dbAdmin as db, storageAdmin } from "../../client/src/lib/firebaseAdmin";
 import {
   DERIVED_ASSET_KEYS,
   DERIVED_ASSET_STATUSES,
@@ -59,6 +59,225 @@ const AUTO_CREATED_CONTACT = {
   roleTitle: "Automation",
   company: "Blueprint",
 } as const;
+
+const SIGNED_BUYER_ARTIFACT_URL_TTL_MS = 15 * 60 * 1000;
+const BUYER_ARTIFACT_DIRECT_FIELDS = [
+  "artifact_uri",
+  "artifactUri",
+  "delivery_artifact_uri",
+  "deliveryArtifactUri",
+  "package_uri",
+  "packageUri",
+  "canonical_package_uri",
+  "canonicalPackageUri",
+  "post_training_data_package_uri",
+  "postTrainingDataPackageUri",
+  "manifest_uri",
+  "manifestUri",
+] as const;
+const BUYER_ARTIFACT_MAP_FIELDS = [
+  "artifact_uris",
+  "artifactUris",
+  "artifacts",
+  "delivery_artifacts",
+  "deliveryArtifacts",
+] as const;
+const BUYER_ARTIFACT_NESTED_FIELDS = [
+  "delivery",
+  "package",
+  "pipeline",
+  "site_package",
+  "sitePackage",
+] as const;
+const PREFERRED_BUYER_ARTIFACT_KEYS = [
+  "post_training_data_package_uri",
+  "postTrainingDataPackageUri",
+  "package_uri",
+  "packageUri",
+  "canonical_package_uri",
+  "canonicalPackageUri",
+  "manifest_uri",
+  "manifestUri",
+  "robot_eval_dataset_manifest_uri",
+] as const;
+
+type BuyerArtifactCandidate = {
+  key: string;
+  uri: string;
+  source: string;
+};
+
+function stringValue(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function normalizeArtifactKey(value: string): string {
+  return value.trim().replace(/[-_\s]/g, "").toLowerCase();
+}
+
+function parseGsUri(uri: string): { bucket: string; objectPath: string } {
+  const match = /^gs:\/\/([^/]+)\/(.+)$/.exec(uri.trim());
+  if (!match || !match[1] || !match[2]) {
+    throw new Error("artifact_uri_must_be_gs_uri");
+  }
+  return { bucket: match[1], objectPath: match[2] };
+}
+
+function addBuyerArtifactCandidate(
+  candidates: BuyerArtifactCandidate[],
+  key: string,
+  uri: unknown,
+  source: string,
+) {
+  const normalizedUri = stringValue(uri);
+  if (!normalizedUri.startsWith("gs://")) {
+    return;
+  }
+  candidates.push({ key, uri: normalizedUri, source });
+}
+
+function collectBuyerArtifactCandidates(
+  value: Record<string, unknown>,
+  source: string,
+): BuyerArtifactCandidate[] {
+  const candidates: BuyerArtifactCandidate[] = [];
+
+  for (const field of BUYER_ARTIFACT_DIRECT_FIELDS) {
+    addBuyerArtifactCandidate(candidates, field, value[field], source);
+  }
+
+  for (const field of BUYER_ARTIFACT_MAP_FIELDS) {
+    const artifactMap = value[field];
+    if (!isRecord(artifactMap)) {
+      continue;
+    }
+    for (const [key, uri] of Object.entries(artifactMap)) {
+      addBuyerArtifactCandidate(candidates, key, uri, source);
+    }
+  }
+
+  for (const field of BUYER_ARTIFACT_NESTED_FIELDS) {
+    const nested = value[field];
+    if (isRecord(nested)) {
+      candidates.push(...collectBuyerArtifactCandidates(nested, `${source}.${field}`));
+    }
+  }
+
+  const seen = new Set<string>();
+  return candidates.filter((candidate) => {
+    const dedupeKey = `${normalizeArtifactKey(candidate.key)}:${candidate.uri}`;
+    if (seen.has(dedupeKey)) {
+      return false;
+    }
+    seen.add(dedupeKey);
+    return true;
+  });
+}
+
+function fieldFromBodyOrIds(
+  body: Record<string, unknown>,
+  ids: Record<string, unknown>,
+  fields: string[],
+): string {
+  for (const field of fields) {
+    const value = stringValue(body[field]) || stringValue(ids[field]);
+    if (value) {
+      return value;
+    }
+  }
+  return "";
+}
+
+function selectBuyerArtifactCandidate(params: {
+  candidates: BuyerArtifactCandidate[];
+  artifactKey?: string;
+  artifactUri?: string;
+}): BuyerArtifactCandidate | null {
+  const artifactUri = stringValue(params.artifactUri);
+  if (artifactUri) {
+    return params.candidates.find((candidate) => candidate.uri === artifactUri) || null;
+  }
+
+  const artifactKey = normalizeArtifactKey(stringValue(params.artifactKey));
+  if (artifactKey) {
+    return (
+      params.candidates.find(
+        (candidate) => normalizeArtifactKey(candidate.key) === artifactKey,
+      ) || null
+    );
+  }
+
+  for (const preferredKey of PREFERRED_BUYER_ARTIFACT_KEYS) {
+    const candidate = params.candidates.find(
+      (entry) => normalizeArtifactKey(entry.key) === normalizeArtifactKey(preferredKey),
+    );
+    if (candidate) {
+      return candidate;
+    }
+  }
+
+  return params.candidates[0] || null;
+}
+
+async function loadPublishedMarketplaceItem(sku: string): Promise<Record<string, unknown> | null> {
+  if (!db || !sku) {
+    return null;
+  }
+  for (const collectionName of ["publishedMarketplaceInventory", "marketplace_items"]) {
+    const snapshot = await db.collection(collectionName).doc(sku).get();
+    if (snapshot.exists) {
+      return {
+        id: snapshot.id || sku,
+        ...((snapshot.data() || {}) as Record<string, unknown>),
+      };
+    }
+  }
+  return null;
+}
+
+async function findProvisionedEntitlement(params: {
+  entitlementId?: string;
+  sku?: string;
+}): Promise<Record<string, unknown> | null> {
+  if (!db) {
+    return null;
+  }
+
+  const entitlementId = stringValue(params.entitlementId);
+  if (entitlementId) {
+    const snapshot = await db.collection("marketplaceEntitlements").doc(entitlementId).get();
+    if (!snapshot.exists) {
+      return null;
+    }
+    return {
+      id: snapshot.id || entitlementId,
+      ...((snapshot.data() || {}) as Record<string, unknown>),
+    };
+  }
+
+  const sku = stringValue(params.sku);
+  if (!sku) {
+    return null;
+  }
+  const query = db
+    .collection("marketplaceEntitlements")
+    .where("sku", "==", sku)
+    .where("access_state", "==", "provisioned")
+    .limit(1);
+  const snapshot = await query.get();
+  const first = snapshot.docs?.[0];
+  if (!first) {
+    return null;
+  }
+  return {
+    id: first.id || "",
+    ...((first.data() || {}) as Record<string, unknown>),
+  };
+}
 
 function allowPipelinePlaceholderRequests() {
   const normalized = String(process.env.PIPELINE_SYNC_ALLOW_PLACEHOLDER_REQUESTS || "")
@@ -740,6 +959,16 @@ router.post(
       qualificationState: finalQualificationState,
       evaluationReadiness,
     });
+    const responsePackageId = deriveStablePackageId({
+      captureId: pipeline?.capture_id || null,
+      sceneId: pipeline?.scene_id || null,
+      siteSubmissionId: siteSubmissionId || requestId || docRef.id,
+      buyerRequestId:
+        String(parsedBody.buyer_request_id || pipeline?.buyer_request_id || currentData?.buyer_request_id || "")
+          .trim()
+        || null,
+      requestId: docRef.id,
+    });
 
     // Emit growth events for newly stamped milestones and stall detection
     const requestIdForEvent = docRef.id;
@@ -806,16 +1035,7 @@ router.post(
       const cityContext = deriveCityContext({
         city: cityForEvent,
       });
-      const packageId = deriveStablePackageId({
-        captureId: pipeline?.capture_id || null,
-        sceneId: pipeline?.scene_id || null,
-        siteSubmissionId: siteSubmissionId || requestId || docRef.id,
-        buyerRequestId:
-          String(parsedBody.buyer_request_id || pipeline?.buyer_request_id || currentData?.buyer_request_id || "")
-            .trim()
-          || null,
-        requestId: docRef.id,
-      });
+      const packageId = responsePackageId;
       const graphStage: OperatingGraphStage = hostedReviewReadiness.ready
         ? "hosted_review_ready"
         : stateTransition.qualificationState === "qualified_ready"
@@ -950,6 +1170,9 @@ router.post(
       ok: true,
       requestId: docRef.id,
       site_submission_id: siteSubmissionId || requestId,
+      listing_id: marketplacePublication?.sku || null,
+      artifact_id: responsePackageId || null,
+      capture_job_id: pipeline?.capture_job_id || null,
       qualification_state: finalQualificationState,
       opportunity_state: finalOpportunityState,
       capture_creator_linkage: captureCreatorLinkage,
@@ -965,6 +1188,159 @@ router.post(
     logger.error({ error }, "Failed to attach pipeline metadata");
     return res.status(500).json({ error: "Failed to attach pipeline metadata" });
   }
+  },
+);
+
+/**
+ * POST /api/internal/pipeline/buyer-artifact-access-check
+ *
+ * Pipeline calls this after WebApp sync when buyer artifact delivery is required.
+ * The route is HMAC-protected by the same Pipeline sync token, then verifies a
+ * provisioned marketplace entitlement and mints a short-lived artifact URL. It
+ * returns a 200 with buyer_accessible=false for entitlement/artifact misses so
+ * Pipeline records a business blocker instead of a transport failure.
+ */
+router.post(
+  "/buyer-artifact-access-check",
+  pipelineSyncRateLimiter,
+  requirePipelineToken,
+  async (req: Request, res: Response) => {
+    try {
+      if (!db) {
+        return res.status(503).json({
+          ok: false,
+          buyer_accessible: false,
+          blocker: "database_not_available",
+        });
+      }
+      if (!storageAdmin) {
+        return res.status(503).json({
+          ok: false,
+          buyer_accessible: false,
+          blocker: "storage_not_available",
+        });
+      }
+
+      const body = isRecord(req.body) ? req.body : {};
+      const ids = isRecord(body.webapp_response_ids) ? body.webapp_response_ids : {};
+      const entitlementId = fieldFromBodyOrIds(body, ids, [
+        "entitlement_id",
+        "entitlementId",
+        "marketplace_entitlement_id",
+        "marketplaceEntitlementId",
+        "buyer_artifact_id",
+        "buyerArtifactId",
+      ]);
+      const sku = fieldFromBodyOrIds(body, ids, [
+        "sku",
+        "listing_id",
+        "listingId",
+        "marketplace_sku",
+        "marketplaceSku",
+      ]);
+      const artifactKey = fieldFromBodyOrIds(body, ids, [
+        "artifact_key",
+        "artifactKey",
+        "artifact",
+      ]);
+      const artifactUri = fieldFromBodyOrIds(body, ids, [
+        "artifact_uri",
+        "artifactUri",
+      ]);
+
+      const entitlement = await findProvisionedEntitlement({
+        entitlementId,
+        sku,
+      });
+      if (!entitlement) {
+        return res.status(200).json({
+          ok: false,
+          accessible: false,
+          buyer_accessible: false,
+          buyer_access_checked: true,
+          entitlement_verified: false,
+          blocker: "provisioned_marketplace_entitlement_not_found",
+          status: "blocked",
+        });
+      }
+
+      const entitlementAccessState = stringValue(entitlement.access_state);
+      const buyerUserId = stringValue(entitlement.buyer_user_id || entitlement.buyerUserId);
+      if (entitlementAccessState !== "provisioned" || !buyerUserId) {
+        return res.status(200).json({
+          ok: false,
+          accessible: false,
+          buyer_accessible: false,
+          buyer_access_checked: true,
+          entitlement_verified: false,
+          blocker: entitlementAccessState === "provisioned"
+            ? "marketplace_entitlement_missing_buyer_user_id"
+            : "marketplace_entitlement_not_provisioned",
+          status: "blocked",
+        });
+      }
+
+      const resolvedSku = sku || stringValue(entitlement.sku);
+      const marketplaceItem = await loadPublishedMarketplaceItem(resolvedSku);
+      const candidates = [
+        ...collectBuyerArtifactCandidates(entitlement, "marketplace_entitlement"),
+        ...(marketplaceItem
+          ? collectBuyerArtifactCandidates(marketplaceItem, "published_marketplace_item")
+          : []),
+      ];
+      const selected = selectBuyerArtifactCandidate({
+        candidates,
+        artifactKey,
+        artifactUri,
+      });
+      if (!selected) {
+        return res.status(200).json({
+          ok: false,
+          accessible: false,
+          buyer_accessible: false,
+          buyer_access_checked: true,
+          entitlement_verified: true,
+          blocker: "buyer_artifact_uri_not_configured",
+          status: "blocked",
+          available_artifact_keys: candidates.map((candidate) => candidate.key),
+        });
+      }
+
+      const { bucket, objectPath } = parseGsUri(selected.uri);
+      const expiresAt = new Date(Date.now() + SIGNED_BUYER_ARTIFACT_URL_TTL_MS);
+      const [signedUrl] = await storageAdmin.bucket(bucket).file(objectPath).getSignedUrl({
+        action: "read",
+        expires: expiresAt.getTime(),
+      });
+
+      return res.status(200).json({
+        ok: true,
+        accessible: true,
+        buyer_accessible: true,
+        buyer_access_checked: true,
+        entitlement_verified: true,
+        status: "signed_url_minted",
+        entitlement_id: String(entitlement.id || entitlementId || ""),
+        buyer_user_id: buyerUserId,
+        sku: resolvedSku || null,
+        artifact_key: selected.key,
+        artifact_uri: selected.uri,
+        artifact_source: selected.source,
+        signed_url: signedUrl,
+        signed_url_expires_at: expiresAt.toISOString(),
+        claim_boundary:
+          "Internal Pipeline buyer-access check proves a provisioned WebApp entitlement can mint a short-lived signed artifact URL. It is not proof of package semantic success or payment settlement.",
+      });
+    } catch (error) {
+      logger.error({ error }, "Failed to check buyer artifact access");
+      return res.status(500).json({
+        ok: false,
+        buyer_accessible: false,
+        buyer_access_checked: true,
+        entitlement_verified: false,
+        blocker: "buyer_artifact_access_check_failed",
+      });
+    }
   },
 );
 
