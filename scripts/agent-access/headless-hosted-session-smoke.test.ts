@@ -361,7 +361,7 @@ describe("headless hosted-session route smoke", () => {
         "commerce.quote",
         "commerce.checkoutDryRun",
         "commerce.order",
-        "commerce.entitlementReadiness",
+        "session.launchReadiness",
         "session.create",
         "session.reset",
         "session.step",

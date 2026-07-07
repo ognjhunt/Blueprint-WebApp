@@ -3,8 +3,24 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import Sites from "@/pages/Sites";
 import SiteDetail from "@/pages/SiteDetail";
 
+const firebaseTestUser = vi.hoisted(() => ({
+  getIdToken: vi.fn(async () => "site-detail-test-token"),
+}));
+
+vi.mock("@/lib/firebase", () => ({
+  auth: { currentUser: firebaseTestUser },
+}));
+
+vi.mock("@/lib/firebaseAuthHeaders", () => ({
+  withFirebaseAuthHeaders: vi.fn(async (_currentUser: unknown, headers: Record<string, string> = {}) => ({
+    ...headers,
+    Authorization: "Bearer site-detail-test-token",
+  })),
+}));
+
 afterEach(() => {
   vi.restoreAllMocks();
+  firebaseTestUser.getIdToken.mockClear();
 });
 
 describe("Sites", () => {
@@ -65,7 +81,12 @@ describe("Sites", () => {
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
         "/api/robot-eval/job-requests",
-        expect.objectContaining({ method: "POST" }),
+        expect.objectContaining({
+          method: "POST",
+          headers: expect.objectContaining({
+            Authorization: "Bearer site-detail-test-token",
+          }),
+        }),
       );
     });
 

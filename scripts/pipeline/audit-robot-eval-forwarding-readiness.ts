@@ -399,7 +399,7 @@ export async function auditRobotEvalForwardingReadiness(
   if (forwardUrlReport.query_present) {
     warnings.push("ROBOT_EVAL_JOB_REQUEST_FORWARD_URL_query_parameters_redacted");
   }
-  if ((endpointConfigured || options.probeIntakeAudit) && !token.trim()) {
+  if ((forwardingRequired || endpointConfigured || options.probeIntakeAudit) && !token.trim()) {
     blockers.push("missing_env_ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN");
   }
   if (!timeout.valid) {
@@ -523,6 +523,7 @@ async function main() {
         "",
         "Reads ROBOT_EVAL_JOB_REQUEST_FORWARD_* env vars or dotenv-style --env-file entries, writes a redacted JSON readiness report,",
         "and only performs a read-only GET probe when --probe-intake-audit is supplied.",
+        "The CLI treats forwarding as required by default for launch preflight; pass --allow-optional-forwarding for local optional checks.",
       ].join("\n"),
     );
     return;
@@ -537,7 +538,11 @@ async function main() {
   const report = await auditRobotEvalForwardingReadiness({
     env: { ...process.env, ...envFiles.env },
     warnings: envFiles.warnings,
-    requireForwarding: args["require-forwarding"] ? true : undefined,
+    requireForwarding: args["allow-optional-forwarding"]
+      ? false
+      : args["require-forwarding"]
+        ? true
+        : true,
     probeIntakeAudit: Boolean(args["probe-intake-audit"] || args.probe),
     probeUrl: stringArg(args, "probe-url"),
   });

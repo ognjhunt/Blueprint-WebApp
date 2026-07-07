@@ -519,6 +519,7 @@ describe("first-GPU WebApp route forwarding proof runner", () => {
           env: {
             ...process.env,
             ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN: "",
+            ROBOT_EVAL_JOB_REQUEST_ROUTE_AUTH_TOKEN: "remote-route-proof-token",
             GOOGLE_APPLICATION_CREDENTIALS: "",
             FIREBASE_SERVICE_ACCOUNT_JSON: "",
           },
@@ -528,10 +529,11 @@ describe("first-GPU WebApp route forwarding proof runner", () => {
 
       expect(stdout).toContain("[webapp-route-forwarding-proof] status=forwarded_to_pipeline_intake");
       expect(received).toHaveLength(1);
-      expect(received[0].authorization).toBeUndefined();
+      expect(received[0].authorization).toBe("Bearer remote-route-proof-token");
       const request = received[0].body as Record<string, unknown>;
       expect(request.source_kind).toBe("owner_agent_codex_request");
       const proof = JSON.parse(await fs.readFile(outputPath, "utf8"));
+      expect(JSON.stringify(proof)).not.toContain("remote-route-proof-token");
     expect(proof.webapp_route).toEqual(
       expect.objectContaining({
         local_http_route_exercised: false,

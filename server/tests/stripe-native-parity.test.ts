@@ -229,6 +229,7 @@ describe("stripe native parity routes", () => {
         {
           method: "DELETE",
           headers: {
+            Authorization: "Bearer native-test-token",
             "X-Blueprint-Native-Client": "ios",
           },
         },

@@ -425,14 +425,18 @@ export async function runHeadlessAgentSmoke(options: SmokeOptions = {}): Promise
   }
   await runStep(steps, "commerce.order", () => client.getCommerceOrder(orderId));
   await runStep(steps, "commerce.entitlement", () => client.getCommerceEntitlement(entitlementId));
-  await runStep(steps, "commerce.entitlementReadiness", () =>
-    client.entitlementReadiness({
-      siteWorldId: sessionDefaults.siteWorldId,
-      entitlementId,
-      buyerUserId: "agent-dry-run-buyer",
-      product: "hosted_session_rental",
-    }),
-  );
+  if (mode === "public-demo") {
+    await runStep(steps, "session.launchReadiness", () => client.readiness(sessionDefaults.siteWorldId));
+  } else {
+    await runStep(steps, "commerce.entitlementReadiness", () =>
+      client.entitlementReadiness({
+        siteWorldId: sessionDefaults.siteWorldId,
+        entitlementId,
+        buyerUserId: "agent-dry-run-buyer",
+        product: "hosted_session_rental",
+      }),
+    );
+  }
   const created = await runStep(steps, "session.create", () =>
     client.createSession({
       siteWorldId: sessionDefaults.siteWorldId,

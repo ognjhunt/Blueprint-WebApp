@@ -81,6 +81,21 @@ describe("robot-eval forwarding readiness preflight", () => {
     );
   });
 
+  it("names both missing env vars when required forwarding is entirely unconfigured", async () => {
+    const report = await auditRobotEvalForwardingReadiness({
+      env: {},
+      requireForwarding: true,
+    });
+
+    expect(report.status).toBe("blocked");
+    expect(report.blockers).toEqual(
+      expect.arrayContaining([
+        "missing_env_ROBOT_EVAL_JOB_REQUEST_FORWARD_URL",
+        "missing_env_ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN",
+      ]),
+    );
+  });
+
   it("blocks required forwarding when the endpoint has no bearer token", async () => {
     const report = await auditRobotEvalForwardingReadiness({
       env: {
