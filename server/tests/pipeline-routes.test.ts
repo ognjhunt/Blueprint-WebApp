@@ -30,6 +30,7 @@ const state = vi.hoisted(() => ({
   notesAdds: [] as Array<Record<string, unknown>>,
   storageText: "",
   storageShouldFail: false,
+  signedUrlCalls: [] as Array<{ bucket: string; objectPath: string; options: Record<string, unknown> }>,
 }));
 
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({
@@ -67,6 +68,26 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
         };
       }
 
+      const queryDocs = (
+        filters: Array<{ field: string; value: unknown }> = [],
+      ) =>
+        Object.entries(state.collectionDocData[name] || {})
+          .filter(([, data]) =>
+            filters.every(({ field, value }) => data[field] === value),
+          )
+          .map(([id, data]) => ({
+            id,
+            data: () => data,
+          }));
+      const buildQuery = (filters: Array<{ field: string; value: unknown }> = []) => ({
+        where: (field: string, _op: string, value: unknown) =>
+          buildQuery([...filters, { field, value }]),
+        limit: (count: number) => ({
+          get: async () => ({ docs: queryDocs(filters).slice(0, count) }),
+        }),
+        get: async () => ({ docs: queryDocs(filters) }),
+      });
+
       return {
         doc: (id?: string) => ({
           id: id || "mock-doc-id",
@@ -86,17 +107,23 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
             });
           },
         }),
+        where: (field: string, _op: string, value: unknown) =>
+          buildQuery([{ field, value }]),
       };
     },
   },
   storageAdmin: {
-    bucket: () => ({
-      file: () => ({
+    bucket: (bucket: string) => ({
+      file: (objectPath: string) => ({
         download: async () => {
           if (state.storageShouldFail) {
             throw new Error("missing");
           }
           return [Buffer.from(state.storageText, "utf-8")];
+        },
+        getSignedUrl: async (options: Record<string, unknown>) => {
+          state.signedUrlCalls.push({ bucket, objectPath, options });
+          return [`https://storage.example.test/${bucket}/${objectPath}?signed=1`];
         },
       }),
     }),
@@ -168,6 +195,7 @@ afterEach(() => {
   state.notesAdds = [];
   state.storageText = "";
   state.storageShouldFail = false;
+  state.signedUrlCalls = [];
   delete process.env.PIPELINE_SYNC_TOKEN;
   delete process.env.PIPELINE_SYNC_ALLOWED_GCS_PREFIXES;
   delete process.env.PIPELINE_SYNC_ALLOW_PLACEHOLDER_REQUESTS;
@@ -460,6 +488,112 @@ describe("pipeline integration routes", () => {
       await stopServer(server);
     }
   }, 60_000);
+
+  it("checks buyer artifact access with a provisioned entitlement and signed URL", async () => {
+    process.env.PIPELINE_SYNC_TOKEN = "secret";
+    state.collectionDocData = {
+      marketplaceEntitlements: {
+        "ent-robot-eval-1": {
+          id: "ent-robot-eval-1",
+          buyer_user_id: "buyer-123",
+          sku: "robot-eval-cap-1",
+          access_state: "provisioned",
+        },
+      },
+      publishedMarketplaceInventory: {
+        "robot-eval-cap-1": {
+          sku: "robot-eval-cap-1",
+          artifact_uris: {
+            package_uri: "gs://bucket/marketplace-artifacts/ent-robot-eval-1/package.zip",
+            buyer_readout_uri:
+              "gs://bucket/marketplace-artifacts/ent-robot-eval-1/readout.json",
+          },
+        },
+      },
+    };
+    const { server, baseUrl } = await startServer(() => import("../routes/internal-pipeline"));
+
+    try {
+      const signedRequest = signedPipelineRequest({
+        webapp_response_ids: {
+          entitlement_id: "ent-robot-eval-1",
+          listing_id: "robot-eval-cap-1",
+        },
+        artifact_key: "package_uri",
+      });
+      const response = await fetch(`${baseUrl}/buyer-artifact-access-check`, {
+        method: "POST",
+        ...signedRequest,
+      });
+
+      expect(response.status).toBe(200);
+      await expect(response.json()).resolves.toEqual(
+        expect.objectContaining({
+          ok: true,
+          buyer_access_checked: true,
+          buyer_accessible: true,
+          entitlement_verified: true,
+          status: "signed_url_minted",
+          entitlement_id: "ent-robot-eval-1",
+          sku: "robot-eval-cap-1",
+          artifact_key: "package_uri",
+          artifact_uri: "gs://bucket/marketplace-artifacts/ent-robot-eval-1/package.zip",
+          signed_url:
+            "https://storage.example.test/bucket/marketplace-artifacts/ent-robot-eval-1/package.zip?signed=1",
+        }),
+      );
+      expect(state.signedUrlCalls).toEqual([
+        expect.objectContaining({
+          bucket: "bucket",
+          objectPath: "marketplace-artifacts/ent-robot-eval-1/package.zip",
+        }),
+      ]);
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("checks buyer artifact access by listing id and blocks when no provisioned entitlement exists", async () => {
+    process.env.PIPELINE_SYNC_TOKEN = "secret";
+    state.collectionDocData = {
+      marketplaceEntitlements: {
+        "ent-robot-eval-2": {
+          id: "ent-robot-eval-2",
+          buyer_user_id: "buyer-123",
+          sku: "robot-eval-cap-2",
+          access_state: "pending",
+        },
+      },
+    };
+    const { server, baseUrl } = await startServer(() => import("../routes/internal-pipeline"));
+
+    try {
+      const signedRequest = signedPipelineRequest({
+        webapp_response_ids: {
+          listing_id: "robot-eval-cap-2",
+        },
+      });
+      const response = await fetch(`${baseUrl}/buyer-artifact-access-check`, {
+        method: "POST",
+        ...signedRequest,
+      });
+
+      expect(response.status).toBe(200);
+      await expect(response.json()).resolves.toEqual(
+        expect.objectContaining({
+          ok: false,
+          buyer_access_checked: true,
+          buyer_accessible: false,
+          entitlement_verified: false,
+          blocker: "provisioned_marketplace_entitlement_not_found",
+          status: "blocked",
+        }),
+      );
+      expect(state.signedUrlCalls).toEqual([]);
+    } finally {
+      await stopServer(server);
+    }
+  });
 
   it("updates qualification truth only when authoritative_state_update is true", async () => {
     process.env.PIPELINE_SYNC_TOKEN = "secret";
