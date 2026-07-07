@@ -554,10 +554,17 @@ function buildRequest(args: Args) {
   return requestWithRouteEvidence;
 }
 
-async function postJobRequest(routeUrl: string, jobRequest: Record<string, unknown>) {
+async function postJobRequest(
+  routeUrl: string,
+  jobRequest: Record<string, unknown>,
+  routeAuthToken: string,
+) {
   const response = await fetch(routeUrl, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: {
+      "content-type": "application/json",
+      authorization: `Bearer ${routeAuthToken}`,
+    },
     body: JSON.stringify(jobRequest),
   });
   const responseBody = (await response.json().catch(() => ({}))) as Record<string, unknown>;
@@ -674,8 +681,20 @@ async function main() {
   );
   const forwardTokenEnv = stringArg(args, "forward-token-env", "ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN");
   const forwardToken = process.env[forwardTokenEnv]?.trim();
+  const routeAuthTokenEnv = stringArg(
+    args,
+    "route-auth-token-env",
+    "ROBOT_EVAL_JOB_REQUEST_ROUTE_AUTH_TOKEN",
+  );
+  const routeAuthToken =
+    stringArg(args, "route-auth-token") ||
+    process.env[routeAuthTokenEnv]?.trim() ||
+    (remoteWebAppUrl ? "" : "local-webapp-route-proof-token");
   if (!remoteWebAppUrl && !forwardToken) {
     throw new Error(`Missing forwarding token environment variable ${forwardTokenEnv}`);
+  }
+  if (remoteWebAppUrl && !routeAuthToken) {
+    throw new Error(`Missing WebApp route auth token environment variable ${routeAuthTokenEnv}`);
   }
 
   if (!remoteWebAppUrl) {
@@ -683,6 +702,7 @@ async function main() {
     process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN = forwardToken;
     process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_REQUIRED = "true";
     process.env.ROBOT_EVAL_JOB_REQUEST_INBOX_DIR = inboxDir;
+    process.env.BLUEPRINT_LOCAL_WEBAPP_ROUTE_PROOF_AUTH_TOKEN = routeAuthToken;
     if (args["allow-firestore-write"] !== true) {
       process.env.ROBOT_EVAL_JOB_REQUEST_DISABLE_FIRESTORE_WRITE = "true";
     }
@@ -693,7 +713,7 @@ async function main() {
 
   if (remoteWebAppUrl) {
     const routeUrl = `${remoteWebAppUrl}/api/robot-eval/job-requests`;
-    const { response, responseBody } = await postJobRequest(routeUrl, jobRequest);
+    const { response, responseBody } = await postJobRequest(routeUrl, jobRequest, routeAuthToken);
     const proof = buildProof({
       generatedAt,
       captureRoot,
@@ -725,7 +745,7 @@ async function main() {
   try {
     const port = await listen(server);
     const routeUrl = `http://127.0.0.1:${port}/api/robot-eval/job-requests`;
-    const { response, responseBody } = await postJobRequest(routeUrl, jobRequest);
+    const { response, responseBody } = await postJobRequest(routeUrl, jobRequest, routeAuthToken);
     const proof = buildProof({
       generatedAt,
       captureRoot,

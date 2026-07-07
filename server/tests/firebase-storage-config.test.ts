@@ -16,6 +16,8 @@ describe("Firebase Storage configuration", () => {
     expect(rulesSource.trim().length).toBeGreaterThan(0);
     expect(rulesSource).toContain("match /blueprints/{blueprintId}/{filePath=**}");
     expect(rulesSource).toContain("match /captures/{userId}/{filePath=**}");
+    expect(rulesSource).toContain("match /marketplace-artifacts/{entitlementId}/{filePath=**}");
+    expect(rulesSource).toContain("hasProvisionedMarketplaceEntitlement(entitlementId)");
     expect(rulesSource).toContain("allow read, write: if false;");
   });
 

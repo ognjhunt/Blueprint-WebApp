@@ -1,6 +1,6 @@
 {
   "schema_version": "blueprint.webapp.robot_eval_forwarding_readiness.v1",
-  "generated_at_iso": "2026-06-26T14:34:58.447Z",
+  "generated_at_iso": "2026-07-07T17:44:34.176Z",
   "generated_by": "Blueprint-WebApp/scripts/pipeline/audit-robot-eval-forwarding-readiness.ts",
   "status": "blocked",
   "forwarding_required": true,
@@ -30,9 +30,9 @@
     }
   },
   "probe": {
-    "requested": true,
+    "requested": false,
     "attempted": false,
-    "status": "skipped"
+    "status": "not_requested"
   },
   "blockers": [
     "missing_env_ROBOT_EVAL_JOB_REQUEST_FORWARD_URL",

@@ -35,6 +35,7 @@
     "pipeline:first-gpu:owner-agent-request": "tsx scripts/pipeline/run-first-gpu-webapp-route-forwarding-proof.ts --source-kind owner_agent_codex_request",
     "pipeline:first-gpu:production-route-proof": "tsx scripts/pipeline/run-first-gpu-webapp-route-forwarding-proof.ts --source-kind owner_agent_codex_request",
     "pipeline:forwarding:preflight": "tsx scripts/pipeline/audit-robot-eval-forwarding-readiness.ts",
+    "pipeline:robot-eval-contract:verify": "tsx scripts/pipeline/verify-robot-eval-job-request-contract.ts",
     "smoke:launch": "node scripts/launch-smoke.mjs",
     "smoke:launch:local": "node scripts/launch-smoke-local.mjs",
     "test": "vitest run",

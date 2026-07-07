@@ -38,6 +38,21 @@ service firebase.storage {
         );
     }
 
+    function marketplaceEntitlementDocExists(entitlementId) {
+      return firestore.exists(/databases/(default)/documents/marketplaceEntitlements/$(entitlementId));
+    }
+
+    function marketplaceEntitlementDoc(entitlementId) {
+      return firestore.get(/databases/(default)/documents/marketplaceEntitlements/$(entitlementId));
+    }
+
+    function hasProvisionedMarketplaceEntitlement(entitlementId) {
+      return isSignedIn()
+        && marketplaceEntitlementDocExists(entitlementId)
+        && marketplaceEntitlementDoc(entitlementId).data.buyer_user_id == request.auth.uid
+        && marketplaceEntitlementDoc(entitlementId).data.access_state == "provisioned";
+    }
+
     function boundedUpload(maxBytes) {
       return request.resource != null && request.resource.size <= maxBytes;
     }
@@ -73,6 +88,15 @@ service firebase.storage {
       allow create, update: if (isAdmin() || ownsUserPath(userId))
         && boundedUpload(500 * 1024 * 1024);
       allow delete: if isAdmin() || ownsUserPath(userId);
+    }
+
+    // Buyer-facing private marketplace delivery artifacts. Direct client reads
+    // require a provisioned entitlement scoped by the path segment; server-side
+    // signed URLs still perform the same Firestore entitlement check before
+    // minting a short-lived URL.
+    match /marketplace-artifacts/{entitlementId}/{filePath=**} {
+      allow read: if isAdmin() || hasProvisionedMarketplaceEntitlement(entitlementId);
+      allow create, update, delete: if isAdmin();
     }
 
     // WEB-08: owner-scoped by object metadata so one signed-in user cannot read or
