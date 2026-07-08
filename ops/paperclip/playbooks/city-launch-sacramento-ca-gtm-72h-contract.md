@@ -3,9 +3,9 @@
 - status: deterministic launch contract
 - doctrine: capture-first, real-site robot-evaluation/policy-improvement first, proof-led GTM only
 - city: Sacramento, CA
-- launch_run_id: 2026-07-04T10-41-08.519Z
-- budget_tier: low_budget
-- budget_max_usd: 2500
+- launch_run_id: 2026-07-07T18-41-10.099Z
+- budget_tier: zero_budget
+- budget_max_usd: 0
 - founder_approved: true
 
 ## Human Gates
@@ -26,9 +26,9 @@
 ## 24/48/72h Scorecard Windows
 | Checkpoint | Status | Window end | Run artifact | Canonical artifact |
 | --- | --- | --- | --- | --- |
-| 24h | scheduled_not_due | 2026-07-05T10:41:08.519Z | /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/invalid-recipient-city-launch-harness-Y85rz5/sacramento-ca/2026-07-04T10-41-08.519Z/city-launch-sacramento-ca-scorecard-24h.md | /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-sacramento-ca-scorecard-24h.md |
-| 48h | scheduled_not_due | 2026-07-06T10:41:08.519Z | /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/invalid-recipient-city-launch-harness-Y85rz5/sacramento-ca/2026-07-04T10-41-08.519Z/city-launch-sacramento-ca-scorecard-48h.md | /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-sacramento-ca-scorecard-48h.md |
-| 72h | scheduled_not_due | 2026-07-07T10:41:08.519Z | /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/invalid-recipient-city-launch-harness-Y85rz5/sacramento-ca/2026-07-04T10-41-08.519Z/city-launch-sacramento-ca-scorecard-72h.md | /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-sacramento-ca-scorecard-72h.md |
+| 24h | scheduled_not_due | 2026-07-08T18:41:10.099Z | /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/autonomy-sparse-city-4feKRl/sacramento-ca/2026-07-07T18-41-10.099Z/city-launch-sacramento-ca-scorecard-24h.md | /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-sacramento-ca-scorecard-24h.md |
+| 48h | scheduled_not_due | 2026-07-09T18:41:10.099Z | /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/autonomy-sparse-city-4feKRl/sacramento-ca/2026-07-07T18-41-10.099Z/city-launch-sacramento-ca-scorecard-48h.md | /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-sacramento-ca-scorecard-48h.md |
+| 72h | scheduled_not_due | 2026-07-10T18:41:10.099Z | /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/autonomy-sparse-city-4feKRl/sacramento-ca/2026-07-07T18-41-10.099Z/city-launch-sacramento-ca-scorecard-72h.md | /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-sacramento-ca-scorecard-72h.md |
 
 ## Firestore/Admin Evidence Sources
 | Collection | Query name | Query | Purpose |

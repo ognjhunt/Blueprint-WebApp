@@ -1,17 +1,22 @@
 {
   "schema_version": "blueprint.webapp.robot_eval_forwarding_readiness.v1",
-  "generated_at_iso": "2026-07-07T17:44:34.176Z",
+  "generated_at_iso": "2026-07-07T18:13:17.001Z",
   "generated_by": "Blueprint-WebApp/scripts/pipeline/audit-robot-eval-forwarding-readiness.ts",
-  "status": "blocked",
+  "status": "ready_for_required_forwarding_with_probe",
   "forwarding_required": true,
-  "endpoint_configured": false,
+  "endpoint_configured": true,
   "configured_env": {
     "forward_url": {
-      "configured": false,
-      "valid": false
+      "configured": true,
+      "valid": true,
+      "protocol": "http",
+      "origin": "http://127.0.0.1:65066",
+      "pathname": "/api/live-pipeline/job-requests",
+      "query_present": false,
+      "credentials_present": false
     },
     "forward_token": {
-      "configured": false,
+      "configured": true,
       "redacted": true
     },
     "forward_timeout_ms": {
@@ -30,15 +35,27 @@
     }
   },
   "probe": {
-    "requested": false,
-    "attempted": false,
-    "status": "not_requested"
+    "requested": true,
+    "attempted": true,
+    "status": "reachable",
+    "intake_audit_url": {
+      "configured": true,
+      "valid": true,
+      "protocol": "http",
+      "origin": "http://127.0.0.1:65066",
+      "pathname": "/api/live-pipeline/intake-audit",
+      "query_present": false,
+      "credentials_present": false
+    },
+    "http_status": 200,
+    "audit_status": "staged_for_control_plane",
+    "input_blockers_count": 0,
+    "webapp_staging_performed": true
   },
-  "blockers": [
-    "missing_env_ROBOT_EVAL_JOB_REQUEST_FORWARD_URL",
-    "missing_env_ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN"
+  "blockers": [],
+  "warnings": [
+    "capture_root_override_not_configured"
   ],
-  "warnings": [],
   "proof_boundary": {
     "command_is_read_only": true,
     "no_job_queued": true,

@@ -17,4 +17,4 @@
 ## Required Scorecard Evidence
 - ad_studio_runs query: collection("ad_studio_runs").where("city", "==", city).orderBy("updated_at_iso", "desc").limit(100)
 - meta_ads_cli_runs query: collection("meta_ads_cli_runs").where("city", "==", city).orderBy("createdAtIso", "desc").limit(100)
-- gtm_contract: /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/degraded-wake-city-launch-harness-t6v9AZ/chicago-il/2026-07-04T10-41-08.585Z/city-launch-chicago-il-gtm-72h-contract.md
+- gtm_contract: /var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/autonomy-cert-city-jmCNEd/chicago-il/2026-07-07T18-41-01.493Z/city-launch-chicago-il-gtm-72h-contract.md

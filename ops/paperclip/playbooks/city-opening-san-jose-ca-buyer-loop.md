@@ -1,6 +1,6 @@
 # Exact-Site Hosted Review Buyer Loop
 
-- report_date: 2026-07-04
+- report_date: 2026-07-07
 - city: San Jose, CA
 - ledger: ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json
 - loop_status: decision_due

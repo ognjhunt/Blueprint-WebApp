@@ -6,7 +6,7 @@
 - channels_ready_or_created: 0
 - sends_ready_or_sent: 0
 - sends_marked_sent: 0
-- sends_blocked: 1
+- sends_blocked: 0
 - responses_routed: 0
 - outbound_readiness_status: blocked
 
@@ -17,17 +17,13 @@
 - response ingest stays in the send ledger until the reply-conversion lane routes it onward.
 
 ## Outbound readiness
-- direct_outreach_total: 1
+- direct_outreach_total: 0
 - direct_outreach_recipient_backed: 0
 - direct_outreach_ready_to_send: 0
 - direct_outreach_founder_approval_needed: 0
 - email_transport_configured: true
-- city_launch_sender: missing
+- city_launch_sender: launches@tryblueprint.io
 - Sacramento may be activated operationally, but it is not outwardly addressable yet.
 
 ### Outbound blockers
 - No recipient-backed direct-outreach send actions were seeded for Sacramento, CA.
-- 1 direct-outreach action(s) have invalid or placeholder recipient emails and cannot count as recipient-backed.
-
-## Current blockers
-- sacramento-ca-send-legacy-placeholder: invalid or placeholder recipient email Legacy row leaked placeholder recipient.
