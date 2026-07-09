@@ -12,6 +12,20 @@ const STRIPE_PAYMENT_INTENT_LINK_COLLECTION = "stripePaymentIntents";
 const STRIPE_PAYOUT_LINK_COLLECTION = "stripePayouts";
 const CREATOR_CAPTURE_COLLECTION = "creatorCaptures";
 const CAPTURE_SUBMISSION_COLLECTION = "capture_submissions";
+// Marketplace inventory docs carry capture_id/scene_id/site_submission_id and
+// are keyed by sku; they are the bridge from a buyer order back to the creator
+// payout(s) that produced the purchased item (mirrors consentRevocationTakedown).
+const MARKETPLACE_INVENTORY_COLLECTIONS = [
+  "publishedMarketplaceInventory",
+  "marketplace_items",
+] as const;
+
+// Creator payout states whose funds are already moving or settled — a buyer
+// dispute must never yank these back into a hold.
+const PAYOUT_IN_FLIGHT_OR_SETTLED_STATUSES = new Set<CreatorPayoutStatus>([
+  "in_transit",
+  "paid",
+]);
 
 const READY_QUALIFICATION_STATES = new Set([
   "qualified_ready",
@@ -35,7 +49,8 @@ export type BuyerOrderStatus =
   | "fulfilled"
   | "payment_failed"
   | "expired"
-  | "refunded";
+  | "refunded"
+  | "disputed";
 
 export type BuyerOrderPaymentStatus =
   | "checkout_created"
@@ -59,6 +74,7 @@ export type CreatorPayoutStatus =
   | "ineligible"
   | "in_transit"
   | "paid"
+  | "on_hold"
   | "disbursement_failed";
 
 export type CreatorPayoutDisbursementStatus =
@@ -135,6 +151,13 @@ export type MarketplaceEntitlementRecord = {
   access_state: "provisioned" | "manual_review_required" | "revoked";
   granted_at: string;
   updated_at: string;
+  // R031: GCS package delivery source persisted from the pipeline
+  // arena_package_delivery_gcs `webapp_ingestion` block. These give the buyer
+  // signed-URL mint path a gs:// source. They are set out-of-band by the
+  // internal package-delivery ingestion route (merge write), never at grant
+  // time, and do NOT influence the access_state / consent gate.
+  package_delivery_base_uri?: string | null;
+  package_object_keys?: string[] | null;
 };
 
 export type CreatorPayoutRecord = {
@@ -1507,4 +1530,314 @@ export async function applyCreatorPayoutWebhook(params: {
   );
 
   return disbursement.id;
+}
+
+/**
+ * Resolve every creator payout linked to a buyer order.
+ *
+ * A buyer order does not reference a payout directly, so we walk the same
+ * linkage the consent-revocation takedown path uses: the marketplace inventory
+ * doc for the purchased item (keyed by sku, also addressable by the order's
+ * live_inventory_record_id) carries capture_id/scene_id/site_submission_id, and
+ * a creator payout is keyed by capture_id (doc id) and also carries scene_id and
+ * site_submission_id. We match on all three so the linkage holds regardless of
+ * which identifier the payout was minted with.
+ */
+async function resolveLinkedCreatorPayoutsForOrder(
+  order: BuyerOrderRecord,
+): Promise<CreatorPayoutRecord[]> {
+  if (!db) {
+    return [];
+  }
+  const firestore = db;
+
+  const captureIds = new Set<string>();
+  const sceneIds = new Set<string>();
+  const siteSubmissionIds = new Set<string>();
+
+  const inventorySku = order.item.sku;
+  const inventoryRecordId = order.item.live_inventory_record_id;
+
+  for (const collectionName of MARKETPLACE_INVENTORY_COLLECTIONS) {
+    const inventoryDocs: Record<string, unknown>[] = [];
+    if (inventoryRecordId) {
+      const byId = await firestore
+        .collection(collectionName)
+        .doc(inventoryRecordId)
+        .get();
+      if (byId.exists) {
+        inventoryDocs.push((byId.data() || {}) as Record<string, unknown>);
+      }
+    }
+    if (inventorySku) {
+      const bySku = await firestore
+        .collection(collectionName)
+        .where("sku", "==", inventorySku)
+        .get();
+      for (const doc of bySku.docs) {
+        inventoryDocs.push((doc.data() || {}) as Record<string, unknown>);
+      }
+    }
+    for (const data of inventoryDocs) {
+      const captureId = asString(data.capture_id);
+      const sceneId = asString(data.scene_id);
+      const siteSubmissionId = asString(data.site_submission_id);
+      if (captureId) captureIds.add(captureId);
+      if (sceneId) sceneIds.add(sceneId);
+      if (siteSubmissionId) siteSubmissionIds.add(siteSubmissionId);
+    }
+  }
+
+  const payouts = new Map<string, CreatorPayoutRecord>();
+  const addPayout = (data: Record<string, unknown> | undefined) => {
+    if (!data) {
+      return;
+    }
+    const payout = copyCreatorPayout(data);
+    payouts.set(payout.id, payout);
+  };
+
+  for (const captureId of captureIds) {
+    // capture_id is the payout doc id, but also match the field for safety.
+    const byDoc = await firestore
+      .collection(CREATOR_PAYOUT_COLLECTION)
+      .doc(captureId)
+      .get();
+    if (byDoc.exists) {
+      addPayout(byDoc.data() as Record<string, unknown>);
+    }
+    const byField = await firestore
+      .collection(CREATOR_PAYOUT_COLLECTION)
+      .where("capture_id", "==", captureId)
+      .get();
+    for (const doc of byField.docs) {
+      addPayout(doc.data() as Record<string, unknown>);
+    }
+  }
+  for (const sceneId of sceneIds) {
+    const snapshot = await firestore
+      .collection(CREATOR_PAYOUT_COLLECTION)
+      .where("scene_id", "==", sceneId)
+      .get();
+    for (const doc of snapshot.docs) {
+      addPayout(doc.data() as Record<string, unknown>);
+    }
+  }
+  for (const siteSubmissionId of siteSubmissionIds) {
+    const snapshot = await firestore
+      .collection(CREATOR_PAYOUT_COLLECTION)
+      .where("site_submission_id", "==", siteSubmissionId)
+      .get();
+    for (const doc of snapshot.docs) {
+      addPayout(doc.data() as Record<string, unknown>);
+    }
+  }
+
+  return Array.from(payouts.values());
+}
+
+/**
+ * Handle a buyer-side chargeback/dispute opening (audit finding R032).
+ *
+ * Marks the buyer order `disputed` (so it does not go stale) and freezes any
+ * linked creator payout that has not already moved to `in_transit`/`paid`, so
+ * platform funds are not released to the creator while the dispute is open.
+ *
+ * Idempotent: re-delivery re-applies the same terminal values. The pre-dispute
+ * order status and the pre-hold payout status are captured only once (they are
+ * preserved on re-delivery) so `resolveBuyerOrderDispute` can restore them if
+ * the dispute is later won.
+ */
+export async function markBuyerOrderDisputedAndHoldPayouts(params: {
+  orderId: string;
+  disputeId: string;
+  reason: string | null;
+  eventId: string;
+  eventType: string;
+}): Promise<{ orderId: string; heldPayoutIds: string[] } | null> {
+  if (!db) {
+    return null;
+  }
+  const firestore = db;
+
+  const orderRef = firestore.collection(BUYER_ORDER_COLLECTION).doc(params.orderId);
+  const orderSnapshot = await orderRef.get();
+  if (!orderSnapshot.exists) {
+    return null;
+  }
+  const rawOrder = (orderSnapshot.data() || {}) as Record<string, unknown>;
+  const order = copyBuyerOrder(rawOrder);
+  const existingDispute = toRecord(rawOrder.dispute);
+
+  const updatedAt = nowIso();
+  // Capture the pre-dispute status once so a later dispute.closed(won) can
+  // restore it; on re-delivery keep whatever was recorded first.
+  const priorStatus =
+    asString(existingDispute.prior_status) ||
+    (order.status === "disputed" ? null : order.status);
+
+  await orderRef.set(
+    {
+      status: "disputed",
+      dispute: {
+        id: params.disputeId,
+        state: "open",
+        reason: params.reason,
+        prior_status: priorStatus,
+        opened_at: asString(existingDispute.opened_at) || updatedAt,
+        closed_at: null,
+        outcome: null,
+      },
+      updated_at: updatedAt,
+      last_webhook_event_id: params.eventId,
+      last_webhook_event_type: params.eventType,
+    },
+    { merge: true },
+  );
+
+  const linkedPayouts = await resolveLinkedCreatorPayoutsForOrder(order);
+  const heldPayoutIds: string[] = [];
+  for (const payout of linkedPayouts) {
+    // Never freeze funds that are already moving/settled, and never re-capture
+    // the prior status for an already-held payout (idempotent re-delivery).
+    if (
+      PAYOUT_IN_FLIGHT_OR_SETTLED_STATUSES.has(payout.status) ||
+      payout.status === "on_hold"
+    ) {
+      continue;
+    }
+
+    await firestore
+      .collection(CREATOR_PAYOUT_COLLECTION)
+      .doc(payout.id)
+      .set(
+        {
+          status: "on_hold",
+          hold: {
+            reason: "buyer_dispute",
+            dispute_id: params.disputeId,
+            buyer_order_id: params.orderId,
+            prior_status: payout.status,
+            held_at: updatedAt,
+            released: false,
+          },
+          last_webhook_event_id: params.eventId,
+          last_webhook_event_type: params.eventType,
+          updated_at: updatedAt,
+        },
+        { merge: true },
+      );
+    heldPayoutIds.push(payout.id);
+  }
+
+  return { orderId: params.orderId, heldPayoutIds };
+}
+
+/**
+ * Handle a buyer-side dispute closing (audit finding R032).
+ *
+ * Records the outcome on the order. If the dispute was won, the pre-dispute
+ * order status is restored and every payout this dispute placed on hold is
+ * released back to its prior status. If it was lost, the order is treated like
+ * the refund path (funds returned to the buyer) and the payout holds are kept
+ * frozen so the creator is not paid for a reversed sale.
+ *
+ * Idempotent: once released, a payout is no longer `on_hold`, so re-delivery is
+ * a no-op; the order is re-set to the same terminal values.
+ */
+export async function resolveBuyerOrderDispute(params: {
+  orderId: string;
+  disputeId: string;
+  outcome: string;
+  eventId: string;
+  eventType: string;
+}): Promise<{ orderId: string; releasedPayoutIds: string[] } | null> {
+  if (!db) {
+    return null;
+  }
+  const firestore = db;
+
+  const orderRef = firestore.collection(BUYER_ORDER_COLLECTION).doc(params.orderId);
+  const orderSnapshot = await orderRef.get();
+  if (!orderSnapshot.exists) {
+    return null;
+  }
+  const rawOrder = (orderSnapshot.data() || {}) as Record<string, unknown>;
+  const order = copyBuyerOrder(rawOrder);
+  const existingDispute = toRecord(rawOrder.dispute);
+
+  const won = params.outcome === "won";
+  const updatedAt = nowIso();
+  const priorStatus = asString(existingDispute.prior_status);
+
+  await orderRef.set(
+    {
+      // Won: restore the pre-dispute status. Lost: mirror the refund path.
+      status: won ? priorStatus || "paid" : "refunded",
+      payment_status: won ? order.payment_status : "refunded",
+      refunded_at: won ? order.refunded_at : order.refunded_at || updatedAt,
+      dispute: {
+        state: "closed",
+        outcome: params.outcome,
+        closed_at: updatedAt,
+      },
+      updated_at: updatedAt,
+      last_webhook_event_id: params.eventId,
+      last_webhook_event_type: params.eventType,
+    },
+    { merge: true },
+  );
+
+  const linkedPayouts = await resolveLinkedCreatorPayoutsForOrder(order);
+  const releasedPayoutIds: string[] = [];
+  for (const payout of linkedPayouts) {
+    if (payout.status !== "on_hold") {
+      continue;
+    }
+    const payoutRef = firestore
+      .collection(CREATOR_PAYOUT_COLLECTION)
+      .doc(payout.id);
+    const payoutSnapshot = await payoutRef.get();
+    const hold = toRecord((payoutSnapshot.data() || {}).hold);
+    // Only touch holds this dispute placed.
+    if (asString(hold.dispute_id) !== params.disputeId) {
+      continue;
+    }
+
+    if (won) {
+      const restoredStatus =
+        (asString(hold.prior_status) as CreatorPayoutStatus) || "approved";
+      await payoutRef.set(
+        {
+          status: restoredStatus,
+          hold: {
+            released: true,
+            released_at: updatedAt,
+            dispute_outcome: "won",
+          },
+          last_webhook_event_id: params.eventId,
+          last_webhook_event_type: params.eventType,
+          updated_at: updatedAt,
+        },
+        { merge: true },
+      );
+      releasedPayoutIds.push(payout.id);
+    } else {
+      // Lost: keep the hold so the creator is not paid for a reversed sale.
+      await payoutRef.set(
+        {
+          hold: {
+            dispute_outcome: "lost",
+            resolved_at: updatedAt,
+          },
+          last_webhook_event_id: params.eventId,
+          last_webhook_event_type: params.eventType,
+          updated_at: updatedAt,
+        },
+        { merge: true },
+      );
+    }
+  }
+
+  return { orderId: params.orderId, releasedPayoutIds };
 }

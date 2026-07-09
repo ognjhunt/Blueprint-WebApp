@@ -1,8 +1,10 @@
 import { Link } from "wouter";
-import type { ReactNode } from "react";
-import { ArrowRight } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { ArrowRight, Download } from "lucide-react";
 
 import { Button, StatusChip } from "@/components/blueprint";
+import { useAuth } from "@/contexts/AuthContext";
+import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 import {
   entitlementDisplayName,
   entitlementScope,
@@ -11,6 +13,14 @@ import {
   formatEntitlementDate,
   type BuyerEntitlement,
 } from "@/lib/buyerAppData";
+
+function hasDownloadablePackage(entitlement: BuyerEntitlement): boolean {
+  return (
+    entitlement.access_state === "provisioned" &&
+    typeof entitlement.package_delivery_base_uri === "string" &&
+    entitlement.package_delivery_base_uri.trim().length > 0
+  );
+}
 
 export function EntitlementAccessTable({
   entitlements,
@@ -81,6 +91,8 @@ export function EntitlementAccessTable({
                       {entitlement.access.label || actionLabel}
                     </AccessLink>
                   </Button>
+                ) : hasDownloadablePackage(entitlement) ? (
+                  <PackageDownloadButton entitlementId={entitlement.id} />
                 ) : (
                   <span className="font-mono text-[0.7rem] text-ink-400">
                     Access review
@@ -91,6 +103,63 @@ export function EntitlementAccessTable({
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+/**
+ * R031: mint a short-lived signed URL for a pipeline-delivered GCS package and
+ * open it. The entitlement/consent gate is enforced server-side by the
+ * `artifact-access` route; a failure (not provisioned / revoked / no source)
+ * surfaces as an inline "Access not ready" note rather than a broken link.
+ */
+function PackageDownloadButton({ entitlementId }: { entitlementId: string }) {
+  const { currentUser } = useAuth();
+  const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
+
+  async function handleDownload() {
+    if (status === "loading") {
+      return;
+    }
+    setStatus("loading");
+    try {
+      const response = await fetch(
+        `/api/marketplace/entitlements/${encodeURIComponent(entitlementId)}/artifact-access`,
+        {
+          credentials: "include",
+          headers: await withFirebaseAuthHeaders(currentUser),
+        },
+      );
+      if (!response.ok) {
+        throw new Error(`artifact_access_${response.status}`);
+      }
+      const payload = (await response.json()) as { signed_url?: string };
+      if (!payload.signed_url) {
+        throw new Error("missing_signed_url");
+      }
+      window.open(payload.signed_url, "_blank", "noopener,noreferrer");
+      setStatus("idle");
+    } catch {
+      setStatus("error");
+    }
+  }
+
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <Button
+        variant="secondary"
+        size="sm"
+        iconRight={<Download />}
+        onClick={handleDownload}
+        disabled={status === "loading"}
+      >
+        {status === "loading" ? "Preparing…" : "Download package"}
+      </Button>
+      {status === "error" ? (
+        <span className="font-mono text-[0.65rem] text-block-fg">
+          Access not ready
+        </span>
+      ) : null}
     </div>
   );
 }

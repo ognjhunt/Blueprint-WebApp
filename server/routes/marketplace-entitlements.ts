@@ -34,6 +34,11 @@ const ARTIFACT_MAP_FIELDS = [
   "deliveryArtifacts",
 ];
 const NESTED_ARTIFACT_FIELDS = ["delivery", "package", "pipeline", "site_package", "sitePackage"];
+// R031: fields the pipeline package-delivery ingestion route persists onto an
+// entitlement from the arena_package_delivery_gcs `webapp_ingestion` block.
+const DELIVERY_BASE_URI_FIELDS = ["package_delivery_base_uri", "packageDeliveryBaseUri"];
+const DELIVERY_OBJECT_KEYS_FIELDS = ["package_object_keys", "packageObjectKeys"];
+const PACKAGE_ARCHIVE_PATTERN = /\.(zip|tar|tgz|tar\.gz|tar\.zst|7z)$/i;
 const PREFERRED_ARTIFACT_KEYS = [
   "post_training_data_package_uri",
   "postTrainingDataPackageUri",
@@ -126,6 +131,77 @@ function collectArtifactCandidatesFromRecord(
     seen.add(dedupeKey);
     return true;
   });
+}
+
+function firstStringField(record: Record<string, unknown>, fields: string[]): string {
+  for (const field of fields) {
+    const value = stringValue(record[field]);
+    if (value) {
+      return value;
+    }
+  }
+  return "";
+}
+
+function firstStringArrayField(record: Record<string, unknown>, fields: string[]): string[] {
+  for (const field of fields) {
+    const value = record[field];
+    if (Array.isArray(value)) {
+      return value.map((entry) => stringValue(entry)).filter(Boolean);
+    }
+  }
+  return [];
+}
+
+/**
+ * R031: build signed-URL candidates from the pipeline-delivered GCS package
+ * source persisted on the entitlement (`package_delivery_base_uri` +
+ * `package_object_keys`). Object keys are full bucket object keys; the bucket is
+ * parsed from the base URI. The primary package archive is aliased under a
+ * preferred key so the default selection resolves to the package, not a sidecar.
+ */
+function collectDeliveryPackageCandidates(
+  record: Record<string, unknown>,
+  source: string,
+): ArtifactCandidate[] {
+  const baseUri = firstStringField(record, DELIVERY_BASE_URI_FIELDS);
+  const objectKeys = firstStringArrayField(record, DELIVERY_OBJECT_KEYS_FIELDS);
+  if (!baseUri.startsWith("gs://") || objectKeys.length === 0) {
+    return [];
+  }
+  let bucket = "";
+  let basePrefix = "";
+  try {
+    const parsed = parseGsUri(baseUri);
+    bucket = parsed.bucket;
+    basePrefix = parsed.objectPath.replace(/\/+$/, "");
+  } catch {
+    return [];
+  }
+
+  const perObject: ArtifactCandidate[] = [];
+  const seen = new Set<string>();
+  for (const rawKey of objectKeys) {
+    const objectKey = rawKey.replace(/^\/+/, "");
+    if (!objectKey || seen.has(objectKey)) {
+      continue;
+    }
+    seen.add(objectKey);
+    const relPath = objectKey.startsWith(`${basePrefix}/`)
+      ? objectKey.slice(basePrefix.length + 1)
+      : objectKey.split("/").pop() || objectKey;
+    perObject.push({ key: relPath, uri: `gs://${bucket}/${objectKey}`, source });
+  }
+  if (perObject.length === 0) {
+    return [];
+  }
+
+  const primary =
+    perObject.find((candidate) => PACKAGE_ARCHIVE_PATTERN.test(candidate.key)) || perObject[0];
+  return [
+    { key: "post_training_data_package_uri", uri: primary.uri, source },
+    ...perObject,
+  ];
 }
 
 function selectArtifactCandidate(
@@ -334,6 +410,9 @@ router.get("/:entitlementId/artifact-access", async (req: Request, res: Response
   const sku = normalizeSku(String(entitlement.sku || ""));
   const marketplaceItem = await loadPublishedMarketplaceItem(sku);
   const candidates = [
+    // R031: the pipeline-delivered GCS package source is the authoritative buyer
+    // delivery, so it takes precedence over incidental item-level artifact URIs.
+    ...collectDeliveryPackageCandidates(entitlement, "entitlement_package_delivery"),
     ...collectArtifactCandidatesFromRecord(entitlement, "entitlement"),
     ...(marketplaceItem
       ? collectArtifactCandidatesFromRecord(marketplaceItem, "published_marketplace_item")

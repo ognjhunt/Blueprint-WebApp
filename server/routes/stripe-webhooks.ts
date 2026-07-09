@@ -9,8 +9,10 @@ import {
   fetchBuyerOrder,
   findBuyerOrderByCheckoutSessionId,
   findBuyerOrderByPaymentIntentId,
+  markBuyerOrderDisputedAndHoldPayouts,
   markBuyerOrderPaidFromCheckout,
   markBuyerOrderPaymentFailure,
+  resolveBuyerOrderDispute,
 } from "../utils/accounting";
 import { createOnboardingSequence } from "../utils/buyer-onboarding";
 import { initRenewalTracking } from "../utils/growth-ops";
@@ -155,6 +157,59 @@ async function handleChargeRefunded(charge: Stripe.Charge, event: Stripe.Event) 
   return order.id;
 }
 
+function paymentIntentIdFromDispute(dispute: Stripe.Dispute): string | null {
+  if (typeof dispute.payment_intent === "string") {
+    return dispute.payment_intent;
+  }
+  return dispute.payment_intent?.id || null;
+}
+
+async function handleChargeDisputeCreated(
+  dispute: Stripe.Dispute,
+  event: Stripe.Event,
+) {
+  // Resolve the buyer order the same way the refund path does — via the
+  // payment intent behind the disputed charge.
+  const paymentIntentId = paymentIntentIdFromDispute(dispute);
+  const order = paymentIntentId
+    ? await findBuyerOrderByPaymentIntentId(paymentIntentId)
+    : null;
+  if (!order) {
+    return null;
+  }
+
+  const result = await markBuyerOrderDisputedAndHoldPayouts({
+    orderId: order.id,
+    disputeId: dispute.id,
+    reason: dispute.reason || null,
+    eventId: event.id,
+    eventType: event.type,
+  });
+  return result?.orderId || order.id;
+}
+
+async function handleChargeDisputeClosed(
+  dispute: Stripe.Dispute,
+  event: Stripe.Event,
+) {
+  const paymentIntentId = paymentIntentIdFromDispute(dispute);
+  const order = paymentIntentId
+    ? await findBuyerOrderByPaymentIntentId(paymentIntentId)
+    : null;
+  if (!order) {
+    return null;
+  }
+
+  const result = await resolveBuyerOrderDispute({
+    orderId: order.id,
+    disputeId: dispute.id,
+    outcome: dispute.status,
+    eventId: event.id,
+    eventType: event.type,
+  });
+  return result?.orderId || order.id;
+}
+
 async function handlePayoutEvent(
   payout: Stripe.Payout,
   event: Stripe.Event,
@@ -203,6 +258,7 @@ const OPS_RELEVANT_EVENTS = new Set([
   "payout.failed",
   "payout.canceled",
   "charge.dispute.created",
+  "charge.dispute.closed",
   "charge.refunded",
   "account.updated",
 ]);
@@ -289,6 +345,20 @@ export async function stripeWebhookHandler(req: Request, res: Response) {
       case "charge.refunded": {
         orderId = await handleChargeRefunded(
           event.data.object as Stripe.Charge,
+          event,
+        );
+        break;
+      }
+      case "charge.dispute.created": {
+        orderId = await handleChargeDisputeCreated(
+          event.data.object as Stripe.Dispute,
+          event,
+        );
+        break;
+      }
+      case "charge.dispute.closed": {
+        orderId = await handleChargeDisputeClosed(
+          event.data.object as Stripe.Dispute,
           event,
         );
         break;
