@@ -52,6 +52,7 @@ import {
   ingestConsentRevocationTakedown,
   type ConsentRevocationNotice,
 } from "../utils/consentRevocationTakedown";
+import { emitOperatorAlert } from "../utils/operator-alerts";
 
 const router = Router();
 const pipelineSyncRateLimiter = createPipelineSyncRateLimiter();
@@ -1598,6 +1599,17 @@ router.post(
       });
     } catch (error) {
       logger.error({ error }, "Failed to record pipeline package delivery");
+      // R037: a failed package-delivery ingestion means a buyer's delivered
+      // package source was not recorded — a core beta failure class.
+      void emitOperatorAlert({
+        class: "package_failed",
+        severity: "critical",
+        message: "Failed to record pipeline package delivery ingestion.",
+        context: {
+          error: error instanceof Error ? error.message : String(error),
+          route: "POST /api/internal/pipeline/package-delivery",
+        },
+      });
       return res.status(500).json({
         ok: false,
         package_delivery_recorded: false,

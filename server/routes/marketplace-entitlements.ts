@@ -8,6 +8,7 @@ import {
 } from "../../client/src/data/content";
 import { dbAdmin as db, storageAdmin } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
+import { emitOperatorAlert } from "../utils/operator-alerts";
 
 const router = Router();
 
@@ -401,6 +402,19 @@ router.get("/:entitlementId/artifact-access", async (req: Request, res: Response
     });
   }
   if (stringValue(entitlement.access_state) !== "provisioned") {
+    // R037: an owning buyer being unable to reach their artifact because the
+    // entitlement is not provisioned is a core beta buyer-access failure class.
+    void emitOperatorAlert({
+      class: "buyer_access_failed",
+      severity: "warning",
+      message: "Buyer artifact access blocked: entitlement not provisioned.",
+      context: {
+        entitlement_id: entitlementId,
+        buyer_user_id: buyerUserId,
+        access_state: stringValue(entitlement.access_state) || null,
+        code: "entitlement_not_provisioned",
+      },
+    });
     return res.status(409).json({
       error: "Entitlement is not provisioned for artifact access",
       code: "entitlement_not_provisioned",
@@ -420,6 +434,20 @@ router.get("/:entitlementId/artifact-access", async (req: Request, res: Response
   ];
   const selected = selectArtifactCandidate(candidates, req);
   if (!selected) {
+    // R037: a provisioned buyer with no signable artifact URI cannot access what
+    // they own — a core beta buyer-access failure class worth an operator alert.
+    void emitOperatorAlert({
+      class: "buyer_access_failed",
+      severity: "critical",
+      message: "Buyer artifact access blocked: no signable artifact URI on a provisioned entitlement.",
+      context: {
+        entitlement_id: entitlementId,
+        buyer_user_id: buyerUserId,
+        sku,
+        available_artifact_keys: candidates.map((candidate) => candidate.key),
+        code: "artifact_access_not_configured",
+      },
+    });
     return res.status(404).json({
       error: "No entitlement artifact URI is available for signed access",
       code: "artifact_access_not_configured",
@@ -457,6 +485,20 @@ router.get("/:entitlementId/artifact-access", async (req: Request, res: Response
         "Signed URL access proves this authenticated buyer has a provisioned entitlement for the referenced artifact. It is not proof of package semantic success.",
     });
   } catch (error) {
+    // R037: minting the signed URL failed for an entitled, provisioned buyer —
+    // the delivery is real but access could not be granted. Alert operators.
+    void emitOperatorAlert({
+      class: "buyer_access_failed",
+      severity: "critical",
+      message: "Buyer artifact access blocked: signed URL minting failed.",
+      context: {
+        entitlement_id: entitlementId,
+        buyer_user_id: buyerUserId,
+        sku,
+        artifact_uri: selected.uri,
+        error: error instanceof Error ? error.message : String(error),
+      },
+    });
     return res.status(400).json({
       error: "Failed to create signed artifact access URL",
       code: error instanceof Error ? error.message : "signed_artifact_url_failed",

@@ -13,6 +13,7 @@ import {
   validatePipelineArtifactUris,
   verifyPipelineSyncRequest,
 } from "../utils/pipelineSyncSecurity";
+import { emitOperatorAlert } from "../utils/operator-alerts";
 
 const router = Router();
 const pipelineSyncRateLimiter = createPipelineSyncRateLimiter();
@@ -334,6 +335,20 @@ router.post("/", verifyFirebaseToken, async (req, res) => {
     // not_configured is a WebApp misconfiguration (no endpoint) -> 503; a blocked
     // or downstream-failed forward is a bad-gateway condition -> 502.
     const httpStatus = pipelineForward.status === "not_configured" ? 503 : 502;
+    // R037: a job request that never reached the Pipeline is silent data loss
+    // (R028) — a core beta intake/forwarding failure class. Surface to operators.
+    void emitOperatorAlert({
+      class: "intake_failed",
+      severity: "critical",
+      message: `Robot-eval job request failed to forward to the Pipeline (${pipelineForward.status}).`,
+      context: {
+        job_id: jobId,
+        buyer_user_id: buyerUserId,
+        forward_status: pipelineForward.status,
+        forward_required: forwardMustSucceed,
+        http_status: httpStatus,
+      },
+    });
     return res.status(httpStatus).json({
       ok: false,
       status: "pipeline_forward_failed",

@@ -16,6 +16,7 @@ import {
 } from "../utils/accounting";
 import { createOnboardingSequence } from "../utils/buyer-onboarding";
 import { initRenewalTracking } from "../utils/growth-ops";
+import { emitOperatorAlert } from "../utils/operator-alerts";
 import { stripeClient } from "../constants/stripe";
 
 const stripeWebhookSecret = (process.env.STRIPE_WEBHOOK_SECRET || "").trim();
@@ -224,23 +225,51 @@ async function handlePayoutEvent(
   }
 
   if (event.type === "payout.failed") {
-    return applyCreatorPayoutWebhook({
+    const failureReason = payout.failure_message || "Stripe payout failed.";
+    const disbursementId = await applyCreatorPayoutWebhook({
       stripePayoutId: payout.id,
       eventId: event.id,
       eventType: event.type,
       status: "failed",
-      failureReason: payout.failure_message || "Stripe payout failed.",
+      failureReason,
     });
+    // R037: a failed creator payout is a core beta failure class — surface it.
+    void emitOperatorAlert({
+      class: "payout_failed",
+      severity: "critical",
+      message: `Stripe creator payout failed: ${failureReason}`,
+      context: {
+        stripe_payout_id: payout.id,
+        event_id: event.id,
+        event_type: event.type,
+        disbursement_id: disbursementId,
+        failure_code: payout.failure_code || null,
+      },
+    });
+    return disbursementId;
   }
 
   if (event.type === "payout.canceled") {
-    return applyCreatorPayoutWebhook({
+    const disbursementId = await applyCreatorPayoutWebhook({
       stripePayoutId: payout.id,
       eventId: event.id,
       eventType: event.type,
       status: "canceled",
       failureReason: "Stripe payout was canceled.",
     });
+    // R037: a canceled creator payout is also a core beta failure class.
+    void emitOperatorAlert({
+      class: "payout_failed",
+      severity: "warning",
+      message: "Stripe creator payout was canceled.",
+      context: {
+        stripe_payout_id: payout.id,
+        event_id: event.id,
+        event_type: event.type,
+        disbursement_id: disbursementId,
+      },
+    });
+    return disbursementId;
   }
 
   return null;
