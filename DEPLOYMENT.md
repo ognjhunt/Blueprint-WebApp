@@ -47,6 +47,27 @@ The repo now includes [render.yaml](/Users/nijelhunt_1/workspace/Blueprint-WebAp
 
 Render should hold all secrets in the service environment, not in `render.yaml`.
 
+## Rollback
+
+Deploys are Render-managed (`autoDeploy: true`); there is no manual `deploy.sh`. To roll back a
+bad release, redeploy the last known-good git commit on the same Render service, health-gated,
+with [scripts/rollback-deploy.sh](/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/rollback-deploy.sh):
+
+```bash
+# Dry-run the plan first (no API calls, no health checks):
+scripts/rollback-deploy.sh --commit <known-good-sha> --service-id srv_xxxxxxxx --dry-run
+
+# Execute: redeploy the SHA on Render, then verify /health and /health/ready:
+RENDER_API_KEY=rnd_xxx RENDER_SERVICE_ID=srv_xxxxxxxx \
+  scripts/rollback-deploy.sh --commit <known-good-sha> --base-url https://tryblueprint.io --yes
+```
+
+There is no destructive default: an explicit `--commit` is required, the script verifies the SHA
+locally, polls Render until the deploy is `live`, and gates on the health endpoints — it never
+rolls forward to a broken build. If the rolled-back version is unhealthy it exits non-zero and you
+escalate. The Render dashboard (Service → Deploys → Rollback) is the manual fallback if the API is
+unreachable. Full incident context: `docs/runbooks/BETA_INCIDENT_RESPONSE_RUNBOOK.md`.
+
 ## Required Environment Variables
 
 ### Firebase (client)
