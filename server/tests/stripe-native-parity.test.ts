@@ -9,6 +9,9 @@ const state = vi.hoisted(() => ({
     livemode: false,
     details_submitted: true,
     payouts_enabled: true,
+    capabilities: {
+      tax_reporting_us_1099_misc: "active",
+    },
     settings: { payouts: { schedule: { interval: "manual" } } },
     requirements: {
       currently_due: [],
@@ -93,6 +96,9 @@ afterEach(() => {
     livemode: false,
     details_submitted: true,
     payouts_enabled: true,
+    capabilities: {
+      tax_reporting_us_1099_misc: "active",
+    },
     settings: { payouts: { schedule: { interval: "manual" } } },
     requirements: {
       currently_due: [],
@@ -122,6 +128,9 @@ describe("stripe native parity routes", () => {
       livemode: false,
       details_submitted: true,
       payouts_enabled: false,
+      capabilities: {
+        tax_reporting_us_1099_misc: "pending",
+      },
       settings: { payouts: { schedule: { interval: "manual" } } },
       requirements: {
         currently_due: [
@@ -156,6 +165,18 @@ describe("stripe native parity routes", () => {
         finance_review_owner_configured: false,
         finance_owner: null,
         finance_review_queue_uri: null,
+        tax_reporting_owner: "stripe_1099_product",
+        tax_reporting_form_type: "1099-NEC",
+        tax_reporting_owner_configured: false,
+        tax_reporting_runbook_uri: null,
+        tax_reporting_capability: "tax_reporting_us_1099_misc",
+        tax_reporting_capability_status: "pending",
+        tax_reporting_ready: false,
+        w9_collection_status: "incomplete",
+        backup_withholding_policy: "block_payout_until_tax_info_verified",
+        tax_requirements_due: ["individual.ssn_last_4"],
+        tax_requirements_past_due: null,
+        tax_requirements_pending_verification: ["individual.address.line1"],
         requirements_due: [
           "individual.verification.document",
           "individual.ssn_last_4",

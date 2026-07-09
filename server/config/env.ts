@@ -270,6 +270,8 @@ const envSchema = z
     BLUEPRINT_FINANCE_REVIEW_OWNER: z.string().trim().optional(),
     BLUEPRINT_FINANCE_REVIEW_QUEUE_URI: z.string().trim().optional(),
     BLUEPRINT_FINANCE_REVIEW_QUEUE_URL: z.string().trim().optional(),
+    BLUEPRINT_TAX_REPORTING_1099_RUNBOOK_URI: z.string().trim().optional(),
+    BLUEPRINT_TAX_REPORTING_RUNBOOK_URI: z.string().trim().optional(),
     BLUEPRINT_GAP_CLOSURE_ENABLED: z.string().trim().optional(),
     BLUEPRINT_GAP_CLOSURE_INTERVAL_MS: z.coerce.number().int().positive().optional(),
     BLUEPRINT_GAP_CLOSURE_BATCH_SIZE: z.coerce.number().int().positive().optional(),
