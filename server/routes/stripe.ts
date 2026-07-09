@@ -273,15 +273,6 @@ async function ensureAccountReadyForInstantPayout(
     return false;
   }
 
-  if (!account.payouts_enabled || hasBlockingRequirements) {
-    res.status(409).json({
-      error: "Stripe payouts are not enabled for this account.",
-      ...stripeReadinessPayload(account, { providerStateChecked: true }),
-      ...requirements,
-    });
-    return false;
-  }
-
   if (options.requireTaxReporting) {
     const taxReporting = taxReportingPayload(account);
     if (!taxReporting.tax_reporting_ready) {
@@ -293,6 +284,15 @@ async function ensureAccountReadyForInstantPayout(
       });
       return false;
     }
+  }
+
+  if (!account.payouts_enabled || hasBlockingRequirements) {
+    res.status(409).json({
+      error: "Stripe payouts are not enabled for this account.",
+      ...stripeReadinessPayload(account, { providerStateChecked: true }),
+      ...requirements,
+    });
+    return false;
   }
 
   return true;

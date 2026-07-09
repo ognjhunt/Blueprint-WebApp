@@ -9,6 +9,9 @@ const state = vi.hoisted(() => ({
     livemode: false,
     details_submitted: true,
     payouts_enabled: true,
+    capabilities: {
+      tax_reporting_us_1099_misc: "active",
+    },
     settings: { payouts: { schedule: { interval: "manual" } } },
     requirements: { currently_due: [], past_due: [] },
   } as Record<string, unknown>,
@@ -112,6 +115,9 @@ afterEach(() => {
     livemode: false,
     details_submitted: true,
     payouts_enabled: true,
+    capabilities: {
+      tax_reporting_us_1099_misc: "active",
+    },
     settings: { payouts: { schedule: { interval: "manual" } } },
     requirements: { currently_due: [], past_due: [] },
   };
@@ -124,6 +130,7 @@ afterEach(() => {
   state.livePayoutExecutionEnabled = false;
   delete process.env.BLUEPRINT_FINANCE_REVIEW_OWNER;
   delete process.env.BLUEPRINT_FINANCE_REVIEW_QUEUE_URI;
+  delete process.env.BLUEPRINT_TAX_REPORTING_1099_RUNBOOK_URI;
 });
 
 describe("stripe treasury funding", () => {
@@ -132,6 +139,9 @@ describe("stripe treasury funding", () => {
       livemode: false,
       details_submitted: true,
       payouts_enabled: false,
+      capabilities: {
+        tax_reporting_us_1099_misc: "active",
+      },
       settings: { payouts: { schedule: { interval: "manual" } } },
       requirements: {
         currently_due: ["individual.verification.document"],
@@ -192,6 +202,53 @@ describe("stripe treasury funding", () => {
     }
   });
 
+  it("blocks creator payouts when Stripe 1099 tax reporting is incomplete", async () => {
+    state.stripeAccount = {
+      livemode: true,
+      details_submitted: true,
+      payouts_enabled: true,
+      capabilities: {
+        tax_reporting_us_1099_misc: "pending",
+      },
+      settings: { payouts: { schedule: { interval: "manual" } } },
+      requirements: {
+        currently_due: ["individual.id_number", "individual.address.line1"],
+        past_due: [],
+        pending_verification: [],
+      },
+    };
+
+    const { server, baseUrl } = await startServer();
+    try {
+      const response = await fetch(`${baseUrl}/v1/stripe/account/instant_payout`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ amount_cents: 4500 }),
+      });
+
+      expect(response.status).toBe(409);
+      await expect(response.json()).resolves.toMatchObject({
+        error: "Stripe tax reporting is incomplete for this creator account.",
+        tax_reporting_owner: "stripe_1099_product",
+        tax_reporting_form_type: "1099-NEC",
+        tax_reporting_capability: "tax_reporting_us_1099_misc",
+        tax_reporting_capability_status: "pending",
+        tax_reporting_ready: false,
+        w9_collection_status: "incomplete",
+        tax_requirements_due: [
+          "individual.id_number",
+          "individual.address.line1",
+        ],
+      });
+      expect(state.transferCreate).not.toHaveBeenCalled();
+      expect(state.payoutCreate).not.toHaveBeenCalled();
+    } finally {
+      await stopServer(server);
+    }
+  });
+
   it("requires a named finance owner and review queue even when the live payout flag is enabled", async () => {
     state.livePayoutExecutionEnabled = true;
 
@@ -228,6 +285,7 @@ describe("stripe treasury funding", () => {
     state.livePayoutExecutionEnabled = true;
     process.env.BLUEPRINT_FINANCE_REVIEW_OWNER = "finance.owner@example.com";
     process.env.BLUEPRINT_FINANCE_REVIEW_QUEUE_URI = "https://ops.example/finance-review";
+    process.env.BLUEPRINT_TAX_REPORTING_1099_RUNBOOK_URI = "https://ops.example/tax-1099";
 
     const { server, baseUrl } = await startServer();
     try {
@@ -277,6 +335,7 @@ describe("stripe treasury funding", () => {
     state.livePayoutExecutionEnabled = true;
     process.env.BLUEPRINT_FINANCE_REVIEW_OWNER = "finance.owner@example.com";
     process.env.BLUEPRINT_FINANCE_REVIEW_QUEUE_URI = "https://ops.example/finance-review";
+    process.env.BLUEPRINT_TAX_REPORTING_1099_RUNBOOK_URI = "https://ops.example/tax-1099";
 
     const { server, baseUrl } = await startServer();
     try {
