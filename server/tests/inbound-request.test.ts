@@ -6,6 +6,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import type { Server } from "node:http";
+import { PRIVACY_VERSION, TERMS_VERSION } from "../../client/src/lib/legalAcceptance";
 
 const sendEmail = vi.hoisted(() => vi.fn());
 const notifySlackInboundRequest = vi.hoisted(() => vi.fn());
@@ -45,6 +46,10 @@ function buildPayload(requestId: string, email: string) {
     company: "Analytical Engines",
     roleTitle: "Operations Lead",
     email,
+    accountSignup: true,
+    acceptedTerms: true,
+    termsVersion: TERMS_VERSION,
+    privacyVersion: PRIVACY_VERSION,
     budgetBucket: "$50K-$300K",
     requestedLanes: ["qualification"],
     buyerType: "site_operator",
@@ -96,6 +101,10 @@ function buildRobotTeamPayload(requestId: string, email: string) {
     company: "Compiler Robotics",
     roleTitle: "Autonomy Lead",
     email,
+    accountSignup: true,
+    acceptedTerms: true,
+    termsVersion: TERMS_VERSION,
+    privacyVersion: PRIVACY_VERSION,
     budgetBucket: "$50K-$300K",
     requestedLanes: ["qualification"],
     buyerType: "robot_team",
@@ -694,6 +703,152 @@ describe("inbound request route", () => {
           user: null,
         }),
       );
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  // R047: buyers/operators must accept Terms of Service + Privacy Policy at signup,
+  // and the acceptance must be recorded server-side.
+  it("rejects a buyer/operator signup that does not accept Terms and Privacy", async () => {
+    process.env.NODE_ENV = "development";
+    vi.resetModules();
+
+    const { server, baseUrl } = await startRouterServer();
+
+    try {
+      const requestId = `no-consent-${Date.now()}`;
+      // Keeps accountSignup: true (from buildPayload) but drops the acceptance,
+      // reproducing a buyer/operator signup attempt without consent.
+      const payload = buildPayload(requestId, `no-consent+${Date.now()}@example.com`) as Record<
+        string,
+        unknown
+      >;
+      delete payload.acceptedTerms;
+
+      const response = await fetch(`${baseUrl}/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      expect(response.status).toBe(400);
+
+      const json = (await response.json()) as { ok: boolean; message?: string };
+      expect(json.ok).toBe(false);
+      expect(json.message).toMatch(/Terms of Service and Privacy Policy/i);
+
+      // No consent means no persisted record is written for this request.
+      const persisted = fs.existsSync(devLogPath)
+        ? fs
+            .readFileSync(devLogPath, "utf8")
+            .trim()
+            .split("\n")
+            .filter(Boolean)
+            .map((line) => JSON.parse(line) as { requestId: string })
+            .find((entry) => entry.requestId === requestId)
+        : undefined;
+      expect(persisted).toBeUndefined();
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("records server-derived Terms and Privacy acceptance on the persisted request", async () => {
+    process.env.NODE_ENV = "development";
+    vi.resetModules();
+
+    const { server, baseUrl } = await startRouterServer();
+
+    try {
+      const requestId = `consent-${Date.now()}`;
+      const response = await fetch(`${baseUrl}/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          // Client-reported version values are intentionally stale; the server
+          // must record its own current version constants, not these.
+          ...buildPayload(requestId, `consent+${Date.now()}@example.com`),
+          termsVersion: "client-supplied-stale",
+          privacyVersion: "client-supplied-stale",
+        }),
+      });
+
+      expect(response.status).toBe(201);
+
+      const lines = fs.readFileSync(devLogPath, "utf8").trim().split("\n");
+      const savedRequest = lines
+        .map((line) => JSON.parse(line) as {
+          requestId: string;
+          terms_acceptance?: {
+            accepted_terms?: boolean;
+            terms_version?: string;
+            privacy_version?: string;
+            terms_url?: string;
+            privacy_url?: string;
+            accepted_at?: string;
+            accepted_from_ip_hash?: string | null;
+          };
+        })
+        .find((entry) => entry.requestId === requestId);
+
+      expect(savedRequest?.terms_acceptance).toBeDefined();
+      expect(savedRequest?.terms_acceptance?.accepted_terms).toBe(true);
+      expect(savedRequest?.terms_acceptance?.terms_version).toBe(TERMS_VERSION);
+      expect(savedRequest?.terms_acceptance?.privacy_version).toBe(PRIVACY_VERSION);
+      // Server records its own constants, ignoring the stale client-supplied values.
+      expect(savedRequest?.terms_acceptance?.terms_version).not.toBe("client-supplied-stale");
+      expect(savedRequest?.terms_acceptance?.terms_url).toBe("/terms");
+      expect(savedRequest?.terms_acceptance?.privacy_url).toBe("/privacy");
+      expect(typeof savedRequest?.terms_acceptance?.accepted_at).toBe("string");
+      expect(Number.isNaN(Date.parse(savedRequest?.terms_acceptance?.accepted_at ?? ""))).toBe(false);
+      expect(savedRequest?.terms_acceptance?.accepted_from_ip_hash).toBeTruthy();
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("still accepts a non-signup lead submission (contact/pilot) without acceptance", async () => {
+    process.env.NODE_ENV = "development";
+    vi.resetModules();
+
+    const { server, baseUrl } = await startRouterServer();
+
+    try {
+      const requestId = `lead-${Date.now()}`;
+      // Shared lead forms reuse this route without the account-signup marker or
+      // acceptance; they must keep working and record no acceptance.
+      const payload = buildPayload(requestId, `lead+${Date.now()}@example.com`) as Record<
+        string,
+        unknown
+      >;
+      delete payload.accountSignup;
+      delete payload.acceptedTerms;
+
+      const response = await fetch(`${baseUrl}/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      expect(response.status).toBe(201);
+
+      const lines = fs.readFileSync(devLogPath, "utf8").trim().split("\n");
+      const savedRequest = lines
+        .map((line) => JSON.parse(line) as {
+          requestId: string;
+          terms_acceptance?: unknown;
+        })
+        .find((entry) => entry.requestId === requestId);
+
+      expect(savedRequest).toBeDefined();
+      expect(savedRequest?.terms_acceptance ?? null).toBeNull();
     } finally {
       await stopServer(server);
     }
