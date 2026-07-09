@@ -47,6 +47,50 @@ The repo now includes [render.yaml](/Users/nijelhunt_1/workspace/Blueprint-WebAp
 
 Render should hold all secrets in the service environment, not in `render.yaml`.
 
+### CI-gated deploy (R045)
+
+`autoDeploy` is **off** in `render.yaml`, so a git push (and any red build) can no longer ship
+to production on its own. Production deploys are CI-gated:
+
+- [.github/workflows/deploy.yml](/Users/nijelhunt_1/workspace/Blueprint-WebApp/.github/workflows/deploy.yml)
+  runs after the CI workflow completes on `main` and calls a Render Deploy Hook **only** when CI
+  concluded `success`, pinned to the exact green SHA (`?ref=<sha>`).
+- A `workflow_dispatch` path lets an operator deploy an explicit SHA on demand.
+
+One-time human/dashboard steps (confirm Auto-Deploy OFF in Render, create the Deploy Hook, store
+`RENDER_DEPLOY_HOOK_URL` as an Actions secret, and require CI via branch protection) are documented
+in [docs/runbooks/CI_GATED_DEPLOY_AND_RELEASE.md](/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/runbooks/CI_GATED_DEPLOY_AND_RELEASE.md).
+
+### Versioned release artifact (R046)
+
+Every `npm run build` runs
+[scripts/generate-build-info.mjs](/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/generate-build-info.mjs),
+which stamps `dist/public/version.json` with the git SHA + package version. Because `dist/public`
+is the static web root, the live deployed SHA is readable at `GET /version.json` — that is how you
+identify the last-good SHA before a rollback.
+
+## Rollback
+
+Deploys are CI-gated (`autoDeploy: false`); there is no manual `deploy.sh`. To roll back a
+bad release, redeploy the last known-good git commit on the same Render service, health-gated,
+with [scripts/rollback-deploy.sh](/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/rollback-deploy.sh)
+(read the current live SHA first via `curl -s https://tryblueprint.io/version.json | jq -r .gitSha`):
+
+```bash
+# Dry-run the plan first (no API calls, no health checks):
+scripts/rollback-deploy.sh --commit <known-good-sha> --service-id srv_xxxxxxxx --dry-run
+
+# Execute: redeploy the SHA on Render, then verify /health and /health/ready:
+RENDER_API_KEY=rnd_xxx RENDER_SERVICE_ID=srv_xxxxxxxx \
+  scripts/rollback-deploy.sh --commit <known-good-sha> --base-url https://tryblueprint.io --yes
+```
+
+There is no destructive default: an explicit `--commit` is required, the script verifies the SHA
+locally, polls Render until the deploy is `live`, and gates on the health endpoints — it never
+rolls forward to a broken build. If the rolled-back version is unhealthy it exits non-zero and you
+escalate. The Render dashboard (Service → Deploys → Rollback) is the manual fallback if the API is
+unreachable. Full incident context: `docs/runbooks/BETA_INCIDENT_RESPONSE_RUNBOOK.md`.
+
 ## Required Environment Variables
 
 ### Firebase (client)

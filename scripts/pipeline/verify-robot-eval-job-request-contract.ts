@@ -20,6 +20,24 @@ type SharedRobotEvalContract = {
 
 const DEFAULT_SIBLING_MODULE = "../BlueprintContracts/js/robot-eval-job-request.mjs";
 
+// R029: BlueprintContracts is the single source of truth for
+// robot_eval_job_request.v1. When BLUEPRINT_REQUIRE_SHARED_ROBOT_EVAL_CONTRACT is
+// truthy this gate fails CLOSED if the shared module cannot be loaded, instead of
+// degrading. Launch and CI MUST set the flag: CI pins the module via CONTRACTS_REF
+// (see .github/workflows/ci.yml) and passes it with --contracts-module, mirroring
+// the pipeline's pyproject blueprint-contracts git-sha pin. With the flag unset the
+// historical behavior is preserved (still exits non-zero on load failure, but with
+// the generic shared_contract_load_failed blocker) so local dev keeps working.
+const REQUIRE_SHARED_CONTRACT_ENV = "BLUEPRINT_REQUIRE_SHARED_ROBOT_EVAL_CONTRACT";
+
+function envTruthy(value: string | undefined): boolean {
+  return ["1", "true", "yes", "on"].includes((value ?? "").trim().toLowerCase());
+}
+
+function requireSharedContract(): boolean {
+  return envTruthy(process.env[REQUIRE_SHARED_CONTRACT_ENV]);
+}
+
 function parseArgs(argv: string[]) {
   const args = new Map<string, string>();
   for (let index = 0; index < argv.length; index += 1) {
@@ -164,10 +182,13 @@ function compareList(name: string, actual: readonly string[], expected: readonly
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
+  const requireShared = requireSharedContract();
   const explicitModule =
     args.get("contracts-module") ||
     process.env.BLUEPRINT_CONTRACTS_ROBOT_EVAL_JS ||
     process.env.BLUEPRINT_CONTRACTS_ROBOT_EVAL_MODULE;
+  // A load failure here throws and is handled by the fail-closed catch below.
+  // When requireShared is set that failure is fatal (shared_contract_required_but_unavailable).
   const { source, module: shared } = await loadSharedContract(explicitModule);
 
   const request = buildFixtureRequest();
@@ -238,6 +259,7 @@ async function main() {
   const report = {
     schema_version: "blueprint.webapp.robot_eval_job_request_contract_parity.v1",
     status: blockers.length === 0 ? "passed" : "blocked",
+    shared_contract_required: requireShared,
     shared_contract_source: source,
     local_validator: localValidation,
     shared_contract_errors: sharedErrors,
@@ -259,10 +281,18 @@ async function main() {
 
 main().catch((error) => {
   const message = error instanceof Error ? error.message : String(error);
+  const requireShared = requireSharedContract();
+  // Fail closed in both modes (non-zero exit). When the shared contract is
+  // required, surface a distinct blocker so launch/CI can tell a missing pinned
+  // module apart from a generic load error and never fall back to a copy.
+  const blocker = requireShared
+    ? "shared_contract_required_but_unavailable"
+    : "shared_contract_load_failed";
   console.error(JSON.stringify({
     schema_version: "blueprint.webapp.robot_eval_job_request_contract_parity.v1",
     status: "blocked",
-    blockers: ["shared_contract_load_failed"],
+    shared_contract_required: requireShared,
+    blockers: [blocker],
     error: message,
   }, null, 2));
   process.exitCode = 1;

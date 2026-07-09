@@ -847,21 +847,32 @@ export interface SceneDashboardCategory {
   tasks: SceneDashboardTask[];
 }
 
+export interface SceneDashboardCaptureAnchor {
+  capture_id: string;
+  status: string;
+  confidence: number | null;
+  memo_path: string;
+  memo_uri: string;
+}
+
 export interface SceneDashboardSummary {
   schema_version: "v1";
   scene: string;
-  whole_home: {
-    capture_id: string;
-    status: string;
-    confidence: number | null;
-    memo_path: string;
-    memo_uri: string;
-  };
+  // Site-type-agnostic descriptor (e.g. "whole_home", "warehouse", "factory").
+  site_type?: string;
+  // Legacy residential (home) anchor. Kept required for the current residential
+  // renderer; generalized producers may additionally emit the fields below.
+  whole_home: SceneDashboardCaptureAnchor;
   categories: {
     pick: SceneDashboardCategory;
     open_close: SceneDashboardCategory;
     navigate: SceneDashboardCategory;
   };
+  // Generalized site-type-agnostic anchor mirroring `whole_home`.
+  site_capture?: SceneDashboardCaptureAnchor;
+  // Open/extensible task taxonomy keyed by arbitrary category id
+  // (tote_transfer, palletize, line_side_delivery, aisle_navigation, ...).
+  site_summary?: Record<string, SceneDashboardCategory>;
   theme_counts: Record<string, number>;
   action_counts: Record<string, number>;
   deployment_summary: {

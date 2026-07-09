@@ -5,7 +5,9 @@ import { getSiteLibrarySite } from "../data/siteLibrary";
 
 export type AppRoute = {
   path?: string;
-  layout: "public" | "protected";
+  // "admin" additionally requires an admin/ops role (see AdminProtectedRoute);
+  // "protected" only requires an authenticated user.
+  layout: "public" | "protected" | "admin";
   shell?: "site" | "bare";
   // Some route components require `params` props from wouter dynamic segments.
   component: ComponentType<any>;
@@ -328,13 +330,15 @@ export const appRoutes: AppRoute[] = [
   { path: "/app/data", layout: "protected", shell: "bare", component: AppDataPackages },
   { path: "/app/entitlements", layout: "protected", shell: "bare", component: AppEntitlements },
 
-  // Redesign — ops console (mock-data demo; own ops shell, no SiteLayout)
-  { path: "/ops", layout: "public", shell: "bare", component: OpsQueue },
-  { path: "/ops/supply", layout: "public", shell: "bare", component: OpsCaptureSupply },
-  { path: "/ops/city-launch", layout: "public", shell: "bare", component: OpsCityLaunch },
-  { path: "/ops/evidence", layout: "public", shell: "bare", component: OpsEvidenceReview },
-  { path: "/ops/handoff", layout: "public", shell: "bare", component: OpsBuyerHandoff },
-  { path: "/ops/spend", layout: "public", shell: "bare", component: OpsSpendControls },
+  // Redesign — ops console (admin/ops-gated; own ops shell, no SiteLayout).
+  // R036: previously public — now behind an admin/ops route gate, with the
+  // highest-value panels backed by the authenticated /api/ops data route.
+  { path: "/ops", layout: "admin", shell: "bare", component: OpsQueue },
+  { path: "/ops/supply", layout: "admin", shell: "bare", component: OpsCaptureSupply },
+  { path: "/ops/city-launch", layout: "admin", shell: "bare", component: OpsCityLaunch },
+  { path: "/ops/evidence", layout: "admin", shell: "bare", component: OpsEvidenceReview },
+  { path: "/ops/handoff", layout: "admin", shell: "bare", component: OpsBuyerHandoff },
+  { path: "/ops/spend", layout: "admin", shell: "bare", component: OpsSpendControls },
 
   // 404
   { layout: "public", component: NotFound },

@@ -240,4 +240,110 @@ describe("marketplace entitlements route", () => {
       await stopServer(server);
     }
   });
+
+  it("R031: mints a signed URL from the persisted package delivery source for a provisioned entitlement", async () => {
+    state.entitlements = [
+      {
+        id: "ent-r031-1",
+        buyer_user_id: "buyer-123",
+        sku: "robot-eval-capture-9",
+        access_state: "provisioned",
+        // Persisted by the internal package-delivery ingestion route from the
+        // pipeline arena_package_delivery_gcs `webapp_ingestion` block.
+        package_delivery_base_uri:
+          "gs://blueprint-artifacts/marketplace-artifacts/ent-r031-1",
+        package_object_keys: [
+          "marketplace-artifacts/ent-r031-1/manifest.json",
+          "marketplace-artifacts/ent-r031-1/package.zip",
+        ],
+      },
+    ];
+
+    const { server, baseUrl } = await startServer();
+    try {
+      const response = await fetch(
+        `${baseUrl}/api/marketplace/entitlements/ent-r031-1/artifact-access`,
+      );
+
+      expect(response.status).toBe(200);
+      // No artifact_key query param: the package archive is aliased under a
+      // preferred key so the default selection resolves to the package, not the
+      // incidental manifest sidecar.
+      await expect(response.json()).resolves.toMatchObject({
+        entitlement_id: "ent-r031-1",
+        artifact_uri:
+          "gs://blueprint-artifacts/marketplace-artifacts/ent-r031-1/package.zip",
+        signed_url:
+          "https://storage.example.test/blueprint-artifacts/marketplace-artifacts/ent-r031-1/package.zip?signed=1",
+        buyer_access_check: expect.objectContaining({
+          entitlement_verified: true,
+          buyer_accessible: true,
+          status: "signed_url_minted",
+        }),
+      });
+      expect(state.signedUrlCalls).toEqual([
+        expect.objectContaining({
+          bucket: "blueprint-artifacts",
+          objectPath: "marketplace-artifacts/ent-r031-1/package.zip",
+        }),
+      ]);
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("R031: returns a clear not-ready state for a provisioned entitlement with no package source", async () => {
+    state.entitlements = [
+      {
+        id: "ent-r031-2",
+        buyer_user_id: "buyer-123",
+        sku: "robot-eval-capture-10",
+        access_state: "provisioned",
+      },
+    ];
+
+    const { server, baseUrl } = await startServer();
+    try {
+      const response = await fetch(
+        `${baseUrl}/api/marketplace/entitlements/ent-r031-2/artifact-access`,
+      );
+
+      expect(response.status).toBe(404);
+      await expect(response.json()).resolves.toMatchObject({
+        code: "artifact_access_not_configured",
+      });
+      expect(state.signedUrlCalls).toEqual([]);
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("R031: refuses to mint for a revoked entitlement even when a package source is present", async () => {
+    state.entitlements = [
+      {
+        id: "ent-r031-3",
+        buyer_user_id: "buyer-123",
+        sku: "robot-eval-capture-11",
+        access_state: "revoked",
+        package_delivery_base_uri:
+          "gs://blueprint-artifacts/marketplace-artifacts/ent-r031-3",
+        package_object_keys: ["marketplace-artifacts/ent-r031-3/package.zip"],
+      },
+    ];
+
+    const { server, baseUrl } = await startServer();
+    try {
+      const response = await fetch(
+        `${baseUrl}/api/marketplace/entitlements/ent-r031-3/artifact-access`,
+      );
+
+      expect(response.status).toBe(403);
+      await expect(response.json()).resolves.toMatchObject({
+        code: "entitlement_revoked",
+      });
+      expect(state.signedUrlCalls).toEqual([]);
+    } finally {
+      await stopServer(server);
+    }
+  });
 });

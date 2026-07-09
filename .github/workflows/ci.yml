@@ -42,7 +42,52 @@ jobs:
           git checkout --detach FETCH_HEAD
 
       - name: Verify shared robot-eval job request contract
+        env:
+          # R029: fail closed if the pinned shared BlueprintContracts module is
+          # missing instead of silently degrading to a copy. The module is
+          # checked out above at CONTRACTS_REF and passed via --contracts-module.
+          BLUEPRINT_REQUIRE_SHARED_ROBOT_EVAL_CONTRACT: "true"
         run: npm run pipeline:robot-eval-contract:verify -- --contracts-module BlueprintContracts/js/robot-eval-job-request.mjs
+
+      # Best-effort: compare against the SAME branch in the sibling repo when it
+      # exists (so a coordinated cross-repo change stays green pre-merge), else
+      # main. If the sibling cannot be fetched (token lacks read access), the
+      # guard degrades to a warning instead of hard-failing every WebApp build.
+      - name: Checkout BlueprintCapture for Firestore + Storage rules parity
+        id: capture_checkout
+        continue-on-error: true
+        env:
+          CAPTURE_REPOSITORY: ognjhunt/BlueprintCapture
+          CAPTURE_TOKEN: ${{ secrets.BLUEPRINT_CONTRACTS_CHECKOUT_TOKEN || github.token }}
+        run: |
+          set -euo pipefail
+          # Clone OUTSIDE the repo tree (RUNNER_TEMP) so later steps such as
+          # audit:assets/build never scan the sibling checkout's files.
+          dest="${RUNNER_TEMP}/BlueprintCapture"
+          rm -rf "$dest"
+          git init "$dest"
+          cd "$dest"
+          git remote add origin "https://x-access-token:${CAPTURE_TOKEN}@github.com/${CAPTURE_REPOSITORY}.git"
+          branch_ref="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME:-main}}"
+          if git fetch --depth=1 origin "${branch_ref}"; then
+            echo "Using BlueprintCapture ref ${branch_ref}"
+          elif git fetch --depth=1 origin main; then
+            echo "Using BlueprintCapture ref main"
+          else
+            echo "::warning::Could not fetch BlueprintCapture; skipping cross-repo rules parity."
+            exit 1
+          fi
+          git checkout --detach FETCH_HEAD
+
+      - name: Firestore + Storage rules parity (last-writer-wins guard)
+        if: steps.capture_checkout.outcome == 'success'
+        run: |
+          npm run rules:parity -- --ios-rules "${RUNNER_TEMP}/BlueprintCapture/firestore.rules"
+          npm run rules:parity:storage -- --ios-rules "${RUNNER_TEMP}/BlueprintCapture/storage.rules"
+
+      - name: Warn if rules parity was skipped
+        if: steps.capture_checkout.outcome != 'success'
+        run: echo "::warning::Cross-repo rules parity did not run (sibling checkout failed). Verify storage.rules/firestore.rules parity manually before deploying."
 
       - name: Audit assets
         run: npm run audit:assets

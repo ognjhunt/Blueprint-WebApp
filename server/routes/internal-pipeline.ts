@@ -48,6 +48,11 @@ import {
   validatePipelineArtifactUris,
   verifyPipelineSyncRequest,
 } from "../utils/pipelineSyncSecurity";
+import {
+  ingestConsentRevocationTakedown,
+  type ConsentRevocationNotice,
+} from "../utils/consentRevocationTakedown";
+import { emitOperatorAlert } from "../utils/operator-alerts";
 
 const router = Router();
 const pipelineSyncRateLimiter = createPipelineSyncRateLimiter();
@@ -100,6 +105,16 @@ const PREFERRED_BUYER_ARTIFACT_KEYS = [
   "manifestUri",
   "robot_eval_dataset_manifest_uri",
 ] as const;
+// R031: fields the package-delivery ingestion route persists onto an entitlement.
+const BUYER_DELIVERY_BASE_URI_FIELDS = [
+  "package_delivery_base_uri",
+  "packageDeliveryBaseUri",
+] as const;
+const BUYER_DELIVERY_OBJECT_KEYS_FIELDS = [
+  "package_object_keys",
+  "packageObjectKeys",
+] as const;
+const BUYER_PACKAGE_ARCHIVE_PATTERN = /\.(zip|tar|tgz|tar\.gz|tar\.zst|7z)$/i;
 
 type BuyerArtifactCandidate = {
   key: string;
@@ -176,6 +191,71 @@ function collectBuyerArtifactCandidates(
     seen.add(dedupeKey);
     return true;
   });
+}
+
+/**
+ * R031: build signed-URL candidates from the pipeline-delivered GCS package
+ * source persisted on the entitlement (`package_delivery_base_uri` +
+ * `package_object_keys`). Mirrors the buyer mint route so the pipeline's own
+ * buyer-access check sees the same delivery source it wrote.
+ */
+function collectBuyerDeliveryPackageCandidates(
+  record: Record<string, unknown>,
+  source: string,
+): BuyerArtifactCandidate[] {
+  let baseUri = "";
+  for (const field of BUYER_DELIVERY_BASE_URI_FIELDS) {
+    baseUri = stringValue(record[field]);
+    if (baseUri) {
+      break;
+    }
+  }
+  let objectKeys: string[] = [];
+  for (const field of BUYER_DELIVERY_OBJECT_KEYS_FIELDS) {
+    const value = record[field];
+    if (Array.isArray(value)) {
+      objectKeys = value.map((entry) => stringValue(entry)).filter(Boolean);
+      break;
+    }
+  }
+  if (!baseUri.startsWith("gs://") || objectKeys.length === 0) {
+    return [];
+  }
+
+  let bucket = "";
+  let basePrefix = "";
+  try {
+    const parsed = parseGsUri(baseUri);
+    bucket = parsed.bucket;
+    basePrefix = parsed.objectPath.replace(/\/+$/, "");
+  } catch {
+    return [];
+  }
+
+  const perObject: BuyerArtifactCandidate[] = [];
+  const seen = new Set<string>();
+  for (const rawKey of objectKeys) {
+    const objectKey = rawKey.replace(/^\/+/, "");
+    if (!objectKey || seen.has(objectKey)) {
+      continue;
+    }
+    seen.add(objectKey);
+    const relPath = objectKey.startsWith(`${basePrefix}/`)
+      ? objectKey.slice(basePrefix.length + 1)
+      : objectKey.split("/").pop() || objectKey;
+    perObject.push({ key: relPath, uri: `gs://${bucket}/${objectKey}`, source });
+  }
+  if (perObject.length === 0) {
+    return [];
+  }
+
+  const primary =
+    perObject.find((candidate) => BUYER_PACKAGE_ARCHIVE_PATTERN.test(candidate.key)) ||
+    perObject[0];
+  return [
+    { key: "post_training_data_package_uri", uri: primary.uri, source },
+    ...perObject,
+  ];
 }
 
 function fieldFromBodyOrIds(
@@ -1266,6 +1346,29 @@ router.post(
 
       const entitlementAccessState = stringValue(entitlement.access_state);
       const buyerUserId = stringValue(entitlement.buyer_user_id || entitlement.buyerUserId);
+      // R027: a consent-revoked entitlement must never mint a signed URL. Block
+      // explicitly (and audit) instead of relying only on the provisioned gate.
+      if (entitlementAccessState === "revoked") {
+        const takedown = isRecord(entitlement.takedown) ? entitlement.takedown : {};
+        logger.warn(
+          {
+            entitlement_id: String(entitlement.id || entitlementId || ""),
+            capture_id: stringValue(takedown.capture_id) || null,
+            scene_id: stringValue(takedown.scene_id) || null,
+            source_notice_id: stringValue(takedown.source_notice_id) || null,
+          },
+          "Blocked buyer artifact access for consent-revoked entitlement",
+        );
+        return res.status(200).json({
+          ok: false,
+          accessible: false,
+          buyer_accessible: false,
+          buyer_access_checked: true,
+          entitlement_verified: false,
+          blocker: "marketplace_entitlement_revoked_by_consent_takedown",
+          status: "blocked",
+        });
+      }
       if (entitlementAccessState !== "provisioned" || !buyerUserId) {
         return res.status(200).json({
           ok: false,
@@ -1283,6 +1386,8 @@ router.post(
       const resolvedSku = sku || stringValue(entitlement.sku);
       const marketplaceItem = await loadPublishedMarketplaceItem(resolvedSku);
       const candidates = [
+        // R031: the pipeline-delivered GCS package source is authoritative.
+        ...collectBuyerDeliveryPackageCandidates(entitlement, "marketplace_entitlement_package_delivery"),
         ...collectBuyerArtifactCandidates(entitlement, "marketplace_entitlement"),
         ...(marketplaceItem
           ? collectBuyerArtifactCandidates(marketplaceItem, "published_marketplace_item")
@@ -1339,6 +1444,231 @@ router.post(
         buyer_access_checked: true,
         entitlement_verified: false,
         blocker: "buyer_artifact_access_check_failed",
+      });
+    }
+  },
+);
+
+/**
+ * POST /api/internal/pipeline/package-delivery
+ *
+ * R031: consume the Pipeline `arena_package_delivery_gcs` delivery manifest's
+ * `webapp_ingestion` block (`{ entitlement_id, delivery_base_uri, object_keys,
+ * requires_webapp_entitlement_and_consent_check }`) and persist the delivered
+ * GCS package source onto the matching marketplace entitlement so the buyer
+ * signed-URL mint path (marketplace-entitlements `artifact-access`) has a gs://
+ * source to sign. HMAC-protected by the same Pipeline sync token.
+ *
+ * This route is delivery-source plumbing ONLY: it never provisions, un-revokes,
+ * or approves the entitlement. The access-state provisioned gate and the
+ * consent-revocation refusal remain authoritative at mint time.
+ */
+router.post(
+  "/package-delivery",
+  pipelineSyncRateLimiter,
+  requirePipelineToken,
+  async (req: Request, res: Response) => {
+    try {
+      if (!db) {
+        return res.status(503).json({
+          ok: false,
+          package_delivery_recorded: false,
+          code: "database_not_available",
+        });
+      }
+
+      const body = isRecord(req.body) ? req.body : {};
+      const ingestion = isRecord(body.webapp_ingestion)
+        ? (body.webapp_ingestion as Record<string, unknown>)
+        : body;
+
+      const entitlementId = fieldFromBodyOrIds(ingestion, {}, [
+        "entitlement_id",
+        "entitlementId",
+        "marketplace_entitlement_id",
+        "marketplaceEntitlementId",
+      ]);
+      const deliveryBaseUri = fieldFromBodyOrIds(ingestion, {}, [
+        "delivery_base_uri",
+        "deliveryBaseUri",
+        "package_delivery_base_uri",
+        "packageDeliveryBaseUri",
+      ]);
+      const rawObjectKeys =
+        ingestion.object_keys ?? ingestion.objectKeys ?? ingestion.package_object_keys;
+      const objectKeys = Array.isArray(rawObjectKeys)
+        ? rawObjectKeys.map((entry) => stringValue(entry)).filter(Boolean)
+        : [];
+
+      if (!entitlementId) {
+        return res.status(400).json({
+          ok: false,
+          package_delivery_recorded: false,
+          code: "missing_entitlement_id",
+        });
+      }
+      if (!deliveryBaseUri.startsWith("gs://")) {
+        return res.status(400).json({
+          ok: false,
+          package_delivery_recorded: false,
+          code: "invalid_delivery_base_uri",
+        });
+      }
+      if (objectKeys.length === 0) {
+        return res.status(400).json({
+          ok: false,
+          package_delivery_recorded: false,
+          code: "missing_object_keys",
+        });
+      }
+
+      let bucket = "";
+      try {
+        bucket = parseGsUri(deliveryBaseUri).bucket;
+      } catch {
+        return res.status(400).json({
+          ok: false,
+          package_delivery_recorded: false,
+          code: "invalid_delivery_base_uri",
+        });
+      }
+
+      // Enforce the same allowed-GCS-prefix policy as the attachment sync so the
+      // pipeline cannot point buyer delivery at an arbitrary bucket.
+      const objectUris = objectKeys.map(
+        (key) => `gs://${bucket}/${key.replace(/^\/+/, "")}`,
+      );
+      const uriViolations = validatePipelineArtifactUris({
+        artifacts: {
+          package_delivery_base_uri: deliveryBaseUri,
+          package_delivery_object_uris: objectUris,
+        },
+      });
+      if (uriViolations.length > 0) {
+        return res.status(400).json({
+          ok: false,
+          package_delivery_recorded: false,
+          code: "invalid_pipeline_artifact_uri",
+          violations: uriViolations,
+        });
+      }
+
+      const snapshot = await db
+        .collection("marketplaceEntitlements")
+        .doc(entitlementId)
+        .get();
+      if (!snapshot.exists) {
+        return res.status(404).json({
+          ok: false,
+          package_delivery_recorded: false,
+          code: "marketplace_entitlement_not_found",
+          entitlement_id: entitlementId,
+        });
+      }
+      const entitlement = (snapshot.data() || {}) as Record<string, unknown>;
+      const accessState = stringValue(entitlement.access_state);
+
+      await db
+        .collection("marketplaceEntitlements")
+        .doc(entitlementId)
+        .set(
+          {
+            package_delivery_base_uri: deliveryBaseUri,
+            package_object_keys: objectKeys,
+            package_delivery_object_count: objectKeys.length,
+            package_delivery_source: "pipeline_arena_package_delivery_gcs",
+            package_delivery_synced_at:
+              admin.firestore.FieldValue.serverTimestamp(),
+            updated_at: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          { merge: true },
+        );
+
+      return res.status(200).json({
+        ok: true,
+        package_delivery_recorded: true,
+        entitlement_id: entitlementId,
+        delivery_base_uri: deliveryBaseUri,
+        object_count: objectKeys.length,
+        access_state: accessState || null,
+        // Truthful: recording the source does not flip the gate. A buyer can only
+        // mint a signed URL once the entitlement is provisioned and not revoked.
+        buyer_download_ready: accessState === "provisioned",
+        claim_boundary:
+          "Recording a delivered GCS package source onto an entitlement makes the buyer signed-URL source real. It does not provision, un-revoke, or approve the entitlement, and it is not proof of package semantic success or deployment approval.",
+      });
+    } catch (error) {
+      logger.error({ error }, "Failed to record pipeline package delivery");
+      // R037: a failed package-delivery ingestion means a buyer's delivered
+      // package source was not recorded — a core beta failure class.
+      void emitOperatorAlert({
+        class: "package_failed",
+        severity: "critical",
+        message: "Failed to record pipeline package delivery ingestion.",
+        context: {
+          error: error instanceof Error ? error.message : String(error),
+          route: "POST /api/internal/pipeline/package-delivery",
+        },
+      });
+      return res.status(500).json({
+        ok: false,
+        package_delivery_recorded: false,
+        code: "package_delivery_recording_failed",
+      });
+    }
+  },
+);
+
+/**
+ * POST /api/internal/pipeline/consent-revocation-takedown
+ *
+ * R027 enforcement: consume a Pipeline `webapp_rights_privacy_takedown_notice`
+ * (emitted when a capture's consent is revoked) and flip every marketplace
+ * entitlement linked to the revoked capture/scene/site to
+ * `access_state="revoked"`. This is what makes consent revocation self-enforcing
+ * across the delivery chain: once revoked, the signed-URL mint paths refuse the
+ * entitlement. HMAC-protected by the same Pipeline sync token as the other
+ * internal sync routes.
+ */
+router.post(
+  "/consent-revocation-takedown",
+  pipelineSyncRateLimiter,
+  requirePipelineToken,
+  async (req: Request, res: Response) => {
+    try {
+      if (!db) {
+        return res.status(503).json({
+          ok: false,
+          webapp_takedown_executed: false,
+          code: "database_not_available",
+        });
+      }
+
+      const body = isRecord(req.body) ? req.body : {};
+      const result = await ingestConsentRevocationTakedown(
+        body as ConsentRevocationNotice,
+      );
+
+      if (!result.ok) {
+        const status = result.code === "database_not_available" ? 503 : 400;
+        return res.status(status).json({
+          ...result,
+          webapp_takedown_executed: false,
+        });
+      }
+
+      return res.status(200).json({
+        ...result,
+        webapp_takedown_executed: true,
+        claim_boundary:
+          "WebApp entitlement revocation flips affected provisioned entitlements to access_state=revoked and blocks future signed-URL minting. It is not proof of hosted-session teardown or downstream training deletion.",
+      });
+    } catch (error) {
+      logger.error({ error }, "Failed to ingest consent revocation takedown");
+      return res.status(500).json({
+        ok: false,
+        webapp_takedown_executed: false,
+        code: "consent_revocation_takedown_failed",
       });
     }
   },

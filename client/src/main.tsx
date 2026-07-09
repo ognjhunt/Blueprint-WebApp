@@ -12,6 +12,7 @@ import { CookieConsent } from "./components/CookieConsent";
 import { Analytics } from "./components/Analytics";
 import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
+import AdminProtectedRoute from "./components/AdminProtectedRoute";
 import { installClientLogger } from "./utils/clientLogger";
 import { appRoutes, preloadMatchedRoute } from "./app/routes";
 
@@ -20,7 +21,7 @@ installClientLogger();
 const withShell =
   <P extends object>(
     Component: React.ComponentType<P>,
-    options: { protectedRoute?: boolean; shell?: "site" | "bare" },
+    options: { gate?: "protected" | "admin"; shell?: "site" | "bare" },
   ) =>
   (props: P) => {
     const content =
@@ -32,7 +33,11 @@ const withShell =
         </SiteLayout>
       );
 
-    if (options.protectedRoute) {
+    if (options.gate === "admin") {
+      return <AdminProtectedRoute>{content}</AdminProtectedRoute>;
+    }
+
+    if (options.gate === "protected") {
       return <ProtectedRoute>{content}</ProtectedRoute>;
     }
 
@@ -45,7 +50,12 @@ function Router() {
       <Switch>
         {appRoutes.map((route, index) => {
           const wrappedComponent = withShell(route.component, {
-            protectedRoute: route.layout === "protected",
+            gate:
+              route.layout === "admin"
+                ? "admin"
+                : route.layout === "protected"
+                  ? "protected"
+                  : undefined,
             shell: route.shell || "site",
           });
 

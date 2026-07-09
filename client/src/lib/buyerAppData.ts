@@ -33,6 +33,11 @@ export type BuyerEntitlement = {
   granted_at?: string | null;
   updated_at?: string | null;
   access?: EntitlementAccessLink | null;
+  // R031: present when the pipeline has delivered a downloadable GCS package for
+  // this entitlement. The buyer mints a short-lived signed URL from the
+  // `artifact-access` route rather than receiving a static link.
+  package_delivery_base_uri?: string | null;
+  package_object_keys?: string[] | null;
 };
 
 type EntitlementsResponse = {

@@ -7,6 +7,8 @@ import {
   trainingDatasets,
 } from "../../client/src/data/content";
 import { dbAdmin as db, storageAdmin } from "../../client/src/lib/firebaseAdmin";
+import { logger } from "../logger";
+import { emitOperatorAlert } from "../utils/operator-alerts";
 
 const router = Router();
 
@@ -33,6 +35,11 @@ const ARTIFACT_MAP_FIELDS = [
   "deliveryArtifacts",
 ];
 const NESTED_ARTIFACT_FIELDS = ["delivery", "package", "pipeline", "site_package", "sitePackage"];
+// R031: fields the pipeline package-delivery ingestion route persists onto an
+// entitlement from the arena_package_delivery_gcs `webapp_ingestion` block.
+const DELIVERY_BASE_URI_FIELDS = ["package_delivery_base_uri", "packageDeliveryBaseUri"];
+const DELIVERY_OBJECT_KEYS_FIELDS = ["package_object_keys", "packageObjectKeys"];
+const PACKAGE_ARCHIVE_PATTERN = /\.(zip|tar|tgz|tar\.gz|tar\.zst|7z)$/i;
 const PREFERRED_ARTIFACT_KEYS = [
   "post_training_data_package_uri",
   "postTrainingDataPackageUri",
@@ -125,6 +132,77 @@ function collectArtifactCandidatesFromRecord(
     seen.add(dedupeKey);
     return true;
   });
+}
+
+function firstStringField(record: Record<string, unknown>, fields: string[]): string {
+  for (const field of fields) {
+    const value = stringValue(record[field]);
+    if (value) {
+      return value;
+    }
+  }
+  return "";
+}
+
+function firstStringArrayField(record: Record<string, unknown>, fields: string[]): string[] {
+  for (const field of fields) {
+    const value = record[field];
+    if (Array.isArray(value)) {
+      return value.map((entry) => stringValue(entry)).filter(Boolean);
+    }
+  }
+  return [];
+}
+
+/**
+ * R031: build signed-URL candidates from the pipeline-delivered GCS package
+ * source persisted on the entitlement (`package_delivery_base_uri` +
+ * `package_object_keys`). Object keys are full bucket object keys; the bucket is
+ * parsed from the base URI. The primary package archive is aliased under a
+ * preferred key so the default selection resolves to the package, not a sidecar.
+ */
+function collectDeliveryPackageCandidates(
+  record: Record<string, unknown>,
+  source: string,
+): ArtifactCandidate[] {
+  const baseUri = firstStringField(record, DELIVERY_BASE_URI_FIELDS);
+  const objectKeys = firstStringArrayField(record, DELIVERY_OBJECT_KEYS_FIELDS);
+  if (!baseUri.startsWith("gs://") || objectKeys.length === 0) {
+    return [];
+  }
+  let bucket = "";
+  let basePrefix = "";
+  try {
+    const parsed = parseGsUri(baseUri);
+    bucket = parsed.bucket;
+    basePrefix = parsed.objectPath.replace(/\/+$/, "");
+  } catch {
+    return [];
+  }
+
+  const perObject: ArtifactCandidate[] = [];
+  const seen = new Set<string>();
+  for (const rawKey of objectKeys) {
+    const objectKey = rawKey.replace(/^\/+/, "");
+    if (!objectKey || seen.has(objectKey)) {
+      continue;
+    }
+    seen.add(objectKey);
+    const relPath = objectKey.startsWith(`${basePrefix}/`)
+      ? objectKey.slice(basePrefix.length + 1)
+      : objectKey.split("/").pop() || objectKey;
+    perObject.push({ key: relPath, uri: `gs://${bucket}/${objectKey}`, source });
+  }
+  if (perObject.length === 0) {
+    return [];
+  }
+
+  const primary =
+    perObject.find((candidate) => PACKAGE_ARCHIVE_PATTERN.test(candidate.key)) || perObject[0];
+  return [
+    { key: "post_training_data_package_uri", uri: primary.uri, source },
+    ...perObject,
+  ];
 }
 
 function selectArtifactCandidate(
@@ -304,7 +382,39 @@ router.get("/:entitlementId/artifact-access", async (req: Request, res: Response
   if (entitlementBuyerUserId !== buyerUserId) {
     return res.status(403).json({ error: "Entitlement does not belong to caller" });
   }
+  // R027: a consent-revoked entitlement must never mint a signed URL. Block
+  // explicitly (and audit) before the generic provisioned gate.
+  if (stringValue(entitlement.access_state) === "revoked") {
+    const takedown = isRecord(entitlement.takedown) ? entitlement.takedown : {};
+    logger.warn(
+      {
+        entitlement_id: entitlementId,
+        buyer_user_id: buyerUserId,
+        capture_id: stringValue(takedown.capture_id) || null,
+        scene_id: stringValue(takedown.scene_id) || null,
+        source_notice_id: stringValue(takedown.source_notice_id) || null,
+      },
+      "Blocked signed artifact URL for consent-revoked entitlement",
+    );
+    return res.status(403).json({
+      error: "Entitlement access has been revoked by a consent takedown",
+      code: "entitlement_revoked",
+    });
+  }
   if (stringValue(entitlement.access_state) !== "provisioned") {
+    // R037: an owning buyer being unable to reach their artifact because the
+    // entitlement is not provisioned is a core beta buyer-access failure class.
+    void emitOperatorAlert({
+      class: "buyer_access_failed",
+      severity: "warning",
+      message: "Buyer artifact access blocked: entitlement not provisioned.",
+      context: {
+        entitlement_id: entitlementId,
+        buyer_user_id: buyerUserId,
+        access_state: stringValue(entitlement.access_state) || null,
+        code: "entitlement_not_provisioned",
+      },
+    });
     return res.status(409).json({
       error: "Entitlement is not provisioned for artifact access",
       code: "entitlement_not_provisioned",
@@ -314,6 +424,9 @@ router.get("/:entitlementId/artifact-access", async (req: Request, res: Response
   const sku = normalizeSku(String(entitlement.sku || ""));
   const marketplaceItem = await loadPublishedMarketplaceItem(sku);
   const candidates = [
+    // R031: the pipeline-delivered GCS package source is the authoritative buyer
+    // delivery, so it takes precedence over incidental item-level artifact URIs.
+    ...collectDeliveryPackageCandidates(entitlement, "entitlement_package_delivery"),
     ...collectArtifactCandidatesFromRecord(entitlement, "entitlement"),
     ...(marketplaceItem
       ? collectArtifactCandidatesFromRecord(marketplaceItem, "published_marketplace_item")
@@ -321,6 +434,20 @@ router.get("/:entitlementId/artifact-access", async (req: Request, res: Response
   ];
   const selected = selectArtifactCandidate(candidates, req);
   if (!selected) {
+    // R037: a provisioned buyer with no signable artifact URI cannot access what
+    // they own — a core beta buyer-access failure class worth an operator alert.
+    void emitOperatorAlert({
+      class: "buyer_access_failed",
+      severity: "critical",
+      message: "Buyer artifact access blocked: no signable artifact URI on a provisioned entitlement.",
+      context: {
+        entitlement_id: entitlementId,
+        buyer_user_id: buyerUserId,
+        sku,
+        available_artifact_keys: candidates.map((candidate) => candidate.key),
+        code: "artifact_access_not_configured",
+      },
+    });
     return res.status(404).json({
       error: "No entitlement artifact URI is available for signed access",
       code: "artifact_access_not_configured",
@@ -358,6 +485,20 @@ router.get("/:entitlementId/artifact-access", async (req: Request, res: Response
         "Signed URL access proves this authenticated buyer has a provisioned entitlement for the referenced artifact. It is not proof of package semantic success.",
     });
   } catch (error) {
+    // R037: minting the signed URL failed for an entitled, provisioned buyer —
+    // the delivery is real but access could not be granted. Alert operators.
+    void emitOperatorAlert({
+      class: "buyer_access_failed",
+      severity: "critical",
+      message: "Buyer artifact access blocked: signed URL minting failed.",
+      context: {
+        entitlement_id: entitlementId,
+        buyer_user_id: buyerUserId,
+        sku,
+        artifact_uri: selected.uri,
+        error: error instanceof Error ? error.message : String(error),
+      },
+    });
     return res.status(400).json({
       error: "Failed to create signed artifact access URL",
       code: error instanceof Error ? error.message : "signed_artifact_url_failed",

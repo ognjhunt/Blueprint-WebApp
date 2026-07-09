@@ -1,10 +1,22 @@
+# Render Blueprint for Blueprint-WebApp.
+#
+# R045: autoDeploy is DISABLED so a red build can never reach production.
+# Render's git-push autoDeploy is decoupled from CI, so it would ship whatever
+# lands on the branch regardless of test status. Instead, deploys are CI-gated:
+# .github/workflows/deploy.yml calls a Render Deploy Hook only after the CI
+# workflow completes successfully on `main`. See
+# docs/runbooks/CI_GATED_DEPLOY_AND_RELEASE.md.
+#
+# NOTE: `autoDeploy: false` here is authoritative for Blueprint-synced services,
+# but the Render dashboard Auto-Deploy toggle must also be confirmed OFF for a
+# service that was created before this change. See the runbook.
 services:
   - type: web
     name: blueprint-webapp
     runtime: node
     plan: starter
     region: oregon
-    autoDeploy: true
+    autoDeploy: false
     buildCommand: npm ci && npm run build
     startCommand: npm start
     healthCheckPath: /health/ready

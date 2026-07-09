@@ -415,4 +415,214 @@ describe("accounting ledgers", () => {
       payout_cents: 4500,
     });
   });
+
+  it("disputes a buyer order and holds linked creator payouts, releasing on a won dispute (R032)", async () => {
+    const { attachStripeCheckoutSessionToBuyerOrder, createBuyerOrderDraft } =
+      await import("../utils/accounting");
+
+    const order = await createBuyerOrderDraft({
+      buyerUserId: "buyer-9",
+      buyerEmail: "buyer9@example.com",
+      sku: "scene-warehouse-9",
+      title: "Warehouse Scene 9",
+      description: "Published scene",
+      itemType: "scene",
+      quantity: 1,
+      licenseTier: "commercial",
+      exclusivity: "non-exclusive",
+      addons: [],
+      inventorySource: "firestore-live",
+      liveInventoryRecordId: "inv-9",
+      deliveryMode: "download_link",
+      inventoryFulfillmentStatus: "ready",
+      rightsStatus: "publishable",
+      unitAmountCents: 125000,
+      totalAmountCents: 125000,
+      currency: "usd",
+      successUrl: "https://example.com/success",
+      cancelUrl: "https://example.com/cancel",
+    });
+    expect(order).not.toBeNull();
+    await attachStripeCheckoutSessionToBuyerOrder({
+      orderId: order!.id,
+      checkoutSessionId: "cs_dispute_9",
+      checkoutSessionUrl: "https://checkout.stripe.test/session-9",
+      livemode: false,
+    });
+
+    // Marketplace inventory bridges a buyer order (sku / inventory record) to the
+    // creator payout(s) that produced the item.
+    state.docs.set(docKey("publishedMarketplaceInventory", "inv-9"), {
+      id: "inv-9",
+      sku: "scene-warehouse-9",
+      capture_id: "cap-9",
+      scene_id: "scene-9",
+    });
+    // Linked, still-pending payout -> must be held.
+    state.docs.set(docKey("creatorPayouts", "cap-9"), {
+      id: "cap-9",
+      capture_id: "cap-9",
+      scene_id: "scene-9",
+      creator_id: "creator-9",
+      status: "approved",
+      approved_amount_cents: 5000,
+    });
+    // Linked payout that already left the platform -> must NOT be held.
+    state.docs.set(docKey("creatorPayouts", "cap-9-intransit"), {
+      id: "cap-9-intransit",
+      capture_id: "cap-9-intransit",
+      scene_id: "scene-9",
+      creator_id: "creator-9",
+      status: "in_transit",
+      approved_amount_cents: 3000,
+    });
+    // Unrelated payout -> must be untouched.
+    state.docs.set(docKey("creatorPayouts", "cap-unrelated"), {
+      id: "cap-unrelated",
+      capture_id: "cap-unrelated",
+      scene_id: "scene-other",
+      creator_id: "creator-9",
+      status: "approved",
+      approved_amount_cents: 2000,
+    });
+
+    state.constructEvent.mockImplementation((body: Buffer) =>
+      JSON.parse(body.toString("utf-8")),
+    );
+
+    const post = async (baseUrl: string, event: unknown) =>
+      fetch(`${baseUrl}/api/stripe/webhooks`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Stripe-Signature": "sig_test",
+        },
+        body: JSON.stringify(event),
+      });
+
+    const { server, baseUrl } = await startWebhookServer();
+    try {
+      // Establish the payment-intent -> order link and take the order to
+      // fulfilled, matching the real purchase flow.
+      const paidResponse = await post(baseUrl, {
+        id: "evt_paid_9",
+        type: "checkout.session.completed",
+        livemode: false,
+        data: {
+          object: {
+            id: "cs_dispute_9",
+            client_reference_id: order!.id,
+            payment_status: "paid",
+            payment_intent: "pi_dispute_9",
+            customer: "cus_dispute_9",
+            livemode: false,
+          },
+        },
+      });
+      expect(paidResponse.status).toBe(200);
+      expect(readDoc("buyerOrders", order!.id)).toMatchObject({
+        status: "fulfilled",
+      });
+
+      const disputeCreated = {
+        id: "evt_dispute_created_9",
+        type: "charge.dispute.created",
+        livemode: false,
+        data: {
+          object: {
+            id: "dp_9",
+            charge: "ch_9",
+            payment_intent: "pi_dispute_9",
+            reason: "fraudulent",
+            status: "needs_response",
+          },
+        },
+      };
+
+      const createdResponse = await post(baseUrl, disputeCreated);
+      expect(createdResponse.status).toBe(200);
+
+      // Order is disputed and remembers its pre-dispute status.
+      expect(readDoc("buyerOrders", order!.id)).toMatchObject({
+        status: "disputed",
+        dispute: {
+          id: "dp_9",
+          state: "open",
+          reason: "fraudulent",
+          prior_status: "fulfilled",
+        },
+      });
+      // Pending linked payout is frozen; prior status recorded for release.
+      expect(readDoc("creatorPayouts", "cap-9")).toMatchObject({
+        status: "on_hold",
+        hold: {
+          dispute_id: "dp_9",
+          buyer_order_id: order!.id,
+          prior_status: "approved",
+        },
+      });
+      // Already-in_transit payout is left alone.
+      expect(readDoc("creatorPayouts", "cap-9-intransit")).toMatchObject({
+        status: "in_transit",
+      });
+      // Unrelated payout untouched.
+      expect(readDoc("creatorPayouts", "cap-unrelated")).toMatchObject({
+        status: "approved",
+      });
+
+      // Business-level idempotency: a re-processed dispute.created (new event id,
+      // same dispute) must not re-capture prior_status as "on_hold".
+      const redeliverResponse = await post(baseUrl, {
+        ...disputeCreated,
+        id: "evt_dispute_created_9_again",
+      });
+      expect(redeliverResponse.status).toBe(200);
+      expect(readDoc("creatorPayouts", "cap-9")).toMatchObject({
+        status: "on_hold",
+        hold: { prior_status: "approved" },
+      });
+      expect(readDoc("buyerOrders", order!.id)).toMatchObject({
+        status: "disputed",
+        dispute: { prior_status: "fulfilled" },
+      });
+
+      // Event-level idempotency: exact re-delivery is deduped.
+      const duplicateResponse = await post(baseUrl, disputeCreated);
+      expect(duplicateResponse.status).toBe(200);
+      await expect(duplicateResponse.json()).resolves.toMatchObject({
+        duplicate: true,
+      });
+
+      // Dispute resolves in the platform's favor -> release the hold.
+      const closedResponse = await post(baseUrl, {
+        id: "evt_dispute_closed_9",
+        type: "charge.dispute.closed",
+        livemode: false,
+        data: {
+          object: {
+            id: "dp_9",
+            charge: "ch_9",
+            payment_intent: "pi_dispute_9",
+            reason: "fraudulent",
+            status: "won",
+          },
+        },
+      });
+      expect(closedResponse.status).toBe(200);
+
+      expect(readDoc("buyerOrders", order!.id)).toMatchObject({
+        status: "fulfilled",
+        dispute: { state: "closed", outcome: "won" },
+      });
+      expect(readDoc("creatorPayouts", "cap-9")).toMatchObject({
+        status: "approved",
+        hold: { released: true, dispute_outcome: "won" },
+      });
+      expect(readDoc("creatorPayouts", "cap-9-intransit")).toMatchObject({
+        status: "in_transit",
+      });
+    } finally {
+      await stopServer(server);
+    }
+  });
 });

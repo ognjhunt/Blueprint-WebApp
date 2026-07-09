@@ -4,6 +4,14 @@ import type {
   BuyerChannelSourceCaptureMode,
 } from "../../client/src/lib/demandAttribution";
 import type { DemandCityKey } from "../../client/src/lib/cityDemandMessaging";
+import type { LegalAcceptanceRecord } from "../../client/src/lib/legalAcceptance";
+
+// R047: server-derived Terms of Service / Privacy Policy acceptance record.
+// `accepted_at` is a Firestore server timestamp on the real write path and an
+// ISO string on the dev fallback log.
+export type TermsAcceptanceRecord = LegalAcceptanceRecord<
+  FirebaseFirestore.Timestamp | FirebaseFirestore.FieldValue | string | null
+>;
 
 /**
  * Types for the site-specific capture and world-model intake and review system.
@@ -795,6 +803,8 @@ export interface InboundRequest {
   pipeline?: PipelineAttachment;
   derived_assets?: DerivedAssetsAttachment;
   evaluation_readiness?: EvaluationReadinessSummary;
+  // R047: recorded Terms of Service / Privacy Policy acceptance for the buyer/operator.
+  terms_acceptance?: TermsAcceptanceRecord | null;
   debug: {
     schemaVersion: number;
   };
@@ -935,6 +945,16 @@ export interface InboundRequestPayload {
   displayCaptureMetadata?: DisplayCaptureMetadata | null;
   realSiteRobotEvalFit?: RealSiteRobotEvalFitInput | null;
   details?: string;
+  // R047: marks the account-creation signup path (buyer/site-operator). The
+  // Terms/Privacy acceptance gate below is enforced only for these submissions
+  // so shared lead forms (contact, pilot exchange) are unaffected.
+  accountSignup?: boolean;
+  // R047: buyer/operator acceptance of Terms of Service + Privacy Policy at signup.
+  // Used only as a required gate on the server; the persisted version/timestamp
+  // are derived server-side, not trusted from these client-reported values.
+  acceptedTerms?: boolean;
+  termsVersion?: string;
+  privacyVersion?: string;
   context: {
     sourcePageUrl: string;
     referrer?: string;
@@ -1001,21 +1021,33 @@ export interface SceneDashboardCategory {
   tasks: SceneDashboardTask[];
 }
 
+export interface SceneDashboardCaptureAnchor {
+  capture_id: string;
+  status: string;
+  confidence: number | null;
+  memo_path: string;
+  memo_uri: string;
+}
+
 export interface SceneDashboardSummary {
   schema_version: "v1";
   scene: string;
-  whole_home: {
-    capture_id: string;
-    status: string;
-    confidence: number | null;
-    memo_path: string;
-    memo_uri: string;
-  };
-  categories: {
+  // Site-type-agnostic descriptor (e.g. "whole_home", "warehouse", "factory").
+  // Optional so legacy residential payloads that never emitted it stay valid.
+  site_type?: string;
+  // Legacy residential (home) anchor. Optional at the type level so generalized
+  // warehouse/factory payloads need not carry it, but retained for back-compat.
+  whole_home?: SceneDashboardCaptureAnchor;
+  categories?: {
     pick: SceneDashboardCategory;
     open_close: SceneDashboardCategory;
     navigate: SceneDashboardCategory;
   };
+  // Generalized site-type-agnostic anchor mirroring `whole_home`.
+  site_capture?: SceneDashboardCaptureAnchor;
+  // Open/extensible task taxonomy keyed by arbitrary category id
+  // (tote_transfer, palletize, line_side_delivery, aisle_navigation, ...).
+  site_summary?: Record<string, SceneDashboardCategory>;
   theme_counts: Record<string, number>;
   action_counts: Record<string, number>;
   deployment_summary: {

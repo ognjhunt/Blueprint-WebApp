@@ -311,4 +311,80 @@ describe("robot-eval job request route forwarding", () => {
       await stopServer(pipeline.server);
     }
   });
+
+  // R028: outside production, an unconfigured forward stays lenient (202) so
+  // local/dev/test keep working even without a Pipeline endpoint.
+  it("returns 202 queued_for_pipeline when forwarding is not configured outside production", async () => {
+    const inboxDir = await fs.mkdtemp(path.join(os.tmpdir(), "robot-eval-route-inbox-"));
+    const captureRoot = path.join(inboxDir, "captures", "sw-chi-01");
+    const jobRequest = buildRequest(captureRoot);
+    const route = await startRobotEvalRoute();
+    vi.stubEnv("NODE_ENV", "test");
+    vi.stubEnv("ROBOT_EVAL_JOB_REQUEST_INBOX_DIR", inboxDir);
+    // No ROBOT_EVAL_JOB_REQUEST_FORWARD_URL -> forwarding is not_configured.
+    vi.stubEnv("ROBOT_EVAL_JOB_REQUEST_FORWARD_URL", "");
+    vi.stubEnv("ROBOT_EVAL_JOB_REQUEST_FORWARD_REQUIRED", "");
+
+    try {
+      const response = await fetch(`${route.baseUrl}/api/robot-eval/job-requests`, {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: "Bearer robot-team-a" },
+        body: JSON.stringify(jobRequest),
+      });
+      const payload = await response.json();
+
+      expect(response.status).toBe(202);
+      expect(payload.status).toBe("queued_for_pipeline");
+      expect(payload.pipelineForward).toEqual(
+        expect.objectContaining({
+          status: "not_configured",
+          performed: false,
+          required: false,
+        }),
+      );
+    } finally {
+      await stopServer(route.server);
+    }
+  });
+
+  // R028: in production, an unconfigured forward is silent data loss and must
+  // fail loudly (5xx) even when FORWARD_REQUIRED is unset/false.
+  it("returns 5xx when forwarding is not configured in production even without the required flag", async () => {
+    const inboxDir = await fs.mkdtemp(path.join(os.tmpdir(), "robot-eval-route-inbox-"));
+    const captureRoot = path.join(inboxDir, "captures", "sw-chi-01");
+    const jobRequest = buildRequest(captureRoot);
+    const route = await startRobotEvalRoute();
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("ROBOT_EVAL_JOB_REQUEST_INBOX_DIR", inboxDir);
+    // No ROBOT_EVAL_JOB_REQUEST_FORWARD_URL -> forwarding is not_configured.
+    vi.stubEnv("ROBOT_EVAL_JOB_REQUEST_FORWARD_URL", "");
+    vi.stubEnv("ROBOT_EVAL_JOB_REQUEST_FORWARD_REQUIRED", "");
+
+    try {
+      const response = await fetch(`${route.baseUrl}/api/robot-eval/job-requests`, {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: "Bearer robot-team-a" },
+        body: JSON.stringify(jobRequest),
+      });
+      const payload = await response.json();
+
+      expect(response.status).toBeGreaterThanOrEqual(500);
+      expect(response.status).toBeLessThan(600);
+      expect(response.status).toBe(503);
+      expect(payload.ok).toBe(false);
+      expect(payload.status).toBe("pipeline_forward_failed");
+      expect(payload.code).toBe("pipeline_forward_not_configured");
+      expect(payload.error).toMatch(/not configured/i);
+      // The durable inbox is still written even though we fail the request.
+      expect(payload.pipelineInbox.queue_contract).toBe("robot_eval_job_request_inbox.v1");
+      expect(payload.pipelineForward).toEqual(
+        expect.objectContaining({
+          status: "not_configured",
+          performed: false,
+        }),
+      );
+    } finally {
+      await stopServer(route.server);
+    }
+  });
 });

@@ -553,6 +553,112 @@ describe("pipeline integration routes", () => {
     }
   });
 
+  it("R031: records pipeline package delivery onto the matching entitlement without touching the gate", async () => {
+    process.env.PIPELINE_SYNC_TOKEN = "secret";
+    state.collectionDocData = {
+      marketplaceEntitlements: {
+        "ent-r031-1": {
+          id: "ent-r031-1",
+          buyer_user_id: "buyer-123",
+          sku: "robot-eval-cap-1",
+          access_state: "provisioned",
+        },
+      },
+    };
+    const { server, baseUrl } = await startServer(() => import("../routes/internal-pipeline"));
+
+    try {
+      const signedRequest = signedPipelineRequest({
+        webapp_ingestion: {
+          entitlement_id: "ent-r031-1",
+          delivery_base_uri: "gs://bucket/marketplace-artifacts/ent-r031-1",
+          object_keys: [
+            "marketplace-artifacts/ent-r031-1/manifest.json",
+            "marketplace-artifacts/ent-r031-1/package.zip",
+          ],
+          requires_webapp_entitlement_and_consent_check: true,
+        },
+      });
+      const response = await fetch(`${baseUrl}/package-delivery`, {
+        method: "POST",
+        ...signedRequest,
+      });
+
+      expect(response.status).toBe(200);
+      await expect(response.json()).resolves.toEqual(
+        expect.objectContaining({
+          ok: true,
+          package_delivery_recorded: true,
+          entitlement_id: "ent-r031-1",
+          delivery_base_uri: "gs://bucket/marketplace-artifacts/ent-r031-1",
+          object_count: 2,
+          access_state: "provisioned",
+          buyer_download_ready: true,
+        }),
+      );
+      expect(findCollectionWrites("marketplaceEntitlements")).toEqual([
+        expect.objectContaining({
+          id: "ent-r031-1",
+          payload: expect.objectContaining({
+            package_delivery_base_uri: "gs://bucket/marketplace-artifacts/ent-r031-1",
+            package_object_keys: [
+              "marketplace-artifacts/ent-r031-1/manifest.json",
+              "marketplace-artifacts/ent-r031-1/package.zip",
+            ],
+            package_delivery_object_count: 2,
+          }),
+          options: { merge: true },
+        }),
+      ]);
+      // The delivery-source write must not flip access_state / consent gate.
+      const write = findCollectionWrites("marketplaceEntitlements")[0];
+      expect(write.payload).not.toHaveProperty("access_state");
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("R031: rejects package delivery pointing outside the allowed GCS prefix", async () => {
+    process.env.PIPELINE_SYNC_TOKEN = "secret";
+    state.collectionDocData = {
+      marketplaceEntitlements: {
+        "ent-r031-9": {
+          id: "ent-r031-9",
+          buyer_user_id: "buyer-123",
+          sku: "robot-eval-cap-9",
+          access_state: "provisioned",
+        },
+      },
+    };
+    const { server, baseUrl } = await startServer(() => import("../routes/internal-pipeline"));
+
+    try {
+      const signedRequest = signedPipelineRequest({
+        webapp_ingestion: {
+          entitlement_id: "ent-r031-9",
+          delivery_base_uri: "gs://evil-bucket/marketplace-artifacts/ent-r031-9",
+          object_keys: ["marketplace-artifacts/ent-r031-9/package.zip"],
+        },
+      });
+      const response = await fetch(`${baseUrl}/package-delivery`, {
+        method: "POST",
+        ...signedRequest,
+      });
+
+      expect(response.status).toBe(400);
+      await expect(response.json()).resolves.toEqual(
+        expect.objectContaining({
+          ok: false,
+          package_delivery_recorded: false,
+          code: "invalid_pipeline_artifact_uri",
+        }),
+      );
+      expect(findCollectionWrites("marketplaceEntitlements")).toEqual([]);
+    } finally {
+      await stopServer(server);
+    }
+  });
+
   it("checks buyer artifact access by listing id and blocks when no provisioned entitlement exists", async () => {
     process.env.PIPELINE_SYNC_TOKEN = "secret";
     state.collectionDocData = {
