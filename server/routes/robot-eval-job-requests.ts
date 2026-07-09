@@ -81,6 +81,94 @@ function asObject(value: unknown): Record<string, unknown> {
     : {};
 }
 
+function normalizeIdentifier(value: unknown): string {
+  return String(value ?? "").trim().toLowerCase();
+}
+
+// Mirror marketplaceSkuFromPipeline (server/routes/internal-pipeline.ts): the
+// pipeline publishes captured-site packages under robot-eval-<slug(id)>.
+function robotEvalSkuFromIdentifier(identifier: string): string {
+  const raw = identifier
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return `robot-eval-${raw || "package"}`;
+}
+
+// R030: prove server-side that this authenticated buyer holds a provisioned,
+// non-revoked marketplace entitlement for the requested site BEFORE we persist or
+// forward the job. Client-supplied entitlement.approved is never trusted; rights
+// are derived from the returned record. Matching mirrors the two existing linkage
+// idioms in this repo (server/utils/robot-agent-commerce.ts
+// findProvisionedHostedSessionEntitlement and server/utils/consentRevocationTakedown.ts):
+//   - by minted sku (robot-eval-<slug>, site-world-package-<id>, hosted-session-<id>)
+//   - by a direct capture_id/scene_id/site_submission_id/... field on the entitlement
+async function findProvisionedEntitlementForSite(params: {
+  buyerUserId: string;
+  sitePackage: Record<string, unknown>;
+}): Promise<Record<string, unknown> | null> {
+  if (!db || !params.buyerUserId) {
+    return null;
+  }
+  const sitePackage = params.sitePackage;
+  const siteIdentifiers = new Set(
+    [
+      sitePackage.site_slug,
+      sitePackage.site_id,
+      sitePackage.site_submission_id,
+      sitePackage.capture_job_id,
+      sitePackage.capture_id,
+      sitePackage.scene_id,
+    ]
+      .map(normalizeIdentifier)
+      .filter(Boolean),
+  );
+  if (siteIdentifiers.size === 0) {
+    return null;
+  }
+
+  const candidateSkus = new Set<string>();
+  for (const identifier of siteIdentifiers) {
+    candidateSkus.add(identifier);
+    candidateSkus.add(robotEvalSkuFromIdentifier(identifier));
+    candidateSkus.add(`site-world-package-${identifier}`);
+    candidateSkus.add(`hosted-session-${identifier}`);
+  }
+
+  const directLinkFields = [
+    "capture_id",
+    "scene_id",
+    "site_submission_id",
+    "site_world_id",
+    "site_slug",
+    "site_id",
+    "capture_job_id",
+  ];
+
+  const snapshot = await db
+    .collection("marketplaceEntitlements")
+    .where("buyer_user_id", "==", params.buyerUserId)
+    .get();
+
+  for (const doc of snapshot.docs || []) {
+    const data = (doc.data() || {}) as Record<string, unknown>;
+    // Only a provisioned entitlement grants rights; this also excludes "revoked"
+    // (consent takedown) and "manual_review_required".
+    if (normalizeIdentifier(data.access_state) !== "provisioned") {
+      continue;
+    }
+    const skuMatch = candidateSkus.has(normalizeIdentifier(data.sku));
+    const directMatch = directLinkFields.some((field) =>
+      siteIdentifiers.has(normalizeIdentifier(data[field])),
+    );
+    if (skuMatch || directMatch) {
+      return { id: doc.id || String(data.id || ""), ...data };
+    }
+  }
+  return null;
+}
+
 function statusResponse(jobId: string, data: Record<string, unknown>) {
   const pipelineResult = asObject(data.pipeline_result);
   return {
@@ -112,11 +200,54 @@ router.post("/", verifyFirebaseToken, async (req, res) => {
     });
   }
 
-  const buyerUserId = String(
-    (res.locals.firebaseUser as { uid?: string } | undefined)?.uid || "",
-  ).trim();
+  const firebaseUser = res.locals.firebaseUser as
+    | { uid?: string; admin?: boolean; role?: string; localRouteProof?: boolean }
+    | undefined;
+  const buyerUserId = String(firebaseUser?.uid || "").trim();
   const jobId = String(jobRequest.job_id || "").trim();
   const buyerRequestId = String(jobRequest.buyer_request_id || "").trim();
+
+  // R030: enforce a real marketplace entitlement for buyer-originated requests.
+  // Previously the handler took req.body verbatim, so any authenticated user could
+  // submit an eval job for any site by claiming entitlement.approved=true.
+  //
+  // Internal/owner-agent principals (the verifyFirebaseToken localRouteProof route
+  // proof identity and admins, mirroring the /:jobId/status admin bypass) run
+  // trusted first-party flows and are exempt. External buyers must present a
+  // provisioned, non-revoked marketplace entitlement for the requested site. The
+  // check only runs when Firestore is available; without it we cannot query and
+  // fall back to the route's existing db-not-configured tolerance.
+  const isInternalPrincipal =
+    firebaseUser?.localRouteProof === true ||
+    firebaseUser?.role === "local_route_proof" ||
+    firebaseUser?.admin === true ||
+    firebaseUser?.role === "admin";
+  if (db && !isInternalPrincipal) {
+    const entitlement = await findProvisionedEntitlementForSite({
+      buyerUserId,
+      sitePackage: asObject(jobRequest.site_package),
+    });
+    if (!entitlement) {
+      return res.status(403).json({
+        error:
+          "No provisioned marketplace entitlement was found for this buyer and site.",
+        code: "no_entitlement_for_site",
+      });
+    }
+    // Derive rights server-side: overwrite the entitlement block from the verified
+    // record and never trust the client-supplied entitlement.approved.
+    jobRequest.entitlement = {
+      access_state: String(entitlement.access_state || "provisioned"),
+      entitlement_id:
+        String(
+          (entitlement.id as string) || (entitlement.entitlement_id as string) || "",
+        ) || null,
+      approved: true,
+      buyer_user_id: buyerUserId,
+      sku: String((entitlement.sku as string) || "") || null,
+      verified_by: "server_marketplace_entitlement_check",
+    };
+  }
 
   const queuedAt = new Date().toISOString();
   const inbox = await writeRobotEvalJobRequestInbox({
