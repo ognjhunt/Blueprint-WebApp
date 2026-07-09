@@ -56,8 +56,12 @@ jobs:
           CAPTURE_TOKEN: ${{ secrets.BLUEPRINT_CONTRACTS_CHECKOUT_TOKEN || github.token }}
         run: |
           set -euo pipefail
-          git init BlueprintCapture
-          cd BlueprintCapture
+          # Clone OUTSIDE the repo tree (RUNNER_TEMP) so later steps such as
+          # audit:assets/build never scan the sibling checkout's files.
+          dest="${RUNNER_TEMP}/BlueprintCapture"
+          rm -rf "$dest"
+          git init "$dest"
+          cd "$dest"
           git remote add origin "https://x-access-token:${CAPTURE_TOKEN}@github.com/${CAPTURE_REPOSITORY}.git"
           branch_ref="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME:-main}}"
           if git fetch --depth=1 origin "${branch_ref}"; then
@@ -73,8 +77,8 @@ jobs:
       - name: Firestore + Storage rules parity (last-writer-wins guard)
         if: steps.capture_checkout.outcome == 'success'
         run: |
-          npm run rules:parity -- --ios-rules BlueprintCapture/firestore.rules
-          npm run rules:parity:storage -- --ios-rules BlueprintCapture/storage.rules
+          npm run rules:parity -- --ios-rules "${RUNNER_TEMP}/BlueprintCapture/firestore.rules"
+          npm run rules:parity:storage -- --ios-rules "${RUNNER_TEMP}/BlueprintCapture/storage.rules"
 
       - name: Warn if rules parity was skipped
         if: steps.capture_checkout.outcome != 'success'
