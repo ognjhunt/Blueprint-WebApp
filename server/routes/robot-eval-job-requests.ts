@@ -190,10 +190,23 @@ router.post("/", verifyFirebaseToken, async (req, res) => {
     inbox,
     pipelineForward,
   });
-  if (pipelineForward.required && !pipelineForward.performed) {
-    return res.status(502).json({
+  // R028: A request that never reaches the Pipeline is silent data loss. In
+  // production we must fail loudly (5xx) whenever forwarding was not actually
+  // performed (not_configured / blocked / failed), regardless of the
+  // FORWARD_REQUIRED flag. Outside production we preserve the lenient behavior
+  // gated on the operator's required flag so local/dev/test keep working.
+  const isProductionRuntime = process.env.NODE_ENV === "production";
+  const forwardReachedPipeline = pipelineForward.performed === true;
+  const forwardMustSucceed =
+    pipelineForward.required === true || isProductionRuntime;
+  if (forwardMustSucceed && !forwardReachedPipeline) {
+    // not_configured is a WebApp misconfiguration (no endpoint) -> 503; a blocked
+    // or downstream-failed forward is a bad-gateway condition -> 502.
+    const httpStatus = pipelineForward.status === "not_configured" ? 503 : 502;
+    return res.status(httpStatus).json({
       ok: false,
       status: "pipeline_forward_failed",
+      code: `pipeline_forward_${pipelineForward.status}`,
       error: robotEvalJobRequestForwardErrorMessage(pipelineForward),
       durableStore,
       pipelineInbox: inbox,
