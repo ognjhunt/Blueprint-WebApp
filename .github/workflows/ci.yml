@@ -42,6 +42,11 @@ jobs:
           git checkout --detach FETCH_HEAD
 
       - name: Verify shared robot-eval job request contract
+        env:
+          # R029: fail closed if the pinned shared BlueprintContracts module is
+          # missing instead of silently degrading to a copy. The module is
+          # checked out above at CONTRACTS_REF and passed via --contracts-module.
+          BLUEPRINT_REQUIRE_SHARED_ROBOT_EVAL_CONTRACT: "true"
         run: npm run pipeline:robot-eval-contract:verify -- --contracts-module BlueprintContracts/js/robot-eval-job-request.mjs
 
       # Best-effort: compare against the SAME branch in the sibling repo when it
