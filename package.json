@@ -12,6 +12,8 @@
     "start": "NODE_ENV=production node dist/index.js",
     "check": "tsc -p tsconfig.full.json --noEmit",
     "rules:parity": "bash scripts/check-firestore-rules-parity.sh",
+    "rules:parity:storage": "bash scripts/check-storage-rules-parity.sh",
+    "rules:parity:all": "bash scripts/check-firestore-rules-parity.sh && bash scripts/check-storage-rules-parity.sh",
     "perf:pages": "tsx scripts/measure-page-load-performance.ts",
     "smoke:agent": "tsx scripts/agent-runtime-smoke.ts",
     "agent:contract": "tsx scripts/agent-access/generate-agent-openapi.ts",

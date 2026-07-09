@@ -44,6 +44,30 @@ jobs:
       - name: Verify shared robot-eval job request contract
         run: npm run pipeline:robot-eval-contract:verify -- --contracts-module BlueprintContracts/js/robot-eval-job-request.mjs
 
+      - name: Checkout BlueprintCapture for Firestore + Storage rules parity
+        env:
+          CAPTURE_REPOSITORY: ognjhunt/BlueprintCapture
+          CAPTURE_REF: main
+          CAPTURE_TOKEN: ${{ secrets.BLUEPRINT_CONTRACTS_CHECKOUT_TOKEN || github.token }}
+        run: |
+          set -euo pipefail
+          git init BlueprintCapture
+          cd BlueprintCapture
+          git remote add origin "https://x-access-token:${CAPTURE_TOKEN}@github.com/${CAPTURE_REPOSITORY}.git"
+          fetch_ref="${CAPTURE_REF:-main}"
+          if git fetch --depth=1 origin "${fetch_ref}"; then
+            echo "Using BlueprintCapture ref ${fetch_ref}"
+          else
+            echo "::error::BlueprintCapture ref '${fetch_ref}' was not available. The rules-parity guard needs the sibling repo; set BLUEPRINT_CONTRACTS_CHECKOUT_TOKEN with read access to BlueprintCapture."
+            exit 1
+          fi
+          git checkout --detach FETCH_HEAD
+
+      - name: Firestore + Storage rules parity (last-writer-wins guard)
+        run: |
+          npm run rules:parity -- --ios-rules BlueprintCapture/firestore.rules
+          npm run rules:parity:storage -- --ios-rules BlueprintCapture/storage.rules
+
       - name: Audit assets
         run: npm run audit:assets
 
