@@ -79,10 +79,12 @@ Rules:
 
 ## 4. Rollback procedure (Render-managed)
 
-Blueprint-WebApp deploys through Render (`render.yaml`, `autoDeploy: true`); there is **no
-manual `deploy.sh`**. Roll back by redeploying the last known-good git commit on the same
-Render service, gated by a health check, using `scripts/rollback-deploy.sh` (see also the
-Rollback section of `DEPLOYMENT.md`).
+Blueprint-WebApp deploys through Render (`render.yaml`, `autoDeploy: false` — deploys are
+CI-gated via `.github/workflows/deploy.yml`); there is **no manual `deploy.sh`**. Roll back by
+redeploying the last known-good git commit on the same Render service, gated by a health check,
+using `scripts/rollback-deploy.sh` (see also the Rollback section of `DEPLOYMENT.md` and
+`docs/runbooks/CI_GATED_DEPLOY_AND_RELEASE.md`). The current live SHA is readable at
+`GET /version.json`.
 
 Preconditions: `RENDER_API_KEY` and `RENDER_SERVICE_ID` (the beta web service, `srv_...`),
 and the target commit fetched locally (`git fetch --all`).
