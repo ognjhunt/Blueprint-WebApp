@@ -45,6 +45,12 @@ import {
   overlaySelfReportedBuyerChannelSource,
 } from "@/lib/demandAttribution";
 import { evaluateStructuredIntake } from "@/lib/structuredIntake";
+import {
+  PRIVACY_URL,
+  PRIVACY_VERSION,
+  TERMS_URL,
+  TERMS_VERSION,
+} from "@/lib/legalAcceptance";
 import type { PlaceLocationMetadata, ProofPathPreference } from "@/types/inbound-request";
 import {
   REQUESTED_LANE_DESCRIPTIONS,
@@ -290,6 +296,7 @@ export default function BusinessSignUpFlow() {
     initialBuyerType === "site_operator" ? "Undecided/Unsure" : "",
   );
   const [referralSource, setReferralSource] = useState<ReferralSource | "">("");
+  const [acceptedLegal, setAcceptedLegal] = useState(false);
   const searchDemandAttribution = useMemo(() => {
     if (typeof window === "undefined") {
       return getDemandAttributionFromSearchParams(new URLSearchParams());
@@ -361,8 +368,10 @@ export default function BusinessSignUpFlow() {
       (buyerType !== "site_operator" || operatingConstraints.trim().length > 0) &&
       (buyerType !== "site_operator" || commercializationPreference.trim().length > 0) &&
       (buyerType === "site_operator" || budgetRange !== "") &&
-      referralSource !== "",
+      referralSource !== "" &&
+      acceptedLegal,
     [
+      acceptedLegal,
       budgetRange,
       buyerType,
       commercializationPreference,
@@ -518,7 +527,8 @@ export default function BusinessSignUpFlow() {
       else if (buyerType === "site_operator" && !operatingConstraints.trim()) setErrorMessage("Please enter the access rules.");
       else if (buyerType === "site_operator" && !commercializationPreference.trim()) setErrorMessage("Please select the commercialization boundary.");
       else if (buyerType === "robot_team" && !budgetRange) setErrorMessage("Please select a budget range.");
-      else setErrorMessage("Please tell us how you heard about Blueprint.");
+      else if (!referralSource) setErrorMessage("Please tell us how you heard about Blueprint.");
+      else setErrorMessage("Please accept the Terms of Service and Privacy Policy to continue.");
       analyticsEvents.businessSignupFailed({
         stage: "step_validation",
         stepNumber: 3,
@@ -535,7 +545,9 @@ export default function BusinessSignUpFlow() {
                     ? "missing_commercialization_boundary"
                     : buyerType === "robot_team" && !budgetRange
                       ? "missing_budget_range"
-                      : "missing_referral_source",
+                      : !referralSource
+                        ? "missing_referral_source"
+                        : "missing_terms_acceptance",
         buyerType,
         requestedLaneCount: requestedLanes.length,
         ...(signupAnalyticsAttribution
@@ -667,6 +679,18 @@ export default function BusinessSignUpFlow() {
         budgetRange: budgetRange as BudgetRange,
         referralSource: referralSource as ReferralSource,
         demandAttribution: signupAnalyticsAttribution || null,
+        // R047: record Terms of Service + Privacy Policy acceptance on the profile.
+        acceptedTerms: true,
+        termsVersion: TERMS_VERSION,
+        privacyVersion: PRIVACY_VERSION,
+        termsAcceptance: {
+          accepted_terms: true,
+          terms_version: TERMS_VERSION,
+          privacy_version: PRIVACY_VERSION,
+          terms_url: TERMS_URL,
+          privacy_url: PRIVACY_URL,
+          accepted_at: timestamp,
+        },
         createdDate: timestamp,
         lastLoginAt: timestamp,
         lastSessionDate: timestamp,
@@ -750,6 +774,10 @@ export default function BusinessSignUpFlow() {
           firstName,
           lastName,
           company: organizationName,
+          accountSignup: true,
+          acceptedTerms: true,
+          termsVersion: TERMS_VERSION,
+          privacyVersion: PRIVACY_VERSION,
           roleTitle: jobTitle || (buyerType === "site_operator" ? "Site operator" : "Robot team contact"),
           email: userEmail.toLowerCase(),
           budgetBucket: budgetRange,
@@ -820,6 +848,7 @@ export default function BusinessSignUpFlow() {
       setIsSubmitting(false);
     }
   }, [
+    acceptedLegal,
     budgetRange,
     buyerType,
     companySize,
@@ -1400,6 +1429,39 @@ export default function BusinessSignUpFlow() {
                               scoping call is actually needed before opening a hosted review or
                               package path.
                             </p>
+                          </div>
+
+                          <div className="rounded-[1.35rem] border border-black/10 bg-white p-5">
+                            <label className="flex items-start gap-3">
+                              <Checkbox
+                                checked={acceptedLegal}
+                                onCheckedChange={(checked) => setAcceptedLegal(Boolean(checked))}
+                                className="mt-1"
+                                aria-label="Accept the Terms of Service and Privacy Policy"
+                              />
+                              <span className="text-sm leading-6 text-black/60">
+                                I agree to Blueprint&apos;s{" "}
+                                <a
+                                  href={TERMS_URL}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="font-semibold text-[#111110] underline-offset-4 hover:underline"
+                                >
+                                  Terms of Service
+                                </a>{" "}
+                                and{" "}
+                                <a
+                                  href={PRIVACY_URL}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="font-semibold text-[#111110] underline-offset-4 hover:underline"
+                                >
+                                  Privacy Policy
+                                </a>
+                                , and I am authorized to create this account on behalf of my
+                                organization.
+                              </span>
+                            </label>
                           </div>
                         </motion.div>
                       ) : null}
