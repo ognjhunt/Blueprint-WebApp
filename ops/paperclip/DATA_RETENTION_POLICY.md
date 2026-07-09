@@ -2,6 +2,21 @@
 
 > For autonomous-org agents operating against the current `Blueprint-WebApp` Firestore model.
 
+> **Authority (finding R048).** This document is the **agent PII-handling and deletion-protocol
+> layer** for the WebApp Firestore surface only. It is **subordinate** to the single,
+> enforced, cross-surface retention contract, which covers Firestore **plus** capture raw
+> bundles, pipeline output artifacts, and hosted/derived world models, and is machine-checked:
+>
+> - Canonical policy: `BlueprintCapturePipeline/docs/DATA_RETENTION_POLICY.md`
+> - Machine-readable config: `BlueprintCapturePipeline/configs/data_retention_policy.json`
+> - Fail-closed validator: `BlueprintCapturePipeline/scripts/validate_data_retention_policy.py`
+> - Backup / DR for the same data: `Blueprint-WebApp/docs/runbooks/DATA_BACKUP_AND_DR_RUNBOOK.md`
+>
+> The per-collection Firestore retention windows below are a human-readable view of that
+> canonical config's `firestore_collections` entries; if the two ever disagree, the canonical
+> config is authoritative. Retention windows there are enforced by Firestore TTL, scheduled
+> cleanup jobs, and manual-review batches (see the canonical doc for which is which).
+
 ## Retention Periods
 
 | Collection | PII Fields | Retention | Legal Basis |
