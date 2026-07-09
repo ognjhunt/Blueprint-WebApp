@@ -153,6 +153,9 @@ describe("stripe native parity routes", () => {
         contract_provider_ready: false,
         live_provider_ready: false,
         live_payout_execution_enabled: false,
+        finance_review_owner_configured: false,
+        finance_owner: null,
+        finance_review_queue_uri: null,
         requirements_due: [
           "individual.verification.document",
           "individual.ssn_last_4",

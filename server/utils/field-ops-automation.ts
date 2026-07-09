@@ -7,6 +7,7 @@ import {
 } from "../agents/action-policies";
 import { executeAction } from "../agents/action-executor";
 import { updateGoogleCalendarEvent } from "./google-calendar";
+import { recordBetaOpsFailureSignal } from "./ops-alerts";
 
 type CreatorUserRecord = {
   uid: string;
@@ -894,6 +895,10 @@ export async function flagOverdueFinanceReviews(params?: { limit?: number }) {
       }
 
       if (isOverdue) {
+        const nextAction =
+          typeof financeReview.next_action === "string" && financeReview.next_action.trim()
+            ? financeReview.next_action
+            : "Assign an owner and gather evidence before any manual finance action.";
         await doc.ref.set(
           {
             finance_review: {
@@ -902,10 +907,7 @@ export async function flagOverdueFinanceReviews(params?: { limit?: number }) {
                 active: true,
                 lane: "finance_review",
                 reason: "Manual finance review is past SLA and still needs human action.",
-                next_action:
-                  typeof financeReview.next_action === "string" && financeReview.next_action.trim()
-                    ? financeReview.next_action
-                    : "Assign an owner and gather evidence before any manual finance action.",
+                next_action: nextAction,
                 flagged_by: "system:finance_review_overdue_watchdog",
                 flagged_at: overdueReview.flagged_at || admin.firestore.FieldValue.serverTimestamp(),
                 last_checked_at: admin.firestore.FieldValue.serverTimestamp(),
@@ -915,6 +917,19 @@ export async function flagOverdueFinanceReviews(params?: { limit?: number }) {
           },
           { merge: true },
         );
+        await recordBetaOpsFailureSignal({
+          kind: "payout_exception",
+          scopeId: doc.id,
+          severity: "critical",
+          summary: `Finance review is overdue for payout ${doc.id}.`,
+          details: {
+            payout_id: doc.id,
+            review_status: reviewStatus,
+            sla_due_at: financeReview.sla_due_at || null,
+            next_action: nextAction,
+            flagged_by: "system:finance_review_overdue_watchdog",
+          },
+        });
         processedCount += 1;
         continue;
       }

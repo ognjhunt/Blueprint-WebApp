@@ -57,6 +57,20 @@ service firebase.storage {
       return request.resource != null && request.resource.size <= maxBytes;
     }
 
+    function rawCaptureMetadataMatches(sceneId, captureId) {
+      return request.resource != null
+        && request.resource.metadata.creatorId == request.auth.uid
+        && request.resource.metadata.sceneId == sceneId
+        && request.resource.metadata.captureId == captureId
+        && request.resource.metadata.sha256 != null
+        && request.resource.metadata.sha256.matches('^[a-f0-9]{64}$');
+    }
+
+    function existingRawCaptureOwner() {
+      return resource != null
+        && resource.metadata.creatorId == request.auth.uid;
+    }
+
     // Current signup/config flows write under blueprints/{blueprintId}/...
     // Access follows the owning Firestore blueprint record.
     match /blueprints/{blueprintId}/{filePath=**} {
@@ -88,6 +102,17 @@ service firebase.storage {
       allow create, update: if (isAdmin() || ownsUserPath(userId))
         && boundedUpload(500 * 1024 * 1024);
       allow delete: if isAdmin() || ownsUserPath(userId);
+    }
+
+    // Canonical iOS raw-capture upload path. This must stay in the shared
+    // WebApp + Capture rules superset because both repos deploy to the same
+    // Firebase Storage project and deploys are last-writer-wins.
+    match /scenes/{sceneId}/captures/{captureId}/raw/{rawPath=**} {
+      allow create: if isSignedIn()
+        && rawCaptureMetadataMatches(sceneId, captureId)
+        && boundedUpload(20 * 1024 * 1024 * 1024);
+      allow read: if isSignedIn() && existingRawCaptureOwner();
+      allow update, delete: if false;
     }
 
     // Buyer-facing private marketplace delivery artifacts. Direct client reads

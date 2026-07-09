@@ -110,13 +110,20 @@ describe("robot agent dry-run commerce", () => {
         entitlement: {
           access_state: "provisioned",
           sku: "hosted-session-sw-chi-01",
+          license_term_hours: 2,
+          license_term_unit: "hour",
         },
       });
 
       const orderId = String(((checkoutPayload.order as Record<string, unknown>) || {}).id || "");
-      const entitlementId = String(((checkoutPayload.entitlement as Record<string, unknown>) || {}).id || "");
+      const checkoutEntitlement = (checkoutPayload.entitlement as Record<string, unknown>) || {};
+      const entitlementId = String(checkoutEntitlement.id || "");
       expect(orderId).toBeTruthy();
       expect(entitlementId).toBeTruthy();
+      expect(checkoutEntitlement.expires_at).toEqual(expect.any(String));
+      const grantedAt = Date.parse(String(checkoutEntitlement.granted_at || ""));
+      const expiresAt = Date.parse(String(checkoutEntitlement.expires_at || ""));
+      expect(expiresAt - grantedAt).toBe(2 * 60 * 60 * 1000);
 
       const order = await fetch(`${baseUrl}/api/agent-access/commerce/orders/${orderId}`);
       expect(order.status).toBe(200);
@@ -132,6 +139,8 @@ describe("robot agent dry-run commerce", () => {
           id: entitlementId,
           access_state: "provisioned",
           dry_run: true,
+          license_term_hours: 2,
+          license_term_unit: "hour",
         },
       });
     } finally {

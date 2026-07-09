@@ -215,6 +215,36 @@ describe("marketplace entitlements route", () => {
     }
   });
 
+  it("does not sign artifact URLs for an expired provisioned entitlement", async () => {
+    state.entitlements = [
+      {
+        id: "ent-robot-eval-expired",
+        buyer_user_id: "buyer-123",
+        sku: "robot-eval-capture-expired",
+        access_state: "provisioned",
+        expires_at: "2026-01-01T00:00:00.000Z",
+        artifact_uris: {
+          package_uri: "gs://blueprint-artifacts/packages/capture-expired/package.zip",
+        },
+      },
+    ];
+
+    const { server, baseUrl } = await startServer();
+    try {
+      const response = await fetch(
+        `${baseUrl}/api/marketplace/entitlements/ent-robot-eval-expired/artifact-access`,
+      );
+
+      expect(response.status).toBe(409);
+      await expect(response.json()).resolves.toMatchObject({
+        code: "entitlement_expired",
+      });
+      expect(state.signedUrlCalls).toEqual([]);
+    } finally {
+      await stopServer(server);
+    }
+  });
+
   it("does not sign artifact URLs before entitlement provisioning", async () => {
     state.entitlements = [
       {

@@ -6,6 +6,9 @@ import { attachRequestMeta, logger } from "../logger";
 import { sendEmail } from "../utils/email";
 import { isValidEmailAddress } from "../utils/validation";
 
+const SERVICE_SCENE_OWNER_UID = "service:contact-form";
+const SERVICE_SCENE_ORG_ID = "blueprint-intake";
+
 function emailDomain(value: string) {
   const domain = value.split("@").pop()?.trim().toLowerCase();
   return domain || null;
@@ -410,6 +413,8 @@ export default async function contactHandler(req: Request, res: Response) {
         id: sceneId,
         name: company,
         title: company,
+        ownerUid: SERVICE_SCENE_OWNER_UID,
+        orgId: SERVICE_SCENE_ORG_ID,
         description:
           typeof message === "string" && message.length > 0
             ? message

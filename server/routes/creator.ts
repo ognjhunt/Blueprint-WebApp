@@ -1,10 +1,20 @@
 import { Request, Response, Router } from "express";
+import { randomUUID } from "crypto";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import {
   listCreatorPayouts,
   mapCreatorPayoutStatusForLedger,
 } from "../utils/accounting";
+import {
+  recordBetaOpsFailureSignal,
+  type BetaOpsFailureKind,
+} from "../utils/ops-alerts";
+import {
+  betaDecisionForResponse,
+  evaluateBetaCohortGate,
+  recordBetaCohortAdmission,
+} from "../utils/beta-cohort-policy";
 import {
   buildCityLaunchCaptureTargetFeed,
   buildCityLaunchUnderReviewFeed,
@@ -43,6 +53,72 @@ function toIso(value: unknown) {
 function toNumber(value: unknown) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function telemetryString(value: unknown, fallback = "unknown", maxLength = 240) {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return (trimmed || fallback).slice(0, maxLength);
+  }
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value).slice(0, maxLength);
+  }
+  return fallback;
+}
+
+function telemetryOptionalString(value: unknown, maxLength = 240) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  const normalized = telemetryString(value, "", maxLength);
+  return normalized || null;
+}
+
+function telemetryMetadata(raw: unknown) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return {};
+  }
+  const entries = Object.entries(raw as Record<string, unknown>)
+    .slice(0, 20)
+    .map(([key, value]) => [
+      telemetryString(key, "unknown_key", 80).replace(/[^a-zA-Z0-9._:-]/g, "_"),
+      telemetryString(value, "", 240),
+    ])
+    .filter(([, value]) => value);
+  return Object.fromEntries(entries);
+}
+
+function telemetryBreadcrumbs(raw: unknown) {
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  return raw.slice(-24).map((breadcrumb) => ({
+    name: telemetryString((breadcrumb as Record<string, unknown>)?.name, "unknown", 120),
+    status: telemetryString((breadcrumb as Record<string, unknown>)?.status, "unknown", 120),
+    occurred_at: telemetryString((breadcrumb as Record<string, unknown>)?.occurred_at, new Date().toISOString(), 80),
+    metadata: telemetryMetadata((breadcrumb as Record<string, unknown>)?.metadata),
+  }));
+}
+
+function telemetryStatusIndicatesFailure(status: string) {
+  const normalized = status.toLowerCase();
+  return normalized.includes("fail")
+    || normalized.includes("error")
+    || normalized.includes("expired")
+    || normalized.includes("blocked")
+    || normalized.includes("crash");
+}
+
+function alertKindForClientTelemetry(eventType: string, severity: string): BetaOpsFailureKind {
+  const normalized = eventType.toLowerCase();
+  if (
+    severity === "critical"
+    || normalized.includes("crash")
+    || normalized.includes("uncaught")
+  ) {
+    return "mobile_capture_client_crash";
+  }
+  return "mobile_capture_client_error";
 }
 
 router.use((req: Request, res: Response, next) => {
@@ -199,6 +275,25 @@ router.post("/captures", async (req: Request, res: Response) => {
   if (!captureId) {
     return res.status(400).json({ error: "Missing capture id" });
   }
+  const betaCohortDecision = await evaluateBetaCohortGate({
+    gate: "capture_intake",
+    creatorId,
+    market: String(req.body?.market || req.body?.region_id || "").trim() || null,
+    siteType: String(
+      req.body?.site_type
+      || req.body?.location_type
+      || req.body?.intended_space_type
+      || "",
+    ).trim() || null,
+    source: "creator_capture_registration",
+  });
+  if (!betaCohortDecision.allowed) {
+    return res.status(betaCohortDecision.statusCode).json({
+      ok: false,
+      error: betaCohortDecision.message,
+      beta_cohort_policy: betaDecisionForResponse(betaCohortDecision),
+    });
+  }
 
   const capturedAt = req.body?.captured_at ? new Date(String(req.body.captured_at)) : new Date();
   const estimatedPayoutCents =
@@ -230,6 +325,7 @@ router.post("/captures", async (req: Request, res: Response) => {
     thumbnail_url: req.body?.thumbnail_url || null,
     rejection_reason: req.body?.rejection_reason || null,
     quality: req.body?.quality || null,
+    beta_cohort_policy: betaDecisionForResponse(betaCohortDecision),
     earnings: {
       base_payout_cents: estimatedPayoutCents,
       device_multiplier: req.body?.device_multiplier ?? 1,
@@ -241,7 +337,25 @@ router.post("/captures", async (req: Request, res: Response) => {
   };
 
   await db.collection("creatorCaptures").doc(captureId).set(payload, { merge: true });
-  return res.status(201).json({ ok: true, id: captureId });
+  await recordBetaCohortAdmission({
+    gate: "capture_intake",
+    admissionId: `capture:${captureId}`,
+    decision: betaCohortDecision,
+    creatorId,
+    market: String(req.body?.market || req.body?.region_id || "").trim() || null,
+    siteType: String(
+      req.body?.site_type
+      || req.body?.location_type
+      || req.body?.intended_space_type
+      || "",
+    ).trim() || null,
+    source: "creator_capture_registration",
+  });
+  return res.status(201).json({
+    ok: true,
+    id: captureId,
+    beta_cohort_policy: betaDecisionForResponse(betaCohortDecision),
+  });
 });
 
 router.get("/captures/:captureId", async (req: Request, res: Response) => {
@@ -382,6 +496,87 @@ router.put("/notifications/preferences", async (req: Request, res: Response) => 
     );
 
   return res.json(payload);
+});
+
+router.post("/client-telemetry", async (req: Request, res: Response) => {
+  if (!db) {
+    return res.status(500).json({ error: "Database not available" });
+  }
+
+  const creatorId = creatorIdFromRequest(req);
+  if (!creatorId) {
+    return res.status(400).json({ error: "Missing creator id" });
+  }
+
+  const eventId = telemetryString(req.body?.event_id, randomUUID(), 120)
+    .replace(/[^a-zA-Z0-9._:-]/g, "-");
+  const eventType = telemetryString(req.body?.event_type, "unknown", 80);
+  const severity =
+    telemetryString(req.body?.severity, "warning", 20).toLowerCase() === "critical"
+      ? "critical"
+      : "warning";
+  const operation = telemetryString(req.body?.operation, "unknown", 120);
+  const status = telemetryString(req.body?.status, "unknown", 80);
+  const occurredAt = telemetryString(req.body?.occurred_at, new Date().toISOString(), 80);
+  const metadata = telemetryMetadata(req.body?.metadata);
+  const breadcrumbs = telemetryBreadcrumbs(req.body?.breadcrumbs);
+  const captureId = telemetryOptionalString(req.body?.capture_id, 120)
+    || metadata.capture_id
+    || null;
+  const sessionId = telemetryOptionalString(req.body?.session_id, 120);
+  const payload = {
+    id: eventId,
+    creator_id: creatorId,
+    event_type: eventType,
+    severity,
+    operation,
+    status,
+    occurred_at: occurredAt,
+    session_id: sessionId,
+    capture_id: captureId,
+    app_version: telemetryOptionalString(req.body?.app_version, 80),
+    app_build: telemetryOptionalString(req.body?.app_build, 80),
+    os_version: telemetryOptionalString(req.body?.os_version, 120),
+    device_model: telemetryOptionalString(req.body?.device_model, 120),
+    metadata,
+    breadcrumbs,
+    source: "blueprint_capture_native_client",
+    beta_alert_candidate: true,
+    received_at: admin.firestore.FieldValue.serverTimestamp(),
+  };
+
+  await db.collection("creatorClientTelemetry").doc(eventId).set(payload, { merge: true });
+
+  const shouldAlert =
+    severity === "critical"
+    || eventType.toLowerCase().includes("crash")
+    || eventType.toLowerCase().includes("uncaught")
+    || telemetryStatusIndicatesFailure(status);
+  const alertResult = shouldAlert
+    ? await recordBetaOpsFailureSignal({
+        kind: alertKindForClientTelemetry(eventType, severity),
+        severity,
+        scopeId: captureId || operation || creatorId,
+        summary: `Mobile capture client ${eventType}: ${operation}`,
+        details: {
+          creator_id: creatorId,
+          event_id: eventId,
+          operation,
+          status,
+          capture_id: captureId,
+          session_id: sessionId,
+          metadata,
+        },
+        occurredAt,
+      })
+    : { recorded: false, alertOpened: false };
+
+  return res.status(202).json({
+    accepted: true,
+    event_id: eventId,
+    alert_recorded: Boolean(alertResult.recorded),
+    alert_opened: Boolean(alertResult.alertOpened),
+  });
 });
 
 router.get("/city-launch/targets", async (req: Request, res: Response) => {

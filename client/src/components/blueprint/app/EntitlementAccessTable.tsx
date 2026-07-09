@@ -1,8 +1,10 @@
 import { Link } from "wouter";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { ArrowRight } from "lucide-react";
 
 import { Button, StatusChip } from "@/components/blueprint";
+import { useAuth } from "@/contexts/AuthContext";
+import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 import {
   entitlementDisplayName,
   entitlementScope,
@@ -75,22 +77,104 @@ export function EntitlementAccessTable({
                 {entitlementScope(entitlement)}
               </td>
               <td className="px-4 py-3.5 text-right align-middle">
-                {entitlement.access?.url ? (
-                  <Button asChild variant="secondary" size="sm" iconRight={<ArrowRight />}>
-                    <AccessLink href={entitlement.access.url}>
-                      {entitlement.access.label || actionLabel}
-                    </AccessLink>
-                  </Button>
-                ) : (
-                  <span className="font-mono text-[0.7rem] text-ink-400">
-                    Access review
-                  </span>
-                )}
+                <EntitlementAccessButton
+                  entitlement={entitlement}
+                  actionLabel={actionLabel}
+                  size="sm"
+                />
               </td>
             </tr>
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+export function EntitlementAccessButton({
+  entitlement,
+  actionLabel = "Open access",
+  size = "sm",
+}: {
+  entitlement: BuyerEntitlement;
+  actionLabel?: string;
+  size?: "sm" | "md";
+}) {
+  const { currentUser } = useAuth();
+  const [isMinting, setIsMinting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (entitlement.access?.url) {
+    return (
+      <Button
+        asChild
+        variant={size === "sm" ? "secondary" : "action"}
+        size={size}
+        iconRight={<ArrowRight />}
+      >
+        <AccessLink href={entitlement.access.url}>
+          {entitlement.access.label || actionLabel}
+        </AccessLink>
+      </Button>
+    );
+  }
+
+  if (entitlement.access_state !== "provisioned") {
+    return (
+      <span className="font-mono text-[0.7rem] text-ink-400">
+        Access review
+      </span>
+    );
+  }
+
+  async function mintSignedArtifactAccess() {
+    if (!currentUser) {
+      setError("Sign in required");
+      return;
+    }
+    setIsMinting(true);
+    setError(null);
+    try {
+      const response = await fetch(
+        `/api/marketplace/entitlements/${encodeURIComponent(entitlement.id)}/artifact-access`,
+        {
+          credentials: "include",
+          headers: await withFirebaseAuthHeaders(currentUser),
+        },
+      );
+      const payload = (await response.json()) as {
+        signed_url?: string;
+        error?: string;
+        code?: string;
+      };
+      if (!response.ok || !payload.signed_url) {
+        throw new Error(payload.error || payload.code || "Artifact access is not configured");
+      }
+      window.open(payload.signed_url, "_blank", "noreferrer");
+    } catch (mintError) {
+      setError(mintError instanceof Error ? mintError.message : "Artifact access failed");
+    } finally {
+      setIsMinting(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <Button
+        type="button"
+        variant={size === "sm" ? "secondary" : "action"}
+        size={size}
+        iconRight={<ArrowRight />}
+        disabled={isMinting}
+        onClick={mintSignedArtifactAccess}
+      >
+        {isMinting ? "Preparing" : actionLabel}
+      </Button>
+      {error ? (
+        <span className="max-w-[14rem] text-right font-mono text-[0.68rem] text-red-700">
+          {error}
+        </span>
+      ) : null}
     </div>
   );
 }

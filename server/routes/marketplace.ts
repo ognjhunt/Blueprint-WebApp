@@ -25,7 +25,9 @@ const requestSchema = z
     limit: z.number().int().positive().max(200).optional(),
     manualFilters: z
       .object({
-        itemType: z.enum(["all", "scenes", "training"]).optional(),
+        itemType: z
+          .enum(["all", "scenes", "training", "task_eval_runs", "data_packages"])
+          .optional(),
         locationType: z.string().trim().min(1).nullable().optional(),
         policySlug: z.string().trim().min(1).nullable().optional(),
         objectTags: z.array(z.string().trim().min(1)).optional(),

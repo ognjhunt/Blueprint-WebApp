@@ -385,6 +385,18 @@ export interface ExplorerState {
   debugArtifacts?: Record<string, unknown> | null;
 }
 
+export type HostedSessionAccessPermission = "read" | "ui" | "operate" | "export" | "all";
+
+export interface HostedSessionAccessGrant {
+  uid?: string | null;
+  email?: string | null;
+  role?: "viewer" | "presenter" | "operator" | "exporter" | "owner" | string | null;
+  permissions?: HostedSessionAccessPermission[];
+  grantedAt?: FirebaseFirestore.Timestamp | FirebaseFirestore.FieldValue | string | null;
+  expiresAt?: FirebaseFirestore.Timestamp | FirebaseFirestore.FieldValue | string | null;
+  revokedAt?: FirebaseFirestore.Timestamp | FirebaseFirestore.FieldValue | string | null;
+}
+
 export interface HostedSessionRecord {
   sessionId: string;
   site: HostedSessionSiteRef;
@@ -413,6 +425,7 @@ export interface HostedSessionRecord {
     uid: string;
     email?: string | null;
   };
+  accessGrants?: HostedSessionAccessGrant[];
   commerce?: {
     entitlementId?: string | null;
     orderId?: string | null;

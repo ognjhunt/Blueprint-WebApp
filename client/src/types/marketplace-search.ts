@@ -1,6 +1,11 @@
 import type { MarketplaceScene, TrainingDataset } from "../data/content";
 
-export type MarketplaceSearchItemType = "all" | "scenes" | "training";
+export type MarketplaceSearchItemType =
+  | "all"
+  | "scenes"
+  | "training"
+  | "task_eval_runs"
+  | "data_packages";
 
 export type MarketplaceSearchSort =
   | "relevance"
@@ -31,9 +36,26 @@ export type MarketplaceSearchChip = {
   value: string;
 };
 
+export type CommissionedMarketplaceOutput = {
+  slug: string;
+  title: string;
+  description: string;
+  itemType: "task_eval_run" | "post_training_data_package";
+  locationType: string;
+  policySlugs: string[];
+  objectTags: string[];
+  tags: string[];
+  deliverables: string[];
+  releaseDate: string;
+  requestPath: "hosted-review" | "data-package";
+  requestUrl: string;
+  priceLabel: string;
+  proofBoundary: string;
+};
+
 export type MarketplaceSearchResult = {
-  type: "scene" | "training";
-  item: MarketplaceScene | TrainingDataset;
+  type: "scene" | "training" | "commissioned_output";
+  item: MarketplaceScene | TrainingDataset | CommissionedMarketplaceOutput;
   score: number;
   distance?: number | null;
   reasons: string[];

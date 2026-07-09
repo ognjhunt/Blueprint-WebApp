@@ -73,6 +73,26 @@ describe("Route registration", () => {
     }
   });
 
+  it("keeps ops aliases protected and off the mock-data console", () => {
+    const routesPath = path.resolve(process.cwd(), "client/src/app/routes.tsx");
+    const source = fs.readFileSync(routesPath, "utf-8");
+
+    for (const route of [
+      "/ops",
+      "/ops/supply",
+      "/ops/city-launch",
+      "/ops/evidence",
+      "/ops/handoff",
+      "/ops/spend",
+    ]) {
+      expect(source).toContain(`path: "${route}", layout: "protected"`);
+      expect(source).not.toContain(`path: "${route}", layout: "public"`);
+    }
+    expect(source).not.toContain('../pages/ops/');
+    expect(source).not.toContain("OpsQueue");
+    expect(source).not.toContain("OpsSpendControls");
+  });
+
   it("keeps the capturer signup slug and capture app handoff routes reachable", () => {
     const routesPath = path.resolve(process.cwd(), "client/src/app/routes.tsx");
     const source = fs.readFileSync(routesPath, "utf-8");

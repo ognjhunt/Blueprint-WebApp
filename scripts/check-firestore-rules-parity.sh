@@ -29,6 +29,9 @@ WEBAPP_RULES="$WEBAPP_ROOT/firestore.rules"
 
 # Resolve the iOS rules file: --ios-rules arg > IOS_RULES_PATH env > default sibling checkout.
 IOS_RULES="${IOS_RULES_PATH:-$WEBAPP_ROOT/../BlueprintCapture/firestore.rules}"
+if [ ! -f "$IOS_RULES" ] && [ -f "$WEBAPP_ROOT/BlueprintCapture/firestore.rules" ]; then
+  IOS_RULES="$WEBAPP_ROOT/BlueprintCapture/firestore.rules"
+fi
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --ios-rules)
@@ -63,6 +66,77 @@ scenes
 "
 
 fail() { echo "FAIL: $*" >&2; }
+
+assert_contains() {
+  local file="$1"
+  local pattern="$2"
+  local message="$3"
+  if ! grep -Fq "$pattern" "$file"; then
+    fail "$message ($file)"
+    status=1
+  fi
+}
+
+capture_submission_client_status_block() {
+  awk '
+    /function captureSubmissionClientStatuses\(\)/ { in_block = 1 }
+    in_block { print }
+    in_block && /function captureSubmissionClientAssignmentStates\(\)/ { exit }
+  ' "$1"
+}
+
+assert_capture_submission_status_boundary() {
+  local file="$1"
+  local status_block
+  status_block="$(capture_submission_client_status_block "$file")"
+  if [ -z "$status_block" ]; then
+    fail "capture submission client status allowlist is missing ($file)"
+    status=1
+    return
+  fi
+
+  for allowed in "'submitted'" "'upload_failed'" "'raw_validation_failed'" "'local_preflight_failed'"; do
+    if ! printf '%s\n' "$status_block" | grep -Fq "$allowed"; then
+      fail "capture submission client status allowlist is missing $allowed ($file)"
+      status=1
+    fi
+  done
+
+  for denied in "'approved'" "'paid'" "'under_review'" "'needs_fix'" "'rejected'"; do
+    if printf '%s\n' "$status_block" | grep -Fq "$denied"; then
+      fail "capture submission client status allowlist includes backend review status $denied ($file)"
+      status=1
+    fi
+  done
+}
+
+assert_scene_tenant_boundary() {
+  local file="$1"
+  assert_contains \
+    "$file" \
+    "hasValidScenePayload(request.resource.data)" \
+    "scene creates/updates must validate owner-scoped payloads"
+  assert_contains \
+    "$file" \
+    "request.resource.data.ownerUid == request.auth.uid" \
+    "scene creates must bind ownerUid to the signed-in user"
+  assert_contains \
+    "$file" \
+    "allow read: if isAdmin() || isSceneOwner();" \
+    "scene reads must be owner/admin scoped"
+  assert_contains \
+    "$file" \
+    "sceneOwnershipUnchanged()" \
+    "scene updates must preserve owner/org fields"
+  if grep -Fq "allow read: if isAuthenticated();" "$file"; then
+    fail "scene reads still allow every authenticated user ($file)"
+    status=1
+  fi
+  if grep -Fq "allow update, delete: if isAuthenticated();" "$file"; then
+    fail "scene mutations still allow every authenticated user ($file)"
+    status=1
+  fi
+}
 
 for f in "$WEBAPP_RULES" "$IOS_RULES"; do
   if [ ! -f "$f" ]; then
@@ -124,6 +198,22 @@ if ! diff -q "$WEBAPP_RULES" "$IOS_RULES" >/dev/null 2>&1; then
   echo "--------------------------------" >&2
   status=1
 fi
+
+# 4) Capture submission status/review writes must stay split. The iOS client may
+#    write upload-progress statuses, but commercial review statuses that trigger
+#    payouts/referrals must be backend-only Admin-SDK writes.
+for f in "$WEBAPP_RULES" "$IOS_RULES"; do
+  assert_capture_submission_status_boundary "$f"
+  assert_contains \
+    "$f" \
+    "captureSubmissionExistingStatusAllowsClientUpdate(resource.data)" \
+    "capture submission updates must be blocked after backend-owned review statuses"
+  assert_contains \
+    "$f" \
+    ".hasOnly(captureSubmissionClientUpdateKeys())" \
+    "capture submission updates must use the narrowed client update key list"
+  assert_scene_tenant_boundary "$f"
+done
 
 if [ "$status" -eq 0 ]; then
   n_ios=$(printf '%s\n' "$IOS_REQUIRED_COLLECTIONS" | grep -c '[A-Za-z]')

@@ -1,10 +1,12 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { buildPipelineSyncSignature } from "./pipelineSyncSecurity";
 
 const JOB_REQUEST_SCHEMA_VERSION = "robot_eval_job_request.v1";
 const JOB_REQUEST_QUEUE_CONTRACT = "robot_eval_job_request_inbox.v1";
 const DEFAULT_FORWARD_TIMEOUT_MS = 60000;
+const FORWARD_REQUIRED_ENV = "ROBOT_EVAL_JOB_REQUEST_FORWARD_REQUIRED";
 const FORWARD_CAPTURE_ROOT_ENV = "ROBOT_EVAL_JOB_REQUEST_FORWARD_CAPTURE_ROOT";
 const FORWARD_CAPTURE_ROOT_BY_SITE_ENV =
   "ROBOT_EVAL_JOB_REQUEST_FORWARD_CAPTURE_ROOT_BY_SITE_JSON";
@@ -274,6 +276,25 @@ function stringField(payload: Record<string, unknown>, ...keys: string[]) {
     }
   }
   return "";
+}
+
+function validateRequiredLineageField(params: {
+  errors: string[];
+  payload: Record<string, unknown>;
+  field: string;
+  path: string;
+  expectedValue: string;
+  expectedPath: string;
+}) {
+  const actual = stringField(params.payload, params.field);
+  const fieldPath = `${params.path}.${params.field}`;
+  if (!actual) {
+    params.errors.push(`${fieldPath} is required`);
+    return;
+  }
+  if (params.expectedValue && actual !== params.expectedValue) {
+    params.errors.push(`${fieldPath} must match ${params.expectedPath}`);
+  }
 }
 
 function validateSelectedPolicyModality(
@@ -643,9 +664,15 @@ export function validateRobotEvalJobRequest(value: unknown): {
   if (!buyerRequestId) errors.push("buyer_request_id is required");
 
   const sitePackage = value.site_package;
+  let siteSubmissionId = "";
+  let captureJobId = "";
+  let captureId = "";
   if (!hasObject(sitePackage)) {
     errors.push("site_package is required");
   } else {
+    siteSubmissionId = stringField(sitePackage, "site_submission_id");
+    captureJobId = stringField(sitePackage, "capture_job_id");
+    captureId = stringField(sitePackage, "capture_id");
     for (const field of [
       "site_slug",
       "site_id",
@@ -664,6 +691,95 @@ export function validateRobotEvalJobRequest(value: unknown): {
     }
     if (String(sitePackage.buyer_request_id || "").trim() !== buyerRequestId) {
       errors.push("site_package.buyer_request_id must match buyer_request_id");
+    }
+  }
+
+  const ownerSystem = value.owner_system;
+  if (!hasObject(ownerSystem)) {
+    errors.push("owner_system is required");
+  } else {
+    validateRequiredLineageField({
+      errors,
+      payload: ownerSystem,
+      field: "request_id",
+      path: "owner_system",
+      expectedValue: jobId,
+      expectedPath: "job_id",
+    });
+    validateRequiredLineageField({
+      errors,
+      payload: ownerSystem,
+      field: "buyer_request_id",
+      path: "owner_system",
+      expectedValue: buyerRequestId,
+      expectedPath: "buyer_request_id",
+    });
+    validateRequiredLineageField({
+      errors,
+      payload: ownerSystem,
+      field: "site_submission_id",
+      path: "owner_system",
+      expectedValue: siteSubmissionId,
+      expectedPath: "site_package.site_submission_id",
+    });
+    validateRequiredLineageField({
+      errors,
+      payload: ownerSystem,
+      field: "capture_job_id",
+      path: "owner_system",
+      expectedValue: captureJobId,
+      expectedPath: "site_package.capture_job_id",
+    });
+    validateRequiredLineageField({
+      errors,
+      payload: ownerSystem,
+      field: "capture_id",
+      path: "owner_system",
+      expectedValue: captureId,
+      expectedPath: "site_package.capture_id",
+    });
+  }
+
+  const source = value.source;
+  if (!hasObject(source)) {
+    errors.push("source is required");
+  } else {
+    const selectionState = source.selection_state;
+    if (!hasObject(selectionState)) {
+      errors.push("source.selection_state is required");
+    } else {
+      validateRequiredLineageField({
+        errors,
+        payload: selectionState,
+        field: "buyer_request_id",
+        path: "source.selection_state",
+        expectedValue: buyerRequestId,
+        expectedPath: "buyer_request_id",
+      });
+      validateRequiredLineageField({
+        errors,
+        payload: selectionState,
+        field: "site_submission_id",
+        path: "source.selection_state",
+        expectedValue: siteSubmissionId,
+        expectedPath: "site_package.site_submission_id",
+      });
+      validateRequiredLineageField({
+        errors,
+        payload: selectionState,
+        field: "capture_job_id",
+        path: "source.selection_state",
+        expectedValue: captureJobId,
+        expectedPath: "site_package.capture_job_id",
+      });
+      validateRequiredLineageField({
+        errors,
+        payload: selectionState,
+        field: "capture_id",
+        path: "source.selection_state",
+        expectedValue: captureId,
+        expectedPath: "site_package.capture_id",
+      });
     }
   }
 
@@ -1084,6 +1200,24 @@ function truthy(value: string | undefined) {
   return String(value || "").trim().toLowerCase() === "true";
 }
 
+function productionRuntime() {
+  return process.env.NODE_ENV === "production";
+}
+
+export function robotEvalJobRequestForwardRequired(explicit?: boolean) {
+  if (explicit !== undefined) {
+    return explicit;
+  }
+  const configured = String(process.env[FORWARD_REQUIRED_ENV] || "").trim().toLowerCase();
+  if (configured === "true") {
+    return true;
+  }
+  if (configured === "false" && !productionRuntime()) {
+    return false;
+  }
+  return true;
+}
+
 function intEnv(value: string | undefined, fallback: number) {
   const parsed = Number.parseInt(String(value || ""), 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
@@ -1248,8 +1382,7 @@ export async function forwardRobotEvalJobRequestToPipeline(params: {
   const endpoint =
     params.endpointUrl?.trim() ||
     String(process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_URL || "").trim();
-  const required =
-    params.required ?? truthy(process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_REQUIRED);
+  const required = robotEvalJobRequestForwardRequired(params.required);
   if (!endpoint) {
     return {
       status: "not_configured",
@@ -1297,14 +1430,25 @@ export async function forwardRobotEvalJobRequestToPipeline(params: {
   const controller = new AbortController();
   const timeoutMs = forwardTimeoutMs(params.timeoutMs);
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const body = JSON.stringify(envelope);
+  const timestamp = new Date().toISOString();
+  const nonce = randomUUID();
+  const signature = buildPipelineSyncSignature({
+    secret: token,
+    timestamp,
+    nonce,
+    body,
+  });
   try {
     const response = await fetch(endpoint, {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        authorization: `Bearer ${token}`,
+        "x-blueprint-pipeline-timestamp": timestamp,
+        "x-blueprint-pipeline-nonce": nonce,
+        "x-blueprint-pipeline-signature": `sha256=${signature}`,
       },
-      body: JSON.stringify(envelope),
+      body,
       signal: controller.signal,
     });
     let payload: Record<string, unknown> = {};

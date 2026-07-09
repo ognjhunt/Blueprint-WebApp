@@ -374,6 +374,18 @@ export interface ExplorerState {
   debugArtifacts?: Record<string, unknown> | null;
 }
 
+export type HostedSessionAccessPermission = "read" | "ui" | "operate" | "export" | "all";
+
+export interface HostedSessionAccessGrant {
+  uid?: string | null;
+  email?: string | null;
+  role?: "viewer" | "presenter" | "operator" | "exporter" | "owner" | string | null;
+  permissions?: HostedSessionAccessPermission[];
+  grantedAt?: string | null;
+  expiresAt?: string | null;
+  revokedAt?: string | null;
+}
+
 export interface HostedSessionRecord {
   sessionId: string;
   sessionMode: HostedSessionMode;
@@ -406,6 +418,11 @@ export interface HostedSessionRecord {
   task?: string;
   scenario?: string;
   notes?: string | null;
+  createdBy?: {
+    uid: string;
+    email?: string | null;
+  };
+  accessGrants?: HostedSessionAccessGrant[];
   createdAt?: string | null;
   startedAt?: string | null;
   stoppedAt?: string | null;

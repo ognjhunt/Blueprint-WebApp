@@ -58,6 +58,20 @@ function isStripeAccountLiveMode(account: Stripe.Account | null) {
   );
 }
 
+function financeReviewOwnerConfig() {
+  const owner = String(process.env.BLUEPRINT_FINANCE_REVIEW_OWNER || "").trim();
+  const reviewQueueUri = String(
+    process.env.BLUEPRINT_FINANCE_REVIEW_QUEUE_URI ||
+      process.env.BLUEPRINT_FINANCE_REVIEW_QUEUE_URL ||
+      "",
+  ).trim();
+  return {
+    finance_owner: owner || null,
+    finance_review_queue_uri: reviewQueueUri || null,
+    finance_review_owner_configured: Boolean(owner && reviewQueueUri),
+  };
+}
+
 function stripeReadinessPayload(
   account: Stripe.Account | null,
   options: {
@@ -76,6 +90,7 @@ function stripeReadinessPayload(
   const providerMode = providerLiveMode ? "live" : account ? "test" : "unknown";
   const liveProviderReady = Boolean(providerLiveMode && contractProviderReady);
   const livePayoutExecutionEnabled = isStripeLivePayoutExecutionEnabled();
+  const financeReview = financeReviewOwnerConfig();
   const missingEvidence: string[] = [];
 
   if (!options.providerStateChecked) {
@@ -90,6 +105,9 @@ function stripeReadinessPayload(
   if (!livePayoutExecutionEnabled) {
     missingEvidence.push("Human finance owner must explicitly enable BLUEPRINT_LIVE_PAYOUT_EXECUTION_ENABLED before payout execution.");
   }
+  if (!financeReview.finance_review_owner_configured) {
+    missingEvidence.push("Configure BLUEPRINT_FINANCE_REVIEW_OWNER and BLUEPRINT_FINANCE_REVIEW_QUEUE_URI before payout execution.");
+  }
 
   return {
     payout_provider: STRIPE_CURRENT_PROVIDER,
@@ -98,9 +116,14 @@ function stripeReadinessPayload(
     contract_provider_ready: contractProviderReady,
     live_provider_ready: liveProviderReady,
     live_payout_execution_enabled: livePayoutExecutionEnabled,
-    payout_execution_human_gate_required: !livePayoutExecutionEnabled,
+    payout_execution_human_gate_required:
+      !livePayoutExecutionEnabled || !financeReview.finance_review_owner_configured,
+    ...financeReview,
     instant_payout_eligible: Boolean(options.instantPayoutEligible),
-    provider_evidence_required: liveProviderReady && livePayoutExecutionEnabled
+    provider_evidence_required:
+      liveProviderReady &&
+      livePayoutExecutionEnabled &&
+      financeReview.finance_review_owner_configured
       ? []
       : missingEvidence,
     ...(requirements || {
@@ -113,18 +136,20 @@ function stripeReadinessPayload(
 }
 
 function ensurePayoutExecutionApproved(res: Response): boolean {
-  if (isStripeLivePayoutExecutionEnabled()) {
+  const financeReview = financeReviewOwnerConfig();
+  if (isStripeLivePayoutExecutionEnabled() && financeReview.finance_review_owner_configured) {
     return true;
   }
   res.status(409).json({
     error:
-      "Payout execution is disabled until a human finance owner explicitly enables it.",
+      "Payout execution is disabled until a human finance owner and review queue are configured and explicitly enabled.",
     payout_provider: STRIPE_CURRENT_PROVIDER,
-    live_payout_execution_enabled: false,
+    live_payout_execution_enabled: isStripeLivePayoutExecutionEnabled(),
     payout_execution_human_gate_required: true,
     human_required: true,
+    ...financeReview,
     required_evidence:
-      "Set BLUEPRINT_LIVE_PAYOUT_EXECUTION_ENABLED only after live Stripe/account, treasury balance, webhook reconciliation, and finance review ownership are verified.",
+      "Set BLUEPRINT_LIVE_PAYOUT_EXECUTION_ENABLED only after live Stripe/account, treasury balance, webhook reconciliation, BLUEPRINT_FINANCE_REVIEW_OWNER, and BLUEPRINT_FINANCE_REVIEW_QUEUE_URI are verified.",
   });
   return false;
 }

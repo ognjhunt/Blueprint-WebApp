@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   buildRobotEvalJobRequest,
   forwardRobotEvalJobRequestToPipeline,
+  robotEvalJobRequestForwardRequired,
   robotEvalJobRequestForwardErrorMessage,
   validateRobotEvalJobRequest,
   writeRobotEvalJobRequestInbox,
@@ -556,6 +557,31 @@ describe("buildRobotEvalJobRequest", () => {
     });
 
     expect(validateRobotEvalJobRequest(request)).toEqual({ ok: true, errors: [] });
+
+    const missingPipelineLineage = {
+      ...request,
+      owner_system: {},
+      source: {
+        ...request.source,
+        selection_state: {
+          buyer_request_id: "wrong-buyer-request",
+        },
+      },
+    };
+    expect(validateRobotEvalJobRequest(missingPipelineLineage)).toEqual({
+      ok: false,
+      errors: expect.arrayContaining([
+        "owner_system.request_id is required",
+        "owner_system.buyer_request_id is required",
+        "owner_system.site_submission_id is required",
+        "owner_system.capture_job_id is required",
+        "owner_system.capture_id is required",
+        "source.selection_state.buyer_request_id must match buyer_request_id",
+        "source.selection_state.site_submission_id is required",
+        "source.selection_state.capture_job_id is required",
+        "source.selection_state.capture_id is required",
+      ]),
+    });
   });
 
   it("writes a Pipeline-readable inbox envelope and append-only index", async () => {
@@ -640,7 +666,7 @@ describe("buildRobotEvalJobRequest", () => {
     expect(index).toContain("buyer-request-sw-chi-01-fixture");
   });
 
-  it("leaves Pipeline forwarding off when no endpoint is configured", async () => {
+  it("requires Pipeline forwarding by default even when no endpoint is configured", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch");
 
     const result = await forwardRobotEvalJobRequestToPipeline({
@@ -656,9 +682,18 @@ describe("buildRobotEvalJobRequest", () => {
       status: "not_configured",
       performed: false,
       endpoint_configured: false,
-      required: false,
+      required: true,
     });
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("allows optional local forwarding only outside production", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("ROBOT_EVAL_JOB_REQUEST_FORWARD_REQUIRED", "false");
+    expect(robotEvalJobRequestForwardRequired()).toBe(false);
+
+    vi.stubEnv("NODE_ENV", "production");
+    expect(robotEvalJobRequestForwardRequired()).toBe(true);
   });
 
   it("blocks Pipeline forwarding when endpoint is configured without a token", async () => {
@@ -855,11 +890,14 @@ describe("buildRobotEvalJobRequest", () => {
       expect.objectContaining({
         method: "POST",
         headers: expect.objectContaining({
-          authorization: "Bearer test-forward-token",
+          "x-blueprint-pipeline-signature": expect.stringMatching(/^sha256=[a-f0-9]{64}$/),
+          "x-blueprint-pipeline-timestamp": expect.any(String),
+          "x-blueprint-pipeline-nonce": expect.any(String),
         }),
       }),
     );
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect((init.headers as Record<string, string>).authorization).toBeUndefined();
     const body = JSON.parse(String(init.body));
     expect(body).toEqual(
       expect.objectContaining({

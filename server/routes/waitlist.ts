@@ -12,6 +12,12 @@ import { listCityLaunchActivations, upsertCityLaunchProspect } from "../utils/ci
 import { slugifyCityName } from "../utils/cityLaunchProfiles";
 import { runWaitlistLeadSignalRouting } from "../utils/highIntentLeadEnrichment";
 import { createLifecycleCadenceForWaitlistSubmission } from "../utils/lifecycle-cadence";
+import {
+  betaDecisionForResponse,
+  evaluateBetaCohortGate,
+  recordBetaCohortAdmission,
+  type BetaCohortDecision,
+} from "../utils/beta-cohort-policy";
 
 function toFilterToken(value: string) {
   return value
@@ -172,6 +178,24 @@ export default async function waitlistHandler(req: Request, res: Response) {
     return res.status(cachedResponse.status).json(cachedResponse.body);
   }
 
+  let betaCohortDecision: BetaCohortDecision | null = null;
+  if (roleIncludesCapturer) {
+    betaCohortDecision = await evaluateBetaCohortGate({
+      gate: "waitlist",
+      email: emailValue,
+      market: marketValue || null,
+      siteType: locationTypeValue,
+      source: sourceValue || "capture_app_private_beta",
+    });
+    if (!betaCohortDecision.allowed) {
+      return res.status(betaCohortDecision.statusCode).json({
+        success: false,
+        error: betaCohortDecision.message,
+        beta_cohort_policy: betaDecisionForResponse(betaCohortDecision),
+      });
+    }
+  }
+
   const to = process.env.WAITLIST_TO ?? "ops@tryblueprint.io";
   const subject =
     roleIncludesCapturer
@@ -233,6 +257,9 @@ export default async function waitlistHandler(req: Request, res: Response) {
         last_error: null,
         last_attempt_at: null,
       },
+      beta_cohort_policy: betaCohortDecision
+        ? betaDecisionForResponse(betaCohortDecision)
+        : null,
       human_review_required: null,
       automation_confidence: null,
       idempotency_key: idempotencyKey,
@@ -240,6 +267,18 @@ export default async function waitlistHandler(req: Request, res: Response) {
       updated_at: admin.firestore.FieldValue.serverTimestamp(),
     });
     persisted = true;
+
+    if (roleIncludesCapturer && betaCohortDecision) {
+      await recordBetaCohortAdmission({
+        gate: "waitlist",
+        admissionId: submissionId,
+        decision: betaCohortDecision,
+        email: emailValue,
+        market: marketValue || null,
+        siteType: locationTypeValue,
+        source: sourceValue || "capture_app_private_beta",
+      });
+    }
 
     createLifecycleCadenceForWaitlistSubmission({
       submissionId,
@@ -309,7 +348,15 @@ export default async function waitlistHandler(req: Request, res: Response) {
 
 
   const responseStatus = sent ? HTTP_STATUS.OK : HTTP_STATUS.ACCEPTED;
-  const responseBody = { success: true, sent, persisted, submissionId };
+  const responseBody = {
+    success: true,
+    sent,
+    persisted,
+    submissionId,
+    beta_cohort_policy: betaCohortDecision
+      ? betaDecisionForResponse(betaCohortDecision)
+      : null,
+  };
 
   await storeIdempotencyResponse({
     key: idempotencyKey,

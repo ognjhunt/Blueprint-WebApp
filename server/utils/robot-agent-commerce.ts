@@ -2,6 +2,10 @@ import crypto from "node:crypto";
 
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import type { SiteWorldCard } from "../../client/src/data/siteWorlds";
+import {
+  effectiveEntitlementAccessState,
+  entitlementTermForOrderItem,
+} from "./entitlementExpiry";
 
 export type AgentCommerceProduct = "site_world_package" | "hosted_session_rental";
 export type AgentCommerceMode = "dry_run";
@@ -101,6 +105,9 @@ export type AgentDryRunMarketplaceEntitlement = {
   delivery_mode: "download_link" | "hosted_session";
   access_state: "provisioned";
   granted_at: string;
+  expires_at: string | null;
+  license_term_hours: number | null;
+  license_term_unit: "hour" | null;
   updated_at: string;
   dry_run: true;
   site_world_id: string;
@@ -243,6 +250,12 @@ export function createAgentDryRunCheckout(input: AgentDryRunCheckoutInput, siteW
   const entitlementId = `dry-entitlement-${crypto.randomUUID()}`;
   const buyer = input.buyer || {};
   const deliveryMode = quote.product === "hosted_session_rental" ? "hosted_session" : "download_link";
+  const entitlementTerm = entitlementTermForOrderItem({
+    itemType: quote.product,
+    deliveryMode,
+    quantity: quote.quantity,
+    grantedAtIso: now,
+  });
   const order: AgentDryRunOrderRecord = {
     id: orderId,
     buyer_user_id: normalizeId(buyer.uid) || "agent-dry-run-buyer",
@@ -304,6 +317,9 @@ export function createAgentDryRunCheckout(input: AgentDryRunCheckoutInput, siteW
     delivery_mode: deliveryMode,
     access_state: "provisioned",
     granted_at: now,
+    expires_at: entitlementTerm.expires_at,
+    license_term_hours: entitlementTerm.license_term_hours,
+    license_term_unit: entitlementTerm.license_term_unit,
     updated_at: now,
     dry_run: true,
     site_world_id: quote.siteWorldId,
@@ -389,7 +405,7 @@ export async function findProvisionedHostedSessionEntitlement(params: {
     if (normalizeId(entitlement.buyer_user_id) !== buyerUserId) {
       continue;
     }
-    if (entitlement.access_state !== "provisioned") {
+    if (effectiveEntitlementAccessState(entitlement) !== "provisioned") {
       continue;
     }
     if (!skuCandidates.has(normalizeSku(entitlement.sku))) {
@@ -413,7 +429,7 @@ export async function findProvisionedHostedSessionEntitlement(params: {
     if (requestedEntitlementId && entitlementId !== requestedEntitlementId) {
       continue;
     }
-    if (normalizeId(data.access_state) !== "provisioned") {
+    if (effectiveEntitlementAccessState(data) !== "provisioned") {
       continue;
     }
     if (!skuCandidates.has(normalizeSku(data.sku))) {

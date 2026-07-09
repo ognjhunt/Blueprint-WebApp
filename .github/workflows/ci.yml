@@ -21,6 +21,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Checkout BlueprintCapture rules parity source
+        uses: actions/checkout@v4
+        with:
+          repository: ognjhunt/BlueprintCapture
+          path: BlueprintCapture
+          token: ${{ secrets.BLUEPRINT_CAPTURE_CHECKOUT_TOKEN || github.token }}
+
       - name: Checkout BlueprintContracts for shared robot-eval contract
         env:
           CONTRACTS_REPOSITORY: ognjhunt/BlueprintContracts
@@ -46,6 +53,9 @@ jobs:
 
       - name: Audit assets
         run: npm run audit:assets
+
+      - name: Verify Firebase rules parity
+        run: npm run rules:parity
 
       - name: Typecheck
         run: npm run check

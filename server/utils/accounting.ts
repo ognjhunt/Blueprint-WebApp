@@ -1,6 +1,7 @@
 import crypto from "crypto";
 
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+import { entitlementTermForOrderItem } from "./entitlementExpiry";
 
 const BUYER_ORDER_COLLECTION = "buyerOrders";
 const BUYER_ENTITLEMENT_COLLECTION = "marketplaceEntitlements";
@@ -35,7 +36,8 @@ export type BuyerOrderStatus =
   | "fulfilled"
   | "payment_failed"
   | "expired"
-  | "refunded";
+  | "refunded"
+  | "disputed";
 
 export type BuyerOrderPaymentStatus =
   | "checkout_created"
@@ -43,7 +45,8 @@ export type BuyerOrderPaymentStatus =
   | "paid"
   | "failed"
   | "expired"
-  | "refunded";
+  | "refunded"
+  | "disputed";
 
 export type BuyerOrderFulfillmentStatus =
   | "awaiting_payment"
@@ -56,10 +59,21 @@ export type CreatorPayoutStatus =
   | "pending_qualification"
   | "review_required"
   | "approved"
+  | "held_for_dispute"
   | "ineligible"
   | "in_transit"
   | "paid"
   | "disbursement_failed";
+
+export type CreatorPayoutFundingStatus =
+  | "not_required"
+  | "verified"
+  | "missing_verified_payout_funding_policy"
+  | "unsupported_payout_funding_policy"
+  | "missing_buyer_revenue_linkage"
+  | "insufficient_buyer_revenue"
+  | "missing_bounty_budget"
+  | "insufficient_bounty_budget";
 
 export type CreatorPayoutDisbursementStatus =
   | "initiated"
@@ -132,8 +146,11 @@ export type MarketplaceEntitlementRecord = {
   exclusivity: string;
   addons: string[];
   delivery_mode: string | null;
-  access_state: "provisioned" | "manual_review_required" | "revoked";
+  access_state: "provisioned" | "manual_review_required" | "revoked" | "expired";
   granted_at: string;
+  expires_at: string | null;
+  license_term_hours: number | null;
+  license_term_unit: "hour" | null;
   updated_at: string;
 };
 
@@ -153,6 +170,10 @@ export type CreatorPayoutRecord = {
   approved_amount_cents: number;
   recommendation: Record<string, unknown>;
   recommendation_uri: string | null;
+  payout_funding_policy: Record<string, unknown> | null;
+  funding_status: CreatorPayoutFundingStatus;
+  funding_blockers: string[];
+  payout_funding_reconciliation: Record<string, unknown> | null;
   stripe_connect_account_id: string | null;
   disbursement_id: string | null;
   stripe_payout_id: string | null;
@@ -183,6 +204,7 @@ export type CreatorPayoutDisbursementRecord = {
   funded_at: string | null;
   treasury_failure_reason: string | null;
   platform_available_balance_cents: number | null;
+  funding_reconciliation_report: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
   paid_at: string | null;
@@ -241,6 +263,19 @@ function asNumber(value: unknown): number {
   return 0;
 }
 
+function asFiniteNumberOrNull(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+  return null;
+}
+
 function asStringArray(value: unknown): string[] {
   return Array.isArray(value)
     ? value.map((item) => String(item || "").trim()).filter(Boolean)
@@ -251,6 +286,60 @@ function toRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object"
     ? (value as Record<string, unknown>)
     : {};
+}
+
+function toNullableRecord(value: unknown): Record<string, unknown> | null {
+  const record = toRecord(value);
+  return Object.keys(record).length > 0 ? record : null;
+}
+
+function firstStringField(
+  record: Record<string, unknown>,
+  fields: string[],
+): string | null {
+  for (const field of fields) {
+    const value = asString(record[field]);
+    if (value) {
+      return value;
+    }
+  }
+  return null;
+}
+
+function firstNumberField(
+  record: Record<string, unknown>,
+  fields: string[],
+): number | null {
+  for (const field of fields) {
+    const value = asFiniteNumberOrNull(record[field]);
+    if (value !== null) {
+      return value;
+    }
+  }
+  return null;
+}
+
+function captureIdFromRecord(value: unknown): string | null {
+  const record = toRecord(value);
+  for (const field of ["capture_id", "captureId", "capture"]) {
+    const direct = asString(record[field]);
+    if (direct) {
+      return direct;
+    }
+  }
+
+  for (const field of ["pipeline", "item", "metadata", "fulfillment", "site", "package"]) {
+    const nested = toRecord(record[field]);
+    const nestedCaptureId =
+      asString(nested.capture_id) ||
+      asString(nested.captureId) ||
+      asString(nested.capture);
+    if (nestedCaptureId) {
+      return nestedCaptureId;
+    }
+  }
+
+  return null;
 }
 
 function copyBuyerOrder(
@@ -343,6 +432,14 @@ function copyCreatorPayout(
     ),
     recommendation: toRecord(data.recommendation),
     recommendation_uri: asString(data.recommendation_uri),
+    payout_funding_policy: toNullableRecord(data.payout_funding_policy),
+    funding_status:
+      (asString(data.funding_status) as CreatorPayoutFundingStatus) ||
+      "missing_verified_payout_funding_policy",
+    funding_blockers: asStringArray(data.funding_blockers),
+    payout_funding_reconciliation: toNullableRecord(
+      data.payout_funding_reconciliation,
+    ),
     stripe_connect_account_id: asString(data.stripe_connect_account_id),
     disbursement_id: asString(data.disbursement_id),
     stripe_payout_id: asString(data.stripe_payout_id),
@@ -387,6 +484,9 @@ function copyCreatorPayoutDisbursement(
       data.platform_available_balance_cents == null
         ? null
         : Math.max(0, Math.floor(asNumber(data.platform_available_balance_cents))),
+    funding_reconciliation_report: toNullableRecord(
+      data.funding_reconciliation_report,
+    ),
     created_at: asString(data.created_at) || nowIso(),
     updated_at: asString(data.updated_at) || nowIso(),
     paid_at: asString(data.paid_at),
@@ -716,6 +816,12 @@ export async function markBuyerOrderPaidFromCheckout(params: {
   const entitlementId = refreshed.entitlement_id || refreshed.id;
   const accessState = determineEntitlementAccessState(refreshed);
   const fulfilledAt = accessState === "provisioned" ? paidAt : null;
+  const entitlementTerm = entitlementTermForOrderItem({
+    itemType: refreshed.item.item_type,
+    deliveryMode: refreshed.item.delivery_mode,
+    quantity: refreshed.item.quantity,
+    grantedAtIso: paidAt,
+  });
 
   const entitlement: MarketplaceEntitlementRecord = {
     id: entitlementId,
@@ -731,6 +837,9 @@ export async function markBuyerOrderPaidFromCheckout(params: {
     delivery_mode: refreshed.item.delivery_mode,
     access_state: accessState,
     granted_at: paidAt,
+    expires_at: entitlementTerm.expires_at,
+    license_term_hours: entitlementTerm.license_term_hours,
+    license_term_unit: entitlementTerm.license_term_unit,
     updated_at: paidAt,
   };
 
@@ -795,6 +904,218 @@ export async function markBuyerOrderPaymentFailure(params: {
       },
       { merge: true },
     );
+}
+
+async function fetchCollectionRecord(
+  collectionName: string,
+  id: string | null,
+): Promise<Record<string, unknown> | null> {
+  if (!db || !id) {
+    return null;
+  }
+  const snapshot = await db.collection(collectionName).doc(id).get();
+  if (!snapshot.exists) {
+    return null;
+  }
+  return {
+    id: snapshot.id || id,
+    ...((snapshot.data() || {}) as Record<string, unknown>),
+  };
+}
+
+async function resolveBuyerOrderCaptureIds(
+  order: BuyerOrderRecord,
+  entitlement: Record<string, unknown> | null,
+): Promise<string[]> {
+  const captureIds = new Set<string>();
+  const entitlementCaptureId = captureIdFromRecord(entitlement || {});
+  if (entitlementCaptureId) {
+    captureIds.add(entitlementCaptureId);
+  }
+
+  for (const candidateId of [
+    order.item.live_inventory_record_id,
+    order.item.sku,
+    order.entitlement_id,
+  ]) {
+    if (!candidateId) {
+      continue;
+    }
+    for (const collectionName of [
+      "publishedMarketplaceInventory",
+      "marketplace_items",
+      BUYER_ENTITLEMENT_COLLECTION,
+    ]) {
+      const record = await fetchCollectionRecord(collectionName, candidateId);
+      const captureId = captureIdFromRecord(record);
+      if (captureId) {
+        captureIds.add(captureId);
+      }
+    }
+  }
+
+  return Array.from(captureIds);
+}
+
+export async function markBuyerOrderDisputedFromCharge(params: {
+  paymentIntentId: string | null;
+  chargeId: string | null;
+  disputeId: string;
+  disputeStatus: string | null;
+  disputeReason: string | null;
+  amountCents: number | null;
+  currency: string | null;
+  evidenceDueBy: number | null;
+  eventId: string;
+  eventType: string;
+}): Promise<{
+  orderId: string | null;
+  heldPayoutIds: string[];
+  unresolvedPayoutIds: string[];
+}> {
+  if (!db || !params.paymentIntentId || !params.disputeId) {
+    return { orderId: null, heldPayoutIds: [], unresolvedPayoutIds: [] };
+  }
+
+  const order = await findBuyerOrderByPaymentIntentId(params.paymentIntentId);
+  if (!order) {
+    return { orderId: null, heldPayoutIds: [], unresolvedPayoutIds: [] };
+  }
+
+  const updatedAt = nowIso();
+  const disputeRecord = {
+    id: params.disputeId,
+    stripe_dispute_id: params.disputeId,
+    status: params.disputeStatus,
+    reason: params.disputeReason,
+    amount_cents: params.amountCents,
+    currency: params.currency,
+    evidence_due_by: params.evidenceDueBy,
+    charge_id: params.chargeId,
+    payment_intent_id: params.paymentIntentId,
+    last_webhook_event_id: params.eventId,
+    last_webhook_event_type: params.eventType,
+    updated_at: updatedAt,
+    requires_finance_review: true,
+  };
+
+  await db
+    .collection(BUYER_ORDER_COLLECTION)
+    .doc(order.id)
+    .set(
+      {
+        status: "disputed",
+        payment_status: "disputed",
+        fulfillment_status: "manual_review_required",
+        failure_reason: "Stripe reported a buyer payment dispute.",
+        disputed_at: updatedAt,
+        payment_dispute: disputeRecord,
+        stripe: {
+          charge_id: params.chargeId,
+          payment_intent_id: params.paymentIntentId,
+          livemode: order.stripe.livemode,
+        },
+        updated_at: updatedAt,
+        last_webhook_event_id: params.eventId,
+        last_webhook_event_type: params.eventType,
+      },
+      { merge: true },
+    );
+
+  const entitlementId = order.entitlement_id || order.id;
+  const entitlementSnapshot = await db
+    .collection(BUYER_ENTITLEMENT_COLLECTION)
+    .doc(entitlementId)
+    .get();
+  const entitlement = entitlementSnapshot.exists
+    ? {
+        id: entitlementSnapshot.id || entitlementId,
+        ...((entitlementSnapshot.data() || {}) as Record<string, unknown>),
+      }
+    : null;
+
+  if (entitlement) {
+    await db
+      .collection(BUYER_ENTITLEMENT_COLLECTION)
+      .doc(entitlementId)
+      .set(
+        {
+          access_state: "revoked",
+          payment_dispute: disputeRecord,
+          revoked_at: updatedAt,
+          revocation_reason: "buyer_payment_dispute",
+          updated_at: updatedAt,
+        },
+        { merge: true },
+      );
+  }
+
+  const captureIds = await resolveBuyerOrderCaptureIds(order, entitlement);
+  const heldPayoutIds: string[] = [];
+  const unresolvedPayoutIds: string[] = [];
+  const holdableStatuses = new Set<CreatorPayoutStatus>([
+    "pending_qualification",
+    "review_required",
+    "approved",
+    "disbursement_failed",
+    "held_for_dispute",
+  ]);
+
+  for (const captureId of captureIds) {
+    const payoutSnapshot = await db
+      .collection(CREATOR_PAYOUT_COLLECTION)
+      .doc(captureId)
+      .get();
+    if (!payoutSnapshot.exists) {
+      continue;
+    }
+    const payout = copyCreatorPayout(payoutSnapshot.data() as Record<string, unknown>);
+    if (!holdableStatuses.has(payout.status)) {
+      unresolvedPayoutIds.push(payout.id);
+      continue;
+    }
+
+    await db
+      .collection(CREATOR_PAYOUT_COLLECTION)
+      .doc(payout.id)
+      .set(
+        {
+          status: "held_for_dispute",
+          failure_reason: "Buyer payment dispute opened before payout settlement.",
+          dispute_hold: {
+            ...disputeRecord,
+            order_id: order.id,
+            capture_id: payout.capture_id,
+          },
+          updated_at: updatedAt,
+          last_webhook_event_id: params.eventId,
+          last_webhook_event_type: params.eventType,
+        },
+        { merge: true },
+      );
+    heldPayoutIds.push(payout.id);
+  }
+
+  await db
+    .collection(BUYER_ORDER_COLLECTION)
+    .doc(order.id)
+    .set(
+      {
+        payment_dispute: {
+          ...disputeRecord,
+          resolved_capture_ids: captureIds,
+          held_payout_ids: heldPayoutIds,
+          unresolved_payout_ids: unresolvedPayoutIds,
+        },
+      },
+      { merge: true },
+    );
+
+  return {
+    orderId: order.id,
+    heldPayoutIds,
+    unresolvedPayoutIds,
+  };
 }
 
 export async function beginStripeWebhookEvent(
@@ -906,6 +1227,235 @@ export async function resolveCreatorIdForCapture(
   return asString(capture.data()?.creator_id);
 }
 
+type PayoutFundingEvaluation = {
+  policy: Record<string, unknown> | null;
+  status: CreatorPayoutFundingStatus;
+  blockers: string[];
+  reconciliation: Record<string, unknown> | null;
+};
+
+function verifiedPayoutFundingPolicy(
+  recommendation: Record<string, unknown>,
+  approvedAmountCents: number,
+): PayoutFundingEvaluation {
+  const policy =
+    toNullableRecord(recommendation.payout_funding_policy) ||
+    toNullableRecord(recommendation.funding_policy);
+  if (!policy) {
+    return {
+      policy: null,
+      status: "missing_verified_payout_funding_policy",
+      blockers: [
+        "Qualified creator payouts require a buyer_revenue_linked or preapproved_bounty_budget funding policy before approval.",
+      ],
+      reconciliation: null,
+    };
+  }
+
+  const mode = asString(policy.mode);
+  if (mode === "buyer_revenue_linked") {
+    const buyerOrderId = firstStringField(policy, [
+      "buyer_order_id",
+      "order_id",
+      "buyerOrderId",
+    ]);
+    const realizedBuyerRevenueCents = firstNumberField(policy, [
+      "realized_buyer_revenue_cents",
+      "buyer_revenue_cents",
+      "paid_buyer_revenue_cents",
+      "settled_buyer_revenue_cents",
+    ]);
+    const blockers: string[] = [];
+    if (!buyerOrderId) {
+      blockers.push("buyer_order_id is required for buyer_revenue_linked payouts.");
+    }
+    if (realizedBuyerRevenueCents === null) {
+      blockers.push(
+        "realized_buyer_revenue_cents is required for buyer_revenue_linked payouts.",
+      );
+    }
+    if (blockers.length > 0 || realizedBuyerRevenueCents === null) {
+      return {
+        policy,
+        status: "missing_buyer_revenue_linkage",
+        blockers,
+        reconciliation: null,
+      };
+    }
+    const normalizedRevenueCents = Math.max(
+      0,
+      Math.floor(realizedBuyerRevenueCents),
+    );
+    if (normalizedRevenueCents < approvedAmountCents) {
+      return {
+        policy,
+        status: "insufficient_buyer_revenue",
+        blockers: [
+          `realized_buyer_revenue_cents (${normalizedRevenueCents}) is below approved_amount_cents (${approvedAmountCents}).`,
+        ],
+        reconciliation: null,
+      };
+    }
+    return {
+      policy,
+      status: "verified",
+      blockers: [],
+      reconciliation: {
+        schema: "blueprint/creator-payout-funding-reconciliation/v1",
+        mode,
+        buyer_order_id: buyerOrderId,
+        approved_payout_cents: approvedAmountCents,
+        realized_buyer_revenue_cents: normalizedRevenueCents,
+        buyer_revenue_margin_cents:
+          normalizedRevenueCents - approvedAmountCents,
+        generated_at: nowIso(),
+      },
+    };
+  }
+
+  if (mode === "preapproved_bounty_budget") {
+    const budgetId = firstStringField(policy, [
+      "budget_id",
+      "bounty_budget_id",
+      "bountyBudgetId",
+    ]);
+    const approvedBy = firstStringField(policy, [
+      "approved_by",
+      "finance_owner",
+      "owner",
+    ]);
+    const remainingBudgetCents = firstNumberField(policy, [
+      "remaining_budget_cents",
+      "budget_remaining_cents",
+      "available_budget_cents",
+    ]);
+    const blockers: string[] = [];
+    if (!budgetId) {
+      blockers.push("budget_id is required for preapproved_bounty_budget payouts.");
+    }
+    if (!approvedBy) {
+      blockers.push(
+        "approved_by is required for preapproved_bounty_budget payouts.",
+      );
+    }
+    if (remainingBudgetCents === null) {
+      blockers.push(
+        "remaining_budget_cents is required for preapproved_bounty_budget payouts.",
+      );
+    }
+    if (blockers.length > 0 || remainingBudgetCents === null) {
+      return {
+        policy,
+        status: "missing_bounty_budget",
+        blockers,
+        reconciliation: null,
+      };
+    }
+    const normalizedBudgetCents = Math.max(0, Math.floor(remainingBudgetCents));
+    if (normalizedBudgetCents < approvedAmountCents) {
+      return {
+        policy,
+        status: "insufficient_bounty_budget",
+        blockers: [
+          `remaining_budget_cents (${normalizedBudgetCents}) is below approved_amount_cents (${approvedAmountCents}).`,
+        ],
+        reconciliation: null,
+      };
+    }
+    return {
+      policy,
+      status: "verified",
+      blockers: [],
+      reconciliation: {
+        schema: "blueprint/creator-payout-funding-reconciliation/v1",
+        mode,
+        budget_id: budgetId,
+        approved_by: approvedBy,
+        approved_payout_cents: approvedAmountCents,
+        remaining_budget_cents: normalizedBudgetCents,
+        budget_remaining_after_payout_cents:
+          normalizedBudgetCents - approvedAmountCents,
+        generated_at: nowIso(),
+      },
+    };
+  }
+
+  return {
+    policy,
+    status: "unsupported_payout_funding_policy",
+    blockers: [
+      "payout_funding_policy.mode must be buyer_revenue_linked or preapproved_bounty_budget.",
+    ],
+    reconciliation: null,
+  };
+}
+
+function notRequiredPayoutFunding(): PayoutFundingEvaluation {
+  return {
+    policy: null,
+    status: "not_required",
+    blockers: [],
+    reconciliation: null,
+  };
+}
+
+function payoutFundingEligibleForDisbursement(entry: CreatorPayoutRecord): boolean {
+  if (entry.approved_amount_cents <= 0) {
+    return false;
+  }
+  return entry.funding_status === "verified" && Boolean(entry.payout_funding_reconciliation);
+}
+
+function buildPayoutDisbursementFundingReport(
+  entries: CreatorPayoutRecord[],
+  disbursedAmountCents: number,
+): Record<string, unknown> {
+  const entryReports = entries.map((entry) => {
+    const reconciliation = toRecord(entry.payout_funding_reconciliation);
+    return {
+      payout_entry_id: entry.id,
+      capture_id: entry.capture_id,
+      mode: asString(reconciliation.mode),
+      approved_payout_cents: entry.approved_amount_cents,
+      buyer_order_id: asString(reconciliation.buyer_order_id),
+      realized_buyer_revenue_cents: firstNumberField(reconciliation, [
+        "realized_buyer_revenue_cents",
+      ]),
+      buyer_revenue_margin_cents: firstNumberField(reconciliation, [
+        "buyer_revenue_margin_cents",
+      ]),
+      bounty_budget_id: asString(reconciliation.budget_id),
+      remaining_budget_cents: firstNumberField(reconciliation, [
+        "remaining_budget_cents",
+      ]),
+    };
+  });
+  const buyerRevenueCents = entryReports.reduce((total, report) => {
+    return total + Math.max(0, Math.floor(report.realized_buyer_revenue_cents || 0));
+  }, 0);
+  const buyerRevenueLinkedPayoutCents = entryReports.reduce((total, report) => {
+    return report.mode === "buyer_revenue_linked"
+      ? total + Math.max(0, Math.floor(report.approved_payout_cents || 0))
+      : total;
+  }, 0);
+  const fundingModes = Array.from(
+    new Set(entryReports.map((report) => report.mode).filter(Boolean)),
+  );
+
+  return {
+    schema: "blueprint/creator-payout-disbursement-funding-report/v1",
+    payout_entry_ids: entries.map((entry) => entry.id),
+    disbursed_amount_cents: disbursedAmountCents,
+    realized_buyer_revenue_cents: buyerRevenueCents,
+    buyer_revenue_linked_payout_cents: buyerRevenueLinkedPayoutCents,
+    buyer_revenue_margin_cents:
+      buyerRevenueCents - buyerRevenueLinkedPayoutCents,
+    funding_modes: fundingModes,
+    entry_reports: entryReports,
+    generated_at: nowIso(),
+  };
+}
+
 export async function upsertCreatorPayoutFromPipeline(params: {
   captureId: string;
   sceneId: string | null;
@@ -943,21 +1493,42 @@ export async function upsertCreatorPayoutFromPipeline(params: {
         asNumber(params.recommendation.base_payout_cents),
     ),
   );
+  const isQualifiedReady = READY_QUALIFICATION_STATES.has(
+    (params.qualificationState || "").trim(),
+  );
+  const requiresFundingCheck =
+    isQualifiedReady && recommendationStatus !== "review_required" && basePayoutCents > 0;
+  const funding = requiresFundingCheck
+    ? verifiedPayoutFundingPolicy(params.recommendation, basePayoutCents)
+    : notRequiredPayoutFunding();
 
   let nextStatus: CreatorPayoutStatus = "pending_qualification";
-  if (!READY_QUALIFICATION_STATES.has((params.qualificationState || "").trim())) {
+  if (!isQualifiedReady) {
     nextStatus = "pending_qualification";
   } else if (recommendationStatus === "review_required") {
     nextStatus = "review_required";
   } else if (basePayoutCents <= 0) {
     nextStatus = "ineligible";
+  } else if (funding.status !== "verified") {
+    nextStatus = "review_required";
   } else {
     nextStatus = "approved";
   }
 
-  if (existing && ["in_transit", "paid"].includes(existing.status)) {
-    nextStatus = existing.status;
+  const preservesSettledStatus = Boolean(
+    existing && ["in_transit", "paid"].includes(existing.status),
+  );
+  if (preservesSettledStatus) {
+    nextStatus = existing!.status;
   }
+  const payloadFunding = preservesSettledStatus
+    ? {
+        policy: existing!.payout_funding_policy,
+        status: existing!.funding_status,
+        blockers: existing!.funding_blockers,
+        reconciliation: existing!.payout_funding_reconciliation,
+      }
+    : funding;
 
   const approvedAt =
     nextStatus === "approved" || nextStatus === "in_transit" || nextStatus === "paid"
@@ -983,13 +1554,19 @@ export async function upsertCreatorPayoutFromPipeline(params: {
     approved_amount_cents: basePayoutCents,
     recommendation: params.recommendation,
     recommendation_uri: params.recommendationUri,
+    payout_funding_policy: payloadFunding.policy,
+    funding_status: payloadFunding.status,
+    funding_blockers: payloadFunding.blockers,
+    payout_funding_reconciliation: payloadFunding.reconciliation,
     stripe_connect_account_id:
       params.stripeConnectAccountId || existing?.stripe_connect_account_id || null,
     disbursement_id: existing?.disbursement_id || null,
     stripe_payout_id: existing?.stripe_payout_id || null,
     last_webhook_event_id: existing?.last_webhook_event_id || null,
     last_webhook_event_type: existing?.last_webhook_event_type || null,
-    failure_reason: existing?.failure_reason || null,
+    failure_reason:
+      payloadFunding.blockers[0] ||
+      (nextStatus === "approved" ? null : existing?.failure_reason || null),
     created_at: existing?.created_at || nowIso(),
     updated_at: nowIso(),
     approved_at: approvedAt,
@@ -1125,7 +1702,11 @@ export async function beginCreatorPayoutDisbursement(params: {
   // read-then-write double-pay race (WEB-01) cannot open a window between
   // selection and the in_transit flip.
   const candidateEntryIds = (await listCreatorPayouts(params.creatorId))
-    .filter((entry) => ["approved", "disbursement_failed"].includes(entry.status))
+    .filter(
+      (entry) =>
+        ["approved", "disbursement_failed"].includes(entry.status) &&
+        payoutFundingEligibleForDisbursement(entry),
+    )
     .map((entry) => entry.id);
   if (candidateEntryIds.length === 0) {
     return null;
@@ -1176,7 +1757,7 @@ export async function beginCreatorPayoutDisbursement(params: {
       ) {
         continue;
       }
-      if (entry.approved_amount_cents <= 0) {
+      if (!payoutFundingEligibleForDisbursement(entry)) {
         continue;
       }
       if (
@@ -1212,6 +1793,10 @@ export async function beginCreatorPayoutDisbursement(params: {
       funded_at: null,
       treasury_failure_reason: null,
       platform_available_balance_cents: null,
+      funding_reconciliation_report: buildPayoutDisbursementFundingReport(
+        selectedEntries,
+        runningTotal,
+      ),
       created_at: createdAt,
       updated_at: createdAt,
       paid_at: null,

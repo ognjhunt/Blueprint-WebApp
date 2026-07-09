@@ -4,7 +4,7 @@
     "title": "Blueprint Robot-Team Agent API",
     "version": "2026-05-31",
     "summary": "Headless catalog, site-world, dry-run commerce, hosted-session, explorer-render, and export contract for robot-team agents.",
-    "description": "Blueprint exposes capture-backed site-world catalog, dry-run quote/order/entitlement proof, and hosted-session endpoints for robot-team agents. Public demo calls may run without privileged credentials only when a demo site world is enabled. Protected robot-team flows use the existing Firebase bearer path and require robot_team/admin outer auth plus session ownership or a matching provisioned entitlement."
+    "description": "Blueprint exposes capture-backed site-world catalog, dry-run quote/order/entitlement proof, and hosted-session endpoints for robot-team agents. Public demo calls may run without privileged credentials only when a demo site world is enabled. Protected robot-team flows use the existing Firebase bearer path and require robot_team/admin outer auth. A provisioned entitlement can launch a new protected session; existing sessions require creator ownership, admin access, or an active per-session share grant."
   },
   "servers": [
     {

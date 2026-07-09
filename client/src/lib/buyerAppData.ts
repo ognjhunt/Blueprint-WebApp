@@ -10,6 +10,7 @@ export type EntitlementAccessState =
   | "provisioned"
   | "manual_review_required"
   | "revoked"
+  | "expired"
   | string;
 
 export type EntitlementAccessLink = {
@@ -31,6 +32,7 @@ export type BuyerEntitlement = {
   delivery_mode?: string | null;
   access_state?: EntitlementAccessState | null;
   granted_at?: string | null;
+  expires_at?: string | null;
   updated_at?: string | null;
   access?: EntitlementAccessLink | null;
 };
@@ -135,6 +137,9 @@ export function entitlementStateLabel(state: string | null | undefined) {
   if (state === "revoked") {
     return "Revoked";
   }
+  if (state === "expired") {
+    return "Expired";
+  }
   return state ? state.replace(/_/g, " ") : "Pending";
 }
 
@@ -148,6 +153,9 @@ export function entitlementStateTone(
     return "warn";
   }
   if (state === "revoked") {
+    return "block";
+  }
+  if (state === "expired") {
     return "block";
   }
   return "neutral";

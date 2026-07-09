@@ -31,7 +31,10 @@ Stripe Connect covers the near-term buyer checkout and capturer payout/KYC lane 
 
 - Buyer checkout: Stripe Checkout/Connect contract tests are valid contract evidence only. Live buyer payment readiness still needs a live checkout/payment-intent artifact and webhook reconciliation.
 - Capturer payout: Stripe is the current provider. `/v1/stripe/account` must report `provider_state_checked=true`, `provider_mode=live`, `live_provider_ready=true`, `payouts_enabled=true`, and no blocking requirements before launch copy can imply provider readiness.
-- Live payout execution: fail-closed behind `BLUEPRINT_LIVE_PAYOUT_EXECUTION_ENABLED`; this repo-safe pass does not enable it.
+- Live payout execution: fail-closed behind `BLUEPRINT_LIVE_PAYOUT_EXECUTION_ENABLED`
+  and additionally requires `BLUEPRINT_FINANCE_REVIEW_OWNER` plus
+  `BLUEPRINT_FINANCE_REVIEW_QUEUE_URI`; this repo-safe pass does not enable it
+  or name the human owner.
 - iOS: payout UX now requires backend URL plus explicit `BLUEPRINT_PAYOUT_PROVIDER_READY=YES`.
 - Android: external alpha stays honest; provider readiness defaults false and native payout onboarding remains off-device.
 - KYC: Stripe Connect onboarding is the only current near-term KYC/account-requirements path. Persona, Stripe Identity, and Checkr are not integrated.
@@ -43,7 +46,9 @@ Stripe Connect covers the near-term buyer checkout and capturer payout/KYC lane 
 - Live buyer checkout or PaymentIntent success plus webhook reconciliation.
 - Live connected-account readiness showing no blocking Stripe requirements.
 - Payout exception monitor for payout failures, canceled payouts, disbursement failures, and overdue finance reviews.
-- Named human finance owner and review route before enabling payout execution.
+- Named human finance owner and review route before enabling payout execution:
+  set `BLUEPRINT_FINANCE_REVIEW_OWNER` and `BLUEPRINT_FINANCE_REVIEW_QUEUE_URI`
+  only after the actual owner and watched queue exist.
 - Identity/KYC provider decision: Stripe Connect only, or a deliberate addition of Persona/Stripe Identity/etc.
 - Background-check decision: no Checkr/background provider claim until account, consent, adjudication, and appeal policy are in place.
 

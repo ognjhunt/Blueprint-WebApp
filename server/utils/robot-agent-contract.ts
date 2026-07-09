@@ -169,7 +169,7 @@ export function buildRobotAgentAccessManifest() {
     protectedFlow: {
       requiresBearer: true,
       authModel: "Firebase robot_team or admin bearer token",
-      accessModel: "session ownership, admin access, or matching provisioned hosted-session entitlement",
+      accessModel: "provisioned entitlement for new protected launches; existing sessions require session ownership, admin access, or an active per-session share grant",
       livePaymentPath: "/api/create-checkout-session",
       truth:
         "Protected robot-team hosted sessions preserve Firebase, entitlement, session ownership, rights, runtime, and launch-readiness checks. Dry-run commerce is separate from live Stripe/payment/fulfillment.",
@@ -213,7 +213,7 @@ export function buildRobotAgentOpenApiContract() {
       version: ROBOT_AGENT_CONTRACT_VERSION,
       summary: "Headless catalog, site-world, dry-run commerce, hosted-session, explorer-render, and export contract for robot-team agents.",
       description:
-        "Blueprint exposes capture-backed site-world catalog, dry-run quote/order/entitlement proof, and hosted-session endpoints for robot-team agents. Public demo calls may run without privileged credentials only when a demo site world is enabled. Protected robot-team flows use the existing Firebase bearer path and require robot_team/admin outer auth plus session ownership or a matching provisioned entitlement.",
+        "Blueprint exposes capture-backed site-world catalog, dry-run quote/order/entitlement proof, and hosted-session endpoints for robot-team agents. Public demo calls may run without privileged credentials only when a demo site world is enabled. Protected robot-team flows use the existing Firebase bearer path and require robot_team/admin outer auth. A provisioned entitlement can launch a new protected session; existing sessions require creator ownership, admin access, or an active per-session share grant.",
     },
     servers: [
       {

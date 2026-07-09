@@ -1,10 +1,8 @@
 import { Helmet } from "@/lib/helmet";
 import { Link, useParams } from "wouter";
-import type { ReactNode } from "react";
-import { ArrowLeft, ArrowRight, ShieldAlert, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ShieldAlert, ShieldCheck } from "lucide-react";
 
 import {
-  Button,
   DataField,
   Eyebrow,
   ProofBoundary,
@@ -16,6 +14,7 @@ import {
   BuyerAppErrorState,
   BuyerAppLoadingState,
 } from "@/components/blueprint/app/BuyerAppStates";
+import { EntitlementAccessButton } from "@/components/blueprint/app/EntitlementAccessTable";
 import {
   entitlementDisplayName,
   entitlementScope,
@@ -129,7 +128,7 @@ function SiteDetailBody({ entitlement }: { entitlement: BuyerEntitlement }) {
         <Eyebrow tone="brass" rule>
           Access
         </Eyebrow>
-        {entitlement.access?.url ? (
+        {entitlement.access?.url || entitlement.access_state === "provisioned" ? (
           <div className="flex flex-col gap-4 rounded-md border border-line bg-white p-5">
             <ProofBoundary
               level="proof"
@@ -139,11 +138,13 @@ function SiteDetailBody({ entitlement }: { entitlement: BuyerEntitlement }) {
               This entitlement has an access target returned by the marketplace
               entitlement service.
             </ProofBoundary>
-            <Button asChild variant="action" className="w-fit" iconRight={<ArrowRight />}>
-              <AccessLink href={entitlement.access.url}>
-                {entitlement.access.label || "Open access"}
-              </AccessLink>
-            </Button>
+            <div className="w-fit">
+              <EntitlementAccessButton
+                entitlement={entitlement}
+                actionLabel={entitlement.access?.label || "Open access"}
+                size="md"
+              />
+            </div>
           </div>
         ) : (
           <ProofBoundary
@@ -173,21 +174,4 @@ function findEntitlement(entitlements: BuyerEntitlement[], id: string) {
     const sku = String(entitlement.sku || "").trim().toLowerCase();
     return entitlementId === normalized || sku === normalized;
   });
-}
-
-function AccessLink({
-  href,
-  children,
-}: {
-  href: string;
-  children: ReactNode;
-}) {
-  if (/^https?:\/\//i.test(href)) {
-    return (
-      <a href={href} target="_blank" rel="noreferrer">
-        {children}
-      </a>
-    );
-  }
-  return <Link href={href}>{children}</Link>;
 }

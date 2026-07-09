@@ -64,7 +64,7 @@ Predictable CLI exit codes:
 | `3` | Setup/auth doctor failed, such as malformed `BLUEPRINT_API_BASE_URL` or missing required bearer auth. |
 | `4` | Blueprint API request failed or could not be reached. |
 
-The CLI setup checks do not call Stripe, providers, Firebase writes, Paperclip mutation, payment, payout, or hosted-session fulfillment paths. Protected non-demo hosted-session flows still require existing Firebase robot-team/admin bearer auth plus session ownership or a matching provisioned entitlement.
+The CLI setup checks do not call Stripe, providers, Firebase writes, Paperclip mutation, payment, payout, or hosted-session fulfillment paths. Protected non-demo hosted-session creation still requires existing Firebase robot-team/admin bearer auth plus a provisioned entitlement; existing session operations require session ownership, admin access, or an active per-session share grant.
 
 ## Agent Journey Planner
 
@@ -120,7 +120,7 @@ The Pipeline schema truth for these modalities is `robot_team_test_submission_mo
 }
 ```
 
-Read-only tools can use public endpoints. Session/write tools require either public-demo eligibility or a scoped bearer token that resolves through the existing Firebase robot-team/admin access checks. Protected non-demo session create also requires a provisioned hosted-session entitlement; protected session operations require admin access, session ownership, or a matching provisioned entitlement.
+Read-only tools can use public endpoints. Session/write tools require either public-demo eligibility or a scoped bearer token that resolves through the existing Firebase robot-team/admin access checks. Protected non-demo session create also requires a provisioned hosted-session entitlement; protected session operations require admin access, session ownership, or an active per-session share grant.
 
 ## Catalog Search
 
@@ -206,6 +206,6 @@ Use `tsx scripts/agent-access/headless-hosted-session-smoke.ts --mode public-dem
 - `public_demo_eligible` means the public sample can exercise credential-free demo paths without representing protected customer access.
 - `request_gated` means access, rights, export, or hosted availability still depends on review.
 - `dry_run_order` means local/test quote, order, receipt, and entitlement proof with no live Stripe charge or live package access.
-- `protected_robot_team` means protected hosted-session access requires robot-team/admin auth plus session ownership or a matching provisioned entitlement.
+- `protected_robot_team` means protected hosted-session creation requires robot-team/admin auth plus a provisioned entitlement; existing protected session operations require creator ownership, admin access, or an active per-session share grant.
 
 Protected site worlds continue through Firebase Admin verification and the existing `buyerType === "robot_team"` or admin access check. Hosted-session create/export/render/media/explorer-frame/control are not paid-entitlement-backed operational launch proof unless live Stripe, webhook, Firebase entitlement, provider/runtime, and rights systems have current evidence.

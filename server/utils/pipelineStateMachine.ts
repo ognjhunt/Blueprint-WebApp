@@ -125,6 +125,8 @@ export function buildRobotEvalCardArtifactUris(
   artifacts: PipelineArtifacts | undefined,
 ): RobotEvalDatasetCardArtifactUris {
   return {
+    post_training_data_package_uri: artifacts?.post_training_data_package_uri || null,
+    delivery_manifest_uri: artifacts?.delivery_manifest_uri || null,
     manifest_uri: artifacts?.robot_eval_dataset_manifest_uri || null,
     legacy_manifest_uri: artifacts?.robot_eval_legacy_manifest_uri || null,
     site_card_uri: artifacts?.robot_eval_site_card_uri || null,

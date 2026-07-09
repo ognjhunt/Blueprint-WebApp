@@ -122,6 +122,8 @@ afterEach(() => {
   state.markFundingFailure.mockClear();
   state.finalize.mockClear();
   state.livePayoutExecutionEnabled = false;
+  delete process.env.BLUEPRINT_FINANCE_REVIEW_OWNER;
+  delete process.env.BLUEPRINT_FINANCE_REVIEW_QUEUE_URI;
 });
 
 describe("stripe treasury funding", () => {
@@ -175,10 +177,44 @@ describe("stripe treasury funding", () => {
 
       expect(response.status).toBe(409);
       await expect(response.json()).resolves.toMatchObject({
-        error: "Payout execution is disabled until a human finance owner explicitly enables it.",
+        error:
+          "Payout execution is disabled until a human finance owner and review queue are configured and explicitly enabled.",
         payout_provider: "stripe",
         live_payout_execution_enabled: false,
         payout_execution_human_gate_required: true,
+        finance_review_owner_configured: false,
+        human_required: true,
+      });
+      expect(state.transferCreate).not.toHaveBeenCalled();
+      expect(state.payoutCreate).not.toHaveBeenCalled();
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("requires a named finance owner and review queue even when the live payout flag is enabled", async () => {
+    state.livePayoutExecutionEnabled = true;
+
+    const { server, baseUrl } = await startServer();
+    try {
+      const response = await fetch(`${baseUrl}/v1/stripe/account/instant_payout`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ amount_cents: 4500 }),
+      });
+
+      expect(response.status).toBe(409);
+      await expect(response.json()).resolves.toMatchObject({
+        error:
+          "Payout execution is disabled until a human finance owner and review queue are configured and explicitly enabled.",
+        payout_provider: "stripe",
+        live_payout_execution_enabled: true,
+        payout_execution_human_gate_required: true,
+        finance_review_owner_configured: false,
+        finance_owner: null,
+        finance_review_queue_uri: null,
         human_required: true,
       });
       expect(state.transferCreate).not.toHaveBeenCalled();
@@ -190,6 +226,8 @@ describe("stripe treasury funding", () => {
 
   it("funds the creator connected account before creating the payout", async () => {
     state.livePayoutExecutionEnabled = true;
+    process.env.BLUEPRINT_FINANCE_REVIEW_OWNER = "finance.owner@example.com";
+    process.env.BLUEPRINT_FINANCE_REVIEW_QUEUE_URI = "https://ops.example/finance-review";
 
     const { server, baseUrl } = await startServer();
     try {
@@ -237,6 +275,8 @@ describe("stripe treasury funding", () => {
   it("blocks payout creation when platform treasury balance is insufficient", async () => {
     state.availableAmount = 1000;
     state.livePayoutExecutionEnabled = true;
+    process.env.BLUEPRINT_FINANCE_REVIEW_OWNER = "finance.owner@example.com";
+    process.env.BLUEPRINT_FINANCE_REVIEW_QUEUE_URI = "https://ops.example/finance-review";
 
     const { server, baseUrl } = await startServer();
     try {

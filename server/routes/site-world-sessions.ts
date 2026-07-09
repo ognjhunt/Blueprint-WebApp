@@ -1128,6 +1128,10 @@ function createSessionRecord(params: {
   const robotProfile = normalizeRobotProfile(params.body, params.runtime);
   const sessionId = randomUUID();
   const sessionMode = normalizeSessionMode(params.body.sessionMode);
+  const commerceAccessSource =
+    params.user.accessSource === "none" || params.user.accessSource === "session_share"
+      ? null
+      : params.user.accessSource;
 
   return {
     sessionId,
@@ -1175,7 +1179,7 @@ function createSessionRecord(params: {
       orderId: params.user.entitlement?.order_id || params.body.orderId || null,
       mode: params.body.commerceMode === "dry_run" || params.user.entitlement?.dry_run ? "dry_run" : null,
       sku: params.user.entitlement?.sku || null,
-      accessSource: params.user.accessSource === "none" ? null : params.user.accessSource,
+      accessSource: commerceAccessSource,
     },
     createdAt: nowTimestamp(),
     startedAt: null,
@@ -2215,7 +2219,7 @@ protectedRouter.post("/", async (req: Request, res: Response) => {
 
 protectedRouter.get("/:sessionId/ui-access", async (req, res) => {
   try {
-    await ensureLaunchAccess(req, res);
+    await ensureLaunchAccess(req, res, { sessionAccess: "ui" });
     const session = await loadHostedSession(String(req.params.sessionId || ""));
     if (!session) {
       return res.status(404).json({ error: "Hosted session not found" });
@@ -2240,7 +2244,7 @@ protectedRouter.get("/:sessionId/ui-access", async (req, res) => {
 
 protectedRouter.get("/:sessionId", async (req, res) => {
   try {
-    await ensureLaunchAccess(req, res);
+    await ensureLaunchAccess(req, res, { sessionAccess: "read" });
     const session = await readFreshHostedSession(String(req.params.sessionId || ""));
     if (!session) {
       return res.status(404).json({ error: "Hosted session not found" });
@@ -2254,7 +2258,7 @@ protectedRouter.get("/:sessionId", async (req, res) => {
 
 protectedRouter.post("/:sessionId/reset", async (req, res) => {
   try {
-    await ensureLaunchAccess(req, res);
+    await ensureLaunchAccess(req, res, { sessionAccess: "operate" });
     const session = await loadHostedSession(String(req.params.sessionId || ""));
     if (!session) {
       return res.status(404).json({ error: "Hosted session not found" });
@@ -2432,7 +2436,7 @@ protectedRouter.post("/:sessionId/reset", async (req, res) => {
 
 protectedRouter.post("/:sessionId/step", async (req, res) => {
   try {
-    await ensureLaunchAccess(req, res);
+    await ensureLaunchAccess(req, res, { sessionAccess: "operate" });
     const session = await loadHostedSession(String(req.params.sessionId || ""));
     if (!session) {
       return res.status(404).json({ error: "Hosted session not found" });
@@ -2555,7 +2559,7 @@ protectedRouter.post("/:sessionId/step", async (req, res) => {
 
 protectedRouter.post("/:sessionId/run-batch", async (req, res) => {
   try {
-    await ensureLaunchAccess(req, res);
+    await ensureLaunchAccess(req, res, { sessionAccess: "operate" });
     const session = await loadHostedSession(String(req.params.sessionId || ""));
     if (!session) {
       return res.status(404).json({ error: "Hosted session not found" });
@@ -2606,7 +2610,7 @@ protectedRouter.post("/:sessionId/run-batch", async (req, res) => {
 
 protectedRouter.post("/:sessionId/stop", async (req, res) => {
   try {
-    await ensureLaunchAccess(req, res);
+    await ensureLaunchAccess(req, res, { sessionAccess: "operate" });
     const session = await loadHostedSession(String(req.params.sessionId || ""));
     if (!session) {
       return res.status(404).json({ error: "Hosted session not found" });
@@ -2653,7 +2657,7 @@ protectedRouter.get("/:sessionId/render", async (req, res) => {
     if (!session) {
       return res.status(404).json({ error: "Hosted session not found" });
     }
-    await ensureLaunchAccess(req, res, { session, requireEntitlement: true });
+    await ensureLaunchAccess(req, res, { session, sessionAccess: "read" });
     return proxyRuntimeRenderForSession(session, req, res);
   } catch (error) {
     if (sendHostedAccessError(res, error)) return;
@@ -2667,7 +2671,7 @@ protectedRouter.get("/:sessionId/media", async (req, res) => {
     if (!session) {
       return res.status(404).json({ error: "Hosted session not found" });
     }
-    await ensureLaunchAccess(req, res, { session, requireEntitlement: true });
+    await ensureLaunchAccess(req, res, { session, sessionAccess: "read" });
     return proxyRuntimeMediaForSession(session, req, res);
   } catch (error) {
     if (sendHostedAccessError(res, error)) return;
@@ -2677,7 +2681,7 @@ protectedRouter.get("/:sessionId/media", async (req, res) => {
 
 protectedRouter.post("/:sessionId/control", async (req, res) => {
   try {
-    await ensureLaunchAccess(req, res);
+    await ensureLaunchAccess(req, res, { sessionAccess: "operate" });
     const session = await loadHostedSession(String(req.params.sessionId || ""));
     if (!session) {
       return res.status(404).json({ error: "Hosted session not found" });
@@ -2709,7 +2713,7 @@ protectedRouter.post("/:sessionId/control", async (req, res) => {
 
 protectedRouter.post("/:sessionId/explorer-render", async (req, res) => {
   try {
-    await ensureLaunchAccess(req, res);
+    await ensureLaunchAccess(req, res, { sessionAccess: "operate" });
     const session = await loadHostedSession(String(req.params.sessionId || ""));
     if (!session) {
       return res.status(404).json({ error: "Hosted session not found" });
@@ -2750,7 +2754,7 @@ protectedRouter.get("/:sessionId/explorer-frame", async (req, res) => {
     if (!session) {
       return res.status(404).json({ error: "Hosted session not found" });
     }
-    await ensureLaunchAccess(req, res, { session, requireEntitlement: true });
+    await ensureLaunchAccess(req, res, { session, sessionAccess: "read" });
     return proxyRuntimeExplorerFrameForSession(session, req, res);
   } catch (error) {
     if (sendHostedAccessError(res, error)) return;
@@ -2760,7 +2764,7 @@ protectedRouter.get("/:sessionId/explorer-frame", async (req, res) => {
 
 protectedRouter.post("/:sessionId/export", async (req, res) => {
   try {
-    await ensureLaunchAccess(req, res);
+    await ensureLaunchAccess(req, res, { sessionAccess: "export" });
     const session = await loadHostedSession(String(req.params.sessionId || ""));
     if (!session) {
       return res.status(404).json({ error: "Hosted session not found" });

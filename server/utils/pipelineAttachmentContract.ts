@@ -26,6 +26,8 @@ const providerRunSummarySchema = z.object({
 }).passthrough();
 
 const robotEvalDatasetCardArtifactUrisSchema = z.object({
+  post_training_data_package_uri: z.string().nullable().optional(),
+  delivery_manifest_uri: z.string().nullable().optional(),
   manifest_uri: z.string().nullable().optional(),
   legacy_manifest_uri: z.string().nullable().optional(),
   site_card_uri: z.string().nullable().optional(),

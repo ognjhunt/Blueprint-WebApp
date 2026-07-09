@@ -1,4 +1,5 @@
 import fs from "node:fs/promises";
+import { createHmac, randomUUID } from "node:crypto";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -310,6 +311,20 @@ function nestedRecord(value: unknown): Record<string, unknown> {
     : {};
 }
 
+function signedPipelineIntakeHeaders(params: { token: string; body?: string }) {
+  const timestamp = new Date().toISOString();
+  const nonce = randomUUID();
+  const body = params.body || "";
+  const signature = createHmac("sha256", params.token)
+    .update(`${timestamp}.${nonce}.${body}`)
+    .digest("hex");
+  return {
+    "x-blueprint-pipeline-timestamp": timestamp,
+    "x-blueprint-pipeline-nonce": nonce,
+    "x-blueprint-pipeline-signature": `sha256=${signature}`,
+  };
+}
+
 async function probeIntakeAudit(params: {
   auditUrl: string;
   token: string;
@@ -321,9 +336,7 @@ async function probeIntakeAudit(params: {
   try {
     const response = await params.fetchImpl(params.auditUrl, {
       method: "GET",
-      headers: {
-        authorization: `Bearer ${params.token}`,
-      },
+      headers: signedPipelineIntakeHeaders({ token: params.token }),
       signal: controller.signal,
     });
     let payload: Record<string, unknown> = {};

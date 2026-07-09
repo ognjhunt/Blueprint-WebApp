@@ -58,6 +58,24 @@ describe("pipeline sync security", () => {
     ).toMatchObject({ ok: true });
   });
 
+  it("builds nonce-bound signatures for Pipeline intake forwarding", () => {
+    const body = JSON.stringify({ schema_version: "v1", job_id: "job-1" });
+    const signature = buildPipelineSyncSignature({
+      secret: "sync-secret",
+      timestamp: "2026-07-02T12:00:00.000Z",
+      nonce: "nonce-1",
+      body,
+    });
+    const withoutNonce = buildPipelineSyncSignature({
+      secret: "sync-secret",
+      timestamp: "2026-07-02T12:00:00.000Z",
+      body,
+    });
+
+    expect(signature).not.toBe(withoutNonce);
+    expect(signature).toMatch(/^[a-f0-9]{64}$/);
+  });
+
   it("rejects plaintext token-only requests unless the legacy override is explicit", () => {
     process.env.PIPELINE_SYNC_TOKEN = "sync-secret";
     expect(

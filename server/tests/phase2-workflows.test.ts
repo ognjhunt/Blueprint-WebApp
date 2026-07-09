@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 const runAgentTask = vi.hoisted(() => vi.fn());
 const docSet = vi.hoisted(() => vi.fn());
 const executePhase2WorkflowActions = vi.hoisted(() => vi.fn());
+const recordBetaOpsFailureSignal = vi.hoisted(() => vi.fn());
 
 const supportDoc = {
   id: "contact-1",
@@ -119,6 +120,10 @@ vi.mock("../agents/phase2-workflow", () => ({
   executePhase2WorkflowActions,
 }));
 
+vi.mock("../utils/ops-alerts", () => ({
+  recordBetaOpsFailureSignal,
+}));
+
 vi.mock("../logger", () => ({
   logger: {
     info: vi.fn(),
@@ -132,6 +137,7 @@ afterEach(() => {
   runAgentTask.mockReset();
   docSet.mockReset();
   executePhase2WorkflowActions.mockReset();
+  recordBetaOpsFailureSignal.mockReset();
   vi.resetModules();
 });
 
@@ -425,6 +431,18 @@ describe("Phase 2 workflow execution", () => {
         }),
       }),
       expect.objectContaining({ merge: true }),
+    );
+    expect(recordBetaOpsFailureSignal).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "payout_exception",
+        scopeId: "payout-1",
+        severity: "critical",
+        details: expect.objectContaining({
+          queue: "finance_review",
+          requires_human_review: true,
+          block_reason_code: "missing_payout_info",
+        }),
+      }),
     );
   });
 });

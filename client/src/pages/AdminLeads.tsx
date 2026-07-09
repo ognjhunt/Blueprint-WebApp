@@ -2966,9 +2966,12 @@ export default function AdminLeads() {
                       <div className="mt-4 space-y-4">
                         <div className="grid gap-3 md:grid-cols-4">
                           <div className="rounded-xl bg-zinc-50 p-3">
-                            <p className="text-xs uppercase tracking-[0.16em] text-zinc-400">Whole-home</p>
+                            <p className="text-xs uppercase tracking-[0.16em] text-zinc-400">
+                              {sceneDashboardQuery.data.site_type || "Site"} status
+                            </p>
                             <p className="mt-2 font-medium text-zinc-900">
-                              {sceneDashboardQuery.data.whole_home.status}
+                              {(sceneDashboardQuery.data.overview ?? sceneDashboardQuery.data.whole_home)
+                                ?.status ?? "review required"}
                             </p>
                           </div>
                           <div className="rounded-xl bg-zinc-50 p-3">
@@ -2991,8 +2994,10 @@ export default function AdminLeads() {
                           </div>
                         </div>
 
-                        {(["pick", "open_close", "navigate"] as const).map((category) => {
-                          const tasks = sceneDashboardQuery.data.categories[category].tasks;
+                        {Object.entries(
+                          sceneDashboardQuery.data.task_groups ?? sceneDashboardQuery.data.categories,
+                        ).map(([category, categorySummary]) => {
+                          const tasks = categorySummary.tasks;
                           return (
                             <div key={category} className="rounded-xl border border-zinc-200 p-4">
                               <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">{category}</p>

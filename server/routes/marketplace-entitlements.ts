@@ -7,6 +7,7 @@ import {
   trainingDatasets,
 } from "../../client/src/data/content";
 import { dbAdmin as db, storageAdmin } from "../../client/src/lib/firebaseAdmin";
+import { effectiveEntitlementAccessState } from "../utils/entitlementExpiry";
 
 const router = Router();
 
@@ -175,7 +176,7 @@ async function loadPublishedMarketplaceItem(sku: string): Promise<Record<string,
 
 function resolveAccessUrl(entitlement: Record<string, unknown>) {
   const sku = normalizeSku(String(entitlement.sku || ""));
-  const accessState = String(entitlement.access_state || "");
+  const accessState = effectiveEntitlementAccessState(entitlement);
   if (accessState !== "provisioned") {
     return null;
   }
@@ -257,10 +258,14 @@ router.get("/current", async (req: Request, res: Response) => {
       return sku === requestedSku || sku.startsWith(`${requestedSku}-`);
     });
 
-  const hydratedEntitlements = entitlements.map((entitlement) => ({
-    ...entitlement,
-    access: resolveAccessUrl(entitlement),
-  }));
+  const hydratedEntitlements = entitlements.map((entitlement) => {
+    const effectiveAccessState = effectiveEntitlementAccessState(entitlement);
+    return {
+      ...entitlement,
+      access_state: effectiveAccessState,
+      access: resolveAccessUrl({ ...entitlement, access_state: effectiveAccessState }),
+    };
+  });
   const primary: Record<string, unknown> | null = hydratedEntitlements[0] || null;
   const access = primary ? resolveAccessUrl(primary) : null;
 
@@ -304,10 +309,14 @@ router.get("/:entitlementId/artifact-access", async (req: Request, res: Response
   if (entitlementBuyerUserId !== buyerUserId) {
     return res.status(403).json({ error: "Entitlement does not belong to caller" });
   }
-  if (stringValue(entitlement.access_state) !== "provisioned") {
+  const effectiveAccessState = effectiveEntitlementAccessState(entitlement);
+  if (effectiveAccessState !== "provisioned") {
     return res.status(409).json({
       error: "Entitlement is not provisioned for artifact access",
-      code: "entitlement_not_provisioned",
+      code:
+        effectiveAccessState === "expired"
+          ? "entitlement_expired"
+          : "entitlement_not_provisioned",
     });
   }
 

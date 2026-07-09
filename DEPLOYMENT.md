@@ -29,6 +29,20 @@ Live alpha smoke:
 npm run smoke:launch
 ```
 
+Rollback preparation:
+
+```bash
+npm run deploy:rollback -- --target <last-known-good-sha> --verify-command "npm run check"
+```
+
+After the rollback commit is deployed, verify the live service:
+
+```bash
+npm run deploy:rollback -- --target <last-known-good-sha> --health-url https://tryblueprint.io --verify-command "npm run check"
+```
+
+The rollback helper creates non-destructive revert commits and refuses to run on a dirty worktree. Incident owner, customer-comms, takedown, and closeout requirements are in [docs/beta-ops-incident-runbook-2026-07-08.md](/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/beta-ops-incident-runbook-2026-07-08.md).
+
 - Client build: Vite (`dist/public`)
 - Server build: esbuild bundle from `server/index.ts` (`dist/index.js`)
 - Runtime start command:
@@ -191,7 +205,7 @@ Agent-side creative MCP note:
 ### Internal Marketplace + Pipeline
 - `PIPELINE_SYNC_TOKEN`
 - `BLUEPRINT_REQUEST_REVIEW_TOKEN_SECRET`
-- Optional live robot-eval forwarding:
+- Live robot-eval forwarding required for request acceptance:
   - `ROBOT_EVAL_JOB_REQUEST_FORWARD_URL`
   - `ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN`
   - `ROBOT_EVAL_JOB_REQUEST_FORWARD_REQUIRED=true`
@@ -204,8 +218,8 @@ Agent-side creative MCP note:
 Launch-critical note:
 - Leave `PIPELINE_SYNC_ALLOW_PLACEHOLDER_REQUESTS` unset in paid/production flows so pipeline sync fails closed when inbound request bootstrap is missing.
 - Leave demo site-world flags unset in production unless you explicitly want the internal demo world exposed.
-- Live robot-eval forwarding reaches the CapturePipeline intake service only when URL/token are configured. If the Pipeline control plane requires the incoming request to match its active capture root, configure `ROBOT_EVAL_JOB_REQUEST_FORWARD_CAPTURE_ROOT_BY_SITE_JSON`; the forwarded envelope keeps the original WebApp/public root in `site_package.webapp_capture_root` and does not upgrade simulator, safety, or readiness proof.
-- Before enabling required live robot-eval forwarding, run `npm run pipeline:forwarding:preflight -- --require-forwarding`. Add `-- --probe-intake-audit` only when the Pipeline intake service is up and `ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN` matches `BLUEPRINT_LIVE_PIPELINE_INTAKE_TOKEN`; the probe performs a read-only `GET /api/live-pipeline/intake-audit`, writes a redacted report under `output/pipeline/robot_eval_job_requests/forwarding_preflight.json`, and does not queue a job, allocate GPUs, or prove simulator execution.
+- Live robot-eval request acceptance requires forwarding to the CapturePipeline intake service by default, and production ignores `ROBOT_EVAL_JOB_REQUEST_FORWARD_REQUIRED=false`. If URL/token are missing, blocked, or fail, the route returns a 5xx while preserving the durable local inbox record. If the Pipeline control plane requires the incoming request to match its active capture root, configure `ROBOT_EVAL_JOB_REQUEST_FORWARD_CAPTURE_ROOT_BY_SITE_JSON`; the forwarded envelope keeps the original WebApp/public root in `site_package.webapp_capture_root` and does not upgrade simulator, safety, or readiness proof.
+- Before enabling required live robot-eval forwarding, run `npm run pipeline:forwarding:preflight -- --require-forwarding`. Add `-- --probe-intake-audit` only when the Pipeline intake service is up and `ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN` matches `BLUEPRINT_LIVE_PIPELINE_INTAKE_TOKEN`; WebApp signs the probe and forwarded POSTs with timestamp/nonce HMAC headers instead of sending the token as bearer auth. The probe performs a read-only `GET /api/live-pipeline/intake-audit`, writes a redacted report under `output/pipeline/robot_eval_job_requests/forwarding_preflight.json`, and does not queue a job, allocate GPUs, or prove simulator execution.
 - For a route-level proof after preflight, `npm run pipeline:first-gpu:route-forwarding-proof -- --forward-url <pipeline-intake-url> ...` starts a local WebApp route and POSTs a non-rehearsal request through `/api/robot-eval/job-requests`. Use a local/staging intake URL unless a live Pipeline staging side effect is explicitly intended; this still does not prove production deployment, GPU allocation, simulator execution, safety, or 90%+ sim-only policy-ranking agreement.
 
 ### Redis (server, recommended for live hosted sessions)
@@ -373,6 +387,19 @@ These should be enabled for the no-human-in-the-loop alpha configuration:
 - `BLUEPRINT_CREATIVE_FACTORY_ENABLED=1`
 - `BLUEPRINT_BUYER_LIFECYCLE_ENABLED=1`
 - `BLUEPRINT_LIFECYCLE_CADENCE_ENABLED=1`
+
+Beta cohort controls are enforced on capturer beta waitlist intake and native
+capture registration:
+
+- `BLUEPRINT_BETA_ENABLED=true`
+- `BLUEPRINT_BETA_KILL_SWITCH=0` (`1` pauses controlled beta access and capture intake)
+- `BLUEPRINT_BETA_INVITE_CAP=100`
+- `BLUEPRINT_BETA_COHORT_DAILY_LIMIT=25`
+- Optional comma-separated scope controls:
+  `BLUEPRINT_BETA_ALLOWED_MARKETS`,
+  `BLUEPRINT_BETA_ALLOWED_SITE_TYPES`
+- Optional fallback cohort key:
+  `BLUEPRINT_BETA_DEFAULT_COHORT=default`
 
 Optional review-watchdog workers that only flag overdue human queues:
 

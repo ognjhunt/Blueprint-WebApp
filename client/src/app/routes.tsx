@@ -86,14 +86,6 @@ const AppPolicies = lazyRoute(() => import("../pages/app/Policies"));
 const AppDataPackages = lazyRoute(() => import("../pages/app/DataPackages"));
 const AppEntitlements = lazyRoute(() => import("../pages/app/Entitlements"));
 
-// Redesign — ops console (mock-data demo surfaces)
-const OpsQueue = lazyRoute(() => import("../pages/ops/Queue"));
-const OpsCaptureSupply = lazyRoute(() => import("../pages/ops/CaptureSupply"));
-const OpsCityLaunch = lazyRoute(() => import("../pages/ops/CityLaunch"));
-const OpsEvidenceReview = lazyRoute(() => import("../pages/ops/EvidenceReview"));
-const OpsBuyerHandoff = lazyRoute(() => import("../pages/ops/BuyerHandoff"));
-const OpsSpendControls = lazyRoute(() => import("../pages/ops/SpendControls"));
-
 const NotFound = lazyRoute(() => import("../pages/NotFound"));
 
 const HomeRedirect = () => <MarketingRedirect to="/" />;
@@ -328,13 +320,13 @@ export const appRoutes: AppRoute[] = [
   { path: "/app/data", layout: "protected", shell: "bare", component: AppDataPackages },
   { path: "/app/entitlements", layout: "protected", shell: "bare", component: AppEntitlements },
 
-  // Redesign — ops console (mock-data demo; own ops shell, no SiteLayout)
-  { path: "/ops", layout: "public", shell: "bare", component: OpsQueue },
-  { path: "/ops/supply", layout: "public", shell: "bare", component: OpsCaptureSupply },
-  { path: "/ops/city-launch", layout: "public", shell: "bare", component: OpsCityLaunch },
-  { path: "/ops/evidence", layout: "public", shell: "bare", component: OpsEvidenceReview },
-  { path: "/ops/handoff", layout: "public", shell: "bare", component: OpsBuyerHandoff },
-  { path: "/ops/spend", layout: "public", shell: "bare", component: OpsSpendControls },
+  // Legacy ops aliases route to protected admin/operator truth surfaces.
+  { path: "/ops", layout: "protected", component: AdminLeads },
+  { path: "/ops/supply", layout: "protected", component: AdminLeads },
+  { path: "/ops/city-launch", layout: "protected", component: AdminAustinLaunchScorecard },
+  { path: "/ops/evidence", layout: "protected", component: AdminLeads },
+  { path: "/ops/handoff", layout: "protected", component: AdminLeads },
+  { path: "/ops/spend", layout: "protected", component: AdminCompanyMetrics },
 
   // 404
   { layout: "public", component: NotFound },

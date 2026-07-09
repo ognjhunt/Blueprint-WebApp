@@ -31,11 +31,15 @@ function timingSafeEqualString(left: string, right: string): boolean {
 export function buildPipelineSyncSignature(args: {
   secret: string;
   timestamp: string;
+  nonce?: string;
   body: string;
 }): string {
+  const canonical = args.nonce
+    ? `${args.timestamp}.${args.nonce}.${args.body}`
+    : `${args.timestamp}.${args.body}`;
   return crypto
     .createHmac("sha256", args.secret)
-    .update(`${args.timestamp}.${args.body}`)
+    .update(canonical)
     .digest("hex");
 }
 

@@ -10,10 +10,12 @@ import {
   findBuyerOrderByCheckoutSessionId,
   findBuyerOrderByPaymentIntentId,
   markBuyerOrderPaidFromCheckout,
+  markBuyerOrderDisputedFromCharge,
   markBuyerOrderPaymentFailure,
 } from "../utils/accounting";
 import { createOnboardingSequence } from "../utils/buyer-onboarding";
 import { initRenewalTracking } from "../utils/growth-ops";
+import { recordBetaOpsFailureSignal } from "../utils/ops-alerts";
 import { stripeClient } from "../constants/stripe";
 
 const stripeWebhookSecret = (process.env.STRIPE_WEBHOOK_SECRET || "").trim();
@@ -155,6 +157,47 @@ async function handleChargeRefunded(charge: Stripe.Charge, event: Stripe.Event) 
   return order.id;
 }
 
+async function handleChargeDispute(dispute: Stripe.Dispute, event: Stripe.Event) {
+  const paymentIntentId =
+    typeof dispute.payment_intent === "string"
+      ? dispute.payment_intent
+      : dispute.payment_intent?.id || null;
+  const chargeId =
+    typeof dispute.charge === "string" ? dispute.charge : dispute.charge?.id || null;
+  const result = await markBuyerOrderDisputedFromCharge({
+    paymentIntentId,
+    chargeId,
+    disputeId: dispute.id,
+    disputeStatus: dispute.status || null,
+    disputeReason: dispute.reason || null,
+    amountCents: typeof dispute.amount === "number" ? dispute.amount : null,
+    currency: dispute.currency || null,
+    evidenceDueBy:
+      typeof dispute.evidence_details?.due_by === "number"
+        ? dispute.evidence_details.due_by
+        : null,
+    eventId: event.id,
+    eventType: event.type,
+  });
+  await recordBetaOpsFailureSignal({
+    kind: "payment_dispute",
+    scopeId: result.orderId || dispute.id,
+    severity: "critical",
+    summary: `Stripe reported ${event.type} for buyer payment ${paymentIntentId || "unknown"}.`,
+    details: {
+      order_id: result.orderId,
+      dispute_id: dispute.id,
+      dispute_status: dispute.status || null,
+      dispute_reason: dispute.reason || null,
+      payment_intent_id: paymentIntentId,
+      charge_id: chargeId,
+      held_payout_ids: result.heldPayoutIds,
+      unresolved_payout_ids: result.unresolvedPayoutIds,
+    },
+  });
+  return result.orderId;
+}
+
 async function handlePayoutEvent(
   payout: Stripe.Payout,
   event: Stripe.Event,
@@ -169,23 +212,46 @@ async function handlePayoutEvent(
   }
 
   if (event.type === "payout.failed") {
-    return applyCreatorPayoutWebhook({
+    const disbursementId = await applyCreatorPayoutWebhook({
       stripePayoutId: payout.id,
       eventId: event.id,
       eventType: event.type,
       status: "failed",
       failureReason: payout.failure_message || "Stripe payout failed.",
     });
+    await recordBetaOpsFailureSignal({
+      kind: "payout_exception",
+      scopeId: disbursementId || payout.id,
+      severity: "critical",
+      summary: `Stripe payout failed for ${payout.id}.`,
+      details: {
+        stripe_payout_id: payout.id,
+        disbursement_id: disbursementId,
+        failure_message: payout.failure_message || null,
+      },
+    });
+    return disbursementId;
   }
 
   if (event.type === "payout.canceled") {
-    return applyCreatorPayoutWebhook({
+    const disbursementId = await applyCreatorPayoutWebhook({
       stripePayoutId: payout.id,
       eventId: event.id,
       eventType: event.type,
       status: "canceled",
       failureReason: "Stripe payout was canceled.",
     });
+    await recordBetaOpsFailureSignal({
+      kind: "payout_exception",
+      scopeId: disbursementId || payout.id,
+      severity: "critical",
+      summary: `Stripe payout was canceled for ${payout.id}.`,
+      details: {
+        stripe_payout_id: payout.id,
+        disbursement_id: disbursementId,
+      },
+    });
+    return disbursementId;
   }
 
   return null;
@@ -203,6 +269,7 @@ const OPS_RELEVANT_EVENTS = new Set([
   "payout.failed",
   "payout.canceled",
   "charge.dispute.created",
+  "charge.dispute.closed",
   "charge.refunded",
   "account.updated",
 ]);
@@ -289,6 +356,14 @@ export async function stripeWebhookHandler(req: Request, res: Response) {
       case "charge.refunded": {
         orderId = await handleChargeRefunded(
           event.data.object as Stripe.Charge,
+          event,
+        );
+        break;
+      }
+      case "charge.dispute.created":
+      case "charge.dispute.closed": {
+        orderId = await handleChargeDispute(
+          event.data.object as Stripe.Dispute,
           event,
         );
         break;

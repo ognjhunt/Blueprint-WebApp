@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const executeAction = vi.hoisted(() => vi.fn());
+const recordBetaOpsFailureSignal = vi.hoisted(() => vi.fn());
 
 type StoreState = Record<string, Map<string, Record<string, unknown>>>;
 
@@ -128,8 +129,13 @@ vi.mock("../agents/action-executor", () => ({
   executeAction,
 }));
 
+vi.mock("../utils/ops-alerts", () => ({
+  recordBetaOpsFailureSignal,
+}));
+
 afterEach(() => {
   executeAction.mockReset();
+  recordBetaOpsFailureSignal.mockReset();
   resetStores();
   vi.useRealTimers();
   vi.resetModules();
@@ -478,5 +484,17 @@ describe("field ops automation", () => {
         },
       },
     });
+    expect(recordBetaOpsFailureSignal).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "payout_exception",
+        scopeId: "payout-2",
+        severity: "critical",
+        details: expect.objectContaining({
+          review_status: "investigating",
+          sla_due_at: "2026-03-01T10:00:00.000Z",
+          flagged_by: "system:finance_review_overdue_watchdog",
+        }),
+      }),
+    );
   });
 });

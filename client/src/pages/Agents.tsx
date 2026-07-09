@@ -32,7 +32,7 @@ const truthLabels = [
   ["sample_demo", "Public sample shape for integration work, not customer proof or deployment evidence."],
   ["public_demo_eligible", "Credential-free sample path eligibility, not protected customer access or provider success."],
   ["request_gated", "Protected package, rights, export, or hosted access still needs account/request review."],
-  ["protected_robot_team", "Protected hosted-session operations require robot-team/admin auth plus session ownership or a matching provisioned entitlement."],
+  ["protected_robot_team", "Protected hosted-session creation requires robot-team/admin auth plus a provisioned entitlement; existing session operations require creator ownership, admin access, or an active per-session share grant."],
   ["dry_run_order", "A repo-safe test order, receipt, and entitlement proof that does not touch live Stripe or grant live package access."],
 ];
 
@@ -193,7 +193,7 @@ export default function Agents() {
               <EditorialSectionIntro
                 eyebrow="Auth model"
                 title="Public demo is narrow. Protected access stays gated."
-                description="Blueprint does not expose private supply or package access because an agent can send HTTP. Public demo sessions stay sample-scoped. Protected robot-team flows require bearer auth that resolves through Firebase Admin and then require either session ownership, admin access, or a matching provisioned hosted-session entitlement."
+                description="Blueprint does not expose private supply or package access because an agent can send HTTP. Public demo sessions stay sample-scoped. Protected robot-team launches require bearer auth plus a provisioned entitlement; existing sessions require creator ownership, admin access, or an active per-session share grant."
                 light
               />
               <div className="mt-6 grid min-w-0 gap-3 sm:grid-cols-2">

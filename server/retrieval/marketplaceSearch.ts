@@ -1,6 +1,10 @@
 import type { Firestore } from "firebase-admin/firestore";
 
-import type { MarketplaceSearchSort } from "../../client/src/types/marketplace-search";
+import type {
+  CommissionedMarketplaceOutput,
+  MarketplaceSearchItemType,
+  MarketplaceSearchSort,
+} from "../../client/src/types/marketplace-search";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import {
   environmentPolicies,
@@ -20,7 +24,7 @@ export type MarketplaceSearchBackend =
   | "static-inmemory";
 
 export type MarketplaceSearchFilters = {
-  itemType?: "all" | "scenes" | "training";
+  itemType?: MarketplaceSearchItemType;
   locationType?: string | null;
   policySlug?: string | null;
   objectTags?: string[];
@@ -41,8 +45,8 @@ export type MarketplaceSoftSignals = {
 };
 
 export type MarketplaceSearchResult = {
-  type: "scene" | "training";
-  item: MarketplaceScene | TrainingDataset;
+  type: "scene" | "training" | "commissioned_output";
+  item: MarketplaceScene | TrainingDataset | CommissionedMarketplaceOutput;
   score: number;
   distance: number | null;
   reasons: string[];
@@ -55,8 +59,8 @@ export type MarketplaceSearchMeta = {
 };
 
 type Candidate = {
-  type: "scene" | "training";
-  item: MarketplaceScene | TrainingDataset;
+  type: "scene" | "training" | "commissioned_output";
+  item: MarketplaceScene | TrainingDataset | CommissionedMarketplaceOutput;
   searchDoc: string;
   embedding: number[] | null;
 };
@@ -108,6 +112,108 @@ const STOPWORDS = new Set([
   "trajectory",
   "with",
 ]);
+
+function contactRequestUrl(params: {
+  requestPath: CommissionedMarketplaceOutput["requestPath"];
+  requestedOutputs: string;
+  primaryNeed: string;
+}) {
+  const query = new URLSearchParams({
+    requestPath: params.requestPath,
+    source: "marketplace-search",
+    requestedOutputs: params.requestedOutputs,
+    primaryNeed: params.primaryNeed,
+  });
+  return `/contact?${query.toString()}`;
+}
+
+const commissionedMarketplaceOutputs: CommissionedMarketplaceOutput[] = [
+  {
+    slug: "task-evaluation-run",
+    title: "Task Evaluation Run",
+    description:
+      "Commission a capture-backed, evaluator-bounded comparison of robot policies on a specific site task, with task cards, scenario cards, scorecards, and buyer readout artifacts.",
+    itemType: "task_eval_run",
+    locationType: "Any captured site",
+    policySlugs: [],
+    objectTags: [
+      "task evaluation",
+      "robot policy comparison",
+      "policy ranking",
+      "scenario cards",
+      "buyer readout",
+    ],
+    tags: ["Commissioned", "Capture-backed", "Evaluator-bounded"],
+    deliverables: [
+      "Task Evaluation Run brief",
+      "Task/scenario/eval cards",
+      "Policy ranking scorecard",
+      "Buyer readout",
+    ],
+    releaseDate: "2026-07-09",
+    requestPath: "hosted-review",
+    requestUrl: contactRequestUrl({
+      requestPath: "hosted-review",
+      requestedOutputs: "Task Evaluation Run",
+      primaryNeed: "Scope a capture-backed robot policy evaluation run.",
+    }),
+    priceLabel: "Scoped after intake",
+    proofBoundary:
+      "This is a request-gated commissioned run, not an instant downloadable catalog item or deployment approval.",
+  },
+  {
+    slug: "post-training-data-package",
+    title: "Post-Training Data Package",
+    description:
+      "Request a capture-grounded data package for policy improvement, including package manifest, provenance, review media, and buyer-facing support artifacts when available.",
+    itemType: "post_training_data_package",
+    locationType: "Any captured site",
+    policySlugs: [],
+    objectTags: [
+      "post-training data",
+      "policy improvement",
+      "capture package",
+      "provenance",
+      "review media",
+    ],
+    tags: ["Commissioned", "Capture-grounded", "Policy improvement"],
+    deliverables: [
+      "Post-training data package",
+      "Package manifest",
+      "Provenance summary",
+      "Review media references",
+    ],
+    releaseDate: "2026-07-09",
+    requestPath: "data-package",
+    requestUrl: contactRequestUrl({
+      requestPath: "data-package",
+      requestedOutputs: "Post-Training Data Package",
+      primaryNeed: "Scope a capture-grounded policy improvement data package.",
+    }),
+    priceLabel: "Scoped after intake",
+    proofBoundary:
+      "This is a request-gated package path; access is delivered only after entitlement, package generation, and artifact checks.",
+  },
+];
+
+function buildCommissionedOutputCandidates(): Candidate[] {
+  return commissionedMarketplaceOutputs.map((item) => ({
+    type: "commissioned_output" as const,
+    item,
+    searchDoc: [
+      "Commissioned Blueprint output",
+      item.title,
+      item.description,
+      `Item type: ${item.itemType}`,
+      `Archetype: ${item.locationType}`,
+      `Objects: ${item.objectTags.join(", ")}`,
+      `Deliverables: ${item.deliverables.join(", ")}`,
+      `Tags: ${item.tags.join(", ")}`,
+      item.proofBoundary,
+    ].join("\n"),
+    embedding: null,
+  }));
+}
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
@@ -172,6 +278,23 @@ export function buildSearchDoc(
   policyTitleMap: Map<string, string>,
 ) {
   const item = candidate.item;
+  if (candidate.type === "commissioned_output") {
+    const output = item as CommissionedMarketplaceOutput;
+    return [
+      "Commissioned Blueprint output",
+      output.title,
+      output.description,
+      `Output type: ${output.itemType}`,
+      `Archetype: ${output.locationType}`,
+      `Objects: ${output.objectTags.join(", ")}`,
+      `Deliverables: ${output.deliverables.join(", ")}`,
+      `Tags: ${output.tags.join(", ")}`,
+      `Access path: ${output.requestPath}`,
+      output.proofBoundary,
+    ]
+      .filter(Boolean)
+      .join("\n");
+  }
   const policyTitles =
     "policySlugs" in item && Array.isArray(item.policySlugs)
       ? item.policySlugs
@@ -268,6 +391,39 @@ function passesFilters(candidate: Candidate, filters: MarketplaceSearchFilters) 
   const itemType = filters.itemType || "all";
   if (itemType === "scenes" && candidate.type !== "scene") return false;
   if (itemType === "training" && candidate.type !== "training") return false;
+  if (
+    itemType === "task_eval_runs" &&
+    !(
+      candidate.type === "commissioned_output" &&
+      (candidate.item as CommissionedMarketplaceOutput).itemType === "task_eval_run"
+    )
+  ) {
+    return false;
+  }
+  if (
+    itemType === "data_packages" &&
+    !(
+      candidate.type === "training" ||
+      (
+        candidate.type === "commissioned_output" &&
+        (candidate.item as CommissionedMarketplaceOutput).itemType ===
+          "post_training_data_package"
+      )
+    )
+  ) {
+    return false;
+  }
+
+  const requiredObjects = Array.isArray(filters.objectTags) ? filters.objectTags : [];
+  if (candidate.type === "commissioned_output") {
+    if (itemType === "task_eval_runs" || itemType === "data_packages") {
+      return true;
+    }
+    if (filters.locationType || filters.policySlug || requiredObjects.length > 0) {
+      return false;
+    }
+    return true;
+  }
 
   if (filters.locationType) {
     if (candidate.item.locationType !== filters.locationType) return false;
@@ -280,7 +436,6 @@ function passesFilters(candidate: Candidate, filters: MarketplaceSearchFilters) 
     }
   }
 
-  const requiredObjects = Array.isArray(filters.objectTags) ? filters.objectTags : [];
   if (requiredObjects.length > 0) {
     if (!hasAllObjectTags(candidate.item, requiredObjects)) return false;
   }
@@ -429,6 +584,10 @@ function applySort(
   }
 
   const copy = items.slice();
+  const priceOf = (item: MarketplaceSearchResult) => {
+    const raw = (item.item as any).price ?? (item.item as any).bundlePrice ?? null;
+    return typeof raw === "number" && Number.isFinite(raw) ? raw : Number.POSITIVE_INFINITY;
+  };
   switch (sortMode) {
     case "newest":
       copy.sort(
@@ -438,10 +597,10 @@ function applySort(
       );
       return copy;
     case "price-asc":
-      copy.sort((a, b) => (a.item as any).price - (b.item as any).price);
+      copy.sort((a, b) => priceOf(a) - priceOf(b));
       return copy;
     case "price-desc":
-      copy.sort((a, b) => (b.item as any).price - (a.item as any).price);
+      copy.sort((a, b) => priceOf(b) - priceOf(a));
       return copy;
     case "scene-desc":
       copy.sort((a, b) => {
@@ -483,6 +642,7 @@ async function ensureStaticIndex(): Promise<{
     staticIndexPromise = (async () => {
       const policyTitleMap = buildPolicyTitleMap();
       const candidates: Candidate[] = [
+        ...buildCommissionedOutputCandidates(),
         ...marketplaceScenes.map((scene) => ({
           type: "scene" as const,
           item: scene,
@@ -677,10 +837,31 @@ export async function searchMarketplace(params: {
   }
 
   const liveCandidates = await loadLiveInventoryCandidates();
+  const commissionedCandidates = buildCommissionedOutputCandidates();
   if (liveCandidates.length === 0 && !STATIC_MARKETPLACE_FALLBACK_ENABLED) {
-    warnings.push("Live marketplace inventory is unavailable in production.");
+    warnings.push("Live marketplace inventory is unavailable in production; showing request-gated commissioned outputs only.");
+    const filtered = commissionedCandidates
+      .filter((candidate) => passesFilters(candidate, params.filters))
+      .filter((candidate) => passesHardConstraints(candidate, params.hard));
+    const ranked = rankCandidates({
+      query: queryText,
+      queryEmbedding,
+      candidates: filtered,
+      filters: params.filters,
+      hard: params.hard,
+      soft: params.soft,
+    });
     return {
-      results: [],
+      results: applySort(
+        ranked.slice(0, params.limit).map((row) => ({
+          type: row.candidate.type,
+          item: row.candidate.item,
+          score: row.score,
+          distance: null,
+          reasons: row.reasons,
+        })),
+        params.filters.sort,
+      ),
       meta: {
         backend: "firestore-live",
         embeddingModel: DEFAULT_EMBEDDING_MODEL,
@@ -692,7 +873,10 @@ export async function searchMarketplace(params: {
 
   const staticData = await ensureStaticIndex();
   warnings.push(...staticData.warnings);
-  const candidatePool = liveCandidates.length > 0 ? liveCandidates : staticData.candidates;
+  const candidatePool =
+    liveCandidates.length > 0
+      ? [...liveCandidates, ...commissionedCandidates]
+      : staticData.candidates;
 
   const filtered = candidatePool
     .filter((candidate) => passesFilters(candidate, params.filters))

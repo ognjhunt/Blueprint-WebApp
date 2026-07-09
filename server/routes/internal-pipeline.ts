@@ -48,6 +48,8 @@ import {
   validatePipelineArtifactUris,
   verifyPipelineSyncRequest,
 } from "../utils/pipelineSyncSecurity";
+import { recordBetaOpsFailureSignal } from "../utils/ops-alerts";
+import { effectiveEntitlementAccessState } from "../utils/entitlementExpiry";
 
 const router = Router();
 const pipelineSyncRateLimiter = createPipelineSyncRateLimiter();
@@ -106,9 +108,29 @@ type BuyerArtifactCandidate = {
   uri: string;
   source: string;
 };
+type EntitlementRecord = {
+  id: string;
+  data: Record<string, unknown>;
+  ref: {
+    update: (payload: Record<string, unknown>) => Promise<unknown>;
+  };
+};
 
 function stringValue(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function stringList(value: unknown): string[] {
+  if (typeof value === "string") {
+    return value.trim() ? [value.trim()] : [];
+  }
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -276,6 +298,225 @@ async function findProvisionedEntitlement(params: {
   return {
     id: first.id || "",
     ...((first.data() || {}) as Record<string, unknown>),
+  };
+}
+
+async function findEntitlementRecordById(entitlementId: string): Promise<EntitlementRecord | null> {
+  if (!db || !entitlementId) {
+    return null;
+  }
+  const ref = db.collection("marketplaceEntitlements").doc(entitlementId);
+  const snapshot = await ref.get();
+  if (!snapshot.exists) {
+    return null;
+  }
+  return {
+    id: snapshot.id || entitlementId,
+    data: {
+      id: snapshot.id || entitlementId,
+      ...((snapshot.data() || {}) as Record<string, unknown>),
+    },
+    ref,
+  };
+}
+
+async function queryEntitlementRecords(field: string, value: string): Promise<EntitlementRecord[]> {
+  if (!db || !value) {
+    return [];
+  }
+  const snapshot = await db
+    .collection("marketplaceEntitlements")
+    .where(field, "==", value)
+    .limit(50)
+    .get();
+  return (snapshot.docs || []).map((doc) => ({
+    id: doc.id || stringValue(doc.data()?.id),
+    data: {
+      id: doc.id || stringValue(doc.data()?.id),
+      ...((doc.data() || {}) as Record<string, unknown>),
+    },
+    ref: doc.ref,
+  }));
+}
+
+async function collectRevocationEntitlements(params: {
+  body: Record<string, unknown>;
+  webappIds: Record<string, unknown>;
+  upstreamIds: Record<string, unknown>;
+}): Promise<EntitlementRecord[]> {
+  const entitlementIds = new Set<string>();
+  for (const source of [params.body, params.webappIds, params.upstreamIds]) {
+    for (const field of [
+      "entitlement_id",
+      "entitlementId",
+      "marketplace_entitlement_id",
+      "marketplaceEntitlementId",
+      "buyer_artifact_id",
+      "buyerArtifactId",
+    ]) {
+      const value = stringValue(source[field]);
+      if (value) {
+        entitlementIds.add(value);
+      }
+    }
+    for (const value of [
+      ...stringList(source.entitlement_ids),
+      ...stringList(source.entitlementIds),
+      ...stringList(source.marketplace_entitlement_ids),
+      ...stringList(source.marketplaceEntitlementIds),
+    ]) {
+      entitlementIds.add(value);
+    }
+  }
+
+  const records = new Map<string, EntitlementRecord>();
+  for (const entitlementId of entitlementIds) {
+    const record = await findEntitlementRecordById(entitlementId);
+    if (record) {
+      records.set(record.id, record);
+    }
+  }
+
+  const sceneId = stringValue(params.body.scene_id || params.body.sceneId);
+  const captureId = stringValue(params.body.capture_id || params.body.captureId);
+  const queryFields: Array<[string, string]> = [
+    ["scene_id", sceneId],
+    ["sceneId", sceneId],
+    ["capture_id", captureId],
+    ["captureId", captureId],
+    ["site_submission_id", stringValue(params.upstreamIds.site_submission_id || params.webappIds.site_submission_id)],
+    ["siteSubmissionId", stringValue(params.upstreamIds.siteSubmissionId || params.webappIds.siteSubmissionId)],
+    ["buyer_request_id", stringValue(params.upstreamIds.buyer_request_id || params.webappIds.buyer_request_id)],
+    ["buyerRequestId", stringValue(params.upstreamIds.buyerRequestId || params.webappIds.buyerRequestId)],
+    ["capture_job_id", stringValue(params.upstreamIds.capture_job_id || params.webappIds.capture_job_id)],
+    ["captureJobId", stringValue(params.upstreamIds.captureJobId || params.webappIds.captureJobId)],
+  ];
+  for (const [field, value] of queryFields) {
+    if (!value) {
+      continue;
+    }
+    for (const record of await queryEntitlementRecords(field, value)) {
+      records.set(record.id, record);
+    }
+  }
+
+  return Array.from(records.values());
+}
+
+function artifactUriMapFromPipeline(pipeline: PipelineAttachment): Record<string, string> {
+  const artifacts = isRecord(pipeline.artifacts) ? pipeline.artifacts : {};
+  const candidates = collectBuyerArtifactCandidates(artifacts, "pipeline_artifacts");
+  return Object.fromEntries(candidates.map((candidate) => [candidate.key, candidate.uri]));
+}
+
+async function syncBuyerEntitlementArtifacts(params: {
+  body: Record<string, unknown>;
+  pipeline: PipelineAttachment;
+  sku?: string | null;
+  siteSubmissionId?: string | null;
+}): Promise<{
+  status: "synced" | "skipped";
+  entitlement_ids: string[];
+  artifact_keys: string[];
+}> {
+  if (!db) {
+    return { status: "skipped", entitlement_ids: [], artifact_keys: [] };
+  }
+
+  const artifactUris = artifactUriMapFromPipeline(params.pipeline);
+  const artifactKeys = Object.keys(artifactUris);
+  if (artifactKeys.length === 0) {
+    return { status: "skipped", entitlement_ids: [], artifact_keys: [] };
+  }
+
+  const body = params.body;
+  const ids = isRecord(body.webapp_response_ids) ? body.webapp_response_ids : {};
+  const entitlementIds = new Set<string>();
+  for (const source of [body, ids]) {
+    for (const field of [
+      "entitlement_id",
+      "entitlementId",
+      "marketplace_entitlement_id",
+      "marketplaceEntitlementId",
+      "buyer_artifact_id",
+      "buyerArtifactId",
+    ]) {
+      const value = stringValue(source[field]);
+      if (value) {
+        entitlementIds.add(value);
+      }
+    }
+    for (const value of [
+      ...stringList(source.entitlement_ids),
+      ...stringList(source.entitlementIds),
+      ...stringList(source.marketplace_entitlement_ids),
+      ...stringList(source.marketplaceEntitlementIds),
+    ]) {
+      entitlementIds.add(value);
+    }
+  }
+
+  const records = new Map<string, EntitlementRecord>();
+  for (const entitlementId of entitlementIds) {
+    const record = await findEntitlementRecordById(entitlementId);
+    if (record) {
+      records.set(record.id, record);
+    }
+  }
+
+  const queryFields: Array<[string, string]> = [
+    ["sku", stringValue(params.sku)],
+    ["capture_id", stringValue(params.pipeline.capture_id)],
+    ["captureId", stringValue(params.pipeline.capture_id)],
+    ["site_submission_id", stringValue(params.siteSubmissionId || body.site_submission_id)],
+    ["siteSubmissionId", stringValue(params.siteSubmissionId || body.site_submission_id)],
+    ["buyer_request_id", stringValue(body.buyer_request_id || params.pipeline.buyer_request_id)],
+    ["buyerRequestId", stringValue(body.buyer_request_id || params.pipeline.buyer_request_id)],
+  ];
+  for (const [field, value] of queryFields) {
+    if (!value) {
+      continue;
+    }
+    for (const record of await queryEntitlementRecords(field, value)) {
+      records.set(record.id, record);
+    }
+  }
+
+  const directArtifactFields: Record<string, string> = {};
+  for (const field of BUYER_ARTIFACT_DIRECT_FIELDS) {
+    const uri = artifactUris[field];
+    if (uri) {
+      directArtifactFields[field] = uri;
+    }
+  }
+  const syncedIds: string[] = [];
+  for (const record of records.values()) {
+    if (effectiveEntitlementAccessState(record.data) !== "provisioned") {
+      continue;
+    }
+    const existingArtifacts = isRecord(record.data.artifact_uris)
+      ? record.data.artifact_uris
+      : {};
+    await record.ref.update({
+      ...directArtifactFields,
+      artifact_uris: {
+        ...existingArtifacts,
+        ...artifactUris,
+      },
+      artifact_delivery: {
+        status: "artifact_ready",
+        source: "pipeline_attachment_sync",
+        synced_at: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      updated_at: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    syncedIds.push(record.id);
+  }
+
+  return {
+    status: syncedIds.length > 0 ? "synced" : "skipped",
+    entitlement_ids: syncedIds,
+    artifact_keys: artifactKeys,
   };
 }
 
@@ -959,6 +1200,15 @@ router.post(
       qualificationState: finalQualificationState,
       evaluationReadiness,
     });
+    const buyerEntitlementArtifactSync = await syncBuyerEntitlementArtifacts({
+      body: {
+        ...body,
+        ...parsedBody,
+      },
+      pipeline,
+      sku: marketplacePublication?.sku || null,
+      siteSubmissionId: siteSubmissionId || requestId || docRef.id,
+    });
     const responsePackageId = deriveStablePackageId({
       captureId: pipeline?.capture_id || null,
       sceneId: pipeline?.scene_id || null,
@@ -1177,6 +1427,7 @@ router.post(
       opportunity_state: finalOpportunityState,
       capture_creator_linkage: captureCreatorLinkage,
       marketplace_publication: marketplacePublication,
+      buyer_entitlement_artifact_sync: buyerEntitlementArtifactSync,
       pipeline,
       derived_assets: derivedAssets,
       evaluation_readiness: evaluationReadiness,
@@ -1253,6 +1504,17 @@ router.post(
         sku,
       });
       if (!entitlement) {
+        await recordBetaOpsFailureSignal({
+          kind: "buyer_artifact_access_failure",
+          scopeId: entitlementId || sku || "buyer-artifact-access",
+          severity: "critical",
+          summary: "Buyer artifact access check could not find a provisioned entitlement.",
+          details: {
+            entitlement_id: entitlementId || null,
+            sku: sku || null,
+            blocker: "provisioned_marketplace_entitlement_not_found",
+          },
+        });
         return res.status(200).json({
           ok: false,
           accessible: false,
@@ -1264,18 +1526,36 @@ router.post(
         });
       }
 
-      const entitlementAccessState = stringValue(entitlement.access_state);
+      const entitlementAccessState = effectiveEntitlementAccessState(entitlement);
       const buyerUserId = stringValue(entitlement.buyer_user_id || entitlement.buyerUserId);
       if (entitlementAccessState !== "provisioned" || !buyerUserId) {
+        const blocker =
+          entitlementAccessState === "provisioned"
+            ? "marketplace_entitlement_missing_buyer_user_id"
+            : entitlementAccessState === "expired"
+              ? "marketplace_entitlement_expired"
+            : entitlementAccessState === "revoked"
+              ? "marketplace_entitlement_revoked_by_consent_takedown"
+              : "marketplace_entitlement_not_provisioned";
+        await recordBetaOpsFailureSignal({
+          kind: "buyer_artifact_access_failure",
+          scopeId: String(entitlement.id || entitlementId || sku || "buyer-artifact-access"),
+          severity: "critical",
+          summary: "Buyer artifact access check found an entitlement that cannot mint access.",
+          details: {
+            entitlement_id: String(entitlement.id || entitlementId || ""),
+            sku: sku || stringValue(entitlement.sku) || null,
+            access_state: entitlementAccessState || null,
+            blocker,
+          },
+        });
         return res.status(200).json({
           ok: false,
           accessible: false,
           buyer_accessible: false,
           buyer_access_checked: true,
           entitlement_verified: false,
-          blocker: entitlementAccessState === "provisioned"
-            ? "marketplace_entitlement_missing_buyer_user_id"
-            : "marketplace_entitlement_not_provisioned",
+          blocker,
           status: "blocked",
         });
       }
@@ -1294,6 +1574,20 @@ router.post(
         artifactUri,
       });
       if (!selected) {
+        await recordBetaOpsFailureSignal({
+          kind: "buyer_artifact_access_failure",
+          scopeId: String(entitlement.id || entitlementId || resolvedSku || "buyer-artifact-access"),
+          severity: "critical",
+          summary: "Buyer artifact access check found no configured artifact URI.",
+          details: {
+            entitlement_id: String(entitlement.id || entitlementId || ""),
+            sku: resolvedSku || null,
+            artifact_key: artifactKey || null,
+            artifact_uri: artifactUri || null,
+            blocker: "buyer_artifact_uri_not_configured",
+            available_artifact_keys: candidates.map((candidate) => candidate.key),
+          },
+        });
         return res.status(200).json({
           ok: false,
           accessible: false,
@@ -1333,12 +1627,108 @@ router.post(
       });
     } catch (error) {
       logger.error({ error }, "Failed to check buyer artifact access");
+      await recordBetaOpsFailureSignal({
+        kind: "buyer_artifact_access_failure",
+        scopeId: "buyer-artifact-access-check",
+        severity: "critical",
+        summary: "Buyer artifact access check threw before minting a signed URL.",
+        details: {
+          blocker: "buyer_artifact_access_check_failed",
+          error: error instanceof Error ? error.message : String(error),
+        },
+      });
       return res.status(500).json({
         ok: false,
         buyer_accessible: false,
         buyer_access_checked: true,
         entitlement_verified: false,
         blocker: "buyer_artifact_access_check_failed",
+      });
+    }
+  },
+);
+
+/**
+ * POST /api/internal/pipeline/rights-privacy-revocation
+ *
+ * Pipeline calls this with an explicit consent-revocation verdict from
+ * consent_takedown.py. The route revokes matching marketplace entitlements so
+ * buyer-artifact signed URL minting fails closed on the existing access_state
+ * check.
+ */
+router.post(
+  "/rights-privacy-revocation",
+  pipelineSyncRateLimiter,
+  requirePipelineToken,
+  async (req: Request, res: Response) => {
+    try {
+      if (!db) {
+        return res.status(503).json({
+          ok: false,
+          webapp_takedown_executed: false,
+          blocker: "database_not_available",
+        });
+      }
+
+      const body = isRecord(req.body) ? req.body : {};
+      const verdict = stringValue(body.verdict).toLowerCase();
+      if (verdict !== "revoked") {
+        return res.status(400).json({
+          ok: false,
+          webapp_takedown_executed: false,
+          blocker: "explicit_revoked_verdict_required",
+        });
+      }
+
+      const webappIds = isRecord(body.webapp_response_ids) ? body.webapp_response_ids : {};
+      const upstreamIds = isRecord(body.upstream_ids) ? body.upstream_ids : {};
+      const records = await collectRevocationEntitlements({ body, webappIds, upstreamIds });
+      const now = new Date().toISOString();
+      const revokedAt = stringValue(body.consent_revoked_at) || now;
+      const revokedEntitlementIds: string[] = [];
+      const alreadyRevokedEntitlementIds: string[] = [];
+
+      for (const record of records) {
+        if (stringValue(record.data.access_state) === "revoked") {
+          alreadyRevokedEntitlementIds.push(record.id);
+          continue;
+        }
+        await record.ref.update({
+          access_state: "revoked",
+          revoked_at: revokedAt,
+          revocation_reason: "consent_revoked",
+          rights_privacy_takedown: {
+            status: "blocked_consent_revoked_takedown_required",
+            verdict: "revoked",
+            scene_id: stringValue(body.scene_id || body.sceneId) || null,
+            capture_id: stringValue(body.capture_id || body.captureId) || null,
+            consent_revoked_at: revokedAt,
+            required_actions: stringList(body.required_actions),
+            pipeline_signal_received_at: now,
+          },
+          updated_at: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        revokedEntitlementIds.push(record.id);
+      }
+
+      const executed = revokedEntitlementIds.length > 0 || alreadyRevokedEntitlementIds.length > 0;
+      return res.status(200).json({
+        ok: executed,
+        status: executed ? "revocation_applied" : "blocked_no_matching_entitlement",
+        webapp_takedown_executed: executed,
+        revoked_entitlement_ids: revokedEntitlementIds,
+        already_revoked_entitlement_ids: alreadyRevokedEntitlementIds,
+        matched_entitlement_count: records.length,
+        blocker: executed ? null : "matching_marketplace_entitlement_not_found",
+        claim_boundary:
+          "WebApp revocation marks entitlement access_state=revoked and blocks new signed URL minting; it does not prove already-minted URL expiry before its configured TTL.",
+      });
+    } catch (error) {
+      logger.error({ error }, "Failed to apply rights/privacy revocation");
+      return res.status(500).json({
+        ok: false,
+        webapp_takedown_executed: false,
+        blocker: "rights_privacy_revocation_failed",
       });
     }
   },

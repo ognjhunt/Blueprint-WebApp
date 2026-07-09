@@ -32,6 +32,7 @@ import {
   dispatchWorkflowHumanReviewBlocker,
   safelyDispatchHumanBlocker,
 } from "../utils/human-blocker-autonomy";
+import { recordBetaOpsFailureSignal } from "../utils/ops-alerts";
 
 type WaitlistSubmissionRecord = {
   id: string;
@@ -1593,6 +1594,24 @@ export async function runPayoutExceptionTriageLoop(params?: { limit?: number }) 
         );
       }
 
+      await recordBetaOpsFailureSignal({
+        kind: "payout_exception",
+        scopeId: doc.id,
+        severity: "critical",
+        summary: `Payout exception ${doc.id} requires ${result.output.queue || "finance review"}.`,
+        details: {
+          payout_id: doc.id,
+          status: input.status,
+          creator_id: input.creator_id || null,
+          capture_id: input.capture_id || null,
+          stripe_payout_id: input.stripe_payout_id,
+          queue: result.output.queue || "payout_exception_queue",
+          disposition: result.output.disposition,
+          next_action: result.output.next_action,
+          requires_human_review: result.output.requires_human_review,
+          block_reason_code: result.output.block_reason_code,
+        },
+      });
       processedCount += 1;
     } catch (error) {
       failedCount += 1;
@@ -1607,6 +1626,16 @@ export async function runPayoutExceptionTriageLoop(params?: { limit?: number }) 
         },
         { merge: true },
       );
+      await recordBetaOpsFailureSignal({
+        kind: "payout_exception",
+        scopeId: doc.id,
+        severity: "critical",
+        summary: `Payout exception triage failed for ${doc.id}.`,
+        details: {
+          payout_id: doc.id,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      });
       logger.error({ err: error, payoutId: doc.id }, "Payout exception loop item failed");
     }
   }

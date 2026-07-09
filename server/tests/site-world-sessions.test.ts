@@ -834,6 +834,129 @@ describe("site world session routes", () => {
     }
   });
 
+  it("blocks co-entitled non-owners from reading, stepping, or exporting another team's session", async () => {
+    const { server, baseUrl } = await startServer();
+    try {
+      const create = await fetch(`${baseUrl}/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          siteWorldId: "sw-chi-01",
+          robotProfileId: "other_sample",
+          taskId: "sw-chi-01-task-1",
+          scenarioId: "sw-chi-01-scenario-1",
+          startStateId: "sw-chi-01-start-1",
+        }),
+      });
+      const createPayload = (await create.json()) as { sessionId?: string };
+      expect(create.status).toBe(201);
+      const sessionId = String(createPayload.sessionId || "");
+      const createdSession = state.hostedSessions.get(sessionId) as Record<string, unknown>;
+      state.hostedSessions.set(sessionId, {
+        ...createdSession,
+        createdBy: { uid: "other-team", email: "other@example.com" },
+      });
+      const { resetHostedSessionRouteState } = await import("../routes/site-world-sessions");
+      resetHostedSessionRouteState();
+
+      const read = await fetch(`${baseUrl}/${sessionId}`);
+      const readPayload = (await read.json()) as Record<string, unknown>;
+      expect(read.status).toBe(403);
+      expect(readPayload.code).toBe("session_access_denied");
+
+      const step = await fetch(`${baseUrl}/${sessionId}/step`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ episodeId: "episode-1" }),
+      });
+      const stepPayload = (await step.json()) as Record<string, unknown>;
+      expect(step.status).toBe(403);
+      expect(stepPayload.code).toBe("session_access_denied");
+
+      const exportResponse = await fetch(`${baseUrl}/${sessionId}/export`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const exportPayload = (await exportResponse.json()) as Record<string, unknown>;
+      expect(exportResponse.status).toBe(403);
+      expect(exportPayload.code).toBe("session_access_denied");
+    } finally {
+      await stopServer(server);
+    }
+  }, 60_000);
+
+  it("uses per-session share grants without escalating read grants into operation or export rights", async () => {
+    const { server, baseUrl } = await startServer();
+    try {
+      const create = await fetch(`${baseUrl}/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          siteWorldId: "sw-chi-01",
+          robotProfileId: "other_sample",
+          taskId: "sw-chi-01-task-1",
+          scenarioId: "sw-chi-01-scenario-1",
+          startStateId: "sw-chi-01-start-1",
+        }),
+      });
+      const createPayload = (await create.json()) as { sessionId?: string };
+      expect(create.status).toBe(201);
+      const sessionId = String(createPayload.sessionId || "");
+      const createdSession = state.hostedSessions.get(sessionId) as Record<string, unknown>;
+      state.hostedSessions.set(sessionId, {
+        ...createdSession,
+        createdBy: { uid: "other-team", email: "other@example.com" },
+        accessGrants: [{ uid: "user-1", permissions: ["read"], grantedAt: "2026-03-14T00:00:00Z" }],
+      });
+      const { resetHostedSessionRouteState } = await import("../routes/site-world-sessions");
+      resetHostedSessionRouteState();
+
+      const read = await fetch(`${baseUrl}/${sessionId}`);
+      expect(read.status).toBe(200);
+
+      const readOnlyStep = await fetch(`${baseUrl}/${sessionId}/step`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ episodeId: "episode-1" }),
+      });
+      expect(readOnlyStep.status).toBe(403);
+
+      state.hostedSessions.set(sessionId, {
+        ...(state.hostedSessions.get(sessionId) as Record<string, unknown>),
+        accessGrants: [{ uid: "user-1", permissions: ["operate"], grantedAt: "2026-03-14T00:00:00Z" }],
+      });
+      resetHostedSessionRouteState();
+      const operatorStep = await fetch(`${baseUrl}/${sessionId}/step`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ episodeId: "episode-1" }),
+      });
+      expect(operatorStep.status).toBe(200);
+
+      const operateOnlyExport = await fetch(`${baseUrl}/${sessionId}/export`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      expect(operateOnlyExport.status).toBe(403);
+
+      state.hostedSessions.set(sessionId, {
+        ...(state.hostedSessions.get(sessionId) as Record<string, unknown>),
+        accessGrants: [{ uid: "user-1", permissions: ["export"], grantedAt: "2026-03-14T00:00:00Z" }],
+      });
+      resetHostedSessionRouteState();
+      const exportResponse = await fetch(`${baseUrl}/${sessionId}/export`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      expect(exportResponse.status).toBe(200);
+    } finally {
+      await stopServer(server);
+    }
+  }, 60_000);
+
   it("creates a hosted session and returns a workspace URL", async () => {
     const { server, baseUrl } = await startServer();
     try {

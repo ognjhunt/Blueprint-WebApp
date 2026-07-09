@@ -6,6 +6,7 @@ import type { Server } from "node:http";
 
 const state = vi.hoisted(() => ({
   creatorCaptures: new Map<string, Record<string, unknown>>(),
+  betaCohortAdmissions: new Map<string, Record<string, unknown>>(),
 }));
 
 vi.mock("../utils/accounting", () => ({
@@ -29,8 +30,17 @@ vi.mock("../utils/accounting", () => ({
 }));
 
 vi.mock("../../client/src/lib/firebaseAdmin", () => {
-  const queryDocs = (field: string, value: unknown) =>
-    Array.from(state.creatorCaptures.entries())
+  const collectionStore = (name: string) => {
+    if (name === "creatorCaptures") {
+      return state.creatorCaptures;
+    }
+    if (name === "betaCohortAdmissions") {
+      return state.betaCohortAdmissions;
+    }
+    return new Map<string, Record<string, unknown>>();
+  };
+  const queryDocs = (name: string, field: string, value: unknown) =>
+    Array.from(collectionStore(name).entries())
       .filter(([, payload]) => payload[field] === value)
       .map(([id, payload]) => ({
         id,
@@ -40,20 +50,18 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => {
   const collection = (name: string) => ({
     where: (field: string, _op: string, value: unknown) => ({
       get: async () => ({
-        docs:
-          name === "creatorCaptures"
-            ? queryDocs(field, value)
-            : [],
+        docs: queryDocs(name, field, value),
       }),
     }),
     doc: (id: string) => ({
       get: async () => ({
-        exists: state.creatorCaptures.has(id),
-        data: () => state.creatorCaptures.get(id),
+        exists: collectionStore(name).has(id),
+        data: () => collectionStore(name).get(id),
       }),
       set: async (payload: Record<string, unknown>, options?: { merge?: boolean }) => {
-        const current = state.creatorCaptures.get(id) || {};
-        state.creatorCaptures.set(id, options?.merge ? { ...current, ...payload } : payload);
+        const store = collectionStore(name);
+        const current = store.get(id) || {};
+        store.set(id, options?.merge ? { ...current, ...payload } : payload);
       },
     }),
   });
@@ -100,6 +108,7 @@ async function stopServer(server: Server) {
 
 afterEach(() => {
   state.creatorCaptures.clear();
+  state.betaCohortAdmissions.clear();
 });
 
 describe("creator payout launch gate", () => {

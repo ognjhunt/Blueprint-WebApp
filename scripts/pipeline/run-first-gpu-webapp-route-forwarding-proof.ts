@@ -710,6 +710,19 @@ async function main() {
 
   const jobRequest = buildRequest(args) as Record<string, unknown>;
   const generatedAt = new Date().toISOString();
+  if (!remoteWebAppUrl && !process.env.BLUEPRINT_LOCAL_ROBOT_EVAL_ENTITLEMENT_PROOF_JSON) {
+    const sitePackage = jobRequest.site_package as Record<string, unknown>;
+    process.env.BLUEPRINT_LOCAL_ROBOT_EVAL_ENTITLEMENT_PROOF_JSON = JSON.stringify({
+      id: `local-entitlement-${String(sitePackage.site_slug || "route-proof")}`,
+      buyer_user_id: "local-webapp-route-proof",
+      sku: sitePackage.site_slug,
+      access_state: "provisioned",
+      site_slug: sitePackage.site_slug,
+      site_submission_id: sitePackage.site_submission_id,
+      capture_job_id: sitePackage.capture_job_id,
+      capture_id: sitePackage.capture_id,
+    });
+  }
 
   if (remoteWebAppUrl) {
     const routeUrl = `${remoteWebAppUrl}/api/robot-eval/job-requests`;

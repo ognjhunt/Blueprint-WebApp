@@ -13,6 +13,7 @@ import {
   validatePipelineArtifactUris,
   verifyPipelineSyncRequest,
 } from "../utils/pipelineSyncSecurity";
+import { recordBetaOpsFailureSignal } from "../utils/ops-alerts";
 
 const router = Router();
 const pipelineSyncRateLimiter = createPipelineSyncRateLimiter();
@@ -20,6 +21,28 @@ const DEFAULT_INBOX_DIR = path.resolve(
   process.cwd(),
   "output/pipeline/robot_eval_job_requests/inbox",
 );
+const LOCAL_ENTITLEMENT_PROOF_ENV = "BLUEPRINT_LOCAL_ROBOT_EVAL_ENTITLEMENT_PROOF_JSON";
+const ENTITLEMENT_MATCH_FIELDS = [
+  "sku",
+  "site_slug",
+  "siteSlug",
+  "site_id",
+  "siteId",
+  "site_submission_id",
+  "siteSubmissionId",
+  "capture_job_id",
+  "captureJobId",
+  "capture_id",
+  "captureId",
+  "scene_id",
+  "sceneId",
+  "listing_id",
+  "listingId",
+  "marketplace_listing_id",
+  "marketplaceListingId",
+  "site_world_id",
+  "siteWorldId",
+];
 
 function truthy(value: string | undefined) {
   return String(value || "").trim().toLowerCase() === "true";
@@ -81,6 +104,276 @@ function asObject(value: unknown): Record<string, unknown> {
     : {};
 }
 
+function stringValue(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function normalizedToken(value: unknown) {
+  return stringValue(value).toLowerCase();
+}
+
+function robotEvalSiteTokens(jobRequest: Record<string, unknown>) {
+  const sitePackage = asObject(jobRequest.site_package);
+  const tokens = new Set<string>();
+  for (const field of [
+    "site_slug",
+    "site_id",
+    "site_submission_id",
+    "capture_job_id",
+    "capture_id",
+  ]) {
+    const token = normalizedToken(sitePackage[field]);
+    if (token) {
+      tokens.add(token);
+    }
+  }
+  return tokens;
+}
+
+function requestedEntitlementId(jobRequest: Record<string, unknown>) {
+  const entitlement = asObject(jobRequest.entitlement);
+  return stringValue(
+    entitlement.entitlement_id ||
+      entitlement.entitlementId ||
+      jobRequest.entitlement_id ||
+      jobRequest.entitlementId,
+  );
+}
+
+function entitlementMatchesRobotEvalRequest(
+  entitlement: Record<string, unknown>,
+  jobRequest: Record<string, unknown>,
+) {
+  const siteTokens = robotEvalSiteTokens(jobRequest);
+  if (siteTokens.size === 0) {
+    return false;
+  }
+
+  for (const field of ENTITLEMENT_MATCH_FIELDS) {
+    const entitlementToken = normalizedToken(entitlement[field]);
+    if (!entitlementToken) {
+      continue;
+    }
+    for (const siteToken of siteTokens) {
+      if (
+        entitlementToken === siteToken ||
+        entitlementToken.startsWith(`${siteToken}-`) ||
+        entitlementToken === `site-world-package-${siteToken}` ||
+        entitlementToken === `hosted-session-${siteToken}`
+      ) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+function publicEntitlementProof(entitlement: Record<string, unknown>) {
+  return {
+    entitlement_id: stringValue(entitlement.id),
+    sku: stringValue(entitlement.sku),
+    access_state: stringValue(entitlement.access_state),
+    source: stringValue(entitlement.proof_source) || "marketplaceEntitlements",
+  };
+}
+
+function jobRequestWithServerVerifiedEntitlement(
+  jobRequest: Record<string, unknown>,
+  entitlement: Record<string, unknown>,
+) {
+  const entitlementId = stringValue(entitlement.id);
+  const rightsPrivacyScope = asObject(jobRequest.rights_privacy_scope);
+  const submittedEntitlement = asObject(jobRequest.entitlement);
+  return {
+    ...jobRequest,
+    entitlement: {
+      ...submittedEntitlement,
+      entitlement_id: entitlementId,
+      access_state: "provisioned",
+      approved: true,
+      verified_by: "server_marketplace_entitlement",
+    },
+    rights_privacy_scope: {
+      ...rightsPrivacyScope,
+      status: "cleared_for_robot_eval",
+      external_use_allowed: true,
+      entitlement_verified: true,
+      entitlement_id: entitlementId,
+      verification_source: "server_marketplace_entitlement",
+      privacy_scope:
+        stringValue(rightsPrivacyScope.privacy_scope) || "derived_deidentified_environment",
+    },
+  };
+}
+
+function localRobotEvalEntitlementProof(params: {
+  buyerUserId: string;
+  jobRequest: Record<string, unknown>;
+}):
+  | {
+      ok: true;
+      entitlement: Record<string, unknown>;
+      jobRequest: Record<string, unknown>;
+    }
+  | {
+      ok: false;
+      status: number;
+      code: string;
+      error: string;
+    }
+  | null {
+  if (process.env.NODE_ENV === "production") {
+    return null;
+  }
+  const raw = String(process.env[LOCAL_ENTITLEMENT_PROOF_ENV] || "").trim();
+  if (!raw) {
+    return null;
+  }
+
+  let parsed: Record<string, unknown>;
+  try {
+    const value = JSON.parse(raw);
+    parsed = asObject(value);
+  } catch {
+    return {
+      ok: false,
+      status: 503,
+      code: "invalid_local_robot_eval_entitlement_proof",
+      error: `${LOCAL_ENTITLEMENT_PROOF_ENV} must be valid JSON.`,
+    };
+  }
+
+  const entitlement = {
+    ...parsed,
+    id: stringValue(parsed.id || parsed.entitlement_id) || "local-robot-eval-route-proof",
+    buyer_user_id: stringValue(parsed.buyer_user_id || parsed.buyerUserId) || params.buyerUserId,
+    access_state: stringValue(parsed.access_state) || "provisioned",
+    proof_source: "local_robot_eval_route_proof_entitlement",
+  };
+  if (stringValue(entitlement.buyer_user_id) !== stringValue(params.buyerUserId)) {
+    return {
+      ok: false,
+      status: 403,
+      code: "local_robot_eval_entitlement_buyer_mismatch",
+      error: "Local robot eval entitlement proof does not belong to the authenticated buyer.",
+    };
+  }
+  if (stringValue(entitlement.access_state) !== "provisioned") {
+    return {
+      ok: false,
+      status: 403,
+      code: "local_robot_eval_entitlement_not_provisioned",
+      error: "Local robot eval entitlement proof is not provisioned.",
+    };
+  }
+  if (!entitlementMatchesRobotEvalRequest(entitlement, params.jobRequest)) {
+    return {
+      ok: false,
+      status: 403,
+      code: "local_robot_eval_entitlement_site_mismatch",
+      error: "Local robot eval entitlement proof does not match this site.",
+    };
+  }
+
+  return {
+    ok: true,
+    entitlement,
+    jobRequest: jobRequestWithServerVerifiedEntitlement(params.jobRequest, entitlement),
+  };
+}
+
+async function verifyRobotEvalEntitlement(params: {
+  buyerUserId: string;
+  jobRequest: Record<string, unknown>;
+}): Promise<
+  | {
+      ok: true;
+      entitlement: Record<string, unknown>;
+      jobRequest: Record<string, unknown>;
+    }
+  | {
+      ok: false;
+      status: number;
+      code: string;
+      error: string;
+    }
+> {
+  const localProof = localRobotEvalEntitlementProof(params);
+  if (localProof) {
+    return localProof;
+  }
+
+  if (!db) {
+    return {
+      ok: false,
+      status: 503,
+      code: "robot_eval_entitlement_store_not_configured",
+      error: "Robot eval entitlement verification store is not configured.",
+    };
+  }
+
+  const buyerUserId = stringValue(params.buyerUserId);
+  if (!buyerUserId) {
+    return {
+      ok: false,
+      status: 401,
+      code: "robot_eval_missing_authenticated_buyer",
+      error: "Missing authenticated buyer for robot eval entitlement verification.",
+    };
+  }
+
+  const requestedId = requestedEntitlementId(params.jobRequest);
+  const candidates: Record<string, unknown>[] = [];
+  if (requestedId) {
+    const snapshot = await db.collection("marketplaceEntitlements").doc(requestedId).get();
+    if (snapshot.exists) {
+      candidates.push({
+        id: snapshot.id || requestedId,
+        ...((snapshot.data() || {}) as Record<string, unknown>),
+      });
+    }
+  } else {
+    const snapshot = await db
+      .collection("marketplaceEntitlements")
+      .where("buyer_user_id", "==", buyerUserId)
+      .limit(50)
+      .get();
+    for (const doc of snapshot.docs || []) {
+      candidates.push({
+        id: doc.id || "",
+        ...((doc.data() || {}) as Record<string, unknown>),
+      });
+    }
+  }
+
+  const entitlement = candidates.find((candidate) => {
+    if (stringValue(candidate.buyer_user_id || candidate.buyerUserId) !== buyerUserId) {
+      return false;
+    }
+    if (stringValue(candidate.access_state) !== "provisioned") {
+      return false;
+    }
+    return entitlementMatchesRobotEvalRequest(candidate, params.jobRequest);
+  });
+
+  if (!entitlement) {
+    return {
+      ok: false,
+      status: 403,
+      code: "robot_eval_provisioned_entitlement_not_found",
+      error:
+        "A provisioned marketplace entitlement for this buyer and site is required before queuing robot eval.",
+    };
+  }
+
+  return {
+    ok: true,
+    entitlement,
+    jobRequest: jobRequestWithServerVerifiedEntitlement(params.jobRequest, entitlement),
+  };
+}
+
 function statusResponse(jobId: string, data: Record<string, unknown>) {
   const pipelineResult = asObject(data.pipeline_result);
   return {
@@ -103,8 +396,8 @@ function statusResponse(jobId: string, data: Record<string, unknown>) {
 // status route can enforce ownership. (The machine-only /:jobId/pipeline-status
 // callback keeps its HMAC guard instead of a Firebase token.)
 router.post("/", verifyFirebaseToken, async (req, res) => {
-  const jobRequest = req.body;
-  const validation = validateRobotEvalJobRequest(jobRequest);
+  const submittedJobRequest = req.body;
+  const validation = validateRobotEvalJobRequest(submittedJobRequest);
   if (!validation.ok) {
     return res.status(400).json({
       error: "Invalid robot_eval_job_request.v1",
@@ -115,6 +408,21 @@ router.post("/", verifyFirebaseToken, async (req, res) => {
   const buyerUserId = String(
     (res.locals.firebaseUser as { uid?: string } | undefined)?.uid || "",
   ).trim();
+  const entitlementCheck = await verifyRobotEvalEntitlement({
+    buyerUserId,
+    jobRequest: submittedJobRequest,
+  });
+  if (!entitlementCheck.ok) {
+    return res.status(entitlementCheck.status).json({
+      ok: false,
+      status: "robot_eval_entitlement_verification_failed",
+      code: entitlementCheck.code,
+      error: entitlementCheck.error,
+    });
+  }
+
+  const jobRequest = entitlementCheck.jobRequest;
+  const entitlementProof = publicEntitlementProof(entitlementCheck.entitlement);
   const jobId = String(jobRequest.job_id || "").trim();
   const buyerRequestId = String(jobRequest.buyer_request_id || "").trim();
 
@@ -128,6 +436,11 @@ router.post("/", verifyFirebaseToken, async (req, res) => {
     jobRequest,
     queuedAt,
   });
+  const pipelineForwardBlocksAcceptance =
+    pipelineForward.required === true && pipelineForward.performed !== true;
+  const recordStatus = pipelineForwardBlocksAcceptance
+    ? "pipeline_forward_failed"
+    : "queued_for_pipeline";
   const record = {
     jobRequest,
     schema_version: jobRequest.schema_version,
@@ -150,10 +463,14 @@ router.post("/", verifyFirebaseToken, async (req, res) => {
       typeof jobRequest.site_package === "object" && jobRequest.site_package !== null
         ? String((jobRequest.site_package as Record<string, unknown>).capture_id || "")
         : "",
-    status: "queued_for_pipeline",
+    status: recordStatus,
+    error: pipelineForwardBlocksAcceptance
+      ? robotEvalJobRequestForwardErrorMessage(pipelineForward)
+      : null,
     pipeline_command: "blueprint-run-robot-eval-job",
     pipeline_inbox: inbox,
     pipeline_forward: pipelineForward,
+    entitlement_proof: entitlementProof,
     created_at_iso: queuedAt,
     updated_at_iso: queuedAt,
     proof_boundary: {
@@ -190,7 +507,19 @@ router.post("/", verifyFirebaseToken, async (req, res) => {
     inbox,
     pipelineForward,
   });
-  if (pipelineForward.required && !pipelineForward.performed) {
+  if (pipelineForwardBlocksAcceptance) {
+    await recordBetaOpsFailureSignal({
+      kind: "intake_forwarding_failure",
+      scopeId: jobId || buyerRequestId || "robot-eval-job-request",
+      severity: "critical",
+      summary: "Robot eval job request forwarding to Pipeline failed while forwarding was required.",
+      details: {
+        job_id: jobId,
+        buyer_request_id: buyerRequestId,
+        pipeline_forward: pipelineForward,
+        durable_store: durableStore,
+      },
+    });
     return res.status(502).json({
       ok: false,
       status: "pipeline_forward_failed",
@@ -198,6 +527,7 @@ router.post("/", verifyFirebaseToken, async (req, res) => {
       durableStore,
       pipelineInbox: inbox,
       pipelineForward,
+      entitlementProof,
       jobRequest,
     });
   }
@@ -208,6 +538,7 @@ router.post("/", verifyFirebaseToken, async (req, res) => {
     durableStore,
     pipelineInbox: inbox,
     pipelineForward,
+    entitlementProof,
     jobRequest,
   });
 });

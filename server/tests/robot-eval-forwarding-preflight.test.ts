@@ -18,6 +18,9 @@ type StartedServer = {
     method: string | undefined;
     url: string | undefined;
     authorization: string | undefined;
+    signature: string | undefined;
+    timestamp: string | undefined;
+    nonce: string | undefined;
   }>;
   server: Server;
 };
@@ -31,6 +34,9 @@ async function startIntakeAuditStub(
       method: req.method,
       url: req.url,
       authorization: req.headers.authorization,
+      signature: req.headers["x-blueprint-pipeline-signature"] as string | undefined,
+      timestamp: req.headers["x-blueprint-pipeline-timestamp"] as string | undefined,
+      nonce: req.headers["x-blueprint-pipeline-nonce"] as string | undefined,
     });
     handler(req, res);
   });
@@ -242,7 +248,10 @@ describe("robot-eval forwarding readiness preflight", () => {
         expect.objectContaining({
           method: "GET",
           url: "/api/live-pipeline/intake-audit",
-          authorization: "Bearer test-forward-token",
+          authorization: undefined,
+          signature: expect.stringMatching(/^sha256=[a-f0-9]{64}$/),
+          timestamp: expect.any(String),
+          nonce: expect.any(String),
         }),
       ]);
       expect(JSON.stringify(report)).not.toContain("test-forward-token");

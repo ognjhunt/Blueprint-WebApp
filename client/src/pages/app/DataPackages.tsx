@@ -95,5 +95,5 @@ function isDataPackageEntitlement(entitlement: BuyerEntitlement) {
     .filter(Boolean)
     .join(" ")
     .toLowerCase();
-  return /(dataset|package|download|export|file transfer|api access)/.test(text);
+  return /(dataset|package|download|export|file transfer|api access|task eval|eval run|post-training|post training|robot eval)/.test(text);
 }

@@ -376,6 +376,8 @@ export interface PipelineArtifacts {
   compatibility_matrix_uri?: string | null;
   recapture_diff_uri?: string | null;
   launchable_export_bundle_uri?: string | null;
+  post_training_data_package_uri?: string | null;
+  delivery_manifest_uri?: string | null;
   robot_eval_dataset_manifest_uri?: string | null;
   robot_eval_legacy_manifest_uri?: string | null;
   robot_eval_site_card_uri?: string | null;
@@ -461,6 +463,8 @@ export interface ProviderRunSummary {
 }
 
 export interface RobotEvalDatasetCardArtifactUris {
+  post_training_data_package_uri?: string | null;
+  delivery_manifest_uri?: string | null;
   manifest_uri?: string | null;
   legacy_manifest_uri?: string | null;
   site_card_uri?: string | null;
@@ -1004,18 +1008,23 @@ export interface SceneDashboardCategory {
 export interface SceneDashboardSummary {
   schema_version: "v1";
   scene: string;
-  whole_home: {
+  site_type?: string;
+  overview?: {
     capture_id: string;
     status: string;
     confidence: number | null;
     memo_path: string;
     memo_uri: string;
   };
-  categories: {
-    pick: SceneDashboardCategory;
-    open_close: SceneDashboardCategory;
-    navigate: SceneDashboardCategory;
+  whole_home?: {
+    capture_id: string;
+    status: string;
+    confidence: number | null;
+    memo_path: string;
+    memo_uri: string;
   };
+  categories: Record<string, SceneDashboardCategory>;
+  task_groups?: Record<string, SceneDashboardCategory>;
   theme_counts: Record<string, number>;
   action_counts: Record<string, number>;
   deployment_summary: {

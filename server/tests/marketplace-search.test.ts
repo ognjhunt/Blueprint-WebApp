@@ -139,6 +139,27 @@ describe("marketplaceSearch (static)", () => {
     ).toBe(false);
   });
 
+  it("surfaces request-gated Task Evaluation Runs as commissioned marketplace outputs", async () => {
+    const response = await searchMarketplace({
+      query: "task evaluation run robot policy comparison scorecard",
+      limit: 20,
+      filters: { itemType: "all", sort: "relevance" },
+      hard: {},
+      soft: {},
+    });
+
+    const taskEval = response.results.find(
+      (result) =>
+        result.type === "commissioned_output" &&
+        (result.item as any).itemType === "task_eval_run",
+    );
+    expect(taskEval).toBeTruthy();
+    expect((taskEval?.item as any).requestUrl).toContain(
+      "/contact?requestPath=hosted-review",
+    );
+    expect((taskEval?.item as any).proofBoundary).toContain("request-gated");
+  });
+
   it("rankCandidates is deterministic with mocked embeddings", () => {
     const a = {
       type: "training" as const,
@@ -167,6 +188,35 @@ describe("marketplaceSearch (static)", () => {
 });
 
 describe("POST /api/marketplace/search", () => {
+  it("filters explicitly to commissioned Task Evaluation Run discovery", async () => {
+    const response = await fetch(`${baseUrl}/api/marketplace/search`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: csrfCookie,
+        "X-CSRF-Token": csrfToken,
+      },
+      body: JSON.stringify({
+        q: "compare robot policies on a warehouse task",
+        manualFilters: { itemType: "task_eval_runs" },
+        limit: 10,
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    const data = (await response.json()) as any;
+    expect(data.applied.manual.itemType).toBe("task_eval_runs");
+    expect(data.results.length).toBeGreaterThan(0);
+    expect(
+      data.results.every(
+        (result: any) =>
+          result.type === "commissioned_output" &&
+          result.item.itemType === "task_eval_run" &&
+          result.item.requestUrl.includes("requestPath=hosted-review"),
+      ),
+    ).toBe(true);
+  });
+
   it("manual locationType overrides parsed locationType", async () => {
     const response = await fetch(`${baseUrl}/api/marketplace/search`, {
       method: "POST",

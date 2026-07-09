@@ -78,6 +78,22 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
           .map(([id, data]) => ({
             id,
             data: () => data,
+            ref: {
+              id,
+              update: async (payload: Record<string, unknown>) => {
+                state.collectionWrites.push({
+                  collection: name,
+                  id,
+                  payload,
+                  options: { update: true },
+                });
+                state.collectionDocData[name] = state.collectionDocData[name] || {};
+                state.collectionDocData[name][id] = {
+                  ...(state.collectionDocData[name][id] || {}),
+                  ...payload,
+                };
+              },
+            },
           }));
       const buildQuery = (filters: Array<{ field: string; value: unknown }> = []) => ({
         where: (field: string, _op: string, value: unknown) =>
@@ -95,6 +111,7 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
             const data = state.collectionDocData[name]?.[id || "mock-doc-id"];
             return {
               exists: Boolean(data),
+              id: id || "mock-doc-id",
               data: () => data || {},
             };
           },
@@ -105,6 +122,26 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
               payload,
               options,
             });
+            state.collectionDocData[name] = state.collectionDocData[name] || {};
+            state.collectionDocData[name][id || "mock-doc-id"] = options?.merge
+              ? {
+                  ...(state.collectionDocData[name][id || "mock-doc-id"] || {}),
+                  ...payload,
+                }
+              : { ...payload };
+          },
+          update: async (payload: Record<string, unknown>) => {
+            state.collectionWrites.push({
+              collection: name,
+              id: id || "mock-doc-id",
+              payload,
+              options: { update: true },
+            });
+            state.collectionDocData[name] = state.collectionDocData[name] || {};
+            state.collectionDocData[name][id || "mock-doc-id"] = {
+              ...(state.collectionDocData[name][id || "mock-doc-id"] || {}),
+              ...payload,
+            };
           },
         }),
         where: (field: string, _op: string, value: unknown) =>
@@ -237,6 +274,10 @@ function withCompleteRobotEvalPublicationArtifacts(payload: Record<string, unkno
     ...payload,
     artifacts: {
       ...((payload.artifacts as Record<string, unknown>) || {}),
+      post_training_data_package_uri:
+        "gs://bucket/marketplace-artifacts/ent-robot-eval-1/post_training_data_package.tar.gz",
+      delivery_manifest_uri:
+        "gs://bucket/marketplace-artifacts/ent-robot-eval-1/delivery_manifest.json",
       robot_eval_dataset_manifest_uri: "gs://bucket/robot-eval/dataset_manifest.json",
       robot_eval_site_card_uri: "gs://bucket/robot-eval/site_card.json",
       robot_eval_task_cards_uri: "gs://bucket/robot-eval/task_cards.json",
@@ -421,6 +462,19 @@ describe("pipeline integration routes", () => {
         }),
       },
     ];
+    state.collectionDocData = {
+      marketplaceEntitlements: {
+        "ent-robot-eval-1": {
+          id: "ent-robot-eval-1",
+          buyer_user_id: "buyer-123",
+          sku: "robot-eval-cap-1",
+          access_state: "provisioned",
+          capture_id: "cap-1",
+          site_submission_id: "req-1",
+          buyer_request_id: "buyer-req-123",
+        },
+      },
+    };
     const { server, baseUrl } = await startServer(() => import("../routes/internal-pipeline"));
     const payload = withCompleteRobotEvalPublicationArtifacts({
       ...pipelineAttachmentFixture,
@@ -438,7 +492,8 @@ describe("pipeline integration routes", () => {
       });
 
       expect(response.status).toBe(200);
-      await expect(response.json()).resolves.toEqual(
+      const json = await response.json();
+      expect(json).toEqual(
         expect.objectContaining({
           marketplace_publication: {
             sku: "robot-eval-cap-1",
@@ -446,6 +501,13 @@ describe("pipeline integration routes", () => {
           capture_creator_linkage: {
             capture_id: "cap-1",
             creator_id: "creator-auth-123",
+          },
+          buyer_entitlement_artifact_sync: {
+            status: "synced",
+            entitlement_ids: ["ent-robot-eval-1"],
+            artifact_keys: expect.arrayContaining([
+              "post_training_data_package_uri",
+            ]),
           },
         }),
       );
@@ -461,6 +523,10 @@ describe("pipeline integration routes", () => {
               request_id: "req-1",
               capture_id: "cap-1",
               artifact_uris: expect.objectContaining({
+                post_training_data_package_uri:
+                  "gs://bucket/marketplace-artifacts/ent-robot-eval-1/post_training_data_package.tar.gz",
+                delivery_manifest_uri:
+                  "gs://bucket/marketplace-artifacts/ent-robot-eval-1/delivery_manifest.json",
                 publication_readiness_uri:
                   "gs://bucket/robot-eval/publication_readiness.json",
               }),
@@ -484,6 +550,26 @@ describe("pipeline integration routes", () => {
           options: { merge: true },
         }),
       ]);
+      expect(findCollectionWrites("marketplaceEntitlements")).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: "ent-robot-eval-1",
+            payload: expect.objectContaining({
+              post_training_data_package_uri:
+                "gs://bucket/marketplace-artifacts/ent-robot-eval-1/post_training_data_package.tar.gz",
+              artifact_uris: expect.objectContaining({
+                post_training_data_package_uri:
+                  "gs://bucket/marketplace-artifacts/ent-robot-eval-1/post_training_data_package.tar.gz",
+              }),
+              artifact_delivery: expect.objectContaining({
+                status: "artifact_ready",
+                source: "pipeline_attachment_sync",
+              }),
+            }),
+            options: { update: true },
+          }),
+        ]),
+      );
     } finally {
       await stopServer(server);
     }
@@ -548,6 +634,143 @@ describe("pipeline integration routes", () => {
           objectPath: "marketplace-artifacts/ent-robot-eval-1/package.zip",
         }),
       ]);
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("applies pipeline rights/privacy revocation and blocks new buyer artifact URLs", async () => {
+    process.env.PIPELINE_SYNC_TOKEN = "secret";
+    state.collectionDocData = {
+      marketplaceEntitlements: {
+        "ent-robot-eval-revoked": {
+          id: "ent-robot-eval-revoked",
+          buyer_user_id: "buyer-123",
+          sku: "robot-eval-cap-revoked",
+          scene_id: "scene-1",
+          capture_id: "cap-1",
+          access_state: "provisioned",
+          artifact_uris: {
+            package_uri:
+              "gs://bucket/marketplace-artifacts/ent-robot-eval-revoked/package.zip",
+          },
+        },
+      },
+    };
+    const { server, baseUrl } = await startServer(() => import("../routes/internal-pipeline"));
+
+    try {
+      const revocationRequest = signedPipelineRequest({
+        schema_version: "webapp_consent_revocation_signal.v1",
+        verdict: "revoked",
+        scene_id: "scene-1",
+        capture_id: "cap-1",
+        consent_revoked_at: "2026-07-08T12:00:00Z",
+        webapp_response_ids: {
+          entitlement_id: "ent-robot-eval-revoked",
+        },
+        required_actions: ["revoke_buyer_and_reviewer_access"],
+      });
+      const revocationResponse = await fetch(`${baseUrl}/rights-privacy-revocation`, {
+        method: "POST",
+        ...revocationRequest,
+      });
+
+      expect(revocationResponse.status).toBe(200);
+      await expect(revocationResponse.json()).resolves.toEqual(
+        expect.objectContaining({
+          ok: true,
+          status: "revocation_applied",
+          webapp_takedown_executed: true,
+          revoked_entitlement_ids: ["ent-robot-eval-revoked"],
+        }),
+      );
+      expect(
+        state.collectionDocData.marketplaceEntitlements["ent-robot-eval-revoked"].access_state,
+      ).toBe("revoked");
+      expect(
+        state.collectionDocData.marketplaceEntitlements["ent-robot-eval-revoked"].rights_privacy_takedown,
+      ).toEqual(
+        expect.objectContaining({
+          status: "blocked_consent_revoked_takedown_required",
+          verdict: "revoked",
+          scene_id: "scene-1",
+          capture_id: "cap-1",
+        }),
+      );
+
+      const accessRequest = signedPipelineRequest({
+        webapp_response_ids: {
+          entitlement_id: "ent-robot-eval-revoked",
+          listing_id: "robot-eval-cap-revoked",
+        },
+        artifact_key: "package_uri",
+      });
+      const accessResponse = await fetch(`${baseUrl}/buyer-artifact-access-check`, {
+        method: "POST",
+        ...accessRequest,
+      });
+
+      expect(accessResponse.status).toBe(200);
+      await expect(accessResponse.json()).resolves.toEqual(
+        expect.objectContaining({
+          ok: false,
+          buyer_accessible: false,
+          entitlement_verified: false,
+          blocker: "marketplace_entitlement_revoked_by_consent_takedown",
+          status: "blocked",
+        }),
+      );
+      expect(state.signedUrlCalls).toEqual([]);
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("blocks buyer artifact access when a provisioned entitlement is expired", async () => {
+    process.env.PIPELINE_SYNC_TOKEN = "secret";
+    state.collectionDocData = {
+      marketplaceEntitlements: {
+        "ent-robot-eval-expired": {
+          id: "ent-robot-eval-expired",
+          buyer_user_id: "buyer-123",
+          sku: "robot-eval-cap-expired",
+          access_state: "provisioned",
+          expires_at: "2026-01-01T00:00:00.000Z",
+          artifact_uris: {
+            package_uri:
+              "gs://bucket/marketplace-artifacts/ent-robot-eval-expired/package.zip",
+          },
+        },
+      },
+    };
+    const { server, baseUrl } = await startServer(() => import("../routes/internal-pipeline"));
+
+    try {
+      const signedRequest = signedPipelineRequest({
+        webapp_response_ids: {
+          entitlement_id: "ent-robot-eval-expired",
+          listing_id: "robot-eval-cap-expired",
+        },
+        artifact_key: "package_uri",
+      });
+      const response = await fetch(`${baseUrl}/buyer-artifact-access-check`, {
+        method: "POST",
+        ...signedRequest,
+      });
+
+      expect(response.status).toBe(200);
+      await expect(response.json()).resolves.toEqual(
+        expect.objectContaining({
+          ok: false,
+          buyer_access_checked: true,
+          buyer_accessible: false,
+          entitlement_verified: false,
+          blocker: "marketplace_entitlement_expired",
+          status: "blocked",
+        }),
+      );
+      expect(state.signedUrlCalls).toEqual([]);
     } finally {
       await stopServer(server);
     }
@@ -856,6 +1079,99 @@ describe("pipeline integration routes", () => {
       const json = await response.json();
       expect(json.deployment_summary.ready_now).toBe(1);
       expect(json.scene).toBe("scene-1");
+    } finally {
+      await stopServer(server);
+    }
+  }, 60_000);
+
+  it("accepts non-home scene dashboards with site-specific task groups", async () => {
+    state.docData = {
+      requestId: "req-1",
+      site_submission_id: "req-1",
+      status: "qualified_ready",
+      qualification_state: "qualified_ready",
+      opportunity_state: "handoff_ready",
+      priority: "normal",
+      owner: {},
+      contact: {
+        firstName: "Ada",
+        lastName: "Lovelace",
+        email: "ada@example.com",
+        company: "Analytical Engines",
+        roleTitle: "Ops",
+      },
+      request: {
+        budgetBucket: "$50K-$300K",
+        requestedLanes: ["qualification"],
+        helpWith: ["benchmark-packs"],
+        buyerType: "site_operator",
+        siteName: "Durham Facility",
+        siteLocation: "Durham, NC",
+        taskStatement: "Review a line-side delivery workflow.",
+      },
+      context: { sourcePageUrl: "https://example.com", utm: {} },
+      enrichment: {},
+      events: {},
+      pipeline: {
+        scene_id: "scene-1",
+        capture_id: "cap-1",
+        pipeline_prefix: "scenes/scene-1/captures/cap-1/pipeline",
+        artifacts: {
+          dashboard_summary_uri: "gs://bucket/scenes/scene-1/captures/cap-1/pipeline/dashboard_summary.json",
+        },
+      },
+    };
+    state.storageText = JSON.stringify({
+      schema_version: "v1",
+      scene: "scene-1",
+      site_type: "manufacturing",
+      overview: {
+        capture_id: "cap-1",
+        status: "review_ready",
+        confidence: 0.78,
+        memo_path: "/tmp/factory-memo.md",
+        memo_uri: "gs://bucket/factory-memo.md",
+      },
+      categories: {
+        line_side_delivery: {
+          counts: { ready: 1, risky: 1, not_ready_yet: 0 },
+          tasks: [],
+        },
+      },
+      task_groups: {
+        line_side_delivery: {
+          counts: { ready: 1, risky: 1, not_ready_yet: 0 },
+          tasks: [
+            {
+              task_text: "Move tote from cart to conveyor induction zone.",
+              capture_id: "cap-1",
+              status: "review_ready",
+              next_action: "advance to human signoff",
+              themes: ["material_handling"],
+              memo_path: "/tmp/factory-task.md",
+              memo_uri: "gs://bucket/factory-task.md",
+            },
+          ],
+        },
+      },
+      theme_counts: { material_handling: 1 },
+      action_counts: { "advance to human signoff": 1 },
+      deployment_summary: {
+        total_tasks: 1,
+        ready_now: 1,
+        needs_redesign: 0,
+        outside_robot_envelope: 0,
+      },
+    });
+    const { server, baseUrl } = await startServer(() => import("../routes/admin-leads"));
+
+    try {
+      const response = await fetch(`${baseUrl}/req-1/pipeline/dashboard`);
+      expect(response.status).toBe(200);
+      const json = await response.json();
+      expect(json.site_type).toBe("manufacturing");
+      expect(json.overview.status).toBe("review_ready");
+      expect(json.task_groups.line_side_delivery.tasks).toHaveLength(1);
     } finally {
       await stopServer(server);
     }

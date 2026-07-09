@@ -9,6 +9,7 @@ import {
 import { getCityLaunchSenderStatus, getEmailTransportStatus } from "./email";
 import { getHostedSessionLiveStoreStatus } from "./hosted-session-live-store";
 import { buildGrowthIntegrationSummary } from "./provider-status";
+import { getBetaCohortPolicySnapshot } from "./beta-cohort-policy";
 
 type LaunchCheck = {
   required: boolean;
@@ -69,6 +70,7 @@ export function buildLaunchReadinessSnapshot() {
   const cityLaunchSender = getCityLaunchSenderStatus();
   const agentRuntime = getAgentRuntimeConnectionMetadata();
   const growthIntegrations = buildGrowthIntegrationSummary();
+  const betaCohortPolicy = getBetaCohortPolicySnapshot();
   const fieldEncryptionReady = Boolean(
     process.env.FIELD_ENCRYPTION_MASTER_KEY?.trim()
     || process.env.FIELD_ENCRYPTION_KMS_KEY_NAME?.trim(),
@@ -148,6 +150,12 @@ export function buildLaunchReadinessSnapshot() {
     firebaseAdminReady;
   const buyerLifecycleReady =
     !automationFlags.buyerLifecycle || (firebaseAdminReady && emailTransport.configured);
+  const betaCohortControlsReady =
+    betaCohortPolicy.enabled
+    && !betaCohortPolicy.killSwitchActive
+    && betaCohortPolicy.inviteCap > 0
+    && betaCohortPolicy.cohortDailyLimit > 0
+    && firebaseAdminReady;
   const slaWatchdogReady =
     !automationFlags.slaWatchdog || (firebaseAdminReady && emailTransport.configured);
   const notionSyncDatabaseConfigured = Boolean(
@@ -191,6 +199,7 @@ export function buildLaunchReadinessSnapshot() {
     email: emailReady,
     pipelineSync: pipelineSyncReady,
     agentRuntime: agentRuntimeReady,
+    betaCohortControls: betaCohortControlsReady,
     autonomousAutomation: autonomousAutomationReady,
   };
 
@@ -264,6 +273,17 @@ export function buildLaunchReadinessSnapshot() {
           ? `${agentRuntime.provider} is configured for enabled automation lanes.`
           : `Automation lanes are enabled but the selected provider (${agentRuntime.provider}) is not configured.`
         : "Agent runtime is not required because automation lanes are disabled.",
+    },
+    betaCohortControls: {
+      required: true,
+      ready: betaCohortControlsReady,
+      detail: betaCohortControlsReady
+        ? `Beta cohort controls are active with invite cap ${betaCohortPolicy.inviteCap} and daily cohort limit ${betaCohortPolicy.cohortDailyLimit}.`
+        : betaCohortPolicy.killSwitchActive || !betaCohortPolicy.enabled
+          ? "Beta cohort access is paused by BLUEPRINT_BETA_KILL_SWITCH or BLUEPRINT_BETA_ENABLED=false."
+          : !firebaseAdminReady
+            ? "Beta cohort controls require Firebase Admin / Firestore for caps and throttle state."
+            : "Beta cohort controls require positive BLUEPRINT_BETA_INVITE_CAP and BLUEPRINT_BETA_COHORT_DAILY_LIMIT.",
     },
     experimentAutorollout: {
       required: automationFlags.experimentRollout,
@@ -370,6 +390,7 @@ export function buildLaunchReadinessSnapshot() {
       stripeEnabled,
       pipelineSyncEnabled,
       redisRequired,
+      betaCohortPolicy,
       launchChecks,
     },
   };
