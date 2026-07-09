@@ -62,8 +62,14 @@ export async function ensureCreatorStripeAccountId(
     type: "express",
     country: "US",
     email: trimString(data.email) || undefined,
+    capabilities: {
+      transfers: { requested: true },
+      tax_reporting_us_1099_misc: { requested: true },
+    },
     metadata: {
       creator_id: creatorId,
+      tax_reporting_owner: "stripe_1099_product",
+      tax_reporting_form_type: "1099-NEC",
     },
     settings: {
       payouts: {

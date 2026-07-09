@@ -19,6 +19,21 @@ import { resolveStripeAccountForRequest } from "../utils/stripeConnectAccounts";
 
 const VALID_SCHEDULES = new Set(["daily", "weekly", "monthly", "manual"]);
 type OnboardingStatusCode = typeof HTTP_STATUS.OK | typeof HTTP_STATUS.CREATED;
+const TAX_REPORTING_OWNER = "stripe_1099_product";
+const TAX_REPORTING_FORM_TYPE = "1099-NEC";
+const TAX_REPORTING_CAPABILITY = "tax_reporting_us_1099_misc";
+const TAX_REQUIREMENT_HINTS = [
+  "individual.first_name",
+  "individual.last_name",
+  "individual.id_number",
+  "individual.ssn_last_4",
+  "individual.address.",
+  "company.name",
+  "company.tax_id",
+  "company.address.",
+  "tax_id",
+  "tin",
+];
 
 const router = Router();
 
@@ -50,6 +65,63 @@ function hasBlockingStripeRequirements(account: Stripe.Account) {
       requirements.requirements_past_due ||
       requirements.disabled_reason,
   );
+}
+
+function taxReportingConfig() {
+  const runbookUri = String(
+    process.env.BLUEPRINT_TAX_REPORTING_1099_RUNBOOK_URI ||
+      process.env.BLUEPRINT_TAX_REPORTING_RUNBOOK_URI ||
+      "",
+  ).trim();
+  return {
+    tax_reporting_owner: TAX_REPORTING_OWNER,
+    tax_reporting_form_type: TAX_REPORTING_FORM_TYPE,
+    tax_reporting_runbook_uri: runbookUri || null,
+    tax_reporting_owner_configured: Boolean(runbookUri),
+  };
+}
+
+function isTaxRequirementField(field: string): boolean {
+  const normalized = field.trim().toLowerCase();
+  return TAX_REQUIREMENT_HINTS.some((hint) => normalized.includes(hint));
+}
+
+function taxRequirementFields(requirements?: string[] | null): string[] | null {
+  const filtered = (requirements || []).filter(isTaxRequirementField);
+  return filtered.length > 0 ? filtered : null;
+}
+
+function taxReportingPayload(account: Stripe.Account | null) {
+  const capabilityStatus =
+    account?.capabilities?.tax_reporting_us_1099_misc ?? null;
+  const requirementsDue = taxRequirementFields(account?.requirements?.currently_due);
+  const requirementsPastDue = taxRequirementFields(account?.requirements?.past_due);
+  const requirementsPendingVerification = taxRequirementFields(
+    account?.requirements?.pending_verification,
+  );
+  const taxReportingReady = Boolean(
+    account &&
+      capabilityStatus === "active" &&
+      !requirementsDue &&
+      !requirementsPastDue &&
+      !requirementsPendingVerification,
+  );
+
+  return {
+    tax_reporting_required_for_payouts: true,
+    tax_reporting_capability: TAX_REPORTING_CAPABILITY,
+    tax_reporting_capability_status: capabilityStatus,
+    tax_reporting_ready: taxReportingReady,
+    w9_collection_status: account
+      ? taxReportingReady
+        ? "complete"
+        : "incomplete"
+      : "not_checked",
+    backup_withholding_policy: "block_payout_until_tax_info_verified",
+    tax_requirements_due: requirementsDue,
+    tax_requirements_past_due: requirementsPastDue,
+    tax_requirements_pending_verification: requirementsPendingVerification,
+  };
 }
 
 function isStripeAccountLiveMode(account: Stripe.Account | null) {
@@ -91,6 +163,8 @@ function stripeReadinessPayload(
   const liveProviderReady = Boolean(providerLiveMode && contractProviderReady);
   const livePayoutExecutionEnabled = isStripeLivePayoutExecutionEnabled();
   const financeReview = financeReviewOwnerConfig();
+  const taxReporting = taxReportingPayload(account);
+  const taxReportingOwner = taxReportingConfig();
   const missingEvidence: string[] = [];
 
   if (!options.providerStateChecked) {
@@ -108,6 +182,16 @@ function stripeReadinessPayload(
   if (!financeReview.finance_review_owner_configured) {
     missingEvidence.push("Configure BLUEPRINT_FINANCE_REVIEW_OWNER and BLUEPRINT_FINANCE_REVIEW_QUEUE_URI before payout execution.");
   }
+  if (!taxReportingOwner.tax_reporting_owner_configured) {
+    missingEvidence.push(
+      "Configure BLUEPRINT_TAX_REPORTING_1099_RUNBOOK_URI before payout execution.",
+    );
+  }
+  if (account && !taxReporting.tax_reporting_ready) {
+    missingEvidence.push(
+      "Stripe 1099 tax reporting capability must be active and tax identity/TIN/address requirements complete before creator payouts.",
+    );
+  }
 
   return {
     payout_provider: STRIPE_CURRENT_PROVIDER,
@@ -117,13 +201,19 @@ function stripeReadinessPayload(
     live_provider_ready: liveProviderReady,
     live_payout_execution_enabled: livePayoutExecutionEnabled,
     payout_execution_human_gate_required:
-      !livePayoutExecutionEnabled || !financeReview.finance_review_owner_configured,
+      !livePayoutExecutionEnabled ||
+      !financeReview.finance_review_owner_configured ||
+      !taxReportingOwner.tax_reporting_owner_configured,
     ...financeReview,
+    ...taxReportingOwner,
+    ...taxReporting,
     instant_payout_eligible: Boolean(options.instantPayoutEligible),
     provider_evidence_required:
       liveProviderReady &&
       livePayoutExecutionEnabled &&
-      financeReview.finance_review_owner_configured
+      financeReview.finance_review_owner_configured &&
+      taxReportingOwner.tax_reporting_owner_configured &&
+      (!account || taxReporting.tax_reporting_ready)
       ? []
       : missingEvidence,
     ...(requirements || {
@@ -137,19 +227,29 @@ function stripeReadinessPayload(
 
 function ensurePayoutExecutionApproved(res: Response): boolean {
   const financeReview = financeReviewOwnerConfig();
-  if (isStripeLivePayoutExecutionEnabled() && financeReview.finance_review_owner_configured) {
+  const taxReportingOwner = taxReportingConfig();
+  if (
+    isStripeLivePayoutExecutionEnabled() &&
+    financeReview.finance_review_owner_configured &&
+    taxReportingOwner.tax_reporting_owner_configured
+  ) {
     return true;
   }
+  const financeBlocked =
+    !isStripeLivePayoutExecutionEnabled() ||
+    !financeReview.finance_review_owner_configured;
   res.status(409).json({
-    error:
-      "Payout execution is disabled until a human finance owner and review queue are configured and explicitly enabled.",
+    error: financeBlocked
+      ? "Payout execution is disabled until a human finance owner and review queue are configured and explicitly enabled."
+      : "Payout execution is disabled until Stripe 1099 tax reporting ownership and runbook evidence are configured.",
     payout_provider: STRIPE_CURRENT_PROVIDER,
     live_payout_execution_enabled: isStripeLivePayoutExecutionEnabled(),
     payout_execution_human_gate_required: true,
     human_required: true,
     ...financeReview,
+    ...taxReportingOwner,
     required_evidence:
-      "Set BLUEPRINT_LIVE_PAYOUT_EXECUTION_ENABLED only after live Stripe/account, treasury balance, webhook reconciliation, BLUEPRINT_FINANCE_REVIEW_OWNER, and BLUEPRINT_FINANCE_REVIEW_QUEUE_URI are verified.",
+      "Set BLUEPRINT_LIVE_PAYOUT_EXECUTION_ENABLED only after live Stripe/account, treasury balance, webhook reconciliation, BLUEPRINT_FINANCE_REVIEW_OWNER, BLUEPRINT_FINANCE_REVIEW_QUEUE_URI, Stripe 1099 tax reporting, and BLUEPRINT_TAX_REPORTING_1099_RUNBOOK_URI are verified.",
   });
   return false;
 }
@@ -158,6 +258,7 @@ async function ensureAccountReadyForInstantPayout(
   stripe: Stripe,
   accountId: string,
   res: Response,
+  options: { requireTaxReporting?: boolean } = {},
 ): Promise<boolean> {
   const account = await stripe.accounts.retrieve(accountId);
   const requirements = stripeRequirementPayload(account);
@@ -179,6 +280,19 @@ async function ensureAccountReadyForInstantPayout(
       ...requirements,
     });
     return false;
+  }
+
+  if (options.requireTaxReporting) {
+    const taxReporting = taxReportingPayload(account);
+    if (!taxReporting.tax_reporting_ready) {
+      res.status(409).json({
+        error: "Stripe tax reporting is incomplete for this creator account.",
+        ...stripeReadinessPayload(account, { providerStateChecked: true }),
+        ...requirements,
+        ...taxReporting,
+      });
+      return false;
+    }
   }
 
   return true;
@@ -487,6 +601,7 @@ router.post("/account/instant_payout", async (req, res) => {
       stripeContext.stripe,
       stripeContext.accountId,
       res,
+      { requireTaxReporting: Boolean(stripeContext.creatorId) },
     );
     if (!stripeAccountReady) {
       return;
