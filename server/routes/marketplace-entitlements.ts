@@ -7,6 +7,7 @@ import {
   trainingDatasets,
 } from "../../client/src/data/content";
 import { dbAdmin as db, storageAdmin } from "../../client/src/lib/firebaseAdmin";
+import { logger } from "../logger";
 
 const router = Router();
 
@@ -303,6 +304,25 @@ router.get("/:entitlementId/artifact-access", async (req: Request, res: Response
   );
   if (entitlementBuyerUserId !== buyerUserId) {
     return res.status(403).json({ error: "Entitlement does not belong to caller" });
+  }
+  // R027: a consent-revoked entitlement must never mint a signed URL. Block
+  // explicitly (and audit) before the generic provisioned gate.
+  if (stringValue(entitlement.access_state) === "revoked") {
+    const takedown = isRecord(entitlement.takedown) ? entitlement.takedown : {};
+    logger.warn(
+      {
+        entitlement_id: entitlementId,
+        buyer_user_id: buyerUserId,
+        capture_id: stringValue(takedown.capture_id) || null,
+        scene_id: stringValue(takedown.scene_id) || null,
+        source_notice_id: stringValue(takedown.source_notice_id) || null,
+      },
+      "Blocked signed artifact URL for consent-revoked entitlement",
+    );
+    return res.status(403).json({
+      error: "Entitlement access has been revoked by a consent takedown",
+      code: "entitlement_revoked",
+    });
   }
   if (stringValue(entitlement.access_state) !== "provisioned") {
     return res.status(409).json({

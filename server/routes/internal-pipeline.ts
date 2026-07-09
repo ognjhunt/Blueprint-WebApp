@@ -48,6 +48,10 @@ import {
   validatePipelineArtifactUris,
   verifyPipelineSyncRequest,
 } from "../utils/pipelineSyncSecurity";
+import {
+  ingestConsentRevocationTakedown,
+  type ConsentRevocationNotice,
+} from "../utils/consentRevocationTakedown";
 
 const router = Router();
 const pipelineSyncRateLimiter = createPipelineSyncRateLimiter();
@@ -1266,6 +1270,29 @@ router.post(
 
       const entitlementAccessState = stringValue(entitlement.access_state);
       const buyerUserId = stringValue(entitlement.buyer_user_id || entitlement.buyerUserId);
+      // R027: a consent-revoked entitlement must never mint a signed URL. Block
+      // explicitly (and audit) instead of relying only on the provisioned gate.
+      if (entitlementAccessState === "revoked") {
+        const takedown = isRecord(entitlement.takedown) ? entitlement.takedown : {};
+        logger.warn(
+          {
+            entitlement_id: String(entitlement.id || entitlementId || ""),
+            capture_id: stringValue(takedown.capture_id) || null,
+            scene_id: stringValue(takedown.scene_id) || null,
+            source_notice_id: stringValue(takedown.source_notice_id) || null,
+          },
+          "Blocked buyer artifact access for consent-revoked entitlement",
+        );
+        return res.status(200).json({
+          ok: false,
+          accessible: false,
+          buyer_accessible: false,
+          buyer_access_checked: true,
+          entitlement_verified: false,
+          blocker: "marketplace_entitlement_revoked_by_consent_takedown",
+          status: "blocked",
+        });
+      }
       if (entitlementAccessState !== "provisioned" || !buyerUserId) {
         return res.status(200).json({
           ok: false,
@@ -1339,6 +1366,61 @@ router.post(
         buyer_access_checked: true,
         entitlement_verified: false,
         blocker: "buyer_artifact_access_check_failed",
+      });
+    }
+  },
+);
+
+/**
+ * POST /api/internal/pipeline/consent-revocation-takedown
+ *
+ * R027 enforcement: consume a Pipeline `webapp_rights_privacy_takedown_notice`
+ * (emitted when a capture's consent is revoked) and flip every marketplace
+ * entitlement linked to the revoked capture/scene/site to
+ * `access_state="revoked"`. This is what makes consent revocation self-enforcing
+ * across the delivery chain: once revoked, the signed-URL mint paths refuse the
+ * entitlement. HMAC-protected by the same Pipeline sync token as the other
+ * internal sync routes.
+ */
+router.post(
+  "/consent-revocation-takedown",
+  pipelineSyncRateLimiter,
+  requirePipelineToken,
+  async (req: Request, res: Response) => {
+    try {
+      if (!db) {
+        return res.status(503).json({
+          ok: false,
+          webapp_takedown_executed: false,
+          code: "database_not_available",
+        });
+      }
+
+      const body = isRecord(req.body) ? req.body : {};
+      const result = await ingestConsentRevocationTakedown(
+        body as ConsentRevocationNotice,
+      );
+
+      if (!result.ok) {
+        const status = result.code === "database_not_available" ? 503 : 400;
+        return res.status(status).json({
+          ...result,
+          webapp_takedown_executed: false,
+        });
+      }
+
+      return res.status(200).json({
+        ...result,
+        webapp_takedown_executed: true,
+        claim_boundary:
+          "WebApp entitlement revocation flips affected provisioned entitlements to access_state=revoked and blocks future signed-URL minting. It is not proof of hosted-session teardown or downstream training deletion.",
+      });
+    } catch (error) {
+      logger.error({ error }, "Failed to ingest consent revocation takedown");
+      return res.status(500).json({
+        ok: false,
+        webapp_takedown_executed: false,
+        code: "consent_revocation_takedown_failed",
       });
     }
   },
