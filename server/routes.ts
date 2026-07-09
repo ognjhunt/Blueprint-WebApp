@@ -31,6 +31,7 @@ import adminGrowthRouter, {
   sendgridWebhookHandler,
 } from "./routes/admin-growth";
 import adminCompanyMetricsRouter from "./routes/admin-company-metrics";
+import opsSummaryRouter from "./routes/ops-summary";
 import adminSiteWorldsRouter from "./routes/admin-site-worlds";
 import analyticsIngestRouter from "./routes/analytics-ingest";
 import experimentsRouter from "./routes/experiments";
@@ -164,6 +165,14 @@ export function registerRoutes(app: Express) {
     csrfProtection,
     verifyFirebaseToken,
     adminSiteWorldsRouter,
+  );
+  // Operator console (/ops/*) data — Firebase auth + admin/ops role enforced
+  // inside the router (R036). Never expose ops state without an admin claim.
+  app.use(
+    "/api/ops",
+    csrfProtection,
+    verifyFirebaseToken,
+    opsSummaryRouter,
   );
   app.use("/api/site-worlds/sessions", csrfProtection, verifyFirebaseToken, siteWorldSessionsRouter);
   app.post(
