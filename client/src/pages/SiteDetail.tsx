@@ -24,7 +24,7 @@ export default function SiteDetail({ params }: SiteDetailProps) {
 
   if (!site) {
     return (
-      <main className="bg-white px-5 py-20 text-slate-950 md:px-8">
+      <div className="bg-white px-5 py-20 text-slate-950 md:px-8">
         <div className="mx-auto max-w-3xl rounded-lg border border-slate-200 bg-white p-8">
           <a href="/sites" className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-slate-950">
             <ArrowLeft className="h-4 w-4" />
@@ -38,7 +38,7 @@ export default function SiteDetail({ params }: SiteDetailProps) {
             Request new site
           </a>
         </div>
-      </main>
+      </div>
     );
   }
 
@@ -79,7 +79,7 @@ export default function SiteDetail({ params }: SiteDetailProps) {
         ]}
       />
 
-      <main className="bg-white text-slate-950">
+      <div className="bg-white text-slate-950">
         <section className="border-b border-slate-200">
           <div className="mx-auto grid max-w-[88rem] gap-10 px-5 py-10 md:grid-cols-[0.9fr_1.1fr] md:items-center md:px-8 md:py-14">
             <div>
@@ -179,7 +179,7 @@ export default function SiteDetail({ params }: SiteDetailProps) {
             </p>
           </div>
         </section>
-      </main>
+      </div>
     </>
   );
 }

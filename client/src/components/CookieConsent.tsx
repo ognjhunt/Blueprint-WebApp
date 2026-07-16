@@ -83,7 +83,7 @@ export function CookieConsent() {
           </div>
           <button
             onClick={handleRejectAll}
-            className="p-1 text-zinc-500 hover:bg-white hover:text-zinc-900"
+            className="flex h-11 w-11 items-center justify-center text-zinc-500 hover:bg-white hover:text-zinc-900"
             aria-label="Close"
           >
             <X className="h-5 w-5" />
@@ -104,7 +104,7 @@ export function CookieConsent() {
         {showDetails && (
           <div className="mb-4 space-y-3 border border-black/10 bg-white p-4">
             {/* Necessary */}
-            <label className="flex items-center justify-between">
+            <label className="flex min-h-[44px] items-center justify-between">
               <div>
                 <span className="text-sm font-medium text-zinc-900">Necessary</span>
                 <p className="text-xs text-zinc-500">Required for basic site functionality</p>
@@ -118,7 +118,7 @@ export function CookieConsent() {
             </label>
 
             {/* Analytics */}
-            <label className="flex cursor-pointer items-center justify-between">
+            <label className="flex min-h-[44px] cursor-pointer items-center justify-between">
               <div>
                 <span className="text-sm font-medium text-zinc-900">Analytics</span>
                 <p className="text-xs text-zinc-500">Help us understand how you use our site</p>
@@ -132,7 +132,7 @@ export function CookieConsent() {
             </label>
 
             {/* Marketing */}
-            <label className="flex cursor-pointer items-center justify-between">
+            <label className="flex min-h-[44px] cursor-pointer items-center justify-between">
               <div>
                 <span className="text-sm font-medium text-zinc-900">Marketing</span>
                 <p className="text-xs text-zinc-500">Personalized ads and content</p>
@@ -151,7 +151,7 @@ export function CookieConsent() {
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
           <button
             onClick={() => setShowDetails(!showDetails)}
-            className="text-sm font-medium text-zinc-600 hover:text-zinc-900"
+            className="min-h-[44px] py-2 text-left text-sm font-medium text-zinc-600 hover:text-zinc-900"
           >
             {showDetails ? "Hide details" : "Customize"}
           </button>
@@ -159,21 +159,21 @@ export function CookieConsent() {
           <div className="flex gap-3">
             <button
               onClick={handleRejectAll}
-              className="flex-1 border border-black/10 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 sm:flex-none"
+              className="min-h-[44px] flex-1 border border-black/10 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 sm:flex-none"
             >
               Reject all
             </button>
             {showDetails ? (
               <button
                 onClick={handleAcceptSelected}
-                className="flex-1 bg-[#0d0d0b] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 sm:flex-none"
+                className="min-h-[44px] flex-1 bg-[#0d0d0b] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 sm:flex-none"
               >
                 Save preferences
               </button>
             ) : (
               <button
                 onClick={handleAcceptAll}
-                className="flex-1 bg-[#0d0d0b] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 sm:flex-none"
+                className="min-h-[44px] flex-1 bg-[#0d0d0b] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 sm:flex-none"
               >
                 Accept all
               </button>

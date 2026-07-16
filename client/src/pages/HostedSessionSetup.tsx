@@ -580,7 +580,7 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
         </section>
 
         <form onSubmit={handleLaunch} className="mx-auto grid max-w-[118rem] gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[minmax(0,1fr)_24rem] lg:px-8">
-          <main className="min-w-0 space-y-5">
+          <div className="min-w-0 space-y-5">
             <section className="overflow-hidden rounded-lg border border-stone-950/12 bg-white shadow-[0_24px_70px_rgba(35,31,24,0.08)]">
               <div className="grid min-w-0 lg:grid-cols-[minmax(0,0.48fr)_minmax(0,0.52fr)]">
                 <div className="relative min-h-[28rem] overflow-hidden bg-[#111713] text-white">
@@ -924,7 +924,7 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
                 placeholder="Example: Evaluate navigation to receiving dock and export observation frames plus action trace for post-training prep."
               />
             </section>
-          </main>
+          </div>
 
           <aside className="min-w-0 space-y-5 lg:sticky lg:top-6 lg:self-start">
             <section className="rounded-lg border border-stone-950/15 bg-[#111713] p-5 text-white shadow-[0_28px_80px_rgba(17,24,19,0.22)]">

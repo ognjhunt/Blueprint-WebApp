@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { useLocation } from "wouter";
-import { ArrowRight, CheckCircle2, Loader2 } from "lucide-react";
+import { ArrowRight, CheckCircle2, ChevronDown, Loader2 } from "lucide-react";
 import { SEO } from "@/components/SEO";
 import {
   robotPolicyComparisonUseCases,
@@ -75,6 +75,43 @@ const privateHardwareRows = [
       "Return camera refs, action logs, robot state, timestamps, outcomes, checksums, and operator attestation by scenario ID.",
   },
 ];
+
+/**
+ * Mobile progressive disclosure for the explainer card grids. On md+ the grid
+ * always renders (identical to the previous layout); on phones the cards sit
+ * behind a "Show the details" toggle so the route stays scannable instead of
+ * stacking ~20 cards into an 8,000px column before the submission form.
+ */
+function MobileDisclosureGrid({
+  toggleLabel,
+  gridClassName,
+  children,
+}: {
+  toggleLabel: string;
+  gridClassName: string;
+  children: React.ReactNode;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setExpanded((prev) => !prev)}
+        aria-expanded={expanded}
+        className="flex min-h-11 w-full items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-950 md:hidden"
+      >
+        {toggleLabel}
+        <ChevronDown
+          className={`h-4 w-4 transition-transform ${expanded ? "rotate-180" : ""}`}
+          aria-hidden="true"
+        />
+      </button>
+      <div className={`${gridClassName} ${expanded ? "mt-3 grid" : "hidden md:grid"}`}>
+        {children}
+      </div>
+    </div>
+  );
+}
 
 function createSubmissionId() {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
@@ -456,7 +493,7 @@ export default function RobotTeamEval() {
         }}
       />
 
-      <main className="bg-white text-slate-950">
+      <div className="bg-white text-slate-950">
         <section className="border-b border-slate-200">
           <div className="mx-auto grid max-w-[88rem] gap-10 px-5 py-12 md:grid-cols-[0.78fr_1.22fr] md:items-center md:px-8 md:py-16">
             <div>
@@ -511,7 +548,10 @@ export default function RobotTeamEval() {
                 and sealed audit seeds stay withheld by default.
               </p>
             </div>
-            <div className="grid gap-3 md:grid-cols-3">
+            <MobileDisclosureGrid
+              toggleLabel="Show how IP stays protected"
+              gridClassName="gap-3 md:grid-cols-3"
+            >
               {privateHardwareRows.map((row) => (
                 <article key={row.title} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
                   <CheckCircle2 className="h-5 w-5 text-blue-600" aria-hidden="true" />
@@ -519,7 +559,7 @@ export default function RobotTeamEval() {
                   <p className="mt-2 text-sm leading-6 text-slate-600">{row.body}</p>
                 </article>
               ))}
-            </div>
+            </MobileDisclosureGrid>
           </div>
         </section>
 
@@ -537,7 +577,10 @@ export default function RobotTeamEval() {
                 constant.
               </p>
             </div>
-            <div className="grid gap-3 md:grid-cols-3">
+            <MobileDisclosureGrid
+              toggleLabel="Show the comparison use cases"
+              gridClassName="gap-3 md:grid-cols-3"
+            >
               {robotPolicyComparisonUseCases.map((item) => (
                 <article key={item.title} className="rounded-lg border border-slate-200 bg-white p-4">
                   <CheckCircle2 className="h-5 w-5 text-blue-600" aria-hidden="true" />
@@ -545,7 +588,7 @@ export default function RobotTeamEval() {
                   <p className="mt-2 text-sm leading-6 text-slate-600">{item.body}</p>
                 </article>
               ))}
-            </div>
+            </MobileDisclosureGrid>
           </div>
         </section>
 
@@ -561,7 +604,10 @@ export default function RobotTeamEval() {
                 can promise a percentage-point policy-ranking outcome.
               </p>
             </div>
-            <div className="grid gap-3 md:grid-cols-2">
+            <MobileDisclosureGrid
+              toggleLabel="Show the research signals"
+              gridClassName="gap-3 md:grid-cols-2"
+            >
               {robotPolicyResearchSignals.map((signal) => (
                 <a
                   key={signal.label}
@@ -573,7 +619,7 @@ export default function RobotTeamEval() {
                   <p className="mt-2 text-sm leading-6 text-slate-600">{signal.body}</p>
                 </a>
               ))}
-            </div>
+            </MobileDisclosureGrid>
           </div>
         </section>
 
@@ -981,7 +1027,7 @@ export default function RobotTeamEval() {
             </div>
           </aside>
         </section>
-      </main>
+      </div>
     </>
   );
 }
