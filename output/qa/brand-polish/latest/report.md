@@ -1,6 +1,6 @@
 # Blueprint Brand Polish QA Report
 
-Generated: 2026-06-01T00:01:19.795Z
+Generated: 2026-07-16T22:12:04.373Z
 Base URL: http://127.0.0.1:4173
 Command: `npm run qa:polish`
 Boundary: local Playwright dev server only. No live sends, provider calls, payments, deploys, or Notion writes.
@@ -8,7 +8,7 @@ Boundary: local Playwright dev server only. No live sends, provider calls, payme
 ## Summary
 
 - Route viewport checks: 24/24 passed.
-- Internal link checks: 82/82 passed.
+- Internal link checks: 50/50 passed.
 - Notion layout checklist: `output/qa/brand-polish/latest/notion-layout-checklist.md`
 
 ## Issues
@@ -49,87 +49,55 @@ Boundary: local Playwright dev server only. No live sends, provider calls, payme
 | Href | Status | HTTP status | Source routes |
 |---|---:|---:|---|
 | / | pass | 200 | /, /about, /agents, /capture, /careers, /contact, /faq, /pricing, /product, /proof, /updates, /world-models |
-| /about | pass | 200 | /, /about, /agents, /capture, /careers, /contact, /faq, /pricing, /product, /proof, /updates, /world-models |
-| /agent-access.openapi.json | pass | 200 | /agents |
-| /agents | pass | 200 | /, /about, /agents, /capture, /careers, /contact, /faq, /pricing, /product, /proof, /updates, /world-models |
 | /capture | pass | 200 | /, /about, /agents, /capture, /careers, /contact, /faq, /pricing, /product, /proof, /updates, /world-models |
-| /capture-app/launch-access?role=capturer&source=capture-hero | pass | 200 | /capture |
-| /capture-app/launch-access?role=capturer&source=header | pass | 200 | /capture |
-| /capture-app/launch-access?role=capturer&source=home-persona-capturer | pass | 200 | / |
-| /capture-app/launch-access?role=capturer&source=home-top-persona | pass | 200 | / |
-| /careers | pass | 200 | /, /about, /agents, /capture, /careers, /contact, /faq, /pricing, /product, /proof, /updates, /world-models |
-| /contact | pass | 200 | /contact |
+| /contact/robot-team | pass | 200 | /agents, /careers, /contact |
+| /contact/robot-team?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=policy-evaluation-run&source=footer | pass | 200 | /, /about, /agents, /capture, /careers, /contact, /faq, /pricing, /product, /proof, /updates, /world-models |
+| /contact/robot-team?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=policy-evaluation-run&source=header | pass | 200 | /, /about, /agents, /capture, /careers, /contact, /faq, /pricing, /product, /proof, /updates, /world-models |
+| /contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&requestedOutputs=Policy%20Evaluation%20Run&episodeCount=500&source=home | pass | 200 | /, /about, /product, /updates |
+| /contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&requestedOutputs=Policy%20Evaluation%20Run&location=Front%20Range%20Cold%20Storage%20Pod&source=sites-card | pass | 200 | /world-models |
+| /contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&requestedOutputs=Policy%20Evaluation%20Run&location=Harborview%20Grocery%20Distribution%20Annex&source=sites-card | pass | 200 | /world-models |
+| /contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&requestedOutputs=Policy%20Evaluation%20Run&location=Lakeshore%20Loading%20Dock&source=sites-card | pass | 200 | /world-models |
+| /contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&requestedOutputs=Policy%20Evaluation%20Run&location=Motor%20City%20Battery%20Staging%20Cell&source=sites-card | pass | 200 | /world-models |
+| /contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&requestedOutputs=Policy%20Evaluation%20Run&location=Northfield%20Distribution%20Center&source=sites-card | pass | 200 | /world-models |
+| /contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&requestedOutputs=Policy%20Evaluation%20Run&location=Piedmont%20Hospital%20Supply%20Hallway&source=sites-card | pass | 200 | /world-models |
+| /contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&requestedOutputs=Policy%20Evaluation%20Run&location=South%20Bay%20Retail%20Stockroom&source=sites-card | pass | 200 | /world-models |
+| /contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&requestedOutputs=Policy%20Evaluation%20Run&location=Triangle%20Robotics%20Lab&source=sites-card | pass | 200 | /world-models |
+| /contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&source=proof | pass | 200 | /faq, /proof |
+| /contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&source=sites-hero | pass | 200 | /world-models |
 | /contact/site-operator | pass | 200 | /, /about, /agents, /capture, /careers, /contact, /faq, /pricing, /product, /proof, /updates, /world-models |
-| /contact?interest=data-licensing&buyerType=robot_team&source=site-worlds&path=package-access&siteName=Bayview+Micro-Fulfillment+Center&siteLocation=1380+Oakland+Rd%2C+San+Jose%2C+CA+95112&taskStatement=Pick+the+order+items+and+transfer+the+tote+to+pack&targetRobotTeam=AMR+with+shelf-facing+camera+and+tote+sensor | pass | 200 | /world-models |
-| /contact?interest=data-licensing&buyerType=robot_team&source=site-worlds&path=package-access&siteName=Cherry+Creek+Hospital+Supply+Annex&siteLocation=950+Josephine+St%2C+Denver%2C+CO+80206&taskStatement=Load+the+cart%2C+deliver+to+the+room%2C+and+return+through+the+clear+corridor&targetRobotTeam=Hospital+cart+robot+with+head+cam+and+map+state+feed | pass | 200 | /world-models |
-| /contact?interest=data-licensing&buyerType=robot_team&source=site-worlds&path=package-access&siteName=Commonwealth+Pharmacy+Refill+Center&siteLocation=71+Southampton+St%2C+Boston%2C+MA+02118&taskStatement=Pick+the+refill+item%2C+verify+it%2C+and+load+the+secure+bin&targetRobotTeam=Dual-arm+pharmacy+assistant+with+wrist+cam+and+barcode+state | pass | 200 | /world-models |
-| /contact?interest=data-licensing&buyerType=robot_team&source=site-worlds&path=package-access&siteName=Front+Range+Cold+Storage+Pod&siteLocation=1911+Groveport+Rd%2C+Columbus%2C+OH+43207&taskStatement=Pick+the+target+bin+and+transfer+it+without+breaking+the+route+timing&targetRobotTeam=Cold-room+picker+with+arm+camera+and+thermal+state+feed | pass | 200 | /world-models |
-| /contact?interest=data-licensing&buyerType=robot_team&source=site-worlds&path=package-access&siteName=Harborview+Grocery+Distribution+Annex&siteLocation=1847+W+Fulton+St%2C+Chicago%2C+IL+60612&taskStatement=Walk+to+shelf+staging+and+pick+the+blue+tote&targetRobotTeam=Unitree+G1+with+head+cam+and+wrist+cam | pass | 200 | /world-models |
-| /contact?interest=data-licensing&buyerType=robot_team&source=site-worlds&path=package-access&siteName=Meadowlands+Returns+Processing+Suite&siteLocation=500+Duncan+Ave%2C+Jersey+City%2C+NJ+07306&taskStatement=Triage+the+returned+item+and+route+it+to+the+correct+tote&targetRobotTeam=Stationary+arm+with+table+cams+and+barcode+reader | pass | 200 | /world-models |
-| /contact?interest=data-licensing&buyerType=robot_team&source=site-worlds&path=package-access&siteName=Media+Room+Demo+Walkthrough&siteLocation=Blueprint+hosted+review+demo&taskStatement=Media+room&targetRobotTeam=Mobile+manipulator+with+head+and+wrist+cameras | pass | 200 | /world-models |
-| /contact?interest=data-licensing&buyerType=robot_team&source=site-worlds&path=package-access&siteName=Motor+City+Battery+Staging+Cell&siteLocation=7440+Lynch+Rd%2C+Detroit%2C+MI+48234&taskStatement=Move+the+part+feed+into+the+fixture+and+complete+the+transfer&targetRobotTeam=Assembly+arm+with+force+trace+stream+and+wrist+camera | pass | 200 | /world-models |
-| /contact?interest=data-licensing&buyerType=robot_team&source=site-worlds&path=package-access&siteName=Newark+Terminal+B+Baggage+Feed&siteLocation=3+Brewster+Rd%2C+Newark%2C+NJ+07114&taskStatement=Scan+the+bag%2C+route+it+correctly%2C+and+clear+the+lane&targetRobotTeam=Bag-handling+arm+with+feed+camera+and+scan+event+stream | pass | 200 | /world-models |
-| /contact?interest=data-licensing&buyerType=robot_team&source=site-worlds&path=package-access&siteName=Peachtree+Parcel+Exchange+South&siteLocation=2550+Lakewood+Ave+SW%2C+Atlanta%2C+GA+30315&taskStatement=Induct+a+parcel%2C+clear+the+lane%2C+and+reset+the+tote+position&targetRobotTeam=Mobile+manipulator+with+mast+cam+and+overhead+assist+view | pass | 200 | /world-models |
-| /contact?interest=data-licensing&buyerType=robot_team&source=site-worlds&path=package-access&siteName=Sonoran+Assembly+Cart+Bay&siteLocation=4025+E+University+Dr%2C+Phoenix%2C+AZ+85034&taskStatement=Fetch+the+staged+cart+and+deliver+it+to+the+resupply+station&targetRobotTeam=Autonomous+cart+tug+with+front+stereo+pair | pass | 200 | /world-models |
-| /contact?interest=data-licensing&buyerType=robot_team&source=site-worlds&path=package-access&siteName=Soundside+Electronics+Rework+Lab&siteLocation=2211+4th+Ave+S%2C+Seattle%2C+WA+98134&taskStatement=Fetch+the+tray+and+hand+the+part+to+the+rework+bench&targetRobotTeam=Bench-side+arm+with+wrist+cams+and+tray+state+sensor | pass | 200 | /world-models |
-| /contact?interest=data-licensing&buyerType=robot_team&source=site-worlds&path=package-access&siteName=Trinity+Linen+Operations+Hub&siteLocation=1410+Irving+Blvd%2C+Dallas%2C+TX+75207&taskStatement=Lift+the+intake+bag%2C+sort+it%2C+and+transfer+the+load+to+outbound&targetRobotTeam=Humanoid+with+head+cam+and+top-down+supervisor+view | pass | 200 | /world-models |
-| /contact?persona=robot-team | pass | 200 | /, /about, /agents, /capture, /careers, /contact, /faq, /pricing, /product, /proof, /updates, /world-models |
-| /contact?persona=robot-team&buyerType=robot_team&interest=custom-scope&path=world-model&source=pricing-custom-table | pass | 200 | /pricing |
-| /contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=pricing | pass | 200 | /pricing |
-| /contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=pricing-hero | pass | 200 | /pricing |
-| /contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=pricing-hosted-table | pass | 200 | /pricing |
-| /contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=product | pass | 200 | /product |
-| /contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=product-bottom | pass | 200 | /product |
-| /contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=proof-bottom | pass | 200 | /proof |
-| /contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=proof-packet&source=proof-bottom | pass | 200 | /proof |
-| /contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=proof-packet&source=proof-hero | pass | 200 | /proof |
-| /contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=about-bottom | pass | 200 | /about |
-| /contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=about-hero | pass | 200 | /about |
-| /contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=agents-hero&requestedOutputs=OpenAPI%2C%20CLI%2C%20MCP%2C%20and%20hosted-session%20access&message=Robot-team%20agent%20access%20request | pass | 200 | /agents |
-| /contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=faq-bottom | pass | 200 | /faq |
-| /contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=faq-hero | pass | 200 | /faq |
-| /contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=header | pass | 200 | /, /about, /careers, /contact, /faq, /pricing, /product, /proof, /updates, /world-models |
-| /contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-bottom&utm_source=homepage&utm_medium=website&utm_campaign=home_robot_team_conversion_v1&utm_content=outdoor_street_view%3Ahome-bottom | pass | 200 | / |
-| /contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-decision-path&utm_source=homepage&utm_medium=website&utm_campaign=home_robot_team_conversion_v1&utm_content=outdoor_street_view%3Ahome-decision-path | pass | 200 | / |
-| /contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-hero-primary&utm_source=homepage&utm_medium=website&utm_campaign=home_robot_team_conversion_v1&utm_content=outdoor_street_view%3Ahome-hero-primary | pass | 200 | / |
-| /contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-persona-robot-team | pass | 200 | / |
-| /contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-product-review | pass | 200 | / |
-| /contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=pricing | pass | 200 | /pricing |
-| /contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=pricing-hero | pass | 200 | /pricing |
-| /contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=pricing-package-table | pass | 200 | /pricing |
-| /contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=product-hero | pass | 200 | /product |
-| /contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=site-worlds | pass | 200 | /world-models |
-| /contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=site-worlds-hero | pass | 200 | /world-models |
-| /faq | pass | 200 | /, /about, /agents, /capture, /careers, /contact, /faq, /pricing, /product, /proof, /updates, /world-models |
+| /contact/site-operator?buyerType=site_operator&requestedOutputs=Site%20Monitoring%20Subscription&source=pricing | pass | 200 | /pricing |
+| /contact/site-operator?buyerType=site_operator&requestedOutputs=Site%20Supply%20Review&source=pricing | pass | 200 | /pricing |
+| /contact/site-operator?source=sites-hero | pass | 200 | /world-models |
+| /contact?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&requestedOutputs=Quick-Look%20Eval&episodeCount=50&source=pricing | pass | 200 | /pricing |
+| /contact?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&requestedOutputs=Robot%20Team%20Subscription&source=pricing | pass | 200 | /pricing |
+| /contact?persona=robot-team&interest=policy-evaluation-run&source=pricing | pass | 200 | /pricing |
 | /for-robot-teams | pass | 200 | /, /about, /agents, /capture, /careers, /contact, /faq, /pricing, /product, /proof, /updates, /world-models |
-| /governance | pass | 200 | /, /about, /agents, /capture, /careers, /contact, /faq, /pricing, /product, /proof, /updates, /world-models |
-| /help | pass | 200 | /, /about, /agents, /capture, /careers, /contact, /faq, /pricing, /product, /proof, /updates, /world-models |
+| /for-site-operators | pass | 200 | /, /about, /agents, /capture, /careers, /contact, /faq, /pricing, /product, /proof, /updates, /world-models |
 | /how-it-works | pass | 200 | /, /about, /agents, /capture, /careers, /contact, /faq, /pricing, /product, /proof, /updates, /world-models |
 | /pricing | pass | 200 | /, /about, /agents, /capture, /careers, /contact, /faq, /pricing, /product, /proof, /updates, /world-models |
 | /privacy | pass | 200 | /, /about, /agents, /capture, /careers, /contact, /faq, /pricing, /product, /proof, /updates, /world-models |
-| /product | pass | 200 | /, /about, /agents, /capture, /careers, /contact, /faq, /pricing, /product, /proof, /updates, /world-models |
 | /proof | pass | 200 | /, /about, /agents, /capture, /careers, /contact, /faq, /pricing, /product, /proof, /updates, /world-models |
-| /sample-deliverables | pass | 200 | /, /about, /agents, /capture, /careers, /contact, /faq, /pricing, /product, /proof, /updates, /world-models |
-| /samples/sample-hosted-review-report.md | pass | 200 | /product |
-| /signup/capturer | pass | 200 | /capture |
+| /sign-in | pass | 200 | /, /about, /agents, /capture, /careers, /contact, /faq, /pricing, /product, /proof, /updates, /world-models |
+| /signup/capturer?intent=waitlist&source=capture-jobs | pass | 200 | /capture |
+| /signup/capturer?source=capture-jobs | pass | 200 | /capture |
+| /signup/capturer?source=capture-jobs&job=austin-market-aisle | pass | 200 | /capture |
+| /signup/capturer?source=capture-jobs&job=chicago-pharmacy-supply | pass | 200 | /capture |
+| /signup/capturer?source=capture-jobs&job=denver-cold-storage | pass | 200 | /capture |
+| /signup/capturer?source=capture-jobs&job=durham-dock-staging | pass | 200 | /capture |
+| /signup/capturer?source=capture-jobs&job=phoenix-assembly-cart | pass | 200 | /capture |
+| /signup/capturer?source=capture-jobs&job=seattle-rework-lab | pass | 200 | /capture |
+| /signup?flow=capturer | pass | 200 | /agents, /careers, /contact |
+| /sites | pass | 200 | /, /about, /agents, /capture, /careers, /contact, /faq, /pricing, /product, /proof, /updates, /world-models |
+| /sites/lakeshore-loading-dock | pass | 200 | /world-models |
+| /sites/northfield-distribution-center | pass | 200 | /world-models |
+| /sites/piedmont-hospital-supply-hallway | pass | 200 | /world-models |
+| /sites/south-bay-retail-stockroom | pass | 200 | /world-models |
+| /sites/sw-chi-01 | pass | 200 | /world-models |
+| /sites/sw-col-05 | pass | 200 | /world-models |
+| /sites/sw-det-09 | pass | 200 | /world-models |
+| /sites/triangle-robotics-lab | pass | 200 | /world-models |
 | /terms | pass | 200 | /, /about, /agents, /capture, /careers, /contact, /faq, /pricing, /product, /proof, /updates, /world-models |
-| /updates | pass | 200 | /, /about, /agents, /capture, /careers, /contact, /faq, /pricing, /product, /proof, /updates, /world-models |
-| /world-models | pass | 200 | /, /about, /agents, /capture, /careers, /contact, /faq, /pricing, /product, /proof, /updates, /world-models |
-| /world-models/siteworld-f5fd54898cfb | pass | 200 | /, /pricing, /world-models |
-| /world-models/siteworld-f5fd54898cfb/start | pass | 200 | /agents, /world-models |
-| /world-models/sw-atl-02 | pass | 200 | /world-models |
-| /world-models/sw-bos-08 | pass | 200 | /world-models |
-| /world-models/sw-chi-01 | pass | 200 | /, /world-models |
-| /world-models/sw-chi-01/start | pass | 200 | /world-models |
-| /world-models/sw-col-05 | pass | 200 | /world-models |
-| /world-models/sw-dal-04 | pass | 200 | /world-models |
-| /world-models/sw-den-11 | pass | 200 | /world-models |
-| /world-models/sw-det-09 | pass | 200 | /world-models |
-| /world-models/sw-ewr-10 | pass | 200 | /world-models |
-| /world-models/sw-jer-06 | pass | 200 | /world-models |
-| /world-models/sw-phx-03 | pass | 200 | /world-models |
-| /world-models/sw-sea-12 | pass | 200 | /world-models |
-| /world-models/sw-sjc-07 | pass | 200 | /, /world-models |
+| /vision | pass | 200 | /, /about, /agents, /capture, /careers, /contact, /faq, /pricing, /product, /proof, /updates, /world-models |
 
 ## Checks Covered
 
