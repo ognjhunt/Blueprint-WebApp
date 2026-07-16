@@ -42,16 +42,33 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       github.event.workflow_run.conclusion == 'success'
     steps:
-      - name: Resolve deploy ref
+      - name: Resolve and verify deploy ref
         id: ref
         env:
+          GH_TOKEN: ${{ github.token }}
           EVENT_NAME: ${{ github.event_name }}
           DISPATCH_REF: ${{ github.event.inputs.ref }}
           WORKFLOW_RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+          REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
           if [ "${EVENT_NAME}" = "workflow_dispatch" ]; then
-            deploy_ref="${DISPATCH_REF}"
+            # Manual dispatch rides the same green-exact-commit gate as the
+            # automatic path: resolve to a SHA, require it to be on main, and
+            # require a successful CI run for that exact commit. Otherwise any
+            # dispatcher could ship an arbitrary or red SHA.
+            deploy_ref=$(gh api "repos/${REPO}/commits/${DISPATCH_REF}" --jq .sha)
+            ancestry=$(gh api "repos/${REPO}/compare/${deploy_ref}...main" --jq .status)
+            if [ "${ancestry}" != "identical" ] && [ "${ancestry}" != "ahead" ]; then
+              echo "::error::${deploy_ref} is not an ancestor of main (compare status: ${ancestry}). Refusing to deploy."
+              exit 1
+            fi
+            green_runs=$(gh api "repos/${REPO}/actions/workflows/ci.yml/runs?head_sha=${deploy_ref}&status=completed" \
+              --jq '[.workflow_runs[] | select(.conclusion=="success")] | length')
+            if [ "${green_runs}" -eq 0 ]; then
+              echo "::error::No successful CI run exists for ${deploy_ref}. Refusing to deploy a commit CI has not proven green."
+              exit 1
+            fi
           else
             deploy_ref="${WORKFLOW_RUN_SHA}"
           fi

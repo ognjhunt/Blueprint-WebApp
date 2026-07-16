@@ -1,4 +1,7 @@
-import { ADC_CONTEXT_ENV_KEYS } from "../../../client/src/lib/firebaseAdmin";
+// Import from the side-effect-free constants module — importing
+// firebaseAdmin.ts here would initialize Firebase Admin in the parent vitest
+// worker whenever the parent shell carries ADC context.
+import { ADC_CONTEXT_ENV_KEYS } from "../../../client/src/lib/adcContextEnvKeys";
 
 /**
  * Build a subprocess environment guaranteed not to trigger Firebase Admin
