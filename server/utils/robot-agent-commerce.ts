@@ -39,10 +39,12 @@ export type AgentLiveCheckoutBlocker = {
   code:
     | "site_world_not_found"
     | "not_live_purchasable"
+    | "price_unavailable"
+    | "buyer_identity_required"
     | "budget_exceeded"
     | "stripe_unavailable";
   severity: "blocking";
-  ownerSystem: "catalog" | "stripe" | "agent_budget";
+  ownerSystem: "catalog" | "stripe" | "agent_budget" | "buyer_identity";
   message: string;
   retryAction: string;
 };
@@ -69,6 +71,7 @@ export type AgentCommerceQuote = {
   unitAmountCents: number;
   totalAmountCents: number;
   currency: "usd";
+  priceSource: "catalog" | "default";
   entitlementType: "package_access" | "hosted_session";
   truthLabels: string[];
 };
@@ -269,6 +272,7 @@ export function buildAgentCommerceQuote(
     unitAmountCents,
     totalAmountCents: unitAmountCents * quantity,
     currency: "usd",
+    priceSource: parsedAmount !== null ? "catalog" : "default",
     entitlementType: product === "hosted_session_rental" ? "hosted_session" : "package_access",
     truthLabels:
       mode === "live"
@@ -295,7 +299,7 @@ function normalizeBudgetCents(value: unknown): number | null {
 export function evaluateAgentLiveCheckoutEligibility(
   input: AgentLiveCheckoutInput,
   siteWorld: SiteWorldCard | null | undefined,
-  options: { stripeConfigured: boolean },
+  options: { stripeConfigured: boolean; authenticatedBuyerUid?: string | null },
 ): AgentLiveCheckoutEligibility {
   const siteWorldId = normalizeId(input.siteWorldId);
   if (!siteWorldId) {
@@ -326,6 +330,38 @@ export function evaluateAgentLiveCheckoutEligibility(
         "This site world is a sample or planned catalog profile, not a pipeline-backed package, so live checkout is not offered for it.",
       retryAction:
         "Use dry-run checkout to prove the flow, or submit the requestCandidate intake draft from search to request this site.",
+    });
+  } else if (quote.priceSource !== "catalog") {
+    // Never let a live charge fall back to the hard-coded planning defaults:
+    // if the public catalog has no parseable price for this product on this
+    // site world, the truthful price is "quoted per request", not $18/hour.
+    blockers.push({
+      code: "price_unavailable",
+      severity: "blocking",
+      ownerSystem: "catalog",
+      message:
+        `The public catalog does not list a parseable ${quote.product} price for this site world, so live checkout cannot charge a grounded amount.`,
+      retryAction:
+        "Use the requestCandidate intake draft (or /contact/robot-team) to get a quoted price, or use dry-run checkout for integration testing.",
+    });
+  }
+
+  const hasBuyerIdentity = Boolean(
+    normalizeId(options.authenticatedBuyerUid) ||
+      normalizeId(input.buyer?.uid) ||
+      normalizeId(input.buyer?.email),
+  );
+  if (!hasBuyerIdentity) {
+    // Without a uid or email the webhook-provisioned entitlement would bind to
+    // nothing, leaving a paid order no account could ever use for launch.
+    blockers.push({
+      code: "buyer_identity_required",
+      severity: "blocking",
+      ownerSystem: "buyer_identity",
+      message:
+        "Live checkout needs a buyer identity to bind the paid entitlement: send a Firebase bearer token or buyer.uid, or buyer.email matching the account that will use the entitlement.",
+      retryAction:
+        "Retry with an Authorization bearer token, buyer.uid, or buyer.email in the request body.",
     });
   }
 
@@ -358,6 +394,25 @@ export function evaluateAgentLiveCheckoutEligibility(
     withinBudget,
     blockers,
   };
+}
+
+// Stripe success/cancel redirects must never leave the site origin: a
+// protocol-relative "//evil.example/x" (or "/\\evil.example/x", which the
+// WHATWG URL parser also treats as host-setting) passes a naive
+// startsWith("/") check, so the resolved origin is verified explicitly.
+export function sanitizeLiveCheckoutRedirect(pathValue: unknown, fallbackPath: string, baseOrigin: string) {
+  const base = new URL(baseOrigin);
+  const fallbackUrl = new URL(fallbackPath, base).toString();
+  const raw = String(pathValue || "").trim();
+  if (!raw.startsWith("/") || raw.startsWith("//") || raw.startsWith("/\\")) {
+    return fallbackUrl;
+  }
+  try {
+    const resolved = new URL(raw, base);
+    return resolved.origin === base.origin ? resolved.toString() : fallbackUrl;
+  } catch {
+    return fallbackUrl;
+  }
 }
 
 const AGENT_COMMERCE_SKU_PREFIXES = ["site-world-package-", "hosted-session-"];
@@ -570,6 +625,11 @@ function entitlementProofFromFirestore(id: string, data: Record<string, unknown>
 
 export async function findProvisionedHostedSessionEntitlement(params: {
   buyerUserId: string;
+  // Verified-email fallback for entitlements bought anonymously (order created
+  // with buyer_user_id null but a buyer email). Pass ONLY an email taken from a
+  // verified Firebase token, never a client-supplied value, or any caller could
+  // claim another buyer's entitlement by asserting their email.
+  buyerEmail?: string | null;
   siteWorldIds: Array<string | null | undefined>;
   entitlementId?: string | null;
 }): Promise<AgentEntitlementProof | null> {
@@ -577,14 +637,28 @@ export async function findProvisionedHostedSessionEntitlement(params: {
   if (!buyerUserId) {
     return null;
   }
+  const verifiedBuyerEmail = normalizeId(params.buyerEmail).toLowerCase();
   const requestedEntitlementId = normalizeId(params.entitlementId);
   const skuCandidates = new Set(buildHostedSessionEntitlementSkuCandidates(params.siteWorldIds));
+
+  const matchesBuyer = (entitlementBuyerUserId: unknown, entitlementBuyerEmail: unknown) => {
+    if (normalizeId(entitlementBuyerUserId) === buyerUserId) {
+      return true;
+    }
+    // Email binding applies only to buyer-less entitlements so one verified
+    // account can never read an entitlement already bound to another uid.
+    return Boolean(
+      verifiedBuyerEmail &&
+        !normalizeId(entitlementBuyerUserId) &&
+        normalizeId(entitlementBuyerEmail).toLowerCase() === verifiedBuyerEmail,
+    );
+  };
 
   for (const entitlement of dryRunEntitlements.values()) {
     if (requestedEntitlementId && entitlement.id !== requestedEntitlementId) {
       continue;
     }
-    if (normalizeId(entitlement.buyer_user_id) !== buyerUserId) {
+    if (!matchesBuyer(entitlement.buyer_user_id, entitlement.buyer_email)) {
       continue;
     }
     if (effectiveEntitlementAccessState(entitlement) !== "provisioned") {
@@ -600,24 +674,39 @@ export async function findProvisionedHostedSessionEntitlement(params: {
     return null;
   }
 
-  const snapshot = await db
-    .collection("marketplaceEntitlements")
-    .where("buyer_user_id", "==", buyerUserId)
-    .get();
+  const snapshots = [
+    await db
+      .collection("marketplaceEntitlements")
+      .where("buyer_user_id", "==", buyerUserId)
+      .get(),
+  ];
+  if (verifiedBuyerEmail) {
+    snapshots.push(
+      await db
+        .collection("marketplaceEntitlements")
+        .where("buyer_email", "==", verifiedBuyerEmail)
+        .get(),
+    );
+  }
 
-  for (const doc of snapshot.docs) {
-    const data = (doc.data() || {}) as Record<string, unknown>;
-    const entitlementId = normalizeId(data.id) || doc.id;
-    if (requestedEntitlementId && entitlementId !== requestedEntitlementId) {
-      continue;
+  for (const snapshot of snapshots) {
+    for (const doc of snapshot.docs) {
+      const data = (doc.data() || {}) as Record<string, unknown>;
+      const entitlementId = normalizeId(data.id) || doc.id;
+      if (requestedEntitlementId && entitlementId !== requestedEntitlementId) {
+        continue;
+      }
+      if (!matchesBuyer(data.buyer_user_id, data.buyer_email)) {
+        continue;
+      }
+      if (effectiveEntitlementAccessState(data) !== "provisioned") {
+        continue;
+      }
+      if (!skuCandidates.has(normalizeSku(data.sku))) {
+        continue;
+      }
+      return entitlementProofFromFirestore(entitlementId, { ...data, id: entitlementId });
     }
-    if (effectiveEntitlementAccessState(data) !== "provisioned") {
-      continue;
-    }
-    if (!skuCandidates.has(normalizeSku(data.sku))) {
-      continue;
-    }
-    return entitlementProofFromFirestore(entitlementId, { ...data, id: entitlementId });
   }
 
   return null;

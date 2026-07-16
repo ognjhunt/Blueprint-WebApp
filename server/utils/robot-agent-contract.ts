@@ -198,6 +198,10 @@ export function buildRobotAgentAccessManifest() {
         "Optional budgetCents is enforced server-side: quotes above the declared budget return a structured budget_exceeded blocker and create no order or Stripe session.",
       eligibility:
         "Live checkout is offered only for pipeline-backed site worlds. Sample or planned catalog profiles return a not_live_purchasable blocker with dry-run and request-intake alternatives.",
+      priceGrounding:
+        "Only catalog-grounded prices are charged: when the public catalog has no parseable price for the requested product, live checkout returns a price_unavailable blocker instead of charging a fallback default.",
+      buyerIdentity:
+        "A Firebase bearer token, buyer.uid, or buyer.email is required so the webhook-provisioned entitlement binds to a usable account; email-bound entitlements unlock for a verified sign-in with the same email.",
       serverPricedSku: true,
       endpoints: {
         liveCheckout: "/api/agent-access/commerce/live-checkout",
@@ -554,7 +558,7 @@ export function buildRobotAgentOpenApiContract() {
           operationId: "createAgentLiveCheckout",
           summary: "Create a real Stripe Checkout Session for an agent purchase with an optional budget guard.",
           description:
-            "Live purchase path for agents with a budget/wallet, behind the MCP tool blueprint.commerce.checkoutLive. The server prices the SKU from the public catalog (client prices are ignored), enforces the optional budgetCents guard, and only offers live checkout for pipeline-backed site worlds. Eligible requests create a buyer-order ledger entry plus a Stripe Checkout Session and return the checkout URL; completing payment triggers webhook fulfillment that provisions the marketplace entitlement used by entitlement-readiness and protected hosted-session launch. A Firebase bearer token is optional: authenticated buyers bind the entitlement to their uid, anonymous agents bind by the email collected at Stripe checkout.",
+            "Live purchase path for agents with a budget/wallet, behind the MCP tool blueprint.commerce.checkoutLive. The server prices the SKU from the public catalog (client prices are ignored; if the catalog has no parseable price for the product a price_unavailable blocker is returned instead of a fallback charge), enforces the optional budgetCents guard, and only offers live checkout for pipeline-backed site worlds. A buyer identity is required so the paid entitlement binds to a usable account: send a Firebase bearer token, buyer.uid, or buyer.email (verified-email sign-in later unlocks email-bound entitlements). Eligible requests create a buyer-order ledger entry plus a Stripe Checkout Session and return the checkout URL; completing payment triggers webhook fulfillment that provisions the marketplace entitlement used by entitlement-readiness and protected hosted-session launch.",
           security: publicOrBearerSecurity,
           requestBody: {
             required: true,
@@ -1224,6 +1228,12 @@ function buildSchemas() {
         unitAmountCents: { type: "integer" },
         totalAmountCents: { type: "integer" },
         currency: { type: "string", enum: ["usd"] },
+        priceSource: {
+          type: "string",
+          enum: ["catalog", "default"],
+          description:
+            "catalog means the amount was parsed from the public site-world package pricing; default means the planning fallback. Live checkout only charges catalog-grounded prices.",
+        },
         entitlementType: { type: "string", enum: ["package_access", "hosted_session"] },
         truthLabels: { type: "array", items: { $ref: "#/components/schemas/TruthLabel" } },
       },
@@ -1322,10 +1332,17 @@ function buildSchemas() {
       properties: {
         code: {
           type: "string",
-          enum: ["site_world_not_found", "not_live_purchasable", "budget_exceeded", "stripe_unavailable"],
+          enum: [
+            "site_world_not_found",
+            "not_live_purchasable",
+            "price_unavailable",
+            "buyer_identity_required",
+            "budget_exceeded",
+            "stripe_unavailable",
+          ],
         },
         severity: { type: "string", enum: ["blocking"] },
-        ownerSystem: { type: "string", enum: ["catalog", "stripe", "agent_budget"] },
+        ownerSystem: { type: "string", enum: ["catalog", "stripe", "agent_budget", "buyer_identity"] },
         message: { type: "string" },
         retryAction: { type: "string" },
       },

@@ -179,9 +179,10 @@ Agents holding a budget/wallet buy through the live commerce endpoints:
 Guardrails:
 
 - Only pipeline-backed site worlds are live-purchasable. Sample or planned catalog profiles return a structured `not_live_purchasable` blocker that routes to dry-run commerce or request intake, so agents can never buy fake supply.
+- Only catalog-grounded prices are charged. When the public catalog has no parseable price for the requested product on that site world, live checkout returns a `price_unavailable` blocker (routing to intake for a quoted price) instead of charging a planning-default amount.
 - Quotes above `budgetCents` return a `budget_exceeded` blocker and create no order, session, or charge.
 - Client-supplied prices are ignored; the server-side quote is authoritative.
-- A Firebase bearer token is optional: an authenticated buyer binds the entitlement to their uid, while an anonymous agent binds by the email Stripe collects at payment.
+- A buyer identity is required (`buyer_identity_required` blocker otherwise): a Firebase bearer token or `buyer.uid` binds the entitlement to that account, while `buyer.email` binds it by email so a later verified sign-in with the same email unlocks entitlement-readiness and protected launch.
 - Payment completes on the Stripe-hosted checkout page. The existing Stripe webhook marks the order paid and provisions the marketplace entitlement — the same rails as human marketplace purchases — which then unlocks `entitlement-readiness` and protected hosted-session launch.
 
 A created live checkout is labeled `live_checkout` and proves payment intent only until Stripe reports the session paid. It never proves rights clearance, provider execution, or hosted runtime success.

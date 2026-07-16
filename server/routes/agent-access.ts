@@ -13,6 +13,7 @@ import {
   getAgentDryRunOrder,
   isAgentCommerceSku,
   normalizeAgentCommerceProduct,
+  sanitizeLiveCheckoutRedirect,
   type AgentLiveCheckoutInput,
 } from "../utils/robot-agent-commerce";
 import { answerAgentQuestion } from "../retrieval/agentAsk";
@@ -35,9 +36,7 @@ const liveCheckoutBaseOrigin =
   "https://tryblueprint.io";
 
 function resolveLiveCheckoutUrl(pathValue: unknown, fallbackPath: string) {
-  const raw = String(pathValue || "").trim();
-  const safePath = raw.startsWith("/") ? raw : fallbackPath;
-  return new URL(safePath, liveCheckoutBaseOrigin).toString();
+  return sanitizeLiveCheckoutRedirect(pathValue, fallbackPath, liveCheckoutBaseOrigin);
 }
 
 // Live checkout works with or without a Firebase bearer token: an authenticated
@@ -172,8 +171,10 @@ router.post("/commerce/live-checkout", optionalVerifyFirebaseToken, async (req, 
       buyer: body.buyer && typeof body.buyer === "object" ? (body.buyer as { uid?: string; email?: string }) : null,
     };
     const siteWorld = await getPublicSiteWorldById(siteWorldId);
+    const preAuthFirebaseUser = (res.locals.firebaseUser || {}) as { uid?: string };
     const eligibility = evaluateAgentLiveCheckoutEligibility(input, siteWorld, {
       stripeConfigured: stripeAvailable && Boolean(stripeClient),
+      authenticatedBuyerUid: typeof preAuthFirebaseUser.uid === "string" ? preAuthFirebaseUser.uid : null,
     });
     if (!eligibility.eligible || !stripeClient) {
       return res.status(409).json({
@@ -195,10 +196,12 @@ router.post("/commerce/live-checkout", optionalVerifyFirebaseToken, async (req, 
       (typeof firebaseUser.uid === "string" && firebaseUser.uid.trim()) ||
       String(input.buyer?.uid || "").trim() ||
       null;
-    const buyerEmail =
+    // Lowercased so the verified-email entitlement lookup can exact-match it.
+    const buyerEmailRaw =
       (typeof firebaseUser.email === "string" && firebaseUser.email.trim()) ||
       String(input.buyer?.email || "").trim() ||
       null;
+    const buyerEmail = buyerEmailRaw ? buyerEmailRaw.toLowerCase() : null;
 
     const successUrl = resolveLiveCheckoutUrl(input.successPath, "/agents?live_checkout=success");
     const cancelUrl = resolveLiveCheckoutUrl(input.cancelPath, "/agents?live_checkout=cancel");
@@ -380,9 +383,10 @@ router.post("/ask", async (req, res) => {
 router.get("/commerce/entitlement-readiness", verifyFirebaseToken, async (req, res) => {
   const siteWorldId = String(req.query.siteWorldId || "").trim();
   const entitlementId = String(req.query.entitlementId || "").trim();
-  const buyerUserId = String(
-    (res.locals.firebaseUser as { uid?: string } | undefined)?.uid || "",
-  ).trim();
+  const tokenUser = res.locals.firebaseUser as
+    | { uid?: string; email?: string; email_verified?: boolean }
+    | undefined;
+  const buyerUserId = String(tokenUser?.uid || "").trim();
   if (!siteWorldId || !entitlementId) {
     return res.status(400).json({ error: "siteWorldId and entitlementId are required" });
   }
@@ -391,6 +395,9 @@ router.get("/commerce/entitlement-readiness", verifyFirebaseToken, async (req, r
   }
   const entitlement = await findProvisionedHostedSessionEntitlement({
     buyerUserId,
+    // Verified token email only — lets an anonymous live purchase (buyer bound
+    // by email) unlock readiness once the buyer signs in with that email.
+    buyerEmail: tokenUser?.email_verified === false ? null : tokenUser?.email || null,
     siteWorldIds: [siteWorldId],
     entitlementId,
   });
