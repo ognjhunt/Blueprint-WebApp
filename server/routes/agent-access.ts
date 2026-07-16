@@ -1,17 +1,55 @@
-import { Router } from "express";
+import { Router, type NextFunction, type Request, type Response } from "express";
+import Stripe from "stripe";
 import verifyFirebaseToken from "../middleware/verifyFirebaseToken";
 import { buildRobotAgentAccessManifest, buildRobotAgentOpenApiContract } from "../utils/robot-agent-contract";
 import { getPublicSiteWorldById } from "../utils/site-worlds";
 import {
   buildAgentCommerceQuote,
+  buildAgentLiveOrderStatusProjection,
   createAgentDryRunCheckout,
+  evaluateAgentLiveCheckoutEligibility,
   findProvisionedHostedSessionEntitlement,
   getAgentDryRunEntitlement,
   getAgentDryRunOrder,
+  isAgentCommerceSku,
   normalizeAgentCommerceProduct,
+  type AgentLiveCheckoutInput,
 } from "../utils/robot-agent-commerce";
+import { answerAgentQuestion } from "../retrieval/agentAsk";
+import {
+  attachStripeCheckoutSessionToBuyerOrder,
+  createBuyerOrderDraft,
+  fetchBuyerOrder,
+  markBuyerOrderCheckoutFailure,
+} from "../utils/accounting";
+import { stripeAvailable, stripeClient } from "../constants/stripe";
+import { logger } from "../logger";
 
 const router = Router();
+
+const liveCheckoutBaseOrigin =
+  process.env.NEXT_PUBLIC_BASE_URL?.trim() ||
+  process.env.VITE_PUBLIC_APP_URL?.trim() ||
+  process.env.VITE_PUBLIC_URL?.trim() ||
+  process.env.BASE_URL?.trim() ||
+  "https://tryblueprint.io";
+
+function resolveLiveCheckoutUrl(pathValue: unknown, fallbackPath: string) {
+  const raw = String(pathValue || "").trim();
+  const safePath = raw.startsWith("/") ? raw : fallbackPath;
+  return new URL(safePath, liveCheckoutBaseOrigin).toString();
+}
+
+// Live checkout works with or without a Firebase bearer token: an authenticated
+// buyer gets the entitlement bound to their uid, while an anonymous agent binds
+// by the email Stripe collects at payment. A present-but-invalid token still
+// fails closed through verifyFirebaseToken.
+function optionalVerifyFirebaseToken(req: Request, res: Response, next: NextFunction) {
+  if (!req.headers.authorization) {
+    return next();
+  }
+  return verifyFirebaseToken(req, res, next);
+}
 
 router.get("/openapi.json", (_req, res) => {
   res.status(200).json(buildRobotAgentOpenApiContract());
@@ -114,6 +152,224 @@ router.get("/commerce/entitlements/:entitlementId", (req, res) => {
     return res.status(404).json({ error: "Dry-run entitlement not found" });
   }
   return res.status(200).json({ entitlement });
+});
+
+router.post("/commerce/live-checkout", optionalVerifyFirebaseToken, async (req, res) => {
+  try {
+    const body = (req.body || {}) as Record<string, unknown>;
+    const siteWorldId = String(body.siteWorldId || "").trim();
+    if (!siteWorldId) {
+      return res.status(400).json({ error: "siteWorldId is required" });
+    }
+    const input: AgentLiveCheckoutInput = {
+      siteWorldId,
+      mode: String(body.mode || "live"),
+      product: String(body.product || ""),
+      sessionHours: typeof body.sessionHours === "number" ? body.sessionHours : String(body.sessionHours || ""),
+      budgetCents: typeof body.budgetCents === "number" ? body.budgetCents : String(body.budgetCents ?? ""),
+      successPath: typeof body.successPath === "string" ? body.successPath : null,
+      cancelPath: typeof body.cancelPath === "string" ? body.cancelPath : null,
+      buyer: body.buyer && typeof body.buyer === "object" ? (body.buyer as { uid?: string; email?: string }) : null,
+    };
+    const siteWorld = await getPublicSiteWorldById(siteWorldId);
+    const eligibility = evaluateAgentLiveCheckoutEligibility(input, siteWorld, {
+      stripeConfigured: stripeAvailable && Boolean(stripeClient),
+    });
+    if (!eligibility.eligible || !stripeClient) {
+      return res.status(409).json({
+        error: "Live checkout is blocked for this request.",
+        code: "live_checkout_blocked",
+        mode: "live",
+        quote: eligibility.quote,
+        budgetCents: eligibility.budgetCents,
+        withinBudget: eligibility.withinBudget,
+        blockers: eligibility.blockers,
+        truth:
+          "Blocked live checkout creates no Stripe session, order, charge, or entitlement. Dry-run checkout and request intake remain available.",
+      });
+    }
+
+    const quote = eligibility.quote;
+    const firebaseUser = (res.locals.firebaseUser || {}) as { uid?: string; email?: string };
+    const buyerUserId =
+      (typeof firebaseUser.uid === "string" && firebaseUser.uid.trim()) ||
+      String(input.buyer?.uid || "").trim() ||
+      null;
+    const buyerEmail =
+      (typeof firebaseUser.email === "string" && firebaseUser.email.trim()) ||
+      String(input.buyer?.email || "").trim() ||
+      null;
+
+    const successUrl = resolveLiveCheckoutUrl(input.successPath, "/agents?live_checkout=success");
+    const cancelUrl = resolveLiveCheckoutUrl(input.cancelPath, "/agents?live_checkout=cancel");
+    const deliveryMode = quote.product === "hosted_session_rental" ? "hosted_session" : "download_link";
+
+    const order = await createBuyerOrderDraft({
+      buyerUserId,
+      buyerEmail,
+      sku: quote.sku,
+      title: quote.title,
+      description: quote.description,
+      itemType: quote.product,
+      quantity: quote.quantity,
+      licenseTier: "commercial",
+      exclusivity: "non-exclusive",
+      addons: [],
+      inventorySource: "agent_live_checkout",
+      liveInventoryRecordId: null,
+      deliveryMode,
+      inventoryFulfillmentStatus: "auto_ready",
+      rightsStatus: null,
+      unitAmountCents: quote.unitAmountCents,
+      totalAmountCents: quote.totalAmountCents,
+      currency: "usd",
+      successUrl,
+      cancelUrl,
+    });
+    if (!order) {
+      return res.status(503).json({ error: "Order ledger is not available for live checkout." });
+    }
+
+    let session: Stripe.Checkout.Session;
+    try {
+      session = await stripeClient.checkout.sessions.create({
+        client_reference_id: order.id,
+        mode: "payment",
+        payment_method_types: ["card"],
+        customer_email: buyerEmail || undefined,
+        line_items: [
+          {
+            price_data: {
+              currency: "usd",
+              product_data: {
+                name: quote.title,
+                description: quote.description || undefined,
+                metadata: {
+                  orderId: order.id,
+                  sku: quote.sku,
+                  itemType: quote.product,
+                  siteWorldId: quote.siteWorldId,
+                },
+              },
+              unit_amount: quote.unitAmountCents,
+            },
+            quantity: quote.quantity,
+          },
+        ],
+        metadata: {
+          order_id: order.id,
+          marketplaceSku: quote.sku,
+          marketplaceItemType: quote.product,
+          marketplaceTitle: quote.title,
+          agentCommerceMode: "live",
+          siteWorldId: quote.siteWorldId,
+        },
+        payment_intent_data: {
+          metadata: {
+            order_id: order.id,
+            marketplace_sku: quote.sku,
+          },
+        },
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+      });
+    } catch (error) {
+      await markBuyerOrderCheckoutFailure({
+        orderId: order.id,
+        reason: error instanceof Error ? error.message : "Stripe failed to create the live agent checkout session.",
+      });
+      throw error;
+    }
+
+    await attachStripeCheckoutSessionToBuyerOrder({
+      orderId: order.id,
+      checkoutSessionId: session.id,
+      checkoutSessionUrl: typeof session.url === "string" ? session.url : null,
+      livemode: session.livemode,
+    });
+
+    logger.info(
+      {
+        event: "agent_live_checkout_created",
+        orderId: order.id,
+        sku: quote.sku,
+        siteWorldId: quote.siteWorldId,
+        totalAmountCents: quote.totalAmountCents,
+        authenticatedBuyer: Boolean(firebaseUser.uid),
+      },
+      "Agent live checkout session created",
+    );
+
+    return res.status(201).json({
+      mode: "live",
+      quote,
+      budgetCents: eligibility.budgetCents,
+      withinBudget: eligibility.withinBudget,
+      order: {
+        id: order.id,
+        status: order.status,
+        payment_status: order.payment_status,
+        fulfillment_status: order.fulfillment_status,
+        sku: quote.sku,
+        pricing: order.pricing,
+      },
+      checkout: {
+        provider: "stripe",
+        sessionId: session.id,
+        url: typeof session.url === "string" ? session.url : null,
+        livemode: session.livemode,
+      },
+      statusUrl: `/api/agent-access/commerce/live-orders/${order.id}`,
+      nextSteps: [
+        "Complete payment at checkout.url with the buying team's payment method.",
+        `Poll GET /api/agent-access/commerce/live-orders/${order.id} until payment_status=paid and fulfillment_status=provisioned.`,
+        "Use the provisioned entitlement with the buyer's Firebase bearer token for entitlement-readiness and protected hosted-session launch.",
+      ],
+      truth:
+        "This creates a real Stripe Checkout Session and buyer-order ledger entry. Payment, webhook fulfillment, and entitlement provisioning complete only after the payer finishes Stripe checkout; rights, provider execution, and hosted runtime proof remain owned by their normal systems.",
+    });
+  } catch (error) {
+    logger.error(
+      { event: "agent_live_checkout_failed", err: error },
+      "Agent live checkout failed",
+    );
+    return res.status(400).json({ error: error instanceof Error ? error.message : "Failed to create live checkout" });
+  }
+});
+
+router.get("/commerce/live-orders/:orderId", async (req, res) => {
+  const orderId = String(req.params.orderId || "").trim();
+  if (!orderId) {
+    return res.status(400).json({ error: "orderId is required" });
+  }
+  const order = await fetchBuyerOrder(orderId);
+  if (!order || !isAgentCommerceSku(order.item?.sku)) {
+    return res.status(404).json({ error: "Live agent order not found" });
+  }
+  return res.status(200).json(buildAgentLiveOrderStatusProjection(order));
+});
+
+router.get("/ask", async (req, res) => {
+  try {
+    const question = String(req.query.q || req.query.question || "").trim();
+    const limit = Number(req.query.limit || 3);
+    const payload = await answerAgentQuestion({ question, limit });
+    return res.status(200).json(payload);
+  } catch (error) {
+    return res.status(400).json({ error: error instanceof Error ? error.message : "Failed to answer question" });
+  }
+});
+
+router.post("/ask", async (req, res) => {
+  try {
+    const body = (req.body || {}) as Record<string, unknown>;
+    const question = String(body.q || body.question || "").trim();
+    const limit = Number(body.limit || 3);
+    const payload = await answerAgentQuestion({ question, limit });
+    return res.status(200).json(payload);
+  } catch (error) {
+    return res.status(400).json({ error: error instanceof Error ? error.message : "Failed to answer question" });
+  }
 });
 
 // WEB-04: this route reads real `marketplaceEntitlements`, so it must be

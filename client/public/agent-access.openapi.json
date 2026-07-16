@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Blueprint Robot-Team Agent API",
-    "version": "2026-05-31",
+    "version": "2026-07-16",
     "summary": "Headless catalog, site-world, dry-run commerce, hosted-session, explorer-render, and export contract for robot-team agents.",
     "description": "Blueprint exposes capture-backed site-world catalog, dry-run quote/order/entitlement proof, and hosted-session endpoints for robot-team agents. Public demo calls may run without privileged credentials only when a demo site world is enabled. Protected robot-team flows use the existing Firebase bearer path and require robot_team/admin outer auth. A provisioned entitlement can launch a new protected session; existing sessions require creator ownership, admin access, or an active per-session share grant."
   },
@@ -22,12 +22,20 @@
       "description": "Public site and API discovery for agents."
     },
     {
+      "name": "Ask",
+      "description": "Grounded, citation-backed question answering for agents."
+    },
+    {
       "name": "Catalog",
       "description": "Public site-world catalog and detail endpoints."
     },
     {
       "name": "Agent commerce",
       "description": "Dry-run quote, order, receipt, and entitlement proof. Does not call live Stripe."
+    },
+    {
+      "name": "Live agent commerce",
+      "description": "Real Stripe Checkout for agents with a budget. Server-priced SKUs, structured blockers, webhook-provisioned entitlements."
     },
     {
       "name": "Hosted sessions",
@@ -670,6 +678,219 @@
         },
         "x-blueprint-dry-run-only": true,
         "x-blueprint-truth-boundary": "Entitlement readiness proves commerce linkage only. Runtime launch, rights, provider execution, and package fulfillment still require their owning systems."
+      }
+    },
+    "/api/agent-access/ask": {
+      "get": {
+        "tags": [
+          "Ask"
+        ],
+        "operationId": "askBlueprint",
+        "summary": "Ask a grounded question about Blueprint and receive citation-backed answers with machine next-actions.",
+        "description": "Public question answering for headless agents behind the MCP tool blueprint.ask. Answers are curated citation-backed snippets over public canonical content (product, search, live and dry-run commerce, entitlement-to-session flow, pricing ranges, proof boundaries, intake). Ranking combines alias, lexical, and embedding signals with a deterministic fallback. Responses never generate unsupported claims, grant access, or prove payment, rights clearance, provider execution, or fulfillment.",
+        "security": [
+          {}
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "examples": {
+              "buy": {
+                "value": "How can an agent with a budget buy a hosted session?"
+              },
+              "search": {
+                "value": "How do I filter sites by type and location?"
+              }
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10,
+              "default": 3
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "JSON response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentAskResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-blueprint-truth-boundary": "Answers are curated grounded snippets with citations, not generated claims, and grant no access or commerce state."
+      },
+      "post": {
+        "tags": [
+          "Ask"
+        ],
+        "operationId": "askBlueprintPost",
+        "summary": "POST variant of the grounded ask endpoint for JSON-body agent clients.",
+        "security": [
+          {}
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentAskRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "JSON response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentAskResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent-access/commerce/live-checkout": {
+      "post": {
+        "tags": [
+          "Live agent commerce"
+        ],
+        "operationId": "createAgentLiveCheckout",
+        "summary": "Create a real Stripe Checkout Session for an agent purchase with an optional budget guard.",
+        "description": "Live purchase path for agents with a budget/wallet, behind the MCP tool blueprint.commerce.checkoutLive. The server prices the SKU from the public catalog (client prices are ignored), enforces the optional budgetCents guard, and only offers live checkout for pipeline-backed site worlds. Eligible requests create a buyer-order ledger entry plus a Stripe Checkout Session and return the checkout URL; completing payment triggers webhook fulfillment that provisions the marketplace entitlement used by entitlement-readiness and protected hosted-session launch. A Firebase bearer token is optional: authenticated buyers bind the entitlement to their uid, anonymous agents bind by the email collected at Stripe checkout.",
+        "security": [
+          {},
+          {
+            "BlueprintBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentLiveCheckoutRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Live Stripe checkout created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentLiveCheckoutResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Live checkout blocked by eligibility, budget, or configuration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentLiveCheckoutBlockedResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-blueprint-live-stripe": true,
+        "x-blueprint-truth-boundary": "Live checkout creates a real Stripe session and order ledger entry. Payment and entitlement provisioning complete only after Stripe checkout succeeds; rights, provider execution, and hosted runtime proof remain owned by their normal systems."
+      }
+    },
+    "/api/agent-access/commerce/live-orders/{orderId}": {
+      "get": {
+        "tags": [
+          "Live agent commerce"
+        ],
+        "operationId": "getAgentLiveOrderStatus",
+        "summary": "Poll a live agent order for payment and entitlement-provisioning status.",
+        "description": "Non-PII status projection of the buyer-order ledger for agent-commerce SKUs, behind the MCP tool blueprint.commerce.liveOrder.get. Poll after live checkout until paid=true and provisioned=true, then continue with entitlement-readiness and protected hosted-session launch.",
+        "security": [
+          {}
+        ],
+        "parameters": [
+          {
+            "name": "orderId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "JSON response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentLiveOrderStatus"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Requested site world or session was not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-blueprint-live-stripe": true
       }
     },
     "/api/site-worlds/sessions": {
@@ -1703,7 +1924,8 @@
           "public_demo_eligible",
           "request_gated",
           "protected_robot_team",
-          "dry_run_order"
+          "dry_run_order",
+          "live_checkout"
         ]
       },
       "AgentCommerceProduct": {
@@ -1798,10 +2020,12 @@
           "mcpToolNames",
           "credentiallessWorkflow",
           "siteWorldSearch",
+          "ask",
           "journeyPlanner",
           "requestCandidate",
           "requestLocationDraft",
           "dryRunCommerce",
+          "liveCommerce",
           "publicDemo",
           "protectedFlow",
           "truthLabels"
@@ -1845,12 +2069,15 @@
               "enum": [
                 "blueprint.siteWorld.search",
                 "blueprint.catalog.search",
+                "blueprint.ask",
                 "blueprint.request.locationDraft",
                 "blueprint.siteWorld.get",
                 "blueprint.siteWorld.launchReadiness",
                 "blueprint.commerce.quote",
                 "blueprint.commerce.checkoutDryRun",
+                "blueprint.commerce.checkoutLive",
                 "blueprint.commerce.order.get",
+                "blueprint.commerce.liveOrder.get",
                 "blueprint.commerce.entitlement.get",
                 "blueprint.commerce.entitlementReadiness",
                 "blueprint.session.create",
@@ -1897,6 +2124,10 @@
             "type": "object",
             "additionalProperties": true
           },
+          "ask": {
+            "type": "object",
+            "additionalProperties": true
+          },
           "journeyPlanner": {
             "type": "object",
             "additionalProperties": true
@@ -1910,6 +2141,10 @@
             "additionalProperties": true
           },
           "dryRunCommerce": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "liveCommerce": {
             "type": "object",
             "additionalProperties": true
           },
@@ -3013,6 +3248,423 @@
           }
         }
       },
+      "AgentAskRequest": {
+        "type": "object",
+        "required": [
+          "q"
+        ],
+        "properties": {
+          "q": {
+            "type": "string",
+            "description": "Natural-language question about Blueprint."
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10,
+            "default": 3
+          }
+        }
+      },
+      "AgentAskAction": {
+        "type": "object",
+        "required": [
+          "description",
+          "method",
+          "endpoint"
+        ],
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "GET",
+              "POST"
+            ]
+          },
+          "endpoint": {
+            "type": "string"
+          },
+          "mcpTool": {
+            "type": "string"
+          }
+        }
+      },
+      "AgentAskAnswer": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "answer",
+          "citations",
+          "actions",
+          "score"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "answer": {
+            "type": "string"
+          },
+          "citations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "actions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AgentAskAction"
+            }
+          },
+          "score": {
+            "type": "number"
+          },
+          "matchedAliases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "AgentAskResponse": {
+        "type": "object",
+        "required": [
+          "question",
+          "answers",
+          "bestAnswer",
+          "noConfidentMatch",
+          "fallback",
+          "truthBoundary",
+          "meta"
+        ],
+        "properties": {
+          "question": {
+            "type": "string"
+          },
+          "answers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AgentAskAnswer"
+            }
+          },
+          "bestAnswer": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AgentAskAnswer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "noConfidentMatch": {
+            "type": "boolean"
+          },
+          "fallback": {
+            "type": "object",
+            "required": [
+              "message",
+              "contactUrl",
+              "discoveryEndpoints"
+            ],
+            "properties": {
+              "message": {
+                "type": "string"
+              },
+              "contactUrl": {
+                "type": "string"
+              },
+              "discoveryEndpoints": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "truthBoundary": {
+            "type": "string"
+          },
+          "meta": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "AgentLiveCheckoutRequest": {
+        "type": "object",
+        "required": [
+          "siteWorldId",
+          "mode"
+        ],
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "live"
+            ]
+          },
+          "siteWorldId": {
+            "type": "string"
+          },
+          "product": {
+            "$ref": "#/components/schemas/AgentCommerceProduct"
+          },
+          "sessionHours": {
+            "type": "integer",
+            "minimum": 1,
+            "default": 1
+          },
+          "budgetCents": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Optional agent budget guard in USD cents. Quotes above this value are rejected with a budget_exceeded blocker and no order or Stripe session is created."
+          },
+          "successPath": {
+            "type": "string",
+            "description": "Optional site-relative path for Stripe success redirect."
+          },
+          "cancelPath": {
+            "type": "string",
+            "description": "Optional site-relative path for Stripe cancel redirect."
+          },
+          "buyer": {
+            "type": "object",
+            "properties": {
+              "uid": {
+                "type": "string"
+              },
+              "email": {
+                "type": "string"
+              }
+            },
+            "description": "Optional buyer identity for anonymous agents. A Firebase bearer token, when present, takes precedence."
+          }
+        }
+      },
+      "AgentLiveCheckoutBlocker": {
+        "type": "object",
+        "required": [
+          "code",
+          "severity",
+          "ownerSystem",
+          "message",
+          "retryAction"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "site_world_not_found",
+              "not_live_purchasable",
+              "budget_exceeded",
+              "stripe_unavailable"
+            ]
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "blocking"
+            ]
+          },
+          "ownerSystem": {
+            "type": "string",
+            "enum": [
+              "catalog",
+              "stripe",
+              "agent_budget"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "retryAction": {
+            "type": "string"
+          }
+        }
+      },
+      "AgentLiveCheckoutResponse": {
+        "type": "object",
+        "required": [
+          "mode",
+          "quote",
+          "order",
+          "checkout",
+          "statusUrl",
+          "truth"
+        ],
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "live"
+            ]
+          },
+          "quote": {
+            "$ref": "#/components/schemas/AgentCommerceQuote"
+          },
+          "budgetCents": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "withinBudget": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "order": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "checkout": {
+            "type": "object",
+            "required": [
+              "provider",
+              "sessionId",
+              "url"
+            ],
+            "properties": {
+              "provider": {
+                "type": "string",
+                "enum": [
+                  "stripe"
+                ]
+              },
+              "sessionId": {
+                "type": "string"
+              },
+              "url": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "livemode": {
+                "type": "boolean"
+              }
+            }
+          },
+          "statusUrl": {
+            "type": "string"
+          },
+          "nextSteps": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "truth": {
+            "type": "string"
+          }
+        }
+      },
+      "AgentLiveCheckoutBlockedResponse": {
+        "type": "object",
+        "required": [
+          "error",
+          "code",
+          "blockers"
+        ],
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string",
+            "enum": [
+              "live_checkout_blocked"
+            ]
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "live"
+            ]
+          },
+          "quote": {
+            "$ref": "#/components/schemas/AgentCommerceQuote"
+          },
+          "budgetCents": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "withinBudget": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "blockers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AgentLiveCheckoutBlocker"
+            }
+          },
+          "truth": {
+            "type": "string"
+          }
+        }
+      },
+      "AgentLiveOrderStatus": {
+        "type": "object",
+        "required": [
+          "mode",
+          "order",
+          "paid",
+          "provisioned",
+          "truth"
+        ],
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "live"
+            ]
+          },
+          "order": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "checkoutUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "livemode": {
+            "type": "boolean"
+          },
+          "paid": {
+            "type": "boolean"
+          },
+          "provisioned": {
+            "type": "boolean"
+          },
+          "nextSteps": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "truth": {
+            "type": "string"
+          }
+        }
+      },
       "AgentDryRunCheckoutRequest": {
         "type": "object",
         "required": [
@@ -3676,6 +4328,7 @@
     "public_demo_eligible",
     "request_gated",
     "protected_robot_team",
-    "dry_run_order"
+    "dry_run_order",
+    "live_checkout"
   ]
 }

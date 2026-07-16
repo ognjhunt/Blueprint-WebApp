@@ -19,9 +19,9 @@ import {
 } from "lucide-react";
 
 const lifecycle = [
-  ["Discover", "Read /llms.txt, /api/site-content, call blueprint.siteWorld.search for store or warehouse language, and inspect the OpenAPI contract before loading a specific site-world id."],
+  ["Discover", "Read /llms.txt, /api/site-content, call blueprint.siteWorld.search for store or warehouse language with type/location filters and semantic ranking, ask grounded questions through blueprint.ask, and inspect the OpenAPI contract before loading a specific site-world id."],
   ["Request", "The request/commerce/session lifecycle starts with request intake: use requestCandidate or blueprint.request.locationDraft to produce a contact URL and inbound-request draft without writing or granting access."],
-  ["Commerce", "Use dry-run commerce for quote, checkout, order, entitlement, and entitlement-readiness proof. These planning artifacts do not call live Stripe or deliver package access."],
+  ["Commerce", "Use dry-run commerce for quote, checkout, order, entitlement, and entitlement-readiness proof — these planning artifacts do not call live Stripe. Agents with a budget then buy pipeline-backed site worlds through blueprint.commerce.checkoutLive, which returns a real Stripe Checkout URL with a server-enforced budgetCents guard."],
   ["Session", "Use the hosted-session lifecycle only when public-demo eligibility or protected auth allows it: create, reset, step, runBatch, control, renderExplorer, and export."],
 ];
 
@@ -34,6 +34,7 @@ const truthLabels = [
   ["request_gated", "Protected package, rights, export, or hosted access still needs account/request review."],
   ["protected_robot_team", "Protected hosted-session creation requires robot-team/admin auth plus a provisioned entitlement; existing session operations require creator ownership, admin access, or an active per-session share grant."],
   ["dry_run_order", "A repo-safe test order, receipt, and entitlement proof that does not touch live Stripe or grant live package access."],
+  ["live_checkout", "A real Stripe Checkout Session and buyer-order ledger entry for a budgeted agent purchase. Payment and entitlement provisioning complete only after Stripe checkout succeeds; rights, provider execution, and runtime proof stay with their owning systems."],
 ];
 
 const errorRows = [
@@ -52,9 +53,12 @@ const commands = [
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts discover",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts catalog list --limit 3",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts site-world search --q \"Whole Foods near Durham\" --limit 5",
+  "npx tsx scripts/agent-access/blueprint-agent-cli.ts ask --q \"How do I buy a hosted session with a budget?\"",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts request location --location \"Whole Foods near Durham\" --site-class grocery --workflow \"shelf restocking\"",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce quote --site-world-id siteworld-f5fd54898cfb --product site-world-package",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce checkout --site-world-id siteworld-f5fd54898cfb --product site-world-package --mode dry_run",
+  "npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce checkout --site-world-id <pipeline-site-world-id> --product hosted-session-rental --mode live --budget-cents 20000",
+  "npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce live-order <live-order-id>",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce entitlement <dry-entitlement-id>",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce entitlement-readiness --site-world-id siteworld-f5fd54898cfb --entitlement-id <dry-entitlement-id>",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts session create --site-world-id siteworld-f5fd54898cfb --entitlement-id <dry-entitlement-id> --order-id <dry-order-id> --commerce-mode dry_run --robot-profile-id other_sample --task-id sw-chi-01-task-1 --scenario-id sw-chi-01-scenario-1 --start-state-id sw-chi-01-start-1",
@@ -104,12 +108,13 @@ export default function Agents() {
                     Robot-team agent access.
                   </h1>
                   <p className="mt-6 max-w-[42rem] text-base leading-8 text-white/78">
-                    Search capture-backed site worlds in agent language, quote hosted-session rentals, create dry-run orders and entitlement proof, request eligible hosted sessions, manipulate scenarios and start states, run headless rollouts, render explorer frames, and export dataset artifacts without weakening auth, rights, or entitlement gates.
+                    Search capture-backed site worlds in agent language with filters and semantic ranking, ask grounded questions, quote hosted-session rentals, buy pipeline-backed packages through live Stripe checkout with a budget guard, create dry-run orders and entitlement proof, request eligible hosted sessions, manipulate scenarios and start states, run headless rollouts, render explorer frames, and export dataset artifacts without weakening auth, rights, or entitlement gates.
                   </p>
                   <div className="mt-7 flex flex-wrap gap-2">
                     <ProofChip light>Public demo path</ProofChip>
                     <ProofChip light>Protected robot-team flow</ProofChip>
                     <ProofChip light>Dry-run commerce</ProofChip>
+                    <ProofChip light>Live agent checkout</ProofChip>
                     <ProofChip light>OpenAPI, CLI, MCP</ProofChip>
                   </div>
                   <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -228,6 +233,14 @@ export default function Agents() {
                   "  -H \"Content-Type: application/json\" \\",
                   "  --data '{\"mode\":\"dry_run\",\"siteWorldId\":\"siteworld-f5fd54898cfb\",\"product\":\"site_world_package\"}'",
                   "",
+                  "curl \"$BLUEPRINT_API_BASE_URL/api/agent-access/ask?q=How%20do%20I%20buy%20with%20a%20budget\"",
+                  "",
+                  "curl -X POST \"$BLUEPRINT_API_BASE_URL/api/agent-access/commerce/live-checkout\" \\",
+                  "  -H \"Content-Type: application/json\" \\",
+                  "  --data '{\"mode\":\"live\",\"siteWorldId\":\"<pipeline-site-world-id>\",\"product\":\"hosted_session_rental\",\"sessionHours\":2,\"budgetCents\":20000}'",
+                  "",
+                  "curl \"$BLUEPRINT_API_BASE_URL/api/agent-access/commerce/live-orders/<live-order-id>\"",
+                  "",
                   "curl \"$BLUEPRINT_API_BASE_URL/api/agent-access/commerce/entitlement-readiness?siteWorldId=siteworld-f5fd54898cfb&entitlementId=<dry-entitlement-id>\"",
                   "",
                   "curl -H \"Authorization: Bearer $BLUEPRINT_AGENT_AUTH_TOKEN\" \\",
@@ -270,12 +283,15 @@ export default function Agents() {
               <div className="mt-6 flex flex-wrap gap-2">
                 <ProofChip>blueprint.siteWorld.search</ProofChip>
                 <ProofChip>blueprint.catalog.search</ProofChip>
+                <ProofChip>blueprint.ask</ProofChip>
                 <ProofChip>blueprint.request.locationDraft</ProofChip>
                 <ProofChip>blueprint.siteWorld.get</ProofChip>
                 <ProofChip>blueprint.siteWorld.launchReadiness</ProofChip>
                 <ProofChip>blueprint.commerce.quote</ProofChip>
                 <ProofChip>blueprint.commerce.checkoutDryRun</ProofChip>
+                <ProofChip>blueprint.commerce.checkoutLive</ProofChip>
                 <ProofChip>blueprint.commerce.order.get</ProofChip>
+                <ProofChip>blueprint.commerce.liveOrder.get</ProofChip>
                 <ProofChip>blueprint.commerce.entitlement.get</ProofChip>
                 <ProofChip>blueprint.commerce.entitlementReadiness</ProofChip>
                 <ProofChip>blueprint.session.create</ProofChip>
@@ -310,7 +326,7 @@ export default function Agents() {
           <div className="mb-8 border border-black/10 bg-white p-5">
             <EditorialSectionLabel>Request scope</EditorialSectionLabel>
             <p className="mt-4 max-w-[62rem] text-sm leading-7 text-slate-600">
-              Dry-run commerce proves the shape of quote, order, receipt, entitlement, and hosted-session rental access. Live Stripe payment, webhook fulfillment, package delivery, rights clearance, provider execution, and guaranteed hosted fulfillment remain request-scoped until the owning system supplies current proof.
+              Dry-run commerce proves the shape of quote, order, receipt, entitlement, and hosted-session rental access. Live agent checkout creates a real Stripe Checkout Session for pipeline-backed site worlds with a server-enforced budget guard, and webhook fulfillment provisions the entitlement after payment. Rights clearance, provider execution, and guaranteed hosted fulfillment remain request-scoped until the owning system supplies current proof.
             </p>
           </div>
           <div className="grid gap-5 lg:grid-cols-[0.38fr_0.62fr]">

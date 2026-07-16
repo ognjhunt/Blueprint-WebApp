@@ -11,7 +11,7 @@ import {
 import { BLUEPRINT_MCP_TOOLS } from "./blueprint-mcp-server";
 
 const repoRoot = process.cwd();
-const expectedContractVersion = "2026-05-31";
+const expectedContractVersion = "2026-07-16";
 
 const readText = (relativePath: string) =>
   fs.readFileSync(path.join(repoRoot, relativePath), "utf8");

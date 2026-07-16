@@ -1,4 +1,4 @@
-export const ROBOT_AGENT_CONTRACT_VERSION = "2026-05-31";
+export const ROBOT_AGENT_CONTRACT_VERSION = "2026-07-16";
 export const ROBOT_AGENT_PUBLIC_DEMO_SITE_WORLD_ID = "siteworld-f5fd54898cfb";
 export const ROBOT_AGENT_TRUTH_LABELS = [
   "capture_grounded",
@@ -9,16 +9,20 @@ export const ROBOT_AGENT_TRUTH_LABELS = [
   "request_gated",
   "protected_robot_team",
   "dry_run_order",
+  "live_checkout",
 ] as const;
 export const ROBOT_AGENT_MCP_TOOL_NAMES = [
   "blueprint.siteWorld.search",
   "blueprint.catalog.search",
+  "blueprint.ask",
   "blueprint.request.locationDraft",
   "blueprint.siteWorld.get",
   "blueprint.siteWorld.launchReadiness",
   "blueprint.commerce.quote",
   "blueprint.commerce.checkoutDryRun",
+  "blueprint.commerce.checkoutLive",
   "blueprint.commerce.order.get",
+  "blueprint.commerce.liveOrder.get",
   "blueprint.commerce.entitlement.get",
   "blueprint.commerce.entitlementReadiness",
   "blueprint.session.create",
@@ -37,8 +41,11 @@ export const ROBOT_AGENT_CLI_COMMANDS = [
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts discover",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts site-world search --q \"Whole Foods near Durham\" --limit 5",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts request location --location \"Whole Foods near Durham\" --site-class grocery --workflow \"shelf restocking\"",
+  "npx tsx scripts/agent-access/blueprint-agent-cli.ts ask --q \"How do I buy a hosted session with a budget?\"",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce quote --site-world-id siteworld-f5fd54898cfb --product hosted-session-rental --session-hours 1",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce checkout --site-world-id siteworld-f5fd54898cfb --product hosted-session-rental --mode dry_run",
+  "npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce checkout --site-world-id <pipeline-site-world-id> --product hosted-session-rental --mode live --budget-cents 20000",
+  "npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce live-order <live-order-id>",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce entitlement-readiness --site-world-id siteworld-f5fd54898cfb --entitlement-id <dry-entitlement-id>",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts session create --site-world-id siteworld-f5fd54898cfb --session-mode runtime_only --robot-profile-id other_sample --task-id sw-chi-01-task-1 --scenario-id sw-chi-01-scenario-1 --start-state-id sw-chi-01-start-1",
 ] as const;
@@ -62,7 +69,7 @@ export function buildRobotAgentAccessManifest() {
     credentiallessWorkflow: {
       requiredCredentials: false,
       summary:
-        "A headless robot-team agent can discover Blueprint, plan the next safe journey action, search site worlds, draft a new-location intake request, quote dry-run commerce, create dry-run entitlement proof, and create a public-demo hosted session without credentials.",
+        "A headless robot-team agent can discover Blueprint, ask grounded questions, plan the next safe journey action, search site worlds with filters and semantic ranking, draft a new-location intake request, quote dry-run commerce, create dry-run entitlement proof, and create a public-demo hosted session without credentials. Live checkout additionally works without a bearer token but creates a real Stripe payment session.",
       smokeCommand: "npm run smoke:agent-headless",
       cliCommands: ROBOT_AGENT_CLI_COMMANDS,
     },
@@ -71,8 +78,32 @@ export function buildRobotAgentAccessManifest() {
       mcpTool: "blueprint.siteWorld.search",
       publicReadOnly: true,
       requestCandidateIntakeOnly: true,
+      filters: [
+        "category",
+        "industry",
+        "city",
+        "state",
+        "siteType",
+        "taskLane",
+        "objectTags",
+        "robot",
+        "availability",
+        "readiness",
+        "sort",
+      ],
+      semanticRanking:
+        "Embedding-based semantic similarity augments alias/lexical/location ranking when configured; without it, search stays deterministic and flags embeddings_unavailable.",
       truth:
         "Search returns public ranked matches and request candidates. It never grants entitlement, payment, rights clearance, provider execution, fulfillment, private artifact access, or hosted-session access.",
+    },
+    ask: {
+      endpoint: "/api/agent-access/ask",
+      methods: ["GET", "POST"],
+      mcpTool: "blueprint.ask",
+      publicReadOnly: true,
+      grounded: true,
+      truth:
+        "Ask returns curated citation-backed answer snippets over public canonical content with machine next-actions. It never generates unsupported claims, grants access, or proves payment, rights, provider execution, or fulfillment.",
     },
     journeyPlanner: {
       cliCommand:
@@ -158,6 +189,24 @@ export function buildRobotAgentAccessManifest() {
       truth:
         "Dry-run commerce reuses quote, order, receipt, and entitlement shapes for local/test proof only. It never calls live Stripe or proves fulfillment.",
     },
+    liveCommerce: {
+      mode: "live",
+      liveStripeTouched: true,
+      paymentModel:
+        "The agent (or its operating team's wallet/payment method) completes a real Stripe Checkout Session; webhook fulfillment marks the order paid and provisions the marketplace entitlement automatically.",
+      budgetGuard:
+        "Optional budgetCents is enforced server-side: quotes above the declared budget return a structured budget_exceeded blocker and create no order or Stripe session.",
+      eligibility:
+        "Live checkout is offered only for pipeline-backed site worlds. Sample or planned catalog profiles return a not_live_purchasable blocker with dry-run and request-intake alternatives.",
+      serverPricedSku: true,
+      endpoints: {
+        liveCheckout: "/api/agent-access/commerce/live-checkout",
+        liveOrder: "/api/agent-access/commerce/live-orders/{orderId}",
+      },
+      tools: ["blueprint.commerce.checkoutLive", "blueprint.commerce.liveOrder.get"],
+      truth:
+        "Live checkout creates a real Stripe Checkout Session and buyer-order ledger entry. Payment and entitlement provisioning complete only after Stripe checkout succeeds; rights clearance, provider execution, and hosted runtime proof remain owned by their normal systems.",
+    },
     publicDemo: {
       canRunWithoutCredentials: true,
       siteWorldId: ROBOT_AGENT_PUBLIC_DEMO_SITE_WORLD_ID,
@@ -227,8 +276,10 @@ export function buildRobotAgentOpenApiContract() {
     ],
     tags: [
       { name: "Discovery", description: "Public site and API discovery for agents." },
+      { name: "Ask", description: "Grounded, citation-backed question answering for agents." },
       { name: "Catalog", description: "Public site-world catalog and detail endpoints." },
       { name: "Agent commerce", description: "Dry-run quote, order, receipt, and entitlement proof. Does not call live Stripe." },
+      { name: "Live agent commerce", description: "Real Stripe Checkout for agents with a budget. Server-priced SKUs, structured blockers, webhook-provisioned entitlements." },
       { name: "Hosted sessions", description: "Session lifecycle, rollout, render, and export endpoints." },
     ],
     paths: {
@@ -450,6 +501,97 @@ export function buildRobotAgentOpenApiContract() {
             "Entitlement readiness proves commerce linkage only. Runtime launch, rights, provider execution, and package fulfillment still require their owning systems.",
         },
       },
+      "/api/agent-access/ask": {
+        get: {
+          tags: ["Ask"],
+          operationId: "askBlueprint",
+          summary: "Ask a grounded question about Blueprint and receive citation-backed answers with machine next-actions.",
+          description:
+            "Public question answering for headless agents behind the MCP tool blueprint.ask. Answers are curated citation-backed snippets over public canonical content (product, search, live and dry-run commerce, entitlement-to-session flow, pricing ranges, proof boundaries, intake). Ranking combines alias, lexical, and embedding signals with a deterministic fallback. Responses never generate unsupported claims, grant access, or prove payment, rights clearance, provider execution, or fulfillment.",
+          security: [{}],
+          parameters: [
+            {
+              name: "q",
+              in: "query",
+              required: true,
+              schema: { type: "string" },
+              examples: {
+                buy: { value: "How can an agent with a budget buy a hosted session?" },
+                search: { value: "How do I filter sites by type and location?" },
+              },
+            },
+            { name: "limit", in: "query", required: false, schema: { type: "integer", minimum: 1, maximum: 10, default: 3 } },
+          ],
+          responses: {
+            "200": jsonResponse("#/components/schemas/AgentAskResponse"),
+            "400": errorResponses["400"],
+          },
+          "x-blueprint-truth-boundary":
+            "Answers are curated grounded snippets with citations, not generated claims, and grant no access or commerce state.",
+        },
+        post: {
+          tags: ["Ask"],
+          operationId: "askBlueprintPost",
+          summary: "POST variant of the grounded ask endpoint for JSON-body agent clients.",
+          security: [{}],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/AgentAskRequest" },
+              },
+            },
+          },
+          responses: {
+            "200": jsonResponse("#/components/schemas/AgentAskResponse"),
+            "400": errorResponses["400"],
+          },
+        },
+      },
+      "/api/agent-access/commerce/live-checkout": {
+        post: {
+          tags: ["Live agent commerce"],
+          operationId: "createAgentLiveCheckout",
+          summary: "Create a real Stripe Checkout Session for an agent purchase with an optional budget guard.",
+          description:
+            "Live purchase path for agents with a budget/wallet, behind the MCP tool blueprint.commerce.checkoutLive. The server prices the SKU from the public catalog (client prices are ignored), enforces the optional budgetCents guard, and only offers live checkout for pipeline-backed site worlds. Eligible requests create a buyer-order ledger entry plus a Stripe Checkout Session and return the checkout URL; completing payment triggers webhook fulfillment that provisions the marketplace entitlement used by entitlement-readiness and protected hosted-session launch. A Firebase bearer token is optional: authenticated buyers bind the entitlement to their uid, anonymous agents bind by the email collected at Stripe checkout.",
+          security: publicOrBearerSecurity,
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/AgentLiveCheckoutRequest" },
+              },
+            },
+          },
+          responses: {
+            "201": jsonResponse("#/components/schemas/AgentLiveCheckoutResponse", "Live Stripe checkout created"),
+            "400": errorResponses["400"],
+            "409": jsonResponse("#/components/schemas/AgentLiveCheckoutBlockedResponse", "Live checkout blocked by eligibility, budget, or configuration"),
+          },
+          "x-blueprint-live-stripe": true,
+          "x-blueprint-truth-boundary":
+            "Live checkout creates a real Stripe session and order ledger entry. Payment and entitlement provisioning complete only after Stripe checkout succeeds; rights, provider execution, and hosted runtime proof remain owned by their normal systems.",
+        },
+      },
+      "/api/agent-access/commerce/live-orders/{orderId}": {
+        get: {
+          tags: ["Live agent commerce"],
+          operationId: "getAgentLiveOrderStatus",
+          summary: "Poll a live agent order for payment and entitlement-provisioning status.",
+          description:
+            "Non-PII status projection of the buyer-order ledger for agent-commerce SKUs, behind the MCP tool blueprint.commerce.liveOrder.get. Poll after live checkout until paid=true and provisioned=true, then continue with entitlement-readiness and protected hosted-session launch.",
+          security: [{}],
+          parameters: [
+            { name: "orderId", in: "path", required: true, schema: { type: "string" } },
+          ],
+          responses: {
+            "200": jsonResponse("#/components/schemas/AgentLiveOrderStatus"),
+            "404": errorResponses["404"],
+          },
+          "x-blueprint-live-stripe": true,
+        },
+      },
       "/api/site-worlds/sessions": {
         post: {
           tags: ["Hosted sessions"],
@@ -619,6 +761,7 @@ function buildSchemas() {
         "request_gated",
         "protected_robot_team",
         "dry_run_order",
+        "live_checkout",
       ],
     },
     AgentCommerceProduct: {
@@ -668,10 +811,12 @@ function buildSchemas() {
         "mcpToolNames",
         "credentiallessWorkflow",
         "siteWorldSearch",
+        "ask",
         "journeyPlanner",
         "requestCandidate",
         "requestLocationDraft",
         "dryRunCommerce",
+        "liveCommerce",
         "publicDemo",
         "protectedFlow",
         "truthLabels",
@@ -703,10 +848,12 @@ function buildSchemas() {
           },
         },
         siteWorldSearch: { type: "object", additionalProperties: true },
+        ask: { type: "object", additionalProperties: true },
         journeyPlanner: { type: "object", additionalProperties: true },
         requestCandidate: { type: "object", additionalProperties: true },
         requestLocationDraft: { type: "object", additionalProperties: true },
         dryRunCommerce: { type: "object", additionalProperties: true },
+        liveCommerce: { type: "object", additionalProperties: true },
         publicDemo: { type: "object", additionalProperties: true },
         protectedFlow: { type: "object", additionalProperties: true },
         tools: { type: "object", additionalProperties: true },
@@ -1087,6 +1234,151 @@ function buildSchemas() {
       properties: {
         quote: { $ref: "#/components/schemas/AgentCommerceQuote" },
         siteWorld: { type: ["object", "null"], additionalProperties: true },
+        truth: { type: "string" },
+      },
+    },
+    AgentAskRequest: {
+      type: "object",
+      required: ["q"],
+      properties: {
+        q: { type: "string", description: "Natural-language question about Blueprint." },
+        limit: { type: "integer", minimum: 1, maximum: 10, default: 3 },
+      },
+    },
+    AgentAskAction: {
+      type: "object",
+      required: ["description", "method", "endpoint"],
+      properties: {
+        description: { type: "string" },
+        method: { type: "string", enum: ["GET", "POST"] },
+        endpoint: { type: "string" },
+        mcpTool: { type: "string" },
+      },
+    },
+    AgentAskAnswer: {
+      type: "object",
+      required: ["id", "title", "answer", "citations", "actions", "score"],
+      properties: {
+        id: { type: "string" },
+        title: { type: "string" },
+        answer: { type: "string" },
+        citations: { type: "array", items: { type: "string" } },
+        actions: { type: "array", items: { $ref: "#/components/schemas/AgentAskAction" } },
+        score: { type: "number" },
+        matchedAliases: { type: "array", items: { type: "string" } },
+      },
+    },
+    AgentAskResponse: {
+      type: "object",
+      required: ["question", "answers", "bestAnswer", "noConfidentMatch", "fallback", "truthBoundary", "meta"],
+      properties: {
+        question: { type: "string" },
+        answers: { type: "array", items: { $ref: "#/components/schemas/AgentAskAnswer" } },
+        bestAnswer: { anyOf: [{ $ref: "#/components/schemas/AgentAskAnswer" }, { type: "null" }] },
+        noConfidentMatch: { type: "boolean" },
+        fallback: {
+          type: "object",
+          required: ["message", "contactUrl", "discoveryEndpoints"],
+          properties: {
+            message: { type: "string" },
+            contactUrl: { type: "string" },
+            discoveryEndpoints: { type: "array", items: { type: "string" } },
+          },
+        },
+        truthBoundary: { type: "string" },
+        meta: { type: "object", additionalProperties: true },
+      },
+    },
+    AgentLiveCheckoutRequest: {
+      type: "object",
+      required: ["siteWorldId", "mode"],
+      properties: {
+        mode: { type: "string", enum: ["live"] },
+        siteWorldId: { type: "string" },
+        product: { $ref: "#/components/schemas/AgentCommerceProduct" },
+        sessionHours: { type: "integer", minimum: 1, default: 1 },
+        budgetCents: {
+          type: "integer",
+          minimum: 0,
+          description:
+            "Optional agent budget guard in USD cents. Quotes above this value are rejected with a budget_exceeded blocker and no order or Stripe session is created.",
+        },
+        successPath: { type: "string", description: "Optional site-relative path for Stripe success redirect." },
+        cancelPath: { type: "string", description: "Optional site-relative path for Stripe cancel redirect." },
+        buyer: {
+          type: "object",
+          properties: {
+            uid: { type: "string" },
+            email: { type: "string" },
+          },
+          description:
+            "Optional buyer identity for anonymous agents. A Firebase bearer token, when present, takes precedence.",
+        },
+      },
+    },
+    AgentLiveCheckoutBlocker: {
+      type: "object",
+      required: ["code", "severity", "ownerSystem", "message", "retryAction"],
+      properties: {
+        code: {
+          type: "string",
+          enum: ["site_world_not_found", "not_live_purchasable", "budget_exceeded", "stripe_unavailable"],
+        },
+        severity: { type: "string", enum: ["blocking"] },
+        ownerSystem: { type: "string", enum: ["catalog", "stripe", "agent_budget"] },
+        message: { type: "string" },
+        retryAction: { type: "string" },
+      },
+    },
+    AgentLiveCheckoutResponse: {
+      type: "object",
+      required: ["mode", "quote", "order", "checkout", "statusUrl", "truth"],
+      properties: {
+        mode: { type: "string", enum: ["live"] },
+        quote: { $ref: "#/components/schemas/AgentCommerceQuote" },
+        budgetCents: { type: ["integer", "null"] },
+        withinBudget: { type: ["boolean", "null"] },
+        order: { type: "object", additionalProperties: true },
+        checkout: {
+          type: "object",
+          required: ["provider", "sessionId", "url"],
+          properties: {
+            provider: { type: "string", enum: ["stripe"] },
+            sessionId: { type: "string" },
+            url: { type: ["string", "null"] },
+            livemode: { type: "boolean" },
+          },
+        },
+        statusUrl: { type: "string" },
+        nextSteps: { type: "array", items: { type: "string" } },
+        truth: { type: "string" },
+      },
+    },
+    AgentLiveCheckoutBlockedResponse: {
+      type: "object",
+      required: ["error", "code", "blockers"],
+      properties: {
+        error: { type: "string" },
+        code: { type: "string", enum: ["live_checkout_blocked"] },
+        mode: { type: "string", enum: ["live"] },
+        quote: { $ref: "#/components/schemas/AgentCommerceQuote" },
+        budgetCents: { type: ["integer", "null"] },
+        withinBudget: { type: ["boolean", "null"] },
+        blockers: { type: "array", items: { $ref: "#/components/schemas/AgentLiveCheckoutBlocker" } },
+        truth: { type: "string" },
+      },
+    },
+    AgentLiveOrderStatus: {
+      type: "object",
+      required: ["mode", "order", "paid", "provisioned", "truth"],
+      properties: {
+        mode: { type: "string", enum: ["live"] },
+        order: { type: "object", additionalProperties: true },
+        checkoutUrl: { type: ["string", "null"] },
+        livemode: { type: "boolean" },
+        paid: { type: "boolean" },
+        provisioned: { type: "boolean" },
+        nextSteps: { type: "array", items: { type: "string" } },
         truth: { type: "string" },
       },
     },

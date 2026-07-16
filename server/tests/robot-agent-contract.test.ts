@@ -25,6 +25,9 @@ describe("robot agent OpenAPI contract", () => {
     expect(contract.paths).toHaveProperty("/api/agent-access/commerce/orders/{orderId}");
     expect(contract.paths).toHaveProperty("/api/agent-access/commerce/entitlements/{entitlementId}");
     expect(contract.paths).toHaveProperty("/api/agent-access/commerce/entitlement-readiness");
+    expect(contract.paths).toHaveProperty("/api/agent-access/ask");
+    expect(contract.paths).toHaveProperty("/api/agent-access/commerce/live-checkout");
+    expect(contract.paths).toHaveProperty("/api/agent-access/commerce/live-orders/{orderId}");
 
     expect(contract.components.schemas).toHaveProperty("RobotProfile");
     expect(contract.components.schemas).toHaveProperty("SiteWorldSearchResponse");
@@ -36,6 +39,11 @@ describe("robot agent OpenAPI contract", () => {
     expect(contract.components.schemas).toHaveProperty("AgentDryRunCheckoutRequest");
     expect(contract.components.schemas).toHaveProperty("AgentDryRunOrderResponse");
     expect(contract.components.schemas).toHaveProperty("AgentEntitlementReadiness");
+    expect(contract.components.schemas).toHaveProperty("AgentAskResponse");
+    expect(contract.components.schemas).toHaveProperty("AgentLiveCheckoutRequest");
+    expect(contract.components.schemas).toHaveProperty("AgentLiveCheckoutResponse");
+    expect(contract.components.schemas).toHaveProperty("AgentLiveCheckoutBlockedResponse");
+    expect(contract.components.schemas).toHaveProperty("AgentLiveOrderStatus");
     expect(contract.components.schemas).toHaveProperty("AgentAccessManifest");
     expect(contract.components.schemas).toHaveProperty("TruthLabel");
     expect(contract.components.schemas).toHaveProperty("StatusLabel");
@@ -85,6 +93,23 @@ describe("robot agent OpenAPI contract", () => {
     expect(JSON.stringify(contract)).toContain("site_world_package");
   });
 
+  it("documents live agent commerce with budget guard and ask as grounded public endpoints", () => {
+    const contract = buildRobotAgentOpenApiContract();
+    const liveCheckoutOperation = contract.paths["/api/agent-access/commerce/live-checkout"].post;
+    const liveOrderOperation = contract.paths["/api/agent-access/commerce/live-orders/{orderId}"].get;
+    const askOperation = contract.paths["/api/agent-access/ask"].get;
+
+    expect(liveCheckoutOperation.tags).toContain("Live agent commerce");
+    expect(liveCheckoutOperation["x-blueprint-live-stripe"]).toBe(true);
+    expect(JSON.stringify(liveCheckoutOperation)).toContain("budgetCents");
+    expect(JSON.stringify(liveCheckoutOperation)).toContain("pipeline-backed");
+    expect(liveOrderOperation["x-blueprint-live-stripe"]).toBe(true);
+    expect(askOperation.security).toEqual([{}]);
+    expect(JSON.stringify(askOperation)).toContain("blueprint.ask");
+    expect(JSON.stringify(contract)).toContain("live_checkout");
+    expect(JSON.stringify(contract.components.schemas.AgentLiveCheckoutBlocker)).toContain("budget_exceeded");
+  });
+
   it("documents the credential-free discovery/search/mock-demo path and all truth labels", () => {
     const contract = buildRobotAgentOpenApiContract();
     const discoveryOperation = contract.paths["/api/agent-access"].get;
@@ -104,6 +129,7 @@ describe("robot agent OpenAPI contract", () => {
       "request_gated",
       "protected_robot_team",
       "dry_run_order",
+      "live_checkout",
     ]);
   });
 });

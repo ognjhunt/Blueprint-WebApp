@@ -94,6 +94,22 @@ export type AgentDryRunCheckoutInput = AgentCommerceInput & {
   };
 };
 
+export type AgentLiveCheckoutInput = AgentCommerceInput & {
+  mode?: "live";
+  budgetCents?: number;
+  successPath?: string;
+  cancelPath?: string;
+  buyer?: {
+    uid?: string;
+    email?: string;
+  };
+};
+
+export type AgentAskInput = {
+  q: string;
+  limit?: number;
+};
+
 const DEFAULT_BASE_URL = "http://localhost:5000";
 
 function envValue(env: AgentClientEnv | undefined, key: string) {
@@ -261,6 +277,27 @@ export class BlueprintAgentApiClient {
         mode: "dry_run",
       })),
     });
+  }
+
+  createLiveCheckout(input: AgentLiveCheckoutInput) {
+    return this.requestJson("/api/agent-access/commerce/live-checkout", {
+      method: "POST",
+      body: JSON.stringify(compactBody({
+        ...input,
+        mode: "live",
+      })),
+    });
+  }
+
+  getLiveOrder(orderId: string) {
+    return this.requestJson(`/api/agent-access/commerce/live-orders/${encodeURIComponent(orderId)}`);
+  }
+
+  ask(input: AgentAskInput) {
+    return this.requestJson(appendQuery("/api/agent-access/ask", {
+      q: input.q,
+      limit: input.limit,
+    }));
   }
 
   getCommerceOrder(orderId: string) {

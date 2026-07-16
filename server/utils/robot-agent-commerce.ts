@@ -9,6 +9,7 @@ import {
 
 export type AgentCommerceProduct = "site_world_package" | "hosted_session_rental";
 export type AgentCommerceMode = "dry_run";
+export type AgentLiveCommerceMode = "live";
 
 export type AgentCommerceBuyer = {
   uid?: string | null;
@@ -26,9 +27,38 @@ export type AgentDryRunCheckoutInput = AgentCommerceQuoteInput & {
   buyer?: AgentCommerceBuyer | null;
 };
 
+export type AgentLiveCheckoutInput = AgentCommerceQuoteInput & {
+  mode?: string | null;
+  buyer?: AgentCommerceBuyer | null;
+  budgetCents?: number | string | null;
+  successPath?: string | null;
+  cancelPath?: string | null;
+};
+
+export type AgentLiveCheckoutBlocker = {
+  code:
+    | "site_world_not_found"
+    | "not_live_purchasable"
+    | "budget_exceeded"
+    | "stripe_unavailable";
+  severity: "blocking";
+  ownerSystem: "catalog" | "stripe" | "agent_budget";
+  message: string;
+  retryAction: string;
+};
+
+export type AgentLiveCheckoutEligibility = {
+  eligible: boolean;
+  mode: AgentLiveCommerceMode;
+  quote: AgentCommerceQuote;
+  budgetCents: number | null;
+  withinBudget: boolean | null;
+  blockers: AgentLiveCheckoutBlocker[];
+};
+
 export type AgentCommerceQuote = {
   quoteId: string;
-  mode: AgentCommerceMode;
+  mode: AgentCommerceMode | AgentLiveCommerceMode;
   product: AgentCommerceProduct;
   siteWorldId: string;
   sku: string;
@@ -194,7 +224,11 @@ function quoteDefaults(product: AgentCommerceProduct) {
       };
 }
 
-export function buildAgentCommerceQuote(input: AgentCommerceQuoteInput, siteWorld?: SiteWorldCard | null): AgentCommerceQuote {
+export function buildAgentCommerceQuote(
+  input: AgentCommerceQuoteInput,
+  siteWorld?: SiteWorldCard | null,
+  mode: AgentCommerceMode | AgentLiveCommerceMode = "dry_run",
+): AgentCommerceQuote {
   const siteWorldId = normalizeId(input.siteWorldId);
   if (!siteWorldId) {
     throw new Error("siteWorldId is required");
@@ -220,8 +254,8 @@ export function buildAgentCommerceQuote(input: AgentCommerceQuoteInput, siteWorl
   const sku = buildAgentCommerceSku(siteWorldId, product);
 
   return {
-    quoteId: `dry-quote-${crypto.createHash("sha1").update(`${sku}:${quantity}`).digest("hex").slice(0, 12)}`,
-    mode: "dry_run",
+    quoteId: `${mode === "live" ? "live" : "dry"}-quote-${crypto.createHash("sha1").update(`${sku}:${quantity}`).digest("hex").slice(0, 12)}`,
+    mode,
     product,
     siteWorldId,
     sku,
@@ -236,7 +270,155 @@ export function buildAgentCommerceQuote(input: AgentCommerceQuoteInput, siteWorl
     totalAmountCents: unitAmountCents * quantity,
     currency: "usd",
     entitlementType: product === "hosted_session_rental" ? "hosted_session" : "package_access",
-    truthLabels: ["dry_run_order", "request_gated", "protected_robot_team"],
+    truthLabels:
+      mode === "live"
+        ? ["live_checkout", "request_gated", "protected_robot_team"]
+        : ["dry_run_order", "request_gated", "protected_robot_team"],
+  };
+}
+
+export function isLivePurchasableSiteWorld(siteWorld?: SiteWorldCard | null) {
+  return Boolean(siteWorld && siteWorld.dataSource === "pipeline");
+}
+
+function normalizeBudgetCents(value: unknown): number | null {
+  if (value === undefined || value === null || value === "") {
+    return null;
+  }
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    throw new Error("budgetCents must be a non-negative number of USD cents");
+  }
+  return Math.floor(parsed);
+}
+
+export function evaluateAgentLiveCheckoutEligibility(
+  input: AgentLiveCheckoutInput,
+  siteWorld: SiteWorldCard | null | undefined,
+  options: { stripeConfigured: boolean },
+): AgentLiveCheckoutEligibility {
+  const siteWorldId = normalizeId(input.siteWorldId);
+  if (!siteWorldId) {
+    throw new Error("siteWorldId is required");
+  }
+  if (normalizeId(input.mode || "live") !== "live") {
+    throw new Error("Only mode=live is supported by the agent live-checkout route.");
+  }
+  const quote = buildAgentCommerceQuote(input, siteWorld, "live");
+  const budgetCents = normalizeBudgetCents(input.budgetCents);
+  const withinBudget = budgetCents === null ? null : quote.totalAmountCents <= budgetCents;
+  const blockers: AgentLiveCheckoutBlocker[] = [];
+
+  if (!siteWorld) {
+    blockers.push({
+      code: "site_world_not_found",
+      severity: "blocking",
+      ownerSystem: "catalog",
+      message: `No public site world matches id ${siteWorldId}.`,
+      retryAction: "Search /api/site-worlds/search and retry with a listed siteWorldId.",
+    });
+  } else if (!isLivePurchasableSiteWorld(siteWorld)) {
+    blockers.push({
+      code: "not_live_purchasable",
+      severity: "blocking",
+      ownerSystem: "catalog",
+      message:
+        "This site world is a sample or planned catalog profile, not a pipeline-backed package, so live checkout is not offered for it.",
+      retryAction:
+        "Use dry-run checkout to prove the flow, or submit the requestCandidate intake draft from search to request this site.",
+    });
+  }
+
+  if (!options.stripeConfigured) {
+    blockers.push({
+      code: "stripe_unavailable",
+      severity: "blocking",
+      ownerSystem: "stripe",
+      message: "Live Stripe checkout is not configured on this server.",
+      retryAction: "Retry later or use dry-run checkout to validate the commerce shape.",
+    });
+  }
+
+  if (withinBudget === false) {
+    blockers.push({
+      code: "budget_exceeded",
+      severity: "blocking",
+      ownerSystem: "agent_budget",
+      message: `Quoted total ${quote.totalAmountCents} cents exceeds the declared agent budget of ${budgetCents} cents.`,
+      retryAction:
+        "Lower sessionHours, choose a smaller product, or retry with a higher budgetCents declaration.",
+    });
+  }
+
+  return {
+    eligible: blockers.length === 0,
+    mode: "live",
+    quote,
+    budgetCents,
+    withinBudget,
+    blockers,
+  };
+}
+
+const AGENT_COMMERCE_SKU_PREFIXES = ["site-world-package-", "hosted-session-"];
+
+export function isAgentCommerceSku(sku: unknown) {
+  const normalized = normalizeSku(sku);
+  return AGENT_COMMERCE_SKU_PREFIXES.some((prefix) => normalized.startsWith(prefix));
+}
+
+// Live order polling deliberately projects a non-PII status view: order ids are
+// unguessable UUIDs, but the raw buyerOrders record still carries buyer email/uid,
+// so those fields never leave this projection.
+export function buildAgentLiveOrderStatusProjection(order: {
+  id: string;
+  status: string;
+  payment_status: string;
+  fulfillment_status: string;
+  currency: string;
+  entitlement_id: string | null;
+  created_at: string;
+  paid_at: string | null;
+  fulfilled_at: string | null;
+  item: { sku: string; title: string; item_type: string; quantity: number };
+  pricing: { unit_amount_cents: number; total_amount_cents: number };
+  stripe: { checkout_session_url: string | null; livemode: boolean };
+}) {
+  return {
+    mode: "live" as const,
+    order: {
+      id: order.id,
+      status: order.status,
+      payment_status: order.payment_status,
+      fulfillment_status: order.fulfillment_status,
+      currency: order.currency,
+      entitlement_id: order.entitlement_id,
+      created_at: order.created_at,
+      paid_at: order.paid_at,
+      fulfilled_at: order.fulfilled_at,
+      item: {
+        sku: order.item.sku,
+        title: order.item.title,
+        item_type: order.item.item_type,
+        quantity: order.item.quantity,
+      },
+      pricing: order.pricing,
+    },
+    checkoutUrl: order.stripe.checkout_session_url,
+    livemode: order.stripe.livemode,
+    paid: order.payment_status === "paid",
+    provisioned: order.fulfillment_status === "provisioned" && Boolean(order.entitlement_id),
+    nextSteps:
+      order.fulfillment_status === "provisioned" && order.entitlement_id
+        ? [
+            `GET /api/agent-access/commerce/entitlement-readiness?siteWorldId=<siteWorldId>&entitlementId=${order.entitlement_id} with the buyer's Firebase bearer token`,
+            "POST /api/site-worlds/sessions with entitlementId and orderId to launch the protected hosted session",
+          ]
+        : [
+            "Complete payment at checkoutUrl, then poll this order until payment_status=paid and fulfillment_status=provisioned",
+          ],
+    truth:
+      "Live order status reflects the buyer-order ledger and Stripe webhook fulfillment. It does not by itself prove rights clearance, provider execution, or hosted-session runtime success.",
   };
 }
 
