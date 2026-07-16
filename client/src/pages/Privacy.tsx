@@ -132,14 +132,63 @@ export default function Privacy() {
 
                 <div className="mt-6 grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
                   <SurfaceCard className="bg-[#faf7f1]">
-                    <SurfaceMiniLabel>Rights, privacy, and retention</SurfaceMiniLabel>
+                    <SurfaceMiniLabel>Retention</SurfaceMiniLabel>
                     <p className="mt-4 text-sm leading-7 text-black/60">
-                      Blueprint keeps rights and privacy metadata attached to the product record
-                      because those limits matter after capture, not just during intake. We retain
-                      information for as long as needed to operate the service, meet legal
-                      obligations, enforce product terms, and manage package or hosted-session
-                      records.
+                      We keep each category of information only as long as it serves the purpose it
+                      was collected for, then delete or anonymize it:
                     </p>
+                    <div className="mt-4 divide-y divide-black/10 border border-black/10">
+                      {[
+                        ["Raw capture & PII in it", "Kept while a capture is being processed into a product record and while rights/consent are in force; deleted or redacted when the linked product record is deleted or on a verified deletion request."],
+                        ["Product records & packages", "Retained for the life of the buyer entitlement or hosted-session license, then removed after the license term ends."],
+                        ["Account & contact data", "Retained while your account is active and deleted or anonymized after account closure or a verified deletion request."],
+                        ["Payment & tax records", "Retained as required by law (US tax records are typically retained for up to 7 years)."],
+                      ].map(([label, detail]) => (
+                        <div key={label} className="grid gap-1 p-4 text-sm leading-6 md:grid-cols-[0.4fr_0.6fr]">
+                          <span className="font-semibold text-black/80">{label}</span>
+                          <span className="text-black/55">{detail}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </SurfaceCard>
+
+                  <SurfaceCard>
+                    <SurfaceMiniLabel>Your rights &amp; how to exercise them</SurfaceMiniLabel>
+                    <p className="mt-4 text-sm leading-7 text-black/60">
+                      Depending on where you live, you can request access to, correction of, a copy of,
+                      or deletion of your personal information, and you can withdraw capture consent.
+                      Email{" "}
+                      <a href="mailto:privacy@tryblueprint.io" className="font-semibold underline">
+                        privacy@tryblueprint.io
+                      </a>{" "}
+                      from the address on your account (or include enough detail to verify you). We
+                      acknowledge requests promptly and respond within 30 days; if we need more time
+                      we will tell you why. We do not charge for or retaliate against a request.
+                    </p>
+                  </SurfaceCard>
+                </div>
+
+                <div className="mt-6 grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+                  <SurfaceCard className="bg-[#faf7f1]">
+                    <SurfaceMiniLabel>Subprocessors</SurfaceMiniLabel>
+                    <p className="mt-4 text-sm leading-7 text-black/60">
+                      We share personal information only with the service providers that run Blueprint,
+                      each under a data-processing agreement and only for the function listed:
+                    </p>
+                    <div className="mt-4 divide-y divide-black/10 border border-black/10">
+                      {[
+                        ["Google (Firebase / Google Cloud)", "Authentication, database, capture storage, and hosting."],
+                        ["Stripe", "Buyer payments and capturer payouts."],
+                        ["Render", "Application and API hosting."],
+                        ["Managed Redis", "Caching and background job queues."],
+                        ["Notion", "Internal operations and support records."],
+                      ].map(([label, detail]) => (
+                        <div key={label} className="grid gap-1 p-4 text-sm leading-6 md:grid-cols-[0.4fr_0.6fr]">
+                          <span className="font-semibold text-black/80">{label}</span>
+                          <span className="text-black/55">{detail}</span>
+                        </div>
+                      ))}
+                    </div>
                   </SurfaceCard>
 
                   <SurfaceCard>
