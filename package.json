@@ -180,7 +180,7 @@
     "lumaai": "^1.2.2",
     "multer": "^2.0.0",
     "node-fetch": "^3.3.2",
-    "nodemailer": "^7.0.12",
+    "nodemailer": "^9.0.3",
     "openai": "^4.104.0",
     "pino": "^9.9.5",
     "posthog-js": "^1.364.1",
