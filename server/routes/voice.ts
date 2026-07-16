@@ -105,7 +105,9 @@ function requestOrigin(req: Request) {
 function validateTwilioSignature(req: Request) {
   const authToken = getConfiguredEnvValue("TWILIO_AUTH_TOKEN");
   if (!authToken) {
-    return true;
+    // Fail closed in production: an unset auth token must not make telephony
+    // webhooks accept unsigned requests. Local/dev keeps the bypass.
+    return process.env.NODE_ENV !== "production";
   }
 
   const signature = normalizeText(req.header("x-twilio-signature"));
@@ -345,8 +347,20 @@ export async function voiceWebhookHandler(req: Request, res: Response) {
     normalizeText(req.header("x-blueprint-voice-secret"))
     || normalizeText(req.query.secret);
 
-  if (configuredSecret && configuredSecret !== providedSecret) {
-    return res.status(401).json({ ok: false, error: "Unauthorized" });
+  // Fail closed in production when the secret is unset; never accept
+  // unauthenticated webhook writes. Local/dev keeps the bypass.
+  if (!configuredSecret && process.env.NODE_ENV === "production") {
+    return res.status(503).json({ ok: false, error: "Webhook secret not configured" });
+  }
+
+  if (configuredSecret) {
+    const expected = Buffer.from(configuredSecret, "utf8");
+    const provided = Buffer.from(providedSecret ?? "", "utf8");
+    const matches =
+      expected.length === provided.length && crypto.timingSafeEqual(expected, provided);
+    if (!matches) {
+      return res.status(401).json({ ok: false, error: "Unauthorized" });
+    }
   }
 
   try {

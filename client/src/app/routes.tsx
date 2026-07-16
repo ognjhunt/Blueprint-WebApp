@@ -96,9 +96,21 @@ const ProofRedirect = () => <MarketingRedirect to="/proof" />;
 
 const SitesRedirect = () => <MarketingRedirect to="/sites" />;
 
-const ContactRedirect = () => (
-  <MarketingRedirect to="/contact/robot-team?persona=robot-team&source=public-route-redirect" />
-);
+const ContactRedirect = () => {
+  const search =
+    typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+  const persona = search?.get("persona") ?? search?.get("buyerType") ?? "";
+  const isSiteOperator = persona === "site-operator" || persona === "site_operator";
+  return (
+    <MarketingRedirect
+      to={
+        isSiteOperator
+          ? "/contact/site-operator?source=public-route-redirect"
+          : "/contact/robot-team?persona=robot-team&source=public-route-redirect"
+      }
+    />
+  );
+};
 
 const LegacyCaptureJobsRedirect = () => (
   <MarketingRedirect to="/capture" />

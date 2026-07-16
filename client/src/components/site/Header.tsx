@@ -110,7 +110,7 @@ export function Header() {
     return {
       label: "Robot team",
       badge: "Robot team",
-      workspaceHref: userData?.finishedOnboarding ? "/dashboard" : "/onboarding",
+      workspaceHref: userData?.finishedOnboarding ? "/app" : "/onboarding",
       workspaceLabel: userData?.finishedOnboarding ? "Open robot-team workspace" : "Finish robot-team onboarding",
       secondaryHref: "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=policy-evaluation-run&source=signed-in-header",
       secondaryLabel: "Request another evaluation",

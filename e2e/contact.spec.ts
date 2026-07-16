@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-const mockInboundSubmission = async (page: import('@playwright/test').Page) => {
+const mockContactSubmission = async (page: import('@playwright/test').Page) => {
   const submissions: Record<string, unknown>[] = [];
 
   await page.route('**/api/csrf', async (route) => {
@@ -11,16 +11,12 @@ const mockInboundSubmission = async (page: import('@playwright/test').Page) => {
     });
   });
 
-  await page.route('**/api/inbound-request', async (route) => {
+  await page.route('**/api/contact', async (route) => {
     submissions.push(JSON.parse(route.request().postData() || '{}'));
     await route.fulfill({
-      status: 200,
+      status: 202,
       contentType: 'application/json',
-      body: JSON.stringify({
-        ok: true,
-        requestId: 'e2e-safe-request',
-        status: 'submitted',
-      }),
+      body: JSON.stringify({ success: true, sent: true, offWaitlistUrl: null }),
     });
   });
 
@@ -64,10 +60,7 @@ test('site-operator contact path keeps the low-cost access-boundary lane visible
 });
 
 test('robot-team contact form submits a Policy Evaluation Run payload through a mocked endpoint', async ({ page }) => {
-  // Contact.tsx's submit handler is a client-side mock (setSubmitted(true)) with no
-  // backend call — real intake is wired separately. Assert that explicitly: no
-  // /api/inbound-request hit happens, and the page shows its own confirmation state.
-  const submissions = await mockInboundSubmission(page);
+  const submissions = await mockContactSubmission(page);
 
   await page.goto('/contact/robot-team', { waitUntil: 'domcontentloaded' });
 
@@ -84,5 +77,41 @@ test('robot-team contact form submits a Policy Evaluation Run payload through a 
   await expect(
     page.getByText(/We will check the task, scope the comparison, and return a priced run plan\./i),
   ).toBeVisible();
-  expect(submissions).toHaveLength(0);
+
+  expect(submissions).toHaveLength(1);
+  expect(submissions[0]).toMatchObject({
+    name: 'Ada Lovelace',
+    email: 'ada@example.com',
+    company: 'Analytical Engines',
+    engagementScope: 'robot_team',
+    requestSource: 'website-contact-form',
+  });
+});
+
+test('contact form surfaces a retryable error when intake submission fails', async ({ page }) => {
+  await page.route('**/api/csrf', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ csrfToken: 'e2e-safe-token' }),
+    });
+  });
+  await page.route('**/api/contact', async (route) => {
+    await route.fulfill({
+      status: 503,
+      contentType: 'application/json',
+      body: JSON.stringify({ error: 'Service temporarily unavailable' }),
+    });
+  });
+
+  await page.goto('/contact/robot-team', { waitUntil: 'domcontentloaded' });
+
+  await page.getByRole('textbox', { name: /^Name$/i }).fill('Ada Lovelace');
+  await page.getByRole('textbox', { name: /Work email/i }).fill('ada@example.com');
+  await page.getByRole('textbox', { name: /Robot team \/ company/i }).fill('Analytical Engines');
+  await page.getByRole('button', { name: /Send message/i }).click();
+
+  await expect(page.getByRole('alert')).toContainText(/Service temporarily unavailable/i);
+  // The form stays visible so the visitor can retry without losing input.
+  await expect(page.getByRole('button', { name: /Send message/i })).toBeVisible();
 });

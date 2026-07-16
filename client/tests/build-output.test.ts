@@ -211,9 +211,16 @@ describe("build output", () => {
     expect(homeHtml).toContain("Decide the next test");
     expect(homeHtml).toContain('rel="canonical" href="https://tryblueprint.io/"');
     expect(homeHtml).toContain('type="application/ld+json"');
-    expect(pricingHtml).toContain("Evaluation infrastructure, not one-off tax.");
-    expect(pricingHtml).toContain("Robot teams subscribe when evals become part of the development loop.");
-    expect(pricingHtml).toContain("$5,000/site supply review");
+    // /pricing prerenders the real page so crawlers and no-JS agents see the
+    // actual tiers, prices, and correct persona intake links.
+    expect(pricingHtml).toContain("Priced as evaluation infrastructure.");
+    expect(pricingHtml).toContain("Quick-look eval");
+    expect(pricingHtml).toContain("Robot-team subscription");
+    expect(pricingHtml).toContain("Site supply");
+    expect(pricingHtml).toContain("Site monitoring");
+    expect(pricingHtml).toContain("$15k");
+    expect(pricingHtml).toContain("/contact/site-operator?buyerType=site_operator");
+    expect(pricingHtml).toContain("illustrative ranges");
     expect(pricingHtml).not.toContain("Pick a run");
     expect(proofHtml).toContain("Proof stays scoped");
     expect(proofHtml).toContain(

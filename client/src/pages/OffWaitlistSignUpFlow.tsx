@@ -23,7 +23,7 @@ import DatePicker from "react-datepicker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import gridPatternUrl from "@/assets/grid-pattern.svg";
-import { loadStripe } from "@stripe/stripe-js";
+import { loadStripeClient } from "@/lib/stripeClient";
 import { withCsrfHeader } from "@/lib/csrf";
 import {
   Calendar,
@@ -1533,11 +1533,7 @@ type WaitlistValidationResponse = {
             ? data.sessionUrl
             : undefined;
 
-        const publishableKey =
-          import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ||
-          import.meta.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ||
-          "pk_test_51ODuefLAUkK46LtZQ7o2si0POvd89pgNhE8pRcCCqMmmp9z534veOOiz81xMZcjZuEDK2CkdQnE9NhRy4WEoqWJG00ErDRTYlA";
-        const stripe = await loadStripe(publishableKey);
+        const stripe = await loadStripeClient();
 
         const shouldBypassStripeRedirect = () => {
           if (typeof window === "undefined") {

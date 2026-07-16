@@ -31,9 +31,15 @@ describe("Pricing", () => {
     expect(
       screen.getByText(/not a deployment-ready claim or a\s+guarantee of field success/i),
     ).toBeInTheDocument();
+    // Site-operator tiers must land on the site-operator intake form, not the
+    // generic /contact redirect (which routes to the robot-team form).
     expect(screen.getByRole("link", { name: /Start a site review/i })).toHaveAttribute(
       "href",
-      expect.stringContaining("persona=site-operator"),
+      expect.stringContaining("/contact/site-operator"),
+    );
+    expect(screen.getByRole("link", { name: /Discuss monitoring/i })).toHaveAttribute(
+      "href",
+      expect.stringContaining("/contact/site-operator"),
     );
     expect(screen.queryByText(/Site Data Package/i)).not.toBeInTheDocument();
   });

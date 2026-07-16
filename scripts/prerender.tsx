@@ -16,6 +16,7 @@ import CaptureAppPlaceholder from "../client/src/pages/CaptureAppPlaceholder";
 import Contact from "../client/src/pages/Contact";
 import Sites from "../client/src/pages/Sites";
 import SiteDetail from "../client/src/pages/SiteDetail";
+import Pricing from "../client/src/pages/Pricing";
 import Privacy from "../client/src/pages/Privacy";
 import Terms from "../client/src/pages/Terms";
 import Login from "../client/src/pages/Login";
@@ -234,18 +235,6 @@ const PrerenderForgotPassword = () => (
   />
 );
 
-const PrerenderPricingSummary = () => (
-  <MinimalStaticPage
-    title="Pricing | Blueprint"
-    description="Blueprint pricing for robot-team evaluation subscriptions, lite quick-look evals, low-cost site supply reviews, and yearly per-site monitoring."
-    heading="Evaluation infrastructure, not one-off tax."
-    body="Robot teams subscribe when evals become part of the development loop. Lite evals and single-site reviews stay available as the ramp. Site operators start with a $5,000/site supply review, then add yearly monitoring only when a deployed site needs repeated policy-update checks."
-    primaryHref="/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&requestedOutputs=Robot%20Team%20Subscription&source=pricing-prerender"
-    primaryLabel="Request subscription"
-    canonical="/pricing"
-  />
-);
-
 const PrerenderProofSummary = () => (
   <MinimalStaticPage
     title="Proof | Blueprint"
@@ -408,7 +397,10 @@ const staticRoutes: StaticRoute[] = [
   ...captureAliasRoutes,
   { path: "/capture-app", component: CaptureAppPlaceholder },
   { path: "/capture-app/launch-access", component: PrerenderCaptureLaunchAccessSummary, shell: "bare" },
-  { path: "/pricing", component: PrerenderPricingSummary, shell: "bare" },
+  // Prerender the real pricing page: crawlers, link previews, and no-JS
+  // agents must see the actual tiers and prices, not a summary that omits
+  // them (WSPEC context: the summary shell made /pricing look price-free).
+  { path: "/pricing", component: Pricing },
   { path: "/sites", component: Sites },
   { path: "/world-models", component: Sites },
   { path: "/site-worlds", component: Sites },
