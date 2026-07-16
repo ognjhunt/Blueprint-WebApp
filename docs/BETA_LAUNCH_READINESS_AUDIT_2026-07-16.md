@@ -25,6 +25,14 @@ its known fixes were reconciled through remote branches instead:
 
 No force-pushes, no history rewrites, no work discarded.
 
+In-flight parallel lane (deliberately NOT absorbed here):
+`origin/claude/blueprint-public-beta-closure-jqheh6` (`95131b9`, 2026-07-16
+21:57 UTC) mirrors `capture_submissions` rules hardening + composite index
+from BlueprintCapture and must land together with the matching
+BlueprintCapture branch to keep the rules-parity guard green. It is owned by
+a separate active session; absorbing it into this branch would create a
+competing landing path and break parity until the sibling repo lands.
+
 ## Findings ledger
 
 ### P0/P1 — engineering
