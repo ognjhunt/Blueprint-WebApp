@@ -525,6 +525,33 @@ export default async function handler(req: Request, res: Response) {
         typeof body.kitUpgradeSurcharge === "number" && Number.isFinite(body.kitUpgradeSurcharge)
           ? Math.max(body.kitUpgradeSurcharge, 0)
           : 0;
+
+      // WEB-08: like the marketplace path (and the removed WEB-07 legacy path),
+      // never charge client-authored amounts. Every legitimate caller submits
+      // values from a static client catalog, so anything outside that catalog is
+      // a forged payload: onboarding fee is always 0; plan prices are the
+      // published subscription tiers; the kit surcharge is a kit upgrade fee
+      // (0/15/45) plus an optional mapping fee (99).
+      const ONBOARDING_ALLOWED_MONTHLY_PRICES = new Set([49.99, 99, 149]);
+      const ONBOARDING_ALLOWED_KIT_SURCHARGES = new Set([0, 15, 45, 99, 114, 144]);
+      if (
+        onboardingFee !== 0 ||
+        !ONBOARDING_ALLOWED_MONTHLY_PRICES.has(monthlyPrice) ||
+        !ONBOARDING_ALLOWED_KIT_SURCHARGES.has(kitUpgradeSurcharge)
+      ) {
+        logger.warn(
+          {
+            event: "stripe_checkout_onboarding_price_rejected",
+            onboardingFee,
+            monthlyPrice,
+            kitUpgradeSurcharge,
+          },
+          "Rejected onboarding checkout with off-catalog pricing",
+        );
+        return res.status(400).json({
+          error: "Invalid onboarding pricing. Please reload and try again.",
+        });
+      }
       const monthlyPriceWithKit = monthlyPrice + kitUpgradeSurcharge;
 
       let billingAnchorText = "24 hours after onboarding";
@@ -578,6 +605,16 @@ export default async function handler(req: Request, res: Response) {
             unit_amount: Math.round(kitUpgradeSurcharge * 100),
           },
           quantity: 1,
+        });
+      }
+
+      if (lineItems.length === 0) {
+        // Stripe rejects payment-mode sessions with no line items, so surface a
+        // clear client error instead of an opaque Stripe 500. This happens when
+        // nothing is due today (no onboarding fee, no kit surcharge).
+        return res.status(400).json({
+          error:
+            "Nothing is due today for this plan, so checkout isn't needed. Contact team@tryblueprint.io to finish setup.",
         });
       }
 

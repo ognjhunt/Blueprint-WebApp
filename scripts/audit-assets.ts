@@ -23,6 +23,10 @@ const excludedDirs = new Set([
   "coverage",
   "attached_assets",
   "artifacts",
+  // CI checks out sibling repos into the workspace (rules parity / shared
+  // contracts). Their assets are not this repo's to audit.
+  "BlueprintCapture",
+  "BlueprintContracts",
 ]);
 
 function toPosixPath(filePath: string): string {

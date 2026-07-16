@@ -851,6 +851,9 @@ const adminLeadDetailFixture = {
 const adminLeadSceneDashboardFixture = {
   schema_version: "v1",
   scene: "scene-op-qa",
+  // AdminLeads renders "<site_type> status" (falls back to "Site"); the QA
+  // expectation "Whole-home" depends on this field being present.
+  site_type: "Whole-home",
   whole_home: {
     capture_id: "cap-op-qa",
     status: "qualified_ready",

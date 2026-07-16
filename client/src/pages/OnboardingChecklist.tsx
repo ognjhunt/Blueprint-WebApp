@@ -441,8 +441,10 @@ export default function OnboardingChecklist() {
       });
     }
 
-    setLocation("/dashboard");
-  }, [currentUser?.uid, setLocation]);
+    // Robot teams land in the entitlement-backed buyer app; site operators
+    // keep the legacy dashboard until an operator app surface exists.
+    setLocation(userData?.buyerType === "robot_team" ? "/app" : "/dashboard");
+  }, [currentUser?.uid, setLocation, userData?.buyerType]);
 
   const intakeSummary = [
     { label: "Buyer type", value: userData?.buyerType === "robot_team" ? "Robot team" : "Site operator" },

@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { Request, Response, Router } from "express";
 import { getConfiguredEnvValue } from "../config/env";
 import { hasAnyRole, resolveAccessContext } from "../utils/access-control";
@@ -1690,8 +1691,20 @@ export async function sendgridWebhookHandler(req: Request, res: Response) {
     normalizeString(req.header("x-blueprint-growth-secret"))
     || normalizeString(req.query.secret);
 
-  if (configuredSecret && configuredSecret !== providedSecret) {
-    return res.status(401).json({ error: "Unauthorized" });
+  // Fail closed in production when the secret is unset; never accept
+  // unauthenticated webhook ingestion. Local/dev keeps the bypass.
+  if (!configuredSecret && process.env.NODE_ENV === "production") {
+    return res.status(503).json({ error: "Webhook secret not configured" });
+  }
+
+  if (configuredSecret) {
+    const expected = Buffer.from(configuredSecret, "utf8");
+    const provided = Buffer.from(providedSecret ?? "", "utf8");
+    const matches =
+      expected.length === provided.length && crypto.timingSafeEqual(expected, provided);
+    if (!matches) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
   }
 
   try {

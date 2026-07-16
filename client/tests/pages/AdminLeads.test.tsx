@@ -172,6 +172,7 @@ describe("AdminLeads scene readiness", () => {
             JSON.stringify({
               schema_version: "v1",
               scene: "scene-1",
+              site_type: "Whole-home",
               whole_home: {
                 capture_id: "cap-1",
                 status: "qualified_ready",

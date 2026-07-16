@@ -33,6 +33,14 @@ function timingSafeEqualString(left: string, right: string) {
 function verifySlackSignature(req: SlackEventRequest) {
   const signingSecret = String(process.env.SLACK_SIGNING_SECRET || "").trim();
   if (!signingSecret) {
+    // Fail closed in production: an unset secret must not turn the endpoint
+    // into an unauthenticated ingest path. Local/dev keeps the bypass.
+    if (process.env.NODE_ENV === "production") {
+      return {
+        ok: false,
+        reason: "SLACK_SIGNING_SECRET is not configured; rejecting unsigned event.",
+      };
+    }
     return { ok: true, reason: null };
   }
 

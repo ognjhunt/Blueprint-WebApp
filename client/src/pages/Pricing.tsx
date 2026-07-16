@@ -73,7 +73,7 @@ const tiers: Tier[] = [
     ],
     note: "No deployment or rights guarantee until the site is reviewed.",
     cta: "Start a site review",
-    href: "/contact?persona=site-operator&requestedOutputs=Site%20Supply%20Review&source=pricing",
+    href: "/contact/site-operator?buyerType=site_operator&requestedOutputs=Site%20Supply%20Review&source=pricing",
   },
   {
     name: "Site monitoring",
@@ -88,7 +88,7 @@ const tiers: Tier[] = [
     ],
     note: "Still bounded to the reviewed site, task, and access scope.",
     cta: "Discuss monitoring",
-    href: "/contact?persona=site-operator&requestedOutputs=Site%20Monitoring%20Subscription&source=pricing",
+    href: "/contact/site-operator?buyerType=site_operator&requestedOutputs=Site%20Monitoring%20Subscription&source=pricing",
   },
 ];
 

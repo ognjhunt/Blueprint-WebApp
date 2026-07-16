@@ -12,6 +12,7 @@ import {
 } from "@/components/blueprint";
 import { MonochromeMedia } from "@/components/site/editorial";
 import { parseContactRequestPrefill } from "@/lib/contactRequestPrefill";
+import { withCsrfHeader } from "@/lib/csrf";
 
 type ContactPersona = "robot_team" | "site_operator";
 
@@ -63,6 +64,8 @@ export default function Contact() {
   const isSiteOperator = persona === "site_operator";
 
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const headline = isSiteOperator
     ? "Share a place for policy comparison."
@@ -83,10 +86,52 @@ export default function Contact() {
         { value: "site-ops", label: "Site-ops comparison" },
       ];
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    // Mock submit — no backend. Real intake is wired separately.
-    setSubmitted(true);
+    if (submitting) return;
+
+    const formData = new FormData(event.currentTarget);
+    const intentValue = String(formData.get("intent") ?? "");
+    const intentLabel =
+      intentOptions.find((option) => option.value === intentValue)?.label ||
+      intentValue;
+
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      const response = await fetch("/api/contact", {
+        method: "POST",
+        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        body: JSON.stringify({
+          name: String(formData.get("name") ?? "").trim(),
+          email: String(formData.get("email") ?? "").trim(),
+          company: String(formData.get("org") ?? "").trim(),
+          message: String(formData.get("message") ?? "").trim(),
+          projectType: intentLabel,
+          engagementScope: isSiteOperator ? "site_operator" : "robot_team",
+          requestSource: "website-contact-form",
+        }),
+      });
+
+      if (!response.ok) {
+        const body = (await response.json().catch(() => ({}))) as {
+          error?: string;
+        };
+        throw new Error(
+          body.error || "Unable to send your request right now.",
+        );
+      }
+
+      setSubmitted(true);
+    } catch (error) {
+      setSubmitError(
+        error instanceof Error
+          ? error.message
+          : "Unable to send your request right now.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -177,6 +222,7 @@ export default function Contact() {
                     label={isSiteOperator ? "Organization" : "Robot team / company"}
                     name="org"
                     placeholder="Company"
+                    required
                   />
                   <SelectField
                     label={isSiteOperator ? "What you want to do" : "What you want to run"}
@@ -204,12 +250,27 @@ export default function Contact() {
                     className="w-full rounded-xs border border-line-strong bg-white px-[0.65rem] py-2.5 text-body-s font-medium text-ink-900 outline-none transition-shadow duration-200 ease-standard placeholder:font-normal placeholder:text-ink-400 focus:border-brass-deep focus:ring-2 focus:ring-brass-deep/60"
                   />
                 </div>
+                {submitError ? (
+                  <p role="alert" className="text-body-s font-medium text-block-fg">
+                    {submitError} You can retry, or email{" "}
+                    <a className="underline" href="mailto:team@tryblueprint.io">
+                      team@tryblueprint.io
+                    </a>
+                    .
+                  </p>
+                ) : null}
                 <div className="flex flex-col gap-4 border-t border-line-soft pt-5 sm:flex-row sm:items-center sm:justify-between">
                   <p className="text-caption text-ink-500">
                     Request only. Access, pricing, rights, and execution are confirmed per scope.
                   </p>
-                  <Button type="submit" variant="brass" size="md" iconRight={<ArrowRight />}>
-                    Send message
+                  <Button
+                    type="submit"
+                    variant="brass"
+                    size="md"
+                    iconRight={<ArrowRight />}
+                    disabled={submitting}
+                  >
+                    {submitting ? "Sending…" : "Send message"}
                   </Button>
                 </div>
               </form>

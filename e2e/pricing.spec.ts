@@ -32,7 +32,12 @@ test("pricing page presents the subscription-first robot-team pricing ladder", a
   await expect(
     page.getByText(/not a deployment-ready claim or a/i),
   ).toBeVisible();
+  // Site-operator tiers must land on the site-operator intake form, not the
+  // generic /contact redirect (which routes to the robot-team form).
   await expect(
     page.getByRole("link", { name: /Start a site review/i }).first(),
-  ).toHaveAttribute("href", /persona=site-operator/);
+  ).toHaveAttribute("href", /\/contact\/site-operator/);
+  await expect(
+    page.getByRole("link", { name: /Discuss monitoring/i }).first(),
+  ).toHaveAttribute("href", /\/contact\/site-operator/);
 });

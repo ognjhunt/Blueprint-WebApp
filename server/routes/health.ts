@@ -86,12 +86,22 @@ router.get("/health/ready", async (_req: Request, res: Response) => {
  * Detailed status endpoint (for monitoring dashboards)
  * Returns server metrics and version info
  */
-router.get("/health/status", (_req: Request, res: Response) => {
+router.get("/health/status", (req: Request, res: Response) => {
   const uptime = Date.now() - startTime;
-  const memoryUsage = process.memoryUsage();
-  const liveSessionStore = getHostedSessionLiveStoreStatus();
 
-  res.status(200).json({
+  // Process internals (memory, live-session debug state) are useful for
+  // dashboards but are recon material on an unauthenticated endpoint. In
+  // production they require HEALTH_STATUS_TOKEN; the public payload keeps the
+  // uptime + error-rate fields monitoring already depends on.
+  const configuredToken = (process.env.HEALTH_STATUS_TOKEN || "").trim();
+  const providedToken = String(
+    req.header("x-health-status-token") || req.query.token || "",
+  ).trim();
+  const includeInternals =
+    process.env.NODE_ENV !== "production" ||
+    (configuredToken.length > 0 && providedToken === configuredToken);
+
+  const basePayload = {
     status: "healthy",
     version: process.env.npm_package_version || "1.0.0",
     environment: process.env.NODE_ENV || "development",
@@ -99,21 +109,32 @@ router.get("/health/status", (_req: Request, res: Response) => {
       ms: uptime,
       human: formatUptime(uptime),
     },
+    metrics: {
+      requestCount,
+      errorCount,
+      errorRate: requestCount > 0 ? (errorCount / requestCount * 100).toFixed(2) + "%" : "0%",
+    },
+    timestamp: new Date().toISOString(),
+  };
+
+  if (!includeInternals) {
+    return res.status(200).json(basePayload);
+  }
+
+  const memoryUsage = process.memoryUsage();
+  const liveSessionStore = getHostedSessionLiveStoreStatus();
+
+  return res.status(200).json({
+    ...basePayload,
     memory: {
       heapUsed: formatBytes(memoryUsage.heapUsed),
       heapTotal: formatBytes(memoryUsage.heapTotal),
       external: formatBytes(memoryUsage.external),
       rss: formatBytes(memoryUsage.rss),
     },
-    metrics: {
-      requestCount,
-      errorCount,
-      errorRate: requestCount > 0 ? (errorCount / requestCount * 100).toFixed(2) + "%" : "0%",
-    },
     debug: {
       liveSessionStore,
     },
-    timestamp: new Date().toISOString(),
   });
 });
 
