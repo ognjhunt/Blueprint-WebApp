@@ -1,94 +1,94 @@
 {
-  "rootDir": "/Users/nijelhunt_1/workspace/Blueprint-WebApp",
+  "rootDir": "/home/user/Blueprint-WebApp",
   "targets": [
     {
       "relativePath": "AGENTS.md",
-      "absolutePath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/AGENTS.md",
+      "absolutePath": "/home/user/Blueprint-WebApp/AGENTS.md",
       "sourceGroup": "root_doctrine"
     },
     {
       "relativePath": "README.md",
-      "absolutePath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/README.md",
+      "absolutePath": "/home/user/Blueprint-WebApp/README.md",
       "sourceGroup": "root_doctrine"
     },
     {
       "relativePath": "PLATFORM_CONTEXT.md",
-      "absolutePath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/PLATFORM_CONTEXT.md",
+      "absolutePath": "/home/user/Blueprint-WebApp/PLATFORM_CONTEXT.md",
       "sourceGroup": "root_doctrine"
     },
     {
       "relativePath": "WORLD_MODEL_STRATEGY_CONTEXT.md",
-      "absolutePath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/WORLD_MODEL_STRATEGY_CONTEXT.md",
+      "absolutePath": "/home/user/Blueprint-WebApp/WORLD_MODEL_STRATEGY_CONTEXT.md",
       "sourceGroup": "root_doctrine"
     },
     {
       "relativePath": "AUTONOMOUS_ORG.md",
-      "absolutePath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/AUTONOMOUS_ORG.md",
+      "absolutePath": "/home/user/Blueprint-WebApp/AUTONOMOUS_ORG.md",
       "sourceGroup": "root_doctrine"
     },
     {
       "relativePath": "client/src/AGENTS.md",
-      "absolutePath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/client/src/AGENTS.md",
+      "absolutePath": "/home/user/Blueprint-WebApp/client/src/AGENTS.md",
       "sourceGroup": "root_doctrine"
     },
     {
       "relativePath": "docs/ai-tooling-adoption-implementation-2026-04-07.md",
-      "absolutePath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/ai-tooling-adoption-implementation-2026-04-07.md",
+      "absolutePath": "/home/user/Blueprint-WebApp/docs/ai-tooling-adoption-implementation-2026-04-07.md",
       "sourceGroup": "root_doctrine"
     },
     {
       "relativePath": "docs/ai-skills-governance-2026-04-07.md",
-      "absolutePath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/ai-skills-governance-2026-04-07.md",
+      "absolutePath": "/home/user/Blueprint-WebApp/docs/ai-skills-governance-2026-04-07.md",
       "sourceGroup": "root_doctrine"
     },
     {
       "relativePath": "client/src/pages",
-      "absolutePath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/client/src/pages",
+      "absolutePath": "/home/user/Blueprint-WebApp/client/src/pages",
       "sourceGroup": "webapp_pages"
     },
     {
       "relativePath": "client/src/data/content",
-      "absolutePath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/client/src/data/content",
+      "absolutePath": "/home/user/Blueprint-WebApp/client/src/data/content",
       "sourceGroup": "webapp_pages"
     },
     {
       "relativePath": "client/src/data/content/publicPages.ts",
-      "absolutePath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/client/src/data/content/publicPages.ts",
+      "absolutePath": "/home/user/Blueprint-WebApp/client/src/data/content/publicPages.ts",
       "sourceGroup": "webapp_pages"
     },
     {
       "relativePath": "client/src/lib/proofEvidence.ts",
-      "absolutePath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/client/src/lib/proofEvidence.ts",
+      "absolutePath": "/home/user/Blueprint-WebApp/client/src/lib/proofEvidence.ts",
       "sourceGroup": "webapp_pages"
     },
     {
       "relativePath": "../BlueprintCapture/docs/PUBLIC_COPY_TRUTH_INDEX_2026-05-24.md",
-      "absolutePath": "/Users/nijelhunt_1/workspace/BlueprintCapture/docs/PUBLIC_COPY_TRUTH_INDEX_2026-05-24.md",
+      "absolutePath": "/home/user/BlueprintCapture/docs/PUBLIC_COPY_TRUTH_INDEX_2026-05-24.md",
       "sourceGroup": "capture_public_copy_docs"
     },
     {
       "relativePath": "scripts/gtm",
-      "absolutePath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/gtm",
+      "absolutePath": "/home/user/Blueprint-WebApp/scripts/gtm",
       "sourceGroup": "gtm_artifacts"
     },
     {
       "relativePath": "ops/paperclip/playbooks",
-      "absolutePath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks",
+      "absolutePath": "/home/user/Blueprint-WebApp/ops/paperclip/playbooks",
       "sourceGroup": "gtm_artifacts"
     },
     {
       "relativePath": "knowledge/reports",
-      "absolutePath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/knowledge/reports",
+      "absolutePath": "/home/user/Blueprint-WebApp/knowledge/reports",
       "sourceGroup": "notion_ready_markdown"
     },
     {
       "relativePath": "knowledge/compiled",
-      "absolutePath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/knowledge/compiled",
+      "absolutePath": "/home/user/Blueprint-WebApp/knowledge/compiled",
       "sourceGroup": "notion_ready_markdown"
     },
     {
       "relativePath": "output",
-      "absolutePath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output",
+      "absolutePath": "/home/user/Blueprint-WebApp/output",
       "sourceGroup": "generated_reports"
     }
   ],
@@ -177,6 +177,7 @@
     "client/src/pages/TeamMembers.tsx",
     "client/src/pages/Terms.tsx",
     "client/src/pages/VenueMaterials.tsx",
+    "client/src/pages/Vision.tsx",
     "client/src/pages/WebXR.tsx",
     "client/src/pages/Workspace.tsx",
     "client/src/pages/analytics/EmbodimentTransfer.tsx",
@@ -584,6 +585,7 @@
     "output/performance/page-load/runs/2026-06-28T14-21-42-620Z/page-load-performance.md",
     "output/performance/page-load/runs/2026-06-28T14-21-50-471Z/page-load-performance.json",
     "output/performance/page-load/runs/2026-06-28T14-21-50-471Z/page-load-performance.md",
+    "output/pipeline/robot_eval_job_requests/contract_parity.json",
     "output/pipeline/robot_eval_job_requests/forwarding_preflight.json",
     "output/pipeline/robot_eval_job_requests/forwarding_preflight.local_secret_setup.json",
     "output/pipeline/robot_eval_job_requests/forwarding_preflight.local_secret_setup.probe.json",
@@ -596,12 +598,39 @@
     "scripts/gtm/run-gtm-send-executor.ts",
     "scripts/gtm/validate-human-recipient-evidence.ts",
     "scripts/gtm/write-first-send-approval-template.ts",
-    "scripts/gtm/write-human-recipient-evidence-template.ts",
+    "scripts/gtm/write-human-recipient-evidence-template.ts"
+  ],
+  "skippedTargets": [
     "../BlueprintCapture/docs/PUBLIC_COPY_TRUTH_INDEX_2026-05-24.md"
   ],
-  "skippedTargets": [],
-  "findings": [],
-  "findingsByType": {},
-  "reportPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/claims-guard/latest/claims-guard-report.md",
-  "jsonPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/output/claims-guard/latest/claims-guard-report.json"
+  "findings": [
+    {
+      "type": "payment_or_payout_claim",
+      "severity": "blocker",
+      "file": "client/src/pages/Agents.tsx",
+      "absoluteFile": "/home/user/Blueprint-WebApp/client/src/pages/Agents.tsx",
+      "line": 60,
+      "sourceGroup": "webapp_pages",
+      "claimText": "\"npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce checkout --site-world-id <pipeline-site-world-id> --product hosted-session-rental --mode live --budget-cents 20000\",",
+      "ownerProofRequired": "Stripe checkout/webhook/entitlement state for payment claims and Stripe Connect payout ledger plus approved policy for payout claims.",
+      "safeReplacement": "Treat forms and CTAs as requests; use `payout eligibility reviewed after accepted capture` or `payment state confirmed after checkout`."
+    },
+    {
+      "type": "unsupported_hosted_session_proof",
+      "severity": "blocker",
+      "file": "ops/paperclip/playbooks/city-capture-target-ledger-austin-tx.md",
+      "absoluteFile": "/home/user/Blueprint-WebApp/ops/paperclip/playbooks/city-capture-target-ledger-austin-tx.md",
+      "line": 20,
+      "sourceGroup": "gtm_artifacts",
+      "claimText": "- Warehouse / fulfillment / 3PL (tier_1): Still the clearest real robot workflow lane for exact-site hosted review, brownfield automation, and case-handling proof.",
+      "ownerProofRequired": "hosted-session runtime/session artifacts, entitlement path, package manifest, and live availability evidence for the exact request.",
+      "safeReplacement": "Use `book hosted review` or `hosted review is confirmed per site/request` until runtime and entitlement proof exists."
+    }
+  ],
+  "findingsByType": {
+    "payment_or_payout_claim": 1,
+    "unsupported_hosted_session_proof": 1
+  },
+  "reportPath": "/home/user/Blueprint-WebApp/output/claims-guard/latest/claims-guard-report.md",
+  "jsonPath": "/home/user/Blueprint-WebApp/output/claims-guard/latest/claims-guard-report.json"
 }
