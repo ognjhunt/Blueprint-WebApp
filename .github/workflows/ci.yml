@@ -25,6 +25,10 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ognjhunt/BlueprintCapture
+          # Pin the ref: parity always compares against BlueprintCapture main,
+          # and an explicit ref skips checkout's default-branch API lookup —
+          # the call that flaked with GitHub 503s on 2026-07-16.
+          ref: main
           path: BlueprintCapture
           token: ${{ secrets.BLUEPRINT_CAPTURE_CHECKOUT_TOKEN || github.token }}
 
