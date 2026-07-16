@@ -7,6 +7,7 @@ import {
 } from "../agents/action-policies";
 import { executeAction } from "../agents/action-executor";
 import { updateGoogleCalendarEvent } from "./google-calendar";
+import { getFinanceOwnershipStatus } from "./finance-ownership";
 
 type CreatorUserRecord = {
   uid: string;
@@ -50,6 +51,13 @@ type InboundContactRecord = {
   roleTitle: string | null;
 };
 
+type FinanceOwnershipSummary = {
+  owner_assigned: boolean;
+  owner_label: string | null;
+  source: "config" | "per_payout" | "none";
+  blockers: string[];
+};
+
 type FinanceQueueRecord = {
   id: string;
   status: string;
@@ -60,6 +68,7 @@ type FinanceQueueRecord = {
   queue: string | null;
   ops_automation: Record<string, unknown>;
   finance_review: Record<string, unknown>;
+  finance_owner: FinanceOwnershipSummary;
   updated_at: string | null;
 };
 
@@ -874,11 +883,23 @@ export async function flagOverdueFinanceReviews(params?: { limit?: number }) {
   let failedCount = 0;
   const nowIso = new Date().toISOString();
 
+  // R035: a payout exception must have a named, accountable finance owner. When
+  // the org-level owner config is unset, surface "no finance owner assigned" as
+  // an explicit blocker on the flagged review rather than silently having none.
+  const ownership = getFinanceOwnershipStatus();
+  const ownerBlockers = ownership.configured ? [] : ownership.blockers;
+
   for (const doc of snapshot.docs) {
     try {
       const data = (doc.data() || {}) as Record<string, unknown>;
       const financeReview = asRecord(data.finance_review);
       const overdueReview = asRecord(financeReview.overdue_review);
+      const perPayoutOwner =
+        typeof financeReview.owner_email === "string" && financeReview.owner_email.trim()
+          ? financeReview.owner_email.trim()
+          : null;
+      const ownerAssigned = ownership.configured || Boolean(perPayoutOwner);
+      const blockers = ownerAssigned ? [] : ownerBlockers;
       const reviewStatus =
         typeof financeReview.review_status === "string"
           ? financeReview.review_status
@@ -906,6 +927,9 @@ export async function flagOverdueFinanceReviews(params?: { limit?: number }) {
                   typeof financeReview.next_action === "string" && financeReview.next_action.trim()
                     ? financeReview.next_action
                     : "Assign an owner and gather evidence before any manual finance action.",
+                owner_assigned: ownerAssigned,
+                owner_label: perPayoutOwner || ownership.ownerLabel || null,
+                blockers,
                 flagged_by: "system:finance_review_overdue_watchdog",
                 flagged_at: overdueReview.flagged_at || admin.firestore.FieldValue.serverTimestamp(),
                 last_checked_at: admin.firestore.FieldValue.serverTimestamp(),
@@ -1276,11 +1300,27 @@ export async function listFinanceQueue(params?: { limit?: number }) {
     .limit(Math.max(1, Math.min(params?.limit ?? 50, 100)))
     .get();
 
+  // R035: resolve the accountable finance owner once (config-level, fail-closed)
+  // and let an explicit per-payout owner override it. When neither exists the
+  // record carries owner_assigned=false with the real blockers, never a
+  // fabricated owner.
+  const ownership = getFinanceOwnershipStatus();
+
   return snapshot.docs
     .map((doc) => {
       const data = (doc.data() || {}) as Record<string, unknown>;
       const opsAutomation = asRecord(data.ops_automation);
       const financeReview = asRecord(data.finance_review);
+      const perPayoutOwner =
+        typeof financeReview.owner_email === "string" && financeReview.owner_email.trim()
+          ? financeReview.owner_email.trim()
+          : null;
+      const financeOwner: FinanceOwnershipSummary = {
+        owner_assigned: ownership.configured || Boolean(perPayoutOwner),
+        owner_label: perPayoutOwner ?? ownership.ownerLabel,
+        source: perPayoutOwner ? "per_payout" : ownership.configured ? "config" : "none",
+        blockers: ownership.configured || perPayoutOwner ? [] : ownership.blockers,
+      };
       const status = typeof data.status === "string" ? data.status : "";
       if (
         !["review_required", "disbursement_failed", "canceled"].includes(status)
@@ -1300,6 +1340,7 @@ export async function listFinanceQueue(params?: { limit?: number }) {
         queue: typeof opsAutomation.queue === "string" ? opsAutomation.queue : null,
         ops_automation: opsAutomation,
         finance_review: financeReview,
+        finance_owner: financeOwner,
         updated_at: toIsoString((data as Record<string, unknown>).updated_at || data.updatedAt),
       };
       return record;

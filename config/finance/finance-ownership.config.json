@@ -1,0 +1,13 @@
+{
+  "schema": "blueprint/finance-ownership-config/v1",
+  "_comment": "R035: named human owner + escalation for payout / finance-review exceptions. HONEST DEFAULT: owner is UNSET, so the validator and payout-exception monitor fail closed and surface 'no finance owner assigned' as a blocker. HUMAN STEP: a real, accountable person must fill in owner.name/handle/email, at least one escalation contact, and confirm the review SLA, then commit this file (or set BLUEPRINT_FINANCE_OWNERSHIP_CONFIG_PATH to a deployed copy).",
+  "owner": {
+    "name": null,
+    "handle": null,
+    "email": null
+  },
+  "escalation_contacts": [],
+  "review_sla_hours": 24,
+  "updated_at": null,
+  "updated_by": null
+}
