@@ -4,7 +4,11 @@ services:
     runtime: node
     plan: starter
     region: oregon
-    autoDeploy: true
+    # Deploys are CI-gated: .github/workflows/deploy.yml triggers the Render
+    # deploy hook only for an exact commit whose CI run is green on main.
+    # Keeping Render-native auto-deploy off means a red or unreviewed push can
+    # never ship, and there is exactly one deploy owner (the workflow).
+    autoDeploy: false
     buildCommand: npm ci && npm run build
     startCommand: npm start
     healthCheckPath: /health/ready

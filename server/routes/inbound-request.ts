@@ -17,6 +17,7 @@ import { runInboundQualificationForRequest } from "../agents";
 import { logGrowthEvent } from "../utils/growth-events";
 import { runHighIntentLeadEnrichmentForRequest } from "../utils/highIntentLeadEnrichment";
 import { createLifecycleCadenceForInboundRequest } from "../utils/lifecycle-cadence";
+import { isLocalLaunchSmokeProfile } from "../utils/launch-readiness";
 import {
   COMMERCIAL_REQUEST_PATH_LABELS,
   COMMERCIAL_REQUEST_PATHS,
@@ -1104,7 +1105,10 @@ router.post("/", async (req: Request, res: Response) => {
     };
 
     if (!db) {
-      if (isProduction()) {
+      // The isolated local launch smoke boots the production build without
+      // Firestore; its loopback-guarded profile may use the same tmpdir
+      // fallback as dev. A real production deploy still fails loudly here.
+      if (isProduction() && !isLocalLaunchSmokeProfile()) {
         logger.error("Firebase Admin SDK not initialized");
         return res.status(500).json({
           ok: false,

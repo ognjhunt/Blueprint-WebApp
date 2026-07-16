@@ -40,6 +40,21 @@ const firebaseConfigForAdmin = {
     process.env.FIREBASE_STORAGE_BUCKET || "blueprint-8c1ca.appspot.com",
 };
 
+/**
+ * Every env key that can make this module attempt credential loading or an
+ * Application Default Credentials lookup. Credential-free test harnesses must
+ * strip ALL of these from subprocess environments — clearing only the first
+ * two leaves GOOGLE_CLOUD_PROJECT/K_SERVICE able to trigger an ADC attempt.
+ */
+export const ADC_CONTEXT_ENV_KEYS = Object.freeze([
+  "FIREBASE_SERVICE_ACCOUNT_JSON",
+  "GOOGLE_APPLICATION_CREDENTIALS",
+  "GOOGLE_CLOUD_PROJECT",
+  "GCLOUD_PROJECT",
+  "K_SERVICE",
+  "FUNCTION_TARGET",
+] as const);
+
 function initializeFirebaseAdmin() {
   if (!admin) {
     console.error("Firebase Admin SDK could not be imported");

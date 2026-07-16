@@ -8,6 +8,7 @@ import {
 } from "../../ops/paperclip/plugins/blueprint-automation/src/notion";
 import { getConfiguredEnvValue } from "../config/env";
 import { logger } from "../logger";
+import { resolveCanonicalArtifactWriteRoot } from "./canonicalArtifactRoot";
 import {
   buildGeminiDeepResearchAgentConfig,
   createGeminiInteraction,
@@ -1101,14 +1102,14 @@ function timestampForFile(date = new Date()) {
 
 function buildCanonicalPlaybookPath(citySlug: string) {
   return path.join(
-    REPO_ROOT,
+    resolveCanonicalArtifactWriteRoot(REPO_ROOT),
     `ops/paperclip/playbooks/city-launch-${citySlug}-deep-research.md`,
   );
 }
 
 function buildCanonicalActivationPayloadPath(citySlug: string) {
   return path.join(
-    REPO_ROOT,
+    resolveCanonicalArtifactWriteRoot(REPO_ROOT),
     `ops/paperclip/playbooks/city-launch-${citySlug}-activation-payload.json`,
   );
 }

@@ -78,6 +78,16 @@ jobs:
       - name: Run tests
         run: npm run test:coverage
 
+      - name: Verify tests did not mutate tracked files
+        run: |
+          set -euo pipefail
+          if ! git diff --quiet; then
+            echo "::error::The test run modified tracked files. Tests must write generated artifacts to temp directories (see BLUEPRINT_CANONICAL_ARTIFACT_ROOT in client/tests/setup.ts)."
+            git status --short
+            git --no-pager diff --stat
+            exit 1
+          fi
+
       - name: Upload coverage
         if: ${{ hashFiles('coverage/**') != '' }}
         uses: actions/upload-artifact@v4
@@ -140,3 +150,6 @@ jobs:
 
       - name: Run build-output tests
         run: npm run test:build-output
+
+      - name: Run isolated local launch smoke
+        run: npm run smoke:launch:local

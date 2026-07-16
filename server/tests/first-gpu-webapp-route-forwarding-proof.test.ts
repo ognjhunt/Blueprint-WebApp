@@ -8,7 +8,18 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { afterEach, describe, expect, it } from "vitest";
 
+import { credentialFreeSubprocessEnv } from "./helpers/credentialFreeEnv";
+
 const execFile = promisify(execFileCallback);
+
+// The proof runner must stay credential-free: no Firebase Admin init and no
+// Google Application Default Credentials lookup may occur in the subprocess.
+function expectNoAdcActivity(stdout: string, stderr: string) {
+  const combined = `${stdout}\n${stderr}`;
+  expect(combined).not.toMatch(/Firebase Admin SDK initialized/i);
+  expect(combined).not.toMatch(/application default credentials/i);
+  expect(combined).not.toMatch(/metadata\.google\.internal/i);
+}
 
 const servers: http.Server[] = [];
 
@@ -128,7 +139,7 @@ describe("first-GPU WebApp route forwarding proof runner", () => {
     );
 
     try {
-      const { stdout } = await execFile(
+      const { stdout, stderr } = await execFile(
         path.join(process.cwd(), "node_modules/.bin/tsx"),
         [
           path.join(
@@ -154,17 +165,15 @@ describe("first-GPU WebApp route forwarding proof runner", () => {
         ],
         {
           cwd: process.cwd(),
-          env: {
-            ...process.env,
+          env: credentialFreeSubprocessEnv({
             ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN: "test-forward-token",
-            GOOGLE_APPLICATION_CREDENTIALS: "",
-            FIREBASE_SERVICE_ACCOUNT_JSON: "",
-          },
+          }),
           maxBuffer: 1024 * 1024,
         },
       );
 
       expect(stdout).toContain("[webapp-route-forwarding-proof] status=forwarded_to_pipeline_intake");
+      expectNoAdcActivity(stdout, stderr);
       expect(received).toHaveLength(1);
       expect(received[0]).toEqual(
         expect.objectContaining({
@@ -369,7 +378,7 @@ describe("first-GPU WebApp route forwarding proof runner", () => {
     );
 
     try {
-      const { stdout } = await execFile(
+      const { stdout, stderr } = await execFile(
         path.join(process.cwd(), "node_modules/.bin/tsx"),
         [
           path.join(
@@ -389,17 +398,15 @@ describe("first-GPU WebApp route forwarding proof runner", () => {
         ],
         {
           cwd: process.cwd(),
-          env: {
-            ...process.env,
+          env: credentialFreeSubprocessEnv({
             ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN: "test-forward-token",
-            GOOGLE_APPLICATION_CREDENTIALS: "",
-            FIREBASE_SERVICE_ACCOUNT_JSON: "",
-          },
+          }),
           maxBuffer: 1024 * 1024,
         },
       );
 
       expect(stdout).toContain("[webapp-route-forwarding-proof] status=forwarded_to_pipeline_intake");
+      expectNoAdcActivity(stdout, stderr);
       expect(received).toHaveLength(1);
       const forwardedRequest = (received[0].job_request as Record<string, unknown>);
       const sitePackage = forwardedRequest.site_package as Record<string, unknown>;
@@ -496,7 +503,7 @@ describe("first-GPU WebApp route forwarding proof runner", () => {
     );
 
     try {
-      const { stdout } = await execFile(
+      const { stdout, stderr } = await execFile(
         path.join(process.cwd(), "node_modules/.bin/tsx"),
         [
           path.join(
@@ -516,18 +523,16 @@ describe("first-GPU WebApp route forwarding proof runner", () => {
         ],
         {
           cwd: process.cwd(),
-          env: {
-            ...process.env,
+          env: credentialFreeSubprocessEnv({
             ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN: "",
             ROBOT_EVAL_JOB_REQUEST_ROUTE_AUTH_TOKEN: "remote-route-proof-token",
-            GOOGLE_APPLICATION_CREDENTIALS: "",
-            FIREBASE_SERVICE_ACCOUNT_JSON: "",
-          },
+          }),
           maxBuffer: 1024 * 1024,
         },
       );
 
       expect(stdout).toContain("[webapp-route-forwarding-proof] status=forwarded_to_pipeline_intake");
+      expectNoAdcActivity(stdout, stderr);
       expect(received).toHaveLength(1);
       expect(received[0].authorization).toBe("Bearer remote-route-proof-token");
       const request = received[0].body as Record<string, unknown>;

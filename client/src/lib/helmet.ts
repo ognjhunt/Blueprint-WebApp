@@ -11,8 +11,12 @@ import * as ReactHelmetAsync from "react-helmet-async";
 
 type HelmetModule = typeof import("react-helmet-async");
 
-const lib = ((ReactHelmetAsync as unknown as { default?: HelmetModule }).default ??
-  ReactHelmetAsync) as unknown as HelmetModule;
+// Reflect.get keeps the CJS-default probe invisible to Rollup's static export
+// analysis; a literal `.default` member access makes every client build warn
+// `"default" is not exported by react-helmet-async/lib/index.esm.js`.
+const lib = ((Reflect.get(ReactHelmetAsync as object, "default") as
+  | HelmetModule
+  | undefined) ?? ReactHelmetAsync) as unknown as HelmetModule;
 
 export const Helmet = lib.Helmet;
 export const HelmetProvider = lib.HelmetProvider;

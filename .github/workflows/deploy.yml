@@ -1,0 +1,89 @@
+name: Deploy (Render, CI-gated)
+
+# Single deploy owner for blueprint-webapp: render.yaml keeps Render-native
+# auto-deploy OFF, and this workflow is the only path to production.
+#
+# Guarantees:
+#   * Only an exact commit whose CI workflow concluded `success` on main can
+#     deploy (workflow_run trigger + conclusion check + exact head SHA pin).
+#   * Missing deploy configuration fails CLOSED: no hook secret means the job
+#     errors loudly instead of silently skipping or falling back.
+#   * The deployed SHA is observable at GET /version.json (written by
+#     scripts/generate-build-info.mjs during the build).
+#   * Rollback is revert-commit based (scripts/deploy-rollback.mjs) and rides
+#     the same green-CI gate; history is never rewritten.
+#
+# One-time dashboard steps (documented in docs/runbooks/ci-gated-deploy-2026-07-16.md):
+#   1. Confirm Auto-Deploy is off for the service in the Render dashboard.
+#   2. Create a Deploy Hook (Service -> Settings -> Deploy Hook) and store its
+#      URL as the RENDER_DEPLOY_HOOK_URL Actions secret.
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Exact git SHA to deploy on Render (operator-initiated redeploy/rollforward)."
+        required: true
+        type: string
+
+concurrency:
+  group: render-deploy-main
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Trigger CI-gated Render deploy
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    steps:
+      - name: Resolve deploy ref
+        id: ref
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          DISPATCH_REF: ${{ github.event.inputs.ref }}
+          WORKFLOW_RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          if [ "${EVENT_NAME}" = "workflow_dispatch" ]; then
+            deploy_ref="${DISPATCH_REF}"
+          else
+            deploy_ref="${WORKFLOW_RUN_SHA}"
+          fi
+          if [ -z "${deploy_ref}" ]; then
+            echo "::error::Could not resolve a git SHA to deploy."
+            exit 1
+          fi
+          echo "deploy_ref=${deploy_ref}" >> "${GITHUB_OUTPUT}"
+          echo "Deploying exact ref ${deploy_ref}"
+
+      - name: Trigger Render Deploy Hook (fail-closed)
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+          DEPLOY_REF: ${{ steps.ref.outputs.deploy_ref }}
+        run: |
+          set -euo pipefail
+          if [ -z "${RENDER_DEPLOY_HOOK_URL:-}" ]; then
+            echo "::error::RENDER_DEPLOY_HOOK_URL secret is not set. Deploys fail closed: create a Render Deploy Hook (Service -> Settings -> Deploy Hook) and store its URL as the RENDER_DEPLOY_HOOK_URL Actions secret. See docs/runbooks/ci-gated-deploy-2026-07-16.md."
+            exit 1
+          fi
+          # Deploy hook URLs already carry ?key=..., so append the exact commit
+          # with '&'. ref= pins the deploy to the SHA that passed CI.
+          case "${RENDER_DEPLOY_HOOK_URL}" in
+            *\?*) sep='&' ;;
+            *) sep='?' ;;
+          esac
+          response_code=$(curl -s -o /tmp/render-deploy-response.txt -w "%{http_code}" \
+            -X POST "${RENDER_DEPLOY_HOOK_URL}${sep}ref=${DEPLOY_REF}")
+          echo "Render deploy hook responded ${response_code}"
+          cat /tmp/render-deploy-response.txt || true
+          if [ "${response_code}" -lt 200 ] || [ "${response_code}" -ge 300 ]; then
+            echo "::error::Render deploy hook returned HTTP ${response_code}."
+            exit 1
+          fi
+          echo "Requested deploy of ${DEPLOY_REF}. Verify via GET /version.json once live."

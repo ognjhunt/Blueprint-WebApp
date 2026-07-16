@@ -64,7 +64,31 @@ export function listActiveReadinessFindings(
   return out;
 }
 
+/**
+ * The isolated local launch smoke (scripts/launch-smoke-local.mjs) boots the
+ * production build with an allowlisted, credential-free environment. In that
+ * profile Firebase Admin is intentionally absent, so readiness treats the
+ * firestore-backed checks as satisfied-for-smoke instead of blocking.
+ *
+ * Fail-closed guard: the profile is only honored when BASE_URL points at a
+ * loopback host, so setting BLUEPRINT_LOCAL_LAUNCH_SMOKE on a deployed
+ * environment cannot weaken production readiness.
+ */
+export function isLocalLaunchSmokeProfile(env: NodeJS.ProcessEnv = process.env) {
+  if (!isTruthyEnvValue(env.BLUEPRINT_LOCAL_LAUNCH_SMOKE)) {
+    return false;
+  }
+  const baseUrl = env.BASE_URL?.trim() || "";
+  try {
+    const hostname = new URL(baseUrl).hostname;
+    return ["127.0.0.1", "localhost", "0.0.0.0", "::1"].includes(hostname);
+  } catch {
+    return false;
+  }
+}
+
 export function buildLaunchReadinessSnapshot() {
+  const localLaunchSmoke = isLocalLaunchSmokeProfile();
   const liveSessionStore = getHostedSessionLiveStoreStatus();
   const emailTransport = getEmailTransportStatus();
   const cityLaunchSender = getCityLaunchSenderStatus();
@@ -155,7 +179,7 @@ export function buildLaunchReadinessSnapshot() {
     && !betaCohortPolicy.killSwitchActive
     && betaCohortPolicy.inviteCap > 0
     && betaCohortPolicy.cohortDailyLimit > 0
-    && firebaseAdminReady;
+    && (firebaseAdminReady || localLaunchSmoke);
   const slaWatchdogReady =
     !automationFlags.slaWatchdog || (firebaseAdminReady && emailTransport.configured);
   const notionSyncDatabaseConfigured = Boolean(
@@ -192,7 +216,7 @@ export function buildLaunchReadinessSnapshot() {
 
   const checks = {
     server: true,
-    firebaseAdmin: firebaseAdminReady,
+    firebaseAdmin: firebaseAdminReady || localLaunchSmoke,
     fieldEncryption: fieldEncryptionReady,
     redis: redisReady,
     stripe: stripeReady,
@@ -205,11 +229,13 @@ export function buildLaunchReadinessSnapshot() {
 
   const launchChecks = {
     firebaseAdmin: {
-      required: true,
+      required: !localLaunchSmoke,
       ready: firebaseAdminReady,
       detail: firebaseAdminReady
         ? "Firebase Admin auth and firestore are configured."
-        : "Firebase Admin auth/firestore is unavailable.",
+        : localLaunchSmoke
+          ? "Local launch smoke profile: Firebase Admin is intentionally not configured. Production readiness still requires it."
+          : "Firebase Admin auth/firestore is unavailable.",
     },
     fieldEncryption: {
       required: true,
@@ -382,6 +408,7 @@ export function buildLaunchReadinessSnapshot() {
     checks,
     blockers,
     warnings,
+    profile: localLaunchSmoke ? ("local_smoke" as const) : ("standard" as const),
     dependencies: {
       liveSessionStore,
       emailTransport,

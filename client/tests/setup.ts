@@ -1,6 +1,19 @@
 import '@testing-library/jest-dom';
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, beforeEach, vi } from "vitest";
 import type { ReactNode } from "react";
+
+// Tests must never rewrite tracked operational evidence (ops/paperclip/**,
+// docs/city-launch-system-*.md). Redirect every canonical artifact write into
+// a per-worker temp directory; subprocess-spawning tests inherit this through
+// {...process.env}. See server/utils/canonicalArtifactRoot.ts.
+if (!process.env.BLUEPRINT_CANONICAL_ARTIFACT_ROOT?.trim()) {
+  process.env.BLUEPRINT_CANONICAL_ARTIFACT_ROOT = mkdtempSync(
+    join(tmpdir(), "blueprint-canonical-artifacts-"),
+  );
+}
 
 // react-helmet-async's <Helmet> requires a <HelmetProvider> ancestor; without one its
 // context default is `{}`, so HelmetDispatcher.init() crashes on `helmetInstances.add()`.
