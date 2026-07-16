@@ -8,6 +8,7 @@ import {
   type AgentClientEnv,
   type AgentCommerceInput,
   type AgentDryRunCheckoutInput,
+  type AgentLiveCheckoutInput,
   type BatchSessionInput,
   type CreateSessionInput,
   type ExplorerRenderInput,
@@ -31,12 +32,15 @@ type AgentCliCommand =
   | "setup-auth"
   | "plan"
   | "discover"
+  | "ask"
   | "catalog:list"
   | "catalog:search"
   | "site-world:search"
   | "request:location"
   | "commerce:quote"
   | "commerce:checkout"
+  | "commerce:checkout-live"
+  | "commerce:live-order:get"
   | "commerce:order:get"
   | "commerce:entitlement:get"
   | "commerce:entitlement-readiness"
@@ -277,9 +281,27 @@ export function parseAgentCliArgs(argv: string[]): ParsedAgentCliArgs {
     }
     if (secondaryOrId === "control") return { command: "session:control", sessionId: String(positionals[0] || options.sessionId || "").trim(), options, format };
   }
+  if (primary === "ask") {
+    return { command: "ask", options: { ...options, q: options.q ?? positionals.join(" ") }, format };
+  }
   if (primary === "commerce") {
     if (secondaryOrId === "quote") return { command: "commerce:quote", options, format };
-    if (secondaryOrId === "checkout" || secondaryOrId === "dry-run-checkout") return { command: "commerce:checkout", options: { ...options, mode: options.mode || "dry_run" }, format };
+    if (secondaryOrId === "checkout" || secondaryOrId === "dry-run-checkout") {
+      const mode = String(options.mode || "dry_run");
+      if (secondaryOrId === "checkout" && mode === "live") {
+        return { command: "commerce:checkout-live", options: { ...options, mode: "live" }, format };
+      }
+      if (mode !== "dry_run") {
+        throw new AgentCliUsageError(`Unsupported commerce checkout --mode ${mode}. Use dry_run or live.`);
+      }
+      return { command: "commerce:checkout", options: { ...options, mode: "dry_run" }, format };
+    }
+    if (secondaryOrId === "live-checkout" || secondaryOrId === "checkout-live") {
+      return { command: "commerce:checkout-live", options: { ...options, mode: "live" }, format };
+    }
+    if (secondaryOrId === "live-order" || secondaryOrId === "live-order:get") {
+      return { command: "commerce:live-order:get", options, sessionId: String(positionals[0] || options.orderId || "").trim(), format };
+    }
     if (secondaryOrId === "order" || secondaryOrId === "order:get") {
       return { command: "commerce:order:get", options, sessionId: String(positionals[0] || options.orderId || "").trim(), format };
     }
@@ -409,6 +431,17 @@ function checkoutInput(options: Record<string, unknown>): AgentDryRunCheckoutInp
   };
 }
 
+function liveCheckoutInput(options: Record<string, unknown>): AgentLiveCheckoutInput {
+  return {
+    ...commerceInput(options),
+    mode: "live",
+    budgetCents: typeof options.budgetCents === "number" ? options.budgetCents : undefined,
+    successPath: typeof options.successPath === "string" ? options.successPath : undefined,
+    cancelPath: typeof options.cancelPath === "string" ? options.cancelPath : undefined,
+    buyer: parseJsonOption(options.buyer, undefined) as AgentLiveCheckoutInput["buyer"],
+  };
+}
+
 function entitlementReadinessInput(options: Record<string, unknown>) {
   return {
     siteWorldId: requireString(options, "siteWorldId"),
@@ -446,13 +479,15 @@ function buildHelpPayload(topic: unknown) {
       { command: "setup-auth", description: "Check optional protected-flow bearer auth setup; --require-auth makes missing auth fail." },
       { command: "plan", description: "Plan the next safe robot-team action for a query: exact match, request candidate, dry-run commerce, entitlement readiness, or demo/protected session path." },
       { command: "discover", description: "Fetch public site-content and agent-access manifests." },
+      { command: "ask", description: "Ask a grounded question about Blueprint and get citation-backed answers with machine next-actions." },
       { command: "catalog list", description: "List public site-world catalog entries." },
       { command: "catalog search", description: "Search public site-worlds by query and filters." },
       { command: "site-world search", description: "First-class site-world search alias for robot-team agents." },
       { command: "request location", description: "Build a local intake-only new-site-scan draft and contact URL. Does not submit or write." },
       { command: "world get <siteWorldId>", description: "Fetch one public site-world detail payload." },
       { command: "commerce quote", description: "Return a dry-run quote. Does not call Stripe." },
-      { command: "commerce checkout", description: "Create dry-run order, receipt, and entitlement proof. Does not create a live payment." },
+      { command: "commerce checkout", description: "Create dry-run order, receipt, and entitlement proof by default. Add --mode live --budget-cents <n> to create a REAL Stripe Checkout Session for pipeline-backed site worlds." },
+      { command: "commerce live-order <orderId>", description: "Poll a live order's payment and entitlement-provisioning status." },
       { command: "commerce order <orderId>", description: "Read a dry-run commerce order." },
       { command: "commerce entitlement <entitlementId>", description: "Read a dry-run entitlement." },
       { command: "commerce entitlement-readiness", description: "Check dry-run entitlement linkage for hosted-session launch." },
@@ -473,12 +508,16 @@ function buildHelpPayload(topic: unknown) {
       "npm run agent:cli -- plan --q \"Whole Foods near Durham\" --want hosted-review",
       "npm run agent:cli -- discover --format ndjson",
       "npm run agent:cli -- site-world search --q \"Whole Foods near Durham\" --limit 5",
+      "npm run agent:cli -- ask --q \"How do I buy a hosted session with a budget?\"",
       "npm run agent:cli -- request location --location \"Whole Foods near Durham\" --site-class grocery --workflow \"shelf restocking\"",
       "npm run agent:cli -- commerce checkout --site-world-id siteworld-f5fd54898cfb --product hosted-session-rental --mode dry_run",
+      "npm run agent:cli -- commerce checkout --site-world-id <pipeline-site-world-id> --product hosted-session-rental --mode live --budget-cents 20000",
+      "npm run agent:cli -- commerce live-order <live-order-id>",
     ],
     exitCodes: AGENT_CLI_EXIT_CODES,
     truthBoundaries: [
-      "Public discovery, public search, and dry-run commerce never grant package access, live payment, rights clearance, provider execution, or hosted-session fulfillment proof.",
+      "Public discovery, public search, ask, and dry-run commerce never grant package access, live payment, rights clearance, provider execution, or hosted-session fulfillment proof.",
+      "commerce checkout --mode live creates a real Stripe Checkout Session for pipeline-backed site worlds; payment completes at the returned URL and webhook fulfillment provisions the entitlement.",
       "Credential-free hosted-session creation is limited to public-demo eligible site worlds and remains sample/demo only.",
       "Protected flows require existing Firebase robot_team/admin bearer auth plus session ownership or a matching provisioned entitlement.",
     ],
@@ -553,7 +592,7 @@ function buildDoctorPayload(parsed: ParsedAgentCliArgs, env: AgentClientEnv | un
         id: "safe_commerce_default",
         ok: true,
         level: "pass",
-        message: "Agent commerce checkout is pinned to dry_run and does not call live Stripe.",
+        message: "Agent commerce checkout defaults to dry_run and does not call live Stripe unless --mode live is passed explicitly.",
         value: "dry_run",
       },
       {
@@ -615,10 +654,19 @@ async function execute(parsed: ParsedAgentCliArgs, client: BlueprintAgentApiClie
       return client.searchSiteWorlds(siteWorldSearchInput(parsed.options));
     case "request:location":
       return buildAgentRequestLocationDraft(parsed.options as AgentRequestLocationDraftInput);
+    case "ask":
+      return client.ask({
+        q: requireString(parsed.options, "q"),
+        limit: typeof parsed.options.limit === "number" ? parsed.options.limit : undefined,
+      });
     case "commerce:quote":
       return client.quoteCommerce(commerceInput(parsed.options));
     case "commerce:checkout":
       return client.createDryRunCheckout(checkoutInput(parsed.options));
+    case "commerce:checkout-live":
+      return client.createLiveCheckout(liveCheckoutInput(parsed.options));
+    case "commerce:live-order:get":
+      return client.getLiveOrder(parsed.sessionId || requireString(parsed.options, "orderId"));
     case "commerce:order:get":
       return client.getCommerceOrder(parsed.sessionId || requireString(parsed.options, "orderId"));
     case "commerce:entitlement:get":

@@ -18,11 +18,14 @@ describe("Blueprint MCP server", () => {
     expect(toolNames).toEqual([
       "blueprint.siteWorld.search",
       "blueprint.catalog.search",
+      "blueprint.ask",
       "blueprint.request.locationDraft",
       "blueprint.siteWorld.get",
       "blueprint.siteWorld.launchReadiness",
       "blueprint.commerce.quote",
       "blueprint.commerce.checkoutDryRun",
+      "blueprint.commerce.checkoutLive",
+      "blueprint.commerce.liveOrder.get",
       "blueprint.commerce.order.get",
       "blueprint.commerce.entitlement.get",
       "blueprint.commerce.entitlementReadiness",
@@ -34,6 +37,9 @@ describe("Blueprint MCP server", () => {
       "blueprint.session.renderExplorer",
       "blueprint.session.export",
     ]);
+    expect(BLUEPRINT_MCP_TOOLS.find((tool) => tool.name === "blueprint.ask")?.inputSchema.required).toEqual(["q"]);
+    expect(BLUEPRINT_MCP_TOOLS.find((tool) => tool.name === "blueprint.commerce.checkoutLive")?.inputSchema.properties).toHaveProperty("budgetCents");
+    expect(BLUEPRINT_MCP_TOOLS.find((tool) => tool.name === "blueprint.commerce.checkoutLive")?.description).toContain("REAL Stripe Checkout Session");
     expect(BLUEPRINT_MCP_TOOLS.find((tool) => tool.name === "blueprint.session.create")?.inputSchema.required).toEqual([
       "siteWorldId",
       "robotProfileId",

@@ -147,4 +147,218 @@ describe("robot agent dry-run commerce", () => {
       await stopServer(server);
     }
   });
+
+  it("advertises ask and live commerce in the discovery manifest", async () => {
+    const { server, baseUrl } = await startServer();
+    try {
+      const response = await fetch(`${baseUrl}/api/agent-access`);
+      expect(response.status).toBe(200);
+      await expect(response.json()).resolves.toMatchObject({
+        ask: {
+          endpoint: "/api/agent-access/ask",
+          mcpTool: "blueprint.ask",
+        },
+        liveCommerce: {
+          mode: "live",
+          liveStripeTouched: true,
+          serverPricedSku: true,
+          endpoints: {
+            liveCheckout: "/api/agent-access/commerce/live-checkout",
+            liveOrder: "/api/agent-access/commerce/live-orders/{orderId}",
+          },
+          tools: expect.arrayContaining(["blueprint.commerce.checkoutLive", "blueprint.commerce.liveOrder.get"]),
+        },
+        truthLabels: expect.arrayContaining(["live_checkout"]),
+      });
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("blocks live checkout with structured blockers instead of charging for non-purchasable supply", async () => {
+    const { server, baseUrl } = await startServer();
+    try {
+      const response = await fetch(`${baseUrl}/api/agent-access/commerce/live-checkout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "live",
+          siteWorldId: "sw-chi-01",
+          product: "hosted_session_rental",
+          sessionHours: 2,
+          budgetCents: 100,
+        }),
+      });
+      expect(response.status).toBe(409);
+      const payload = (await response.json()) as Record<string, unknown>;
+      expect(payload).toMatchObject({
+        code: "live_checkout_blocked",
+        mode: "live",
+        withinBudget: false,
+      });
+      const blockerCodes = (payload.blockers as Array<{ code: string }>).map((blocker) => blocker.code);
+      expect(blockerCodes).toContain("budget_exceeded");
+      expect(blockerCodes.some((code) => code === "not_live_purchasable" || code === "site_world_not_found")).toBe(true);
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("returns 404 for unknown live orders without leaking buyer data", async () => {
+    const { server, baseUrl } = await startServer();
+    try {
+      const response = await fetch(`${baseUrl}/api/agent-access/commerce/live-orders/not-a-real-order`);
+      expect(response.status).toBe(404);
+      await expect(response.json()).resolves.toMatchObject({ error: "Live agent order not found" });
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("answers grounded agent questions with citations and machine next-actions", async () => {
+    const { server, baseUrl } = await startServer();
+    try {
+      const response = await fetch(
+        `${baseUrl}/api/agent-access/ask?q=${encodeURIComponent("How can an agent with a budget buy a hosted session?")}`,
+      );
+      expect(response.status).toBe(200);
+      const payload = (await response.json()) as Record<string, unknown>;
+      expect(payload).toMatchObject({
+        bestAnswer: { id: "how-to-buy-live" },
+        noConfidentMatch: false,
+      });
+      const bestAnswer = payload.bestAnswer as { citations: string[]; actions: Array<{ endpoint: string }> };
+      expect(bestAnswer.citations.length).toBeGreaterThan(0);
+      expect(bestAnswer.actions.map((action) => action.endpoint).join(" ")).toContain("live-checkout");
+
+      const missing = await fetch(`${baseUrl}/api/agent-access/ask`);
+      expect(missing.status).toBe(400);
+    } finally {
+      await stopServer(server);
+    }
+  });
+});
+
+describe("agent live checkout eligibility", () => {
+  it("gates live checkout to pipeline-backed site worlds and enforces the budget guard", async () => {
+    const commerce = await import("../utils/robot-agent-commerce");
+    const buyer = { email: "agent-buyer@example.com" };
+    const pipelineSiteWorld = {
+      id: "sw-live-1",
+      siteName: "Pipeline Site",
+      dataSource: "pipeline",
+      packages: [
+        { name: "Hosted Session Rental", summary: "Hourly hosted review", priceLabel: "$18 / hour" },
+      ],
+    } as unknown as Parameters<typeof commerce.evaluateAgentLiveCheckoutEligibility>[1];
+
+    const eligible = commerce.evaluateAgentLiveCheckoutEligibility(
+      { siteWorldId: "sw-live-1", mode: "live", product: "hosted_session_rental", sessionHours: 2, budgetCents: 10000, buyer },
+      pipelineSiteWorld,
+      { stripeConfigured: true },
+    );
+    expect(eligible.eligible).toBe(true);
+    expect(eligible.quote.mode).toBe("live");
+    expect(eligible.quote.priceSource).toBe("catalog");
+    expect(eligible.quote.totalAmountCents).toBe(3600);
+    expect(eligible.withinBudget).toBe(true);
+    expect(eligible.quote.truthLabels).toContain("live_checkout");
+
+    const overBudget = commerce.evaluateAgentLiveCheckoutEligibility(
+      { siteWorldId: "sw-live-1", mode: "live", product: "hosted_session_rental", sessionHours: 2, budgetCents: 100, buyer },
+      pipelineSiteWorld,
+      { stripeConfigured: true },
+    );
+    expect(overBudget.eligible).toBe(false);
+    expect(overBudget.blockers.map((blocker) => blocker.code)).toEqual(["budget_exceeded"]);
+
+    const staticSiteWorld = { ...pipelineSiteWorld, dataSource: "static" } as typeof pipelineSiteWorld;
+    const notPurchasable = commerce.evaluateAgentLiveCheckoutEligibility(
+      { siteWorldId: "sw-live-1", mode: "live", product: "hosted_session_rental", buyer },
+      staticSiteWorld,
+      { stripeConfigured: true },
+    );
+    expect(notPurchasable.eligible).toBe(false);
+    expect(notPurchasable.blockers.map((blocker) => blocker.code)).toEqual(["not_live_purchasable"]);
+
+    const noStripe = commerce.evaluateAgentLiveCheckoutEligibility(
+      { siteWorldId: "sw-live-1", mode: "live", buyer },
+      pipelineSiteWorld,
+      { stripeConfigured: false },
+    );
+    expect(noStripe.eligible).toBe(false);
+    expect(noStripe.blockers.map((blocker) => blocker.code)).toEqual(["stripe_unavailable"]);
+
+    expect(() =>
+      commerce.evaluateAgentLiveCheckoutEligibility(
+        { siteWorldId: "sw-live-1", mode: "dry_run", buyer },
+        pipelineSiteWorld,
+        { stripeConfigured: true },
+      ),
+    ).toThrow(/mode=live/);
+  });
+
+  it("never charges the planning-default price and requires a buyer identity", async () => {
+    const commerce = await import("../utils/robot-agent-commerce");
+    // Pipeline fallback packages: "Site Package" is quoted-per-site and the
+    // evaluation set is a different product, so hosted rental has no catalog price.
+    const unpricedPipelineSiteWorld = {
+      id: "sw-live-2",
+      siteName: "Pipeline Fallback Site",
+      dataSource: "pipeline",
+      packages: [
+        { name: "Site Package", summary: "Qualified package", priceLabel: "Quoted per site" },
+        { name: "Policy Evaluation Set", summary: "Evaluation setup", priceLabel: "$6,500 / site evaluation" },
+      ],
+    } as unknown as Parameters<typeof commerce.evaluateAgentLiveCheckoutEligibility>[1];
+
+    const unpriced = commerce.evaluateAgentLiveCheckoutEligibility(
+      { siteWorldId: "sw-live-2", mode: "live", product: "hosted_session_rental", sessionHours: 2, buyer: { email: "a@b.com" } },
+      unpricedPipelineSiteWorld,
+      { stripeConfigured: true },
+    );
+    expect(unpriced.quote.priceSource).toBe("default");
+    expect(unpriced.eligible).toBe(false);
+    expect(unpriced.blockers.map((blocker) => blocker.code)).toEqual(["price_unavailable"]);
+
+    const pricedSiteWorld = {
+      ...unpricedPipelineSiteWorld,
+      packages: [{ name: "Hosted Session Rental", summary: "Hourly", priceLabel: "$18 / hour" }],
+    } as typeof unpricedPipelineSiteWorld;
+    const anonymous = commerce.evaluateAgentLiveCheckoutEligibility(
+      { siteWorldId: "sw-live-2", mode: "live", product: "hosted_session_rental" },
+      pricedSiteWorld,
+      { stripeConfigured: true },
+    );
+    expect(anonymous.eligible).toBe(false);
+    expect(anonymous.blockers.map((blocker) => blocker.code)).toEqual(["buyer_identity_required"]);
+
+    const authenticated = commerce.evaluateAgentLiveCheckoutEligibility(
+      { siteWorldId: "sw-live-2", mode: "live", product: "hosted_session_rental" },
+      pricedSiteWorld,
+      { stripeConfigured: true, authenticatedBuyerUid: "robot-team-uid" },
+    );
+    expect(authenticated.eligible).toBe(true);
+  });
+
+  it("keeps Stripe redirect URLs on the site origin", async () => {
+    const commerce = await import("../utils/robot-agent-commerce");
+    const base = "https://tryblueprint.io";
+    const fallback = "/agents?live_checkout=success";
+    const resolve = (value: unknown) => commerce.sanitizeLiveCheckoutRedirect(value, fallback, base);
+
+    expect(resolve("/agents?done=1")).toBe("https://tryblueprint.io/agents?done=1");
+    expect(resolve("//evil.example/path")).toBe(`${base}${fallback}`);
+    expect(resolve("/\\evil.example/path")).toBe(`${base}${fallback}`);
+    expect(resolve("https://evil.example/path")).toBe(`${base}${fallback}`);
+    expect(resolve("")).toBe(`${base}${fallback}`);
+    expect(resolve(null)).toBe(`${base}${fallback}`);
+  });
+
+  it("recognizes agent commerce SKUs for live order lookups", async () => {
+    const commerce = await import("../utils/robot-agent-commerce");
+    expect(commerce.isAgentCommerceSku("hosted-session-sw-chi-01")).toBe(true);
+    expect(commerce.isAgentCommerceSku("site-world-package-sw-chi-01")).toBe(true);
+    expect(commerce.isAgentCommerceSku("chicago-scene-bundle-commercial")).toBe(false);
+  });
 });

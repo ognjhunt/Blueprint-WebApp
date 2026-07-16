@@ -9,6 +9,7 @@ import {
 
 export type AgentCommerceProduct = "site_world_package" | "hosted_session_rental";
 export type AgentCommerceMode = "dry_run";
+export type AgentLiveCommerceMode = "live";
 
 export type AgentCommerceBuyer = {
   uid?: string | null;
@@ -26,9 +27,40 @@ export type AgentDryRunCheckoutInput = AgentCommerceQuoteInput & {
   buyer?: AgentCommerceBuyer | null;
 };
 
+export type AgentLiveCheckoutInput = AgentCommerceQuoteInput & {
+  mode?: string | null;
+  buyer?: AgentCommerceBuyer | null;
+  budgetCents?: number | string | null;
+  successPath?: string | null;
+  cancelPath?: string | null;
+};
+
+export type AgentLiveCheckoutBlocker = {
+  code:
+    | "site_world_not_found"
+    | "not_live_purchasable"
+    | "price_unavailable"
+    | "buyer_identity_required"
+    | "budget_exceeded"
+    | "stripe_unavailable";
+  severity: "blocking";
+  ownerSystem: "catalog" | "stripe" | "agent_budget" | "buyer_identity";
+  message: string;
+  retryAction: string;
+};
+
+export type AgentLiveCheckoutEligibility = {
+  eligible: boolean;
+  mode: AgentLiveCommerceMode;
+  quote: AgentCommerceQuote;
+  budgetCents: number | null;
+  withinBudget: boolean | null;
+  blockers: AgentLiveCheckoutBlocker[];
+};
+
 export type AgentCommerceQuote = {
   quoteId: string;
-  mode: AgentCommerceMode;
+  mode: AgentCommerceMode | AgentLiveCommerceMode;
   product: AgentCommerceProduct;
   siteWorldId: string;
   sku: string;
@@ -39,6 +71,7 @@ export type AgentCommerceQuote = {
   unitAmountCents: number;
   totalAmountCents: number;
   currency: "usd";
+  priceSource: "catalog" | "default";
   entitlementType: "package_access" | "hosted_session";
   truthLabels: string[];
 };
@@ -194,7 +227,11 @@ function quoteDefaults(product: AgentCommerceProduct) {
       };
 }
 
-export function buildAgentCommerceQuote(input: AgentCommerceQuoteInput, siteWorld?: SiteWorldCard | null): AgentCommerceQuote {
+export function buildAgentCommerceQuote(
+  input: AgentCommerceQuoteInput,
+  siteWorld?: SiteWorldCard | null,
+  mode: AgentCommerceMode | AgentLiveCommerceMode = "dry_run",
+): AgentCommerceQuote {
   const siteWorldId = normalizeId(input.siteWorldId);
   if (!siteWorldId) {
     throw new Error("siteWorldId is required");
@@ -220,8 +257,8 @@ export function buildAgentCommerceQuote(input: AgentCommerceQuoteInput, siteWorl
   const sku = buildAgentCommerceSku(siteWorldId, product);
 
   return {
-    quoteId: `dry-quote-${crypto.createHash("sha1").update(`${sku}:${quantity}`).digest("hex").slice(0, 12)}`,
-    mode: "dry_run",
+    quoteId: `${mode === "live" ? "live" : "dry"}-quote-${crypto.createHash("sha1").update(`${sku}:${quantity}`).digest("hex").slice(0, 12)}`,
+    mode,
     product,
     siteWorldId,
     sku,
@@ -235,8 +272,208 @@ export function buildAgentCommerceQuote(input: AgentCommerceQuoteInput, siteWorl
     unitAmountCents,
     totalAmountCents: unitAmountCents * quantity,
     currency: "usd",
+    priceSource: parsedAmount !== null ? "catalog" : "default",
     entitlementType: product === "hosted_session_rental" ? "hosted_session" : "package_access",
-    truthLabels: ["dry_run_order", "request_gated", "protected_robot_team"],
+    truthLabels:
+      mode === "live"
+        ? ["live_checkout", "request_gated", "protected_robot_team"]
+        : ["dry_run_order", "request_gated", "protected_robot_team"],
+  };
+}
+
+export function isLivePurchasableSiteWorld(siteWorld?: SiteWorldCard | null) {
+  return Boolean(siteWorld && siteWorld.dataSource === "pipeline");
+}
+
+function normalizeBudgetCents(value: unknown): number | null {
+  if (value === undefined || value === null || value === "") {
+    return null;
+  }
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    throw new Error("budgetCents must be a non-negative number of USD cents");
+  }
+  return Math.floor(parsed);
+}
+
+export function evaluateAgentLiveCheckoutEligibility(
+  input: AgentLiveCheckoutInput,
+  siteWorld: SiteWorldCard | null | undefined,
+  options: { stripeConfigured: boolean; authenticatedBuyerUid?: string | null },
+): AgentLiveCheckoutEligibility {
+  const siteWorldId = normalizeId(input.siteWorldId);
+  if (!siteWorldId) {
+    throw new Error("siteWorldId is required");
+  }
+  if (normalizeId(input.mode || "live") !== "live") {
+    throw new Error("Only mode=live is supported by the agent live-checkout route.");
+  }
+  const quote = buildAgentCommerceQuote(input, siteWorld, "live");
+  const budgetCents = normalizeBudgetCents(input.budgetCents);
+  const withinBudget = budgetCents === null ? null : quote.totalAmountCents <= budgetCents;
+  const blockers: AgentLiveCheckoutBlocker[] = [];
+
+  if (!siteWorld) {
+    blockers.push({
+      code: "site_world_not_found",
+      severity: "blocking",
+      ownerSystem: "catalog",
+      message: `No public site world matches id ${siteWorldId}.`,
+      retryAction: "Search /api/site-worlds/search and retry with a listed siteWorldId.",
+    });
+  } else if (!isLivePurchasableSiteWorld(siteWorld)) {
+    blockers.push({
+      code: "not_live_purchasable",
+      severity: "blocking",
+      ownerSystem: "catalog",
+      message:
+        "This site world is a sample or planned catalog profile, not a pipeline-backed package, so live checkout is not offered for it.",
+      retryAction:
+        "Use dry-run checkout to prove the flow, or submit the requestCandidate intake draft from search to request this site.",
+    });
+  } else if (quote.priceSource !== "catalog") {
+    // Never let a live charge fall back to the hard-coded planning defaults:
+    // if the public catalog has no parseable price for this product on this
+    // site world, the truthful price is "quoted per request", not $18/hour.
+    blockers.push({
+      code: "price_unavailable",
+      severity: "blocking",
+      ownerSystem: "catalog",
+      message:
+        `The public catalog does not list a parseable ${quote.product} price for this site world, so live checkout cannot charge a grounded amount.`,
+      retryAction:
+        "Use the requestCandidate intake draft (or /contact/robot-team) to get a quoted price, or use dry-run checkout for integration testing.",
+    });
+  }
+
+  const hasBuyerIdentity = Boolean(
+    normalizeId(options.authenticatedBuyerUid) ||
+      normalizeId(input.buyer?.uid) ||
+      normalizeId(input.buyer?.email),
+  );
+  if (!hasBuyerIdentity) {
+    // Without a uid or email the webhook-provisioned entitlement would bind to
+    // nothing, leaving a paid order no account could ever use for launch.
+    blockers.push({
+      code: "buyer_identity_required",
+      severity: "blocking",
+      ownerSystem: "buyer_identity",
+      message:
+        "Live checkout needs a buyer identity to bind the paid entitlement: send a Firebase bearer token or buyer.uid, or buyer.email matching the account that will use the entitlement.",
+      retryAction:
+        "Retry with an Authorization bearer token, buyer.uid, or buyer.email in the request body.",
+    });
+  }
+
+  if (!options.stripeConfigured) {
+    blockers.push({
+      code: "stripe_unavailable",
+      severity: "blocking",
+      ownerSystem: "stripe",
+      message: "Live Stripe checkout is not configured on this server.",
+      retryAction: "Retry later or use dry-run checkout to validate the commerce shape.",
+    });
+  }
+
+  if (withinBudget === false) {
+    blockers.push({
+      code: "budget_exceeded",
+      severity: "blocking",
+      ownerSystem: "agent_budget",
+      message: `Quoted total ${quote.totalAmountCents} cents exceeds the declared agent budget of ${budgetCents} cents.`,
+      retryAction:
+        "Lower sessionHours, choose a smaller product, or retry with a higher budgetCents declaration.",
+    });
+  }
+
+  return {
+    eligible: blockers.length === 0,
+    mode: "live",
+    quote,
+    budgetCents,
+    withinBudget,
+    blockers,
+  };
+}
+
+// Stripe success/cancel redirects must never leave the site origin: a
+// protocol-relative "//evil.example/x" (or "/\\evil.example/x", which the
+// WHATWG URL parser also treats as host-setting) passes a naive
+// startsWith("/") check, so the resolved origin is verified explicitly.
+export function sanitizeLiveCheckoutRedirect(pathValue: unknown, fallbackPath: string, baseOrigin: string) {
+  const base = new URL(baseOrigin);
+  const fallbackUrl = new URL(fallbackPath, base).toString();
+  const raw = String(pathValue || "").trim();
+  if (!raw.startsWith("/") || raw.startsWith("//") || raw.startsWith("/\\")) {
+    return fallbackUrl;
+  }
+  try {
+    const resolved = new URL(raw, base);
+    return resolved.origin === base.origin ? resolved.toString() : fallbackUrl;
+  } catch {
+    return fallbackUrl;
+  }
+}
+
+const AGENT_COMMERCE_SKU_PREFIXES = ["site-world-package-", "hosted-session-"];
+
+export function isAgentCommerceSku(sku: unknown) {
+  const normalized = normalizeSku(sku);
+  return AGENT_COMMERCE_SKU_PREFIXES.some((prefix) => normalized.startsWith(prefix));
+}
+
+// Live order polling deliberately projects a non-PII status view: order ids are
+// unguessable UUIDs, but the raw buyerOrders record still carries buyer email/uid,
+// so those fields never leave this projection.
+export function buildAgentLiveOrderStatusProjection(order: {
+  id: string;
+  status: string;
+  payment_status: string;
+  fulfillment_status: string;
+  currency: string;
+  entitlement_id: string | null;
+  created_at: string;
+  paid_at: string | null;
+  fulfilled_at: string | null;
+  item: { sku: string; title: string; item_type: string; quantity: number };
+  pricing: { unit_amount_cents: number; total_amount_cents: number };
+  stripe: { checkout_session_url: string | null; livemode: boolean };
+}) {
+  return {
+    mode: "live" as const,
+    order: {
+      id: order.id,
+      status: order.status,
+      payment_status: order.payment_status,
+      fulfillment_status: order.fulfillment_status,
+      currency: order.currency,
+      entitlement_id: order.entitlement_id,
+      created_at: order.created_at,
+      paid_at: order.paid_at,
+      fulfilled_at: order.fulfilled_at,
+      item: {
+        sku: order.item.sku,
+        title: order.item.title,
+        item_type: order.item.item_type,
+        quantity: order.item.quantity,
+      },
+      pricing: order.pricing,
+    },
+    checkoutUrl: order.stripe.checkout_session_url,
+    livemode: order.stripe.livemode,
+    paid: order.payment_status === "paid",
+    provisioned: order.fulfillment_status === "provisioned" && Boolean(order.entitlement_id),
+    nextSteps:
+      order.fulfillment_status === "provisioned" && order.entitlement_id
+        ? [
+            `GET /api/agent-access/commerce/entitlement-readiness?siteWorldId=<siteWorldId>&entitlementId=${order.entitlement_id} with the buyer's Firebase bearer token`,
+            "POST /api/site-worlds/sessions with entitlementId and orderId to launch the protected hosted session",
+          ]
+        : [
+            "Complete payment at checkoutUrl, then poll this order until payment_status=paid and fulfillment_status=provisioned",
+          ],
+    truth:
+      "Live order status reflects the buyer-order ledger and Stripe webhook fulfillment. It does not by itself prove rights clearance, provider execution, or hosted-session runtime success.",
   };
 }
 
@@ -388,6 +625,11 @@ function entitlementProofFromFirestore(id: string, data: Record<string, unknown>
 
 export async function findProvisionedHostedSessionEntitlement(params: {
   buyerUserId: string;
+  // Verified-email fallback for entitlements bought anonymously (order created
+  // with buyer_user_id null but a buyer email). Pass ONLY an email taken from a
+  // verified Firebase token, never a client-supplied value, or any caller could
+  // claim another buyer's entitlement by asserting their email.
+  buyerEmail?: string | null;
   siteWorldIds: Array<string | null | undefined>;
   entitlementId?: string | null;
 }): Promise<AgentEntitlementProof | null> {
@@ -395,14 +637,28 @@ export async function findProvisionedHostedSessionEntitlement(params: {
   if (!buyerUserId) {
     return null;
   }
+  const verifiedBuyerEmail = normalizeId(params.buyerEmail).toLowerCase();
   const requestedEntitlementId = normalizeId(params.entitlementId);
   const skuCandidates = new Set(buildHostedSessionEntitlementSkuCandidates(params.siteWorldIds));
+
+  const matchesBuyer = (entitlementBuyerUserId: unknown, entitlementBuyerEmail: unknown) => {
+    if (normalizeId(entitlementBuyerUserId) === buyerUserId) {
+      return true;
+    }
+    // Email binding applies only to buyer-less entitlements so one verified
+    // account can never read an entitlement already bound to another uid.
+    return Boolean(
+      verifiedBuyerEmail &&
+        !normalizeId(entitlementBuyerUserId) &&
+        normalizeId(entitlementBuyerEmail).toLowerCase() === verifiedBuyerEmail,
+    );
+  };
 
   for (const entitlement of dryRunEntitlements.values()) {
     if (requestedEntitlementId && entitlement.id !== requestedEntitlementId) {
       continue;
     }
-    if (normalizeId(entitlement.buyer_user_id) !== buyerUserId) {
+    if (!matchesBuyer(entitlement.buyer_user_id, entitlement.buyer_email)) {
       continue;
     }
     if (effectiveEntitlementAccessState(entitlement) !== "provisioned") {
@@ -418,24 +674,39 @@ export async function findProvisionedHostedSessionEntitlement(params: {
     return null;
   }
 
-  const snapshot = await db
-    .collection("marketplaceEntitlements")
-    .where("buyer_user_id", "==", buyerUserId)
-    .get();
+  const snapshots = [
+    await db
+      .collection("marketplaceEntitlements")
+      .where("buyer_user_id", "==", buyerUserId)
+      .get(),
+  ];
+  if (verifiedBuyerEmail) {
+    snapshots.push(
+      await db
+        .collection("marketplaceEntitlements")
+        .where("buyer_email", "==", verifiedBuyerEmail)
+        .get(),
+    );
+  }
 
-  for (const doc of snapshot.docs) {
-    const data = (doc.data() || {}) as Record<string, unknown>;
-    const entitlementId = normalizeId(data.id) || doc.id;
-    if (requestedEntitlementId && entitlementId !== requestedEntitlementId) {
-      continue;
+  for (const snapshot of snapshots) {
+    for (const doc of snapshot.docs) {
+      const data = (doc.data() || {}) as Record<string, unknown>;
+      const entitlementId = normalizeId(data.id) || doc.id;
+      if (requestedEntitlementId && entitlementId !== requestedEntitlementId) {
+        continue;
+      }
+      if (!matchesBuyer(data.buyer_user_id, data.buyer_email)) {
+        continue;
+      }
+      if (effectiveEntitlementAccessState(data) !== "provisioned") {
+        continue;
+      }
+      if (!skuCandidates.has(normalizeSku(data.sku))) {
+        continue;
+      }
+      return entitlementProofFromFirestore(entitlementId, { ...data, id: entitlementId });
     }
-    if (effectiveEntitlementAccessState(data) !== "provisioned") {
-      continue;
-    }
-    if (!skuCandidates.has(normalizeSku(data.sku))) {
-      continue;
-    }
-    return entitlementProofFromFirestore(entitlementId, { ...data, id: entitlementId });
   }
 
   return null;

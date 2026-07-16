@@ -6,6 +6,7 @@ import {
   BlueprintAgentApiClient,
   BlueprintAgentApiError,
   type AgentClientEnv,
+  type AgentLiveCheckoutInput,
   type CreateSessionInput,
   type FetchLike,
   type SearchSiteWorldsInput,
@@ -102,6 +103,19 @@ export const BLUEPRINT_MCP_TOOLS: BlueprintMcpTool[] = [
     inputSchema: siteWorldSearchInputSchema,
   },
   {
+    name: "blueprint.ask",
+    description: "Ask a grounded question about Blueprint (product, search, buying with a budget, dry-run vs live commerce, entitlement-to-session flow, pricing ranges, proof boundaries, intake). Returns curated citation-backed answer snippets with machine next-actions. It never generates unsupported claims or grants access, payment, rights, or fulfillment state.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        q: stringProp("Natural-language question about Blueprint."),
+        limit: integerProp("Maximum ranked answers to return. Defaults to 3."),
+      },
+      required: ["q"],
+      additionalProperties: false,
+    },
+  },
+  {
     name: "blueprint.request.locationDraft",
     description: "Build an intake-only request-location draft for a new site scan. Returns a contact URL, inbound request draft, missing required fields, truth boundaries, and submit instructions without scraping /contact, writing data, granting access, taking payment, clearing rights, running providers, or fulfilling hosted sessions.",
     inputSchema: requestLocationDraftInputSchema,
@@ -156,6 +170,36 @@ export const BLUEPRINT_MCP_TOOLS: BlueprintMcpTool[] = [
         buyer: objectProp("Optional dry-run buyer identity with uid/email."),
       },
       required: ["siteWorldId"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "blueprint.commerce.checkoutLive",
+    description: "Create a REAL Stripe Checkout Session for an agent purchase with an optional server-enforced budget guard. Only pipeline-backed site worlds are live-purchasable; blocked requests return structured blockers and create no order or charge. Payment completes at the returned checkout URL and webhook fulfillment provisions the entitlement.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        siteWorldId: stringProp("Site-world id."),
+        product: { type: "string", enum: ["site_world_package", "hosted_session_rental"], default: "hosted_session_rental" },
+        sessionHours: integerProp("Hosted-session hours for rental checkout."),
+        budgetCents: integerProp("Optional agent budget in USD cents. Quotes above this are rejected with a budget_exceeded blocker."),
+        successPath: stringProp("Optional site-relative success redirect path."),
+        cancelPath: stringProp("Optional site-relative cancel redirect path."),
+        buyer: objectProp("Optional buyer identity with uid/email for anonymous agents; a Firebase bearer token takes precedence."),
+      },
+      required: ["siteWorldId"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "blueprint.commerce.liveOrder.get",
+    description: "Poll a live agent order's non-PII payment and entitlement-provisioning status by order id.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        orderId: stringProp("Live order id returned by blueprint.commerce.checkoutLive."),
+      },
+      required: ["orderId"],
       additionalProperties: false,
     },
   },
@@ -383,6 +427,12 @@ export async function callBlueprintMcpTool(name: string, args: Record<string, un
         ? await client.searchSiteWorlds(searchArgs(args))
         : await client.listCatalog(Number(args.limit || 24));
       break;
+    case "blueprint.ask":
+      payload = await client.ask({
+        q: requireArg(args, "q"),
+        limit: typeof args.limit === "number" ? args.limit : undefined,
+      });
+      break;
     case "blueprint.request.locationDraft":
       payload = buildAgentRequestLocationDraft(args as AgentRequestLocationDraftInput);
       break;
@@ -409,6 +459,23 @@ export async function callBlueprintMcpTool(name: string, args: Record<string, un
           ? args.buyer as Parameters<typeof client.createDryRunCheckout>[0]["buyer"]
           : undefined,
       });
+      break;
+    case "blueprint.commerce.checkoutLive":
+      payload = await client.createLiveCheckout({
+        siteWorldId: requireArg(args, "siteWorldId"),
+        product: typeof args.product === "string" ? args.product : "hosted_session_rental",
+        sessionHours: typeof args.sessionHours === "number" ? args.sessionHours : undefined,
+        budgetCents: typeof args.budgetCents === "number" ? args.budgetCents : undefined,
+        successPath: typeof args.successPath === "string" ? args.successPath : undefined,
+        cancelPath: typeof args.cancelPath === "string" ? args.cancelPath : undefined,
+        mode: "live",
+        buyer: args.buyer && typeof args.buyer === "object"
+          ? args.buyer as AgentLiveCheckoutInput["buyer"]
+          : undefined,
+      });
+      break;
+    case "blueprint.commerce.liveOrder.get":
+      payload = await client.getLiveOrder(requireArg(args, "orderId"));
       break;
     case "blueprint.commerce.order.get":
       payload = await client.getCommerceOrder(requireArg(args, "orderId"));

@@ -1,8 +1,8 @@
 # Robot-Team Agent Access
 
-Blueprint exposes a repo-native headless access layer for robot-team agents that need to discover site worlds, inspect grounded package context, open eligible hosted sessions, manipulate scenario/start-state inputs, run rollouts, render explorer frames, and export dataset artifacts.
+Blueprint exposes a repo-native headless access layer for robot-team agents that need to discover site worlds, ask grounded questions, inspect grounded package context, buy with a budget, open eligible hosted sessions, manipulate scenario/start-state inputs, run rollouts, render explorer frames, and export dataset artifacts.
 
-This layer wraps the existing `/api/site-worlds`, `/api/site-worlds/search`, `/api/site-worlds/sessions`, buyer-order, and marketplace-entitlement shapes. The dry-run agent commerce route creates quote, order, receipt, and entitlement proof without calling live Stripe or granting live package access. It does not create a second hosted-session runtime, auth stack, or product truth source.
+This layer wraps the existing `/api/site-worlds`, `/api/site-worlds/search`, `/api/site-worlds/sessions`, buyer-order, and marketplace-entitlement shapes. The dry-run agent commerce route creates quote, order, receipt, and entitlement proof without calling live Stripe or granting live package access. The live agent commerce route creates a real Stripe Checkout Session on the same buyer-order/webhook/entitlement rails used by the human marketplace. Neither creates a second hosted-session runtime, auth stack, or product truth source.
 
 ## Public Resources
 
@@ -28,9 +28,12 @@ npm run agent:cli -- catalog search --q "whole foods" --limit 5
 npm run agent:cli -- site-world search --q "Whole Foods near Durham" --limit 5
 npm run agent:cli -- request location --location "Whole Foods near Durham" --site-class grocery --workflow "shelf restocking"
 npm run agent:cli -- catalog search --q "warehouse tote" --limit 5
+npm run agent:cli -- ask --q "How do I buy a hosted session with a budget?"
 npm run agent:cli -- world get siteworld-f5fd54898cfb
 npm run agent:cli -- commerce quote --site-world-id siteworld-f5fd54898cfb --product hosted-session-rental --session-hours 1
 npm run agent:cli -- commerce checkout --site-world-id siteworld-f5fd54898cfb --product hosted-session-rental --mode dry_run
+npm run agent:cli -- commerce checkout --site-world-id <pipeline-site-world-id> --product hosted-session-rental --mode live --budget-cents 20000
+npm run agent:cli -- commerce live-order <live-order-id>
 npm run agent:cli -- commerce order <dry-order-id>
 npm run agent:cli -- commerce entitlement <dry-entitlement-id>
 npm run agent:cli -- commerce entitlement-readiness --site-world-id siteworld-f5fd54898cfb --entitlement-id <dry-entitlement-id>
@@ -82,6 +85,7 @@ The request/commerce/session lifecycle is intentionally split so robot-team agen
 
 - `request intake`: use `requestCandidate` from search or `blueprint.request.locationDraft` to produce a contact URL and inbound-request draft. This does not submit, write, grant package access, or create entitlement.
 - `dry-run commerce`: use quote, dry-run checkout, order, entitlement, and entitlement-readiness tools to prove the commerce shape without live Stripe, package delivery, rights clearance, provider execution, or hosted fulfillment.
+- `live agent commerce`: use `blueprint.commerce.checkoutLive` to create a real Stripe Checkout Session for a pipeline-backed site world with an optional server-enforced `budgetCents` guard, then poll `blueprint.commerce.liveOrder.get` until webhook fulfillment marks the order paid and provisions the entitlement.
 - `hosted-session lifecycle`: use create/reset/step/runBatch/control/renderExplorer/export only after public-demo eligibility or protected Firebase robot-team/admin auth plus entitlement/session ownership gates allow it.
 
 ## Structured Robot-Team Test Submission
@@ -165,16 +169,41 @@ Agent commerce is repo-safe by default:
 
 The dry-run path never creates a live Stripe Checkout Session, payment intent, customer, charge, payout, live package delivery, or provider execution. Live payment, webhook fulfillment, rights clearance, package access, and hosted fulfillment remain owned by their normal systems.
 
+## Live Agent Commerce (Budgeted Agents)
+
+Agents holding a budget/wallet buy through the live commerce endpoints:
+
+- `POST /api/agent-access/commerce/live-checkout` (MCP `blueprint.commerce.checkoutLive`, CLI `commerce checkout --mode live`) validates the request, prices the SKU server-side from the public catalog, enforces the optional `budgetCents` guard, and creates a buyer-order ledger entry plus a real Stripe Checkout Session. The response returns the Stripe checkout URL, order id, and a status URL.
+- `GET /api/agent-access/commerce/live-orders/{orderId}` (MCP `blueprint.commerce.liveOrder.get`, CLI `commerce live-order`) polls a non-PII projection of the order until `paid` and `provisioned` are true.
+
+Guardrails:
+
+- Only pipeline-backed site worlds are live-purchasable. Sample or planned catalog profiles return a structured `not_live_purchasable` blocker that routes to dry-run commerce or request intake, so agents can never buy fake supply.
+- Only catalog-grounded prices are charged. When the public catalog has no parseable price for the requested product on that site world, live checkout returns a `price_unavailable` blocker (routing to intake for a quoted price) instead of charging a planning-default amount.
+- Quotes above `budgetCents` return a `budget_exceeded` blocker and create no order, session, or charge.
+- Client-supplied prices are ignored; the server-side quote is authoritative.
+- A buyer identity is required (`buyer_identity_required` blocker otherwise): a Firebase bearer token or `buyer.uid` binds the entitlement to that account, while `buyer.email` binds it by email so a later verified sign-in with the same email unlocks entitlement-readiness and protected launch.
+- Payment completes on the Stripe-hosted checkout page. The existing Stripe webhook marks the order paid and provisions the marketplace entitlement — the same rails as human marketplace purchases — which then unlocks `entitlement-readiness` and protected hosted-session launch.
+
+A created live checkout is labeled `live_checkout` and proves payment intent only until Stripe reports the session paid. It never proves rights clearance, provider execution, or hosted runtime success.
+
+## Ask (Grounded Q&A)
+
+`GET|POST /api/agent-access/ask` (MCP `blueprint.ask`, CLI `ask`) answers agent questions about the product, search, buying with a budget, dry-run versus live commerce, the entitlement-to-session flow, pricing ranges, proof boundaries, and intake. Answers are curated citation-backed snippets over public canonical content with machine next-actions (endpoint + MCP tool), ranked by alias/lexical/embedding signals with a deterministic no-key fallback. The endpoint never generates unsupported claims and grants no access or commerce state; a `noConfidentMatch` response includes a structured human-intake fallback URL.
+
 ## Tools
 
 - `blueprint.siteWorld.search`
 - `blueprint.catalog.search` (backward-compatible alias; prefer `blueprint.siteWorld.search`)
+- `blueprint.ask`
 - `blueprint.request.locationDraft`
 - `blueprint.siteWorld.get`
 - `blueprint.siteWorld.launchReadiness`
 - `blueprint.commerce.quote`
 - `blueprint.commerce.checkoutDryRun`
+- `blueprint.commerce.checkoutLive`
 - `blueprint.commerce.order.get`
+- `blueprint.commerce.liveOrder.get`
 - `blueprint.commerce.entitlement.get`
 - `blueprint.commerce.entitlementReadiness`
 - `blueprint.session.create`
@@ -206,6 +235,7 @@ Use `tsx scripts/agent-access/headless-hosted-session-smoke.ts --mode public-dem
 - `public_demo_eligible` means the public sample can exercise credential-free demo paths without representing protected customer access.
 - `request_gated` means access, rights, export, or hosted availability still depends on review.
 - `dry_run_order` means local/test quote, order, receipt, and entitlement proof with no live Stripe charge or live package access.
+- `live_checkout` means a real Stripe Checkout Session and buyer-order ledger entry exist for a budgeted agent purchase; payment and entitlement provisioning complete only after Stripe reports the session paid, and rights/provider/runtime proof stay with their owning systems.
 - `protected_robot_team` means protected hosted-session creation requires robot-team/admin auth plus a provisioned entitlement; existing protected session operations require creator ownership, admin access, or an active per-session share grant.
 
 Protected site worlds continue through Firebase Admin verification and the existing `buyerType === "robot_team"` or admin access check. Hosted-session create/export/render/media/explorer-frame/control are not paid-entitlement-backed operational launch proof unless live Stripe, webhook, Firebase entitlement, provider/runtime, and rights systems have current evidence.

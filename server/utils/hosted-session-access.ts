@@ -188,7 +188,7 @@ function hasActiveSessionShareGrant(
 export function createHostedSessionAccess(deps: HostedSessionAccessDeps) {
   function currentFirebaseUser(res: Response) {
     return res.locals.firebaseUser as
-      | { uid?: string; email?: string; admin?: boolean }
+      | { uid?: string; email?: string; email_verified?: boolean; admin?: boolean }
       | undefined;
   }
 
@@ -286,8 +286,12 @@ export function createHostedSessionAccess(deps: HostedSessionAccessDeps) {
       );
     }
 
+    const tokenUser = currentFirebaseUser(res);
     const entitlement = await findProvisionedHostedSessionEntitlement({
       buyerUserId: user.uid,
+      // Verified token email only — unlocks entitlements from anonymous agent
+      // live checkouts that were bound by buyer email instead of uid.
+      buyerEmail: tokenUser?.email_verified === false ? null : user.email,
       siteWorldIds: options.siteWorldIds?.length ? options.siteWorldIds : hostedSessionEntitlementIds(session),
       entitlementId: options.entitlementId,
     });
