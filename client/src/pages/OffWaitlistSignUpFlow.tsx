@@ -429,7 +429,7 @@ type WaitlistValidationResponse = {
         return;
       }
 
-      if (token === INTERNAL_TEST_TOKEN) {
+      if (import.meta.env.DEV && token === INTERNAL_TEST_TOKEN) {
         const mockTokenData: TokenData = {
           id: "internal-test-token",
           email: "test@blueprint.com",

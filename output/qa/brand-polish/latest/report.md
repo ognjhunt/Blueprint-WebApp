@@ -1,6 +1,6 @@
 # Blueprint Brand Polish QA Report
 
-Generated: 2026-07-17T14:20:41.460Z
+Generated: 2026-07-17T16:41:20.049Z
 Base URL: http://127.0.0.1:4173
 Command: `npm run qa:polish`
 Boundary: local Playwright dev server only. No live sends, provider calls, payments, deploys, or Notion writes.
@@ -50,10 +50,10 @@ Boundary: local Playwright dev server only. No live sends, provider calls, payme
 |---|---:|---:|---|
 | / | pass | 200 | /, /about, /agents, /capture, /careers, /contact, /faq, /pricing, /product, /proof, /updates, /world-models |
 | /capture | pass | 200 | /, /about, /agents, /capture, /careers, /contact, /faq, /pricing, /product, /proof, /updates, /world-models |
-| /contact/robot-team | pass | 200 | /agents, /careers, /contact |
+| /contact/robot-team | pass | 200 | /about, /agents, /careers, /contact |
 | /contact/robot-team?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=policy-evaluation-run&source=footer | pass | 200 | /, /about, /agents, /capture, /careers, /contact, /faq, /pricing, /product, /proof, /updates, /world-models |
 | /contact/robot-team?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=policy-evaluation-run&source=header | pass | 200 | /, /about, /agents, /capture, /careers, /contact, /faq, /pricing, /product, /proof, /updates, /world-models |
-| /contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&requestedOutputs=Policy%20Evaluation%20Run&episodeCount=500&source=home | pass | 200 | /, /about, /product, /updates |
+| /contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&requestedOutputs=Policy%20Evaluation%20Run&episodeCount=500&source=home | pass | 200 | /, /product, /updates |
 | /contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&requestedOutputs=Policy%20Evaluation%20Run&location=Front%20Range%20Cold%20Storage%20Pod&source=sites-card | pass | 200 | /world-models |
 | /contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&requestedOutputs=Policy%20Evaluation%20Run&location=Harborview%20Grocery%20Distribution%20Annex&source=sites-card | pass | 200 | /world-models |
 | /contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&requestedOutputs=Policy%20Evaluation%20Run&location=Lakeshore%20Loading%20Dock&source=sites-card | pass | 200 | /world-models |
@@ -64,13 +64,13 @@ Boundary: local Playwright dev server only. No live sends, provider calls, payme
 | /contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&requestedOutputs=Policy%20Evaluation%20Run&location=Triangle%20Robotics%20Lab&source=sites-card | pass | 200 | /world-models |
 | /contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&source=proof | pass | 200 | /faq, /proof |
 | /contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&source=sites-hero | pass | 200 | /world-models |
+| /contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&requestedOutputs=Quick-Look%20Eval&episodeCount=100&source=pricing | pass | 200 | /pricing |
+| /contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&requestedOutputs=Robot%20Team%20Subscription&source=pricing | pass | 200 | /pricing |
+| /contact/robot-team?persona=robot-team&interest=policy-evaluation-run&source=pricing | pass | 200 | /pricing |
 | /contact/site-operator | pass | 200 | /, /about, /agents, /capture, /careers, /contact, /faq, /pricing, /product, /proof, /updates, /world-models |
 | /contact/site-operator?buyerType=site_operator&requestedOutputs=Site%20Monitoring%20Subscription&source=pricing | pass | 200 | /pricing |
 | /contact/site-operator?buyerType=site_operator&requestedOutputs=Site%20Supply%20Review&source=pricing | pass | 200 | /pricing |
 | /contact/site-operator?source=sites-hero | pass | 200 | /world-models |
-| /contact?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&requestedOutputs=Quick-Look%20Eval&episodeCount=50&source=pricing | pass | 200 | /pricing |
-| /contact?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&requestedOutputs=Robot%20Team%20Subscription&source=pricing | pass | 200 | /pricing |
-| /contact?persona=robot-team&interest=policy-evaluation-run&source=pricing | pass | 200 | /pricing |
 | /for-robot-teams | pass | 200 | /, /about, /agents, /capture, /careers, /contact, /faq, /pricing, /product, /proof, /updates, /world-models |
 | /for-site-operators | pass | 200 | /, /about, /agents, /capture, /careers, /contact, /faq, /pricing, /product, /proof, /updates, /world-models |
 | /how-it-works | pass | 200 | /, /about, /agents, /capture, /careers, /contact, /faq, /pricing, /product, /proof, /updates, /world-models |

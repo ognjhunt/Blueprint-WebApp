@@ -407,7 +407,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const firebase = await loadFirebaseClientModule();
       const user = await firebase.loginWithEmailAndPassword(email, password);
-      console.log("User signed in successfully:", user.uid);
       setCurrentUser(user);
 
       let userDataRecord: UserData | null = null;
@@ -452,7 +451,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const firebase = await loadFirebaseClientModule();
       const user = await firebase.registerWithEmailAndPassword(email, password, name);
-      console.log("User registered successfully:", user.uid);
       setCurrentUser(user);
 
       let userDataRecord: UserData | null = null;
@@ -500,7 +498,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const firebase = await loadFirebaseClientModule();
       const user = await firebase.signInWithGoogle();
-      console.log("User signed in with Google successfully:", user.uid);
       setCurrentUser(user);
       let userDataRecord: UserData | null = null;
 
@@ -589,7 +586,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setCurrentUser(null);
       setUserData(null);
       setTokenClaims(null);
-      console.log("User logged out successfully");
     } catch (error: any) {
       console.error("Logout error:", {
         code: error.code,

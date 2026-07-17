@@ -5,7 +5,9 @@ import { Package, Clock, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export const KIT_DELIVERY_LEAD_TIME_BUSINESS_DAYS = 3;
-export const DEFAULT_KIT_TRACKING_URL = "https://blueprint.build/track-kits";
+// No public tracking page exists yet; the tracking CTA only renders when a
+// real per-shipment tracking URL is set on the user record.
+export const DEFAULT_KIT_TRACKING_URL: string | null = null;
 
 type CountdownParts = {
   days: number;
@@ -160,15 +162,13 @@ export function KitArrivalCountdown({
 
         <p className="text-xs text-emerald-100/70">{footnote}</p>
 
-        {context === "dashboard" && countdown && (
+        {context === "dashboard" && countdown && trackingUrl && (
           <div className="mt-2 flex flex-wrap items-center gap-3">
             <Button
               variant="secondary"
               className="bg-white/10 text-white hover:bg-white/20"
               onClick={() => {
-                if (trackingUrl) {
-                  window.open(trackingUrl, "_blank", "noopener,noreferrer");
-                }
+                window.open(trackingUrl, "_blank", "noopener,noreferrer");
               }}
             >
               <ExternalLink className="mr-2 h-4 w-4" /> Track package

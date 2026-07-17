@@ -20,7 +20,11 @@ installClientLogger();
 const withShell =
   <P extends object>(
     Component: React.ComponentType<P>,
-    options: { protectedRoute?: boolean; shell?: "site" | "bare" },
+    options: {
+      protectedRoute?: boolean;
+      shell?: "site" | "bare";
+      requireRoles?: (typeof appRoutes)[number]["requireRoles"];
+    },
   ) =>
   (props: P) => {
     const content =
@@ -33,7 +37,9 @@ const withShell =
       );
 
     if (options.protectedRoute) {
-      return <ProtectedRoute>{content}</ProtectedRoute>;
+      return (
+        <ProtectedRoute requireRoles={options.requireRoles}>{content}</ProtectedRoute>
+      );
     }
 
     return content;
@@ -47,6 +53,7 @@ function Router() {
           const wrappedComponent = withShell(route.component, {
             protectedRoute: route.layout === "protected",
             shell: route.shell || "site",
+            requireRoles: route.requireRoles,
           });
 
           if (!route.path) {

@@ -20,6 +20,11 @@ import Pricing from "../client/src/pages/Pricing";
 import Privacy from "../client/src/pages/Privacy";
 import Terms from "../client/src/pages/Terms";
 import Login from "../client/src/pages/Login";
+import HowItWorks from "../client/src/pages/HowItWorks";
+import About from "../client/src/pages/About";
+import Vision from "../client/src/pages/Vision";
+import Governance from "../client/src/pages/Governance";
+import ForSiteOperators from "../client/src/pages/ForSiteOperators";
 import { siteLibrarySites } from "../client/src/data/siteLibrary";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -368,8 +373,6 @@ const homeAliasRoutes = [
   "/readiness",
   "/readiness-pack",
   "/exact-site-hosted-review",
-  "/how-it-works",
-  "/about",
   "/updates",
   "/blog",
   "/solutions",
@@ -381,7 +384,6 @@ const proofAliasRoutes = [
   "/sample-deliverables",
   "/case-studies",
   "/faq",
-  "/governance",
   "/docs",
   "/qualified-opportunities",
   "/qualified-opportunities-guide",
@@ -427,7 +429,13 @@ const staticRoutes: StaticRoute[] = [
   ...proofAliasRoutes,
   { path: "/for-robot-teams", component: PrerenderRobotTeamEvalSummary, shell: "bare" },
   { path: "/robot-team/eval", component: PrerenderRobotTeamEvalSummary, shell: "bare" },
-  { path: "/for-site-operators", component: Contact },
+  // Live public pages (also advertised in the sitemap) prerender as their
+  // real components so crawlers and no-JS agents see the actual content.
+  { path: "/for-site-operators", component: ForSiteOperators },
+  { path: "/how-it-works", component: HowItWorks },
+  { path: "/about", component: About },
+  { path: "/vision", component: Vision },
+  { path: "/governance", component: Governance },
   ...contactAliasRoutes,
   { path: "/contact/robot-team", component: Contact },
   { path: "/contact/site-operator", component: Contact },

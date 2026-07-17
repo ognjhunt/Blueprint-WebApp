@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-17T14:20:41.460Z",
+  "generatedAt": "2026-07-17T16:41:20.049Z",
   "baseUrl": "http://127.0.0.1:4173",
   "routeResults": [
     {
@@ -42,7 +42,7 @@
         {
           "name": "SEO description",
           "status": "pass",
-          "detail": "170 chars"
+          "detail": "178 chars"
         },
         {
           "name": "Canonical URL",
@@ -151,7 +151,7 @@
         {
           "name": "SEO description",
           "status": "pass",
-          "detail": "170 chars"
+          "detail": "178 chars"
         },
         {
           "name": "Canonical URL",
@@ -260,7 +260,7 @@
         {
           "name": "SEO description",
           "status": "pass",
-          "detail": "170 chars"
+          "detail": "178 chars"
         },
         {
           "name": "Canonical URL",
@@ -369,7 +369,7 @@
         {
           "name": "SEO description",
           "status": "pass",
-          "detail": "170 chars"
+          "detail": "178 chars"
         },
         {
           "name": "Canonical URL",
@@ -478,7 +478,7 @@
         {
           "name": "SEO description",
           "status": "pass",
-          "detail": "170 chars"
+          "detail": "178 chars"
         },
         {
           "name": "Canonical URL",
@@ -587,7 +587,7 @@
         {
           "name": "SEO description",
           "status": "pass",
-          "detail": "170 chars"
+          "detail": "178 chars"
         },
         {
           "name": "Canonical URL",
@@ -696,7 +696,7 @@
         {
           "name": "SEO description",
           "status": "pass",
-          "detail": "170 chars"
+          "detail": "178 chars"
         },
         {
           "name": "Canonical URL",
@@ -805,7 +805,7 @@
         {
           "name": "SEO description",
           "status": "pass",
-          "detail": "170 chars"
+          "detail": "178 chars"
         },
         {
           "name": "Canonical URL",
@@ -889,7 +889,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "5779 visible text characters"
+          "detail": "5785 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -914,7 +914,7 @@
         {
           "name": "SEO description",
           "status": "pass",
-          "detail": "170 chars"
+          "detail": "178 chars"
         },
         {
           "name": "Canonical URL",
@@ -964,7 +964,7 @@
         {
           "name": "CTA: Start a subscription",
           "status": "pass",
-          "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&requestedOutputs=Robot%20Team%20Subscription&source=pricing"
+          "detail": "hrefs=/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&requestedOutputs=Robot%20Team%20Subscription&source=pricing"
         },
         {
           "name": "CTA: Start a site review",
@@ -998,7 +998,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "5670 visible text characters"
+          "detail": "5676 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -1023,7 +1023,7 @@
         {
           "name": "SEO description",
           "status": "pass",
-          "detail": "170 chars"
+          "detail": "178 chars"
         },
         {
           "name": "Canonical URL",
@@ -1073,7 +1073,7 @@
         {
           "name": "CTA: Start a subscription",
           "status": "pass",
-          "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&requestedOutputs=Robot%20Team%20Subscription&source=pricing"
+          "detail": "hrefs=/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&requestedOutputs=Robot%20Team%20Subscription&source=pricing"
         },
         {
           "name": "CTA: Start a site review",
@@ -1107,7 +1107,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "2086 visible text characters"
+          "detail": "2095 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -1132,7 +1132,7 @@
         {
           "name": "SEO description",
           "status": "pass",
-          "detail": "170 chars"
+          "detail": "178 chars"
         },
         {
           "name": "Canonical URL",
@@ -1182,7 +1182,7 @@
         {
           "name": "CTA: Start",
           "status": "pass",
-          "detail": "hrefs=/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&source=proof"
+          "detail": "hrefs=/contact/site-operator"
         },
         {
           "name": "Console health",
@@ -1211,7 +1211,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "1977 visible text characters"
+          "detail": "1986 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -1236,7 +1236,7 @@
         {
           "name": "SEO description",
           "status": "pass",
-          "detail": "170 chars"
+          "detail": "178 chars"
         },
         {
           "name": "Canonical URL",
@@ -1286,7 +1286,7 @@
         {
           "name": "CTA: Start",
           "status": "pass",
-          "detail": "hrefs=/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&source=proof"
+          "detail": "hrefs=/contact/site-operator"
         },
         {
           "name": "Console health",
@@ -1340,7 +1340,7 @@
         {
           "name": "SEO description",
           "status": "pass",
-          "detail": "170 chars"
+          "detail": "178 chars"
         },
         {
           "name": "Canonical URL",
@@ -1449,7 +1449,7 @@
         {
           "name": "SEO description",
           "status": "pass",
-          "detail": "170 chars"
+          "detail": "178 chars"
         },
         {
           "name": "Canonical URL",
@@ -1558,7 +1558,7 @@
         {
           "name": "SEO description",
           "status": "pass",
-          "detail": "170 chars"
+          "detail": "178 chars"
         },
         {
           "name": "Canonical URL",
@@ -1667,7 +1667,7 @@
         {
           "name": "SEO description",
           "status": "pass",
-          "detail": "170 chars"
+          "detail": "178 chars"
         },
         {
           "name": "Canonical URL",
@@ -1776,7 +1776,7 @@
         {
           "name": "SEO description",
           "status": "pass",
-          "detail": "170 chars"
+          "detail": "178 chars"
         },
         {
           "name": "Canonical URL",
@@ -1885,7 +1885,7 @@
         {
           "name": "SEO description",
           "status": "pass",
-          "detail": "170 chars"
+          "detail": "178 chars"
         },
         {
           "name": "Canonical URL",
@@ -1969,7 +1969,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "2086 visible text characters"
+          "detail": "2095 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -1994,7 +1994,7 @@
         {
           "name": "SEO description",
           "status": "pass",
-          "detail": "170 chars"
+          "detail": "178 chars"
         },
         {
           "name": "Canonical URL",
@@ -2044,7 +2044,7 @@
         {
           "name": "CTA: Start",
           "status": "pass",
-          "detail": "hrefs=/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&source=proof"
+          "detail": "hrefs=/contact/site-operator"
         },
         {
           "name": "Console health",
@@ -2073,7 +2073,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "1977 visible text characters"
+          "detail": "1986 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -2098,7 +2098,7 @@
         {
           "name": "SEO description",
           "status": "pass",
-          "detail": "170 chars"
+          "detail": "178 chars"
         },
         {
           "name": "Canonical URL",
@@ -2148,7 +2148,7 @@
         {
           "name": "CTA: Start",
           "status": "pass",
-          "detail": "hrefs=/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&source=proof"
+          "detail": "hrefs=/contact/site-operator"
         },
         {
           "name": "Console health",
@@ -2163,7 +2163,7 @@
       ]
     },
     {
-      "routeLabel": "About (legacy, redirects to Home)",
+      "routeLabel": "About",
       "routePath": "/about",
       "viewportName": "desktop",
       "screenshotPath": "output/qa/brand-polish/latest/screenshots/about-desktop.png",
@@ -2177,7 +2177,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "3381 visible text characters"
+          "detail": "3152 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -2187,27 +2187,27 @@
         {
           "name": "Visible H1 exists",
           "status": "pass",
-          "detail": "Test robot policies before field time."
+          "detail": "Blueprint turns one real site into a decision a robot team can trust."
         },
         {
           "name": "Expected route heading",
           "status": "pass",
-          "detail": "Expected \"Test robot policies before field time.\", saw \"Test robot policies before field time.\""
+          "detail": "Expected \"Blueprint turns one real site into a decision a robot team can trust.\", saw \"Blueprint turns one real site into a decision a robot team can trust.\""
         },
         {
           "name": "SEO title",
           "status": "pass",
-          "detail": "Blueprint | Test Robot Policies Before Field Time"
+          "detail": "About | Blueprint"
         },
         {
           "name": "SEO description",
           "status": "pass",
-          "detail": "170 chars"
+          "detail": "178 chars"
         },
         {
           "name": "Canonical URL",
           "status": "pass",
-          "detail": "https://tryblueprint.io/"
+          "detail": "https://tryblueprint.io/about"
         },
         {
           "name": "Robots indexable",
@@ -2272,7 +2272,7 @@
       ]
     },
     {
-      "routeLabel": "About (legacy, redirects to Home)",
+      "routeLabel": "About",
       "routePath": "/about",
       "viewportName": "mobile",
       "screenshotPath": "output/qa/brand-polish/latest/screenshots/about-mobile.png",
@@ -2286,7 +2286,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "3272 visible text characters"
+          "detail": "3043 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -2296,27 +2296,27 @@
         {
           "name": "Visible H1 exists",
           "status": "pass",
-          "detail": "Test robot policies before field time."
+          "detail": "Blueprint turns one real site into a decision a robot team can trust."
         },
         {
           "name": "Expected route heading",
           "status": "pass",
-          "detail": "Expected \"Test robot policies before field time.\", saw \"Test robot policies before field time.\""
+          "detail": "Expected \"Blueprint turns one real site into a decision a robot team can trust.\", saw \"Blueprint turns one real site into a decision a robot team can trust.\""
         },
         {
           "name": "SEO title",
           "status": "pass",
-          "detail": "Blueprint | Test Robot Policies Before Field Time"
+          "detail": "About | Blueprint"
         },
         {
           "name": "SEO description",
           "status": "pass",
-          "detail": "170 chars"
+          "detail": "178 chars"
         },
         {
           "name": "Canonical URL",
           "status": "pass",
-          "detail": "https://tryblueprint.io/"
+          "detail": "https://tryblueprint.io/about"
         },
         {
           "name": "Robots indexable",
@@ -2361,7 +2361,7 @@
         {
           "name": "CTA: Request evaluation",
           "status": "pass",
-          "detail": "hrefs=/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&requestedOutputs=Policy%20Evaluation%20Run&episodeCount=500&source=home"
+          "detail": "hrefs=/contact/robot-team"
         },
         {
           "name": "CTA: See how it works",
@@ -2420,7 +2420,7 @@
         {
           "name": "SEO description",
           "status": "pass",
-          "detail": "170 chars"
+          "detail": "178 chars"
         },
         {
           "name": "Canonical URL",
@@ -2529,7 +2529,7 @@
         {
           "name": "SEO description",
           "status": "pass",
-          "detail": "170 chars"
+          "detail": "178 chars"
         },
         {
           "name": "Canonical URL",
@@ -2643,6 +2643,7 @@
       "status": "pass",
       "httpStatus": 200,
       "sourceRoutes": [
+        "/about",
         "/agents",
         "/careers",
         "/contact"
@@ -2692,7 +2693,6 @@
       "httpStatus": 200,
       "sourceRoutes": [
         "/",
-        "/about",
         "/product",
         "/updates"
       ]
@@ -2779,6 +2779,30 @@
       ]
     },
     {
+      "href": "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&requestedOutputs=Quick-Look%20Eval&episodeCount=100&source=pricing",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/pricing"
+      ]
+    },
+    {
+      "href": "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&requestedOutputs=Robot%20Team%20Subscription&source=pricing",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/pricing"
+      ]
+    },
+    {
+      "href": "/contact/robot-team?persona=robot-team&interest=policy-evaluation-run&source=pricing",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/pricing"
+      ]
+    },
+    {
       "href": "/contact/site-operator",
       "status": "pass",
       "httpStatus": 200,
@@ -2819,30 +2843,6 @@
       "httpStatus": 200,
       "sourceRoutes": [
         "/world-models"
-      ]
-    },
-    {
-      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&requestedOutputs=Quick-Look%20Eval&episodeCount=50&source=pricing",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/pricing"
-      ]
-    },
-    {
-      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&requestedOutputs=Robot%20Team%20Subscription&source=pricing",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/pricing"
-      ]
-    },
-    {
-      "href": "/contact?persona=robot-team&interest=policy-evaluation-run&source=pricing",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/pricing"
       ]
     },
     {

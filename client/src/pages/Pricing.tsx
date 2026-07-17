@@ -34,14 +34,14 @@ const tiers: Tier[] = [
     unit: "/ eval",
     tagline: "A low-friction first comparison before any subscription decision.",
     features: [
-      "~50 episodes on one packaged site",
+      "Up to 100 episodes on one packaged site",
       "1–2 policies or checkpoints",
       "Ranking-only report",
       "Review-support media included",
     ],
     note: "Failure taxonomy and calibration stay in subscription scope.",
     cta: "Request a quick-look",
-    href: "/contact?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&requestedOutputs=Quick-Look%20Eval&episodeCount=50&source=pricing",
+    href: "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&requestedOutputs=Quick-Look%20Eval&episodeCount=100&source=pricing",
   },
   {
     name: "Robot-team subscription",
@@ -57,7 +57,7 @@ const tiers: Tier[] = [
     ],
     note: "Overage pricing applies above the agreed policy cap.",
     cta: "Start a subscription",
-    href: "/contact?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&requestedOutputs=Robot%20Team%20Subscription&source=pricing",
+    href: "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&requestedOutputs=Robot%20Team%20Subscription&source=pricing",
     highlighted: true,
   },
   {
@@ -392,7 +392,7 @@ export default function Pricing() {
             description="Tell us the site, task, and policies you want to compare. We'll come back with episode counts, a policy cap, and pricing for your scope."
             imageSrc="/redesign/pov/packing-cell.jpg"
             imageAlt="Robotic packing cell"
-            primaryHref="/contact?persona=robot-team&interest=policy-evaluation-run&source=pricing"
+            primaryHref="/contact/robot-team?persona=robot-team&interest=policy-evaluation-run&source=pricing"
             primaryLabel="Request evaluation"
             secondaryHref="/how-it-works"
             secondaryLabel="See how it works"

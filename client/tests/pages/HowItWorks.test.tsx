@@ -35,7 +35,7 @@ describe("HowItWorks", () => {
     );
     expect(screen.getByRole("link", { name: /Request evaluation/i })).toHaveAttribute(
       "href",
-      expect.stringContaining("/contact?persona=robot-team"),
+      expect.stringContaining("/contact/robot-team?persona=robot-team"),
     );
     expect(
       screen.getByText(/Blueprint turns one real indoor capture into a versioned, rights-attached/i),

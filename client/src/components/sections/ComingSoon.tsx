@@ -189,7 +189,7 @@ export default function ComingSoon() {
               </div>
             </div>
             <a
-              href="/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model"
+              href="/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model"
               className="inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-zinc-800"
             >
               Get early access

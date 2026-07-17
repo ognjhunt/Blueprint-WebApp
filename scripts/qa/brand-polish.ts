@@ -251,10 +251,10 @@ export const publicQaRoutes: PublicQaRoute[] = [
     ],
   },
   {
-    label: "About (legacy, redirects to Home)",
+    label: "About",
     path: "/about",
-    canonicalPath: "/",
-    expectedHeading: "Test robot policies before field time.",
+    canonicalPath: "/about",
+    expectedHeading: "Blueprint turns one real site into a decision a robot team can trust.",
     requiredCtas: [
       { label: "Request evaluation", hrefStartsWith: "/contact" },
       { label: "See how it works", hrefStartsWith: "/how-it-works" },

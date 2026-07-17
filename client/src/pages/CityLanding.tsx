@@ -141,7 +141,7 @@ function getCityWindowLabel(status: PublicLaunchCityStatus | null, fallback: "lo
   if (status === "live") return "Current";
   if (status === "planned") return "Queued";
   if (status === "under_review") return "Review";
-  return "TBD";
+  return "Not scheduled";
 }
 
 export default function CityLanding() {
@@ -152,7 +152,7 @@ export default function CityLanding() {
   const { data, loading, error } = usePublicLaunchStatus();
 
   useEffect(() => {
-    // Per BLU-321: Keep Austin operator-facing only until live proof-motion path is verified
+    // Austin stays operator-facing (sign-in required) until the live proof-motion path is verified.
     const normalized = citySlug.toLowerCase().replace(/-/g, '');
     const isAustin = normalized === 'austin' || normalized === 'austintx';
     if (isAustin && !currentUser) {

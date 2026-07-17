@@ -62,14 +62,14 @@ export default function Proof() {
                 Proof stays scoped.
               </h1>
               <p className="mt-5 max-w-md text-lg leading-8 text-slate-600">
-                The 0.929/93% research number is correlation evidence, not an
+                The 0.929 research result is correlation evidence, not an
                 accuracy or deployment claim.
               </p>
               <a
                 href={requestHref}
                 className="mt-8 inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 text-sm font-semibold text-white hover:bg-blue-700"
               >
-                Start
+                Request evaluation
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </a>
             </div>

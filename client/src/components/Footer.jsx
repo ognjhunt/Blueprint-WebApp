@@ -12,7 +12,7 @@ const productLinks = [
 const supportLinks = [
   ["Capture", "/capture"],
   ["Trust", "/governance"],
-  ["Contact", "/contact?persona=robot-team"],
+  ["Contact", "/contact/robot-team?persona=robot-team"],
   ["Support", "/help"],
 ];
 

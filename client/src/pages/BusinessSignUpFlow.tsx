@@ -950,7 +950,7 @@ export default function BusinessSignUpFlow() {
                       href={
                         isSiteOperatorSignup
                           ? "/contact/site-operator?source=signup-business"
-                          : "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=signup-business"
+                          : "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=signup-business"
                       }
                       className="font-semibold text-[#111110] underline-offset-4 hover:underline"
                     >
