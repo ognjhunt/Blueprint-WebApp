@@ -177,8 +177,8 @@ export function buildLaunchReadinessSnapshot() {
   const betaCohortControlsReady =
     betaCohortPolicy.enabled
     && !betaCohortPolicy.killSwitchActive
-    && betaCohortPolicy.inviteCap > 0
-    && betaCohortPolicy.cohortDailyLimit > 0
+    && (betaCohortPolicy.inviteCap ?? 0) > 0
+    && (betaCohortPolicy.cohortDailyLimit ?? 0) > 0
     && (firebaseAdminReady || localLaunchSmoke);
   const slaWatchdogReady =
     !automationFlags.slaWatchdog || (firebaseAdminReady && emailTransport.configured);

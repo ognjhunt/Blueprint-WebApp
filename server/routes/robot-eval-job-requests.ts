@@ -14,6 +14,11 @@ import {
   verifyPipelineSyncRequest,
 } from "../utils/pipelineSyncSecurity";
 import { recordBetaOpsFailureSignal } from "../utils/ops-alerts";
+import {
+  betaDecisionForResponse,
+  evaluateBetaCohortGate,
+  recordBetaCohortAdmission,
+} from "../utils/beta-cohort-policy";
 
 const router = Router();
 const pipelineSyncRateLimiter = createPipelineSyncRateLimiter();
@@ -408,6 +413,33 @@ router.post("/", verifyFirebaseToken, async (req, res) => {
   const buyerUserId = String(
     (res.locals.firebaseUser as { uid?: string } | undefined)?.uid || "",
   ).trim();
+
+  // Beta cohort policy applies to buyer intake exactly like capture intake:
+  // a denial must happen before any inbox record, Firestore write, or
+  // Pipeline forwarding is created. The credential-free local route-proof
+  // identity (non-production only, see verifyFirebaseToken) exercises
+  // forwarding mechanics and is exempt the same way it uses a local
+  // entitlement proof instead of Firestore entitlements.
+  const isLocalRouteProof = Boolean(
+    (res.locals.firebaseUser as { localRouteProof?: boolean } | undefined)?.localRouteProof,
+  );
+  const betaCohortDecision = isLocalRouteProof
+    ? null
+    : await evaluateBetaCohortGate({
+        gate: "robot_eval_request",
+        creatorId: buyerUserId || null,
+        source: "robot_eval_job_request_intake",
+      });
+  if (betaCohortDecision && !betaCohortDecision.allowed) {
+    return res.status(betaCohortDecision.statusCode).json({
+      ok: false,
+      status: "beta_cohort_denied",
+      code: betaCohortDecision.reason,
+      error: betaCohortDecision.message,
+      beta_cohort_policy: betaDecisionForResponse(betaCohortDecision),
+    });
+  }
+
   const entitlementCheck = await verifyRobotEvalEntitlement({
     buyerUserId,
     jobRequest: submittedJobRequest,
@@ -497,6 +529,16 @@ router.post("/", verifyFirebaseToken, async (req, res) => {
       { merge: true },
     );
     firestoreWritePerformed = true;
+  }
+
+  if (betaCohortDecision) {
+    await recordBetaCohortAdmission({
+      gate: "robot_eval_request",
+      admissionId: `robot_eval:${jobId}`,
+      decision: betaCohortDecision,
+      creatorId: buyerUserId || null,
+      source: "robot_eval_job_request_intake",
+    });
   }
 
   const durableStore = buildDurableStoreProof({

@@ -113,6 +113,7 @@ describe("beta cohort policy", () => {
       {
         db: db as any,
         env: {
+          BLUEPRINT_BETA_INVITE_CAP: "10",
           BLUEPRINT_BETA_COHORT_DAILY_LIMIT: "1",
         } as NodeJS.ProcessEnv,
       },
@@ -120,6 +121,45 @@ describe("beta cohort policy", () => {
 
     expect(throttled.allowed).toBe(false);
     expect(throttled.reason).toBe("beta_cohort_daily_limit_reached");
+  });
+
+  it("fails closed when capacity limits are missing or invalid", async () => {
+    const missing = await evaluateBetaCohortGate(
+      { gate: "capture_intake", creatorId: "creator-1" },
+      { db: makeDb() as any, env: {} as NodeJS.ProcessEnv },
+    );
+    expect(missing.allowed).toBe(false);
+    expect(missing.reason).toBe("beta_limits_not_configured");
+    expect(missing.statusCode).toBe(503);
+
+    const invalid = await evaluateBetaCohortGate(
+      { gate: "capture_intake", creatorId: "creator-1" },
+      {
+        db: makeDb() as any,
+        env: {
+          BLUEPRINT_BETA_INVITE_CAP: "not-a-number",
+          BLUEPRINT_BETA_COHORT_DAILY_LIMIT: "5",
+        } as NodeJS.ProcessEnv,
+      },
+    );
+    expect(invalid.allowed).toBe(false);
+    expect(invalid.reason).toBe("beta_limits_not_configured");
+  });
+
+  it("treats zero caps as deliberately closed intake, never unlimited", async () => {
+    const closed = await evaluateBetaCohortGate(
+      { gate: "capture_intake", creatorId: "creator-1" },
+      {
+        db: makeDb() as any,
+        env: {
+          BLUEPRINT_BETA_INVITE_CAP: "0",
+          BLUEPRINT_BETA_COHORT_DAILY_LIMIT: "0",
+        } as NodeJS.ProcessEnv,
+      },
+    );
+    expect(closed.allowed).toBe(false);
+    expect(closed.reason).toBe("beta_intake_closed");
+    expect(closed.statusCode).toBe(503);
   });
 
   it("records allowed admissions with cohort and window evidence", async () => {
@@ -135,6 +175,8 @@ describe("beta cohort policy", () => {
       {
         db: db as any,
         env: {
+          BLUEPRINT_BETA_INVITE_CAP: "10",
+          BLUEPRINT_BETA_COHORT_DAILY_LIMIT: "5",
           BLUEPRINT_BETA_ALLOWED_MARKETS: "austin",
           BLUEPRINT_BETA_ALLOWED_SITE_TYPES: "warehouse",
         } as NodeJS.ProcessEnv,

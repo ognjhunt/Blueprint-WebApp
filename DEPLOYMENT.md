@@ -388,13 +388,16 @@ These should be enabled for the no-human-in-the-loop alpha configuration:
 - `BLUEPRINT_BUYER_LIFECYCLE_ENABLED=1`
 - `BLUEPRINT_LIFECYCLE_CADENCE_ENABLED=1`
 
-Beta cohort controls are enforced on capturer beta waitlist intake and native
-capture registration:
+Beta cohort controls are enforced on capturer beta waitlist intake, native
+capture registration (and its preflight), robot-eval buyer intake, and live
+agent checkout. The capacity limits are fail-closed configuration: a missing or
+invalid value blocks gated intake with `beta_limits_not_configured`, and `0`
+means "deliberately closed", never "unlimited".
 
 - `BLUEPRINT_BETA_ENABLED=true`
 - `BLUEPRINT_BETA_KILL_SWITCH=0` (`1` pauses controlled beta access and capture intake)
-- `BLUEPRINT_BETA_INVITE_CAP=100`
-- `BLUEPRINT_BETA_COHORT_DAILY_LIMIT=25`
+- `BLUEPRINT_BETA_INVITE_CAP=100` (required; no in-code default)
+- `BLUEPRINT_BETA_COHORT_DAILY_LIMIT=25` (required; no in-code default)
 - Optional comma-separated scope controls:
   `BLUEPRINT_BETA_ALLOWED_MARKETS`,
   `BLUEPRINT_BETA_ALLOWED_SITE_TYPES`
