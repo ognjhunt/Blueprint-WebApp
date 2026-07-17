@@ -1,4 +1,9 @@
 import { SEO } from "@/components/SEO";
+import {
+  organizationJsonLd,
+  webPageJsonLd,
+  websiteJsonLd,
+} from "@/lib/seoStructuredData";
 import { Button, Eyebrow, PolicyRankBar, ProofBoundary } from "@/components/blueprint";
 import { TileGrid } from "@/components/site/TileGrid";
 import {
@@ -87,14 +92,16 @@ export default function Home() {
         description="Blueprint helps robot teams compare policies on captured real-site task packs, with provenance, rights, and proof boundaries attached. Rank policies before committing field time."
         canonical="/"
         image="https://tryblueprint.io/redesign/robot-hero.png"
-        jsonLd={{
-          "@context": "https://schema.org",
-          "@type": "WebPage",
-          name: "Blueprint Robot Policy Evaluation",
-          description:
-            "Capture-backed policy evaluation for comparing robot policies before field time.",
-          url: "https://tryblueprint.io/",
-        }}
+        jsonLd={[
+          organizationJsonLd(),
+          websiteJsonLd(),
+          webPageJsonLd({
+            path: "/",
+            name: "Blueprint Robot Policy Evaluation",
+            description:
+              "Capture-backed policy evaluation for comparing robot policies before field time.",
+          }),
+        ]}
       />
 
       <div className="bg-canvas text-ink-900">

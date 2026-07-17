@@ -1,5 +1,7 @@
-import { Helmet } from "@/lib/helmet";
 import { ArrowRight, Check } from "lucide-react";
+
+import { SEO } from "@/components/SEO";
+import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
 import {
   Button,
@@ -117,14 +119,23 @@ const payoutMetrics = [
 export default function ForSiteOperators() {
   return (
     <>
-      <Helmet>
-        <title>For Site Operators | Blueprint</title>
-        <meta
-          name="description"
-          content="Blueprint helps site operators control access, privacy, and commercialization around real-site robot evaluation — with rights and provenance kept visible."
-        />
-        <link rel="canonical" href="/for-site-operators" />
-      </Helmet>
+      <SEO
+        title="For Site Operators | Blueprint"
+        description="Blueprint helps site operators control access, privacy, and commercialization around real-site robot evaluation — with rights and provenance kept visible."
+        canonical="/for-site-operators"
+        jsonLd={[
+          webPageJsonLd({
+            path: "/for-site-operators",
+            name: "Blueprint for Site Operators",
+            description:
+              "How site operators control access, privacy, rights, and commercialization when a captured real site becomes a robot evaluation surface.",
+          }),
+          breadcrumbJsonLd([
+            { name: "Home", path: "/" },
+            { name: "For Site Operators", path: "/for-site-operators" },
+          ]),
+        ]}
+      />
 
       <div className="bg-canvas text-ink">
         {/* Hero */}

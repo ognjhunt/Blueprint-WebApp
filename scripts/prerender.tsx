@@ -25,6 +25,7 @@ import About from "../client/src/pages/About";
 import Vision from "../client/src/pages/Vision";
 import Governance from "../client/src/pages/Governance";
 import ForSiteOperators from "../client/src/pages/ForSiteOperators";
+import ForRobotTeams from "../client/src/pages/ForRobotTeams";
 import { siteLibrarySites } from "../client/src/data/siteLibrary";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -272,7 +273,9 @@ const PrerenderRobotTeamEvalSummary = () => (
     body="Pick a site task, add policies, tell us the robot, and choose 100 or 500 episodes."
     primaryHref="/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run"
     primaryLabel="Start"
-    canonical="/robot-team/eval"
+    // The live RobotTeamEval page canonicalizes to /for-robot-teams (the
+    // advertised citation target), so the prerendered shell must match.
+    canonical="/for-robot-teams"
   />
 );
 
@@ -427,7 +430,10 @@ const staticRoutes: StaticRoute[] = [
   ),
   { path: "/proof", component: PrerenderProofSummary, shell: "bare" },
   ...proofAliasRoutes,
-  { path: "/for-robot-teams", component: PrerenderRobotTeamEvalSummary, shell: "bare" },
+  // /for-robot-teams is the canonical citation target advertised in the
+  // sitemap and llms.txt, so crawlers must see the real page, not a summary
+  // shell whose canonical points elsewhere.
+  { path: "/for-robot-teams", component: ForRobotTeams },
   { path: "/robot-team/eval", component: PrerenderRobotTeamEvalSummary, shell: "bare" },
   // Live public pages (also advertised in the sitemap) prerender as their
   // real components so crawlers and no-JS agents see the actual content.

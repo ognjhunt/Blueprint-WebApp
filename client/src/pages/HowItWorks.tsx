@@ -1,4 +1,5 @@
 import { SEO } from "@/components/SEO";
+import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 import {
   Eyebrow,
   ProofBoundary,
@@ -214,6 +215,18 @@ export default function HowItWorks() {
         title="How It Works | Blueprint"
         description="Capture first, package the proof, evaluate policies, and decide the next test. See how Blueprint moves from a real indoor capture to a rank-fidelity comparison without overclaiming readiness."
         canonical="/how-it-works"
+        jsonLd={[
+          webPageJsonLd({
+            path: "/how-it-works",
+            name: "How Blueprint Works",
+            description:
+              "How Blueprint moves from a real indoor capture to a rank-fidelity policy comparison: capture first, package the proof, evaluate policies, and decide the next test.",
+          }),
+          breadcrumbJsonLd([
+            { name: "Home", path: "/" },
+            { name: "How It Works", path: "/how-it-works" },
+          ]),
+        ]}
       />
 
       {/* Hero */}

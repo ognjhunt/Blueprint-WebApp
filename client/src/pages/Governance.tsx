@@ -1,5 +1,7 @@
-import { Helmet } from "@/lib/helmet";
 import { ShieldCheck } from "lucide-react";
+
+import { SEO } from "@/components/SEO";
+import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
 import {
   Card,
@@ -67,14 +69,23 @@ const guarantees = [
 export default function Governance() {
   return (
     <>
-      <Helmet>
-        <title>Governance | Blueprint</title>
-        <meta
-          name="description"
-          content="Blueprint's trust page: rights, privacy, and provenance kept visible across every listing, manifest, and hosted-access surface."
-        />
-        <link rel="canonical" href="https://tryblueprint.io/governance" />
-      </Helmet>
+      <SEO
+        title="Governance | Blueprint"
+        description="Blueprint's trust page: rights, privacy, and provenance kept visible across every listing, manifest, and hosted-access surface."
+        canonical="/governance"
+        jsonLd={[
+          webPageJsonLd({
+            path: "/governance",
+            name: "Blueprint Governance",
+            description:
+              "Rights, privacy, and provenance kept visible across every Blueprint listing, manifest, and hosted-access surface.",
+          }),
+          breadcrumbJsonLd([
+            { name: "Home", path: "/" },
+            { name: "Governance", path: "/governance" },
+          ]),
+        ]}
+      />
 
       <div className="bg-canvas text-ink">
         {/* Hero — dark #0d0d0b + evidence grid */}
