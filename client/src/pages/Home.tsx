@@ -97,7 +97,7 @@ export default function Home() {
         }}
       />
 
-      <main className="bg-canvas text-ink-900">
+      <div className="bg-canvas text-ink-900">
         {/* (1) Hero — full-bleed monochrome media with animated route trace */}
         <section className="relative">
           {/* Height tracks robot-hero.png's native 1672x941 ratio (56.28vw) above the
@@ -322,7 +322,7 @@ export default function Home() {
             />
           </div>
         </section>
-      </main>
+      </div>
     </>
   );
 }

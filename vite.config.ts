@@ -45,7 +45,17 @@ export default defineConfig({
           if (["openai", "@anthropic-ai/sdk", "@google/generative-ai", "@google-cloud/aiplatform", "lumaai"].includes(packageName)) {
             return "vendor-ai";
           }
-          if (packageName === "firebase" || packageName === "firebase-admin") {
+          if (
+            packageName === "firebase" ||
+            packageName === "firebase-admin" ||
+            packageName.startsWith("@firebase/")
+          ) {
+            // Firestore alone pushes a single firebase chunk past the 500 kB
+            // warning line; keep the SDK split by feature so each route only
+            // pays for what it actually imports.
+            if (id.includes("firestore")) return "vendor-firebase-firestore";
+            if (id.includes("auth")) return "vendor-firebase-auth";
+            if (id.includes("storage")) return "vendor-firebase-storage";
             return "vendor-firebase";
           }
           if (packageName === "reactflow") {

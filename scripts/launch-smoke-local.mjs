@@ -3,6 +3,8 @@ import fs from "node:fs";
 import net from "node:net";
 import path from "node:path";
 
+import { buildLocalSmokeEnv } from "./launch-smoke-env.mjs";
+
 function findOpenPort(startPort = 5050) {
   return new Promise((resolve, reject) => {
     const tryPort = (port) => {
@@ -58,30 +60,14 @@ const distEntryPath = path.join(process.cwd(), "dist", "index.js");
 const localFieldEncryptionKey = Buffer.from("blueprint-local-smoke-master-key", "utf8")
   .subarray(0, 32)
   .toString("base64");
-const localSmokeEnv = {
-  ...process.env,
-  NODE_ENV: "production",
-  PORT: String(port),
-  BLUEPRINT_DISABLE_LOCAL_ENV_BOOTSTRAP: "1",
-  BLUEPRINT_AUTONOMOUS_RESEARCH_OUTBOUND_ENABLED: "0",
-  BASE_URL: baseUrl,
-  ALPHA_SMOKE_TAG: process.env.ALPHA_SMOKE_TAG || "local-launch-smoke",
-  FIELD_ENCRYPTION_MASTER_KEY:
-    process.env.FIELD_ENCRYPTION_MASTER_KEY || localFieldEncryptionKey,
-};
-
-for (const key of [
-  "STRIPE_SECRET_KEY",
-  "STRIPE_CONNECT_ACCOUNT_ID",
-  "STRIPE_WEBHOOK_SECRET",
-  "CHECKOUT_ALLOWED_ORIGINS",
-  "FIREHOSE_API_TOKEN",
-  "FIREHOSE_BASE_URL",
-  "BLUEPRINT_AUTONOMOUS_RESEARCH_TOPICS",
-  "BLUEPRINT_AUTONOMOUS_OUTBOUND_RECIPIENTS",
-]) {
-  delete localSmokeEnv[key];
-}
+// Allowlisted, credential-free child environment — see launch-smoke-env.mjs.
+// The smoke must prove the production build boots and passes launch checks
+// WITHOUT developer/cloud configuration, automation lanes, or outbound access.
+const localSmokeEnv = buildLocalSmokeEnv(process.env, {
+  port,
+  baseUrl,
+  fieldEncryptionKey: localFieldEncryptionKey,
+});
 
 if (!fs.existsSync(distEntryPath)) {
   await new Promise((resolve, reject) => {

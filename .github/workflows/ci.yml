@@ -25,6 +25,10 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ognjhunt/BlueprintCapture
+          # Pin the ref: parity always compares against BlueprintCapture main,
+          # and an explicit ref skips checkout's default-branch API lookup —
+          # the call that flaked with GitHub 503s on 2026-07-16.
+          ref: main
           path: BlueprintCapture
           token: ${{ secrets.BLUEPRINT_CAPTURE_CHECKOUT_TOKEN || github.token }}
 
@@ -77,6 +81,16 @@ jobs:
 
       - name: Run tests
         run: npm run test:coverage
+
+      - name: Verify tests did not mutate tracked files
+        run: |
+          set -euo pipefail
+          if ! git diff --quiet; then
+            echo "::error::The test run modified tracked files. Tests must write generated artifacts to temp directories (see BLUEPRINT_CANONICAL_ARTIFACT_ROOT in client/tests/setup.ts)."
+            git status --short
+            git --no-pager diff --stat
+            exit 1
+          fi
 
       - name: Upload coverage
         if: ${{ hashFiles('coverage/**') != '' }}
@@ -140,3 +154,6 @@ jobs:
 
       - name: Run build-output tests
         run: npm run test:build-output
+
+      - name: Run isolated local launch smoke
+        run: npm run smoke:launch:local

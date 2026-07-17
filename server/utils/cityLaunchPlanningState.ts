@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { slugifyCityName } from "./cityLaunchProfiles";
 import { validateCityLaunchPlaybookMarkdown } from "./cityLaunchPlanningHarness";
+import { resolveCanonicalArtifactReadPath } from "./canonicalArtifactRoot";
 
 const REPO_ROOT = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -172,10 +173,9 @@ export async function resolveCityLaunchPlanningState(input: {
   const citySlug = slugifyCityName(city);
   const reportsRoot = input.reportsRoot || DEFAULT_REPORTS_ROOT;
   const cityReportsRoot = path.join(reportsRoot, citySlug);
-  const canonicalPlaybookPath = path.join(
+  const canonicalPlaybookPath = resolveCanonicalArtifactReadPath(
     REPO_ROOT,
-    "ops/paperclip/playbooks",
-    `city-launch-${citySlug}-deep-research.md`,
+    path.join("ops/paperclip/playbooks", `city-launch-${citySlug}-deep-research.md`),
   );
   const latestRun = await resolveLatestRunDirectory(cityReportsRoot);
   const latestArtifactPath = await resolveLatestArtifactPath(latestRun?.runDirectory || null);

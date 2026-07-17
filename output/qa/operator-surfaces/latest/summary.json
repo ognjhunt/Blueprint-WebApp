@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-05-28T20:30:34.027Z",
-  "baseUrl": "http://127.0.0.1:59782",
+  "generatedAt": "2026-07-16T22:17:32.543Z",
+  "baseUrl": "http://127.0.0.1:41593",
   "routeResults": [
     {
       "surfaceLabel": "Company Metrics",
@@ -17,7 +17,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "4051 visible text characters"
+          "detail": "3930 visible text characters"
         },
         {
           "name": "Visible H1 exists",
@@ -91,7 +91,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "3973 visible text characters"
+          "detail": "3827 visible text characters"
         },
         {
           "name": "Visible H1 exists",
@@ -165,7 +165,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "4290 visible text characters"
+          "detail": "3902 visible text characters"
         },
         {
           "name": "Visible H1 exists",
@@ -239,7 +239,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "4212 visible text characters"
+          "detail": "3799 visible text characters"
         },
         {
           "name": "Visible H1 exists",
@@ -313,7 +313,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "3076 visible text characters"
+          "detail": "2810 visible text characters"
         },
         {
           "name": "Visible H1 exists",
@@ -461,7 +461,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "2797 visible text characters"
+          "detail": "2531 visible text characters"
         },
         {
           "name": "Visible H1 exists",
@@ -757,7 +757,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "2740 visible text characters"
+          "detail": "2474 visible text characters"
         },
         {
           "name": "Visible H1 exists",
@@ -905,7 +905,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "5535 visible text characters"
+          "detail": "5151 visible text characters"
         },
         {
           "name": "Visible H1 exists",
@@ -984,7 +984,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "5191 visible text characters"
+          "detail": "5048 visible text characters"
         },
         {
           "name": "Visible H1 exists",
@@ -1052,7 +1052,7 @@
   "issues": [],
   "apiFixtureHits": {
     "csrf": 14,
-    "analytics-ingest": 36,
+    "analytics-ingest": 22,
     "company-metrics": 2,
     "growth-studio": 8,
     "request-console-ready": 6,

@@ -32,6 +32,10 @@ import {
 } from "./cityLaunchLedgers";
 import { resolveCityLaunchPlanningState, type CityLaunchPlanningState } from "./cityLaunchPlanningState";
 import {
+  resolveCanonicalArtifactReadPath,
+  resolveCanonicalArtifactWriteRoot,
+} from "./canonicalArtifactRoot";
+import {
   type CityLaunchResearchParseResult,
   type ParsedCityLaunchActivationPayload,
 } from "./cityLaunchResearchParser";
@@ -111,6 +115,18 @@ const REPO_ROOT = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "../..",
 );
+
+// Canonical artifacts (tracked playbooks/system docs) may be redirected away
+// from the worktree via BLUEPRINT_CANONICAL_ARTIFACT_ROOT — see
+// canonicalArtifactRoot.ts. Resolved per call so a test harness can set the
+// override before any flow runs.
+function canonicalWriteRoot() {
+  return resolveCanonicalArtifactWriteRoot(REPO_ROOT);
+}
+
+function canonicalReadPath(relativePath: string) {
+  return resolveCanonicalArtifactReadPath(REPO_ROOT, relativePath);
+}
 
 const DEFAULT_REPORTS_ROOT = path.join(
   REPO_ROOT,
@@ -453,23 +469,23 @@ function timestampForFile(date = new Date()) {
 }
 
 function buildCanonicalSystemDocPath(profile: CityLaunchProfile) {
-  return path.join(REPO_ROOT, profile.systemDocPath);
+  return path.join(canonicalWriteRoot(), profile.systemDocPath);
 }
 
 function buildCanonicalIssueBundlePath(profile: CityLaunchProfile) {
-  return path.join(REPO_ROOT, profile.issueBundlePath);
+  return path.join(canonicalWriteRoot(), profile.issueBundlePath);
 }
 
 function buildCanonicalLaunchPlaybookPath(profile: CityLaunchProfile) {
-  return path.join(REPO_ROOT, profile.launchPlaybookPath);
+  return path.join(canonicalWriteRoot(), profile.launchPlaybookPath);
 }
 
 function buildCanonicalDemandPlaybookPath(profile: CityLaunchProfile) {
-  return path.join(REPO_ROOT, profile.demandPlaybookPath);
+  return path.join(canonicalWriteRoot(), profile.demandPlaybookPath);
 }
 
 function buildCanonicalTargetLedgerPath(profile: CityLaunchProfile) {
-  return path.join(REPO_ROOT, profile.targetLedgerPath);
+  return path.join(canonicalWriteRoot(), profile.targetLedgerPath);
 }
 
 function buildCanonicalCityOpeningArtifactPath(
@@ -493,7 +509,7 @@ function buildCanonicalCityOpeningArtifactPath(
     | "site-operator-contact-list",
 ) {
   return path.join(
-    REPO_ROOT,
+    canonicalWriteRoot(),
     "ops/paperclip/playbooks",
     `city-opening-${profile.key}-${kind}.md`,
   );
@@ -504,7 +520,7 @@ export function buildCityLaunchGtm72hArtifactPaths(
   runDirectory: string,
 ) {
   const filePrefix = `city-launch-${profile.key}`;
-  const canonicalDirectory = path.join(REPO_ROOT, "ops/paperclip/playbooks");
+  const canonicalDirectory = path.join(canonicalWriteRoot(), "ops/paperclip/playbooks");
   const buildBase = (directory: string, suffix: string, extension = "md") =>
     path.join(directory, `${filePrefix}-${suffix}.${extension}`);
   const buildScorecards = (directory: string) =>
@@ -821,7 +837,7 @@ async function listSourceArtifacts(profile: CityLaunchProfile) {
   const artifacts = await Promise.all(
     sourcePaths.map(async (relativePath): Promise<ReadSourceArtifact> => {
       try {
-        await fs.access(path.join(REPO_ROOT, relativePath));
+        await fs.access(canonicalReadPath(relativePath));
         return { relativePath, exists: true };
       } catch {
         return { relativePath, exists: false };
@@ -1873,8 +1889,7 @@ async function renderCityLaunchBuyerLoopMarkdown(input: {
   profile: CityLaunchProfile;
   reportDate: string;
 }) {
-  const ledgerPath = path.join(
-    REPO_ROOT,
+  const ledgerPath = canonicalReadPath(
     "ops/paperclip/playbooks/exact-site-hosted-review-gtm-ledger.json",
   );
   try {
@@ -3655,22 +3670,22 @@ export async function runCityLaunchExecutionHarness(input: {
   const canonicalCityOpeningRobotTeamContactListPath = buildCanonicalCityOpeningArtifactPath(profile, "robot-team-contact-list");
   const canonicalCityOpeningSiteOperatorContactListPath = buildCanonicalCityOpeningArtifactPath(profile, "site-operator-contact-list");
   const canonicalIndoorLocationSupplyPath = path.join(
-    REPO_ROOT,
+    canonicalWriteRoot(),
     "ops/paperclip/playbooks",
     `city-launch-${profile.key}-indoor-location-supply.json`,
   );
   const canonicalIndoorLocationSupplyRejectedPath = path.join(
-    REPO_ROOT,
+    canonicalWriteRoot(),
     "ops/paperclip/playbooks",
     `city-launch-${profile.key}-indoor-location-supply-rejected.json`,
   );
   const canonicalIndoorLocationSupplyEvidenceLogPath = path.join(
-    REPO_ROOT,
+    canonicalWriteRoot(),
     "ops/paperclip/playbooks",
     `city-launch-${profile.key}-indoor-location-supply-evidence-log.json`,
   );
   const canonicalIndoorLocationSupplyReportPath = path.join(
-    REPO_ROOT,
+    canonicalWriteRoot(),
     "ops/paperclip/playbooks",
     `city-launch-${profile.key}-indoor-location-supply-report.md`,
   );
@@ -3689,7 +3704,7 @@ export async function runCityLaunchExecutionHarness(input: {
     },
   };
   const canonicalActivationPayloadPath = path.join(
-    REPO_ROOT,
+    canonicalWriteRoot(),
     `ops/paperclip/playbooks/city-launch-${profile.key}-activation-payload.json`,
   );
   const stepErrorPath = path.join(runDirectory, "step-error.json");
@@ -4044,7 +4059,7 @@ export async function runCityLaunchExecutionHarness(input: {
     const sourceArtifacts = await listSourceArtifacts(profile);
     if (completedResearch?.activationPayload) {
       sourceArtifacts.push({
-        relativePath: path.relative(REPO_ROOT, canonicalActivationPayloadPath).replaceAll(path.sep, "/"),
+        relativePath: path.relative(canonicalWriteRoot(), canonicalActivationPayloadPath).replaceAll(path.sep, "/"),
         exists: true,
       });
     }
@@ -4076,7 +4091,7 @@ export async function runCityLaunchExecutionHarness(input: {
       ...Object.values(gtm72hArtifactPaths.canonical.scorecardPaths),
     ]) {
       sourceArtifacts.push({
-        relativePath: path.relative(REPO_ROOT, artifactPath).replaceAll(path.sep, "/"),
+        relativePath: path.relative(canonicalWriteRoot(), artifactPath).replaceAll(path.sep, "/"),
         exists: true,
       });
     }

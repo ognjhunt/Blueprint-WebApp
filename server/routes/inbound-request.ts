@@ -17,6 +17,7 @@ import { runInboundQualificationForRequest } from "../agents";
 import { logGrowthEvent } from "../utils/growth-events";
 import { runHighIntentLeadEnrichmentForRequest } from "../utils/highIntentLeadEnrichment";
 import { createLifecycleCadenceForInboundRequest } from "../utils/lifecycle-cadence";
+import { isLocalLaunchSmokeProfile } from "../utils/launch-readiness";
 import {
   COMMERCIAL_REQUEST_PATH_LABELS,
   COMMERCIAL_REQUEST_PATHS,
@@ -27,6 +28,7 @@ import {
 } from "../../client/src/lib/requestTaxonomy";
 import { getDemandAttributionFromContext } from "../../client/src/lib/demandAttribution";
 import { evaluateStructuredIntake } from "../../client/src/lib/structuredIntake";
+import { buildLegalAcceptanceRecord } from "../../client/src/lib/legalAcceptance";
 import type {
   InboundRequestPayload,
   InboundRequest,
@@ -916,6 +918,28 @@ router.post("/", async (req: Request, res: Response) => {
       } satisfies SubmitInboundRequestResponse);
     }
 
+    // 3b. R047: require Terms of Service + Privacy Policy acceptance for the
+    // buyer/site-operator account-creation signup path. This gate is scoped to
+    // signup submissions so shared lead forms (contact, pilot exchange) that
+    // reuse this route are unaffected. The persisted record below derives the
+    // version + timestamp on the server rather than trusting client values.
+    const isAccountSignup = payload.accountSignup === true;
+    if (isAccountSignup && payload.acceptedTerms !== true) {
+      return res.status(400).json({
+        ok: false,
+        requestId: payload.requestId,
+        status: "submitted",
+        message:
+          "You must accept the Terms of Service and Privacy Policy to create an account.",
+      } satisfies SubmitInboundRequestResponse);
+    }
+    // Record a server-derived acceptance whenever the submitter accepted. `null`
+    // for non-signup lead submissions that do not carry an acceptance.
+    const buildTermsAcceptance = <T,>(acceptedAt: T) =>
+      payload.acceptedTerms === true
+        ? buildLegalAcceptanceRecord({ acceptedAt, acceptedFromIpHash: ipHash })
+        : null;
+
     // 4. Validate enums
     if (!VALID_BUDGET_BUCKETS.includes(payload.budgetBucket)) {
       return res.status(400).json({
@@ -1104,7 +1128,10 @@ router.post("/", async (req: Request, res: Response) => {
     };
 
     if (!db) {
-      if (isProduction()) {
+      // The isolated local launch smoke boots the production build without
+      // Firestore; its loopback-guarded profile may use the same tmpdir
+      // fallback as dev. A real production deploy still fails loudly here.
+      if (isProduction() && !isLocalLaunchSmokeProfile()) {
         logger.error("Firebase Admin SDK not initialized");
         return res.status(500).json({
           ok: false,
@@ -1211,6 +1238,7 @@ router.post("/", async (req: Request, res: Response) => {
         },
         structured_intake: structuredIntake,
         human_review_required: structuredIntakeDecision.requiresHumanReview,
+        terms_acceptance: buildTermsAcceptance(new Date().toISOString()),
         debug: {
           mode: "dev_fallback",
           logPath: DEV_INBOUND_REQUEST_LOG,
@@ -1361,6 +1389,7 @@ router.post("/", async (req: Request, res: Response) => {
       structured_intake: structuredIntake,
       human_review_required: structuredIntakeDecision.requiresHumanReview,
       automation_confidence: null,
+      terms_acceptance: buildTermsAcceptance(now),
       buyer_review_access: {
         buyer_review_url: reviewUrl,
         token_issued_at: now as never,

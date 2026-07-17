@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import BusinessSignUpFlow from "@/pages/BusinessSignUpFlow";
+import { PRIVACY_VERSION, TERMS_VERSION } from "@/lib/legalAcceptance";
 
 const setLocationMock = vi.hoisted(() => vi.fn());
 const createUserWithEmailAndPasswordMock = vi.hoisted(() => vi.fn());
@@ -198,6 +199,9 @@ describe("BusinessSignUpFlow analytics", () => {
     fireEvent.change(screen.getByLabelText(/How did you hear about Blueprint\?/i), {
       target: { value: "google" },
     });
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: /Terms of Service and Privacy Policy/i }),
+    );
     fireEvent.click(screen.getByRole("button", { name: /Submit request/i }));
 
     await waitFor(() => {
@@ -210,6 +214,10 @@ describe("BusinessSignUpFlow analytics", () => {
     expect(inboundCall).toBeDefined();
     const inboundBody = JSON.parse(String(inboundCall?.[1]?.body));
     expect(inboundBody).toMatchObject({
+      accountSignup: true,
+      acceptedTerms: true,
+      termsVersion: TERMS_VERSION,
+      privacyVersion: PRIVACY_VERSION,
       buyerType: "robot_team",
       requestedLanes: ["deeper_evaluation"],
       siteName: "Durham fulfillment center",
@@ -239,6 +247,17 @@ describe("BusinessSignUpFlow analytics", () => {
       missingProofReadyFields: [],
       onboardingProgress: {
         proofReadyIntake: true,
+      },
+      // R047: the persisted profile records Terms/Privacy acceptance.
+      acceptedTerms: true,
+      termsVersion: TERMS_VERSION,
+      termsAcceptance: {
+        accepted_terms: true,
+        terms_version: TERMS_VERSION,
+        privacy_version: PRIVACY_VERSION,
+        terms_url: "/terms",
+        privacy_url: "/privacy",
+        accepted_at: "timestamp",
       },
     });
 
@@ -349,6 +368,9 @@ describe("BusinessSignUpFlow analytics", () => {
     fireEvent.change(screen.getByLabelText(/How did you hear about Blueprint\?/i), {
       target: { value: "partner_referral" },
     });
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: /Terms of Service and Privacy Policy/i }),
+    );
     fireEvent.click(screen.getByRole("button", { name: /Submit request/i }));
 
     await waitFor(() => {
@@ -387,6 +409,86 @@ describe("BusinessSignUpFlow analytics", () => {
         privacyRulesConfirmed: true,
         commercializationPreferenceSet: true,
       },
+      // R047: the persisted operator profile records Terms/Privacy acceptance.
+      acceptedTerms: true,
+      termsAcceptance: {
+        accepted_terms: true,
+        terms_version: TERMS_VERSION,
+        privacy_version: PRIVACY_VERSION,
+        accepted_at: "timestamp",
+      },
     });
+  });
+
+  it("blocks buyer signup submission until Terms and Privacy are accepted", async () => {
+    render(<BusinessSignUpFlow />);
+
+    fireEvent.change(screen.getByLabelText(/Organization name/i), {
+      target: { value: "Acme Robotics" },
+    });
+    fireEvent.change(screen.getByLabelText(/Work email/i), {
+      target: { value: "ops@acme.ai" },
+    });
+    fireEvent.change(screen.getByLabelText(/^Password$/i), {
+      target: { value: "strongpass123" },
+    });
+    fireEvent.change(screen.getByLabelText(/Confirm password/i), {
+      target: { value: "strongpass123" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^Continue$/i }));
+
+    await screen.findByText(/Team and requested lane/i);
+
+    fireEvent.change(await screen.findByLabelText(/Your name/i), {
+      target: { value: "Ada Lovelace" },
+    });
+    fireEvent.change(screen.getByLabelText(/Title/i), {
+      target: { value: "Autonomy lead" },
+    });
+    fireEvent.change(screen.getByLabelText(/Company size/i), {
+      target: { value: "11-50" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^Continue$/i }));
+
+    await screen.findByLabelText(/Site name/i);
+
+    fireEvent.change(screen.getByLabelText(/Site name/i), {
+      target: { value: "Durham fulfillment center" },
+    });
+    fireEvent.change(screen.getByLabelText(/Site location/i), {
+      target: { value: "Durham, NC" },
+    });
+    fireEvent.change(screen.getByLabelText(/Task statement/i), {
+      target: { value: "Qualify a tote-picking workflow." },
+    });
+    fireEvent.change(screen.getByLabelText(/Budget range/i), {
+      target: { value: "$50K-$300K" },
+    });
+    fireEvent.change(screen.getByLabelText(/How did you hear about Blueprint\?/i), {
+      target: { value: "google" },
+    });
+
+    // Submit WITHOUT checking the acceptance box.
+    fireEvent.click(screen.getByRole("button", { name: /Submit request/i }));
+
+    await waitFor(() => {
+      expect(analyticsEventsMock.businessSignupFailed).toHaveBeenCalledWith(
+        expect.objectContaining({
+          stage: "step_validation",
+          stepNumber: 3,
+          errorType: "missing_terms_acceptance",
+        }),
+      );
+    });
+
+    expect(setLocationMock).not.toHaveBeenCalledWith("/onboarding");
+    expect(setDocMock).not.toHaveBeenCalled();
+    const inboundCall = vi.mocked(global.fetch).mock.calls.find(
+      ([input]) => input === "/api/inbound-request",
+    );
+    expect(inboundCall).toBeUndefined();
+    expect(
+      screen.getByText(/accept the Terms of Service and Privacy Policy/i),
+    ).toBeInTheDocument();
   });
 });

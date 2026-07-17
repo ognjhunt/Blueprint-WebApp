@@ -5,7 +5,7 @@
   "license": "MIT",
   "scripts": {
     "dev": "tsx watch --clear-screen=false --exclude vite.config.ts.* server/index.ts",
-    "build": "vite build && tsx --tsconfig tsconfig.prerender.json scripts/prerender.tsx && tsx scripts/generate-sitemap.ts && npx esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
+    "build": "vite build && tsx --tsconfig tsconfig.prerender.json scripts/prerender.tsx && tsx scripts/generate-sitemap.ts && node scripts/generate-build-info.mjs && npx esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
     "render:proof-reel": "npm exec --package=@remotion/cli@4.0.438 remotion render proof-reel/index.ts BlueprintProofReel client/public/proof/blueprint-proof-reel.mp4 --public-dir client/public",
     "render:site-motion-loop": "mkdir -p tmp/remotion && npm exec --package=@remotion/cli@4.0.438 -- remotion render proof-reel/index.ts BlueprintSiteMotionLoop --output tmp/remotion/blueprint-site-motion-loop.raw.mp4 --public-dir client/public && npm exec --package=@remotion/cli@4.0.438 -- remotion ffmpeg -y -i tmp/remotion/blueprint-site-motion-loop.raw.mp4 -an -c:v libx264 -preset medium -crf 28 -movflags +faststart client/public/proof/blueprint-site-motion-loop.mp4 && rm tmp/remotion/blueprint-site-motion-loop.raw.mp4",
     "render:site-motion-loop:poster": "npm exec --package=@remotion/cli@4.0.438 -- remotion still proof-reel/index.ts BlueprintSiteMotionLoop --output client/public/proof/blueprint-site-motion-loop-poster.png --frame=42 --public-dir client/public",
@@ -180,7 +180,7 @@
     "lumaai": "^1.2.2",
     "multer": "^2.0.0",
     "node-fetch": "^3.3.2",
-    "nodemailer": "^7.0.12",
+    "nodemailer": "^9.0.3",
     "openai": "^4.104.0",
     "pino": "^9.9.5",
     "posthog-js": "^1.364.1",

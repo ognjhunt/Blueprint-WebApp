@@ -69,6 +69,16 @@ async function runHealthChecks() {
 }
 
 function runAgentRuntimeSmoke() {
+  // The isolated local smoke is credential-free by design: it must not make a
+  // live provider call. Runtime connectivity stays covered by the live-target
+  // smoke lanes (smoke:launch against preview/production with real config).
+  if (String(process.env.BLUEPRINT_LOCAL_LAUNCH_SMOKE || "").trim() === "1") {
+    console.log(
+      "Skipping agent runtime smoke in the isolated local profile (no provider credentials by design).",
+    );
+    return;
+  }
+
   const result = spawnSync("npm", ["run", "smoke:agent"], {
     cwd: process.cwd(),
     stdio: "inherit",

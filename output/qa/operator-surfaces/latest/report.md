@@ -1,7 +1,7 @@
 # Blueprint Operator Surface QA Report
 
-Generated: 2026-05-28T20:30:34.027Z
-Base URL: http://127.0.0.1:59782
+Generated: 2026-07-16T22:17:32.543Z
+Base URL: http://127.0.0.1:41593
 Command: `npm run qa:operator`
 Boundary: local Playwright dev server with mocked API responses and disabled ops scheduler
 
@@ -26,7 +26,7 @@ Does not prove: live Firebase, Stripe, Notion, Paperclip, Render, Redis, provide
 ## Fixture Hits
 
 - CSRF token: 14 hit(s). Client security header plumbing can run without live session state.
-- Analytics ingest: 36 hit(s). Page-view and private-surface telemetry calls are intercepted locally.
+- Analytics ingest: 22 hit(s). Page-view and private-surface telemetry calls are intercepted locally.
 - Company metrics: 2 hit(s). The CEO operating screen renders from a local scoreboard fixture.
 - Growth Studio: 8 hit(s). Growth Studio read lanes render without Notion writes, provider calls, or sends.
 - Request console ready state: 6 hit(s). Buyer review overview, evidence, and qualification views render from protected request fixtures.
@@ -44,7 +44,7 @@ Does not prove: live Firebase, Stripe, Notion, Paperclip, Render, Redis, provide
 | Check | Status | Detail |
 | --- | --- | --- |
 | HTTP document status | pass | 200 OK |
-| Nonblank body | pass | 4051 visible text characters |
+| Nonblank body | pass | 3930 visible text characters |
 | Visible H1 exists | pass | What is moving, what is blocked, and what needs one human answer. |
 | No framework error overlay | pass | No overlay detected |
 | No large horizontal overflow | pass | 0px overflow |
@@ -66,7 +66,7 @@ Does not prove: live Firebase, Stripe, Notion, Paperclip, Render, Redis, provide
 | Check | Status | Detail |
 | --- | --- | --- |
 | HTTP document status | pass | 200 OK |
-| Nonblank body | pass | 3973 visible text characters |
+| Nonblank body | pass | 3827 visible text characters |
 | Visible H1 exists | pass | What is moving, what is blocked, and what needs one human answer. |
 | No framework error overlay | pass | No overlay detected |
 | No large horizontal overflow | pass | 0px overflow |
@@ -88,7 +88,7 @@ Does not prove: live Firebase, Stripe, Notion, Paperclip, Render, Redis, provide
 | Check | Status | Detail |
 | --- | --- | --- |
 | HTTP document status | pass | 200 OK |
-| Nonblank body | pass | 4290 visible text characters |
+| Nonblank body | pass | 3902 visible text characters |
 | Visible H1 exists | pass | Build proof-led campaign kits from real Blueprint surfaces |
 | No framework error overlay | pass | No overlay detected |
 | No large horizontal overflow | pass | 0px overflow |
@@ -110,7 +110,7 @@ Does not prove: live Firebase, Stripe, Notion, Paperclip, Render, Redis, provide
 | Check | Status | Detail |
 | --- | --- | --- |
 | HTTP document status | pass | 200 OK |
-| Nonblank body | pass | 4212 visible text characters |
+| Nonblank body | pass | 3799 visible text characters |
 | Visible H1 exists | pass | Build proof-led campaign kits from real Blueprint surfaces |
 | No framework error overlay | pass | No overlay detected |
 | No large horizontal overflow | pass | 0px overflow |
@@ -132,7 +132,7 @@ Does not prove: live Firebase, Stripe, Notion, Paperclip, Render, Redis, provide
 | Check | Status | Detail |
 | --- | --- | --- |
 | HTTP document status | pass | 200 OK |
-| Nonblank body | pass | 3076 visible text characters |
+| Nonblank body | pass | 2810 visible text characters |
 | Visible H1 exists | pass | Harborview Grocery Annex |
 | No framework error overlay | pass | No overlay detected |
 | No large horizontal overflow | pass | 0px overflow |
@@ -176,7 +176,7 @@ Does not prove: live Firebase, Stripe, Notion, Paperclip, Render, Redis, provide
 | Check | Status | Detail |
 | --- | --- | --- |
 | HTTP document status | pass | 200 OK |
-| Nonblank body | pass | 2797 visible text characters |
+| Nonblank body | pass | 2531 visible text characters |
 | Visible H1 exists | pass | Harborview Grocery Annex |
 | No framework error overlay | pass | No overlay detected |
 | No large horizontal overflow | pass | 0px overflow |
@@ -264,7 +264,7 @@ Does not prove: live Firebase, Stripe, Notion, Paperclip, Render, Redis, provide
 | Check | Status | Detail |
 | --- | --- | --- |
 | HTTP document status | pass | 200 OK |
-| Nonblank body | pass | 2740 visible text characters |
+| Nonblank body | pass | 2474 visible text characters |
 | Visible H1 exists | pass | Riverbend Cold Storage Cell |
 | No framework error overlay | pass | No overlay detected |
 | No large horizontal overflow | pass | 0px overflow |
@@ -308,7 +308,7 @@ Does not prove: live Firebase, Stripe, Notion, Paperclip, Render, Redis, provide
 | Check | Status | Detail |
 | --- | --- | --- |
 | HTTP document status | pass | 200 OK |
-| Nonblank body | pass | 5535 visible text characters |
+| Nonblank body | pass | 5151 visible text characters |
 | Visible H1 exists | pass | Qualification submissions |
 | No framework error overlay | pass | No overlay detected |
 | No large horizontal overflow | pass | 0px overflow |
@@ -331,7 +331,7 @@ Does not prove: live Firebase, Stripe, Notion, Paperclip, Render, Redis, provide
 | Check | Status | Detail |
 | --- | --- | --- |
 | HTTP document status | pass | 200 OK |
-| Nonblank body | pass | 5191 visible text characters |
+| Nonblank body | pass | 5048 visible text characters |
 | Visible H1 exists | pass | Qualification submissions |
 | No framework error overlay | pass | No overlay detected |
 | No large horizontal overflow | pass | 0px overflow |

@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -38,10 +38,14 @@ export function TileGrid({ items, cols = 3, className, children }: TileGridProps
   return (
     <div
       className={cn(
+        // `cols` only applies from lg up; phones get a single column and small
+        // tablets two, so a 4-5 column grid never compresses into unreadable
+        // strips on a 390px viewport.
         "grid gap-px overflow-hidden rounded-md border border-line bg-[#ded7c8]",
+        "grid-cols-1 sm:grid-cols-2 lg:[grid-template-columns:repeat(var(--tile-cols),minmax(0,1fr))]",
         className,
       )}
-      style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
+      style={{ "--tile-cols": cols } as CSSProperties}
     >
       {children
         ? children

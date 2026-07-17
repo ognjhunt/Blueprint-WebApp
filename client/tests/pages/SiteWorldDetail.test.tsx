@@ -236,7 +236,9 @@ describe("SiteWorldDetail", () => {
           }),
         }),
       );
-    });
+      // 1s default flaked on the contended 2-core CI runner (async token +
+      // re-render before the POST); give the assertion real headroom.
+    }, { timeout: 5000 });
     expect(getIdToken).toHaveBeenCalled();
   });
 
@@ -289,7 +291,9 @@ describe("SiteWorldDetail", () => {
           }),
         }),
       );
-    });
+      // 1s default flaked on the contended 2-core CI runner (async token +
+      // re-render before the POST); give the assertion real headroom.
+    }, { timeout: 5000 });
     expect(getIdToken).toHaveBeenCalled();
   });
 

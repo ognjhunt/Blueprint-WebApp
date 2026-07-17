@@ -33,16 +33,16 @@ export function Footer() {
             evidence, so robot teams can rank policies on real-site task packs before
             field time.
           </p>
-          <div className="flex flex-col gap-2 text-sm">
+          <div className="flex flex-col text-sm">
             <a
               href="mailto:hello@tryblueprint.io"
-              className="inline-flex font-semibold text-[#f3efe6]/80 transition hover:text-[#f3efe6]"
+              className="inline-flex min-h-[44px] items-center font-semibold text-[#f3efe6]/80 transition hover:text-[#f3efe6]"
             >
               hello@tryblueprint.io
             </a>
             <a
               href="https://www.linkedin.com/company/blueprintsim/"
-              className="inline-flex font-semibold text-[#f3efe6]/80 transition hover:text-[#f3efe6]"
+              className="inline-flex min-h-[44px] items-center font-semibold text-[#f3efe6]/80 transition hover:text-[#f3efe6]"
             >
               LinkedIn
             </a>
@@ -54,12 +54,12 @@ export function Footer() {
             <p className="text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-[#f3efe6]/45">
               {column.heading}
             </p>
-            <ul className="space-y-3">
+            <ul className="space-y-1">
               {column.links.map((link) => (
                 <li key={`${column.heading}-${link.href}`}>
                   <a
                     href={link.href}
-                    className="text-sm text-[#f3efe6]/70 transition hover:text-[#f3efe6]"
+                    className="inline-flex min-h-[44px] items-center text-sm text-[#f3efe6]/70 transition hover:text-[#f3efe6]"
                   >
                     {link.label}
                   </a>

@@ -1,6 +1,6 @@
 # Notion Layout QA Checklist
 
-Generated: 2026-06-01T00:01:19.795Z
+Generated: 2026-07-16T22:12:04.373Z
 Local QA report: `output/qa/brand-polish/latest/report.md`
 
 This checklist is a repo-owned review template for human or Notion Manager review. No live Notion mutation was performed by this harness.

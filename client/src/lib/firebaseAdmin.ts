@@ -40,6 +40,11 @@ const firebaseConfigForAdmin = {
     process.env.FIREBASE_STORAGE_BUCKET || "blueprint-8c1ca.appspot.com",
 };
 
+// The list of env keys that trigger credential loading / ADC lookups below
+// lives in the side-effect-free adcContextEnvKeys.ts module so test harnesses
+// can consume it without evaluating this module's admin initialization.
+export { ADC_CONTEXT_ENV_KEYS } from "./adcContextEnvKeys";
+
 function initializeFirebaseAdmin() {
   if (!admin) {
     console.error("Firebase Admin SDK could not be imported");

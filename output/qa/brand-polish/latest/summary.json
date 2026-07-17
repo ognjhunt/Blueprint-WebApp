@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-01T00:01:19.795Z",
+  "generatedAt": "2026-07-16T22:12:04.373Z",
   "baseUrl": "http://127.0.0.1:4173",
   "routeResults": [
     {
@@ -17,7 +17,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "10134 visible text characters"
+          "detail": "3381 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -27,22 +27,22 @@
         {
           "name": "Visible H1 exists",
           "status": "pass",
-          "detail": "Site-specific world models from real capture."
+          "detail": "Test robot policies before field time."
         },
         {
           "name": "Expected route heading",
           "status": "pass",
-          "detail": "Expected \"Site-specific world models from real capture.\", saw \"Site-specific world models from real capture.\""
+          "detail": "Expected \"Test robot policies before field time.\", saw \"Test robot policies before field time.\""
         },
         {
           "name": "SEO title",
           "status": "pass",
-          "detail": "Blueprint | Indoor World Models For Robot Teams"
+          "detail": "Blueprint | Test Robot Policies Before Field Time"
         },
         {
           "name": "SEO description",
           "status": "pass",
-          "detail": "118 chars"
+          "detail": "170 chars"
         },
         {
           "name": "Canonical URL",
@@ -90,14 +90,14 @@
           "detail": "No broad prelaunch or apology language found"
         },
         {
-          "name": "CTA: Request world model",
+          "name": "CTA: Request evaluation",
           "status": "pass",
-          "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=header"
+          "detail": "hrefs=/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=policy-evaluation-run&source=header"
         },
         {
-          "name": "CTA: Browse world models",
+          "name": "CTA: See how it works",
           "status": "pass",
-          "detail": "hrefs=/world-models"
+          "detail": "hrefs=/how-it-works"
         },
         {
           "name": "Console health",
@@ -126,7 +126,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "9615 visible text characters"
+          "detail": "3272 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -136,22 +136,22 @@
         {
           "name": "Visible H1 exists",
           "status": "pass",
-          "detail": "Site-specific world models from real capture."
+          "detail": "Test robot policies before field time."
         },
         {
           "name": "Expected route heading",
           "status": "pass",
-          "detail": "Expected \"Site-specific world models from real capture.\", saw \"Site-specific world models from real capture.\""
+          "detail": "Expected \"Test robot policies before field time.\", saw \"Test robot policies before field time.\""
         },
         {
           "name": "SEO title",
           "status": "pass",
-          "detail": "Blueprint | Indoor World Models For Robot Teams"
+          "detail": "Blueprint | Test Robot Policies Before Field Time"
         },
         {
           "name": "SEO description",
           "status": "pass",
-          "detail": "118 chars"
+          "detail": "170 chars"
         },
         {
           "name": "Canonical URL",
@@ -199,14 +199,14 @@
           "detail": "No broad prelaunch or apology language found"
         },
         {
-          "name": "CTA: Request world model",
+          "name": "CTA: Request evaluation",
           "status": "pass",
-          "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-hero-primary&utm_source=homepage&utm_medium=website&utm_campaign=home_robot_team_conversion_v1&utm_content=street_view_grounds%3Ahome-hero-primary"
+          "detail": "hrefs=/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&requestedOutputs=Policy%20Evaluation%20Run&episodeCount=500&source=home"
         },
         {
-          "name": "CTA: Browse world models",
+          "name": "CTA: See how it works",
           "status": "pass",
-          "detail": "hrefs=/world-models"
+          "detail": "hrefs=/how-it-works"
         },
         {
           "name": "Console health",
@@ -221,7 +221,7 @@
       ]
     },
     {
-      "routeLabel": "Product",
+      "routeLabel": "Product (legacy, redirects to Home)",
       "routePath": "/product",
       "viewportName": "desktop",
       "screenshotPath": "output/qa/brand-polish/latest/screenshots/product-desktop.png",
@@ -235,7 +235,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "6318 visible text characters"
+          "detail": "3381 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -245,27 +245,27 @@
         {
           "name": "Visible H1 exists",
           "status": "pass",
-          "detail": "Turn the exact site into a decision-ready world model."
+          "detail": "Test robot policies before field time."
         },
         {
           "name": "Expected route heading",
           "status": "pass",
-          "detail": "Expected \"Turn the exact site into a decision-ready world model.\", saw \"Turn the exact site into a decision-ready world model.\""
+          "detail": "Expected \"Test robot policies before field time.\", saw \"Test robot policies before field time.\""
         },
         {
           "name": "SEO title",
           "status": "pass",
-          "detail": "Product | Blueprint"
+          "detail": "Blueprint | Test Robot Policies Before Field Time"
         },
         {
           "name": "SEO description",
           "status": "pass",
-          "detail": "118 chars"
+          "detail": "170 chars"
         },
         {
           "name": "Canonical URL",
           "status": "pass",
-          "detail": "https://tryblueprint.io/product"
+          "detail": "https://tryblueprint.io/"
         },
         {
           "name": "Robots indexable",
@@ -308,14 +308,14 @@
           "detail": "No broad prelaunch or apology language found"
         },
         {
-          "name": "CTA: Book hosted review",
+          "name": "CTA: Request evaluation",
           "status": "pass",
-          "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=product"
+          "detail": "hrefs=/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=policy-evaluation-run&source=header"
         },
         {
-          "name": "CTA: Inspect proof",
+          "name": "CTA: See how it works",
           "status": "pass",
-          "detail": "hrefs=/proof"
+          "detail": "hrefs=/how-it-works"
         },
         {
           "name": "Console health",
@@ -330,7 +330,7 @@
       ]
     },
     {
-      "routeLabel": "Product",
+      "routeLabel": "Product (legacy, redirects to Home)",
       "routePath": "/product",
       "viewportName": "mobile",
       "screenshotPath": "output/qa/brand-polish/latest/screenshots/product-mobile.png",
@@ -344,7 +344,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "5741 visible text characters"
+          "detail": "3272 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -354,27 +354,27 @@
         {
           "name": "Visible H1 exists",
           "status": "pass",
-          "detail": "Turn the exact site into a decision-ready world model."
+          "detail": "Test robot policies before field time."
         },
         {
           "name": "Expected route heading",
           "status": "pass",
-          "detail": "Expected \"Turn the exact site into a decision-ready world model.\", saw \"Turn the exact site into a decision-ready world model.\""
+          "detail": "Expected \"Test robot policies before field time.\", saw \"Test robot policies before field time.\""
         },
         {
           "name": "SEO title",
           "status": "pass",
-          "detail": "Product | Blueprint"
+          "detail": "Blueprint | Test Robot Policies Before Field Time"
         },
         {
           "name": "SEO description",
           "status": "pass",
-          "detail": "118 chars"
+          "detail": "170 chars"
         },
         {
           "name": "Canonical URL",
           "status": "pass",
-          "detail": "https://tryblueprint.io/product"
+          "detail": "https://tryblueprint.io/"
         },
         {
           "name": "Robots indexable",
@@ -417,14 +417,14 @@
           "detail": "No broad prelaunch or apology language found"
         },
         {
-          "name": "CTA: Book hosted review",
+          "name": "CTA: Request evaluation",
           "status": "pass",
-          "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=product"
+          "detail": "hrefs=/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&requestedOutputs=Policy%20Evaluation%20Run&episodeCount=500&source=home"
         },
         {
-          "name": "CTA: Inspect proof",
+          "name": "CTA: See how it works",
           "status": "pass",
-          "detail": "hrefs=/proof"
+          "detail": "hrefs=/how-it-works"
         },
         {
           "name": "Console health",
@@ -439,7 +439,7 @@
       ]
     },
     {
-      "routeLabel": "World models",
+      "routeLabel": "Sites (legacy /world-models, redirects to /sites)",
       "routePath": "/world-models",
       "viewportName": "desktop",
       "screenshotPath": "output/qa/brand-polish/latest/screenshots/world-models-desktop.png",
@@ -453,7 +453,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "8331 visible text characters"
+          "detail": "2607 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -463,27 +463,27 @@
         {
           "name": "Visible H1 exists",
           "status": "pass",
-          "detail": "Browse exact-site world models."
+          "detail": "Pick a captured place."
         },
         {
           "name": "Expected route heading",
           "status": "pass",
-          "detail": "Expected \"Browse exact-site world models.\", saw \"Browse exact-site world models.\""
+          "detail": "Expected \"Pick a captured place.\", saw \"Pick a captured place.\""
         },
         {
           "name": "SEO title",
           "status": "pass",
-          "detail": "World Models | Blueprint"
+          "detail": "Captured Sites | Blueprint"
         },
         {
           "name": "SEO description",
           "status": "pass",
-          "detail": "118 chars"
+          "detail": "170 chars"
         },
         {
           "name": "Canonical URL",
           "status": "pass",
-          "detail": "https://tryblueprint.io/world-models"
+          "detail": "https://tryblueprint.io/sites"
         },
         {
           "name": "Robots indexable",
@@ -526,14 +526,14 @@
           "detail": "No broad prelaunch or apology language found"
         },
         {
-          "name": "CTA: Request world model",
+          "name": "CTA: Start",
           "status": "pass",
-          "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=header"
+          "detail": "hrefs=/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&source=sites-hero"
         },
         {
-          "name": "CTA: Jump to catalog",
+          "name": "CTA: Submit site",
           "status": "pass",
-          "detail": "hrefs=#catalog"
+          "detail": "hrefs=/contact/site-operator?source=sites-hero"
         },
         {
           "name": "Console health",
@@ -548,7 +548,7 @@
       ]
     },
     {
-      "routeLabel": "World models",
+      "routeLabel": "Sites (legacy /world-models, redirects to /sites)",
       "routePath": "/world-models",
       "viewportName": "mobile",
       "screenshotPath": "output/qa/brand-polish/latest/screenshots/world-models-mobile.png",
@@ -562,7 +562,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "7994 visible text characters"
+          "detail": "2498 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -572,27 +572,27 @@
         {
           "name": "Visible H1 exists",
           "status": "pass",
-          "detail": "Browse exact-site world models."
+          "detail": "Pick a captured place."
         },
         {
           "name": "Expected route heading",
           "status": "pass",
-          "detail": "Expected \"Browse exact-site world models.\", saw \"Browse exact-site world models.\""
+          "detail": "Expected \"Pick a captured place.\", saw \"Pick a captured place.\""
         },
         {
           "name": "SEO title",
           "status": "pass",
-          "detail": "World Models | Blueprint"
+          "detail": "Captured Sites | Blueprint"
         },
         {
           "name": "SEO description",
           "status": "pass",
-          "detail": "118 chars"
+          "detail": "170 chars"
         },
         {
           "name": "Canonical URL",
           "status": "pass",
-          "detail": "https://tryblueprint.io/world-models"
+          "detail": "https://tryblueprint.io/sites"
         },
         {
           "name": "Robots indexable",
@@ -635,14 +635,14 @@
           "detail": "No broad prelaunch or apology language found"
         },
         {
-          "name": "CTA: Request world model",
+          "name": "CTA: Start",
           "status": "pass",
-          "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=site-worlds-hero"
+          "detail": "hrefs=/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&source=sites-hero"
         },
         {
-          "name": "CTA: Jump to catalog",
+          "name": "CTA: Submit site",
           "status": "pass",
-          "detail": "hrefs=#catalog"
+          "detail": "hrefs=/contact/site-operator?source=sites-hero"
         },
         {
           "name": "Console health",
@@ -657,7 +657,7 @@
       ]
     },
     {
-      "routeLabel": "Agents",
+      "routeLabel": "Agents (legacy, redirects to Contact)",
       "routePath": "/agents",
       "viewportName": "desktop",
       "screenshotPath": "output/qa/brand-polish/latest/screenshots/agents-desktop.png",
@@ -671,7 +671,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "10018 visible text characters"
+          "detail": "1772 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -681,27 +681,27 @@
         {
           "name": "Visible H1 exists",
           "status": "pass",
-          "detail": "Robot-team agent access."
+          "detail": "Tell us what policies to compare."
         },
         {
           "name": "Expected route heading",
           "status": "pass",
-          "detail": "Expected \"Robot-team agent access.\", saw \"Robot-team agent access.\""
+          "detail": "Expected \"Tell us what policies to compare.\", saw \"Tell us what policies to compare.\""
         },
         {
           "name": "SEO title",
           "status": "pass",
-          "detail": "Robot-Team Agent Access | Blueprint"
+          "detail": "Start a Policy Evaluation | Blueprint"
         },
         {
           "name": "SEO description",
           "status": "pass",
-          "detail": "118 chars"
+          "detail": "170 chars"
         },
         {
           "name": "Canonical URL",
           "status": "pass",
-          "detail": "https://tryblueprint.io/agents"
+          "detail": "https://tryblueprint.io/contact/robot-team"
         },
         {
           "name": "Robots indexable",
@@ -744,14 +744,14 @@
           "detail": "No broad prelaunch or apology language found"
         },
         {
-          "name": "CTA: Request agent access",
+          "name": "CTA: Compare policies on a real site.",
           "status": "pass",
-          "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=agents-hero&requestedOutputs=OpenAPI%2C%20CLI%2C%20MCP%2C%20and%20hosted-session%20access&message=Robot-team%20agent%20access%20request"
+          "detail": "hrefs=/contact/robot-team#contact-intake"
         },
         {
-          "name": "CTA: Open contract",
+          "name": "CTA: Supply or monitor a facility.",
           "status": "pass",
-          "detail": "hrefs=/agent-access.openapi.json"
+          "detail": "hrefs=/contact/site-operator#contact-intake"
         },
         {
           "name": "Console health",
@@ -766,7 +766,7 @@
       ]
     },
     {
-      "routeLabel": "Agents",
+      "routeLabel": "Agents (legacy, redirects to Contact)",
       "routePath": "/agents",
       "viewportName": "mobile",
       "screenshotPath": "output/qa/brand-polish/latest/screenshots/agents-mobile.png",
@@ -780,7 +780,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "9943 visible text characters"
+          "detail": "1663 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -790,27 +790,27 @@
         {
           "name": "Visible H1 exists",
           "status": "pass",
-          "detail": "Robot-team agent access."
+          "detail": "Tell us what policies to compare."
         },
         {
           "name": "Expected route heading",
           "status": "pass",
-          "detail": "Expected \"Robot-team agent access.\", saw \"Robot-team agent access.\""
+          "detail": "Expected \"Tell us what policies to compare.\", saw \"Tell us what policies to compare.\""
         },
         {
           "name": "SEO title",
           "status": "pass",
-          "detail": "Robot-Team Agent Access | Blueprint"
+          "detail": "Start a Policy Evaluation | Blueprint"
         },
         {
           "name": "SEO description",
           "status": "pass",
-          "detail": "118 chars"
+          "detail": "170 chars"
         },
         {
           "name": "Canonical URL",
           "status": "pass",
-          "detail": "https://tryblueprint.io/agents"
+          "detail": "https://tryblueprint.io/contact/robot-team"
         },
         {
           "name": "Robots indexable",
@@ -820,7 +820,7 @@
         {
           "name": "No horizontal overflow",
           "status": "pass",
-          "detail": "2px overflow"
+          "detail": "0px overflow"
         },
         {
           "name": "Visible images carry alt attributes",
@@ -853,14 +853,14 @@
           "detail": "No broad prelaunch or apology language found"
         },
         {
-          "name": "CTA: Request agent access",
+          "name": "CTA: Compare policies on a real site.",
           "status": "pass",
-          "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=agents-hero&requestedOutputs=OpenAPI%2C%20CLI%2C%20MCP%2C%20and%20hosted-session%20access&message=Robot-team%20agent%20access%20request"
+          "detail": "hrefs=/contact/robot-team#contact-intake"
         },
         {
-          "name": "CTA: Open contract",
+          "name": "CTA: Supply or monitor a facility.",
           "status": "pass",
-          "detail": "hrefs=/agent-access.openapi.json"
+          "detail": "hrefs=/contact/site-operator#contact-intake"
         },
         {
           "name": "Console health",
@@ -889,7 +889,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "6240 visible text characters"
+          "detail": "5779 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -899,12 +899,12 @@
         {
           "name": "Visible H1 exists",
           "status": "pass",
-          "detail": "Choose the first step for one real site."
+          "detail": "Priced as evaluation infrastructure."
         },
         {
           "name": "Expected route heading",
           "status": "pass",
-          "detail": "Expected \"Choose the first step for one real site.\", saw \"Choose the first step for one real site.\""
+          "detail": "Expected \"Priced as evaluation infrastructure.\", saw \"Priced as evaluation infrastructure.\""
         },
         {
           "name": "SEO title",
@@ -914,7 +914,7 @@
         {
           "name": "SEO description",
           "status": "pass",
-          "detail": "118 chars"
+          "detail": "170 chars"
         },
         {
           "name": "Canonical URL",
@@ -962,14 +962,14 @@
           "detail": "No broad prelaunch or apology language found"
         },
         {
-          "name": "CTA: Request world model",
+          "name": "CTA: Start a subscription",
           "status": "pass",
-          "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=header"
+          "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&requestedOutputs=Robot%20Team%20Subscription&source=pricing"
         },
         {
-          "name": "CTA: Request hosted review",
+          "name": "CTA: Start a site review",
           "status": "pass",
-          "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=pricing-hero"
+          "detail": "hrefs=/contact/site-operator?buyerType=site_operator&requestedOutputs=Site%20Supply%20Review&source=pricing"
         },
         {
           "name": "Console health",
@@ -998,7 +998,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "6165 visible text characters"
+          "detail": "5670 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -1008,12 +1008,12 @@
         {
           "name": "Visible H1 exists",
           "status": "pass",
-          "detail": "Choose the first step for one real site."
+          "detail": "Priced as evaluation infrastructure."
         },
         {
           "name": "Expected route heading",
           "status": "pass",
-          "detail": "Expected \"Choose the first step for one real site.\", saw \"Choose the first step for one real site.\""
+          "detail": "Expected \"Priced as evaluation infrastructure.\", saw \"Priced as evaluation infrastructure.\""
         },
         {
           "name": "SEO title",
@@ -1023,7 +1023,7 @@
         {
           "name": "SEO description",
           "status": "pass",
-          "detail": "118 chars"
+          "detail": "170 chars"
         },
         {
           "name": "Canonical URL",
@@ -1071,14 +1071,14 @@
           "detail": "No broad prelaunch or apology language found"
         },
         {
-          "name": "CTA: Request world model",
+          "name": "CTA: Start a subscription",
           "status": "pass",
-          "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=pricing-hero"
+          "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&requestedOutputs=Robot%20Team%20Subscription&source=pricing"
         },
         {
-          "name": "CTA: Request hosted review",
+          "name": "CTA: Start a site review",
           "status": "pass",
-          "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=pricing-hero"
+          "detail": "hrefs=/contact/site-operator?buyerType=site_operator&requestedOutputs=Site%20Supply%20Review&source=pricing"
         },
         {
           "name": "Console health",
@@ -1107,7 +1107,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "9363 visible text characters"
+          "detail": "2086 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -1117,22 +1117,22 @@
         {
           "name": "Visible H1 exists",
           "status": "pass",
-          "detail": "See what is attached before your team commits."
+          "detail": "Proof stays scoped."
         },
         {
           "name": "Expected route heading",
           "status": "pass",
-          "detail": "Expected \"See what is attached before your team commits.\", saw \"See what is attached before your team commits.\""
+          "detail": "Expected \"Proof stays scoped.\", saw \"Proof stays scoped.\""
         },
         {
           "name": "SEO title",
           "status": "pass",
-          "detail": "Proof System | Blueprint"
+          "detail": "Proof | Blueprint"
         },
         {
           "name": "SEO description",
           "status": "pass",
-          "detail": "118 chars"
+          "detail": "170 chars"
         },
         {
           "name": "Canonical URL",
@@ -1180,14 +1180,9 @@
           "detail": "No broad prelaunch or apology language found"
         },
         {
-          "name": "CTA: Request world model",
+          "name": "CTA: Start",
           "status": "pass",
-          "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=header"
-        },
-        {
-          "name": "CTA: Browse world models",
-          "status": "pass",
-          "detail": "hrefs=/world-models"
+          "detail": "hrefs=/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&source=proof"
         },
         {
           "name": "Console health",
@@ -1216,7 +1211,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "9288 visible text characters"
+          "detail": "1977 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -1226,22 +1221,22 @@
         {
           "name": "Visible H1 exists",
           "status": "pass",
-          "detail": "See what is attached before your team commits."
+          "detail": "Proof stays scoped."
         },
         {
           "name": "Expected route heading",
           "status": "pass",
-          "detail": "Expected \"See what is attached before your team commits.\", saw \"See what is attached before your team commits.\""
+          "detail": "Expected \"Proof stays scoped.\", saw \"Proof stays scoped.\""
         },
         {
           "name": "SEO title",
           "status": "pass",
-          "detail": "Proof System | Blueprint"
+          "detail": "Proof | Blueprint"
         },
         {
           "name": "SEO description",
           "status": "pass",
-          "detail": "118 chars"
+          "detail": "170 chars"
         },
         {
           "name": "Canonical URL",
@@ -1289,14 +1284,9 @@
           "detail": "No broad prelaunch or apology language found"
         },
         {
-          "name": "CTA: Request world model",
+          "name": "CTA: Start",
           "status": "pass",
-          "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=proof-packet&source=proof-hero"
-        },
-        {
-          "name": "CTA: Browse world models",
-          "status": "pass",
-          "detail": "hrefs=/world-models"
+          "detail": "hrefs=/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&source=proof"
         },
         {
           "name": "Console health",
@@ -1325,7 +1315,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "4373 visible text characters"
+          "detail": "5826 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -1335,22 +1325,22 @@
         {
           "name": "Visible H1 exists",
           "status": "pass",
-          "detail": "Get paid to capture indoor places robots need to understand."
+          "detail": "Capture Jobs"
         },
         {
           "name": "Expected route heading",
           "status": "pass",
-          "detail": "Expected \"Get paid to capture indoor places robots need to understand.\", saw \"Get paid to capture indoor places robots need to understand.\""
+          "detail": "Expected \"Capture Jobs\", saw \"Capture Jobs\""
         },
         {
           "name": "SEO title",
           "status": "pass",
-          "detail": "For Capturers | Blueprint"
+          "detail": "Capture Jobs | Blueprint"
         },
         {
           "name": "SEO description",
           "status": "pass",
-          "detail": "118 chars"
+          "detail": "170 chars"
         },
         {
           "name": "Canonical URL",
@@ -1398,14 +1388,14 @@
           "detail": "No broad prelaunch or apology language found"
         },
         {
-          "name": "CTA: Check capture access",
+          "name": "CTA: Browse capture jobs",
           "status": "pass",
-          "detail": "hrefs=/capture-app/launch-access?role=capturer&source=header"
+          "detail": "hrefs=#jobs"
         },
         {
-          "name": "CTA: Apply for approved capture assignments",
+          "name": "CTA: Apply or join waitlist",
           "status": "pass",
-          "detail": "hrefs=/signup/capturer"
+          "detail": "hrefs=/signup/capturer?source=capture-jobs"
         },
         {
           "name": "Console health",
@@ -1434,7 +1424,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "4297 visible text characters"
+          "detail": "5717 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -1444,22 +1434,22 @@
         {
           "name": "Visible H1 exists",
           "status": "pass",
-          "detail": "Get paid to capture indoor places robots need to understand."
+          "detail": "Capture Jobs"
         },
         {
           "name": "Expected route heading",
           "status": "pass",
-          "detail": "Expected \"Get paid to capture indoor places robots need to understand.\", saw \"Get paid to capture indoor places robots need to understand.\""
+          "detail": "Expected \"Capture Jobs\", saw \"Capture Jobs\""
         },
         {
           "name": "SEO title",
           "status": "pass",
-          "detail": "For Capturers | Blueprint"
+          "detail": "Capture Jobs | Blueprint"
         },
         {
           "name": "SEO description",
           "status": "pass",
-          "detail": "118 chars"
+          "detail": "170 chars"
         },
         {
           "name": "Canonical URL",
@@ -1507,14 +1497,14 @@
           "detail": "No broad prelaunch or apology language found"
         },
         {
-          "name": "CTA: Check capture access",
+          "name": "CTA: Browse capture jobs",
           "status": "pass",
-          "detail": "hrefs=/capture-app/launch-access?role=capturer&source=capture-hero"
+          "detail": "hrefs=#jobs"
         },
         {
-          "name": "CTA: Apply for approved capture assignments",
+          "name": "CTA: Apply or join waitlist",
           "status": "pass",
-          "detail": "hrefs=/signup/capturer"
+          "detail": "hrefs=/signup/capturer?source=capture-jobs"
         },
         {
           "name": "Console health",
@@ -1529,7 +1519,7 @@
       ]
     },
     {
-      "routeLabel": "Contact",
+      "routeLabel": "Contact (redirects to /contact/robot-team)",
       "routePath": "/contact",
       "viewportName": "desktop",
       "screenshotPath": "output/qa/brand-polish/latest/screenshots/contact-desktop.png",
@@ -1543,7 +1533,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "3473 visible text characters"
+          "detail": "1772 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -1553,27 +1543,27 @@
         {
           "name": "Visible H1 exists",
           "status": "pass",
-          "detail": "Request the site-specific world model your robot team needs."
+          "detail": "Tell us what policies to compare."
         },
         {
           "name": "Expected route heading",
           "status": "pass",
-          "detail": "Expected \"Request the site-specific world model your robot team needs.\", saw \"Request the site-specific world model your robot team needs.\""
+          "detail": "Expected \"Tell us what policies to compare.\", saw \"Tell us what policies to compare.\""
         },
         {
           "name": "SEO title",
           "status": "pass",
-          "detail": "Request A Site Or Hosted Review | Blueprint"
+          "detail": "Start a Policy Evaluation | Blueprint"
         },
         {
           "name": "SEO description",
           "status": "pass",
-          "detail": "118 chars"
+          "detail": "170 chars"
         },
         {
           "name": "Canonical URL",
           "status": "pass",
-          "detail": "https://tryblueprint.io/contact"
+          "detail": "https://tryblueprint.io/contact/robot-team"
         },
         {
           "name": "Robots indexable",
@@ -1616,14 +1606,14 @@
           "detail": "No broad prelaunch or apology language found"
         },
         {
-          "name": "CTA: Request world model",
+          "name": "CTA: Compare policies on a real site.",
           "status": "pass",
-          "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=header, #contact-intake"
+          "detail": "hrefs=/contact/robot-team#contact-intake"
         },
         {
-          "name": "CTA: Inspect proof",
+          "name": "CTA: Supply or monitor a facility.",
           "status": "pass",
-          "detail": "hrefs=/proof"
+          "detail": "hrefs=/contact/site-operator#contact-intake"
         },
         {
           "name": "Console health",
@@ -1638,7 +1628,7 @@
       ]
     },
     {
-      "routeLabel": "Contact",
+      "routeLabel": "Contact (redirects to /contact/robot-team)",
       "routePath": "/contact",
       "viewportName": "mobile",
       "screenshotPath": "output/qa/brand-polish/latest/screenshots/contact-mobile.png",
@@ -1652,7 +1642,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "3398 visible text characters"
+          "detail": "1663 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -1662,27 +1652,27 @@
         {
           "name": "Visible H1 exists",
           "status": "pass",
-          "detail": "Request the site-specific world model your robot team needs."
+          "detail": "Tell us what policies to compare."
         },
         {
           "name": "Expected route heading",
           "status": "pass",
-          "detail": "Expected \"Request the site-specific world model your robot team needs.\", saw \"Request the site-specific world model your robot team needs.\""
+          "detail": "Expected \"Tell us what policies to compare.\", saw \"Tell us what policies to compare.\""
         },
         {
           "name": "SEO title",
           "status": "pass",
-          "detail": "Request A Site Or Hosted Review | Blueprint"
+          "detail": "Start a Policy Evaluation | Blueprint"
         },
         {
           "name": "SEO description",
           "status": "pass",
-          "detail": "118 chars"
+          "detail": "170 chars"
         },
         {
           "name": "Canonical URL",
           "status": "pass",
-          "detail": "https://tryblueprint.io/contact"
+          "detail": "https://tryblueprint.io/contact/robot-team"
         },
         {
           "name": "Robots indexable",
@@ -1725,14 +1715,14 @@
           "detail": "No broad prelaunch or apology language found"
         },
         {
-          "name": "CTA: Request world model",
+          "name": "CTA: Compare policies on a real site.",
           "status": "pass",
-          "detail": "hrefs=#contact-intake"
+          "detail": "hrefs=/contact/robot-team#contact-intake"
         },
         {
-          "name": "CTA: Inspect proof",
+          "name": "CTA: Supply or monitor a facility.",
           "status": "pass",
-          "detail": "hrefs=/proof"
+          "detail": "hrefs=/contact/site-operator#contact-intake"
         },
         {
           "name": "Console health",
@@ -1747,7 +1737,7 @@
       ]
     },
     {
-      "routeLabel": "Careers",
+      "routeLabel": "Careers (legacy, redirects to Contact)",
       "routePath": "/careers",
       "viewportName": "desktop",
       "screenshotPath": "output/qa/brand-polish/latest/screenshots/careers-desktop.png",
@@ -1761,7 +1751,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "7898 visible text characters"
+          "detail": "1772 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -1771,27 +1761,27 @@
         {
           "name": "Visible H1 exists",
           "status": "pass",
-          "detail": "Build the systems behind exact-site world models."
+          "detail": "Tell us what policies to compare."
         },
         {
           "name": "Expected route heading",
           "status": "pass",
-          "detail": "Expected \"Build the systems behind exact-site world models.\", saw \"Build the systems behind exact-site world models.\""
+          "detail": "Expected \"Tell us what policies to compare.\", saw \"Tell us what policies to compare.\""
         },
         {
           "name": "SEO title",
           "status": "pass",
-          "detail": "Careers | Blueprint"
+          "detail": "Start a Policy Evaluation | Blueprint"
         },
         {
           "name": "SEO description",
           "status": "pass",
-          "detail": "118 chars"
+          "detail": "170 chars"
         },
         {
           "name": "Canonical URL",
           "status": "pass",
-          "detail": "https://tryblueprint.io/careers"
+          "detail": "https://tryblueprint.io/contact/robot-team"
         },
         {
           "name": "Robots indexable",
@@ -1834,14 +1824,14 @@
           "detail": "No broad prelaunch or apology language found"
         },
         {
-          "name": "CTA: View open roles",
+          "name": "CTA: Compare policies on a real site.",
           "status": "pass",
-          "detail": "hrefs=#open-roles"
+          "detail": "hrefs=/contact/robot-team#contact-intake"
         },
         {
-          "name": "CTA: Apply by email",
+          "name": "CTA: Supply or monitor a facility.",
           "status": "pass",
-          "detail": "hrefs=mailto:careers@tryblueprint.io?subject=Blueprint%20Founding%20Systems%20Lead"
+          "detail": "hrefs=/contact/site-operator#contact-intake"
         },
         {
           "name": "Console health",
@@ -1856,7 +1846,7 @@
       ]
     },
     {
-      "routeLabel": "Careers",
+      "routeLabel": "Careers (legacy, redirects to Contact)",
       "routePath": "/careers",
       "viewportName": "mobile",
       "screenshotPath": "output/qa/brand-polish/latest/screenshots/careers-mobile.png",
@@ -1870,7 +1860,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "7823 visible text characters"
+          "detail": "1663 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -1880,27 +1870,27 @@
         {
           "name": "Visible H1 exists",
           "status": "pass",
-          "detail": "Build the systems behind exact-site world models."
+          "detail": "Tell us what policies to compare."
         },
         {
           "name": "Expected route heading",
           "status": "pass",
-          "detail": "Expected \"Build the systems behind exact-site world models.\", saw \"Build the systems behind exact-site world models.\""
+          "detail": "Expected \"Tell us what policies to compare.\", saw \"Tell us what policies to compare.\""
         },
         {
           "name": "SEO title",
           "status": "pass",
-          "detail": "Careers | Blueprint"
+          "detail": "Start a Policy Evaluation | Blueprint"
         },
         {
           "name": "SEO description",
           "status": "pass",
-          "detail": "118 chars"
+          "detail": "170 chars"
         },
         {
           "name": "Canonical URL",
           "status": "pass",
-          "detail": "https://tryblueprint.io/careers"
+          "detail": "https://tryblueprint.io/contact/robot-team"
         },
         {
           "name": "Robots indexable",
@@ -1943,14 +1933,14 @@
           "detail": "No broad prelaunch or apology language found"
         },
         {
-          "name": "CTA: View open roles",
+          "name": "CTA: Compare policies on a real site.",
           "status": "pass",
-          "detail": "hrefs=#open-roles"
+          "detail": "hrefs=/contact/robot-team#contact-intake"
         },
         {
-          "name": "CTA: Apply by email",
+          "name": "CTA: Supply or monitor a facility.",
           "status": "pass",
-          "detail": "hrefs=mailto:careers@tryblueprint.io?subject=Blueprint%20Founding%20Systems%20Lead"
+          "detail": "hrefs=/contact/site-operator#contact-intake"
         },
         {
           "name": "Console health",
@@ -1965,7 +1955,7 @@
       ]
     },
     {
-      "routeLabel": "FAQ",
+      "routeLabel": "FAQ (legacy, redirects to Proof)",
       "routePath": "/faq",
       "viewportName": "desktop",
       "screenshotPath": "output/qa/brand-polish/latest/screenshots/faq-desktop.png",
@@ -1979,7 +1969,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "3249 visible text characters"
+          "detail": "2086 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -1989,27 +1979,27 @@
         {
           "name": "Visible H1 exists",
           "status": "pass",
-          "detail": "The questions that usually decide fit."
+          "detail": "Proof stays scoped."
         },
         {
           "name": "Expected route heading",
           "status": "pass",
-          "detail": "Expected \"The questions that usually decide fit.\", saw \"The questions that usually decide fit.\""
+          "detail": "Expected \"Proof stays scoped.\", saw \"Proof stays scoped.\""
         },
         {
           "name": "SEO title",
           "status": "pass",
-          "detail": "FAQ | Blueprint"
+          "detail": "Proof | Blueprint"
         },
         {
           "name": "SEO description",
           "status": "pass",
-          "detail": "118 chars"
+          "detail": "170 chars"
         },
         {
           "name": "Canonical URL",
           "status": "pass",
-          "detail": "https://tryblueprint.io/faq"
+          "detail": "https://tryblueprint.io/proof"
         },
         {
           "name": "Robots indexable",
@@ -2052,9 +2042,9 @@
           "detail": "No broad prelaunch or apology language found"
         },
         {
-          "name": "CTA: Talk to Blueprint about a real site",
+          "name": "CTA: Start",
           "status": "pass",
-          "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=faq-hero"
+          "detail": "hrefs=/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&source=proof"
         },
         {
           "name": "Console health",
@@ -2069,7 +2059,7 @@
       ]
     },
     {
-      "routeLabel": "FAQ",
+      "routeLabel": "FAQ (legacy, redirects to Proof)",
       "routePath": "/faq",
       "viewportName": "mobile",
       "screenshotPath": "output/qa/brand-polish/latest/screenshots/faq-mobile.png",
@@ -2083,7 +2073,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "3174 visible text characters"
+          "detail": "1977 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -2093,27 +2083,27 @@
         {
           "name": "Visible H1 exists",
           "status": "pass",
-          "detail": "The questions that usually decide fit."
+          "detail": "Proof stays scoped."
         },
         {
           "name": "Expected route heading",
           "status": "pass",
-          "detail": "Expected \"The questions that usually decide fit.\", saw \"The questions that usually decide fit.\""
+          "detail": "Expected \"Proof stays scoped.\", saw \"Proof stays scoped.\""
         },
         {
           "name": "SEO title",
           "status": "pass",
-          "detail": "FAQ | Blueprint"
+          "detail": "Proof | Blueprint"
         },
         {
           "name": "SEO description",
           "status": "pass",
-          "detail": "118 chars"
+          "detail": "170 chars"
         },
         {
           "name": "Canonical URL",
           "status": "pass",
-          "detail": "https://tryblueprint.io/faq"
+          "detail": "https://tryblueprint.io/proof"
         },
         {
           "name": "Robots indexable",
@@ -2156,9 +2146,9 @@
           "detail": "No broad prelaunch or apology language found"
         },
         {
-          "name": "CTA: Talk to Blueprint about a real site",
+          "name": "CTA: Start",
           "status": "pass",
-          "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=faq-hero"
+          "detail": "hrefs=/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&source=proof"
         },
         {
           "name": "Console health",
@@ -2173,7 +2163,7 @@
       ]
     },
     {
-      "routeLabel": "About",
+      "routeLabel": "About (legacy, redirects to Home)",
       "routePath": "/about",
       "viewportName": "desktop",
       "screenshotPath": "output/qa/brand-polish/latest/screenshots/about-desktop.png",
@@ -2187,7 +2177,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "2318 visible text characters"
+          "detail": "3381 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -2197,27 +2187,27 @@
         {
           "name": "Visible H1 exists",
           "status": "pass",
-          "detail": "Blueprint exists to make one real site legible earlier."
+          "detail": "Test robot policies before field time."
         },
         {
           "name": "Expected route heading",
           "status": "pass",
-          "detail": "Expected \"Blueprint exists to make one real site legible earlier.\", saw \"Blueprint exists to make one real site legible earlier.\""
+          "detail": "Expected \"Test robot policies before field time.\", saw \"Test robot policies before field time.\""
         },
         {
           "name": "SEO title",
           "status": "pass",
-          "detail": "About | Blueprint"
+          "detail": "Blueprint | Test Robot Policies Before Field Time"
         },
         {
           "name": "SEO description",
           "status": "pass",
-          "detail": "118 chars"
+          "detail": "170 chars"
         },
         {
           "name": "Canonical URL",
           "status": "pass",
-          "detail": "https://tryblueprint.io/about"
+          "detail": "https://tryblueprint.io/"
         },
         {
           "name": "Robots indexable",
@@ -2260,14 +2250,14 @@
           "detail": "No broad prelaunch or apology language found"
         },
         {
-          "name": "CTA: Explore world models",
+          "name": "CTA: Request evaluation",
           "status": "pass",
-          "detail": "hrefs=/world-models"
+          "detail": "hrefs=/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=policy-evaluation-run&source=header"
         },
         {
-          "name": "CTA: Contact Blueprint",
+          "name": "CTA: See how it works",
           "status": "pass",
-          "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=about-hero"
+          "detail": "hrefs=/how-it-works"
         },
         {
           "name": "Console health",
@@ -2282,7 +2272,7 @@
       ]
     },
     {
-      "routeLabel": "About",
+      "routeLabel": "About (legacy, redirects to Home)",
       "routePath": "/about",
       "viewportName": "mobile",
       "screenshotPath": "output/qa/brand-polish/latest/screenshots/about-mobile.png",
@@ -2296,7 +2286,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "2150 visible text characters"
+          "detail": "3272 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -2306,27 +2296,27 @@
         {
           "name": "Visible H1 exists",
           "status": "pass",
-          "detail": "Blueprint exists to make one real site legible earlier."
+          "detail": "Test robot policies before field time."
         },
         {
           "name": "Expected route heading",
           "status": "pass",
-          "detail": "Expected \"Blueprint exists to make one real site legible earlier.\", saw \"Blueprint exists to make one real site legible earlier.\""
+          "detail": "Expected \"Test robot policies before field time.\", saw \"Test robot policies before field time.\""
         },
         {
           "name": "SEO title",
           "status": "pass",
-          "detail": "About | Blueprint"
+          "detail": "Blueprint | Test Robot Policies Before Field Time"
         },
         {
           "name": "SEO description",
           "status": "pass",
-          "detail": "118 chars"
+          "detail": "170 chars"
         },
         {
           "name": "Canonical URL",
           "status": "pass",
-          "detail": "https://tryblueprint.io/about"
+          "detail": "https://tryblueprint.io/"
         },
         {
           "name": "Robots indexable",
@@ -2369,14 +2359,14 @@
           "detail": "No broad prelaunch or apology language found"
         },
         {
-          "name": "CTA: Explore world models",
+          "name": "CTA: Request evaluation",
           "status": "pass",
-          "detail": "hrefs=/world-models"
+          "detail": "hrefs=/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&requestedOutputs=Policy%20Evaluation%20Run&episodeCount=500&source=home"
         },
         {
-          "name": "CTA: Contact Blueprint",
+          "name": "CTA: See how it works",
           "status": "pass",
-          "detail": "hrefs=/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=about-hero"
+          "detail": "hrefs=/how-it-works"
         },
         {
           "name": "Console health",
@@ -2391,7 +2381,7 @@
       ]
     },
     {
-      "routeLabel": "Updates",
+      "routeLabel": "Updates (legacy, redirects to Home)",
       "routePath": "/updates",
       "viewportName": "desktop",
       "screenshotPath": "output/qa/brand-polish/latest/screenshots/updates-desktop.png",
@@ -2405,7 +2395,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "3353 visible text characters"
+          "detail": "3381 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -2415,27 +2405,27 @@
         {
           "name": "Visible H1 exists",
           "status": "pass",
-          "detail": "Notes on exact-site world models."
+          "detail": "Test robot policies before field time."
         },
         {
           "name": "Expected route heading",
           "status": "pass",
-          "detail": "Expected \"Notes on exact-site world models.\", saw \"Notes on exact-site world models.\""
+          "detail": "Expected \"Test robot policies before field time.\", saw \"Test robot policies before field time.\""
         },
         {
           "name": "SEO title",
           "status": "pass",
-          "detail": "Updates | Blueprint"
+          "detail": "Blueprint | Test Robot Policies Before Field Time"
         },
         {
           "name": "SEO description",
           "status": "pass",
-          "detail": "118 chars"
+          "detail": "170 chars"
         },
         {
           "name": "Canonical URL",
           "status": "pass",
-          "detail": "https://tryblueprint.io/updates"
+          "detail": "https://tryblueprint.io/"
         },
         {
           "name": "Robots indexable",
@@ -2478,14 +2468,14 @@
           "detail": "No broad prelaunch or apology language found"
         },
         {
-          "name": "CTA: Explore world models",
+          "name": "CTA: Request evaluation",
           "status": "pass",
-          "detail": "hrefs=/world-models"
+          "detail": "hrefs=/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=policy-evaluation-run&source=header"
         },
         {
-          "name": "CTA: See proof",
+          "name": "CTA: See how it works",
           "status": "pass",
-          "detail": "hrefs=/proof"
+          "detail": "hrefs=/how-it-works"
         },
         {
           "name": "Console health",
@@ -2500,7 +2490,7 @@
       ]
     },
     {
-      "routeLabel": "Updates",
+      "routeLabel": "Updates (legacy, redirects to Home)",
       "routePath": "/updates",
       "viewportName": "mobile",
       "screenshotPath": "output/qa/brand-polish/latest/screenshots/updates-mobile.png",
@@ -2514,7 +2504,7 @@
         {
           "name": "Nonblank body",
           "status": "pass",
-          "detail": "3278 visible text characters"
+          "detail": "3272 visible text characters"
         },
         {
           "name": "No framework error overlay",
@@ -2524,27 +2514,27 @@
         {
           "name": "Visible H1 exists",
           "status": "pass",
-          "detail": "Notes on exact-site world models."
+          "detail": "Test robot policies before field time."
         },
         {
           "name": "Expected route heading",
           "status": "pass",
-          "detail": "Expected \"Notes on exact-site world models.\", saw \"Notes on exact-site world models.\""
+          "detail": "Expected \"Test robot policies before field time.\", saw \"Test robot policies before field time.\""
         },
         {
           "name": "SEO title",
           "status": "pass",
-          "detail": "Updates | Blueprint"
+          "detail": "Blueprint | Test Robot Policies Before Field Time"
         },
         {
           "name": "SEO description",
           "status": "pass",
-          "detail": "118 chars"
+          "detail": "170 chars"
         },
         {
           "name": "Canonical URL",
           "status": "pass",
-          "detail": "https://tryblueprint.io/updates"
+          "detail": "https://tryblueprint.io/"
         },
         {
           "name": "Robots indexable",
@@ -2587,14 +2577,14 @@
           "detail": "No broad prelaunch or apology language found"
         },
         {
-          "name": "CTA: Explore world models",
+          "name": "CTA: Request evaluation",
           "status": "pass",
-          "detail": "hrefs=/world-models"
+          "detail": "hrefs=/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&requestedOutputs=Policy%20Evaluation%20Run&episodeCount=500&source=home"
         },
         {
-          "name": "CTA: See proof",
+          "name": "CTA: See how it works",
           "status": "pass",
-          "detail": "hrefs=/proof"
+          "detail": "hrefs=/how-it-works"
         },
         {
           "name": "Console health",
@@ -2612,52 +2602,6 @@
   "linkResults": [
     {
       "href": "/",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/",
-        "/about",
-        "/agents",
-        "/capture",
-        "/careers",
-        "/contact",
-        "/faq",
-        "/pricing",
-        "/product",
-        "/proof",
-        "/updates",
-        "/world-models"
-      ]
-    },
-    {
-      "href": "/about",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/",
-        "/about",
-        "/agents",
-        "/capture",
-        "/careers",
-        "/contact",
-        "/faq",
-        "/pricing",
-        "/product",
-        "/proof",
-        "/updates",
-        "/world-models"
-      ]
-    },
-    {
-      "href": "/agent-access.openapi.json",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/agents"
-      ]
-    },
-    {
-      "href": "/agents",
       "status": "pass",
       "httpStatus": 200,
       "sourceRoutes": [
@@ -2695,39 +2639,17 @@
       ]
     },
     {
-      "href": "/capture-app/launch-access?role=capturer&source=capture-hero",
+      "href": "/contact/robot-team",
       "status": "pass",
       "httpStatus": 200,
       "sourceRoutes": [
-        "/capture"
+        "/agents",
+        "/careers",
+        "/contact"
       ]
     },
     {
-      "href": "/capture-app/launch-access?role=capturer&source=header",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/capture"
-      ]
-    },
-    {
-      "href": "/capture-app/launch-access?role=capturer&source=home-persona-capturer",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/"
-      ]
-    },
-    {
-      "href": "/capture-app/launch-access?role=capturer&source=home-top-persona",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/"
-      ]
-    },
-    {
-      "href": "/careers",
+      "href": "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=policy-evaluation-run&source=footer",
       "status": "pass",
       "httpStatus": 200,
       "sourceRoutes": [
@@ -2746,11 +2668,114 @@
       ]
     },
     {
-      "href": "/contact",
+      "href": "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=policy-evaluation-run&source=header",
       "status": "pass",
       "httpStatus": 200,
       "sourceRoutes": [
-        "/contact"
+        "/",
+        "/about",
+        "/agents",
+        "/capture",
+        "/careers",
+        "/contact",
+        "/faq",
+        "/pricing",
+        "/product",
+        "/proof",
+        "/updates",
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&requestedOutputs=Policy%20Evaluation%20Run&episodeCount=500&source=home",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/",
+        "/about",
+        "/product",
+        "/updates"
+      ]
+    },
+    {
+      "href": "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&requestedOutputs=Policy%20Evaluation%20Run&location=Front%20Range%20Cold%20Storage%20Pod&source=sites-card",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&requestedOutputs=Policy%20Evaluation%20Run&location=Harborview%20Grocery%20Distribution%20Annex&source=sites-card",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&requestedOutputs=Policy%20Evaluation%20Run&location=Lakeshore%20Loading%20Dock&source=sites-card",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&requestedOutputs=Policy%20Evaluation%20Run&location=Motor%20City%20Battery%20Staging%20Cell&source=sites-card",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&requestedOutputs=Policy%20Evaluation%20Run&location=Northfield%20Distribution%20Center&source=sites-card",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&requestedOutputs=Policy%20Evaluation%20Run&location=Piedmont%20Hospital%20Supply%20Hallway&source=sites-card",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&requestedOutputs=Policy%20Evaluation%20Run&location=South%20Bay%20Retail%20Stockroom&source=sites-card",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&requestedOutputs=Policy%20Evaluation%20Run&location=Triangle%20Robotics%20Lab&source=sites-card",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&source=proof",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/faq",
+        "/proof"
+      ]
+    },
+    {
+      "href": "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&path=policy-evaluation-run&source=sites-hero",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/world-models"
       ]
     },
     {
@@ -2773,130 +2798,7 @@
       ]
     },
     {
-      "href": "/contact?interest=data-licensing&buyerType=robot_team&source=site-worlds&path=package-access&siteName=Bayview+Micro-Fulfillment+Center&siteLocation=1380+Oakland+Rd%2C+San+Jose%2C+CA+95112&taskStatement=Pick+the+order+items+and+transfer+the+tote+to+pack&targetRobotTeam=AMR+with+shelf-facing+camera+and+tote+sensor",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/world-models"
-      ]
-    },
-    {
-      "href": "/contact?interest=data-licensing&buyerType=robot_team&source=site-worlds&path=package-access&siteName=Cherry+Creek+Hospital+Supply+Annex&siteLocation=950+Josephine+St%2C+Denver%2C+CO+80206&taskStatement=Load+the+cart%2C+deliver+to+the+room%2C+and+return+through+the+clear+corridor&targetRobotTeam=Hospital+cart+robot+with+head+cam+and+map+state+feed",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/world-models"
-      ]
-    },
-    {
-      "href": "/contact?interest=data-licensing&buyerType=robot_team&source=site-worlds&path=package-access&siteName=Commonwealth+Pharmacy+Refill+Center&siteLocation=71+Southampton+St%2C+Boston%2C+MA+02118&taskStatement=Pick+the+refill+item%2C+verify+it%2C+and+load+the+secure+bin&targetRobotTeam=Dual-arm+pharmacy+assistant+with+wrist+cam+and+barcode+state",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/world-models"
-      ]
-    },
-    {
-      "href": "/contact?interest=data-licensing&buyerType=robot_team&source=site-worlds&path=package-access&siteName=Front+Range+Cold+Storage+Pod&siteLocation=1911+Groveport+Rd%2C+Columbus%2C+OH+43207&taskStatement=Pick+the+target+bin+and+transfer+it+without+breaking+the+route+timing&targetRobotTeam=Cold-room+picker+with+arm+camera+and+thermal+state+feed",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/world-models"
-      ]
-    },
-    {
-      "href": "/contact?interest=data-licensing&buyerType=robot_team&source=site-worlds&path=package-access&siteName=Harborview+Grocery+Distribution+Annex&siteLocation=1847+W+Fulton+St%2C+Chicago%2C+IL+60612&taskStatement=Walk+to+shelf+staging+and+pick+the+blue+tote&targetRobotTeam=Unitree+G1+with+head+cam+and+wrist+cam",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/world-models"
-      ]
-    },
-    {
-      "href": "/contact?interest=data-licensing&buyerType=robot_team&source=site-worlds&path=package-access&siteName=Meadowlands+Returns+Processing+Suite&siteLocation=500+Duncan+Ave%2C+Jersey+City%2C+NJ+07306&taskStatement=Triage+the+returned+item+and+route+it+to+the+correct+tote&targetRobotTeam=Stationary+arm+with+table+cams+and+barcode+reader",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/world-models"
-      ]
-    },
-    {
-      "href": "/contact?interest=data-licensing&buyerType=robot_team&source=site-worlds&path=package-access&siteName=Media+Room+Demo+Walkthrough&siteLocation=Blueprint+hosted+review+demo&taskStatement=Media+room&targetRobotTeam=Mobile+manipulator+with+head+and+wrist+cameras",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/world-models"
-      ]
-    },
-    {
-      "href": "/contact?interest=data-licensing&buyerType=robot_team&source=site-worlds&path=package-access&siteName=Motor+City+Battery+Staging+Cell&siteLocation=7440+Lynch+Rd%2C+Detroit%2C+MI+48234&taskStatement=Move+the+part+feed+into+the+fixture+and+complete+the+transfer&targetRobotTeam=Assembly+arm+with+force+trace+stream+and+wrist+camera",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/world-models"
-      ]
-    },
-    {
-      "href": "/contact?interest=data-licensing&buyerType=robot_team&source=site-worlds&path=package-access&siteName=Newark+Terminal+B+Baggage+Feed&siteLocation=3+Brewster+Rd%2C+Newark%2C+NJ+07114&taskStatement=Scan+the+bag%2C+route+it+correctly%2C+and+clear+the+lane&targetRobotTeam=Bag-handling+arm+with+feed+camera+and+scan+event+stream",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/world-models"
-      ]
-    },
-    {
-      "href": "/contact?interest=data-licensing&buyerType=robot_team&source=site-worlds&path=package-access&siteName=Peachtree+Parcel+Exchange+South&siteLocation=2550+Lakewood+Ave+SW%2C+Atlanta%2C+GA+30315&taskStatement=Induct+a+parcel%2C+clear+the+lane%2C+and+reset+the+tote+position&targetRobotTeam=Mobile+manipulator+with+mast+cam+and+overhead+assist+view",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/world-models"
-      ]
-    },
-    {
-      "href": "/contact?interest=data-licensing&buyerType=robot_team&source=site-worlds&path=package-access&siteName=Sonoran+Assembly+Cart+Bay&siteLocation=4025+E+University+Dr%2C+Phoenix%2C+AZ+85034&taskStatement=Fetch+the+staged+cart+and+deliver+it+to+the+resupply+station&targetRobotTeam=Autonomous+cart+tug+with+front+stereo+pair",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/world-models"
-      ]
-    },
-    {
-      "href": "/contact?interest=data-licensing&buyerType=robot_team&source=site-worlds&path=package-access&siteName=Soundside+Electronics+Rework+Lab&siteLocation=2211+4th+Ave+S%2C+Seattle%2C+WA+98134&taskStatement=Fetch+the+tray+and+hand+the+part+to+the+rework+bench&targetRobotTeam=Bench-side+arm+with+wrist+cams+and+tray+state+sensor",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/world-models"
-      ]
-    },
-    {
-      "href": "/contact?interest=data-licensing&buyerType=robot_team&source=site-worlds&path=package-access&siteName=Trinity+Linen+Operations+Hub&siteLocation=1410+Irving+Blvd%2C+Dallas%2C+TX+75207&taskStatement=Lift+the+intake+bag%2C+sort+it%2C+and+transfer+the+load+to+outbound&targetRobotTeam=Humanoid+with+head+cam+and+top-down+supervisor+view",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/world-models"
-      ]
-    },
-    {
-      "href": "/contact?persona=robot-team",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/",
-        "/about",
-        "/agents",
-        "/capture",
-        "/careers",
-        "/contact",
-        "/faq",
-        "/pricing",
-        "/product",
-        "/proof",
-        "/updates",
-        "/world-models"
-      ]
-    },
-    {
-      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=custom-scope&path=world-model&source=pricing-custom-table",
+      "href": "/contact/site-operator?buyerType=site_operator&requestedOutputs=Site%20Monitoring%20Subscription&source=pricing",
       "status": "pass",
       "httpStatus": 200,
       "sourceRoutes": [
@@ -2904,7 +2806,7 @@
       ]
     },
     {
-      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=pricing",
+      "href": "/contact/site-operator?buyerType=site_operator&requestedOutputs=Site%20Supply%20Review&source=pricing",
       "status": "pass",
       "httpStatus": 200,
       "sourceRoutes": [
@@ -2912,192 +2814,7 @@
       ]
     },
     {
-      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=pricing-hero",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/pricing"
-      ]
-    },
-    {
-      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=pricing-hosted-table",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/pricing"
-      ]
-    },
-    {
-      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=product",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/product"
-      ]
-    },
-    {
-      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=product-bottom",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/product"
-      ]
-    },
-    {
-      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=proof-bottom",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/proof"
-      ]
-    },
-    {
-      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=proof-packet&source=proof-bottom",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/proof"
-      ]
-    },
-    {
-      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=proof-packet&source=proof-hero",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/proof"
-      ]
-    },
-    {
-      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=about-bottom",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/about"
-      ]
-    },
-    {
-      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=about-hero",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/about"
-      ]
-    },
-    {
-      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=agents-hero&requestedOutputs=OpenAPI%2C%20CLI%2C%20MCP%2C%20and%20hosted-session%20access&message=Robot-team%20agent%20access%20request",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/agents"
-      ]
-    },
-    {
-      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=faq-bottom",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/faq"
-      ]
-    },
-    {
-      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=faq-hero",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/faq"
-      ]
-    },
-    {
-      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=header",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/",
-        "/about",
-        "/careers",
-        "/contact",
-        "/faq",
-        "/pricing",
-        "/product",
-        "/proof",
-        "/updates",
-        "/world-models"
-      ]
-    },
-    {
-      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-bottom&utm_source=homepage&utm_medium=website&utm_campaign=home_robot_team_conversion_v1&utm_content=outdoor_street_view%3Ahome-bottom",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/"
-      ]
-    },
-    {
-      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-decision-path&utm_source=homepage&utm_medium=website&utm_campaign=home_robot_team_conversion_v1&utm_content=outdoor_street_view%3Ahome-decision-path",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/"
-      ]
-    },
-    {
-      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-hero-primary&utm_source=homepage&utm_medium=website&utm_campaign=home_robot_team_conversion_v1&utm_content=outdoor_street_view%3Ahome-hero-primary",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/"
-      ]
-    },
-    {
-      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-persona-robot-team",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/"
-      ]
-    },
-    {
-      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=home-product-review",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/"
-      ]
-    },
-    {
-      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=pricing",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/pricing"
-      ]
-    },
-    {
-      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=pricing-hero",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/pricing"
-      ]
-    },
-    {
-      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=pricing-package-table",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/pricing"
-      ]
-    },
-    {
-      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=product-hero",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/product"
-      ]
-    },
-    {
-      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=site-worlds",
+      "href": "/contact/site-operator?source=sites-hero",
       "status": "pass",
       "httpStatus": 200,
       "sourceRoutes": [
@@ -3105,30 +2822,27 @@
       ]
     },
     {
-      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=world-model&path=world-model&source=site-worlds-hero",
+      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&requestedOutputs=Quick-Look%20Eval&episodeCount=50&source=pricing",
       "status": "pass",
       "httpStatus": 200,
       "sourceRoutes": [
-        "/world-models"
+        "/pricing"
       ]
     },
     {
-      "href": "/faq",
+      "href": "/contact?persona=robot-team&buyerType=robot_team&interest=policy-evaluation-run&requestedOutputs=Robot%20Team%20Subscription&source=pricing",
       "status": "pass",
       "httpStatus": 200,
       "sourceRoutes": [
-        "/",
-        "/about",
-        "/agents",
-        "/capture",
-        "/careers",
-        "/contact",
-        "/faq",
-        "/pricing",
-        "/product",
-        "/proof",
-        "/updates",
-        "/world-models"
+        "/pricing"
+      ]
+    },
+    {
+      "href": "/contact?persona=robot-team&interest=policy-evaluation-run&source=pricing",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/pricing"
       ]
     },
     {
@@ -3151,26 +2865,7 @@
       ]
     },
     {
-      "href": "/governance",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/",
-        "/about",
-        "/agents",
-        "/capture",
-        "/careers",
-        "/contact",
-        "/faq",
-        "/pricing",
-        "/product",
-        "/proof",
-        "/updates",
-        "/world-models"
-      ]
-    },
-    {
-      "href": "/help",
+      "href": "/for-site-operators",
       "status": "pass",
       "httpStatus": 200,
       "sourceRoutes": [
@@ -3246,25 +2941,6 @@
       ]
     },
     {
-      "href": "/product",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/",
-        "/about",
-        "/agents",
-        "/capture",
-        "/careers",
-        "/contact",
-        "/faq",
-        "/pricing",
-        "/product",
-        "/proof",
-        "/updates",
-        "/world-models"
-      ]
-    },
-    {
       "href": "/proof",
       "status": "pass",
       "httpStatus": 200,
@@ -3284,7 +2960,7 @@
       ]
     },
     {
-      "href": "/sample-deliverables",
+      "href": "/sign-in",
       "status": "pass",
       "httpStatus": 200,
       "sourceRoutes": [
@@ -3303,19 +2979,160 @@
       ]
     },
     {
-      "href": "/samples/sample-hosted-review-report.md",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/product"
-      ]
-    },
-    {
-      "href": "/signup/capturer",
+      "href": "/signup/capturer?intent=waitlist&source=capture-jobs",
       "status": "pass",
       "httpStatus": 200,
       "sourceRoutes": [
         "/capture"
+      ]
+    },
+    {
+      "href": "/signup/capturer?source=capture-jobs",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/capture"
+      ]
+    },
+    {
+      "href": "/signup/capturer?source=capture-jobs&job=austin-market-aisle",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/capture"
+      ]
+    },
+    {
+      "href": "/signup/capturer?source=capture-jobs&job=chicago-pharmacy-supply",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/capture"
+      ]
+    },
+    {
+      "href": "/signup/capturer?source=capture-jobs&job=denver-cold-storage",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/capture"
+      ]
+    },
+    {
+      "href": "/signup/capturer?source=capture-jobs&job=durham-dock-staging",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/capture"
+      ]
+    },
+    {
+      "href": "/signup/capturer?source=capture-jobs&job=phoenix-assembly-cart",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/capture"
+      ]
+    },
+    {
+      "href": "/signup/capturer?source=capture-jobs&job=seattle-rework-lab",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/capture"
+      ]
+    },
+    {
+      "href": "/signup?flow=capturer",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/agents",
+        "/careers",
+        "/contact"
+      ]
+    },
+    {
+      "href": "/sites",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/",
+        "/about",
+        "/agents",
+        "/capture",
+        "/careers",
+        "/contact",
+        "/faq",
+        "/pricing",
+        "/product",
+        "/proof",
+        "/updates",
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/sites/lakeshore-loading-dock",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/sites/northfield-distribution-center",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/sites/piedmont-hospital-supply-hallway",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/sites/south-bay-retail-stockroom",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/sites/sw-chi-01",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/sites/sw-col-05",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/sites/sw-det-09",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/world-models"
+      ]
+    },
+    {
+      "href": "/sites/triangle-robotics-lab",
+      "status": "pass",
+      "httpStatus": 200,
+      "sourceRoutes": [
+        "/world-models"
       ]
     },
     {
@@ -3338,7 +3155,7 @@
       ]
     },
     {
-      "href": "/updates",
+      "href": "/vision",
       "status": "pass",
       "httpStatus": 200,
       "sourceRoutes": [
@@ -3353,150 +3170,6 @@
         "/product",
         "/proof",
         "/updates",
-        "/world-models"
-      ]
-    },
-    {
-      "href": "/world-models",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/",
-        "/about",
-        "/agents",
-        "/capture",
-        "/careers",
-        "/contact",
-        "/faq",
-        "/pricing",
-        "/product",
-        "/proof",
-        "/updates",
-        "/world-models"
-      ]
-    },
-    {
-      "href": "/world-models/siteworld-f5fd54898cfb",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/",
-        "/pricing",
-        "/world-models"
-      ]
-    },
-    {
-      "href": "/world-models/siteworld-f5fd54898cfb/start",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/agents",
-        "/world-models"
-      ]
-    },
-    {
-      "href": "/world-models/sw-atl-02",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/world-models"
-      ]
-    },
-    {
-      "href": "/world-models/sw-bos-08",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/world-models"
-      ]
-    },
-    {
-      "href": "/world-models/sw-chi-01",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/",
-        "/world-models"
-      ]
-    },
-    {
-      "href": "/world-models/sw-chi-01/start",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/world-models"
-      ]
-    },
-    {
-      "href": "/world-models/sw-col-05",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/world-models"
-      ]
-    },
-    {
-      "href": "/world-models/sw-dal-04",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/world-models"
-      ]
-    },
-    {
-      "href": "/world-models/sw-den-11",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/world-models"
-      ]
-    },
-    {
-      "href": "/world-models/sw-det-09",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/world-models"
-      ]
-    },
-    {
-      "href": "/world-models/sw-ewr-10",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/world-models"
-      ]
-    },
-    {
-      "href": "/world-models/sw-jer-06",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/world-models"
-      ]
-    },
-    {
-      "href": "/world-models/sw-phx-03",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/world-models"
-      ]
-    },
-    {
-      "href": "/world-models/sw-sea-12",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/world-models"
-      ]
-    },
-    {
-      "href": "/world-models/sw-sjc-07",
-      "status": "pass",
-      "httpStatus": 200,
-      "sourceRoutes": [
-        "/",
         "/world-models"
       ]
     }

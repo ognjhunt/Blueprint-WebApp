@@ -54,7 +54,7 @@ export default function Proof() {
         ]}
       />
 
-      <main className="bg-white text-slate-950">
+      <div className="bg-white text-slate-950">
         <section className="border-b border-slate-200">
           <div className="mx-auto grid max-w-[88rem] gap-10 px-5 py-12 md:grid-cols-[0.78fr_1.22fr] md:items-center md:px-8 md:py-16">
             <div>
@@ -130,7 +130,7 @@ export default function Proof() {
             </div>
           </div>
         </section>
-      </main>
+      </div>
     </>
   );
 }
