@@ -1,7 +1,7 @@
 # Blueprint Operator Surface QA Report
 
-Generated: 2026-07-16T22:17:32.543Z
-Base URL: http://127.0.0.1:41593
+Generated: 2026-07-17T14:26:21.406Z
+Base URL: http://127.0.0.1:37931
 Command: `npm run qa:operator`
 Boundary: local Playwright dev server with mocked API responses and disabled ops scheduler
 

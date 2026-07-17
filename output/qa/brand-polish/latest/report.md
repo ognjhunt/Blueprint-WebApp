@@ -1,6 +1,6 @@
 # Blueprint Brand Polish QA Report
 
-Generated: 2026-07-16T22:12:04.373Z
+Generated: 2026-07-17T14:20:41.460Z
 Base URL: http://127.0.0.1:4173
 Command: `npm run qa:polish`
 Boundary: local Playwright dev server only. No live sends, provider calls, payments, deploys, or Notion writes.
