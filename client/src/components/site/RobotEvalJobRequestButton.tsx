@@ -1,20 +1,33 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
   ChevronDown,
   Clock3,
+  CreditCard,
   FileText,
+  Loader2,
+  LogIn,
   PlayCircle,
   Radio,
   ShieldCheck,
 } from "lucide-react";
+import { useLocation } from "wouter";
+import { useAuth } from "@/contexts/AuthContext";
+import { premiumCapabilities } from "@/data/content";
 import type { SiteLibrarySite } from "@/data/siteLibrary";
 import {
   buildRobotEvalJobRequestFromSite,
   defaultSimulatorEvalTasksForSite,
   type RobotEvalSimulatorTaskSelection,
 } from "@/lib/robotEvalJobRequest";
+
+const ROBOT_EVAL_RUN_PRICE_USD =
+  premiumCapabilities.find((capability) => capability.slug === "policy-benchmarking")
+    ?.price ?? null;
+
+const PROVISION_POLL_INTERVAL_MS = 3000;
+const PROVISION_POLL_MAX_ATTEMPTS = 20;
 
 type StatusState =
   | { kind: "idle" }
@@ -140,6 +153,18 @@ export function RobotEvalJobRequestPanel({
     taskOptions[0]?.taskId || "walk_to_target",
   ]);
 
+  const { currentUser, loading: authLoading } = useAuth();
+  const [, setLocation] = useLocation();
+  // null = still checking access for the signed-in buyer.
+  const [entitled, setEntitled] = useState<boolean | null>(null);
+  const [provisioning, setProvisioning] = useState(false);
+  const [provisioningTimedOut, setProvisioningTimedOut] = useState(false);
+  const [payState, setPayState] = useState<
+    { kind: "idle" } | { kind: "starting" } | { kind: "error"; message: string }
+  >({ kind: "idle" });
+  const autoStartedRef = useRef(false);
+  const cameFromCheckoutRef = useRef(false);
+
   const selectedTasks = taskOptions.filter((task) => selectedTaskIds.includes(task.taskId));
   const hasTasks = selectedTasks.length > 0;
   const disabled =
@@ -147,6 +172,167 @@ export function RobotEvalJobRequestPanel({
     !hasTasks ||
     !site.robotEvalPublication?.readyToEvaluatePublishable ||
     !site.defaultRobotEvalSelection;
+
+  const fetchEntitled = useCallback(async () => {
+    if (!currentUser) {
+      return false;
+    }
+    try {
+      const { withFirebaseAuthHeaders } = await import("@/lib/firebaseAuthHeaders");
+      const headers = await withFirebaseAuthHeaders(currentUser);
+      const response = await fetch(
+        `/api/marketplace/entitlements/current?sku=${encodeURIComponent(site.slug)}`,
+        { headers },
+      );
+      if (!response.ok) {
+        return false;
+      }
+      const data = (await response.json().catch(() => ({}))) as {
+        entitlements?: Array<Record<string, unknown>>;
+      };
+      const entitlements = Array.isArray(data.entitlements) ? data.entitlements : [];
+      return entitlements.some(
+        (entitlement) => entitlement && entitlement.access_state === "provisioned",
+      );
+    } catch {
+      return false;
+    }
+  }, [currentUser, site.slug]);
+
+  useEffect(() => {
+    if (authLoading) {
+      return;
+    }
+    if (!currentUser) {
+      setEntitled(null);
+      return;
+    }
+    let cancelled = false;
+    setEntitled(null);
+    void fetchEntitled().then((value) => {
+      if (!cancelled) {
+        setEntitled(value);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [authLoading, currentUser, fetchEntitled]);
+
+  // Returning from Stripe Checkout: strip the marker param, then poll until the
+  // payment webhook provisions the entitlement.
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const url = new URL(window.location.href);
+    const marker = url.searchParams.get("robotEvalCheckout");
+    if (!marker) {
+      return;
+    }
+    url.searchParams.delete("robotEvalCheckout");
+    window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+    if (marker === "success") {
+      cameFromCheckoutRef.current = true;
+      setProvisioning(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!provisioning || authLoading || !currentUser || entitled === true) {
+      return;
+    }
+    let cancelled = false;
+    let attempts = 0;
+    const poll = async () => {
+      attempts += 1;
+      const value = await fetchEntitled();
+      if (cancelled) {
+        return;
+      }
+      if (value) {
+        setEntitled(true);
+        setProvisioning(false);
+        return;
+      }
+      if (attempts >= PROVISION_POLL_MAX_ATTEMPTS) {
+        setProvisioning(false);
+        setProvisioningTimedOut(true);
+        return;
+      }
+      timer = window.setTimeout(poll, PROVISION_POLL_INTERVAL_MS);
+    };
+    let timer = window.setTimeout(poll, PROVISION_POLL_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [provisioning, authLoading, currentUser, entitled, fetchEntitled]);
+
+  function goToSignIn() {
+    try {
+      sessionStorage.setItem("redirectAfterAuth", `/sites/${site.slug}#policy-run-request`);
+    } catch {
+      // Ignore storage failures; sign-in still works, just without the return hop.
+    }
+    setLocation("/sign-in");
+  }
+
+  async function startCheckout() {
+    if (!currentUser) {
+      goToSignIn();
+      return;
+    }
+    setPayState({ kind: "starting" });
+    try {
+      const { withCsrfHeader } = await import("@/lib/csrf");
+      const { withFirebaseAuthHeaders } = await import("@/lib/firebaseAuthHeaders");
+      const headers = await withFirebaseAuthHeaders(
+        currentUser,
+        await withCsrfHeader({ "Content-Type": "application/json" }),
+      );
+      const response = await fetch("/api/create-checkout-session", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          sessionType: "robot-eval-run",
+          robotEvalRun: { siteSlug: site.slug },
+          successPath: `/sites/${site.slug}?robotEvalCheckout=success`,
+          cancelPath: `/sites/${site.slug}?robotEvalCheckout=cancelled`,
+        }),
+      });
+      const data = (await response.json().catch(() => ({}))) as {
+        sessionUrl?: string;
+        error?: string;
+      };
+      if (!response.ok || !data.sessionUrl) {
+        throw new Error(data.error || "Could not start checkout. Please try again.");
+      }
+      window.location.href = data.sessionUrl;
+    } catch (error) {
+      setPayState({
+        kind: "error",
+        message:
+          error instanceof Error ? error.message : "Could not start checkout. Please try again.",
+      });
+    }
+  }
+
+  // The buyer already clicked "Pay & start evaluation" before checkout, so once
+  // payment provisions access, submit the run they asked for exactly once.
+  useEffect(() => {
+    if (
+      entitled === true &&
+      cameFromCheckoutRef.current &&
+      !autoStartedRef.current &&
+      hasTasks &&
+      status.kind === "idle"
+    ) {
+      autoStartedRef.current = true;
+      void submitJobRequest();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entitled, hasTasks, status.kind]);
 
   function toggleTask(task: RobotEvalSimulatorTaskSelection) {
     setSelectedTaskIds((current) => {
@@ -321,15 +507,96 @@ export function RobotEvalJobRequestPanel({
               </div>
             </fieldset>
 
-            <button
-              type="button"
-              disabled={disabled}
-              onClick={submitJobRequest}
-              className="inline-flex min-h-12 items-center justify-center bg-slate-950 px-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-55"
-            >
-              <PlayCircle className="mr-2 h-4 w-4" />
-              {status.kind === "submitting" ? "Submitting request" : "Request policy run"}
-            </button>
+            {authLoading || (currentUser && entitled === null && !provisioning) ? (
+              <button
+                type="button"
+                disabled
+                className="inline-flex min-h-12 cursor-wait items-center justify-center bg-slate-950 px-4 text-sm font-semibold text-white opacity-55"
+              >
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {authLoading ? "Checking your account" : "Checking evaluation access"}
+              </button>
+            ) : !currentUser ? (
+              <div className="grid gap-2">
+                <button
+                  type="button"
+                  onClick={goToSignIn}
+                  className="inline-flex min-h-12 items-center justify-center bg-slate-950 px-4 text-sm font-semibold text-white transition hover:bg-slate-800"
+                >
+                  <LogIn className="mr-2 h-4 w-4" />
+                  Sign in to start an evaluation
+                </button>
+                <p className="text-xs leading-5 text-slate-600">
+                  Evaluation runs require a signed-in Blueprint account. You&apos;ll come
+                  back to this page after signing in.
+                </p>
+              </div>
+            ) : provisioning ? (
+              <div className="flex items-start gap-2 border border-emerald-200 bg-emerald-50 p-3 text-xs font-semibold leading-5 text-emerald-900">
+                <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin" />
+                Payment received. Provisioning your evaluation access — your run will
+                start automatically in a moment.
+              </div>
+            ) : provisioningTimedOut && entitled !== true ? (
+              <div className="grid gap-2">
+                <p className="flex items-start gap-2 border border-amber-200 bg-amber-50 p-3 text-xs font-semibold leading-5 text-amber-950">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  Payment received, but access is still being provisioned. Refresh this
+                  page in a minute, or contact team@tryblueprint.io if it doesn&apos;t
+                  clear.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setProvisioningTimedOut(false);
+                    setProvisioning(true);
+                  }}
+                  className="inline-flex min-h-11 items-center justify-center border border-slate-950 px-4 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
+                >
+                  Check again
+                </button>
+              </div>
+            ) : entitled ? (
+              <button
+                type="button"
+                disabled={disabled}
+                onClick={submitJobRequest}
+                className="inline-flex min-h-12 items-center justify-center bg-slate-950 px-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-55"
+              >
+                <PlayCircle className="mr-2 h-4 w-4" />
+                {status.kind === "submitting" ? "Submitting request" : "Start evaluation run"}
+              </button>
+            ) : (
+              <div className="grid gap-2">
+                <button
+                  type="button"
+                  disabled={payState.kind === "starting" || !hasTasks}
+                  onClick={startCheckout}
+                  className="inline-flex min-h-12 items-center justify-center bg-slate-950 px-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-55"
+                >
+                  {payState.kind === "starting" ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <CreditCard className="mr-2 h-4 w-4" />
+                  )}
+                  {payState.kind === "starting"
+                    ? "Opening secure checkout"
+                    : ROBOT_EVAL_RUN_PRICE_USD
+                      ? `Pay & start evaluation — $${ROBOT_EVAL_RUN_PRICE_USD}`
+                      : "Pay & start evaluation"}
+                </button>
+                <p className="text-xs leading-5 text-slate-600">
+                  Secure Stripe Checkout. After payment your evaluation request is queued
+                  and forwarded to Pipeline automatically.
+                </p>
+                {payState.kind === "error" ? (
+                  <p className="flex items-start gap-2 border border-red-200 bg-red-50 p-3 text-xs font-semibold leading-5 text-red-700">
+                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                    {payState.message}
+                  </p>
+                ) : null}
+              </div>
+            )}
 
             {status.kind === "error" ? (
               <p className="flex items-start gap-2 border border-red-200 bg-red-50 p-3 text-xs font-semibold leading-5 text-red-700">

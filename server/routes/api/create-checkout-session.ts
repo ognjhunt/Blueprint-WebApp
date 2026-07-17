@@ -12,6 +12,7 @@ import {
   type ExclusivityType,
   type LicenseTier,
 } from "../../../client/src/data/content";
+import { getSiteLibrarySite } from "../../../client/src/data/siteLibrary";
 import { findPublishedMarketplaceInventoryBySku } from "../../utils/marketplaceInventory";
 import {
   attachStripeCheckoutSessionToBuyerOrder,
@@ -21,7 +22,11 @@ import {
 import { stripeAvailable } from "../../constants/stripe";
 import { logger } from "../../logger";
 
-type PaymentSessionType = "onboarding" | "legacy-hourly" | "marketplace";
+type PaymentSessionType =
+  | "onboarding"
+  | "legacy-hourly"
+  | "marketplace"
+  | "robot-eval-run";
 
 type CheckoutRequestBody = {
   sessionType?: PaymentSessionType;
@@ -70,7 +75,17 @@ type CheckoutRequestBody = {
     addons?: string[];
     dataTier?: "basic" | "standard" | "premium";
   };
+  robotEvalRun?: {
+    siteSlug?: string;
+  };
 };
+
+export const ROBOT_EVAL_RUN_SKU_SUFFIX = "-robot-eval-run";
+export const ROBOT_EVAL_RUN_PRICE_CATALOG_SLUG = "policy-benchmarking";
+
+export function robotEvalRunSkuForSiteSlug(siteSlug: string) {
+  return `${siteSlug}${ROBOT_EVAL_RUN_SKU_SUFFIX}`;
+}
 
 const VALID_LICENSE_TIERS: ReadonlySet<LicenseTier> = new Set<LicenseTier>([
   "research",
@@ -501,6 +516,156 @@ export default async function handler(req: Request, res: Response) {
         checkoutSessionId: session.id,
         checkoutSessionUrl:
           typeof session.url === "string" ? session.url : null,
+        livemode: session.livemode,
+      });
+
+      return res.json({ sessionId: session.id, sessionUrl: session.url });
+    }
+
+    if (sessionType === "robot-eval-run") {
+      const firebaseUser = (res.locals.firebaseUser || {}) as {
+        uid?: string;
+        email?: string;
+      };
+      const buyerUserId =
+        typeof firebaseUser.uid === "string" ? firebaseUser.uid.trim() : "";
+      const buyerEmail =
+        typeof firebaseUser.email === "string" ? firebaseUser.email.trim() : "";
+      if (!buyerUserId) {
+        return res.status(401).json({
+          error: "Sign in to purchase a policy evaluation run.",
+        });
+      }
+
+      const siteSlug = String(body.robotEvalRun?.siteSlug || "").trim();
+      if (!siteSlug) {
+        return res.status(400).json({
+          error: "A site slug is required for a policy evaluation run.",
+        });
+      }
+
+      const site = getSiteLibrarySite(siteSlug);
+      if (!site) {
+        return res.status(404).json({ error: "Unknown site for policy evaluation run." });
+      }
+      if (
+        !site.robotEvalPublication?.readyToEvaluatePublishable ||
+        !site.defaultRobotEvalSelection
+      ) {
+        return res.status(409).json({
+          error:
+            "This site does not have a publication-ready evaluation package yet, so a run cannot be purchased.",
+        });
+      }
+
+      const evalService = premiumCapabilities.find(
+        (capability) => capability.slug === ROBOT_EVAL_RUN_PRICE_CATALOG_SLUG,
+      );
+      if (!evalService || !Number.isFinite(evalService.price) || evalService.price <= 0) {
+        return res.status(503).json({
+          error: "Policy evaluation run pricing is not configured.",
+        });
+      }
+      const priceUsd = roundToCurrency(evalService.price);
+
+      const sku = robotEvalRunSkuForSiteSlug(site.slug);
+      const successUrl = resolveUrl(
+        originBase,
+        body.successPath,
+        `/sites/${site.slug}?robotEvalCheckout=success`,
+      );
+      const cancelUrl = resolveUrl(
+        originBase,
+        body.cancelPath,
+        `/sites/${site.slug}?robotEvalCheckout=cancelled`,
+      );
+
+      const order = await createBuyerOrderDraft({
+        buyerUserId,
+        buyerEmail: buyerEmail || null,
+        sku,
+        title: `${site.name} — Policy Evaluation Run`,
+        description: evalService.description,
+        itemType: "robot_eval_run",
+        quantity: 1,
+        licenseTier: "commercial",
+        exclusivity: "non-exclusive",
+        addons: [],
+        inventorySource: "site-library",
+        liveInventoryRecordId: null,
+        // hosted_runtime is a provisionable delivery mode with no hourly
+        // expiry, so the paid webhook grants the marketplaceEntitlements doc
+        // that /api/robot-eval/job-requests requires — no manual review step.
+        deliveryMode: "hosted_runtime",
+        inventoryFulfillmentStatus: "auto_ready",
+        rightsStatus: null,
+        unitAmountCents: Math.round(priceUsd * 100),
+        totalAmountCents: Math.round(priceUsd * 100),
+        currency: "usd",
+        successUrl,
+        cancelUrl,
+      });
+      if (!order) {
+        return res.status(500).json({ error: "Order ledger is not available" });
+      }
+
+      let session: Stripe.Checkout.Session;
+      try {
+        session = await stripe.checkout.sessions.create({
+          client_reference_id: order.id,
+          mode: "payment",
+          payment_method_types: ["card"],
+          line_items: [
+            {
+              price_data: {
+                currency: "usd",
+                product_data: {
+                  name: `${site.name} — Policy Evaluation Run`,
+                  description:
+                    "Virtual policy-evaluation run on this captured site package. Blueprint queues the request and forwards it to Pipeline for scheduling.",
+                  metadata: {
+                    orderId: order.id,
+                    sku,
+                    itemType: "robot_eval_run",
+                    robotEvalSiteSlug: site.slug,
+                  },
+                },
+                unit_amount: Math.round(priceUsd * 100),
+              },
+              quantity: 1,
+            },
+          ],
+          metadata: {
+            order_id: order.id,
+            sessionKind: "robot_eval_run",
+            marketplaceSku: sku,
+            robotEvalSiteSlug: site.slug,
+            buyerUserId,
+          },
+          payment_intent_data: {
+            metadata: {
+              order_id: order.id,
+              marketplace_sku: sku,
+            },
+          },
+          success_url: successUrl,
+          cancel_url: cancelUrl,
+        });
+      } catch (error) {
+        await markBuyerOrderCheckoutFailure({
+          orderId: order.id,
+          reason:
+            error instanceof Error
+              ? error.message
+              : "Stripe failed to create the checkout session.",
+        });
+        throw error;
+      }
+
+      await attachStripeCheckoutSessionToBuyerOrder({
+        orderId: order.id,
+        checkoutSessionId: session.id,
+        checkoutSessionUrl: typeof session.url === "string" ? session.url : null,
         livemode: session.livemode,
       });
 
