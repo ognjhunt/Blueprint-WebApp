@@ -10,7 +10,7 @@ describe("Proof page", () => {
       screen.getByRole("heading", { name: /Proof stays scoped\./i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/research number is correlation evidence, not an[\s\S]*accuracy or deployment claim/i),
+      screen.getByText(/research result is correlation evidence, not an[\s\S]*accuracy or deployment claim/i),
     ).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /^Research signal$/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /^Request packet$/i })).toBeInTheDocument();
@@ -28,7 +28,7 @@ describe("Proof page", () => {
       screen.getByText(/does not turn a virtual score into a universal accuracy guarantee/i),
     ).toBeInTheDocument();
     expect(
-      screen.getAllByRole("link", { name: /^Start$/i })[0],
+      screen.getAllByRole("link", { name: /^Request evaluation$/i })[0],
     ).toHaveAttribute("href", expect.stringContaining("/contact/robot-team"));
   });
 });

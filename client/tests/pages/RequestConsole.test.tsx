@@ -129,7 +129,7 @@ describe("RequestConsole", () => {
     expect(await screen.findByText("Harborview Grocery Annex")).toBeInTheDocument();
     expect(screen.getByText(/Private review truth map/i)).toBeInTheDocument();
     expect(screen.getByText(/Firestore request record/i)).toBeInTheDocument();
-    expect(screen.getByText(/Paperclip next action/i)).toBeInTheDocument();
+    expect(screen.getByText("Next action")).toBeInTheDocument();
     expect(screen.getByText(/Provider preview state/i)).toBeInTheDocument();
     expect(screen.getByText(/Stripe, Render, fulfillment/i)).toBeInTheDocument();
     expect(screen.getByText(/blocked until entitlement, hosted-session, payment, and backing runtime records support them/i)).toBeInTheDocument();

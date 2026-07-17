@@ -50,7 +50,7 @@ describe("Login", () => {
     );
     expect(screen.getByRole("link", { name: /Robot team: Scope before signup/i })).toHaveAttribute(
       "href",
-      "/contact?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=login",
+      "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=hosted-evaluation&path=hosted-evaluation&source=login",
     );
   });
 });

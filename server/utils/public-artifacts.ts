@@ -23,8 +23,6 @@ const staticSitemapRoutes: SitemapRoute[] = [
   { path: "/about", changefreq: "monthly", priority: 0.5 },
   { path: "/vision", changefreq: "monthly", priority: 0.5 },
   { path: "/governance", changefreq: "monthly", priority: 0.5 },
-  { path: "/robot-team/eval", changefreq: "monthly", priority: 0.6 },
-  { path: "/capture-app", changefreq: "monthly", priority: 0.5 },
   { path: "/privacy", changefreq: "yearly", priority: 0.3 },
   { path: "/terms", changefreq: "yearly", priority: 0.3 },
 ];
