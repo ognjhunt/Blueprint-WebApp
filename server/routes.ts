@@ -55,12 +55,20 @@ import marketplaceEntitlementsRouter from "./routes/marketplace-entitlements";
 import cityLaunchRouter from "./routes/city-launch";
 import publicLaunchRouter from "./routes/public-launch";
 import robotEvalJobRequestsRouter from "./routes/robot-eval-job-requests";
+import clientRuntimeConfigAdminRouter, {
+  clientRuntimeConfigPublicHandler,
+} from "./routes/client-runtime-config";
 
 export function registerRoutes(app: Express) {
   app.use(appleAssociationRouter);
 
   // Health check routes (no /api prefix for standard probe paths)
   app.use(healthRouter);
+
+  // R052: capture-client runtime controls (force-update / kill-switch /
+  // maintenance mode). Public read is unauthenticated so a blocked or signed-out
+  // client can still fetch the kill-switch; admin mutations are gated below.
+  app.get("/api/client/runtime-config", clientRuntimeConfigPublicHandler);
 
   // Public content summary for external tooling.
   app.use("/api/site-content", siteContentRouter);
@@ -164,6 +172,14 @@ export function registerRoutes(app: Express) {
     csrfProtection,
     verifyFirebaseToken,
     adminSiteWorldsRouter,
+  );
+  // R052: admin control surface for the client runtime config (kill-switch /
+  // maintenance / min-version). Admin role enforced inside the router.
+  app.use(
+    "/api/admin/client-runtime-config",
+    csrfProtection,
+    verifyFirebaseToken,
+    clientRuntimeConfigAdminRouter,
   );
   app.use("/api/site-worlds/sessions", csrfProtection, verifyFirebaseToken, siteWorldSessionsRouter);
   app.post(
