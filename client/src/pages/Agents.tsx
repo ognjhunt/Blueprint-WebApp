@@ -57,7 +57,7 @@ const commands = [
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts request location --location \"Whole Foods near Durham\" --site-class grocery --workflow \"shelf restocking\"",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce quote --site-world-id siteworld-f5fd54898cfb --product site-world-package",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce checkout --site-world-id siteworld-f5fd54898cfb --product site-world-package --mode dry_run",
-  "npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce checkout --site-world-id <pipeline-site-world-id> --product hosted-session-rental --mode live --budget-cents 20000",
+  "npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce checkout --site-world-id <pipeline-site-world-id> --product hosted-session-rental --mode dry_run --budget-cents 20000",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce live-order <live-order-id>",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce entitlement <dry-entitlement-id>",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce entitlement-readiness --site-world-id siteworld-f5fd54898cfb --entitlement-id <dry-entitlement-id>",

@@ -123,8 +123,28 @@ function detectLocationType(
       ],
     },
     {
+      // R070: Factory / Manufacturing is the beta's first-target site class
+      // (industrial, where humanoids deploy first). Kept ahead of Labs so
+      // "assembly" resolves here instead of being mislabeled as a lab bench,
+      // and aligned with the pipeline site-type enumeration. Still gated by
+      // available.has(), so it only surfaces when real factory inventory exists.
+      value: "Factory / Manufacturing",
+      patterns: [
+        /\bfactor(y|ies)\b/,
+        /\bmanufactur(e|ing|er|ers)?\b/,
+        /\bassembly\b/,
+        /\bassembly (line|plant|cell|station)s?\b/,
+        /\bproduction (line|floor|cell)s?\b/,
+        /\bline[- ]?side\b/,
+        /\bfabrication\b/,
+        /\bplant floor\b/,
+        /\bshop floor\b/,
+        /\bmachine tending\b/,
+      ],
+    },
+    {
       value: "Labs",
-      patterns: [/\blab(s)?\b/, /\bassembly\b/, /\bbench\b/],
+      patterns: [/\blab(s)?\b/, /\bbench\b/],
     },
     {
       value: "Utility Rooms",

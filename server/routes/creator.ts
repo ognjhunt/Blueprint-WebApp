@@ -25,6 +25,8 @@ import { reviewCityLaunchCandidateBatch } from "../utils/cityLaunchCandidateRevi
 import { dispatchCityLaunchCandidatePaperclipHandoff } from "../utils/cityLaunchCandidatePaperclipHandoff";
 import { intakeCityLaunchCandidateSignals } from "../utils/cityLaunchLedgers";
 import { creatorIdFromRequest } from "../utils/creatorIdentity";
+import { clientVersionSatisfiesMinimum } from "../utils/client-runtime-config";
+import { loadClientRuntimeConfig } from "./client-runtime-config";
 
 const router = Router();
 
@@ -55,9 +57,35 @@ function toNumber(value: unknown) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+/**
+ * Telemetry redaction: capture-client telemetry must never persist secrets or
+ * personal data. Values are truncated AND scrubbed of credential material,
+ * contact details, precise coordinates, filesystem paths, and URL query
+ * strings before storage or ops alerting.
+ */
+const TELEMETRY_REDACTION_RULES: Array<[RegExp, string]> = [
+  [/\bBearer\s+[A-Za-z0-9._~+/-]+=*/gi, "Bearer [redacted]"],
+  [/(authorization|bearer|token|secret|password|passwd|api[-_]?key|signature)\s*[:=]\s*[^\s,;]+/gi, "$1=[redacted]"],
+  [/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, "[redacted-email]"],
+  // 9+ digits with separators (phone-shaped); short digit runs like ISO dates
+  // (8 digits) and version/build numbers survive.
+  [/\+?\d(?:[\s().-]{0,3}\d){8,}/g, "[redacted-number]"],
+  [/-?\d{1,3}\.\d{4,}\s*,\s*-?\d{1,3}\.\d{4,}/g, "[redacted-coordinates]"],
+  [/(?:\/(?:Users|home|var|private|data|storage|Documents|Library)\/)[^\s"']*/g, "[redacted-path]"],
+  [/\?[^\s"']{8,}/g, "?[redacted-query]"],
+];
+
+function redactTelemetryValue(value: string): string {
+  let out = value;
+  for (const [pattern, replacement] of TELEMETRY_REDACTION_RULES) {
+    out = out.replace(pattern, replacement);
+  }
+  return out;
+}
+
 function telemetryString(value: unknown, fallback = "unknown", maxLength = 240) {
   if (typeof value === "string") {
-    const trimmed = value.trim();
+    const trimmed = redactTelemetryValue(value.trim());
     return (trimmed || fallback).slice(0, maxLength);
   }
   if (typeof value === "number" || typeof value === "boolean") {
@@ -154,13 +182,24 @@ router.use((req: Request, res: Response, next) => {
 
 function serializeCapture(doc: FirebaseFirestore.QueryDocumentSnapshot | FirebaseFirestore.DocumentSnapshot) {
   const data = (doc.data() || {}) as Record<string, unknown>;
+  const clientReported =
+    data.client_reported && typeof data.client_reported === "object"
+      ? (data.client_reported as Record<string, unknown>)
+      : {};
   return {
     id: String(data.id || doc.id),
     target_address: String(data.target_address || "Submitted space"),
     captured_at: toIso(data.captured_at) || new Date().toISOString(),
     status: String(data.status || "submitted"),
+    // Server-quoted estimate wins; the client's own pre-registration estimate
+    // is display fallback only and never a payable amount (payouts come from
+    // the payout ledger, not this field).
     estimated_payout_cents:
-      typeof data.estimated_payout_cents === "number" ? data.estimated_payout_cents : null,
+      typeof data.estimated_payout_cents === "number"
+        ? data.estimated_payout_cents
+        : typeof clientReported.estimated_payout_cents === "number"
+          ? clientReported.estimated_payout_cents
+          : null,
     thumbnail_url: typeof data.thumbnail_url === "string" ? data.thumbnail_url : null,
   };
 }
@@ -261,6 +300,67 @@ router.get("/captures", async (req: Request, res: Response) => {
   return res.json(captures);
 });
 
+/**
+ * Creator capture registration is client EVIDENCE, never client AUTHORITY.
+ *
+ * The server owns: authoritative status, payout amounts and earnings, QA
+ * outcome/rejection, rights clearance, and the review timeline. The client may
+ * only submit narrow registration evidence (capture identity, linkage, capture
+ * timestamp, device/app context) plus explicitly non-authoritative
+ * client-reported context (its own payout estimate and rights selection),
+ * which is stored under `client_reported` and never promoted to the
+ * authoritative fields backend review writes.
+ */
+const CAPTURE_REGISTRATION_ALLOWED_FIELDS = new Set([
+  "id",
+  "capture_id",
+  "creator_id",
+  "capture_job_id",
+  "buyer_request_id",
+  "site_submission_id",
+  "target_address",
+  "captured_at",
+  "market",
+  "region_id",
+  "site_type",
+  "location_type",
+  "intended_space_type",
+  "requested_outputs",
+  "thumbnail_url",
+  "raw_prefix",
+  "platform",
+  "app_version",
+  "app_build",
+  // Known legacy client fields, accepted for mobile compatibility but stored
+  // only as non-authoritative client_reported context (or ignored entirely
+  // when they are authoritative-only, like status).
+  "status",
+  "estimated_payout_cents",
+  "quoted_payout_cents",
+  "rights_profile",
+]);
+
+// Fields older clients may send that shape money/QA/review outcomes. They are
+// never persisted from a client payload — not even under client_reported.
+const CAPTURE_REGISTRATION_IGNORED_PRIVILEGED_FIELDS = new Set([
+  "status",
+  "rejection_reason",
+  "quality",
+  "device_multiplier",
+  "bonuses",
+  "earnings",
+  "timeline",
+  "beta_cohort_policy",
+]);
+
+function optionalTrimmedString(value: unknown, maxLength = 400): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed ? trimmed.slice(0, maxLength) : null;
+}
+
 router.post("/captures", async (req: Request, res: Response) => {
   if (!db) {
     return res.status(500).json({ error: "Database not available" });
@@ -271,90 +371,251 @@ router.post("/captures", async (req: Request, res: Response) => {
     return res.status(400).json({ error: "Missing creator id" });
   }
 
-  const captureId = String(req.body?.id || req.body?.capture_id || "").trim();
-  if (!captureId) {
-    return res.status(400).json({ error: "Missing capture id" });
+  const body =
+    req.body && typeof req.body === "object" && !Array.isArray(req.body)
+      ? (req.body as Record<string, unknown>)
+      : null;
+  if (!body) {
+    return res.status(400).json({ error: "Request body must be a JSON object", code: "invalid_request" });
   }
+
+  const unknownFields = Object.keys(body).filter(
+    (key) =>
+      !CAPTURE_REGISTRATION_ALLOWED_FIELDS.has(key)
+      && !CAPTURE_REGISTRATION_IGNORED_PRIVILEGED_FIELDS.has(key),
+  );
+  if (unknownFields.length > 0) {
+    return res.status(400).json({
+      error: "Unsupported capture registration fields",
+      code: "invalid_fields",
+      fields: unknownFields.slice(0, 20).sort(),
+    });
+  }
+
+  const captureId = String(body.id || body.capture_id || "").trim();
+  if (!captureId || captureId.length > 200 || /[/\\#?]/.test(captureId)) {
+    return res.status(400).json({ error: "Missing or invalid capture id", code: "invalid_capture_id" });
+  }
+
+  const market = optionalTrimmedString(body.market) || optionalTrimmedString(body.region_id);
+  const siteType =
+    optionalTrimmedString(body.site_type)
+    || optionalTrimmedString(body.location_type)
+    || optionalTrimmedString(body.intended_space_type);
+
+  const docRef = db.collection("creatorCaptures").doc(captureId);
+
+  const replayOrConflictResponse = (existing: Record<string, unknown>) => {
+    if (String(existing.creator_id || "") !== creatorId) {
+      // Capture IDs are immutable and creator-bound; a colliding ID from a
+      // different authenticated creator must never overwrite the original.
+      return res.status(409).json({ error: "Capture id conflict", code: "capture_id_conflict" });
+    }
+    // Idempotent replay from the same creator: acknowledge without regressing
+    // any authoritative state the backend may already have written.
+    return res.status(200).json({
+      ok: true,
+      id: captureId,
+      replay: true,
+      status: String(existing.status || "submitted"),
+    });
+  };
+
+  // Replay is resolved BEFORE the beta cohort gate: the original successful
+  // registration already consumed capacity, so a mobile/network retry of the
+  // same capture must stay idempotent even after the cohort closes or fills.
+  const existingDoc = await docRef.get();
+  if (existingDoc.exists) {
+    return replayOrConflictResponse((existingDoc.data() || {}) as Record<string, unknown>);
+  }
+
   const betaCohortDecision = await evaluateBetaCohortGate({
     gate: "capture_intake",
     creatorId,
-    market: String(req.body?.market || req.body?.region_id || "").trim() || null,
-    siteType: String(
-      req.body?.site_type
-      || req.body?.location_type
-      || req.body?.intended_space_type
-      || "",
-    ).trim() || null,
+    market,
+    siteType,
     source: "creator_capture_registration",
   });
   if (!betaCohortDecision.allowed) {
     return res.status(betaCohortDecision.statusCode).json({
       ok: false,
       error: betaCohortDecision.message,
+      code: betaCohortDecision.reason,
       beta_cohort_policy: betaDecisionForResponse(betaCohortDecision),
     });
   }
 
-  const capturedAt = req.body?.captured_at ? new Date(String(req.body.captured_at)) : new Date();
-  const estimatedPayoutCents =
-    typeof req.body?.estimated_payout_cents === "number"
-      ? req.body.estimated_payout_cents
-      : typeof req.body?.quoted_payout_cents === "number"
-      ? req.body.quoted_payout_cents
-      : 0;
-  const status = String(req.body?.status || "submitted");
+  const capturedAtRaw = body.captured_at ? new Date(String(body.captured_at)) : new Date();
+  const capturedAt = Number.isNaN(capturedAtRaw.getTime()) ? new Date() : capturedAtRaw;
 
-  const timeline = [
-    { label: "Capture uploaded", completed_at: capturedAt.toISOString(), state: "completed" },
-    { label: "Review queued", completed_at: null, state: status === "submitted" ? "completed" : "pending" },
-    { label: "Payout", completed_at: null, state: status === "paid" ? "completed" : "pending" },
-  ];
+  const clientReported = {
+    estimated_payout_cents:
+      typeof body.estimated_payout_cents === "number" && Number.isFinite(body.estimated_payout_cents)
+        ? Math.max(0, Math.trunc(body.estimated_payout_cents))
+        : typeof body.quoted_payout_cents === "number" && Number.isFinite(body.quoted_payout_cents)
+          ? Math.max(0, Math.trunc(body.quoted_payout_cents))
+          : null,
+    rights_profile: optionalTrimmedString(
+      typeof body.rights_profile === "string" ? body.rights_profile : null,
+      200,
+    ),
+    platform: optionalTrimmedString(body.platform, 40),
+    app_version: optionalTrimmedString(body.app_version, 80),
+    app_build: optionalTrimmedString(body.app_build, 80),
+  };
 
   const payload = {
     id: captureId,
     creator_id: creatorId,
-    capture_job_id: req.body?.capture_job_id || null,
-    buyer_request_id: req.body?.buyer_request_id || null,
-    site_submission_id: req.body?.site_submission_id || null,
-    target_address: String(req.body?.target_address || "Submitted space"),
+    capture_job_id: optionalTrimmedString(body.capture_job_id, 200),
+    buyer_request_id: optionalTrimmedString(body.buyer_request_id, 200),
+    site_submission_id: optionalTrimmedString(body.site_submission_id, 200),
+    target_address: optionalTrimmedString(body.target_address) || "Submitted space",
     captured_at: capturedAt.toISOString(),
-    status,
-    estimated_payout_cents: estimatedPayoutCents,
-    rights_profile: req.body?.rights_profile || null,
-    requested_outputs: Array.isArray(req.body?.requested_outputs) ? req.body.requested_outputs : [],
-    thumbnail_url: req.body?.thumbnail_url || null,
-    rejection_reason: req.body?.rejection_reason || null,
-    quality: req.body?.quality || null,
+    raw_prefix: optionalTrimmedString(body.raw_prefix, 500),
+    // Authoritative fields are server-owned from the very first write: a newly
+    // registered capture is always "submitted"; payout, QA, and rights values
+    // exist only once backend review writes them.
+    status: "submitted",
+    estimated_payout_cents: null,
+    rejection_reason: null,
+    quality: null,
+    earnings: null,
+    rights_clearance: null,
+    client_reported: clientReported,
+    requested_outputs: Array.isArray(body.requested_outputs)
+      ? body.requested_outputs.slice(0, 20).map((item) => String(item).slice(0, 120))
+      : [],
+    thumbnail_url: optionalTrimmedString(body.thumbnail_url, 800),
     beta_cohort_policy: betaDecisionForResponse(betaCohortDecision),
-    earnings: {
-      base_payout_cents: estimatedPayoutCents,
-      device_multiplier: req.body?.device_multiplier ?? 1,
-      bonuses: Array.isArray(req.body?.bonuses) ? req.body.bonuses : [],
-      total_payout_cents: estimatedPayoutCents,
-    },
-    timeline,
+    timeline: [
+      { label: "Capture uploaded", completed_at: capturedAt.toISOString(), state: "completed" },
+      { label: "Review queued", completed_at: null, state: "completed" },
+      { label: "Payout", completed_at: null, state: "pending" },
+    ],
+    created_at: admin.firestore.FieldValue.serverTimestamp(),
     updated_at: admin.firestore.FieldValue.serverTimestamp(),
   };
 
-  await db.collection("creatorCaptures").doc(captureId).set(payload, { merge: true });
+  // Atomic create: the earlier read only short-circuits the common replay
+  // path. Two concurrent registrations racing past that read are decided at
+  // write time — create() fails on an existing document instead of
+  // overwriting it, and the loser is re-resolved as replay or conflict.
+  try {
+    await docRef.create(payload);
+  } catch (error) {
+    const racedDoc = await docRef.get();
+    if (racedDoc.exists) {
+      return replayOrConflictResponse((racedDoc.data() || {}) as Record<string, unknown>);
+    }
+    throw error;
+  }
   await recordBetaCohortAdmission({
     gate: "capture_intake",
     admissionId: `capture:${captureId}`,
     decision: betaCohortDecision,
     creatorId,
-    market: String(req.body?.market || req.body?.region_id || "").trim() || null,
-    siteType: String(
-      req.body?.site_type
-      || req.body?.location_type
-      || req.body?.intended_space_type
-      || "",
-    ).trim() || null,
+    market,
+    siteType,
     source: "creator_capture_registration",
   });
   return res.status(201).json({
     ok: true,
     id: captureId,
+    status: "submitted",
     beta_cohort_policy: betaDecisionForResponse(betaCohortDecision),
+  });
+});
+
+/**
+ * Pre-upload policy gate for the mobile capture clients. Read-only: validates
+ * auth + creator identity, the beta cohort policy, the runtime kill switch,
+ * and the minimum-version policy BEFORE the client spends bandwidth on a raw
+ * upload. Never mutates captures, uploads, or admissions.
+ */
+router.post("/captures/preflight", async (req: Request, res: Response) => {
+  const creatorId = creatorIdFromRequest(req);
+  if (!creatorId) {
+    return res.status(400).json({ error: "Missing creator id", code: "invalid_request" });
+  }
+
+  const body =
+    req.body && typeof req.body === "object" && !Array.isArray(req.body)
+      ? (req.body as Record<string, unknown>)
+      : {};
+
+  const platform = optionalTrimmedString(body.platform, 40);
+  const appVersion = optionalTrimmedString(body.app_version, 80);
+  const appBuild = optionalTrimmedString(body.app_build, 80);
+  const market = optionalTrimmedString(body.market) || optionalTrimmedString(body.region_id);
+  const siteType =
+    optionalTrimmedString(body.site_type)
+    || optionalTrimmedString(body.location_type)
+    || optionalTrimmedString(body.intended_space_type);
+
+  const { config: runtimeConfig } = await loadClientRuntimeConfig();
+  const policyForResponse = {
+    min_supported_version: runtimeConfig.minSupportedVersion,
+    kill_switch: runtimeConfig.killSwitch,
+    maintenance_mode: runtimeConfig.maintenanceMode,
+    message: runtimeConfig.message,
+  };
+
+  if (runtimeConfig.killSwitch) {
+    return res.status(503).json({
+      ok: false,
+      allowed: false,
+      code: "capture_client_kill_switch_active",
+      error: runtimeConfig.message || "Capture intake is temporarily disabled.",
+      policy: policyForResponse,
+    });
+  }
+  if (runtimeConfig.maintenanceMode) {
+    return res.status(503).json({
+      ok: false,
+      allowed: false,
+      code: "capture_client_maintenance",
+      error: runtimeConfig.message || "Capture intake is in maintenance.",
+      policy: policyForResponse,
+    });
+  }
+  if (!clientVersionSatisfiesMinimum(appVersion, runtimeConfig.minSupportedVersion)) {
+    return res.status(426).json({
+      ok: false,
+      allowed: false,
+      code: "client_update_required",
+      error:
+        runtimeConfig.message
+        || `This client version is no longer supported. Update to ${runtimeConfig.minSupportedVersion} or newer.`,
+      policy: policyForResponse,
+    });
+  }
+
+  const betaCohortDecision = await evaluateBetaCohortGate({
+    gate: "capture_intake",
+    creatorId,
+    market,
+    siteType,
+    source: "creator_capture_preflight",
+  });
+  if (!betaCohortDecision.allowed) {
+    return res.status(betaCohortDecision.statusCode).json({
+      ok: false,
+      allowed: false,
+      code: betaCohortDecision.reason,
+      error: betaCohortDecision.message,
+      policy: policyForResponse,
+      beta_cohort_policy: betaDecisionForResponse(betaCohortDecision),
+    });
+  }
+
+  return res.status(200).json({
+    ok: true,
+    allowed: true,
+    code: "allowed",
+    policy: policyForResponse,
+    beta_cohort_policy: betaDecisionForResponse(betaCohortDecision),
+    client: { platform, app_version: appVersion, app_build: appBuild },
   });
 });
 
@@ -510,6 +771,10 @@ router.post("/client-telemetry", async (req: Request, res: Response) => {
 
   const eventId = telemetryString(req.body?.event_id, randomUUID(), 120)
     .replace(/[^a-zA-Z0-9._:-]/g, "-");
+  // The idempotency key is namespaced by the authenticated creator so one
+  // user's caller-chosen event id can never overwrite (or replay-mutate)
+  // another user's telemetry document in the shared collection.
+  const telemetryDocId = `${creatorId}__${eventId}`.slice(0, 400);
   const eventType = telemetryString(req.body?.event_type, "unknown", 80);
   const severity =
     telemetryString(req.body?.severity, "warning", 20).toLowerCase() === "critical"
@@ -545,7 +810,20 @@ router.post("/client-telemetry", async (req: Request, res: Response) => {
     received_at: admin.firestore.FieldValue.serverTimestamp(),
   };
 
-  await db.collection("creatorClientTelemetry").doc(eventId).set(payload, { merge: true });
+  const telemetryRef = db.collection("creatorClientTelemetry").doc(telemetryDocId);
+  const existingEvent = await telemetryRef.get();
+  if (existingEvent.exists) {
+    // Replay of an already-recorded event: acknowledge idempotently without
+    // rewriting the stored document or re-opening ops alerts.
+    return res.status(202).json({
+      accepted: true,
+      duplicate: true,
+      event_id: eventId,
+      alert_recorded: false,
+      alert_opened: false,
+    });
+  }
+  await telemetryRef.set(payload);
 
   const shouldAlert =
     severity === "critical"
@@ -558,6 +836,8 @@ router.post("/client-telemetry", async (req: Request, res: Response) => {
         severity,
         scopeId: captureId || operation || creatorId,
         summary: `Mobile capture client ${eventType}: ${operation}`,
+        // Bounded, redacted scope only — the free-form metadata map stays in
+        // the telemetry record and out of ops alerts.
         details: {
           creator_id: creatorId,
           event_id: eventId,
@@ -565,7 +845,6 @@ router.post("/client-telemetry", async (req: Request, res: Response) => {
           status,
           capture_id: captureId,
           session_id: sessionId,
-          metadata,
         },
         occurredAt,
       })
@@ -734,11 +1013,34 @@ router.get("/qc", async (req: Request, res: Response) => {
     if (["approved", "paid"].includes(status)) approvedCount += 1;
   });
 
+  // Average turnaround is computed from this creator's actually reviewed
+  // captures (submission -> recorded review completion). When no reviewed
+  // capture carries both timestamps the value is null — never a hardcoded
+  // customer-facing operational metric.
+  const turnaroundSamples: number[] = [];
+  snapshot.docs.forEach((doc) => {
+    const data = (doc.data() || {}) as Record<string, unknown>;
+    const submittedAt = toIso(data.captured_at) || toIso(data.created_at);
+    const reviewedAt = toIso(data.review_completed_at) || toIso(data.reviewed_at);
+    if (!submittedAt || !reviewedAt) {
+      return;
+    }
+    const elapsedMs = new Date(reviewedAt).getTime() - new Date(submittedAt).getTime();
+    if (Number.isFinite(elapsedMs) && elapsedMs > 0) {
+      turnaroundSamples.push(elapsedMs / 3_600_000);
+    }
+  });
+  const averageTurnaroundHours = turnaroundSamples.length
+    ? Math.round(
+        (turnaroundSamples.reduce((sum, hours) => sum + hours, 0) / turnaroundSamples.length) * 10,
+      ) / 10
+    : null;
+
   return res.json({
     pending_count: pendingCount,
     needs_fix_count: needsFixCount,
     approved_count: approvedCount,
-    average_turnaround_hours: 24,
+    average_turnaround_hours: averageTurnaroundHours,
     last_updated: new Date().toISOString(),
   });
 });

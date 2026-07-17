@@ -42,6 +42,7 @@
     "smoke:launch:local": "node scripts/launch-smoke-local.mjs",
     "deploy:rollback": "node scripts/deploy-rollback.mjs",
     "test": "vitest run",
+    "test:rules": "npx -y firebase-tools@13.35.1 emulators:exec --only firestore,storage --project blueprint-rules-test \"npx vitest run --config vitest.rules.config.ts\"",
     "human-replies:poll": "tsx scripts/human-replies/poll-gmail-replies.ts",
     "human-replies:audit-gmail": "tsx scripts/human-replies/audit-gmail-oauth.ts",
     "human-replies:audit-durability": "tsx scripts/human-replies/audit-outbound-reply-durability.ts",
@@ -209,6 +210,7 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^4.0.1",
     "@playwright/test": "^1.57.0",
     "@replit/vite-plugin-runtime-error-modal": "^0.0.3",
     "@testing-library/jest-dom": "^6.6.3",
@@ -245,5 +247,13 @@
   },
   "optionalDependencies": {
     "bufferutil": "^4.0.8"
+  },
+  "overrides": {
+    "react-simple-maps": {
+      "d3-color": "^3.1.0",
+      "d3-interpolate": "^3.0.1",
+      "d3-transition": "^3.0.1",
+      "d3-zoom": "^3.0.0"
+    }
   }
 }

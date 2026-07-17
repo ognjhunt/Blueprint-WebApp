@@ -103,4 +103,60 @@ jobs:
             echo "::error::Render deploy hook returned HTTP ${response_code}."
             exit 1
           fi
-          echo "Requested deploy of ${DEPLOY_REF}. Verify via GET /version.json once live."
+          echo "Deploy hook accepted the request for ${DEPLOY_REF}. A 2xx here is NOT deployment success; the verify step below is the gate."
+
+      - name: Verify deployment completed at the exact SHA
+        env:
+          DEPLOY_REF: ${{ steps.ref.outputs.deploy_ref }}
+          BASE_URL: https://tryblueprint.io
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/deploy-evidence
+          evidence=/tmp/deploy-evidence/deploy-verification.json
+          started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+          # Poll GET /version.json until the exact requested SHA is serving
+          # traffic. Render only cuts traffic over after its health check
+          # (/health/ready) passes, so convergence here also proves readiness
+          # passed at cutover. Timeout: 20 minutes.
+          deployed_sha=""
+          for attempt in $(seq 1 40); do
+            deployed_sha=$(curl -sf --max-time 20 "${BASE_URL}/version.json" | { grep -o '"git_sha"[^,}]*' || true; } | { grep -o '[0-9a-f]\{40\}' || true; })
+            if [ "${deployed_sha}" = "${DEPLOY_REF}" ]; then
+              break
+            fi
+            echo "Attempt ${attempt}/40: live git_sha='${deployed_sha:-unreachable}' != '${DEPLOY_REF}'. Waiting 30s."
+            sleep 30
+          done
+          if [ "${deployed_sha}" != "${DEPLOY_REF}" ]; then
+            echo "::error::Deployment did not converge: live /version.json still reports '${deployed_sha:-unreachable}' after 20 minutes, expected ${DEPLOY_REF}."
+            exit 1
+          fi
+          echo "Live /version.json reports the exact requested SHA ${DEPLOY_REF}."
+
+          # Liveness and readiness are verified separately: /health proves the
+          # process serves traffic; /health/ready reports launch readiness and
+          # is recorded truthfully (its verdict is evidence, and a not-ready
+          # verdict fails this gate because the service is not beta-servable).
+          health_code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 "${BASE_URL}/health")
+          ready_code=$(curl -s -o /tmp/deploy-evidence/health-ready-body.json -w "%{http_code}" --max-time 20 "${BASE_URL}/health/ready")
+          finished_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          printf '{"deploy_ref":"%s","live_git_sha":"%s","health_status":%s,"health_ready_status":%s,"started_at":"%s","finished_at":"%s"}\n' \
+            "${DEPLOY_REF}" "${deployed_sha}" "${health_code}" "${ready_code}" "${started_at}" "${finished_at}" > "${evidence}"
+          cat "${evidence}"
+          if [ "${health_code}" != "200" ]; then
+            echo "::error::GET /health returned ${health_code}; expected 200."
+            exit 1
+          fi
+          if [ "${ready_code}" != "200" ]; then
+            echo "::error::GET /health/ready returned ${ready_code}; the deployed commit is live but the service is not launch-ready."
+            exit 1
+          fi
+
+      - name: Upload deployment evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deploy-verification
+          path: /tmp/deploy-evidence
+          if-no-files-found: ignore

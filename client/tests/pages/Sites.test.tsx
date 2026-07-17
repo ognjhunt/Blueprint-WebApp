@@ -88,7 +88,10 @@ describe("Sites", () => {
           }),
         }),
       );
-    });
+      // 1s default flaked on the contended 2-core CI runner (async token +
+      // re-render before the POST); give the assertion real headroom, matching
+      // the same fix applied in SiteWorldDetail.test.tsx.
+    }, { timeout: 5000 });
 
     const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
     const body = JSON.parse(String(init.body || "{}"));

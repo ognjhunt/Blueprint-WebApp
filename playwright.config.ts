@@ -29,6 +29,12 @@ export default defineConfig({
   use: {
     baseURL,
     trace: 'on-first-retry',
+    // Sandboxed/cloud environments that pre-provision a system Chromium can
+    // point this at the binary instead of downloading the pinned browser
+    // build. Unset (the CI/dev default) keeps Playwright's own browsers.
+    ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE
+      ? { launchOptions: { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE } }
+      : {}),
   },
   webServer: {
     command: `${webServerEnvPrefix ? `${webServerEnvPrefix} ` : ''}PORT=${port} npx tsx server/index.ts`,

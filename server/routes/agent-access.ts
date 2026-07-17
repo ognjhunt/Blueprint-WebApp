@@ -25,6 +25,11 @@ import {
 } from "../utils/accounting";
 import { stripeAvailable, stripeClient } from "../constants/stripe";
 import { logger } from "../logger";
+import {
+  betaDecisionForResponse,
+  evaluateBetaCohortGate,
+  recordBetaCohortAdmission,
+} from "../utils/beta-cohort-policy";
 
 const router = Router();
 
@@ -207,6 +212,26 @@ router.post("/commerce/live-checkout", optionalVerifyFirebaseToken, async (req, 
     const cancelUrl = resolveLiveCheckoutUrl(input.cancelPath, "/agents?live_checkout=cancel");
     const deliveryMode = quote.product === "hosted_session_rental" ? "hosted_session" : "download_link";
 
+    // Beta cohort policy gates live buyer checkout the same way it gates
+    // capture intake: a denial creates no order draft, Stripe session, or
+    // entitlement.
+    const betaCohortDecision = await evaluateBetaCohortGate({
+      gate: "buyer_checkout",
+      creatorId: buyerUserId,
+      email: buyerEmail,
+      source: "agent_live_checkout",
+    });
+    if (!betaCohortDecision.allowed) {
+      return res.status(betaCohortDecision.statusCode).json({
+        error: betaCohortDecision.message,
+        code: betaCohortDecision.reason,
+        mode: "live",
+        beta_cohort_policy: betaDecisionForResponse(betaCohortDecision),
+        truth:
+          "Beta-cohort-blocked live checkout creates no Stripe session, order, charge, or entitlement.",
+      });
+    }
+
     const order = await createBuyerOrderDraft({
       buyerUserId,
       buyerEmail,
@@ -289,6 +314,15 @@ router.post("/commerce/live-checkout", optionalVerifyFirebaseToken, async (req, 
       checkoutSessionId: session.id,
       checkoutSessionUrl: typeof session.url === "string" ? session.url : null,
       livemode: session.livemode,
+    });
+
+    await recordBetaCohortAdmission({
+      gate: "buyer_checkout",
+      admissionId: `checkout:${order.id}`,
+      decision: betaCohortDecision,
+      creatorId: buyerUserId,
+      email: buyerEmail,
+      source: "agent_live_checkout",
     });
 
     logger.info(

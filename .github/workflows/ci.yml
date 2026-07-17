@@ -1,9 +1,18 @@
 name: CI
 
+# Push runs cover main (the deploy gate source); pull_request runs cover PR
+# heads. Restricting push to main avoids the duplicate push+PR run every PR
+# head used to get, without weakening main verification.
 on:
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
+
+# Supersede in-flight runs for the same ref, but never cancel a main run —
+# the CI-gated deploy workflow keys off completed main runs.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   check:
@@ -63,6 +72,50 @@ jobs:
 
       - name: Typecheck
         run: npm run check
+
+      - name: Claims guard (public-claims truthfulness gate)
+        run: npm run claims:guard
+
+      - name: Upload claims-guard report
+        if: ${{ always() && hashFiles('output/claims-guard/**') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: claims-guard-report
+          path: output/claims-guard
+          if-no-files-found: ignore
+
+      - name: Dependency security audit (production deps, fail on high+)
+        run: npm audit --omit=dev --audit-level=high
+
+  rules-emulator:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Setup Java (Firestore/Storage emulators)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Cache Firebase emulator jars
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/firebase/emulators
+          key: firebase-emulators-${{ runner.os }}-v1
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Firebase security-rules emulator suite
+        run: npm run test:rules
 
   test:
     runs-on: ubuntu-latest
@@ -133,6 +186,14 @@ jobs:
       - name: Run operator-surfaces QA (fake-auth bypass)
         run: npm run qa:operator
 
+      - name: Upload Playwright report
+        if: ${{ always() && hashFiles('playwright-report/**') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report
+          if-no-files-found: ignore
+
 
   build:
     runs-on: ubuntu-latest
@@ -157,3 +218,14 @@ jobs:
 
       - name: Run isolated local launch smoke
         run: npm run smoke:launch:local
+
+      - name: Run headless hosted-session smoke (mock mode)
+        run: npm run smoke:agent-headless
+
+      - name: Upload build metadata
+        if: ${{ always() && hashFiles('dist/public/version.json') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-metadata
+          path: dist/public/version.json
+          if-no-files-found: ignore

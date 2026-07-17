@@ -5,7 +5,7 @@ import { createServer } from "node:http";
 import type { Server } from "node:http";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildRobotEvalJobRequest } from "../utils/robotEvalJobRequests";
 
 const firestoreState = vi.hoisted(() => ({
@@ -213,6 +213,13 @@ function seedProvisionedEntitlement(overrides: Record<string, unknown> = {}) {
     },
   };
 }
+
+beforeEach(() => {
+  // Buyer intake is beta-cohort gated (fail-closed); give the tests explicit
+  // open capacity so they exercise entitlement/forwarding behavior.
+  vi.stubEnv("BLUEPRINT_BETA_INVITE_CAP", "10");
+  vi.stubEnv("BLUEPRINT_BETA_COHORT_DAILY_LIMIT", "10");
+});
 
 afterEach(() => {
   firestoreState.collectionDocData = {};

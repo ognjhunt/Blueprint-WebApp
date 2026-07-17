@@ -2,7 +2,11 @@ import admin, { dbAdmin as defaultDb } from "../../client/src/lib/firebaseAdmin"
 
 type FirestoreLike = typeof defaultDb;
 
-type BetaCohortGate = "waitlist" | "capture_intake";
+type BetaCohortGate =
+  | "waitlist"
+  | "capture_intake"
+  | "buyer_checkout"
+  | "robot_eval_request";
 
 type BetaCohortGateInput = {
   gate: BetaCohortGate;
@@ -32,9 +36,19 @@ function explicitlyFalse(value: string | undefined) {
   return ["0", "false", "no", "off"].includes(String(value || "").trim().toLowerCase());
 }
 
-function intEnv(value: string | undefined, fallback: number) {
-  const parsed = Number(value || "");
-  return Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : fallback;
+/**
+ * Beta capacity limits are fail-closed configuration: a missing or invalid
+ * value resolves to null (an explicit external-configuration blocker), never a
+ * hardcoded positive default. Zero means "deliberately closed", not
+ * "unlimited".
+ */
+function capEnv(value: string | undefined): number | null {
+  const raw = String(value ?? "").trim();
+  if (!raw) {
+    return null;
+  }
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : null;
 }
 
 function tokens(value: string | undefined) {
@@ -66,8 +80,8 @@ export function getBetaCohortPolicySnapshot(env: NodeJS.ProcessEnv = process.env
   return {
     enabled: betaEnabled,
     killSwitchActive: truthy(env.BLUEPRINT_BETA_KILL_SWITCH),
-    inviteCap: intEnv(env.BLUEPRINT_BETA_INVITE_CAP, 100),
-    cohortDailyLimit: intEnv(env.BLUEPRINT_BETA_COHORT_DAILY_LIMIT, 25),
+    inviteCap: capEnv(env.BLUEPRINT_BETA_INVITE_CAP),
+    cohortDailyLimit: capEnv(env.BLUEPRINT_BETA_COHORT_DAILY_LIMIT),
     allowedMarkets: tokens(env.BLUEPRINT_BETA_ALLOWED_MARKETS),
     allowedSiteTypes: tokens(env.BLUEPRINT_BETA_ALLOWED_SITE_TYPES),
     defaultCohort: normalizeToken(env.BLUEPRINT_BETA_DEFAULT_COHORT) || "default",
@@ -136,6 +150,29 @@ export async function evaluateBetaCohortGate(
       policy.killSwitchActive ? "beta_kill_switch_active" : "beta_disabled",
       503,
       "Blueprint beta access is temporarily paused.",
+      policy,
+    );
+  }
+
+  // Fail closed on capacity configuration: missing/invalid caps are an
+  // explicit external-configuration blocker, and zero caps mean intake is
+  // deliberately closed. Neither may silently become "unlimited".
+  if (policy.inviteCap === null || policy.cohortDailyLimit === null) {
+    return blockedDecision(
+      input,
+      "beta_limits_not_configured",
+      503,
+      "Blueprint beta capacity limits are not configured. Set BLUEPRINT_BETA_INVITE_CAP and BLUEPRINT_BETA_COHORT_DAILY_LIMIT.",
+      policy,
+    );
+  }
+
+  if (policy.inviteCap === 0 || policy.cohortDailyLimit === 0) {
+    return blockedDecision(
+      input,
+      "beta_intake_closed",
+      503,
+      "Blueprint beta intake is currently closed.",
       policy,
     );
   }

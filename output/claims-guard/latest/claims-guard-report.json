@@ -159,7 +159,6 @@
     "client/src/pages/Portal.tsx",
     "client/src/pages/Pricing.tsx",
     "client/src/pages/Privacy.tsx",
-    "client/src/pages/PrivacyPolicy.tsx",
     "client/src/pages/Profile.tsx",
     "client/src/pages/Proof.tsx",
     "client/src/pages/ReadinessPack.tsx",
@@ -603,34 +602,8 @@
   "skippedTargets": [
     "../BlueprintCapture/docs/PUBLIC_COPY_TRUTH_INDEX_2026-05-24.md"
   ],
-  "findings": [
-    {
-      "type": "payment_or_payout_claim",
-      "severity": "blocker",
-      "file": "client/src/pages/Agents.tsx",
-      "absoluteFile": "/home/user/Blueprint-WebApp/client/src/pages/Agents.tsx",
-      "line": 60,
-      "sourceGroup": "webapp_pages",
-      "claimText": "\"npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce checkout --site-world-id <pipeline-site-world-id> --product hosted-session-rental --mode live --budget-cents 20000\",",
-      "ownerProofRequired": "Stripe checkout/webhook/entitlement state for payment claims and Stripe Connect payout ledger plus approved policy for payout claims.",
-      "safeReplacement": "Treat forms and CTAs as requests; use `payout eligibility reviewed after accepted capture` or `payment state confirmed after checkout`."
-    },
-    {
-      "type": "unsupported_hosted_session_proof",
-      "severity": "blocker",
-      "file": "ops/paperclip/playbooks/city-capture-target-ledger-austin-tx.md",
-      "absoluteFile": "/home/user/Blueprint-WebApp/ops/paperclip/playbooks/city-capture-target-ledger-austin-tx.md",
-      "line": 20,
-      "sourceGroup": "gtm_artifacts",
-      "claimText": "- Warehouse / fulfillment / 3PL (tier_1): Still the clearest real robot workflow lane for exact-site hosted review, brownfield automation, and case-handling proof.",
-      "ownerProofRequired": "hosted-session runtime/session artifacts, entitlement path, package manifest, and live availability evidence for the exact request.",
-      "safeReplacement": "Use `book hosted review` or `hosted review is confirmed per site/request` until runtime and entitlement proof exists."
-    }
-  ],
-  "findingsByType": {
-    "payment_or_payout_claim": 1,
-    "unsupported_hosted_session_proof": 1
-  },
+  "findings": [],
+  "findingsByType": {},
   "reportPath": "/home/user/Blueprint-WebApp/output/claims-guard/latest/claims-guard-report.md",
   "jsonPath": "/home/user/Blueprint-WebApp/output/claims-guard/latest/claims-guard-report.json"
 }
