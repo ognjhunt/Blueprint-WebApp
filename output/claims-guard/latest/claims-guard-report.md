@@ -1,8 +1,8 @@
 # Cross-Source Claims Guard Report
 
 Root: `/home/user/Blueprint-WebApp`
-Scanned files: 506
-Findings: 2
+Scanned files: 505
+Findings: 0
 
 ## Target Surfaces
 
@@ -29,14 +29,4 @@ Findings: 2
 
 ## Findings
 
-| File | Line | Claim type | Claim text | Owner proof required | Safe replacement |
-| --- | ---: | --- | --- | --- | --- |
-| `client/src/pages/Agents.tsx` | 60 | payment_or_payout_claim | "npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce checkout --site-world-id <pipeline-site-world-id> --product hosted-session-rental --mode live --budget-cents 20000", | Stripe checkout/webhook/entitlement state for payment claims and Stripe Connect payout ledger plus approved policy for payout claims. | Treat forms and CTAs as requests; use `payout eligibility reviewed after accepted capture` or `payment state confirmed after checkout`. |
-| `ops/paperclip/playbooks/city-capture-target-ledger-austin-tx.md` | 20 | unsupported_hosted_session_proof | - Warehouse / fulfillment / 3PL (tier_1): Still the clearest real robot workflow lane for exact-site hosted review, brownfield automation, and case-handling proof. | hosted-session runtime/session artifacts, entitlement path, package manifest, and live availability evidence for the exact request. | Use `book hosted review` or `hosted review is confirmed per site/request` until runtime and entitlement proof exists. |
-
-## Claim Type Counts
-
-| Claim type | Count |
-| --- | ---: |
-| payment_or_payout_claim | 1 |
-| unsupported_hosted_session_proof | 1 |
+No operational proof drift findings.
