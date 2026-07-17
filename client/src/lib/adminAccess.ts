@@ -8,6 +8,7 @@ type TokenClaimsLike =
       ops?: boolean;
       role?: unknown;
       roles?: unknown;
+      accessRoles?: unknown;
     })
   | null
   | undefined;
@@ -51,8 +52,12 @@ export function resolveAccessRoles(
     collectRoles([
       userData?.roles,
       userData?.role,
+      // Server-side access control also honors users/{uid}.accessRoles;
+      // mirror it here so grants stored only there pass the client gate.
+      (userData as (Record<string, unknown> & UserData) | null | undefined)?.accessRoles,
       tokenClaims?.roles,
       tokenClaims?.role,
+      tokenClaims?.accessRoles,
     ]),
   );
 
