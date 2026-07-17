@@ -180,10 +180,11 @@ export function RobotEvalJobRequestPanel({
     try {
       const { withFirebaseAuthHeaders } = await import("@/lib/firebaseAuthHeaders");
       const headers = await withFirebaseAuthHeaders(currentUser);
-      const response = await fetch(
-        `/api/marketplace/entitlements/current?sku=${encodeURIComponent(site.slug)}`,
-        { headers },
-      );
+      // Fetch all of the buyer's entitlements and match locally with the same
+      // rules the job-request route applies (slug/lineage tokens, "<token>-"
+      // sku prefixes, and the site-world-package-/hosted-session- aliases), so
+      // buyers the server would already allow are not shown checkout again.
+      const response = await fetch("/api/marketplace/entitlements/current", { headers });
       if (!response.ok) {
         return false;
       }
@@ -191,13 +192,54 @@ export function RobotEvalJobRequestPanel({
         entitlements?: Array<Record<string, unknown>>;
       };
       const entitlements = Array.isArray(data.entitlements) ? data.entitlements : [];
-      return entitlements.some(
-        (entitlement) => entitlement && entitlement.access_state === "provisioned",
-      );
+      const siteTokens = [
+        site.slug,
+        site.captureLineage?.siteSubmissionId,
+        site.captureLineage?.captureJobId,
+        site.captureLineage?.captureId,
+      ]
+        .map((token) => (token || "").trim().toLowerCase())
+        .filter(Boolean);
+      const matchFields = [
+        "sku",
+        "site_slug",
+        "siteSlug",
+        "site_id",
+        "siteId",
+        "site_submission_id",
+        "siteSubmissionId",
+        "capture_job_id",
+        "captureJobId",
+        "capture_id",
+        "captureId",
+        "listing_id",
+        "listingId",
+        "site_world_id",
+        "siteWorldId",
+      ];
+      return entitlements.some((entitlement) => {
+        if (!entitlement || entitlement.access_state !== "provisioned") {
+          return false;
+        }
+        return matchFields.some((field) => {
+          const value = entitlement[field];
+          const token = typeof value === "string" ? value.trim().toLowerCase() : "";
+          if (!token) {
+            return false;
+          }
+          return siteTokens.some(
+            (siteToken) =>
+              token === siteToken ||
+              token.startsWith(`${siteToken}-`) ||
+              token === `site-world-package-${siteToken}` ||
+              token === `hosted-session-${siteToken}`,
+          );
+        });
+      });
     } catch {
       return false;
     }
-  }, [currentUser, site.slug]);
+  }, [currentUser, site.slug, site.captureLineage]);
 
   useEffect(() => {
     if (authLoading) {
@@ -586,8 +628,8 @@ export function RobotEvalJobRequestPanel({
                       : "Pay & start evaluation"}
                 </button>
                 <p className="text-xs leading-5 text-slate-600">
-                  Secure Stripe Checkout. After payment your evaluation request is queued
-                  and forwarded to Pipeline automatically.
+                  Secure Stripe Checkout. Each payment covers one evaluation run — after
+                  payment your request is queued and forwarded to Pipeline automatically.
                 </p>
                 {payState.kind === "error" ? (
                   <p className="flex items-start gap-2 border border-red-200 bg-red-50 p-3 text-xs font-semibold leading-5 text-red-700">

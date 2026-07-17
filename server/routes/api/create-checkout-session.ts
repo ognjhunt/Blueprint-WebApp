@@ -19,6 +19,10 @@ import {
   createBuyerOrderDraft,
   markBuyerOrderCheckoutFailure,
 } from "../../utils/accounting";
+import {
+  betaDecisionForResponse,
+  evaluateBetaCohortGate,
+} from "../../utils/beta-cohort-policy";
 import { stripeAvailable } from "../../constants/stripe";
 import { logger } from "../../logger";
 
@@ -555,6 +559,22 @@ export default async function handler(req: Request, res: Response) {
         return res.status(409).json({
           error:
             "This site does not have a publication-ready evaluation package yet, so a run cannot be purchased.",
+        });
+      }
+
+      // The intake route applies the robot_eval_request beta-cohort gate before
+      // queueing anything; run the same gate here so a buyer is never charged
+      // for a run the intake route would immediately reject.
+      const betaCohortDecision = await evaluateBetaCohortGate({
+        gate: "robot_eval_request",
+        creatorId: buyerUserId,
+        source: "robot_eval_run_checkout",
+      });
+      if (betaCohortDecision && !betaCohortDecision.allowed) {
+        return res.status(betaCohortDecision.statusCode).json({
+          error: betaCohortDecision.message,
+          code: betaCohortDecision.reason,
+          beta_cohort_policy: betaDecisionForResponse(betaCohortDecision),
         });
       }
 

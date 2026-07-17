@@ -231,6 +231,25 @@ describe("robot-eval-run checkout session", () => {
     }
   });
 
+  it("does not create an order or Stripe session when the beta cohort gate is closed", async () => {
+    vi.stubEnv("BLUEPRINT_BETA_INVITE_CAP", "0");
+    const route = await startCheckoutRoute();
+    try {
+      const { response, payload } = await postCheckout(route, {
+        sessionType: "robot-eval-run",
+        robotEvalRun: { siteSlug: "sw-chi-01" },
+      });
+      expect(response.status).toBe(503);
+      expect(payload).toEqual(
+        expect.objectContaining({ code: "beta_intake_closed" }),
+      );
+      expect(firestoreState.collectionWrites).toEqual([]);
+      expect(stripeState.sessionCreates).toEqual([]);
+    } finally {
+      await stopServer(route.server);
+    }
+  });
+
   it("creates a catalog-priced order + checkout session whose paid webhook provisions an entitlement the job-request route accepts", async () => {
     const { siteLibrarySites } = await import("../../client/src/data/siteLibrary");
     const { premiumCapabilities } = await import("../../client/src/data/content");
@@ -433,6 +452,39 @@ describe("robot-eval-run checkout session", () => {
             pipeline_consumer: "BlueprintCapturePipeline",
           }),
         );
+
+        // A paid robot-eval-run entitlement covers exactly one accepted run:
+        // the accepted request consumes it, and a replay is rejected.
+        const consumedEntitlement =
+          firestoreState.collectionDocData.marketplaceEntitlements?.[
+            String(paidOrder?.entitlement_id)
+          ];
+        expect(consumedEntitlement).toEqual(
+          expect.objectContaining({
+            access_state: "consumed",
+            consumed_by_job_id: jobRequest.job_id,
+          }),
+        );
+
+        const replayResponse = await fetch(
+          `${jobRoute.baseUrl}/api/robot-eval/job-requests`,
+          {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              authorization: `Bearer ${BUYER_UID}`,
+            },
+            body: JSON.stringify(jobRequest),
+          },
+        );
+        const replayPayload = (await replayResponse.json()) as Record<string, unknown>;
+        expect(replayResponse.status).toBe(403);
+        expect(replayPayload).toEqual(
+          expect.objectContaining({
+            code: "robot_eval_provisioned_entitlement_not_found",
+          }),
+        );
+        expect(pipelineReceived).toHaveLength(1);
       } finally {
         await stopServer(jobRoute.server);
         await stopServer(pipelineStub.server);
