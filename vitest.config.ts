@@ -36,6 +36,9 @@ export default defineConfig({
       ".worktrees/**",
       "coverage/**",
       "test-results/**",
+      // Firebase rules emulator suite: needs live emulators, runs via
+      // `npm run test:rules` (vitest.rules.config.ts), not the default lane.
+      "tests/rules/**",
     ],
     coverage: {
       provider: "v8",
@@ -50,6 +53,7 @@ export default defineConfig({
         ".worktrees/**",
         "coverage/**",
         "test-results/**",
+        "tests/rules/**",
         "scripts/launch-preflight.mjs",
         "scripts/launch-smoke.mjs",
       ],
