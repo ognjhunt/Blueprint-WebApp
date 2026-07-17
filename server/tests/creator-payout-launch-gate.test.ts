@@ -63,6 +63,13 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => {
         const current = store.get(id) || {};
         store.set(id, options?.merge ? { ...current, ...payload } : payload);
       },
+      create: async (payload: Record<string, unknown>) => {
+        const store = collectionStore(name);
+        if (store.has(id)) {
+          throw Object.assign(new Error("ALREADY_EXISTS"), { code: 6 });
+        }
+        store.set(id, payload);
+      },
     }),
   });
 

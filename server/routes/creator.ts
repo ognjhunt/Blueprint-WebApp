@@ -403,6 +403,32 @@ router.post("/captures", async (req: Request, res: Response) => {
     || optionalTrimmedString(body.location_type)
     || optionalTrimmedString(body.intended_space_type);
 
+  const docRef = db.collection("creatorCaptures").doc(captureId);
+
+  const replayOrConflictResponse = (existing: Record<string, unknown>) => {
+    if (String(existing.creator_id || "") !== creatorId) {
+      // Capture IDs are immutable and creator-bound; a colliding ID from a
+      // different authenticated creator must never overwrite the original.
+      return res.status(409).json({ error: "Capture id conflict", code: "capture_id_conflict" });
+    }
+    // Idempotent replay from the same creator: acknowledge without regressing
+    // any authoritative state the backend may already have written.
+    return res.status(200).json({
+      ok: true,
+      id: captureId,
+      replay: true,
+      status: String(existing.status || "submitted"),
+    });
+  };
+
+  // Replay is resolved BEFORE the beta cohort gate: the original successful
+  // registration already consumed capacity, so a mobile/network retry of the
+  // same capture must stay idempotent even after the cohort closes or fills.
+  const existingDoc = await docRef.get();
+  if (existingDoc.exists) {
+    return replayOrConflictResponse((existingDoc.data() || {}) as Record<string, unknown>);
+  }
+
   const betaCohortDecision = await evaluateBetaCohortGate({
     gate: "capture_intake",
     creatorId,
@@ -438,26 +464,6 @@ router.post("/captures", async (req: Request, res: Response) => {
     app_build: optionalTrimmedString(body.app_build, 80),
   };
 
-  const docRef = db.collection("creatorCaptures").doc(captureId);
-  const existingDoc = await docRef.get();
-  if (existingDoc.exists) {
-    const existing = (existingDoc.data() || {}) as Record<string, unknown>;
-    if (String(existing.creator_id || "") !== creatorId) {
-      // Capture IDs are immutable and creator-bound; a colliding ID from a
-      // different authenticated creator must never overwrite the original.
-      return res.status(409).json({ error: "Capture id conflict", code: "capture_id_conflict" });
-    }
-    // Idempotent replay from the same creator: acknowledge without regressing
-    // any authoritative state the backend may already have written.
-    return res.status(200).json({
-      ok: true,
-      id: captureId,
-      replay: true,
-      status: String(existing.status || "submitted"),
-      beta_cohort_policy: betaDecisionForResponse(betaCohortDecision),
-    });
-  }
-
   const payload = {
     id: captureId,
     creator_id: creatorId,
@@ -491,7 +497,19 @@ router.post("/captures", async (req: Request, res: Response) => {
     updated_at: admin.firestore.FieldValue.serverTimestamp(),
   };
 
-  await docRef.set(payload);
+  // Atomic create: the earlier read only short-circuits the common replay
+  // path. Two concurrent registrations racing past that read are decided at
+  // write time — create() fails on an existing document instead of
+  // overwriting it, and the loser is re-resolved as replay or conflict.
+  try {
+    await docRef.create(payload);
+  } catch (error) {
+    const racedDoc = await docRef.get();
+    if (racedDoc.exists) {
+      return replayOrConflictResponse((racedDoc.data() || {}) as Record<string, unknown>);
+    }
+    throw error;
+  }
   await recordBetaCohortAdmission({
     gate: "capture_intake",
     admissionId: `capture:${captureId}`,

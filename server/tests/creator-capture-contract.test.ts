@@ -6,6 +6,9 @@ import type { Server } from "node:http";
 
 const state = vi.hoisted(() => ({
   docs: new Map<string, Record<string, unknown>>(),
+  // Keys listed here exist in the store but are invisible to doc.get() —
+  // simulates a concurrent create landing between the route's read and write.
+  hiddenFromGet: new Set<string>(),
 }));
 
 vi.mock("../utils/slack", () => ({
@@ -24,13 +27,26 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
     collection: (name: string) => ({
       doc: (id: string) => ({
         get: async () => {
-          const data = state.docs.get(`${name}/${id}`);
+          const key = `${name}/${id}`;
+          if (state.hiddenFromGet.has(key)) {
+            // One-shot: the next read (post-create-failure resolution) sees it.
+            state.hiddenFromGet.delete(key);
+            return { exists: false, data: () => undefined };
+          }
+          const data = state.docs.get(key);
           return { exists: Boolean(data), data: () => data };
         },
         set: async (data: Record<string, unknown>, options?: { merge?: boolean }) => {
           const key = `${name}/${id}`;
           const previous = state.docs.get(key) || {};
           state.docs.set(key, options?.merge ? { ...previous, ...data } : data);
+        },
+        create: async (data: Record<string, unknown>) => {
+          const key = `${name}/${id}`;
+          if (state.docs.has(key)) {
+            throw Object.assign(new Error("ALREADY_EXISTS"), { code: 6 });
+          }
+          state.docs.set(key, data);
         },
       }),
       where: () => ({
@@ -82,6 +98,7 @@ function postJson(baseUrl: string, path: string, body: unknown) {
 
 afterEach(() => {
   state.docs.clear();
+  state.hiddenFromGet.clear();
   for (const key of Object.keys(BETA_ENV)) {
     delete process.env[key];
   }
@@ -187,6 +204,47 @@ describe("creator capture registration contract", () => {
       expect(replay.status).toBe(200);
       await expect(replay.json()).resolves.toMatchObject({ ok: true, replay: true, status: "approved" });
       expect(state.docs.get(key)).toMatchObject({ status: "approved", estimated_payout_cents: 4200 });
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("keeps replays idempotent even after the beta cohort closes", async () => {
+    const { server, baseUrl } = await startCreatorServer();
+    try {
+      const first = await postJson(`${baseUrl}`, "/v1/creator/captures", { id: "cap-idem" });
+      expect(first.status).toBe(201);
+
+      // The cohort closes after the original registration consumed capacity;
+      // a network retry of the same capture must still be acknowledged.
+      process.env.BLUEPRINT_BETA_INVITE_CAP = "0";
+      process.env.BLUEPRINT_BETA_COHORT_DAILY_LIMIT = "0";
+
+      const replay = await postJson(`${baseUrl}`, "/v1/creator/captures", { id: "cap-idem" });
+      expect(replay.status).toBe(200);
+      await expect(replay.json()).resolves.toMatchObject({ ok: true, replay: true });
+
+      const fresh = await postJson(`${baseUrl}`, "/v1/creator/captures", { id: "cap-new-closed" });
+      expect(fresh.status).toBe(503);
+      expect(state.docs.has("creatorCaptures/cap-new-closed")).toBe(false);
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("resolves a concurrent-create race atomically instead of overwriting", async () => {
+    // The doc exists (created concurrently by another creator) but is not yet
+    // visible to the route's pre-read — create() must lose and resolve to 409.
+    state.docs.set("creatorCaptures/cap-race", { id: "cap-race", creator_id: "someone-else" });
+    const { server, baseUrl } = await startCreatorServer();
+    try {
+      state.hiddenFromGet.add("creatorCaptures/cap-race");
+      const response = await postJson(`${baseUrl}`, "/v1/creator/captures", { id: "cap-race" });
+      expect(response.status).toBe(409);
+      await expect(response.json()).resolves.toMatchObject({ code: "capture_id_conflict" });
+      expect(state.docs.get("creatorCaptures/cap-race")).toMatchObject({
+        creator_id: "someone-else",
+      });
     } finally {
       await stopServer(server);
     }
