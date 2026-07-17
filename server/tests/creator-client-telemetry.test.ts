@@ -125,7 +125,7 @@ describe("creator client telemetry", () => {
         alert_opened: true,
       });
 
-      expect(state.docs.get("creatorClientTelemetry/event-123")).toMatchObject({
+      expect(state.docs.get("creatorClientTelemetry/creator-auth-123__event-123")).toMatchObject({
         creator_id: "creator-auth-123",
         event_type: "cached_uncaught_exception",
         severity: "critical",

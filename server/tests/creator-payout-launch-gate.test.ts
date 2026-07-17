@@ -113,8 +113,10 @@ afterEach(() => {
 
 describe("creator payout launch gate", () => {
   it(
-    "moves a capture from upload through approved payout-pending into paid ledger state",
+    "keeps payout state server-owned: client registers, backend approves and pays",
     async () => {
+      process.env.BLUEPRINT_BETA_INVITE_CAP = "10";
+      process.env.BLUEPRINT_BETA_COHORT_DAILY_LIMIT = "10";
       const { server, baseUrl } = await startServer();
 
       try {
@@ -141,6 +143,11 @@ describe("creator payout launch gate", () => {
         });
 
         expect(submitted.status).toBe(201);
+        // Registration never grants earnings: the payout amount the client
+        // quoted lands only in non-authoritative client_reported context.
+        const created = state.creatorCaptures.get("capture-123")!;
+        expect(created.status).toBe("submitted");
+        expect(created.estimated_payout_cents).toBeNull();
 
         const submittedEarnings = await fetch(`${baseUrl}/v1/creator/earnings`, {
           headers: {
@@ -152,24 +159,32 @@ describe("creator payout launch gate", () => {
           scans_completed: 0,
         });
 
-        const approved = await fetch(`${baseUrl}/v1/creator/captures`, {
+        // A client replay that self-asserts "approved" changes nothing: the
+        // route acknowledges idempotently and preserves server-owned state.
+        const selfApproval = await fetch(`${baseUrl}/v1/creator/captures`, {
           method: "POST",
           headers,
           body: JSON.stringify({
             id: "capture-123",
-            capture_job_id: "job-123",
-            buyer_request_id: "buyer-request-123",
-            site_submission_id: "site-submission-123",
-            target_address: "100 Main St",
-            estimated_payout_cents: 6500,
-            requested_outputs: ["qualification", "preview_simulation"],
-            rights_profile: "documented",
             status: "approved",
-            captured_at: "2026-03-20T13:00:00.000Z",
+            estimated_payout_cents: 999999,
           }),
         });
+        expect(selfApproval.status).toBe(200);
+        await expect(selfApproval.json()).resolves.toMatchObject({
+          replay: true,
+          status: "submitted",
+        });
+        expect(state.creatorCaptures.get("capture-123")!.status).toBe("submitted");
 
-        expect(approved.status).toBe(201);
+        // Backend review (Admin SDK) approves the capture and sets the
+        // authoritative payout amount + earnings.
+        state.creatorCaptures.set("capture-123", {
+          ...state.creatorCaptures.get("capture-123")!,
+          status: "approved",
+          estimated_payout_cents: 6500,
+          earnings: { total_payout_cents: 6500 },
+        });
 
         const detailAfterApproval = await fetch(`${baseUrl}/v1/creator/captures/capture-123`, {
           headers: {
@@ -198,24 +213,11 @@ describe("creator payout launch gate", () => {
           }),
         ]);
 
-        const paid = await fetch(`${baseUrl}/v1/creator/captures`, {
-          method: "POST",
-          headers,
-          body: JSON.stringify({
-            id: "capture-123",
-            capture_job_id: "job-123",
-            buyer_request_id: "buyer-request-123",
-            site_submission_id: "site-submission-123",
-            target_address: "100 Main St",
-            estimated_payout_cents: 6500,
-            requested_outputs: ["qualification", "preview_simulation"],
-            rights_profile: "documented",
-            status: "paid",
-            captured_at: "2026-03-20T13:00:00.000Z",
-          }),
+        // Backend settlement marks the payout paid; the client cannot.
+        state.creatorCaptures.set("capture-123", {
+          ...state.creatorCaptures.get("capture-123")!,
+          status: "paid",
         });
-
-        expect(paid.status).toBe(201);
 
         const paidLedger = await fetch(`${baseUrl}/v1/creator/payouts/ledger`, {
           headers: {
@@ -230,6 +232,8 @@ describe("creator payout launch gate", () => {
           }),
         ]);
       } finally {
+        delete process.env.BLUEPRINT_BETA_INVITE_CAP;
+        delete process.env.BLUEPRINT_BETA_COHORT_DAILY_LIMIT;
         await stopServer(server);
       }
     },
