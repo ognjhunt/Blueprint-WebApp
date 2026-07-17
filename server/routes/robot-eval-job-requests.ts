@@ -574,6 +574,32 @@ router.post("/", verifyFirebaseToken, async (req, res) => {
     });
   }
 
+  // Paid self-serve entitlements (sku "<siteSlug>-robot-eval-run") cover exactly
+  // one accepted run. Consume them here — after acceptance, never on the 502
+  // forward-failure path above — so one $-per-run purchase cannot be replayed
+  // into unlimited runs. Back-office/site-package/hosted-session entitlements
+  // are untouched.
+  const verifiedEntitlement = entitlementCheck.entitlement;
+  const verifiedEntitlementId = stringValue(verifiedEntitlement.id);
+  const verifiedEntitlementSku = normalizedToken(verifiedEntitlement.sku);
+  const isFirestoreBackedEntitlement = !stringValue(verifiedEntitlement.proof_source);
+  if (
+    db &&
+    isFirestoreBackedEntitlement &&
+    verifiedEntitlementId &&
+    verifiedEntitlementSku.endsWith("-robot-eval-run")
+  ) {
+    await db.collection("marketplaceEntitlements").doc(verifiedEntitlementId).set(
+      {
+        access_state: "consumed",
+        consumed_at: queuedAt,
+        consumed_by_job_id: jobId,
+        updated_at: queuedAt,
+      },
+      { merge: true },
+    );
+  }
+
   return res.status(202).json({
     ok: true,
     status: "queued_for_pipeline",

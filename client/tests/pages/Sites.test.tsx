@@ -18,6 +18,34 @@ vi.mock("@/lib/firebaseAuthHeaders", () => ({
   })),
 }));
 
+vi.mock("@/contexts/AuthContext", () => ({
+  useAuth: () => ({ currentUser: firebaseTestUser, loading: false }),
+}));
+
+// The eval panel checks the signed-in buyer's entitlements before offering a
+// run; answer that call with a provisioned site entitlement and route the
+// job-request POST to the provided handler.
+function mockPanelFetch(
+  jobRequestResponse: () => Promise<Response> | Response = () =>
+    ({ ok: true, json: async () => ({}) }) as Response,
+) {
+  return vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+    const url = String(input);
+    if (url.startsWith("/api/marketplace/entitlements/current")) {
+      return {
+        ok: true,
+        json: async () => ({
+          entitlements: [
+            { access_state: "provisioned", sku: "sw-chi-01-robot-eval-run" },
+            { access_state: "provisioned", sku: "hosted-session-triangle-robotics-lab" },
+          ],
+        }),
+      } as Response;
+    }
+    return jobRequestResponse();
+  });
+}
+
 afterEach(() => {
   vi.restoreAllMocks();
   firebaseTestUser.getIdToken.mockClear();
@@ -58,25 +86,33 @@ describe("Sites", () => {
   });
 
   it("posts a Unitree G1 MuJoCo simulator request from the one-page site flow", async () => {
-    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        status: "queued_for_pipeline",
-        pipelineForward: {
-          status: "forwarded",
-          accepted: true,
-          performed: true,
-          pipeline_status: "staged_for_control_plane",
-        },
-      }),
-    } as Response);
+    const fetchMock = mockPanelFetch(() =>
+      ({
+        ok: true,
+        json: async () => ({
+          status: "queued_for_pipeline",
+          pipelineForward: {
+            status: "forwarded",
+            accepted: true,
+            performed: true,
+            pipeline_status: "staged_for_control_plane",
+          },
+        }),
+      }) as Response,
+    );
 
     render(<SiteDetail params={{ slug: "sw-chi-01" }} />);
 
     expect(screen.getAllByText(/Request policy run/i).length).toBeGreaterThan(0);
     expect(screen.getByLabelText(/Navigate to a spot/i)).toBeChecked();
     expect(screen.getByText(/Blueprint chooses the evaluation worker/i)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /^Request policy run$/i }));
+    fireEvent.click(
+      await screen.findByRole(
+        "button",
+        { name: /^Start evaluation run$/i },
+        { timeout: 5000 },
+      ),
+    );
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
@@ -93,7 +129,9 @@ describe("Sites", () => {
       // the same fix applied in SiteWorldDetail.test.tsx.
     }, { timeout: 5000 });
 
-    const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    const init = fetchMock.mock.calls.find(
+      (call) => String(call[0]) === "/api/robot-eval/job-requests",
+    )?.[1] as RequestInit;
     const body = JSON.parse(String(init.body || "{}"));
     expect(body.schema_version).toBe("robot_eval_job_request.v1");
     expect(body.buyer_request_id).toBe(
@@ -238,6 +276,7 @@ describe("Sites", () => {
   });
 
   it("keeps simulator-only copy from implying generated-world rank fidelity", () => {
+    mockPanelFetch();
     const { container } = render(<SiteDetail params={{ slug: "sw-chi-01" }} />);
 
     expect(screen.getByText(/Scope: virtual evaluation/i)).toBeInTheDocument();
@@ -267,7 +306,8 @@ describe("Sites", () => {
     expect(screen.getByText(/No matching sites yet\./i)).toBeInTheDocument();
   });
 
-  it("renders a compact site detail page for a legacy slug alias", () => {
+  it("renders a compact site detail page for a legacy slug alias", async () => {
+    mockPanelFetch();
     render(<SiteDetail params={{ slug: "siteworld-f5fd54898cfb" }} />);
 
     expect(
@@ -276,7 +316,11 @@ describe("Sites", () => {
     expect(screen.getByText(/Lab · Southeast/i)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Task pack/i })).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /^Request policy run$/i }),
+      await screen.findByRole(
+        "button",
+        { name: /^Start evaluation run$/i },
+        { timeout: 5000 },
+      ),
     ).toBeInTheDocument();
     expect(screen.getByText(/Generated clips help review/i)).toBeInTheDocument();
   });
