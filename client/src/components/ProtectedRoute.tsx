@@ -3,13 +3,15 @@ import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2 } from "lucide-react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { hasAnyRole, type AccessRole } from "@/lib/adminAccess";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
+  requireRoles?: AccessRole[];
 }
 
-export default function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { currentUser, userData, loading } = useAuth();
+export default function ProtectedRoute({ children, requireRoles }: ProtectedRouteProps) {
+  const { currentUser, userData, tokenClaims, loading } = useAuth();
   const [, setLocation] = useLocation();
   const [isReady, setIsReady] = useState(false);
 
@@ -33,11 +35,18 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
       ) {
         sessionStorage.removeItem("redirectAfterAuth");
         setLocation("/capture-app");
+      } else if (
+        requireRoles &&
+        requireRoles.length > 0 &&
+        !hasAnyRole(requireRoles, userData, tokenClaims)
+      ) {
+        sessionStorage.removeItem("redirectAfterAuth");
+        setLocation("/");
       } else {
         setIsReady(true);
       }
     }
-  }, [currentUser, userData, loading, setLocation]);
+  }, [currentUser, userData, tokenClaims, loading, setLocation, requireRoles]);
 
   if (loading || (!loading && currentUser && !userData)) {
     return (

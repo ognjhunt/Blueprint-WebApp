@@ -108,39 +108,6 @@ const contactFormSchema = z.object({
   }),
 });
 
-// // FAQ content
-// const faqItems = [
-//   {
-//     question: "What happens during the 3D mapping session?",
-//     answer:
-//       "During the mapping session, our specialist will use advanced scanning technology to create a detailed 3D model of your space. They'll guide you through the process, which typically takes 30-60 minutes depending on the size of your location.",
-//   },
-//   {
-//     question: "Do I need to prepare anything before the mapping session?",
-//     answer:
-//       "Yes! Please ensure your space is clean, well-lit, and free of clutter. Clear walkways for access and consider temporarily removing any highly reflective items (like mirrors) that might interfere with scanning.",
-//   },
-//   {
-//     question: "How long does it take to get my Blueprint after scanning?",
-//     answer:
-//       "Processing typically takes 24-48 hours after your mapping session. You'll receive an email notification when your Blueprint is ready to view and share.",
-//   },
-//   {
-//     question: "Can I reschedule my mapping session?",
-//     answer:
-//       "Yes, you can reschedule your session up to 24 hours before your appointment. Use the 'Reschedule' tab on this page to select a new date and time.",
-//   },
-//   {
-//     question: "What happens if I need to cancel?",
-//     answer:
-//       "Cancellations can be made up to 48 hours before your scheduled session without penalty. Please contact our support team for assistance with cancellations.",
-//   },
-//   {
-//     question: "Can I restrict access to my Blueprint?",
-//     answer:
-//       "Absolutely! You have full control over your Blueprint's privacy settings. You can make it private, share with specific people, or make it publicly viewable at any time from your dashboard.",
-//   },
-// ];
 
 const LINDY_EMBED_ID = "9620fed7-bdfb-4329-ada0-b60963170c59";
 const LINDY_IFRAME_URL = `https://chat.lindy.ai/embedded/lindyEmbed/${LINDY_EMBED_ID}`;

@@ -64,7 +64,7 @@ const gtmResponsibilities = [
   "Use agents for the heavy work: account research, enrichment, first drafts, market maps, content variants, reply summaries, CRM hygiene, and status reporting.",
   "Inspect the outputs. Fix weak prompts, unclear owners, stale records, and agent loops that look busy without moving the business.",
   "Work with the founder on the wedge: exact-site hosted review for robot teams, backed by real capture provenance and buyer-visible proof.",
-  "Use tools like Clay, CRMs, search providers, workflow automation, spreadsheets, LLMs, and Paperclip agents where they help. Keep the system simple enough to understand.",
+  "Use tools like Clay, CRMs, search providers, workflow automation, spreadsheets, LLMs, and AI agents where they help. Keep the system simple enough to understand.",
 ];
 
 const gtmWeekExamples = [

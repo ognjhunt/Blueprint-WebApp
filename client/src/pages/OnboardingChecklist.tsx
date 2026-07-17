@@ -202,7 +202,7 @@ export default function OnboardingChecklist() {
               icon: Route,
               action: {
                 label: "Review intake",
-                href: "/contact?persona=robot-team",
+                href: "/contact/robot-team?persona=robot-team",
                 updateField: "onboardingProgress.buyerWorkflowConfirmed",
               },
             },
@@ -233,7 +233,7 @@ export default function OnboardingChecklist() {
               icon: Target,
               action: {
                 label: "Update proof details",
-                href: "/contact?persona=robot-team",
+                href: "/contact/robot-team?persona=robot-team",
                 updateField: "onboardingProgress.proofReadyIntake",
               },
             },
@@ -246,7 +246,7 @@ export default function OnboardingChecklist() {
               icon: CreditCard,
               action: {
                 label: "Update intake",
-                href: "/contact?persona=robot-team",
+                href: "/contact/robot-team?persona=robot-team",
                 updateField: "onboardingProgress.procurementReviewed",
               },
               optional: true,
@@ -335,7 +335,7 @@ export default function OnboardingChecklist() {
         icon: Building2,
         action: {
           label: "Review intake",
-          href: isRobotTeam ? "/contact?persona=robot-team" : "/contact/site-operator",
+          href: isRobotTeam ? "/contact/robot-team?persona=robot-team" : "/contact/site-operator",
           updateField: "onboardingProgress.defineSiteSubmission",
         },
       },
@@ -348,7 +348,7 @@ export default function OnboardingChecklist() {
         icon: ClipboardCheck,
         action: {
           label: "Open submission form",
-          href: isRobotTeam ? "/contact?persona=robot-team" : "/contact/site-operator",
+          href: isRobotTeam ? "/contact/robot-team?persona=robot-team" : "/contact/site-operator",
           updateField: "onboardingProgress.completeIntakeReview",
         },
       },

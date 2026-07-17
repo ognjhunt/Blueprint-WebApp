@@ -14,7 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Menu, X, User, UserPlus } from "lucide-react";
+import { Menu, X, User } from "lucide-react";
 import { Link, useLocation, useRoute } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -342,15 +342,6 @@ const MemoizedDropdownMenuContent = memo(
   },
 );
 MemoizedDropdownMenuContent.displayName = "MemoizedDropdownMenuContent";
-
-const InviteTeamButtonInternal = memo(() => (
-  <Link href="/workspace" className="mr-2">
-    <Button className="rounded-none bg-[#c7a775] text-[#0d0d0b] font-semibold hover:bg-[#d8bd8d] flex items-center gap-2 px-4 py-2">
-      <UserPlus className="h-4 w-4" /> Invite Team
-    </Button>
-  </Link>
-));
-InviteTeamButtonInternal.displayName = "InviteTeamButtonInternal";
 
 const SignInButtonInternal = memo(() => (
   <div className="flex items-center gap-3">

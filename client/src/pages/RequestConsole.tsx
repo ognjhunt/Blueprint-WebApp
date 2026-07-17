@@ -405,7 +405,7 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
                     </p>
                   </div>
                   <div className="rounded-[1.15rem] border border-black/10 bg-[#faf6ef] p-4">
-                    <p className="text-sm font-semibold text-[#111110]">Paperclip next action</p>
+                    <p className="text-sm font-semibold text-[#111110]">Next action</p>
                     <p className="mt-1 text-sm leading-6 text-black/60">
                       {structuredIntake?.owner_lane || "Owner pending"}: {structuredIntake?.next_action || ops?.next_step || "No next action projected"}
                     </p>

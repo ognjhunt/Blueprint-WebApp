@@ -51,7 +51,7 @@ export const helpCategories: HelpCategory[] = [
     description: "Choose the right Blueprint path before a team opens a request, improvement run, or policy evaluation set.",
     audience: "New buyers, operators, and capturers",
     iconKey: "rocket",
-    primaryActionHref: "/contact?persona=robot-team",
+    primaryActionHref: "/contact/robot-team?persona=robot-team",
     primaryActionLabel: "Open buyer contact",
     articles: [
       "what-blueprint-sells",
@@ -68,7 +68,7 @@ export const helpCategories: HelpCategory[] = [
     description: "Understand sim-only policy improvement, included artifacts, licensing, and how proof should be read.",
     audience: "Robot teams and technical evaluators",
     iconKey: "package",
-    primaryActionHref: "/contact?persona=robot-team&interest=policy-improvement-run&path=policy-improvement-run",
+    primaryActionHref: "/contact/robot-team?persona=robot-team&interest=policy-improvement-run&path=policy-improvement-run",
     primaryActionLabel: "Request policy improvement",
     articles: [
       "what-is-a-site-world-package",

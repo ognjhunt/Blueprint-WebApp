@@ -2,11 +2,14 @@ import { lazy } from "react";
 import type { ComponentType, LazyExoticComponent } from "react";
 import { MarketingRedirect } from "../pages/MarketingRedirect";
 import { getSiteLibrarySite } from "../data/siteLibrary";
+import type { AccessRole } from "../lib/adminAccess";
 
 export type AppRoute = {
   path?: string;
   layout: "public" | "protected";
   shell?: "site" | "bare";
+  // Restrict a protected route to users holding at least one of these roles.
+  requireRoles?: AccessRole[];
   // Some route components require `params` props from wouter dynamic segments.
   component: ComponentType<any>;
 };
@@ -87,6 +90,10 @@ const AppDataPackages = lazyRoute(() => import("../pages/app/DataPackages"));
 const AppEntitlements = lazyRoute(() => import("../pages/app/Entitlements"));
 
 const NotFound = lazyRoute(() => import("../pages/NotFound"));
+
+// Shared role requirement for admin/ops surfaces (stable reference so the
+// ProtectedRoute effect deps don't churn).
+const ADMIN_ROLES: AccessRole[] = ["admin", "ops"];
 
 const HomeRedirect = () => <MarketingRedirect to="/" />;
 
@@ -300,15 +307,15 @@ export const appRoutes: AppRoute[] = [
   { path: "/requests/:requestId/preview", layout: "public", shell: "bare", component: RequestConsole },
 
   // Admin
-  { path: "/admin/leads", layout: "protected", component: AdminLeads },
-  { path: "/admin/leads/:requestId", layout: "protected", component: AdminLeads },
-  { path: "/admin/submissions", layout: "protected", component: AdminLeads },
-  { path: "/admin/submissions/:requestId", layout: "protected", component: AdminLeads },
-  { path: "/admin/growth-ops-scorecard", layout: "protected", component: AdminGrowthOpsScorecard },
-  { path: "/admin/company-metrics", layout: "protected", component: AdminCompanyMetrics },
-  { path: "/admin/city-launch/austin", layout: "protected", component: AdminAustinLaunchScorecard },
-  { path: "/admin/city-launch/:citySlug", layout: "protected", component: AdminAustinLaunchScorecard },
-  { path: "/admin/growth-studio", layout: "protected", component: AdminGrowthStudio },
+  { path: "/admin/leads", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminLeads },
+  { path: "/admin/leads/:requestId", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminLeads },
+  { path: "/admin/submissions", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminLeads },
+  { path: "/admin/submissions/:requestId", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminLeads },
+  { path: "/admin/growth-ops-scorecard", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminGrowthOpsScorecard },
+  { path: "/admin/company-metrics", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminCompanyMetrics },
+  { path: "/admin/city-launch/austin", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminAustinLaunchScorecard },
+  { path: "/admin/city-launch/:citySlug", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminAustinLaunchScorecard },
+  { path: "/admin/growth-studio", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminGrowthStudio },
 
   // Dashboard
   { path: "/dashboard", layout: "protected", component: Dashboard },
@@ -333,12 +340,12 @@ export const appRoutes: AppRoute[] = [
   { path: "/app/entitlements", layout: "protected", shell: "bare", component: AppEntitlements },
 
   // Legacy ops aliases route to protected admin/operator truth surfaces.
-  { path: "/ops", layout: "protected", component: AdminLeads },
-  { path: "/ops/supply", layout: "protected", component: AdminLeads },
-  { path: "/ops/city-launch", layout: "protected", component: AdminAustinLaunchScorecard },
-  { path: "/ops/evidence", layout: "protected", component: AdminLeads },
-  { path: "/ops/handoff", layout: "protected", component: AdminLeads },
-  { path: "/ops/spend", layout: "protected", component: AdminCompanyMetrics },
+  { path: "/ops", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminLeads },
+  { path: "/ops/supply", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminLeads },
+  { path: "/ops/city-launch", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminAustinLaunchScorecard },
+  { path: "/ops/evidence", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminLeads },
+  { path: "/ops/handoff", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminLeads },
+  { path: "/ops/spend", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminCompanyMetrics },
 
   // 404
   { layout: "public", component: NotFound },

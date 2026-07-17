@@ -477,9 +477,6 @@ export default function Dashboard() {
           localStorage.getItem("showWaitingDashboard") === "true";
         if (showWaitingDashboard) {
           localStorage.removeItem("showWaitingDashboard");
-          console.log(
-            "Dashboard - Redirected from signup flow, enforcing waiting screen view",
-          );
         }
 
         const userRef = doc(db, "users", currentUser.uid);
@@ -514,7 +511,6 @@ export default function Dashboard() {
           ) {
             try {
               await updateDoc(userRef, updatedUserData);
-              console.log("Added missing fields to user document");
             } catch (error) {
               console.error(
                 "Error updating user document with missing fields:",
@@ -564,17 +560,6 @@ export default function Dashboard() {
             }
           }
 
-          // Check if user should see the waiting screen
-          console.log("Dashboard - checking waiting screen conditions:", {
-            hasMapping: Boolean(
-              userData.mappingScheduleDate && userData.mappingScheduleTime,
-            ),
-            finishedOnboarding: userData.finishedOnboarding,
-            scanCompletedFromLocalStorage,
-            hasCompletedBlueprint,
-            createdBlueprintIDs: userData.createdBlueprintIDs || [],
-          });
-
           // Handle date format properly regardless of how it's stored
           let scheduleDate = null;
           if (userData.mappingScheduleDate) {
@@ -599,14 +584,10 @@ export default function Dashboard() {
             !skipWaitingActive
           ) {
             // Show waiting screen
-            console.log("Dashboard - showing waiting screen");
             setIsWaitingForMapping(true);
             setMappingDate(scheduleDate);
             setMappingTime(userData.mappingScheduleTime);
           } else {
-            console.log(
-              "Dashboard - not showing waiting screen, showing regular dashboard",
-            );
             setIsWaitingForMapping(false);
 
             // Check if this is a new scan completion
@@ -618,9 +599,6 @@ export default function Dashboard() {
 
               // Important: Add a small delay to ensure the dashboard renders first
               setTimeout(() => {
-                console.log(
-                  "Triggering dashboard onboarding after scan completion",
-                );
                 startOnboarding();
               }, 1000);
             }
@@ -668,16 +646,10 @@ export default function Dashboard() {
 
                   // 1. Check if a cached URL exists in Firestore
                   if (blueprintData.streetViewImageUrl) {
-                    console.log(
-                      `Using cached Street View URL for ${blueprintID}`,
-                    );
                     imageUrl = blueprintData.streetViewImageUrl;
                   }
                   // 2. If no cached URL and address exists, try fetching a new one
                   else if (blueprintData.address) {
-                    console.log(
-                      `No cached URL for ${blueprintID}, attempting fetch.`,
-                    );
                     try {
                       const newImageUrl = await getLocationImageUrl(
                         blueprintData.address,
@@ -688,14 +660,8 @@ export default function Dashboard() {
                         imageUrl = newImageUrl;
                         // Mark this blueprint for Firestore update *after* the loop
                         needsFirestoreUpdate = true;
-                        console.log(
-                          `Fetched new Street View URL for ${blueprintID}`,
-                        );
                       } else {
                         // API call failed or returned null, use fallback for this session
-                        console.log(
-                          `Failed to fetch new Street View URL for ${blueprintID}, using fallback.`,
-                        );
                         imageUrl = fallbackImage;
                       }
                     } catch (error) {
@@ -791,9 +757,6 @@ export default function Dashboard() {
           const updatePromises = blueprintsData
             .filter((bp) => bp._needsStreetViewUpdate) // Filter blueprints that need update
             .map((bp) => {
-              console.log(
-                `Updating Firestore for ${bp.id} with new Street View URL.`,
-              );
               const blueprintRef = doc(db, "blueprints", bp.id);
               return updateDoc(blueprintRef, {
                 streetViewImageUrl: bp._needsStreetViewUpdate, // Use the stored URL
@@ -828,7 +791,6 @@ export default function Dashboard() {
   const getLocationImageUrl = async (address, businessName) => {
     // Ensure you have an address to work with
     if (!address) {
-      console.log("No address provided for image lookup.");
       return null;
     }
 
@@ -1442,12 +1404,12 @@ export default function Dashboard() {
                   </div>
 
                   <div className="flex items-center space-x-4">
-                    <Link href="/create-blueprint">
+                    <Link href="/contact/site-operator">
                       <Button
                         className="hidden md:flex items-center text-white bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 shadow-md hover:shadow-emerald-400/50 transition-all"
                         ref={createBlueprintRef}
                       >
-                        <Plus className="mr-2 h-4 w-4" /> Create New Blueprint
+                        <Plus className="mr-2 h-4 w-4" /> Add a New Site
                       </Button>
                     </Link>
                   </div>
@@ -1548,9 +1510,9 @@ export default function Dashboard() {
                   >
                     {/* Mobile Create Button */}
                     <div className="md:hidden flex justify-center mb-4">
-                      <Link href="/create-blueprint">
+                      <Link href="/contact/site-operator">
                         <Button className="w-full flex items-center justify-center text-white bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 shadow-md">
-                          <Plus className="mr-2 h-4 w-4" /> Create New Blueprint
+                          <Plus className="mr-2 h-4 w-4" /> Add a New Site
                         </Button>
                       </Link>
                     </div>
@@ -1854,19 +1816,6 @@ export default function Dashboard() {
                                     updates
                                   </CardDescription>
                                 </div>
-                                {Array.isArray(userData?.recentActivities) &&
-                                  userData.recentActivities.length > 0 && (
-                                    <Link href="#">
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
-                                      >
-                                        View All{" "}
-                                        <ChevronRight className="w-4 h-4 ml-1" />
-                                      </Button>
-                                    </Link>
-                                  )}
                               </div>
                             </CardHeader>
                             <CardContent>

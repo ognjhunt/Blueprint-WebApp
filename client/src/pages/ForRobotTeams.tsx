@@ -178,7 +178,7 @@ export default function ForRobotTeams() {
                   </div>
                   <div className="mt-9 flex flex-col gap-3 sm:flex-row">
                     <Button asChild variant="brass" size="lg" iconRight={<ArrowRight />}>
-                      <a href="/contact?persona=robot-team&buyerType=robot_team&source=for-robot-teams">
+                      <a href="/contact/robot-team?persona=robot-team&buyerType=robot_team&source=for-robot-teams">
                         Request evaluation
                       </a>
                     </Button>
@@ -243,7 +243,7 @@ export default function ForRobotTeams() {
                 <Eyebrow tone="muted">Quick-look</Eyebrow>
                 <div className="mt-4 flex items-baseline gap-2">
                   <span className="font-mono text-[2.5rem] font-medium leading-none tracking-tight text-ink-900">
-                    $6.5k
+                    $5–8k
                   </span>
                   <span className="font-mono text-sm text-ink-500">/ comparison</span>
                 </div>
@@ -277,7 +277,7 @@ export default function ForRobotTeams() {
                   full
                   className="mt-6"
                 >
-                  <a href="/contact?persona=robot-team&plan=quick-look&source=for-robot-teams">
+                  <a href="/contact/robot-team?persona=robot-team&plan=quick-look&source=for-robot-teams">
                     Request a quick-look
                   </a>
                 </Button>
@@ -326,7 +326,7 @@ export default function ForRobotTeams() {
                   Best for teams shipping policy updates on a cadence.
                 </p>
                 <Button asChild variant="brass" size="lg" full className="relative mt-6">
-                  <a href="/contact?persona=robot-team&plan=subscription&source=for-robot-teams">
+                  <a href="/contact/robot-team?persona=robot-team&plan=subscription&source=for-robot-teams">
                     Talk to us about a subscription
                   </a>
                 </Button>
@@ -457,7 +457,7 @@ export default function ForRobotTeams() {
             description="Request an evaluation to compare your checkpoints on a captured facility with provenance, thresholds, and readiness evidence attached. Results are estimates of rank fidelity, not a guarantee of field outcome."
             imageSrc={HERO_IMAGE}
             imageAlt="Captured factory site for robot evaluation"
-            primaryHref="/contact?persona=robot-team&buyerType=robot_team&source=for-robot-teams-cta"
+            primaryHref="/contact/robot-team?persona=robot-team&buyerType=robot_team&source=for-robot-teams-cta"
             primaryLabel="Request evaluation"
             secondaryHref="/pricing"
             secondaryLabel="See pricing"

@@ -5,7 +5,7 @@ import { Package, Clock, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export const KIT_DELIVERY_LEAD_TIME_BUSINESS_DAYS = 3;
-export const DEFAULT_KIT_TRACKING_URL = "https://blueprint.build/track-kits";
+export const DEFAULT_KIT_TRACKING_URL = "https://tryblueprint.io/track-kits";
 
 type CountdownParts = {
   days: number;

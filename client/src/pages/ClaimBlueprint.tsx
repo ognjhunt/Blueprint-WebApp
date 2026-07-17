@@ -286,7 +286,6 @@ export default function ClaimBlueprint() {
       setLocation(`/login?returnUrl=${encoded}`);
       return;
     }
-    console.log("Blueprint claimed:", formData);
     toast({
       title: "Success",
       description:

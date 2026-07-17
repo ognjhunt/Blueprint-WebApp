@@ -440,7 +440,7 @@ export default function HowItWorks() {
             imageAlt="Inspection bench workstation"
             primaryHref="/pricing"
             primaryLabel="See pricing"
-            secondaryHref="/contact?persona=robot-team&source=how-it-works"
+            secondaryHref="/contact/robot-team?persona=robot-team&source=how-it-works"
             secondaryLabel="Request evaluation"
           />
         </div>
