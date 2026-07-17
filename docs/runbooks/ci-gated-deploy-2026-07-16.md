@@ -3,6 +3,25 @@
 Blueprint-WebApp has exactly one deploy owner: `.github/workflows/deploy.yml`.
 Render-native auto-deploy is off (`render.yaml` `autoDeploy: false`).
 
+> **OPEN INCIDENT — deploy ownership is NOT yet singular (2026-07-17).**
+> Evidence from the `1acc5a84` deploy: the gated workflow (run 29552846927)
+> failed closed at 03:37:50Z because `RENDER_DEPLOY_HOOK_URL` was unset, yet
+> the live site served `1acc5a84` with `built_at_iso 2026-07-17T03:34:55Z` —
+> built *before* the workflow ran. Render-native dashboard auto-deploy is
+> therefore still active, and the `render.yaml` `autoDeploy: false` setting is
+> not in effect for this service (render.yaml governs Blueprint-synced
+> services only). Until a human completes the one-time activation steps below
+> — dashboard Auto-Deploy off + `RENDER_DEPLOY_HOOK_URL` secret set — the
+> repository must treat deployment ownership as
+> `BLOCKED_RENDER_DEPLOY_OWNER_CONFIGURATION` and must not claim CI-gated
+> deployment.
+>
+> The deploy workflow now also verifies completion: after triggering the hook
+> it polls `GET /version.json` until the exact requested SHA is live, then
+> checks `/health` and `/health/ready` separately and uploads a
+> `deploy-verification` artifact. A deploy-hook 2xx is never treated as
+> deployment success.
+
 ## How a deploy happens
 
 1. A commit lands on `main`.
