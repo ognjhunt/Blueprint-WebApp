@@ -1,5 +1,7 @@
-import { Helmet } from "@/lib/helmet";
 import { ArrowRight, Check } from "lucide-react";
+
+import { SEO } from "@/components/SEO";
+import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
 import {
   Button,
@@ -133,14 +135,23 @@ function HeroRankCard() {
 export default function ForRobotTeams() {
   return (
     <>
-      <Helmet>
-        <title>For Robot Teams | Blueprint</title>
-        <meta
-          name="description"
-          content="Blueprint ranks robot policies on real captured indoor sites — with provenance, task thresholds, and readiness evidence — before you commit field time."
-        />
-        <link rel="canonical" href="/for-robot-teams" />
-      </Helmet>
+      <SEO
+        title="For Robot Teams | Blueprint"
+        description="Blueprint ranks robot policies on real captured indoor sites — with provenance, task thresholds, and readiness evidence — before you commit field time."
+        canonical="/for-robot-teams"
+        jsonLd={[
+          webPageJsonLd({
+            path: "/for-robot-teams",
+            name: "Blueprint for Robot Teams",
+            description:
+              "Policy evaluation for robot teams: submit a policy API endpoint, Docker container, model checkpoint, traces, or teleop demos and rank policies on captured real-site task packs before field time.",
+          }),
+          breadcrumbJsonLd([
+            { name: "Home", path: "/" },
+            { name: "For Robot Teams", path: "/for-robot-teams" },
+          ]),
+        ]}
+      />
 
       <div className="bg-canvas text-ink">
         {/* Hero */}

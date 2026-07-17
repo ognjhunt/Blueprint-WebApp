@@ -1,4 +1,5 @@
 import { SEO } from "@/components/SEO";
+import { breadcrumbJsonLd, faqJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 import {
   Button,
   Eyebrow,
@@ -161,6 +162,19 @@ export default function Pricing() {
         title="Pricing | Blueprint"
         description="Priced as evaluation infrastructure: quick-look evals, a robot-team subscription, site supply reviews, and yearly site monitoring — bounded to the reviewed site, task, and access scope."
         canonical="/pricing"
+        jsonLd={[
+          webPageJsonLd({
+            path: "/pricing",
+            name: "Blueprint Pricing",
+            description:
+              "Planning ranges for robot-team evaluation subscriptions, lite quick-look evals, operator site supply reviews, and yearly deployed-site monitoring.",
+          }),
+          breadcrumbJsonLd([
+            { name: "Home", path: "/" },
+            { name: "Pricing", path: "/pricing" },
+          ]),
+          faqJsonLd(faqItems),
+        ]}
       />
 
       {/* Hero */}

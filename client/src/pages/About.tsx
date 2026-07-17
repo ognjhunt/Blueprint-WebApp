@@ -1,5 +1,7 @@
-import { Helmet } from "@/lib/helmet";
 import { ArrowRight } from "lucide-react";
+
+import { SEO } from "@/components/SEO";
+import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
 import { Button, Eyebrow } from "@/components/blueprint";
 import {
@@ -46,14 +48,23 @@ const principles = [
 export default function About() {
   return (
     <>
-      <Helmet>
-        <title>About | Blueprint</title>
-        <meta
-          name="description"
-          content="Why Blueprint exists: turning one real facility into capture-backed policy evaluation runs with rights, privacy, and provenance kept visible."
-        />
-        <link rel="canonical" href="https://tryblueprint.io/about" />
-      </Helmet>
+      <SEO
+        title="About | Blueprint"
+        description="Why Blueprint exists: turning one real facility into capture-backed policy evaluation runs with rights, privacy, and provenance kept visible."
+        canonical="/about"
+        jsonLd={[
+          webPageJsonLd({
+            path: "/about",
+            name: "About Blueprint",
+            description:
+              "Why Blueprint exists: turning one real facility into capture-backed policy evaluation runs with rights, privacy, and provenance kept visible.",
+          }),
+          breadcrumbJsonLd([
+            { name: "Home", path: "/" },
+            { name: "About", path: "/about" },
+          ]),
+        ]}
+      />
 
       <div className="bg-canvas text-ink">
         {/* Hero — prose, max-w-prose (44rem) */}

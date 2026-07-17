@@ -1,5 +1,7 @@
-import { Helmet } from "@/lib/helmet";
 import { ArrowRight } from "lucide-react";
+
+import { SEO } from "@/components/SEO";
+import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
 import { Button, Eyebrow } from "@/components/blueprint";
 import {
@@ -84,14 +86,23 @@ const invariants = [
 export default function Vision() {
   return (
     <>
-      <Helmet>
-        <title>Vision | Blueprint</title>
-        <meta
-          name="description"
-          content="Blueprint's long-horizon vision: start as the neutral way to know which robot policy works at a real site, become the standard the market routes deployment decisions through, then climb into prediction, data, and site-specific policies — capture-first the whole way."
-        />
-        <link rel="canonical" href="https://tryblueprint.io/vision" />
-      </Helmet>
+      <SEO
+        title="Vision | Blueprint"
+        description="Blueprint's long-horizon vision: start as the neutral way to know which robot policy works at a real site, become the standard the market routes deployment decisions through, then climb into prediction, data, and site-specific policies — capture-first the whole way."
+        canonical="/vision"
+        jsonLd={[
+          webPageJsonLd({
+            path: "/vision",
+            name: "Blueprint Vision",
+            description:
+              "Blueprint's long-horizon vision: the neutral way to know which robot policy works at a real site, capture-first the whole way.",
+          }),
+          breadcrumbJsonLd([
+            { name: "Home", path: "/" },
+            { name: "Vision", path: "/vision" },
+          ]),
+        ]}
+      />
 
       <div className="bg-canvas text-ink">
         {/* Hero */}

@@ -1,5 +1,4 @@
 import { useMemo, useState, type FormEvent } from "react";
-import { Helmet } from "@/lib/helmet";
 import { useLocation, useSearch } from "wouter";
 import { ArrowRight, Bot, MapPin, Camera, Mail } from "lucide-react";
 
@@ -11,6 +10,8 @@ import {
   StatusChip,
 } from "@/components/blueprint";
 import { MonochromeMedia } from "@/components/site/editorial";
+import { SEO } from "@/components/SEO";
+import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 import { parseContactRequestPrefill } from "@/lib/contactRequestPrefill";
 import { withCsrfHeader } from "@/lib/csrf";
 
@@ -136,23 +137,33 @@ export default function Contact() {
 
   return (
     <>
-      <Helmet>
-        <title>
-          {isSiteOperator ? "Submit a Site | Blueprint" : "Start a Policy Evaluation | Blueprint"}
-        </title>
-        <meta
-          name="description"
-          content={
-            isSiteOperator
-              ? "Submit a site for Blueprint robot policy evaluation review. You control rights and access."
-              : "Start a Blueprint policy evaluation request for captured real-site tasks."
-          }
-        />
-        <link
-          rel="canonical"
-          href={`https://tryblueprint.io${isSiteOperator ? "/contact/site-operator" : "/contact/robot-team"}`}
-        />
-      </Helmet>
+      <SEO
+        title={isSiteOperator ? "Submit a Site | Blueprint" : "Start a Policy Evaluation | Blueprint"}
+        description={
+          isSiteOperator
+            ? "Submit a site for Blueprint robot policy evaluation review. You control rights and access."
+            : "Start a Blueprint policy evaluation request for captured real-site tasks."
+        }
+        canonical={isSiteOperator ? "/contact/site-operator" : "/contact/robot-team"}
+        jsonLd={[
+          webPageJsonLd({
+            path: isSiteOperator ? "/contact/site-operator" : "/contact/robot-team",
+            name: isSiteOperator
+              ? "Submit a Site to Blueprint"
+              : "Start a Blueprint Policy Evaluation",
+            description: isSiteOperator
+              ? "Structured intake for site operators submitting a facility for capture-backed robot evaluation review."
+              : "Structured intake for robot-team Policy Evaluation Run, Validated Evaluation Pack, and Policy Improvement Run requests.",
+          }),
+          breadcrumbJsonLd([
+            { name: "Home", path: "/" },
+            {
+              name: isSiteOperator ? "Submit a Site" : "Start a Policy Evaluation",
+              path: isSiteOperator ? "/contact/site-operator" : "/contact/robot-team",
+            },
+          ]),
+        ]}
+      />
 
       <div className="bg-canvas text-ink">
         {/* Hero */}
