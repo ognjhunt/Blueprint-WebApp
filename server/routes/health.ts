@@ -48,30 +48,42 @@ router.get("/health/live", (_req: Request, res: Response) => {
  * Returns 200 if server is ready to accept traffic
  * Could include checks for database, cache, etc.
  */
-router.get("/health/ready", async (_req: Request, res: Response) => {
+router.get("/health/ready", async (req: Request, res: Response) => {
   try {
     const readiness = buildLaunchReadinessSnapshot();
     await maybeAlertOnLaunchReadinessTransition(readiness);
+    const statusCode = readiness.status === "ready" ? 200 : 503;
 
-    if (readiness.status === "ready") {
-      res.status(200).json({
-        status: "ready",
-        checks: readiness.checks,
-        blockers: readiness.blockers,
-        warnings: readiness.warnings,
-        dependencies: readiness.dependencies,
-        timestamp: new Date().toISOString(),
-      });
-    } else {
-      res.status(503).json({
-        status: "not_ready",
-        checks: readiness.checks,
-        blockers: readiness.blockers,
-        warnings: readiness.warnings,
-        dependencies: readiness.dependencies,
+    // The full readiness snapshot names providers, models, automation lanes,
+    // env-var guidance, and integration topology — recon material on an
+    // unauthenticated endpoint. In production it requires the same
+    // HEALTH_STATUS_TOKEN gate as /health/status internals; the public payload
+    // stays a minimal ready/not_ready verdict plus a blocker count so
+    // monitoring can alert without exposing configuration structure.
+    const configuredToken = (process.env.HEALTH_STATUS_TOKEN || "").trim();
+    const providedToken = String(
+      req.header("x-health-status-token") || req.query.token || "",
+    ).trim();
+    const includeDiagnostics =
+      process.env.NODE_ENV !== "production" ||
+      (configuredToken.length > 0 && providedToken === configuredToken);
+
+    if (!includeDiagnostics) {
+      return res.status(statusCode).json({
+        status: readiness.status,
+        blocker_count: readiness.blockers.length,
         timestamp: new Date().toISOString(),
       });
     }
+
+    res.status(statusCode).json({
+      status: readiness.status,
+      checks: readiness.checks,
+      blockers: readiness.blockers,
+      warnings: readiness.warnings,
+      dependencies: readiness.dependencies,
+      timestamp: new Date().toISOString(),
+    });
   } catch (error) {
     logger.error({ error }, "Readiness check failed");
     res.status(503).json({

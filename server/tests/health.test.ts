@@ -114,4 +114,53 @@ describe("health routes", () => {
       await stopServer(server);
     }
   });
+
+  it("redacts readiness diagnostics to a minimal verdict in production", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("HEALTH_STATUS_TOKEN", "");
+
+    const { server, baseUrl } = await startServer();
+    try {
+      const response = await fetch(`${baseUrl}/health/ready`);
+      expect(response.status).toBe(503);
+      const payload = (await response.json()) as Record<string, unknown>;
+      expect(payload.status).toBe("not_ready");
+      expect(typeof payload.blocker_count).toBe("number");
+      expect(payload.checks).toBeUndefined();
+      expect(payload.blockers).toBeUndefined();
+      expect(payload.warnings).toBeUndefined();
+      expect(payload.dependencies).toBeUndefined();
+      const serialized = JSON.stringify(payload);
+      expect(serialized).not.toContain("BLUEPRINT_");
+      expect(serialized).not.toContain("firebaseAdmin");
+      expect(serialized).not.toContain("automationFlags");
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("returns full readiness diagnostics in production only with the health status token", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("HEALTH_STATUS_TOKEN", "test-health-diagnostics-token");
+
+    const { server, baseUrl } = await startServer();
+    try {
+      const wrongToken = await fetch(`${baseUrl}/health/ready`, {
+        headers: { "x-health-status-token": "wrong" },
+      });
+      const wrongPayload = (await wrongToken.json()) as Record<string, unknown>;
+      expect(wrongPayload.checks).toBeUndefined();
+      expect(wrongPayload.dependencies).toBeUndefined();
+
+      const response = await fetch(`${baseUrl}/health/ready`, {
+        headers: { "x-health-status-token": "test-health-diagnostics-token" },
+      });
+      expect(response.status).toBe(503);
+      const payload = (await response.json()) as Record<string, unknown>;
+      expect(payload.checks).toBeDefined();
+      expect(payload.dependencies).toBeDefined();
+    } finally {
+      await stopServer(server);
+    }
+  });
 });
